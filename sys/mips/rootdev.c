@@ -115,20 +115,20 @@ static int rootdev_attach(device_t *bus) {
   rman_init(&rd->mem, "Malta I/O space", 0x10000000, 0x1fffffff, RT_MEMORY);
   rman_init(&rd->irq, "MIPS interrupts", 0, 7, RT_IRQ);
 
-#define MIPS_INTR_EVENT(irq, name)                                             \
-  intr_event_init(&rd->intr_event[irq], irq, name, rootdev_mask_irq,           \
+#define MIPS_INTR_EVENT(rd, irq, name)                                         \
+  intr_event_init(&(rd)->intr_event[irq], irq, name, rootdev_mask_irq,         \
                   rootdev_unmask_irq, NULL)
 
   /* Initialize software interrupts handler events. */
-  MIPS_INTR_EVENT(MIPS_SWINT0, "swint(0)");
-  MIPS_INTR_EVENT(MIPS_SWINT1, "swint(1)");
+  MIPS_INTR_EVENT(rd, MIPS_SWINT0, "swint(0)");
+  MIPS_INTR_EVENT(rd, MIPS_SWINT1, "swint(1)");
   /* Initialize hardware interrupts handler events. */
-  MIPS_INTR_EVENT(MIPS_HWINT0, "hwint(0)");
-  MIPS_INTR_EVENT(MIPS_HWINT1, "hwint(1)");
-  MIPS_INTR_EVENT(MIPS_HWINT2, "hwint(2)");
-  MIPS_INTR_EVENT(MIPS_HWINT3, "hwint(3)");
-  MIPS_INTR_EVENT(MIPS_HWINT4, "hwint(4)");
-  MIPS_INTR_EVENT(MIPS_HWINT5, "hwint(5)");
+  MIPS_INTR_EVENT(rd, MIPS_HWINT0, "hwint(0)");
+  MIPS_INTR_EVENT(rd, MIPS_HWINT1, "hwint(1)");
+  MIPS_INTR_EVENT(rd, MIPS_HWINT2, "hwint(2)");
+  MIPS_INTR_EVENT(rd, MIPS_HWINT3, "hwint(3)");
+  MIPS_INTR_EVENT(rd, MIPS_HWINT4, "hwint(4)");
+  MIPS_INTR_EVENT(rd, MIPS_HWINT5, "hwint(5)");
 
 #undef MIPS_INTR_EVENT
 
