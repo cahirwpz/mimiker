@@ -9,7 +9,6 @@ KMALLOC_DEFINE(M_DEV, "devices & drivers");
 
 void device_init(device_t *dev, devclass_t *dc, int unit) {
   TAILQ_INIT(&dev->children);
-  dev->parent = NULL;
   dev->unit = unit;
   dev->devclass = dc;
 }
