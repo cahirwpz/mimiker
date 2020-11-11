@@ -19,6 +19,9 @@
 
 #define RTC_ASCTIME_SIZE 32
 
+#define RTC_VENDOR_ID 0x8086
+#define RTC_DEVICE_ID 0x7113
+
 typedef struct rtc_state {
   resource_t *regs;
   char asctime[RTC_ASCTIME_SIZE];
@@ -149,11 +152,18 @@ static int rtc_attach(device_t *dev) {
   return 0;
 }
 
+static int rtc_probe(device_t *dev) {
+  pci_device_t *pcid = pci_device_of(dev);
+  return pci_device_match(pcid, RTC_VENDOR_ID, RTC_DEVICE_ID);
+}
+
+/* clang-format off */
 static driver_t rtc_driver = {
   .desc = "MC146818 RTC driver",
   .size = sizeof(rtc_state_t),
   .attach = rtc_attach,
-  .identify = bus_generic_identify,
+  .probe = rtc_probe
 };
+/* clang-format on */
 
 DEVCLASS_ENTRY(pci, rtc_driver);

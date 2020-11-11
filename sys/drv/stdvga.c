@@ -4,6 +4,7 @@
 #include <sys/libkern.h>
 #include <sys/mimiker.h>
 #include <sys/malloc.h>
+#include <sys/kmem.h>
 #include <sys/errno.h>
 #include <sys/device.h>
 #include <sys/bus.h>
@@ -50,8 +51,8 @@ typedef struct stdvga_state {
 
 /* The general overview of the QEMU std vga device is available at
    https://github.com/qemu/qemu/blob/master/docs/specs/standard-vga.txt */
-#define VGA_QEMU_STDVGA_VENDOR_ID 0x1234
-#define VGA_QEMU_STDVGA_DEVICE_ID 0x1111
+#define QEMU_STDVGA_VENDOR_ID 0x1234
+#define QEMU_STDVGA_DEVICE_ID 0x1111
 
 static void stdvga_io_write(stdvga_state_t *vga, uint16_t reg, uint8_t value) {
   bus_write_1(vga->io, reg + VGA_MMIO_OFFSET, value);
@@ -115,6 +116,10 @@ static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
   if (bpp != 8 && bpp != 16 && bpp != 24)
     return EINVAL;
 
+  /* We keep the size of the potentially previously allocated fb_buffer */
+  int previous_size =
+    align(sizeof(uint8_t) * stdvga->width * stdvga->height, PAGESIZE);
+
   stdvga->width = xres;
   stdvga->height = yres;
   stdvga->bpp = bpp;
@@ -126,10 +131,13 @@ static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
   /* Set BPP */
   stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_BPP, stdvga->bpp);
 
+  int aligned_size =
+    align(sizeof(uint8_t) * stdvga->width * stdvga->height, PAGESIZE);
+
   if (stdvga->fb_buffer)
-    kfree(M_DEV, stdvga->fb_buffer);
-  stdvga->fb_buffer =
-    kmalloc(M_DEV, sizeof(uint8_t) * stdvga->width * stdvga->height, M_ZERO);
+    kmem_free(stdvga->fb_buffer, previous_size);
+
+  stdvga->fb_buffer = kmem_alloc(aligned_size, M_ZERO);
 
   return 0;
 }
@@ -151,11 +159,7 @@ static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
 static int stdvga_probe(device_t *dev) {
   pci_device_t *pcid = pci_device_of(dev);
 
-  if (!pcid)
-    return 0;
-
-  if (pcid->vendor_id != VGA_QEMU_STDVGA_VENDOR_ID ||
-      pcid->device_id != VGA_QEMU_STDVGA_DEVICE_ID)
+  if (!pci_device_match(pcid, QEMU_STDVGA_VENDOR_ID, QEMU_STDVGA_DEVICE_ID))
     return 0;
 
   if (!(pcid->bar[0].flags & RF_PREFETCHABLE))
@@ -211,7 +215,6 @@ static driver_t stdvga = {
   .size = sizeof(stdvga_state_t),
   .probe = stdvga_probe,
   .attach = stdvga_attach,
-  .identify = bus_generic_identify,
 };
 
 DEVCLASS_ENTRY(pci, stdvga);
