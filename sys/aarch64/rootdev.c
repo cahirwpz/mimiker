@@ -231,9 +231,12 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 
   if (r) {
     r->r_bus_tag = rootdev_bus_space;
-    if (flags & RF_ACTIVE)
-      bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
-                    &r->r_bus_handle);
+    if (flags & RF_ACTIVE) {
+      /* TODO(cahir) Move to rootdev_activate_resource. */
+      (void)bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
+                          &r->r_bus_handle);
+      rman_activate_resource(r);
+    }
   }
 
   return r;
