@@ -328,9 +328,10 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     /* Now handle only PCI devices. */
     pci_device_t *pcid = pci_device_of(dev);
     /* Find identified bar by rid. */
+    assert(rid < PCI_BAR_MAX);
     pci_bar_t *bar = &pcid->bar[rid];
 
-    if (!bar || bar->size == 0)
+    if (bar->size == 0)
       return NULL;
 
     /* The size of allocated resource must not be larger than what was reported
