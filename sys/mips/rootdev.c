@@ -94,7 +94,7 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
   rootdev_t *rd = dev->state;
   unsigned pending = (_REG(ctx, CAUSE) & _REG(ctx, SR)) & CR_IP_MASK;
 
-  for (int i = 7; i >= 0; i--) {
+  for (int i = MIPS_NIRQ - 1; i >= 0; i--) {
     unsigned irq = CR_IP0 << i;
 
     if (pending & irq) {
@@ -111,9 +111,11 @@ static int rootdev_probe(device_t *bus) {
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
-  /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ... */
-  rman_init(&rd->mem, "Malta I/O space", 0x10000000, 0x1fffffff, RT_MEMORY);
-  rman_init(&rd->irq, "MIPS interrupts", 0, 7, RT_IRQ);
+  /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ...
+   * Skips region allocated for up to 256MB of RAM. */
+  rman_init(&rd->mem, "Malta I/O space", MALTA_PCI0_MEMORY_BASE, MALTA_FPGA_END,
+            RT_MEMORY);
+  rman_init(&rd->irq, "MIPS interrupts", 0, MIPS_NIRQ - 1, RT_IRQ);
 
 #define MIPS_INTR_EVENT(rd, irq, name)                                         \
   intr_event_init(&(rd)->intr_event[irq], irq, name, rootdev_mask_irq,         \
