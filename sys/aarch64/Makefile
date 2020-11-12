@@ -13,6 +13,7 @@ SOURCES = boot.c \
 	  signal.c \
 	  start.S \
 	  switch.S \
+	  timer.c \
 	  thread.c \
 	  tlb.c \
 	  trap.c \
