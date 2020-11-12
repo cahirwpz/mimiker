@@ -35,6 +35,7 @@ void sleepq_wait(void *wchan, const void *waitpt);
  * the thread's sleep will not timeout before the given time passes. It may
  * happen any time after that point.
  *
+ * \note Spurious wakeups can happen. The return value is 0 in that case.
  * \param timeout in system ticks, if 0 waits indefinitely
  * \returns how the thread was actually woken up */
 int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout);
