@@ -178,8 +178,11 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   }
 
   int error;
-  error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
-  assert(error == EINTR);
+  /* Handle spurious wakeups. */
+  while ((error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()")) != EINTR) {
+    assert(error == 0);
+    klog("sigsuspend(): spurious wakeup");
+  }
 
   return EINTR;
 }
