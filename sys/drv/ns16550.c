@@ -184,7 +184,7 @@ static void ns16550_tty_thread(void *arg) {
 
 /*
  * New characters have appeared in the tty's output queue.
- * Notify the tty thread to do the work.
+ * Fill the UART's tx_buf and enable TXRDY interrupts.
  * Called with `tty->t_lock` held.
  */
 static void ns16550_notify_out(tty_t *tty) {
