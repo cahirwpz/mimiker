@@ -67,7 +67,7 @@
  */
 void delay(int64_t count) {
   __asm__ volatile("1: subs %[count], %[count], #1; bne 1b"
-                   : [ count ] "+r"(count));
+                   : [count] "+r"(count));
 }
 
 void gpio_function_select(resource_t *r, unsigned pin, unsigned func) {
@@ -93,4 +93,3 @@ void gpio_set_pull(resource_t *r, unsigned pin, unsigned pud) {
                     BCM2838_GPIO_GPPUD_PULLOFF);
   bus_space_write_4(r->r_bus_tag, r->r_bus_handle, GPPUDCLK(reg), 0);
 }
-
