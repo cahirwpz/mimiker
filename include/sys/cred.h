@@ -41,6 +41,9 @@ int do_setregid(proc_t *p, gid_t rgid, gid_t egid);
  */
 void cred_fork(proc_t *to, proc_t *from);
 
+/* Must be called with p::p_lock held */
+void cred_exec_change_id(proc_t *p, uid_t uid, gid_t gid);
+
 #endif /* !_KERNEL */
 
 #endif /* _SYS_CRED_H_ */
