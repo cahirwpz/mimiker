@@ -9,6 +9,9 @@
 #include <sys/spinlock.h>
 #include <sys/devclass.h>
 
+#define PIIX4_IDE_VENDOR_ID 0x8086
+#define PIIX4_IDE_DEVICE_ID 0x7111
+
 typedef struct pit_state {
   resource_t *regs;
   spin_t lock;
@@ -113,8 +116,8 @@ static int pit_attach(device_t *dev) {
   pit_state_t *pit = dev->state;
 
   pit->regs =
-    bus_alloc_resource(dev, RT_ISA, 0, IO_TIMER1, IO_TIMER1 + IO_TMRSIZE - 1,
-                       IO_TMRSIZE, RF_ACTIVE);
+    bus_alloc_resource(dev, RT_IOPORTS, 0, IO_TIMER1,
+                       IO_TIMER1 + IO_TMRSIZE - 1, IO_TMRSIZE, RF_ACTIVE);
   assert(pit->regs != NULL);
 
   pit->lock = SPIN_INITIALIZER(0);
@@ -137,11 +140,18 @@ static int pit_attach(device_t *dev) {
   return 0;
 }
 
+static int pit_probe(device_t *dev) {
+  pci_device_t *pcid = pci_device_of(dev);
+  return pci_device_match(pcid, PIIX4_IDE_VENDOR_ID, PIIX4_IDE_DEVICE_ID);
+}
+
+/* clang-format off */
 static driver_t pit_driver = {
   .desc = "i8254 PIT driver",
   .size = sizeof(pit_state_t),
   .attach = pit_attach,
-  .identify = bus_generic_identify,
+  .probe = pit_probe
 };
+/* clang-format on */
 
 DEVCLASS_ENTRY(pci, pit_driver);
