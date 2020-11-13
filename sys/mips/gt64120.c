@@ -159,24 +159,26 @@ static void gt_pci_unmask_irq(intr_event_t *ie) {
   gt_pci_set_icus(gtpci);
 }
 
-#if 0
-  ( 0, "timer");
-  ( 1, "kbd");       /* kbd controller (keyboard) */
-  ( 2, "pic-slave"); /* PIC cascade */
-  ( 3, "uart(1)");   /* COM 2 */
-  ( 4, "uart(0)");   /* COM 1 */
-  ( 5, "unused(0)");
-  ( 6, "floppy");   /* floppy */
-  ( 7, "parallel"); /* centronics */
-  ( 8, "rtc");      /* RTC */
-  ( 9, "i2c");      /* I2C */
-  (10, "unused(1)");
-  (11, "unused(2)");
-  (12, "mouse"); /* kbd controller (mouse) */
-  (13, "unused(3)");
-  (14, "ide(0)"); /* IDE primary */
-  (15, "ide(1)"); /* IDE secondary */
-#endif
+/* clang-format off */
+static const char *gt_pci_intr_name[16] = {
+  [0] = "timer",
+  [1] = "kbd",        /* kbd controller (keyboard) */
+  [2] = "pic-slave",  /* PIC cascade */
+  [3] = "uart(1)",    /* COM 2 */
+  [4] = "uart(0)",    /* COM 1 */
+  [5] = "unused(0)",
+  [6] = "floppy",     /* floppy */
+  [7] = "parallel",   /* centronics */
+  [8] = "rtc",        /* RTC */
+  [9] = "i2c",        /* I2C */
+  [10] = "unused(1)",
+  [11] = "unused(2)",
+  [12] = "mouse",     /* kbd controller (mouse) */
+  [13] = "unused(3)",
+  [14] = "ide(0)",    /* IDE primary */
+  [15] = "ide(1)",    /* IDE secondary */
+};
+/* clang-format on */
 
 static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
                               ih_service_t *service, void *arg) {
@@ -185,8 +187,8 @@ static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
   int irq = r->r_start;
 
   if (gtpci->intr_event[irq] == NULL)
-    gtpci->intr_event[irq] =
-      intr_event_create(gtpci, irq, gt_pci_mask_irq, gt_pci_unmask_irq, "???");
+    gtpci->intr_event[irq] = intr_event_create(
+      gtpci, irq, gt_pci_mask_irq, gt_pci_unmask_irq, gt_pci_intr_name[irq]);
 
   intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg);
 }
@@ -281,7 +283,7 @@ static int gt_pci_attach(device_t *pcib) {
             RT_IOPORTS);
   rman_init(&gtpci->pci_mem_rman, "GT64120 PCI memory", 0,
             MALTA_PCI0_MEMORY_SIZE - 1, RT_MEMORY);
-  rman_init(&gtpci->irq_rman, "???", 0, 15, RT_IRQ);
+  rman_init(&gtpci->irq_rman, "GT64120 PCI & ISA interrupts", 0, 15, RT_IRQ);
 
   pcib->bus = DEV_BUS_PCI;
   pcib->devclass = &DEVCLASS(pci);

@@ -24,16 +24,18 @@ static void rootdev_unmask_irq(intr_event_t *ie) {
   mips32_bs_c0(C0_STATUS, SR_IM0 << irq);
 }
 
-#if 0
-(MIPS_SWINT0, "swint(0)");
-(MIPS_SWINT1, "swint(1)");
-(MIPS_HWINT0, "hwint(0)");
-(MIPS_HWINT1, "hwint(1)");
-(MIPS_HWINT2, "hwint(2)");
-(MIPS_HWINT3, "hwint(3)");
-(MIPS_HWINT4, "hwint(4)");
-(MIPS_HWINT5, "hwint(5)");
-#endif
+/* clang-format off */
+static const char *rootdev_intr_name[MIPS_NIRQ] = {
+  [MIPS_SWINT0] = "swint(0)",
+  [MIPS_SWINT1] = "swint(1)",
+  [MIPS_HWINT0] = "hwint(0)",
+  [MIPS_HWINT1] = "hwint(1)",
+  [MIPS_HWINT2] = "hwint(2)",
+  [MIPS_HWINT3] = "hwint(3)",
+  [MIPS_HWINT4] = "hwint(4)",
+  [MIPS_HWINT5] = "hwint(5)",
+};
+/* clang-format on */
 
 static void rootdev_intr_setup(device_t *dev, resource_t *r,
                                ih_filter_t *filter, ih_service_t *service,
@@ -42,8 +44,8 @@ static void rootdev_intr_setup(device_t *dev, resource_t *r,
   int irq = r->r_start;
 
   if (rd->intr_event[irq] == NULL)
-    rd->intr_event[irq] =
-      intr_event_create(dev, irq, rootdev_mask_irq, rootdev_unmask_irq, "???");
+    rd->intr_event[irq] = intr_event_create(
+      dev, irq, rootdev_mask_irq, rootdev_unmask_irq, rootdev_intr_name[irq]);
 
   intr_event_add_handler(rd->intr_event[irq], filter, service, arg);
 }

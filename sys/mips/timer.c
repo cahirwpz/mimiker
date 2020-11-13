@@ -112,13 +112,9 @@ static int mips_timer_probe(device_t *dev) {
 static int mips_timer_attach(device_t *dev) {
   mips_timer_state_t *state = dev->state;
 
+  /* intr_event name: "MIPS CPU timer" */
   state->irq_res =
     bus_alloc_resource(dev, RT_IRQ, 0, MIPS_HWINT5, MIPS_HWINT5, 1, RF_ACTIVE);
-
-#if 0
-  state->intr_handler =
-    INTR_HANDLER_INIT(mips_timer_intr, NULL, dev, "MIPS CPU timer", 0);
-#endif
 
   state->timer = (timer_t){
     .tm_name = "mips-cpu-timer",
