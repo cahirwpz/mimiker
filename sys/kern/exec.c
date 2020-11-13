@@ -384,9 +384,10 @@ static int _do_execve(exec_args_t *args) {
   user_ctx_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
 
   /* Set new credentials if needed */
-  if (cred_change)
+  if (cred_change) {
     WITH_PROC_LOCK(p)
-  cred_exec_change_id(p, uid, gid);
+    cred_exec_change_id(p, uid, gid);
+  }
 
   /* At this point we are certain that exec succeeds.  We can safely destroy the
    * previous vm_map, and permanently assign this one to the current process. */
