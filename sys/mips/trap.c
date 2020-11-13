@@ -268,9 +268,9 @@ static void kern_trap_handler(ctx_t *ctx) {
 void mips_exc_handler(ctx_t *ctx) {
   assert(cpu_intr_disabled());
 
-  bool kern_mode = kern_mode_p(ctx);
+  bool user_mode = user_mode_p(ctx);
 
-  if (kern_mode) {
+  if (!user_mode) {
     /* If there's not enough space on the stack to store another exception
      * frame we consider situation to be critical and panic.
      * Hopefully sizeof(ctx_t) bytes of unallocated stack space will be enough
@@ -284,11 +284,11 @@ void mips_exc_handler(ctx_t *ctx) {
   }
 
   if (exc_code(ctx)) {
-    if (kern_mode)
-      kern_trap_handler(ctx);
-    else
+    if (user_mode)
       user_trap_handler(ctx);
+    else
+      kern_trap_handler(ctx);
   } else {
-    mips_intr_handler(ctx);
+    intr_root_handler(ctx);
   }
 }
