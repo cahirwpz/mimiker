@@ -186,6 +186,9 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
                                              flags);
 }
 
+#define bus_alloc_irq(dev, rid, irq, flags)                                    \
+  bus_alloc_resource((dev), RT_IRQ, (rid), (irq), (irq), 1, (flags))
+
 /*! \brief Allocates resource for a device.
  *
  * \sa bus_resource_alloc with resource placement in memory

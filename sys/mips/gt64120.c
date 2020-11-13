@@ -303,9 +303,8 @@ static int gt_pci_attach(device_t *pcib) {
 
   pci_bus_enumerate(pcib);
 
-  /* intr_event name: "GT64120 interrupt" */
-  gtpci->irq_res =
-    bus_alloc_resource(pcib, RT_IRQ, 0, MIPS_HWINT0, MIPS_HWINT0, 1, RF_ACTIVE);
+  /* intr_handler name: "GT64120 interrupt" */
+  gtpci->irq_res = bus_alloc_irq(pcib, 0, MIPS_HWINT0, RF_ACTIVE);
   bus_intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci);
 
   return bus_generic_probe(pcib);
