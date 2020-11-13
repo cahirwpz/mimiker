@@ -17,6 +17,7 @@
 #include <aarch64/gpio.h>
 
 #define UART0_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE)
+#define UART_BUFSIZE 128
 
 typedef struct pl011_state {
   spin_t lock;
@@ -145,7 +146,14 @@ static int pl011_probe(device_t *dev) {
 static int pl011_attach(device_t *dev) {
   pl011_state_t *state = dev->state;
 
-  /* TODO(pj) init state */
+  state->rx_buf.data = kmalloc(M_DEV, UART_BUFSIZE, M_ZERO);
+  state->rx_buf.size = UART_BUFSIZE;
+  state->tx_buf.data = kmalloc(M_DEV, UART_BUFSIZE, M_ZERO);
+  state->tx_buf.size = UART_BUFSIZE;
+
+  spin_init(&state->lock, 0);
+  cv_init(&state->rx_nonempty, "UART receive buffer not empty");
+  cv_init(&state->tx_nonfull, "UART transmit buffer not full");
 
   resource_t *r = bus_alloc_resource(dev, RT_MEMORY, 0, UART0_BASE,
                                      UART0_BASE + BCM2835_UART0_SIZE - 1,
