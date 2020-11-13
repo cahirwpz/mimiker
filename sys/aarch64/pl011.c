@@ -5,8 +5,11 @@
 #include <sys/devclass.h>
 #include <sys/rman.h>
 #include <aarch64/bcm2835reg.h>
+#include <aarch64/bcm2835_gpioreg.h>
 #include <aarch64/plcomreg.h>
+#include <aarch64/gpio.h>
 
+#define GPIO_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_GPIO_BASE)
 #define UART0_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE)
 
 typedef struct pl011_state {
@@ -41,7 +44,10 @@ static int pl011_attach(device_t *dev) {
 
   /* TODO(pj) do magic with mail buffer */
 
-  /* TODO(pj) configure gpio */
+  gpio_function_select(r, 14, BCM2835_GPIO_ALT0);
+  gpio_function_select(r, 15, BCM2835_GPIO_ALT0);
+  gpio_set_pull(r, 14, BCM2838_GPIO_GPPUD_PULLOFF);
+  gpio_set_pull(r, 15, BCM2838_GPIO_GPPUD_PULLOFF);
 
   /*
    * Set integer & fractional part of baud rate.
