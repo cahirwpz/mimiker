@@ -22,9 +22,39 @@ typedef struct pl011_state {
   spin_t lock;
   condvar_t rx_nonempty;
   ringbuf_t rx_buf;
+  condvar_t tx_nonfull;
+  ringbuf_t tx_buf;
   resource_t *regs;
   intr_handler_t intr_handler;
 } pl011_state_t;
+
+/* Return true if we can write. */
+static bool pl011_wready(pl011_state_t *state) {
+  resource_t *r = state->regs;
+  uint32_t reg = bus_space_read_4(r->r_bus_tag, r->r_bus_handle, PL01XCOM_FR);
+  return (reg & PL01X_FR_TXFF) == 0;
+}
+
+static void pl011_putc(pl011_state_t *state, uint32_t c) {
+  assert(pl011_wready(state));
+
+  resource_t *r = state->regs;
+  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, PL01XCOM_DR, c);
+}
+
+/* Return true if we can read. */
+static bool pl011_rready(pl011_state_t *state) {
+  resource_t *r = state->regs;
+  uint32_t reg = bus_space_read_4(r->r_bus_tag, r->r_bus_handle, PL01XCOM_FR);
+  return (reg & PL01X_FR_RXFE) == 0;
+}
+
+__unused static uint32_t pl011_getc(pl011_state_t *state) {
+  assert(pl011_rready(state));
+
+  resource_t *r = state->regs;
+  return bus_space_read_4(r->r_bus_tag, r->r_bus_handle, PL01XCOM_DR);
+}
 
 static int pl011_read(vnode_t *v, uio_t *uio, int ioflags) {
   pl011_state_t *state = v->v_data;
@@ -43,7 +73,28 @@ static int pl011_read(vnode_t *v, uio_t *uio, int ioflags) {
 }
 
 static int pl011_write(vnode_t *v, uio_t *uio, int ioflags) {
-  return -1;
+  pl011_state_t *state = v->v_data;
+
+  /* This device does not support offsets. */
+  uio->uio_offset = 0;
+
+  while (uio->uio_resid > 0) {
+    uint8_t byte;
+    int error;
+    /* For simplicity, copy from the user space one byte at a time. */
+    if ((error = uiomove(&byte, 1, uio)))
+      return error;
+    WITH_SPIN_LOCK (&state->lock) {
+      if (pl011_wready(state)) {
+        pl011_putc(state, byte);
+      } else {
+        while (!ringbuf_putb(&state->tx_buf, byte))
+          cv_wait(&state->tx_nonfull, &state->lock);
+      }
+    }
+  }
+
+  return 0;
 }
 
 static int pl011_close(vnode_t *v, file_t *fp) {
@@ -93,6 +144,8 @@ static int pl011_probe(device_t *dev) {
 
 static int pl011_attach(device_t *dev) {
   pl011_state_t *state = dev->state;
+
+  /* TODO(pj) init state */
 
   resource_t *r = bus_alloc_resource(dev, RT_MEMORY, 0, UART0_BASE,
                                      UART0_BASE + BCM2835_UART0_SIZE - 1,
