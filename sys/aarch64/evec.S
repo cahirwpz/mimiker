@@ -117,7 +117,7 @@ ENTRY(handle_kern_intr)
         .cfi_signal_frame
         save_ctx 1
         mov     x0, sp
-        bl      cpu_intr_handler
+        bl      intr_root_handler
         load_ctx 1
         ERET
 END(handle_kern_intr)
@@ -136,7 +136,7 @@ ENTRY(handle_user_intr)
         .cfi_signal_frame
         save_ctx 0
         mov     x0, sp
-        bl      cpu_intr_handler
+        bl      intr_root_handler
         load_ctx 0
         ERET
 END(handle_user_intr)

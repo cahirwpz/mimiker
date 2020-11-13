@@ -9,12 +9,7 @@
 
 int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p) {
-  vaddr_t handle = kva_alloc(size);
-  for (bus_size_t start = 0; start < size; start += PAGESIZE) {
-    pmap_kenter(handle + start, addr + start, VM_PROT_READ | VM_PROT_WRITE,
-                PMAP_NOCACHE);
-  }
-  *handle_p = handle;
+  *handle_p = kmem_map(addr, size, PMAP_NOCACHE);
   return 0;
 }
 
@@ -117,7 +112,8 @@ int bus_generic_probe(device_t *bus) {
       dev->driver = *drv_p;
       if (device_probe(dev)) {
         klog("%s detected!", dev->driver->desc);
-        if (device_attach(dev)) {
+        /* device_attach returns error ! */
+        if (!device_attach(dev)) {
           klog("%s attached to %p!", dev->driver->desc, dev);
           break;
         }

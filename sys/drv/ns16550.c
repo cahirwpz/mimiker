@@ -184,7 +184,7 @@ static void ns16550_tty_thread(void *arg) {
 
 /*
  * New characters have appeared in the tty's output queue.
- * Notify the tty thread to do the work.
+ * Fill the UART's tx_buf and enable TXRDY interrupts.
  * Called with `tty->t_lock` held.
  */
 static void ns16550_notify_out(tty_t *tty) {
@@ -222,8 +222,9 @@ static int ns16550_attach(device_t *dev) {
   sched_add(tty_thread);
 
   /* TODO Small hack to select COM1 UART */
-  ns16550->regs = bus_alloc_resource(
-    dev, RT_ISA, 0, IO_COM1, IO_COM1 + IO_COMSIZE - 1, IO_COMSIZE, RF_ACTIVE);
+  ns16550->regs =
+    bus_alloc_resource(dev, RT_IOPORTS, 0, IO_COM1, IO_COM1 + IO_COMSIZE - 1,
+                       IO_COMSIZE, RF_ACTIVE);
   assert(ns16550->regs != NULL);
   ns16550->intr_handler =
     INTR_HANDLER_INIT(ns16550_intr, NULL, ns16550, "NS16550 UART", 0);
