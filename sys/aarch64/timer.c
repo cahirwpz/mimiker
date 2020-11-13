@@ -11,7 +11,7 @@
 #define CNTCTL_DISABLE 0
 
 typedef struct arm_timer_state {
-  intr_handler_t intr_handler;
+  resource_t *irq_res;
   timer_t timer;
   uint64_t step;
 } arm_timer_state_t;
@@ -79,13 +79,22 @@ static int arm_timer_attach(device_t *dev) {
     .tm_max_period = bintime_mul(HZ2BT(freq), 1LL << 30),
   };
 
+#if 0
   state->intr_handler =
     INTR_HANDLER_INIT(arm_timer_intr, NULL, dev, "ARM CPU timer", 0);
+#endif
+
+  state->irq_res =
+    bus_alloc_resource(dev, RT_IRQ, 0, BCM2836_INT_CNTPNSIRQ_CPUN(0),
+                       BCM2836_INT_CNTPNSIRQ_CPUN(0), 1, RF_ACTIVE);
 
   tm_register(&state->timer);
   tm_select(&state->timer);
 
+#if 0
   bus_intr_setup(dev, BCM2836_INT_CNTPNSIRQ_CPUN(0), &state->intr_handler);
+#endif
+  bus_intr_setup(dev, state->irq_res, arm_timer_intr, NULL, dev);
 
   return 0;
 }
