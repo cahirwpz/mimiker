@@ -211,10 +211,11 @@ static inline resource_t *bus_alloc_resource_any(device_t *dev, res_type_t type,
                                              RMAN_SIZE_MAX, flags);
 }
 
-static inline int bus_activate_resource(device_t *dev, res_type_t type, int rid,
-                                        resource_t *r) {
-  return BUS_DRIVER(dev)->bus.activate_resource(dev, type, rid, r);
-}
+/*! \brief Activates resource for a device.
+ *
+ * For RT_MEMORY resource it is usually calls bus_space_map. */
+int bus_activate_resource(device_t *dev, res_type_t type, int rid,
+                          resource_t *r);
 
 static inline void bus_release_resource(device_t *dev, res_type_t type, int rid,
                                         resource_t *r) {

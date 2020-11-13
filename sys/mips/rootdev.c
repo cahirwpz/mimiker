@@ -103,19 +103,11 @@ static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
 
 static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
                                      resource_t *r) {
-  int error = 0;
-
-  if (r->r_flags & RF_ACTIVE)
-    return 0;
-
   if (type == RT_MEMORY)
-    error = bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
-                          &r->r_bus_handle);
+    return bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+                         &r->r_bus_handle);
 
-  if (error == 0)
-    rman_activate_resource(r);
-
-  return error;
+  return 0;
 }
 
 static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {

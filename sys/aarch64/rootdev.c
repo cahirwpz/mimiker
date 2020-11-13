@@ -139,14 +139,6 @@ static void rootdev_disable_irq(intr_event_t *ie) {
   }
 }
 
-#if 0
-  for (int i = 0; i < NIRQ; i++) {
-    intr_event_init(&rd->intr_event[i], i, NULL, rootdev_disable_irq,
-                    rootdev_enable_irq, rd);
-    intr_event_register(&rd->intr_event[i]);
-  }
-#endif
-
 static void rootdev_intr_setup(device_t *dev, resource_t *r,
                                ih_filter_t *filter, ih_service_t *service,
                                void *arg) {
@@ -242,19 +234,33 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
     r = rman_alloc_resource(&rd->irq_rm, start, end, size, 1, flags);
   }
 
-  if (r) {
-    if (type == RT_MEMORY) {
-      r->r_bus_tag = rootdev_bus_space;
-      if (flags & RF_ACTIVE) {
-        /* TODO(cahir) Move to rootdev_activate_resource. */
-        (void)bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
-                            &r->r_bus_handle);
-      }
+  if (!r)
+    return NULL;
+
+  if (type == RT_MEMORY)
+    r->r_bus_tag = rootdev_bus_space;
+
+  if (flags & RF_ACTIVE) {
+    if (bus_activate_resource(dev, type, rid, r)) {
+      rman_release_resource(r);
+      return NULL;
     }
-    rman_activate_resource(r);
   }
 
   return r;
+}
+
+static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
+                                     resource_t *r) {
+  panic("not implemented!");
+}
+
+static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
+                                     resource_t *r) {
+  if (type == RT_MEMORY)
+    return bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+                         &r->r_bus_handle);
+  return 0;
 }
 
 static bus_driver_t rootdev_driver = {
@@ -269,6 +275,8 @@ static bus_driver_t rootdev_driver = {
       .intr_setup = rootdev_intr_setup,
       .intr_teardown = rootdev_intr_teardown,
       .alloc_resource = rootdev_alloc_resource,
+      .release_resource = rootdev_release_resource,
+      .activate_resource = rootdev_activate_resource,
     },
 };
 
