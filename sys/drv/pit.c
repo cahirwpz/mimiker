@@ -122,9 +122,7 @@ static int pit_attach(device_t *dev) {
   assert(pit->regs != NULL);
 
   pit->lock = SPIN_INITIALIZER(0);
-#if 0
-  pit->intr_handler = INTR_HANDLER_INIT(pit_intr, NULL, pit, "i8254 timer", 0);
-#endif
+  /* intr_event name: "i8254 timer" */
   pit->irq_res = bus_alloc_resource(dev, RT_IRQ, 0, 0 /* magic */,
                                     0 /* magic */, 1, RF_ACTIVE);
 

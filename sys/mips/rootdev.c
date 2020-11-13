@@ -14,28 +14,6 @@ typedef struct rootdev {
   intr_event_t *intr_event[MIPS_NIRQ];
 } rootdev_t;
 
-#if 0
-#define MIPS_INTR_EVENT(rd, irq, name)                                         \
-  intr_event_init(&(rd)->intr_event[irq], irq, name, rootdev_mask_irq,         \
-                  rootdev_unmask_irq, NULL)
-
-  /* Initialize software interrupts handler events. */
-  MIPS_INTR_EVENT(rd, MIPS_SWINT0, "swint(0)");
-  MIPS_INTR_EVENT(rd, MIPS_SWINT1, "swint(1)");
-  /* Initialize hardware interrupts handler events. */
-  MIPS_INTR_EVENT(rd, MIPS_HWINT0, "hwint(0)");
-  MIPS_INTR_EVENT(rd, MIPS_HWINT1, "hwint(1)");
-  MIPS_INTR_EVENT(rd, MIPS_HWINT2, "hwint(2)");
-  MIPS_INTR_EVENT(rd, MIPS_HWINT3, "hwint(3)");
-  MIPS_INTR_EVENT(rd, MIPS_HWINT4, "hwint(4)");
-  MIPS_INTR_EVENT(rd, MIPS_HWINT5, "hwint(5)");
-
-#undef MIPS_INTR_EVENT
-
-  for (unsigned i = 0; i < MIPS_NIRQ; i++)
-    intr_event_register(&rd->intr_event[i]);
-#endif
-
 static void rootdev_mask_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
   mips32_bc_c0(C0_STATUS, SR_IM0 << irq);
@@ -45,6 +23,17 @@ static void rootdev_unmask_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
   mips32_bs_c0(C0_STATUS, SR_IM0 << irq);
 }
+
+#if 0
+(MIPS_SWINT0, "swint(0)");
+(MIPS_SWINT1, "swint(1)");
+(MIPS_HWINT0, "hwint(0)");
+(MIPS_HWINT1, "hwint(1)");
+(MIPS_HWINT2, "hwint(2)");
+(MIPS_HWINT3, "hwint(3)");
+(MIPS_HWINT4, "hwint(4)");
+(MIPS_HWINT5, "hwint(5)");
+#endif
 
 static void rootdev_intr_setup(device_t *dev, resource_t *r,
                                ih_filter_t *filter, ih_service_t *service,

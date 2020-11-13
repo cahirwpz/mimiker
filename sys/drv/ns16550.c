@@ -226,12 +226,7 @@ static int ns16550_attach(device_t *dev) {
     bus_alloc_resource(dev, RT_IOPORTS, 0, IO_COM1, IO_COM1 + IO_COMSIZE - 1,
                        IO_COMSIZE, RF_ACTIVE);
   assert(ns16550->regs != NULL);
-#if 0
-  ns16550->intr_handler =
-    INTR_HANDLER_INIT(ns16550_intr, NULL, ns16550, "NS16550 UART", 0);
-  /* TODO Do not use magic number "4" here! */
-  bus_intr_setup(dev, 4, &ns16550->intr_handler);
-#endif
+  /* intr_event name: "NS16550 UART" */
   ns16550->irq_res = bus_alloc_resource(dev, RT_IRQ, 0, 4 /* magic */,
                                         4 /* magic */, 1, RF_ACTIVE);
   bus_intr_setup(dev, ns16550->irq_res, ns16550_intr, NULL, ns16550);

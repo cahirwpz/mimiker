@@ -170,11 +170,7 @@ static int atkbdc_attach(device_t *dev) {
     dev, RT_IOPORTS, 0, IO_KBD, IO_KBD + IO_KBDSIZE - 1, IO_KBDSIZE, RF_ACTIVE);
   assert(atkbdc->regs != NULL);
 
-#if 0
-  atkbdc->intr_handler =
-    INTR_HANDLER_INIT(atkbdc_intr, NULL, atkbdc, "AT keyboard controller", 0);
-  bus_intr_setup(dev, 1, &atkbdc->intr_handler);
-#endif
+  /* intr_event name: "AT keyboard controller" */
   atkbdc->irq_res = bus_alloc_resource(dev, RT_IRQ, 0, 1 /* magic */,
                                        1 /* magic */, 1, RF_ACTIVE);
   bus_intr_setup(dev, atkbdc->irq_res, atkbdc_intr, NULL, atkbdc);
