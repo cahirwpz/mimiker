@@ -2,10 +2,13 @@
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <machine/interrupt.h>
+#include <sys/malloc.h>
 #include <sys/interrupt.h>
 #include <sys/pcpu.h>
 #include <sys/sleepq.h>
 #include <sys/sched.h>
+
+static KMALLOC_DEFINE(M_INTR, "interrupt events & handlers");
 
 static mtx_t all_ievents_mtx = MTX_INITIALIZER(0);
 static ie_list_t all_ievents_list = TAILQ_HEAD_INITIALIZER(all_ievents_list);
@@ -39,6 +42,14 @@ void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
   TAILQ_INIT(&ie->ie_handlers);
 }
 
+intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
+                                ie_action_t *enable, const char *name) {
+  intr_event_t *ie = kmalloc(M_INTR, sizeof(intr_event_t), M_ZERO);
+  intr_event_init(ie, irq, name, disable, enable, source);
+  intr_event_register(ie);
+  return ie;
+}
+
 void intr_event_register(intr_event_t *ie) {
   WITH_MTX_LOCK (&all_ievents_mtx)
     TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_link);
@@ -66,6 +77,17 @@ void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih) {
     if (ie->ie_count == 1 && ie->ie_enable)
       ie->ie_enable(ie);
   }
+}
+
+intr_handler_t *intr_handler_create(ih_filter_t *filter, ih_service_t *service,
+                                    void *arg) {
+  intr_handler_t *ih = kmalloc(M_INTR, sizeof(intr_handler_t), M_ZERO);
+  ih->ih_filter = filter;
+  ih->ih_service = service;
+  ih->ih_argument = arg;
+  ih->ih_name = "?";
+  ih->ih_prio = 0; /* ? */
+  return ih;
 }
 
 void intr_event_remove_handler(intr_handler_t *ih) {

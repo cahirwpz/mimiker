@@ -11,8 +11,30 @@
 
 typedef struct rootdev {
   rman_t mem, irq;
-  intr_event_t intr_event[MIPS_NIRQ];
+  intr_event_t *intr_event[MIPS_NIRQ];
 } rootdev_t;
+
+#if 0
+#define MIPS_INTR_EVENT(rd, irq, name)                                         \
+  intr_event_init(&(rd)->intr_event[irq], irq, name, rootdev_mask_irq,         \
+                  rootdev_unmask_irq, NULL)
+
+  /* Initialize software interrupts handler events. */
+  MIPS_INTR_EVENT(rd, MIPS_SWINT0, "swint(0)");
+  MIPS_INTR_EVENT(rd, MIPS_SWINT1, "swint(1)");
+  /* Initialize hardware interrupts handler events. */
+  MIPS_INTR_EVENT(rd, MIPS_HWINT0, "hwint(0)");
+  MIPS_INTR_EVENT(rd, MIPS_HWINT1, "hwint(1)");
+  MIPS_INTR_EVENT(rd, MIPS_HWINT2, "hwint(2)");
+  MIPS_INTR_EVENT(rd, MIPS_HWINT3, "hwint(3)");
+  MIPS_INTR_EVENT(rd, MIPS_HWINT4, "hwint(4)");
+  MIPS_INTR_EVENT(rd, MIPS_HWINT5, "hwint(5)");
+
+#undef MIPS_INTR_EVENT
+
+  for (unsigned i = 0; i < MIPS_NIRQ; i++)
+    intr_event_register(&rd->intr_event[i]);
+#endif
 
 static void rootdev_mask_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
@@ -24,11 +46,18 @@ static void rootdev_unmask_irq(intr_event_t *ie) {
   mips32_bs_c0(C0_STATUS, SR_IM0 << irq);
 }
 
-static void rootdev_intr_setup(device_t *dev, unsigned irq,
-                               intr_handler_t *handler) {
+static void rootdev_intr_setup(device_t *dev, resource_t *r,
+                               ih_filter_t *filter, ih_service_t *service,
+                               void *arg) {
   rootdev_t *rd = dev->parent->state;
-  intr_event_t *event = &rd->intr_event[irq];
-  intr_event_add_handler(event, handler);
+  int irq = r->r_start;
+
+  if (rd->intr_event[irq] == NULL)
+    rd->intr_event[irq] =
+      intr_event_create(dev, irq, rootdev_mask_irq, rootdev_unmask_irq, "???");
+
+  intr_event_add_handler(rd->intr_event[irq],
+                         intr_handler_create(filter, service, arg));
 }
 
 static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
@@ -41,7 +70,6 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
                                           res_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
   rman_t *rman = NULL;
-  resource_t *r;
 
   if (type == RT_MEMORY)
     rman = &rd->mem;
@@ -50,7 +78,8 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   else
     panic("Resource type not handled!");
 
-  if (!(r = rman_alloc_resource(rman, start, end, size, 1, flags)))
+  resource_t *r = rman_alloc_resource(rman, start, end, size, 1, flags);
+  if (r == NULL)
     return NULL;
 
   if (type == RT_MEMORY) {
@@ -98,7 +127,7 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
     unsigned irq = CR_IP0 << i;
 
     if (pending & irq) {
-      intr_event_run_handlers(&rd->intr_event[i]);
+      intr_event_run_handlers(rd->intr_event[i]);
       pending &= ~irq;
     }
   }
@@ -115,27 +144,7 @@ static int rootdev_attach(device_t *bus) {
    * Skips region allocated for up to 256MB of RAM. */
   rman_init(&rd->mem, "Malta I/O space", MALTA_PCI0_MEMORY_BASE, MALTA_FPGA_END,
             RT_MEMORY);
-  rman_init(&rd->irq, "MIPS interrupts", 0, MIPS_NIRQ - 1, RT_IRQ);
-
-#define MIPS_INTR_EVENT(rd, irq, name)                                         \
-  intr_event_init(&(rd)->intr_event[irq], irq, name, rootdev_mask_irq,         \
-                  rootdev_unmask_irq, NULL)
-
-  /* Initialize software interrupts handler events. */
-  MIPS_INTR_EVENT(rd, MIPS_SWINT0, "swint(0)");
-  MIPS_INTR_EVENT(rd, MIPS_SWINT1, "swint(1)");
-  /* Initialize hardware interrupts handler events. */
-  MIPS_INTR_EVENT(rd, MIPS_HWINT0, "hwint(0)");
-  MIPS_INTR_EVENT(rd, MIPS_HWINT1, "hwint(1)");
-  MIPS_INTR_EVENT(rd, MIPS_HWINT2, "hwint(2)");
-  MIPS_INTR_EVENT(rd, MIPS_HWINT3, "hwint(3)");
-  MIPS_INTR_EVENT(rd, MIPS_HWINT4, "hwint(4)");
-  MIPS_INTR_EVENT(rd, MIPS_HWINT5, "hwint(5)");
-
-#undef MIPS_INTR_EVENT
-
-  for (unsigned i = 0; i < MIPS_NIRQ; i++)
-    intr_event_register(&rd->intr_event[i]);
+  rman_init(&rd->irq, "MIPS interrupts", 0, MIPS_NIRQ /* - 1 */, RT_IRQ);
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 

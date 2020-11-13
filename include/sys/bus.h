@@ -3,6 +3,7 @@
 
 #include <machine/bus_defs.h>
 #include <sys/device.h>
+#include <sys/interrupt.h>
 #include <sys/rman.h>
 
 typedef struct bus_methods bus_methods_t;
@@ -135,7 +136,8 @@ extern bus_space_t *generic_bus_space;
 #define bus_space_map(t, a, s, hp) (*(t)->bs_map)((a), (s), (hp))
 
 struct bus_methods {
-  void (*intr_setup)(device_t *dev, unsigned num, intr_handler_t *handler);
+  void (*intr_setup)(device_t *dev, resource_t *r, ih_filter_t *filter,
+                     ih_service_t *service, void *arg);
   void (*intr_teardown)(device_t *dev, intr_handler_t *handler);
   resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
                                 rman_addr_t start, rman_addr_t end, size_t size,
@@ -153,9 +155,10 @@ struct bus_driver {
 
 #define BUS_DRIVER(dev) ((bus_driver_t *)((dev)->parent->driver))
 
-static inline void bus_intr_setup(device_t *dev, unsigned num,
-                                  intr_handler_t *handler) {
-  BUS_DRIVER(dev)->bus.intr_setup(dev, num, handler);
+static inline void bus_intr_setup(device_t *dev, resource_t *r,
+                                  ih_filter_t *filter, ih_service_t *service,
+                                  void *arg) {
+  BUS_DRIVER(dev)->bus.intr_setup(dev, r, filter, service, arg);
 }
 
 static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {

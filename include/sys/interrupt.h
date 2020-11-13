@@ -107,6 +107,12 @@ void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih);
 void intr_event_remove_handler(intr_handler_t *ih);
 void intr_event_run_handlers(intr_event_t *ie);
 
+intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
+                                ie_action_t *enable, const char *name);
+
+intr_handler_t *intr_handler_create(ih_filter_t *filter, ih_service_t *service,
+                                    void *arg);
+
 typedef void (*intr_root_filter_t)(ctx_t *ctx, device_t *dev, void *arg);
 
 void intr_root_claim(intr_root_filter_t filter, device_t *dev, void *arg);
