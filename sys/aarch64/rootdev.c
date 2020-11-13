@@ -214,6 +214,7 @@ static int rootdev_attach(device_t *bus) {
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
   (void)device_add_child(bus, &DEVCLASS(root), 0); /* for ARM timer */
+  (void)device_add_child(bus, &DEVCLASS(root), 1); /* for PL011 UART */
 
   return bus_generic_probe(bus);
 }
