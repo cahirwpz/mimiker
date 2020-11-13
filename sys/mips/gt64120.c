@@ -169,8 +169,7 @@ static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
     gtpci->intr_event[irq] =
       intr_event_create(gtpci, irq, gt_pci_mask_irq, gt_pci_unmask_irq, "???");
 
-  intr_event_add_handler(gtpci->intr_event[irq],
-                         intr_handler_create(filter, service, arg));
+  intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg);
 }
 
 static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {

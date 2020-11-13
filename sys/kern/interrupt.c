@@ -31,8 +31,9 @@ void intr_enable(void) {
     cpu_intr_enable();
 }
 
-void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
-                     ie_action_t *disable, ie_action_t *enable, void *source) {
+intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
+                                ie_action_t *enable, const char *name) {
+  intr_event_t *ie = kmalloc(M_INTR, sizeof(intr_event_t), M_ZERO);
   ie->ie_irq = irq;
   ie->ie_name = name;
   ie->ie_lock = SPIN_INITIALIZER(LK_RECURSIVE);
@@ -40,23 +41,15 @@ void intr_event_init(intr_event_t *ie, unsigned irq, const char *name,
   ie->ie_disable = disable;
   ie->ie_source = source;
   TAILQ_INIT(&ie->ie_handlers);
-}
 
-intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
-                                ie_action_t *enable, const char *name) {
-  intr_event_t *ie = kmalloc(M_INTR, sizeof(intr_event_t), M_ZERO);
-  intr_event_init(ie, irq, name, disable, enable, source);
-  intr_event_register(ie);
+  WITH_MTX_LOCK (&all_ievents_mtx)
+    TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_link);
+
   return ie;
 }
 
-void intr_event_register(intr_event_t *ie) {
-  WITH_MTX_LOCK (&all_ievents_mtx)
-    TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_link);
-}
-
 /* Add new handler according to it's priority */
-static void insert_handler(intr_event_t *ie, intr_handler_t *ih) {
+static void ie_insert_handler(intr_event_t *ie, intr_handler_t *ih) {
   intr_handler_t *it;
   TAILQ_FOREACH (it, &ie->ie_handlers, ih_link)
     if (ih->ih_prio > it->ih_prio)
@@ -71,22 +64,23 @@ static void insert_handler(intr_event_t *ie, intr_handler_t *ih) {
   ie->ie_count++;
 }
 
-void intr_event_add_handler(intr_event_t *ie, intr_handler_t *ih) {
+static void ie_add_handler(intr_event_t *ie, intr_handler_t *ih) {
   WITH_SPIN_LOCK (&ie->ie_lock) {
-    insert_handler(ie, ih);
+    ie_insert_handler(ie, ih);
     if (ie->ie_count == 1 && ie->ie_enable)
       ie->ie_enable(ie);
   }
 }
 
-intr_handler_t *intr_handler_create(ih_filter_t *filter, ih_service_t *service,
-                                    void *arg) {
+intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
+                                       ih_service_t *service, void *arg) {
   intr_handler_t *ih = kmalloc(M_INTR, sizeof(intr_handler_t), M_ZERO);
   ih->ih_filter = filter;
   ih->ih_service = service;
   ih->ih_argument = arg;
   ih->ih_name = "?";
   ih->ih_prio = 0; /* ? */
+  ie_add_handler(ie, ih);
   return ih;
 }
 
@@ -172,7 +166,7 @@ static void intr_thread(void *arg) {
     intr_event_t *ie = ih->ih_event;
 
     WITH_SPIN_LOCK (&ie->ie_lock) {
-      insert_handler(ie, ih);
+      ie_insert_handler(ie, ih);
       if (ie->ie_enable)
         ie->ie_enable(ie);
     }

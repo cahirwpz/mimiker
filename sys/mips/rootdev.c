@@ -56,8 +56,7 @@ static void rootdev_intr_setup(device_t *dev, resource_t *r,
     rd->intr_event[irq] =
       intr_event_create(dev, irq, rootdev_mask_irq, rootdev_unmask_irq, "???");
 
-  intr_event_add_handler(rd->intr_event[irq],
-                         intr_handler_create(filter, service, arg));
+  intr_event_add_handler(rd->intr_event[irq], filter, service, arg);
 }
 
 static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
