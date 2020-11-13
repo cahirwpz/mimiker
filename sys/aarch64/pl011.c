@@ -10,6 +10,7 @@
 #include <sys/libkern.h>
 #include <sys/ttycom.h>
 #include <sys/interrupt.h>
+#include <sys/ringbuf.h>
 #include <aarch64/bcm2835reg.h>
 #include <aarch64/bcm2835_gpioreg.h>
 #include <aarch64/plcomreg.h>
@@ -18,12 +19,27 @@
 #define UART0_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE)
 
 typedef struct pl011_state {
+  spin_t lock;
+  condvar_t rx_nonempty;
+  ringbuf_t rx_buf;
   resource_t *regs;
   intr_handler_t intr_handler;
 } pl011_state_t;
 
 static int pl011_read(vnode_t *v, uio_t *uio, int ioflags) {
-  return -1;
+  pl011_state_t *state = v->v_data;
+
+  /* This device does not support offsets. */
+  uio->uio_offset = 0;
+
+  uint8_t byte;
+  WITH_SPIN_LOCK (&state->lock) {
+    /* For simplicity, copy to the user space one byte at a time. */
+    while (!ringbuf_getb(&state->rx_buf, &byte))
+      cv_wait(&state->rx_nonempty, &state->lock);
+  }
+
+  return uiomove_frombuf(&byte, 1, uio);
 }
 
 static int pl011_write(vnode_t *v, uio_t *uio, int ioflags) {
