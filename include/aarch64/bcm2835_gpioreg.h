@@ -1,4 +1,5 @@
-/*	$NetBSD: bcm2835_gpioreg.h,v 1.5 2019/09/28 07:24:52 mlelstv Exp $	*/
+/*	$NetBSD: bcm2835_gpioreg.h,v 1.5 2019/09/28 07:24:52 mlelstv Exp $
+ */
 
 /*
  * Copyright (c) 2013 Jonathan A. Kollasch
@@ -29,48 +30,49 @@
 #ifndef _BROADCOM_BCM2835_GPIOREG_H_
 #define _BROADCOM_BCM2835_GPIOREG_H_
 
-#define BCM2835_GPIO_GPFSEL(x)	(0x000 + (x) * sizeof(uint32_t))
-#define BCM2835_GPIO_GPFSEL_PINS_PER_REGISTER	10
-#define BCM2835_GPIO_GPFSEL_BITS_PER_PIN	3
+#define BCM2835_GPIO_GPFSEL(x) (0x000 + (x) * sizeof(uint32_t))
+#define BCM2835_GPIO_GPFSEL_PINS_PER_REGISTER 10
+#define BCM2835_GPIO_GPFSEL_BITS_PER_PIN 3
 
-#define BCM2835_GPIO_GPSET(x)	(0x01C + (x) * sizeof(uint32_t))
+#define BCM2835_GPIO_GPSET(x) (0x01C + (x) * sizeof(uint32_t))
 #define BCM2835_GPIO_GPSET_PINS_PER_REGISTER 32
-#define BCM2835_GPIO_GPCLR(x)	(0x028 + (x) * sizeof(uint32_t))
-#define BCM2835_GPIO_GPCLR_PINS_PER_REGISTER BCM2835_GPIO_GPSET_PINS_PER_REGISTER
-#define BCM2835_GPIO_GPLEV(x)	(0x034 + (x) * sizeof(uint32_t))
+#define BCM2835_GPIO_GPCLR(x) (0x028 + (x) * sizeof(uint32_t))
+#define BCM2835_GPIO_GPCLR_PINS_PER_REGISTER                                   \
+  BCM2835_GPIO_GPSET_PINS_PER_REGISTER
+#define BCM2835_GPIO_GPLEV(x) (0x034 + (x) * sizeof(uint32_t))
 #define BCM2835_GPIO_GPLEV_PINS_PER_REGISTER 32
-#define BCM2835_GPIO_GPEDS(x)	(0x040 + (x) * sizeof(uint32_t))
-#define BCM2835_GPIO_GPREN(x)	(0x04C + (x) * sizeof(uint32_t))
-#define BCM2835_GPIO_GPFEN(x)	(0x058 + (x) * sizeof(uint32_t))
-#define BCM2835_GPIO_GPHEN(x)	(0x064 + (x) * sizeof(uint32_t))
-#define BCM2835_GPIO_GPLEN(x)	(0x070 + (x) * sizeof(uint32_t))
-#define BCM2835_GPIO_GPAREN(x)	(0x07C + (x) * sizeof(uint32_t))
-#define BCM2835_GPIO_GPAFEN(x)	(0x088 + (x) * sizeof(uint32_t))
+#define BCM2835_GPIO_GPEDS(x) (0x040 + (x) * sizeof(uint32_t))
+#define BCM2835_GPIO_GPREN(x) (0x04C + (x) * sizeof(uint32_t))
+#define BCM2835_GPIO_GPFEN(x) (0x058 + (x) * sizeof(uint32_t))
+#define BCM2835_GPIO_GPHEN(x) (0x064 + (x) * sizeof(uint32_t))
+#define BCM2835_GPIO_GPLEN(x) (0x070 + (x) * sizeof(uint32_t))
+#define BCM2835_GPIO_GPAREN(x) (0x07C + (x) * sizeof(uint32_t))
+#define BCM2835_GPIO_GPAFEN(x) (0x088 + (x) * sizeof(uint32_t))
 
-#define BCM2835_GPIO_GPPUD	(0x094)
+#define BCM2835_GPIO_GPPUD (0x094)
 
 /* brcm,pull property */
-#define  BCM2835_GPIO_GPPUD_PULLOFF	0x0
-#define  BCM2835_GPIO_GPPUD_PULLDOWN	0x1
-#define  BCM2835_GPIO_GPPUD_PULLUP	0x2
-#define BCM2835_GPIO_GPPUDCLK(x)	(0x098 + (x) * sizeof(uint32_t))
+#define BCM2835_GPIO_GPPUD_PULLOFF 0x0
+#define BCM2835_GPIO_GPPUD_PULLDOWN 0x1
+#define BCM2835_GPIO_GPPUD_PULLUP 0x2
+#define BCM2835_GPIO_GPPUDCLK(x) (0x098 + (x) * sizeof(uint32_t))
 #define BCM2835_GPIO_GPPUD_PINS_PER_REGISTER 32
 
-#define  BCM2838_GPIO_GPPUD_PULLOFF	0x0
-#define  BCM2838_GPIO_GPPUD_PULLDOWN	0x2
-#define  BCM2838_GPIO_GPPUD_PULLUP	0x1
-#define BCM2838_GPIO_GPPUPPDN(x)	(0x0e4 + (x) * sizeof(uint32_t))
-#define BCM2838_GPIO_GPPUD_REGID(n)	((n) / 16)
-#define BCM2838_GPIO_GPPUD_MASK(n)	(0x3 << ((n) % 16)*2)
+#define BCM2838_GPIO_GPPUD_PULLOFF 0x0
+#define BCM2838_GPIO_GPPUD_PULLDOWN 0x2
+#define BCM2838_GPIO_GPPUD_PULLUP 0x1
+#define BCM2838_GPIO_GPPUPPDN(x) (0x0e4 + (x) * sizeof(uint32_t))
+#define BCM2838_GPIO_GPPUD_REGID(n) ((n) / 16)
+#define BCM2838_GPIO_GPPUD_MASK(n) (0x3 << ((n) % 16) * 2)
 
 /* brcm,function property */
-#define BCM2835_GPIO_IN		0
-#define BCM2835_GPIO_OUT	1
-#define BCM2835_GPIO_ALT5	2
-#define BCM2835_GPIO_ALT4	3
-#define BCM2835_GPIO_ALT0	4
-#define BCM2835_GPIO_ALT1	5
-#define BCM2835_GPIO_ALT2	6
-#define BCM2835_GPIO_ALT3	7
+#define BCM2835_GPIO_IN 0
+#define BCM2835_GPIO_OUT 1
+#define BCM2835_GPIO_ALT5 2
+#define BCM2835_GPIO_ALT4 3
+#define BCM2835_GPIO_ALT0 4
+#define BCM2835_GPIO_ALT1 5
+#define BCM2835_GPIO_ALT2 6
+#define BCM2835_GPIO_ALT3 7
 
 #endif /* _BROADCOM_BCM2835_GPIOREG_H_ */
