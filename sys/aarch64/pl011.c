@@ -134,7 +134,27 @@ static vnodeops_t dev_uart_ops = {
 /* clang-format oon */
 
 static intr_filter_t pl011_intr(void *data /* device_t* */) {
-  return IF_FILTERED;
+  pl011_state_t *state = data;
+  intr_filter_t res = IF_STRAY;
+
+  WITH_SPIN_LOCK (&state->lock) {
+    if (pl011_rready(state)) {
+      ringbuf_putb(&state->rx_buf, pl011_getc(state));
+      cv_signal(&state->rx_nonempty);
+      res = IF_FILTERED;
+    }
+
+    if (pl011_wready(state)) {
+      uint8_t byte;
+      if (ringbuf_getb(&state->tx_buf, &byte)) {
+        pl011_putc(state, byte);
+        cv_signal(&state->tx_nonfull);
+      }
+      res = IF_FILTERED;
+    }
+  }
+
+  return res;
 }
 
 static int pl011_probe(device_t *dev) {
