@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <sys/libkern.h>
 #include <sys/ttycom.h>
+#include <sys/interrupt.h>
 #include <aarch64/bcm2835reg.h>
 #include <aarch64/bcm2835_gpioreg.h>
 #include <aarch64/plcomreg.h>
@@ -18,6 +19,7 @@
 
 typedef struct pl011_state {
   resource_t *regs;
+  intr_handler_t intr_handler;
 } pl011_state_t;
 
 static int pl011_read(vnode_t *v, uio_t *uio, int ioflags) {
@@ -62,6 +64,10 @@ static vnodeops_t dev_uart_ops = {
   .v_getattr = pl011_getattr
 };
 /* clang-format oon */
+
+static intr_filter_t pl011_intr(void *data /* device_t* */) {
+  return IF_FILTERED;
+}
 
 static int pl011_probe(device_t *dev) {
   /* (pj) so far we don't have better way to associate driver with device for
@@ -124,9 +130,9 @@ static int pl011_attach(device_t *dev) {
   /* Enable receive interrupt. */
   bus_space_write_4(r->r_bus_tag, r->r_bus_handle, PL011COM_IMSC, PL011_INT_RX);
 
-  /* TODO(pj) register UART0 handler. */
-
-  /* TODO(pj) enable UART0 IRQ. */
+  state->intr_handler = INTR_HANDLER_INIT(pl011_intr, NULL, dev, "PL011 UART",
+                                          0);
+  bus_intr_setup(dev, BCM2835_INT_UART0, &state->intr_handler);
 
   /* Prepare /dev/uart interface. */
   devfs_makedev(NULL, "uart", &dev_uart_ops, state);
