@@ -256,7 +256,7 @@ out:
   return error;
 }
 
-int default_ioctl(file_t *f, u_long cmd, void *data) {
+int default_vnioctl(file_t *f, u_long cmd, void *data) {
   vnode_t *v = f->f_vnode;
   int error = EPASSTHROUGH;
 
@@ -281,7 +281,7 @@ static fileops_t default_vnode_fileops = {
   .fo_close = default_vnclose,
   .fo_seek = default_vnseek,
   .fo_stat = default_vnstat,
-  .fo_ioctl = default_ioctl,
+  .fo_ioctl = default_vnioctl,
 };
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {

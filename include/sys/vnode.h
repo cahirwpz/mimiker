@@ -232,13 +232,13 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff);
 int vnode_access_generic(vnode_t *v, accmode_t mode);
 
-/* Default fileops implementations. */
+/* Default fileops implementations for files with v-nodes. */
 int default_vnread(file_t *f, uio_t *uio);
 int default_vnwrite(file_t *f, uio_t *uio);
 int default_vnclose(file_t *f);
 int default_vnstat(file_t *f, stat_t *sb);
 int default_vnseek(file_t *f, off_t offset, int whence, off_t *newoffp);
-int default_ioctl(file_t *f, u_long cmd, void *data);
+int default_vnioctl(file_t *f, u_long cmd, void *data);
 
 uint8_t vt2dt(vnodetype_t v_type);
 
