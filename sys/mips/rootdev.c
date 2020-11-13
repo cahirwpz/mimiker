@@ -126,7 +126,7 @@ static int rootdev_attach(device_t *bus) {
    * Skips region allocated for up to 256MB of RAM. */
   rman_init(&rd->mem, "Malta I/O space", MALTA_PCI0_MEMORY_BASE, MALTA_FPGA_END,
             RT_MEMORY);
-  rman_init(&rd->irq, "MIPS interrupts", 0, MIPS_NIRQ /* - 1 */, RT_IRQ);
+  rman_init(&rd->irq, "MIPS interrupts", 0, MIPS_NIRQ - 1 , RT_IRQ);
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
