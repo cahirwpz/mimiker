@@ -4,17 +4,64 @@
 #include <sys/bus.h>
 #include <sys/devclass.h>
 #include <sys/rman.h>
+#include <sys/vnode.h>
+#include <sys/devfs.h>
+#include <sys/stat.h>
+#include <sys/libkern.h>
+#include <sys/ttycom.h>
 #include <aarch64/bcm2835reg.h>
 #include <aarch64/bcm2835_gpioreg.h>
 #include <aarch64/plcomreg.h>
 #include <aarch64/gpio.h>
 
-#define GPIO_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_GPIO_BASE)
 #define UART0_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE)
 
 typedef struct pl011_state {
   resource_t *regs;
 } pl011_state_t;
+
+static int pl011_read(vnode_t *v, uio_t *uio, int ioflags) {
+  return -1;
+}
+
+static int pl011_write(vnode_t *v, uio_t *uio, int ioflags) {
+  return -1;
+}
+
+static int pl011_close(vnode_t *v, file_t *fp) {
+  /* TODO release resources */
+  return 0;
+}
+
+static int pl011_ioctl(vnode_t *v, u_long cmd, void *data) {
+  if (cmd) {
+    unsigned len = IOCPARM_LEN(cmd);
+    memset(data, 0, len);
+    return 0;
+  }
+
+  return EPASSTHROUGH;
+}
+
+static int pl011_getattr(vnode_t *v, vattr_t *va) {
+  memset(va, 0, sizeof(vattr_t));
+  va->va_mode = S_IFCHR;
+  va->va_nlink = 1;
+  va->va_ino = 0;
+  va->va_size = 0;
+  return 0;
+}
+
+/* clang-format off */
+static vnodeops_t dev_uart_ops = {
+  .v_open = vnode_open_generic,
+  .v_write = pl011_write,
+  .v_read = pl011_read,
+  .v_close = pl011_close,
+  .v_ioctl = pl011_ioctl,
+  .v_getattr = pl011_getattr
+};
+/* clang-format oon */
 
 static int pl011_probe(device_t *dev) {
   /* (pj) so far we don't have better way to associate driver with device for
@@ -81,7 +128,10 @@ static int pl011_attach(device_t *dev) {
 
   /* TODO(pj) enable UART0 IRQ. */
 
-  return 1;
+  /* Prepare /dev/uart interface. */
+  devfs_makedev(NULL, "uart", &dev_uart_ops, state);
+
+  return 0;
 }
 
 /* clang-format off */
