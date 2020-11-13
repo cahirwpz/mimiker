@@ -50,7 +50,8 @@ CONFIG = {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
                     '-device', 'VGA',
-                    '-device', 'rtl8139',
+                    '-net nic,model=rtl8139',
+                    '-net tap,ifname=tap0,script=no,downscript=no',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
                 'uarts': [
