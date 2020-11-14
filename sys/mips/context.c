@@ -45,3 +45,7 @@ void user_ctx_set_retval(user_ctx_t *ctx, register_t value, register_t error) {
   _REG(ctx, V1) = (register_t)error;
   _REG(ctx, EPC) += 4;
 }
+
+bool user_mode_p(ctx_t *ctx) {
+  return (_REG(ctx, SR) & SR_KSU_MASK) == SR_KSU_USER;
+}

@@ -91,7 +91,7 @@ struct proc {
   TAILQ_ENTRY(proc) p_hash;   /* (a) link on pid hash chain */
   thread_t *p_thread;         /* (@) the only thread running in this process */
   pid_t p_pid;                /* (!) Process ID */
-  cred_t p_cred;              /* (@) Process credentials */
+  cred_t p_cred;              /* (@, *) Process credentials */
   char *p_elfpath;            /* (!) path of loaded elf file */
   TAILQ_ENTRY(proc) p_pglist; /* (g + a) link on pg_members list */
   pgrp_t *p_pgrp;             /* (@ + a) process group */
@@ -140,6 +140,7 @@ void proc_add(proc_t *p);
 proc_t *proc_find(pid_t pid);
 
 /*! \brief Sends signal to process group or process.
+ * Signal is send on behalf of the current process. Performs privilege checks.
  * (pid > 0) sends signal to the process with the ID specified by pid.
  * (pid = 0) sends signal to processes in process group of the calling process.
  * (pid <-1) sends signal to processes in process group with ID equal (-pid). */

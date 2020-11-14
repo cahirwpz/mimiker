@@ -112,7 +112,8 @@ int bus_generic_probe(device_t *bus) {
       dev->driver = *drv_p;
       if (device_probe(dev)) {
         klog("%s detected!", dev->driver->desc);
-        if (device_attach(dev)) {
+        /* device_attach returns error ! */
+        if (!device_attach(dev)) {
           klog("%s attached to %p!", dev->driver->desc, dev);
           break;
         }
