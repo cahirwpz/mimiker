@@ -216,7 +216,11 @@ static inline resource_t *bus_alloc_resource_any(device_t *dev, res_type_t type,
 
 /*! \brief Activates resource for a device.
  *
- * For RT_MEMORY resource it is usually calls bus_space_map. */
+ * This is a wrapper that calls bus method `activate_resource`.
+ *
+ * It performs common tasks like: check if resource has been already activated,
+ * mark resource as activated if the method returned success.
+ */
 int bus_activate_resource(device_t *dev, res_type_t type, int rid,
                           resource_t *r);
 
