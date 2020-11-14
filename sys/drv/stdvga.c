@@ -173,7 +173,7 @@ static int stdvga_attach(device_t *dev) {
 
   stdvga->mem =
     bus_alloc_resource_any(dev, RT_MEMORY, 0, RF_ACTIVE | RF_PREFETCHABLE);
-  stdvga->io = bus_alloc_resource_any(dev, RT_MEMORY, 2, RF_ACTIVE);
+  stdvga->io = bus_alloc_resource_any(dev, RT_MEMORY, 1, RF_ACTIVE);
 
   assert(stdvga->mem != NULL);
   assert(stdvga->io != NULL);
