@@ -17,12 +17,4 @@ typedef struct ctx {
 
 #define _REG(ctx, n) ((ctx)->__gregs[_REG_##n])
 
-static inline bool kern_mode_p(ctx_t *ctx) {
-  return (_REG(ctx, SR) & SR_KSU_MASK) == SR_KSU_KERN;
-}
-
-static inline bool user_mode_p(ctx_t *ctx) {
-  return (_REG(ctx, SR) & SR_KSU_MASK) == SR_KSU_USER;
-}
-
 #endif /* !_MIPS_CONTEXT_ */
