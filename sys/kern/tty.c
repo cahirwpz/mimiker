@@ -628,17 +628,15 @@ void tty_getc_done(tty_t *tty) {
   assert(mtx_owned(&tty->t_lock));
 
   size_t cnt = tty->t_outq.count;
-  int flags = 0;
+  int oldf = tty->t_flags;
 
-  if ((tty->t_flags & TF_WAIT_OUT_LOWAT) && cnt < TTY_OUT_LOW_WATER)
-    flags |= TF_WAIT_OUT_LOWAT;
-  if ((tty->t_flags & TF_WAIT_DRAIN_OUT) && cnt == 0)
-    flags |= TF_WAIT_DRAIN_OUT;
+  if (cnt < TTY_OUT_LOW_WATER)
+    tty->t_flags &= ~TF_WAIT_OUT_LOWAT;
+  if (cnt == 0)
+    tty->t_flags &= ~TF_WAIT_DRAIN_OUT;
 
-  if (flags) {
-    tty->t_flags &= ~flags;
+  if (tty->t_flags != oldf)
     cv_broadcast(&tty->t_outcv);
-  }
 }
 
 static void tty_drain_out(tty_t *tty) {
