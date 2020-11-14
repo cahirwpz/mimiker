@@ -222,13 +222,7 @@ static bool tty_line_finish(tty_t *tty) {
 static bool tty_outq_write_nofrag(tty_t *tty, uint8_t *buf, size_t len) {
   if (tty->t_lflag & FLUSHO)
     return true;
-
-  if (tty->t_outq.count + len > tty->t_outq.size)
-    return false;
-
-  for (size_t i = 0; i < len; i++)
-    ringbuf_putb(&tty->t_outq, buf[i]);
-  return true;
+  return ringbuf_putnb(&tty->t_outq, buf, len);
 }
 
 /*
