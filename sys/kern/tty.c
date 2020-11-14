@@ -16,6 +16,7 @@
 #include <sys/uio.h>
 #include <sys/vm_map.h>
 #include <sys/device.h>
+#include <sys/file.h>
 
 /* START OF FreeBSD CODE */
 
@@ -436,8 +437,8 @@ void tty_input(tty_t *tty, uint8_t c) {
   }
 }
 
-static int tty_read(vnode_t *v, uio_t *uio, int ioflags) {
-  tty_t *tty = v->v_data;
+static int tty_read(file_t *f, uio_t *uio) {
+  tty_t *tty = f->f_data;
   int error = 0;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
@@ -557,8 +558,8 @@ static void tty_output(tty_t *tty, uint8_t c) {
   tty->t_column = col;
 }
 
-static int tty_write(vnode_t *v, uio_t *uio, int ioflags) {
-  tty_t *tty = v->v_data;
+static int tty_write(file_t *f, uio_t *uio) {
+  tty_t *tty = f->f_data;
   int error = 0;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
@@ -578,7 +579,7 @@ static int tty_write(vnode_t *v, uio_t *uio, int ioflags) {
   return error;
 }
 
-static int tty_close(vnode_t *v, file_t *fp) {
+static int tty_vn_close(vnode_t *v, file_t *fp) {
   /* TODO implement. */
   return 0;
 }
@@ -594,8 +595,8 @@ static void tty_reinput(tty_t *tty) {
   }
 }
 
-static int tty_ioctl(vnode_t *v, u_long cmd, void *data) {
-  tty_t *tty = v->v_data;
+static int tty_ioctl(file_t *f, u_long cmd, void *data) {
+  tty_t *tty = f->f_data;
   int ret = 0;
 
   mtx_lock(&tty->t_lock);
@@ -668,7 +669,7 @@ static int tty_ioctl(vnode_t *v, u_long cmd, void *data) {
   return ret;
 }
 
-static int tty_getattr(vnode_t *v, vattr_t *va) {
+static int tty_vn_getattr(vnode_t *v, vattr_t *va) {
   memset(va, 0, sizeof(vattr_t));
   va->va_mode = S_IFCHR;
   va->va_nlink = 1;
@@ -677,9 +678,32 @@ static int tty_getattr(vnode_t *v, vattr_t *va) {
   return 0;
 }
 
-vnodeops_t tty_vnodeops = {.v_open = vnode_open_generic,
-                           .v_write = tty_write,
-                           .v_read = tty_read,
-                           .v_close = tty_close,
-                           .v_ioctl = tty_ioctl,
-                           .v_getattr = tty_getattr};
+/* We implement I/O operations as fileops in order to bypass
+ * the vnode layer's locking. */
+static fileops_t tty_fileops = {
+  .fo_read = tty_read,
+  .fo_write = tty_write,
+  .fo_close = default_vnclose,
+  .fo_seek = default_vnseek,
+  .fo_stat = default_vnstat,
+  .fo_ioctl = tty_ioctl,
+};
+
+static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
+  tty_t *tty = v->v_data;
+  int error;
+
+  if ((error = vnode_open_generic(v, mode, fp)) != 0)
+    return error;
+
+  fp->f_ops = &tty_fileops;
+  fp->f_data = tty;
+
+  return error;
+}
+
+vnodeops_t tty_vnodeops = {
+  .v_open = tty_vn_open,
+  .v_close = tty_vn_close,
+  .v_getattr = tty_vn_getattr,
+};
