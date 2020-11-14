@@ -219,7 +219,7 @@ static bool tty_line_finish(tty_t *tty) {
  * If there's not enough space for all characters, no characters are written
  * to the queue and false is returned. Returns true on success.
  */
-static bool tty_outq_write_nofrag(tty_t *tty, uint8_t *buf, size_t len) {
+static bool tty_outq_write(tty_t *tty, uint8_t *buf, size_t len) {
   if (tty->t_lflag & FLUSHO)
     return true;
   return ringbuf_putnb(&tty->t_outq, buf, len);
@@ -230,7 +230,9 @@ static bool tty_outq_write_nofrag(tty_t *tty, uint8_t *buf, size_t len) {
  * Returns false if there's no space left in the queue, otherwise returns true.
  */
 static bool tty_outq_putc(tty_t *tty, uint8_t c) {
-  return tty_outq_write_nofrag(tty, &c, 1);
+  if (tty->t_lflag & FLUSHO)
+    return true;
+  return ringbuf_putb(&tty->t_outq, c);
 }
 
 /*
@@ -537,7 +539,7 @@ static bool tty_output(tty_t *tty, uint8_t c) {
   int ccount = tty_process_out(tty, oflag, cb);
   int col = tty->t_column;
 
-  if (!tty_outq_write_nofrag(tty, cb, ccount))
+  if (!tty_outq_write(tty, cb, ccount))
     return false;
 
   for (int i = 0; i < ccount; i++) {
