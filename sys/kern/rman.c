@@ -10,7 +10,7 @@ static bool rman_find_gap(rman_t *rm, rman_addr_t *start_p, rman_addr_t end,
 
   rman_addr_t start = *start_p;
 
-  if (end < rm->rm_start || start >= rm->rm_end)
+  if (end < rm->rm_start || start > rm->rm_end)
     return false;
 
   /* Adjust search boundaries if needed. */
