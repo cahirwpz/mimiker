@@ -3,6 +3,7 @@
 
 #include <sys/sigtypes.h>
 #include <machine/signal.h>
+#include <stdbool.h>
 
 #define SIGHUP 1   /* hangup */
 #define SIGINT 2   /* interrupt */
