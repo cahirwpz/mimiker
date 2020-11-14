@@ -3,11 +3,8 @@
  */
 
 #define RL_COMMAND              0x0037          /* command register */
-#define RL_TXCFG                0x0040          /* transmit config */
 
 #define RL_8139_CFG1            0x0052          /* config register #1 */
-
-#define RL_HWREV_8139CPLUS      0x74800000
 
 /*
  * Command register.
