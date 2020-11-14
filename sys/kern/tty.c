@@ -628,7 +628,7 @@ void tty_getc_done(tty_t *tty) {
   assert(mtx_owned(&tty->t_lock));
 
   size_t cnt = tty->t_outq.count;
-  int oldf = tty->t_flags;
+  tty_flags_t oldf = tty->t_flags;
 
   if (cnt < TTY_OUT_LOW_WATER)
     tty->t_flags &= ~TF_WAIT_OUT_LOWAT;
