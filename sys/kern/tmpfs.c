@@ -132,7 +132,11 @@ typedef struct mem_arena {
   blkptr_t tma_dblocks;
 } mem_arena_t;
 
-static void try_alloc_frame(vaddr_t va) {
+static_assert(
+  sizeof(struct mem_arena) <= ARENA_HEADER_SIZE,
+  "The size of mem_arena struct can't exceed value declared in the macro!");
+
+static void ensure_vaddr_mapped(vaddr_t va) {
   paddr_t pap;
   va &= ~(PAGESIZE - 1); /* align address to the page size */
   if (!pmap_extract(pmap_kernel(), va, &pap))
@@ -207,7 +211,11 @@ static tmpfs_node_t *mem_arena_alloc_inode(mem_arena_t *arena) {
   arena->tma_ninodes--;
 
   tmpfs_node_t *node = arena->tma_inodes + index;
-  try_alloc_frame((vaddr_t)node);
+  ensure_vaddr_mapped((vaddr_t)node);
+
+  /* A tmpfs_node can span two pages, so make sure both are mapped. */
+  ensure_vaddr_mapped((vaddr_t)node + sizeof(tmpfs_node_t) - 1);
+
   bzero(node, sizeof(tmpfs_node_t));
   return node;
 }
@@ -222,6 +230,8 @@ static void mem_arena_free_inode(mem_arena_t *arena, tmpfs_node_t *node) {
 
 static blkptr_t mem_alloc_dblk(tmpfs_mount_t *tfm) {
   mem_arena_t *arena = NULL;
+  SCOPED_MTX_LOCK(&tfm->tfm_lock);
+
   STAILQ_FOREACH(arena, &tfm->tfm_arenas, tma_link) {
     if (arena->tma_ndblocks > 0)
       return mem_arena_alloc_dblk(arena);
@@ -233,6 +243,8 @@ static blkptr_t mem_alloc_dblk(tmpfs_mount_t *tfm) {
 }
 
 static void mem_free_dblk(tmpfs_mount_t *tfm, blkptr_t blk) {
+  SCOPED_MTX_LOCK(&tfm->tfm_lock);
+
   mem_arena_t *arena = mem_find_ptr_arena(&tfm->tfm_arenas, blk);
   assert(arena != NULL);
   mem_arena_free_dblk(arena, blk);
@@ -240,6 +252,8 @@ static void mem_free_dblk(tmpfs_mount_t *tfm, blkptr_t blk) {
 
 static tmpfs_node_t *mem_alloc_inode(tmpfs_mount_t *tfm) {
   mem_arena_t *arena = NULL;
+  SCOPED_MTX_LOCK(&tfm->tfm_lock);
+
   STAILQ_FOREACH(arena, &tfm->tfm_arenas, tma_link) {
     if (arena->tma_ninodes > 0)
       return mem_arena_alloc_inode(arena);
@@ -251,6 +265,8 @@ static tmpfs_node_t *mem_alloc_inode(tmpfs_mount_t *tfm) {
 }
 
 static void mem_free_inode(tmpfs_mount_t *tfm, tmpfs_node_t *node) {
+  SCOPED_MTX_LOCK(&tfm->tfm_lock);
+
   mem_arena_t *arena = mem_find_ptr_arena(&tfm->tfm_arenas, node);
   assert(arena != NULL);
   mem_arena_free_inode(arena, node);
@@ -684,8 +700,7 @@ static int tmpfs_dir_extend(tmpfs_node_t *tfn) {
 
   size_t ndirent = BLOCK_SIZE / sizeof(tmpfs_dirent_t);
   for (size_t i = 0; i < ndirent; i++) {
-    tmpfs_dirent_t *de =
-      (tmpfs_dirent_t *)(((uint8_t *)blk) + i * sizeof(tmpfs_dirent_t));
+    tmpfs_dirent_t *de = (tmpfs_dirent_t *)blk + i;
     TAILQ_INSERT_TAIL(&tfn->tfn_dir.fdirents, de, tfd_entries);
   }
 
