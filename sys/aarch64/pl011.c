@@ -227,7 +227,7 @@ static int pl011_attach(device_t *dev) {
   /* Enable receive interrupt. */
   bus_space_write_4(r->r_bus_tag, r->r_bus_handle, PL011COM_IMSC, PL011_INT_RX);
 
-  state->intr_handler = INTR_HANDLER_INIT(pl011_intr, NULL, dev, "PL011 UART",
+  state->intr_handler = INTR_HANDLER_INIT(pl011_intr, NULL, state, "PL011 UART",
                                           0);
   bus_intr_setup(dev, BCM2835_INT_UART0, &state->intr_handler);
 
