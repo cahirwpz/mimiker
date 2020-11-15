@@ -207,7 +207,7 @@ static int rootdev_attach(device_t *bus) {
 
   for (int i = 0; i < NIRQ; i++) {
     intr_event_init(&rd->intr_event[i], i, NULL, rootdev_disable_irq,
-                    rootdev_enable_irq, NULL);
+                    rootdev_enable_irq, rd);
     intr_event_register(&rd->intr_event[i]);
   }
 
@@ -218,23 +218,25 @@ static int rootdev_attach(device_t *bus) {
   return bus_generic_probe(bus);
 }
 
-static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
-                                          res_type_t type, int rid,
-                                          rman_addr_t start, rman_addr_t end,
-                                          size_t size, res_flags_t flags) {
-  rootdev_t *rd = bus->state;
+static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
+                                          int rid, rman_addr_t start,
+                                          rman_addr_t end, size_t size,
+                                          res_flags_t flags) {
+  rootdev_t *rd = dev->parent->state;
   resource_t *r;
 
-  r = rman_alloc_resource(&rd->local_rm, start, end, size, 1, RF_NONE, child);
+  r = rman_alloc_resource(&rd->local_rm, start, end, size, 1, flags);
   if (r == NULL)
-    r =
-      rman_alloc_resource(&rd->shared_rm, start, end, size, 1, RF_NONE, child);
+    r = rman_alloc_resource(&rd->shared_rm, start, end, size, 1, flags);
 
   if (r) {
     r->r_bus_tag = rootdev_bus_space;
-    if (flags & RF_ACTIVE)
-      bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
-                    &r->r_bus_handle);
+    if (flags & RF_ACTIVE) {
+      /* TODO(cahir) Move to rootdev_activate_resource. */
+      (void)bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
+                          &r->r_bus_handle);
+      rman_activate_resource(r);
+    }
   }
 
   return r;
