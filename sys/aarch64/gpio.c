@@ -75,21 +75,20 @@ void gpio_function_select(resource_t *r, unsigned pin, unsigned func) {
   unsigned reg = pin / GPFSEL_PINS_PER_REGISTER;
   unsigned shift = (pin % GPFSEL_PINS_PER_REGISTER) * GPFSEL_BITS_PER_PIN;
 
-  unsigned val = bus_space_read_4(r->r_bus_tag, r->r_bus_handle, GPFSEL(reg));
+  unsigned val = bus_read_4(r, GPFSEL(reg));
   val &= ~(mask << shift);
   val |= (func << shift);
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, GPFSEL(reg), val);
+  bus_write_4(r, GPFSEL(reg), val);
 }
 
 void gpio_set_pull(resource_t *r, unsigned pin, unsigned pud) {
   unsigned mask = 1 << (pin % GPPUD_PINS_PER_REGISTER);
   unsigned reg = pin / GPPUD_PINS_PER_REGISTER;
 
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, GPPUD, pud);
+  bus_write_4(r, GPPUD, pud);
   delay(150);
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, GPPUDCLK(reg), mask);
+  bus_write_4(r, GPPUDCLK(reg), mask);
   delay(150);
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, GPPUD,
-                    BCM2838_GPIO_GPPUD_PULLOFF);
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, GPPUDCLK(reg), 0);
+  bus_write_4(r, GPPUD, BCM2838_GPIO_GPPUD_PULLOFF);
+  bus_write_4(r, GPPUDCLK(reg), 0);
 }

@@ -32,7 +32,7 @@ typedef struct pl011_state {
 /* Return true if we can write. */
 static bool pl011_wready(pl011_state_t *state) {
   resource_t *r = state->regs;
-  uint32_t reg = bus_space_read_4(r->r_bus_tag, r->r_bus_handle, PL01XCOM_FR);
+  uint32_t reg = bus_read_4(r, PL01XCOM_FR);
   return (reg & PL01X_FR_TXFF) == 0;
 }
 
@@ -40,13 +40,13 @@ static void pl011_putc(pl011_state_t *state, uint32_t c) {
   assert(pl011_wready(state));
 
   resource_t *r = state->regs;
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, PL01XCOM_DR, c);
+  bus_write_4(r, PL01XCOM_DR, c);
 }
 
 /* Return true if we can read. */
 static bool pl011_rready(pl011_state_t *state) {
   resource_t *r = state->regs;
-  uint32_t reg = bus_space_read_4(r->r_bus_tag, r->r_bus_handle, PL01XCOM_FR);
+  uint32_t reg = bus_read_4(r, PL01XCOM_FR);
   return (reg & PL01X_FR_RXFE) == 0;
 }
 
@@ -54,7 +54,7 @@ __unused static uint32_t pl011_getc(pl011_state_t *state) {
   assert(pl011_rready(state));
 
   resource_t *r = state->regs;
-  return bus_space_read_4(r->r_bus_tag, r->r_bus_handle, PL01XCOM_DR);
+  return bus_read_4(r, PL01XCOM_DR);
 }
 
 static int pl011_read(vnode_t *v, uio_t *uio, int ioflags) {
@@ -131,7 +131,7 @@ static vnodeops_t dev_uart_ops = {
   .v_ioctl = pl011_ioctl,
   .v_getattr = pl011_getattr
 };
-/* clang-format oon */
+/* clang-format on */
 
 static intr_filter_t pl011_intr(void *data /* device_t* */) {
   pl011_state_t *state = data;
@@ -187,10 +187,9 @@ static int pl011_attach(device_t *dev) {
   state->regs = r;
 
   /* Disable UART0. */
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, PL011COM_CR, 0);
+  bus_write_4(r, PL011COM_CR, 0);
   /* Clear pending interrupts. */
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, PL011COM_ICR,
-                    PL011_INT_ALLMASK);
+  bus_write_4(r, PL011COM_ICR, PL011_INT_ALLMASK);
 
   /* TODO(pj) do magic with mail buffer */
 
@@ -209,26 +208,23 @@ static int pl011_attach(device_t *dev) {
    * Fractional part register = (.17 * 64) + 0.5 = 11.3 = ~11 = 0xb.
    */
 
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, PL011COM_IBRD, 2);
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, PL011COM_FBRD, 0xb);
+  bus_write_4(r, PL011COM_IBRD, 2);
+  bus_write_4(r, PL011COM_FBRD, 0xb);
 
   /* Enable FIFO & 8 bit data transmission (1 stop bit, no parity). */
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, PL011COM_LCRH,
-                    PL01X_LCR_FEN | PL01X_LCR_8BITS);
+  bus_write_4(r, PL011COM_LCRH, PL01X_LCR_FEN | PL01X_LCR_8BITS);
 
   /* Mask all interrupts. */
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, PL011COM_IMSC,
-                    PL011_INT_ALLMASK);
+  bus_write_4(r, PL011COM_IMSC, PL011_INT_ALLMASK);
 
   /* Enable UART0, receive & transfer part of UART. */
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, PL011COM_CR,
-                    PL01X_CR_UARTEN | PL011_CR_TXE | PL011_CR_RXE);
+  bus_write_4(r, PL011COM_CR, PL01X_CR_UARTEN | PL011_CR_TXE | PL011_CR_RXE);
 
   /* Enable receive interrupt. */
-  bus_space_write_4(r->r_bus_tag, r->r_bus_handle, PL011COM_IMSC, PL011_INT_RX);
+  bus_write_4(r, PL011COM_IMSC, PL011_INT_RX);
 
-  state->intr_handler = INTR_HANDLER_INIT(pl011_intr, NULL, state, "PL011 UART",
-                                          0);
+  state->intr_handler =
+    INTR_HANDLER_INIT(pl011_intr, NULL, state, "PL011 UART", 0);
   bus_intr_setup(dev, BCM2835_INT_UART0, &state->intr_handler);
 
   /* Prepare /dev/uart interface. */
