@@ -330,8 +330,15 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
     vm_segment_t *it;
     TAILQ_FOREACH (it, &map->entries, link) {
-      vm_object_t *obj = vm_object_clone(it->object);
-      vm_segment_t *seg = vm_segment_alloc(obj, it->start, it->end, it->prot);
+      vm_object_t *obj;
+      vm_segment_t *seg;
+      if (it->flags & VM_SHARED) {
+        refcnt_acquire(&it->object->ref_counter);
+        seg = it;
+      } else {
+        obj = vm_object_clone(it->object);
+        seg = vm_segment_alloc(obj, it->start, it->end, it->prot);
+      }
       TAILQ_INSERT_TAIL(&new_map->entries, seg, link);
       new_map->nentries++;
     }
