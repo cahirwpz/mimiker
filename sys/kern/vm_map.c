@@ -17,6 +17,7 @@ struct vm_segment {
   TAILQ_ENTRY(vm_segment) link;
   vm_object_t *object;
   vm_prot_t prot;
+  vm_flags_t flags;
   vaddr_t start;
   vaddr_t end;
 };
@@ -240,6 +241,7 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
     return ENOMEM;
   seg->start = start;
   seg->end = start + length;
+  seg->flags = flags;
   vm_map_insert_after(map, after, seg);
   return 0;
 }
