@@ -50,7 +50,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   else
     panic("Resource type not handled!");
 
-  if (!(r = rman_alloc_resource(rman, start, end, size, 1, flags)))
+  if (!(r = rman_reserve_resource(rman, start, end, size, flags)))
     return NULL;
 
   if (type == RT_MEMORY) {
@@ -80,12 +80,20 @@ static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
   if (r->r_flags & RF_ACTIVE)
     return 0;
 
-  if (type == RT_MEMORY)
-    error = bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
-                          &r->r_bus_handle);
+  if (type == RT_MEMORY) {
+    void *vaddr = rman_get_virtual(r);
+    if (vaddr == NULL)
+      error = bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+                            &r->r_bus_handle);
+    else
+      r->r_bus_handle = (bus_space_handle_t)vaddr;
+  }
 
-  if (error == 0)
+  if (error == 0) {
     rman_activate_resource(r);
+    if (type != RT_IRQ)
+      rman_set_virtual(r, (void *)r->r_bus_handle);
+  }
 
   return error;
 }
@@ -113,9 +121,11 @@ static int rootdev_attach(device_t *bus) {
 
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ...
    * Skips region allocated for up to 256MB of RAM. */
-  rman_init(&rd->mem, "Malta I/O space", MALTA_PCI0_MEMORY_BASE, MALTA_FPGA_END,
-            RT_MEMORY);
-  rman_init(&rd->irq, "MIPS interrupts", 0, MIPS_NIRQ - 1, RT_IRQ);
+  rman_init(&rd->mem, "Malta I/O space");
+  rman_manage_region(&rd->mem, MALTA_PCI0_MEMORY_BASE, MALTA_FPGA_END);
+
+  rman_init(&rd->irq, "MIPS interrupts");
+  rman_manage_region(&rd->irq, 0, MIPS_NIRQ - 1);
 
 #define MIPS_INTR_EVENT(rd, irq, name)                                         \
   intr_event_init(&(rd)->intr_event[irq], irq, name, rootdev_mask_irq,         \

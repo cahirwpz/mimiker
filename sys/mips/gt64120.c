@@ -260,10 +260,11 @@ static int gt_pci_attach(device_t *pcib) {
     panic("gt64120 resource allocation fail");
   }
 
-  rman_init(&gtpci->pci_io_rman, "GT64120 PCI I/O ports", 0x0000, 0xffff,
-            RT_IOPORTS);
-  rman_init(&gtpci->pci_mem_rman, "GT64120 PCI memory", 0,
-            MALTA_PCI0_MEMORY_SIZE - 1, RT_MEMORY);
+  rman_init(&gtpci->pci_io_rman, "GT64120 PCI I/O ports");
+  rman_manage_region(&gtpci->pci_io_rman, 0x0000, 0xffff);
+
+  rman_init(&gtpci->pci_mem_rman, "GT64120 PCI memory");
+  rman_manage_region(&gtpci->pci_mem_rman, 0, MALTA_PCI0_MEMORY_SIZE - 1);
 
   pcib->bus = DEV_BUS_PCI;
   pcib->devclass = &DEVCLASS(pci);
@@ -318,6 +319,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   device_t *pcib = dev->parent;
   gt_pci_state_t *gtpci = pcib->state;
   bus_space_handle_t bh;
+  size_t alignment = 1;
   rman_t *from = NULL;
 
   if (type == RT_IOPORTS && end < IO_ISASIZE) {
@@ -341,6 +343,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     if (type == RT_MEMORY) {
       from = &gtpci->pci_mem_rman;
       bh = gtpci->pci_mem->r_start;
+      alignment = size;
     } else if (type == RT_IOPORTS) {
       assert(start >= IO_ISASIZE);
       from = &gtpci->pci_io_rman;
@@ -350,20 +353,17 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     }
   }
 
-  resource_t *r = rman_alloc_resource(from, start, end, size, size, flags);
+  res_flags_t new_flags = flags | rman_make_alignment_flags(alignment);
+  resource_t *r = rman_reserve_resource(from, start, end, size, new_flags);
   if (r == NULL)
     return NULL;
 
   if (flags & RF_ACTIVE) {
     r->r_bus_tag = generic_bus_space;
-    r->r_bus_handle = bh + r->r_start; /* absolute physical address */
+    r->r_bus_handle = bh + r->r_start;
 
-    if (type == RT_IOPORTS) {
-      rman_activate_resource(r);
-    } else if (type == RT_MEMORY) {
-      int error = bus_activate_resource(dev, type, rid, r);
-      assert(error == 0);
-    }
+    int error = bus_activate_resource(dev, type, rid, r);
+    assert(error == 0);
   }
 
   return r;
@@ -391,14 +391,22 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
   int error = 0;
 
   if (type == RT_MEMORY) {
-    /* Write BAR address to PCI device register. */
-    pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
-    error = bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
-                          &r->r_bus_handle);
+    void *vaddr = rman_get_virtual(r);
+    if (vaddr == NULL) {
+      /* Write BAR address to PCI device register. */
+      pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
+      error = bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+                            &r->r_bus_handle);
+    } else {
+      r->r_bus_handle = (bus_space_handle_t)vaddr;
+    }
   }
 
-  if (!error)
+  if (!error) {
     rman_activate_resource(r);
+    if (type != RT_IRQ)
+      rman_set_virtual(r, (void *)r->r_bus_handle);
+  }
   return error;
 }
 
