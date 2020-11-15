@@ -314,7 +314,7 @@ static bool check_setid(vnode_t *vn, uid_t *uid, gid_t *gid) {
     *uid = attr.va_uid;
 
   if (attr.va_mode & S_ISGID)
-    *uid = attr.va_gid;
+    *gid = attr.va_gid;
 
   return (*uid != (uid_t)-1) || (*gid != (gid_t)-1);
 }
