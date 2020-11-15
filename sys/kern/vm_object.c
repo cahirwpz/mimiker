@@ -21,21 +21,32 @@ vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   vm_object_t *obj = pool_alloc(P_VMOBJ, M_ZERO);
   TAILQ_INIT(&obj->list);
   RB_INIT(&obj->tree);
+  mtx_init(&obj->mtx, 0);
   obj->pager = &pagers[type];
+  obj->ref_counter = 1;
   return obj;
 }
 
 void vm_object_free(vm_object_t *obj) {
-  while (!TAILQ_EMPTY(&obj->list)) {
-    vm_page_t *pg = TAILQ_FIRST(&obj->list);
-    TAILQ_REMOVE(&obj->list, pg, obj.list);
-    vm_page_free(pg);
+  if (refcnt_release(&obj->ref_counter)) {
+    return;
+  }
+
+  assert(obj->ref_counter == 0);
+
+  WITH_MTX_LOCK(&obj->mtx) {
+    while (!TAILQ_EMPTY(&obj->list)) {
+      vm_page_t *pg = TAILQ_FIRST(&obj->list);
+      TAILQ_REMOVE(&obj->list, pg, obj.list);
+      vm_page_free(pg);
+    }
   }
   pool_free(P_VMOBJ, obj);
 }
 
 vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset) {
   vm_page_t find = {.offset = offset};
+  SCOPED_MTX_LOCK(&obj->mtx);
   return RB_FIND(vm_pagetree, &obj->tree, &find);
 }
 
@@ -46,6 +57,8 @@ bool vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *page) {
 
   page->object = obj;
   page->offset = offset;
+
+  SCOPED_MTX_LOCK(&obj->mtx);
 
   if (!RB_INSERT(vm_pagetree, &obj->tree, page)) {
     obj->npages++;
@@ -73,6 +86,8 @@ void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
 void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
   vm_page_t *pg, *next;
 
+  SCOPED_MTX_LOCK(&object->mtx);
+
   TAILQ_FOREACH_SAFE (pg, &object->list, obj.list, next) {
     if (pg->offset >= (off_t)(offset + length))
       break;
@@ -84,6 +99,8 @@ void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
 vm_object_t *vm_object_clone(vm_object_t *obj) {
   vm_object_t *new_obj = vm_object_alloc(VM_DUMMY);
   new_obj->pager = obj->pager;
+
+  SCOPED_MTX_LOCK(&obj->mtx);
 
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) {
@@ -97,6 +114,9 @@ vm_object_t *vm_object_clone(vm_object_t *obj) {
 
 void vm_map_object_dump(vm_object_t *obj) {
   vm_page_t *it;
-  RB_FOREACH (it, vm_pagetree, &obj->tree)
-    klog("(vm-obj) offset: 0x%08lx, size: %ld", it->offset, it->size);
+
+  WITH_MTX_LOCK(&obj->mtx) {
+    RB_FOREACH (it, vm_pagetree, &obj->tree)
+      klog("(vm-obj) offset: 0x%08lx, size: %ld", it->offset, it->size);
+  }
 }
