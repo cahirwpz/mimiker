@@ -581,6 +581,8 @@ static bool tty_output(tty_t *tty, uint8_t c) {
 static void tty_output_sleep(tty_t *tty, uint8_t c) {
   while (!tty_output(tty, c)) {
     tty_notify_out(tty);
+    /* tty_notify_out() can synchronously write characters to the device,
+     * so it may have written enough characters for us not to need to sleep. */
     if (tty->t_outq.count < TTY_OUT_LOW_WATER)
       continue;
     tty->t_flags |= TF_WAIT_OUT_LOWAT;
@@ -611,7 +613,9 @@ static int tty_write(file_t *f, uio_t *uio) {
   uio->uio_offset = 0; /* This device does not support offsets. */
 
   WITH_MTX_LOCK (&tty->t_lock) {
-    /* Wait for our turn. */
+    /* Wait for our turn.
+     * We need to use TF_OUT_BUSY to serialize calls to tty_write(),
+     * since tty_do_write() may sleep, releasing the tty lock. */
     while (tty->t_flags & TF_OUT_BUSY)
       cv_wait(&tty->t_serialize_cv, &tty->t_lock);
     tty->t_flags |= TF_OUT_BUSY;
