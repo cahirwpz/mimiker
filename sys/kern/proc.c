@@ -592,42 +592,66 @@ __noreturn void proc_exit(int exitstatus) {
   thread_exit();
 }
 
+static int proc_pgsignal(pgid_t pgid, signo_t sig) {
+  pgrp_t *pgrp = NULL;
+  SCOPED_MTX_LOCK(all_proc_mtx);
+
+  if (pgid == 0) {
+    pgrp = proc_self()->p_pgrp;
+  } else {
+    pgrp = pgrp_lookup(pgid);
+    if (!pgrp)
+      return ESRCH;
+  }
+
+  proc_t *target;
+  int send = 0, error = 0;
+  TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
+    WITH_PROC_LOCK(target) {
+      if (!(error = proc_cansignal(target, sig))) {
+        sig_kill(target, &DEF_KSI_RAW(sig));
+        send++;
+      }
+    }
+  }
+
+  /* We return error when signal can't be send to any process. Returned error is
+   * last error obtained from checking privileges.*/
+  return send > 0 ? 0 : error;
+}
+
 int proc_sendsig(pid_t pid, signo_t sig) {
 
+  if (sig >= NSIG)
+    return EINVAL;
+
+  int error;
   proc_t *target;
 
   if (pid > 0) {
-    WITH_MTX_LOCK (all_proc_mtx)
-      target = proc_find(pid);
+    SCOPED_MTX_LOCK(all_proc_mtx);
+    target = proc_find(pid);
     if (target == NULL)
-      return EINVAL;
-    sig_kill(target, &DEF_KSI_RAW(sig));
+      return ESRCH;
+    if (!(error = proc_cansignal(target, sig)))
+      sig_kill(target, &DEF_KSI_RAW(sig));
     proc_unlock(target);
-    return 0;
+    return error;
   }
 
-  /* TODO send sig to every process for which the calling process has
-   * permission to send signals, except init process */
-  if (pid == -1)
-    return ENOTSUP;
-
-  pgrp_t *pgrp = NULL;
-
-  WITH_MTX_LOCK (all_proc_mtx) {
-    if (pid == 0)
-      pgrp = proc_self()->p_pgrp;
-
-    if (pid < -1) {
-      pgrp = pgrp_lookup(-pid);
-      if (!pgrp)
-        return EINVAL;
-    }
-    mtx_lock(&pgrp->pg_lock);
+  switch (pid) {
+    case -1:
+      /* TODO send sig to every process for which the calling process has
+       * permission to send signals, except init process */
+      error = ENOTSUP;
+      break;
+    case 0:
+      error = proc_pgsignal(0, sig);
+      break;
+    default:
+      error = proc_pgsignal(-pid, sig);
   }
-
-  sig_pgkill(pgrp, &DEF_KSI_RAW(sig));
-  mtx_unlock(&pgrp->pg_lock);
-  return 0;
+  return error;
 }
 
 static bool is_zombie(proc_t *p) {

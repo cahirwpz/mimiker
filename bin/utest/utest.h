@@ -64,7 +64,6 @@ int test_getcwd(void);
 
 int test_sigaction_with_setjmp(void);
 int test_sigaction_handler_returns(void);
-int test_sigaction_siginfo_from_children(void);
 
 int test_vfs_dir(void);
 int test_vfs_relative_dir(void);

@@ -105,7 +105,6 @@ UTEST_ADD_SIMPLE(setjmp);
 
 UTEST_ADD_SIMPLE(sigaction_with_setjmp);
 UTEST_ADD_SIMPLE(sigaction_handler_returns);
-UTEST_ADD_SIMPLE(sigaction_siginfo_from_children);
 
 UTEST_ADD_SIMPLE(vfs_dir);
 UTEST_ADD_SIMPLE(vfs_relative_dir);

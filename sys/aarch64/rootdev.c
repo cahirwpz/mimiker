@@ -109,13 +109,13 @@ static void rootdev_enable_irq(intr_event_t *ie) {
     enable_local_irq(irq);
   } else if (irq < BCM2835_INT_GPU1BASE) {
     /* Enable GPU0 IRQ. */
-    enable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1PENDING);
+    enable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1ENABLE);
   } else if (irq < BCM2835_INT_BASICBASE) {
     /* Enable GPU1 IRQ. */
-    enable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2PENDING);
+    enable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2ENABLE);
   } else {
     /* Enable base IRQ. */
-    enable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
+    enable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBENABLE);
   }
 }
 
@@ -128,13 +128,13 @@ static void rootdev_disable_irq(intr_event_t *ie) {
     disable_local_irq(irq);
   } else if (irq < BCM2835_INT_GPU1BASE) {
     /* disable GPU0 IRQ. */
-    disable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1PENDING);
+    disable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1DISABLE);
   } else if (irq < BCM2835_INT_BASICBASE) {
     /* disable GPU1 IRQ. */
-    disable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2PENDING);
+    disable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2DISABLE);
   } else {
     /* disable base IRQ. */
-    disable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
+    disable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBDISABLE);
   }
 }
 
@@ -207,7 +207,7 @@ static int rootdev_attach(device_t *bus) {
 
   for (int i = 0; i < NIRQ; i++) {
     intr_event_init(&rd->intr_event[i], i, NULL, rootdev_disable_irq,
-                    rootdev_enable_irq, NULL);
+                    rootdev_enable_irq, rd);
     intr_event_register(&rd->intr_event[i]);
   }
 
@@ -218,23 +218,25 @@ static int rootdev_attach(device_t *bus) {
   return bus_generic_probe(bus);
 }
 
-static resource_t *rootdev_alloc_resource(device_t *bus, device_t *child,
-                                          res_type_t type, int rid,
-                                          rman_addr_t start, rman_addr_t end,
-                                          size_t size, res_flags_t flags) {
-  rootdev_t *rd = bus->state;
+static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
+                                          int rid, rman_addr_t start,
+                                          rman_addr_t end, size_t size,
+                                          res_flags_t flags) {
+  rootdev_t *rd = dev->parent->state;
   resource_t *r;
 
-  r = rman_alloc_resource(&rd->local_rm, start, end, size, 1, RF_NONE, child);
+  r = rman_alloc_resource(&rd->local_rm, start, end, size, 1, flags);
   if (r == NULL)
-    r =
-      rman_alloc_resource(&rd->shared_rm, start, end, size, 1, RF_NONE, child);
+    r = rman_alloc_resource(&rd->shared_rm, start, end, size, 1, flags);
 
   if (r) {
     r->r_bus_tag = rootdev_bus_space;
-    if (flags & RF_ACTIVE)
-      bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
-                    &r->r_bus_handle);
+    if (flags & RF_ACTIVE) {
+      /* TODO(cahir) Move to rootdev_activate_resource. */
+      (void)bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
+                          &r->r_bus_handle);
+      rman_activate_resource(r);
+    }
   }
 
   return r;

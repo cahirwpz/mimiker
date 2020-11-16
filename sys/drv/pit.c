@@ -116,8 +116,8 @@ static int pit_attach(device_t *dev) {
   pit_state_t *pit = dev->state;
 
   pit->regs =
-    bus_alloc_resource(dev, RT_ISA, 0, IO_TIMER1, IO_TIMER1 + IO_TMRSIZE - 1,
-                       IO_TMRSIZE, RF_ACTIVE);
+    bus_alloc_resource(dev, RT_IOPORTS, 0, IO_TIMER1,
+                       IO_TIMER1 + IO_TMRSIZE - 1, IO_TMRSIZE, RF_ACTIVE);
   assert(pit->regs != NULL);
 
   pit->lock = SPIN_INITIALIZER(0);
