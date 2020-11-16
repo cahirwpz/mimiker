@@ -22,7 +22,7 @@ typedef struct pit_state {
   resource_t *regs;
   intr_handler_t intr_handler;
   timer_t timer;
-  uint16_t period_cntr;        /* period as PIT counter value */
+  uint16_t period_cntr; /* period as PIT counter value */
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
@@ -47,21 +47,21 @@ static uint16_t pit_get_counter16(pit_state_t *pit) {
 
 static uint64_t pit_get_counter64(pit_state_t *pit) {
   static uint16_t counter16_last = 0;
-  static counter_t counter64_last = (counter_t) {.val = 0};
+  static counter_t counter64_last = (counter_t){.val = 0};
   uint16_t counter16_now, ticks;
   uint32_t oldlow;
 
   counter16_now = pit_get_counter16(pit);
-  if(counter16_last >= counter16_now)
+  if (counter16_last >= counter16_now)
     ticks = counter16_last - counter16_now;
   else
     ticks = counter16_last + (pit->period_cntr - counter16_now);
-  
+
   counter16_last = counter16_now;
 
   oldlow = counter64_last.lo;
 
-  if(oldlow > (counter64_last.lo = oldlow + ticks))
+  if (oldlow > (counter64_last.lo = oldlow + ticks))
     counter64_last.hi++;
 
   return counter64_last.val;
