@@ -109,13 +109,13 @@ static void rootdev_enable_irq(intr_event_t *ie) {
     enable_local_irq(irq);
   } else if (irq < BCM2835_INT_GPU1BASE) {
     /* Enable GPU0 IRQ. */
-    enable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1PENDING);
+    enable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1ENABLE);
   } else if (irq < BCM2835_INT_BASICBASE) {
     /* Enable GPU1 IRQ. */
-    enable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2PENDING);
+    enable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2ENABLE);
   } else {
     /* Enable base IRQ. */
-    enable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
+    enable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBENABLE);
   }
 }
 
@@ -128,13 +128,13 @@ static void rootdev_disable_irq(intr_event_t *ie) {
     disable_local_irq(irq);
   } else if (irq < BCM2835_INT_GPU1BASE) {
     /* disable GPU0 IRQ. */
-    disable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1PENDING);
+    disable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1DISABLE);
   } else if (irq < BCM2835_INT_BASICBASE) {
     /* disable GPU1 IRQ. */
-    disable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2PENDING);
+    disable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2DISABLE);
   } else {
     /* disable base IRQ. */
-    disable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
+    disable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBDISABLE);
   }
 }
 
