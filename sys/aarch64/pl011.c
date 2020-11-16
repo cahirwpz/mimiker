@@ -166,10 +166,10 @@ static int pl011_probe(device_t *dev) {
 static int pl011_attach(device_t *dev) {
   pl011_state_t *state = dev->state;
 
-  state->rx_buf.data = kmalloc(M_DEV, UART_BUFSIZE, M_ZERO);
-  state->rx_buf.size = UART_BUFSIZE;
-  state->tx_buf.data = kmalloc(M_DEV, UART_BUFSIZE, M_ZERO);
-  state->tx_buf.size = UART_BUFSIZE;
+  ringbuf_init(&state->rx_buf, kmalloc(M_DEV, UART_BUFSIZE, M_ZERO),
+               UART_BUFSIZE);
+  ringbuf_init(&state->tx_buf, kmalloc(M_DEV, UART_BUFSIZE, M_ZERO),
+               UART_BUFSIZE);
 
   spin_init(&state->lock, 0);
   cv_init(&state->rx_nonempty, "UART receive buffer not empty");
