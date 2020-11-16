@@ -28,7 +28,7 @@ vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
 }
 
 void vm_object_free(vm_object_t *obj) {
-  if (refcnt_release(&obj->ref_counter)) {
+  if (!refcnt_release(&obj->ref_counter)) {
     return;
   }
 
