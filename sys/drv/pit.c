@@ -87,7 +87,9 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
 
-  uint16_t counter = bintime_mul(period, TIMER_FREQ).sec;
+  uint32_t counter = bintime_mul(period, TIMER_FREQ).sec;
+  /* Maximal counter value which we can store in pit timer */
+  assert(counter <= 0xFFFF);
   pit_set_frequency(pit, counter);
 
   bus_intr_setup(dev, 0, &pit->intr_handler);
