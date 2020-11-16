@@ -54,6 +54,9 @@ static void rootdev_intr_setup(device_t *dev, resource_t *r,
 
 static void rootdev_intr_teardown(device_t *dev, resource_t *irq) {
   intr_event_remove_handler(irq->r_handler);
+
+  /* TODO: should we remove empty interrupt event here and in every other
+   * intr_teardown method? probably not... maybe in detach method? */
 }
 
 static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
