@@ -6,10 +6,13 @@
 #include <sys/ringbuf.h>
 #include <sys/condvar.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 
 #define TTY_QUEUE_SIZE 0x400
 #define TTY_OUT_LOW_WATER (TTY_QUEUE_SIZE / 4)
 #define LINEBUF_SIZE 0x100
+
+typedef struct session session_t;
 
 struct tty;
 
@@ -50,9 +53,12 @@ typedef struct tty {
   size_t t_column;           /* Cursor's column position */
   size_t t_rocol, t_rocount; /* See explanation below */
   condvar_t t_serialize_cv;  /* CV used to serialize write() calls */
+  condvar_t t_background_cv; /* Background wait CV */
   ttyops_t t_ops;            /* Serial device operations */
   struct termios t_termios;
-  void *t_data; /* Serial device driver's private data */
+  pgrp_t *t_pgrp;       /* Foreground process group */
+  session_t *t_session; /* Session controlled by this tty */
+  void *t_data;         /* Serial device driver's private data */
 } tty_t;
 
 /*
@@ -121,5 +127,13 @@ void tty_input(tty_t *tty, uint8_t c);
  * Must be called with tty->t_lock held.
  */
 void tty_getc_done(tty_t *tty);
+
+/*
+ * Returns whether `tty` is the controlling terminal of process `p`.
+ * Must be called with `tty->t_lock` and `p->p_lock` held.
+ */
+static inline bool tty_is_ctty(tty_t *tty, proc_t *p) {
+  return (tty->t_session == p->p_pgrp->pg_session);
+}
 
 #endif /* !_SYS_TTY_H_ */

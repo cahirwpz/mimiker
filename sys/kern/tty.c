@@ -16,6 +16,9 @@
 #include <sys/uio.h>
 #include <sys/vm_map.h>
 #include <sys/device.h>
+#include <sys/proc.h>
+#include <sys/thread.h>
+#include <sys/signal.h>
 #include <sys/file.h>
 
 /* START OF FreeBSD CODE */
@@ -116,7 +119,7 @@ unsigned char const char_type[] = {
 #define TTYSUP_IFLAG_CHANGE (INLCR | IGNCR | ICRNL | IMAXBEL)
 #define TTYSUP_OFLAG_CHANGE (OPOST | ONLCR | OCRNL | ONOCR | ONLRET)
 #define TTYSUP_LFLAG_CHANGE                                                    \
-  (ECHOKE | ECHOE | ECHOK | ECHO | ECHONL | ECHOCTL | ICANON)
+  (ECHOKE | ECHOE | ECHOK | ECHO | ECHONL | ECHOCTL | ICANON | TOSTOP)
 
 static bool tty_output(tty_t *tty, uint8_t c);
 
@@ -358,6 +361,61 @@ static void tty_wakeup(tty_t *tty) {
   cv_broadcast(&tty->t_incv);
 }
 
+/*
+ * Wait for our process group to become the foreground process group.
+ * Heavily based on FreeBSD's implementation of this routine.
+ */
+static int tty_wait_background(tty_t *tty, int sig) {
+  thread_t *td = thread_self();
+  proc_t *p = td->td_proc;
+  pgrp_t *pg;
+
+  assert(sig == SIGTTIN || sig == SIGTTOU);
+  assert(mtx_owned(&tty->t_lock));
+
+  while (true) {
+    WITH_PROC_LOCK(p) {
+      /*
+       * The process should only sleep, when:
+       * - This terminal is the controlling terminal
+       * - Its process group is not the foreground process
+       *   group
+       * - The signal to send to the process isn't masked
+       * - Its process group is not orphaned
+       */
+      if (!tty_is_ctty(tty, p) || p->p_pgrp == tty->t_pgrp)
+        return 0;
+
+      if (p->p_sigactions[sig].sa_handler == SIG_IGN ||
+          __sigismember(&td->td_sigmask, sig))
+        return (sig == SIGTTOU ? 0 : EIO);
+
+      pg = p->p_pgrp;
+    }
+    mtx_lock(&pg->pg_lock);
+    /* Our process group might have changed: check. */
+    if (p->p_pgrp != pg) {
+      mtx_unlock(&pg->pg_lock);
+      continue;
+    }
+
+    /* Unlocked read of pg_jobc: not a big deal. */
+    if (pg->pg_jobc == 0) {
+      mtx_unlock(&pg->pg_lock);
+      return EIO;
+    }
+
+    /*
+     * Send the signal and sleep until we're in the foreground
+     * process group.
+     */
+    sig_pgkill(pg, &DEF_KSI_RAW(sig));
+    mtx_unlock(&pg->pg_lock);
+
+    cv_wait(&tty->t_background_cv, &tty->t_lock);
+  }
+}
+
 static void tty_bell(tty_t *tty) {
   if (tty->t_iflag & IMAXBEL) {
     tty_output(tty, CTRL('g'));
@@ -458,8 +516,20 @@ static int tty_read(file_t *f, uio_t *uio) {
 
   uint8_t c;
   WITH_MTX_LOCK (&tty->t_lock) {
-    while (tty->t_inq.count == 0)
+
+    while (true) {
+      error = tty_wait_background(tty, SIGTTIN);
+      if (error)
+        return error;
+
+      if (tty->t_inq.count > 0)
+        break;
+
       cv_wait(&tty->t_incv, &tty->t_lock);
+      /* The foreground process group may have changed while
+       * we were sleeping, so go to the beginning of the loop
+       * and check again. */
+    }
 
     if (tty->t_lflag & ICANON) {
       /* In canonical mode, read as many characters as possible, but no more
@@ -613,6 +683,13 @@ static int tty_write(file_t *f, uio_t *uio) {
   uio->uio_offset = 0; /* This device does not support offsets. */
 
   WITH_MTX_LOCK (&tty->t_lock) {
+    if (tty->t_lflag & TOSTOP) {
+      /* Wait until we're the foreground process group. */
+      error = tty_wait_background(tty, SIGTTOU);
+      if (error)
+        return error;
+    }
+
     /* Wait for our turn.
      * We need to use TF_OUT_BUSY to serialize calls to tty_write(),
      * since tty_do_write() may sleep, releasing the tty lock. */
@@ -671,9 +748,8 @@ static void tty_reinput(tty_t *tty) {
 
 static int tty_ioctl(file_t *f, u_long cmd, void *data) {
   tty_t *tty = f->f_data;
-  int ret = 0;
 
-  mtx_lock(&tty->t_lock);
+  SCOPED_MTX_LOCK(&tty->t_lock);
   switch (cmd) {
     case TIOCGETA: { /* Get termios */
       struct termios *t = (struct termios *)data;
@@ -725,9 +801,42 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
         tty_reinput(tty);
       break;
     }
-    case 0:
-      ret = EPASSTHROUGH;
+    case TIOCGPGRP: { /* Get foreground process group */
+      proc_t *p = proc_self();
+      if (tty->t_session != p->p_pgrp->pg_session)
+        return ENOTTY;
+      if (tty->t_pgrp)
+        *(int *)data = tty->t_pgrp->pg_id;
+      else
+        /* Return a value greater than 1 that's not equal to any PGID. */
+        *(int *)data = INT_MAX;
       break;
+    }
+    case TIOCSPGRP: { /* Set foreground process group */
+      /* XXX */
+      mtx_unlock(&tty->t_lock);
+      mtx_lock(all_proc_mtx);
+      mtx_lock(&tty->t_lock);
+      proc_t *p = proc_self();
+      pgrp_t *pg = pgrp_lookup(*(pgid_t *)data);
+      /* The target process group must be in the same session
+       * as the calling process. */
+      if (pg == NULL || pg->pg_session != p->p_pgrp->pg_session) {
+        mtx_unlock(all_proc_mtx);
+        return EPERM;
+      }
+      /* Calling process must be controlled by the terminal. */
+      if (tty->t_session != p->p_pgrp->pg_session) {
+        mtx_unlock(all_proc_mtx);
+        return ENOTTY;
+      }
+      tty->t_pgrp = pg;
+      mtx_unlock(all_proc_mtx);
+      cv_broadcast(&tty->t_background_cv);
+      break;
+    }
+    case 0:
+      return EPASSTHROUGH;
     default: {
       char buf[32];
       IOCSNPRINTF(buf, sizeof(buf), cmd);
@@ -737,9 +846,8 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
       break;
     }
   }
-  mtx_unlock(&tty->t_lock);
 
-  return ret;
+  return 0;
 }
 
 static int tty_vn_getattr(vnode_t *v, vattr_t *va) {
@@ -764,11 +872,31 @@ static fileops_t tty_fileops = {
 
 static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
   tty_t *tty = v->v_data;
+  proc_t *p = proc_self();
   int error;
 
   if ((error = vnode_open_generic(v, mode, fp)) != 0)
     return error;
 
+  WITH_MTX_LOCK (all_proc_mtx) {
+    /* If the opening process is a session leader, the session has no associated
+     * terminal, and the terminal has no associated session, make this terminal
+     * the controlling terminal for the session. */
+    if (proc_is_session_leader(p)) {
+      WITH_MTX_LOCK (&tty->t_lock) {
+        if (tty->t_session != NULL)
+          goto end;
+        session_t *s = p->p_pgrp->pg_session;
+        if (s->s_tty != NULL)
+          goto end;
+        tty->t_session = s;
+        s->s_tty = tty;
+        tty->t_pgrp = p->p_pgrp;
+      }
+    }
+  }
+
+end:
   fp->f_ops = &tty_fileops;
   fp->f_data = tty;
 
