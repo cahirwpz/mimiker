@@ -42,6 +42,7 @@ static void rootdev_intr_setup(device_t *dev, resource_t *r,
                                void *arg, const char *name) {
   rootdev_t *rd = dev->parent->state;
   int irq = r->r_start;
+  assert(irq < MIPS_NIRQ);
 
   if (rd->intr_event[irq] == NULL)
     rd->intr_event[irq] = intr_event_create(

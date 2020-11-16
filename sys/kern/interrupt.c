@@ -33,7 +33,7 @@ void intr_enable(void) {
 
 intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
                                 ie_action_t *enable, const char *name) {
-  intr_event_t *ie = kmalloc(M_INTR, sizeof(intr_event_t), M_ZERO);
+  intr_event_t *ie = kmalloc(M_INTR, sizeof(intr_event_t), M_WAITOK | M_ZERO);
   ie->ie_irq = irq;
   ie->ie_name = name;
   ie->ie_lock = SPIN_INITIALIZER(LK_RECURSIVE);
@@ -75,12 +75,13 @@ static void ie_add_handler(intr_event_t *ie, intr_handler_t *ih) {
 intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
                                        ih_service_t *service, void *arg,
                                        const char *name) {
-  intr_handler_t *ih = kmalloc(M_INTR, sizeof(intr_handler_t), M_ZERO);
+  intr_handler_t *ih =
+    kmalloc(M_INTR, sizeof(intr_handler_t), M_WAITOK | M_ZERO);
   ih->ih_filter = filter;
   ih->ih_service = service;
   ih->ih_argument = arg;
   ih->ih_name = name;
-  ih->ih_prio = 0; /* ? */
+  ih->ih_prio = 0;
   ie_add_handler(ie, ih);
   return ih;
 }
@@ -95,6 +96,8 @@ void intr_event_remove_handler(intr_handler_t *ih) {
     ih->ih_event = NULL;
     ie->ie_count--;
   }
+  /* XXX: Revisit possible data race when ithreads are implemented. */
+  kfree(M_INTR, ih);
 }
 
 static intr_root_filter_t ir_filter;
@@ -130,6 +133,8 @@ static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
 void intr_event_run_handlers(intr_event_t *ie) {
   intr_handler_t *ih, *next;
   intr_filter_t status = IF_STRAY;
+
+  assert(ie != NULL);
 
   TAILQ_FOREACH_SAFE (ih, &ie->ie_handlers, ih_link, next) {
     status = ih->ih_filter(ih->ih_argument);

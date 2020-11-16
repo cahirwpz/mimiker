@@ -186,6 +186,7 @@ static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
   assert(dev->parent->driver == &gt_pci_bus.driver);
   gt_pci_state_t *gtpci = dev->parent->state;
   int irq = r->r_start;
+  assert(irq < ICU_LEN);
 
   if (gtpci->intr_event[irq] == NULL)
     gtpci->intr_event[irq] = intr_event_create(

@@ -74,16 +74,11 @@ struct intr_handler {
   intr_event_t *ih_event;   /* event we are connected to */
   void *ih_argument;        /* argument to pass to filter/service routines */
   const char *ih_name;      /* name of the handler */
-  prio_t ih_prio;           /* handler's priority (sort key for ie_handlers) */
+  /* XXX: do we really need ih_prio? it has no real use cases so far... */
+  prio_t ih_prio; /* handler's priority (sort key for ie_handlers) */
 };
 
 typedef TAILQ_HEAD(, intr_handler) ih_list_t;
-
-#define INTR_HANDLER_INIT(filter, service, argument, desc, prio)               \
-  (intr_handler_t) {                                                           \
-    .ih_filter = (filter), .ih_service = (service), .ih_argument = (argument), \
-    .ih_name = (desc), .ih_prio = (prio)                                       \
-  }
 
 /* Software representation of interrupt line. */
 typedef struct intr_event {
