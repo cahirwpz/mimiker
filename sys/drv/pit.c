@@ -40,11 +40,9 @@ static void pit_set_frequency(pit_state_t *pit, uint16_t period) {
 
 static uint16_t pit_get_counter16(pit_state_t *pit) {
   uint16_t count = 0;
-  WITH_INTR_DISABLED {
-    outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
-    count |= inb(TIMER_CNTR0);
-    count |= inb(TIMER_CNTR0) << 8;
-  }
+  outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
+  count |= inb(TIMER_CNTR0);
+  count |= inb(TIMER_CNTR0) << 8;
   return count;
 }
 
@@ -53,6 +51,7 @@ static uint64_t pit_get_counter64(pit_state_t *pit) {
   static counter_t counter64_last = (counter_t){.val = 0};
   uint16_t counter16_now, ticks;
   uint32_t oldlow;
+  SCOPED_INTR_DISABLED();
 
   counter16_now = pit_get_counter16(pit);
   if (counter16_last >= counter16_now)
