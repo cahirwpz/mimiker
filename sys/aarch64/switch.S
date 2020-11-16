@@ -5,7 +5,7 @@
 #include "assym.h"
 
 .macro  SAVE_CTX
-        str     lr, [sp, #CTX_LR]
+        str     lr, [sp, #CTX_PC]
         stp     x28, x29, [sp, #CTX_X28]
         stp     x26, x27, [sp, #CTX_X26]
         stp     x24, x25, [sp, #CTX_X24]
