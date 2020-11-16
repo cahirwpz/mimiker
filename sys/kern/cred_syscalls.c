@@ -145,7 +145,7 @@ int do_setuid(proc_t *p, uid_t uid) {
 
   uid_t ruid = uid, euid = uid, suid = uid;
 
-  if (p->p_cred.cr_euid == 0)
+  if (p->p_cred.cr_euid != 0)
     ruid = suid = -1;
 
   int error = change_resuid(&p->p_cred, ruid, euid, suid);
