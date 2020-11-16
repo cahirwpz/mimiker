@@ -145,6 +145,7 @@ int do_setuid(proc_t *p, uid_t uid) {
 
   uid_t ruid = uid, euid = uid, suid = uid;
 
+  /* Only root sets all ids to given value. */
   if (p->p_cred.cr_euid != 0)
     ruid = suid = -1;
 
@@ -198,6 +199,7 @@ int do_setgid(proc_t *p, gid_t gid) {
 
   gid_t rgid = gid, egid = gid, sgid = gid;
 
+  /* Only root sets all ids to given value. */
   if (p->p_cred.cr_euid != 0)
     rgid = sgid = -1;
 
