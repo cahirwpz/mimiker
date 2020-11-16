@@ -326,9 +326,6 @@ static int _do_execve(exec_args_t *args) {
   thread_t *td = thread_self();
   proc_t *p = td->td_proc;
   vnode_t *vn;
-  bool cred_change;
-  uid_t uid;
-  gid_t gid;
   int error;
 
   assert(p != NULL);
@@ -359,7 +356,9 @@ static int _do_execve(exec_args_t *args) {
     use_interpreter = true;
   }
 
-  cred_change = check_setid(vn, &uid, &gid);
+  uid_t uid;
+  gid_t gid;
+  bool setid = check_setid(vn, &uid, &gid);
 
   Elf_Ehdr eh;
   if ((error = exec_elf_inspect(vn, &eh)))
@@ -384,9 +383,10 @@ static int _do_execve(exec_args_t *args) {
   user_ctx_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
 
   /* Set new credentials if needed */
-  if (cred_change) {
-    WITH_PROC_LOCK(p)
-    cred_exec_change_id(p, uid, gid);
+  if (setid) {
+    WITH_PROC_LOCK(p) {
+      cred_exec_setid(p, uid, gid);
+    }
   }
 
   /* At this point we are certain that exec succeeds.  We can safely destroy the

@@ -8,7 +8,7 @@ void cred_fork(proc_t *to, proc_t *from) {
   memcpy(&to->p_cred, &from->p_cred, sizeof(cred_t));
 }
 
-void cred_exec_change_id(proc_t *p, uid_t uid, gid_t gid) {
+void cred_exec_setid(proc_t *p, uid_t uid, gid_t gid) {
   assert(mtx_owned(&p->p_lock));
   if (uid != (uid_t)-1) {
     p->p_cred.cr_suid = p->p_cred.cr_euid;

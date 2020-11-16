@@ -43,7 +43,7 @@ int do_setregid(proc_t *p, gid_t rgid, gid_t egid);
 void cred_fork(proc_t *to, proc_t *from);
 
 /* \note Must be called with p::p_lock held */
-void cred_exec_change_id(proc_t *p, uid_t uid, gid_t gid);
+void cred_exec_setid(proc_t *p, uid_t uid, gid_t gid);
 
 /* \note Must be called with p::p_lock. Returns p::p_lock held. */
 int cred_cansignal(proc_t *p, cred_t *cred);
