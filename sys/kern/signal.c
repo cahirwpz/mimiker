@@ -269,6 +269,34 @@ void sig_pgkill(pgrp_t *pg, signo_t sig) {
   }
 }
 
+void sig_onexec(proc_t *p) {
+  assert(mtx_owned(&p->p_lock));
+  thread_t *td = p->p_thread;
+
+  /* The signal mask, pending and ignored signals remain unchanged.
+   * Caught signals have their action reset to SIG_DFL.
+   * If a pending signal becomes ignored due to its default action,
+   * it is discarded. */
+  for (signo_t sig = 1; sig < NSIG; sig++) {
+    if (sig_ignored(p->p_sigactions, sig)) {
+      /* Invariant check. */
+      assert(!__sigismember(&td->td_sigpend, sig));
+      continue;
+    }
+
+    sigaction_t *sigact = &p->p_sigactions[sig];
+    if (sigact->sa_handler == SIG_DFL)
+      continue;
+
+    /* Signal is caught: reset handler. */
+    sigact->sa_handler = SIG_DFL;
+    sigact->sa_flags = 0;
+    __sigemptyset(&sigact->sa_mask);
+    if (defact(sig) == SA_IGNORE || defact(sig) == SA_CONT)
+      __sigdelset(&td->td_sigpend, sig);
+  }
+}
+
 int sig_check(thread_t *td) {
   proc_t *p = td->td_proc;
 

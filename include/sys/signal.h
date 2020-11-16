@@ -135,6 +135,11 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa);
  * \note This is machine dependent code! */
 int sig_return(void);
 
+/*! \brief Perform signal-related tasks on process exec.
+ *
+ * \note Must be called with p::p_lock held. */
+void sig_onexec(proc_t *p);
+
 /* System calls implementation. */
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset);

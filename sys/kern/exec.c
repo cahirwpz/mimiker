@@ -16,6 +16,7 @@
 #include <sys/vnode.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/signal.h>
 
 typedef int (*copy_ptr_t)(exec_args_t *args, char *const *ptr_p);
 typedef int (*copy_str_t)(exec_args_t *args, const char *str, size_t *copied_p);
@@ -357,6 +358,10 @@ static int _do_execve(exec_args_t *args) {
     goto fail;
 
   fdtab_onexec(p->p_fdtable);
+
+  WITH_PROC_LOCK(p) {
+    sig_onexec(p);
+  }
 
   /* Set up user context. */
   user_ctx_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
