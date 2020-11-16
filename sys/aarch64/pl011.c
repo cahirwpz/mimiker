@@ -50,7 +50,7 @@ static bool pl011_rready(pl011_state_t *state) {
   return (reg & PL01X_FR_RXFE) == 0;
 }
 
-__unused static uint32_t pl011_getc(pl011_state_t *state) {
+static uint32_t pl011_getc(pl011_state_t *state) {
   assert(pl011_rready(state));
 
   resource_t *r = state->regs;
