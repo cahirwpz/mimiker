@@ -9,9 +9,13 @@
 #include <sys/spinlock.h>
 #include <sys/devclass.h>
 
-typedef struct counter {
-  uint32_t lo;
-  uint32_t hi;
+typedef union {
+  /* assumes little endian order */
+  struct {
+    uint32_t lo;
+    uint32_t hi;
+  };
+  uint64_t val;
 } counter_t;
 
 typedef struct pit_state {
@@ -31,7 +35,7 @@ static void pit_set_frequency(pit_state_t *pit, uint16_t period) {
   pit->period_cntr = period;
 }
 
-static uint16_t pit_get_count(pit_state_t *pit) {
+static uint16_t pit_get_counter16(pit_state_t *pit) {
   uint16_t count = 0;
   WITH_INTR_DISABLED {
     outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -41,32 +45,32 @@ static uint16_t pit_get_count(pit_state_t *pit) {
   return count;
 }
 
-static counter_t pit_get_counter(pit_state_t *pit) {
-  static uint16_t count_last = 0;
-  static counter_t counter_last = {0,0};
-  uint16_t count_now, ticks;
+static uint64_t pit_get_counter64(pit_state_t *pit) {
+  static uint16_t counter16_last = 0;
+  static counter_t counter64_last = (counter_t) {.val = 0};
+  uint16_t counter16_now, ticks;
   uint32_t oldlow;
 
-  count_now = pit_get_count(pit);
-  if(count_last >= count_now)
-    ticks = count_last - count_now;
+  counter16_now = pit_get_counter16(pit);
+  if(counter16_last >= counter16_now)
+    ticks = counter16_last - counter16_now;
   else
-    ticks = count_last + (pit->period_cntr - count_now);
+    ticks = counter16_last + (pit->period_cntr - counter16_now);
   
-  count_last = count_now;
+  counter16_last = counter16_now;
 
-  oldlow = counter_last.lo;
+  oldlow = counter64_last.lo;
 
-  if(oldlow > (counter_last.lo = oldlow + ticks))
-    counter_last.hi++;
+  if(oldlow > (counter64_last.lo = oldlow + ticks))
+    counter64_last.hi++;
 
-  return counter_last;  
+  return counter64_last.val;
 }
 
 static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
-  pit_get_counter(pit);
+  pit_get_counter64(pit);
   tm_trigger(&pit->timer);
   return IF_FILTERED;
 }
@@ -101,14 +105,12 @@ static int timer_pit_stop(timer_t *tm) {
 static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  bintime_t period = HZ2BT(tm->tm_frequency);
-  counter_t counter = pit_get_counter(pit);
+  uint64_t count = pit_get_counter64(pit);
 
-  bintime_t bt = bintime_mul(period, counter.hi);
-  bintime_t bt2 = bintime_mul(period, counter.lo);
-  bt = bintime_mul(bt, (1<<16));
-  bt = bintime_mul(bt, (1<<16));
-  bintime_add(&bt, &bt2);
+  uint32_t sec = count / tm->tm_frequency;
+  uint32_t frac = count % tm->tm_frequency;
+  bintime_t bt = bintime_mul(HZ2BT(tm->tm_frequency), frac);
+  bt.sec += sec;
 
   return bt;
 }
