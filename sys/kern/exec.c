@@ -358,6 +358,8 @@ static int _do_execve(exec_args_t *args) {
 
   uid_t uid;
   gid_t gid;
+  /* XXX: This solution is prone to TOCTTOU. File (content or owners) may be
+   * changed between check of identity and load of content. */
   bool setid = check_setid(vn, &uid, &gid);
 
   Elf_Ehdr eh;
