@@ -337,27 +337,48 @@ int session_enter(proc_t *p) {
   return _pgrp_enter(p, pg);
 }
 
-int pgrp_enter(proc_t *p, pgid_t pgid) {
+int pgrp_enter(proc_t *p, pid_t target, pgid_t pgid) {
+  /* TODO: disallow setting the process group of children
+   * that have called exec(). */
   SCOPED_MTX_LOCK(all_proc_mtx);
   assert(p->p_pgrp);
 
+  proc_t *targetp = proc_find_raw(target);
+  /* The calling process can only set its own process group
+   * or the process group of one of its children. */
+  if (targetp == NULL || !proc_is_alive(targetp) ||
+      (targetp != p && targetp->p_parent != p))
+    return ESRCH;
+
+  /* The process group of a session leader cannot change. */
+  if (targetp == targetp->p_pgrp->pg_session->s_leader)
+    return EPERM;
+
+  /* The target process must be in the same session as the calling process. */
+  if (targetp->p_pgrp->pg_session != p->p_pgrp->pg_session)
+    return EPERM;
+
   pgrp_t *pg = pgrp_lookup(pgid);
 
-  /* We're done if already belong to the group. */
-  if (pg == p->p_pgrp)
+  /* We're done if the target process already belongs to the group. */
+  if (targetp->p_pgrp == pg)
     return 0;
 
   /* Create new group if one does not exist. */
   if (pg == NULL) {
-    /* New pgrp can only be created with PGID = PID of calling process. */
-    if (pgid != p->p_pid)
+    /* New pgrp can only be created with PGID = PID of target process. */
+    if (pgid != target)
       return EPERM;
     pg = pgrp_create(pgid);
     pg->pg_session = p->p_pgrp->pg_session;
     session_hold(pg->pg_session);
+  } else if (pg->pg_session != p->p_pgrp->pg_session) {
+    /* Target process group must be in the same session
+     * as the calling process. */
+    return EPERM;
   }
 
-  return _pgrp_enter(p, pg);
+  return _pgrp_enter(targetp, pg);
 }
 
 /* Process functions */
@@ -569,42 +590,66 @@ __noreturn void proc_exit(int exitstatus) {
   thread_exit();
 }
 
+static int proc_pgsignal(pgid_t pgid, signo_t sig) {
+  pgrp_t *pgrp = NULL;
+  SCOPED_MTX_LOCK(all_proc_mtx);
+
+  if (pgid == 0) {
+    pgrp = proc_self()->p_pgrp;
+  } else {
+    pgrp = pgrp_lookup(pgid);
+    if (!pgrp)
+      return ESRCH;
+  }
+
+  proc_t *target;
+  int send = 0, error = 0;
+  TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
+    WITH_PROC_LOCK(target) {
+      if (!(error = proc_cansignal(target, sig))) {
+        sig_kill(target, sig);
+        send++;
+      }
+    }
+  }
+
+  /* We return error when signal can't be send to any process. Returned error is
+   * last error obtained from checking privileges.*/
+  return send > 0 ? 0 : error;
+}
+
 int proc_sendsig(pid_t pid, signo_t sig) {
 
+  if (sig >= NSIG)
+    return EINVAL;
+
+  int error;
   proc_t *target;
 
   if (pid > 0) {
-    WITH_MTX_LOCK (all_proc_mtx)
-      target = proc_find(pid);
+    SCOPED_MTX_LOCK(all_proc_mtx);
+    target = proc_find(pid);
     if (target == NULL)
-      return EINVAL;
-    sig_kill(target, sig);
+      return ESRCH;
+    if (!(error = proc_cansignal(target, sig)))
+      sig_kill(target, sig);
     proc_unlock(target);
-    return 0;
+    return error;
   }
 
-  /* TODO send sig to every process for which the calling process has
-   * permission to send signals, except init process */
-  if (pid == -1)
-    return ENOTSUP;
-
-  pgrp_t *pgrp = NULL;
-
-  WITH_MTX_LOCK (all_proc_mtx) {
-    if (pid == 0)
-      pgrp = proc_self()->p_pgrp;
-
-    if (pid < -1) {
-      pgrp = pgrp_lookup(-pid);
-      if (!pgrp)
-        return EINVAL;
-    }
-    mtx_lock(&pgrp->pg_lock);
+  switch (pid) {
+    case -1:
+      /* TODO send sig to every process for which the calling process has
+       * permission to send signals, except init process */
+      error = ENOTSUP;
+      break;
+    case 0:
+      error = proc_pgsignal(0, sig);
+      break;
+    default:
+      error = proc_pgsignal(-pid, sig);
   }
-
-  sig_pgkill(pgrp, sig);
-  mtx_unlock(&pgrp->pg_lock);
-  return 0;
+  return error;
 }
 
 static bool is_zombie(proc_t *p) {

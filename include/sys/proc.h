@@ -91,10 +91,10 @@ struct proc {
   TAILQ_ENTRY(proc) p_hash;   /* (a) link on pid hash chain */
   thread_t *p_thread;         /* (@) the only thread running in this process */
   pid_t p_pid;                /* (!) Process ID */
-  cred_t p_cred;              /* (@) Process credentials */
+  cred_t p_cred;              /* (@, *) Process credentials */
   char *p_elfpath;            /* (!) path of loaded elf file */
   TAILQ_ENTRY(proc) p_pglist; /* (g + a) link on pg_members list */
-  pgrp_t *p_pgrp;             /* (@ + a,*) process group */
+  pgrp_t *p_pgrp;             /* (@ + a) process group */
   volatile proc_state_t p_state;  /* (@) process state */
   proc_t *p_parent;               /* (@ + a) parent process */
   proc_list_t p_children;         /* (a) child processes, including zombies */
@@ -140,6 +140,7 @@ void proc_add(proc_t *p);
 proc_t *proc_find(pid_t pid);
 
 /*! \brief Sends signal to process group or process.
+ * Signal is send on behalf of the current process. Performs privilege checks.
  * (pid > 0) sends signal to the process with the ID specified by pid.
  * (pid = 0) sends signal to processes in process group of the calling process.
  * (pid <-1) sends signal to processes in process group with ID equal (-pid). */
@@ -152,9 +153,9 @@ int proc_getpgid(pid_t pid, pgid_t *pgidp);
  * \note Exit status shoud be created using MAKE_STATUS macros from wait.h */
 __noreturn void proc_exit(int exitstatus);
 
-/*! \brief Moves process p to the process group with ID specified by pgid.
- * If such process group does not exist then it creates one. */
-int pgrp_enter(proc_t *p, pgid_t pgid);
+/*! \brief Moves process with pid target to the process group with ID specified
+ * by pgid. If such process group does not exist then it creates one. */
+int pgrp_enter(proc_t *curp, pid_t target, pgid_t pgid);
 
 /*! \brief Makes process p the session leader of a new session. */
 int session_enter(proc_t *p);
