@@ -160,7 +160,7 @@ static void gt_pci_unmask_irq(intr_event_t *ie) {
 }
 
 /* clang-format off */
-static const char *gt_pci_intr_name[16] = {
+static const char *gt_pci_intr_name[ICU_LEN] = {
   [0] = "timer",
   [1] = "kbd",        /* kbd controller (keyboard) */
   [2] = "pic-slave",  /* PIC cascade */
@@ -286,7 +286,8 @@ static int gt_pci_attach(device_t *pcib) {
             RT_IOPORTS);
   rman_init(&gtpci->pci_mem_rman, "GT64120 PCI memory", 0,
             MALTA_PCI0_MEMORY_SIZE - 1, RT_MEMORY);
-  rman_init(&gtpci->irq_rman, "GT64120 PCI & ISA interrupts", 0, 15, RT_IRQ);
+  rman_init(&gtpci->irq_rman, "GT64120 PCI & ISA interrupts", 0, ICU_LEN - 1,
+            RT_IRQ);
 
   pcib->bus = DEV_BUS_PCI;
   pcib->devclass = &DEVCLASS(pci);
