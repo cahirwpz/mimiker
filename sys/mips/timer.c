@@ -80,7 +80,8 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
   state->compare.val = read_count(state);
   state->last_count_lo = state->count.lo;
   set_next_tick(state);
-  bus_intr_setup(dev, state->irq_res, mips_timer_intr, NULL, dev);
+  bus_intr_setup(dev, state->irq_res, mips_timer_intr, NULL, dev,
+                 "MIPS CPU timer");
   return 0;
 }
 
@@ -112,7 +113,6 @@ static int mips_timer_probe(device_t *dev) {
 static int mips_timer_attach(device_t *dev) {
   mips_timer_state_t *state = dev->state;
 
-  /* intr_handler name: "MIPS CPU timer" */
   state->irq_res = bus_alloc_irq(dev, 0, MIPS_HWINT5, RF_ACTIVE);
 
   state->timer = (timer_t){

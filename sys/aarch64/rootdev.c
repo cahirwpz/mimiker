@@ -141,7 +141,7 @@ static void rootdev_disable_irq(intr_event_t *ie) {
 
 static void rootdev_intr_setup(device_t *dev, resource_t *r,
                                ih_filter_t *filter, ih_service_t *service,
-                               void *arg) {
+                               void *arg, const char *name) {
   rootdev_t *rd = dev->parent->state;
   int irq = r->r_start;
   assert(irq < NIRQ);
@@ -150,7 +150,7 @@ static void rootdev_intr_setup(device_t *dev, resource_t *r,
     rd->intr_event[irq] = intr_event_create(dev, irq, rootdev_disable_irq,
                                             rootdev_enable_irq, "???");
 
-  intr_event_add_handler(rd->intr_event[irq], filter, service, arg);
+  intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
 static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {

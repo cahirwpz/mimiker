@@ -137,7 +137,7 @@ extern bus_space_t *generic_bus_space;
 
 struct bus_methods {
   void (*intr_setup)(device_t *dev, resource_t *r, ih_filter_t *filter,
-                     ih_service_t *service, void *arg);
+                     ih_service_t *service, void *arg, const char *name);
   void (*intr_teardown)(device_t *dev, intr_handler_t *handler);
   resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
                                 rman_addr_t start, rman_addr_t end, size_t size,
@@ -157,8 +157,8 @@ struct bus_driver {
 
 static inline void bus_intr_setup(device_t *dev, resource_t *r,
                                   ih_filter_t *filter, ih_service_t *service,
-                                  void *arg) {
-  BUS_DRIVER(dev)->bus.intr_setup(dev, r, filter, service, arg);
+                                  void *arg, const char *name) {
+  BUS_DRIVER(dev)->bus.intr_setup(dev, r, filter, service, arg, name);
 }
 
 static inline void bus_intr_teardown(device_t *dev, intr_handler_t *handler) {

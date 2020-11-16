@@ -73,7 +73,7 @@ struct intr_handler {
   ih_service_t *ih_service; /* interrupt service routine (run in thread ctx) */
   intr_event_t *ih_event;   /* event we are connected to */
   void *ih_argument;        /* argument to pass to filter/service routines */
-  char *ih_name;            /* name of the handler */
+  const char *ih_name;      /* name of the handler */
   prio_t ih_prio;           /* handler's priority (sort key for ie_handlers) */
 };
 
@@ -103,7 +103,8 @@ typedef TAILQ_HEAD(, intr_event) ie_list_t;
 intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
                                 ie_action_t *enable, const char *name);
 intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
-                                       ih_service_t *service, void *arg);
+                                       ih_service_t *service, void *arg,
+                                       const char *name);
 void intr_event_remove_handler(intr_handler_t *ih);
 void intr_event_run_handlers(intr_event_t *ie);
 

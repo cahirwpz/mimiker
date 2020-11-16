@@ -73,12 +73,13 @@ static void ie_add_handler(intr_event_t *ie, intr_handler_t *ih) {
 }
 
 intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
-                                       ih_service_t *service, void *arg) {
+                                       ih_service_t *service, void *arg,
+                                       const char *name) {
   intr_handler_t *ih = kmalloc(M_INTR, sizeof(intr_handler_t), M_ZERO);
   ih->ih_filter = filter;
   ih->ih_service = service;
   ih->ih_argument = arg;
-  ih->ih_name = "?";
+  ih->ih_name = name;
   ih->ih_prio = 0; /* ? */
   ie_add_handler(ie, ih);
   return ih;

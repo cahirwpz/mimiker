@@ -77,7 +77,7 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
     pit_set_frequency(pit, counter);
     pit->last_cntr = pit_get_counter(pit);
   }
-  bus_intr_setup(dev, pit->irq_res, pit_intr, NULL, pit);
+  bus_intr_setup(dev, pit->irq_res, pit_intr, NULL, pit, "i8254 timer");
   return 0;
 }
 
@@ -122,7 +122,6 @@ static int pit_attach(device_t *dev) {
   assert(pit->regs != NULL);
 
   pit->lock = SPIN_INITIALIZER(0);
-  /* intr_handler name: "i8254 timer" */
   pit->irq_res = bus_alloc_irq(dev, 0, 0 /* magic */, RF_ACTIVE);
 
   pit->timer = (timer_t){

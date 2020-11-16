@@ -181,7 +181,8 @@ static const char *gt_pci_intr_name[16] = {
 /* clang-format on */
 
 static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
-                              ih_service_t *service, void *arg) {
+                              ih_service_t *service, void *arg,
+                              const char *name) {
   assert(dev->parent->driver == &gt_pci_bus.driver);
   gt_pci_state_t *gtpci = dev->parent->state;
   int irq = r->r_start;
@@ -190,7 +191,7 @@ static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
     gtpci->intr_event[irq] = intr_event_create(
       gtpci, irq, gt_pci_mask_irq, gt_pci_unmask_irq, gt_pci_intr_name[irq]);
 
-  intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg);
+  intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg, name);
 }
 
 static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
@@ -303,9 +304,9 @@ static int gt_pci_attach(device_t *pcib) {
 
   pci_bus_enumerate(pcib);
 
-  /* intr_handler name: "GT64120 interrupt" */
   gtpci->irq_res = bus_alloc_irq(pcib, 0, MIPS_HWINT0, RF_ACTIVE);
-  bus_intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci);
+  bus_intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
+                 "GT64120 main irq");
 
   return bus_generic_probe(pcib);
 }

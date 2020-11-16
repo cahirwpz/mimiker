@@ -79,14 +79,14 @@ static int arm_timer_attach(device_t *dev) {
     .tm_max_period = bintime_mul(HZ2BT(freq), 1LL << 30),
   };
 
-  /* intr_handler name: "ARM CPU timer" */
   state->irq_res =
     bus_alloc_irq(dev, 0, BCM2836_INT_CNTPNSIRQ_CPUN(0), RF_ACTIVE);
 
   tm_register(&state->timer);
   tm_select(&state->timer);
 
-  bus_intr_setup(dev, state->irq_res, arm_timer_intr, NULL, dev);
+  bus_intr_setup(dev, state->irq_res, arm_timer_intr, NULL, dev,
+                 "ARM CPU timer");
 
   return 0;
 }
