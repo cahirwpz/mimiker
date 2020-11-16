@@ -82,11 +82,9 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
 }
 
 static int timer_pit_stop(timer_t *tm) {
-#if 0
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  bus_intr_teardown(dev, &pit->intr_handler);
-#endif
+  bus_intr_teardown(dev, pit->irq_res);
   return 0;
 }
 

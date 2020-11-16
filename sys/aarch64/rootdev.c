@@ -150,11 +150,12 @@ static void rootdev_intr_setup(device_t *dev, resource_t *r,
     rd->intr_event[irq] = intr_event_create(dev, irq, rootdev_disable_irq,
                                             rootdev_enable_irq, "???");
 
-  intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
+  r->r_handler =
+    intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
-static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
-  intr_event_remove_handler(handler);
+static void rootdev_intr_teardown(device_t *dev, resource_t *irq) {
+  intr_event_remove_handler(irq->r_handler);
 }
 
 /* Read 32 bit pending register located at irq_base + offset and run

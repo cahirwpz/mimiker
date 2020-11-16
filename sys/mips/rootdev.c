@@ -47,11 +47,12 @@ static void rootdev_intr_setup(device_t *dev, resource_t *r,
     rd->intr_event[irq] = intr_event_create(
       dev, irq, rootdev_mask_irq, rootdev_unmask_irq, rootdev_intr_name[irq]);
 
-  intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
+  r->r_handler =
+    intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
-static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
-  intr_event_remove_handler(handler);
+static void rootdev_intr_teardown(device_t *dev, resource_t *irq) {
+  intr_event_remove_handler(irq->r_handler);
 }
 
 static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,

@@ -86,11 +86,9 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
 }
 
 static int mips_timer_stop(timer_t *tm) {
-#if 0
   device_t *dev = tm->tm_priv;
   mips_timer_state_t *state = dev->state;
-  bus_intr_teardown(dev, &state->intr_handler);
-#endif
+  bus_intr_teardown(dev, state->irq_res);
   return 0;
 }
 

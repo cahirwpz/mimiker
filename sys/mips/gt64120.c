@@ -191,13 +191,14 @@ static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
     gtpci->intr_event[irq] = intr_event_create(
       gtpci, irq, gt_pci_mask_irq, gt_pci_unmask_irq, gt_pci_intr_name[irq]);
 
-  intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg, name);
+  r->r_handler =
+    intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg, name);
 }
 
-static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
+static void gt_pci_intr_teardown(device_t *pcib, resource_t *irq) {
   assert(pcib->parent->driver == &gt_pci_bus.driver);
 
-  intr_event_remove_handler(handler);
+  intr_event_remove_handler(irq->r_handler);
 }
 
 static void init_8259(resource_t *io, unsigned icu, unsigned imask) {
