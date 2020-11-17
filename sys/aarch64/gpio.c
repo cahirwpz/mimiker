@@ -65,7 +65,7 @@
  * This just loops <delay> times in a way that the compiler
  * won't optimize away.
  */
-void delay(int64_t count) {
+static void delay(int64_t count) {
   __asm__ volatile("1: subs %[count], %[count], #1; bne 1b"
                    : [count] "+r"(count));
 }

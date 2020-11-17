@@ -3,8 +3,6 @@
 
 struct resource_t;
 
-void delay(int64_t count);
-
 void gpio_function_select(resource_t *r, unsigned pin, unsigned func);
 
 void gpio_set_pull(resource_t *r, unsigned pin, unsigned pud);
