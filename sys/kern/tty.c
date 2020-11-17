@@ -118,7 +118,7 @@ unsigned char const char_type[] = {
 #define TTYSUP_LFLAG_CHANGE                                                    \
   (ECHOKE | ECHOE | ECHOK | ECHO | ECHONL | ECHOCTL | ICANON)
 
-static void tty_output(tty_t *tty, uint8_t c);
+static bool tty_output(tty_t *tty, uint8_t c);
 
 static inline bool tty_is_break(tty_t *tty, uint8_t c) {
   return (c == '\n' || ((c == tty->t_cc[VEOF] || c == tty->t_cc[VEOL]) &&
@@ -159,6 +159,8 @@ tty_t *tty_alloc(void) {
   cv_init(&tty->t_incv, "t_incv");
   ringbuf_init(&tty->t_outq, kmalloc(M_DEV, TTY_QUEUE_SIZE, M_WAITOK),
                TTY_QUEUE_SIZE);
+  cv_init(&tty->t_outcv, "t_outcv");
+  cv_init(&tty->t_serialize_cv, "t_serialize_cv");
   tty->t_line.ln_buf = kmalloc(M_TEMP, LINEBUF_SIZE, M_WAITOK);
   tty->t_line.ln_size = LINEBUF_SIZE;
   tty->t_line.ln_count = 0;
@@ -167,6 +169,7 @@ tty_t *tty_alloc(void) {
   tty->t_data = NULL;
   tty->t_column = 0;
   tty->t_rocol = tty->t_rocount = 0;
+  tty->t_flags = 0;
   return tty;
 }
 
@@ -213,13 +216,24 @@ static bool tty_line_finish(tty_t *tty) {
 }
 
 /*
- * Put a character directly in the output queue.
- * TODO: what to do when the queue is full?
+ * Put characters from buf directly in the output queue.
+ * If there's not enough space for all characters, no characters are written
+ * to the queue and false is returned. Returns true on success.
  */
-static void tty_outq_putc(tty_t *tty, uint8_t c) {
-  if (!(tty->t_lflag & FLUSHO) && !ringbuf_putb(&tty->t_outq, c)) {
-    klog("tty_outq_putc: outq full, dropping character 0x%hhx");
-  }
+static bool tty_outq_write(tty_t *tty, uint8_t *buf, size_t len) {
+  if (tty->t_lflag & FLUSHO)
+    return true;
+  return ringbuf_putnb(&tty->t_outq, buf, len);
+}
+
+/*
+ * Put a character directly in the output queue.
+ * Returns false if there's no space left in the queue, otherwise returns true.
+ */
+static bool tty_outq_putc(tty_t *tty, uint8_t c) {
+  if (tty->t_lflag & FLUSHO)
+    return true;
+  return ringbuf_putb(&tty->t_outq, c);
 }
 
 /*
@@ -352,7 +366,6 @@ static void tty_bell(tty_t *tty) {
 }
 
 void tty_input(tty_t *tty, uint8_t c) {
-  /* TODO: Canonical mode, character processing. */
   int iflag = tty->t_iflag;
   int lflag = tty->t_lflag;
   uint8_t *cc = tty->t_cc;
@@ -513,14 +526,13 @@ static int tty_process_out(tty_t *tty, int oflag, uint8_t cb[2]) {
  * Add a single character to the output queue.
  * Output processing (e.g. turning NL into CR-NL pairs) happens here.
  */
-static void tty_output(tty_t *tty, uint8_t c) {
+static bool tty_output(tty_t *tty, uint8_t c) {
   assert(mtx_owned(&tty->t_lock));
 
   int oflag = tty->t_oflag;
   /* Check if output processing is enabled. */
   if (!(oflag & OPOST)) {
-    tty_outq_putc(tty, c);
-    return;
+    return tty_outq_putc(tty, c);
   }
 
   uint8_t cb[2];
@@ -528,8 +540,10 @@ static void tty_output(tty_t *tty, uint8_t c) {
   int ccount = tty_process_out(tty, oflag, cb);
   int col = tty->t_column;
 
+  if (!tty_outq_write(tty, cb, ccount))
+    return false;
+
   for (int i = 0; i < ccount; i++) {
-    tty_outq_putc(tty, cb[i]);
     switch (CCLASS(cb[i])) {
       case BACKSPACE:
         if (col > 0)
@@ -556,6 +570,40 @@ static void tty_output(tty_t *tty, uint8_t c) {
     }
   }
   tty->t_column = col;
+  return true;
+}
+
+/*
+ * Write a single character to the terminal.
+ * If it can't immediately write the character due to lack of space
+ * in the output queue, it goes to sleep waiting for space to become available.
+ */
+static void tty_output_sleep(tty_t *tty, uint8_t c) {
+  while (!tty_output(tty, c)) {
+    tty_notify_out(tty);
+    /* tty_notify_out() can synchronously write characters to the device,
+     * so it may have written enough characters for us not to need to sleep. */
+    if (tty->t_outq.count < TTY_OUT_LOW_WATER)
+      continue;
+    tty->t_flags |= TF_WAIT_OUT_LOWAT;
+    cv_wait(&tty->t_outcv, &tty->t_lock);
+  }
+}
+
+static int tty_do_write(tty_t *tty, uio_t *uio) {
+  uint8_t c;
+  int error = 0;
+
+  while (uio->uio_resid > 0) {
+    error = uiomove(&c, 1, uio);
+    if (error)
+      break;
+    tty_output_sleep(tty, c);
+    tty->t_rocount = 0;
+  }
+  tty_notify_out(tty);
+
+  return error;
 }
 
 static int tty_write(file_t *f, uio_t *uio) {
@@ -564,19 +612,45 @@ static int tty_write(file_t *f, uio_t *uio) {
 
   uio->uio_offset = 0; /* This device does not support offsets. */
 
-  uint8_t c;
   WITH_MTX_LOCK (&tty->t_lock) {
-    while (uio->uio_resid > 0) {
-      error = uiomove(&c, 1, uio);
-      if (error)
-        break;
-      tty->t_rocount = 0;
-      tty_output(tty, c);
-    }
-    tty_notify_out(tty);
+    /* Wait for our turn.
+     * We need to use TF_OUT_BUSY to serialize calls to tty_write(),
+     * since tty_do_write() may sleep, releasing the tty lock. */
+    while (tty->t_flags & TF_OUT_BUSY)
+      cv_wait(&tty->t_serialize_cv, &tty->t_lock);
+    tty->t_flags |= TF_OUT_BUSY;
+
+    error = tty_do_write(tty, uio);
+
+    tty->t_flags &= ~TF_OUT_BUSY;
+    cv_signal(&tty->t_serialize_cv);
   }
 
   return error;
+}
+
+void tty_getc_done(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+
+  size_t cnt = tty->t_outq.count;
+  tty_flags_t oldf = tty->t_flags;
+
+  if (cnt < TTY_OUT_LOW_WATER)
+    tty->t_flags &= ~TF_WAIT_OUT_LOWAT;
+  if (cnt == 0)
+    tty->t_flags &= ~TF_WAIT_DRAIN_OUT;
+
+  if (tty->t_flags != oldf)
+    cv_broadcast(&tty->t_outcv);
+}
+
+static void tty_drain_out(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+
+  while (tty->t_outq.count > 0) {
+    tty->t_flags |= TF_WAIT_DRAIN_OUT;
+    cv_wait(&tty->t_outcv, &tty->t_lock);
+  }
 }
 
 static int tty_vn_close(vnode_t *v, file_t *fp) {
@@ -612,9 +686,8 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
       struct termios *t = (struct termios *)data;
       bool reinput = false; /* Process pending input again. */
 
-      if (cmd == TIOCSETAW || cmd == TIOCSETAF) {
-        /* TODO Drain all output. */
-      }
+      if (cmd == TIOCSETAW || cmd == TIOCSETAF)
+        tty_drain_out(tty);
 
       if (cmd == TIOCSETAF) {
         /* Discard all pending input. */
