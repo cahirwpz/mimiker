@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 #include <sys/syslimits.h>
+#include <sys/signal.h>
 
 #ifdef _KERNEL
 
@@ -40,6 +41,17 @@ int do_setregid(proc_t *p, gid_t rgid, gid_t egid);
  * processes.)
  */
 void cred_fork(proc_t *to, proc_t *from);
+
+/* \note Must be called with p::p_lock held */
+void cred_exec_setid(proc_t *p, uid_t uid, gid_t gid);
+
+/* \note Must be called with p::p_lock. Returns p::p_lock held. */
+int cred_cansignal(proc_t *p, cred_t *cred);
+
+/* Checks whether the current process has permission to send `sig` to `target`
+ * process. \note Must be called with all_proc_mtx and target::p_lock. Returns
+ * with lock held. */
+int proc_cansignal(proc_t *target, signo_t sig);
 
 #endif /* !_KERNEL */
 
