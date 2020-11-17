@@ -327,16 +327,18 @@ void rman_release_resource(resource_t *r) {
 }
 
 res_flags_t rman_make_alignment_flags(uint32_t size) {
-  int i;
+  uint32_t cl = size;
+  uint32_t exp;
   /*
    * Find the highest bit set, and add one if more than one bit is set.
    * We're effectively computing the ceil(log2(size)) here.
    */
-  for (i = 31; i > 0; i--)
-    if ((1 << i) & size)
-      break;
-  if (~(1 << i) & size)
-    i++;
+  for (int i = 1; i <= 16; i++)
+    cl |= cl >> 1;
+  cl &= ~(cl >> 1);
+  exp = ffs(cl);
+  if (!(~cl & size))
+    exp--;
   /* The following will ensure alignment to 2^ceil(log2(size)). */
-  return (res_flags_t)RF_ALIGNMENT_LOG2(i);
+  return (res_flags_t)RF_ALIGNMENT_LOG2(exp);
 }
