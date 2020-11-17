@@ -23,14 +23,12 @@
 
 #define RMAN_ALIGN(addr, amask) (((addr) + (amask)) & ~(amask))
 
+#define RESOURCE_GET_RMAN(r) ((r)->r_rg->rg_rman)
+
 typedef TAILQ_HEAD(, resource) res_list_t;
 
-struct share_list {
-  LIST_HEAD(, resource) sl_list; /* resources representing shared object */
-  void *sl_virtual;              /* virtual address of the mapped object */
-};
-
 struct rman_region {
+  rman_t *rg_rman;                  /* resource manager */
   rman_addr_t rg_start;             /* first physical address */
   rman_addr_t rg_end;               /* last physical address */
   res_list_t rg_resources;          /* all managed resources */
@@ -50,6 +48,7 @@ void rman_manage_region(rman_t *rm, rman_addr_t start, rman_addr_t end) {
 
   rg = kmalloc(M_RES, sizeof(rman_region_t), M_ZERO);
   assert(rg);
+  rg->rg_rman = rm;
   rg->rg_start = start;
   rg->rg_end = end;
   TAILQ_INIT(&rg->rg_resources);
@@ -140,7 +139,7 @@ static bool rman_region_reserve_resource(rman_region_t *rg, rman_addr_t start,
   rman_addr_t rstart, rend, amask;
   res_flags_t flags = r->r_flags;
 
-  assert(mtx_owned(&r->r_rman->rm_lock));
+  assert(mtx_owned(&rg->rg_rman->rm_lock));
 
   amask = (1ull << RF_ALIGNMENT(flags)) - 1;
   start = RMAN_ALIGN(max(rg->rg_start, start), amask);
@@ -212,16 +211,16 @@ static bool rman_region_reserve_resource(rman_region_t *rg, rman_addr_t start,
       r->r_start = s->r_start;
       r->r_end = s->r_end;
       /* Check if share list is empty. */
-      if (s->r_sharelist == NULL) {
+      if (s->r_sharehead == NULL) {
         /* We need a new share list. */
-        s->r_sharelist = kmalloc(M_RES, sizeof(share_list_t), M_ZERO);
-        assert(s->r_sharelist);
-        LIST_INIT(&s->r_sharelist->sl_list);
-        LIST_INSERT_HEAD(&s->r_sharelist->sl_list, s, r_sharelink);
+        s->r_sharehead = kmalloc(M_RES, sizeof(share_list_t), M_ZERO);
+        assert(s->r_sharehead);
+        LIST_INIT(s->r_sharehead);
+        LIST_INSERT_HEAD(s->r_sharehead, s, r_sharelink);
         s->r_flags |= RF_FIRSTSHARE;
       }
-      r->r_sharelist = s->r_sharelist;
-      LIST_INSERT_HEAD(&s->r_sharelist->sl_list, r, r_sharelink);
+      r->r_sharehead = s->r_sharehead;
+      LIST_INSERT_HEAD(s->r_sharehead, r, r_sharelink);
       return true;
     }
   }
@@ -243,7 +242,6 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
 
   resource_t *r = kmalloc(M_RES, sizeof(resource_t), M_ZERO);
   assert(r);
-  r->r_rman = rm;
   r->r_flags = flags & ~RF_ACTIVE;
 
   WITH_MTX_LOCK (&rm->rm_lock) {
@@ -280,32 +278,31 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
 }
 
 void rman_activate_resource(resource_t *r) {
-  rman_t *rm = r->r_rman;
+  rman_t *rm = RESOURCE_GET_RMAN(r);
   WITH_MTX_LOCK (&rm->rm_lock) { r->r_flags |= RF_ACTIVE; }
 }
 
 void rman_deactivate_resource(resource_t *r) {
-  rman_t *rm = r->r_rman;
+  rman_t *rm = RESOURCE_GET_RMAN(r);
   WITH_MTX_LOCK (&rm->rm_lock) { r->r_flags &= ~RF_ACTIVE; }
 }
 
 void rman_release_resource(resource_t *r) {
-  rman_t *rm = r->r_rman;
+  rman_t *rm = RESOURCE_GET_RMAN(r);
   rman_region_t *rg = r->r_rg;
 
   WITH_MTX_LOCK (&rm->rm_lock) {
-    if (r->r_flags & RF_ACTIVE)
-      r->r_flags &= ~RF_ACTIVE;
+    /* XXX: maybe we should ensure that (r->r_flags & RF_ACTIVE) == 0? */
 
     /* Check for a share list first. */
-    if (r->r_sharelist) {
+    if (r->r_sharehead) {
       resource_t *s;
       /*
        * If a sharing list exists, then we know there are at
        * least two sharers.
        */
       LIST_REMOVE(r, r_sharelink);
-      s = LIST_FIRST(&r->r_sharelist->sl_list);
+      s = LIST_FIRST(r->r_sharehead);
       if (r->r_flags & RF_FIRSTSHARE) {
         /* Transfer ownership of the list. */
         s->r_flags |= RF_FIRSTSHARE;
@@ -318,8 +315,8 @@ void rman_release_resource(resource_t *r) {
        */
       if (LIST_NEXT(s, r_sharelink) == NULL) {
         assert(s->r_flags & RF_FIRSTSHARE);
-        kfree(M_RES, s->r_sharelist);
-        s->r_sharelist = NULL;
+        kfree(M_RES, s->r_sharehead);
+        s->r_sharehead = NULL;
         s->r_flags &= ~RF_FIRSTSHARE;
       }
     } else {
@@ -330,36 +327,16 @@ void rman_release_resource(resource_t *r) {
 }
 
 res_flags_t rman_make_alignment_flags(uint32_t size) {
-  uint32_t cl = size;
+  int i;
   /*
    * Find the highest bit set, and add one if more than one bit is set.
    * We're effectively computing the ceil(log2(size)) here.
    */
-  for (int i = 1; i <= 16; i <<= 1)
-    cl |= cl >> i;
-  cl &= ~(cl >> 1);
-  if (~cl & size)
-    cl++;
+  for (i = 31; i > 0; i--)
+    if ((1 << i) & size)
+      break;
+  if (~(1 << i) & size)
+    i++;
   /* The following will ensure alignment to 2^ceil(log2(size)). */
-  return (res_flags_t)RF_ALIGNMENT_LOG2(cl);
-}
-
-void *rman_get_virtual(resource_t *r) {
-  void *vaddr = NULL;
-  rman_t *rm = r->r_rman;
-
-  WITH_MTX_LOCK (&rm->rm_lock) {
-    if (r->r_sharelist)
-      vaddr = r->r_sharelist->sl_virtual;
-  }
-  return vaddr;
-}
-
-void rman_set_virtual(resource_t *r, void *vaddr) {
-  rman_t *rm = r->r_rman;
-
-  WITH_MTX_LOCK (&rm->rm_lock) {
-    if (r->r_sharelist)
-      r->r_sharelist->sl_virtual = vaddr;
-  }
+  return (res_flags_t)RF_ALIGNMENT_LOG2(i);
 }

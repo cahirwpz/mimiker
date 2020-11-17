@@ -26,7 +26,7 @@ typedef struct atkbdc_state {
   spin_t lock;
   condvar_t nonempty;
   ringbuf_t scancodes;
-  intr_handler_t intr_handler;
+  resource_t *irq_res;
   resource_t *regs;
 } atkbdc_state_t;
 
@@ -168,9 +168,9 @@ static int atkbdc_attach(device_t *dev) {
     dev, RT_IOPORTS, 0, IO_KBD, IO_KBD + IO_KBDSIZE - 1, IO_KBDSIZE, RF_ACTIVE);
   assert(atkbdc->regs != NULL);
 
-  atkbdc->intr_handler =
-    INTR_HANDLER_INIT(atkbdc_intr, NULL, atkbdc, "AT keyboard controller", 0);
-  bus_intr_setup(dev, 1, &atkbdc->intr_handler);
+  atkbdc->irq_res = bus_alloc_irq(dev, 0, 1 /* magic */, RF_ACTIVE | RF_SHAREABLE);
+  bus_intr_setup(dev, atkbdc->irq_res, atkbdc_intr, NULL, atkbdc,
+                 "AT keyboard controller");
 
   /* Enable interrupt */
   write_command(atkbdc->regs, KBDC_SET_COMMAND_BYTE);

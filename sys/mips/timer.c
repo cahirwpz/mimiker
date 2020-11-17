@@ -25,7 +25,7 @@ typedef struct mips_timer_state {
   volatile counter_t count;   /* last written value of counter reg. (64 bits) */
   volatile counter_t compare; /* last read value of compare reg. (64 bits) */
   timer_t timer;
-  intr_handler_t intr_handler;
+  resource_t *irq_res;
 } mips_timer_state_t;
 
 static intr_filter_t mips_timer_intr(void *data);
@@ -80,14 +80,15 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
   state->compare.val = read_count(state);
   state->last_count_lo = state->count.lo;
   set_next_tick(state);
-  bus_intr_setup(dev, MIPS_HWINT5, &state->intr_handler);
+  bus_intr_setup(dev, state->irq_res, mips_timer_intr, NULL, dev,
+                 "MIPS CPU timer");
   return 0;
 }
 
 static int mips_timer_stop(timer_t *tm) {
   device_t *dev = tm->tm_priv;
   mips_timer_state_t *state = dev->state;
-  bus_intr_teardown(dev, &state->intr_handler);
+  bus_intr_teardown(dev, state->irq_res);
   return 0;
 }
 
@@ -110,8 +111,7 @@ static int mips_timer_probe(device_t *dev) {
 static int mips_timer_attach(device_t *dev) {
   mips_timer_state_t *state = dev->state;
 
-  state->intr_handler =
-    INTR_HANDLER_INIT(mips_timer_intr, NULL, dev, "MIPS CPU timer", 0);
+  state->irq_res = bus_alloc_irq(dev, 0, MIPS_HWINT5, RF_ACTIVE | RF_SHAREABLE);
 
   state->timer = (timer_t){
     .tm_name = "mips-cpu-timer",

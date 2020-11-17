@@ -15,8 +15,9 @@ typedef struct rman_region rman_region_t;
 typedef struct resource resource_t;
 typedef struct device device_t;
 typedef struct bus_space bus_space_t;
-typedef struct share_list share_list_t;
+typedef struct intr_handler intr_handler_t;
 typedef TAILQ_HEAD(, rman_region) rg_list_t;
+typedef LIST_HEAD(, resource) share_list_t;
 
 typedef enum {
   RF_NONE = 0,
@@ -39,14 +40,17 @@ typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
 struct resource {
   bus_space_tag_t r_bus_tag;       /* bus space methods */
   bus_space_handle_t r_bus_handle; /* bus space base address */
-  rman_t *r_rman;                  /* resource manager of this resource */
   rman_region_t *r_rg;          /* resource manager region of this resource */
   rman_addr_t r_start;          /* first physical address of the resource */
   rman_addr_t r_end;            /* last (inclusive) physical address */
+  /* auxiliary data associated with a resource */
+  union {
+    intr_handler_t *r_handler;
+  };
   res_flags_t r_flags;          /* or'ed RF_* values */
   TAILQ_ENTRY(resource) r_link; /* link on resource manager list */
   LIST_ENTRY(resource) r_sharelink; /* link on share list */
-  share_list_t *r_sharelist;        /* share list */
+  share_list_t *r_sharehead;        /* share list head */
 };
 
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
@@ -98,11 +102,5 @@ void rman_manage_region(rman_t *rm, rman_addr_t start, rman_addr_t end);
 
 /* !\brief Destroy resource manager and free its memory resources. */
 void rman_fini(rman_t *rm);
-
-/*! \brief Virtual address of a mapped shared resource, otherwise NULL. */
-void *rman_get_virtual(resource_t *r);
-
-/*! \brief Sets virtual address of a shared resource. */
-void rman_set_virtual(resource_t *r, void *vaddr);
 
 #endif /* !_SYS_RMAN_H_ */

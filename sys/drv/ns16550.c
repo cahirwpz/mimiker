@@ -26,7 +26,7 @@
 typedef struct ns16550_state {
   spin_t lock;
   ringbuf_t tx_buf, rx_buf;
-  intr_handler_t intr_handler;
+  resource_t *irq_res;
   resource_t *regs;
   tty_t *tty;
   condvar_t tty_thread_cv;
@@ -149,6 +149,7 @@ static void ns16550_fill_txbuf(ns16550_state_t *ns16550, tty_t *tty) {
     ns16550_set_tty_outq_nonempty_flag(ns16550, tty);
     ringbuf_putb(&ns16550->tx_buf, byte);
   }
+  tty_getc_done(tty);
 }
 
 static bool ns16550_getb_lock(ns16550_state_t *ns16550, uint8_t *byte_p) {
@@ -226,10 +227,10 @@ static int ns16550_attach(device_t *dev) {
     bus_alloc_resource(dev, RT_IOPORTS, 0, IO_COM1, IO_COM1 + IO_COMSIZE - 1,
                        IO_COMSIZE, RF_ACTIVE);
   assert(ns16550->regs != NULL);
-  ns16550->intr_handler =
-    INTR_HANDLER_INIT(ns16550_intr, NULL, ns16550, "NS16550 UART", 0);
-  /* TODO Do not use magic number "4" here! */
-  bus_intr_setup(dev, 4, &ns16550->intr_handler);
+
+  ns16550->irq_res = bus_alloc_irq(dev, 0, 4 /* magic */, RF_ACTIVE | RF_SHAREABLE);
+  bus_intr_setup(dev, ns16550->irq_res, ns16550_intr, NULL, ns16550,
+                 "NS16550 UART");
 
   /* Setup UART and enable interrupts */
   setup(ns16550->regs);
