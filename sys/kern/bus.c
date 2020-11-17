@@ -100,6 +100,17 @@ bus_space_t *generic_bus_space = &(bus_space_t){
 };
 /* clang-format on */
 
+int bus_activate_resource(device_t *dev, res_type_t type, int rid,
+                          resource_t *r) {
+  if (r->r_flags & RF_ACTIVE)
+    return 0;
+
+  int error = BUS_DRIVER(dev)->bus.activate_resource(dev, type, rid, r);
+  if (error == 0)
+    rman_activate_resource(r);
+  return error;
+}
+
 int bus_generic_probe(device_t *bus) {
   int error = 0;
   devclass_t *dc = bus->devclass;
