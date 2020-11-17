@@ -28,12 +28,18 @@ void gpio_function_select(resource_t *r, unsigned pin, unsigned func) {
 }
 
 void gpio_set_pull(resource_t *r, unsigned pin, unsigned pud) {
+  assert(pin <= 40);
+
   unsigned mask = 1 << (pin % BCM2835_GPIO_GPPUD_PINS_PER_REGISTER);
   unsigned reg = pin / BCM2835_GPIO_GPPUD_PINS_PER_REGISTER;
 
   bus_write_4(r, BCM2835_GPIO_GPPUD, pud);
+  /* Wait 150 cycles – this provides the required set-up time for the control
+   * signal. */
   delay(150);
   bus_write_4(r, BCM2835_GPIO_GPPUDCLK(reg), mask);
+  /* Wait 150 cycles – this provides the required hold time for the control
+   * signal. */
   delay(150);
   bus_write_4(r, BCM2835_GPIO_GPPUD, BCM2838_GPIO_GPPUD_PULLOFF);
   bus_write_4(r, BCM2835_GPIO_GPPUDCLK(reg), 0);
