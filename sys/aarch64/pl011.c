@@ -134,7 +134,7 @@ static vnodeops_t dev_uart_ops = {
 /* clang-format on */
 
 static intr_filter_t pl011_intr(void *data /* device_t* */) {
-  pl011_state_t *state = data;
+  pl011_state_t *state = ((device_t *)data)->state;
   intr_filter_t res = IF_STRAY;
 
   WITH_SPIN_LOCK (&state->lock) {
@@ -224,7 +224,7 @@ static int pl011_attach(device_t *dev) {
   bus_write_4(r, PL011COM_IMSC, PL011_INT_RX);
 
   state->irq = bus_alloc_irq(dev, 0, BCM2835_INT_UART0, RF_ACTIVE);
-  bus_intr_setup(dev, state->irq, pl011_intr, NULL, state, "PL011 UART");
+  bus_intr_setup(dev, state->irq, pl011_intr, NULL, dev, "PL011 UART");
 
   /* Prepare /dev/uart interface. */
   devfs_makedev(NULL, "uart", &dev_uart_ops, state);
