@@ -26,7 +26,7 @@ typedef struct pl011_state {
   condvar_t tx_nonfull;
   ringbuf_t tx_buf;
   resource_t *regs;
-  intr_handler_t intr_handler;
+  resource_t *irq;
 } pl011_state_t;
 
 /* Return true if we can write. */
@@ -223,9 +223,8 @@ static int pl011_attach(device_t *dev) {
   /* Enable receive interrupt. */
   bus_write_4(r, PL011COM_IMSC, PL011_INT_RX);
 
-  state->intr_handler =
-    INTR_HANDLER_INIT(pl011_intr, NULL, state, "PL011 UART", 0);
-  bus_intr_setup(dev, BCM2835_INT_UART0, &state->intr_handler);
+  state->irq = bus_alloc_irq(dev, 0, BCM2835_INT_UART0, RF_ACTIVE);
+  bus_intr_setup(dev, state->irq, pl011_intr, NULL, state, "PL011 UART");
 
   /* Prepare /dev/uart interface. */
   devfs_makedev(NULL, "uart", &dev_uart_ops, state);
