@@ -204,8 +204,8 @@ static void pgrp_maybe_orphan(pgrp_t *pg) {
   TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
     WITH_MTX_LOCK (&p->p_lock) {
       if (p->p_state == PS_STOPPED) {
-        sig_kill(p, SIGHUP);
-        sig_kill(p, SIGCONT);
+        sig_kill(p, &DEF_KSI_RAW(SIGHUP));
+        sig_kill(p, &DEF_KSI_RAW(SIGCONT));
       }
     }
   }
@@ -557,17 +557,19 @@ __noreturn void proc_exit(int exitstatus) {
     klog("Wakeup PID(%d) because child PID(%d) died", parent->p_pid, p->p_pid);
 
     bool auto_reap;
-    WITH_MTX_LOCK (&parent->p_lock) {
-      auto_reap = parent->p_sigactions[SIGCHLD].sa_handler == SIG_IGN;
-      if (!auto_reap)
-        sig_kill(parent, SIGCHLD);
-      /* We unconditionally notify the parent if they're waiting for a child,
-       * even when we reap ourselves, because we might be the last child
-       * of the parent, in which case the parent's waitpid should fail,
-       * which it can't do if the parent is still waiting.
-       * NOTE: If auto_reap is true, we must NOT drop all_proc_mtx
-       * between this point and the auto-reap! */
-      proc_wakeup_parent(parent);
+    WITH_PROC_LOCK(p) {
+      WITH_PROC_LOCK(parent) {
+        auto_reap = parent->p_sigactions[SIGCHLD].sa_handler == SIG_IGN;
+        if (!auto_reap)
+          sig_child(p, CLD_EXITED);
+        /* We unconditionally notify the parent if they're waiting for a child,
+         * even when we reap ourselves, because we might be the last child
+         * of the parent, in which case the parent's waitpid should fail,
+         * which it can't do if the parent is still waiting.
+         * NOTE: If auto_reap is true, we must NOT drop all_proc_mtx
+         * between this point and the auto-reap! */
+        proc_wakeup_parent(parent);
+      }
     }
 
     klog("Turning PID(%d) into zombie!", p->p_pid);
@@ -607,7 +609,7 @@ static int proc_pgsignal(pgid_t pgid, signo_t sig) {
   TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
     WITH_PROC_LOCK(target) {
       if (!(error = proc_cansignal(target, sig))) {
-        sig_kill(target, sig);
+        sig_kill(target, &DEF_KSI_RAW(sig));
         send++;
       }
     }
@@ -632,7 +634,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
     if (target == NULL)
       return ESRCH;
     if (!(error = proc_cansignal(target, sig)))
-      sig_kill(target, sig);
+      sig_kill(target, &DEF_KSI_RAW(sig));
     proc_unlock(target);
     return error;
   }
@@ -754,7 +756,7 @@ void proc_stop(void) {
   p->p_flags |= PF_STATE_CHANGED;
   WITH_PROC_LOCK(p->p_parent) {
     proc_wakeup_parent(p->p_parent);
-    sig_kill(p->p_parent, SIGCHLD);
+    sig_child(p, CLD_STOPPED);
   }
   WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
   proc_unlock(p);

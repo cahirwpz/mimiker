@@ -8,6 +8,7 @@
 #include <sys/mutex.h>
 
 #define TTY_QUEUE_SIZE 0x400
+#define TTY_OUT_LOW_WATER (TTY_QUEUE_SIZE / 4)
 #define LINEBUF_SIZE 0x100
 
 struct tty;
@@ -23,6 +24,14 @@ typedef struct {
   t_notify_out_t t_notify_out;
 } ttyops_t;
 
+/* TTY flags */
+typedef enum {
+  TF_WAIT_OUT_LOWAT = 0x1, /* Someone is waiting for space in outq */
+  TF_WAIT_DRAIN_OUT = 0x2, /* Someone is waiting for outq to drain */
+  TF_OUT_BUSY = 0x4,       /* Serialization of write() calls:
+                            * a thread is currently writing to this TTY. */
+} tty_flags_t;
+
 /* Line buffer */
 typedef struct {
   uint8_t *ln_buf;
@@ -32,12 +41,15 @@ typedef struct {
 
 typedef struct tty {
   mtx_t t_lock;
+  tty_flags_t t_flags;
   ringbuf_t t_inq;           /* Input queue */
   condvar_t t_incv;          /* CV for readers waiting for input */
   ringbuf_t t_outq;          /* Output queue */
+  condvar_t t_outcv;         /* CV for threads waiting for space in outq */
   linebuf_t t_line;          /* Line buffer */
   size_t t_column;           /* Cursor's column position */
   size_t t_rocol, t_rocount; /* See explanation below */
+  condvar_t t_serialize_cv;  /* CV used to serialize write() calls */
   ttyops_t t_ops;            /* Serial device operations */
   struct termios t_termios;
   void *t_data; /* Serial device driver's private data */
@@ -98,8 +110,16 @@ tty_t *tty_alloc(void);
 
 /*
  * Put a single character into the tty's input queue, provided it's not full.
- * Must be called with `t_lock` acquired.
+ * Must be called with tty->t_lock held.
  */
 void tty_input(tty_t *tty, uint8_t c);
+
+/*
+ * Wake up threads waiting for space in the output queue.
+ * Must be called by drivers after consuming one or more characters
+ * from the tty's output queue.
+ * Must be called with tty->t_lock held.
+ */
+void tty_getc_done(tty_t *tty);
 
 #endif /* !_SYS_TTY_H_ */

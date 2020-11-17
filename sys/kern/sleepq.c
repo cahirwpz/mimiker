@@ -194,11 +194,11 @@ static int sq_check_signals(thread_t *td) {
   SCOPED_MTX_LOCK(&p->p_lock);
 
   while (true) {
-    sig = sig_check(td, false);
+    sig = sig_check(td, SIG_CHECK_NODELETE);
     if (sig == 0)
       return 0;
     if (sig_should_stop(p->p_sigactions, sig)) {
-      __sigdelset(&td->td_sigpend, sig);
+      sigpend_get(&td->td_sigpend, sig, NULL);
       proc_stop();
     } else {
       return EINTR;

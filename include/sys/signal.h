@@ -4,6 +4,7 @@
 #include <sys/sigtypes.h>
 #include <machine/signal.h>
 #include <stdbool.h>
+#include <sys/siginfo.h>
 
 #define SIGHUP 1   /* hangup */
 #define SIGINT 2   /* interrupt */
@@ -74,6 +75,13 @@ typedef struct pgrp pgrp_t;
 typedef struct thread thread_t;
 typedef struct ctx ctx_t;
 
+/*! \brief Notify the parent of a change in the child's status.
+ *
+ * \note Must be called with p::p_lock and p->p_parent::p_lock held.
+   Returns with both locks held.
+ */
+void sig_child(proc_t *p, int code);
+
 /*! \brief Signal a process.
  *
  * Marks \a sig signal as pending, unless it's ignored by target process.
@@ -83,13 +91,13 @@ typedef struct ctx ctx_t;
  * \sa sig_post
  * \note Must be called with p::p_lock held. Returns with p::p_lock held.
  */
-void sig_kill(proc_t *p, signo_t sig);
+void sig_kill(proc_t *p, ksiginfo_t *ksi);
 
 /*! \brief Signal all processes in a process group.
  *
  * \note Must be called with pg::pg_lock held. Returns with pg::pg_lock held.
  */
-void sig_pgkill(pgrp_t *pg, signo_t sig);
+void sig_pgkill(pgrp_t *pg, ksiginfo_t *ksi);
 
 /*! \brief Determines which signal should posted to current thread.
  *
@@ -97,13 +105,14 @@ void sig_pgkill(pgrp_t *pg, signo_t sig);
  *  - has a handler registered with `sigaction`,
  *  - should cause the process to terminate,
  *  - should interrupt the current system call.
- * The delete argument controls whether the signal is removed from the
+ * If ksi == SIG_CHECK_NODELETE, the signal is not removed from the
  * thread's pending signal set.
  *
  * \sa sig_post
  *
  * \returns signal number which should be posted or 0 if none */
-int sig_check(thread_t *td, bool delete);
+#define SIG_CHECK_NODELETE (ksiginfo_t *)0x1
+int sig_check(thread_t *td, ksiginfo_t *ksi);
 
 /*! \brief Invoke the action triggered by a signal.
  *
@@ -118,7 +127,7 @@ int sig_check(thread_t *td, bool delete);
  * \note Must be called with current process's p_mtx acquired!
  * \sa sig_exit
  */
-void sig_post(signo_t sig);
+void sig_post(ksiginfo_t *ksi);
 
 /*! \brief Terminate the process as the result of posting a signal. */
 __noreturn void sig_exit(thread_t *td, signo_t sig);
@@ -131,7 +140,7 @@ void sig_trap(ctx_t *ctx, signo_t sig);
 /*! \brief Prepare user context for entry to signal handler action.
  *
  * \note This is machine dependent code! */
-int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa);
+int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi);
 
 /*! \brief Restore original user context after signal handler was invoked.
  *
@@ -140,6 +149,12 @@ int sig_return(void);
 
 /*! \brief Returns whether the signal's current action is to stop a process. */
 bool sig_should_stop(sigaction_t *sigactions, signo_t sig);
+
+/*! \brief Remove a signal from a pending set.
+ *
+ * The `ksiginfo_t` structure associated with the pending signal
+ * is copied to the structure pointed to by `out` (if it's non-NULL). */
+void sigpend_get(sigpend_t *sp, signo_t sig, ksiginfo_t *out);
 
 /* System calls implementation. */
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
