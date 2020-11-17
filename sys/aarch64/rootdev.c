@@ -166,6 +166,7 @@ static void bcm2835_intr_handle(bus_space_handle_t irq_base, bus_size_t offset,
 
   while (pending) {
     int irq = ffs(pending) - 1;
+    /* XXX: some pending bits are shared between BASIC and GPU0/1. */
     if (events[irq])
       intr_event_run_handlers(events[irq]);
     pending &= ~(1 << irq);
