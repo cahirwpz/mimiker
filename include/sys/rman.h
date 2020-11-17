@@ -40,15 +40,15 @@ typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
 struct resource {
   bus_space_tag_t r_bus_tag;       /* bus space methods */
   bus_space_handle_t r_bus_handle; /* bus space base address */
-  rman_region_t *r_rg;          /* resource manager region of this resource */
-  rman_addr_t r_start;          /* first physical address of the resource */
-  rman_addr_t r_end;            /* last (inclusive) physical address */
+  rman_region_t *r_rg; /* resource manager region of this resource */
+  rman_addr_t r_start; /* first physical address of the resource */
+  rman_addr_t r_end;   /* last (inclusive) physical address */
   /* auxiliary data associated with a resource */
   union {
     intr_handler_t *r_handler;
   };
-  res_flags_t r_flags;          /* or'ed RF_* values */
-  TAILQ_ENTRY(resource) r_link; /* link on resource manager list */
+  res_flags_t r_flags;              /* or'ed RF_* values */
+  TAILQ_ENTRY(resource) r_link;     /* link on resource manager list */
   LIST_ENTRY(resource) r_sharelink; /* link on share list */
   share_list_t *r_sharehead;        /* share list head */
 };

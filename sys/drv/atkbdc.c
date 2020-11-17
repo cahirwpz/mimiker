@@ -168,7 +168,8 @@ static int atkbdc_attach(device_t *dev) {
     dev, RT_IOPORTS, 0, IO_KBD, IO_KBD + IO_KBDSIZE - 1, IO_KBDSIZE, RF_ACTIVE);
   assert(atkbdc->regs != NULL);
 
-  atkbdc->irq_res = bus_alloc_irq(dev, 0, 1 /* magic */, RF_ACTIVE | RF_SHAREABLE);
+  atkbdc->irq_res =
+    bus_alloc_irq(dev, 0, 1 /* magic */, RF_ACTIVE | RF_SHAREABLE);
   bus_intr_setup(dev, atkbdc->irq_res, atkbdc_intr, NULL, atkbdc,
                  "AT keyboard controller");
 
