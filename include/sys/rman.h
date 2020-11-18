@@ -12,6 +12,7 @@ typedef uintptr_t rman_addr_t;
 #define RMAN_ADDR_MAX UINTPTR_MAX
 #define RMAN_SIZE_MAX UINTPTR_MAX
 
+typedef struct intr_handler intr_handler_t;
 typedef struct rman rman_t;
 typedef struct resource resource_t;
 typedef struct device device_t;
@@ -36,6 +37,10 @@ struct resource {
   rman_t *r_rman;                  /* resource manager of this resource */
   rman_addr_t r_start;             /* first physical address of the resource */
   rman_addr_t r_end;               /* last (inclusive) physical address */
+  /* auxiliary data associated with a resource */
+  union {
+    intr_handler_t *r_handler;
+  };
   /* TODO: remove r_type from this structure as r_rman->r_type contains the same
    * information. See `rman_alloc_resource` for setting r_type of a resource. */
   res_type_t r_type;            /* one of RT_* */
