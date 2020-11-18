@@ -407,7 +407,7 @@ void sig_onexec(proc_t *p) {
    * it is discarded. */
   for (signo_t sig = 1; sig < NSIG; sig++) {
     if (sig_ignored(p->p_sigactions, sig)) {
-      /* Invariant check. */
+      /* Invariant check: if a signal is ignored, it can't be pending. */
       assert(!__sigismember(&td->td_sigpend.sp_set, sig));
       continue;
     }

@@ -143,7 +143,7 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi);
  * \note This is machine dependent code! */
 int sig_return(void);
 
-/*! \brief Perform signal-related tasks on process exec.
+/*! \brief Reset handlers for caught signals on process exec.
  *
  * \note Must be called with p::p_lock held. */
 void sig_onexec(proc_t *p);
