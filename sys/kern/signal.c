@@ -88,6 +88,13 @@ static inline bool sig_ignored(sigaction_t *sigactions, signo_t sig) {
            (defact(sig) == SA_IGNORE || sig == SIGCONT)));
 }
 
+/* Members of an orphaned process group should ignore
+ * TTY stop signals with a default handler. */
+static inline bool sig_ignore_ttystop(proc_t *p, signo_t sig) {
+  return ((sig_properties[sig] & SA_TTYSTOP) && (p->p_pgrp->pg_jobc == 0) &&
+          (p->p_sigactions[sig].sa_handler == SIG_DFL));
+}
+
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   thread_t *td = thread_self();
   proc_t *p = td->td_proc;
@@ -347,13 +354,9 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
     return;
   }
 
-  sigprop_t prop = sig_properties[sig];
-
-  /* Don't send TTY stop signals to members of an orphaned process group
-   * with a default handler.
-   * Theoretically, we should hold all_proc_mtx for reading pg_jobc,
-   * but the race here is harmless. */
-  if ((prop & SA_TTYSTOP) && (p->p_pgrp->pg_jobc == 0) && (handler == SIG_DFL))
+  /* Theoretically, we should hold all_proc_mtx since sig_ignore_ttystop()
+   * reads pg_jobc, but the race here is harmless. */
+  if (sig_ignore_ttystop(p, sig))
     return;
 
   /* If stopping or continuing,
@@ -451,12 +454,9 @@ void sig_post(ksiginfo_t *ksi) {
 
   assert(handler != SIG_IGN);
 
-  /* Don't send TTY stop signals to members of an orphaned process group
-   * with a default handler.
-   * Theoretically, we should hold all_proc_mtx for reading pg_jobc,
-   * but the race here is harmless. */
-  if ((sig_properties[sig] & SA_TTYSTOP) && (p->p_pgrp->pg_jobc == 0) &&
-      (handler == SIG_DFL))
+  /* Theoretically, we should hold all_proc_mtx since sig_ignore_ttystop()
+   * reads pg_jobc, but the race here is harmless. */
+  if (sig_ignore_ttystop(p, sig))
     return;
 
   if (handler == SIG_DFL && defact(sig) == SA_KILL) {
