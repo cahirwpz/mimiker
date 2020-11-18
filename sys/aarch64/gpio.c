@@ -28,9 +28,11 @@ void bcm2835_gpio_function_select(resource_t *r, unsigned pin,
   bus_write_4(r, BCM2835_GPIO_GPFSEL(reg), val);
 }
 
+#define NGPIO_PIN 28
+
 void bcm2835_gpio_set_pull(resource_t *r, unsigned pin,
                            bcm2838_gpio_gppud_t pud) {
-  assert(pin <= 40);
+  assert(pin < NGPIO_PIN);
 
   unsigned mask = 1 << (pin % BCM2835_GPIO_GPPUD_PINS_PER_REGISTER);
   unsigned reg = pin / BCM2835_GPIO_GPPUD_PINS_PER_REGISTER;
