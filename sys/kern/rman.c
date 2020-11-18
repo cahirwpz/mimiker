@@ -10,7 +10,7 @@ static bool rman_find_gap(rman_t *rm, rman_addr_t *start_p, rman_addr_t end,
 
   rman_addr_t start = *start_p;
 
-  if (end < rm->rm_start || start >= rm->rm_end)
+  if (end < rm->rm_start || start > rm->rm_end)
     return false;
 
   /* Adjust search boundaries if needed. */
@@ -69,7 +69,7 @@ resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t first, rman_addr_t last,
     resource_t *after = NULL;
     rman_addr_t start = first;
     if (rman_find_gap(rm, &start, last, count, bound, &after)) {
-      assert(start >= first && start < last);
+      assert(start >= first && start <= last);
       assert(start + count - 1 <= last);
       assert(is_aligned(start, bound));
       r->r_start = start;

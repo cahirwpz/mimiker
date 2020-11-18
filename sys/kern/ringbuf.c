@@ -36,6 +36,14 @@ bool ringbuf_putb(ringbuf_t *buf, uint8_t byte) {
   return true;
 }
 
+bool ringbuf_putnb(ringbuf_t *buf, uint8_t *data, size_t n) {
+  if (buf->count + n > buf->size)
+    return false;
+  for (size_t i = 0; i < n; i++)
+    ringbuf_putb(buf, data[i]);
+  return true;
+}
+
 bool ringbuf_getb(ringbuf_t *buf, uint8_t *byte_p) {
   if (buf->count == 0)
     return false;
