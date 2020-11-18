@@ -27,7 +27,8 @@ DEVCLASS_CREATE(root);
 typedef struct rootdev {
   rman_t local_rm;
   rman_t shared_rm;
-  intr_event_t intr_event[NIRQ];
+  rman_t irq_rm;
+  intr_event_t *intr_event[NIRQ];
 } rootdev_t;
 
 /* BCM2836_ARM_LOCAL_BASE mapped into VA (4KiB). */
@@ -109,13 +110,13 @@ static void rootdev_enable_irq(intr_event_t *ie) {
     enable_local_irq(irq);
   } else if (irq < BCM2835_INT_GPU1BASE) {
     /* Enable GPU0 IRQ. */
-    enable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1PENDING);
+    enable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1ENABLE);
   } else if (irq < BCM2835_INT_BASICBASE) {
     /* Enable GPU1 IRQ. */
-    enable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2PENDING);
+    enable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2ENABLE);
   } else {
     /* Enable base IRQ. */
-    enable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
+    enable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBENABLE);
   }
 }
 
@@ -128,38 +129,44 @@ static void rootdev_disable_irq(intr_event_t *ie) {
     disable_local_irq(irq);
   } else if (irq < BCM2835_INT_GPU1BASE) {
     /* disable GPU0 IRQ. */
-    disable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1PENDING);
+    disable_gpu_irq(irq - BCM2835_INT_GPU0BASE, BCM2835_INTC_IRQ1DISABLE);
   } else if (irq < BCM2835_INT_BASICBASE) {
     /* disable GPU1 IRQ. */
-    disable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2PENDING);
+    disable_gpu_irq(irq - BCM2835_INT_GPU1BASE, BCM2835_INTC_IRQ2DISABLE);
   } else {
     /* disable base IRQ. */
-    disable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBPENDING);
+    disable_gpu_irq(irq - BCM2835_INT_BASICBASE, BCM2835_INTC_IRQBDISABLE);
   }
 }
 
-static void rootdev_intr_setup(device_t *dev, unsigned num,
-                               intr_handler_t *handler) {
+static void rootdev_intr_setup(device_t *dev, resource_t *r,
+                               ih_filter_t *filter, ih_service_t *service,
+                               void *arg, const char *name) {
   rootdev_t *rd = dev->parent->state;
+  int irq = r->r_start;
+  assert(irq < NIRQ);
 
-  assert(num < NIRQ);
-  intr_event_t *event = &rd->intr_event[num];
-  intr_event_add_handler(event, handler);
+  if (rd->intr_event[irq] == NULL)
+    rd->intr_event[irq] = intr_event_create(dev, irq, rootdev_disable_irq,
+                                            rootdev_enable_irq, "???");
+
+  r->r_handler =
+    intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
-static void rootdev_intr_teardown(device_t *dev, intr_handler_t *handler) {
-  intr_event_remove_handler(handler);
+static void rootdev_intr_teardown(device_t *dev, resource_t *irq) {
+  intr_event_remove_handler(irq->r_handler);
 }
 
 /* Read 32 bit pending register located at irq_base + offset and run
  * corresponding handlers. */
 static void bcm2835_intr_handle(bus_space_handle_t irq_base, bus_size_t offset,
-                                intr_event_t *events) {
+                                intr_event_t **events) {
   uint32_t pending = bus_space_read_4(rootdev_bus_space, irq_base, offset);
 
   while (pending) {
     int irq = ffs(pending) - 1;
-    intr_event_run_handlers(&events[irq]);
+    intr_event_run_handlers(events[irq]);
     pending &= ~(1 << irq);
   }
 }
@@ -197,6 +204,7 @@ static int rootdev_attach(device_t *bus) {
             BCM2835_PERIPHERALS_BASE + BCM2835_PERIPHERALS_SIZE - 1, RT_MEMORY);
   rman_init(&rd->local_rm, "ARM local", BCM2836_ARM_LOCAL_BASE,
             BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1, RT_MEMORY);
+  rman_init(&rd->irq_rm, "BCM2835 interrupts", 0, NIRQ, RT_IRQ);
 
   /* Map BCM2836 shared processor only once. */
   rootdev_local_handle =
@@ -204,12 +212,6 @@ static int rootdev_attach(device_t *bus) {
 
   rootdev_arm_base = kmem_map(BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
                               BCM2835_ARM_SIZE, PMAP_NOCACHE);
-
-  for (int i = 0; i < NIRQ; i++) {
-    intr_event_init(&rd->intr_event[i], i, NULL, rootdev_disable_irq,
-                    rootdev_enable_irq, rd);
-    intr_event_register(&rd->intr_event[i]);
-  }
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
@@ -223,23 +225,43 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
                                           rman_addr_t end, size_t size,
                                           res_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
-  resource_t *r;
+  resource_t *r = NULL;
 
-  r = rman_alloc_resource(&rd->local_rm, start, end, size, 1, flags);
-  if (r == NULL)
-    r = rman_alloc_resource(&rd->shared_rm, start, end, size, 1, flags);
+  if (type == RT_MEMORY) {
+    r = rman_alloc_resource(&rd->local_rm, start, end, size, 1, flags);
+    if (r == NULL)
+      r = rman_alloc_resource(&rd->shared_rm, start, end, size, 1, flags);
+  } else if (type == RT_IRQ) {
+    r = rman_alloc_resource(&rd->irq_rm, start, end, size, 1, flags);
+  }
 
-  if (r) {
+  if (!r)
+    return NULL;
+
+  if (type == RT_MEMORY)
     r->r_bus_tag = rootdev_bus_space;
-    if (flags & RF_ACTIVE) {
-      /* TODO(cahir) Move to rootdev_activate_resource. */
-      (void)bus_space_map(r->r_bus_tag, r->r_start, r->r_end - r->r_start + 1,
-                          &r->r_bus_handle);
-      rman_activate_resource(r);
+
+  if (flags & RF_ACTIVE) {
+    if (bus_activate_resource(dev, type, rid, r)) {
+      rman_release_resource(r);
+      return NULL;
     }
   }
 
   return r;
+}
+
+static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
+                                     resource_t *r) {
+  panic("not implemented!");
+}
+
+static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
+                                     resource_t *r) {
+  if (type == RT_MEMORY)
+    return bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+                         &r->r_bus_handle);
+  return 0;
 }
 
 static bus_driver_t rootdev_driver = {
@@ -254,6 +276,8 @@ static bus_driver_t rootdev_driver = {
       .intr_setup = rootdev_intr_setup,
       .intr_teardown = rootdev_intr_teardown,
       .alloc_resource = rootdev_alloc_resource,
+      .release_resource = rootdev_release_resource,
+      .activate_resource = rootdev_activate_resource,
     },
 };
 

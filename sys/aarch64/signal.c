@@ -7,7 +7,7 @@
 #include <sys/errno.h>
 #include <sys/proc.h>
 
-int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa) {
+int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   panic("Not implemented!");
 }
 

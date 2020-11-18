@@ -57,6 +57,9 @@ void pci_bus_enumerate(device_t *pcib) {
   for (; pcia.device < PCI_DEV_MAX_NUM; pcia.device++) {
     pcia.function = 0;
 
+    /* Note that if we don't check the MF bit of the device
+     * and scan all functions, then some single-function devices
+     * will report details for "fucntion 0" for every function. */
     int max_fun = pci_device_nfunctions(&pcid);
 
     for (; pcia.function < max_fun; pcia.function++) {
@@ -100,8 +103,10 @@ void pci_bus_enumerate(device_t *pcib) {
         }
 
         size = -size;
-        pcid->bar[i] = (pci_bar_t){
-          .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
+        uint8_t id = pcid->nbars;
+        pcid->bar[id] = (pci_bar_t){
+          .owner = dev, .type = type, .flags = flags, .size = size, .rid = id};
+        pcid->nbars++;
       }
     }
   }
