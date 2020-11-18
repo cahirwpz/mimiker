@@ -133,6 +133,8 @@ void tty_getc_done(tty_t *tty);
  * Must be called with `tty->t_lock` and `p->p_lock` held.
  */
 static inline bool tty_is_ctty(tty_t *tty, proc_t *p) {
+  assert(mtx_owned(&tty->t_lock));
+  assert(mtx_owned(&p->p_lock));
   return (tty->t_session == p->p_pgrp->pg_session);
 }
 
