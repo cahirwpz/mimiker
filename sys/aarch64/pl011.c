@@ -193,10 +193,10 @@ static int pl011_attach(device_t *dev) {
 
   /* TODO(pj) do magic with mail buffer */
 
-  gpio_function_select(r, 14, BCM2835_GPIO_ALT0);
-  gpio_function_select(r, 15, BCM2835_GPIO_ALT0);
-  gpio_set_pull(r, 14, BCM2838_GPIO_GPPUD_PULLOFF);
-  gpio_set_pull(r, 15, BCM2838_GPIO_GPPUD_PULLOFF);
+  bcm2835_gpio_function_select(r, 14, BCM2835_GPIO_ALT0);
+  bcm2835_gpio_function_select(r, 15, BCM2835_GPIO_ALT0);
+  bcm2835_gpio_set_pull(r, 14, BCM2838_GPIO_GPPUD_PULLOFF);
+  bcm2835_gpio_set_pull(r, 15, BCM2838_GPIO_GPPUD_PULLOFF);
 
   /*
    * Set integer & fractional part of baud rate.
