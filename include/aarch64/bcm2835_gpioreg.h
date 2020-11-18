@@ -27,8 +27,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _BROADCOM_BCM2835_GPIOREG_H_
-#define _BROADCOM_BCM2835_GPIOREG_H_
+#ifndef _AARCH64_BCM2835_GPIOREG_H_
+#define _AARCH64_BCM2835_GPIOREG_H_
 
 /* The function select registers are used to define the operation of the
  * general-purpose I/O pins. */
@@ -116,4 +116,4 @@ typedef enum {
   BCM2835_GPIO_ALT3 = 7
 } bcm2835_gpio_func_t;
 
-#endif /* !_BROADCOM_BCM2835_GPIOREG_H_ */
+#endif /* !_AARCH64_BCM2835_GPIOREG_H_ */
