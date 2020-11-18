@@ -9,6 +9,7 @@
 #include <sys/errno.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
+#include <machine/elf_arch.h>
 
 int exec_elf_inspect(vnode_t *vn, Elf_Ehdr *eh) {
   int error;
@@ -39,8 +40,8 @@ int exec_elf_inspect(vnode_t *vn, Elf_Ehdr *eh) {
     return ENOEXEC;
   }
   /* Check ELF class */
-  if (eh->e_ident[EI_CLASS] != ELFCLASS32) {
-    klog("Exec failed: Unsupported ELF class (!= ELF32)");
+  if (eh->e_ident[EI_CLASS] != ELFCLASS) {
+    klog("Exec failed: Unsupported ELF class");
     return ENOEXEC;
   }
   /* Check data format endianess */
@@ -55,8 +56,8 @@ int exec_elf_inspect(vnode_t *vn, Elf_Ehdr *eh) {
     return ENOEXEC;
   }
   /* Check machine architecture field */
-  if (eh->e_machine != EM_MIPS) {
-    klog("Exec failed: ELF target architecture is not MIPS");
+  if (eh->e_machine != EM_ARCH) {
+    klog("Exec failed: ELF target architecture is not supported");
     return ENOEXEC;
   }
   /* Ensure minimal prog header size */
@@ -132,7 +133,6 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
 int exec_elf_load(proc_t *p, vnode_t *vn, Elf_Ehdr *eh) {
   int error;
 
-  assert(eh->e_phoff < 64);
   assert(eh->e_phentsize < 128);
 
   /* Read in program headers. */
