@@ -15,7 +15,8 @@ static void delay(int64_t count) {
                    : [count] "+r"(count));
 }
 
-void gpio_function_select(resource_t *r, unsigned pin, unsigned func) {
+void gpio_function_select(resource_t *r, unsigned pin,
+                          bcm2835_gpio_func_t func) {
   unsigned mask = (1 << BCM2835_GPIO_GPFSEL_BITS_PER_PIN) - 1;
   unsigned reg = pin / BCM2835_GPIO_GPFSEL_PINS_PER_REGISTER;
   unsigned shift = (pin % BCM2835_GPIO_GPFSEL_PINS_PER_REGISTER) *
@@ -27,7 +28,7 @@ void gpio_function_select(resource_t *r, unsigned pin, unsigned func) {
   bus_write_4(r, BCM2835_GPIO_GPFSEL(reg), val);
 }
 
-void gpio_set_pull(resource_t *r, unsigned pin, unsigned pud) {
+void gpio_set_pull(resource_t *r, unsigned pin, bcm2838_gpio_gppud_t pud) {
   assert(pin <= 40);
 
   unsigned mask = 1 << (pin % BCM2835_GPIO_GPPUD_PINS_PER_REGISTER);

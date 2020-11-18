@@ -94,18 +94,18 @@ enum {
 #define BCM2835_GPIO_GPPUDCLK(x) (0x098 + (x) * sizeof(uint32_t))
 #define BCM2835_GPIO_GPPUD_PINS_PER_REGISTER 32
 
-enum {
+typedef enum {
   BCM2838_GPIO_GPPUD_PULLOFF = 0x0,
   BCM2838_GPIO_GPPUD_PULLUP = 0x1,
   BCM2838_GPIO_GPPUD_PULLDOWN = 0x2
-};
+} bcm2838_gpio_gppud_t;
 
 #define BCM2838_GPIO_GPPUPPDN(x) (0x0e4 + (x) * sizeof(uint32_t))
 #define BCM2838_GPIO_GPPUD_REGID(n) ((n) / 16)
 #define BCM2838_GPIO_GPPUD_MASK(n) (0x3 << ((n) % 16) * 2)
 
 /* brcm,function property */
-enum {
+typedef enum {
   BCM2835_GPIO_IN = 0,
   BCM2835_GPIO_OUT = 1,
   BCM2835_GPIO_ALT5 = 2,
@@ -114,6 +114,6 @@ enum {
   BCM2835_GPIO_ALT1 = 5,
   BCM2835_GPIO_ALT2 = 6,
   BCM2835_GPIO_ALT3 = 7
-};
+} bcm2835_gpio_func_t;
 
 #endif /* !_BROADCOM_BCM2835_GPIOREG_H_ */
