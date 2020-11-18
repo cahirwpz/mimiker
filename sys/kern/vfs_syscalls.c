@@ -406,8 +406,12 @@ int do_chdir(proc_t *p, const char *path) {
   if ((error = vfs_namelookup(path, &cwd)))
     return error;
 
-  if (cwd->v_type != V_DIR)
+  if (cwd->v_type != V_DIR) {
+    /* drop our reference to cwd that was set by vfs_namelookup - we don't
+     * longer need it */
+    vnode_drop(cwd);
     return ENOTDIR;
+  }
 
   vnode_drop(p->p_cwd);
   p->p_cwd = cwd;
