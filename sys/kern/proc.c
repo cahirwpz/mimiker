@@ -737,7 +737,7 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
           if (child->p_flags & PF_STATE_CHANGED) {
             if ((options & WUNTRACED) && (child->p_state == PS_STOPPED)) {
               child->p_flags &= ~PF_STATE_CHANGED;
-              *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
+              *status = MAKE_STATUS_SIG_STOP(child->p_stopsig);
               return 0;
             }
 
