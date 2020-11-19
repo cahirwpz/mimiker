@@ -181,31 +181,6 @@ static int sq_suspend(thread_t *td, sleep_t sleep) {
   return status;
 }
 
-/* Check pending signals.
- * If we find a signal that should stop us, then we stop here.
- * Returns EINTR if there is a pending signal that should be caught. */
-static int sq_check_signals(thread_t *td) {
-  proc_t *p = td->td_proc;
-  signo_t sig;
-  /* XXX some sleepq tests use bare kernel threads */
-  if (p == NULL)
-    return EINTR;
-
-  SCOPED_MTX_LOCK(&p->p_lock);
-
-  while (true) {
-    sig = sig_check(td, SIG_CHECK_NODELETE);
-    if (sig == 0)
-      return 0;
-    if (sig_should_stop(p->p_sigactions, sig)) {
-      sigpend_get(&td->td_sigpend, sig, NULL);
-      proc_stop();
-    } else {
-      return EINTR;
-    }
-  }
-}
-
 static int sq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
   thread_t *td = thread_self();
   int error = 0;
@@ -227,7 +202,7 @@ static int sq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
   }
 
   if (error == EINTR)
-    error = sq_check_signals(td);
+    error = sig_check_sleep_intr(td);
 
   return error;
 }

@@ -69,6 +69,8 @@ static const char *sig_name[NSIG] = {
 };
 /* clang-format on */
 
+static void sigpend_get(sigpend_t *sp, signo_t sig, ksiginfo_t *out);
+
 /* Default action for a signal. */
 static sigprop_t defact(signo_t sig) {
   assert(sig <= NSIG);
@@ -228,7 +230,7 @@ void sigpend_destroy(sigpend_t *sp) {
   }
 }
 
-void sigpend_get(sigpend_t *sp, signo_t sig, ksiginfo_t *out) {
+static void sigpend_get(sigpend_t *sp, signo_t sig, ksiginfo_t *out) {
   __sigdelset(&sp->sp_set, sig);
 
   /* Find siginfo and copy it out. */
@@ -423,6 +425,28 @@ void sig_onexec(proc_t *p) {
     __sigemptyset(&sigact->sa_mask);
     if (defact(sig) == SA_IGNORE || defact(sig) == SA_CONT)
       sigpend_get(&td->td_sigpend, sig, NULL);
+  }
+}
+
+int sig_check_sleep_intr(thread_t *td) {
+  proc_t *p = td->td_proc;
+  signo_t sig;
+  /* XXX some sleepq tests use bare kernel threads */
+  if (p == NULL)
+    return EINTR;
+
+  SCOPED_MTX_LOCK(&p->p_lock);
+
+  while (true) {
+    sig = sig_check(td, SIG_CHECK_NODELETE);
+    if (sig == 0)
+      return 0;
+    if (sig_should_stop(p->p_sigactions, sig)) {
+      sigpend_get(&td->td_sigpend, sig, NULL);
+      proc_stop();
+    } else {
+      return EINTR;
+    }
   }
 }
 

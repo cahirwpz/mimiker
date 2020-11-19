@@ -150,11 +150,11 @@ int sig_return(void);
 /*! \brief Returns whether the signal's current action is to stop a process. */
 bool sig_should_stop(sigaction_t *sigactions, signo_t sig);
 
-/*! \brief Remove a signal from a pending set.
+/*! \brief Check whether pending signals should interrupt our sleep.
  *
- * The `ksiginfo_t` structure associated with the pending signal
- * is copied to the structure pointed to by `out` (if it's non-NULL). */
-void sigpend_get(sigpend_t *sp, signo_t sig, ksiginfo_t *out);
+ * If we find a signal that should stop us, then we stop here.
+ * Returns EINTR if there is a pending signal that should be caught. */
+int sig_check_sleep_intr(thread_t *td);
 
 /*! \brief Reset handlers for caught signals on process exec.
  *
