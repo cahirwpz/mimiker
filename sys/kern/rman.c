@@ -21,6 +21,27 @@
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
+/*
+ * Bits 15-10 of the `flags` argument to `rman_reserve_resource`
+ * ensure alignment to 2^bits[15-10].
+ */
+
+/* Alignment bits start at bit 10. */
+#define RMAN_ALIGNMENT_SHIFT 10
+
+/* Positions the alignment bits for the `flags` argument. */
+#define RMAN_ALIGNMENT_ENCODE(x) ((x) << RMAN_ALIGNMENT_SHIFT)
+
+/* Alignment mask to extract the alignment bits. */
+#define RMAN_ALIGNMENT_MASK (0x003F << RMAN_ALIGNMENT_SHIFT)
+
+/* Extracts alignment bits. */
+#define RMAN_ALIGNMENT_EXTRACT(x)                                              \
+  (((x)&RMAN_ALIGNMENT_MASK) >> RMAN_ALIGNMENT_SHIFT)
+
+/* Decodes alignment bits from the `flags` argument. */
+#define RMAN_ALIGNMENT_GET(x) ((1ull << RMAN_ALIGNMENT_EXTRACT(x)) - 1)
+
 #define RMAN_ALIGN(addr, amask) (((addr) + (amask)) & ~(amask))
 
 #define RESOURCE_GET_RMAN(r) ((r)->r_rg->rg_rman)
@@ -141,7 +162,7 @@ static bool rman_region_reserve_resource(rman_region_t *rg, rman_addr_t start,
 
   assert(mtx_owned(&rg->rg_rman->rm_lock));
 
-  amask = (1ull << RF_ALIGNMENT(flags)) - 1;
+  amask = RMAN_ALIGNMENT_GET(flags);
   start = RMAN_ALIGN(max(rg->rg_start, start), amask);
   end = min(rg->rg_end, end);
   if (end - count + 1 < start)
@@ -233,7 +254,7 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
                                   rman_addr_t end, size_t count,
                                   res_flags_t flags) {
   rman_addr_t amask;
-  amask = (1ull << RF_ALIGNMENT(flags)) - 1;
+  amask = RMAN_ALIGNMENT_GET(flags);
   assert(start <= RMAN_ADDR_MAX - amask); /* alignment causes overflow */
   assert(!(flags & RF_FIRSTSHARE));
   assert(count);
@@ -340,5 +361,5 @@ res_flags_t rman_make_alignment_flags(uint32_t size) {
   if (!(~cl & size))
     exp--;
   /* The following will ensure alignment to 2^ceil(log2(size)). */
-  return (res_flags_t)RF_ALIGNMENT_LOG2(exp);
+  return (res_flags_t)RMAN_ALIGNMENT_ENCODE(exp);
 }
