@@ -204,8 +204,8 @@ static void pgrp_maybe_orphan(pgrp_t *pg) {
   TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
     WITH_MTX_LOCK (&p->p_lock) {
       if (p->p_state == PS_STOPPED) {
-        sig_kill(p, SIGHUP);
-        sig_kill(p, SIGCONT);
+        sig_kill(p, &DEF_KSI_RAW(SIGHUP));
+        sig_kill(p, &DEF_KSI_RAW(SIGCONT));
       }
     }
   }
@@ -557,17 +557,19 @@ __noreturn void proc_exit(int exitstatus) {
     klog("Wakeup PID(%d) because child PID(%d) died", parent->p_pid, p->p_pid);
 
     bool auto_reap;
-    WITH_MTX_LOCK (&parent->p_lock) {
-      auto_reap = parent->p_sigactions[SIGCHLD].sa_handler == SIG_IGN;
-      if (!auto_reap)
-        sig_kill(parent, SIGCHLD);
-      /* We unconditionally notify the parent if they're waiting for a child,
-       * even when we reap ourselves, because we might be the last child
-       * of the parent, in which case the parent's waitpid should fail,
-       * which it can't do if the parent is still waiting.
-       * NOTE: If auto_reap is true, we must NOT drop all_proc_mtx
-       * between this point and the auto-reap! */
-      proc_wakeup_parent(parent);
+    WITH_PROC_LOCK(p) {
+      WITH_PROC_LOCK(parent) {
+        auto_reap = parent->p_sigactions[SIGCHLD].sa_handler == SIG_IGN;
+        if (!auto_reap)
+          sig_child(p, CLD_EXITED);
+        /* We unconditionally notify the parent if they're waiting for a child,
+         * even when we reap ourselves, because we might be the last child
+         * of the parent, in which case the parent's waitpid should fail,
+         * which it can't do if the parent is still waiting.
+         * NOTE: If auto_reap is true, we must NOT drop all_proc_mtx
+         * between this point and the auto-reap! */
+        proc_wakeup_parent(parent);
+      }
     }
 
     klog("Turning PID(%d) into zombie!", p->p_pid);
@@ -590,42 +592,66 @@ __noreturn void proc_exit(int exitstatus) {
   thread_exit();
 }
 
+static int proc_pgsignal(pgid_t pgid, signo_t sig) {
+  pgrp_t *pgrp = NULL;
+  SCOPED_MTX_LOCK(all_proc_mtx);
+
+  if (pgid == 0) {
+    pgrp = proc_self()->p_pgrp;
+  } else {
+    pgrp = pgrp_lookup(pgid);
+    if (!pgrp)
+      return ESRCH;
+  }
+
+  proc_t *target;
+  int send = 0, error = 0;
+  TAILQ_FOREACH (target, &pgrp->pg_members, p_pglist) {
+    WITH_PROC_LOCK(target) {
+      if (!(error = proc_cansignal(target, sig))) {
+        sig_kill(target, &DEF_KSI_RAW(sig));
+        send++;
+      }
+    }
+  }
+
+  /* We return error when signal can't be send to any process. Returned error is
+   * last error obtained from checking privileges.*/
+  return send > 0 ? 0 : error;
+}
+
 int proc_sendsig(pid_t pid, signo_t sig) {
 
+  if (sig >= NSIG)
+    return EINVAL;
+
+  int error;
   proc_t *target;
 
   if (pid > 0) {
-    WITH_MTX_LOCK (all_proc_mtx)
-      target = proc_find(pid);
+    SCOPED_MTX_LOCK(all_proc_mtx);
+    target = proc_find(pid);
     if (target == NULL)
-      return EINVAL;
-    sig_kill(target, sig);
+      return ESRCH;
+    if (!(error = proc_cansignal(target, sig)))
+      sig_kill(target, &DEF_KSI_RAW(sig));
     proc_unlock(target);
-    return 0;
+    return error;
   }
 
-  /* TODO send sig to every process for which the calling process has
-   * permission to send signals, except init process */
-  if (pid == -1)
-    return ENOTSUP;
-
-  pgrp_t *pgrp = NULL;
-
-  WITH_MTX_LOCK (all_proc_mtx) {
-    if (pid == 0)
-      pgrp = proc_self()->p_pgrp;
-
-    if (pid < -1) {
-      pgrp = pgrp_lookup(-pid);
-      if (!pgrp)
-        return EINVAL;
-    }
-    mtx_lock(&pgrp->pg_lock);
+  switch (pid) {
+    case -1:
+      /* TODO send sig to every process for which the calling process has
+       * permission to send signals, except init process */
+      error = ENOTSUP;
+      break;
+    case 0:
+      error = proc_pgsignal(0, sig);
+      break;
+    default:
+      error = proc_pgsignal(-pid, sig);
   }
-
-  sig_pgkill(pgrp, sig);
-  mtx_unlock(&pgrp->pg_lock);
-  return 0;
+  return error;
 }
 
 static bool is_zombie(proc_t *p) {
