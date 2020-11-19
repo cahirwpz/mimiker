@@ -156,6 +156,11 @@ bool sig_should_stop(sigaction_t *sigactions, signo_t sig);
  * is copied to the structure pointed to by `out` (if it's non-NULL). */
 void sigpend_get(sigpend_t *sp, signo_t sig, ksiginfo_t *out);
 
+/*! \brief Reset handlers for caught signals on process exec.
+ *
+ * \note Must be called with p::p_lock held. */
+void sig_onexec(proc_t *p);
+
 /* System calls implementation. */
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset);

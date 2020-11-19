@@ -54,13 +54,14 @@ typedef struct gt_pci_state {
   resource_t *corectrl;
   resource_t *pci_io;
   resource_t *pci_mem;
+  resource_t *irq_res;
 
   /* Resource managers which manage resources used by child devices. */
   rman_t pci_io_rman;
   rman_t pci_mem_rman;
+  rman_t irq_rman;
 
-  intr_handler_t intr_handler;
-  intr_event_t intr_event[ICU_LEN];
+  intr_event_t *intr_event[ICU_LEN];
 
   uint16_t imask;
   uint16_t elcr;
@@ -158,19 +159,47 @@ static void gt_pci_unmask_irq(intr_event_t *ie) {
   gt_pci_set_icus(gtpci);
 }
 
-static void gt_pci_intr_setup(device_t *pcib, unsigned irq,
-                              intr_handler_t *handler) {
-  assert(pcib->parent->driver == &gt_pci_bus.driver);
+/* clang-format off */
+static const char *gt_pci_intr_name[ICU_LEN] = {
+  [0] = "timer",
+  [1] = "kbd",        /* kbd controller (keyboard) */
+  [2] = "pic-slave",  /* PIC cascade */
+  [3] = "uart(1)",    /* COM 2 */
+  [4] = "uart(0)",    /* COM 1 */
+  [5] = "unused(0)",
+  [6] = "floppy",     /* floppy */
+  [7] = "parallel",   /* centronics */
+  [8] = "rtc",        /* RTC */
+  [9] = "i2c",        /* I2C */
+  [10] = "unused(1)",
+  [11] = "unused(2)",
+  [12] = "mouse",     /* kbd controller (mouse) */
+  [13] = "unused(3)",
+  [14] = "ide(0)",    /* IDE primary */
+  [15] = "ide(1)",    /* IDE secondary */
+};
+/* clang-format on */
 
-  gt_pci_state_t *gtpci = pcib->parent->state;
-  intr_event_t *event = &gtpci->intr_event[irq];
-  intr_event_add_handler(event, handler);
+static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
+                              ih_service_t *service, void *arg,
+                              const char *name) {
+  assert(dev->parent->driver == &gt_pci_bus.driver);
+  gt_pci_state_t *gtpci = dev->parent->state;
+  int irq = r->r_start;
+  assert(irq < ICU_LEN);
+
+  if (gtpci->intr_event[irq] == NULL)
+    gtpci->intr_event[irq] = intr_event_create(
+      gtpci, irq, gt_pci_mask_irq, gt_pci_unmask_irq, gt_pci_intr_name[irq]);
+
+  r->r_handler =
+    intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg, name);
 }
 
-static void gt_pci_intr_teardown(device_t *pcib, intr_handler_t *handler) {
+static void gt_pci_intr_teardown(device_t *pcib, resource_t *irq) {
   assert(pcib->parent->driver == &gt_pci_bus.driver);
 
-  intr_event_remove_handler(handler);
+  intr_event_remove_handler(irq->r_handler);
 }
 
 static void init_8259(resource_t *io, unsigned icu, unsigned imask) {
@@ -210,7 +239,7 @@ static intr_filter_t gt_pci_intr(void *data) {
 
     /* Irq 2 is used for PIC chaining, ignore it. */
     if (irq != 2)
-      intr_event_run_handlers(&gtpci->intr_event[irq]);
+      intr_event_run_handlers(gtpci->intr_event[irq]);
 
     /* Send a specific EOI to slave PIC... */
     if (irq > 7) {
@@ -224,13 +253,6 @@ static intr_filter_t gt_pci_intr(void *data) {
   }
 
   return IF_FILTERED;
-}
-
-static inline void gt_pci_intr_event_init(gt_pci_state_t *gtpci, unsigned irq,
-                                          const char *name) {
-  intr_event_init(&gtpci->intr_event[irq], irq, name, gt_pci_mask_irq,
-                  gt_pci_unmask_irq, gtpci);
-  intr_event_register(&gtpci->intr_event[irq]);
 }
 
 #define MALTA_CORECTRL_SIZE (MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1)
@@ -264,6 +286,8 @@ static int gt_pci_attach(device_t *pcib) {
             RT_IOPORTS);
   rman_init(&gtpci->pci_mem_rman, "GT64120 PCI memory", 0,
             MALTA_PCI0_MEMORY_SIZE - 1, RT_MEMORY);
+  rman_init(&gtpci->irq_rman, "GT64120 PCI & ISA interrupts", 0, ICU_LEN - 1,
+            RT_IRQ);
 
   pcib->bus = DEV_BUS_PCI;
   pcib->devclass = &DEVCLASS(pci);
@@ -281,28 +305,11 @@ static int gt_pci_attach(device_t *pcib) {
   bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
-  gt_pci_intr_event_init(gtpci, 0, "timer");
-  gt_pci_intr_event_init(gtpci, 1, "kbd");       /* kbd controller (keyboard) */
-  gt_pci_intr_event_init(gtpci, 2, "pic-slave"); /* PIC cascade */
-  gt_pci_intr_event_init(gtpci, 3, "uart(1)");   /* COM 2 */
-  gt_pci_intr_event_init(gtpci, 4, "uart(0)");   /* COM 1 */
-  gt_pci_intr_event_init(gtpci, 5, "unused(0)");
-  gt_pci_intr_event_init(gtpci, 6, "floppy");   /* floppy */
-  gt_pci_intr_event_init(gtpci, 7, "parallel"); /* centronics */
-  gt_pci_intr_event_init(gtpci, 8, "rtc");      /* RTC */
-  gt_pci_intr_event_init(gtpci, 9, "i2c");      /* I2C */
-  gt_pci_intr_event_init(gtpci, 10, "unused(1)");
-  gt_pci_intr_event_init(gtpci, 11, "unused(2)");
-  gt_pci_intr_event_init(gtpci, 12, "mouse"); /* kbd controller (mouse) */
-  gt_pci_intr_event_init(gtpci, 13, "unused(3)");
-  gt_pci_intr_event_init(gtpci, 14, "ide(0)"); /* IDE primary */
-  gt_pci_intr_event_init(gtpci, 15, "ide(1)"); /* IDE secondary */
-
   pci_bus_enumerate(pcib);
 
-  gtpci->intr_handler =
-    INTR_HANDLER_INIT(gt_pci_intr, NULL, gtpci, "GT64120 interrupt", 0);
-  bus_intr_setup(pcib, MIPS_HWINT0, &gtpci->intr_handler);
+  gtpci->irq_res = bus_alloc_irq(pcib, 0, MIPS_HWINT0, RF_ACTIVE);
+  bus_intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
+                 "GT64120 main irq");
 
   return bus_generic_probe(pcib);
 }
@@ -324,6 +331,8 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     /* Handle ISA device resources only. */
     from = &gtpci->pci_io_rman;
     bh = gtpci->pci_io->r_bus_handle;
+  } else if (type == RT_IRQ) {
+    from = &gtpci->irq_rman;
   } else {
     /* Now handle only PCI devices. */
     pci_device_t *pcid = pci_device_of(dev);
@@ -355,14 +364,16 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     return NULL;
 
   if (flags & RF_ACTIVE) {
-    r->r_bus_tag = generic_bus_space;
-    r->r_bus_handle = bh + r->r_start; /* absolute physical address */
+    if (type != RT_IRQ) {
+      r->r_bus_tag = generic_bus_space;
+      r->r_bus_handle = bh + r->r_start; /* absolute physical address */
+    }
 
-    if (type == RT_IOPORTS) {
-      rman_activate_resource(r);
-    } else if (type == RT_MEMORY) {
+    if (type == RT_MEMORY) {
       int error = bus_activate_resource(dev, type, rid, r);
       assert(error == 0);
+    } else {
+      rman_activate_resource(r);
     }
   }
 
@@ -376,9 +387,6 @@ static void gt_pci_release_resource(device_t *dev, res_type_t type, int rid,
 
 static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
                                     resource_t *r) {
-  if (r->r_flags & RF_ACTIVE)
-    return 0;
-
   if (type == RT_MEMORY || type == RT_IOPORTS) {
     uint16_t command = pci_read_config(dev, PCIR_COMMAND, 2);
     if (type == RT_MEMORY)
@@ -388,18 +396,14 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
     pci_write_config(dev, PCIR_COMMAND, 2, command);
   }
 
-  int error = 0;
-
   if (type == RT_MEMORY) {
     /* Write BAR address to PCI device register. */
     pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
-    error = bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
-                          &r->r_bus_handle);
+    return bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+                         &r->r_bus_handle);
   }
 
-  if (!error)
-    rman_activate_resource(r);
-  return error;
+  return 0;
 }
 
 static int gt_pci_probe(device_t *d) {
