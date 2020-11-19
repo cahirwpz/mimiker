@@ -220,7 +220,7 @@ static int pl011_attach(device_t *dev) {
   /* Enable UART0, receive & transfer part of UART. */
   bus_write_4(r, PL011COM_CR, PL01X_CR_UARTEN | PL011_CR_TXE | PL011_CR_RXE);
 
-  /* Enable receive interrupt. */
+  /* Enable interrupt. */
   bus_write_4(r, PL011COM_IMSC, PL011_INT_RX);
 
   state->irq = bus_alloc_irq(dev, 0, BCM2835_INT_UART0, RF_ACTIVE);
