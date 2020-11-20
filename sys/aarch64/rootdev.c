@@ -166,7 +166,9 @@ static void bcm2835_intr_handle(bus_space_handle_t irq_base, bus_size_t offset,
 
   while (pending) {
     int irq = ffs(pending) - 1;
-    intr_event_run_handlers(events[irq]);
+    /* XXX: some pending bits are shared between BASIC and GPU0/1. */
+    if (events[irq])
+      intr_event_run_handlers(events[irq]);
     pending &= ~(1 << irq);
   }
 }
@@ -216,6 +218,7 @@ static int rootdev_attach(device_t *bus) {
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
   (void)device_add_child(bus, &DEVCLASS(root), 0); /* for ARM timer */
+  (void)device_add_child(bus, &DEVCLASS(root), 1); /* for PL011 UART */
 
   return bus_generic_probe(bus);
 }
