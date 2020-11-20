@@ -228,8 +228,7 @@ static int ns16550_attach(device_t *dev) {
                        IO_COMSIZE, RF_ACTIVE);
   assert(ns16550->regs != NULL);
 
-  ns16550->irq_res =
-    bus_alloc_irq(dev, 0, 4 /* magic */, RF_ACTIVE | RF_SHAREABLE);
+  ns16550->irq_res = bus_alloc_irq(dev, 0, 4 /* magic */, RF_ACTIVE);
   bus_intr_setup(dev, ns16550->irq_res, ns16550_intr, NULL, ns16550,
                  "NS16550 UART");
 

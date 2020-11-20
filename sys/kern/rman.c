@@ -11,10 +11,6 @@
  * and the code which manages CPU resources, will call this code, and the
  * end-device drivers will make upcalls to that code to actually perform
  * the allocation.
- * We make one simplifying assumption: two clients
- * sharing the same resource must use the same range of indices. That
- * is to say, sharing of overlapping-but-not-identical resources is not
- * permitted.
  */
 
 #include <sys/mimiker.h>
@@ -151,8 +147,6 @@ void rman_fini(rman_t *rm) {
   /* TODO: destroy the `rm_lock` after implementing `mtx_desotry`. */
 }
 
-#define SHARE_TYPE(f) ((f) & (RF_SHAREABLE | RF_PREFETCHABLE))
-
 static bool rman_region_reserve_resource(rman_region_t *rg, rman_addr_t start,
                                          rman_addr_t end, size_t count,
                                          resource_t *r) {
@@ -167,10 +161,6 @@ static bool rman_region_reserve_resource(rman_region_t *rg, rman_addr_t start,
   end = min(rg->rg_end, end);
   if (end - count + 1 < start)
     return false;
-
-  /*
-   * First try to find an acceptable totally-unshared region.
-   */
 
   /* Does the resource fit before the first resource in the region? */
   s = TAILQ_FIRST(&rg->rg_resources);
@@ -215,37 +205,6 @@ static bool rman_region_reserve_resource(rman_region_t *rg, rman_addr_t start,
     }
   }
 
-  /*
-   * Now find an acceptable shared region, if the client's requirements
-   * allow sharing. By our implementation restriction, a candidate
-   * region must match exactly by both size and sharing type in order
-   * to be considered compatible with the client's request.
-   */
-  if (!(flags & RF_SHAREABLE))
-    return false;
-
-  TAILQ_FOREACH (s, &rg->rg_resources, r_link) {
-    if (SHARE_TYPE(s->r_flags) == SHARE_TYPE(flags) && s->r_start >= start &&
-        s->r_end - s->r_start == count - 1 && (s->r_start & amask) == 0) {
-      r->r_rg = rg;
-      assert(s->r_rg == rg);
-      r->r_start = s->r_start;
-      r->r_end = s->r_end;
-      /* Check if share list is empty. */
-      if (s->r_sharehead == NULL) {
-        /* We need a new share list. */
-        s->r_sharehead = kmalloc(M_RES, sizeof(share_list_t), M_ZERO);
-        assert(s->r_sharehead);
-        LIST_INIT(s->r_sharehead);
-        LIST_INSERT_HEAD(s->r_sharehead, s, r_sharelink);
-        s->r_flags |= RF_FIRSTSHARE;
-      }
-      r->r_sharehead = s->r_sharehead;
-      LIST_INSERT_HEAD(s->r_sharehead, r, r_sharelink);
-      return true;
-    }
-  }
-
   /* We couldn't find anything. */
   return false;
 }
@@ -256,7 +215,6 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
   rman_addr_t amask;
   amask = RMAN_ALIGNMENT_GET(flags);
   assert(start <= RMAN_ADDR_MAX - amask); /* alignment causes overflow */
-  assert(!(flags & RF_FIRSTSHARE));
   assert(count);
   assert((start + count - 1) >= start); /* overflow */
   assert(start + count - 1 <= end);
@@ -314,35 +272,7 @@ void rman_release_resource(resource_t *r) {
 
   WITH_MTX_LOCK (&rm->rm_lock) {
     /* XXX: maybe we should ensure that (r->r_flags & RF_ACTIVE) == 0? */
-
-    /* Check for a share list first. */
-    if (r->r_sharehead) {
-      resource_t *s;
-      /*
-       * If a sharing list exists, then we know there are at
-       * least two sharers.
-       */
-      LIST_REMOVE(r, r_sharelink);
-      s = LIST_FIRST(r->r_sharehead);
-      if (r->r_flags & RF_FIRSTSHARE) {
-        /* Transfer ownership of the list. */
-        s->r_flags |= RF_FIRSTSHARE;
-        TAILQ_INSERT_BEFORE(r, s, r_link);
-        TAILQ_REMOVE(&rg->rg_resources, r, r_link);
-      }
-      /*
-       * Make sure that the sharing list goes away completely
-       * if the resource is no longer being shared at all.
-       */
-      if (LIST_NEXT(s, r_sharelink) == NULL) {
-        assert(s->r_flags & RF_FIRSTSHARE);
-        kfree(M_RES, s->r_sharehead);
-        s->r_sharehead = NULL;
-        s->r_flags &= ~RF_FIRSTSHARE;
-      }
-    } else {
-      TAILQ_REMOVE(&rg->rg_resources, r, r_link);
-    }
+    TAILQ_REMOVE(&rg->rg_resources, r, r_link);
     kfree(M_RES, r);
   }
 }

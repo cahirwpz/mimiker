@@ -120,7 +120,7 @@ static int pit_attach(device_t *dev) {
   assert(pit->regs != NULL);
 
   pit->lock = SPIN_INITIALIZER(0);
-  pit->irq_res = bus_alloc_irq(dev, 0, 0 /* magic */, RF_ACTIVE | RF_SHAREABLE);
+  pit->irq_res = bus_alloc_irq(dev, 0, 0 /* magic */, RF_ACTIVE);
 
   pit->timer = (timer_t){
     .tm_name = "i8254",

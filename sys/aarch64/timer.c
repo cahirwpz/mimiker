@@ -80,7 +80,7 @@ static int arm_timer_attach(device_t *dev) {
   };
 
   state->irq_res =
-    bus_alloc_irq(dev, 0, BCM2836_INT_CNTPNSIRQ_CPUN(0), RF_ACTIVE | RF_SHAREABLE);
+    bus_alloc_irq(dev, 0, BCM2836_INT_CNTPNSIRQ_CPUN(0), RF_ACTIVE);
 
   tm_register(&state->timer);
   tm_select(&state->timer);

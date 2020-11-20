@@ -17,7 +17,6 @@ typedef struct device device_t;
 typedef struct bus_space bus_space_t;
 typedef struct intr_handler intr_handler_t;
 typedef TAILQ_HEAD(, rman_region) rg_list_t;
-typedef LIST_HEAD(, resource) share_list_t;
 
 typedef enum {
   RF_NONE = 0,
@@ -25,9 +24,7 @@ typedef enum {
    * resource contains locations with read side-effects or locations in which
    * the device does not tolerate write merging. */
   RF_PREFETCHABLE = 1,
-  RF_SHAREABLE = 2,
-  RF_FIRSTSHARE = 4,
-  RF_ACTIVE = 8,
+  RF_ACTIVE = 2,
 } res_flags_t;
 
 typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
@@ -42,10 +39,8 @@ struct resource {
   union {
     intr_handler_t *r_handler;
   };
-  res_flags_t r_flags;              /* or'ed RF_* values */
-  TAILQ_ENTRY(resource) r_link;     /* link on resource manager list */
-  LIST_ENTRY(resource) r_sharelink; /* link on share list */
-  share_list_t *r_sharehead;        /* share list head */
+  res_flags_t r_flags;          /* or'ed RF_* values */
+  TAILQ_ENTRY(resource) r_link; /* link on resource manager list */
 };
 
 #define RESOURCE_DECLARE(name) extern resource_t name[1]

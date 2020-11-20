@@ -107,7 +107,7 @@ static int rtc_attach(device_t *dev) {
     dev, RT_IOPORTS, 0, IO_RTC, IO_RTC + IO_RTCSIZE - 1, IO_RTCSIZE, RF_ACTIVE);
   assert(rtc->regs != NULL);
 
-  rtc->irq_res = bus_alloc_irq(dev, 0, 8 /* magic */, RF_ACTIVE | RF_SHAREABLE);
+  rtc->irq_res = bus_alloc_irq(dev, 0, 8 /* magic */, RF_ACTIVE);
   bus_intr_setup(dev, rtc->irq_res, rtc_intr, NULL, rtc, "RTC periodic timer");
 
   /* Configure how the time is presented through registers. */
