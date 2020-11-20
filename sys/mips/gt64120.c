@@ -328,7 +328,6 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 
   device_t *pcib = dev->parent;
   gt_pci_state_t *gtpci = pcib->state;
-  uint32_t alignment = 1;
   bus_space_handle_t bh = 0;
   rman_t *from = NULL;
 
@@ -354,7 +353,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 
     if (type == RT_MEMORY) {
       from = &gtpci->pci_mem_rman;
-      alignment = max(size, (size_t)PAGESIZE);
+      rman_ensure_alignment(&flags, PAGESIZE);
     } else if (type == RT_IOPORTS) {
       assert(start >= IO_ISASIZE);
       from = &gtpci->pci_io_rman;
@@ -364,8 +363,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     }
   }
 
-  res_flags_t new_flags = flags | rman_make_alignment_flags(alignment);
-  resource_t *r = rman_reserve_resource(from, start, end, size, new_flags);
+  resource_t *r = rman_reserve_resource(from, start, end, size, flags);
   if (r == NULL)
     return NULL;
 

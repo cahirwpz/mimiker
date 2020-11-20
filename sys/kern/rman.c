@@ -293,3 +293,11 @@ res_flags_t rman_make_alignment_flags(uint32_t size) {
   /* The following will ensure alignment to 2^ceil(log2(size)). */
   return (res_flags_t)RMAN_ALIGNMENT_ENCODE(exp);
 }
+
+void rman_ensure_alignment(res_flags_t *flags, uint32_t size) {
+  rman_addr_t amask = RMAN_ALIGNMENT_GET(*flags);
+  if (size > amask) {
+    *flags &= ~RMAN_ALIGNMENT_MASK;
+    *flags |= rman_make_alignment_flags(size);
+  }
+}

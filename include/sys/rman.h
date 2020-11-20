@@ -76,6 +76,9 @@ void rman_deactivate_resource(resource_t *r);
  * flags. */
 res_flags_t rman_make_alignment_flags(uint32_t size);
 
+/*! \brief Ensures that `flags` enforces alignment to `size`. */
+void rman_ensure_alignment(res_flags_t *flags, uint32_t size);
+
 /*! \brief Calculate resource size. */
 static inline bus_size_t rman_get_size(resource_t *r) {
   return r->r_end - r->r_start + 1;
