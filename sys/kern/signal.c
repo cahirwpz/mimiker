@@ -182,14 +182,14 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
     }
   }
 
-  int error;
   /* Handle spurious wakeups. */
-  while ((error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()")) != EINTR) {
+  for (;;) {
+    int error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
+    if (error == EINTR)
+      return error;
     assert(error == 0);
     klog("sigsuspend(): spurious wakeup");
   }
-
-  return EINTR;
 }
 
 static ksiginfo_t *ksiginfo_copy(const ksiginfo_t *src) {
