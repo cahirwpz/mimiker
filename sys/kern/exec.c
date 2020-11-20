@@ -16,6 +16,8 @@
 #include <sys/vnode.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/signal.h>
+#include <sys/stat.h>
 
 typedef int (*copy_ptr_t)(exec_args_t *args, char *const *ptr_p);
 typedef int (*copy_str_t)(exec_args_t *args, const char *str, size_t *copied_p);
@@ -302,6 +304,22 @@ static void destroy_vmspace(exec_vmspace_t *saved) {
   vm_map_delete(saved->uspace);
 }
 
+static bool check_setid(vnode_t *vn, uid_t *uid, gid_t *gid) {
+  vattr_t attr;
+  *uid = *gid = -1;
+
+  if (VOP_GETATTR(vn, &attr))
+    return false;
+
+  if (attr.va_mode & S_ISUID)
+    *uid = attr.va_uid;
+
+  if (attr.va_mode & S_ISGID)
+    *gid = attr.va_gid;
+
+  return (*uid != (uid_t)-1) || (*gid != (gid_t)-1);
+}
+
 /* XXX We assume process may only have a single thread. But if there were more
  * than one thread in the process that called exec, all other threads must be
  * forcefully terminated. */
@@ -339,6 +357,12 @@ static int _do_execve(exec_args_t *args) {
     use_interpreter = true;
   }
 
+  uid_t uid;
+  gid_t gid;
+  /* XXX: This solution is prone to TOCTTOU. File (content or owners) may be
+   * changed between check of identity and load of content. */
+  bool setid = check_setid(vn, &uid, &gid);
+
   Elf_Ehdr eh;
   if ((error = exec_elf_inspect(vn, &eh)))
     return error;
@@ -360,6 +384,13 @@ static int _do_execve(exec_args_t *args) {
 
   /* Set up user context. */
   user_ctx_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
+
+  WITH_PROC_LOCK(p) {
+    sig_onexec(p);
+    /* Set new credentials if needed */
+    if (setid)
+      cred_exec_setid(p, uid, gid);
+  }
 
   /* At this point we are certain that exec succeeds.  We can safely destroy the
    * previous vm_map, and permanently assign this one to the current process. */

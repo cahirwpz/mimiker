@@ -9,8 +9,6 @@
 
 #include <sys/types.h>
 
-typedef struct siginfo {
-} siginfo_t;
 typedef int signo_t;
 
 typedef struct {
