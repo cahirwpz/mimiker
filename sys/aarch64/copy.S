@@ -50,11 +50,11 @@ ENTRY(copyinstr)
         b.hi    copyerr
 
         set_onfault x4, x5, copyerr
-        sub     sp, sp, #8
+        sub     sp, sp, #16
         str     lr, [sp]
         bl      copystr
         ldr     lr, [sp]
-        add     sp, sp, #8
+        add     sp, sp, #16
         clr_onfault x4
         ret
 END(copyinstr)
@@ -79,11 +79,11 @@ ENTRY(copyin)
         b.hi    copyerr
 
         set_onfault x3, x4, copyerr
-        sub     sp, sp, #8
+        sub     sp, sp, #16
         str     lr, [sp]
         bl      bcopy
         ldr     lr, [sp]
-        add     sp, sp, #8
+        add     sp, sp, #16
         clr_onfault x3
 
 1:      mov     x0, xzr
@@ -110,11 +110,11 @@ ENTRY(copyout)
         b.hi    copyerr
 
         set_onfault x3, x4, copyerr
-        sub     sp, sp, #8
+        sub     sp, sp, #16
         str     lr, [sp]
         bl      bcopy
         ldr     lr, [sp]
-        add     sp, sp, #8
+        add     sp, sp, #16
         clr_onfault x3
 
 1:      mov     x0, xzr
@@ -127,7 +127,7 @@ SENTRY(copyerr)
          * or copyinstr.
          */
         ldr     lr, [sp]
-        add     sp, sp, #8
+        add     sp, sp, #16
         mov     x0, #EFAULT
         ret
 END(copyerr)
