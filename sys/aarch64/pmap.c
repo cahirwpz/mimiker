@@ -257,8 +257,7 @@ void pmap_activate(pmap_t *umap) {
   if (umap == NULL) {
     WRITE_SPECIALREG(TCR_EL1, tcr | TCR_EPD0);
   } else {
-    uint64_t ttbr0 =
-      ((uint64_t)umap->asid << ASID_SHIFT) | (umap->pde >> PAGE_SHIFT);
+    uint64_t ttbr0 = ((uint64_t)umap->asid << ASID_SHIFT) | umap->pde;
     WRITE_SPECIALREG(TTBR0_EL1, ttbr0);
     WRITE_SPECIALREG(TCR_EL1, tcr & ~TCR_EPD0);
   }
