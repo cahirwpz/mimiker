@@ -9,7 +9,6 @@
 #include <sys/errno.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
-#include <machine/elf_arch.h>
 
 int exec_elf_inspect(vnode_t *vn, Elf_Ehdr *eh) {
   int error;

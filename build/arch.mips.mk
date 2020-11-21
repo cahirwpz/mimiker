@@ -1,7 +1,7 @@
 TARGET := mipsel-mimiker-elf
 # -G 0 disables small-data and small-bss, as otherwise they would exceed 64KB limit
-GCC_ABIFLAGS := -mips32r2 -EL -DELFSIZE=32 -G 0
-CLANG_ABIFLAGS := -target mipsel-elf -march=mips32r2 -mno-abicalls -modd-spreg -DELFSIZE=32 -G 0
+GCC_ABIFLAGS := -mips32r2 -EL -G 0
+CLANG_ABIFLAGS := -target mipsel-elf -march=mips32r2 -mno-abicalls -modd-spreg -G 0
 ELFTYPE := elf32-littlemips 
 ELFARCH := mips
 

@@ -3,6 +3,7 @@
 
 #ifdef _EXEC_IMPL
 #include <sys/cdefs.h>
+#include <machine/elf_machdep.h>
 #include <sys/exec_elf.h>
 
 typedef struct vnode vnode_t;
