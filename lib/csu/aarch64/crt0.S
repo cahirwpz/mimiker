@@ -8,6 +8,17 @@
 # to prepare_program_stack in exec.c.
 
 ENTRY(_start)
+        # Grab argc from stack.
+        ldr     w0, [sp, #0]
+
+        # Prepare argv.
+        add     x1, sp, #8
+
+        # Prepare envp.
+        add     x2, sp, #16
+
+        # Jump to start in crt0-common.
+        # void ___start(int argc, char **argv, char **envp)
         b       ___start
         nop
 END(_start)
