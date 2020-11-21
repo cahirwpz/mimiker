@@ -209,6 +209,8 @@ static pte_t make_pte(paddr_t pa, vm_prot_t prot, unsigned flags) {
 }
 
 static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte) {
+  if (pmap != pmap_kernel())
+    pte |= ATTR_AP(ATTR_AP_USER);
   *ptep = pte;
   tlb_invalidate(pte, pmap->asid);
 }
