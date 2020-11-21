@@ -4,6 +4,12 @@
 
 #include "assym.h"
 
+/*
+ * WARNING:
+ * copyin, copyout and copyinstr make unsafe assumption that bcopy and copystr
+ * not modify stack.
+ */
+
 .macro  set_onfault tmp td func
         # load current thread
         mrs     \td, tpidr_el1
@@ -44,7 +50,11 @@ ENTRY(copyinstr)
         b.hi    copyerr
 
         set_onfault x4, x5, copyerr
+        sub     sp, sp, #8
+        str     lr, [sp]
         bl      copystr
+        ldr     lr, [sp]
+        add     sp, sp, #8
         clr_onfault x4
         ret
 END(copyinstr)
@@ -69,7 +79,11 @@ ENTRY(copyin)
         b.hi    copyerr
 
         set_onfault x3, x4, copyerr
+        sub     sp, sp, #8
+        str     lr, [sp]
         bl      bcopy
+        ldr     lr, [sp]
+        add     sp, sp, #8
         clr_onfault x3
 
 1:      mov     x0, xzr
@@ -96,7 +110,11 @@ ENTRY(copyout)
         b.hi    copyerr
 
         set_onfault x3, x4, copyerr
+        sub     sp, sp, #8
+        str     lr, [sp]
         bl      bcopy
+        ldr     lr, [sp]
+        add     sp, sp, #8
         clr_onfault x3
 
 1:      mov     x0, xzr
@@ -104,7 +122,11 @@ ENTRY(copyout)
 END(copyout)
 
 SENTRY(copyerr)
-        # since we return from bcopy/copystr context we need to pop retaddr
+        /* 
+         * Here we need to restore link register from original copyin, copyout
+         * or copyinstr.
+         */
+        ldr     lr, [sp]
         add     sp, sp, #8
         mov     x0, #EFAULT
         ret
