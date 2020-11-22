@@ -168,7 +168,7 @@ static int sys_mmap(proc_t *p, mmap_args_t *args, register_t *res) {
   vm_prot_t prot = SCARG(args, prot);
   int flags = SCARG(args, flags);
 
-  klog("mmap(%p, %u, %d, %d)", SCARG(args, addr), length, prot, flags);
+  klog("mmap(%p, %u, %d, %d)", (void *)va, length, prot, flags);
 
   int error;
   if ((error = do_mmap(&va, length, prot, flags)))
@@ -684,8 +684,7 @@ static int sys_setresuid(proc_t *p, setresuid_args_t *args, register_t *res) {
   uid_t euid = SCARG(args, euid);
   uid_t suid = SCARG(args, suid);
 
-  klog("setresuid(%d, %d, %d)", SCARG(args, ruid), SCARG(args, euid),
-       SCARG(args, suid));
+  klog("setresuid(%d, %d, %d)", ruid, euid, suid);
 
   return do_setresuid(p, ruid, euid, suid);
 }
@@ -695,8 +694,7 @@ static int sys_setresgid(proc_t *p, setresgid_args_t *args, register_t *res) {
   gid_t egid = SCARG(args, egid);
   gid_t sgid = SCARG(args, sgid);
 
-  klog("setresgid(%d, %d, %d)", SCARG(args, rgid), SCARG(args, egid),
-       SCARG(args, sgid));
+  klog("setresgid(%d, %d, %d)", rgid, egid, sgid);
 
   return do_setresgid(p, rgid, egid, sgid);
 }
