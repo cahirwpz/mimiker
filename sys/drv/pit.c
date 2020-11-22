@@ -26,10 +26,10 @@ typedef struct pit_state {
   spin_t lock;
   intr_handler_t intr_handler;
   timer_t timer;
-  uint16_t period_cntr;             /* period as PIT counter value */
-  uint16_t counter16_last;          /* last seen counter value */
-  counter_t counter64_last;         /* counter value since timer initialization */
-  volatile bintime_t time;          /* last time measured by the timer */
+  uint16_t period_cntr;     /* period as PIT counter value */
+  uint16_t counter16_last;  /* last seen counter value */
+  counter_t counter64_last; /* counter value since timer initialization */
+  volatile bintime_t time;  /* last time measured by the timer */
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
