@@ -13,12 +13,18 @@
   END(name)
 
 /* Do a syscall that cannot fail. */
-#define SYSCALL_NOERROR(name, num)
+#define SYSCALL_NOERROR(name, num)                                             \
+  ENTRY(name);                                                                 \
+  svc num;                                                                     \
+  ret;                                                                         \
+  END(name)
 
 /* Do a normal syscall. */
+/* TODO(pj): Handle errors. */
 #define SYSCALL(name, num)                                                     \
   ENTRY(name);                                                                 \
-  b _C_LABEL(__sc_missing);                                                    \
+  svc num;                                                                     \
+  ret;                                                                         \
   END(name)
 
 #endif /* !__ASSEMBLER__ */
