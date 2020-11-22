@@ -158,8 +158,6 @@ void pci_bus_dump(device_t *pcib) {
       kprintf("%s Interrupt: pin %c routed to IRQ %d\n", devstr,
               'A' + pcid->pin - 1, pcid->irq);
 
-    kprintf("nbars = %d\n", pcid->nbars);
-
     for (int i = 0; i < PCI_BAR_MAX; i++) {
       pci_bar_t *bar = &pcid->bar[i];
       char *type;

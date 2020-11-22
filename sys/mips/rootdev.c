@@ -142,7 +142,7 @@ static void rootdev_add_child(device_t *bus, devclass_t *dc, int unit) {
   assert(rdd);
   dev->instance = rdd;
   resource_list_init(&rdd->resources);
-  /* TODO: add resources to a rootdev device as a result of FDT parsing. */
+  /* TODO: add resources to rootdev device as a result of FDT parsing. */
 }
 
 static int rootdev_attach(device_t *bus) {
