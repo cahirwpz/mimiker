@@ -23,13 +23,14 @@ typedef union {
 
 typedef struct pit_state {
   resource_t *regs;
+  spin_t lock;
   intr_handler_t intr_handler;
   timer_t timer;
   volatile bintime_t time;
-  volatile counter_t counter64_last;
-  volatile uint16_t counter16_last;
+  counter_t counter64_last;
+  uint16_t counter16_last;
   uint16_t period_cntr; /* period as PIT counter value */
-  
+
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
@@ -62,11 +63,10 @@ static uint64_t pit_get_counter64(pit_state_t *pit) {
   pit->counter16_last = counter16_now;
 
   oldlow = pit->counter64_last.lo;
-
-  if (oldlow > pit->counter64_last.lo + ticks)
-    pit->counter64_last.hi++;
-  
   pit->counter64_last.lo += ticks;
+
+  if (oldlow > oldlow + ticks)
+    pit->counter64_last.hi++;
 
   return pit->counter64_last.val;
 }
@@ -78,7 +78,7 @@ static void pit_update_time(pit_state_t *pit) {
   uint32_t frac = count % freq;
   bintime_t bt = bintime_mul(HZ2BT(freq), frac);
   bt.sec += sec;
-  pit->time = bt;
+  WITH_SPIN_LOCK (&pit->lock) { pit->time = bt; }
 }
 
 static intr_filter_t pit_intr(void *data) {
@@ -127,8 +127,9 @@ static int timer_pit_stop(timer_t *tm) {
 static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-
-  return pit->time;
+  bintime_t res;
+  WITH_SPIN_LOCK (&pit->lock) { res = pit->time; }
+  return res;
 }
 
 static int pit_attach(device_t *dev) {
@@ -141,6 +142,7 @@ static int pit_attach(device_t *dev) {
                        IO_TIMER1 + IO_TMRSIZE - 1, IO_TMRSIZE, RF_ACTIVE);
   assert(pit->regs != NULL);
 
+  pit->lock = SPIN_INITIALIZER(0);
   pit->intr_handler = INTR_HANDLER_INIT(pit_intr, NULL, pit, "i8254 timer", 0);
 
   pit->timer = (timer_t){
