@@ -6,7 +6,6 @@
 #include <sys/queue.h>
 #include <machine/bus_defs.h>
 
-/* TODO: remove RT_ISA after ISA-bridge driver is implemented */
 typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
 typedef uintptr_t rman_addr_t;
 #define RMAN_ADDR_MAX UINTPTR_MAX
@@ -43,9 +42,10 @@ struct resource {
   };
   /* TODO: remove r_type from this structure as r_rman->r_type contains the same
    * information. See `rman_alloc_resource` for setting r_type of a resource. */
-  res_type_t r_type;            /* one of RT_* */
-  res_flags_t r_flags;          /* or'ed RF_* values */
-  TAILQ_ENTRY(resource) r_link; /* link on resource manager list */
+  res_type_t r_type;                /* one of RT_* */
+  res_flags_t r_flags;              /* or'ed RF_* values */
+  TAILQ_ENTRY(resource) r_link;     /* link on resource manager list */
+  SLIST_ENTRY(resource) r_rle_link; /* link on resource list entry */
 };
 
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
@@ -58,6 +58,9 @@ struct rman {
   res_list_t rm_resources; /* all managed resources */
   res_type_t rm_type;      /* type of managed resources */
 };
+
+#define RMAN_IS_DEFAULT(s, e, c)                                               \
+  ((s) == 0 && (e) == RMAN_ADDR_MAX && (c) == RMAN_SIZE_MAX)
 
 /* !\brief Allocate resource within given rman.
  *

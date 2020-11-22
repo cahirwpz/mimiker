@@ -31,6 +31,10 @@ typedef struct rootdev {
   intr_event_t *intr_event[NIRQ];
 } rootdev_t;
 
+typedef struct rootdev_device {
+  resource_list_t resources;
+} rootdev_device_t;
+
 /* BCM2836_ARM_LOCAL_BASE mapped into VA (4KiB). */
 static vaddr_t rootdev_local_handle;
 /* BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE) mapped into VA (4KiB). */
@@ -197,6 +201,16 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
                       &rd->intr_event[BCM2835_INT_BASICBASE]);
 }
 
+static void rootdev_add_child(device_t *bus, devclass_t *dc, int unit) {
+  device_t *dev = device_add_child(bus, dc, unit);
+  assert(dev);
+  rootdev_device_t *rdd = kmalloc(M_DEV, sizeof(rootdev_device_t), M_WAITOK);
+  assert(rdd);
+  dev->instance = rdd;
+  resource_list_init(&rdd->resources);
+  /* TODO: add resources to a rootdev device as a result of FDT parsing. */
+}
+
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
@@ -217,8 +231,8 @@ static int rootdev_attach(device_t *bus) {
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
-  (void)device_add_child(bus, &DEVCLASS(root), 0); /* for ARM timer */
-  (void)device_add_child(bus, &DEVCLASS(root), 1); /* for PL011 UART */
+  rootdev_add_child(bus, &DEVCLASS(root), 0); /* for ARM timer */
+  rootdev_add_child(bus, &DEVCLASS(root), 1); /* for PL011 UART */
 
   return bus_generic_probe(bus);
 }
@@ -227,15 +241,16 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
                                           int rid, rman_addr_t start,
                                           rman_addr_t end, size_t size,
                                           res_flags_t flags) {
+  resource_list_t *rl = RESOURCE_LIST_OF(dev);
   rootdev_t *rd = dev->parent->state;
   resource_t *r = NULL;
 
   if (type == RT_MEMORY) {
-    r = rman_alloc_resource(&rd->local_rm, start, end, size, 1, flags);
+    r = resource_list_alloc(rl, &rd->local_rm, type, rid, start, end, size, flags);
     if (r == NULL)
-      r = rman_alloc_resource(&rd->shared_rm, start, end, size, 1, flags);
+      r = resource_list_alloc(rl, &rd->shared_rm, type, rid, start, end, size, flags);
   } else if (type == RT_IRQ) {
-    r = rman_alloc_resource(&rd->irq_rm, start, end, size, 1, flags);
+    r = resource_list_alloc(rl, &rd->irq_rm, type, rid, start, end, size, flags);
   }
 
   if (!r)
@@ -246,7 +261,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, type, rid, r)) {
-      rman_release_resource(r);
+      resource_list_release(rl, type, rid, r);
       return NULL;
     }
   }
@@ -256,7 +271,10 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 
 static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
                                      resource_t *r) {
-  panic("not implemented!");
+  /* TODO: if the resource is active, deactivate it first.
+   * Deactivation includes unmapping of mapped resources. */
+  resource_list_t *rl = RESOURCE_LIST_OF(dev);
+  resource_list_release(rl, type, rid, r);
 }
 
 static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,

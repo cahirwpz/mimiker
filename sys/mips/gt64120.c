@@ -264,18 +264,23 @@ DEVCLASS_DECLARE(pci);
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
-  /* PCI I/O memory */
-  gtpci->pci_mem =
-    bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE,
-                       MALTA_PCI0_MEMORY_END, MALTA_PCI0_MEMORY_SIZE, 0);
-  /* PCI I/O ports 0x0000-0xffff, mapped into KVA */
-  gtpci->pci_io =
-    bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_PCI0_IO_BASE,
-                       MALTA_PCI0_IO_BASE + 0xffff, 0x10000, RF_ACTIVE);
-  /* GT64120 registers, mapped into KVA */
-  gtpci->corectrl =
-    bus_alloc_resource(pcib, RT_MEMORY, 0, MALTA_CORECTRL_BASE,
-                       MALTA_CORECTRL_END, MALTA_CORECTRL_SIZE, RF_ACTIVE);
+  /* TODO: relpace the following with FDT parsing in parent bus. */
+  resource_list_t *rl = RESOURCE_LIST_OF(pcib);
+  /* PCI I/O memory. */
+  resource_list_add(rl, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE,
+                    MALTA_PCI0_MEMORY_END, MALTA_PCI0_MEMORY_SIZE);
+  /* PCI I/O ports 0x0000-0xffff. */
+  resource_list_add(rl, RT_MEMORY, 1, MALTA_PCI0_IO_BASE,
+                    MALTA_PCI0_IO_BASE + 0xffff, 0X10000);
+  /* GT64120 registers. */
+  resource_list_add(rl, RT_MEMORY, 2, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END,
+                    MALTA_CORECTRL_SIZE);
+  /* GT64120 main irq. */
+  resource_list_add_irq(rl, 0, MIPS_HWINT0);
+
+  gtpci->pci_mem = bus_alloc_resource_any(pcib, RT_MEMORY, 0, RF_NONE);
+  gtpci->pci_io = bus_alloc_resource_any(pcib, RT_MEMORY, 1, RF_ACTIVE);
+  gtpci->corectrl = bus_alloc_resource_any(pcib, RT_MEMORY, 2, RF_ACTIVE);
 
   if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
       gtpci->pci_io == NULL) {
@@ -307,7 +312,7 @@ static int gt_pci_attach(device_t *pcib) {
 
   pci_bus_enumerate(pcib);
 
-  gtpci->irq_res = bus_alloc_irq(pcib, 0, MIPS_HWINT0, RF_ACTIVE);
+  gtpci->irq_res = bus_alloc_resource_any(pcib, RT_IRQ, 0, RF_ACTIVE);
   bus_intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
                  "GT64120 main irq");
 
@@ -322,59 +327,37 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
    * because we don't have PCI-ISA bridge implemented. */
   assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
 
+  resource_list_t *rl = RESOURCE_LIST_OF(dev);
   device_t *pcib = dev->parent;
   gt_pci_state_t *gtpci = pcib->state;
   bus_space_handle_t bh;
   rman_t *from = NULL;
 
-  if (type == RT_IOPORTS && end < IO_ISASIZE) {
-    /* Handle ISA device resources only. */
+  if (type == RT_IOPORTS) {
     from = &gtpci->pci_io_rman;
     bh = gtpci->pci_io->r_bus_handle;
   } else if (type == RT_IRQ) {
     from = &gtpci->irq_rman;
+  } else if (type == RT_MEMORY) {
+    from = &gtpci->pci_mem_rman;
+    bh = gtpci->pci_mem->r_start;
   } else {
-    /* Now handle only PCI devices. */
-    pci_device_t *pcid = pci_device_of(dev);
-    /* Find identified bar by rid. */
-    assert(rid < PCI_BAR_MAX);
-    pci_bar_t *bar = &pcid->bar[rid];
-
-    if (bar->size == 0)
-      return NULL;
-
-    /* The size of allocated resource must not be larger than what was reported
-     * by corresponding BAR. */
-    size = min(size, bar->size);
-
-    if (type == RT_MEMORY) {
-      from = &gtpci->pci_mem_rman;
-      bh = gtpci->pci_mem->r_start;
-    } else if (type == RT_IOPORTS) {
-      assert(start >= IO_ISASIZE);
-      from = &gtpci->pci_io_rman;
-      bh = gtpci->pci_io->r_bus_handle;
-    } else {
-      panic("Unknown PCI device type: %d", type);
-    }
+    panic("Unknown PCI device type: %d", type);
   }
 
-  resource_t *r = rman_alloc_resource(from, start, end, size, size, flags);
+  resource_t *r =
+    resource_list_alloc(rl, from, type, rid, start, end, size, flags);
   if (r == NULL)
     return NULL;
 
   if (flags & RF_ACTIVE) {
     if (type != RT_IRQ) {
       r->r_bus_tag = generic_bus_space;
-      r->r_bus_handle = bh + r->r_start; /* absolute physical address */
+      r->r_bus_handle = bh + r->r_start;
     }
 
-    if (type == RT_MEMORY) {
-      int error = bus_activate_resource(dev, type, rid, r);
-      assert(error == 0);
-    } else {
-      rman_activate_resource(r);
-    }
+    int error = bus_activate_resource(dev, type, rid, r);
+    assert(error == 0);
   }
 
   return r;
@@ -382,7 +365,10 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 
 static void gt_pci_release_resource(device_t *dev, res_type_t type, int rid,
                                     resource_t *r) {
-  rman_release_resource(r);
+  /* TODO: if the resource is active, deactivate it first.
+   * Deactivation includes unmapping of mapped resources. */
+  resource_list_t *rl = RESOURCE_LIST_OF(dev);
+  resource_list_release(rl, type, rid, r);
 }
 
 static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,

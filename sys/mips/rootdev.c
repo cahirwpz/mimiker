@@ -14,6 +14,10 @@ typedef struct rootdev {
   intr_event_t *intr_event[MIPS_NIRQ];
 } rootdev_t;
 
+typedef struct rootdev_device {
+  resource_list_t resources;
+} rootdev_device_t;
+
 static void rootdev_mask_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
   mips32_bc_c0(C0_STATUS, SR_IM0 << irq);
@@ -63,9 +67,12 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
                                           int rid, rman_addr_t start,
                                           rman_addr_t end, size_t size,
                                           res_flags_t flags) {
+  resource_list_t *rl = RESOURCE_LIST_OF(dev);
   rootdev_t *rd = dev->parent->state;
   rman_t *rman = NULL;
 
+  /* XXX: in case of memory allocation, ensure pagesize alignment
+   * after merging the new rman. */
   if (type == RT_MEMORY)
     rman = &rd->mem;
   else if (type == RT_IRQ)
@@ -73,7 +80,8 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   else
     panic("Resource type not handled!");
 
-  resource_t *r = rman_alloc_resource(rman, start, end, size, 1, flags);
+  resource_t *r =
+    resource_list_alloc(rl, rman, type, rid, start, end, size, flags);
   if (r == NULL)
     return NULL;
 
@@ -84,7 +92,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, type, rid, r)) {
-      rman_release_resource(r);
+      resource_list_release(rl, type, rid, r);
       return NULL;
     }
   }
@@ -94,7 +102,10 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 
 static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
                                      resource_t *r) {
-  panic("not implemented!");
+  /* TODO: if the resource is active, deactivate it first.
+   * Deactivation includes unmapping of mapped resources. */
+  resource_list_t *rl = RESOURCE_LIST_OF(dev);
+  resource_list_release(rl, type, rid, r);
 }
 
 static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
@@ -124,6 +135,16 @@ static int rootdev_probe(device_t *bus) {
   return 1;
 }
 
+static void rootdev_add_child(device_t *bus, devclass_t *dc, int unit) {
+  device_t *dev = device_add_child(bus, dc, unit);
+  assert(dev);
+  rootdev_device_t *rdd = kmalloc(M_DEV, sizeof(rootdev_device_t), M_WAITOK);
+  assert(rdd);
+  dev->instance = rdd;
+  resource_list_init(&rdd->resources);
+  /* TODO: add resources to a rootdev device as a result of FDT parsing. */
+}
+
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
@@ -135,8 +156,8 @@ static int rootdev_attach(device_t *bus) {
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
-  (void)device_add_child(bus, NULL, 0); /* for MIPS timer */
-  (void)device_add_child(bus, NULL, 1); /* for GT PCI */
+  rootdev_add_child(bus, NULL, 0); /* for MIPS timer */
+  rootdev_add_child(bus, NULL, 1); /* for GT PCI */
 
   return bus_generic_probe(bus);
 }

@@ -200,6 +200,13 @@ static void ns16550_notify_out(tty_t *tty) {
 static int ns16550_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
+  /* TODO: relpace the following with FDT parsing in parent bus. */
+  resource_list_t *rl = RESOURCE_LIST_OF(dev);
+  assert(rl);
+  resource_list_add(rl, RT_IOPORTS, 0, IO_COM1, IO_COM1 + IO_COMSIZE - 1,
+                    IO_COMSIZE);
+  resource_list_add_irq(rl, 0, 4);
+
   ns16550_state_t *ns16550 = dev->state;
 
   ringbuf_init(&ns16550->rx_buf, kmalloc(M_DEV, UART_BUFSIZE, M_ZERO),
@@ -223,12 +230,10 @@ static int ns16550_attach(device_t *dev) {
   sched_add(tty_thread);
 
   /* TODO Small hack to select COM1 UART */
-  ns16550->regs =
-    bus_alloc_resource(dev, RT_IOPORTS, 0, IO_COM1, IO_COM1 + IO_COMSIZE - 1,
-                       IO_COMSIZE, RF_ACTIVE);
+  ns16550->regs = bus_alloc_resource_any(dev, RT_IOPORTS, 0, RF_ACTIVE);
   assert(ns16550->regs != NULL);
 
-  ns16550->irq_res = bus_alloc_irq(dev, 0, 4 /* magic */, RF_ACTIVE);
+  ns16550->irq_res = bus_alloc_resource_any(dev, RT_IRQ, 0, RF_ACTIVE);
   bus_intr_setup(dev, ns16550->irq_res, ns16550_intr, NULL, ns16550,
                  "NS16550 UART");
 

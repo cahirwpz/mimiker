@@ -99,15 +99,21 @@ static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
 static int rtc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
+  /* TODO: relpace the following with FDT parsing in parent bus. */
+  resource_list_t *rl = RESOURCE_LIST_OF(dev);
+  assert(rl);
+  resource_list_add(rl, RT_IOPORTS, 0, IO_RTC, IO_RTC + IO_RTCSIZE - 1,
+                    IO_RTCSIZE);
+  resource_list_add_irq(rl, 0, 8);
+
   vnodeops_init(&rtc_time_vnodeops);
 
   rtc_state_t *rtc = dev->state;
 
-  rtc->regs = bus_alloc_resource(
-    dev, RT_IOPORTS, 0, IO_RTC, IO_RTC + IO_RTCSIZE - 1, IO_RTCSIZE, RF_ACTIVE);
+  rtc->regs = bus_alloc_resource_any(dev, RT_IOPORTS, 0, RF_ACTIVE);
   assert(rtc->regs != NULL);
 
-  rtc->irq_res = bus_alloc_irq(dev, 0, 8 /* magic */, RF_ACTIVE);
+  rtc->irq_res = bus_alloc_resource_any(dev, RT_IRQ, 0, RF_ACTIVE);
   bus_intr_setup(dev, rtc->irq_res, rtc_intr, NULL, rtc, "RTC periodic timer");
 
   /* Configure how the time is presented through registers. */

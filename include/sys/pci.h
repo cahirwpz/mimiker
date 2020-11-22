@@ -84,6 +84,7 @@ typedef struct pci_bar {
 } pci_bar_t;
 
 typedef struct pci_device {
+  resource_list_t resources;
   pci_addr_t addr;
 
   uint16_t device_id;
