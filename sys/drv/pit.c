@@ -25,17 +25,20 @@ typedef struct pit_state {
   resource_t *regs;
   intr_handler_t intr_handler;
   timer_t timer;
+  volatile bintime_t time;
+  volatile counter_t counter64_last;
+  volatile uint16_t counter16_last;
   uint16_t period_cntr; /* period as PIT counter value */
+  
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
 #define outb(addr, val) bus_write_1(pit->regs, (addr), (val))
 
-static void pit_set_frequency(pit_state_t *pit, uint16_t period) {
+static void pit_set_frequency(pit_state_t *pit) {
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_16BIT | TIMER_RATEGEN);
-  outb(TIMER_CNTR0, period & 0xff);
-  outb(TIMER_CNTR0, period >> 8);
-  pit->period_cntr = period;
+  outb(TIMER_CNTR0, pit->period_cntr & 0xff);
+  outb(TIMER_CNTR0, pit->period_cntr >> 8);
 }
 
 static uint16_t pit_get_counter16(pit_state_t *pit) {
@@ -47,32 +50,41 @@ static uint16_t pit_get_counter16(pit_state_t *pit) {
 }
 
 static uint64_t pit_get_counter64(pit_state_t *pit) {
-  static uint16_t counter16_last = 0;
-  static counter_t counter64_last = (counter_t){.val = 0};
   uint16_t counter16_now, ticks;
   uint32_t oldlow;
-  SCOPED_INTR_DISABLED();
 
   counter16_now = pit_get_counter16(pit);
-  if (counter16_last >= counter16_now)
-    ticks = counter16_last - counter16_now;
+  if (pit->counter16_last >= counter16_now)
+    ticks = pit->counter16_last - counter16_now;
   else
-    ticks = counter16_last + (pit->period_cntr - counter16_now);
+    ticks = pit->counter16_last + (pit->period_cntr - counter16_now);
 
-  counter16_last = counter16_now;
+  pit->counter16_last = counter16_now;
 
-  oldlow = counter64_last.lo;
+  oldlow = pit->counter64_last.lo;
 
-  if (oldlow > (counter64_last.lo = oldlow + ticks))
-    counter64_last.hi++;
+  if (oldlow > pit->counter64_last.lo + ticks)
+    pit->counter64_last.hi++;
+  
+  pit->counter64_last.lo += ticks;
 
-  return counter64_last.val;
+  return pit->counter64_last.val;
+}
+
+static void pit_update_time(pit_state_t *pit) {
+  uint64_t count = pit_get_counter64(pit);
+  uint32_t freq = pit->timer.tm_frequency;
+  uint32_t sec = count / freq;
+  uint32_t frac = count % freq;
+  bintime_t bt = bintime_mul(HZ2BT(freq), frac);
+  bt.sec += sec;
+  pit->time = bt;
 }
 
 static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
-  pit_get_counter64(pit);
+  pit_update_time(pit);
   tm_trigger(&pit->timer);
   return IF_FILTERED;
 }
@@ -92,7 +104,13 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   uint32_t counter = bintime_mul(period, TIMER_FREQ).sec;
   /* Maximal counter value which we can store in pit timer */
   assert(counter <= 0xFFFF);
-  pit_set_frequency(pit, counter);
+
+  pit->time = BINTIME(0);
+  pit->counter64_last.val = 0;
+  pit->counter16_last = 0;
+  pit->period_cntr = counter;
+
+  pit_set_frequency(pit);
 
   bus_intr_setup(dev, 0, &pit->intr_handler);
   return 0;
@@ -109,14 +127,8 @@ static int timer_pit_stop(timer_t *tm) {
 static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  uint64_t count = pit_get_counter64(pit);
 
-  uint32_t sec = count / tm->tm_frequency;
-  uint32_t frac = count % tm->tm_frequency;
-  bintime_t bt = bintime_mul(HZ2BT(tm->tm_frequency), frac);
-  bt.sec += sec;
-
-  return bt;
+  return pit->time;
 }
 
 static int pit_attach(device_t *dev) {
