@@ -12,15 +12,6 @@
 #define PIIX4_IDE_VENDOR_ID 0x8086
 #define PIIX4_IDE_DEVICE_ID 0x7111
 
-typedef union {
-  /* assumes little endian order */
-  struct {
-    uint32_t lo;
-    uint32_t hi;
-  };
-  uint64_t val;
-} counter_t;
-
 typedef struct pit_state {
   resource_t *regs;
   spin_t lock;
@@ -54,6 +45,8 @@ static uint64_t pit_get_counter64(pit_state_t *pit) {
   uint32_t oldlow;
 
   counter16_now = pit_get_counter16(pit);
+  /* PIT counter counts from n to 1 and when we get to 1 an interrupt
+     is send and the counter starts from the beginning (n = pit->period_cntr)*/
   if (pit->counter16_last >= counter16_now)
     ticks = pit->counter16_last - counter16_now;
   else
