@@ -69,7 +69,7 @@ binary-stamp: install-stamp
 
 clean: unpatch
 	dh_clean
-	rm -rf $(QEMU) qemu-build
+	rm -rf $(QEMU) qemu-build .pc
 	rm -f *~
 
 .PHONY: download unpack patch unpatch configure build install binary clean
