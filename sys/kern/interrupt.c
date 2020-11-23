@@ -13,6 +13,8 @@ static KMALLOC_DEFINE(M_INTR, "interrupt events & handlers");
 static mtx_t all_ievents_mtx = MTX_INITIALIZER(0);
 static ie_list_t all_ievents_list = TAILQ_HEAD_INITIALIZER(all_ievents_list);
 
+static void intr_thread(void *arg);
+
 bool intr_disabled(void) {
   thread_t *td = thread_self();
   return (td->td_idnest > 0) && cpu_intr_disabled();
@@ -40,6 +42,7 @@ intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
   ie->ie_enable = enable;
   ie->ie_disable = disable;
   ie->ie_source = source;
+  ie->ie_ithread.it_thread = NULL;
   TAILQ_INIT(&ie->ie_handlers);
 
   WITH_MTX_LOCK (&all_ievents_mtx)
@@ -130,6 +133,15 @@ void intr_root_handler(ctx_t *ctx) {
 /* interrupt handlers delegated to be called in the interrupt thread */
 static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
 
+void intr_create_ithread(intr_event_t *ie) {
+  ie->ie_ithread.it_event = ie;
+  ie->ie_ithread.it_thread =
+    thread_create(ie->ie_name, intr_thread, &ie->ie_ithread, prio_ithread(0));
+  ie->ie_ithread.it_delegated =
+    (ih_list_t)TAILQ_HEAD_INITIALIZER(ie->ie_ithread.it_delegated);
+  sched_add(ie->ie_ithread.it_thread);
+}
+
 void intr_event_run_handlers(intr_event_t *ie) {
   intr_handler_t *ih, *next;
   intr_filter_t status = IF_STRAY;
@@ -146,9 +158,13 @@ void intr_event_run_handlers(intr_event_t *ie) {
       if (ie->ie_disable)
         ie->ie_disable(ie);
 
+      if (ie->ie_ithread.it_thread == NULL)
+        intr_create_ithread(ie);
+
       TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
-      TAILQ_INSERT_TAIL(&delegated, ih, ih_link);
-      sleepq_signal(&delegated);
+      TAILQ_INSERT_TAIL(&ie->ie_ithread.it_delegated, ih, ih_ithread_link);
+      sleepq_signal(&ie->ie_ithread.it_delegated);
+
       return;
     }
   }
@@ -157,14 +173,17 @@ void intr_event_run_handlers(intr_event_t *ie) {
 }
 
 static void intr_thread(void *arg) {
+  intr_thread_t *it = (intr_thread_t *)arg;
+  ih_list_t *it_delegated = &it->it_delegated;
+
   while (true) {
     intr_handler_t *ih;
 
     WITH_INTR_DISABLED {
-      while (TAILQ_EMPTY(&delegated))
-        sleepq_wait(&delegated, NULL);
-      ih = TAILQ_FIRST(&delegated);
-      TAILQ_REMOVE(&delegated, ih, ih_link);
+      while (TAILQ_EMPTY(it_delegated))
+        sleepq_wait(it_delegated, NULL);
+      ih = TAILQ_FIRST(it_delegated);
+      TAILQ_REMOVE(it_delegated, ih, ih_ithread_link);
     }
 
     ih->ih_service(ih->ih_argument);
@@ -177,10 +196,4 @@ static void intr_thread(void *arg) {
         ie->ie_enable(ie);
     }
   }
-}
-
-void init_ithreads(void) {
-  thread_t *itd =
-    thread_create("interrupt", intr_thread, NULL, prio_ithread(0));
-  sched_add(itd);
 }

@@ -9,9 +9,6 @@
 typedef struct ctx ctx_t;
 typedef struct device device_t;
 
-/*! \brief Called during kernel initialization. */
-void init_ithreads(void);
-
 /*! \brief Disables hardware interrupts.
  *
  * Calls to \fn intr_disable can nest, you must use the same number of calls to
@@ -50,6 +47,7 @@ static inline void __intr_enable(void *data) {
 
 typedef struct intr_event intr_event_t;
 typedef struct intr_handler intr_handler_t;
+typedef struct intr_thread intr_thread_t;
 
 typedef enum {
   IF_STRAY = 0,    /* this device did not trigger the interrupt */
@@ -69,6 +67,7 @@ typedef void ie_action_t(intr_event_t *);
 
 struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_link;
+  TAILQ_ENTRY(intr_handler) ih_ithread_link;
   ih_filter_t *ih_filter;   /* interrupt filter routine (run in irq ctx) */
   ih_service_t *ih_service; /* interrupt service routine (run in thread ctx) */
   intr_event_t *ih_event;   /* event we are connected to */
@@ -79,6 +78,12 @@ struct intr_handler {
 };
 
 typedef TAILQ_HEAD(, intr_handler) ih_list_t;
+
+typedef struct intr_thread {
+  intr_event_t *it_event; /* Associated event */
+  thread_t *it_thread;    /* Kernel thread. */
+  ih_list_t it_delegated;
+} intr_thread_t;
 
 /* Software representation of interrupt line. */
 typedef struct intr_event {
@@ -91,6 +96,7 @@ typedef struct intr_event {
   const char *ie_name;     /* individual event name */
   unsigned ie_irq;         /* physical interrupt request line number */
   unsigned ie_count;       /* number of handlers attached */
+  intr_thread_t ie_ithread; /* Associated interrupt thread */
 } intr_event_t;
 
 typedef TAILQ_HEAD(, intr_event) ie_list_t;
