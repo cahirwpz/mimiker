@@ -67,7 +67,6 @@ typedef void ie_action_t(intr_event_t *);
 
 struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_link;
-  TAILQ_ENTRY(intr_handler) ih_ithread_link;
   ih_filter_t *ih_filter;   /* interrupt filter routine (run in irq ctx) */
   ih_service_t *ih_service; /* interrupt service routine (run in thread ctx) */
   intr_event_t *ih_event;   /* event we are connected to */

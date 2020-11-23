@@ -169,7 +169,7 @@ void intr_event_run_handlers(intr_event_t *ie) {
         intr_create_ithread(ie);
 
       TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
-      TAILQ_INSERT_TAIL(&ie->ie_ithread->it_delegated, ih, ih_ithread_link);
+      TAILQ_INSERT_TAIL(&ie->ie_ithread->it_delegated, ih, ih_link);
       sleepq_signal(&ie->ie_ithread->it_delegated);
 
       return;
@@ -190,7 +190,7 @@ static void intr_thread(void *arg) {
       while (TAILQ_EMPTY(it_delegated))
         sleepq_wait(it_delegated, NULL);
       ih = TAILQ_FIRST(it_delegated);
-      TAILQ_REMOVE(it_delegated, ih, ih_ithread_link);
+      TAILQ_REMOVE(it_delegated, ih, ih_link);
     }
 
     ih->ih_service(ih->ih_argument);
