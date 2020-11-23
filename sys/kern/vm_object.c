@@ -28,18 +28,17 @@ vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
 }
 
 void vm_object_free(vm_object_t *obj) {
-  SCOPED_MTX_LOCK(&obj->mtx);
+  WITH_MTX_LOCK(&obj->mtx) {
+    if (!refcnt_release(&obj->ref_counter)) {
+      return;
+    }
 
-  if (!refcnt_release(&obj->ref_counter)) {
-    return;
+    while (!TAILQ_EMPTY(&obj->list)) {
+      vm_page_t *pg = TAILQ_FIRST(&obj->list);
+      TAILQ_REMOVE(&obj->list, pg, obj.list);
+      vm_page_free(pg);
+    }
   }
-
-  while (!TAILQ_EMPTY(&obj->list)) {
-    vm_page_t *pg = TAILQ_FIRST(&obj->list);
-    TAILQ_REMOVE(&obj->list, pg, obj.list);
-    vm_page_free(pg);
-  }
-
   pool_free(P_VMOBJ, obj);
 }
 
