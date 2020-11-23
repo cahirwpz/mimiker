@@ -130,9 +130,6 @@ void intr_root_handler(ctx_t *ctx) {
     on_user_exc_leave();
 }
 
-/* interrupt handlers delegated to be called in the interrupt thread */
-static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
-
 void intr_create_ithread(intr_event_t *ie) {
   intr_thread_t *it = kmalloc(M_INTR, sizeof(intr_thread_t), M_WAITOK | M_ZERO);
   ie->ie_ithread = it;
