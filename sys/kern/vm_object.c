@@ -73,7 +73,7 @@ bool vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *page) {
   return false;
 }
 
-void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
+static void vm_object_remove_page_nolock(vm_object_t *obj, vm_page_t *page) {
   page->offset = 0;
   page->object = NULL;
 
@@ -81,6 +81,12 @@ void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
   RB_REMOVE(vm_pagetree, &obj->tree, page);
   vm_page_free(page);
   obj->npages--;
+}
+
+void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
+  SCOPED_MTX_LOCK(&obj->mtx);
+
+  vm_object_remove_page_nolock(obj, page);
 }
 
 void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
@@ -92,7 +98,7 @@ void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
     if (pg->offset >= (off_t)(offset + length))
       break;
     if (pg->offset >= offset)
-      vm_object_remove_page(object, pg);
+      vm_object_remove_page_nolock(object, pg);
   }
 }
 
