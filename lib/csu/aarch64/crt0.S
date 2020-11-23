@@ -20,7 +20,6 @@ ENTRY(_start)
         # Jump to start in crt0-common.
         # void ___start(int argc, char **argv, char **envp)
         b       ___start
-        nop
 END(_start)
 
 # vim: sw=8 ts=8 et
