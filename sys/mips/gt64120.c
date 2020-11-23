@@ -330,6 +330,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   gt_pci_state_t *gtpci = pcib->state;
   bus_space_handle_t bh = 0;
   rman_t *from = NULL;
+  size_t alignment = 0;
 
   if (type == RT_IOPORTS && end < IO_ISASIZE) {
     /* Handle ISA device resources only. */
@@ -353,7 +354,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 
     if (type == RT_MEMORY) {
       from = &gtpci->pci_mem_rman;
-      rman_ensure_alignment(&flags, PAGESIZE);
+      alignment = PAGESIZE;
     } else if (type == RT_IOPORTS) {
       assert(start >= IO_ISASIZE);
       from = &gtpci->pci_io_rman;
@@ -363,7 +364,8 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     }
   }
 
-  resource_t *r = rman_reserve_resource(from, start, end, size, flags);
+  resource_t *r =
+    rman_reserve_resource(from, start, end, size, alignment, flags);
   if (r == NULL)
     return NULL;
 

@@ -27,8 +27,6 @@ typedef enum {
   RF_ACTIVE = 2,
 } res_flags_t;
 
-typedef enum { RT_UNKNOWN, RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
-
 struct resource {
   bus_space_tag_t r_bus_tag;       /* bus space methods */
   bus_space_handle_t r_bus_handle; /* bus space base address */
@@ -54,14 +52,13 @@ struct rman {
 /* !\brief Allocate resource within given rman.
  *
  * Looks up a region of size `count` between `start` and `end` address.
- * Assigned starting address will be aligned to `alignment` which must be
- * passed via `flags` argument (see `rman_make_alignment_flags`).
+ * Assigned starting address will be aligned to `alignment`.
  *
  * \returns NULL if could not allocate a resource
  */
 resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
                                   rman_addr_t end, size_t count,
-                                  res_flags_t flags);
+                                  size_t alignment, res_flags_t flags);
 
 /*! \brief Removes a resource from its resource manager and releases memory. */
 void rman_release_resource(resource_t *r);
@@ -71,13 +68,6 @@ void rman_activate_resource(resource_t *r);
 
 /*! \brief Marks resource as deactivated. */
 void rman_deactivate_resource(resource_t *r);
-
-/*! \brief Composes alignment flags which then may be ored with other resource
- * flags. */
-res_flags_t rman_make_alignment_flags(uint32_t size);
-
-/*! \brief Ensures that `flags` enforces alignment to `size`. */
-void rman_ensure_alignment(res_flags_t *flags, uint32_t size);
 
 /*! \brief Calculate resource size. */
 static inline bus_size_t rman_get_size(resource_t *r) {

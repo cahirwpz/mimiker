@@ -17,29 +17,6 @@
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
-/*
- * Bits 15-10 of the `flags` argument to `rman_reserve_resource`
- * ensure alignment to 2^bits[15-10].
- */
-
-/* Alignment bits start at bit 10. */
-#define RMAN_ALIGNMENT_SHIFT 10
-
-/* Positions the alignment bits for the `flags` argument. */
-#define RMAN_ALIGNMENT_ENCODE(x) ((x) << RMAN_ALIGNMENT_SHIFT)
-
-/* Alignment mask to extract the alignment bits. */
-#define RMAN_ALIGNMENT_MASK (0x003F << RMAN_ALIGNMENT_SHIFT)
-
-/* Extracts alignment bits. */
-#define RMAN_ALIGNMENT_EXTRACT(x)                                              \
-  (((x)&RMAN_ALIGNMENT_MASK) >> RMAN_ALIGNMENT_SHIFT)
-
-/* Decodes alignment bits from the `flags` argument. */
-#define RMAN_ALIGNMENT_GET(x) ((1ull << RMAN_ALIGNMENT_EXTRACT(x)) - 1)
-
-#define RMAN_ALIGN(addr, amask) (((addr) + (amask)) & ~(amask))
-
 #define RESOURCE_GET_RMAN(r) ((r)->r_rg->rg_rman)
 
 typedef TAILQ_HEAD(, resource) res_list_t;
@@ -150,15 +127,13 @@ void rman_fini(rman_t *rm) {
 
 static bool rman_region_reserve_resource(rman_region_t *rg, rman_addr_t start,
                                          rman_addr_t end, size_t count,
-                                         resource_t *r) {
+                                         size_t alignment, resource_t *r) {
   resource_t *s, *t;
-  rman_addr_t rstart, rend, amask;
-  res_flags_t flags = r->r_flags;
+  rman_addr_t rstart, rend;
 
   assert(mtx_owned(&rg->rg_rman->rm_lock));
 
-  amask = RMAN_ALIGNMENT_GET(flags);
-  start = RMAN_ALIGN(max(rg->rg_start, start), amask);
+  start = roundup(max(rg->rg_start, start), alignment);
   end = min(rg->rg_end, end);
   if (end - count + 1 < start)
     return false;
@@ -188,10 +163,10 @@ static bool rman_region_reserve_resource(rman_region_t *rg, rman_addr_t start,
     if (gap_start > end - count + 1)
       break;
     /* Too large start address for required alignment. */
-    if (gap_start > RMAN_ADDR_MAX - amask)
+    if (gap_start > RMAN_ADDR_MAX - alignment + 1)
       break;
 
-    rstart = RMAN_ALIGN(max(start, gap_start), amask);
+    rstart = roundup(max(start, gap_start), alignment);
     /* Check for overflow. */
     if ((rstart + count - 1) < rstart)
       break;
@@ -212,10 +187,12 @@ static bool rman_region_reserve_resource(rman_region_t *rg, rman_addr_t start,
 
 resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
                                   rman_addr_t end, size_t count,
-                                  res_flags_t flags) {
-  rman_addr_t amask;
-  amask = RMAN_ALIGNMENT_GET(flags);
-  assert(start <= RMAN_ADDR_MAX - amask); /* alignment causes overflow */
+                                  size_t alignment, res_flags_t flags) {
+  alignment = max(alignment, 1UL);
+  assert(powerof2(alignment));
+
+  assert(start <=
+         RMAN_ADDR_MAX - alignment + 1); /* alignment causes overflow */
   assert(count);
   assert((start + count - 1) >= start); /* overflow */
   assert(start + count - 1 <= end);
@@ -237,10 +214,11 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
         break;
       /* An inner alignment logic will cause an
        * overflow if the start of a region is too large. */
-      if (rg->rg_start > RMAN_ADDR_MAX - amask)
+      if (rg->rg_start > RMAN_ADDR_MAX - alignment + 1)
         break;
       /* Try to place the resource in the current region. */
-      if ((reserved = rman_region_reserve_resource(rg, start, end, count, r)))
+      if ((reserved =
+             rman_region_reserve_resource(rg, start, end, count, alignment, r)))
         break;
     }
     if (reserved) {
@@ -275,30 +253,5 @@ void rman_release_resource(resource_t *r) {
     /* XXX: maybe we should ensure that (r->r_flags & RF_ACTIVE) == 0? */
     TAILQ_REMOVE(&rg->rg_resources, r, r_link);
     kfree(M_RES, r);
-  }
-}
-
-res_flags_t rman_make_alignment_flags(uint32_t size) {
-  uint32_t cl = size;
-  uint32_t exp;
-  /*
-   * Find the highest bit set, and add one if more than one bit is set.
-   * We're effectively computing the ceil(log2(size)) here.
-   */
-  for (int i = 1; i <= 16; i++)
-    cl |= cl >> 1;
-  cl &= ~(cl >> 1);
-  exp = ffs(cl);
-  if (!(~cl & size))
-    exp--;
-  /* The following will ensure alignment to 2^ceil(log2(size)). */
-  return (res_flags_t)RMAN_ALIGNMENT_ENCODE(exp);
-}
-
-void rman_ensure_alignment(res_flags_t *flags, uint32_t size) {
-  rman_addr_t amask = RMAN_ALIGNMENT_GET(*flags);
-  if (size > amask) {
-    *flags &= ~RMAN_ALIGNMENT_MASK;
-    *flags |= rman_make_alignment_flags(size);
   }
 }

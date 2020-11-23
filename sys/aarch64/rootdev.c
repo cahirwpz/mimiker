@@ -230,10 +230,9 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   resource_t *r = NULL;
 
   if (type == RT_MEMORY) {
-    rman_ensure_alignment(&flags, PAGESIZE);
-    r = rman_reserve_resource(&rd->rm, start, end, size, flags);
+    r = rman_reserve_resource(&rd->rm, start, end, size, PAGESIZE, flags);
   } else if (type == RT_IRQ) {
-    r = rman_reserve_resource(&rd->irq_rm, start, end, size, flags);
+    r = rman_reserve_resource(&rd->irq_rm, start, end, size, 0, flags);
   }
 
   if (!r)

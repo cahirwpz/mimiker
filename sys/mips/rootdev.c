@@ -65,17 +65,19 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
                                           res_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
   rman_t *rman = NULL;
+  size_t alignment = 0;
 
   if (type == RT_MEMORY) {
     rman = &rd->mem;
-    rman_ensure_alignment(&flags, PAGESIZE);
+    alignment = PAGESIZE;
   } else if (type == RT_IRQ) {
     rman = &rd->irq;
   } else {
     panic("Resource type not handled!");
   }
 
-  resource_t *r = rman_reserve_resource(rman, start, end, size, flags);
+  resource_t *r =
+    rman_reserve_resource(rman, start, end, size, alignment, flags);
   if (r == NULL)
     return NULL;
 
