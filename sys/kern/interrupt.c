@@ -42,7 +42,7 @@ intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
   ie->ie_enable = enable;
   ie->ie_disable = disable;
   ie->ie_source = source;
-  ie->ie_ithread.it_thread = NULL;
+  ie->ie_ithread = NULL;
   TAILQ_INIT(&ie->ie_handlers);
 
   WITH_MTX_LOCK (&all_ievents_mtx)
@@ -134,12 +134,19 @@ void intr_root_handler(ctx_t *ctx) {
 static ih_list_t delegated = TAILQ_HEAD_INITIALIZER(delegated);
 
 void intr_create_ithread(intr_event_t *ie) {
-  ie->ie_ithread.it_event = ie;
-  ie->ie_ithread.it_thread =
-    thread_create(ie->ie_name, intr_thread, &ie->ie_ithread, prio_ithread(0));
-  ie->ie_ithread.it_delegated =
-    (ih_list_t)TAILQ_HEAD_INITIALIZER(ie->ie_ithread.it_delegated);
-  sched_add(ie->ie_ithread.it_thread);
+  intr_thread_t *it = kmalloc(M_INTR, sizeof(intr_thread_t), M_WAITOK | M_ZERO);
+  ie->ie_ithread = it;
+
+  assert(ie->ie_ithread != NULL);
+
+  ie->ie_ithread->it_thread =
+    thread_create(ie->ie_name, intr_thread, ie->ie_ithread, prio_ithread(0));
+  ie->ie_ithread->it_delegated =
+    (ih_list_t)TAILQ_HEAD_INITIALIZER(ie->ie_ithread->it_delegated);
+
+  assert(ie->ie_ithread->it_thread != NULL);
+
+  sched_add(ie->ie_ithread->it_thread);
 }
 
 void intr_event_run_handlers(intr_event_t *ie) {
@@ -158,12 +165,12 @@ void intr_event_run_handlers(intr_event_t *ie) {
       if (ie->ie_disable)
         ie->ie_disable(ie);
 
-      if (ie->ie_ithread.it_thread == NULL)
+      if (ie->ie_ithread == NULL)
         intr_create_ithread(ie);
 
       TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
-      TAILQ_INSERT_TAIL(&ie->ie_ithread.it_delegated, ih, ih_ithread_link);
-      sleepq_signal(&ie->ie_ithread.it_delegated);
+      TAILQ_INSERT_TAIL(&ie->ie_ithread->it_delegated, ih, ih_ithread_link);
+      sleepq_signal(&ie->ie_ithread->it_delegated);
 
       return;
     }
