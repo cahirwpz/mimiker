@@ -336,6 +336,8 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         refcnt_acquire(&it->object->ref_counter);
         seg = it;
       } else {
+        /* vm_object_clone will clone the data from the vm_object_t
+         * and will return the new object with ref_counter equal to one */
         obj = vm_object_clone(it->object);
         seg = vm_segment_alloc(obj, it->start, it->end, it->prot);
       }
