@@ -60,8 +60,9 @@ void rman_init(rman_t *rm, const char *name) {
   TAILQ_INIT(&rm->rm_regions);
 }
 
-void rman_manage_region(rman_t *rm, rman_addr_t start, rman_addr_t end) {
+void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
   rman_region_t *rg, *s, *t;
+  rman_addr_t end = start + size - 1;
 
   rg = kmalloc(M_RES, sizeof(rman_region_t), M_ZERO);
   assert(rg);
@@ -129,7 +130,7 @@ void rman_manage_region(rman_t *rm, rman_addr_t start, rman_addr_t end) {
 
 void rman_init_from_resource(rman_t *rm, const char *name, resource_t *r) {
   rman_init(rm, name);
-  rman_manage_region(rm, r->r_start, r->r_end);
+  rman_manage_region(rm, r->r_start, rman_get_size(r));
 }
 
 void rman_fini(rman_t *rm) {

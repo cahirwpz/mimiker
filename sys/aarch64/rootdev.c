@@ -201,9 +201,8 @@ static int rootdev_attach(device_t *bus) {
 
   rman_init(&rd->rm, "ARM and BCM2835 space");
   rman_manage_region(&rd->rm, BCM2835_PERIPHERALS_BASE,
-                     BCM2835_PERIPHERALS_BASE + BCM2835_PERIPHERALS_SIZE - 1);
-  rman_manage_region(&rd->rm, BCM2836_ARM_LOCAL_BASE,
-                     BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1);
+                     BCM2835_PERIPHERALS_SIZE);
+  rman_manage_region(&rd->rm, BCM2836_ARM_LOCAL_BASE, BCM2836_ARM_LOCAL_SIZE);
 
   rman_init(&rd->irq_rm, "BCM2835 interrupts");
   rman_manage_region(&rd->irq_rm, 0, NIRQ);

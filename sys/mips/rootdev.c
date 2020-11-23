@@ -132,10 +132,10 @@ static int rootdev_attach(device_t *bus) {
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ...
    * Skips region allocated for up to 256MB of RAM. */
   rman_init(&rd->mem, "Malta I/O space");
-  rman_manage_region(&rd->mem, MALTA_PCI0_MEMORY_BASE, MALTA_FPGA_END);
+  rman_manage_region(&rd->mem, MALTA_PERIPHERALS_BASE, MALTA_PERIPHERALS_SIZE);
 
   rman_init(&rd->irq, "MIPS interrupts");
-  rman_manage_region(&rd->irq, 0, MIPS_NIRQ - 1);
+  rman_manage_region(&rd->irq, 0, MIPS_NIRQ);
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 

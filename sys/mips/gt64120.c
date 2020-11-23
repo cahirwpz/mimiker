@@ -283,7 +283,7 @@ static int gt_pci_attach(device_t *pcib) {
   }
 
   rman_init(&gtpci->pci_io_rman, "GT64120 PCI I/O ports");
-  rman_manage_region(&gtpci->pci_io_rman, 0x0000, 0xffff);
+  rman_manage_region(&gtpci->pci_io_rman, 0, 65536);
 
   /* This will ensure absoulte addresses which is essential
    * in order to staisfy memory alignment. */
@@ -291,7 +291,7 @@ static int gt_pci_attach(device_t *pcib) {
                           gtpci->pci_mem);
 
   rman_init(&gtpci->irq_rman, "GT64120 PCI & ISA interrupts");
-  rman_manage_region(&gtpci->irq_rman, 0, ICU_LEN - 1);
+  rman_manage_region(&gtpci->irq_rman, 0, ICU_LEN);
 
   pcib->bus = DEV_BUS_PCI;
   pcib->devclass = &DEVCLASS(pci);

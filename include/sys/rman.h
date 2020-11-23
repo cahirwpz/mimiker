@@ -91,7 +91,7 @@ void rman_init(rman_t *rm, const char *name);
 void rman_init_from_resource(rman_t *rm, const char *name, resource_t *r);
 
 /* !\brief Adds a new region to be managed by a resource manager. */
-void rman_manage_region(rman_t *rm, rman_addr_t start, rman_addr_t end);
+void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size);
 
 /* !\brief Destroy resource manager and free its memory resources. */
 void rman_fini(rman_t *rm);
