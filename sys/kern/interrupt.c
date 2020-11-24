@@ -85,6 +85,7 @@ intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
   ih->ih_argument = arg;
   ih->ih_name = name;
   ih->ih_prio = 0;
+  ih->ih_flags = 0;
   ie_add_handler(ie, ih);
   return ih;
 }
@@ -92,6 +93,10 @@ intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
 void intr_event_remove_handler(intr_handler_t *ih) {
   intr_event_t *ie = ih->ih_event;
   WITH_SPIN_LOCK (&ie->ie_lock) {
+    if (ih->ih_flags & IH_DELEGATE) {
+      ih->ih_flags |= IH_REMOVE;
+      return;
+    }
     if (ie->ie_count == 1 && ie->ie_disable)
       ie->ie_disable(ie);
 
@@ -99,7 +104,6 @@ void intr_event_remove_handler(intr_handler_t *ih) {
     ih->ih_event = NULL;
     ie->ie_count--;
   }
-  /* XXX: Revisit possible data race when ithreads are implemented. */
   kfree(M_INTR, ih);
 }
 
@@ -130,7 +134,7 @@ void intr_root_handler(ctx_t *ctx) {
     on_user_exc_leave();
 }
 
-void intr_create_ithread(intr_event_t *ie) {
+void intr_thread_create(intr_event_t *ie) {
   intr_thread_t *it = kmalloc(M_INTR, sizeof(intr_thread_t), M_WAITOK | M_ZERO);
   ie->ie_ithread = it;
 
@@ -138,8 +142,8 @@ void intr_create_ithread(intr_event_t *ie) {
 
   ie->ie_ithread->it_thread =
     thread_create(ie->ie_name, intr_thread, ie->ie_ithread, prio_ithread(0));
-  ie->ie_ithread->it_delegated =
-    (ih_list_t)TAILQ_HEAD_INITIALIZER(ie->ie_ithread->it_delegated);
+  ie->ie_ithread->it_wchan =
+    (ih_list_t)TAILQ_HEAD_INITIALIZER(ie->ie_ithread->it_wchan);
 
   assert(ie->ie_ithread->it_thread != NULL);
 
@@ -163,11 +167,10 @@ void intr_event_run_handlers(intr_event_t *ie) {
         ie->ie_disable(ie);
 
       if (ie->ie_ithread == NULL)
-        intr_create_ithread(ie);
+        intr_thread_create(ie);
 
-      TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
-      TAILQ_INSERT_TAIL(&ie->ie_ithread->it_delegated, ih, ih_link);
-      sleepq_signal(&ie->ie_ithread->it_delegated);
+      ih->ih_flags = IF_DELEGATE;
+      sleepq_signal(&ie->ie_ithread->it_wchan);
 
       return;
     }
@@ -178,16 +181,19 @@ void intr_event_run_handlers(intr_event_t *ie) {
 
 static void intr_thread(void *arg) {
   intr_thread_t *it = (intr_thread_t *)arg;
-  ih_list_t *it_delegated = &it->it_delegated;
 
   while (true) {
-    intr_handler_t *ih;
+    intr_handler_t *ih = NULL, *next, *curr;
 
     WITH_INTR_DISABLED {
-      while (TAILQ_EMPTY(it_delegated))
-        sleepq_wait(it_delegated, NULL);
-      ih = TAILQ_FIRST(it_delegated);
-      TAILQ_REMOVE(it_delegated, ih, ih_link);
+      TAILQ_FOREACH_SAFE (curr, &it->it_event->ie_handlers, ih_link, next) {
+        if (curr->ih_flags & IH_DELEGATE) {
+          ih = curr;
+          break;
+        }
+      }
+      if (ih == NULL)
+        sleepq_wait(&it->it_wchan, NULL);
     }
 
     ih->ih_service(ih->ih_argument);
@@ -195,9 +201,23 @@ static void intr_thread(void *arg) {
     intr_event_t *ie = ih->ih_event;
 
     WITH_SPIN_LOCK (&ie->ie_lock) {
-      ie_insert_handler(ie, ih);
-      if (ie->ie_enable)
-        ie->ie_enable(ie);
+      if (ih->ih_flags & IH_REMOVE) {
+
+        if (ie->ie_count == 1 && ie->ie_disable)
+          ie->ie_disable(ie);
+
+        TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
+        ih->ih_event = NULL;
+        ie->ie_count--;
+      } else {
+        ih->ih_flags &= ~IH_DELEGATE;
+        ie_insert_handler(ie, ih);
+        if (ie->ie_enable)
+          ie->ie_enable(ie);
+      }
+    }
+    if (ih->ih_flags & IH_REMOVE) {
+      kfree(M_INTR, ih);
     }
   }
 }
