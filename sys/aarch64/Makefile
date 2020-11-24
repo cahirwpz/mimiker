@@ -7,6 +7,8 @@ SOURCES = boot.c \
 	  copy.S \
 	  evec.S \
 	  interrupt.c \
+	  gpio.c \
+	  pl011.c \
 	  pmap.c \
 	  rootdev.c \
 	  $(BOARD).c \
