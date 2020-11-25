@@ -265,7 +265,7 @@ pgrp_t *pgrp_lookup(pgid_t pgid) {
 static void pgrp_remove(pgrp_t *pgrp) {
   assert(mtx_owned(all_proc_mtx));
 
-  /* Check if removed group was a foreground group of some session. */
+  /* Check if removed group was a foreground group of some terminal. */
   tty_t *tty = pgrp->pg_session->s_tty;
   if (tty) {
     WITH_MTX_LOCK (&tty->t_lock) {
@@ -373,7 +373,6 @@ static void session_leave(proc_t *p) {
     }
     /* TODO revoke access to controlling terminal */
   }
-
 }
 
 int pgrp_enter(proc_t *p, pid_t target, pgid_t pgid) {
