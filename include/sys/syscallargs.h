@@ -350,3 +350,17 @@ typedef struct {
   gid_t rgid;
   gid_t egid;
 } setregid_args_t;
+
+typedef struct {
+  int fd;
+  uid_t uid;
+  gid_t gid;
+} fchown_args_t;
+
+typedef struct {
+  int fd;
+  const char * path;
+  uid_t uid;
+  gid_t gid;
+  int flag;
+} fchownat_args_t;

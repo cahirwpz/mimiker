@@ -150,6 +150,7 @@ int linkat(int, const char *, int, const char *, int);
 int symlinkat(const char *, int, const char *);
 int unlinkat(int, const char *, int);
 int faccessat(int, const char *, int, int);
+int fchownat(int, const char *, uid_t, gid_t, int);
 
 /*
  * Implementation-defined extensions

@@ -10,6 +10,7 @@
 #include <sys/vfs.h>
 #include <sys/kmem.h>
 #include <sys/malloc.h>
+#include <sys/cred.h>
 
 #define TMPFS_NAME_MAX 64
 
@@ -47,6 +48,8 @@ typedef struct tmpfs_node {
   nlink_t tfn_links; /* number of file hard links */
   ino_t tfn_ino;     /* node identifier */
   size_t tfn_size;   /* file size in bytes */
+  uid_t tfn_uid;     /* owner of file */
+  gid_t tfn_gid;     /* group of file */
 
   /* Data that is only applicable to a particular type. */
   union {
@@ -276,20 +279,50 @@ static int tmpfs_vop_getattr(vnode_t *v, vattr_t *va) {
   va->va_mode = node->tfn_mode;
   va->va_nlink = node->tfn_links;
   va->va_ino = node->tfn_ino;
+  va->va_uid = node->tfn_uid;
+  va->va_gid = node->tfn_gid;
   va->va_size = node->tfn_size;
   return 0;
 }
 
-static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va) {
+static int tmpfs_chmod(tmpfs_node_t *node, mode_t mode, cred_t *cred) {
+  if (!cred_can_chmod(node->tfn_uid, node->tfn_gid, cred, mode))
+    return EPERM;
+
+  node->tfn_mode = (node->tfn_mode & ~ALLPERMS) | (mode & ALLPERMS);
+  return 0;
+}
+
+static int tmpfs_chown(tmpfs_node_t *node, uid_t uid, gid_t gid, cred_t *cred) {
+  if (!cred_can_chown(node->tfn_uid, cred, uid, gid))
+    return EPERM;
+
+
+  if (uid != (uid_t)-1) {
+    node->tfn_uid = uid;
+    node->tfn_mode &= ~S_ISUID; /* clear set-user-ID */
+  }
+
+  if (gid != (gid_t)-1) {
+    node->tfn_gid = gid;
+    node->tfn_mode &= ~S_ISGID; /* clear set-group-ID */
+  }
+  return 0;
+}
+
+static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va, cred_t *cred) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
+  int error = 0;
 
   if (va->va_size != (size_t)VNOVAL)
     tmpfs_reg_resize(tfm, node, va->va_size);
   if (va->va_mode != (mode_t)VNOVAL)
-    node->tfn_mode = (node->tfn_mode & ~ALLPERMS) | (va->va_mode & ALLPERMS);
+    error = tmpfs_chmod(node, va->va_mode, cred);
+  if (error == 0 && (va->va_uid != (uid_t)VNOVAL || va->va_gid != (gid_t)VNOVAL))
+    error = tmpfs_chown(node, va->va_uid, va->va_gid, cred);
 
-  return 0;
+  return error;
 }
 
 static int tmpfs_vop_create(vnode_t *dv, componentname_t *cn, vattr_t *va,
@@ -434,6 +467,8 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
   node->tfn_mode = va->va_mode;
   node->tfn_type = ntype;
   node->tfn_links = 0;
+  node->tfn_uid = va->va_uid;
+  node->tfn_gid = va->va_gid;
   node->tfn_size = 0;
 
   mtx_lock(&tfm->tfm_lock);
@@ -737,7 +772,7 @@ static int tmpfs_mount(mount_t *mp) {
   /* Allocate the root node. */
   vattr_t va;
   vattr_null(&va);
-  va.va_mode = S_IFDIR | (ACCESSPERMS & ~CMASK);
+  va.va_mode = S_IFDIR | (ACCESSPERMS & ~CMASK) | S_ISVTX;
   tmpfs_node_t *root = tmpfs_new_node(tfm, &va, V_DIR);
   tmpfs_attach_vnode(root, mp);
   root->tfn_dir.parent = root; /* Parent of the root node is itself. */
