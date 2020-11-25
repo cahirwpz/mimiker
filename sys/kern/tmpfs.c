@@ -297,7 +297,6 @@ static int tmpfs_chown(tmpfs_node_t *node, uid_t uid, gid_t gid, cred_t *cred) {
   if (!cred_can_chown(node->tfn_uid, cred, uid, gid))
     return EPERM;
 
-
   if (uid != (uid_t)-1) {
     node->tfn_uid = uid;
     node->tfn_mode &= ~S_ISUID; /* clear set-user-ID */
@@ -319,7 +318,8 @@ static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va, cred_t *cred) {
     tmpfs_reg_resize(tfm, node, va->va_size);
   if (va->va_mode != (mode_t)VNOVAL)
     error = tmpfs_chmod(node, va->va_mode, cred);
-  if (error == 0 && (va->va_uid != (uid_t)VNOVAL || va->va_gid != (gid_t)VNOVAL))
+  if (error == 0 &&
+      (va->va_uid != (uid_t)VNOVAL || va->va_gid != (gid_t)VNOVAL))
     error = tmpfs_chown(node, va->va_uid, va->va_gid, cred);
 
   return error;
