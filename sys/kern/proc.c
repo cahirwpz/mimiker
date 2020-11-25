@@ -350,6 +350,8 @@ int session_enter(proc_t *p) {
 
 /* Called only when process finishes. */
 static void session_leave(proc_t *p) {
+  assert(mtx_owned(all_proc_mtx));
+
   if (!proc_is_session_leader(p))
     return;
 
