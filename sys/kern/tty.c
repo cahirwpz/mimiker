@@ -742,95 +742,102 @@ static void tty_reinput(tty_t *tty) {
   }
 }
 
-static int tty_ioctl(file_t *f, u_long cmd, void *data) {
-  tty_t *tty = f->f_data;
-
+static int tty_get_termios(tty_t *tty, struct termios *t) {
   SCOPED_MTX_LOCK(&tty->t_lock);
-  switch (cmd) {
-    case TIOCGETA: { /* Get termios */
-      struct termios *t = (struct termios *)data;
-      memcpy(t, &tty->t_termios, sizeof(struct termios));
-      break;
-    }
-    case TIOCSETA:    /* Set termios immediately */
-    case TIOCSETAW:   /* Set termios after waiting for output to drain */
-    case TIOCSETAF: { /* Like TIOCSETAW, but also discard all pending input */
-      struct termios *t = (struct termios *)data;
-      bool reinput = false; /* Process pending input again. */
+  memcpy(t, &tty->t_termios, sizeof(struct termios));
+  return 0;
+}
 
-      if (cmd == TIOCSETAW || cmd == TIOCSETAF)
-        tty_drain_out(tty);
+static int tty_set_termios(tty_t *tty, u_long cmd, struct termios *t) {
+  SCOPED_MTX_LOCK(&tty->t_lock);
 
-      if (cmd == TIOCSETAF) {
-        /* Discard all pending input. */
-        tty_discard_input(tty);
+  if (cmd == TIOCSETAW || cmd == TIOCSETAF)
+    tty_drain_out(tty);
+  if (cmd == TIOCSETAF)
+    tty_discard_input(tty);
+
+  bool reinput = false; /* Process pending input again. */
+
+  if (cmd != TIOCSETAF) {
+    /* If we didn't discard the input and we're changing from
+     * raw mode to canonical mode or vice versa, we need to handle
+     * characters that the user has already typed appropriately. */
+    if ((t->c_lflag & ICANON) != (tty->t_lflag & ICANON)) {
+      if (t->c_lflag & ICANON) {
+        /* Switching from raw to canonical mode.
+         * Process all pending input again, this time in canonical mode.
+         * Defer until we have made the changes to termios. */
+        reinput = true;
       } else {
-        /* If we didn't discard the input and we're changing from
-         * raw mode to canonical mode or vice versa, we need to handle
-         * characters that the user has already typed appropriately. */
-        if ((t->c_lflag & ICANON) != (tty->t_lflag & ICANON)) {
-          if (t->c_lflag & ICANON) {
-            /* Switching from raw to canonical mode.
-             * Process all pending input again, this time in canonical mode.
-             * Defer until we have made the changes to termios. */
-            reinput = true;
-          } else {
-            /* Switching from canonical to raw mode.
-             * Transfer characters from the unfinished line
-             * to the input queue and wake up readers. */
-            tty_line_finish(tty);
-            tty_wakeup(tty);
-          }
-        }
+        /* Switching from canonical to raw mode.
+         * Transfer characters from the unfinished line
+         * to the input queue and wake up readers. */
+        tty_line_finish(tty);
+        tty_wakeup(tty);
       }
+    }
+  }
 
 #define SET_MASKED_BITS(lhs, rhs, mask)                                        \
   (lhs) = ((lhs) & ~(mask)) | ((rhs) & (mask))
-      SET_MASKED_BITS(tty->t_iflag, t->c_iflag, TTYSUP_IFLAG_CHANGE);
-      SET_MASKED_BITS(tty->t_oflag, t->c_oflag, TTYSUP_OFLAG_CHANGE);
-      SET_MASKED_BITS(tty->t_lflag, t->c_lflag, TTYSUP_LFLAG_CHANGE);
-      /* Changing `t_cflag` is completely unsupported right now. */
+  SET_MASKED_BITS(tty->t_iflag, t->c_iflag, TTYSUP_IFLAG_CHANGE);
+  SET_MASKED_BITS(tty->t_oflag, t->c_oflag, TTYSUP_OFLAG_CHANGE);
+  SET_MASKED_BITS(tty->t_lflag, t->c_lflag, TTYSUP_LFLAG_CHANGE);
+  /* Changing `t_cflag` is completely unsupported right now. */
 #undef SET_MASKED_BITS
-      memcpy(tty->t_cc, t->c_cc, sizeof(tty->t_cc));
+  memcpy(tty->t_cc, t->c_cc, sizeof(tty->t_cc));
 
-      if (reinput)
-        tty_reinput(tty);
-      break;
-    }
-    case TIOCGPGRP: { /* Get foreground process group */
-      proc_t *p = proc_self();
+  if (reinput)
+    tty_reinput(tty);
+  return 0;
+}
+
+static int tty_get_fg_pgrp(tty_t *tty, int *pgid_p) {
+  SCOPED_MTX_LOCK(&tty->t_lock);
+  proc_t *p = proc_self();
+  if (tty->t_session != p->p_pgrp->pg_session)
+    return ENOTTY;
+  if (tty->t_pgrp)
+    *pgid_p = tty->t_pgrp->pg_id;
+  else
+    /* Return a value greater than 1 that's not equal to any PGID. */
+    *pgid_p = INT_MAX;
+  return 0;
+}
+
+static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
+  WITH_MTX_LOCK (all_proc_mtx) {
+    proc_t *p = proc_self();
+    pgrp_t *pg = pgrp_lookup(pgid);
+    /* The target process group must be in the same session
+     * as the calling process. */
+    if (pg == NULL || pg->pg_session != p->p_pgrp->pg_session)
+      return EPERM;
+    WITH_MTX_LOCK (&tty->t_lock) {
+      /* Calling process must be controlled by the terminal. */
       if (tty->t_session != p->p_pgrp->pg_session)
         return ENOTTY;
-      if (tty->t_pgrp)
-        *(int *)data = tty->t_pgrp->pg_id;
-      else
-        /* Return a value greater than 1 that's not equal to any PGID. */
-        *(int *)data = INT_MAX;
-      break;
-    }
-    case TIOCSPGRP: { /* Set foreground process group */
-      /* XXX */
-      mtx_unlock(&tty->t_lock);
-      mtx_lock(all_proc_mtx);
-      mtx_lock(&tty->t_lock);
-      proc_t *p = proc_self();
-      pgrp_t *pg = pgrp_lookup(*(pgid_t *)data);
-      /* The target process group must be in the same session
-       * as the calling process. */
-      if (pg == NULL || pg->pg_session != p->p_pgrp->pg_session) {
-        mtx_unlock(all_proc_mtx);
-        return EPERM;
-      }
-      /* Calling process must be controlled by the terminal. */
-      if (tty->t_session != p->p_pgrp->pg_session) {
-        mtx_unlock(all_proc_mtx);
-        return ENOTTY;
-      }
       tty->t_pgrp = pg;
-      mtx_unlock(all_proc_mtx);
       cv_broadcast(&tty->t_background_cv);
-      break;
     }
+  }
+  return 0;
+}
+
+static int tty_ioctl(file_t *f, u_long cmd, void *data) {
+  tty_t *tty = f->f_data;
+
+  switch (cmd) {
+    case TIOCGETA:
+      return tty_get_termios(tty, (struct termios *)data);
+    case TIOCSETA:  /* Set termios immediately */
+    case TIOCSETAW: /* Set termios after waiting for output to drain */
+    case TIOCSETAF: /* Like TIOCSETAW, but also discard all pending input */
+      return tty_set_termios(tty, cmd, (struct termios *)data);
+    case TIOCGPGRP:
+      return tty_get_fg_pgrp(tty, data);
+    case TIOCSPGRP:
+      return tty_set_fg_pgrp(tty, *(pgid_t *)data);
     case 0:
       return EPASSTHROUGH;
     default: {
@@ -839,11 +846,9 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
       klog("Unsupported tty ioctl: %s", buf);
       unsigned len = IOCPARM_LEN(cmd);
       memset(data, 0, len);
-      break;
+      return 0;
     }
   }
-
-  return 0;
 }
 
 static int tty_vn_getattr(vnode_t *v, vattr_t *va) {
