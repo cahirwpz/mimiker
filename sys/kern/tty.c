@@ -518,8 +518,7 @@ static int tty_read(file_t *f, uio_t *uio) {
   WITH_MTX_LOCK (&tty->t_lock) {
 
     while (true) {
-      error = tty_wait_background(tty, SIGTTIN);
-      if (error)
+      if ((error = tty_wait_background(tty, SIGTTIN)))
         return error;
 
       if (tty->t_inq.count > 0)
@@ -531,14 +530,14 @@ static int tty_read(file_t *f, uio_t *uio) {
        * and check again. */
     }
 
+
     if (tty->t_lflag & ICANON) {
       /* In canonical mode, read as many characters as possible, but no more
        * than one line. */
       while (ringbuf_getb(&tty->t_inq, &c)) {
         if (CCEQ(tty->t_cc[VEOF], c))
           break;
-        error = uiomove(&c, 1, uio);
-        if (error)
+        if ((error = uiomove(&c, 1, uio)))
           break;
         if (uio->uio_resid == 0)
           break;
@@ -665,8 +664,7 @@ static int tty_do_write(tty_t *tty, uio_t *uio) {
   int error = 0;
 
   while (uio->uio_resid > 0) {
-    error = uiomove(&c, 1, uio);
-    if (error)
+    if ((error = uiomove(&c, 1, uio)))
       break;
     tty_output_sleep(tty, c);
     tty->t_rocount = 0;
@@ -685,8 +683,7 @@ static int tty_write(file_t *f, uio_t *uio) {
   WITH_MTX_LOCK (&tty->t_lock) {
     if (tty->t_lflag & TOSTOP) {
       /* Wait until we're the foreground process group. */
-      error = tty_wait_background(tty, SIGTTOU);
-      if (error)
+      if ((error = tty_wait_background(tty, SIGTTOU)))
         return error;
     }
 
