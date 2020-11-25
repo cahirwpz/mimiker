@@ -347,6 +347,31 @@ int session_enter(proc_t *p) {
   return _pgrp_enter(p, pg);
 }
 
+/* Called only when process finishes. */
+static void session_leave(proc_t *p) {
+  if (!proc_is_session_leader(p))
+    return;
+
+  session_t *s = p->p_pgrp->pg_session;
+  tty_t *tty = s->s_tty;
+  if (tty == NULL)
+    return;
+
+  WITH_MTX_LOCK (&tty->t_lock) {
+    pgrp_t *pgrp = tty->t_pgrp;
+    tty->t_session = NULL;
+    tty->t_pgrp = NULL;
+    s->s_tty = NULL;
+    if (pgrp) {
+      WITH_MTX_LOCK (&pgrp->pg_lock)
+        sig_pgkill(pgrp, &DEF_KSI_RAW(SIGHUP));
+    }
+    /* TODO revoke access to controlling terminal */
+  }
+
+  s->s_leader = NULL;
+}
+
 int pgrp_enter(proc_t *p, pid_t target, pgid_t pgid) {
   /* TODO: disallow setting the process group of children
    * that have called exec(). */
@@ -552,25 +577,7 @@ __noreturn void proc_exit(int exitstatus) {
     if (p->p_pid == 1)
       panic("'init' process died!");
 
-    if (proc_is_session_leader(p)) {
-      session_t *s = p->p_pgrp->pg_session;
-      tty_t *tty = s->s_tty;
-      if (tty) {
-        WITH_MTX_LOCK (&tty->t_lock) {
-          pgrp_t *pgrp = tty->t_pgrp;
-          tty->t_session = NULL;
-          tty->t_pgrp = NULL;
-          s->s_tty = NULL;
-          if (pgrp) {
-            WITH_MTX_LOCK (&pgrp->pg_lock)
-              sig_pgkill(pgrp, &DEF_KSI_RAW(SIGHUP));
-          }
-          /* TODO revoke access to controlling terminal */
-        }
-      }
-      s->s_leader = NULL;
-    }
-
+    session_leave(p);
     pgrp_jobc_leave(p, p->p_pgrp);
 
     /* Process orphans, but firstly find init process. */
@@ -651,7 +658,6 @@ static int proc_pgsignal(pgid_t pgid, signo_t sig) {
 }
 
 int proc_sendsig(pid_t pid, signo_t sig) {
-
   if (sig >= NSIG)
     return EINVAL;
 
