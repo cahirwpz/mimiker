@@ -354,6 +354,8 @@ static void session_leave(proc_t *p) {
     return;
 
   session_t *s = p->p_pgrp->pg_session;
+  s->s_leader = NULL;
+
   tty_t *tty = s->s_tty;
   if (tty == NULL)
     return;
@@ -370,7 +372,6 @@ static void session_leave(proc_t *p) {
     /* TODO revoke access to controlling terminal */
   }
 
-  s->s_leader = NULL;
 }
 
 int pgrp_enter(proc_t *p, pid_t target, pgid_t pgid) {
