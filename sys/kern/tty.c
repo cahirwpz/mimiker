@@ -530,7 +530,6 @@ static int tty_read(file_t *f, uio_t *uio) {
        * and check again. */
     }
 
-
     if (tty->t_lflag & ICANON) {
       /* In canonical mode, read as many characters as possible, but no more
        * than one line. */
@@ -867,6 +866,27 @@ static fileops_t tty_fileops = {
   .fo_ioctl = tty_ioctl,
 };
 
+/* If the process is a session leader, the session has no associated terminal,
+ * and the terminal has no associated session, make this terminal
+ * the controlling terminal for the session. */
+static void maybe_assoc_ctty(proc_t *p, tty_t *tty) {
+  SCOPED_MTX_LOCK(all_proc_mtx);
+
+  if (!proc_is_session_leader(p))
+    return;
+
+  WITH_MTX_LOCK (&tty->t_lock) {
+    if (tty->t_session != NULL)
+      return;
+    session_t *s = p->p_pgrp->pg_session;
+    if (s->s_tty != NULL)
+      return;
+    tty->t_session = s;
+    s->s_tty = tty;
+    tty->t_pgrp = p->p_pgrp;
+  }
+}
+
 static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
   tty_t *tty = v->v_data;
   proc_t *p = proc_self();
@@ -875,28 +895,10 @@ static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
   if ((error = vnode_open_generic(v, mode, fp)) != 0)
     return error;
 
-  WITH_MTX_LOCK (all_proc_mtx) {
-    /* If the opening process is a session leader, the session has no associated
-     * terminal, and the terminal has no associated session, make this terminal
-     * the controlling terminal for the session. */
-    if (proc_is_session_leader(p)) {
-      WITH_MTX_LOCK (&tty->t_lock) {
-        if (tty->t_session != NULL)
-          goto end;
-        session_t *s = p->p_pgrp->pg_session;
-        if (s->s_tty != NULL)
-          goto end;
-        tty->t_session = s;
-        s->s_tty = tty;
-        tty->t_pgrp = p->p_pgrp;
-      }
-    }
-  }
+  maybe_assoc_ctty(p, tty);
 
-end:
   fp->f_ops = &tty_fileops;
   fp->f_data = tty;
-
   return error;
 }
 
