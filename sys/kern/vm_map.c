@@ -337,9 +337,17 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         refcnt_acquire(&it->object->ref_counter);
         obj = it->object;
       } else {
-        /* vm_object_clone will clone the data from the vm_object_t
-         * and will return the new object with ref_counter equal to one */
-        obj = vm_object_clone(it->object);
+        obj = vm_object_alloc(VM_ANONYMOUS);
+        obj->shadow_object = it->object;
+
+        it->object = vm_object_alloc(VM_ANONYMOUS);
+        it->object->shadow_object = obj->shadow_object;
+
+        refcnt_acquire(&it->object->shadow_object->ref_counter);
+
+        vm_object_set_readonly(it->object->shadow_object);
+
+        seg = vm_segment_alloc(obj, it->start, it->end, it->prot);
       }
       seg = vm_segment_alloc(obj, it->start, it->end, it->prot, it->flags);
       TAILQ_INSERT_TAIL(&new_map->entries, seg, link);

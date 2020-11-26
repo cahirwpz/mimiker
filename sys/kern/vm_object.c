@@ -124,3 +124,12 @@ void vm_map_object_dump(vm_object_t *obj) {
       klog("(vm-obj) offset: 0x%08lx, size: %ld", it->offset, it->size);
   }
 }
+
+void vm_object_set_readonly(vm_object_t *obj) {
+  SCOPED_MTX_LOCK(&obj->mtx);
+
+  vm_page_t *pg;
+  TAILQ_FOREACH (pg, &obj->list, obj.list) {
+    pmap_set_page_readonly(pg);
+  }
+}
