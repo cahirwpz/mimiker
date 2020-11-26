@@ -21,10 +21,22 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
   assert(obj != NULL);
   assert(obj->shadow_object != NULL);
 
-  vm_page_t *new_pg = vm_object_find_page(obj->shadow_object, offset);
+  vm_page_t *pg = NULL;
+  vm_page_t *new_pg = NULL;
 
-  if (new_pg == NULL) {
-    new_pg = obj->shadow_object->pager->pgr_fault(obj, offset);
+  vm_object_t *it = obj;
+
+  while (pg == NULL && it->shadow_object != NULL) {
+    pg = vm_object_find_page(it->shadow_object, offset);
+    it = it->shadow_object;
+  }
+
+  if (pg == NULL) {
+    new_pg = it->pager->pgr_fault(obj, offset);
+  } else {
+    new_pg = vm_page_alloc(1);
+    pmap_copy_page(pg, new_pg);
+    pmap_remove_page_readonly(new_pg);
   }
 
   assert(new_pg != NULL);

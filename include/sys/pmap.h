@@ -66,5 +66,5 @@ pmap_t *pmap_kernel(void);
 pmap_t *pmap_user(void);
 
 void pmap_set_page_readonly(vm_page_t *pg);
-
+void pmap_remove_page_readonly(vm_page_t *pg);
 #endif /* !_SYS_PMAP_H_ */
