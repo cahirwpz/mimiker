@@ -47,6 +47,8 @@ typedef struct tmpfs_node {
   nlink_t tfn_links; /* number of file hard links */
   ino_t tfn_ino;     /* node identifier */
   size_t tfn_size;   /* file size in bytes */
+  uid_t tfn_uid;     /* owner of file */
+  gid_t tfn_gid;     /* group of file */
 
   /* Data that is only applicable to a particular type. */
   union {
@@ -276,6 +278,8 @@ static int tmpfs_vop_getattr(vnode_t *v, vattr_t *va) {
   va->va_mode = node->tfn_mode;
   va->va_nlink = node->tfn_links;
   va->va_ino = node->tfn_ino;
+  va->va_uid = node->tfn_uid;
+  va->va_gid = node->tfn_gid;
   va->va_size = node->tfn_size;
   return 0;
 }
@@ -434,6 +438,8 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
   node->tfn_mode = va->va_mode;
   node->tfn_type = ntype;
   node->tfn_links = 0;
+  node->tfn_uid = va->va_uid;
+  node->tfn_gid = va->va_gid;
   node->tfn_size = 0;
 
   mtx_lock(&tfm->tfm_lock);

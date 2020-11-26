@@ -34,8 +34,8 @@ typedef struct bintime {
   uint64_t frac; /* a fraction of second */
 } bintime_t;
 
-/* Most counters are limited to 16/32 bits,
-   we want to extend the capacity. */
+/* It allows to extend the capacity
+   for counters with 16/32 bits, . */
 typedef union {
   /* assumes little endian order */
   struct {
