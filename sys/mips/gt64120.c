@@ -375,8 +375,10 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
       r->r_bus_handle = bh + r->r_start;
     }
 
-    int error = bus_activate_resource(dev, type, rid, r);
-    assert(error == 0);
+    if (bus_activate_resource(dev, type, rid, r)) {
+      bus_release_resource(dev, type, rid, r);
+      return NULL;
+    }
   }
 
   return r;
