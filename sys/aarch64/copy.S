@@ -34,6 +34,9 @@
  * the kernel address space.
  */
 ENTRY(copyinstr)
+        sub     sp, sp, #16
+        str     lr, [sp]
+
         # len > 0
         cbnz    x2, 1f
         mov     x0, xzr
@@ -50,12 +53,11 @@ ENTRY(copyinstr)
         b.hi    copyerr
 
         set_onfault x4, x5, copyerr
-        sub     sp, sp, #16
-        str     lr, [sp]
         bl      copystr
+        clr_onfault x4
+
         ldr     lr, [sp]
         add     sp, sp, #16
-        clr_onfault x4
         ret
 END(copyinstr)
 
@@ -65,6 +67,9 @@ END(copyinstr)
  * Copy specified amount of data from user space into the kernel.
  */
 ENTRY(copyin)
+        sub     sp, sp, #16
+        str     lr, [sp]
+
         # len > 0
         cbz     x2, 1f
 
@@ -79,14 +84,13 @@ ENTRY(copyin)
         b.hi    copyerr
 
         set_onfault x3, x4, copyerr
-        sub     sp, sp, #16
-        str     lr, [sp]
         bl      bcopy
-        ldr     lr, [sp]
-        add     sp, sp, #16
         clr_onfault x3
 
 1:      mov     x0, xzr
+
+        ldr     lr, [sp]
+        add     sp, sp, #16
         ret
 END(copyin)
 
@@ -96,6 +100,9 @@ END(copyin)
  * Copy specified amount of data from kernel to the user space.
  */
 ENTRY(copyout)
+        sub     sp, sp, #16
+        str     lr, [sp]
+
         # len > 0
         cbz     x2, 1f
 
@@ -110,14 +117,13 @@ ENTRY(copyout)
         b.hi    copyerr
 
         set_onfault x3, x4, copyerr
-        sub     sp, sp, #16
-        str     lr, [sp]
         bl      bcopy
-        ldr     lr, [sp]
-        add     sp, sp, #16
         clr_onfault x3
 
 1:      mov     x0, xzr
+
+        ldr     lr, [sp]
+        add     sp, sp, #16
         ret
 END(copyout)
 
