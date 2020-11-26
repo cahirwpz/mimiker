@@ -38,6 +38,11 @@ void vm_object_free(vm_object_t *obj) {
       TAILQ_REMOVE(&obj->list, pg, obj.list);
       vm_page_free(pg);
     }
+
+    if (obj->shadow_object) {
+      refcnt_release(&obj->shadow_object->ref_counter);
+      vm_object_free(obj->shadow_object);
+    }
   }
   pool_free(P_VMOBJ, obj);
 }

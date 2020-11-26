@@ -26,7 +26,7 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
   if (new_pg == NULL) {
     new_pg = obj->shadow_object->pager->pgr_fault(obj, offset);
   }
-  
+
   assert(new_pg != NULL);
 
   vm_object_add_page(obj, offset, new_pg);
