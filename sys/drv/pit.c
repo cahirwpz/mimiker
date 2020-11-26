@@ -112,11 +112,6 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
 static int pit_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  /* TODO: relpace the following with FDT parsing in parent bus. */
-  resource_list_t *rl = RESOURCE_LIST_OF(dev);
-  assert(rl);
-  resource_list_add_irq(rl, 0, 0);
-
   pit_state_t *pit = dev->state;
 
   pit->regs = bus_alloc_resource_any(dev, RT_IOPORTS, 0, RF_ACTIVE);

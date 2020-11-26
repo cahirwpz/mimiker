@@ -71,8 +71,6 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   rootdev_t *rd = dev->parent->state;
   rman_t *rman = NULL;
 
-  /* XXX: in case of memory allocation, ensure pagesize alignment
-   * after merging the new rman. */
   if (type == RT_MEMORY)
     rman = &rd->mem;
   else if (type == RT_IRQ)
