@@ -40,7 +40,6 @@ void vm_object_free(vm_object_t *obj) {
     }
 
     if (obj->shadow_object) {
-      refcnt_release(&obj->shadow_object->ref_counter);
       vm_object_free(obj->shadow_object);
     }
   }
