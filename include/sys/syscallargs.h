@@ -8,8 +8,8 @@
 #include <sys/time.h>
 #include <sys/ucontext.h>
 #include <sys/sigtypes.h>
-#define SCARG(p, x) ((p)->x.le.arg)
-#define SYSCALLARG(x)     union {         register_t _pad;         struct {             x arg;         } le;     }
+#define SCARG(p, x) ((p)->x.arg)
+#define SYSCALLARG(x) union { register_t _pad; x arg; }
 
 typedef struct {
   SYSCALLARG(int) number;
