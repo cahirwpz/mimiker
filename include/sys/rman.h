@@ -42,9 +42,9 @@ struct resource {
   };
   /* TODO: remove r_type from this structure as r_rman->r_type contains the same
    * information. See `rman_alloc_resource` for setting r_type of a resource. */
-  res_type_t r_type;                /* one of RT_* */
-  res_flags_t r_flags;              /* or'ed RF_* values */
-  TAILQ_ENTRY(resource) r_link;     /* link on resource manager list */
+  res_type_t r_type;            /* one of RT_* */
+  res_flags_t r_flags;          /* or'ed RF_* values */
+  TAILQ_ENTRY(resource) r_link; /* link on resource manager list */
 };
 
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
