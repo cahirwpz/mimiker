@@ -65,6 +65,8 @@ static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
     vattr_t va;
     vattr_null(&va);
     va.va_mode = S_IFREG | (mode & ALLPERMS);
+    va.va_uid = p->p_cred.cr_ruid;
+    va.va_gid = p->p_cred.cr_rgid;
     error = VOP_CREATE(vs.vs_dvp, &vs.vs_lastcn, &va, &vs.vs_vp);
     vnode_put(vs.vs_dvp);
   } else {
@@ -257,6 +259,8 @@ int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
    * implementation-defined.
    * https://pubs.opengroup.org/onlinepubs/9699919799/functions/mkdir.html */
   va.va_mode = S_IFDIR | ((mode & ACCESSPERMS) & ~p->p_cmask);
+  va.va_uid = p->p_cred.cr_ruid;
+  va.va_gid = p->p_cred.cr_rgid;
 
   error = VOP_MKDIR(vs.vs_dvp, &vs.vs_lastcn, &va, &vs.vs_vp);
   if (!error)
@@ -458,6 +462,8 @@ int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath) {
 
   memset(&va, 0, sizeof(vattr_t));
   va.va_mode = S_IFLNK | (ACCESSPERMS & ~p->p_cmask);
+  va.va_uid = p->p_cred.cr_ruid;
+  va.va_gid = p->p_cred.cr_rgid;
 
   error = VOP_SYMLINK(vs.vs_dvp, &vs.vs_lastcn, &va, target, &vs.vs_vp);
   if (!error)
