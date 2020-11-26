@@ -283,7 +283,7 @@ static int gt_pci_attach(device_t *pcib) {
   }
 
   rman_init(&gtpci->pci_io_rman, "GT64120 PCI I/O ports");
-  rman_manage_region(&gtpci->pci_io_rman, 0, 65536);
+  rman_manage_region(&gtpci->pci_io_rman, 0, 0x10000);
 
   /* This will ensure absoulte addresses which is essential
    * in order to staisfy memory alignment. */
@@ -384,6 +384,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 
 static void gt_pci_release_resource(device_t *dev, res_type_t type, int rid,
                                     resource_t *r) {
+  rman_deactivate_resource(r);
   rman_release_resource(r);
 }
 

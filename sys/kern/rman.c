@@ -17,88 +17,88 @@
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
-typedef TAILQ_HEAD(, resource) res_list_t;
-
-struct rman_region {
-  rman_t *rg_rman;                  /* resource manager */
-  rman_addr_t rg_start;             /* first physical address */
-  rman_addr_t rg_end;               /* last physical address */
-  res_list_t rg_resources;          /* all managed resources */
-  TAILQ_ENTRY(rman_region) rg_link; /* link on resource manager list */
-};
+#define IS_RESERVED(r) ((r)->r_flags & RF_RESERVED)
 
 static KMALLOC_DEFINE(M_RES, "resources & regions");
 
 void rman_init(rman_t *rm, const char *name) {
   rm->rm_name = name;
   mtx_init(&rm->rm_lock, 0);
-  TAILQ_INIT(&rm->rm_regions);
+  TAILQ_INIT(&rm->rm_resources);
+}
+
+static resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t start,
+                                       rman_addr_t end, res_flags_t flags,
+                                       kmem_flags_t kflags) {
+  resource_t *r = kmalloc(M_RES, sizeof(resource_t), kflags | M_ZERO);
+  r->r_rman = rm;
+  r->r_start = start;
+  r->r_end = end;
+  r->r_flags = flags;
+  return r;
 }
 
 void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
-  rman_addr_t end = start + size - 1;
+  assert((start + size - 1) >= start); /* check for overflow */
 
-  rman_region_t *rg = kmalloc(M_RES, sizeof(rman_region_t), M_ZERO);
-  rg->rg_rman = rm;
-  rg->rg_start = start;
-  rg->rg_end = end;
-  TAILQ_INIT(&rg->rg_resources);
+  resource_t *r = rman_alloc_resource(rm, start, start + size - 1, RF_NONE, 0);
 
   WITH_MTX_LOCK (&rm->rm_lock) {
-    /* Skip regions before us. */
-    rman_region_t *s;
-    TAILQ_FOREACH (s, &rm->rm_regions, rg_link) {
-      if (s->rg_end == RMAN_ADDR_MAX)
+    resource_t *cur;
+
+    /* Skip entries before us. */
+    TAILQ_FOREACH (cur, &rm->rm_resources, r_link) {
+      /* Note that we need this aditional check
+       * due to possible overflow in the following case. */
+      if (cur->r_end == RMAN_ADDR_MAX)
         break;
-      if (s->rg_end + 1 >= rg->rg_start)
+      if (cur->r_end + 1 >= r->r_start)
         break;
     }
 
     /* If we ran off the end of the list, insert at the tail. */
-    if (s == NULL) {
-      TAILQ_INSERT_TAIL(&rm->rm_regions, rg, rg_link);
+    if (!cur) {
+      TAILQ_INSERT_TAIL(&rm->rm_resources, r, r_link);
       return;
     }
-    
+
     /* Check for any overlap with the current region. */
-    if (rg->rg_start <= s->rg_end && rg->rg_end >= s->rg_start)
+    if (r->r_start <= cur->r_end && r->r_end >= cur->r_start)
       panic("overlapping regions");
 
-    /* Check for any overlap with the next region. */
-    rman_region_t *next = TAILQ_NEXT(s, rg_link);
+    resource_t *next = TAILQ_NEXT(cur, r_link);
     if (next) {
-      if (rg->rg_start <= next->rg_end && rg->rg_end >= next->rg_start)
-        panic("overlaping regions");
+      /* Check for any overlap with the next region. */
+      if (r->r_start <= next->r_end && r->r_end >= next->r_start)
+        panic("overlapping regions");
 
-      /*
-       * See if this region can be merged with the next region.
-       * If not, clear the pointer.
-       */
-      if (rg->rg_end + 1 != next->rg_start)
+      /* See if the new region can be merged with the next region.
+       * If not, clear the pointer. */
+      if (r->r_end + 1 != next->r_start || IS_RESERVED(next))
         next = NULL;
     }
 
     /* See if we can merge with the current region. */
-    if (rg->rg_start == s->rg_end + 1) {
+    if (cur->r_end != RMAN_ADDR_MAX && /* watch out for overflow */
+        cur->r_end + 1 == r->r_start && !IS_RESERVED(cur)) {
       /* Can we merge all 3 regions? */
       if (next) {
-        s->rg_end = next->rg_end;
-        TAILQ_CONCAT(&s->rg_resources, &next->rg_resources, r_link);
-        TAILQ_REMOVE(&rm->rm_regions, next, rg_link);
+        cur->r_end = next->r_end;
+        TAILQ_REMOVE(&rm->rm_resources, next, r_link);
+        kfree(M_RES, r);
         kfree(M_RES, next);
-        kfree(M_RES, rg);
       } else {
-        s->rg_end = rg->rg_end;
-        kfree(M_RES, rg);
+        cur->r_end = r->r_end;
+        kfree(M_RES, r);
       }
     } else if (next) {
       /* We can merge with just the next region. */
-      next->rg_start = rg->rg_start;
-      kfree(M_RES, rg);
-    } else if (s->rg_end < rg->rg_start) {
-      TAILQ_INSERT_AFTER(&rm->rm_regions, s, rg, rg_link);
+      next->r_start = r->r_start;
+      kfree(M_RES, r);
+    } else if (cur->r_end < r->r_start) {
+      TAILQ_INSERT_AFTER(&rm->rm_resources, cur, r, r_link);
     } else {
-      TAILQ_INSERT_BEFORE(s, rg, rg_link);
+      TAILQ_INSERT_BEFORE(cur, r, r_link);
     }
   }
 }
@@ -110,146 +110,168 @@ void rman_init_from_resource(rman_t *rm, const char *name, resource_t *r) {
 
 void rman_fini(rman_t *rm) {
   WITH_MTX_LOCK (&rm->rm_lock) {
-    while (!TAILQ_EMPTY(&rm->rm_regions)) {
-      rman_region_t *rg = TAILQ_FIRST(&rm->rm_regions);
-      TAILQ_REMOVE(&rm->rm_regions, rg, rg_link);
-      if (!TAILQ_EMPTY(&rg->rg_resources))
-        panic("non-empty region");
-      kfree(M_RES, rg);
+    while (!TAILQ_EMPTY(&rm->rm_resources)) {
+      resource_t *r = TAILQ_FIRST(&rm->rm_resources);
+      if (IS_RESERVED(r))
+        panic("resource is busy");
+      TAILQ_REMOVE(&rm->rm_resources, r, r_link);
+      kfree(M_RES, r);
     }
   }
   /* TODO: destroy the `rm_lock` after implementing `mtx_destroy`. */
 }
 
-static bool rman_region_reserve_resource(rman_region_t *rg, rman_addr_t start,
-                                         rman_addr_t end, size_t count,
-                                         size_t alignment, resource_t *r) {
-  resource_t *s, *t;
-  rman_addr_t rstart, rend;
+static resource_t *rman_split(resource_t *r, rman_addr_t start, rman_addr_t end,
+                              res_flags_t flags) {
+  rman_t *rm = r->r_rman;
+  assert(mtx_owned(&rm->rm_lock));
+  /*
+   * If r->r_start < start and r->r_end > end,
+   * then we need to split the region into three pieces
+   * (the middle one will get returned to the user).
+   * Otherwise, we are allocating at either the beginning
+   * or the end of s, so we only need to split it in two.
+   * The first case requires two allocations.
+   * The second requires but one.
+   */
+  resource_t *rv = rman_alloc_resource(rm, start, end, flags, M_NOWAIT);
 
-  assert(mtx_owned(&rg->rg_rman->rm_lock));
-
-  start = roundup(max(rg->rg_start, start), alignment);
-  end = min(rg->rg_end, end);
-  if (end - count + 1 < start)
-    return false;
-
-  /* Does the resource fit before the first resource in the region? */
-  s = TAILQ_FIRST(&rg->rg_resources);
-  if (!s || (s && s->r_start - count >= start)) {
-    r->r_rg = rg;
-    r->r_start = start;
-    r->r_end = start + count - 1;
-    TAILQ_INSERT_HEAD(&rg->rg_resources, r, r_link);
-    return true;
+  if (r->r_start < start && r->r_end > end) {
+    resource_t *gap =
+      rman_alloc_resource(rm, end + 1, r->r_end, r->r_flags, M_NOWAIT);
+    r->r_end = start - 1;
+    TAILQ_INSERT_AFTER(&rm->rm_resources, r, rv, r_link);
+    TAILQ_INSERT_AFTER(&rm->rm_resources, rv, gap, r_link);
+  } else if (r->r_start == start) {
+    r->r_start = end + 1;
+    TAILQ_INSERT_BEFORE(r, rv, r_link);
+  } else {
+    r->r_end = start - 1;
+    TAILQ_INSERT_AFTER(&rm->rm_resources, r, rv, r_link);
   }
 
-  /* Look up first element after which we can place our new resoucre. */
-  TAILQ_FOREACH_SAFE (s, &rg->rg_resources, r_link, t) {
-    rman_addr_t gap_start = s->r_end + 1;
-    rman_addr_t gap_end = t ? t->r_start - 1 : rg->rg_end;
-
-    /* We surely can't fit the resource here (and `gap_start` overflowed). */
-    if (s->r_end == RMAN_ADDR_MAX)
-      break;
-    /* Skip lower gaps. */
-    if (gap_end - count + 1 < start)
-      continue;
-    /* Stop if we've gone too far. */
-    if (gap_start > end - count + 1)
-      break;
-    /* Too large start address for required alignment. */
-    if (gap_start > RMAN_ADDR_MAX - alignment + 1)
-      break;
-
-    rstart = roundup(max(start, gap_start), alignment);
-    /* Check for overflow. */
-    if ((rstart + count - 1) < rstart)
-      break;
-    rend = min(gap_end, max(rstart + count - 1, end));
-    /* Check if the gap is large enough. */
-    if (rstart <= rend && rend - rstart >= count - 1) {
-      r->r_rg = rg;
-      r->r_start = rstart;
-      r->r_end = rstart + count - 1;
-      TAILQ_INSERT_AFTER(&rg->rg_resources, s, r, r_link);
-      return true;
-    }
-  }
-
-  /* We couldn't find anything. */
-  return false;
+  return rv;
 }
 
 resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
                                   rman_addr_t end, size_t count,
                                   size_t alignment, res_flags_t flags) {
+  /* Watch out for overflow. */
+  assert((start + count - 1) >= start);
+  assert(count);
+
   alignment = max(alignment, 1UL);
   assert(powerof2(alignment));
 
-  assert(start <=
-         RMAN_ADDR_MAX - alignment + 1); /* alignment causes overflow */
-  assert(count);
-  assert((start + count - 1) >= start); /* overflow */
-  assert(start + count - 1 <= end);
+  /* Discard sensless requests. */
+  if (start + count - 1 > end)
+    return NULL;
 
-  resource_t *r = kmalloc(M_RES, sizeof(resource_t), M_ZERO);
-  assert(r);
-  r->r_flags = flags & ~RF_ACTIVE;
+  flags = (flags | RF_RESERVED) & ~RF_ACTIVE;
+
+  resource_t *rv = NULL;
 
   WITH_MTX_LOCK (&rm->rm_lock) {
-    rman_region_t *rg;
-    bool reserved = false;
+    resource_t *r;
 
-    TAILQ_FOREACH (rg, &rm->rm_regions, rg_link) {
+    TAILQ_FOREACH (r, &rm->rm_resources, r_link) {
       /* Skip lower regions. */
-      if (rg->rg_end - count + 1 < start)
+      if (r->r_end < start + count - 1)
         continue;
+
+      /* Skip reserved regions. */
+      if (IS_RESERVED(r))
+        continue;
+
       /* Stop if we've gone too far. */
-      if (rg->rg_start > end - count + 1)
+      if (r->r_start > end - count + 1)
         break;
-      /* An inner alignment logic will cause an
-       * overflow if the start of a region is too large. */
-      if (rg->rg_start > RMAN_ADDR_MAX - alignment + 1)
+
+      /* Stop if roundup causes overflow. */
+      if (r->r_start > RMAN_ADDR_MAX - alignment + 1)
         break;
-      /* Try to place the resource in the current region. */
-      if ((reserved =
-             rman_region_reserve_resource(rg, start, end, count, alignment, r)))
+
+      rman_addr_t new_start = roundup(max(r->r_start, start), alignment);
+      rman_addr_t new_end = new_start + count - 1;
+
+      /* Check for overflow. */
+      if ((new_start + count - 1) < new_start)
         break;
-    }
-    if (reserved) {
-      assert(r->r_start >= start);
-      assert(r->r_end <= end);
-      assert(r->r_end - r->r_start == count - 1);
-      assert(r->r_rg);
-    } else {
-      kfree(M_RES, r);
-      r = NULL;
+
+      /* See if it fits. */
+      if (new_end > r->r_end)
+        continue;
+
+      /* Isn't it too far? */
+      if (new_end > end)
+        break;
+
+      /* Can we use the whole region? */
+      if (r->r_end - r->r_start + 1 == count) {
+        rv = r;
+        rv->r_flags = flags;
+      } else {
+        rv = rman_split(r, new_start, new_end, flags);
+      }
+      break;
     }
   }
-
-  return r;
+  return rv;
 }
 
-#define RESOURCE_GET_RMAN(r) ((r)->r_rg->rg_rman)
-
 void rman_activate_resource(resource_t *r) {
-  rman_t *rm = RESOURCE_GET_RMAN(r);
-  WITH_MTX_LOCK (&rm->rm_lock) { r->r_flags |= RF_ACTIVE; }
+  WITH_MTX_LOCK (&r->r_rman->rm_lock) { r->r_flags |= RF_ACTIVE; }
 }
 
 void rman_deactivate_resource(resource_t *r) {
-  rman_t *rm = RESOURCE_GET_RMAN(r);
-  WITH_MTX_LOCK (&rm->rm_lock) { r->r_flags &= ~RF_ACTIVE; }
+  WITH_MTX_LOCK (&r->r_rman->rm_lock) { r->r_flags &= ~RF_ACTIVE; }
 }
 
 void rman_release_resource(resource_t *r) {
-  rman_t *rm = RESOURCE_GET_RMAN(r);
-  rman_region_t *rg = r->r_rg;
+  rman_t *rm = r->r_rman;
 
   WITH_MTX_LOCK (&rm->rm_lock) {
-    /* XXX: maybe we should ensure that (r->r_flags & RF_ACTIVE) == 0? */
-    TAILQ_REMOVE(&rg->rg_resources, r, r_link);
+    if (r->r_flags & RF_ACTIVE)
+      panic("releasing an active resource");
+    /*
+     * Look at the adjacent resources in the list and see if our
+     * resource can be merged with any of them. If either of the
+     * resources is reserved or is not exactly adjacent then they
+     * cannot be merged with our resource.
+     */
+    resource_t *prev = TAILQ_PREV(r, res_list, r_link);
+    if (prev && (IS_RESERVED(prev) || prev->r_end + 1 != r->r_start))
+      prev = NULL;
+    resource_t *next = TAILQ_NEXT(r, r_link);
+    if (next && (IS_RESERVED(next) || r->r_end + 1 != next->r_start))
+      next = NULL;
+
+    if (prev && next) {
+      /* Merge all three regions. */
+      prev->r_end = next->r_end;
+      TAILQ_REMOVE(&rm->rm_resources, next, r_link);
+      kfree(M_RES, next);
+    } else if (prev) {
+      /* Merge previous region with ours. */
+      prev->r_end = r->r_end;
+    } else if (next) {
+      /* Merge next region with ours. */
+      next->r_start = r->r_start;
+    } else {
+      /*
+       * At this point, we know there is nothing we can
+       * potentially merge with, because on each side,
+       * there is either nothing there or what is there
+       * is still reserved. In that case, we don't want
+       * to remove the resource from the list, we simply
+       * want to change it to an unreserved region and
+       * return without freeing anything.
+       */
+      r->r_flags &= ~RF_RESERVED;
+      mtx_unlock(&rm->rm_lock);
+      return;
+    }
+    TAILQ_REMOVE(&rm->rm_resources, r, r_link);
     kfree(M_RES, r);
   }
 }
