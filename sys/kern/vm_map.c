@@ -393,6 +393,15 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   vaddr_t offset = fault_page - seg->start;
   vm_page_t *frame = vm_object_find_page(seg->object, offset);
 
+  if (frame == NULL && obj->shadow_object && (fault_type == VM_PROT_READ)) {
+    vm_object_t *it = obj->shadow_object;
+
+    while (frame == NULL && it != NULL) {
+      frame = vm_object_find_page(it, offset);
+      it = it->shadow_object;
+    }
+  }
+
   if (frame == NULL)
     frame = obj->pager->pgr_fault(obj, offset);
 

@@ -6,6 +6,7 @@
 typedef enum {
   VM_DUMMY,
   VM_ANONYMOUS,
+  VM_SHADOW,
 } vm_pgr_type_t;
 
 typedef vm_page_t *vm_pgr_fault_t(vm_object_t *obj, off_t offset);
