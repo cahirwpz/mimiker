@@ -374,6 +374,7 @@ static int tty_wait_background(tty_t *tty, int sig) {
   assert(mtx_owned(&tty->t_lock));
 
   while (true) {
+  tryagain:
     WITH_PROC_LOCK(p) {
       /*
        * The process should only sleep, when:
@@ -392,25 +393,22 @@ static int tty_wait_background(tty_t *tty, int sig) {
 
       pg = p->p_pgrp;
     }
-    mtx_lock(&pg->pg_lock);
-    /* Our process group might have changed: check. */
-    if (p->p_pgrp != pg) {
-      mtx_unlock(&pg->pg_lock);
-      continue;
-    }
 
-    /* Unlocked read of pg_jobc: not a big deal. */
-    if (pg->pg_jobc == 0) {
-      mtx_unlock(&pg->pg_lock);
-      return EIO;
-    }
+    WITH_MTX_LOCK (&pg->pg_lock) {
+      /* Our process group might have changed: check. */
+      if (p->p_pgrp != pg)
+        goto tryagain;
 
-    /*
-     * Send the signal and sleep until we're in the foreground
-     * process group.
-     */
-    sig_pgkill(pg, &DEF_KSI_RAW(sig));
-    mtx_unlock(&pg->pg_lock);
+      /* Unlocked read of pg_jobc: not a big deal. */
+      if (pg->pg_jobc == 0)
+        return EIO;
+
+      /*
+       * Send the signal and sleep until we're in the foreground
+       * process group.
+       */
+      sig_pgkill(pg, &DEF_KSI_RAW(sig));
+    }
 
     cv_wait(&tty->t_background_cv, &tty->t_lock);
   }
