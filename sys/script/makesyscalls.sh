@@ -153,6 +153,10 @@ $1 ~ /^#[ 	]*include/ {
 	print > sysarghdr
 	next
 }
+$1 ~ /^#[ 	]*define/ {
+	print > sysarghdr
+	next
+}
 $1 ~ /^#[ 	]*if/ {
 	print > sysent
 	savesyscall[++savedepth] = syscall
@@ -310,7 +314,7 @@ function putent() {
 	if (argc != 0) {
 		printf("\ntypedef struct {\n") > sysarghdr
 		for (i = 1; i <= argc; i++)
-			printf("  %s %s;\n", argtype[i], argname[i]) > sysarghdr
+			printf("  SYSCALLARG(%s) %s;\n", argtype[i], argname[i]) > sysarghdr
 		printf("} %s_args_t;\n", funcalias) > sysarghdr
 	}
 }
