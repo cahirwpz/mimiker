@@ -13,12 +13,11 @@ typedef SLIST_HEAD(, resource) res_slist_t;
 
 typedef struct resource_list_entry {
   SLIST_ENTRY(resource_list_entry) link;
-  res_slist_t resources; /* resources allocated within this entry */
-  res_type_t type;       /* type argument to alloc_resource */
-  int rid;               /* resource identifier */
-  rman_addr_t start;     /* start of resource range */
-  rman_addr_t end;       /* end of resource range */
-  size_t count;          /* number of bytes */
+  resource_t *res;   /* the actual resource when allocated */
+  res_type_t type;   /* type argument to alloc_resource */
+  int rid;           /* resource identifier */
+  rman_addr_t start; /* start of resource range */
+  size_t count;      /* number of bytes */
 } resource_list_entry_t;
 
 typedef SLIST_HEAD(, resource_list_entry) resource_list_t;
@@ -33,20 +32,18 @@ void resource_list_fini(resource_list_t *rl);
 
 /*! \brief Add a resource entry to resource list. */
 void resource_list_add(resource_list_t *rl, res_type_t type, int rid,
-                       rman_addr_t start, rman_addr_t end, size_t count);
+                       rman_addr_t start, size_t count);
 
 #define resource_list_add_irq(rl, rid, irq)                                    \
-  resource_list_add((rl), RT_IRQ, (rid), (irq), (irq), 1)
+  resource_list_add((rl), RT_IRQ, (rid), (irq), 1)
 
 /*! \brief Find a resource entry by type and rid. */
 resource_list_entry_t *resource_list_find(resource_list_t *rl, res_type_t type,
                                           int rid);
 
-/*! \brief Allocate a resource based on a resource list entry. */
+/*! \brief Allocate a resource based on resource list entry. */
 resource_t *resource_list_alloc(resource_list_t *rl, rman_t *rman,
-                                res_type_t type, int rid, rman_addr_t start,
-                                rman_addr_t end, size_t count,
-                                res_flags_t flags);
+                                res_type_t type, int rid, res_flags_t flags);
 
 /*! \brief Release an allocated resource. */
 void resource_list_release(resource_list_t *rl, res_type_t type, int rid,

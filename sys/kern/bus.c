@@ -17,8 +17,8 @@ void resource_list_fini(resource_list_t *rl) {
   resource_list_entry_t *rle;
 
   while ((rle = SLIST_FIRST(rl))) {
-    if (!SLIST_EMPTY(&rle->resources))
-      panic("resource entry contains allocated resources");
+    if (rle->res)
+      panic("resource entry is busy");
     SLIST_REMOVE_HEAD(rl, link);
     kfree(M_RLE, rle);
   }
@@ -35,29 +35,24 @@ resource_list_entry_t *resource_list_find(resource_list_t *rl, res_type_t type,
 }
 
 void resource_list_add(resource_list_t *rl, res_type_t type, int rid,
-                       rman_addr_t start, rman_addr_t end, size_t count) {
+                       rman_addr_t start, size_t count) {
   resource_list_entry_t *rle;
 
   if ((rle = resource_list_find(rl, rid, type)))
     panic("resource entry already exists");
 
   rle = kmalloc(M_RLE, sizeof(resource_list_entry_t), M_WAITOK);
-  assert(rle);
   SLIST_INSERT_HEAD(rl, rle, link);
-  SLIST_INIT(&rle->resources);
+  rle->res = NULL;
   rle->type = type;
   rle->rid = rid;
   rle->start = start;
-  rle->end = end;
   rle->count = count;
 }
 
 resource_t *resource_list_alloc(resource_list_t *rl, rman_t *rman,
-                                res_type_t type, int rid, rman_addr_t start,
-                                rman_addr_t end, size_t count,
-                                res_flags_t flags) {
+                                res_type_t type, int rid, res_flags_t flags) {
   resource_list_entry_t *rle;
-  bool isdefault = RMAN_IS_DEFAULT(start, end, count);
   assert(rl);
 
   if (!(rle = resource_list_find(rl, type, rid))) {
@@ -65,15 +60,11 @@ resource_t *resource_list_alloc(resource_list_t *rl, rman_t *rman,
     return NULL;
   }
 
-  if (isdefault) {
-    start = rle->start;
-    end = rle->end;
-    count = rle->count;
-  }
-
-  resource_t *r = rman_alloc_resource(rman, start, end, count, 1, flags);
+  rman_addr_t end = rle->start + rle->count - 1;
+  resource_t *r =
+    rman_alloc_resource(rman, rle->start, end, rle->count, 1, flags);
   if (r)
-    SLIST_INSERT_HEAD(&rle->resources, r, r_rle_link);
+    rle->res = r;
 
   return r;
 }
@@ -86,16 +77,13 @@ void resource_list_release(resource_list_t *rl, res_type_t type, int rid,
   if (!(rle = resource_list_find(rl, type, rid)))
     panic("can't find the resource entry");
 
-  resource_t *r;
-  SLIST_FOREACH(r, &rle->resources, r_rle_link)
-  if (r == res)
-    break;
+  if (!rle->res)
+    panic("resource entry is not busy");
 
-  if (!r)
-    panic("can't find the resource within the resource entry");
-
-  SLIST_REMOVE(rl, rle, resource_list_entry, link);
-  rman_release_resource(r);
+  /* TODO: uncomment the following after merging the new rman. */
+  /*rman_deactivate_resource(rle->res);*/
+  rman_release_resource(rle->res);
+  rle->res = NULL;
 }
 
 int generic_bs_map(bus_addr_t addr, bus_size_t size,

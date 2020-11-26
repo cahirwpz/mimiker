@@ -37,7 +37,7 @@ static bool rman_find_gap(rman_t *rm, rman_addr_t *start_p, rman_addr_t end,
       continue;
 
     /* Do not consider elements after `end` address. */
-    if (end <= curr_end)
+    if (end <= curr_end - 1)
       break;
 
     /* Calculate first & last address of eligible gap. */

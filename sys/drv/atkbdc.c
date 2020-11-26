@@ -124,14 +124,12 @@ static intr_filter_t atkbdc_intr(void *data) {
 static int atkbdc_probe(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  pci_device_t *pcid = pci_device_of(dev);
-  if (!pci_device_match(pcid, ATKBDC_VENDOR_ID, ATKBDC_DEVICE_ID))
+  if (dev->unit != 0)
     return 0;
 
   /* TODO: Implement resource deallocation in rman.
    * When probe is not successful, driver should release claimed resources. */
-  resource_t *regs = bus_alloc_resource(
-    dev, RT_IOPORTS, 0, IO_KBD, IO_KBD + IO_KBDSIZE - 1, IO_KBDSIZE, RF_ACTIVE);
+  resource_t *regs = bus_alloc_resource_any(dev, RT_IOPORTS, 0, RF_ACTIVE);
   assert(regs != NULL);
 
   if (!kbd_reset(regs)) {
@@ -157,13 +155,6 @@ static int atkbdc_probe(device_t *dev) {
 static int atkbdc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  /* TODO: relpace the following with FDT parsing in parent bus. */
-  resource_list_t *rl = RESOURCE_LIST_OF(dev);
-  assert(rl);
-  resource_list_add(rl, RT_IOPORTS, 0, IO_KBD, IO_KBD + IO_KBDSIZE - 1,
-                    IO_KBDSIZE);
-  resource_list_add_irq(rl, 0, 1);
-
   vnodeops_init(&scancode_vnodeops);
 
   atkbdc_state_t *atkbdc = dev->state;
@@ -177,6 +168,7 @@ static int atkbdc_attach(device_t *dev) {
   assert(atkbdc->regs != NULL);
 
   atkbdc->irq_res = bus_alloc_resource_any(dev, RT_IRQ, 0, RF_ACTIVE);
+  assert(atkbdc->irq_res);
   bus_intr_setup(dev, atkbdc->irq_res, atkbdc_intr, NULL, atkbdc,
                  "AT keyboard controller");
 

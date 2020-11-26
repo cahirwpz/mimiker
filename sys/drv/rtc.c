@@ -19,9 +19,6 @@
 
 #define RTC_ASCTIME_SIZE 32
 
-#define RTC_VENDOR_ID 0x8086
-#define RTC_DEVICE_ID 0x7113
-
 typedef struct rtc_state {
   resource_t *regs;
   char asctime[RTC_ASCTIME_SIZE];
@@ -99,13 +96,6 @@ static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
 static int rtc_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  /* TODO: relpace the following with FDT parsing in parent bus. */
-  resource_list_t *rl = RESOURCE_LIST_OF(dev);
-  assert(rl);
-  resource_list_add(rl, RT_IOPORTS, 0, IO_RTC, IO_RTC + IO_RTCSIZE - 1,
-                    IO_RTCSIZE);
-  resource_list_add_irq(rl, 0, 8);
-
   vnodeops_init(&rtc_time_vnodeops);
 
   rtc_state_t *rtc = dev->state;
@@ -114,6 +104,7 @@ static int rtc_attach(device_t *dev) {
   assert(rtc->regs != NULL);
 
   rtc->irq_res = bus_alloc_resource_any(dev, RT_IRQ, 0, RF_ACTIVE);
+  assert(rtc->irq_res);
   bus_intr_setup(dev, rtc->irq_res, rtc_intr, NULL, rtc, "RTC periodic timer");
 
   /* Configure how the time is presented through registers. */
@@ -135,8 +126,7 @@ static int rtc_attach(device_t *dev) {
 }
 
 static int rtc_probe(device_t *dev) {
-  pci_device_t *pcid = pci_device_of(dev);
-  return pci_device_match(pcid, RTC_VENDOR_ID, RTC_DEVICE_ID);
+  return dev->unit == 2;
 }
 
 /* clang-format off */

@@ -166,13 +166,6 @@ static int pl011_probe(device_t *dev) {
 static int pl011_attach(device_t *dev) {
   pl011_state_t *state = dev->state;
 
-  /* TODO: relpace the following with FDT parsing in parent bus. */
-  resource_list_t *rl = RESOURCE_LIST_OF(dev);
-  assert(rl);
-  resource_list_add(rl, RT_MEMORY, 0, UART0_BASE, UART0_BASE + BCM2835_UART0_SIZE - 1,
-		    BCM2835_UART0_SIZE);
-  resource_list_add_irq(rl, 0, BCM2835_INT_UART0);
-
   ringbuf_init(&state->rx_buf, kmalloc(M_DEV, UART_BUFSIZE, M_ZERO),
                UART_BUFSIZE);
   ringbuf_init(&state->tx_buf, kmalloc(M_DEV, UART_BUFSIZE, M_ZERO),

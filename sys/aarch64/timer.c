@@ -64,11 +64,6 @@ static int arm_timer_probe(device_t *dev) {
 static int arm_timer_attach(device_t *dev) {
   arm_timer_state_t *state = dev->state;
 
-  /* TODO: relpace the following with FDT parsing in parent bus. */
-  resource_list_t *rl = RESOURCE_LIST_OF(dev);
-  assert(rl);
-  resource_list_add_irq(rl, 0, BCM2836_INT_CNTPNSIRQ_CPUN(0));
-
   uint64_t freq = READ_SPECIALREG(cntfrq_el0);
 
   /* Save link to timer device. */

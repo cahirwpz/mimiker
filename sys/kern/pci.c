@@ -50,6 +50,18 @@ static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t addr) {
 
 DEVCLASS_CREATE(pci);
 
+device_t *pci_add_child(device_t *bus, int unit) {
+  device_t *dev = device_add_child(bus, &DEVCLASS(pci), unit);
+  pci_device_t *pcid = kmalloc(M_DEV, sizeof(pci_device_t), M_ZERO);
+  assert(dev && pcid);
+
+  dev->bus = DEV_BUS_PCI;
+  dev->instance = pcid;
+  resource_list_init(&pcid->resources);
+
+  return dev;
+}
+
 #define PCIA(b, d, f)                                                          \
   (pci_addr_t) {                                                               \
     .bus = (b), .device = (d), .function = (f)                                 \
@@ -58,6 +70,8 @@ DEVCLASS_CREATE(pci);
   (((pci_device_t *)(pcid)->instance)->addr = PCIA((b), (d), (f)))
 
 void pci_bus_enumerate(device_t *pcib) {
+  rman_addr_t mem_offset = 0;
+  rman_addr_t io_offset = IO_ISASIZE;
   device_t pcid = {.parent = pcib,
                    .bus = DEV_BUS_PCI,
                    .instance = (pci_device_t[1]){},
@@ -77,13 +91,9 @@ void pci_bus_enumerate(device_t *pcib) {
 
       /* It looks like dev is a leaf in device tree, but it can also be an inner
        * node. */
-      device_t *dev = device_add_child(pcib, &DEVCLASS(pci), 0);
-      pci_device_t *pcid = kmalloc(M_DEV, sizeof(pci_device_t), M_ZERO);
+      device_t *dev = pci_add_child(pcib, -1);
+      pci_device_t *pcid = pci_device_of(dev);
 
-      dev->bus = DEV_BUS_PCI;
-      dev->instance = pcid;
-
-      resource_list_init(&pcid->resources);
       pcid->addr = PCIA(0, d, f);
       pcid->device_id = pci_read_config(dev, PCIR_DEVICEID, 2);
       pcid->vendor_id = pci_read_config(dev, PCIR_VENDORID, 2);
@@ -117,7 +127,15 @@ void pci_bus_enumerate(device_t *pcib) {
         pcid->bar[id] = (pci_bar_t){
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = id};
 
-        resource_list_add(&pcid->resources, type, id, 0, RMAN_ADDR_MAX, size);
+        /* TODO: set absoulte addresses for memory resources
+         * after merging the new rman. */
+        if (type == RT_IOPORTS) {
+          resource_list_add(&pcid->resources, RT_IOPORTS, id, io_offset, size);
+          io_offset += size;
+        } else {
+          resource_list_add(&pcid->resources, RT_MEMORY, id, mem_offset, size);
+          mem_offset += size;
+        }
 
         pcid->nbars++;
       }

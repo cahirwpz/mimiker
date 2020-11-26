@@ -80,6 +80,10 @@ __noreturn void board_init(void);
 #define MALTA_FPGA_BASE 0x1f000000
 #define MALTA_FPGA_END 0x1fffffff
 
+#define MALTA_CORECTRL_SIZE (MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1)
+#define MALTA_PCI0_MEMORY_SIZE                                                 \
+  (MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1)
+
 #define MALTA_CBUS_UART_OFFSET 0x900
 #define MALTA_CBUS_UART_INTR 2
 

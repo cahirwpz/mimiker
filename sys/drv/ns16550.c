@@ -18,9 +18,6 @@
 #include <sys/priority.h>
 #include <sys/sched.h>
 
-#define NS16550_VENDOR_ID 0x8086
-#define NS16550_DEVICE_ID 0x7110
-
 #define UART_BUFSIZE 128
 
 typedef struct ns16550_state {
@@ -200,13 +197,6 @@ static void ns16550_notify_out(tty_t *tty) {
 static int ns16550_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
 
-  /* TODO: relpace the following with FDT parsing in parent bus. */
-  resource_list_t *rl = RESOURCE_LIST_OF(dev);
-  assert(rl);
-  resource_list_add(rl, RT_IOPORTS, 0, IO_COM1, IO_COM1 + IO_COMSIZE - 1,
-                    IO_COMSIZE);
-  resource_list_add_irq(rl, 0, 4);
-
   ns16550_state_t *ns16550 = dev->state;
 
   ringbuf_init(&ns16550->rx_buf, kmalloc(M_DEV, UART_BUFSIZE, M_ZERO),
@@ -248,8 +238,7 @@ static int ns16550_attach(device_t *dev) {
 }
 
 static int ns16550_probe(device_t *dev) {
-  pci_device_t *pcid = pci_device_of(dev);
-  return pci_device_match(pcid, NS16550_VENDOR_ID, NS16550_DEVICE_ID);
+  return dev->unit == 1;
 }
 
 /* clang-format off */

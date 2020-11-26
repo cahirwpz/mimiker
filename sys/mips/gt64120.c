@@ -19,8 +19,6 @@
 
 #define ICU_LEN 16 /* number of ISA IRQs */
 
-#define IO_ISASIZE 1024
-
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
 #define PCI0_CFG_DEV_SHIFT 11
@@ -255,28 +253,8 @@ static intr_filter_t gt_pci_intr(void *data) {
   return IF_FILTERED;
 }
 
-#define MALTA_CORECTRL_SIZE (MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1)
-#define MALTA_PCI0_MEMORY_SIZE                                                 \
-  (MALTA_PCI0_MEMORY_END - MALTA_PCI0_MEMORY_BASE + 1)
-
-DEVCLASS_DECLARE(pci);
-
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
-
-  /* TODO: relpace the following with FDT parsing in parent bus. */
-  resource_list_t *rl = RESOURCE_LIST_OF(pcib);
-  /* PCI I/O memory. */
-  resource_list_add(rl, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE,
-                    MALTA_PCI0_MEMORY_END, MALTA_PCI0_MEMORY_SIZE);
-  /* PCI I/O ports 0x0000-0xffff. */
-  resource_list_add(rl, RT_MEMORY, 1, MALTA_PCI0_IO_BASE,
-                    MALTA_PCI0_IO_BASE + 0xffff, 0X10000);
-  /* GT64120 registers. */
-  resource_list_add(rl, RT_MEMORY, 2, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END,
-                    MALTA_CORECTRL_SIZE);
-  /* GT64120 main irq. */
-  resource_list_add_irq(rl, 0, MIPS_HWINT0);
 
   gtpci->pci_mem = bus_alloc_resource_any(pcib, RT_MEMORY, 0, RF_NONE);
   gtpci->pci_io = bus_alloc_resource_any(pcib, RT_MEMORY, 1, RF_ACTIVE);
@@ -293,9 +271,6 @@ static int gt_pci_attach(device_t *pcib) {
             MALTA_PCI0_MEMORY_SIZE - 1, RT_MEMORY);
   rman_init(&gtpci->irq_rman, "GT64120 PCI & ISA interrupts", 0, ICU_LEN - 1,
             RT_IRQ);
-
-  pcib->bus = DEV_BUS_PCI;
-  pcib->devclass = &DEVCLASS(pci);
 
   /* All interrupts default to "masked off" and edge-triggered. */
   gtpci->imask = 0xffff;
@@ -315,6 +290,27 @@ static int gt_pci_attach(device_t *pcib) {
   gtpci->irq_res = bus_alloc_resource_any(pcib, RT_IRQ, 0, RF_ACTIVE);
   bus_intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
                  "GT64120 main irq");
+
+  /*
+   * Create child devices of ISA bus.
+   */
+
+  /* Create atkbdc keyboard device and assing resources to it. */
+  resource_list_t *rl = RESOURCE_LIST_OF(pci_add_child(pcib, 0));
+  resource_list_add(rl, RT_IOPORTS, 0, IO_KBD, IO_KBDSIZE);
+  resource_list_add_irq(rl, 0, 1);
+
+  /* Create ns16550 device and assing resources to it. */
+  rl = RESOURCE_LIST_OF(pci_add_child(pcib, 1));
+  resource_list_add(rl, RT_IOPORTS, 0, IO_COM1, IO_COMSIZE);
+  resource_list_add_irq(rl, 0, 4);
+
+  /* Create rtc device and assing resources to it. */
+  rl = RESOURCE_LIST_OF(pci_add_child(pcib, 2));
+  resource_list_add(rl, RT_IOPORTS, 0, IO_RTC, IO_RTCSIZE);
+  resource_list_add_irq(rl, 0, 8);
+
+  /* TODO: replace raw resource assignments by parsing FDT file. */
 
   return bus_generic_probe(pcib);
 }
@@ -345,8 +341,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     panic("Unknown PCI device type: %d", type);
   }
 
-  resource_t *r =
-    resource_list_alloc(rl, from, type, rid, start, end, size, flags);
+  resource_t *r = resource_list_alloc(rl, from, type, rid, flags);
   if (r == NULL)
     return NULL;
 
@@ -356,8 +351,10 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
       r->r_bus_handle = bh + r->r_start;
     }
 
-    int error = bus_activate_resource(dev, type, rid, r);
-    assert(error == 0);
+    if (bus_activate_resource(dev, type, rid, r)) {
+      resource_list_release(rl, type, rid, r);
+      return NULL;
+    }
   }
 
   return r;
@@ -365,8 +362,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 
 static void gt_pci_release_resource(device_t *dev, res_type_t type, int rid,
                                     resource_t *r) {
-  /* TODO: if the resource is active, deactivate it first.
-   * Deactivation includes unmapping of mapped resources. */
+  /* TODO: we should unmap mapped resources. */
   resource_list_t *rl = RESOURCE_LIST_OF(dev);
   resource_list_release(rl, type, rid, r);
 }
