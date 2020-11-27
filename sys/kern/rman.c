@@ -42,34 +42,40 @@ static int r_reserved(resource_t *r) {
   return r->r_flags & RF_RESERVED;
 }
 
-static int r_disjoint(resource_t *r, resource_t *with) {
-  return with == NULL || r->r_start > with->r_end || r->r_end < with->r_start;
-}
-
 static int r_canmerge(resource_t *r, resource_t *next) {
   return (r->r_end + 1 == next->r_start) && !r_reserved(next);
 }
 
 void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
-  resource_t *reg = resource_alloc(rm, start, start + size - 1, RF_RESERVED);
+  size_t end = start + size - 1;
+  resource_t *reg = resource_alloc(rm, start, end, RF_RESERVED);
 
   WITH_MTX_LOCK (&rm->rm_lock) {
-    /* Skip entries before us. */
-    resource_t *r;
-    TAILQ_FOREACH (r, &rm->rm_resources, r_link) {
-      if (r->r_end + 1 >= reg->r_start)
-        break;
+    resource_t *first = TAILQ_FIRST(&rm->rm_resources);
+    if (first == NULL || end < first->r_start) {
+      TAILQ_INSERT_HEAD(&rm->rm_resources, reg, r_link);
+      goto done;
     }
 
-    if (r) {
-      resource_t *next = TAILQ_NEXT(r, r_link);
-      assert(r_disjoint(reg, r) && r_disjoint(reg, next));
-    } else {
-      /* If we ran off the end of the list, insert at the tail. */
+    resource_t *last = TAILQ_LAST(&rm->rm_resources, res_list);
+    if (start > last->r_end) {
       TAILQ_INSERT_TAIL(&rm->rm_resources, reg, r_link);
+      goto done;
     }
+
+    resource_t *next;
+    for (resource_t *r = first; r != last; r = next) {
+      next = TAILQ_NEXT(r, r_link);
+      if (r->r_end < start && end < next->r_start) {
+        TAILQ_INSERT_AFTER(&rm->rm_resources, r, reg, r_link);
+        goto done;
+      }
+    }
+
+    panic("overlapping regions");
   }
 
+done:
   rman_release_resource(reg);
 }
 
