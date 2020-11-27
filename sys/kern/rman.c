@@ -3,14 +3,13 @@
  *
  * Based on FreeBSD `subr_rman.c` file.
  *
- * This code is responsible for keeping track
- * of hardware resources which are apportioned out to various drivers.
- * It does not actually assign those resources, and it is not expected
- * that end-device drivers will call into this code directly.  Rather,
- * the code which implements the buses that those devices are attached to,
- * and the code which manages CPU resources, will call this code, and the
- * end-device drivers will make upcalls to that code to actually perform
- * the allocation.
+ * This code is responsible for keeping track of hardware resources which
+ * are apportioned out to various drivers. It does not actually assign those
+ * resources, and it is not expected that end-device drivers will call into
+ * this code directly.  Rather, the code which implements the buses that those
+ * devices are attached to, and the code which manages CPU resources, will call
+ * this code, and the end-device drivers will make upcalls to that code to
+ * actually perform the allocation.
  */
 
 #include <sys/mimiker.h>
@@ -105,7 +104,7 @@ void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
 
 void rman_init_from_resource(rman_t *rm, const char *name, resource_t *r) {
   rman_init(rm, name);
-  rman_manage_region(rm, r->r_start, rman_get_size(r));
+  rman_manage_region(rm, r->r_start, resource_size(r));
 }
 
 void rman_fini(rman_t *rm) {

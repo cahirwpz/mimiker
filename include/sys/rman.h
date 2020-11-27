@@ -41,6 +41,11 @@ struct resource {
   TAILQ_ENTRY(resource) r_link; /* link on resource manager list */
 };
 
+/*! \brief Calculate resource size. */
+static inline bus_size_t resource_size(resource_t *r) {
+  return r->r_end - r->r_start + 1;
+}
+
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
 
 struct rman {
@@ -69,11 +74,6 @@ void rman_activate_resource(resource_t *r);
 
 /*! \brief Marks resource as deactivated. */
 void rman_deactivate_resource(resource_t *r);
-
-/*! \brief Calculate resource size. */
-static inline bus_size_t rman_get_size(resource_t *r) {
-  return r->r_end - r->r_start + 1;
-}
 
 /* !\brief Initializes resource manager for further use. */
 void rman_init(rman_t *rm, const char *name);

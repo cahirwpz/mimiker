@@ -404,7 +404,7 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
   if (type == RT_MEMORY) {
     /* Write BAR address to PCI device register. */
     pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
-    return bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+    return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
                          &r->r_bus_handle);
   }
 
