@@ -33,10 +33,7 @@ static void syscall_handler(register_t code, ctx_t *ctx) {
   sysent_t *se = &sysent[code];
   size_t nargs = se->nargs;
 
-  if (nargs > nregs) {
-    kprintf("Too many arguments for syscall!\n");
-    panic();
-  }
+  assert(nargs <= nregs);
 
   thread_t *td = thread_self();
   register_t retval = 0;
@@ -127,6 +124,7 @@ void user_trap_handler(user_ctx_t *uctx) {
       break;
 
     case EXCP_SVC64:
+      /* TODO(pj): remove magic */
       syscall_handler(esr & 0xffff, ctx);
       break;
 

@@ -20,10 +20,10 @@
   END(name)
 
 /* Do a normal syscall. */
-/* TODO(pj): Handle errors. */
 #define SYSCALL(name, num)                                                     \
   ENTRY(name);                                                                 \
   svc num;                                                                     \
+  cbnz x1, _C_LABEL(__sc_error);                                                                 \
   ret;                                                                         \
   END(name)
 
