@@ -129,7 +129,7 @@ static int atkbdc_probe(device_t *dev) {
 
   /* TODO: Implement resource deallocation in rman.
    * When probe is not successful, driver should release claimed resources. */
-  resource_t *regs = bus_alloc_resource_any(dev, RT_IOPORTS, 0, RF_ACTIVE);
+  resource_t *regs = bus_alloc_resource(dev, RT_IOPORTS, 0, RF_ACTIVE);
   assert(regs != NULL);
 
   if (!kbd_reset(regs)) {
@@ -164,10 +164,10 @@ static int atkbdc_attach(device_t *dev) {
 
   spin_init(&atkbdc->lock, 0);
   cv_init(&atkbdc->nonempty, "AT keyboard buffer non-empty");
-  atkbdc->regs = bus_alloc_resource_any(dev, RT_IOPORTS, 0, RF_ACTIVE);
+  atkbdc->regs = bus_alloc_resource(dev, RT_IOPORTS, 0, RF_ACTIVE);
   assert(atkbdc->regs != NULL);
 
-  atkbdc->irq_res = bus_alloc_resource_any(dev, RT_IRQ, 0, RF_ACTIVE);
+  atkbdc->irq_res = bus_alloc_resource(dev, RT_IRQ, 0, RF_ACTIVE);
   assert(atkbdc->irq_res);
   bus_intr_setup(dev, atkbdc->irq_res, atkbdc_intr, NULL, atkbdc,
                  "AT keyboard controller");

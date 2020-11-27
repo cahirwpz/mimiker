@@ -175,7 +175,7 @@ static int pl011_attach(device_t *dev) {
   cv_init(&state->rx_nonempty, "UART receive buffer not empty");
   cv_init(&state->tx_nonfull, "UART transmit buffer not full");
 
-  resource_t *r = bus_alloc_resource_any(dev, RT_MEMORY, 0, RF_NONE);
+  resource_t *r = bus_alloc_resource(dev, RT_MEMORY, 0, RF_NONE);
 
   /* (pj) BCM2835_UART0_SIZE is much smaller than PAGESIZE */
   bus_space_map(r->r_bus_tag, r->r_start, PAGESIZE, &r->r_bus_handle);
@@ -221,7 +221,7 @@ static int pl011_attach(device_t *dev) {
   /* Enable interrupt. */
   bus_write_4(r, PL011COM_IMSC, PL011_INT_RX);
 
-  state->irq = bus_alloc_resource_any(dev, RT_IRQ, 0, RF_ACTIVE);
+  state->irq = bus_alloc_resource(dev, RT_IRQ, 0, RF_ACTIVE);
   bus_intr_setup(dev, state->irq, pl011_intr, NULL, dev, "PL011 UART");
 
   /* Prepare /dev/uart interface. */

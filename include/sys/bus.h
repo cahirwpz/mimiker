@@ -177,7 +177,6 @@ struct bus_methods {
                      ih_service_t *service, void *arg, const char *name);
   void (*intr_teardown)(device_t *dev, resource_t *irq);
   resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
-                                rman_addr_t start, rman_addr_t end, size_t size,
                                 res_flags_t flags);
   void (*release_resource)(device_t *dev, res_type_t type, int rid,
                            resource_t *r);
@@ -202,50 +201,18 @@ static inline void bus_intr_teardown(device_t *dev, resource_t *irq) {
   BUS_DRIVER(dev)->bus.intr_teardown(dev, irq);
 }
 
-/*! \brief Allocates a resource of type \a type and size \a size between
- * \a start and \a end for a device \a dev.
+/*! \brief Allocates a resource of type \a type and resource id \a rid.
  *
  * Should be called inside device's \fn attach function.
  *
  * \param dev device which needs resource
  * \param type resource type RT_* defined in rman.h
- * \param rid resource identifier as in \a resource_t structure
- * \param start/end - range of the addresses from which the resource will be
- * allocated
- * \param size the size of the resource
+ * \param rid resource identifier
  * \param flags RF_* flags defined in rman.h
  */
 static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
-                                             int rid, rman_addr_t start,
-                                             rman_addr_t end, size_t size,
-                                             res_flags_t flags) {
-  return BUS_DRIVER(dev)->bus.alloc_resource(dev, type, rid, start, end, size,
-                                             flags);
-}
-
-/*! \brief Allocates resource for a device.
- *
- * \sa bus_resource_alloc with resource placement in memory
- * chosen by the parent bus.
- */
-static inline resource_t *bus_alloc_resource_anywhere(device_t *dev,
-                                                      res_type_t type, int rid,
-                                                      size_t size,
-                                                      res_flags_t flags) {
-  return BUS_DRIVER(dev)->bus.alloc_resource(dev, type, rid, 0, RMAN_ADDR_MAX,
-                                             size, flags);
-}
-
-/*! \brief Allocates resource for a device.
- *
- * Basically the same as \sa bus_alloc_resource_anywhere, but resource
- * has to be identifiable by parent bus driver by \param rid.
- */
-static inline resource_t *bus_alloc_resource_any(device_t *dev, res_type_t type,
-                                                 int rid, res_flags_t flags) {
-
-  return BUS_DRIVER(dev)->bus.alloc_resource(dev, type, rid, 0, RMAN_ADDR_MAX,
-                                             RMAN_SIZE_MAX, flags);
+                                             int rid, res_flags_t flags) {
+  return BUS_DRIVER(dev)->bus.alloc_resource(dev, type, rid, flags);
 }
 
 /*! \brief Activates resource for a device.

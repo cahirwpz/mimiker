@@ -266,9 +266,9 @@ static device_t *gt_pci_find_child(device_t *pcib, int vid, int did) {
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
-  gtpci->pci_mem = bus_alloc_resource_any(pcib, RT_MEMORY, 0, RF_NONE);
-  gtpci->pci_io = bus_alloc_resource_any(pcib, RT_MEMORY, 1, RF_ACTIVE);
-  gtpci->corectrl = bus_alloc_resource_any(pcib, RT_MEMORY, 2, RF_ACTIVE);
+  gtpci->pci_mem = bus_alloc_resource(pcib, RT_MEMORY, 0, RF_NONE);
+  gtpci->pci_io = bus_alloc_resource(pcib, RT_MEMORY, 1, RF_ACTIVE);
+  gtpci->corectrl = bus_alloc_resource(pcib, RT_MEMORY, 2, RF_ACTIVE);
 
   if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
       gtpci->pci_io == NULL) {
@@ -295,7 +295,7 @@ static int gt_pci_attach(device_t *pcib) {
   bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
-  gtpci->irq_res = bus_alloc_resource_any(pcib, RT_IRQ, 0, RF_ACTIVE);
+  gtpci->irq_res = bus_alloc_resource(pcib, RT_IRQ, 0, RF_ACTIVE);
   bus_intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
                  "GT64120 main irq");
 
@@ -331,9 +331,7 @@ static int gt_pci_attach(device_t *pcib) {
 }
 
 static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
-                                         int rid, rman_addr_t start,
-                                         rman_addr_t end, size_t size,
-                                         res_flags_t flags) {
+                                         int rid, res_flags_t flags) {
   /* Currently all devices are logicaly attached to PCI bus,
    * because we don't have PCI-ISA bridge implemented. */
   assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
