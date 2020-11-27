@@ -197,5 +197,5 @@ void rman_release_resource(resource_t *r) {
   }
 
   /* Merging is done... we simply mark the region as free. */
-  r->r_flags &= ~RF_RESERVED;
+  r->r_flags = 0;
 }

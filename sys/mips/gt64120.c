@@ -376,7 +376,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     }
 
     if (bus_activate_resource(dev, type, rid, r)) {
-      bus_release_resource(dev, type, rid, r);
+      rman_release_resource(r);
       return NULL;
     }
   }
