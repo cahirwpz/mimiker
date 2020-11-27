@@ -18,13 +18,12 @@ typedef struct intr_handler intr_handler_t;
 typedef TAILQ_HEAD(res_list, resource) res_list_t;
 
 typedef enum {
-  RF_NONE = 0,
   RF_RESERVED = 1,
+  RF_ACTIVE = 2,
   /* According to PCI specification prefetchable bit is CLEAR when memory mapped
    * resource contains locations with read side-effects or locations in which
    * the device does not tolerate write merging. */
-  RF_PREFETCHABLE = 2,
-  RF_ACTIVE = 4,
+  RF_PREFETCHABLE = 4,
 } res_flags_t;
 
 struct resource {
