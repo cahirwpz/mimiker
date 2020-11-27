@@ -51,63 +51,28 @@ static int r_canmerge(resource_t *curr, resource_t *next) {
 }
 
 void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
-  assert((start + size - 1) >= start); /* check for overflow */
+  resource_t *r = resource_alloc(rm, start, start + size - 1, RF_RESERVED);
 
-  SCOPED_MTX_LOCK(&rm->rm_lock);
-
-  resource_t *r = resource_alloc(rm, start, start + size - 1, RF_NONE);
-  resource_t *cur;
-
-  /* Skip entries before us. */
-  TAILQ_FOREACH (cur, &rm->rm_resources, r_link) {
-    /* Note that we need this aditional check
-     * due to possible overflow in the following case. */
-    if (cur->r_end == RMAN_ADDR_MAX)
-      break;
-    if (cur->r_end + 1 >= r->r_start)
-      break;
-  }
-
-  /* If we ran off the end of the list, insert at the tail. */
-  if (!cur) {
-    TAILQ_INSERT_TAIL(&rm->rm_resources, r, r_link);
-    return;
-  }
-
-  assert(!r_overlap(r, cur));
-
-  resource_t *next = TAILQ_NEXT(cur, r_link);
-  if (next) {
-    assert(!r_overlap(r, next));
-
-    /* See if the new region can be merged with the next region.
-     * If not, clear the pointer. */
-    if (!r_canmerge(r, next))
-      next = NULL;
-  }
-
-  /* See if we can merge with the current region. */
-  if (cur->r_end != RMAN_ADDR_MAX && /* watch out for overflow */
-      r_canmerge(cur, r)) {
-    /* Can we merge all 3 regions? */
-    if (next) {
-      cur->r_end = next->r_end;
-      TAILQ_REMOVE(&rm->rm_resources, next, r_link);
-      kfree(M_RES, r);
-      kfree(M_RES, next);
-    } else {
-      cur->r_end = r->r_end;
-      kfree(M_RES, r);
+  WITH_MTX_LOCK (&rm->rm_lock) {
+    /* Skip entries before us. */
+    resource_t *cur;
+    TAILQ_FOREACH (cur, &rm->rm_resources, r_link) {
+      if (cur->r_end + 1 >= r->r_start)
+        break;
     }
-  } else if (next) {
-    /* We can merge with just the next region. */
-    next->r_start = r->r_start;
-    kfree(M_RES, r);
-  } else if (cur->r_end < r->r_start) {
-    TAILQ_INSERT_AFTER(&rm->rm_resources, cur, r, r_link);
-  } else {
-    TAILQ_INSERT_BEFORE(cur, r, r_link);
+
+    if (cur) {
+      resource_t *next = TAILQ_NEXT(cur, r_link);
+      assert(!r_overlap(r, cur));
+      if (next)
+        assert(!r_overlap(r, next));
+    } else {
+      /* If we ran off the end of the list, insert at the tail. */
+      TAILQ_INSERT_TAIL(&rm->rm_resources, r, r_link);
+    }
   }
+
+  rman_release_resource(r);
 }
 
 void rman_init_from_resource(rman_t *rm, const char *name, resource_t *r) {
@@ -213,6 +178,7 @@ void rman_release_resource(resource_t *r) {
   SCOPED_MTX_LOCK(&rm->rm_lock);
 
   assert(!r_active(r));
+  assert(r_reserved(r));
 
   /*
    * Look at the adjacent resources in the list and see if our resource
