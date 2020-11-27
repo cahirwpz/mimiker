@@ -54,61 +54,60 @@ static int r_canmerge(resource_t *curr, resource_t *next) {
 void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
   assert((start + size - 1) >= start); /* check for overflow */
 
+  SCOPED_MTX_LOCK(&rm->rm_lock);
+
   resource_t *r = rman_alloc_resource(rm, start, start + size - 1, RF_NONE, 0);
+  resource_t *cur;
 
-  WITH_MTX_LOCK (&rm->rm_lock) {
-    resource_t *cur;
+  /* Skip entries before us. */
+  TAILQ_FOREACH (cur, &rm->rm_resources, r_link) {
+    /* Note that we need this aditional check
+     * due to possible overflow in the following case. */
+    if (cur->r_end == RMAN_ADDR_MAX)
+      break;
+    if (cur->r_end + 1 >= r->r_start)
+      break;
+  }
 
-    /* Skip entries before us. */
-    TAILQ_FOREACH (cur, &rm->rm_resources, r_link) {
-      /* Note that we need this aditional check
-       * due to possible overflow in the following case. */
-      if (cur->r_end == RMAN_ADDR_MAX)
-        break;
-      if (cur->r_end + 1 >= r->r_start)
-        break;
-    }
+  /* If we ran off the end of the list, insert at the tail. */
+  if (!cur) {
+    TAILQ_INSERT_TAIL(&rm->rm_resources, r, r_link);
+    return;
+  }
 
-    /* If we ran off the end of the list, insert at the tail. */
-    if (!cur) {
-      TAILQ_INSERT_TAIL(&rm->rm_resources, r, r_link);
-      return;
-    }
+  assert(!r_overlap(r, cur));
 
-    assert(!r_overlap(r, cur));
+  resource_t *next = TAILQ_NEXT(cur, r_link);
+  if (next) {
+    assert(!r_overlap(r, next));
 
-    resource_t *next = TAILQ_NEXT(cur, r_link);
+    /* See if the new region can be merged with the next region.
+     * If not, clear the pointer. */
+    if (!r_canmerge(r, next))
+      next = NULL;
+  }
+
+  /* See if we can merge with the current region. */
+  if (cur->r_end != RMAN_ADDR_MAX && /* watch out for overflow */
+      r_canmerge(cur, r)) {
+    /* Can we merge all 3 regions? */
     if (next) {
-      assert(!r_overlap(r, next));
-
-      /* See if the new region can be merged with the next region.
-       * If not, clear the pointer. */
-      if (!r_canmerge(r, next))
-        next = NULL;
-    }
-
-    /* See if we can merge with the current region. */
-    if (cur->r_end != RMAN_ADDR_MAX && /* watch out for overflow */
-        r_canmerge(cur, r)) {
-      /* Can we merge all 3 regions? */
-      if (next) {
-        cur->r_end = next->r_end;
-        TAILQ_REMOVE(&rm->rm_resources, next, r_link);
-        kfree(M_RES, r);
-        kfree(M_RES, next);
-      } else {
-        cur->r_end = r->r_end;
-        kfree(M_RES, r);
-      }
-    } else if (next) {
-      /* We can merge with just the next region. */
-      next->r_start = r->r_start;
+      cur->r_end = next->r_end;
+      TAILQ_REMOVE(&rm->rm_resources, next, r_link);
       kfree(M_RES, r);
-    } else if (cur->r_end < r->r_start) {
-      TAILQ_INSERT_AFTER(&rm->rm_resources, cur, r, r_link);
+      kfree(M_RES, next);
     } else {
-      TAILQ_INSERT_BEFORE(cur, r, r_link);
+      cur->r_end = r->r_end;
+      kfree(M_RES, r);
     }
+  } else if (next) {
+    /* We can merge with just the next region. */
+    next->r_start = r->r_start;
+    kfree(M_RES, r);
+  } else if (cur->r_end < r->r_start) {
+    TAILQ_INSERT_AFTER(&rm->rm_resources, cur, r, r_link);
+  } else {
+    TAILQ_INSERT_BEFORE(cur, r, r_link);
   }
 }
 
@@ -118,21 +117,24 @@ void rman_init_from_resource(rman_t *rm, const char *name, resource_t *r) {
 }
 
 void rman_fini(rman_t *rm) {
-  WITH_MTX_LOCK (&rm->rm_lock) {
-    while (!TAILQ_EMPTY(&rm->rm_resources)) {
-      resource_t *r = TAILQ_FIRST(&rm->rm_resources);
-      assert(!r_reserved(r)); /* can't free resource that's in use */
-      TAILQ_REMOVE(&rm->rm_resources, r, r_link);
-      kfree(M_RES, r);
-    }
+  SCOPED_MTX_LOCK(&rm->rm_lock);
+
+  while (!TAILQ_EMPTY(&rm->rm_resources)) {
+    resource_t *r = TAILQ_FIRST(&rm->rm_resources);
+    assert(!r_reserved(r)); /* can't free resource that's in use */
+    TAILQ_REMOVE(&rm->rm_resources, r, r_link);
+    kfree(M_RES, r);
   }
+
   /* TODO: destroy the `rm_lock` after implementing `mtx_destroy`. */
 }
 
 static resource_t *rman_split(resource_t *r, rman_addr_t start, rman_addr_t end,
                               res_flags_t flags) {
-  rman_t *rm = r->r_rman;
   assert(mtx_owned(&rm->rm_lock));
+
+  rman_t *rm = r->r_rman;
+
   /*
    * If r->r_start < start and r->r_end > end,
    * then we need to split the region into three pieces
