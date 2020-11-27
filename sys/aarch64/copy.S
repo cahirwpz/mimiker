@@ -5,9 +5,8 @@
 #include "assym.h"
 
 /*
- * WARNING:
- * copyin, copyout and copyinstr make unsafe assumption that bcopy and copystr
- * not modify stack.
+ * WARNING: copyin, copyout and copyinstr make unsafe assumption that bcopy and
+ * copystr don't modify stack, stack pointer and callee saved registers.
  */
 
 .macro  set_onfault tmp td func
@@ -129,12 +128,12 @@ END(copyout)
 
 SENTRY(copyerr)
         /* 
-         * Here we need to restore link register from original copyin, copyout
-         * or copyinstr.
+         * Here we restore link register saved by copyin, copyout or copyinstr.
          */
+        mov     x0, #EFAULT
+
         ldr     lr, [sp]
         add     sp, sp, #16
-        mov     x0, #EFAULT
         ret
 END(copyerr)
 
