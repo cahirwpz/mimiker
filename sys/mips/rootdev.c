@@ -14,10 +14,6 @@ typedef struct rootdev {
   intr_event_t *intr_event[MIPS_NIRQ];
 } rootdev_t;
 
-typedef struct rootdev_device {
-  resource_list_t resources;
-} rootdev_device_t;
-
 static void rootdev_mask_irq(intr_event_t *ie) {
   int irq = ie->ie_irq;
   mips32_bc_c0(C0_STATUS, SR_IM0 << irq);
@@ -132,12 +128,10 @@ DEVCLASS_DECLARE(pci);
 static device_t *rootdev_add_child(device_t *bus, device_bus_t db,
                                    devclass_t *dc, int unit) {
   device_t *dev = device_add_child(bus, NULL, unit);
-  rootdev_device_t *rdd = kmalloc(M_DEV, sizeof(rootdev_device_t), M_WAITOK);
-  assert(dev && rdd);
+  assert(dev);
 
   dev->bus = db;
   dev->devclass = dc;
-  dev->instance = rdd;
   resource_list_init(dev);
 
   return dev;

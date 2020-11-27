@@ -31,10 +31,6 @@ typedef struct rootdev {
   intr_event_t *intr_event[NIRQ];
 } rootdev_t;
 
-typedef struct rootdev_device {
-  resource_list_t resources;
-} rootdev_device_t;
-
 /* BCM2836_ARM_LOCAL_BASE mapped into VA (4KiB). */
 static vaddr_t rootdev_local_handle;
 /* BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE) mapped into VA (4KiB). */
@@ -203,12 +199,8 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
 
 static device_t *rootdev_add_child(device_t *bus, devclass_t *dc, int unit) {
   device_t *dev = device_add_child(bus, dc, unit);
-  rootdev_device_t *rdd = kmalloc(M_DEV, sizeof(rootdev_device_t), M_WAITOK);
-  assert(dev && rdd);
-
-  dev->instance = rdd;
+  assert(dev);
   resource_list_init(dev);
-
   return dev;
 }
 

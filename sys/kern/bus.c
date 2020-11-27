@@ -7,17 +7,14 @@
 #include <sys/rman.h>
 #include <sys/devclass.h>
 
-#define RESOURCE_LIST_OF(dev) ((resource_list_t *)(dev)->instance)
-
 static KMALLOC_DEFINE(M_RLE, "resource list entries");
 
 void resource_list_init(device_t *dev) {
-  resource_list_t *rl = RESOURCE_LIST_OF(dev);
-  SLIST_INIT(rl);
+  SLIST_INIT(&dev->resources);
 }
 
 void resource_list_fini(device_t *dev) {
-  resource_list_t *rl = RESOURCE_LIST_OF(dev);
+  resource_list_t *rl = &dev->resources;
   resource_list_entry_t *rle;
 
   while ((rle = SLIST_FIRST(rl))) {
@@ -30,25 +27,24 @@ void resource_list_fini(device_t *dev) {
 
 resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
                                           int rid) {
-  resource_list_t *rl = RESOURCE_LIST_OF(dev);
   resource_list_entry_t *rle;
 
-  SLIST_FOREACH(rle, rl, link)
-  if (rle->type == type && rle->rid == rid)
-    return rle;
+  SLIST_FOREACH(rle, &dev->resources, link) {
+    if (rle->type == type && rle->rid == rid)
+      return rle;
+  }
   return NULL;
 }
 
 void resource_list_add(device_t *dev, res_type_t type, int rid,
                        rman_addr_t start, size_t count) {
-  resource_list_t *rl = RESOURCE_LIST_OF(dev);
   resource_list_entry_t *rle;
 
   if ((rle = resource_list_find(dev, rid, type)))
     panic("resource entry already exists");
 
   rle = kmalloc(M_RLE, sizeof(resource_list_entry_t), M_WAITOK);
-  SLIST_INSERT_HEAD(rl, rle, link);
+  SLIST_INSERT_HEAD(&dev->resources, rle, link);
   rle->res = NULL;
   rle->type = type;
   rle->rid = rid;

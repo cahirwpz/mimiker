@@ -4,14 +4,14 @@
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/linker_set.h>
-#include <sys/rman.h>
 
 typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;
-typedef struct resource resource_t;
 typedef struct bus_space bus_space_t;
+typedef struct resource_list_entry resource_list_entry_t;
 typedef TAILQ_HEAD(, device) device_list_t;
+typedef SLIST_HEAD(, resource_list_entry) resource_list_t;
 
 typedef int (*d_probe_t)(device_t *dev);
 typedef int (*d_attach_t)(device_t *dev);
@@ -40,6 +40,8 @@ struct device {
   int unit;
   void *instance; /* used by bus driver to store data in children */
   void *state;    /* memory requested by driver for its state */
+  resource_list_t
+    resources; /* resources for this device (managed by parent bus)*/
 };
 
 /*! \brief Called during kernel initialization. */

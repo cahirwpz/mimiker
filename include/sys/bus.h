@@ -9,18 +9,15 @@
 typedef struct bus_methods bus_methods_t;
 typedef struct bus_driver bus_driver_t;
 typedef struct intr_handler intr_handler_t;
-typedef SLIST_HEAD(, resource) res_slist_t;
 
-typedef struct resource_list_entry {
+struct resource_list_entry {
   SLIST_ENTRY(resource_list_entry) link;
   resource_t *res;   /* the actual resource when allocated */
   res_type_t type;   /* type argument to alloc_resource */
   int rid;           /* resource identifier */
   rman_addr_t start; /* start of resource range */
   size_t count;      /* number of bytes */
-} resource_list_entry_t;
-
-typedef SLIST_HEAD(, resource_list_entry) resource_list_t;
+};
 
 /*! \brief Initialize resource list. */
 void resource_list_init(device_t *dev);
