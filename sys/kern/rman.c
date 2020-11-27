@@ -42,37 +42,35 @@ static int r_reserved(resource_t *r) {
   return r->r_flags & RF_RESERVED;
 }
 
-static int r_overlap(resource_t *curr, resource_t *with) {
-  return curr->r_start <= with->r_end && curr->r_end >= with->r_start;
+static int r_disjoint(resource_t *r, resource_t *with) {
+  return with == NULL || r->r_start > with->r_end || r->r_end < with->r_start;
 }
 
-static int r_canmerge(resource_t *curr, resource_t *next) {
-  return (curr->r_end + 1 == next->r_start) && !r_reserved(next);
+static int r_canmerge(resource_t *r, resource_t *next) {
+  return (r->r_end + 1 == next->r_start) && !r_reserved(next);
 }
 
 void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
-  resource_t *r = resource_alloc(rm, start, start + size - 1, RF_RESERVED);
+  resource_t *reg = resource_alloc(rm, start, start + size - 1, RF_RESERVED);
 
   WITH_MTX_LOCK (&rm->rm_lock) {
     /* Skip entries before us. */
-    resource_t *cur;
-    TAILQ_FOREACH (cur, &rm->rm_resources, r_link) {
-      if (cur->r_end + 1 >= r->r_start)
+    resource_t *r;
+    TAILQ_FOREACH (r, &rm->rm_resources, r_link) {
+      if (r->r_end + 1 >= reg->r_start)
         break;
     }
 
-    if (cur) {
-      resource_t *next = TAILQ_NEXT(cur, r_link);
-      assert(!r_overlap(r, cur));
-      if (next)
-        assert(!r_overlap(r, next));
+    if (r) {
+      resource_t *next = TAILQ_NEXT(r, r_link);
+      assert(r_disjoint(reg, r) && r_disjoint(reg, next));
     } else {
       /* If we ran off the end of the list, insert at the tail. */
-      TAILQ_INSERT_TAIL(&rm->rm_resources, r, r_link);
+      TAILQ_INSERT_TAIL(&rm->rm_resources, reg, r_link);
     }
   }
 
-  rman_release_resource(r);
+  rman_release_resource(reg);
 }
 
 void rman_init_from_resource(rman_t *rm, const char *name, resource_t *r) {
