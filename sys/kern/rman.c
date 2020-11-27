@@ -24,10 +24,9 @@ void rman_init(rman_t *rm, const char *name) {
   TAILQ_INIT(&rm->rm_resources);
 }
 
-static resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t start,
-                                       rman_addr_t end, res_flags_t flags,
-                                       kmem_flags_t kflags) {
-  resource_t *r = kmalloc(M_RES, sizeof(resource_t), kflags | M_ZERO);
+static resource_t *resource_alloc(rman_t *rm, rman_addr_t start,
+                                  rman_addr_t end, res_flags_t flags) {
+  resource_t *r = kmalloc(M_RES, sizeof(resource_t), M_ZERO);
   r->r_rman = rm;
   r->r_start = start;
   r->r_end = end;
@@ -56,7 +55,7 @@ void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
 
   SCOPED_MTX_LOCK(&rm->rm_lock);
 
-  resource_t *r = rman_alloc_resource(rm, start, start + size - 1, RF_NONE, 0);
+  resource_t *r = resource_alloc(rm, start, start + size - 1, RF_NONE);
   resource_t *cur;
 
   /* Skip entries before us. */
@@ -129,40 +128,6 @@ void rman_fini(rman_t *rm) {
   /* TODO: destroy the `rm_lock` after implementing `mtx_destroy`. */
 }
 
-static resource_t *rman_split(resource_t *r, rman_addr_t start, rman_addr_t end,
-                              res_flags_t flags) {
-  assert(mtx_owned(&rm->rm_lock));
-
-  rman_t *rm = r->r_rman;
-
-  /*
-   * If r->r_start < start and r->r_end > end,
-   * then we need to split the region into three pieces
-   * (the middle one will get returned to the user).
-   * Otherwise, we are allocating at either the beginning
-   * or the end of s, so we only need to split it in two.
-   * The first case requires two allocations.
-   * The second requires but one.
-   */
-  resource_t *rv = rman_alloc_resource(rm, start, end, flags, M_NOWAIT);
-
-  if (r->r_start < start && r->r_end > end) {
-    resource_t *gap =
-      rman_alloc_resource(rm, end + 1, r->r_end, r->r_flags, M_NOWAIT);
-    r->r_end = start - 1;
-    TAILQ_INSERT_AFTER(&rm->rm_resources, r, rv, r_link);
-    TAILQ_INSERT_AFTER(&rm->rm_resources, rv, gap, r_link);
-  } else if (r->r_start == start) {
-    r->r_start = end + 1;
-    TAILQ_INSERT_BEFORE(r, rv, r_link);
-  } else {
-    r->r_end = start - 1;
-    TAILQ_INSERT_AFTER(&rm->rm_resources, r, rv, r_link);
-  }
-
-  return rv;
-}
-
 resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
                                   rman_addr_t end, size_t count,
                                   size_t alignment, res_flags_t flags) {
@@ -173,9 +138,6 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
 
   alignment = max(alignment, 1UL);
   assert(powerof2(alignment));
-
-  flags &= ~RF_ACTIVE;
-  flags |= RF_RESERVED;
 
   SCOPED_MTX_LOCK(&rm->rm_lock);
 
@@ -212,13 +174,26 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
     if (new_end > end)
       break;
 
-    /* Can we use the whole region? */
-    if (resource_size(r) == count) {
-      r->r_flags = flags;
-      return r;
+    /* Truncate the resource from both sides. This may create up to two new
+     * resource before and after the chosen one. */
+    if (r->r_start < new_start) {
+      resource_t *prev =
+        resource_alloc(rm, r->r_start, new_start - 1, r->r_flags);
+      TAILQ_INSERT_BEFORE(r, prev, r_link);
+      r->r_start = new_start;
     }
 
-    return rman_split(r, new_start, new_end, flags);
+    if (r->r_end > new_end) {
+      resource_t *next = resource_alloc(rm, new_end + 1, r->r_end, r->r_flags);
+      TAILQ_INSERT_AFTER(&rm->rm_resources, r, next, r_link);
+      r->r_end = new_end;
+    }
+
+    /* Finally... we're left with resource we were exactly looking for.
+     * Just mark is as reserved and add extra flags like RF_PREFETCHABLE. */
+    r->r_flags |= RF_RESERVED;
+    r->r_flags |= flags & ~RF_ACTIVE;
+    return r;
   }
 
   return NULL;
@@ -261,6 +236,6 @@ void rman_release_resource(resource_t *r) {
     kfree(M_RES, next);
   }
 
-  /* Merging is done... we simply mark the region as not reserved. */
+  /* Merging is done... we simply mark the region as free. */
   r->r_flags &= ~RF_RESERVED;
 }
