@@ -1,7 +1,7 @@
 /*
  * The kernel resource manager.
  *
- * Based on FreeBSD `subr_rman.c` file.
+ * Heavily inspired by FreeBSD's resource manager.
  *
  * This code is responsible for keeping track of hardware resources which
  * are apportioned out to various drivers. It does not actually assign those
@@ -15,8 +15,6 @@
 #include <sys/mimiker.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
-
-#define IS_RESERVED(r) ((r)->r_flags & RF_RESERVED)
 
 static KMALLOC_DEFINE(M_RES, "resources & regions");
 
@@ -35,6 +33,18 @@ static resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t start,
   r->r_end = end;
   r->r_flags = flags;
   return r;
+}
+
+static int r_reserved(resource_t *r) {
+  return r->r_flags & RF_RESERVED;
+}
+
+static int r_overlap(resource_t *curr, resource_t *with) {
+  return curr->r_start <= with->r_end && curr->r_end >= with->r_start;
+}
+
+static int r_canmerge(resource_t *curr, resource_t *next) {
+  return (curr->r_end + 1 == next->r_start) && !r_reserved(next);
 }
 
 void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
@@ -61,25 +71,21 @@ void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
       return;
     }
 
-    /* Check for any overlap with the current region. */
-    if (r->r_start <= cur->r_end && r->r_end >= cur->r_start)
-      panic("overlapping regions");
+    assert(!r_overlap(r, cur));
 
     resource_t *next = TAILQ_NEXT(cur, r_link);
     if (next) {
-      /* Check for any overlap with the next region. */
-      if (r->r_start <= next->r_end && r->r_end >= next->r_start)
-        panic("overlapping regions");
+      assert(!r_overlap(r, next));
 
       /* See if the new region can be merged with the next region.
        * If not, clear the pointer. */
-      if (r->r_end + 1 != next->r_start || IS_RESERVED(next))
+      if (!r_canmerge(r, next))
         next = NULL;
     }
 
     /* See if we can merge with the current region. */
     if (cur->r_end != RMAN_ADDR_MAX && /* watch out for overflow */
-        cur->r_end + 1 == r->r_start && !IS_RESERVED(cur)) {
+        r_canmerge(cur, r)) {
       /* Can we merge all 3 regions? */
       if (next) {
         cur->r_end = next->r_end;
@@ -111,8 +117,7 @@ void rman_fini(rman_t *rm) {
   WITH_MTX_LOCK (&rm->rm_lock) {
     while (!TAILQ_EMPTY(&rm->rm_resources)) {
       resource_t *r = TAILQ_FIRST(&rm->rm_resources);
-      if (IS_RESERVED(r))
-        panic("resource is busy");
+      assert(!r_reserved(r)); /* can't free resource that's in use */
       TAILQ_REMOVE(&rm->rm_resources, r, r_link);
       kfree(M_RES, r);
     }
@@ -157,65 +162,60 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
                                   size_t alignment, res_flags_t flags) {
   /* Watch out for overflow. */
   assert((start + count - 1) >= start);
-  assert(count);
+  assert((start + count - 1) <= end);
+  assert(count > 0);
 
   alignment = max(alignment, 1UL);
   assert(powerof2(alignment));
 
-  /* Discard sensless requests. */
-  if (start + count - 1 > end)
-    return NULL;
+  flags &= ~RF_ACTIVE;
+  flags |= RF_RESERVED;
 
-  flags = (flags | RF_RESERVED) & ~RF_ACTIVE;
+  SCOPED_MTX_LOCK(&rm->rm_lock);
 
-  resource_t *rv = NULL;
+  resource_t *r;
+  TAILQ_FOREACH (r, &rm->rm_resources, r_link) {
+    /* Skip lower regions. */
+    if (r->r_end < start + count - 1)
+      continue;
 
-  WITH_MTX_LOCK (&rm->rm_lock) {
-    resource_t *r;
+    /* Skip reserved regions. */
+    if (r_reserved(r))
+      continue;
 
-    TAILQ_FOREACH (r, &rm->rm_resources, r_link) {
-      /* Skip lower regions. */
-      if (r->r_end < start + count - 1)
-        continue;
-
-      /* Skip reserved regions. */
-      if (IS_RESERVED(r))
-        continue;
-
-      /* Stop if we've gone too far. */
-      if (r->r_start > end - count + 1)
-        break;
-
-      /* Stop if roundup causes overflow. */
-      if (r->r_start > RMAN_ADDR_MAX - alignment + 1)
-        break;
-
-      rman_addr_t new_start = roundup(max(r->r_start, start), alignment);
-      rman_addr_t new_end = new_start + count - 1;
-
-      /* Check for overflow. */
-      if ((new_start + count - 1) < new_start)
-        break;
-
-      /* See if it fits. */
-      if (new_end > r->r_end)
-        continue;
-
-      /* Isn't it too far? */
-      if (new_end > end)
-        break;
-
-      /* Can we use the whole region? */
-      if (r->r_end - r->r_start + 1 == count) {
-        rv = r;
-        rv->r_flags = flags;
-      } else {
-        rv = rman_split(r, new_start, new_end, flags);
-      }
+    /* Stop if we've gone too far. */
+    if (r->r_start > end - count + 1)
       break;
+
+    /* Stop if roundup causes overflow. */
+    if (r->r_start > RMAN_ADDR_MAX - alignment + 1)
+      break;
+
+    rman_addr_t new_start = roundup(max(r->r_start, start), alignment);
+    rman_addr_t new_end = new_start + count - 1;
+
+    /* Check for overflow. */
+    if ((new_start + count - 1) < new_start)
+      break;
+
+    /* See if it fits. */
+    if (new_end > r->r_end)
+      continue;
+
+    /* Isn't it too far? */
+    if (new_end > end)
+      break;
+
+    /* Can we use the whole region? */
+    if (r->r_end - r->r_start + 1 == count) {
+      r->r_flags = flags;
+      return r;
     }
+
+    return rman_split(r, new_start, new_end, flags);
   }
-  return rv;
+
+  return NULL;
 }
 
 void rman_activate_resource(resource_t *r) {
@@ -239,10 +239,10 @@ void rman_release_resource(resource_t *r) {
      * cannot be merged with our resource.
      */
     resource_t *prev = TAILQ_PREV(r, res_list, r_link);
-    if (prev && (IS_RESERVED(prev) || prev->r_end + 1 != r->r_start))
+    if (prev && (r_reserved(prev) || prev->r_end + 1 != r->r_start))
       prev = NULL;
     resource_t *next = TAILQ_NEXT(r, r_link);
-    if (next && (IS_RESERVED(next) || r->r_end + 1 != next->r_start))
+    if (next && (r_reserved(next) || r->r_end + 1 != next->r_start))
       next = NULL;
 
     if (prev && next) {
