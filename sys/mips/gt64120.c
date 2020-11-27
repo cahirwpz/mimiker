@@ -253,6 +253,16 @@ static intr_filter_t gt_pci_intr(void *data) {
   return IF_FILTERED;
 }
 
+static device_t *gt_pci_find_child(device_t *pcib, int vid, int did) {
+  device_t *dev;
+  TAILQ_FOREACH (dev, &pcib->children, link) {
+    pci_device_t *pcid = pci_device_of(dev);
+    if (pci_device_match(pcid, vid, did))
+      return dev;
+  }
+  return NULL;
+}
+
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
@@ -285,18 +295,23 @@ static int gt_pci_attach(device_t *pcib) {
   bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
-  pci_bus_enumerate(pcib);
-
   gtpci->irq_res = bus_alloc_resource_any(pcib, RT_IRQ, 0, RF_ACTIVE);
   bus_intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
                  "GT64120 main irq");
+
+  pci_bus_enumerate(pcib);
+
+  /* Add the irq for RTL8139. */
+  device_t *dev = gt_pci_find_child(pcib, 0x10ec, 0x8139);
+  if (dev)
+    resource_list_add_irq(dev, 0, 10);
 
   /*
    * Create child devices of ISA bus.
    */
 
   /* Create atkbdc keyboard device and assing resources to it. */
-  device_t *dev = pci_add_child(pcib, 0);
+  dev = pci_add_child(pcib, 0);
   resource_list_add(dev, RT_IOPORTS, 0, IO_KBD, IO_KBDSIZE);
   resource_list_add_irq(dev, 0, 1);
 
