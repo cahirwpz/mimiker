@@ -1281,4 +1281,10 @@ typedef struct {
 } Elf32_Versym;
 typedef Elf32_Versym Elf64_Versym;
 
+#ifdef _KERNEL
+
+#define ELF_MAXPHNUM 128
+
+#endif /* !_KERNEL */
+
 #endif /* !_SYS_EXEC_ELF_H_ */
