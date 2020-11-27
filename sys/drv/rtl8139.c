@@ -7,7 +7,7 @@
 #include <sys/libkern.h>
 #include <sys/devfs.h>
 #include <sys/devclass.h>
-#include "rtl8139_reg.h"
+#include <dev/rtl8139_reg.h>
 
 #define RTL8139_VENDOR_ID 0x10ec
 #define RTL8139_DEVICE_ID 0x8139
@@ -40,12 +40,10 @@ static int rtl8139_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
   rtl8139_state_t *state = dev->state;
 
-  klog("### RTL8139 DUMMY DRIVER");
-
   state->regs = bus_alloc_resource_any(dev, RT_MEMORY, 1, RF_ACTIVE);
 
   if (state->regs == NULL)
-    panic("rtl8139 alloc resource error");
+    return -1;
 
   rtk_reset(state);
 

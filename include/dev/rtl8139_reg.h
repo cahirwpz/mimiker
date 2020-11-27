@@ -1,3 +1,5 @@
+#ifndef _RTL8139_REG_H_
+#define _RTL8139_REG_H_
 /*
  * Copied from FreeBSD: sys/dev/rl/if_rlreg.h
  */
@@ -17,3 +19,4 @@
 #define RL_CFG1_PWRON           0x00
 
 #define RL_TIMEOUT              (10*1000)
+#endif /* !_RTL8139_REG_H_ */
