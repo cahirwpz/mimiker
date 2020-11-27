@@ -14,10 +14,12 @@ ENTRY(_start)
         # Prepare argv.
         add     x1, sp, #8
 
-        # Prepare envp.
-        add     x2, sp, #16
+        # Prepare envp, it starts at argv + argc + 1
+        lsl     x2, x0, #3
+        add     x2, x1, x2
+        add     x2, x2, #8
 
-        # Jump to start in crt0-common.
+        # Jump to start in crt0-common.c
         # void ___start(int argc, char **argv, char **envp)
         b       ___start
         nop
