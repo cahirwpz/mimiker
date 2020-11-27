@@ -22,13 +22,13 @@ static int rtl8139_probe(device_t *dev) {
   return pci_device_match(pcid, RTL8139_VENDOR_ID, RTL8139_DEVICE_ID);
 }
 
-static void rtk_reset(rtl8139_state_t * state) {
+static void rtk_reset(rtl8139_state_t *state) {
   int i;
 
   bus_write_1(state->regs, RL_8139_CFG1, RL_CFG1_PWRON);
   bus_write_1(state->regs, RL_COMMAND, RL_CMD_RESET);
   for (i = 0; i < RL_TIMEOUT; i++) {
-    if  (!(bus_read_1(state->regs, RL_COMMAND) & RL_CMD_RESET))
+    if (!(bus_read_1(state->regs, RL_COMMAND) & RL_CMD_RESET))
       break;
   }
 
@@ -38,12 +38,11 @@ static void rtk_reset(rtl8139_state_t * state) {
 
 static int rtl8139_attach(device_t *dev) {
   assert(dev->parent->bus == DEV_BUS_PCI);
-  rtl8139_state_t * state = dev->state;
+  rtl8139_state_t *state = dev->state;
 
   klog("### RTL8139 DUMMY DRIVER");
 
-  state->regs =
-    bus_alloc_resource_any(dev, RT_MEMORY, 1, RF_ACTIVE);
+  state->regs = bus_alloc_resource_any(dev, RT_MEMORY, 1, RF_ACTIVE);
 
   if (state->regs == NULL)
     panic("rtl8139 alloc resource error");
