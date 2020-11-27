@@ -238,43 +238,27 @@ void rman_release_resource(resource_t *r) {
   assert(!r_active(r));
 
   /*
-   * Look at the adjacent resources in the list and see if our
-   * resource can be merged with any of them. If either of the
-   * resources is reserved or is not exactly adjacent then they
-   * cannot be merged with our resource.
+   * Look at the adjacent resources in the list and see if our resource
+   * can be merged with any of them. If either of the resources is reserved
+   * or is not adjacent then they cannot be merged with our resource.
    */
   resource_t *prev = TAILQ_PREV(r, res_list, r_link);
-  if (prev && !r_canmerge(prev, r))
-    prev = NULL;
-  resource_t *next = TAILQ_NEXT(r, r_link);
-  if (next && !r_canmerge(r, next))
-    next = NULL;
-
-  if (prev && next) {
-    /* Merge all three regions. */
-    prev->r_end = next->r_end;
-    TAILQ_REMOVE(&rm->rm_resources, next, r_link);
-    kfree(M_RES, next);
-  } else if (prev) {
+  if (prev && r_canmerge(prev, r)) {
     /* Merge previous region with ours. */
     prev->r_end = r->r_end;
-  } else if (next) {
-    /* Merge next region with ours. */
-    next->r_start = r->r_start;
-  } else {
-    /*
-     * At this point, we know there is nothing we can
-     * potentially merge with, because on each side,
-     * there is either nothing there or what is there
-     * is still reserved. In that case, we don't want
-     * to remove the resource from the list, we simply
-     * want to change it to an unreserved region and
-     * return without freeing anything.
-     */
-    r->r_flags &= ~RF_RESERVED;
-    return;
+    TAILQ_REMOVE(&rm->rm_resources, r, r_link);
+    kfree(M_RES, r);
+    r = prev;
   }
 
-  TAILQ_REMOVE(&rm->rm_resources, r, r_link);
-  kfree(M_RES, r);
+  resource_t *next = TAILQ_NEXT(r, r_link);
+  if (next && r_canmerge(r, next)) {
+    /* Merge next region with ours. */
+    r->r_end = next->r_end;
+    TAILQ_REMOVE(&rm->rm_resources, next, r_link);
+    kfree(M_RES, next);
+  }
+
+  /* Merging is done... we simply mark the region as not reserved. */
+  r->r_flags &= ~RF_RESERVED;
 }
