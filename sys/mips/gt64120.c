@@ -296,19 +296,19 @@ static int gt_pci_attach(device_t *pcib) {
    */
 
   /* Create atkbdc keyboard device and assing resources to it. */
-  resource_list_t *rl = RESOURCE_LIST_OF(pci_add_child(pcib, 0));
-  resource_list_add(rl, RT_IOPORTS, 0, IO_KBD, IO_KBDSIZE);
-  resource_list_add_irq(rl, 0, 1);
+  device_t *dev = pci_add_child(pcib, 0);
+  resource_list_add(dev, RT_IOPORTS, 0, IO_KBD, IO_KBDSIZE);
+  resource_list_add_irq(dev, 0, 1);
 
   /* Create ns16550 device and assing resources to it. */
-  rl = RESOURCE_LIST_OF(pci_add_child(pcib, 1));
-  resource_list_add(rl, RT_IOPORTS, 0, IO_COM1, IO_COMSIZE);
-  resource_list_add_irq(rl, 0, 4);
+  dev = pci_add_child(pcib, 1);
+  resource_list_add(dev, RT_IOPORTS, 0, IO_COM1, IO_COMSIZE);
+  resource_list_add_irq(dev, 0, 4);
 
   /* Create rtc device and assing resources to it. */
-  rl = RESOURCE_LIST_OF(pci_add_child(pcib, 2));
-  resource_list_add(rl, RT_IOPORTS, 0, IO_RTC, IO_RTCSIZE);
-  resource_list_add_irq(rl, 0, 8);
+  dev = pci_add_child(pcib, 2);
+  resource_list_add(dev, RT_IOPORTS, 0, IO_RTC, IO_RTCSIZE);
+  resource_list_add_irq(dev, 0, 8);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
 
@@ -323,7 +323,6 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
    * because we don't have PCI-ISA bridge implemented. */
   assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
 
-  resource_list_t *rl = RESOURCE_LIST_OF(dev);
   device_t *pcib = dev->parent;
   gt_pci_state_t *gtpci = pcib->state;
   bus_space_handle_t bh;
@@ -341,7 +340,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     panic("Unknown PCI device type: %d", type);
   }
 
-  resource_t *r = resource_list_alloc(rl, from, type, rid, flags);
+  resource_t *r = resource_list_alloc(dev, from, type, rid, flags);
   if (r == NULL)
     return NULL;
 
@@ -352,7 +351,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     }
 
     if (bus_activate_resource(dev, type, rid, r)) {
-      resource_list_release(rl, type, rid, r);
+      resource_list_release(dev, type, rid, r);
       return NULL;
     }
   }
@@ -363,8 +362,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 static void gt_pci_release_resource(device_t *dev, res_type_t type, int rid,
                                     resource_t *r) {
   /* TODO: we should unmap mapped resources. */
-  resource_list_t *rl = RESOURCE_LIST_OF(dev);
-  resource_list_release(rl, type, rid, r);
+  resource_list_release(dev, type, rid, r);
 }
 
 static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,

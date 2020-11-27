@@ -7,13 +7,17 @@
 #include <sys/rman.h>
 #include <sys/devclass.h>
 
+#define RESOURCE_LIST_OF(dev) ((resource_list_t *)(dev)->instance)
+
 static KMALLOC_DEFINE(M_RLE, "resource list entries");
 
-void resource_list_init(resource_list_t *rl) {
+void resource_list_init(device_t *dev) {
+  resource_list_t *rl = RESOURCE_LIST_OF(dev);
   SLIST_INIT(rl);
 }
 
-void resource_list_fini(resource_list_t *rl) {
+void resource_list_fini(device_t *dev) {
+  resource_list_t *rl = RESOURCE_LIST_OF(dev);
   resource_list_entry_t *rle;
 
   while ((rle = SLIST_FIRST(rl))) {
@@ -24,8 +28,9 @@ void resource_list_fini(resource_list_t *rl) {
   }
 }
 
-resource_list_entry_t *resource_list_find(resource_list_t *rl, res_type_t type,
+resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
                                           int rid) {
+  resource_list_t *rl = RESOURCE_LIST_OF(dev);
   resource_list_entry_t *rle;
 
   SLIST_FOREACH(rle, rl, link)
@@ -34,11 +39,12 @@ resource_list_entry_t *resource_list_find(resource_list_t *rl, res_type_t type,
   return NULL;
 }
 
-void resource_list_add(resource_list_t *rl, res_type_t type, int rid,
+void resource_list_add(device_t *dev, res_type_t type, int rid,
                        rman_addr_t start, size_t count) {
+  resource_list_t *rl = RESOURCE_LIST_OF(dev);
   resource_list_entry_t *rle;
 
-  if ((rle = resource_list_find(rl, rid, type)))
+  if ((rle = resource_list_find(dev, rid, type)))
     panic("resource entry already exists");
 
   rle = kmalloc(M_RLE, sizeof(resource_list_entry_t), M_WAITOK);
@@ -50,12 +56,11 @@ void resource_list_add(resource_list_t *rl, res_type_t type, int rid,
   rle->count = count;
 }
 
-resource_t *resource_list_alloc(resource_list_t *rl, rman_t *rman,
-                                res_type_t type, int rid, res_flags_t flags) {
+resource_t *resource_list_alloc(device_t *dev, rman_t *rman, res_type_t type,
+                                int rid, res_flags_t flags) {
   resource_list_entry_t *rle;
-  assert(rl);
 
-  if (!(rle = resource_list_find(rl, type, rid))) {
+  if (!(rle = resource_list_find(dev, type, rid))) {
     /* no resource entry of that type/rid */
     return NULL;
   }
@@ -69,12 +74,11 @@ resource_t *resource_list_alloc(resource_list_t *rl, rman_t *rman,
   return r;
 }
 
-void resource_list_release(resource_list_t *rl, res_type_t type, int rid,
+void resource_list_release(device_t *dev, res_type_t type, int rid,
                            resource_t *res) {
   resource_list_entry_t *rle;
-  assert(rl);
 
-  if (!(rle = resource_list_find(rl, type, rid)))
+  if (!(rle = resource_list_find(dev, type, rid)))
     panic("can't find the resource entry");
 
   if (!rle->res)

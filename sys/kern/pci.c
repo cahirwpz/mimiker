@@ -57,7 +57,7 @@ device_t *pci_add_child(device_t *bus, int unit) {
 
   dev->bus = DEV_BUS_PCI;
   dev->instance = pcid;
-  resource_list_init(&pcid->resources);
+  resource_list_init(dev);
 
   return dev;
 }
@@ -130,10 +130,10 @@ void pci_bus_enumerate(device_t *pcib) {
         /* TODO: set absoulte addresses for memory resources
          * after merging the new rman. */
         if (type == RT_IOPORTS) {
-          resource_list_add(&pcid->resources, RT_IOPORTS, id, io_offset, size);
+          resource_list_add(dev, RT_IOPORTS, id, io_offset, size);
           io_offset += size;
         } else {
-          resource_list_add(&pcid->resources, RT_MEMORY, id, mem_offset, size);
+          resource_list_add(dev, RT_MEMORY, id, mem_offset, size);
           mem_offset += size;
         }
 

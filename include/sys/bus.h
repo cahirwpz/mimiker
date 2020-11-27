@@ -22,31 +22,29 @@ typedef struct resource_list_entry {
 
 typedef SLIST_HEAD(, resource_list_entry) resource_list_t;
 
-#define RESOURCE_LIST_OF(dev) ((resource_list_t *)(dev)->instance)
-
-/*! \brief Initialize a resource list. */
-void resource_list_init(resource_list_t *rl);
+/*! \brief Initialize resource list. */
+void resource_list_init(device_t *dev);
 
 /*! \brief Reclaim memory used by a resouce list. */
-void resource_list_fini(resource_list_t *rl);
+void resource_list_fini(device_t *dev);
 
 /*! \brief Add a resource entry to resource list. */
-void resource_list_add(resource_list_t *rl, res_type_t type, int rid,
+void resource_list_add(device_t *dev, res_type_t type, int rid,
                        rman_addr_t start, size_t count);
 
-#define resource_list_add_irq(rl, rid, irq)                                    \
-  resource_list_add((rl), RT_IRQ, (rid), (irq), 1)
+#define resource_list_add_irq(dev, rid, irq)                                   \
+  resource_list_add((dev), RT_IRQ, (rid), (irq), 1)
 
 /*! \brief Find a resource entry by type and rid. */
-resource_list_entry_t *resource_list_find(resource_list_t *rl, res_type_t type,
+resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
                                           int rid);
 
 /*! \brief Allocate a resource based on resource list entry. */
-resource_t *resource_list_alloc(resource_list_t *rl, rman_t *rman,
-                                res_type_t type, int rid, res_flags_t flags);
+resource_t *resource_list_alloc(device_t *dev, rman_t *rman, res_type_t type,
+                                int rid, res_flags_t flags);
 
 /*! \brief Release an allocated resource. */
-void resource_list_release(resource_list_t *rl, res_type_t type, int rid,
+void resource_list_release(device_t *dev, res_type_t type, int rid,
                            resource_t *res);
 
 /* `bus space` describes a method to access hardware resources mapped at some
