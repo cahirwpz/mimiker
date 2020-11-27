@@ -96,9 +96,7 @@ void rman_fini(rman_t *rm) {
 resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
                                   rman_addr_t end, size_t count,
                                   size_t alignment, res_flags_t flags) {
-  /* Watch out for overflow. */
-  assert((start + count - 1) >= start);
-  assert((start + count - 1) <= end);
+  assert(start + count - 1 <= end);
   assert(count > 0);
 
   alignment = max(alignment, 1UL);
@@ -120,16 +118,8 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
     if (r->r_start > end - count + 1)
       break;
 
-    /* Stop if roundup causes overflow. */
-    if (r->r_start > RMAN_ADDR_MAX - alignment + 1)
-      break;
-
     rman_addr_t new_start = roundup(max(r->r_start, start), alignment);
     rman_addr_t new_end = new_start + count - 1;
-
-    /* Check for overflow. */
-    if ((new_start + count - 1) < new_start)
-      break;
 
     /* See if it fits. */
     if (new_end > r->r_end)
