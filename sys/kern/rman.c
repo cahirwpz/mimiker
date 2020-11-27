@@ -35,6 +35,10 @@ static resource_t *rman_alloc_resource(rman_t *rm, rman_addr_t start,
   return r;
 }
 
+static int r_active(resource_t *r) {
+  return r->r_flags & RF_ACTIVE;
+}
+
 static int r_reserved(resource_t *r) {
   return r->r_flags & RF_RESERVED;
 }
@@ -207,7 +211,7 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
       break;
 
     /* Can we use the whole region? */
-    if (r->r_end - r->r_start + 1 == count) {
+    if (resource_size(r) == count) {
       r->r_flags = flags;
       return r;
     }
@@ -229,48 +233,48 @@ void rman_deactivate_resource(resource_t *r) {
 void rman_release_resource(resource_t *r) {
   rman_t *rm = r->r_rman;
 
-  WITH_MTX_LOCK (&rm->rm_lock) {
-    if (r->r_flags & RF_ACTIVE)
-      panic("releasing an active resource");
-    /*
-     * Look at the adjacent resources in the list and see if our
-     * resource can be merged with any of them. If either of the
-     * resources is reserved or is not exactly adjacent then they
-     * cannot be merged with our resource.
-     */
-    resource_t *prev = TAILQ_PREV(r, res_list, r_link);
-    if (prev && (r_reserved(prev) || prev->r_end + 1 != r->r_start))
-      prev = NULL;
-    resource_t *next = TAILQ_NEXT(r, r_link);
-    if (next && (r_reserved(next) || r->r_end + 1 != next->r_start))
-      next = NULL;
+  SCOPED_MTX_LOCK(&rm->rm_lock);
 
-    if (prev && next) {
-      /* Merge all three regions. */
-      prev->r_end = next->r_end;
-      TAILQ_REMOVE(&rm->rm_resources, next, r_link);
-      kfree(M_RES, next);
-    } else if (prev) {
-      /* Merge previous region with ours. */
-      prev->r_end = r->r_end;
-    } else if (next) {
-      /* Merge next region with ours. */
-      next->r_start = r->r_start;
-    } else {
-      /*
-       * At this point, we know there is nothing we can
-       * potentially merge with, because on each side,
-       * there is either nothing there or what is there
-       * is still reserved. In that case, we don't want
-       * to remove the resource from the list, we simply
-       * want to change it to an unreserved region and
-       * return without freeing anything.
-       */
-      r->r_flags &= ~RF_RESERVED;
-      mtx_unlock(&rm->rm_lock);
-      return;
-    }
-    TAILQ_REMOVE(&rm->rm_resources, r, r_link);
-    kfree(M_RES, r);
+  assert(!r_active(r));
+
+  /*
+   * Look at the adjacent resources in the list and see if our
+   * resource can be merged with any of them. If either of the
+   * resources is reserved or is not exactly adjacent then they
+   * cannot be merged with our resource.
+   */
+  resource_t *prev = TAILQ_PREV(r, res_list, r_link);
+  if (prev && !r_canmerge(prev, r))
+    prev = NULL;
+  resource_t *next = TAILQ_NEXT(r, r_link);
+  if (next && !r_canmerge(r, next))
+    next = NULL;
+
+  if (prev && next) {
+    /* Merge all three regions. */
+    prev->r_end = next->r_end;
+    TAILQ_REMOVE(&rm->rm_resources, next, r_link);
+    kfree(M_RES, next);
+  } else if (prev) {
+    /* Merge previous region with ours. */
+    prev->r_end = r->r_end;
+  } else if (next) {
+    /* Merge next region with ours. */
+    next->r_start = r->r_start;
+  } else {
+    /*
+     * At this point, we know there is nothing we can
+     * potentially merge with, because on each side,
+     * there is either nothing there or what is there
+     * is still reserved. In that case, we don't want
+     * to remove the resource from the list, we simply
+     * want to change it to an unreserved region and
+     * return without freeing anything.
+     */
+    r->r_flags &= ~RF_RESERVED;
+    return;
   }
+
+  TAILQ_REMOVE(&rm->rm_resources, r, r_link);
+  kfree(M_RES, r);
 }
