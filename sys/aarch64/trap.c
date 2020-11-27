@@ -13,6 +13,10 @@
 #include <aarch64/interrupt.h>
 #include <aarch64/pmap.h>
 
+/* The value of the immediate field from the SVC instruction - syscall number
+ * in our case */
+#define ESR_EL1_SVC_IMM16 0xffff
+
 static __noreturn void kernel_oops(ctx_t *ctx) {
   kprintf("KERNEL PANIC!!! \n");
   panic();
@@ -124,8 +128,7 @@ void user_trap_handler(user_ctx_t *uctx) {
       break;
 
     case EXCP_SVC64:
-      /* TODO(pj): remove magic */
-      syscall_handler(esr & 0xffff, ctx);
+      syscall_handler(esr & ESR_EL1_SVC_IMM16, ctx);
       break;
 
     case EXCP_SP_ALIGN:
