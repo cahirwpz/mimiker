@@ -9,6 +9,7 @@
 #include <sys/errno.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
+#include <machine/elf_arch.h>
 
 int exec_elf_inspect(vnode_t *vn, Elf_Ehdr *eh) {
   int error;
@@ -59,9 +60,24 @@ int exec_elf_inspect(vnode_t *vn, Elf_Ehdr *eh) {
     klog("Exec failed: ELF target architecture is not supported");
     return ENOEXEC;
   }
-  /* Ensure minimal prog header size */
-  if (eh->e_phentsize < sizeof(Elf_Phdr)) {
-    klog("Exec failed: ELF file program headers are too short");
+  /* Check ELF header size */
+  if (eh->e_ehsize != sizeof(Elf_Ehdr)) {
+    klog("Exec failed: incorrect ELF header size");
+    return ENOEXEC;
+  }
+  /* Check prog header size */
+  if (eh->e_phentsize != sizeof(Elf_Phdr)) {
+    klog("Exec failed: incorrect ELF program header size");
+    return ENOEXEC;
+  }
+  /* Check number of prog headers */
+  if (eh->e_phnum >= ELF_MAXPHNUM) {
+    klog("Exec failed: too many program headers");
+    return ENOEXEC;
+  }
+  /* Check section entry header size */
+  if (eh->e_shentsize != sizeof(Elf_Shdr)) {
+    klog("Exec failed: incorrect ELF section header size");
     return ENOEXEC;
   }
 
@@ -130,12 +146,11 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
 }
 
 int exec_elf_load(proc_t *p, vnode_t *vn, Elf_Ehdr *eh) {
+  /* We know that ELF header was verified in inspect function. */
   int error;
 
-  assert(eh->e_phentsize < 128);
-
   /* Read in program headers. */
-  size_t phs_size = eh->e_phoff * eh->e_phentsize;
+  size_t phs_size = eh->e_phnum * eh->e_phentsize;
   char *phs = kmalloc(M_TEMP, phs_size, 0);
   uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, eh->e_phoff, phs, phs_size);
   if ((error = VOP_READ(vn, &uio, 0))) {
