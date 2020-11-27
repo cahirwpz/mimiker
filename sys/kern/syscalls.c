@@ -859,9 +859,9 @@ end:
 }
 
 static int sys_fchown(proc_t *p, fchown_args_t *args, register_t *res) {
-  int fd = args->fd;
-  uid_t uid = args->uid;
-  gid_t gid = args->gid;
+  int fd = SCARG(args, fd);
+  uid_t uid = SCARG(args, uid);
+  gid_t gid = SCARG(args, gid);
 
   klog("fchown(%d, %d)", uid, gid);
 
@@ -869,11 +869,11 @@ static int sys_fchown(proc_t *p, fchown_args_t *args, register_t *res) {
 }
 
 static int sys_fchownat(proc_t *p, fchownat_args_t *args, register_t *res) {
-  int fd = args->fd;
-  const char *u_path = args->path;
-  uid_t uid = args->uid;
-  gid_t gid = args->gid;
-  int flag = args->flag;
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  uid_t uid = SCARG(args, uid);
+  gid_t gid = SCARG(args, gid);
+  int flag = SCARG(args, flag);
   int error;
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
