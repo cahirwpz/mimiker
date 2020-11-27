@@ -23,7 +23,7 @@
 #define SYSCALL(name, num)                                                     \
   ENTRY(name);                                                                 \
   svc num;                                                                     \
-  cbnz x1, _C_LABEL(__sc_error);                                                                 \
+  cbnz x1, _C_LABEL(__sc_error);                                               \
   ret;                                                                         \
   END(name)
 
