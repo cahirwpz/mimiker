@@ -337,15 +337,17 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         refcnt_acquire(&it->object->ref_counter);
         obj = it->object;
       } else {
+        vm_object_t *shadow = it->object;
+
         obj = vm_object_alloc(VM_SHADOW);
-        obj->shadow_object = it->object;
+        obj->shadow_object = shadow;
 
         it->object = vm_object_alloc(VM_SHADOW);
-        it->object->shadow_object = obj->shadow_object;
+        it->object->shadow_object = shadow;
 
-        refcnt_acquire(&it->object->shadow_object->ref_counter);
+        refcnt_acquire(&shadow->ref_counter);
 
-        vm_object_set_readonly(it->object->shadow_object);
+        vm_object_set_readonly(shadow);
 
         seg = vm_segment_alloc(obj, it->start, it->end, it->prot);
       }
@@ -391,9 +393,10 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   vaddr_t fault_page = fault_addr & -PAGESIZE;
   vaddr_t offset = fault_page - seg->start;
-  vm_page_t *frame = vm_object_find_page(seg->object, offset);
+  vm_page_t *frame = vm_object_find_page(obj, offset);
 
-  if (frame == NULL && obj->shadow_object && (fault_type == VM_PROT_READ)) {
+  if (frame == NULL && obj->shadow_object && fault_type == VM_PROT_READ &&
+      seg->prot == VM_PROT_READ) {
     vm_object_t *it = obj->shadow_object;
 
     while (frame == NULL && it != NULL) {
