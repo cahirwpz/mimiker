@@ -348,8 +348,6 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         refcnt_acquire(&shadow->ref_counter);
 
         vm_object_set_readonly(shadow);
-
-        seg = vm_segment_alloc(obj, it->start, it->end, it->prot);
       }
       seg = vm_segment_alloc(obj, it->start, it->end, it->prot, it->flags);
       TAILQ_INSERT_TAIL(&new_map->entries, seg, link);
