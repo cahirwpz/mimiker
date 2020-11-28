@@ -337,10 +337,10 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         refcnt_acquire(&it->object->ref_counter);
         obj = it->object;
       } else {
-        obj = vm_object_alloc(VM_ANONYMOUS);
+        obj = vm_object_alloc(VM_SHADOW);
         obj->shadow_object = it->object;
 
-        it->object = vm_object_alloc(VM_ANONYMOUS);
+        it->object = vm_object_alloc(VM_SHADOW);
         it->object->shadow_object = obj->shadow_object;
 
         refcnt_acquire(&it->object->shadow_object->ref_counter);
