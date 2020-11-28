@@ -150,3 +150,6 @@ UTEST_ADD_SIMPLE(gettimeofday);
 UTEST_ADD_SIMPLE(get_set_uid);
 UTEST_ADD_SIMPLE(get_set_gid);
 UTEST_ADD_SIMPLE(get_set_groups);
+
+UTEST_ADD_SIMPLE(sharing_memory_simple);
+UTEST_ADD_SIMPLE(sharing_memory_child_and_grandchild);
