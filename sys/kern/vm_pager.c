@@ -36,10 +36,7 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
   } else {
     new_pg = vm_page_alloc(1);
     pmap_copy_page(pg, new_pg);
-    pmap_remove_page_readonly(new_pg);
   }
-
-  assert(new_pg != NULL);
 
   vm_object_add_page(obj, offset, new_pg);
 
