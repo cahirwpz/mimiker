@@ -16,7 +16,7 @@
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
-static KMALLOC_DEFINE(M_RES, "resources & regions");
+static KMALLOC_DEFINE(M_RES, "resources");
 
 void rman_init(rman_t *rm, const char *name) {
   rm->rm_name = name;
@@ -47,7 +47,7 @@ static int r_canmerge(resource_t *r, resource_t *next) {
 }
 
 void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
-  size_t end = start + size - 1;
+  rman_addr_t end = start + size - 1;
   resource_t *reg = resource_alloc(rm, start, end, RF_RESERVED);
 
   WITH_MTX_LOCK (&rm->rm_lock) {
@@ -110,17 +110,9 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
 
   resource_t *r;
   TAILQ_FOREACH (r, &rm->rm_resources, r_link) {
-    /* Skip lower regions. */
-    if (r->r_end < start + count - 1)
-      continue;
-
     /* Skip reserved regions. */
     if (r_reserved(r))
       continue;
-
-    /* Stop if we've gone too far. */
-    if (r->r_start > end - count + 1)
-      break;
 
     rman_addr_t new_start = roundup(max(r->r_start, start), alignment);
     rman_addr_t new_end = new_start + count - 1;
