@@ -23,7 +23,7 @@ void sbrk_attach(proc_t *p) {
   vaddr_t addr = SBRK_START;
   vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
   vm_segment_t *seg =
-    vm_segment_alloc(obj, addr, addr + PAGESIZE, VM_PROT_READ | VM_PROT_WRITE);
+    vm_segment_alloc(obj, addr, addr + PAGESIZE, VM_PROT_READ | VM_PROT_WRITE, 0);
   if (vm_map_insert(map, seg, VM_FIXED))
     panic("Could not allocate data segment!");
 

@@ -114,7 +114,7 @@ vm_map_t *vm_map_new(void) {
 }
 
 vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
-                               vm_prot_t prot) {
+                               vm_prot_t prot, vm_flags_t flags) {
   assert(page_aligned_p(start) && page_aligned_p(end));
 
   vm_segment_t *seg = pool_alloc(P_VMSEG, M_ZERO);
@@ -122,6 +122,7 @@ vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
   seg->start = start;
   seg->end = end;
   seg->prot = prot;
+  seg->flags = flags;
   return seg;
 }
 
@@ -265,7 +266,7 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
 
   /* Create object with a pager that supplies cleared pages on page fault. */
   vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *seg = vm_segment_alloc(obj, addr, addr + length, prot);
+  vm_segment_t *seg = vm_segment_alloc(obj, addr, addr + length, prot, flags);
 
   /* Given the hint try to insert the segment at given position or after it. */
   if (vm_map_insert(map, seg, flags)) {
@@ -334,13 +335,13 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
       vm_segment_t *seg;
       if (it->flags & VM_SHARED) {
         refcnt_acquire(&it->object->ref_counter);
-        seg = it;
+        obj = it->object;
       } else {
         /* vm_object_clone will clone the data from the vm_object_t
          * and will return the new object with ref_counter equal to one */
         obj = vm_object_clone(it->object);
-        seg = vm_segment_alloc(obj, it->start, it->end, it->prot);
       }
+      seg = vm_segment_alloc(obj, it->start, it->end, it->prot, it->flags);
       TAILQ_INSERT_TAIL(&new_map->entries, seg, link);
       new_map->nentries++;
     }

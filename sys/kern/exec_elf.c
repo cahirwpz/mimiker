@@ -91,7 +91,7 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
   /* Temporarily permissive protection. */
   vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
   vm_segment_t *seg = vm_segment_alloc(
-    obj, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC);
+    obj, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC, 0);
   error = vm_map_insert(p->p_uspace, seg, VM_FIXED);
   /* TODO: What if segments overlap? */
   assert(error == 0);
