@@ -6,15 +6,20 @@
 #include <sys/mutex.h>
 #include <sys/refcnt.h>
 
-/* At the moment assume object is owned by only one vm_map */
+/*! \brief Virtual memory object
+ *
+ * Field marking and corresponding locks:
+ * (a) atomic
+ * (@) vm_object::mtx
+ */
+
 typedef struct vm_object {
   mtx_t mtx;
-  vm_pagelist_t list;
-  vm_pagetree_t tree;
-  size_t size;
-  size_t npages;
-  vm_pager_t *pager;
-  refcnt_t ref_counter;
+  vm_pagelist_t list;   /* (@) List of pages */
+  vm_pagetree_t tree;   /* (@) Tree of pages */
+  size_t npages;        /* (@) Number of pages */
+  vm_pager_t *pager;    /* Pager type and page fault function for object */
+  refcnt_t ref_counter; /* (a) How many objects refer to this object? */
 } vm_object_t;
 
 vm_object_t *vm_object_alloc(vm_pgr_type_t type);
