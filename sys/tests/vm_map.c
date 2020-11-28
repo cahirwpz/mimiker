@@ -35,7 +35,8 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   /* preceding redzone segment */
   {
     vm_object_t *obj = vm_object_alloc(VM_DUMMY);
-    vm_segment_t *seg = vm_segment_alloc(obj, pre_start, start, VM_PROT_NONE, 0);
+    vm_segment_t *seg =
+      vm_segment_alloc(obj, pre_start, start, VM_PROT_NONE, 0);
     n = vm_map_insert(umap, seg, VM_FIXED);
     assert(n == 0);
   }
