@@ -13,10 +13,6 @@
 #include <aarch64/interrupt.h>
 #include <aarch64/pmap.h>
 
-/* The value of the immediate field from the SVC instruction - syscall number
- * in our case */
-#define ESR_EL1_SVC_IMM16 0xffff
-
 static __noreturn void kernel_oops(ctx_t *ctx) {
   kprintf("KERNEL PANIC!!! \n");
   panic();
@@ -25,7 +21,6 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
 static void syscall_handler(register_t code, ctx_t *ctx) {
   register_t args[SYS_MAXSYSARGS];
   const int nregs = 8;
-  int error = 0;
 
   memcpy(args, &_REG(ctx, X0), nregs * sizeof(register_t));
 
@@ -44,7 +39,7 @@ static void syscall_handler(register_t code, ctx_t *ctx) {
 
   assert(td->td_proc != NULL);
 
-  error = se->call(td->td_proc, (void *)args, &retval);
+  int error = se->call(td->td_proc, (void *)args, &retval);
 
   if (error != EJUSTRETURN)
     user_ctx_set_retval((user_ctx_t *)ctx, error ? -1 : retval, error);
@@ -128,7 +123,7 @@ void user_trap_handler(user_ctx_t *uctx) {
       break;
 
     case EXCP_SVC64:
-      syscall_handler(esr & ESR_EL1_SVC_IMM16, ctx);
+      syscall_handler(ESR_ELx_SYSCALL(esr), ctx);
       break;
 
     case EXCP_SP_ALIGN:
