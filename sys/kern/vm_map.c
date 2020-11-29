@@ -345,6 +345,9 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         it->object = vm_object_alloc(VM_SHADOW);
         it->object->shadow_object = shadow;
 
+        TAILQ_INSERT_HEAD(&shadow->shadows_list, obj, link);
+        TAILQ_INSERT_HEAD(&shadow->shadows_list, it->object, link);
+
         refcnt_acquire(&shadow->ref_counter);
 
         vm_object_set_readonly(shadow);

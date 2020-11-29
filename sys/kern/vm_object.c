@@ -20,11 +20,55 @@ RB_GENERATE(vm_pagetree, vm_page, obj.tree, vm_page_cmp);
 vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   vm_object_t *obj = pool_alloc(P_VMOBJ, M_ZERO);
   TAILQ_INIT(&obj->list);
+  TAILQ_INIT(&obj->shadows_list);
   RB_INIT(&obj->tree);
   mtx_init(&obj->mtx, 0);
   obj->pager = &pagers[type];
   obj->ref_counter = 1;
   return obj;
+}
+
+vm_page_t *vm_object_find_page_no_lock(vm_object_t *obj, off_t offset) {
+  vm_page_t find = {.offset = offset};
+  return RB_FIND(vm_pagetree, &obj->tree, &find);
+}
+
+bool vm_object_add_page_no_lock(vm_object_t *obj, off_t offset,
+                                vm_page_t *page) {
+  assert(page_aligned_p(page->offset));
+  /* For simplicity of implementation let's insert pages of size 1 only */
+  assert(page->size == 1);
+
+  page->object = obj;
+  page->offset = offset;
+
+  if (!RB_INSERT(vm_pagetree, &obj->tree, page)) {
+    obj->npages++;
+    vm_page_t *next = RB_NEXT(vm_pagetree, &obj->tree, page);
+    if (next)
+      TAILQ_INSERT_BEFORE(next, page, obj.list);
+    else
+      TAILQ_INSERT_TAIL(&obj->list, page, obj.list);
+    return true;
+  }
+
+  return false;
+}
+
+static void merge_shadow(vm_object_t *shadow) {
+  SCOPED_MTX_LOCK(&shadow->mtx);
+  vm_object_t *elem = TAILQ_FIRST(&shadow->shadows_list);
+  SCOPED_MTX_LOCK(&elem->mtx);
+
+  vm_page_t *pg;
+  TAILQ_FOREACH (pg, &shadow->list, obj.list) {
+    if (vm_object_find_page_no_lock(elem, pg->offset) == NULL) {
+      TAILQ_REMOVE(&shadow->list, pg, obj.list);
+      pg->object = elem;
+      vm_object_add_page_no_lock(elem, pg->offset, pg);
+      /* how to restore permission for this page??? */
+    }
+  }
 }
 
 void vm_object_free(vm_object_t *obj) {
@@ -40,7 +84,18 @@ void vm_object_free(vm_object_t *obj) {
     }
 
     if (obj->shadow_object) {
-      vm_object_free(obj->shadow_object);
+      vm_object_t *shadow = obj->shadow_object;
+      TAILQ_REMOVE(&shadow->shadows_list, obj, link);
+
+      if (shadow->ref_counter == 2) {
+        merge_shadow(shadow);
+      }
+      //      if (TAILQ_FIRST(&shadow->shadows_list) ==
+      //          TAILQ_LAST(&shadow->shadows_list, vm_object_list)) {
+      //        merge_shadow(shadow);
+      //      }
+
+      vm_object_free(shadow);
     }
   }
   pool_free(P_VMOBJ, obj);
