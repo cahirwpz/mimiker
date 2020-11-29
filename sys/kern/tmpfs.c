@@ -312,17 +312,20 @@ static int tmpfs_chown(tmpfs_node_t *node, uid_t uid, gid_t gid, cred_t *cred) {
 static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va, cred_t *cred) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
-  int error = 0;
 
   if (va->va_size != (size_t)VNOVAL)
     tmpfs_reg_resize(tfm, node, va->va_size);
-  if (va->va_mode != (mode_t)VNOVAL)
-    error = tmpfs_chmod(node, va->va_mode, cred);
-  if (error == 0 &&
-      (va->va_uid != (uid_t)VNOVAL || va->va_gid != (gid_t)VNOVAL))
-    error = tmpfs_chown(node, va->va_uid, va->va_gid, cred);
 
-  return error;
+  if (va->va_mode != (mode_t)VNOVAL) {
+    int error;
+    if ((error = tmpfs_chmod(node, va->va_mode, cred)))
+      return error;
+  }
+
+  if (va->va_uid != (uid_t)VNOVAL || va->va_gid != (gid_t)VNOVAL)
+    return tmpfs_chown(node, va->va_uid, va->va_gid, cred);
+
+  return 0;
 }
 
 static int tmpfs_vop_create(vnode_t *dv, componentname_t *cn, vattr_t *va,
