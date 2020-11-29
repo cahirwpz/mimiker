@@ -4,6 +4,11 @@
 
 #include "assym.h"
 
+/*
+ * WARNING: copyin, copyout and copyinstr make unsafe assumption that bcopy and
+ * copystr don't modify stack, stack pointer and callee saved registers.
+ */
+
 .macro  set_onfault tmp td func
         # load current thread
         mrs     \td, tpidr_el1
@@ -28,6 +33,9 @@
  * the kernel address space.
  */
 ENTRY(copyinstr)
+        sub     sp, sp, #16
+        str     lr, [sp]
+
         # len > 0
         cbnz    x2, 1f
         mov     x0, xzr
@@ -46,6 +54,9 @@ ENTRY(copyinstr)
         set_onfault x4, x5, copyerr
         bl      copystr
         clr_onfault x4
+
+        ldr     lr, [sp]
+        add     sp, sp, #16
         ret
 END(copyinstr)
 
@@ -55,6 +66,9 @@ END(copyinstr)
  * Copy specified amount of data from user space into the kernel.
  */
 ENTRY(copyin)
+        sub     sp, sp, #16
+        str     lr, [sp]
+
         # len > 0
         cbz     x2, 1f
 
@@ -73,6 +87,9 @@ ENTRY(copyin)
         clr_onfault x3
 
 1:      mov     x0, xzr
+
+        ldr     lr, [sp]
+        add     sp, sp, #16
         ret
 END(copyin)
 
@@ -82,6 +99,9 @@ END(copyin)
  * Copy specified amount of data from kernel to the user space.
  */
 ENTRY(copyout)
+        sub     sp, sp, #16
+        str     lr, [sp]
+
         # len > 0
         cbz     x2, 1f
 
@@ -100,13 +120,20 @@ ENTRY(copyout)
         clr_onfault x3
 
 1:      mov     x0, xzr
+
+        ldr     lr, [sp]
+        add     sp, sp, #16
         ret
 END(copyout)
 
 SENTRY(copyerr)
-        # since we return from bcopy/copystr context we need to pop retaddr
-        add     sp, sp, #8
+        /* 
+         * Here we restore link register saved by copyin, copyout or copyinstr.
+         */
         mov     x0, #EFAULT
+
+        ldr     lr, [sp]
+        add     sp, sp, #16
         ret
 END(copyerr)
 

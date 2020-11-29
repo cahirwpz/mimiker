@@ -5,6 +5,9 @@
 #include <sys/pmap.h>
 #include <sys/vm_physmem.h>
 #include <sys/vm_map.h>
+#include <sys/syscall.h>
+#include <sys/sysent.h>
+#include <sys/errno.h>
 #include <aarch64/armreg.h>
 #include <aarch64/context.h>
 #include <aarch64/interrupt.h>
@@ -15,8 +18,31 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
   panic();
 }
 
-static void syscall_handler(ctx_t *ctx) {
-  panic("Not implemented!");
+static void syscall_handler(register_t code, ctx_t *ctx) {
+  register_t args[SYS_MAXSYSARGS];
+  const int nregs = 8;
+
+  memcpy(args, &_REG(ctx, X0), nregs * sizeof(register_t));
+
+  if (code > SYS_MAXSYSCALL) {
+    args[0] = code;
+    code = 0;
+  }
+
+  sysent_t *se = &sysent[code];
+  size_t nargs = se->nargs;
+
+  assert(nargs <= nregs);
+
+  thread_t *td = thread_self();
+  register_t retval = 0;
+
+  assert(td->td_proc != NULL);
+
+  int error = se->call(td->td_proc, (void *)args, &retval);
+
+  if (error != EJUSTRETURN)
+    user_ctx_set_retval((user_ctx_t *)ctx, error ? -1 : retval, error);
 }
 
 static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
@@ -97,7 +123,7 @@ void user_trap_handler(user_ctx_t *uctx) {
       break;
 
     case EXCP_SVC64:
-      syscall_handler(ctx);
+      syscall_handler(ESR_ELx_SYSCALL(esr), ctx);
       break;
 
     case EXCP_SP_ALIGN:

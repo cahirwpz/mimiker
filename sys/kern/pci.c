@@ -90,15 +90,15 @@ void pci_bus_enumerate(device_t *pcib) {
         if (size == 0 || addr == size)
           continue;
 
-        unsigned type, flags;
+        unsigned type, flags = 0;
 
         if (addr & PCI_BAR_IO) {
           type = RT_IOPORTS;
-          flags = RF_NONE;
           size &= ~PCI_BAR_IO_MASK;
         } else {
           type = RT_MEMORY;
-          flags = (addr & PCI_BAR_PREFETCHABLE) ? RF_PREFETCHABLE : RF_NONE;
+          if (addr & PCI_BAR_PREFETCHABLE)
+            flags |= RF_PREFETCHABLE;
           size &= ~PCI_BAR_MEMORY_MASK;
         }
 

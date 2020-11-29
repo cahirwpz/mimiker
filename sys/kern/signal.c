@@ -25,7 +25,8 @@ typedef enum {
   SA_KILL = 0x2,
   SA_CONT = 0x3, /* Continue a stopped process */
   SA_STOP = 0x4, /* Stop a process */
-  SA_CANTMASK = 0x8
+  SA_CANTMASK = 0x8,
+  SA_TTYSTOP = 0x10,             /* Stop signal sent by TTY subsystem */
 } sigprop_t;
 
 /*!\brief Mask used to extract the default action from a sigprop_t. */
@@ -44,6 +45,8 @@ static const sigprop_t sig_properties[NSIG] = {
   [SIGSTOP] = SA_STOP | SA_CANTMASK,
   [SIGCONT] = SA_CONT,
   [SIGCHLD] = SA_IGNORE,
+  [SIGTTIN] = SA_STOP | SA_TTYSTOP,
+  [SIGTTOU] = SA_STOP | SA_TTYSTOP,
   [SIGUSR1] = SA_KILL,
   [SIGUSR2] = SA_KILL,
   [SIGBUS] = SA_KILL,
@@ -63,6 +66,8 @@ static const char *sig_name[NSIG] = {
   [SIGSTOP] = "SIGSTOP",
   [SIGCONT] = "SIGCONT",
   [SIGCHLD] = "SIGCHLD",
+  [SIGTTIN] = "SIGTTIN",
+  [SIGTTOU] = "SIGTTOU",
   [SIGUSR1] = "SIGUSR1",
   [SIGUSR2] = "SIGUSR2",
   [SIGBUS] = "SIGBUS",
@@ -81,6 +86,13 @@ static inline bool sig_ignored(sigaction_t *sigactions, signo_t sig) {
   return (sigactions[sig].sa_handler == SIG_IGN ||
           (sigactions[sig].sa_handler == SIG_DFL &&
            (defact(sig) == SA_IGNORE || sig == SIGCONT)));
+}
+
+/* Members of an orphaned process group should ignore
+ * TTY stop signals with a default handler. */
+static inline bool sig_ignore_ttystop(proc_t *p, signo_t sig) {
+  return ((sig_properties[sig] & SA_TTYSTOP) && (p->p_pgrp->pg_jobc == 0) &&
+          (p->p_sigactions[sig].sa_handler == SIG_DFL));
 }
 
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
@@ -342,15 +354,23 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
     return;
   }
 
+  /* Theoretically, we should hold all_proc_mtx since sig_ignore_ttystop()
+   * reads pg_jobc, but the race here is harmless. */
+  if (sig_ignore_ttystop(p, sig))
+    return;
+
   /* If stopping or continuing,
    * remove pending signals with the opposite effect. */
-  if (sig == SIGSTOP)
+  if (defact(sig) == SA_STOP)
     sigpend_get(&td->td_sigpend, SIGCONT, NULL);
 
   ksiginfo_t *kp = ksiginfo_copy(ksi);
 
   if (sig == SIGCONT) {
+    /* XXX there should be a better way to do this. */
     sigpend_get(&td->td_sigpend, SIGSTOP, NULL);
+    sigpend_get(&td->td_sigpend, SIGTTIN, NULL);
+    sigpend_get(&td->td_sigpend, SIGTTOU, NULL);
 
     /* In case of SIGCONT, make it pending only if the process catches it. */
     if (handler != SIG_IGN && handler != SIG_DFL)
@@ -458,10 +478,16 @@ void sig_post(ksiginfo_t *ksi) {
 
   signo_t sig = ksi->ksi_signo;
   sigaction_t *sa = &p->p_sigactions[sig];
+  sig_t handler = sa->sa_handler;
 
-  assert(sa->sa_handler != SIG_IGN);
+  assert(handler != SIG_IGN);
 
-  if (sa->sa_handler == SIG_DFL && defact(sig) == SA_KILL) {
+  /* Theoretically, we should hold all_proc_mtx since sig_ignore_ttystop()
+   * reads pg_jobc, but the race here is harmless. */
+  if (sig_ignore_ttystop(p, sig))
+    return;
+
+  if (handler == SIG_DFL && defact(sig) == SA_KILL) {
     /* Terminate this thread as result of a signal. */
     sig_exit(td, sig);
     __unreachable();
@@ -469,6 +495,7 @@ void sig_post(ksiginfo_t *ksi) {
 
   if (sa->sa_handler == SIG_DFL && defact(sig) == SA_STOP) {
     klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
+    p->p_stopsig = sig;
     p->p_state = PS_STOPPED;
     p->p_flags |= PF_STATE_CHANGED;
     WITH_PROC_LOCK(p->p_parent) {
@@ -492,7 +519,7 @@ void sig_post(ksiginfo_t *ksi) {
   }
 
   klog("Post signal %s (handler %p) to thread %lu in process PID(%d)",
-       sig_name[sig], sa->sa_handler, td->td_tid, p->p_pid);
+       sig_name[sig], handler, td->td_tid, p->p_pid);
 
   sigset_t *return_mask;
   if (td->td_pflags & TDP_OLDSIGMASK) {

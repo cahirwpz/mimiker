@@ -10,6 +10,8 @@ typedef struct bus_methods bus_methods_t;
 typedef struct bus_driver bus_driver_t;
 typedef struct intr_handler intr_handler_t;
 
+typedef enum { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
+
 /* `bus space` describes a method to access hardware resources mapped at some
  * address. We make no distinction between different kinds of physical address
  * spaces. Same hardware resource can be accessed in many different ways
