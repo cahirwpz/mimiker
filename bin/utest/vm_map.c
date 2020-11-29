@@ -27,7 +27,8 @@ int test_sharing_memory_simple(void) {
   } else {
     /* parent */
     int status;
-    waitpid(-1, &status, 0);
+    assert(waitpid(-1, &status, 0) == pid);
+    assert(WIFEXITED(status));
   }
 
   assert(strcmp(map, "Hello, World!") == 0);
@@ -59,7 +60,7 @@ int test_sharing_memory_child_and_grandchild(void) {
     } else {
       /* child */
       int status;
-      waitpid(-1, &status, 0);
+      assert(waitpid(-1, &status, 0) == pid);
       assert(WIFEXITED(status));
       assert(strcmp(map, "Hello from grandchild!") == 0);
       strcpy(map, "Hello from child!");
@@ -68,7 +69,7 @@ int test_sharing_memory_child_and_grandchild(void) {
   } else {
     /* parent */
     int status;
-    waitpid(-1, &status, 0);
+    assert(waitpid(-1, &status, 0) == pid);
 
     assert(WIFEXITED(status));
 
