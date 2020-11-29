@@ -90,7 +90,7 @@ void pci_bus_enumerate(device_t *pcib) {
         uint32_t size = pci_bar_size(dev, i, addr);
 
         if (size == 0 || addr == size) {
-          pcid->bar[i].rid = INVALID_BAR
+          pcid->bar[i].rid = INVALID_BAR;
           continue;
         }
 
