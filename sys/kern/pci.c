@@ -50,6 +50,8 @@ static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t addr) {
 
 DEVCLASS_CREATE(pci);
 
+#define INVALID_BAR 0xff
+
 void pci_bus_enumerate(device_t *pcib) {
   pci_addr_t pcia = {.bus = 0, .device = 0};
   device_t pcid = {.parent = pcib, .bus = DEV_BUS_PCI, .instance = &pcia};
@@ -87,8 +89,10 @@ void pci_bus_enumerate(device_t *pcib) {
         uint32_t addr = pci_read_config(dev, PCIR_BAR(i), 4);
         uint32_t size = pci_bar_size(dev, i, addr);
 
-        if (size == 0 || addr == size)
+        if (size == 0 || addr == size) {
+          pcid->bar[i].rid = INVALID_BAR
           continue;
+        }
 
         unsigned type, flags = 0;
 
@@ -104,7 +108,7 @@ void pci_bus_enumerate(device_t *pcib) {
 
         size = -size;
         uint8_t id = pcid->nbars;
-        pcid->bar[id] = (pci_bar_t){
+        pcid->bar[i] = (pci_bar_t){
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = id};
         pcid->nbars++;
       }

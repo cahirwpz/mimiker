@@ -318,6 +318,16 @@ static int gt_pci_attach(device_t *pcib) {
   return bus_generic_probe(pcib);
 }
 
+static inline pci_bar_t *gt_pci_bar_of_rid(pci_device_t *pcid, int rid) {
+  pci_bar_t *bar = NULL;
+  for (uint8_t i = 0; i < PCI_BAR_MAX; i++) {
+    bar = &pcid->bar[i];
+    if (bar->rid == rid)
+      break;
+  }
+  return bar;
+}
+
 static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
                                          int rid, rman_addr_t start,
                                          rman_addr_t end, size_t size,
@@ -343,7 +353,8 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     pci_device_t *pcid = pci_device_of(dev);
     /* Find identified bar by rid. */
     assert(rid < PCI_BAR_MAX);
-    pci_bar_t *bar = &pcid->bar[rid];
+    pci_bar_t *bar = gt_pci_bar_of_rid(pcid, rid);
+    assert(bar != NULL);
 
     if (bar->size == 0)
       return NULL;
@@ -403,7 +414,9 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
 
   if (type == RT_MEMORY) {
     /* Write BAR address to PCI device register. */
-    pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
+    pci_device_t *pcid = pci_device_of(dev);
+    unsigned int bar_id = gt_pci_bar_of_rid(pcid, rid) - &pcid->bar[0];
+    pci_write_config(dev, PCIR_BAR(bar_id), 4, r->r_bus_handle);
     return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
                          &r->r_bus_handle);
   }
