@@ -135,7 +135,10 @@ void intr_root_handler(ctx_t *ctx) {
 }
 
 void intr_thread_create(intr_event_t *ie) {
-  intr_thread_t *it = kmalloc(M_INTR, sizeof(intr_thread_t), M_WAITOK | M_ZERO);
+  intr_thread_t *it = kmalloc(M_INTR, sizeof(intr_thread_t), M_ZERO);
+
+  assert(it && "We couldn't allocate memory for an ithread");
+
   ie->ie_ithread = it;
 
   assert(ie->ie_ithread != NULL);
@@ -169,7 +172,7 @@ void intr_event_run_handlers(intr_event_t *ie) {
       if (ie->ie_ithread == NULL)
         intr_thread_create(ie);
 
-      ih->ih_flags = IF_DELEGATE;
+      ih->ih_flags = IH_DELEGATE;
       sleepq_signal(&ie->ie_ithread->it_wchan);
 
       return;
@@ -183,8 +186,14 @@ static void intr_thread(void *arg) {
   intr_thread_t *it = (intr_thread_t *)arg;
 
   while (true) {
-    intr_handler_t *ih = NULL, *next, *curr;
+    intr_handler_t *ih, *next, *curr;
 
+    ih = NULL;
+
+    /* We look at the list of handlers of our event and search for a handler
+     * marked as IH_DELEGATE. If we don't find any handlers to be serviced, we
+     * go to sleep on our wchan.
+     */
     WITH_INTR_DISABLED {
       TAILQ_FOREACH_SAFE (curr, &it->it_event->ie_handlers, ih_link, next) {
         if (curr->ih_flags & IH_DELEGATE) {
@@ -201,6 +210,11 @@ static void intr_thread(void *arg) {
     intr_event_t *ie = ih->ih_event;
 
     WITH_SPIN_LOCK (&ie->ie_lock) {
+
+      /* If the handler is flagged as IH_REMOVE, we remove it similarly to how
+       * we do it in intr_event_remove_handler. We are under a spin lock so we
+       * don't call kfree just yet.
+       */
       if (ih->ih_flags & IH_REMOVE) {
 
         if (ie->ie_count == 1 && ie->ie_disable)
@@ -209,13 +223,19 @@ static void intr_thread(void *arg) {
         TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
         ih->ih_event = NULL;
         ie->ie_count--;
-      } else {
+      }
+      /* If the handler is not flagged as IH_REMOVE, we
+       * remove the IH_DELEGATE flag and enable interrupts from the event again.
+       */
+      else {
         ih->ih_flags &= ~IH_DELEGATE;
-        ie_insert_handler(ie, ih);
         if (ie->ie_enable)
           ie->ie_enable(ie);
       }
     }
+    /* If the handler is flagged as IH_REMOVE, we kfree its memory here. We
+     * didn't want to do it in the code above, because we were under a spinlock
+     */
     if (ih->ih_flags & IH_REMOVE) {
       kfree(M_INTR, ih);
     }

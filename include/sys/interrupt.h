@@ -55,6 +55,14 @@ typedef enum {
   IF_DELEGATE = 2, /* the handler should be run in private thread */
 } intr_filter_t;
 
+/*
+ * IH_REMOVE - this flag is turned on by intr_event_remove_handler
+ * when it wants to remove the handler, but the handler is already delegated to
+ * an interrupt thread, when the interrupt thread sees this flag, it removes the
+ * handler itself IH_DELEGATE - this flag is turned on when the status of
+ * ih_filter is IF_DELEGATE, the interrupt handler looks for handlers with this
+ * flag and executes their ih_service
+ */
 typedef enum {
   IH_REMOVE = 1,
   IH_DELEGATE = 2,
