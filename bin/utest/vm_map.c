@@ -77,3 +77,33 @@ int test_sharing_memory_child_and_grandchild(void) {
   assert(munmap(map, 4096) == 0);
   return 0;
 }
+
+int test_cow_private_simple(void) {
+  char *map = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANON, 0, 0);
+
+  assert(map != (char *)MAP_FAILED);
+
+  strcpy(map, "Hello, World!");
+
+  pid_t pid = fork();
+
+  assert(pid >= 0);
+
+  if (pid == 0) {
+    /* child */
+    assert(strcmp(map, "Hello, World!") == 0);
+    strcpy(map, "Hello from child!");
+    assert(strcmp(map, "Hello from child!") == 0);
+    exit(0);
+  } else {
+    /* parent */
+    int status;
+    assert(waitpid(-1, &status, 0) == pid);
+    assert(WIFEXITED(status));
+
+    assert(strcmp(map, "Hello, World!") == 0);
+  }
+
+  assert(munmap(map, 4096) == 0);
+  return 0;
+}
