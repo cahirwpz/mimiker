@@ -12,6 +12,7 @@ SOURCES = boot.c \
 	  pmap.c \
 	  rootdev.c \
 	  $(BOARD).c \
+	  sigcode.S \
 	  signal.c \
 	  start.S \
 	  switch.S \
