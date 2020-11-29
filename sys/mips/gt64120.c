@@ -266,7 +266,7 @@ static device_t *gt_pci_find_child(device_t *pcib, int vid, int did) {
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
-  gtpci->pci_mem = bus_alloc_resource(pcib, RT_MEMORY, 0, RF_NONE);
+  gtpci->pci_mem = bus_alloc_resource(pcib, RT_MEMORY, 0, 0);
   gtpci->pci_io = bus_alloc_resource(pcib, RT_MEMORY, 1, RF_ACTIVE);
   gtpci->corectrl = bus_alloc_resource(pcib, RT_MEMORY, 2, RF_ACTIVE);
 
@@ -275,12 +275,16 @@ static int gt_pci_attach(device_t *pcib) {
     panic("gt64120 resource allocation fail");
   }
 
-  rman_init(&gtpci->pci_io_rman, "GT64120 PCI I/O ports", 0x0000, 0xffff,
-            RT_IOPORTS);
-  rman_init(&gtpci->pci_mem_rman, "GT64120 PCI memory", 0,
-            MALTA_PCI0_MEMORY_SIZE - 1, RT_MEMORY);
-  rman_init(&gtpci->irq_rman, "GT64120 PCI & ISA interrupts", 0, ICU_LEN - 1,
-            RT_IRQ);
+  rman_init(&gtpci->pci_io_rman, "GT64120 PCI I/O ports");
+  rman_manage_region(&gtpci->pci_io_rman, 0, 0x10000);
+
+  /* This will ensure absolute addresses which is essential
+   * in order to satisfy memory alignment. */
+  rman_init_from_resource(&gtpci->pci_mem_rman, "GT64120 PCI memory",
+                          gtpci->pci_mem);
+
+  rman_init(&gtpci->irq_rman, "GT64120 PCI & ISA interrupts");
+  rman_manage_region(&gtpci->irq_rman, 0, ICU_LEN);
 
   /* All interrupts default to "masked off" and edge-triggered. */
   gtpci->imask = 0xffff;
@@ -312,17 +316,17 @@ static int gt_pci_attach(device_t *pcib) {
 
   /* Create atkbdc keyboard device and assing resources to it. */
   dev = pci_add_child(pcib, 0);
-  resource_list_add(dev, RT_IOPORTS, 0, IO_KBD, IO_KBDSIZE);
+  resource_list_add_range(dev, RT_IOPORTS, 0, IO_KBD, IO_KBDSIZE);
   resource_list_add_irq(dev, 0, 1);
 
   /* Create ns16550 device and assing resources to it. */
   dev = pci_add_child(pcib, 1);
-  resource_list_add(dev, RT_IOPORTS, 0, IO_COM1, IO_COMSIZE);
+  resource_list_add_range(dev, RT_IOPORTS, 0, IO_COM1, IO_COMSIZE);
   resource_list_add_irq(dev, 0, 4);
 
   /* Create rtc device and assing resources to it. */
   dev = pci_add_child(pcib, 2);
-  resource_list_add(dev, RT_IOPORTS, 0, IO_RTC, IO_RTCSIZE);
+  resource_list_add_range(dev, RT_IOPORTS, 0, IO_RTC, IO_RTCSIZE);
   resource_list_add_irq(dev, 0, 8);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
@@ -338,31 +342,30 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 
   device_t *pcib = dev->parent;
   gt_pci_state_t *gtpci = pcib->state;
-  bus_space_handle_t bh;
-  rman_t *from = NULL;
+  bus_space_handle_t bh = 0;
+  rman_t *rman = NULL;
 
   if (type == RT_IOPORTS) {
-    from = &gtpci->pci_io_rman;
+    rman = &gtpci->pci_io_rman;
     bh = gtpci->pci_io->r_bus_handle;
   } else if (type == RT_IRQ) {
-    from = &gtpci->irq_rman;
+    rman = &gtpci->irq_rman;
   } else if (type == RT_MEMORY) {
-    from = &gtpci->pci_mem_rman;
-    bh = gtpci->pci_mem->r_start;
+    rman = &gtpci->pci_mem_rman;
   } else {
     panic("Unknown PCI device type: %d", type);
   }
 
-  resource_t *r = resource_list_alloc(dev, from, type, rid, flags);
+  resource_t *r = resource_list_alloc(dev, rman, type, rid, flags);
   if (r == NULL)
     return NULL;
 
-  if (flags & RF_ACTIVE) {
-    if (type != RT_IRQ) {
-      r->r_bus_tag = generic_bus_space;
-      r->r_bus_handle = bh + r->r_start;
-    }
+  if (type != RT_IRQ) {
+    r->r_bus_tag = generic_bus_space;
+    r->r_bus_handle = bh + r->r_start;
+  }
 
+  if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, type, rid, r)) {
       resource_list_release(dev, type, rid, r);
       return NULL;
@@ -392,7 +395,7 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
   if (type == RT_MEMORY) {
     /* Write BAR address to PCI device register. */
     pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
-    return bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+    return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
                          &r->r_bus_handle);
   }
 

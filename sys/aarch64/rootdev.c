@@ -25,8 +25,7 @@ DEVCLASS_CREATE(root);
 #define NIRQ (BCM2835_NIRQ + BCM2836_NIRQ)
 
 typedef struct rootdev {
-  rman_t local_rm;
-  rman_t shared_rm;
+  rman_t rm;
   rman_t irq_rm;
   intr_event_t *intr_event[NIRQ];
 } rootdev_t;
@@ -209,13 +208,13 @@ static device_t *rootdev_add_child(device_t *bus, devclass_t *dc, int unit) {
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
-  /* TODO(cahir) Resource manager should be able to manage independant ranges
-   * instead of single one. Consult rman_manage_region in rman(9). */
-  rman_init(&rd->shared_rm, "BCM2835 peripherals", BCM2835_PERIPHERALS_BASE,
-            BCM2835_PERIPHERALS_BASE + BCM2835_PERIPHERALS_SIZE - 1, RT_MEMORY);
-  rman_init(&rd->local_rm, "ARM local", BCM2836_ARM_LOCAL_BASE,
-            BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1, RT_MEMORY);
-  rman_init(&rd->irq_rm, "BCM2835 interrupts", 0, NIRQ, RT_IRQ);
+  rman_init(&rd->rm, "ARM and BCM2835 space");
+  rman_manage_region(&rd->rm, BCM2835_PERIPHERALS_BASE,
+                     BCM2835_PERIPHERALS_SIZE);
+  rman_manage_region(&rd->rm, BCM2836_ARM_LOCAL_BASE, BCM2836_ARM_LOCAL_SIZE);
+
+  rman_init(&rd->irq_rm, "BCM2835 interrupts");
+  rman_manage_region(&rd->irq_rm, 0, NIRQ);
 
   /* Map BCM2836 shared processor only once. */
   rootdev_local_handle =
@@ -232,7 +231,7 @@ static int rootdev_attach(device_t *bus) {
 
   /* Create PL011 UART device and assign resources to it. */
   dev = rootdev_add_child(bus, &DEVCLASS(root), 1);
-  resource_list_add(dev, RT_MEMORY, 0, UART0_BASE, BCM2835_UART0_SIZE);
+  resource_list_add_range(dev, RT_MEMORY, 0, UART0_BASE, BCM2835_UART0_SIZE);
   resource_list_add_irq(dev, 0, BCM2835_INT_UART0);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
@@ -243,21 +242,24 @@ static int rootdev_attach(device_t *bus) {
 static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
                                           int rid, res_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
-  resource_t *r = NULL;
+  rman_t *rman = NULL;
 
   if (type == RT_MEMORY) {
-    r = resource_list_alloc(dev, &rd->local_rm, type, rid, flags);
-    if (r == NULL)
-      r = resource_list_alloc(dev, &rd->shared_rm, type, rid, flags);
+    rman = &rd->rm;
   } else if (type == RT_IRQ) {
-    r = resource_list_alloc(dev, &rd->irq_rm, type, rid, flags);
+    rman = &rd->irq_rm;
+  } else {
+    panic("Resource type not handled!");
   }
 
+  resource_t *r = resource_list_alloc(dev, rman, type, rid, flags);
   if (!r)
     return NULL;
 
-  if (type == RT_MEMORY)
+  if (type == RT_MEMORY) {
     r->r_bus_tag = rootdev_bus_space;
+    r->r_bus_handle = r->r_start;
+  }
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, type, rid, r)) {
@@ -278,7 +280,7 @@ static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
 static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
                                      resource_t *r) {
   if (type == RT_MEMORY)
-    return bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+    return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
                          &r->r_bus_handle);
   return 0;
 }

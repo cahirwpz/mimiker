@@ -64,12 +64,13 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   rootdev_t *rd = dev->parent->state;
   rman_t *rman = NULL;
 
-  if (type == RT_MEMORY)
+  if (type == RT_MEMORY) {
     rman = &rd->mem;
-  else if (type == RT_IRQ)
+  } else if (type == RT_IRQ) {
     rman = &rd->irq;
-  else
+  } else {
     panic("Resource type not handled!");
+  }
 
   resource_t *r = resource_list_alloc(dev, rman, type, rid, flags);
   if (r == NULL)
@@ -99,7 +100,7 @@ static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
 static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
                                      resource_t *r) {
   if (type == RT_MEMORY)
-    return bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+    return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
                          &r->r_bus_handle);
 
   return 0;
@@ -142,9 +143,11 @@ static int rootdev_attach(device_t *bus) {
 
   /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ...
    * Skips region allocated for up to 256MB of RAM. */
-  rman_init(&rd->mem, "Malta I/O space", MALTA_PCI0_MEMORY_BASE, MALTA_FPGA_END,
-            RT_MEMORY);
-  rman_init(&rd->irq, "MIPS interrupts", 0, MIPS_NIRQ - 1, RT_IRQ);
+  rman_init(&rd->mem, "Malta I/O space");
+  rman_manage_region(&rd->mem, MALTA_PERIPHERALS_BASE, MALTA_PERIPHERALS_SIZE);
+
+  rman_init(&rd->irq, "MIPS interrupts");
+  rman_manage_region(&rd->irq, 0, MIPS_NIRQ);
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
@@ -155,13 +158,13 @@ static int rootdev_attach(device_t *bus) {
   /* Create GT PCI device and assign resources to it. */
   dev = rootdev_add_child(bus, DEV_BUS_PCI, &DEVCLASS(pci), 1);
   /* PCI I/O memory. */
-  resource_list_add(dev, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE,
-                    MALTA_PCI0_MEMORY_SIZE);
+  resource_list_add_range(dev, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE,
+                          MALTA_PCI0_MEMORY_SIZE);
   /* PCI I/O ports 0x0000-0xffff. */
-  resource_list_add(dev, RT_MEMORY, 1, MALTA_PCI0_IO_BASE, 0x10000);
+  resource_list_add_range(dev, RT_MEMORY, 1, MALTA_PCI0_IO_BASE, 0x10000);
   /* GT64120 registers. */
-  resource_list_add(dev, RT_MEMORY, 2, MALTA_CORECTRL_BASE,
-                    MALTA_CORECTRL_SIZE);
+  resource_list_add_range(dev, RT_MEMORY, 2, MALTA_CORECTRL_BASE,
+                          MALTA_CORECTRL_SIZE);
   /* GT64120 main irq. */
   resource_list_add_irq(dev, 0, MIPS_HWINT0);
 

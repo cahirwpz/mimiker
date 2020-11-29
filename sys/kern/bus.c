@@ -37,7 +37,7 @@ resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
 }
 
 void resource_list_add(device_t *dev, res_type_t type, int rid,
-                       rman_addr_t start, size_t count) {
+                       rman_addr_t start, rman_addr_t end, size_t count) {
   resource_list_entry_t *rle;
 
   if ((rle = resource_list_find(dev, rid, type)))
@@ -49,6 +49,7 @@ void resource_list_add(device_t *dev, res_type_t type, int rid,
   rle->type = type;
   rle->rid = rid;
   rle->start = start;
+  rle->end = end;
   rle->count = count;
 }
 
@@ -61,9 +62,12 @@ resource_t *resource_list_alloc(device_t *dev, rman_t *rman, res_type_t type,
     return NULL;
   }
 
-  rman_addr_t end = rle->start + rle->count - 1;
-  resource_t *r =
-    rman_alloc_resource(rman, rle->start, end, rle->count, 1, flags);
+  size_t alignment = 0;
+  if (type == RT_MEMORY)
+    alignment = PAGESIZE;
+
+  resource_t *r = rman_reserve_resource(rman, rle->start, rle->end, rle->count,
+                                        alignment, flags);
   if (r)
     rle->res = r;
 
@@ -80,8 +84,7 @@ void resource_list_release(device_t *dev, res_type_t type, int rid,
   if (!rle->res)
     panic("resource entry is not busy");
 
-  /* TODO: uncomment the following after merging the new rman. */
-  /*rman_deactivate_resource(rle->res);*/
+  rman_deactivate_resource(rle->res);
   rman_release_resource(rle->res);
   rle->res = NULL;
 }

@@ -78,7 +78,9 @@ __noreturn void board_init(void);
 #define MALTA_CORECTRL_BASE 0x1be00000
 #define MALTA_CORECTRL_END 0x1dffffff
 #define MALTA_FPGA_BASE 0x1f000000
-#define MALTA_FPGA_END 0x1fffffff
+
+#define MALTA_PERIPHERALS_BASE MALTA_PCI0_MEMORY_BASE
+#define MALTA_PERIPHERALS_SIZE 0x10000000
 
 #define MALTA_CORECTRL_SIZE (MALTA_CORECTRL_END - MALTA_CORECTRL_BASE + 1)
 #define MALTA_PCI0_MEMORY_SIZE                                                 \

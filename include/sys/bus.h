@@ -10,12 +10,15 @@ typedef struct bus_methods bus_methods_t;
 typedef struct bus_driver bus_driver_t;
 typedef struct intr_handler intr_handler_t;
 
+typedef enum { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
+
 struct resource_list_entry {
   SLIST_ENTRY(resource_list_entry) link;
   resource_t *res;   /* the actual resource when allocated */
   res_type_t type;   /* type argument to alloc_resource */
   int rid;           /* resource identifier */
   rman_addr_t start; /* start of resource range */
+  rman_addr_t end;   /* end of resource range */
   size_t count;      /* number of bytes */
 };
 
@@ -27,10 +30,19 @@ void resource_list_fini(device_t *dev);
 
 /*! \brief Add a resource entry to resource list. */
 void resource_list_add(device_t *dev, res_type_t type, int rid,
-                       rman_addr_t start, size_t count);
+                       rman_addr_t start, rman_addr_t end, size_t count);
+
+/*! \brief Add a resource which can be allocated
+ * anywhere within an associated parent bus range. */
+#define resource_list_add_default(dev, type, rid, count)                       \
+  resource_list_add((dev), (type), (rid), 0, RMAN_ADDR_MAX, (count))
+
+/*! \brief Add a resource which must start exactly at the `start` address. */
+#define resource_list_add_range(dev, type, rid, start, count)                  \
+  resource_list_add((dev), (type), (rid), (start), (start) + (count)-1, (count))
 
 #define resource_list_add_irq(dev, rid, irq)                                   \
-  resource_list_add((dev), RT_IRQ, (rid), (irq), 1)
+  resource_list_add_range((dev), RT_IRQ, (rid), (irq), 1)
 
 /*! \brief Find a resource entry by type and rid. */
 resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,

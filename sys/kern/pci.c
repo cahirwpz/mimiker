@@ -70,8 +70,6 @@ device_t *pci_add_child(device_t *bus, int unit) {
   (((pci_device_t *)(pcid)->instance)->addr = PCIA((b), (d), (f)))
 
 void pci_bus_enumerate(device_t *pcib) {
-  rman_addr_t mem_offset = 0;
-  rman_addr_t io_offset = IO_ISASIZE;
   device_t pcid = {.parent = pcib,
                    .bus = DEV_BUS_PCI,
                    .instance = (pci_device_t[1]){},
@@ -110,15 +108,15 @@ void pci_bus_enumerate(device_t *pcib) {
         if (size == 0 || addr == size)
           continue;
 
-        unsigned type, flags;
+        unsigned type, flags = 0;
 
         if (addr & PCI_BAR_IO) {
           type = RT_IOPORTS;
-          flags = RF_NONE;
           size &= ~PCI_BAR_IO_MASK;
         } else {
           type = RT_MEMORY;
-          flags = (addr & PCI_BAR_PREFETCHABLE) ? RF_PREFETCHABLE : RF_NONE;
+          if (addr & PCI_BAR_PREFETCHABLE)
+            flags |= RF_PREFETCHABLE;
           size &= ~PCI_BAR_MEMORY_MASK;
         }
 
@@ -127,15 +125,7 @@ void pci_bus_enumerate(device_t *pcib) {
         pcid->bar[id] = (pci_bar_t){
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = id};
 
-        /* TODO: set absoulte addresses for memory resources
-         * after merging the new rman. */
-        if (type == RT_IOPORTS) {
-          resource_list_add(dev, RT_IOPORTS, id, io_offset, size);
-          io_offset += size;
-        } else {
-          resource_list_add(dev, RT_MEMORY, id, mem_offset, size);
-          mem_offset += size;
-        }
+        resource_list_add_default(dev, type, id, size);
 
         pcid->nbars++;
       }

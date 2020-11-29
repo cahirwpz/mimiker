@@ -127,8 +127,6 @@ static int atkbdc_probe(device_t *dev) {
   if (dev->unit != 0)
     return 0;
 
-  /* TODO: Implement resource deallocation in rman.
-   * When probe is not successful, driver should release claimed resources. */
   resource_t *regs = bus_alloc_resource(dev, RT_IOPORTS, 0, RF_ACTIVE);
   assert(regs != NULL);
 

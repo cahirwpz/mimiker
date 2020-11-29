@@ -175,7 +175,7 @@ static int pl011_attach(device_t *dev) {
   cv_init(&state->rx_nonempty, "UART receive buffer not empty");
   cv_init(&state->tx_nonfull, "UART transmit buffer not full");
 
-  resource_t *r = bus_alloc_resource(dev, RT_MEMORY, 0, RF_NONE);
+  resource_t *r = bus_alloc_resource(dev, RT_MEMORY, 0, 0);
 
   /* (pj) BCM2835_UART0_SIZE is much smaller than PAGESIZE */
   bus_space_map(r->r_bus_tag, r->r_start, PAGESIZE, &r->r_bus_handle);
