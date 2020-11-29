@@ -37,6 +37,5 @@ void user_ctx_set_retval(user_ctx_t *ctx, register_t value, register_t error) {
 }
 
 bool user_mode_p(ctx_t *ctx) {
-  /* XXX Not implemented! */
-  return false;
+  return (_REG(ctx, SPSR) & PSR_M_MASK) == PSR_M_EL0t;
 }
