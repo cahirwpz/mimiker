@@ -48,7 +48,7 @@
 #define BLOCK_MASK (BLOCK_SIZE - 1)
 #define BLKNO(x) ((x) / BLOCK_SIZE)
 #define BLKOFF(x) ((x) % BLOCK_SIZE)
-#define NBLOCKS(x) (((x) + BLOCK_SIZE - 1) / BLOCK_SIZE)
+#define NBLOCKS(x) (howmany(x, BLOCK_SIZE))
 
 #define PTR_IN_BLK (BLOCK_SIZE / sizeof(blkptr_t))
 
@@ -500,7 +500,6 @@ static int tmpfs_vop_remove(vnode_t *dv, vnode_t *v, componentname_t *cn) {
   assert(de != NULL);
 
   tmpfs_dir_detach(dnode, de);
-
   return 0;
 }
 
@@ -516,18 +515,14 @@ static int tmpfs_vop_rmdir(vnode_t *dv, vnode_t *v, componentname_t *cn) {
   assert(de != NULL);
 
   tmpfs_node_t *node = de->tfd_node;
-  int error = 0;
 
-  if (TAILQ_EMPTY(&node->tfn_dir.dirents)) {
-    /* Decrement link count for the '.' entry. */
-    node->tfn_links--;
+  if (!TAILQ_EMPTY(&node->tfn_dir.dirents))
+    return ENOTEMPTY;
 
-    tmpfs_dir_detach(dnode, de);
-  } else {
-    error = ENOTEMPTY;
-  }
-
-  return error;
+  /* Decrement link count for the '.' entry. */
+  node->tfn_links--;
+  tmpfs_dir_detach(dnode, de);
+  return 0;
 }
 
 static int tmpfs_vop_reclaim(vnode_t *v) {
@@ -554,9 +549,8 @@ static int tmpfs_vop_symlink(vnode_t *dv, componentname_t *cn, vattr_t *va,
                              char *target, vnode_t **vp) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(dv->v_mount);
   assert(S_ISLNK(va->va_mode));
-  int error;
   size_t targetlen = strlen(target);
-  char *str = NULL;
+  int error;
 
   assert(targetlen <= BLOCK_SIZE);
 
@@ -566,7 +560,7 @@ static int tmpfs_vop_symlink(vnode_t *dv, componentname_t *cn, vattr_t *va,
   tmpfs_node_t *node = TMPFS_NODE_OF(*vp);
   if (targetlen > 0) {
     tmpfs_resize(tfm, node, targetlen);
-    str = (char *)*tmpfs_get_blk(node, 0);
+    char *str = (char *)*tmpfs_get_blk(node, 0);
     memcpy(str, target, targetlen);
     node->tfn_lnk.link = str;
   }
@@ -580,10 +574,10 @@ static int tmpfs_vop_link(vnode_t *dv, vnode_t *v, componentname_t *cn) {
   tmpfs_dirent_t *de;
   int error;
 
-  error = tmpfs_alloc_dirent(dnode, cn->cn_nameptr, cn->cn_namelen, &de);
-  if (!error)
-    tmpfs_dir_attach(dnode, de, node);
-  return error;
+  if ((error = tmpfs_alloc_dirent(dnode, cn->cn_nameptr, cn->cn_namelen, &de)))
+    return error;
+  tmpfs_dir_attach(dnode, de, node);
+  return 0;
 }
 
 static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
@@ -675,11 +669,10 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vattr_t *va,
                              vnodetype_t ntype, componentname_t *cn) {
   tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
   tmpfs_dirent_t *de;
-  int error = 0;
+  int error;
 
   /* Allocate a new directory entry for the new file. */
-  error = tmpfs_alloc_dirent(dnode, cn->cn_nameptr, cn->cn_namelen, &de);
-  if (error)
+  if ((error = tmpfs_alloc_dirent(dnode, cn->cn_nameptr, cn->cn_namelen, &de)))
     return error;
 
   tmpfs_node_t *node = tmpfs_new_node(TMPFS_ROOT_OF(dv->v_mount), va, ntype);
@@ -687,9 +680,8 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vattr_t *va,
 
   /* Attach directory entry */
   tmpfs_dir_attach(dnode, de, node);
-
   *vp = node->tfn_vnode;
-  return error;
+  return 0;
 }
 
 /*
@@ -817,11 +809,12 @@ static void tmpfs_free_block(tmpfs_mount_t *tfm, tmpfs_node_t *v,
                              blkptr_t *blkptrp) {
   assert(blkptrp != NULL);
 
-  if (*blkptrp) {
-    mem_free_dblk(tfm, *blkptrp);
-    *blkptrp = NULL;
-    v->tfn_nblocks--;
-  }
+  if (*blkptrp == NULL)
+    return;
+
+  mem_free_dblk(tfm, *blkptrp);
+  *blkptrp = NULL;
+  v->tfn_nblocks--;
 }
 
 /*
@@ -846,8 +839,7 @@ static int tmpfs_expand_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
   if ((error = tmpfs_alloc_block(tfm, v, (blkptr_t *)&v->tfn_l2indirect)))
     return error;
 
-  size_t l2blkcnt =
-    (blkcnt - (DIRECT_BLK_NO + L1_BLK_NO) + PTR_IN_BLK - 1) / PTR_IN_BLK;
+  size_t l2blkcnt = howmany(blkcnt - (DIRECT_BLK_NO + L1_BLK_NO), PTR_IN_BLK);
   for (size_t i = 0; i < l2blkcnt; i++) {
     if ((error = tmpfs_alloc_block(tfm, v, (blkptr_t *)&v->tfn_l2indirect[i])))
       return error;
@@ -874,8 +866,7 @@ static void tmpfs_shrink_meta(tmpfs_mount_t *tfm, tmpfs_node_t *v,
   size_t l2ptrcnt = 0;
 
   if (blkcnt > L1_BLK_NO + DIRECT_BLK_NO)
-    l2ptrcnt =
-      (blkcnt - (DIRECT_BLK_NO + L1_BLK_NO) + PTR_IN_BLK - 1) / PTR_IN_BLK;
+    l2ptrcnt = howmany(blkcnt - (DIRECT_BLK_NO + L1_BLK_NO), PTR_IN_BLK);
 
   for (size_t i = l2ptrcnt; i < PTR_IN_BLK && v->tfn_l2indirect[i]; i++)
     tmpfs_free_block(tfm, v, (blkptr_t *)&v->tfn_l2indirect[i]);
