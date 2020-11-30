@@ -122,8 +122,6 @@ static intr_filter_t atkbdc_intr(void *data) {
 }
 
 static int atkbdc_probe(device_t *dev) {
-  assert(dev->parent->bus == DEV_BUS_PCI);
-
   if (dev->unit != 0)
     return 0;
 
@@ -151,8 +149,6 @@ static int atkbdc_probe(device_t *dev) {
 }
 
 static int atkbdc_attach(device_t *dev) {
-  assert(dev->parent->bus == DEV_BUS_PCI);
-
   vnodeops_init(&scancode_vnodeops);
 
   atkbdc_state_t *atkbdc = dev->state;

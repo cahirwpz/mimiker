@@ -110,8 +110,6 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
 }
 
 static int pit_attach(device_t *dev) {
-  assert(dev->parent->bus == DEV_BUS_PCI);
-
   pit_state_t *pit = dev->state;
 
   pit->regs = bus_alloc_ioports(dev, 0, RF_ACTIVE);

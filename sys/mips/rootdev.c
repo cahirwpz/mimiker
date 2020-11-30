@@ -126,10 +126,6 @@ static int rootdev_probe(device_t *bus) {
 
 DEVCLASS_DECLARE(pci);
 
-static device_t *rootdev_add_child(device_t *bus, int unit) {
-  return device_add_child(bus, unit);
-}
-
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
@@ -144,11 +140,11 @@ static int rootdev_attach(device_t *bus) {
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
   /* Create MIPS timer device and assign resources to it. */
-  device_t *dev = bus_add_child(bus, 0);
+  device_t *dev = device_add_child(bus, 0);
   device_add_irq(dev, 0, MIPS_HWINT5);
 
   /* Create GT PCI device and assign resources to it. */
-  dev = bus_add_child(bus, 1);
+  dev = device_add_child(bus, 1);
   dev->bus = DEV_BUS_PCI;
   dev->devclass = &DEVCLASS(pci);
   /* PCI I/O memory. */
@@ -173,8 +169,7 @@ static bus_driver_t rootdev_driver = {
       .probe = rootdev_probe,
       .attach = rootdev_attach,
     },
-  .bus = {.add_child = rootdev_add_child,
-          .intr_setup = rootdev_intr_setup,
+  .bus = {.intr_setup = rootdev_intr_setup,
           .intr_teardown = rootdev_intr_teardown,
           .alloc_resource = rootdev_alloc_resource,
           .release_resource = rootdev_release_resource,

@@ -77,8 +77,11 @@ void pci_bus_enumerate(device_t *pcib) {
 
       /* It looks like dev is a leaf in device tree, but it can also be an inner
        * node. */
-      device_t *dev = bus_add_child(pcib, -1);
-      pci_device_t *pcid = pci_device_of(dev);
+      device_t *dev = device_add_child(pcib, -1);
+      pci_device_t *pcid = kmalloc(M_DEV, sizeof(pci_device_t), M_ZERO);
+
+      dev->bus = DEV_BUS_PCI;
+      dev->instance = pcid;
 
       pcid->addr = PCIA(0, d, f);
       pcid->device_id = pci_read_config(dev, PCIR_DEVICEID, 2);

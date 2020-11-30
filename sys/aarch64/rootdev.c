@@ -196,10 +196,6 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
                       &rd->intr_event[BCM2835_INT_BASICBASE]);
 }
 
-static device_t *rootdev_add_child(device_t *bus, int unit) {
-  return device_add_child(bus, unit);
-}
-
 #define UART0_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE)
 
 static int rootdev_attach(device_t *bus) {
@@ -225,11 +221,11 @@ static int rootdev_attach(device_t *bus) {
   device_t *dev;
 
   /* Create ARM timer device and assign resources to it. */
-  dev = rootdev_add_child(bus, 0);
+  dev = device_add_child(bus, 0);
   device_add_irq(dev, 0, BCM2836_INT_CNTPNSIRQ_CPUN(0));
 
   /* Create PL011 UART device and assign resources to it. */
-  dev = rootdev_add_child(bus, 1);
+  dev = device_add_child(bus, 1);
   device_add_memory(dev, 0, UART0_BASE, BCM2835_UART0_SIZE);
   device_add_irq(dev, 0, BCM2835_INT_UART0);
 
@@ -293,7 +289,6 @@ static bus_driver_t rootdev_driver = {
     },
   .bus =
     {
-      .add_child = rootdev_add_child,
       .intr_setup = rootdev_intr_setup,
       .intr_teardown = rootdev_intr_teardown,
       .alloc_resource = rootdev_alloc_resource,

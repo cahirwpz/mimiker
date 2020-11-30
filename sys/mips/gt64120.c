@@ -74,6 +74,9 @@ static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
   gt_pci_state_t *gtpci = dev->parent->state;
   resource_t *pcicfg = gtpci->corectrl;
 
+  if (!pcid) /* XXX: ISA device workaround */
+    return -1;
+
   if (pcid->addr.bus > 0)
     return -1;
 
@@ -99,6 +102,9 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   pci_device_t *pcid = pci_device_of(dev);
   gt_pci_state_t *gtpci = dev->parent->state;
   resource_t *pcicfg = gtpci->corectrl;
+
+  if (!pcid) /* XXX: ISA device workaround */
+    return;
 
   if (pcid->addr.bus > 0)
     return;
@@ -301,33 +307,26 @@ static int gt_pci_attach(device_t *pcib) {
   device_t *dev;
 
   /* Create atkbdc keyboard device and assing resources to it. */
-  dev = bus_add_child(pcib, 0);
+  dev = device_add_child(pcib, 0);
+  dev->bus = DEV_BUS_PCI; /* XXX: ISA device workaround */
   device_add_ioports(dev, 0, IO_KBD, IO_KBDSIZE);
   device_add_irq(dev, 0, 1);
 
   /* Create ns16550 device and assing resources to it. */
-  dev = bus_add_child(pcib, 1);
+  dev = device_add_child(pcib, 1);
+  dev->bus = DEV_BUS_PCI; /* XXX: ISA device workaround */
   device_add_ioports(dev, 0, IO_COM1, IO_COMSIZE);
   device_add_irq(dev, 0, 4);
 
   /* Create rtc device and assing resources to it. */
-  dev = bus_add_child(pcib, 2);
+  dev = device_add_child(pcib, 2);
+  dev->bus = DEV_BUS_PCI; /* XXX: ISA device workaround */
   device_add_ioports(dev, 0, IO_RTC, IO_RTCSIZE);
   device_add_irq(dev, 0, 8);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
 
   return bus_generic_probe(pcib);
-}
-
-static device_t *gt_pci_add_child(device_t *bus, int unit) {
-  device_t *dev = device_add_child(bus, unit);
-  pci_device_t *pcid = kmalloc(M_DEV, sizeof(pci_device_t), M_ZERO);
-  assert(dev && pcid);
-
-  dev->bus = DEV_BUS_PCI;
-  dev->instance = pcid;
-  return dev;
 }
 
 static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
@@ -412,7 +411,6 @@ pci_bus_driver_t gt_pci_bus = {
     .probe = gt_pci_probe,
   },
   .bus = {
-    .add_child = gt_pci_add_child,
     .intr_setup = gt_pci_intr_setup,
     .intr_teardown = gt_pci_intr_teardown,
     .alloc_resource = gt_pci_alloc_resource,

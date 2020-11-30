@@ -135,7 +135,6 @@ extern bus_space_t *generic_bus_space;
 #define bus_space_map(t, a, s, hp) (*(t)->bs_map)((a), (s), (hp))
 
 struct bus_methods {
-  device_t *(*add_child)(device_t *bus, int unit);
   void (*intr_setup)(device_t *dev, resource_t *irq, ih_filter_t *filter,
                      ih_service_t *service, void *arg, const char *name);
   void (*intr_teardown)(device_t *dev, resource_t *irq);
@@ -153,10 +152,6 @@ struct bus_driver {
 };
 
 #define BUS_METHOD(dev) ((bus_driver_t *)((dev)->driver))->bus
-
-static inline device_t *bus_add_child(device_t *bus, int unit) {
-  return BUS_METHOD(bus).add_child(bus, unit);
-}
 
 static inline void bus_intr_setup(device_t *dev, resource_t *irq,
                                   ih_filter_t *filter, ih_service_t *service,
