@@ -290,7 +290,7 @@ int do_faccessat(proc_t *p, int fd, char *path, int mode, int flags) {
 
   /* TODO handle AT_EACCESS: Use the effective user and group IDs instead of
      the real user and group IDs for checking permission.*/
-  error = VOP_ACCESS(v, mode);
+  error = VOP_ACCESS(v, mode, &p->p_cred);
   vnode_drop(v);
   return error;
 }
@@ -361,7 +361,7 @@ int do_truncate(proc_t *p, char *path, off_t length) {
   vnode_lock(vn);
   if (vn->v_type == V_DIR)
     error = EISDIR;
-  else if ((error = VOP_ACCESS(vn, VWRITE)))
+  else if ((error = VOP_ACCESS(vn, VWRITE, &p->p_cred)))
     error = vfs_truncate(vn, length, &p->p_cred);
 
   vnode_put(vn);
@@ -396,7 +396,7 @@ ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio) {
 
   if (v->v_type != V_LNK)
     error = EINVAL;
-  else if (!(error = VOP_ACCESS(v, VREAD)))
+  else if (!(error = VOP_ACCESS(v, VREAD, &p->p_cred)))
     error = VOP_READLINK(v, uio);
 
   vnode_drop(v);

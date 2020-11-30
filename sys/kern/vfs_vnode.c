@@ -312,9 +312,10 @@ int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff) {
   return 0;
 }
 
-int vnode_access_generic(vnode_t *v, accmode_t acc) {
+int vnode_access_generic(vnode_t *v, accmode_t acc, cred_t *cred) {
   vattr_t va;
   int error;
+  (void)cred;
 
   if ((error = VOP_GETATTR(v, &va)))
     return error;
