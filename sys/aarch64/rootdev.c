@@ -236,7 +236,7 @@ static int rootdev_attach(device_t *bus) {
 
 static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type, 
 		                          int rid, rman_addr_t start, rman_addr_t end,
-					  size_t count, res_flags_t flags) {
+					  size_t size, res_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
   size_t alignment = 0;
   rman_t *rman = NULL;
@@ -250,7 +250,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
     panic("Resource type not handled!");
   }
 
-  resource_t *r = rman_reserve_resource(rman, start, end, count, alignment, flags);
+  resource_t *r = rman_reserve_resource(rman, start, end, size, alignment, flags);
   if (!r)
     return NULL;
   r->r_rid = rid;

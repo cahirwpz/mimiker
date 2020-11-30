@@ -139,8 +139,8 @@ struct bus_methods {
                      ih_service_t *service, void *arg, const char *name);
   void (*intr_teardown)(device_t *dev, resource_t *irq);
   resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
-                                rman_addr_t start, rman_addr_t end,
-                                size_t count, res_flags_t flags);
+                                rman_addr_t start, rman_addr_t end, size_t size,
+                                res_flags_t flags);
   void (*release_resource)(device_t *dev, res_type_t type, resource_t *r);
   int (*activate_resource)(device_t *dev, res_type_t type, resource_t *r);
   void (*deactivate_resource)(device_t *dev, res_type_t type, resource_t *r);

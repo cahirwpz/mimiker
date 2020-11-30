@@ -331,7 +331,7 @@ static int gt_pci_attach(device_t *pcib) {
 
 static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
                                          int rid, rman_addr_t start,
-                                         rman_addr_t end, size_t count,
+                                         rman_addr_t end, size_t size,
                                          res_flags_t flags) {
   /* Currently all devices are logicaly attached to PCI bus,
    * because we don't have PCI-ISA bridge implemented. */
@@ -356,7 +356,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   }
 
   resource_t *r =
-    rman_reserve_resource(rman, start, end, count, alignment, flags);
+    rman_reserve_resource(rman, start, end, size, alignment, flags);
   if (r == NULL)
     return NULL;
   r->r_rid = rid;

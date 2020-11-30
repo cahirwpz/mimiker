@@ -11,7 +11,7 @@ KMALLOC_DEFINE(M_DEV, "devices & drivers");
 typedef struct resource_list_entry {
   SLIST_ENTRY(resource_list_entry) link;
   resource_t *res; /* the actual resource */
-  res_type_t type; /* type argument to alloc_resource */
+  res_type_t type; /* resource type */
 } resource_list_entry_t;
 
 device_t *device_alloc(int unit) {
