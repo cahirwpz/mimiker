@@ -147,7 +147,7 @@ static void ensure_vaddr_mapped(vaddr_t va) {
 
 /* tmpfs memory allocation routines */
 
-static mem_arena_t *mem_new_arena(mem_arenalist_t *arlst) {
+static mem_arena_t *new_mem_arena(mem_arenalist_t *arlst) {
   mem_arena_t *arena = (mem_arena_t *)kva_alloc(ARENA_SIZE);
   if (arena == NULL)
     return NULL;
@@ -178,10 +178,35 @@ static mem_arena_t *mem_find_ptr_arena(mem_arenalist_t *al, void *ptr) {
   return NULL;
 }
 
-static blkptr_t mem_arena_alloc_dblk(mem_arena_t *arena) {
-  int index;
+static mem_arena_t *mem_arena_with_blocks(tmpfs_mount_t *tfm) {
+  mem_arena_t *arena = NULL;
+  STAILQ_FOREACH(arena, &tfm->tfm_arenas, tma_link) {
+    if (arena->tma_ndblocks > 0)
+      return arena;
+  }
+  return new_mem_arena(&tfm->tfm_arenas);
+}
+
+static mem_arena_t *mem_arena_with_inodes(tmpfs_mount_t *tfm) {
+  mem_arena_t *arena = NULL;
+  STAILQ_FOREACH(arena, &tfm->tfm_arenas, tma_link) {
+    if (arena->tma_ninodes > 0)
+      return arena;
+  }
+  return new_mem_arena(&tfm->tfm_arenas);
+}
+
+static blkptr_t tmpfs_alloc_dblk(tmpfs_mount_t *tfm) {
+  SCOPED_MTX_LOCK(&tfm->tfm_lock);
+
+  mem_arena_t *arena;
+
+  if (!(arena = mem_arena_with_blocks(tfm)))
+    return NULL;
+
   assert(arena->tma_ndblocks > 0);
 
+  int index;
   bit_ffs(arena->tma_dblock_bm, ARENA_DATA_BLOCKS, &index);
   bit_clear(arena->tma_dblock_bm, index);
   assert(index != -1);
@@ -192,7 +217,12 @@ static blkptr_t mem_arena_alloc_dblk(mem_arena_t *arena) {
   return blk;
 }
 
-static void mem_arena_free_dblk(mem_arena_t *arena, blkptr_t blk) {
+static void tmpfs_free_dblk(tmpfs_mount_t *tfm, blkptr_t blk) {
+  SCOPED_MTX_LOCK(&tfm->tfm_lock);
+
+  mem_arena_t *arena = mem_find_ptr_arena(&tfm->tfm_arenas, blk);
+  assert(arena != NULL);
+
   int index = ((void *)blk - (void *)arena->tma_dblocks) / BLOCK_SIZE;
   assert(0 <= index && index < (int)ARENA_DATA_BLOCKS);
 
@@ -201,10 +231,17 @@ static void mem_arena_free_dblk(mem_arena_t *arena, blkptr_t blk) {
   kva_unmap((vaddr_t)blk, BLOCK_SIZE);
 }
 
-static tmpfs_node_t *mem_arena_alloc_inode(mem_arena_t *arena) {
-  int index;
+static tmpfs_node_t *tmpfs_alloc_inode(tmpfs_mount_t *tfm) {
+  SCOPED_MTX_LOCK(&tfm->tfm_lock);
+
+  mem_arena_t *arena;
+
+  if (!(arena = mem_arena_with_inodes(tfm)))
+    return NULL;
+
   assert(arena->tma_ninodes > 0);
 
+  int index;
   bit_ffs(arena->tma_inode_bm, ARENA_INODE_CNT, &index);
   bit_clear(arena->tma_inode_bm, index);
   assert(index != -1);
@@ -220,56 +257,17 @@ static tmpfs_node_t *mem_arena_alloc_inode(mem_arena_t *arena) {
   return node;
 }
 
-static void mem_arena_free_inode(mem_arena_t *arena, tmpfs_node_t *node) {
+static void tmpfs_free_inode(tmpfs_mount_t *tfm, tmpfs_node_t *node) {
+  SCOPED_MTX_LOCK(&tfm->tfm_lock);
+
+  mem_arena_t *arena = mem_find_ptr_arena(&tfm->tfm_arenas, node);
+  assert(arena != NULL);
+
   int index = node - arena->tma_inodes;
   assert(0 <= index && index < (int)ARENA_INODE_CNT);
 
   bit_set(arena->tma_inode_bm, index);
   arena->tma_ninodes++;
-}
-
-static blkptr_t mem_alloc_dblk(tmpfs_mount_t *tfm) {
-  mem_arena_t *arena = NULL;
-  SCOPED_MTX_LOCK(&tfm->tfm_lock);
-
-  STAILQ_FOREACH(arena, &tfm->tfm_arenas, tma_link) {
-    if (arena->tma_ndblocks > 0)
-      return mem_arena_alloc_dblk(arena);
-  }
-
-  if (!(arena = mem_new_arena(&tfm->tfm_arenas)))
-    return NULL;
-  return mem_arena_alloc_dblk(arena);
-}
-
-static void mem_free_dblk(tmpfs_mount_t *tfm, blkptr_t blk) {
-  SCOPED_MTX_LOCK(&tfm->tfm_lock);
-
-  mem_arena_t *arena = mem_find_ptr_arena(&tfm->tfm_arenas, blk);
-  assert(arena != NULL);
-  mem_arena_free_dblk(arena, blk);
-}
-
-static tmpfs_node_t *mem_alloc_inode(tmpfs_mount_t *tfm) {
-  mem_arena_t *arena = NULL;
-  SCOPED_MTX_LOCK(&tfm->tfm_lock);
-
-  STAILQ_FOREACH(arena, &tfm->tfm_arenas, tma_link) {
-    if (arena->tma_ninodes > 0)
-      return mem_arena_alloc_inode(arena);
-  }
-
-  if (!(arena = mem_new_arena(&tfm->tfm_arenas)))
-    return NULL;
-  return mem_arena_alloc_inode(arena);
-}
-
-static void mem_free_inode(tmpfs_mount_t *tfm, tmpfs_node_t *node) {
-  SCOPED_MTX_LOCK(&tfm->tfm_lock);
-
-  mem_arena_t *arena = mem_find_ptr_arena(&tfm->tfm_arenas, node);
-  assert(arena != NULL);
-  mem_arena_free_inode(arena, node);
 }
 
 /* XXX: Temporary solution. There should be dedicated allocator for mount
@@ -619,7 +617,7 @@ static void tmpfs_attach_vnode(tmpfs_node_t *tfn, mount_t *mp) {
  */
 static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
                                     vnodetype_t ntype) {
-  tmpfs_node_t *node = mem_alloc_inode(tfm);
+  tmpfs_node_t *node = tmpfs_alloc_inode(tfm);
   node->tfn_vnode = NULL;
   node->tfn_mode = va->va_mode;
   node->tfn_type = ntype;
@@ -658,7 +656,7 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
  */
 static void tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn) {
   tmpfs_resize(tfm, tfn, 0);
-  mem_free_inode(tfm, tfn);
+  tmpfs_free_inode(tfm, tfn);
 }
 
 /*
@@ -795,7 +793,7 @@ static int tmpfs_alloc_block(tmpfs_mount_t *tfm, tmpfs_node_t *v,
   assert(blkptrp != NULL);
 
   if (!(*blkptrp)) {
-    blkptr_t blkptr = mem_alloc_dblk(tfm);
+    blkptr_t blkptr = tmpfs_alloc_dblk(tfm);
     if (!blkptr)
       return ENOMEM;
     v->tfn_nblocks++;
@@ -812,7 +810,7 @@ static void tmpfs_free_block(tmpfs_mount_t *tfm, tmpfs_node_t *v,
   if (*blkptrp == NULL)
     return;
 
-  mem_free_dblk(tfm, *blkptrp);
+  tmpfs_free_dblk(tfm, *blkptrp);
   *blkptrp = NULL;
   v->tfn_nblocks--;
 }
@@ -963,7 +961,7 @@ static int tmpfs_mount(mount_t *mp) {
   mp->mnt_data = tfm;
 
   STAILQ_INIT(&tfm->tfm_arenas);
-  if (!mem_new_arena(&tfm->tfm_arenas))
+  if (!new_mem_arena(&tfm->tfm_arenas))
     return ENOMEM;
 
   /* Allocate the root node. */
