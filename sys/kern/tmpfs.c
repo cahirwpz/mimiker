@@ -93,7 +93,7 @@ typedef struct tmpfs_node {
   uid_t tfn_uid;     /* owner of file */
   gid_t tfn_gid;     /* group of file */
 
-  size_t tfn_nblocks; /* number of blocks used by this file */
+  size_t tfn_nblocks;                 /* number of blocks used by this file */
   blkptr_t tfn_direct[DIRECT_BLK_NO]; /* blocks containing the data */
   blkptr_t *tfn_l1indirect;
   blkptr_t **tfn_l2indirect;
@@ -379,6 +379,14 @@ static int tmpfs_vop_close(vnode_t *v, file_t *fp) {
   return 0;
 }
 
+static int tmpfs_uiomove(tmpfs_node_t *node, uio_t *uio, size_t n) {
+  size_t blkoff = BLKOFF(uio->uio_offset);
+  size_t len = MIN(BLOCK_SIZE - blkoff, n);
+  size_t blkno = BLKNO(uio->uio_offset);
+  void *blk = *tmpfs_get_blk(node, blkno);
+  return uiomove(blk + blkoff, len, uio);
+}
+
 static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
   size_t remaining;
@@ -392,13 +400,9 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
   if (node->tfn_size <= (size_t)uio->uio_offset)
     return 0;
 
-  while ((remaining = MIN(node->tfn_size - uio->uio_offset, uio->uio_resid))) {
-    size_t blkoff = BLKOFF(uio->uio_offset);
-    size_t len = MIN(BLOCK_SIZE - blkoff, remaining);
-    size_t blkno = BLKNO(uio->uio_offset);
-    void *blk = *tmpfs_get_blk(node, blkno);
-    if ((error = uiomove(blk + blkoff, len, uio)))
-      break;
+  while (!error &&
+         (remaining = MIN(node->tfn_size - uio->uio_offset, uio->uio_resid))) {
+    error = tmpfs_uiomove(node, uio, remaining);
   }
 
   return error;
@@ -421,13 +425,8 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio, int ioflag) {
     if ((error = tmpfs_resize(tfm, node, uio->uio_offset + uio->uio_resid)))
       return error;
 
-  while (uio->uio_resid > 0) {
-    size_t blkoff = BLKOFF(uio->uio_offset);
-    size_t len = MIN(BLOCK_SIZE - blkoff, uio->uio_resid);
-    size_t blkno = BLKNO(uio->uio_offset);
-    void *blk = *tmpfs_get_blk(node, blkno);
-    if ((error = uiomove(blk + blkoff, len, uio)))
-      break;
+  while (!error && uio->uio_resid > 0) {
+    error = tmpfs_uiomove(node, uio, uio->uio_resid);
   }
 
   return error;
