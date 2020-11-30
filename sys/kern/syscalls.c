@@ -858,6 +858,38 @@ end:
   return error;
 }
 
+static int sys_fchown(proc_t *p, fchown_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  uid_t uid = SCARG(args, uid);
+  gid_t gid = SCARG(args, gid);
+
+  klog("fchown(%d, %d)", uid, gid);
+
+  return do_fchown(p, fd, uid, gid);
+}
+
+static int sys_fchownat(proc_t *p, fchownat_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  uid_t uid = SCARG(args, uid);
+  gid_t gid = SCARG(args, gid);
+  int flag = SCARG(args, flag);
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("fchownat(%d, \"%s\", %d, %d)", fd, path, uid, uid);
+
+  error = do_fchownat(p, fd, path, uid, gid, flag);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
 static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
   klog("sched_yield()");
   thread_yield();

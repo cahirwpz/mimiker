@@ -10,6 +10,7 @@
 #include <sys/vfs.h>
 #include <sys/kmem.h>
 #include <sys/malloc.h>
+#include <sys/cred.h>
 
 #define TMPFS_NAME_MAX 64
 
@@ -284,14 +285,45 @@ static int tmpfs_vop_getattr(vnode_t *v, vattr_t *va) {
   return 0;
 }
 
-static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va) {
+static int tmpfs_chmod(tmpfs_node_t *node, mode_t mode, cred_t *cred) {
+  if (!cred_can_chmod(node->tfn_uid, node->tfn_gid, cred, mode))
+    return EPERM;
+
+  node->tfn_mode = (node->tfn_mode & ~ALLPERMS) | (mode & ALLPERMS);
+  return 0;
+}
+
+static int tmpfs_chown(tmpfs_node_t *node, uid_t uid, gid_t gid, cred_t *cred) {
+  if (!cred_can_chown(node->tfn_uid, cred, uid, gid))
+    return EPERM;
+
+  if (uid != (uid_t)-1) {
+    node->tfn_uid = uid;
+    node->tfn_mode &= ~S_ISUID; /* clear set-user-ID */
+  }
+
+  if (gid != (gid_t)-1) {
+    node->tfn_gid = gid;
+    node->tfn_mode &= ~S_ISGID; /* clear set-group-ID */
+  }
+  return 0;
+}
+
+static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va, cred_t *cred) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
 
   if (va->va_size != (size_t)VNOVAL)
     tmpfs_reg_resize(tfm, node, va->va_size);
-  if (va->va_mode != (mode_t)VNOVAL)
-    node->tfn_mode = (node->tfn_mode & ~ALLPERMS) | (va->va_mode & ALLPERMS);
+
+  if (va->va_mode != (mode_t)VNOVAL) {
+    int error;
+    if ((error = tmpfs_chmod(node, va->va_mode, cred)))
+      return error;
+  }
+
+  if (va->va_uid != (uid_t)VNOVAL || va->va_gid != (gid_t)VNOVAL)
+    return tmpfs_chown(node, va->va_uid, va->va_gid, cred);
 
   return 0;
 }
