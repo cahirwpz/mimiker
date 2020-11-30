@@ -12,7 +12,7 @@
 
 int test_sharing_memory_simple(void) {
   char *map =
-    mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, 0, 0);
+    mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
 
   assert(map != (char *)MAP_FAILED);
 
@@ -38,7 +38,7 @@ int test_sharing_memory_simple(void) {
 
 int test_sharing_memory_child_and_grandchild(void) {
   char *map =
-    mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, 0, 0);
+    mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
 
   assert(map != (char *)MAP_FAILED);
 
@@ -79,7 +79,7 @@ int test_sharing_memory_child_and_grandchild(void) {
 }
 
 int test_cow_private_simple(void) {
-  char *map = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANON, 0, 0);
+  char *map = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
 
   assert(map != (char *)MAP_FAILED);
 
