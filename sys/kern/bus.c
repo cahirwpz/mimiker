@@ -103,7 +103,7 @@ int bus_activate_resource(device_t *dev, res_type_t type, int rid,
   if (r->r_flags & RF_ACTIVE)
     return 0;
 
-  int error = BUS_DRIVER(dev)->bus.activate_resource(dev, type, rid, r);
+  int error = BUS_METHOD(dev->parent).activate_resource(dev, type, rid, r);
   if (error == 0)
     rman_activate_resource(r);
   return error;
