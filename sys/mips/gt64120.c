@@ -256,9 +256,9 @@ static intr_filter_t gt_pci_intr(void *data) {
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
-  gtpci->pci_mem = bus_alloc_resource(pcib, RT_MEMORY, 0, 0);
-  gtpci->pci_io = bus_alloc_resource(pcib, RT_MEMORY, 1, RF_ACTIVE);
-  gtpci->corectrl = bus_alloc_resource(pcib, RT_MEMORY, 2, RF_ACTIVE);
+  gtpci->pci_mem = bus_alloc_memory(pcib, 0, 0);
+  gtpci->pci_io = bus_alloc_memory(pcib, 1, RF_ACTIVE);
+  gtpci->corectrl = bus_alloc_memory(pcib, 2, RF_ACTIVE);
 
   if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
       gtpci->pci_io == NULL) {
@@ -289,7 +289,7 @@ static int gt_pci_attach(device_t *pcib) {
   bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
-  gtpci->irq_res = bus_alloc_resource(pcib, RT_IRQ, 0, RF_ACTIVE);
+  gtpci->irq_res = bus_alloc_irq(pcib, 0, RF_ACTIVE);
   bus_intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
                  "GT64120 main irq");
 

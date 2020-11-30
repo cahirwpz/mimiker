@@ -114,11 +114,11 @@ static int pit_attach(device_t *dev) {
 
   pit_state_t *pit = dev->state;
 
-  pit->regs = bus_alloc_resource(dev, RT_IOPORTS, 0, RF_ACTIVE);
+  pit->regs = bus_alloc_ioports(dev, 0, RF_ACTIVE);
   assert(pit->regs != NULL);
 
   pit->lock = SPIN_INITIALIZER(0);
-  pit->irq_res = bus_alloc_resource(dev, RT_IRQ, 0, RF_ACTIVE);
+  pit->irq_res = bus_alloc_irq(dev, 0, RF_ACTIVE);
 
   pit->timer = (timer_t){
     .tm_name = "i8254",

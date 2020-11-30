@@ -100,10 +100,10 @@ static int rtc_attach(device_t *dev) {
 
   rtc_state_t *rtc = dev->state;
 
-  rtc->regs = bus_alloc_resource(dev, RT_IOPORTS, 0, RF_ACTIVE);
+  rtc->regs = bus_alloc_ioports(dev, 0, RF_ACTIVE);
   assert(rtc->regs != NULL);
 
-  rtc->irq_res = bus_alloc_resource(dev, RT_IRQ, 0, RF_ACTIVE);
+  rtc->irq_res = bus_alloc_irq(dev, 0, RF_ACTIVE);
   assert(rtc->irq_res);
   bus_intr_setup(dev, rtc->irq_res, rtc_intr, NULL, rtc, "RTC periodic timer");
 
