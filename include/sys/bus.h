@@ -4,57 +4,10 @@
 #include <machine/bus_defs.h>
 #include <sys/device.h>
 #include <sys/interrupt.h>
-#include <sys/rman.h>
 
 typedef struct bus_methods bus_methods_t;
 typedef struct bus_driver bus_driver_t;
 typedef struct intr_handler intr_handler_t;
-
-typedef enum { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
-
-struct resource_list_entry {
-  SLIST_ENTRY(resource_list_entry) link;
-  resource_t *res;   /* the actual resource when allocated */
-  res_type_t type;   /* type argument to alloc_resource */
-  int rid;           /* resource identifier */
-  rman_addr_t start; /* start of resource range */
-  rman_addr_t end;   /* end of resource range */
-  size_t count;      /* number of bytes */
-};
-
-/*! \brief Initialize resource list. */
-void resource_list_init(device_t *dev);
-
-/*! \brief Reclaim memory used by a resouce list. */
-void resource_list_fini(device_t *dev);
-
-/*! \brief Add a resource entry to resource list. */
-void resource_list_add(device_t *dev, res_type_t type, int rid,
-                       rman_addr_t start, rman_addr_t end, size_t count);
-
-/*! \brief Add a resource which can be allocated
- * anywhere within an associated parent bus range. */
-#define resource_list_add_default(dev, type, rid, count)                       \
-  resource_list_add((dev), (type), (rid), 0, RMAN_ADDR_MAX, (count))
-
-/*! \brief Add a resource which must start exactly at the `start` address. */
-#define resource_list_add_range(dev, type, rid, start, count)                  \
-  resource_list_add((dev), (type), (rid), (start), (start) + (count)-1, (count))
-
-#define resource_list_add_irq(dev, rid, irq)                                   \
-  resource_list_add_range((dev), RT_IRQ, (rid), (irq), 1)
-
-/*! \brief Find a resource entry by type and rid. */
-resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
-                                          int rid);
-
-/*! \brief Allocate a resource based on resource list entry. */
-resource_t *resource_list_alloc(device_t *dev, rman_t *rman, res_type_t type,
-                                int rid, res_flags_t flags);
-
-/*! \brief Release an allocated resource. */
-void resource_list_release(device_t *dev, res_type_t type, int rid,
-                           resource_t *res);
 
 /* `bus space` describes a method to access hardware resources mapped at some
  * address. We make no distinction between different kinds of physical address
@@ -182,6 +135,7 @@ extern bus_space_t *generic_bus_space;
 #define bus_space_map(t, a, s, hp) (*(t)->bs_map)((a), (s), (hp))
 
 struct bus_methods {
+  device_t *(*add_child)(device_t *bus, int unit);
   void (*intr_setup)(device_t *dev, resource_t *irq, ih_filter_t *filter,
                      ih_service_t *service, void *arg, const char *name);
   void (*intr_teardown)(device_t *dev, resource_t *irq);
@@ -197,6 +151,10 @@ struct bus_driver {
   driver_t driver;
   bus_methods_t bus;
 };
+
+static inline device_t *bus_add_child(device_t *bus, int unit) {
+  return ((bus_driver_t *)(bus->driver))->bus.add_child(bus, unit);
+}
 
 #define BUS_DRIVER(dev) ((bus_driver_t *)((dev)->parent->driver))
 

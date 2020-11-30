@@ -72,7 +72,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
     panic("Resource type not handled!");
   }
 
-  resource_t *r = resource_list_alloc(dev, rman, type, rid, flags);
+  resource_t *r = device_alloc_resource(dev, rman, type, rid, flags);
   if (r == NULL)
     return NULL;
 
@@ -83,7 +83,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, type, rid, r)) {
-      resource_list_release(dev, type, rid, r);
+      device_release_resource(dev, type, rid, r);
       return NULL;
     }
   }
@@ -94,7 +94,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
                                      resource_t *r) {
   /* TODO: we should unmap mapped resources. */
-  resource_list_release(dev, type, rid, r);
+  device_release_resource(dev, type, rid, r);
 }
 
 static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
@@ -126,16 +126,8 @@ static int rootdev_probe(device_t *bus) {
 
 DEVCLASS_DECLARE(pci);
 
-static device_t *rootdev_add_child(device_t *bus, device_bus_t db,
-                                   devclass_t *dc, int unit) {
-  device_t *dev = device_add_child(bus, NULL, unit);
-  assert(dev);
-
-  dev->bus = db;
-  dev->devclass = dc;
-  resource_list_init(dev);
-
-  return dev;
+static device_t *rootdev_add_child(device_t *bus, int unit) {
+  return device_add_child(bus, unit);
 }
 
 static int rootdev_attach(device_t *bus) {
@@ -152,21 +144,21 @@ static int rootdev_attach(device_t *bus) {
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
   /* Create MIPS timer device and assign resources to it. */
-  device_t *dev = rootdev_add_child(bus, DEV_BUS_NONE, NULL, 0);
-  resource_list_add_irq(dev, 0, MIPS_HWINT5);
+  device_t *dev = bus_add_child(bus, 0);
+  device_add_irq(dev, 0, MIPS_HWINT5);
 
   /* Create GT PCI device and assign resources to it. */
-  dev = rootdev_add_child(bus, DEV_BUS_PCI, &DEVCLASS(pci), 1);
+  dev = bus_add_child(bus, 1);
+  dev->bus = DEV_BUS_PCI;
+  dev->devclass = &DEVCLASS(pci);
   /* PCI I/O memory. */
-  resource_list_add_range(dev, RT_MEMORY, 0, MALTA_PCI0_MEMORY_BASE,
-                          MALTA_PCI0_MEMORY_SIZE);
+  device_add_memory(dev, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_SIZE);
   /* PCI I/O ports 0x0000-0xffff. */
-  resource_list_add_range(dev, RT_MEMORY, 1, MALTA_PCI0_IO_BASE, 0x10000);
+  device_add_memory(dev, 1, MALTA_PCI0_IO_BASE, 0x10000);
   /* GT64120 registers. */
-  resource_list_add_range(dev, RT_MEMORY, 2, MALTA_CORECTRL_BASE,
-                          MALTA_CORECTRL_SIZE);
+  device_add_memory(dev, 2, MALTA_CORECTRL_BASE, MALTA_CORECTRL_SIZE);
   /* GT64120 main irq. */
-  resource_list_add_irq(dev, 0, MIPS_HWINT0);
+  device_add_irq(dev, 0, MIPS_HWINT0);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
 
@@ -181,7 +173,8 @@ static bus_driver_t rootdev_driver = {
       .probe = rootdev_probe,
       .attach = rootdev_attach,
     },
-  .bus = {.intr_setup = rootdev_intr_setup,
+  .bus = {.add_child = rootdev_add_child,
+          .intr_setup = rootdev_intr_setup,
           .intr_teardown = rootdev_intr_teardown,
           .alloc_resource = rootdev_alloc_resource,
           .release_resource = rootdev_release_resource,
@@ -190,10 +183,9 @@ static bus_driver_t rootdev_driver = {
 DEVCLASS_CREATE(root);
 
 void init_devices(void) {
-  static device_t rootdev;
-
-  device_init(&rootdev, &DEVCLASS(root), 0);
-  rootdev.driver = (driver_t *)&rootdev_driver;
-  (void)device_probe(&rootdev);
-  device_attach(&rootdev);
+  device_t *rootdev = device_alloc(0);
+  rootdev->devclass = &DEVCLASS(root);
+  rootdev->driver = (driver_t *)&rootdev_driver;
+  (void)device_probe(rootdev);
+  device_attach(rootdev);
 }

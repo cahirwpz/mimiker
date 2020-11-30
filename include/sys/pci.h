@@ -110,7 +110,6 @@ static inline void pci_write_config(device_t *device, unsigned reg,
   PCI_DRIVER(device)->pci_bus.write_config(device, reg, size, value);
 }
 
-device_t *pci_add_child(device_t *bus, int unit);
 void pci_bus_enumerate(device_t *pcib);
 void pci_bus_dump(device_t *pcib);
 

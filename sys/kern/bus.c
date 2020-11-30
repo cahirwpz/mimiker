@@ -1,93 +1,9 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
-#include <sys/device.h>
-#include <sys/pci.h>
+#include <sys/bus.h>
 #include <sys/kmem.h>
 #include <sys/pmap.h>
-#include <sys/rman.h>
 #include <sys/devclass.h>
-
-static KMALLOC_DEFINE(M_RLE, "resource list entries");
-
-void resource_list_init(device_t *dev) {
-  SLIST_INIT(&dev->resources);
-}
-
-void resource_list_fini(device_t *dev) {
-  resource_list_t *rl = &dev->resources;
-  resource_list_entry_t *rle;
-
-  while ((rle = SLIST_FIRST(rl))) {
-    if (rle->res)
-      panic("resource entry is busy");
-    SLIST_REMOVE_HEAD(rl, link);
-    kfree(M_RLE, rle);
-  }
-}
-
-resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
-                                          int rid) {
-  resource_list_entry_t *rle;
-
-  SLIST_FOREACH(rle, &dev->resources, link) {
-    if (rle->type == type && rle->rid == rid)
-      return rle;
-  }
-  return NULL;
-}
-
-void resource_list_add(device_t *dev, res_type_t type, int rid,
-                       rman_addr_t start, rman_addr_t end, size_t count) {
-  resource_list_entry_t *rle;
-
-  if ((rle = resource_list_find(dev, rid, type)))
-    panic("resource entry already exists");
-
-  rle = kmalloc(M_RLE, sizeof(resource_list_entry_t), M_WAITOK);
-  SLIST_INSERT_HEAD(&dev->resources, rle, link);
-  rle->res = NULL;
-  rle->type = type;
-  rle->rid = rid;
-  rle->start = start;
-  rle->end = end;
-  rle->count = count;
-}
-
-resource_t *resource_list_alloc(device_t *dev, rman_t *rman, res_type_t type,
-                                int rid, res_flags_t flags) {
-  resource_list_entry_t *rle;
-
-  if (!(rle = resource_list_find(dev, type, rid))) {
-    /* no resource entry of that type/rid */
-    return NULL;
-  }
-
-  size_t alignment = 0;
-  if (type == RT_MEMORY)
-    alignment = PAGESIZE;
-
-  resource_t *r = rman_reserve_resource(rman, rle->start, rle->end, rle->count,
-                                        alignment, flags);
-  if (r)
-    rle->res = r;
-
-  return r;
-}
-
-void resource_list_release(device_t *dev, res_type_t type, int rid,
-                           resource_t *res) {
-  resource_list_entry_t *rle;
-
-  if (!(rle = resource_list_find(dev, type, rid)))
-    panic("can't find the resource entry");
-
-  if (!rle->res)
-    panic("resource entry is not busy");
-
-  rman_deactivate_resource(rle->res);
-  rman_release_resource(rle->res);
-  rle->res = NULL;
-}
 
 int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p) {

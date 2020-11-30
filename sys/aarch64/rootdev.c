@@ -196,11 +196,8 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
                       &rd->intr_event[BCM2835_INT_BASICBASE]);
 }
 
-static device_t *rootdev_add_child(device_t *bus, devclass_t *dc, int unit) {
-  device_t *dev = device_add_child(bus, dc, unit);
-  assert(dev);
-  resource_list_init(dev);
-  return dev;
+static device_t *rootdev_add_child(device_t *bus, int unit) {
+  return device_add_child(bus, unit);
 }
 
 #define UART0_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE)
@@ -225,14 +222,16 @@ static int rootdev_attach(device_t *bus) {
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
+  device_t *dev;
+
   /* Create ARM timer device and assign resources to it. */
-  device_t *dev = rootdev_add_child(bus, &DEVCLASS(root), 0);
-  resource_list_add_irq(dev, 0, BCM2836_INT_CNTPNSIRQ_CPUN(0));
+  dev = rootdev_add_child(bus, 0);
+  device_add_irq(dev, 0, BCM2836_INT_CNTPNSIRQ_CPUN(0));
 
   /* Create PL011 UART device and assign resources to it. */
-  dev = rootdev_add_child(bus, &DEVCLASS(root), 1);
-  resource_list_add_range(dev, RT_MEMORY, 0, UART0_BASE, BCM2835_UART0_SIZE);
-  resource_list_add_irq(dev, 0, BCM2835_INT_UART0);
+  dev = rootdev_add_child(bus, 1);
+  device_add_memory(dev, 0, UART0_BASE, BCM2835_UART0_SIZE);
+  device_add_irq(dev, 0, BCM2835_INT_UART0);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
 
@@ -252,7 +251,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
     panic("Resource type not handled!");
   }
 
-  resource_t *r = resource_list_alloc(dev, rman, type, rid, flags);
+  resource_t *r = device_alloc_resource(dev, rman, type, rid, flags);
   if (!r)
     return NULL;
 
@@ -263,7 +262,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, type, rid, r)) {
-      resource_list_release(dev, type, rid, r);
+      device_release_resource(dev, type, rid, r);
       return NULL;
     }
   }
@@ -274,7 +273,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
                                      resource_t *r) {
   /* TODO: we should unmap mapped resources. */
-  resource_list_release(dev, type, rid, r);
+  device_release_resource(dev, type, rid, r);
 }
 
 static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
@@ -294,6 +293,7 @@ static bus_driver_t rootdev_driver = {
     },
   .bus =
     {
+      .add_child = rootdev_add_child,
       .intr_setup = rootdev_intr_setup,
       .intr_teardown = rootdev_intr_teardown,
       .alloc_resource = rootdev_alloc_resource,

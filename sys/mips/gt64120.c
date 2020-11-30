@@ -253,16 +253,6 @@ static intr_filter_t gt_pci_intr(void *data) {
   return IF_FILTERED;
 }
 
-static device_t *gt_pci_find_child(device_t *pcib, int vid, int did) {
-  device_t *dev;
-  TAILQ_FOREACH (dev, &pcib->children, link) {
-    pci_device_t *pcid = pci_device_of(dev);
-    if (pci_device_match(pcid, vid, did))
-      return dev;
-  }
-  return NULL;
-}
-
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
@@ -305,33 +295,39 @@ static int gt_pci_attach(device_t *pcib) {
 
   pci_bus_enumerate(pcib);
 
-  /* Add the irq for RTL8139. */
-  device_t *dev = gt_pci_find_child(pcib, 0x10ec, 0x8139);
-  if (dev)
-    resource_list_add_irq(dev, 0, 10);
-
   /*
    * Create child devices of ISA bus.
    */
+  device_t *dev;
 
   /* Create atkbdc keyboard device and assing resources to it. */
-  dev = pci_add_child(pcib, 0);
-  resource_list_add_range(dev, RT_IOPORTS, 0, IO_KBD, IO_KBDSIZE);
-  resource_list_add_irq(dev, 0, 1);
+  dev = bus_add_child(pcib, 0);
+  device_add_ioports(dev, 0, IO_KBD, IO_KBDSIZE);
+  device_add_irq(dev, 0, 1);
 
   /* Create ns16550 device and assing resources to it. */
-  dev = pci_add_child(pcib, 1);
-  resource_list_add_range(dev, RT_IOPORTS, 0, IO_COM1, IO_COMSIZE);
-  resource_list_add_irq(dev, 0, 4);
+  dev = bus_add_child(pcib, 1);
+  device_add_ioports(dev, 0, IO_COM1, IO_COMSIZE);
+  device_add_irq(dev, 0, 4);
 
   /* Create rtc device and assing resources to it. */
-  dev = pci_add_child(pcib, 2);
-  resource_list_add_range(dev, RT_IOPORTS, 0, IO_RTC, IO_RTCSIZE);
-  resource_list_add_irq(dev, 0, 8);
+  dev = bus_add_child(pcib, 2);
+  device_add_ioports(dev, 0, IO_RTC, IO_RTCSIZE);
+  device_add_irq(dev, 0, 8);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
 
   return bus_generic_probe(pcib);
+}
+
+static device_t *gt_pci_add_child(device_t *bus, int unit) {
+  device_t *dev = device_add_child(bus, unit);
+  pci_device_t *pcid = kmalloc(M_DEV, sizeof(pci_device_t), M_ZERO);
+  assert(dev && pcid);
+
+  dev->bus = DEV_BUS_PCI;
+  dev->instance = pcid;
+  return dev;
 }
 
 static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
@@ -356,7 +352,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     panic("Unknown PCI device type: %d", type);
   }
 
-  resource_t *r = resource_list_alloc(dev, rman, type, rid, flags);
+  resource_t *r = device_alloc_resource(dev, rman, type, rid, flags);
   if (r == NULL)
     return NULL;
 
@@ -367,7 +363,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, type, rid, r)) {
-      resource_list_release(dev, type, rid, r);
+      device_release_resource(dev, type, rid, r);
       return NULL;
     }
   }
@@ -378,7 +374,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 static void gt_pci_release_resource(device_t *dev, res_type_t type, int rid,
                                     resource_t *r) {
   /* TODO: we should unmap mapped resources. */
-  resource_list_release(dev, type, rid, r);
+  device_release_resource(dev, type, rid, r);
 }
 
 static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
@@ -416,6 +412,7 @@ pci_bus_driver_t gt_pci_bus = {
     .probe = gt_pci_probe,
   },
   .bus = {
+    .add_child = gt_pci_add_child,
     .intr_setup = gt_pci_intr_setup,
     .intr_teardown = gt_pci_intr_teardown,
     .alloc_resource = gt_pci_alloc_resource,
