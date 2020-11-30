@@ -11,6 +11,7 @@
 #include <sys/kmem.h>
 #include <sys/pmap.h>
 #include <sys/malloc.h>
+#include <sys/cred.h>
 #include <bitstring.h>
 
 /*
@@ -89,6 +90,8 @@ typedef struct tmpfs_node {
   nlink_t tfn_links; /* number of file hard links */
   ino_t tfn_ino;     /* node identifier */
   size_t tfn_size;   /* file size in bytes */
+  uid_t tfn_uid;     /* owner of file */
+  gid_t tfn_gid;     /* group of file */
 
   size_t tfn_nblocks; /* number of blocks used by this file */
   blkptr_t
@@ -440,18 +443,51 @@ static int tmpfs_vop_getattr(vnode_t *v, vattr_t *va) {
   va->va_mode = node->tfn_mode;
   va->va_nlink = node->tfn_links;
   va->va_ino = node->tfn_ino;
+  va->va_uid = node->tfn_uid;
+  va->va_gid = node->tfn_gid;
   va->va_size = node->tfn_size;
   return 0;
 }
 
-static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va) {
+static int tmpfs_chmod(tmpfs_node_t *node, mode_t mode, cred_t *cred) {
+  if (!cred_can_chmod(node->tfn_uid, node->tfn_gid, cred, mode))
+    return EPERM;
+
+  node->tfn_mode = (node->tfn_mode & ~ALLPERMS) | (mode & ALLPERMS);
+  return 0;
+}
+
+static int tmpfs_chown(tmpfs_node_t *node, uid_t uid, gid_t gid, cred_t *cred) {
+  if (!cred_can_chown(node->tfn_uid, cred, uid, gid))
+    return EPERM;
+
+  if (uid != (uid_t)-1) {
+    node->tfn_uid = uid;
+    node->tfn_mode &= ~S_ISUID; /* clear set-user-ID */
+  }
+
+  if (gid != (gid_t)-1) {
+    node->tfn_gid = gid;
+    node->tfn_mode &= ~S_ISGID; /* clear set-group-ID */
+  }
+  return 0;
+}
+
+static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va, cred_t *cred) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
 
   if (va->va_size != (size_t)VNOVAL)
     tmpfs_resize(tfm, node, va->va_size);
-  if (va->va_mode != (mode_t)VNOVAL)
-    node->tfn_mode = (node->tfn_mode & ~ALLPERMS) | (va->va_mode & ALLPERMS);
+
+  if (va->va_mode != (mode_t)VNOVAL) {
+    int error;
+    if ((error = tmpfs_chmod(node, va->va_mode, cred)))
+      return error;
+  }
+
+  if (va->va_uid != (uid_t)VNOVAL || va->va_gid != (gid_t)VNOVAL)
+    return tmpfs_chown(node, va->va_uid, va->va_gid, cred);
 
   return 0;
 }
@@ -598,6 +634,8 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
   node->tfn_mode = va->va_mode;
   node->tfn_type = ntype;
   node->tfn_links = 0;
+  node->tfn_uid = va->va_uid;
+  node->tfn_gid = va->va_gid;
   node->tfn_size = 0;
   node->tfn_nblocks = 0;
 

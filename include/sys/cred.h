@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/syslimits.h>
 #include <sys/signal.h>
+#include <stdbool.h>
 
 #ifdef _KERNEL
 
@@ -52,6 +53,13 @@ int cred_cansignal(proc_t *p, cred_t *cred);
  * process. \note Must be called with all_proc_mtx and target::p_lock. Returns
  * with lock held. */
 int proc_cansignal(proc_t *target, signo_t sig);
+
+/* Checks if given gid is in supplementary groups of given credentials set */
+bool cred_groupmember(gid_t gid, cred_t *cred);
+
+/* VFS checks */
+bool cred_can_chmod(uid_t f_owner, gid_t f_group, cred_t *cred, mode_t mode);
+bool cred_can_chown(uid_t f_owner, cred_t *cred, uid_t new_uid, gid_t new_gid);
 
 #endif /* !_KERNEL */
 

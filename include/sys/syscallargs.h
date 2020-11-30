@@ -8,345 +8,361 @@
 #include <sys/time.h>
 #include <sys/ucontext.h>
 #include <sys/sigtypes.h>
+#define SCARG(p, x) ((p)->x.arg)
+#define SYSCALLARG(x) union { register_t _pad; x arg; }
 
 typedef struct {
-  int number;
+  SYSCALLARG(int) number;
 } syscall_args_t;
 
 typedef struct {
-  int rval;
+  SYSCALLARG(int) rval;
 } exit_args_t;
 
 typedef struct {
-  int fd;
-  void * buf;
-  size_t nbyte;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(void *) buf;
+  SYSCALLARG(size_t) nbyte;
 } read_args_t;
 
 typedef struct {
-  int fd;
-  const void * buf;
-  size_t nbyte;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const void *) buf;
+  SYSCALLARG(size_t) nbyte;
 } write_args_t;
 
 typedef struct {
-  int fd;
-  const char * path;
-  int flags;
-  mode_t mode;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(int) flags;
+  SYSCALLARG(mode_t) mode;
 } openat_args_t;
 
 typedef struct {
-  int fd;
+  SYSCALLARG(int) fd;
 } close_args_t;
 
 typedef struct {
-  int fd;
-  off_t offset;
-  int whence;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(off_t) offset;
+  SYSCALLARG(int) whence;
 } lseek_args_t;
 
 typedef struct {
-  int fd;
-  const char * path;
-  int flag;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(int) flag;
 } unlinkat_args_t;
 
 typedef struct {
-  pid_t pid;
-  int sig;
+  SYSCALLARG(pid_t) pid;
+  SYSCALLARG(int) sig;
 } kill_args_t;
 
 typedef struct {
-  int fd;
-  struct stat * sb;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(struct stat *) sb;
 } fstat_args_t;
 
 typedef struct {
-  intptr_t increment;
+  SYSCALLARG(intptr_t) increment;
 } sbrk_args_t;
 
 typedef struct {
-  void * addr;
-  size_t len;
-  int prot;
-  int flags;
-  int fd;
-  off_t pos;
+  SYSCALLARG(void *) addr;
+  SYSCALLARG(size_t) len;
+  SYSCALLARG(int) prot;
+  SYSCALLARG(int) flags;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(off_t) pos;
 } mmap_args_t;
 
 typedef struct {
-  const char * type;
-  const char * path;
+  SYSCALLARG(const char *) type;
+  SYSCALLARG(const char *) path;
 } mount_args_t;
 
 typedef struct {
-  int fd;
-  void * buf;
-  size_t len;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(void *) buf;
+  SYSCALLARG(size_t) len;
 } getdents_args_t;
 
 typedef struct {
-  int fd;
+  SYSCALLARG(int) fd;
 } dup_args_t;
 
 typedef struct {
-  int from;
-  int to;
+  SYSCALLARG(int) from;
+  SYSCALLARG(int) to;
 } dup2_args_t;
 
 typedef struct {
-  int signum;
-  const struct sigaction * nsa;
-  struct sigaction * osa;
+  SYSCALLARG(int) signum;
+  SYSCALLARG(const struct sigaction *) nsa;
+  SYSCALLARG(struct sigaction *) osa;
 } sigaction_args_t;
 
 typedef struct {
-  struct sigcontext * sigctx_p;
+  SYSCALLARG(struct sigcontext *) sigctx_p;
 } sigreturn_args_t;
 
 typedef struct {
-  pid_t pid;
-  int * status;
-  int options;
-  struct rusage * rusage;
+  SYSCALLARG(pid_t) pid;
+  SYSCALLARG(int *) status;
+  SYSCALLARG(int) options;
+  SYSCALLARG(struct rusage *) rusage;
 } wait4_args_t;
 
 typedef struct {
-  int fd;
-  const char * path;
-  mode_t mode;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(mode_t) mode;
 } mkdirat_args_t;
 
 typedef struct {
-  const char * target;
-  int newdirfd;
-  const char * linkpath;
+  SYSCALLARG(const char *) target;
+  SYSCALLARG(int) newdirfd;
+  SYSCALLARG(const char *) linkpath;
 } symlinkat_args_t;
 
 typedef struct {
-  int fd;
-  const char * path;
-  int mode;
-  int flags;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(int) mode;
+  SYSCALLARG(int) flags;
 } faccessat_args_t;
 
 typedef struct {
-  int fd;
-  const char * path;
-  struct stat * sb;
-  int flag;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(struct stat *) sb;
+  SYSCALLARG(int) flag;
 } fstatat_args_t;
 
 typedef struct {
-  int * fdp;
-  int flags;
+  SYSCALLARG(int *) fdp;
+  SYSCALLARG(int) flags;
 } pipe2_args_t;
 
 typedef struct {
-  clockid_t clock_id;
-  struct timespec * tsp;
+  SYSCALLARG(clockid_t) clock_id;
+  SYSCALLARG(struct timespec *) tsp;
 } clock_gettime_args_t;
 
 typedef struct {
-  clockid_t clock_id;
-  int flags;
-  const struct timespec * rqtp;
-  struct timespec * rmtp;
+  SYSCALLARG(clockid_t) clock_id;
+  SYSCALLARG(int) flags;
+  SYSCALLARG(const struct timespec *) rqtp;
+  SYSCALLARG(struct timespec *) rmtp;
 } clock_nanosleep_args_t;
 
 typedef struct {
-  const char * path;
-  char *const * argp;
-  char *const * envp;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(char *const *) argp;
+  SYSCALLARG(char *const *) envp;
 } execve_args_t;
 
 typedef struct {
-  pid_t pid;
-  pid_t pgid;
+  SYSCALLARG(pid_t) pid;
+  SYSCALLARG(pid_t) pgid;
 } setpgid_args_t;
 
 typedef struct {
-  pid_t pid;
+  SYSCALLARG(pid_t) pid;
 } getpgid_args_t;
 
 typedef struct {
-  mode_t newmask;
+  SYSCALLARG(mode_t) newmask;
 } umask_args_t;
 
 typedef struct {
-  void * addr;
-  size_t len;
+  SYSCALLARG(void *) addr;
+  SYSCALLARG(size_t) len;
 } munmap_args_t;
 
 typedef struct {
-  void * addr;
-  size_t len;
-  int prot;
+  SYSCALLARG(void *) addr;
+  SYSCALLARG(size_t) len;
+  SYSCALLARG(int) prot;
 } mprotect_args_t;
 
 typedef struct {
-  const char * path;
+  SYSCALLARG(const char *) path;
 } chdir_args_t;
 
 typedef struct {
-  char * buf;
-  size_t len;
+  SYSCALLARG(char *) buf;
+  SYSCALLARG(size_t) len;
 } getcwd_args_t;
 
 typedef struct {
-  const stack_t * ss;
-  stack_t * old_ss;
+  SYSCALLARG(const stack_t *) ss;
+  SYSCALLARG(stack_t *) old_ss;
 } sigaltstack_args_t;
 
 typedef struct {
-  int how;
-  const sigset_t * set;
-  sigset_t * oset;
+  SYSCALLARG(int) how;
+  SYSCALLARG(const sigset_t *) set;
+  SYSCALLARG(sigset_t *) oset;
 } sigprocmask_args_t;
 
 typedef struct {
-  const ucontext_t * ucp;
+  SYSCALLARG(const ucontext_t *) ucp;
 } setcontext_args_t;
 
 typedef struct {
-  int fd;
-  u_long cmd;
-  void * data;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(u_long) cmd;
+  SYSCALLARG(void *) data;
 } ioctl_args_t;
 
 typedef struct {
-  uid_t * ruid;
-  uid_t * euid;
-  uid_t * suid;
+  SYSCALLARG(uid_t *) ruid;
+  SYSCALLARG(uid_t *) euid;
+  SYSCALLARG(uid_t *) suid;
 } getresuid_args_t;
 
 typedef struct {
-  gid_t * rgid;
-  gid_t * egid;
-  gid_t * sgid;
+  SYSCALLARG(gid_t *) rgid;
+  SYSCALLARG(gid_t *) egid;
+  SYSCALLARG(gid_t *) sgid;
 } getresgid_args_t;
 
 typedef struct {
-  uid_t ruid;
-  uid_t euid;
-  uid_t suid;
+  SYSCALLARG(uid_t) ruid;
+  SYSCALLARG(uid_t) euid;
+  SYSCALLARG(uid_t) suid;
 } setresuid_args_t;
 
 typedef struct {
-  gid_t rgid;
-  gid_t egid;
-  gid_t sgid;
+  SYSCALLARG(gid_t) rgid;
+  SYSCALLARG(gid_t) egid;
+  SYSCALLARG(gid_t) sgid;
 } setresgid_args_t;
 
 typedef struct {
-  int fd;
-  int cmd;
-  void * arg;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(int) cmd;
+  SYSCALLARG(void *) arg;
 } fcntl_args_t;
 
 typedef struct {
-  const char * path;
-  off_t length;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(off_t) length;
 } truncate_args_t;
 
 typedef struct {
-  int fd;
-  off_t length;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(off_t) length;
 } ftruncate_args_t;
 
 typedef struct {
-  int fd;
-  const char * path;
-  char * buf;
-  size_t bufsiz;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(char *) buf;
+  SYSCALLARG(size_t) bufsiz;
 } readlinkat_args_t;
 
 typedef struct {
-  int fd;
+  SYSCALLARG(int) fd;
 } fchdir_args_t;
 
 typedef struct {
-  int fd1;
-  const char * name1;
-  int fd2;
-  const char * name2;
-  int flags;
+  SYSCALLARG(int) fd1;
+  SYSCALLARG(const char *) name1;
+  SYSCALLARG(int) fd2;
+  SYSCALLARG(const char *) name2;
+  SYSCALLARG(int) flags;
 } linkat_args_t;
 
 typedef struct {
-  int fd;
-  mode_t mode;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(mode_t) mode;
 } fchmod_args_t;
 
 typedef struct {
-  int fd;
-  const char * path;
-  mode_t mode;
-  int flag;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(mode_t) mode;
+  SYSCALLARG(int) flag;
 } fchmodat_args_t;
 
 typedef struct {
-  sigset_t * sigmask;
+  SYSCALLARG(sigset_t *) sigmask;
 } sigsuspend_args_t;
 
 typedef struct {
-  const char * path;
-  struct statvfs * buf;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(struct statvfs *) buf;
 } statvfs_args_t;
 
 typedef struct {
-  int fd;
-  struct statvfs * buf;
+  SYSCALLARG(int) fd;
+  SYSCALLARG(struct statvfs *) buf;
 } fstatvfs_args_t;
 
 typedef struct {
-  int ngroups;
-  gid_t * gidset;
+  SYSCALLARG(int) ngroups;
+  SYSCALLARG(gid_t *) gidset;
 } getgroups_args_t;
 
 typedef struct {
-  int ngroups;
-  const gid_t * gidset;
+  SYSCALLARG(int) ngroups;
+  SYSCALLARG(const gid_t *) gidset;
 } setgroups_args_t;
 
 typedef struct {
-  pid_t pid;
+  SYSCALLARG(pid_t) pid;
 } getsid_args_t;
 
 typedef struct {
-  int which;
-  id_t who;
+  SYSCALLARG(int) which;
+  SYSCALLARG(id_t) who;
 } getpriority_args_t;
 
 typedef struct {
-  int which;
-  id_t who;
-  int prio;
+  SYSCALLARG(int) which;
+  SYSCALLARG(id_t) who;
+  SYSCALLARG(int) prio;
 } setpriority_args_t;
 
 typedef struct {
-  uid_t uid;
+  SYSCALLARG(uid_t) uid;
 } setuid_args_t;
 
 typedef struct {
-  uid_t euid;
+  SYSCALLARG(uid_t) euid;
 } seteuid_args_t;
 
 typedef struct {
-  uid_t ruid;
-  uid_t euid;
+  SYSCALLARG(uid_t) ruid;
+  SYSCALLARG(uid_t) euid;
 } setreuid_args_t;
 
 typedef struct {
-  gid_t gid;
+  SYSCALLARG(gid_t) gid;
 } setgid_args_t;
 
 typedef struct {
-  gid_t egid;
+  SYSCALLARG(gid_t) egid;
 } setegid_args_t;
 
 typedef struct {
-  gid_t rgid;
-  gid_t egid;
+  SYSCALLARG(gid_t) rgid;
+  SYSCALLARG(gid_t) egid;
 } setregid_args_t;
+
+typedef struct {
+  SYSCALLARG(int) fd;
+  SYSCALLARG(uid_t) uid;
+  SYSCALLARG(gid_t) gid;
+} fchown_args_t;
+
+typedef struct {
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(uid_t) uid;
+  SYSCALLARG(gid_t) gid;
+  SYSCALLARG(int) flag;
+} fchownat_args_t;
