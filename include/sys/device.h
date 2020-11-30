@@ -3,14 +3,13 @@
 
 #include <sys/queue.h>
 #include <sys/malloc.h>
-#include <sys/rman.h>
 #include <sys/linker_set.h>
+#include <sys/rman.h>
 
 typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;
 typedef struct bus_space bus_space_t;
-typedef struct resource_list_entry resource_list_entry_t;
 typedef TAILQ_HEAD(, device) device_list_t;
 typedef SLIST_HEAD(, resource_list_entry) resource_list_t;
 

@@ -7,7 +7,7 @@
 
 KMALLOC_DEFINE(M_DEV, "devices & drivers");
 
-struct resource_list_entry {
+typedef struct resource_list_entry {
   SLIST_ENTRY(resource_list_entry) link;
   resource_t *res;   /* the actual resource when allocated */
   res_type_t type;   /* type argument to alloc_resource */
@@ -15,7 +15,7 @@ struct resource_list_entry {
   rman_addr_t start; /* start of resource range */
   rman_addr_t end;   /* end of resource range */
   size_t count;      /* number of bytes */
-};
+} resource_list_entry_t;
 
 device_t *device_alloc(int unit) {
   device_t *dev = kmalloc(M_DEV, sizeof(device_t), M_ZERO);
