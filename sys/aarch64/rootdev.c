@@ -235,8 +235,9 @@ static int rootdev_attach(device_t *bus) {
 }
 
 static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type, 
-		                          int rid, rman_addr_t start, rman_addr_t end,
-					  size_t size, res_flags_t flags) {
+		                          int rid, rman_addr_t start,
+					  rman_addr_t end, size_t size,
+					  res_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
   size_t alignment = 0;
   rman_t *rman = NULL;
