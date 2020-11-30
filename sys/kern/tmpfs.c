@@ -167,9 +167,9 @@ static mem_arena_t *new_mem_arena(mem_arenalist_t *arlst) {
   return arena;
 }
 
-static mem_arena_t *mem_find_ptr_arena(mem_arenalist_t *al, void *ptr) {
+static mem_arena_t *tmpfs_find_mem_arena(tmpfs_mount_t *tfm, void *ptr) {
   mem_arena_t *arena;
-  STAILQ_FOREACH(arena, al, tma_link) {
+  STAILQ_FOREACH(arena, &tfm->tfm_arenas, tma_link) {
     if ((uintptr_t)ptr > (uintptr_t)arena &&
         (uintptr_t)ptr < (uintptr_t)arena + ARENA_SIZE) {
       return arena;
@@ -199,9 +199,8 @@ static mem_arena_t *mem_arena_with_inodes(tmpfs_mount_t *tfm) {
 static blkptr_t tmpfs_alloc_dblk(tmpfs_mount_t *tfm) {
   SCOPED_MTX_LOCK(&tfm->tfm_lock);
 
-  mem_arena_t *arena;
-
-  if (!(arena = mem_arena_with_blocks(tfm)))
+  mem_arena_t *arena = mem_arena_with_blocks(tfm);
+  if (!arena)
     return NULL;
 
   assert(arena->tma_ndblocks > 0);
@@ -220,7 +219,7 @@ static blkptr_t tmpfs_alloc_dblk(tmpfs_mount_t *tfm) {
 static void tmpfs_free_dblk(tmpfs_mount_t *tfm, blkptr_t blk) {
   SCOPED_MTX_LOCK(&tfm->tfm_lock);
 
-  mem_arena_t *arena = mem_find_ptr_arena(&tfm->tfm_arenas, blk);
+  mem_arena_t *arena = tmpfs_find_mem_arena(tfm, blk);
   assert(arena != NULL);
 
   int index = ((void *)blk - (void *)arena->tma_dblocks) / BLOCK_SIZE;
@@ -234,9 +233,8 @@ static void tmpfs_free_dblk(tmpfs_mount_t *tfm, blkptr_t blk) {
 static tmpfs_node_t *tmpfs_alloc_inode(tmpfs_mount_t *tfm) {
   SCOPED_MTX_LOCK(&tfm->tfm_lock);
 
-  mem_arena_t *arena;
-
-  if (!(arena = mem_arena_with_inodes(tfm)))
+  mem_arena_t *arena = mem_arena_with_inodes(tfm);
+  if (!arena)
     return NULL;
 
   assert(arena->tma_ninodes > 0);
@@ -260,7 +258,7 @@ static tmpfs_node_t *tmpfs_alloc_inode(tmpfs_mount_t *tfm) {
 static void tmpfs_free_inode(tmpfs_mount_t *tfm, tmpfs_node_t *node) {
   SCOPED_MTX_LOCK(&tfm->tfm_lock);
 
-  mem_arena_t *arena = mem_find_ptr_arena(&tfm->tfm_arenas, node);
+  mem_arena_t *arena = tmpfs_find_mem_arena(tfm, node);
   assert(arena != NULL);
 
   int index = node - arena->tma_inodes;
