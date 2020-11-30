@@ -5,7 +5,11 @@
 /* Heavily inspired by FreeBSD sys/arm64/arm64/exceptions.S */
 
 .macro  save_ctx el
+.if \el == 1
         sub     sp, sp, #CTX_SIZE
+.else
+        sub     sp, sp, #UCTX_SIZE
+.endif
         .cfi_def_cfa_offset 0
         stp     x28, x29, [sp, #CTX_X28]
         .cfi_rel_offset x28, CTX_X28
@@ -92,7 +96,7 @@
         ldp     x24, x25, [sp, #CTX_X24]
         ldp     x26, x27, [sp, #CTX_X26]
         ldp     x28, x29, [sp, #CTX_X28]
-        add     sp, sp, #CTX_SIZE
+        add     sp, sp, #UCTX_SIZE
 .else
         ldr     x29, [sp, #CTX_FP]
         mov     sp, x18

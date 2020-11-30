@@ -12,6 +12,7 @@
 #include <aarch64/context.h>
 #include <aarch64/interrupt.h>
 #include <aarch64/pmap.h>
+#include <aarch64/fpu.h>
 
 static __noreturn void kernel_oops(ctx_t *ctx) {
   kprintf("KERNEL PANIC!!! \n");
@@ -109,12 +110,16 @@ void user_trap_handler(user_ctx_t *uctx) {
   ctx_t *ctx = (ctx_t *)uctx;
   register_t esr = READ_SPECIALREG(esr_el1);
   register_t far = READ_SPECIALREG(far_el1);
+  register_t exception = ESR_ELx_EXCEPTION(esr);
+
+  if (fpu_enabled())
+    fpu_save_ctx(uctx);
 
   cpu_intr_enable();
 
   assert(!intr_disabled() && !preempt_disabled());
 
-  switch (ESR_ELx_EXCEPTION(esr)) {
+  switch (exception) {
     case EXCP_INSN_ABORT_L:
     case EXCP_INSN_ABORT:
     case EXCP_DATA_ABORT_L:
@@ -135,6 +140,10 @@ void user_trap_handler(user_ctx_t *uctx) {
       sig_trap(ctx, SIGILL);
       break;
 
+    case EXCP_FP_SIMD:
+      fpu_enable();
+      break;
+
     default:
       kernel_oops(ctx);
   }
@@ -144,6 +153,9 @@ void user_trap_handler(user_ctx_t *uctx) {
 
   /* If we're about to return to user mode then check pending signals, etc. */
   on_user_exc_leave();
+
+  if (exception != EXCP_FP_SIMD && fpu_enabled())
+    fpu_load_ctx(uctx);
 }
 
 void kern_trap_handler(ctx_t *ctx) {

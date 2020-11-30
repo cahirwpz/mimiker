@@ -6,6 +6,7 @@ SOURCES = boot.c \
 	  context.c \
 	  copy.S \
 	  evec.S \
+	  fpu.c \
 	  interrupt.c \
 	  gpio.c \
 	  pl011.c \

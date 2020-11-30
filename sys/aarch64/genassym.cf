@@ -52,3 +52,4 @@ define CTX_SPSR offsetof(ctx_t, __gregs[_REG_SPSR])
 define CTX_X offsetof(ctx_t, __gregs)
 
 define CTX_SIZE sizeof(ctx_t)
+define UCTX_SIZE sizeof(user_ctx_t)
