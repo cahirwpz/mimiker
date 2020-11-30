@@ -96,10 +96,11 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
   return rle->res;
 }
 
-void device_give_resource(device_t *dev, res_type_t type, int rid) {
-  resource_list_entry_t *rle = resource_list_find(dev, type, rid);
+void device_give_resource(device_t *dev, res_type_t type, resource_t *r) {
+  resource_list_entry_t *rle = resource_list_find(dev, type, r->r_rid);
   assert(rle);      /* can't find the resource entry */
   assert(rle->res); /* resource entry is not busy */
+  assert(rle->res == r);
 
-  bus_deactivate_resource(dev, rle->type, rle->res);
+  bus_deactivate_resource(dev, type, r);
 }

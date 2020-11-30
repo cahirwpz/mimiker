@@ -81,15 +81,7 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
   device_take_resource((dev), RT_IRQ, (rid), (flags))
 
 /*! \brief Give away device resource. */
-void device_give_resource(device_t *dev, res_type_t type, int rid);
-
-#define device_give_memory(dev, rid)                                           \
-  device_give_resource((dev), RT_MEMORY, (rid))
-
-#define device_give_ioports(dev, rid)                                          \
-  device_give_resource((dev), RT_IOPORTS, (rid))
-
-#define device_give_irq(dev, rid) device_give_resource((dev), RT_IRQ, (rid))
+void device_give_resource(device_t *dev, res_type_t type, resource_t *r);
 
 /* A universal memory pool to be used by all drivers. */
 KMALLOC_DECLARE(M_DEV);
