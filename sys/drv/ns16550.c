@@ -220,10 +220,10 @@ static int ns16550_attach(device_t *dev) {
   sched_add(tty_thread);
 
   /* TODO Small hack to select COM1 UART */
-  ns16550->regs = bus_alloc_ioports(dev, 0, RF_ACTIVE);
+  ns16550->regs = device_take_ioports(dev, 0, RF_ACTIVE);
   assert(ns16550->regs != NULL);
 
-  ns16550->irq_res = bus_alloc_irq(dev, 0, RF_ACTIVE);
+  ns16550->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
   bus_intr_setup(dev, ns16550->irq_res, ns16550_intr, NULL, ns16550,
                  "NS16550 UART");
 

@@ -56,32 +56,40 @@ int device_detach(device_t *dev);
 
 /*! \brief Add a resource entry to resource list. */
 void device_add_resource(device_t *dev, res_type_t type, int rid,
-                         rman_addr_t start, rman_addr_t end, size_t count);
+                         rman_addr_t start, size_t count);
 
-/*! \brief Add a resource which can be allocated
- * anywhere within an associated parent bus range. */
-#define device_add_range(dev, type, rid, count)                                \
-  device_add_resource((dev), (type), (rid), 0, RMAN_ADDR_MAX, (count))
-
-/*! \brief Add a resource which must start exactly at the `start` address. */
 #define device_add_memory(dev, rid, start, size)                               \
-  device_add_resource((dev), RT_MEMORY, (rid), (start), (start) + (size)-1,    \
-                      (size))
+  device_add_resource((dev), RT_MEMORY, (rid), (start), (size))
 
 #define device_add_ioports(dev, rid, start, size)                              \
-  device_add_resource((dev), RT_IOPORTS, (rid), (start), (start) + (size)-1,   \
-                      (size))
+  device_add_resource((dev), RT_IOPORTS, (rid), (start), (size))
 
 #define device_add_irq(dev, rid, irq)                                          \
-  device_add_resource((dev), RT_IRQ, (rid), (irq), (irq), 1)
+  device_add_resource((dev), RT_IRQ, (rid), (irq), 1)
 
-/*! \brief Allocate a resource based on resource list entry. */
-resource_t *device_alloc_resource(device_t *dev, rman_t *rman, res_type_t type,
-                                  int rid, res_flags_t flags);
+/*! \brief Take a resource which is assigned to device by parent bus. */
+resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
+                                 res_flags_t flags);
 
-/*! \brief Release an allocated resource. */
-void device_release_resource(device_t *dev, res_type_t type, int rid,
-                             resource_t *res);
+#define device_take_memory(dev, rid, flags)                                    \
+  device_take_resource((dev), RT_MEMORY, (rid), (flags))
+
+#define device_take_ioports(dev, rid, flags)                                   \
+  device_take_resource((dev), RT_IOPORTS, (rid), (flags))
+
+#define device_take_irq(dev, rid, flags)                                       \
+  device_take_resource((dev), RT_IRQ, (rid), (flags))
+
+/*! \brief Give away device resource. */
+void device_give_resource(device_t *dev, res_type_t type, int rid);
+
+#define device_give_memory(dev, rid)                                           \
+  device_give_resource((dev), RT_MEMORY, (rid))
+
+#define device_give_ioports(dev, rid)                                          \
+  device_give_resource((dev), RT_IOPORTS, (rid))
+
+#define device_give_irq(dev, rid) device_give_resource((dev), RT_IRQ, (rid))
 
 /* A universal memory pool to be used by all drivers. */
 KMALLOC_DECLARE(M_DEV);

@@ -112,11 +112,11 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
 static int pit_attach(device_t *dev) {
   pit_state_t *pit = dev->state;
 
-  pit->regs = bus_alloc_ioports(dev, 0, RF_ACTIVE);
+  pit->regs = device_take_ioports(dev, 0, RF_ACTIVE);
   assert(pit->regs != NULL);
 
   pit->lock = SPIN_INITIALIZER(0);
-  pit->irq_res = bus_alloc_irq(dev, 0, RF_ACTIVE);
+  pit->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
 
   pit->timer = (timer_t){
     .tm_name = "i8254",

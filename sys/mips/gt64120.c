@@ -262,9 +262,9 @@ static intr_filter_t gt_pci_intr(void *data) {
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
-  gtpci->pci_mem = bus_alloc_memory(pcib, 0, 0);
-  gtpci->pci_io = bus_alloc_memory(pcib, 1, RF_ACTIVE);
-  gtpci->corectrl = bus_alloc_memory(pcib, 2, RF_ACTIVE);
+  gtpci->pci_mem = device_take_memory(pcib, 0, 0);
+  gtpci->pci_io = device_take_memory(pcib, 1, RF_ACTIVE);
+  gtpci->corectrl = device_take_memory(pcib, 2, RF_ACTIVE);
 
   if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
       gtpci->pci_io == NULL) {
@@ -295,7 +295,7 @@ static int gt_pci_attach(device_t *pcib) {
   bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
-  gtpci->irq_res = bus_alloc_irq(pcib, 0, RF_ACTIVE);
+  gtpci->irq_res = device_take_irq(pcib, 0, RF_ACTIVE);
   bus_intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
                  "GT64120 main irq");
 
@@ -330,7 +330,9 @@ static int gt_pci_attach(device_t *pcib) {
 }
 
 static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
-                                         int rid, res_flags_t flags) {
+                                         int rid, rman_addr_t start,
+                                         rman_addr_t end, size_t count,
+                                         res_flags_t flags) {
   /* Currently all devices are logicaly attached to PCI bus,
    * because we don't have PCI-ISA bridge implemented. */
   assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
@@ -338,6 +340,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   device_t *pcib = dev->parent;
   gt_pci_state_t *gtpci = pcib->state;
   bus_space_handle_t bh = 0;
+  size_t alignment = 0;
   rman_t *rman = NULL;
 
   if (type == RT_IOPORTS) {
@@ -346,14 +349,17 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   } else if (type == RT_IRQ) {
     rman = &gtpci->irq_rman;
   } else if (type == RT_MEMORY) {
+    alignment = PAGESIZE;
     rman = &gtpci->pci_mem_rman;
   } else {
     panic("Unknown PCI device type: %d", type);
   }
 
-  resource_t *r = device_alloc_resource(dev, rman, type, rid, flags);
+  resource_t *r =
+    rman_reserve_resource(rman, start, end, count, alignment, flags);
   if (r == NULL)
     return NULL;
+  r->r_rid = rid;
 
   if (type != RT_IRQ) {
     r->r_bus_tag = generic_bus_space;
@@ -361,8 +367,8 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   }
 
   if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, type, rid, r)) {
-      device_release_resource(dev, type, rid, r);
+    if (bus_activate_resource(dev, type, r)) {
+      rman_release_resource(r);
       return NULL;
     }
   }
@@ -370,13 +376,13 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   return r;
 }
 
-static void gt_pci_release_resource(device_t *dev, res_type_t type, int rid,
+static void gt_pci_release_resource(device_t *dev, res_type_t type,
                                     resource_t *r) {
-  /* TODO: we should unmap mapped resources. */
-  device_release_resource(dev, type, rid, r);
+  bus_deactivate_resource(dev, type, r);
+  rman_release_resource(r);
 }
 
-static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
+static int gt_pci_activate_resource(device_t *dev, res_type_t type,
                                     resource_t *r) {
   if (type == RT_MEMORY || type == RT_IOPORTS) {
     uint16_t command = pci_read_config(dev, PCIR_COMMAND, 2);
@@ -387,14 +393,24 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type, int rid,
     pci_write_config(dev, PCIR_COMMAND, 2, command);
   }
 
+  int rid = r->r_rid;
   if (type == RT_MEMORY) {
-    /* Write BAR address to PCI device register. */
-    pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
+    pci_device_t *pcid = pci_device_of(dev);
+    /* Is this a PCI bar? */
+    if (rid < PCI_BAR_MAX && pcid->bar[rid].size != 0) {
+      /* Write BAR address to PCI device register. */
+      pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
+    }
     return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
                          &r->r_bus_handle);
   }
 
   return 0;
+}
+
+static void gt_pci_deactivate_resource(device_t *dev, res_type_t type,
+                                       resource_t *r) {
+  /* TODO: unmap mapped resources. */
 }
 
 static int gt_pci_probe(device_t *d) {
@@ -416,6 +432,7 @@ pci_bus_driver_t gt_pci_bus = {
     .alloc_resource = gt_pci_alloc_resource,
     .release_resource = gt_pci_release_resource,
     .activate_resource = gt_pci_activate_resource,
+    .deactivate_resource = gt_pci_deactivate_resource,
   },
   .pci_bus = {
     .read_config = gt_pci_read_config,

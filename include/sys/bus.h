@@ -139,11 +139,11 @@ struct bus_methods {
                      ih_service_t *service, void *arg, const char *name);
   void (*intr_teardown)(device_t *dev, resource_t *irq);
   resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
-                                res_flags_t flags);
-  void (*release_resource)(device_t *dev, res_type_t type, int rid,
-                           resource_t *r);
-  int (*activate_resource)(device_t *dev, res_type_t type, int rid,
-                           resource_t *r);
+                                rman_addr_t start, rman_addr_t end,
+                                size_t count, res_flags_t flags);
+  void (*release_resource)(device_t *dev, res_type_t type, resource_t *r);
+  int (*activate_resource)(device_t *dev, res_type_t type, resource_t *r);
+  void (*deactivate_resource)(device_t *dev, res_type_t type, resource_t *r);
 };
 
 struct bus_driver {
@@ -163,28 +163,54 @@ static inline void bus_intr_teardown(device_t *dev, resource_t *irq) {
   BUS_METHOD(dev->parent).intr_teardown(dev, irq);
 }
 
-/*! \brief Allocates a resource of type \a type and resource id \a rid.
+/*! \brief Allocates a resource of type \a type and size \a size between
+ * \a start and \a end for a device \a dev.
  *
  * Should be called inside device's \fn attach function.
  *
  * \param dev device which needs resource
  * \param type resource type RT_* defined in rman.h
- * \param rid resource identifier
+ * \param rid resource identifier as in \a resource_t structure
+ * \param start/end - range of the addresses from which the resource will be
+ * allocated
+ * \param size the size of the resource
  * \param flags RF_* flags defined in rman.h
  */
 static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
-                                             int rid, res_flags_t flags) {
-  return BUS_METHOD(dev->parent).alloc_resource(dev, type, rid, flags);
+                                             int rid, rman_addr_t start,
+                                             rman_addr_t end, size_t size,
+                                             res_flags_t flags) {
+  return BUS_METHOD(dev->parent)
+    .alloc_resource(dev, type, rid, start, end, size, flags);
 }
 
-#define bus_alloc_irq(dev, rid, flags)                                         \
-  bus_alloc_resource((dev), RT_IRQ, (rid), (flags))
+#define bus_alloc_irq(dev, rid, irq, flags)                                    \
+  bus_alloc_resource((dev), RT_IRQ, (rid), (irq), (irq), 1, (flags))
 
-#define bus_alloc_memory(dev, rid, flags)                                      \
-  bus_alloc_resource((dev), RT_MEMORY, (rid), (flags))
+#define bus_alloc_memory(dev, rid, start, end, size, flags)                    \
+  bus_alloc_resource((dev), RT_MEMORY, (rid), (start), (end), (size), (flags))
 
-#define bus_alloc_ioports(dev, rid, flags)                                     \
-  bus_alloc_resource((dev), RT_IOPORTS, (rid), (flags))
+#define bus_alloc_ioports(dev, rid, start, end, size, flags)                   \
+  bus_alloc_resource((dev), RT_IOPORTS, (rid), (start), (end), (size), (flags))
+
+/*! \brief Allocates resource for a device.
+ *
+ * \sa bus_resource_alloc with resource placement in memory
+ * chosen by the parent bus.
+ */
+static inline resource_t *bus_alloc_resource_anywhere(device_t *dev,
+                                                      res_type_t type, int rid,
+                                                      size_t size,
+                                                      res_flags_t flags) {
+  return BUS_METHOD(dev->parent)
+    .alloc_resource(dev, type, rid, 0, RMAN_ADDR_MAX, size, flags);
+}
+
+#define bus_alloc_memory_anywhere(dev, rid, size, flags)                       \
+  bus_alloc_resource_anywhere((dev), RT_MEMORY, (rid), (size), (flags))
+
+#define bus_alloc_ioports_anywhere(dev, rid, size, flags)                      \
+  bus_alloc_resource_anywhere((dev), RT_IOPORTS, (rid), (size), (flags))
 
 /*! \brief Activates resource for a device.
  *
@@ -193,12 +219,20 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
  * It performs common tasks like: check if resource has been already activated,
  * mark resource as activated if the method returned success.
  */
-int bus_activate_resource(device_t *dev, res_type_t type, int rid,
-                          resource_t *r);
+int bus_activate_resource(device_t *dev, res_type_t type, resource_t *r);
 
-static inline void bus_release_resource(device_t *dev, res_type_t type, int rid,
+/*! \brief Deactivates resource on device behalf.
+ *
+ * This is a wrapper that calls bus method `deactivate_resource`.
+ *
+ * It performs common tasks like: check if resource has been already deactivated
+ * and mark resource as dactivated.
+ */
+void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r);
+
+static inline void bus_release_resource(device_t *dev, res_type_t type,
                                         resource_t *r) {
-  BUS_METHOD(dev->parent).release_resource(dev, type, rid, r);
+  BUS_METHOD(dev->parent).release_resource(dev, type, r);
 }
 
 int bus_generic_probe(device_t *bus);

@@ -4,17 +4,14 @@
 #include <sys/mimiker.h>
 #include <sys/device.h>
 #include <sys/rman.h>
+#include <sys/bus.h>
 
 KMALLOC_DEFINE(M_DEV, "devices & drivers");
 
 typedef struct resource_list_entry {
   SLIST_ENTRY(resource_list_entry) link;
-  resource_t *res;   /* the actual resource when allocated */
-  res_type_t type;   /* type argument to alloc_resource */
-  int rid;           /* resource identifier */
-  rman_addr_t start; /* start of resource range */
-  rman_addr_t end;   /* end of resource range */
-  size_t count;      /* number of bytes */
+  resource_t *res; /* the actual resource */
+  res_type_t type; /* type argument to alloc_resource */
 } resource_list_entry_t;
 
 device_t *device_alloc(int unit) {
@@ -63,51 +60,46 @@ static resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
                                                  int rid) {
   resource_list_entry_t *rle;
   SLIST_FOREACH(rle, &dev->resources, link) {
-    if (rle->type == type && rle->rid == rid)
+    if (rle->type == type && rle->res->r_rid == rid)
       return rle;
   }
   return NULL;
 }
 
 void device_add_resource(device_t *dev, res_type_t type, int rid,
-                         rman_addr_t start, rman_addr_t end, size_t count) {
+                         rman_addr_t start, size_t count) {
   resource_list_entry_t *rle = resource_list_find(dev, rid, type);
   assert(rle == NULL);
 
   rle = kmalloc(M_DEV, sizeof(resource_list_entry_t), M_WAITOK);
   rle->res = NULL;
   rle->type = type;
-  rle->rid = rid;
-  rle->start = start;
-  rle->end = end;
-  rle->count = count;
   SLIST_INSERT_HEAD(&dev->resources, rle, link);
+
+  /* Allocate the actual resource from the parent bus. */
+  rle->res =
+    bus_alloc_resource(dev, type, rid, start, start + count - 1, count, 0);
+  assert(rle->res);
 }
 
-resource_t *device_alloc_resource(device_t *dev, rman_t *rman, res_type_t type,
-                                  int rid, res_flags_t flags) {
+resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
+                                 res_flags_t flags) {
   resource_list_entry_t *rle = resource_list_find(dev, type, rid);
+
   if (rle == NULL)
     return NULL;
+  assert(rle->res);
 
-  size_t alignment = (type == RT_MEMORY) ? PAGESIZE : 0;
+  if (flags & RF_ACTIVE)
+    bus_activate_resource(dev, rle->type, rle->res);
 
-  resource_t *r = rman_reserve_resource(rman, rle->start, rle->end, rle->count,
-                                        alignment, flags);
-  if (r == NULL)
-    return NULL;
-
-  rle->res = r;
-  return r;
+  return rle->res;
 }
 
-void device_release_resource(device_t *dev, res_type_t type, int rid,
-                             resource_t *res) {
+void device_give_resource(device_t *dev, res_type_t type, int rid) {
   resource_list_entry_t *rle = resource_list_find(dev, type, rid);
   assert(rle);      /* can't find the resource entry */
   assert(rle->res); /* resource entry is not busy */
 
-  rman_deactivate_resource(rle->res);
-  rman_release_resource(rle->res);
-  rle->res = NULL;
+  bus_deactivate_resource(dev, rle->type, rle->res);
 }

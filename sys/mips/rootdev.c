@@ -60,11 +60,15 @@ static void rootdev_intr_teardown(device_t *dev, resource_t *irq) {
 }
 
 static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
-                                          int rid, res_flags_t flags) {
+                                          int rid, rman_addr_t start,
+                                          rman_addr_t end, size_t count,
+                                          res_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
+  size_t alignment = 0;
   rman_t *rman = NULL;
 
   if (type == RT_MEMORY) {
+    alignment = PAGESIZE;
     rman = &rd->mem;
   } else if (type == RT_IRQ) {
     rman = &rd->irq;
@@ -72,9 +76,11 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
     panic("Resource type not handled!");
   }
 
-  resource_t *r = device_alloc_resource(dev, rman, type, rid, flags);
+  resource_t *r =
+    rman_reserve_resource(rman, start, end, count, alignment, flags);
   if (r == NULL)
     return NULL;
+  r->r_rid = rid;
 
   if (type == RT_MEMORY) {
     r->r_bus_tag = generic_bus_space;
@@ -82,8 +88,8 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   }
 
   if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, type, rid, r)) {
-      device_release_resource(dev, type, rid, r);
+    if (bus_activate_resource(dev, type, r)) {
+      rman_release_resource(r);
       return NULL;
     }
   }
@@ -91,19 +97,24 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   return r;
 }
 
-static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
+static void rootdev_release_resource(device_t *dev, res_type_t type,
                                      resource_t *r) {
-  /* TODO: we should unmap mapped resources. */
-  device_release_resource(dev, type, rid, r);
+  bus_deactivate_resource(dev, type, r);
+  rman_release_resource(r);
 }
 
-static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
+static int rootdev_activate_resource(device_t *dev, res_type_t type,
                                      resource_t *r) {
   if (type == RT_MEMORY)
     return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
                          &r->r_bus_handle);
 
   return 0;
+}
+
+static void rootdev_deactivate_resource(device_t *dev, res_type_t type,
+                                        resource_t *r) {
+  /* TODO: unmap mapped resources. */
 }
 
 static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
@@ -173,7 +184,8 @@ static bus_driver_t rootdev_driver = {
           .intr_teardown = rootdev_intr_teardown,
           .alloc_resource = rootdev_alloc_resource,
           .release_resource = rootdev_release_resource,
-          .activate_resource = rootdev_activate_resource}};
+          .activate_resource = rootdev_activate_resource,
+          .deactivate_resource = rootdev_deactivate_resource}};
 
 DEVCLASS_CREATE(root);
 
