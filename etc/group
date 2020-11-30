@@ -1,4 +1,5 @@
 wheel:*:0:root,admin
 admins:*:1:admin
 users:*:2:user,admin
-
+admin:*:1000:admin
+user:*:1001:user
