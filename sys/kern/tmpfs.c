@@ -94,8 +94,7 @@ typedef struct tmpfs_node {
   gid_t tfn_gid;     /* group of file */
 
   size_t tfn_nblocks; /* number of blocks used by this file */
-  blkptr_t
-    tfn_direct[DIRECT_BLK_NO]; /* blocks containing the data for this node */
+  blkptr_t tfn_direct[DIRECT_BLK_NO]; /* blocks containing the data */
   blkptr_t *tfn_l1indirect;
   blkptr_t **tfn_l2indirect;
 
@@ -147,7 +146,14 @@ static void ensure_vaddr_mapped(vaddr_t va) {
 }
 
 /* tmpfs memory allocation routines */
-static void mem_init_arena(mem_arena_t *arena) {
+
+static mem_arena_t *mem_new_arena(mem_arenalist_t *arlst) {
+  mem_arena_t *arena = (mem_arena_t *)kva_alloc(ARENA_SIZE);
+  if (arena == NULL)
+    return NULL;
+
+  kva_map((vaddr_t)arena, BLOCK_SIZE, M_ZERO);
+
   arena->tma_ninodes = ARENA_INODE_CNT;
   arena->tma_ndblocks = ARENA_DATA_BLOCKS;
 
@@ -156,18 +162,9 @@ static void mem_init_arena(mem_arena_t *arena) {
 
   arena->tma_inodes = (void *)arena + ARENA_HEADER_SIZE;
   arena->tma_dblocks = (void *)arena + (1 + ARENA_INODE_BLOCKS) * BLOCK_SIZE;
-}
 
-static mem_arena_t *mem_new_arena(mem_arenalist_t *al) {
-  mem_arena_t *newar = (mem_arena_t *)kva_alloc(ARENA_SIZE);
-  if (newar == NULL)
-    return NULL;
-  kva_map((vaddr_t)newar, BLOCK_SIZE, M_ZERO);
-
-  mem_init_arena(newar);
-
-  STAILQ_INSERT_TAIL(al, newar, tma_link);
-  return newar;
+  STAILQ_INSERT_TAIL(arlst, arena, tma_link);
+  return arena;
 }
 
 static mem_arena_t *mem_find_ptr_arena(mem_arenalist_t *al, void *ptr) {
