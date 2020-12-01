@@ -21,7 +21,6 @@
 #include <sys/tty.h>
 #include <bitstring.h>
 #include <sys/uio.h>
-#include <string.h>
 
 /* Allocate PIDs from a reasonable range, can be changed as needed. */
 #define PID_MAX 255

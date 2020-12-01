@@ -38,9 +38,7 @@ __BEGIN_DECLS
 int bcmp(const void *, const void *, size_t);
 void bcopy(const void *, void *, size_t);
 void bzero(void *, size_t);
-#ifndef _KERNEL /* XXX collides with ffs() from sys/mimiker.h */
 int ffs(int);
-#endif
 char *index(const char *, int);
 unsigned int popcount(unsigned int) __constfunc;
 char *rindex(const char *, int);
