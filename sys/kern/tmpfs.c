@@ -111,13 +111,13 @@ typedef struct tmpfs_node {
   };
 } tmpfs_node_t;
 
-typedef STAILQ_HEAD(, mem_arena) mem_arenalist_t;
+typedef STAILQ_HEAD(, mem_arena) mem_arena_list_t;
 
 typedef struct tmpfs_mount {
   tmpfs_node_t *tfm_root;
   mtx_t tfm_lock;
   ino_t tfm_next_ino;
-  mem_arenalist_t tfm_arenas;
+  mem_arena_list_t tfm_arenas;
 } tmpfs_mount_t;
 
 typedef struct mem_arena {
@@ -147,7 +147,7 @@ static void ensure_vaddr_mapped(vaddr_t va) {
 
 /* tmpfs memory allocation routines */
 
-static mem_arena_t *new_mem_arena(mem_arenalist_t *arlst) {
+static mem_arena_t *tmpfs_add_mem_arena(tmpfs_mount_t *tfm) {
   mem_arena_t *arena = (mem_arena_t *)kva_alloc(ARENA_SIZE);
   if (arena == NULL)
     return NULL;
@@ -163,7 +163,7 @@ static mem_arena_t *new_mem_arena(mem_arenalist_t *arlst) {
   arena->tma_inodes = (void *)arena + ARENA_HEADER_SIZE;
   arena->tma_dblocks = (void *)arena + (1 + ARENA_INODE_BLOCKS) * BLOCK_SIZE;
 
-  STAILQ_INSERT_TAIL(arlst, arena, tma_link);
+  STAILQ_INSERT_TAIL(&tfm->tfm_arenas, arena, tma_link);
   return arena;
 }
 
@@ -184,7 +184,7 @@ static mem_arena_t *mem_arena_with_blocks(tmpfs_mount_t *tfm) {
     if (arena->tma_ndblocks > 0)
       return arena;
   }
-  return new_mem_arena(&tfm->tfm_arenas);
+  return tmpfs_add_mem_arena(tfm);
 }
 
 static mem_arena_t *mem_arena_with_inodes(tmpfs_mount_t *tfm) {
@@ -193,7 +193,7 @@ static mem_arena_t *mem_arena_with_inodes(tmpfs_mount_t *tfm) {
     if (arena->tma_ninodes > 0)
       return arena;
   }
-  return new_mem_arena(&tfm->tfm_arenas);
+  return tmpfs_add_mem_arena(tfm);
 }
 
 static blkptr_t tmpfs_alloc_dblk(tmpfs_mount_t *tfm) {
@@ -959,7 +959,7 @@ static int tmpfs_mount(mount_t *mp) {
   mp->mnt_data = tfm;
 
   STAILQ_INIT(&tfm->tfm_arenas);
-  if (!new_mem_arena(&tfm->tfm_arenas))
+  if (!tmpfs_add_mem_arena(tfm))
     return ENOMEM;
 
   /* Allocate the root node. */
