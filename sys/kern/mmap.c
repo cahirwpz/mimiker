@@ -10,17 +10,17 @@
 #include <sys/proc.h>
 
 /* Ensure kernel vm_prot_t & vm_flags_t map directly to user-space constants. */
-static_assert(VM_PROT_NONE == PROT_NONE);
-static_assert(VM_PROT_READ == PROT_READ);
-static_assert(VM_PROT_WRITE == PROT_WRITE);
-static_assert(VM_PROT_EXEC == PROT_EXEC);
+static_assert(VM_PROT_NONE == PROT_NONE, "VM_PROT_NONE != PROT_NONE");
+static_assert(VM_PROT_READ == PROT_READ, "VM_PROT_READ != PROT_READ");
+static_assert(VM_PROT_WRITE == PROT_WRITE, "VM_PROT_WRITE != PROT_WRITE");
+static_assert(VM_PROT_EXEC == PROT_EXEC, "VM_PROT_EXEC != PROT_EXEC");
 
-static_assert(VM_FILE == MAP_FILE);
-static_assert(VM_ANON == MAP_ANON);
-static_assert(VM_SHARED == MAP_SHARED);
-static_assert(VM_PRIVATE == MAP_PRIVATE);
-static_assert(VM_FIXED == MAP_FIXED);
-static_assert(VM_STACK == MAP_STACK);
+static_assert(VM_FILE == MAP_FILE, "VM_FILE != MAP_FILE");
+static_assert(VM_ANON == MAP_ANON, "VM_ANON != MAP_ANON");
+static_assert(VM_SHARED == MAP_SHARED, "VM_SHARED != MAP_SHARED");
+static_assert(VM_PRIVATE == MAP_PRIVATE, "VM_PRIVATE != MAP_PRIVATE");
+static_assert(VM_FIXED == MAP_FIXED, "VM_FIXED != MAP_FIXED");
+static_assert(VM_STACK == MAP_STACK, "VM_STACK != MAP_STACK");
 
 int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags) {
   thread_t *td = thread_self();

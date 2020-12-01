@@ -334,9 +334,6 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
       vm_object_t *obj;
       vm_segment_t *seg;
 
-      /* VM_SHARED flag can be set by sys_mmap when it is called with
-       * MAP_SHARED flag (because definition from sys/mman.h fit into
-       * vm_flags_t */
       if (it->flags & VM_SHARED) {
         refcnt_acquire(&it->object->ref_counter);
         obj = it->object;
