@@ -3,6 +3,7 @@
 #include <sys/device.h>
 #include <sys/devclass.h>
 #include <sys/pci.h>
+#include <dev/isareg.h>
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
@@ -117,7 +118,7 @@ void pci_bus_enumerate(device_t *pcib) {
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = id};
 
         /* skip ISA I/O ports range */
-        rman_addr_t start = (type == RT_IOPORTS) ? IO_ISASIZE : 0;
+        rman_addr_t start = (type == RT_IOPORTS) ? (IO_ISAEND + 1) : 0;
 
         device_add_resource(dev, type, id, start, RMAN_ADDR_MAX, size, flags);
 

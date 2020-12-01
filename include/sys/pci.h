@@ -19,9 +19,6 @@ typedef struct {
 extern const pci_vendor_id pci_vendor_list[];
 extern const char *pci_class_code[];
 
-/* TODO: move it to some ISA header file. */
-#define IO_ISASIZE 1024
-
 /* Please read http://wiki.osdev.org/PCI */
 
 #define PCI_BUS_MAX_NUM 256
