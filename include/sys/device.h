@@ -56,16 +56,19 @@ int device_detach(device_t *dev);
 
 /*! \brief Add a resource entry to resource list. */
 void device_add_resource(device_t *dev, res_type_t type, int rid,
-                         rman_addr_t start, size_t count);
+                         rman_addr_t start, rman_addr_t end, size_t size,
+                         res_flags_t flags);
 
 #define device_add_memory(dev, rid, start, size)                               \
-  device_add_resource((dev), RT_MEMORY, (rid), (start), (size))
+  device_add_resource((dev), RT_MEMORY, (rid), (start), (start) + (size)-1,    \
+                      (size), 0)
 
 #define device_add_ioports(dev, rid, start, size)                              \
-  device_add_resource((dev), RT_IOPORTS, (rid), (start), (size))
+  device_add_resource((dev), RT_IOPORTS, (rid), (start), (start) + (size)-1,   \
+                      (size), 0)
 
 #define device_add_irq(dev, rid, irq)                                          \
-  device_add_resource((dev), RT_IRQ, (rid), (irq), 1)
+  device_add_resource((dev), RT_IRQ, (rid), (irq), (irq), 1, 0)
 
 /*! \brief Take a resource which is assigned to device by parent bus. */
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,

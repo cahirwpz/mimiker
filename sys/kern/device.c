@@ -67,15 +67,15 @@ static resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
 }
 
 void device_add_resource(device_t *dev, res_type_t type, int rid,
-                         rman_addr_t start, size_t count) {
+                         rman_addr_t start, rman_addr_t end, size_t size,
+                         res_flags_t flags) {
   assert(!resource_list_find(dev, rid, type));
 
   resource_list_entry_t *rle =
     kmalloc(M_DEV, sizeof(resource_list_entry_t), M_WAITOK);
   rle->type = type;
   /* Allocate the actual resource from the parent bus. */
-  rle->res =
-    bus_alloc_resource(dev, type, rid, start, start + count - 1, count, 0);
+  rle->res = bus_alloc_resource(dev, type, rid, start, end, size, flags);
   assert(rle->res);
   SLIST_INSERT_HEAD(&dev->resources, rle, link);
 }
@@ -83,7 +83,7 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
                                  res_flags_t flags) {
   resource_list_entry_t *rle = resource_list_find(dev, type, rid);
-  if (rle == NULL)
+  if (!rle)
     return NULL;
 
   if (flags & RF_ACTIVE)
