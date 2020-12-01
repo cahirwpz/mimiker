@@ -20,6 +20,8 @@
 #include <sys/mutex.h>
 #include <sys/tty.h>
 #include <bitstring.h>
+#include <sys/uio.h>
+#include <string.h>
 
 /* Allocate PIDs from a reasonable range, can be changed as needed. */
 #define PID_MAX 255
@@ -141,6 +143,7 @@ static session_t *session_create(proc_t *leader) {
   s->s_sid = leader->p_pid;
   s->s_leader = leader;
   s->s_count = 1;
+  s->s_login[0] = '\0';
   TAILQ_INSERT_HEAD(SESSION_HASH_CHAIN(leader->p_pid), s, s_hash);
   return s;
 }
@@ -782,4 +785,30 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
     }
   }
   __unreachable();
+}
+
+int do_getlogin(uio_t *uio) {
+  proc_t *p = proc_self();
+  char login_tmp[LOGIN_NAME_MAX];
+
+  /* Don't uiomove() (which might fault) while holding locks! */
+  WITH_MTX_LOCK (all_proc_mtx)
+    memcpy(login_tmp, p->p_pgrp->pg_session->s_login, sizeof(login_tmp));
+
+  return uiomove(login_tmp, sizeof(login_tmp), uio);
+}
+
+int do_setlogin(const char *name) {
+  proc_t *p = proc_self();
+
+  if (!cred_can_setlogin(&p->p_cred))
+    return EPERM;
+
+  if (strlen(name) >= LOGIN_NAME_MAX)
+    return EINVAL;
+
+  WITH_MTX_LOCK (all_proc_mtx)
+    strncpy(p->p_pgrp->pg_session->s_login, name, LOGIN_NAME_MAX);
+
+  return 0;
 }

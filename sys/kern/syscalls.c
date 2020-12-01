@@ -1055,3 +1055,27 @@ static int sys_setregid(proc_t *p, setregid_args_t *args, register_t *res) {
   gid_t egid = SCARG(args, egid);
   return do_setregid(p, rgid, egid);
 }
+
+static int sys_getlogin(proc_t *p, getlogin_args_t *args, register_t *res) {
+  char *namebuf = SCARG(args, namebuf);
+  size_t buflen = SCARG(args, buflen);
+
+  klog("getlogin(%p, %zu)", namebuf, buflen);
+
+  uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, namebuf, buflen);
+  return do_getlogin(&uio);
+}
+
+static int sys_setlogin(proc_t *p, setlogin_args_t *args, register_t *res) {
+  char *name = SCARG(args, name);
+  char login_tmp[LOGIN_NAME_MAX];
+  int error;
+
+  klog("setlogin(%p)", name);
+
+  error = copyinstr(name, login_tmp, sizeof(login_tmp), NULL);
+  if (error)
+    return (error == ENAMETOOLONG ? EINVAL : error);
+
+  return do_setlogin(login_tmp);
+}
