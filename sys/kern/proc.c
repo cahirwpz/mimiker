@@ -787,17 +787,6 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
   __unreachable();
 }
 
-int do_getlogin(uio_t *uio) {
-  proc_t *p = proc_self();
-  char login_tmp[LOGIN_NAME_MAX];
-
-  /* Don't uiomove() (which might fault) while holding locks! */
-  WITH_MTX_LOCK (all_proc_mtx)
-    memcpy(login_tmp, p->p_pgrp->pg_session->s_login, sizeof(login_tmp));
-
-  return uiomove(login_tmp, sizeof(login_tmp), uio);
-}
-
 int do_setlogin(const char *name) {
   proc_t *p = proc_self();
 

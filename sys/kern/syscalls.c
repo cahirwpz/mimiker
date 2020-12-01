@@ -1059,11 +1059,14 @@ static int sys_setregid(proc_t *p, setregid_args_t *args, register_t *res) {
 static int sys_getlogin(proc_t *p, getlogin_args_t *args, register_t *res) {
   char *namebuf = SCARG(args, namebuf);
   size_t buflen = SCARG(args, buflen);
+  char login_tmp[LOGIN_NAME_MAX];
 
   klog("getlogin(%p, %zu)", namebuf, buflen);
 
-  uio_t uio = UIO_SINGLE_USER(UIO_READ, 0, namebuf, buflen);
-  return do_getlogin(&uio);
+  WITH_MTX_LOCK (all_proc_mtx)
+    memcpy(login_tmp, p->p_pgrp->pg_session->s_login, sizeof(login_tmp));
+
+  return copyout(login_tmp, namebuf, MIN(buflen, sizeof(login_tmp)));
 }
 
 static int sys_setlogin(proc_t *p, setlogin_args_t *args, register_t *res) {

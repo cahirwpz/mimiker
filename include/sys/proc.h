@@ -191,9 +191,6 @@ void proc_stop(signo_t sig);
 
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp);
 
-/*! \brief Get login name associated with current session.  */
-int do_getlogin(uio_t *uio);
-
 /*! \brief Set login name associated with current session. */
 int do_setlogin(const char *name);
 
