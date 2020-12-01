@@ -177,7 +177,7 @@ static int atkbdc_attach(device_t *dev) {
   write_data(atkbdc->regs, KBD_ENABLE_KBD_INT);
 
   /* Prepare /dev/scancode interface. */
-  devfs_makedev(NULL, "scancode", &scancode_vnodeops, atkbdc);
+  devfs_makedev(NULL, "scancode", &scancode_vnodeops, atkbdc, NULL);
 
   return 0;
 }

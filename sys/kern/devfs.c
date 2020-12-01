@@ -81,13 +81,17 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name,
 }
 
 int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
-                  void *data) {
+                  void *data, vnode_t **vnode_p) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
   devfs_node_t *dn;
   int error = devfs_add_entry(parent, name, &dn);
   if (!error) {
     dn->dn_vnode = vnode_new(V_DEV, vops, data);
+    if (vnode_p) {
+      vnode_hold(dn->dn_vnode);
+      *vnode_p = dn->dn_vnode;
+    }
     klog("devfs: registered '%s' device", name);
   }
   return error;
