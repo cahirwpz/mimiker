@@ -9,11 +9,27 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 
-int do_mmap(vaddr_t *addr_p, size_t length, vm_prot_t prot, vm_flags_t flags) {
+/* Ensure kernel vm_prot_t & vm_flags_t map directly to user-space constants. */
+static_assert(VM_PROT_NONE == PROT_NONE);
+static_assert(VM_PROT_READ == PROT_READ);
+static_assert(VM_PROT_WRITE == PROT_WRITE);
+static_assert(VM_PROT_EXEC == PROT_EXEC);
+
+static_assert(VM_FILE == MAP_FILE);
+static_assert(VM_ANON == MAP_ANON);
+static_assert(VM_SHARED == MAP_SHARED);
+static_assert(VM_PRIVATE == MAP_PRIVATE);
+static_assert(VM_FIXED == MAP_FIXED);
+static_assert(VM_STACK == MAP_STACK);
+
+int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags) {
   thread_t *td = thread_self();
   assert(td->td_proc != NULL);
   vm_map_t *vmap = td->td_proc->p_uspace;
   assert(vmap != NULL);
+
+  vm_prot_t prot = u_prot;
+  vm_flags_t flags = u_flags;
 
   vaddr_t addr = *addr_p;
   *addr_p = (vaddr_t)MAP_FAILED;
