@@ -15,6 +15,7 @@ typedef struct cred cred_t;
 typedef struct pgrp pgrp_t;
 typedef struct fdtab fdtab_t;
 typedef struct vnode vnode_t;
+typedef struct tty tty_t;
 typedef TAILQ_HEAD(, proc) proc_list_t;
 typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
 typedef TAILQ_HEAD(, session) session_list_t;
@@ -40,6 +41,7 @@ typedef struct session {
   proc_t *s_leader;            /* (a) Session leader */
   int s_count;                 /* (a) Count of pgrps in session */
   sid_t s_sid;                 /* (!) PID of session leader */
+  tty_t *s_tty;                /* (a) Controlling terminal (if any) */
 } session_t;
 
 /*! \brief Structure allocated per process group.
@@ -101,6 +103,7 @@ struct proc {
   vm_map_t *p_uspace;             /* ($) process' user space map */
   fdtab_t *p_fdtable;             /* ($) file descriptors table */
   sigaction_t p_sigactions[NSIG]; /* (@) description of signal actions */
+  signo_t p_stopsig;              /* (@) signal that stopped the process */
   condvar_t p_waitcv;             /* (a) processes waiting for this one */
   int p_exitstatus;               /* (@) exit code to be returned to parent */
   volatile proc_flags_t p_flags;  /* (@) PF_* flags */
@@ -157,6 +160,11 @@ __noreturn void proc_exit(int exitstatus);
  * by pgid. If such process group does not exist then it creates one. */
 int pgrp_enter(proc_t *curp, pid_t target, pgid_t pgid);
 
+/* \brief Finds process group with the ID specified by pgid or returns NULL.
+ *
+ * Must be called with all_proc_mtx held. */
+pgrp_t *pgrp_lookup(pgid_t pgid);
+
 /*! \brief Makes process p the session leader of a new session. */
 int session_enter(proc_t *p);
 
@@ -173,10 +181,19 @@ int proc_getsid(pid_t pid, sid_t *sidp);
  * Must be called with parent::p_lock held. */
 void proc_wakeup_parent(proc_t *parent);
 
+/*! \brief Stop the current process in response to the signal `sig`.
+ *
+ * Must be called with the current process's p_lock held. */
+void proc_stop(signo_t sig);
+
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp);
 
 static inline bool proc_is_alive(proc_t *p) {
   return (p->p_state == PS_NORMAL || p->p_state == PS_STOPPED);
+}
+
+static inline bool proc_is_session_leader(proc_t *p) {
+  return (p->p_pid == p->p_pgrp->pg_session->s_sid);
 }
 
 #endif /* !_SYS_PROC_H_ */

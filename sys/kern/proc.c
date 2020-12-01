@@ -17,6 +17,8 @@
 #include <sys/vnode.h>
 #include <sys/vfs.h>
 #include <sys/vm_map.h>
+#include <sys/mutex.h>
+#include <sys/tty.h>
 #include <bitstring.h>
 
 /* Allocate PIDs from a reasonable range, can be changed as needed. */
@@ -43,7 +45,6 @@ static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
 static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
-static pgrp_t *pgrp_lookup(pgid_t pgid);
 static proc_t *proc_find_raw(pid_t pid);
 static session_t *session_lookup(sid_t sid);
 
@@ -197,6 +198,7 @@ static pgrp_t *pgrp_create(pgid_t pgid) {
 static void pgrp_maybe_orphan(pgrp_t *pg) {
   assert(mtx_owned(all_proc_mtx));
 
+  SCOPED_MTX_LOCK(&pg->pg_lock);
   if (--pg->pg_jobc > 0)
     return;
 
@@ -250,7 +252,7 @@ static void pgrp_jobc_leave(proc_t *p, pgrp_t *pg) {
 }
 
 /* Finds process group with the ID specified by pgid or returns NULL. */
-static pgrp_t *pgrp_lookup(pgid_t pgid) {
+pgrp_t *pgrp_lookup(pgid_t pgid) {
   assert(mtx_owned(all_proc_mtx));
 
   pgrp_t *pgrp;
@@ -262,6 +264,15 @@ static pgrp_t *pgrp_lookup(pgid_t pgid) {
 
 static void pgrp_remove(pgrp_t *pgrp) {
   assert(mtx_owned(all_proc_mtx));
+
+  /* Check if removed group was a foreground group of some terminal. */
+  tty_t *tty = pgrp->pg_session->s_tty;
+  if (tty) {
+    WITH_MTX_LOCK (&tty->t_lock) {
+      if (tty->t_pgrp == pgrp)
+        tty->t_pgrp = NULL;
+    }
+  }
 
   session_drop(pgrp->pg_session);
   TAILQ_REMOVE(PGRP_HASH_CHAIN(pgrp->pg_id), pgrp, pg_hash);
@@ -335,6 +346,33 @@ int session_enter(proc_t *p) {
   pg->pg_session = session_create(p);
 
   return _pgrp_enter(p, pg);
+}
+
+/* Called only when process finishes. */
+static void session_leave(proc_t *p) {
+  assert(mtx_owned(all_proc_mtx));
+
+  if (!proc_is_session_leader(p))
+    return;
+
+  session_t *s = p->p_pgrp->pg_session;
+  s->s_leader = NULL;
+
+  tty_t *tty = s->s_tty;
+  if (tty == NULL)
+    return;
+
+  WITH_MTX_LOCK (&tty->t_lock) {
+    pgrp_t *pgrp = tty->t_pgrp;
+    tty->t_session = NULL;
+    tty->t_pgrp = NULL;
+    s->s_tty = NULL;
+    if (pgrp) {
+      WITH_MTX_LOCK (&pgrp->pg_lock)
+        sig_pgkill(pgrp, &DEF_KSI_RAW(SIGHUP));
+    }
+    /* TODO revoke access to controlling terminal */
+  }
 }
 
 int pgrp_enter(proc_t *p, pid_t target, pgid_t pgid) {
@@ -542,7 +580,9 @@ __noreturn void proc_exit(int exitstatus) {
     if (p->p_pid == 1)
       panic("'init' process died!");
 
+    session_leave(p);
     pgrp_jobc_leave(p, p->p_pgrp);
+
     /* Process orphans, but firstly find init process. */
     proc_t *init = proc_find_raw(1);
     assert(init != NULL);
@@ -621,7 +661,6 @@ static int proc_pgsignal(pgid_t pgid, signo_t sig) {
 }
 
 int proc_sendsig(pid_t pid, signo_t sig) {
-
   if (sig >= NSIG)
     return EINVAL;
 
@@ -707,7 +746,7 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
           if (child->p_flags & PF_STATE_CHANGED) {
             if ((options & WUNTRACED) && (child->p_state == PS_STOPPED)) {
               child->p_flags &= ~PF_STATE_CHANGED;
-              *status = MAKE_STATUS_SIG_STOP(SIGSTOP);
+              *status = MAKE_STATUS_SIG_STOP(child->p_stopsig);
               return 0;
             }
 
