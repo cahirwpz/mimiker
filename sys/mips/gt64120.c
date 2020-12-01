@@ -335,6 +335,11 @@ static int gt_pci_attach(device_t *pcib) {
   return bus_generic_probe(pcib);
 }
 
+static bool gt_pci_bar(device_t *dev, int rid) {
+  pci_device_t *pcid = pci_device_of(dev);
+  return rid < PCI_BAR_MAX && pcid->bar[rid].size != 0;
+}
+
 static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
                                          int rid, rman_addr_t start,
                                          rman_addr_t end, size_t size,
@@ -359,6 +364,11 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     rman = &gtpci->pci_mem_rman;
   } else {
     panic("Unknown PCI device type: %d", type);
+  }
+
+  if ((type == RT_IOPORTS && start > IO_ISAEND) || type == RT_MEMORY) {
+    if (gt_pci_bar(dev, rid))
+      alignment = max(alignment, size);
   }
 
   resource_t *r =
@@ -401,9 +411,8 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type,
 
   int rid = r->r_rid;
   if (type == RT_MEMORY) {
-    pci_device_t *pcid = pci_device_of(dev);
     /* Is this a PCI bar? */
-    if (rid < PCI_BAR_MAX && pcid->bar[rid].size != 0) {
+    if (gt_pci_bar(dev, rid)) {
       /* Write BAR address to PCI device register. */
       pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
     }
