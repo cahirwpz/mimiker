@@ -791,7 +791,7 @@ int do_setlogin(const char *name) {
   if (!cred_can_setlogin(&p->p_cred))
     return EPERM;
 
-  if (strlen(name) >= LOGIN_NAME_MAX)
+  if (strnlen(name, LOGIN_NAME_MAX) == LOGIN_NAME_MAX)
     return EINVAL;
 
   WITH_MTX_LOCK (all_proc_mtx)
