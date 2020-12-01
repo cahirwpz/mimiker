@@ -25,8 +25,7 @@ DEVCLASS_CREATE(root);
 #define NIRQ (BCM2835_NIRQ + BCM2836_NIRQ)
 
 typedef struct rootdev {
-  rman_t local_rm;
-  rman_t shared_rm;
+  rman_t rm;
   rman_t irq_rm;
   intr_event_t *intr_event[NIRQ];
 } rootdev_t;
@@ -166,7 +165,9 @@ static void bcm2835_intr_handle(bus_space_handle_t irq_base, bus_size_t offset,
 
   while (pending) {
     int irq = ffs(pending) - 1;
-    intr_event_run_handlers(events[irq]);
+    /* XXX: some pending bits are shared between BASIC and GPU0/1. */
+    if (events[irq])
+      intr_event_run_handlers(events[irq]);
     pending &= ~(1 << irq);
   }
 }
@@ -198,13 +199,13 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
-  /* TODO(cahir) Resource manager should be able to manage independant ranges
-   * instead of single one. Consult rman_manage_region in rman(9). */
-  rman_init(&rd->shared_rm, "BCM2835 peripherals", BCM2835_PERIPHERALS_BASE,
-            BCM2835_PERIPHERALS_BASE + BCM2835_PERIPHERALS_SIZE - 1, RT_MEMORY);
-  rman_init(&rd->local_rm, "ARM local", BCM2836_ARM_LOCAL_BASE,
-            BCM2836_ARM_LOCAL_BASE + BCM2836_ARM_LOCAL_SIZE - 1, RT_MEMORY);
-  rman_init(&rd->irq_rm, "BCM2835 interrupts", 0, NIRQ, RT_IRQ);
+  rman_init(&rd->rm, "ARM and BCM2835 space");
+  rman_manage_region(&rd->rm, BCM2835_PERIPHERALS_BASE,
+                     BCM2835_PERIPHERALS_SIZE);
+  rman_manage_region(&rd->rm, BCM2836_ARM_LOCAL_BASE, BCM2836_ARM_LOCAL_SIZE);
+
+  rman_init(&rd->irq_rm, "BCM2835 interrupts");
+  rman_manage_region(&rd->irq_rm, 0, NIRQ);
 
   /* Map BCM2836 shared processor only once. */
   rootdev_local_handle =
@@ -216,6 +217,7 @@ static int rootdev_attach(device_t *bus) {
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
   (void)device_add_child(bus, &DEVCLASS(root), 0); /* for ARM timer */
+  (void)device_add_child(bus, &DEVCLASS(root), 1); /* for PL011 UART */
 
   return bus_generic_probe(bus);
 }
@@ -228,11 +230,9 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   resource_t *r = NULL;
 
   if (type == RT_MEMORY) {
-    r = rman_alloc_resource(&rd->local_rm, start, end, size, 1, flags);
-    if (r == NULL)
-      r = rman_alloc_resource(&rd->shared_rm, start, end, size, 1, flags);
+    r = rman_reserve_resource(&rd->rm, start, end, size, PAGESIZE, flags);
   } else if (type == RT_IRQ) {
-    r = rman_alloc_resource(&rd->irq_rm, start, end, size, 1, flags);
+    r = rman_reserve_resource(&rd->irq_rm, start, end, size, 0, flags);
   }
 
   if (!r)
@@ -259,7 +259,7 @@ static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
 static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
                                      resource_t *r) {
   if (type == RT_MEMORY)
-    return bus_space_map(r->r_bus_tag, r->r_bus_handle, rman_get_size(r),
+    return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
                          &r->r_bus_handle);
   return 0;
 }

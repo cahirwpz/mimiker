@@ -36,6 +36,11 @@ typedef enum {
   VM_STACK = 16,  /* region grows down, like a stack */
 } vm_flags_t;
 
+typedef enum {
+  VM_MAP_PRIVATE = 0, /* private memory (default) */
+  VM_MAP_SHARED = 1,  /* shared memory */
+} vm_map_flags_t;
+
 typedef struct vm_page vm_page_t;
 typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
 typedef RB_HEAD(vm_pagetree, vm_page) vm_pagetree_t;
@@ -61,5 +66,8 @@ struct vm_page {
   pg_flags_t flags;               /* page flags (used by physmem as well) */
   uint32_t size;                  /* size of page in PAGESIZE units */
 };
+
+int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags);
+int do_munmap(vaddr_t addr, size_t length);
 
 #endif /* !_SYS_VM_H_ */
