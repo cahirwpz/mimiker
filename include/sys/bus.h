@@ -193,25 +193,6 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
 #define bus_alloc_ioports(dev, rid, start, end, size, flags)                   \
   bus_alloc_resource((dev), RT_IOPORTS, (rid), (start), (end), (size), (flags))
 
-/*! \brief Allocates resource for a device.
- *
- * \sa bus_resource_alloc with resource placement in memory
- * chosen by the parent bus.
- */
-static inline resource_t *bus_alloc_resource_anywhere(device_t *dev,
-                                                      res_type_t type, int rid,
-                                                      size_t size,
-                                                      res_flags_t flags) {
-  return BUS_METHOD(dev->parent)
-    .alloc_resource(dev, type, rid, 0, RMAN_ADDR_MAX, size, flags);
-}
-
-#define bus_alloc_memory_anywhere(dev, rid, size, flags)                       \
-  bus_alloc_resource_anywhere((dev), RT_MEMORY, (rid), (size), (flags))
-
-#define bus_alloc_ioports_anywhere(dev, rid, size, flags)                      \
-  bus_alloc_resource_anywhere((dev), RT_IOPORTS, (rid), (size), (flags))
-
 /*! \brief Activates resource for a device.
  *
  * This is a wrapper that calls bus method `activate_resource`.

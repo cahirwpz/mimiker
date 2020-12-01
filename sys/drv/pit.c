@@ -1,4 +1,4 @@
-/* Programable Interval Timer (PIT) driver for Intel 8253 */
+/* Programmable Interval Timer (PIT) driver for Intel 8253 */
 #include <sys/mimiker.h>
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
@@ -8,9 +8,6 @@
 #include <sys/timer.h>
 #include <sys/spinlock.h>
 #include <sys/devclass.h>
-
-#define PIIX4_IDE_VENDOR_ID 0x8086
-#define PIIX4_IDE_DEVICE_ID 0x7111
 
 typedef struct pit_state {
   resource_t *regs;
@@ -136,8 +133,7 @@ static int pit_attach(device_t *dev) {
 }
 
 static int pit_probe(device_t *dev) {
-  pci_device_t *pcid = pci_device_of(dev);
-  return pci_device_match(pcid, PIIX4_IDE_VENDOR_ID, PIIX4_IDE_DEVICE_ID);
+  return dev->unit == 3; /* XXX: unit 3 assigned by gt_pci */
 }
 
 /* clang-format off */

@@ -68,39 +68,26 @@ static resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
 
 void device_add_resource(device_t *dev, res_type_t type, int rid,
                          rman_addr_t start, size_t count) {
-  resource_list_entry_t *rle = resource_list_find(dev, rid, type);
-  assert(rle == NULL);
+  assert(!resource_list_find(dev, rid, type));
 
-  rle = kmalloc(M_DEV, sizeof(resource_list_entry_t), M_WAITOK);
-  rle->res = NULL;
+  resource_list_entry_t *rle =
+    kmalloc(M_DEV, sizeof(resource_list_entry_t), M_WAITOK);
   rle->type = type;
-  SLIST_INSERT_HEAD(&dev->resources, rle, link);
-
   /* Allocate the actual resource from the parent bus. */
   rle->res =
     bus_alloc_resource(dev, type, rid, start, start + count - 1, count, 0);
   assert(rle->res);
+  SLIST_INSERT_HEAD(&dev->resources, rle, link);
 }
 
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
                                  res_flags_t flags) {
   resource_list_entry_t *rle = resource_list_find(dev, type, rid);
-
   if (rle == NULL)
     return NULL;
-  assert(rle->res);
 
   if (flags & RF_ACTIVE)
     bus_activate_resource(dev, rle->type, rle->res);
 
   return rle->res;
-}
-
-void device_give_resource(device_t *dev, res_type_t type, resource_t *r) {
-  resource_list_entry_t *rle = resource_list_find(dev, type, r->r_rid);
-  assert(rle);      /* can't find the resource entry */
-  assert(rle->res); /* resource entry is not busy */
-  assert(rle->res == r);
-
-  bus_deactivate_resource(dev, type, r);
 }

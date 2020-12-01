@@ -238,7 +238,7 @@ static int ns16550_attach(device_t *dev) {
 }
 
 static int ns16550_probe(device_t *dev) {
-  return dev->unit == 1;
+  return dev->unit == 1; /* XXX: unit 1 assigned by gt_pci */
 }
 
 /* clang-format off */

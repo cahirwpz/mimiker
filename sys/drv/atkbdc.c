@@ -122,7 +122,7 @@ static intr_filter_t atkbdc_intr(void *data) {
 }
 
 static int atkbdc_probe(device_t *dev) {
-  if (dev->unit != 0)
+  if (dev->unit != 0) /* XXX: unit 0 assigned by gt_pci */
     return 0;
 
   resource_t *regs = device_take_ioports(dev, 0, RF_ACTIVE);
@@ -144,7 +144,6 @@ static int atkbdc_probe(device_t *dev) {
   if (read_data(regs) != KBD_ACK)
     return 0;
 
-  bus_release_resource(dev, RT_IOPORTS, regs);
   return 1;
 }
 
@@ -162,7 +161,6 @@ static int atkbdc_attach(device_t *dev) {
   assert(atkbdc->regs != NULL);
 
   atkbdc->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
-  assert(atkbdc->irq_res);
   bus_intr_setup(dev, atkbdc->irq_res, atkbdc_intr, NULL, atkbdc,
                  "AT keyboard controller");
 

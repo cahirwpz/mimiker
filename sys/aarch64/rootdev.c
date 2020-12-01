@@ -196,8 +196,6 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
                       &rd->intr_event[BCM2835_INT_BASICBASE]);
 }
 
-#define UART0_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE)
-
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
@@ -226,7 +224,8 @@ static int rootdev_attach(device_t *bus) {
 
   /* Create PL011 UART device and assign resources to it. */
   dev = device_add_child(bus, 1);
-  device_add_memory(dev, 0, UART0_BASE, BCM2835_UART0_SIZE);
+  device_add_memory(dev, 0, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE),
+                    BCM2835_UART0_SIZE);
   device_add_irq(dev, 0, BCM2835_INT_UART0);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
@@ -292,7 +291,7 @@ static bus_driver_t rootdev_driver = {
     {
       .size = sizeof(rootdev_t),
       .desc = "RPI3 platform root bus driver",
-      .attach = rootdev_attach
+      .attach = rootdev_attach,
     },
   .bus =
     {
@@ -301,7 +300,7 @@ static bus_driver_t rootdev_driver = {
       .alloc_resource = rootdev_alloc_resource,
       .release_resource = rootdev_release_resource,
       .activate_resource = rootdev_activate_resource,
-      .deactivate_resource = rootdev_deactivate_resource
+      .deactivate_resource = rootdev_deactivate_resource,
     },
 };
 

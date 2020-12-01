@@ -109,9 +109,8 @@ int bus_activate_resource(device_t *dev, res_type_t type, resource_t *r) {
 }
 
 void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r) {
-  if (!(r->r_flags & RF_ACTIVE))
-    return;
-  BUS_METHOD(dev->parent).activate_resource(dev, type, r);
+  assert((r->r_flags & RF_ACTIVE) == 0);
+  BUS_METHOD(dev->parent).deactivate_resource(dev, type, r);
   rman_deactivate_resource(r);
 }
 

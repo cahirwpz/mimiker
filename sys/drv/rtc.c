@@ -102,7 +102,6 @@ static int rtc_attach(device_t *dev) {
   assert(rtc->regs != NULL);
 
   rtc->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
-  assert(rtc->irq_res);
   bus_intr_setup(dev, rtc->irq_res, rtc_intr, NULL, rtc, "RTC periodic timer");
 
   /* Configure how the time is presented through registers. */
@@ -124,7 +123,7 @@ static int rtc_attach(device_t *dev) {
 }
 
 static int rtc_probe(device_t *dev) {
-  return dev->unit == 2;
+  return dev->unit == 2; /* XXX: unit 2 assigned by gt_pci */
 }
 
 /* clang-format off */
