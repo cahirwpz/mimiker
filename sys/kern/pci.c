@@ -58,8 +58,6 @@ DEVCLASS_CREATE(pci);
   (((pci_device_t *)(pcid)->instance)->addr = PCIA((b), (d), (f)))
 
 void pci_bus_enumerate(device_t *pcib) {
-  rman_addr_t io_offset = IO_ISASIZE;
-  rman_addr_t mem_offset = PCI_MEMORY_BASE;
   device_t pcid = {.parent = pcib,
                    .bus = DEV_BUS_PCI,
                    .instance = (pci_device_t[1]){},
@@ -118,16 +116,10 @@ void pci_bus_enumerate(device_t *pcib) {
         pcid->bar[id] = (pci_bar_t){
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = id};
 
-        rman_addr_t start;
-        if (type == RT_IOPORTS) {
-          start = roundup(io_offset, size);
-          device_add_ioports(dev, id, start, size);
-          io_offset = start + size;
-        } else {
-          start = roundup(mem_offset, max(size, (size_t)PAGESIZE));
-          device_add_memory(dev, id, start, size);
-          mem_offset = start + size;
-        }
+        /* skip ISA I/O ports range */
+        rman_addr_t start = (type == RT_IOPORTS) ? IO_ISASIZE : 0;
+
+        device_add_resource(dev, type, id, start, RMAN_ADDR_MAX, size, flags);
 
         pcid->nbars++;
       }
