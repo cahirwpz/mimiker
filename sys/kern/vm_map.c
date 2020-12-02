@@ -242,7 +242,7 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
   if ((flags & VM_FIXED) && (start != seg->start))
     return ENOMEM;
 
-  if ((flags & VM_SHARED) != 0)
+  if (flags & VM_SHARED)
     map_flags |= VM_SEG_SHARED;
 
   seg->start = start;
