@@ -36,11 +36,6 @@ typedef enum {
   VM_STACK = 16,  /* region grows down, like a stack */
 } vm_flags_t;
 
-typedef enum {
-  VM_MAP_PRIVATE = 0, /* private memory (default) */
-  VM_MAP_SHARED = 1,  /* shared memory */
-} vm_map_flags_t;
-
 typedef struct vm_page vm_page_t;
 typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
 typedef RB_HEAD(vm_pagetree, vm_page) vm_pagetree_t;

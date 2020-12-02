@@ -17,7 +17,7 @@ struct vm_segment {
   TAILQ_ENTRY(vm_segment) link;
   vm_object_t *object;
   vm_prot_t prot;
-  vm_map_flags_t flags;
+  vm_seg_flags_t flags;
   vaddr_t start;
   vaddr_t end;
 };
@@ -234,7 +234,7 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
   vm_segment_t *after;
   vaddr_t start = seg->start;
   size_t length = seg->end - seg->start;
-  vm_map_flags_t map_flags = 0;
+  vm_seg_flags_t map_flags = 0;
 
   int error = vm_map_findspace_nolock(map, &start, length, &after);
   if (error)
@@ -242,8 +242,8 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
   if ((flags & VM_FIXED) && (start != seg->start))
     return ENOMEM;
 
-  if ((flags & VM_SHARED) != 0)
-    map_flags |= VM_MAP_SHARED;
+  if (flags & VM_SHARED)
+    map_flags |= VM_SEG_SHARED;
 
   seg->start = start;
   seg->end = start + length;
@@ -340,7 +340,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
       vm_object_t *obj;
       vm_segment_t *seg;
 
-      if (it->flags & VM_MAP_SHARED) {
+      if (it->flags & VM_SEG_SHARED) {
         refcnt_acquire(&it->object->ref_counter);
         obj = it->object;
       } else {
