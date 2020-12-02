@@ -82,6 +82,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(killpg_other_group);
   CHECKRUN_TEST(pgrp_orphan);
   CHECKRUN_TEST(session_basic);
+  CHECKRUN_TEST(session_login_name);
 
 #ifdef __mips__
   CHECKRUN_TEST(fpu_fcsr);

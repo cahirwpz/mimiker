@@ -69,3 +69,8 @@ bool cred_can_chown(uid_t f_owner, cred_t *cred, uid_t new_uid, gid_t new_gid) {
   /* only to group which is in his supplementary groups */
   return cred_groupmember(new_gid, cred);
 }
+
+bool cred_can_setlogin(cred_t *cred) {
+  /* Only root can setlogin(). */
+  return cred->cr_euid == 0;
+}

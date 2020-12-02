@@ -159,6 +159,7 @@ const char *getusershell(void);
 int initgroups(const char *, gid_t);
 int issetugid(void);
 int pipe2(int *, int);
+int setlogin(const char *);
 void *setmode(const char *mode_str);
 void setusershell(void);
 mode_t getmode(const void *set, mode_t mode);

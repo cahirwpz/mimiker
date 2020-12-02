@@ -141,6 +141,7 @@ static session_t *session_create(proc_t *leader) {
   s->s_sid = leader->p_pid;
   s->s_leader = leader;
   s->s_count = 1;
+  s->s_login[0] = '\0';
   TAILQ_INSERT_HEAD(SESSION_HASH_CHAIN(leader->p_pid), s, s_hash);
   return s;
 }
@@ -782,4 +783,19 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
     }
   }
   __unreachable();
+}
+
+int do_setlogin(const char *name) {
+  proc_t *p = proc_self();
+
+  if (!cred_can_setlogin(&p->p_cred))
+    return EPERM;
+
+  if (strnlen(name, LOGIN_NAME_MAX) == LOGIN_NAME_MAX)
+    return EINVAL;
+
+  WITH_MTX_LOCK (all_proc_mtx)
+    strncpy(p->p_pgrp->pg_session->s_login, name, LOGIN_NAME_MAX);
+
+  return 0;
 }
