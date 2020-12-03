@@ -107,7 +107,7 @@ void kmem_free(void *ptr, size_t size) {
 }
 
 vaddr_t kmem_map(paddr_t pa, size_t size, unsigned flags) {
-  assert(page_aligned_p(pa) && page_aligned_p(size));
+  assert(page_aligned_p(pa));
 
   vmem_addr_t start;
   if (vmem_alloc(kvspace, size, &start, M_NOGROW))
