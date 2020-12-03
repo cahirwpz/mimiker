@@ -28,12 +28,12 @@ vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   return obj;
 }
 
-vm_page_t *vm_object_find_page_no_lock(vm_object_t *obj, off_t offset) {
+static vm_page_t *vm_object_find_page_no_lock(vm_object_t *obj, off_t offset) {
   vm_page_t find = {.offset = offset};
   return RB_FIND(vm_pagetree, &obj->tree, &find);
 }
 
-bool vm_object_add_page_no_lock(vm_object_t *obj, off_t offset,
+static bool vm_object_add_page_no_lock(vm_object_t *obj, off_t offset,
                                 vm_page_t *page) {
   assert(page_aligned_p(page->offset));
   /* For simplicity of implementation let's insert pages of size 1 only */
@@ -66,7 +66,6 @@ static void merge_shadow(vm_object_t *shadow) {
       TAILQ_REMOVE(&shadow->list, pg, obj.list);
       pg->object = elem;
       vm_object_add_page_no_lock(elem, pg->offset, pg);
-      /* how to restore permission for this page??? */
     }
   }
 }
@@ -90,10 +89,6 @@ void vm_object_free(vm_object_t *obj) {
       if (shadow->ref_counter == 2) {
         merge_shadow(shadow);
       }
-      //      if (TAILQ_FIRST(&shadow->shadows_list) ==
-      //          TAILQ_LAST(&shadow->shadows_list, vm_object_list)) {
-      //        merge_shadow(shadow);
-      //      }
 
       vm_object_free(shadow);
     }

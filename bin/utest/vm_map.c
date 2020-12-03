@@ -101,6 +101,6 @@ int test_cow_private_simple(void) {
     assert(strcmp(map, "Hello, World!") == 0);
   }
 
-  assert(munmap(map, 4096) == 0);
+  assert(munmap(map, pgsz) == 0);
   return 0;
 }
