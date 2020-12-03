@@ -90,6 +90,17 @@ intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
   return ih;
 }
 
+/* XXX: This should always be called in a spin lock */
+static void intr_event_delete_handler(intr_handler_t *ih) {
+  intr_event_t *ie = ih->ih_event;
+  if (ie->ie_count == 1 && ie->ie_disable)
+    ie->ie_disable(ie);
+
+  TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
+  ih->ih_event = NULL;
+  ie->ie_count--;
+}
+
 void intr_event_remove_handler(intr_handler_t *ih) {
   intr_event_t *ie = ih->ih_event;
   WITH_SPIN_LOCK (&ie->ie_lock) {
@@ -97,12 +108,8 @@ void intr_event_remove_handler(intr_handler_t *ih) {
       ih->ih_flags |= IH_REMOVE;
       return;
     }
-    if (ie->ie_count == 1 && ie->ie_disable)
-      ie->ie_disable(ie);
 
-    TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
-    ih->ih_event = NULL;
-    ie->ie_count--;
+    intr_event_delete_handler(ih);
   }
   kfree(M_INTR, ih);
 }
@@ -134,23 +141,18 @@ void intr_root_handler(ctx_t *ctx) {
     on_user_exc_leave();
 }
 
-void intr_thread_create(intr_event_t *ie) {
+static void intr_thread_create(intr_event_t *ie) {
   intr_thread_t *it = kmalloc(M_INTR, sizeof(intr_thread_t), M_ZERO);
 
-  assert(it && "We couldn't allocate memory for an ithread");
+  assert(it);
 
   ie->ie_ithread = it;
 
-  assert(ie->ie_ithread != NULL);
+  it->it_thread = thread_create(ie->ie_name, intr_thread, it, prio_ithread(0));
 
-  ie->ie_ithread->it_thread =
-    thread_create(ie->ie_name, intr_thread, ie->ie_ithread, prio_ithread(0));
-  ie->ie_ithread->it_wchan =
-    (ih_list_t)TAILQ_HEAD_INITIALIZER(ie->ie_ithread->it_wchan);
+  assert(it->it_thread != NULL);
 
-  assert(ie->ie_ithread->it_thread != NULL);
-
-  sched_add(ie->ie_ithread->it_thread);
+  sched_add(it->it_thread);
 }
 
 void intr_event_run_handlers(intr_event_t *ie) {
@@ -159,24 +161,30 @@ void intr_event_run_handlers(intr_event_t *ie) {
 
   assert(ie != NULL);
 
+  /* Do we wake up an ithread */
+  bool it_wakeup = false;
+
   TAILQ_FOREACH_SAFE (ih, &ie->ie_handlers, ih_link, next) {
     status = ih->ih_filter(ih->ih_argument);
     if (status == IF_FILTERED)
-      return;
+      continue;
     if (status == IF_DELEGATE) {
       assert(ih->ih_service);
 
       if (ie->ie_disable)
         ie->ie_disable(ie);
 
-      if (ie->ie_ithread == NULL)
-        intr_thread_create(ie);
-
       ih->ih_flags = IH_DELEGATE;
-      sleepq_signal(&ie->ie_ithread->it_wchan);
 
-      return;
+      it_wakeup = true;
     }
+  }
+
+  if (it_wakeup) {
+    if (ie->ie_ithread == NULL)
+      intr_thread_create(ie);
+
+    sleepq_signal(ie->ie_ithread);
   }
 
   klog("Spurious %s interrupt!", ie->ie_name);
@@ -186,28 +194,26 @@ static void intr_thread(void *arg) {
   intr_thread_t *it = (intr_thread_t *)arg;
 
   while (true) {
-    intr_handler_t *ih, *next, *curr;
+    intr_event_t *ie = it->it_event;
 
-    ih = NULL;
+    intr_handler_t *ih = NULL;
 
     /* We look at the list of handlers of our event and search for a handler
      * marked as IH_DELEGATE. If we don't find any handlers to be serviced, we
-     * go to sleep on our wchan.
+     * go to sleep.
      */
-    WITH_INTR_DISABLED {
-      TAILQ_FOREACH_SAFE (curr, &it->it_event->ie_handlers, ih_link, next) {
-        if (curr->ih_flags & IH_DELEGATE) {
-          ih = curr;
-          break;
+    do {
+      WITH_INTR_DISABLED {
+        TAILQ_FOREACH (ih, &ie->ie_handlers, ih_link) {
+          if (ih->ih_flags & IH_DELEGATE)
+            break;
         }
+        if (ih == NULL)
+          sleepq_wait(it, NULL);
       }
-      if (ih == NULL)
-        sleepq_wait(&it->it_wchan, NULL);
-    }
+    } while (it == NULL);
 
     ih->ih_service(ih->ih_argument);
-
-    intr_event_t *ie = ih->ih_event;
 
     WITH_SPIN_LOCK (&ie->ie_lock) {
 
@@ -216,18 +222,12 @@ static void intr_thread(void *arg) {
        * don't call kfree just yet.
        */
       if (ih->ih_flags & IH_REMOVE) {
-
-        if (ie->ie_count == 1 && ie->ie_disable)
-          ie->ie_disable(ie);
-
-        TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
-        ih->ih_event = NULL;
-        ie->ie_count--;
-      }
-      /* If the handler is not flagged as IH_REMOVE, we
-       * remove the IH_DELEGATE flag and enable interrupts from the event again.
-       */
-      else {
+        intr_event_delete_handler(ih);
+      } else {
+        /* If the handler is not flagged as IH_REMOVE, we
+         * remove the IH_DELEGATE flag and enable interrupts from the event
+         * again.
+         */
         ih->ih_flags &= ~IH_DELEGATE;
         if (ie->ie_enable)
           ie->ie_enable(ie);
