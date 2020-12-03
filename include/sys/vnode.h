@@ -8,6 +8,7 @@
 #include <sys/spinlock.h>
 #include <sys/condvar.h>
 #include <sys/file.h>
+#include <sys/cred.h>
 
 /* Forward declarations */
 typedef struct vnode vnode_t;
@@ -35,7 +36,7 @@ typedef int vnode_read_t(vnode_t *v, uio_t *uio, int ioflag);
 typedef int vnode_write_t(vnode_t *v, uio_t *uio, int ioflag);
 typedef int vnode_seek_t(vnode_t *v, off_t oldoff, off_t newoff);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
-typedef int vnode_setattr_t(vnode_t *v, vattr_t *va);
+typedef int vnode_setattr_t(vnode_t *v, vattr_t *va, cred_t *cred);
 typedef int vnode_create_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
                            vnode_t **vp);
 typedef int vnode_remove_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
@@ -156,8 +157,8 @@ static inline int VOP_GETATTR(vnode_t *v, vattr_t *va) {
   return VOP_CALL(getattr, v, va);
 }
 
-static inline int VOP_SETATTR(vnode_t *v, vattr_t *va) {
-  return VOP_CALL(setattr, v, va);
+static inline int VOP_SETATTR(vnode_t *v, vattr_t *va, cred_t *cred) {
+  return VOP_CALL(setattr, v, va, cred);
 }
 
 static inline int VOP_CREATE(vnode_t *dv, componentname_t *cn, vattr_t *va,

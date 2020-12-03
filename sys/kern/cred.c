@@ -19,3 +19,11 @@ void cred_exec_setid(proc_t *p, uid_t uid, gid_t gid) {
     p->p_cred.cr_egid = gid;
   }
 }
+
+bool cred_groupmember(gid_t gid, cred_t *cred) {
+  for (int i = 0; i < cred->cr_ngroups; ++i) {
+    if (gid == cred->cr_groups[i])
+      return true;
+  }
+  return false;
+}

@@ -62,4 +62,7 @@ struct vm_page {
   uint32_t size;                  /* size of page in PAGESIZE units */
 };
 
+int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags);
+int do_munmap(vaddr_t addr, size_t length);
+
 #endif /* !_SYS_VM_H_ */

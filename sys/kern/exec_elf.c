@@ -39,8 +39,8 @@ int exec_elf_inspect(vnode_t *vn, Elf_Ehdr *eh) {
     return ENOEXEC;
   }
   /* Check ELF class */
-  if (eh->e_ident[EI_CLASS] != ELFCLASS32) {
-    klog("Exec failed: Unsupported ELF class (!= ELF32)");
+  if (eh->e_ident[EI_CLASS] != ELFCLASS) {
+    klog("Exec failed: Unsupported ELF class");
     return ENOEXEC;
   }
   /* Check data format endianess */
@@ -55,13 +55,28 @@ int exec_elf_inspect(vnode_t *vn, Elf_Ehdr *eh) {
     return ENOEXEC;
   }
   /* Check machine architecture field */
-  if (eh->e_machine != EM_MIPS) {
-    klog("Exec failed: ELF target architecture is not MIPS");
+  if (eh->e_machine != EM_ARCH) {
+    klog("Exec failed: ELF target architecture is not supported");
     return ENOEXEC;
   }
-  /* Ensure minimal prog header size */
-  if (eh->e_phentsize < sizeof(Elf_Phdr)) {
-    klog("Exec failed: ELF file program headers are too short");
+  /* Check ELF header size */
+  if (eh->e_ehsize != sizeof(Elf_Ehdr)) {
+    klog("Exec failed: incorrect ELF header size");
+    return ENOEXEC;
+  }
+  /* Check prog header size */
+  if (eh->e_phentsize != sizeof(Elf_Phdr)) {
+    klog("Exec failed: incorrect ELF program header size");
+    return ENOEXEC;
+  }
+  /* Check number of prog headers */
+  if (eh->e_phnum >= ELF_MAXPHNUM) {
+    klog("Exec failed: too many program headers");
+    return ENOEXEC;
+  }
+  /* Check section entry header size */
+  if (eh->e_shentsize != sizeof(Elf_Shdr)) {
+    klog("Exec failed: incorrect ELF section header size");
     return ENOEXEC;
   }
 
@@ -91,7 +106,7 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
   /* Temporarily permissive protection. */
   vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
   vm_segment_t *seg = vm_segment_alloc(
-    obj, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC, 0);
+    obj, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC);
   error = vm_map_insert(p->p_uspace, seg, VM_FIXED);
   /* TODO: What if segments overlap? */
   assert(error == 0);
@@ -130,13 +145,11 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
 }
 
 int exec_elf_load(proc_t *p, vnode_t *vn, Elf_Ehdr *eh) {
+  /* We know that ELF header was verified in inspect function. */
   int error;
 
-  assert(eh->e_phoff < 64);
-  assert(eh->e_phentsize < 128);
-
   /* Read in program headers. */
-  size_t phs_size = eh->e_phoff * eh->e_phentsize;
+  size_t phs_size = eh->e_phnum * eh->e_phentsize;
   char *phs = kmalloc(M_TEMP, phs_size, 0);
   uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, eh->e_phoff, phs, phs_size);
   if ((error = VOP_READ(vn, &uio, 0))) {
