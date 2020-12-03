@@ -22,18 +22,15 @@ static int rtl8139_probe(device_t *dev) {
   return pci_device_match(pcid, RTL8139_VENDOR_ID, RTL8139_DEVICE_ID);
 }
 
-static void rtk_reset(rtl8139_state_t *state) {
-  int i;
-
+static int rtl_reset(rtl8139_state_t *state) {
   bus_write_1(state->regs, RL_8139_CFG1, RL_CFG1_PWRON);
   bus_write_1(state->regs, RL_COMMAND, RL_CMD_RESET);
-  for (i = 0; i < RL_TIMEOUT; i++) {
+  for (int i = 0; i < RL_TIMEOUT; i++) {
     if (!(bus_read_1(state->regs, RL_COMMAND) & RL_CMD_RESET))
-      break;
+      return 0;
   }
 
-  if (i == RL_TIMEOUT)
-    klog("RTL8139: Failed to reset device!");
+  return 1;
 }
 
 static int rtl8139_attach(device_t *dev) {
@@ -45,7 +42,8 @@ static int rtl8139_attach(device_t *dev) {
   if (state->regs == NULL)
     return -1;
 
-  rtk_reset(state);
+  if (rtl_reset(state))
+    klog("RTL8139: Failed to reset device!");
 
   return 0;
 }
