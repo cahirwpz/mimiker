@@ -83,5 +83,9 @@
 67  { int sys_setgid(gid_t gid); }
 68  { int sys_setegid(gid_t egid); }
 69  { int sys_setregid(gid_t rgid, gid_t egid); }
+70  { int sys_fchown(int fd, uid_t uid, gid_t gid); }
+71  { int sys_fchownat(int fd, const char *path, uid_t uid, gid_t gid, int flag); }
+72  { int sys_getlogin(char *namebuf, size_t buflen); }
+73  { int sys_setlogin(char *name); }
 
 ; vim: ts=4 sw=4 sts=4 et

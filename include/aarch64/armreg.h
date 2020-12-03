@@ -212,6 +212,9 @@
 #define ESR_ELx_EC_SHIFT 26
 #define ESR_ELx_EC_MASK (0x3f << 26)
 #define ESR_ELx_EXCEPTION(esr) (((esr)&ESR_ELx_EC_MASK) >> ESR_ELx_EC_SHIFT)
+/* The immediate field from the SVC instruction encodes syscall number. */
+#define ESR_ELx_SVC_MASK 0xffff
+#define ESR_ELx_SYSCALL(esr) ((esr)&ESR_ELx_SVC_MASK)
 #define EXCP_UNKNOWN 0x00      /* Unkwn exception */
 #define EXCP_TRAP_WFI_WFE 0x01 /* Trapped WFI or WFE */
 #define EXCP_FP_SIMD 0x07      /* VFP/SIMD trap */

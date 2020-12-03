@@ -352,3 +352,26 @@ typedef struct {
   SYSCALLARG(gid_t) rgid;
   SYSCALLARG(gid_t) egid;
 } setregid_args_t;
+
+typedef struct {
+  SYSCALLARG(int) fd;
+  SYSCALLARG(uid_t) uid;
+  SYSCALLARG(gid_t) gid;
+} fchown_args_t;
+
+typedef struct {
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(uid_t) uid;
+  SYSCALLARG(gid_t) gid;
+  SYSCALLARG(int) flag;
+} fchownat_args_t;
+
+typedef struct {
+  SYSCALLARG(char *) namebuf;
+  SYSCALLARG(size_t) buflen;
+} getlogin_args_t;
+
+typedef struct {
+  SYSCALLARG(char *) name;
+} setlogin_args_t;
