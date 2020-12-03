@@ -3,6 +3,7 @@
 #include <sys/errno.h>
 #include <sys/mutex.h>
 #include <sys/stat.h>
+#include <sys/vnode.h>
 
 int cred_cansignal(proc_t *target, cred_t *cred) {
   assert(mtx_owned(&target->p_lock));
@@ -73,4 +74,39 @@ bool cred_can_chown(uid_t f_owner, cred_t *cred, uid_t new_uid, gid_t new_gid) {
 bool cred_can_setlogin(cred_t *cred) {
   /* Only root can setlogin(). */
   return cred->cr_euid == 0;
+}
+
+int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode) {
+  accmode_t granted = 0;
+
+  if (cred->cr_euid == va->va_uid) {
+    granted |= VADMIN;
+    if (va->va_mode & S_IRUSR)
+      granted |= VREAD;
+    if (va->va_mode & S_IWUSR)
+      granted |= VWRITE;
+    if (va->va_mode & S_IXUSR)
+      granted |= VEXEC;
+    goto check;
+  }
+
+  if (cred_groupmember(va->va_gid, cred)) {
+    if (va->va_mode & S_IRGRP)
+      granted |= VREAD;
+    if (va->va_mode & S_IWGRP)
+      granted |= VWRITE;
+    if (va->va_mode & S_IXGRP)
+      granted |= VEXEC;
+    goto check;
+  }
+
+  if (va->va_mode & S_IROTH)
+    granted |= VREAD;
+  if (va->va_mode & S_IWOTH)
+    granted |= VWRITE;
+  if (va->va_mode & S_IXOTH)
+    granted |= VEXEC;
+
+check:
+  return (mode & granted) == mode ? 0 : EACCES;
 }
