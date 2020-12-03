@@ -78,7 +78,9 @@ typedef struct pci_bus_driver {
 typedef struct pci_bar {
   device_t *owner; /* pci device owner of this bar */
   size_t size;     /* identified size of this bar */
-  int rid;         /* BAR number in [0,PCI_BAR_MAX-1] */
+  int id;          /* BAR number in [0,PCI_BAR_MAX-1] */
+  int rid;         /* BAR RID (bars always get sequential RIDs,
+                    * no matter what's their actual id) */
   unsigned type;   /* RT_IOPORTS or RT_MEMORY */
   unsigned flags;  /* nothing or RF_PREFETACHBLE */
 } pci_bar_t;

@@ -107,10 +107,10 @@ void pci_bus_enumerate(device_t *pcib) {
         }
 
         size = -size;
-        uint8_t id = pcid->nbars;
-        pcid->bar[i] = (pci_bar_t){
-          .owner = dev, .type = type, .flags = flags, .size = size, .rid = id};
-        pcid->nbars++;
+        uint8_t rid = pcid->nbars++;
+        pcid->bar[rid] = (pci_bar_t){
+          .owner = dev, .type = type, .flags = flags, .size = size, .rid = rid,
+          .id = i };
       }
     }
   }
@@ -149,7 +149,7 @@ void pci_bus_dump(device_t *pcib) {
       kprintf("%s Interrupt: pin %c routed to IRQ %d\n", devstr,
               'A' + pcid->pin - 1, pcid->irq);
 
-    for (int i = 0; i < PCI_BAR_MAX; i++) {
+    for (int i = 0; i < pcid->nbars; i++) {
       pci_bar_t *bar = &pcid->bar[i];
       char *type;
 
