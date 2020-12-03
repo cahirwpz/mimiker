@@ -28,13 +28,12 @@ vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   return obj;
 }
 
- static vm_page_t *vm_object_find_page_no_lock(vm_object_t *obj, off_t offset)
- {
+static vm_page_t *vm_object_find_page_no_lock(vm_object_t *obj, off_t offset) {
   vm_page_t find = {.offset = offset};
   return RB_FIND(vm_pagetree, &obj->tree, &find);
 }
 
- static bool vm_object_add_page_no_lock(vm_object_t *obj, off_t offset,
+static bool vm_object_add_page_no_lock(vm_object_t *obj, off_t offset,
                                        vm_page_t *page) {
   assert(page_aligned_p(page->offset));
   /* For simplicity of implementation let's insert pages of size 1 only */
