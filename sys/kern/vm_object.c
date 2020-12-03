@@ -27,45 +27,46 @@ vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   obj->ref_counter = 1;
   return obj;
 }
-
-static vm_page_t *vm_object_find_page_no_lock(vm_object_t *obj, off_t offset) {
-  vm_page_t find = {.offset = offset};
-  return RB_FIND(vm_pagetree, &obj->tree, &find);
-}
-
-static bool vm_object_add_page_no_lock(vm_object_t *obj, off_t offset,
-                                vm_page_t *page) {
-  assert(page_aligned_p(page->offset));
-  /* For simplicity of implementation let's insert pages of size 1 only */
-  assert(page->size == 1);
-
-  page->object = obj;
-  page->offset = offset;
-
-  if (!RB_INSERT(vm_pagetree, &obj->tree, page)) {
-    obj->npages++;
-    vm_page_t *next = RB_NEXT(vm_pagetree, &obj->tree, page);
-    if (next)
-      TAILQ_INSERT_BEFORE(next, page, obj.list);
-    else
-      TAILQ_INSERT_TAIL(&obj->list, page, obj.list);
-    return true;
-  }
-
-  return false;
-}
+//
+// static vm_page_t *vm_object_find_page_no_lock(vm_object_t *obj, off_t offset)
+// {
+//  vm_page_t find = {.offset = offset};
+//  return RB_FIND(vm_pagetree, &obj->tree, &find);
+//}
+//
+// static bool vm_object_add_page_no_lock(vm_object_t *obj, off_t offset,
+//                                       vm_page_t *page) {
+//  assert(page_aligned_p(page->offset));
+//  /* For simplicity of implementation let's insert pages of size 1 only */
+//  assert(page->size == 1);
+//
+//  page->object = obj;
+//  page->offset = offset;
+//
+//  if (!RB_INSERT(vm_pagetree, &obj->tree, page)) {
+//    obj->npages++;
+//    vm_page_t *next = RB_NEXT(vm_pagetree, &obj->tree, page);
+//    if (next)
+//      TAILQ_INSERT_BEFORE(next, page, obj.list);
+//    else
+//      TAILQ_INSERT_TAIL(&obj->list, page, obj.list);
+//    return true;
+//  }
+//
+//  return false;
+//}
 
 static void merge_shadow(vm_object_t *shadow) {
   SCOPED_MTX_LOCK(&shadow->mtx);
   vm_object_t *elem = TAILQ_FIRST(&shadow->shadows_list);
-  SCOPED_MTX_LOCK(&elem->mtx);
+  // SCOPED_MTX_LOCK(&elem->mtx);
 
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &shadow->list, obj.list) {
-    if (vm_object_find_page_no_lock(elem, pg->offset) == NULL) {
+    if (vm_object_find_page(elem, pg->offset) == NULL) {
       TAILQ_REMOVE(&shadow->list, pg, obj.list);
       pg->object = elem;
-      vm_object_add_page_no_lock(elem, pg->offset, pg);
+      vm_object_add_page(elem, pg->offset, pg);
     }
   }
 }
