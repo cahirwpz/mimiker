@@ -184,15 +184,6 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
     .alloc_resource(dev, type, rid, start, end, size, flags);
 }
 
-#define bus_alloc_irq(dev, rid, irq, flags)                                    \
-  bus_alloc_resource((dev), RT_IRQ, (rid), (irq), (irq), 1, (flags))
-
-#define bus_alloc_memory(dev, rid, start, end, size, flags)                    \
-  bus_alloc_resource((dev), RT_MEMORY, (rid), (start), (end), (size), (flags))
-
-#define bus_alloc_ioports(dev, rid, start, end, size, flags)                   \
-  bus_alloc_resource((dev), RT_IOPORTS, (rid), (start), (end), (size), (flags))
-
 /*! \brief Activates resource for a device.
  *
  * This is a wrapper that calls bus method `activate_resource`.
