@@ -56,15 +56,17 @@ typedef enum {
 } intr_filter_t;
 
 /*
- * IH_REMOVE - this flag is turned on by intr_event_remove_handler
- * when it wants to remove the handler, but the handler is already delegated to
- * an interrupt thread, when the interrupt thread sees this flag, it removes the
- * handler itself IH_DELEGATE - this flag is turned on when the status of
- * ih_filter is IF_DELEGATE, the interrupt handler looks for handlers with this
- * flag and executes their ih_service
+ * IH_REMOVE: set when the handler cannot be removed, because it has been
+ * delegated to an interrupt thread. The thread will free the handler after
+ * ih_service has been executed.
+ *
+ * IH_DELEGATE: set when ih_service function was delegated to an interrupt
+ * thread for execution.
  */
-#define IH_REMOVE 1
-#define IH_DELEGATE 2
+typedef enum {
+  IH_REMOVE = 1,
+  IH_DELEGATE = 2,
+} ih_flags_t;
 
 /*
  * The filter routine is run in primary interrupt context and may not
@@ -84,9 +86,8 @@ struct intr_handler {
   void *ih_argument;        /* argument to pass to filter/service routines */
   const char *ih_name;      /* name of the handler */
   /* XXX: do we really need ih_prio? it has no real use cases so far... */
-  prio_t ih_prio; /* handler's priority (sort key for ie_handlers) */
-  int ih_flags;   /* flags (currently if to be removed or delegated to a
-                         private thread) */
+  prio_t ih_prio;      /* handler's priority (sort key for ie_handlers) */
+  ih_flags_t ih_flags; /* refer to IH_* flags description above */
 };
 
 typedef TAILQ_HEAD(, intr_handler) ih_list_t;
