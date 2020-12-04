@@ -220,6 +220,8 @@ vm_page_t *vm_page_alloc(size_t npages) {
   for (unsigned j = 0; j < page->size; j++)
     page[j].flags |= PG_ALLOCATED;
 
+  page->ref_counter = 0;
+
   return page;
 }
 
@@ -250,7 +252,7 @@ void vm_page_free(vm_page_t *page) {
 
   SCOPED_MTX_LOCK(physmem_lock);
 
-  klog("%s: free %lx of size %ld", __func__, page->paddr, page->size);
+  klog("%s: free %lx of size %ld\n", __func__, page->paddr, page->size);
 
   TAILQ_FOREACH (seg_it, &seglist, seglink) {
     if (PG_START(page) >= seg_it->start && PG_END(page) <= seg_it->end) {

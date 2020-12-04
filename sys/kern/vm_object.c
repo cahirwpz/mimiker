@@ -113,6 +113,8 @@ bool vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *page) {
   page->object = obj;
   page->offset = offset;
 
+  refcnt_acquire(&page->ref_counter);
+
   SCOPED_MTX_LOCK(&obj->mtx);
 
   if (!RB_INSERT(vm_pagetree, &obj->tree, page)) {
@@ -134,7 +136,11 @@ static void vm_object_remove_page_nolock(vm_object_t *obj, vm_page_t *page) {
 
   TAILQ_REMOVE(&obj->list, page, obj.list);
   RB_REMOVE(vm_pagetree, &obj->tree, page);
-  vm_page_free(page);
+
+  if (refcnt_release(&page->ref_counter)) {
+    vm_page_free(page);
+  }
+
   obj->npages--;
 }
 
@@ -187,4 +193,15 @@ void vm_object_set_readonly(vm_object_t *obj) {
 
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) { pmap_set_page_readonly(pg); }
+}
+
+void vm_object_increase_pages_references(vm_object_t *obj) {
+  SCOPED_MTX_LOCK(&obj->mtx);
+
+  vm_page_t *pg;
+  TAILQ_FOREACH (pg, &obj->list, obj.list) { refcnt_acquire(&pg->ref_counter); }
+
+  if (obj->shadow_object) {
+    vm_object_increase_pages_references(obj->shadow_object);
+  }
 }

@@ -337,30 +337,42 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
     vm_segment_t *it;
     TAILQ_FOREACH (it, &map->entries, link) {
+      vm_seg_flags_t flags = it->flags;
       vm_object_t *obj;
       vm_segment_t *seg;
+      vm_object_t *shadow;
 
       if (it->flags & VM_SEG_SHARED) {
         refcnt_acquire(&it->object->ref_counter);
         obj = it->object;
       } else {
-        vm_object_t *shadow = it->object;
+        if ((it->flags & VM_SEG_NEED_COPY) != 0 && it->object->npages == 0) {
+          obj = vm_object_alloc(VM_SHADOW);
+          shadow = it->object->shadow_object;
+          obj->shadow_object = shadow;
+        } else {
+          shadow = it->object;
+          obj = vm_object_alloc(VM_SHADOW);
+          obj->shadow_object = shadow;
+          it->object = vm_object_alloc(VM_SHADOW);
+          it->object->shadow_object = shadow;
+          vm_object_set_readonly(shadow);
 
-        obj = vm_object_alloc(VM_SHADOW);
-        obj->shadow_object = shadow;
-
-        it->object = vm_object_alloc(VM_SHADOW);
-        it->object->shadow_object = shadow;
+          TAILQ_INSERT_HEAD(&shadow->shadows_list, it->object, link);
+        }
 
         TAILQ_INSERT_HEAD(&shadow->shadows_list, obj, link);
-        TAILQ_INSERT_HEAD(&shadow->shadows_list, it->object, link);
 
         refcnt_acquire(&shadow->ref_counter);
 
-        vm_object_set_readonly(shadow);
+        vm_object_increase_pages_references(shadow);
+
+        flags |= VM_SEG_NEED_COPY;
+        it->flags |= VM_SEG_NEED_COPY;
       }
+
       seg = vm_segment_alloc(obj, it->start, it->end, it->prot);
-      seg->flags = it->flags;
+      seg->flags = flags;
       TAILQ_INSERT_TAIL(&new_map->entries, seg, link);
       new_map->nentries++;
     }

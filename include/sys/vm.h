@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/tree.h>
+#include <sys/refcnt.h>
 #include <machine/vm_param.h>
 
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
@@ -60,6 +61,7 @@ struct vm_page {
   paddr_t paddr;                  /* physical address of page */
   pg_flags_t flags;               /* page flags (used by physmem as well) */
   uint32_t size;                  /* size of page in PAGESIZE units */
+  refcnt_t ref_counter;           /* number of references to this page */
 };
 
 int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags);
