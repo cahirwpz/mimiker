@@ -351,6 +351,8 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     /* The size of allocated resource must not be larger than what was reported
      * by corresponding BAR. */
     size = min(size, bar->size);
+    /* XXX: Perhaps, the rman_alloc_resource should take this into account */
+    size = roundup(size, PAGESIZE);
 
     if (type == RT_MEMORY) {
       from = &gtpci->pci_mem_rman;
