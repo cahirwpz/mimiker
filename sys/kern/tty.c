@@ -508,6 +508,7 @@ void tty_input(tty_t *tty, uint8_t c) {
 
 static int tty_read(file_t *f, uio_t *uio) {
   tty_t *tty = f->f_data;
+  size_t start_resid = uio->uio_resid;
   int error = 0;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
@@ -550,6 +551,10 @@ static int tty_read(file_t *f, uio_t *uio) {
       error = uiomove(&c, 1, uio);
     }
   }
+
+  /* Don't report errors on partial reads. */
+  if (start_resid > uio->uio_resid)
+    error = 0;
 
   return error;
 }
@@ -658,6 +663,7 @@ static void tty_output_sleep(tty_t *tty, uint8_t c) {
 
 static int tty_do_write(tty_t *tty, uio_t *uio) {
   uint8_t c;
+  size_t start_resid = uio->uio_resid;
   int error = 0;
 
   while (uio->uio_resid > 0) {
@@ -667,6 +673,10 @@ static int tty_do_write(tty_t *tty, uio_t *uio) {
     tty->t_rocount = 0;
   }
   tty_notify_out(tty);
+
+  /* Don't report errors on partial writes. */
+  if (start_resid > uio->uio_resid)
+    error = 0;
 
   return error;
 }
