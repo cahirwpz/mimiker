@@ -79,7 +79,7 @@ typedef struct pci_bar {
   device_t *owner;   /* pci device owner of this bar */
   size_t size;       /* identified size of this bar */
   int rid;           /* BAR number in [0,PCI_BAR_MAX-1] */
-  unsigned type;     /* RT_IOPORTS or RT_MEMORY */
+  res_type_t type;   /* RT_IOPORTS or RT_MEMORY */
   bool prefetchable; /* states whether memory bar is prefetchable */
 } pci_bar_t;
 
