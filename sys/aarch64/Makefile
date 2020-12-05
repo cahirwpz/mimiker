@@ -5,6 +5,7 @@ TOPDIR = $(realpath ../..)
 SOURCES = boot.c \
 	  context.c \
 	  copy.S \
+	  emmc.c \
 	  evec.S \
 	  interrupt.c \
 	  gpio.c \

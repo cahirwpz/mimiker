@@ -2,6 +2,9 @@
 #define _AARCH64_GPIO_H_
 
 #include <aarch64/bcm2835_gpioreg.h>
+#include <sys/rman.h>
+
+#define MMIO_BASE 0xFFFFFFFF3F000000
 
 struct resource_t;
 
