@@ -76,11 +76,11 @@ typedef struct pci_bus_driver {
 } pci_bus_driver_t;
 
 typedef struct pci_bar {
-  device_t *owner; /* pci device owner of this bar */
-  size_t size;     /* identified size of this bar */
-  int rid;         /* BAR number in [0,PCI_BAR_MAX-1] */
-  unsigned type;   /* RT_IOPORTS or RT_MEMORY */
-  unsigned flags;  /* nothing or RF_PREFETACHBLE */
+  device_t *owner;   /* pci device owner of this bar */
+  size_t size;       /* identified size of this bar */
+  int rid;           /* BAR number in [0,PCI_BAR_MAX-1] */
+  unsigned type;     /* RT_IOPORTS or RT_MEMORY */
+  bool prefetchable; /* states whether memory bar is prefetchable */
 } pci_bar_t;
 
 typedef struct pci_device {
@@ -105,6 +105,24 @@ static inline uint32_t pci_read_config(device_t *device, unsigned reg,
 static inline void pci_write_config(device_t *device, unsigned reg,
                                     unsigned size, uint32_t value) {
   PCI_DRIVER(device)->pci_bus.write_config(device, reg, size, value);
+}
+
+/*! \brief Enable responding to memory space accesses. */
+static inline void pci_enable_memory(device_t *device) {
+  uint16_t cmd = pci_read_config(device, PCIR_COMMAND, 2);
+  pci_write_config(device, PCIR_COMMAND, 2, cmd | 0x2);
+}
+
+/*! \brief Enable responding to I/O space accesses. */
+static inline void pci_enable_io_ports(device_t *device) {
+  uint16_t cmd = pci_read_config(device, PCIR_COMMAND, 2);
+  pci_write_config(device, PCIR_COMMAND, 2, cmd | 0x1);
+}
+
+/*! \brief Enable the bus master mode. */
+static inline void pci_enable_bus_master(device_t *device) {
+  uint16_t cmd = pci_read_config(device, PCIR_COMMAND, 2);
+  pci_write_config(device, PCIR_COMMAND, 2, cmd | 0x4);
 }
 
 void pci_bus_enumerate(device_t *pcib);

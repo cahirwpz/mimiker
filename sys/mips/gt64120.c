@@ -335,9 +335,12 @@ static int gt_pci_attach(device_t *pcib) {
   return bus_generic_probe(pcib);
 }
 
-static bool gt_pci_bar(device_t *dev, int rid) {
+static bool gt_pci_bar(device_t *dev, res_type_t type, int rid,
+                       rman_addr_t start) {
   pci_device_t *pcid = pci_device_of(dev);
-  return rid < PCI_BAR_MAX && pcid->bar[rid].size != 0;
+  if ((type == RT_IOPORTS && start > IO_ISAEND) || type == RT_MEMORY)
+    return rid < PCI_BAR_MAX && pcid->bar[rid].size != 0;
+  return false;
 }
 
 static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
@@ -355,8 +358,11 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   rman_t *rman = NULL;
 
   if (type == RT_IOPORTS) {
+    if (start <= IO_ISAEND) /* virtual address */
+      bh = gtpci->pci_io->r_bus_handle;
+    else /* physical address */
+      bh = gtpci->pci_io->r_start;
     rman = &gtpci->pci_io_rman;
-    bh = gtpci->pci_io->r_bus_handle;
   } else if (type == RT_IRQ) {
     rman = &gtpci->irq_rman;
   } else if (type == RT_MEMORY) {
@@ -366,10 +372,8 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     panic("Unknown PCI device type: %d", type);
   }
 
-  if ((type == RT_IOPORTS && start > IO_ISAEND) || type == RT_MEMORY) {
-    if (gt_pci_bar(dev, rid))
-      alignment = max(alignment, size);
-  }
+  if (gt_pci_bar(dev, type, rid, start))
+    alignment = max(alignment, size);
 
   resource_t *r =
     rman_reserve_resource(rman, start, end, size, alignment, flags);
@@ -410,15 +414,25 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type,
   }
 
   int rid = r->r_rid;
-  if (type == RT_MEMORY) {
-    /* Is this a PCI bar? */
-    if (gt_pci_bar(dev, rid)) {
-      /* Write BAR address to PCI device register. */
-      pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
+  if (gt_pci_bar(dev, type, rid, r->r_start)) {
+    /* XXX: we don't handle 64-bit memory space bars. */
+    uint32_t addr = (uint32_t)r->r_bus_handle;
+    /* Set information bits. */
+    if (type == RT_IOPORTS) {
+      addr |= 0x1;
+    } else {
+      pci_device_t *pcid = pci_device_of(dev);
+      /* XXX: we assume that type field = 0x00. */
+      if (pcid->bar[rid].prefetchable)
+        addr |= 0x8;
     }
+    /* Write BAR address to PCI device register. */
+    pci_write_config(dev, PCIR_BAR(rid), 4, addr);
+  }
+
+  if (type == RT_MEMORY)
     return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
                          &r->r_bus_handle);
-  }
 
   return 0;
 }

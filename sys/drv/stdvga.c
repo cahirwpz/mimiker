@@ -162,7 +162,7 @@ static int stdvga_probe(device_t *dev) {
   if (!pci_device_match(pcid, QEMU_STDVGA_VENDOR_ID, QEMU_STDVGA_DEVICE_ID))
     return 0;
 
-  if (!(pcid->bar[0].flags & RF_PREFETCHABLE))
+  if (!(pcid->bar[0].prefetchable))
     return 0;
 
   return 1;
@@ -176,6 +176,8 @@ static int stdvga_attach(device_t *dev) {
 
   assert(stdvga->mem != NULL);
   assert(stdvga->io != NULL);
+
+  pci_enable_memory(dev);
 
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write,
