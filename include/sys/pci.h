@@ -107,18 +107,6 @@ static inline void pci_write_config(device_t *device, unsigned reg,
   PCI_DRIVER(device)->pci_bus.write_config(device, reg, size, value);
 }
 
-/*! \brief Enable responding to memory space accesses. */
-static inline void pci_enable_memory(device_t *device) {
-  uint16_t cmd = pci_read_config(device, PCIR_COMMAND, 2);
-  pci_write_config(device, PCIR_COMMAND, 2, cmd | 0x2);
-}
-
-/*! \brief Enable responding to I/O space accesses. */
-static inline void pci_enable_io_ports(device_t *device) {
-  uint16_t cmd = pci_read_config(device, PCIR_COMMAND, 2);
-  pci_write_config(device, PCIR_COMMAND, 2, cmd | 0x1);
-}
-
 /*! \brief Enable the bus master mode. */
 static inline void pci_enable_bus_master(device_t *device) {
   uint16_t cmd = pci_read_config(device, PCIR_COMMAND, 2);

@@ -177,8 +177,6 @@ static int stdvga_attach(device_t *dev) {
   assert(stdvga->mem != NULL);
   assert(stdvga->io != NULL);
 
-  pci_enable_memory(dev);
-
   stdvga->vga = (vga_device_t){
     .palette_write = stdvga_palette_write,
     .fb_write = stdvga_fb_write,
