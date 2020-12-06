@@ -124,7 +124,7 @@ void intr_root_handler(ctx_t *ctx) {
 
   on_exc_leave();
   if (user_mode_p(ctx))
-    on_user_exc_leave();
+    on_user_exc_leave((user_ctx_t *)ctx, NULL);
 }
 
 /* interrupt handlers delegated to be called in the interrupt thread */
