@@ -109,11 +109,6 @@ void pci_bus_enumerate(device_t *pcib) {
       pcid->pin = pci_read_config(dev, PCIR_IRQPIN, 1);
       pcid->irq = pci_read_config(dev, PCIR_IRQLINE, 1);
 
-      /* We need to enable memory space accesses
-       * or/and IO space accesses based on type of
-       * bars owned by device. */
-      uint16_t access_mask = 0x0000;
-
       /* XXX: we assume here that `dev` is a general PCI device
        * (i.e. header type = 0x00) and therefore has six bars. */
       for (int i = 0; i < PCI_BAR_MAX; i++) {
@@ -129,13 +124,11 @@ void pci_bus_enumerate(device_t *pcib) {
         if (addr & PCI_BAR_IO) {
           type = RT_IOPORTS;
           size &= ~PCI_BAR_IO_MASK;
-          access_mask |= 0x0002;
         } else {
           type = RT_MEMORY;
           if (addr & PCI_BAR_PREFETCHABLE)
             prefetchable = true;
           size &= ~PCI_BAR_MEMORY_MASK;
-          access_mask |= 0x0001;
         }
 
         size = -size;
@@ -154,10 +147,6 @@ void pci_bus_enumerate(device_t *pcib) {
 
         pcid->nbars++;
       }
-
-      /* Enable accesses based on the `access_mask` value. */
-      uint16_t cmd = pci_read_config(dev, PCIR_COMMAND, 2);
-      pci_write_config(dev, PCIR_COMMAND, 2, cmd | access_mask);
     }
   }
 
