@@ -96,6 +96,8 @@ int do_linkat(proc_t *p, int fd, char *path, int linkfd, char *linkpath,
               int flags);
 int do_fchmod(proc_t *p, int fd, mode_t mode);
 int do_fchmodat(proc_t *p, int fd, char *path, mode_t mode, int flag);
+int do_fchown(proc_t *p, int fd, uid_t uid, gid_t gid);
+int do_fchownat(proc_t *p, int fd, char *path, uid_t uid, gid_t gid, int flag);
 
 /* Mount a new instance of the filesystem named fs at the requested path. */
 int do_mount(const char *fs, const char *path);

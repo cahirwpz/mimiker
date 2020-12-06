@@ -2,8 +2,9 @@
 #define _SYS_SIGNAL_H_
 
 #include <sys/sigtypes.h>
-#include <machine/signal.h>
 #include <sys/siginfo.h>
+#include <machine/signal.h>
+#include <stdbool.h>
 
 #define SIGHUP 1   /* hangup */
 #define SIGINT 2   /* interrupt */
@@ -142,6 +143,9 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi);
  *
  * \note This is machine dependent code! */
 int sig_return(void);
+
+/*! \brief Returns whether the signal's current action is to stop a process. */
+bool sig_should_stop(sigaction_t *sigactions, signo_t sig);
 
 /*! \brief Reset handlers for caught signals on process exec.
  *

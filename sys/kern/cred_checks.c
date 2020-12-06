@@ -2,6 +2,7 @@
 #include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/mutex.h>
+#include <sys/stat.h>
 
 int cred_cansignal(proc_t *target, cred_t *cred) {
   assert(mtx_owned(&target->p_lock));
@@ -32,4 +33,44 @@ int proc_cansignal(proc_t *target, signo_t sig) {
     return 0;
 
   return cred_cansignal(target, &p->p_cred);
+}
+
+bool cred_can_chmod(uid_t f_owner, gid_t f_group, cred_t *cred, mode_t mode) {
+  /* root can chmod */
+  if (cred->cr_euid == 0)
+    return true;
+
+  /* owner of file can chmod */
+  if (f_owner != cred->cr_euid)
+    return false;
+
+  /* can't set S_ISGID if file group is neither our egid nor in supplementary
+   * group */
+  if ((mode & S_ISGID) != 0 && f_group != cred->cr_egid &&
+      !cred_groupmember(f_group, cred))
+    return false;
+
+  return true;
+}
+
+bool cred_can_chown(uid_t f_owner, cred_t *cred, uid_t new_uid, gid_t new_gid) {
+  /* root can chown */
+  if (cred->cr_euid == 0)
+    return true;
+
+  /* only root can change owner of file */
+  if (new_uid != (uid_t)-1)
+    return false;
+
+  /* owner can change group */
+  if (f_owner != cred->cr_euid)
+    return false;
+
+  /* only to group which is in his supplementary groups */
+  return cred_groupmember(new_gid, cred);
+}
+
+bool cred_can_setlogin(cred_t *cred) {
+  /* Only root can setlogin(). */
+  return cred->cr_euid == 0;
 }

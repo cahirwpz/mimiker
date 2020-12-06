@@ -18,9 +18,6 @@
 #include <sys/priority.h>
 #include <sys/sched.h>
 
-#define NS16550_VENDOR_ID 0x8086
-#define NS16550_DEVICE_ID 0x7110
-
 #define UART_BUFSIZE 128
 
 typedef struct ns16550_state {
@@ -223,12 +220,10 @@ static int ns16550_attach(device_t *dev) {
   sched_add(tty_thread);
 
   /* TODO Small hack to select COM1 UART */
-  ns16550->regs =
-    bus_alloc_resource(dev, RT_IOPORTS, 0, IO_COM1, IO_COM1 + IO_COMSIZE - 1,
-                       IO_COMSIZE, RF_ACTIVE);
+  ns16550->regs = device_take_ioports(dev, 0, RF_ACTIVE);
   assert(ns16550->regs != NULL);
 
-  ns16550->irq_res = bus_alloc_irq(dev, 0, 4 /* magic */, RF_ACTIVE);
+  ns16550->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
   bus_intr_setup(dev, ns16550->irq_res, ns16550_intr, NULL, ns16550,
                  "NS16550 UART");
 
@@ -243,8 +238,7 @@ static int ns16550_attach(device_t *dev) {
 }
 
 static int ns16550_probe(device_t *dev) {
-  pci_device_t *pcid = pci_device_of(dev);
-  return pci_device_match(pcid, NS16550_VENDOR_ID, NS16550_DEVICE_ID);
+  return dev->unit == 1; /* XXX: unit 1 assigned by gt_pci */
 }
 
 /* clang-format off */

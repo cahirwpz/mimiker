@@ -102,7 +102,7 @@ static int mips_timer_probe(device_t *dev) {
 static int mips_timer_attach(device_t *dev) {
   mips_timer_state_t *state = dev->state;
 
-  state->irq_res = bus_alloc_irq(dev, 0, MIPS_HWINT5, RF_ACTIVE);
+  state->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
 
   state->timer = (timer_t){
     .tm_name = "mips-cpu-timer",
