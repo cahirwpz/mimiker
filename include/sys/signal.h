@@ -99,30 +99,27 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi);
  */
 void sig_pgkill(pgrp_t *pg, ksiginfo_t *ksi);
 
-/*! \brief Determines which signal should posted to current thread.
+/*! \brief Determines which signal should be caught by current thread.
  *
- * A signal that meets one of following criteria should be posted:
- *  - has a handler registered with `sigaction`,
- *  - should cause the process to terminate,
- *  - should interrupt the current system call.
+ * Only signals with registered handlers can be caught.
+ * If this function finds a signal that should stop or kill the current process,
+ * it takes the appropriate action.
  *
  * \sa sig_post
+ * \sa proc_stop
+ * \sa sig_exit
  *
- * \returns signal number which should be posted or 0 if none */
+ * \returns signal number which should be caught or 0 if none */
 int sig_check(thread_t *td, ksiginfo_t *ksi);
 
-/*! \brief Invoke the action triggered by a signal.
+/*! \brief Do the setup necessary to catch a signal.
  *
- * If the default action for a signal is to terminate the process and
- * corresponding signal handler is not set, the process calls `sig_exit`.
- * If the signal's action is to stop the process, this procedure stops
- * the calling thread.
+ * The signal must have a registered handler.
  *
  * \note It's ok to call this procedure multiple times before returning
  * to userspace. The handlers will be called in reverse order of calls
  * to this procedure.
  * \note Must be called with current process's p_mtx acquired!
- * \sa sig_exit
  */
 void sig_post(ksiginfo_t *ksi);
 
