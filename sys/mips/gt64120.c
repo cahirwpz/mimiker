@@ -428,6 +428,15 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type,
     }
     /* Write BAR address to PCI device register. */
     pci_write_config(dev, PCIR_BAR(rid), 4, addr);
+
+    if (type == RT_IOPORTS) {
+      /* After we used physical address to update bar contents,
+       * we need to suply the resource with the virtual address
+       * (for future bus reads/writes). */
+      gt_pci_state_t *gtpci = dev->parent->state;
+      rman_addr_t offset = r->r_bus_handle - gtpci->pci_io->r_start;
+      r->r_bus_handle = gtpci->pci_io->r_bus_handle + offset;
+    }
   }
 
   if (type == RT_MEMORY)
