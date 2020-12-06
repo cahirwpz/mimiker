@@ -103,7 +103,17 @@
 #define SD_TIMEOUT -1
 #define SD_ERROR -2
 
-uint64_t sd_scr[2], sd_ocr, sd_rca, sd_err, sd_hv;
+memdev_driver_t emmc_driver;
+
+typedef struct emmc_state {
+    uint64_t sd_scr[2];
+    uint64_t sd_ocr;
+    uint64_t sd_rca;
+    uint64_t sd_err;
+    uint64_t sd_hv;
+} emmc_state_t;
+
+//uint64_t sd_scr[2], sd_ocr, sd_rca, sd_err, sd_hv;
 
 /*
  * \brief delay function
@@ -150,8 +160,8 @@ static int32_t sd_int(uint32_t mask) {
 /**
  * Send a command
  */
-int32_t sd_cmd(uint32_t code, uint32_t arg) {
-  static int last_code = 0;
+int32_t emmc_cmd(emmc_state_t *state, uint32_t code, uint32_t arg) {
+  static uint32_t last_code = 0;
   static int last_code_cnt = 0;
 
   if (last_code == code)
@@ -161,20 +171,21 @@ int32_t sd_cmd(uint32_t code, uint32_t arg) {
 
   last_code = code;
 
-  int32_t r = 0;
-  sd_err = SD_OK;
+  uint32_t r = 0;
+  state->sd_err = SD_OK;
   if (code & CMD_NEED_APP) {
-    r = sd_cmd(CMD_APP_CMD | (sd_rca ? CMD_RSPNS_48 : 0), sd_rca);
-    if (sd_rca && !r) {
+    r = emmc_cmd(state, CMD_APP_CMD | (state->sd_rca ? CMD_RSPNS_48 : 0),
+                 state->sd_rca);
+    if (state->sd_rca && !r) {
       klog("ERROR: failed to send SD APP command\n");
-      sd_err = SD_ERROR;
+      state->sd_err = SD_ERROR;
       return 0;
     }
     code &= ~CMD_NEED_APP;
   }
   if (sd_status(SR_CMD_INHIBIT)) {
     klog("ERROR: EMMC busy\n");
-    sd_err = SD_TIMEOUT;
+    state->sd_err = SD_TIMEOUT;
     return 0;
   }
   // klog("EMMC: Sending command %p, arg %p\n", code, arg);
@@ -188,7 +199,7 @@ int32_t sd_cmd(uint32_t code, uint32_t arg) {
   
   if ((r = sd_int(INT_CMD_DONE))) {
     klog("ERROR: failed to send EMMC command\n");
-    sd_err = r;
+    state->sd_err = r;
     return 0;
   }
 
@@ -228,7 +239,7 @@ int32_t sd_cmd(uint32_t code, uint32_t arg) {
   }
 
   else if (code == CMD_SEND_REL_ADDR) {
-    sd_err = (((r & 0x1fff)) | ((r & 0x2000) << 6) | ((r & 0x4000) << 8) |
+    state->sd_err = (((r & 0x1fff)) | ((r & 0x2000) << 6) | ((r & 0x4000) << 8) |
               ((r & 0x8000) << 8)) &
              CMD_ERRORS_MASK;
 
@@ -241,16 +252,6 @@ int32_t sd_cmd(uint32_t code, uint32_t arg) {
   return 0;
 }
 
-memdev_driver_t emmc_driver;
-
-typedef struct emmc_state {
-    uint64_t sd_scr[2];
-    uint64_t sd_ocr;
-    uint64_t sd_rca;
-    uint64_t sd_err;
-    uint64_t sd_hv;
-} emmc_state_t;
-
 /**
  * read a block from sd card and return the number of bytes read
  * returns 0 on error.
@@ -259,8 +260,9 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
                     uint32_t num) {
   assert(dev->driver == (driver_t *)&emmc_driver);
   emmc_state_t *state = (emmc_state_t *)dev->state;
-  static int last_lba = 0;
-  int32_t r, c = 0, d;
+  static uint32_t last_lba = 0;
+  int32_t r;
+  uint32_t c = 0, d;
   if (num < 1)
     num = 1;
   if (lba != last_lba)
@@ -268,32 +270,32 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
   last_lba = lba;
 
   if (sd_status(SR_DAT_INHIBIT)) {
-    sd_err = SD_TIMEOUT;
+    state->sd_err = SD_TIMEOUT;
     return 0;
   }
   uint32_t *buf = (uint32_t *)buffer;
-  if (sd_scr[0] & SCR_SUPP_CCS) {
-    if (num > 1 && (sd_scr[0] & SCR_SUPP_SET_BLKCNT)) {
-      sd_cmd(CMD_SET_BLOCKCNT, num);
-      if (sd_err)
+  if (state->sd_scr[0] & SCR_SUPP_CCS) {
+    if (num > 1 && (state->sd_scr[0] & SCR_SUPP_SET_BLKCNT)) {
+      emmc_cmd(state, CMD_SET_BLOCKCNT, num);
+      if (state->sd_err)
         return 0;
     }
     *EMMC_BLKSIZECNT = (num << 16) | 512;
-    sd_cmd(num == 1 ? CMD_READ_SINGLE : CMD_READ_MULTI, lba);
-    if (sd_err)
+    emmc_cmd(state, num == 1 ? CMD_READ_SINGLE : CMD_READ_MULTI, lba);
+    if (state->sd_err)
       return 0;
   } else {
     *EMMC_BLKSIZECNT = (1 << 16) | 512;
   }
   while (c < num) {
-    if (!(sd_scr[0] & SCR_SUPP_CCS)) {
-      sd_cmd(CMD_READ_SINGLE, (lba + c) * 512);
-      if (sd_err)
+    if (!(state->sd_scr[0] & SCR_SUPP_CCS)) {
+      emmc_cmd(state, CMD_READ_SINGLE, (lba + c) * 512);
+      if (state->sd_err)
         return 0;
     }
     if ((r = sd_int(INT_READ_RDY))) {
       klog("\rERROR: Timeout waiting for ready to read\n");
-      sd_err = r;
+      state->sd_err = r;
       return 0;
     }
     for (d = 0; d < 128; d++)
@@ -301,10 +303,10 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
     c++;
     buf += 128;
   }
-  if (num > 1 && !(sd_scr[0] & SCR_SUPP_SET_BLKCNT) &&
-      (sd_scr[0] & SCR_SUPP_CCS))
-    sd_cmd(CMD_STOP_TRANS, 0);
-  return sd_err != SD_OK || c != num ? 0 : num * 512;
+  if (num > 1 && !(state->sd_scr[0] & SCR_SUPP_SET_BLKCNT) &&
+      (state->sd_scr[0] & SCR_SUPP_CCS))
+    emmc_cmd(state, CMD_STOP_TRANS, 0);
+  return state->sd_err != SD_OK || c != num ? 0 : num * 512;
 }
 
 /**
@@ -318,7 +320,7 @@ int sd_writeblock(device_t *dev, uint32_t lba, const uint8_t *buffer,
   if (((uint64_t)buffer & (uint64_t)0x3) != 0)
     return 0;
   uint32_t *buf = (uint32_t *)buffer;
-  int32_t c = 0;
+  uint32_t c = 0;
   int32_t d, r;
   if (num < 1)
     return 0;
@@ -328,12 +330,12 @@ int sd_writeblock(device_t *dev, uint32_t lba, const uint8_t *buffer,
   }
   if (state->sd_scr[0] & SCR_SUPP_CCS) {
     if (num > 1 && (state->sd_scr[0] & SCR_SUPP_SET_BLKCNT)) {
-      sd_cmd(CMD_SET_BLOCKCNT, num);
+      emmc_cmd(state, CMD_SET_BLOCKCNT, num);
       if (state->sd_err)
         return 0;
     }
     *EMMC_BLKSIZECNT = (num << 16) | 512;
-    sd_cmd(num == 1 ? CMD_WRITE_SINGLE : CMD_WRITE_MULTI, lba);
+    emmc_cmd(state, num == 1 ? CMD_WRITE_SINGLE : CMD_WRITE_MULTI, lba);
     if (state->sd_err)
       return 0;
   } else {
@@ -341,10 +343,10 @@ int sd_writeblock(device_t *dev, uint32_t lba, const uint8_t *buffer,
   }
   while (c < num) {
     if (!(state->sd_scr[0] & SCR_SUPP_CCS)) {
-      sd_cmd(CMD_WRITE_SINGLE, (lba + c) * 512);
+      emmc_cmd(state, CMD_WRITE_SINGLE, (lba + c) * 512);
       if ((r = sd_int(INT_WRITE_RDY))) {
         // uart_puts("\rERROR: Timeout waiting for ready to write\n");
-        sd_err = r;
+        state->sd_err = r;
         return 0;
       }
       for (d = 0; d < 128; d++)
@@ -365,7 +367,7 @@ int sd_writeblock(device_t *dev, uint32_t lba, const uint8_t *buffer,
 /**
  * set SD clock to frequency in Hz
  */
-int32_t sd_clk(uint32_t f) {
+int32_t sd_clk(emmc_state_t *state, uint32_t f) {
   uint32_t d, c = 41666666 / f, x, s = 32, h = 0;
   int32_t cnt = 100000;
   while ((*EMMC_STATUS & (SR_CMD_INHIBIT | SR_DAT_INHIBIT)) && cnt--)
@@ -406,7 +408,7 @@ int32_t sd_clk(uint32_t f) {
     if (s > 7)
       s = 7;
   }
-  if (sd_hv > HOST_SPEC_V2)
+  if (state->sd_hv > HOST_SPEC_V2)
     d = c;
   else
     d = (1 << s);
@@ -415,7 +417,7 @@ int32_t sd_clk(uint32_t f) {
     s = 0;
   }
   klog("sd_clk divisor %p, shift %p\n", d, s);
-  if (sd_hv > HOST_SPEC_V2)
+  if (state->sd_hv > HOST_SPEC_V2)
     h = (d & 0x300) >> 2;
   d = (((d & 0x0ff) << 8) | h);
   *EMMC_CONTROL1 = (*EMMC_CONTROL1 & 0xffff003f) | d;
@@ -499,23 +501,23 @@ static int emmc_init(device_t *dev) {
   *EMMC_CONTROL1 |= C1_CLK_INTLEN | C1_TOUNIT_MAX;
   delay(150);                               /* ! */;
   // Set clock to setup frequency.
-  if ((r = sd_clk(400000)))
+  if ((r = sd_clk(state, 400000)))
     return r;
   *EMMC_INT_EN = 0xffffffff;
   *EMMC_INT_MASK = 0xffffffff;
   state->sd_scr[0] = state->sd_scr[1] = state->sd_rca = state->sd_err = 0;
-  sd_cmd(CMD_GO_IDLE, 0);
+  emmc_cmd(state, CMD_GO_IDLE, 0);
   if (state->sd_err)
     return state->sd_err;
 
-  sd_cmd(CMD_SEND_IF_COND, 0x000001AA);
+  emmc_cmd(state, CMD_SEND_IF_COND, 0x000001AA);
   if (state->sd_err)
     return state->sd_err;
   cnt = 6;
   r = 0;
   while (!(r & ACMD41_CMD_COMPLETE) && cnt--) {
     delay(400);                               /* ! */
-    r = sd_cmd(CMD_SEND_OP_COND, ACMD41_ARG_HC);
+    r = emmc_cmd(state, CMD_SEND_OP_COND, ACMD41_ARG_HC);
     klog("EMMC: CMD_SEND_OP_COND returned ");
     if (r & ACMD41_CMD_COMPLETE)
       klog("COMPLETE ");
@@ -524,7 +526,7 @@ static int emmc_init(device_t *dev) {
     if (r & ACMD41_CMD_CCS)
       klog("CCS ");
     klog(" %p \n", r);
-    if (state->sd_err != SD_TIMEOUT && state->sd_err != SD_OK) {
+    if (state->sd_err != (uint64_t)SD_TIMEOUT && state->sd_err != SD_OK) {
       klog("ERROR: EMMC ACMD41 returned error\n");
       return state->sd_err;
     }
@@ -536,24 +538,24 @@ static int emmc_init(device_t *dev) {
   if (r & ACMD41_CMD_CCS)
     ccs = SCR_SUPP_CCS;
 
-  sd_cmd(CMD_ALL_SEND_CID, 0);
+  emmc_cmd(state, CMD_ALL_SEND_CID, 0);
 
-  state->sd_rca = sd_cmd(CMD_SEND_REL_ADDR, 0);
+  state->sd_rca = emmc_cmd(state, CMD_SEND_REL_ADDR, 0);
   klog("EMMC: CMD_SEND_REL_ADDR returned %p \n", state->sd_rca);
   if (state->sd_err)
     return state->sd_err;
 
-  if ((r = sd_clk(25000000)))
+  if ((r = sd_clk(state, 25000000)))
     return r;
 
-  sd_cmd(CMD_CARD_SELECT, state->sd_rca);
+  emmc_cmd(state, CMD_CARD_SELECT, state->sd_rca);
   if (state->sd_err)
     return state->sd_err;
 
   if (sd_status(SR_DAT_INHIBIT))
     return SD_TIMEOUT;
   *EMMC_BLKSIZECNT = (1 << 16) | 8;
-  sd_cmd(CMD_SEND_SCR, 0);
+  emmc_cmd(state, CMD_SEND_SCR, 0);
   if (state->sd_err)
     return state->sd_err;
   if (sd_int(INT_READ_RDY))
@@ -570,7 +572,7 @@ static int emmc_init(device_t *dev) {
   if (r != 2)
     return SD_TIMEOUT;
   if (state->sd_scr[0] & SCR_SD_BUS_WIDTH_4) {
-    sd_cmd(CMD_SET_BUS_WIDTH, state->sd_rca | 2);
+    emmc_cmd(state, CMD_SET_BUS_WIDTH, state->sd_rca | 2);
     if (state->sd_err)
       return state->sd_err;
     *EMMC_CONTROL0 |= C0_HCTL_DWITDH;
@@ -592,10 +594,12 @@ static int emmc_init(device_t *dev) {
 static int emmc_probe(device_t *dev) {
   /* unimplemented! */
   panic("EMMC probe is not implemented");
+  return 0;
 }
 
 static int emmc_attach(device_t *dev) {
   emmc_init(dev);
+  return 0;
 }
 
 /*
