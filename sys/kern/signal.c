@@ -173,7 +173,6 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   thread_t *td = thread_self();
   assert(td->td_proc == p);
 
-  assert((td->td_pflags & TDP_OLDSIGMASK) == 0);
   td->td_oldsigmask = td->td_sigmask;
   td->td_pflags |= TDP_OLDSIGMASK;
 
@@ -198,7 +197,7 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
   assert(error == EINTR);
 
-  return EINTR;
+  return ERESTARTNOHAND;
 }
 
 static ksiginfo_t *ksiginfo_copy(const ksiginfo_t *src) {
