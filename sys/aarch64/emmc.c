@@ -111,6 +111,9 @@ typedef struct emmc_state {
     uint64_t sd_rca;
     uint64_t sd_err;
     uint64_t sd_hv;
+    uint32_t last_lba;
+    uint32_t last_code;
+    int last_code_cnt;
 } emmc_state_t;
 
 //uint64_t sd_scr[2], sd_ocr, sd_rca, sd_err, sd_hv;
@@ -161,15 +164,12 @@ static int32_t sd_int(uint32_t mask) {
  * Send a command
  */
 int32_t emmc_cmd(emmc_state_t *state, uint32_t code, uint32_t arg) {
-  static uint32_t last_code = 0;
-  static int last_code_cnt = 0;
-
-  if (last_code == code)
-    last_code_cnt++;
+  if (state->last_code == code)
+    state->last_code_cnt++;
   else
-    last_code_cnt = 0;
+    state->last_code_cnt = 0;
 
-  last_code = code;
+  state->last_code = code;
 
   uint32_t r = 0;
   state->sd_err = SD_OK;
@@ -205,25 +205,25 @@ int32_t emmc_cmd(emmc_state_t *state, uint32_t code, uint32_t arg) {
 
   r = *EMMC_RESP0;
   if (code == CMD_GO_IDLE || code == CMD_APP_CMD) {
-    if (last_code_cnt == 0)
+    if (state->last_code_cnt == 0)
       klog("EMMC: Sending command %s, arg %p\n", "GO IDLE", arg);
     return 0;
   }
 
   else if (code == (CMD_APP_CMD | CMD_RSPNS_48)) {
-    if (last_code_cnt == 0)
+    if (state->last_code_cnt == 0)
       klog("EMMC: Sending command %s, arg %p\n", "APP", arg);
     return r & SR_APP_CMD;
   }
 
   else if (code == CMD_SEND_OP_COND) {
-    if (last_code_cnt == 0)
+    if (state->last_code_cnt == 0)
       klog("EMMC: Sending command %s, arg %p\n", "OP COND", arg);
     return r;
   }
 
   else if (code == CMD_SEND_IF_COND) {
-    if (last_code_cnt == 0)
+    if (state->last_code_cnt == 0)
       klog("EMMC: Sending command %s, arg %p\n", "IF COND", arg);
     return r == arg ? SD_OK : SD_ERROR;
   }
@@ -233,7 +233,7 @@ int32_t emmc_cmd(emmc_state_t *state, uint32_t code, uint32_t arg) {
     r |= *EMMC_RESP2;
     r |= *EMMC_RESP1;
 
-    if (last_code_cnt == 0)
+    if (state->last_code_cnt == 0)
       klog("EMMC: Sending command %s, arg %p\n", "SEND CID", arg);
     return r;
   }
@@ -243,7 +243,7 @@ int32_t emmc_cmd(emmc_state_t *state, uint32_t code, uint32_t arg) {
               ((r & 0x8000) << 8)) &
              CMD_ERRORS_MASK;
 
-    if (last_code_cnt == 0)
+    if (state->last_code_cnt == 0)
       klog("EMMC: Sending command %s, arg %p\n", "ADDRESS", arg);
     return r & CMD_RCA_MASK;
   }
@@ -260,14 +260,13 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
                     uint32_t num) {
   assert(dev->driver == (driver_t *)&emmc_driver);
   emmc_state_t *state = (emmc_state_t *)dev->state;
-  static uint32_t last_lba = 0;
   int32_t r;
   uint32_t c = 0, d;
   if (num < 1)
     num = 1;
-  if (lba != last_lba)
+  if (lba != state->last_lba)
     klog("sd_readblock lba %p, num %p\n", lba, num);
-  last_lba = lba;
+  state->last_lba = lba;
 
   if (sd_status(SR_DAT_INHIBIT)) {
     state->sd_err = SD_TIMEOUT;
@@ -598,6 +597,11 @@ static int emmc_probe(device_t *dev) {
 }
 
 static int emmc_attach(device_t *dev) {
+  assert(dev->driver == (driver_t *)&emmc_driver);
+  emmc_state_t *state = (emmc_state_t *)dev->state;
+  state->last_lba = 0;
+  state->last_code = 0;
+  state->last_code_cnt = 0;
   emmc_init(dev);
   return 0;
 }
