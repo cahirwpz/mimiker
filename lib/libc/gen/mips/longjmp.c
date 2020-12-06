@@ -36,8 +36,6 @@
 #include <string.h>
 #include <setjmp.h>
 
-#include <machine/regnum.h>
-
 void longjmp(jmp_buf env, int val) {
   struct sigcontext *sc = (void *)env;
   ucontext_t uc;

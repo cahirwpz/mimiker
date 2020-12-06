@@ -30,7 +30,6 @@
 #
 
 include <sys/types.h>
-include <machine/regnum.h>
 include <ucontext.h>
 include <signal.h>
 

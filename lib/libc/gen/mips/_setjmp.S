@@ -33,7 +33,6 @@
  */
 
 #include <machine/cdefs.h>
-#include <mips/regnum.h>
 #include <mips/asm.h>
 #include <machine/setjmp.h>
 
