@@ -358,11 +358,8 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   rman_t *rman = NULL;
 
   if (type == RT_IOPORTS) {
-    if (start <= IO_ISAEND) /* virtual address */
-      bh = gtpci->pci_io->r_bus_handle;
-    else /* physical address */
-      bh = gtpci->pci_io->r_start;
     rman = &gtpci->pci_io_rman;
+    bh = gtpci->pci_io->r_bus_handle;
   } else if (type == RT_IRQ) {
     rman = &gtpci->irq_rman;
   } else if (type == RT_MEMORY) {
@@ -413,34 +410,22 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type,
     pci_write_config(dev, PCIR_COMMAND, 2, command);
   }
 
+  rman_addr_t paddr = r->r_start;
   int rid = r->r_rid;
-  if (gt_pci_bar(dev, type, rid, r->r_start)) {
-    /* XXX: we don't handle 64-bit memory space bars. */
-    uint32_t addr = (uint32_t)r->r_bus_handle;
-    /* Set information bits. */
-    if (type == RT_IOPORTS) {
-      addr |= 0x1;
-    } else {
-      pci_device_t *pcid = pci_device_of(dev);
-      /* XXX: we assume that type field = 0x00. */
-      if (pcid->bar[rid].prefetchable)
-        addr |= 0x8;
-    }
-    /* Write BAR address to PCI device register. */
-    pci_write_config(dev, PCIR_BAR(rid), 4, addr);
 
+  if (gt_pci_bar(dev, type, rid, r->r_start)) {
+    /* Obtain the physical address. */
     if (type == RT_IOPORTS) {
-      /* After we used physical address to update bar contents,
-       * we need to suply the resource with the virtual address
-       * (for future bus reads/writes). */
       gt_pci_state_t *gtpci = dev->parent->state;
-      rman_addr_t offset = r->r_bus_handle - gtpci->pci_io->r_start;
-      r->r_bus_handle = gtpci->pci_io->r_bus_handle + offset;
+      paddr = gtpci->pci_io->r_start + r->r_start;
     }
+
+    /* Write BAR address to PCI device register. */
+    pci_write_config(dev, PCIR_BAR(rid), 4, paddr);
   }
 
   if (type == RT_MEMORY)
-    return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
+    return bus_space_map(r->r_bus_tag, paddr, resource_size(r),
                          &r->r_bus_handle);
 
   return 0;
