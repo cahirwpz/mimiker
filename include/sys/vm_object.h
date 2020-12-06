@@ -6,6 +6,7 @@
 #include <sys/mutex.h>
 #include <sys/refcnt.h>
 #include <sys/vm_map.h>
+#include <sys/rwlock.h>
 
 /*! \brief Virtual memory object
  *
@@ -17,7 +18,7 @@
 typedef struct vm_object {
   TAILQ_HEAD(vm_object_list, vm_object) shadows_list;
   TAILQ_ENTRY(vm_object) link;
-  mtx_t mtx;
+  rwlock_t mtx;
   vm_pagelist_t list;   /* (@) List of pages */
   vm_pagetree_t tree;   /* (@) Tree of pages */
   size_t npages;        /* (@) Number of pages */
