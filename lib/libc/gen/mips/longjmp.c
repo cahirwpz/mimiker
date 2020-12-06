@@ -57,7 +57,7 @@ void longjmp(jmp_buf env, int val) {
    */
   uc.uc_flags = _UC_CPU | (sc_uc->uc_onstack ? _UC_SETSTACK : _UC_CLRSTACK);
 
-  sigprocmask(SIG_SETMASK, &sc_uc->uc_mask, NULL);
+  sigprocmask(SIG_SETMASK, &sc_uc->uc_sigmask, NULL);
 
   /* Clear uc_link */
   uc.uc_link = 0;
@@ -80,7 +80,7 @@ void longjmp(jmp_buf env, int val) {
 #endif
   uc.uc_mcontext.__gregs[_REG_SP] = sc_uc->uc_mcontext.__gregs[_REG_SP];
   uc.uc_mcontext.__gregs[_REG_RA] = sc_uc->uc_mcontext.__gregs[_REG_RA];
-  uc.uc_mcontext.__gregs[_REG_EPC] = sc_uc->uc_pc;
+  uc.uc_mcontext.__gregs[_REG_EPC] = sc_uc->uc_mcontext.__gregs[_REG_EPC];
 
   /* Copy FP state */
   if (sc_uc->uc_fpused) {

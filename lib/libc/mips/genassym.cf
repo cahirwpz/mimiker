@@ -66,8 +66,8 @@ define _OFFSETOF_SC_FPREGS_F29	offsetof(struct sigcontext, sc_uc.uc_mcontext.__f
 define _OFFSETOF_SC_FPREGS_F30	offsetof(struct sigcontext, sc_uc.uc_mcontext.__fpregs.__fp_r.__fp_regs[30])
 define _OFFSETOF_SC_FPREGS_F31	offsetof(struct sigcontext, sc_uc.uc_mcontext.__fpregs.__fp_r.__fp_regs[31])
 define _OFFSETOF_SC_FPREGS_FCSR	offsetof(struct sigcontext, sc_uc.uc_mcontext.__fpregs.__fp_csr)
-define _OFFSETOF_SC_PC		offsetof(struct sigcontext, sc_uc.uc_pc)
-define _OFFSETOF_SC_MASK	offsetof(struct sigcontext, sc_uc.uc_mask)
+define _OFFSETOF_SC_PC	    offsetof(struct sigcontext, sc_uc.uc_mcontext.__gregs[_REG_EPC])
+define _OFFSETOF_SC_MASK	offsetof(struct sigcontext, sc_uc.uc_sigmask)
 define _OFFSETOF_SC_ONSTACK	offsetof(struct sigcontext, sc_uc.uc_onstack)
 define _OFFSETOF_SC_FPUSED	offsetof(struct sigcontext, sc_uc.uc_fpused)
 

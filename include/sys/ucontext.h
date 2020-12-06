@@ -40,8 +40,6 @@ typedef struct __ucontext ucontext_t;
 struct __ucontext {
   /* TODO(pj): remove */
   int uc_onstack;
-  sigset_t uc_mask;
-  int uc_pc;
   int uc_fpused;
 
   unsigned int uc_flags;  /* properties */
