@@ -147,6 +147,7 @@ static void intr_thread_create(intr_event_t *ie) {
   assert(it);
 
   ie->ie_ithread = it;
+  it->it_event = ie;
 
   it->it_thread = thread_create(ie->ie_name, intr_thread, it, prio_ithread(0));
 
@@ -164,12 +165,18 @@ void intr_event_run_handlers(intr_event_t *ie) {
   /* Do we wake up an ithread */
   bool it_wakeup = false;
 
+  bool stray = true;
+
   TAILQ_FOREACH_SAFE (ih, &ie->ie_handlers, ih_link, next) {
     status = ih->ih_filter(ih->ih_argument);
-    if (status == IF_FILTERED)
+    if (status == IF_FILTERED) {
+      stray = false;
       continue;
+    }
     if (status == IF_DELEGATE) {
       assert(ih->ih_service);
+
+      stray = false;
 
       if (ie->ie_disable)
         ie->ie_disable(ie);
@@ -187,7 +194,8 @@ void intr_event_run_handlers(intr_event_t *ie) {
     sleepq_signal(ie->ie_ithread);
   }
 
-  klog("Spurious %s interrupt!", ie->ie_name);
+  if (stray)
+    klog("Spurious %s interrupt!", ie->ie_name);
 }
 
 static void intr_thread(void *arg) {
@@ -208,10 +216,10 @@ static void intr_thread(void *arg) {
           if (ih->ih_flags & IH_DELEGATE)
             break;
         }
-        if (ih == NULL)
-          sleepq_wait(it, NULL);
       }
-    } while (it == NULL);
+      if (ih == NULL)
+        sleepq_wait(it, NULL);
+    } while (ih == NULL);
 
     ih->ih_service(ih->ih_argument);
 
