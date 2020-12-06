@@ -32,22 +32,22 @@
 #ifndef _SYS_UCONTEXT_H_
 #define _SYS_UCONTEXT_H_
 
+#ifndef __ASSEMBLER__
+
 #include <sys/sigtypes.h>
 #include <machine/mcontext.h>
 
 typedef struct __ucontext ucontext_t;
 
 struct __ucontext {
-  /* TODO(pj): remove */
-  int uc_onstack;
-  int uc_fpused;
-
   unsigned int uc_flags;  /* properties */
   ucontext_t *uc_link;    /* context to resume */
   sigset_t uc_sigmask;    /* signals blocked in this context */
   stack_t uc_stack;       /* the stack used by this context */
   mcontext_t uc_mcontext; /* machine state */
 };
+
+#endif /* !__ASSEMBLER__ */
 
 /* uc_flags */
 #define _UC_SIGMASK 0x01 /* valid uc_sigmask */

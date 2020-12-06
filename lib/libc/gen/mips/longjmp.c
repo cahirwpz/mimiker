@@ -55,7 +55,8 @@ void longjmp(jmp_buf env, int val) {
    * Restore the signal mask with sigprocmask() instead of _UC_SIGMASK,
    * since libpthread may want to interpose on signal handling.
    */
-  uc.uc_flags = _UC_CPU | (sc_uc->uc_onstack ? _UC_SETSTACK : _UC_CLRSTACK);
+  uc.uc_flags =
+    _UC_CPU | ((sc_uc->uc_flags | _UC_STACK) ? _UC_SETSTACK : _UC_CLRSTACK);
 
   sigprocmask(SIG_SETMASK, &sc_uc->uc_sigmask, NULL);
 
@@ -83,7 +84,7 @@ void longjmp(jmp_buf env, int val) {
   uc.uc_mcontext.__gregs[_REG_EPC] = sc_uc->uc_mcontext.__gregs[_REG_EPC];
 
   /* Copy FP state */
-  if (sc_uc->uc_fpused) {
+  if (sc_uc->uc_flags & _UC_FPU) {
     /* FP saved regs are $f20 .. $f31 */
     memcpy(&uc.uc_mcontext.__fpregs.__fp_r.__fp_regs[20],
            &sc_uc->uc_mcontext.__fpregs.__fp_r.__fp_regs[20],
