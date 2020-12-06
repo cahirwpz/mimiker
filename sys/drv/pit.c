@@ -76,6 +76,7 @@ static void pit_update_time(pit_state_t *pit) {
 static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
+  /* We do not prevent tick loss */
   pit_update_time(pit);
   tm_trigger(&pit->timer);
   return IF_FILTERED;
