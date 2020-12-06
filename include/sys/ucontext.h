@@ -38,6 +38,12 @@
 typedef struct __ucontext ucontext_t;
 
 struct __ucontext {
+  /* TODO(pj): remove */
+  int uc_onstack;
+  sigset_t uc_mask;
+  int uc_pc;
+  int uc_fpused;
+
   unsigned int uc_flags;  /* properties */
   ucontext_t *uc_link;    /* context to resume */
   sigset_t uc_sigmask;    /* signals blocked in this context */

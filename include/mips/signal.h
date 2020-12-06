@@ -38,6 +38,7 @@
 #define _MIPS_SIGNAL_H_
 
 #include <machine/cdefs.h> /* for API selection */
+#include <sys/ucontext.h>
 
 #ifndef __ASSEMBLER__
 
@@ -55,17 +56,11 @@ typedef int sig_atomic_t;
  * a non-standard exit is performed.
  */
 #if defined(_LIBC) || defined(_KERNEL)
+
 struct sigcontext {
-  int sc_onstack;   /* sigstack state to restore */
-  sigset_t sc_mask; /* signal mask to restore */
-  int sc_pc;        /* pc at time of signal */
-  int sc_regs[32];  /* processor regs 0 to 31 */
-  int sc_mullo;
-  int sc_mulhi;      /* mullo and mulhi registers... */
-  int sc_fpused;     /* fp has been used */
-  int sc_fpregs[33]; /* fp regs 0 to 31 and csr */
-  int sc_fpc_eir;    /* floating point exception instruction reg */
+  ucontext_t sc_uc;
 };
+
 #endif /* _LIBC || _KERNEL */
 
 #if defined(_KERNEL)

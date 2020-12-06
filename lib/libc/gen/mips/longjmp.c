@@ -43,8 +43,7 @@ void longjmp(jmp_buf env, int val) {
   ucontext_t uc;
 
   /* Ensure non-zero SP and sigcontext magic number is present */
-  if (sc->sc_regs[_R_SP] == 0 ||
-      sc->sc_regs[_R_ZERO] != (register_t)0xACEDBADEU)
+  if (sc->sc_uc.uc_mcontext.__gregs[_REG_SP] == 0)
     goto err;
 
   /* Ensure non-zero return value */
@@ -57,9 +56,9 @@ void longjmp(jmp_buf env, int val) {
    * Restore the signal mask with sigprocmask() instead of _UC_SIGMASK,
    * since libpthread may want to interpose on signal handling.
    */
-  uc.uc_flags = _UC_CPU | (sc->sc_onstack ? _UC_SETSTACK : _UC_CLRSTACK);
+  uc.uc_flags = _UC_CPU | (sc->sc_uc.uc_onstack ? _UC_SETSTACK : _UC_CLRSTACK);
 
-  sigprocmask(SIG_SETMASK, &sc->sc_mask, NULL);
+  sigprocmask(SIG_SETMASK, &sc->sc_uc.uc_mask, NULL);
 
   /* Clear uc_link */
   uc.uc_link = 0;
@@ -68,28 +67,29 @@ void longjmp(jmp_buf env, int val) {
   uc.uc_mcontext.__gregs[_REG_V0] = val;
 
   /* Copy saved registers */
-  uc.uc_mcontext.__gregs[_REG_S0] = sc->sc_regs[_R_S0];
-  uc.uc_mcontext.__gregs[_REG_S1] = sc->sc_regs[_R_S1];
-  uc.uc_mcontext.__gregs[_REG_S2] = sc->sc_regs[_R_S2];
-  uc.uc_mcontext.__gregs[_REG_S3] = sc->sc_regs[_R_S3];
-  uc.uc_mcontext.__gregs[_REG_S4] = sc->sc_regs[_R_S4];
-  uc.uc_mcontext.__gregs[_REG_S5] = sc->sc_regs[_R_S5];
-  uc.uc_mcontext.__gregs[_REG_S6] = sc->sc_regs[_R_S6];
-  uc.uc_mcontext.__gregs[_REG_S7] = sc->sc_regs[_R_S7];
-  uc.uc_mcontext.__gregs[_REG_S8] = sc->sc_regs[_R_S8];
+  uc.uc_mcontext.__gregs[_REG_S0] = sc->sc_uc.uc_mcontext.__gregs[_REG_S0];
+  uc.uc_mcontext.__gregs[_REG_S1] = sc->sc_uc.uc_mcontext.__gregs[_REG_S1];
+  uc.uc_mcontext.__gregs[_REG_S2] = sc->sc_uc.uc_mcontext.__gregs[_REG_S2];
+  uc.uc_mcontext.__gregs[_REG_S3] = sc->sc_uc.uc_mcontext.__gregs[_REG_S3];
+  uc.uc_mcontext.__gregs[_REG_S4] = sc->sc_uc.uc_mcontext.__gregs[_REG_S4];
+  uc.uc_mcontext.__gregs[_REG_S5] = sc->sc_uc.uc_mcontext.__gregs[_REG_S5];
+  uc.uc_mcontext.__gregs[_REG_S6] = sc->sc_uc.uc_mcontext.__gregs[_REG_S6];
+  uc.uc_mcontext.__gregs[_REG_S7] = sc->sc_uc.uc_mcontext.__gregs[_REG_S7];
+  uc.uc_mcontext.__gregs[_REG_S8] = sc->sc_uc.uc_mcontext.__gregs[_REG_S8];
 #if !defined(__mips_abicalls)
-  uc.uc_mcontext.__gregs[_REG_GP] = sc->sc_regs[_R_GP];
+  uc.uc_mcontext.__gregs[_REG_GP] = sc->sc_uc.uc_mcontext.__gregs[_REG_GP];
 #endif
-  uc.uc_mcontext.__gregs[_REG_SP] = sc->sc_regs[_R_SP];
-  uc.uc_mcontext.__gregs[_REG_RA] = sc->sc_regs[_R_RA];
-  uc.uc_mcontext.__gregs[_REG_EPC] = sc->sc_pc;
+  uc.uc_mcontext.__gregs[_REG_SP] = sc->sc_uc.uc_mcontext.__gregs[_REG_SP];
+  uc.uc_mcontext.__gregs[_REG_RA] = sc->sc_uc.uc_mcontext.__gregs[_REG_RA];
+  uc.uc_mcontext.__gregs[_REG_EPC] = sc->sc_uc.uc_pc;
 
   /* Copy FP state */
-  if (sc->sc_fpused) {
+  if (sc->sc_uc.uc_fpused) {
     /* FP saved regs are $f20 .. $f31 */
-    memcpy(&uc.uc_mcontext.__fpregs.__fp_r.__fp_regs[20], &sc->sc_fpregs[20],
-           32 - 20);
-    uc.uc_mcontext.__fpregs.__fp_csr = sc->sc_fpregs[_R_FSR - _FPBASE];
+    memcpy(&uc.uc_mcontext.__fpregs.__fp_r.__fp_regs[20],
+           &sc->sc_uc.uc_mcontext.__fpregs.__fp_r.__fp_regs[20],
+           (32 - 20) * sizeof(float));
+    uc.uc_mcontext.__fpregs.__fp_csr = sc->sc_uc.uc_mcontext.__fpregs.__fp_csr;
     /* XXX sc_fp_control */
     uc.uc_flags |= _UC_FPU;
   }

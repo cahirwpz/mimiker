@@ -84,8 +84,6 @@ NON_LEAF(setjmp, SETJMP_FRAME_SIZE, ra)
 
 	REG_PROLOGUE
 	REG_S	ra, _OFFSETOF_SC_PC(a0)		# sc_pc = return address
-	REG_LI	v0, 0xACEDBADE			# sigcontext magic number
-	REG_S	v0, _OFFSETOF_SC_REGS(a0)	#   saved in sc_regs[0]
 	REG_S	s0, _OFFSETOF_SC_REGS_S0(a0)
 	REG_S	s1, _OFFSETOF_SC_REGS_S1(a0)
 	REG_S	s2, _OFFSETOF_SC_REGS_S2(a0)
