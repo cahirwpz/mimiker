@@ -28,11 +28,6 @@ typedef enum {
   IH_DELEGATE = 2,
 } ih_flags_t;
 
-typedef struct intr_thread {
-  intr_event_t *it_event; /* Associated event */
-  thread_t *it_thread;    /* Kernel thread. */
-} intr_thread_t;
-
 typedef struct intr_handler {
   TAILQ_ENTRY(intr_handler) ih_link;
   ih_filter_t *ih_filter;   /* interrupt filter routine (run in irq ctx) */
@@ -107,14 +102,11 @@ static void intr_thread_maybe_attach(intr_event_t *ie, intr_handler_t *ih) {
   WITH_SPIN_LOCK (&ie->ie_lock) {
     if (ie->ie_ithread != NULL || ih->ih_service == NULL)
       return;
-    ie->ie_ithread = (intr_thread_t *)1L;
+    ie->ie_ithread = (thread_t *)1L;
   }
 
-  intr_thread_t *it = kmalloc(M_INTR, sizeof(intr_thread_t), M_ZERO);
-  it->it_event = ie;
-  it->it_thread = thread_create(ie->ie_name, intr_thread, it, prio_ithread(0));
-  sched_add(it->it_thread);
-  ie->ie_ithread = it;
+  ie->ie_ithread = thread_create(ie->ie_name, intr_thread, ie, prio_ithread(0));
+  sched_add(ie->ie_ithread);
 }
 
 intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
@@ -200,7 +192,7 @@ void intr_event_run_handlers(intr_event_t *ie) {
   if (ie_status & IF_DELEGATE) {
     if (ie->ie_disable)
       ie->ie_disable(ie);
-    sleepq_signal(ie->ie_ithread);
+    sleepq_signal(ie);
   }
 
   if (ie_status == IF_STRAY)
@@ -208,10 +200,9 @@ void intr_event_run_handlers(intr_event_t *ie) {
 }
 
 static void intr_thread(void *arg) {
-  intr_thread_t *it = (intr_thread_t *)arg;
+  intr_event_t *ie = (intr_event_t *)arg;
 
   while (true) {
-    intr_event_t *ie = it->it_event;
     intr_handler_t *ih, *ih_next;
 
     /* The interrupt associated with `ie` was disabled by
@@ -235,7 +226,7 @@ static void intr_thread(void *arg) {
       if (!TAILQ_EMPTY(&ie->ie_handlers) && ie->ie_enable)
         ie->ie_enable(ie);
 
-      sleepq_wait(it, NULL);
+      sleepq_wait(ie, NULL);
     }
   }
 }

@@ -47,7 +47,6 @@ static inline void __intr_enable(void *data) {
 
 typedef struct intr_event intr_event_t;
 typedef struct intr_handler intr_handler_t;
-typedef struct intr_thread intr_thread_t;
 
 typedef enum {
   IF_STRAY = 0,    /* this device did not trigger the interrupt */
@@ -70,12 +69,12 @@ typedef struct intr_event {
   spin_t ie_lock;
   TAILQ_ENTRY(intr_event) ie_link; /* link on list of all interrupt events */
   TAILQ_HEAD(, intr_handler) ie_handlers; /* sorted by descending ih_prio */
-  ie_action_t *ie_disable;   /* called before ithread delegation (mask irq) */
-  ie_action_t *ie_enable;    /* called after ithread delagation (unmask irq) */
-  void *ie_source;           /* additional argument for actions */
-  const char *ie_name;       /* individual event name */
-  unsigned ie_irq;           /* physical interrupt request line number */
-  intr_thread_t *ie_ithread; /* associated interrupt thread */
+  ie_action_t *ie_disable; /* called before ithread delegation (mask irq) */
+  ie_action_t *ie_enable;  /* called after ithread delagation (unmask irq) */
+  void *ie_source;         /* additional argument for actions */
+  const char *ie_name;     /* individual event name */
+  unsigned ie_irq;         /* physical interrupt request line number */
+  thread_t *ie_ithread;    /* associated interrupt thread */
 } intr_event_t;
 
 intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
