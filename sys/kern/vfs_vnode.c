@@ -319,19 +319,9 @@ int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff) {
 int vnode_access_generic(vnode_t *v, accmode_t acc, cred_t *cred) {
   vattr_t va;
   int error;
-  (void)cred;
 
   if ((error = VOP_GETATTR(v, &va)))
     return error;
 
-  mode_t mode = 0;
-
-  if (acc & VEXEC)
-    mode |= S_IXUSR;
-  if (acc & VWRITE)
-    mode |= S_IWUSR;
-  if (acc & VREAD)
-    mode |= S_IRUSR;
-
-  return ((va.va_mode & mode) == mode || acc == 0) ? 0 : EACCES;
+  return cred_can_access(&va, cred, acc);
 }
