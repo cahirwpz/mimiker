@@ -42,7 +42,6 @@ static void vm_object_remove_page_nolock(vm_object_t *obj, vm_page_t *page) {
 }
 
 void vm_object_free(vm_object_t *obj) {
-  kprintf("free object %p, ref counter: %d\n", obj, obj->ref_counter);
   WITH_RW_LOCK (&obj->mtx, RW_WRITER) {
     if (!refcnt_release(&obj->ref_counter)) {
       return;
