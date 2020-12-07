@@ -47,7 +47,7 @@ jobs:
           key: downloads-20191128-1600
           paths:
             - bin/lua/lua-5.3.5.tar.gz
-      - run: 'make BOARD=<< parameters.board >> CLANG=<< parameters.use_clang >> KASAN=<< parameters.use_kasan >>' KCSAN=<< parameters.use_kcsan >>'
+      - run: 'make BOARD=<< parameters.board >> CLANG=<< parameters.use_clang >> KASAN=<< parameters.use_kasan >> KCSAN=<< parameters.use_kcsan >>'
       - store_artifacts:
           path: sys/mimiker.elf
           prefix: kernel_image
