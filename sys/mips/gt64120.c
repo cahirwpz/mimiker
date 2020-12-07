@@ -410,22 +410,14 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type,
     pci_write_config(dev, PCIR_COMMAND, 2, command);
   }
 
-  rman_addr_t paddr = r->r_start;
   int rid = r->r_rid;
-
   if (gt_pci_bar(dev, type, rid, r->r_start)) {
-    /* Obtain the physical address. */
-    if (type == RT_IOPORTS) {
-      gt_pci_state_t *gtpci = dev->parent->state;
-      paddr = gtpci->pci_io->r_start + r->r_start;
-    }
-
     /* Write BAR address to PCI device register. */
-    pci_write_config(dev, PCIR_BAR(rid), 4, paddr);
+    pci_write_config(dev, PCIR_BAR(rid), 4, r->r_start);
   }
 
   if (type == RT_MEMORY)
-    return bus_space_map(r->r_bus_tag, paddr, resource_size(r),
+    return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
                          &r->r_bus_handle);
 
   return 0;
