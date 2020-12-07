@@ -75,8 +75,7 @@ typedef struct intr_event {
   void *ie_source;           /* additional argument for actions */
   const char *ie_name;       /* individual event name */
   unsigned ie_irq;           /* physical interrupt request line number */
-  unsigned ie_count;         /* number of handlers attached */
-  intr_thread_t *ie_ithread; /* Associated interrupt thread */
+  intr_thread_t *ie_ithread; /* associated interrupt thread */
 } intr_event_t;
 
 intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,

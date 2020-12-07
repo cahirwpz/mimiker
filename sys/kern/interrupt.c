@@ -92,15 +92,14 @@ static void intr_event_insert_handler(intr_event_t *ie, intr_handler_t *ih) {
     if (ih->ih_prio > it->ih_prio)
       break;
 
+  /* Enable interrupt if this is the first handler. */
+  if (TAILQ_EMPTY(&ie->ie_handlers) && ie->ie_enable)
+    ie->ie_enable(ie);
+
   if (it)
     TAILQ_INSERT_BEFORE(it, ih, ih_link);
   else
     TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_link);
-
-  ie->ie_count++;
-
-  if (ie->ie_count == 1 && ie->ie_enable)
-    ie->ie_enable(ie);
 }
 
 static void intr_thread_create(intr_event_t *ie) {
@@ -139,11 +138,10 @@ void intr_event_remove_handler(intr_handler_t *ih) {
       return;
     }
 
-    if (ie->ie_count == 1 && ie->ie_disable)
-      ie->ie_disable(ie);
-
     TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
-    ie->ie_count--;
+
+    if (TAILQ_EMPTY(&ie->ie_handlers) && ie->ie_disable)
+      ie->ie_disable(ie);
   }
   kfree(M_INTR, ih);
 }
@@ -221,7 +219,6 @@ static void intr_thread(void *arg) {
 
         if (ih->ih_flags & IH_REMOVE) {
           TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
-          ie->ie_count--;
           kfree(M_INTR, ih);
         }
       }
@@ -231,7 +228,7 @@ static void intr_thread(void *arg) {
      * interrupts and wait for a wakeup. We do it with interrupts disabled
      * to prevent the wakeup from being lost. */
     WITH_INTR_DISABLED {
-      if (ie->ie_count > 0 && ie->ie_enable)
+      if (!TAILQ_EMPTY(&ie->ie_handlers) && ie->ie_enable)
         ie->ie_enable(ie);
 
       sleepq_wait(it, NULL);
