@@ -114,7 +114,7 @@ vm_map_t *vm_map_new(void) {
 }
 
 vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
-                               vm_prot_t prot) {
+                               vm_prot_t prot, vm_seg_flags_t flags) {
   assert(page_aligned_p(start) && page_aligned_p(end));
 
   vm_segment_t *seg = pool_alloc(P_VMSEG, M_ZERO);
@@ -122,6 +122,7 @@ vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
   seg->start = start;
   seg->end = end;
   seg->prot = prot;
+  seg->flags = flags;
   return seg;
 }
 
@@ -234,7 +235,7 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
   vm_segment_t *after;
   vaddr_t start = seg->start;
   size_t length = seg->end - seg->start;
-  vm_seg_flags_t map_flags = 0;
+  vm_seg_flags_t seg_flags = 0;
 
   int error = vm_map_findspace_nolock(map, &start, length, &after);
   if (error)
@@ -243,11 +244,11 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
     return ENOMEM;
 
   if (flags & VM_SHARED)
-    map_flags |= VM_SEG_SHARED;
+    seg_flags |= VM_SEG_SHARED;
 
   seg->start = start;
   seg->end = start + length;
-  seg->flags = map_flags;
+  seg->flags = seg_flags;
 
   vm_map_insert_after(map, after, seg);
   return 0;
@@ -272,7 +273,8 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
 
   /* Create object with a pager that supplies cleared pages on page fault. */
   vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *seg = vm_segment_alloc(obj, addr, addr + length, prot);
+  vm_segment_t *seg =
+    vm_segment_alloc(obj, addr, addr + length, prot, VM_SEG_SHARED);
 
   /* Given the hint try to insert the segment at given position or after it. */
   if (vm_map_insert(map, seg, flags)) {
@@ -348,8 +350,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
          * and will return the new object with ref_counter equal to one */
         obj = vm_object_clone(it->object);
       }
-      seg = vm_segment_alloc(obj, it->start, it->end, it->prot);
-      seg->flags = it->flags;
+      seg = vm_segment_alloc(obj, it->start, it->end, it->prot, it->flags);
       TAILQ_INSERT_TAIL(&new_map->entries, seg, link);
       new_map->nentries++;
     }
