@@ -37,6 +37,10 @@
 #include <machine/profile.h>
 
 /*
+ * histogram counters are unsigned shorts (according to the kernel).
+ */
+#define	HISTCOUNTER	unsigned short
+/*
  * fraction of text space to allocate for histogram counters here, 1/2
  */
 #ifndef HISTFRACTION

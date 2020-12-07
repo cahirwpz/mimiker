@@ -44,6 +44,7 @@ SOURCES = \
 	pipe.c \
 	pool.c \
 	proc.c \
+	prof.c \
 	ringbuf.c \
 	rman.c \
 	runq.c \

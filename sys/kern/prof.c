@@ -1,7 +1,10 @@
 #include <sys/param.h>
+#include <sys/prof.h>
+#include <sys/interrupt.h>
 #include <sys/kmem.h>
 #include <sys/gmon.h>
 #include <sys/param.h>
+#include <sys/types.h>
 #include <machine/vm_param.h>
 
 gmonparam_t _gmonparam = { .state = GMON_PROF_OFF };
@@ -15,17 +18,19 @@ void init_prof(void) {
   p->highpc = roundup(KERNEL_SPACE_END, HISTFRACTION * sizeof(HISTFRACTION));
   p->textsize = p->highpc - p->lowpc;
   p->hashfraction = HASHFRACTION;
-  p->fromsize = p->textsize / HASHFRACTION;
-  p->tolimit = p->textsize * ARCDENSITY / 100;
+  p->fromssize = p->textsize / HASHFRACTION;
+  p->tolimit = (p->textsize * ARCDENSITY) / 100;
   if(p->tolimit < MINARCS)
     p->tolimit = MINARCS;
   else if(p->tolimit > MAXARCS)
     p->tolimit = MAXARCS;
   p->tossize = p->tolimit * sizeof(tostruct_t);
   
-  profptr = kmem_alloc(p->tossize + p->fromssize, M_NOWAIT | M_ZERO);
+
+  int aligned_size = align(p->tossize + p->fromssize, PAGESIZE);
+  profptr = kmem_alloc(aligned_size, M_NOWAIT | M_ZERO);
   if(profptr == NULL) {
-    kprintf("Not enough memory for profiling!\n")
+    kprintf("Not enough memory for profiling!\n");
     return;
   }
   p->tos = (tostruct_t *)profptr;
@@ -39,7 +44,7 @@ _MCOUNT_DECL(u_long frompc, u_long selfpc) {
   tostruct_t *top, *prevtop;
   gmonparam_t *p = &_gmonparam;
   long toindex;
-  int s;
+
   if (p->state != GMON_PROF_ON)
     return;
   

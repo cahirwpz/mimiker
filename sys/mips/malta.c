@@ -16,7 +16,6 @@
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 #include <sys/kasan.h>
-#include <sys/prof.h>
 
 static char *make_pair(kstack_t *stk, char *key, char *value) {
   int arglen = strlen(key) + strlen(value) + 2;
@@ -119,7 +118,6 @@ static void malta_physmem(void) {
 __noreturn void board_init(void) {
   init_kasan();
   init_klog();
-  // init_prof();
   init_mips_cpu();
   init_mips_tlb();
   malta_physmem();
