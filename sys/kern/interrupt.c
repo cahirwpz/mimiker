@@ -232,9 +232,9 @@ static void intr_thread(void *arg) {
       }
     }
 
-    /* If there still handlers assign to the interrupt event, enable interrupts
-     * and wait for wakeup. We do it with interrupts disable to prevent a wakeup
-     * from being lost. */
+    /* If there are still handlers assign to the interrupt event, enable
+     * interrupts and wait for a wakeup. We do it with interrupts disabled
+     * to prevent a wakeup from being lost. */
     WITH_INTR_DISABLED {
       if (ie->ie_count > 0 && ie->ie_enable)
         ie->ie_enable(ie);
