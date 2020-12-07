@@ -89,7 +89,7 @@ fail:
 
 static int vfs_check_open(vnode_t *v, int flags, cred_t *cred) {
   mode_t accmode = 0;
-  switch(flags & O_ACCMODE) {
+  switch (flags & O_ACCMODE) {
     case O_RDONLY:
       accmode = VREAD;
       break;
@@ -383,7 +383,7 @@ int do_truncate(proc_t *p, char *path, off_t length) {
   vnode_lock(vn);
   if (vn->v_type == V_DIR)
     error = EISDIR;
-  else if (!(error = VOP_ACCESS(vn, VWRITE, &p->p_cred)))
+  else if ((error = VOP_ACCESS(vn, VWRITE, &p->p_cred)))
     error = vfs_truncate(vn, length, &p->p_cred);
 
   vnode_put(vn);
