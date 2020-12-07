@@ -357,14 +357,9 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
           it->object = vm_object_alloc(VM_SHADOW);
           it->object->shadow_object = shadow;
           vm_object_set_readonly(shadow);
-
-          TAILQ_INSERT_HEAD(&shadow->shadows_list, it->object, link);
         }
 
-        TAILQ_INSERT_HEAD(&shadow->shadows_list, obj, link);
-
         refcnt_acquire(&shadow->ref_counter);
-
         vm_object_increase_pages_references(shadow);
 
         flags |= VM_SEG_NEED_COPY;

@@ -20,7 +20,6 @@ RB_GENERATE(vm_pagetree, vm_page, obj.tree, vm_page_cmp);
 vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   vm_object_t *obj = pool_alloc(P_VMOBJ, M_ZERO);
   TAILQ_INIT(&obj->list);
-  TAILQ_INIT(&obj->shadows_list);
   RB_INIT(&obj->tree);
   rw_init(&obj->mtx, NULL, 0);
   obj->pager = &pagers[type];
@@ -28,54 +27,22 @@ vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   return obj;
 }
 
-static vm_page_t *vm_object_find_page_no_lock(vm_object_t *obj, off_t offset) {
-  vm_page_t find = {.offset = offset};
-  return RB_FIND(vm_pagetree, &obj->tree, &find);
-}
+static void vm_object_remove_page_nolock(vm_object_t *obj, vm_page_t *page) {
+  page->offset = 0;
+  page->object = NULL;
 
-static bool vm_object_add_page_no_lock(vm_object_t *obj, off_t offset,
-                                       vm_page_t *page) {
-  assert(page_aligned_p(page->offset));
-  /* For simplicity of implementation let's insert pages of size 1 only */
-  assert(page->size == 1);
+  TAILQ_REMOVE(&obj->list, page, obj.list);
+  RB_REMOVE(vm_pagetree, &obj->tree, page);
 
-  page->object = obj;
-  page->offset = offset;
-
-  if (!RB_INSERT(vm_pagetree, &obj->tree, page)) {
-    obj->npages++;
-    vm_page_t *next = RB_NEXT(vm_pagetree, &obj->tree, page);
-    if (next)
-      TAILQ_INSERT_BEFORE(next, page, obj.list);
-    else
-      TAILQ_INSERT_TAIL(&obj->list, page, obj.list);
-    return true;
+  if (refcnt_release(&page->ref_counter)) {
+    vm_page_free(page);
   }
 
-  return false;
-}
-
-static void merge_shadow(vm_object_t *shadow) {
-  SCOPED_RW_ENTER(&shadow->mtx, RW_WRITER);
-  vm_object_t *elem;
-
-  TAILQ_FOREACH (elem, &shadow->shadows_list, link) {
-    assert(elem != NULL);
-
-    SCOPED_RW_ENTER(&elem->mtx, RW_WRITER);
-
-    vm_page_t *pg;
-    TAILQ_FOREACH (pg, &shadow->list, obj.list) {
-      if (vm_object_find_page_no_lock(elem, pg->offset) == NULL) {
-        TAILQ_REMOVE(&shadow->list, pg, obj.list);
-        pg->object = elem;
-        vm_object_add_page_no_lock(elem, pg->offset, pg);
-      }
-    }
-  }
+  obj->npages--;
 }
 
 void vm_object_free(vm_object_t *obj) {
+  kprintf("free object %p, ref counter: %d\n", obj, obj->ref_counter);
   WITH_RW_LOCK (&obj->mtx, RW_WRITER) {
     if (!refcnt_release(&obj->ref_counter)) {
       return;
@@ -84,18 +51,14 @@ void vm_object_free(vm_object_t *obj) {
     while (!TAILQ_EMPTY(&obj->list)) {
       vm_page_t *pg = TAILQ_FIRST(&obj->list);
       TAILQ_REMOVE(&obj->list, pg, obj.list);
-      vm_page_free(pg);
+
+      if (refcnt_release(&pg->ref_counter)) {
+        vm_page_free(pg);
+      }
     }
 
     if (obj->shadow_object) {
-      vm_object_t *shadow = obj->shadow_object;
-      TAILQ_REMOVE(&shadow->shadows_list, obj, link);
-
-      if (shadow->ref_counter == 2) {
-        merge_shadow(shadow);
-      }
-
-      vm_object_free(shadow);
+      vm_object_free(obj->shadow_object);
     }
   }
   pool_free(P_VMOBJ, obj);
@@ -130,20 +93,6 @@ bool vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *page) {
   }
 
   return false;
-}
-
-static void vm_object_remove_page_nolock(vm_object_t *obj, vm_page_t *page) {
-  page->offset = 0;
-  page->object = NULL;
-
-  TAILQ_REMOVE(&obj->list, page, obj.list);
-  RB_REMOVE(vm_pagetree, &obj->tree, page);
-
-  if (refcnt_release(&page->ref_counter)) {
-    vm_page_free(page);
-  }
-
-  obj->npages--;
 }
 
 void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {

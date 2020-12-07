@@ -27,10 +27,14 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
   vm_object_t *it = obj;
   vm_object_t *prev = obj;
 
-  while (pg == NULL && it->shadow_object != NULL) {
-    pg = vm_object_find_page(it->shadow_object, offset);
-    prev = it;
-    it = it->shadow_object;
+  WITH_RW_LOCK (&obj->mtx, RW_READER) {
+
+    while (pg == NULL && it->shadow_object != NULL) {
+      SCOPED_RW_ENTER(&it->shadow_object->mtx, RW_READER);
+      pg = vm_object_find_page(it->shadow_object, offset);
+      prev = it;
+      it = it->shadow_object;
+    }
   }
 
   if (pg == NULL) {
@@ -51,7 +55,7 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
 
       if (it->npages == 0) {
         prev->shadow_object = it->shadow_object;
-
+        prev->pager = it->pager;
         if (it->shadow_object != NULL) {
           refcnt_acquire(&it->shadow_object->ref_counter);
         }
