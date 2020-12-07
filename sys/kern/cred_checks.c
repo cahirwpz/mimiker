@@ -77,8 +77,11 @@ bool cred_can_setlogin(cred_t *cred) {
 }
 
 int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode) {
-  accmode_t granted = 0;
+  /* root can access every file */
+  if (cred->cr_euid == 0)
+    return 0;
 
+  accmode_t granted = 0;
   if (cred->cr_euid == va->va_uid) {
     granted |= VADMIN;
     if (va->va_mode & S_IRUSR)
