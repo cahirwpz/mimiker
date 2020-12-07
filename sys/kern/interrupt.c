@@ -122,17 +122,6 @@ intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
   return ih;
 }
 
-/* XXX: This should always be called in a spin lock */
-static void intr_event_delete_handler(intr_handler_t *ih) {
-  intr_event_t *ie = ih->ih_event;
-  if (ie->ie_count == 1 && ie->ie_disable)
-    ie->ie_disable(ie);
-
-  TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
-  ih->ih_event = NULL;
-  ie->ie_count--;
-}
-
 void intr_event_remove_handler(intr_handler_t *ih) {
   intr_event_t *ie = ih->ih_event;
   WITH_SPIN_LOCK (&ie->ie_lock) {
@@ -141,7 +130,11 @@ void intr_event_remove_handler(intr_handler_t *ih) {
       return;
     }
 
-    intr_event_delete_handler(ih);
+    if (ie->ie_count == 1 && ie->ie_disable)
+      ie->ie_disable(ie);
+
+    TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
+    ie->ie_count--;
   }
   kfree(M_INTR, ih);
 }
