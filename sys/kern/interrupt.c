@@ -83,28 +83,36 @@ intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
   return ie;
 }
 
-/* Add new handler according to it's priority */
-static void ie_insert_handler(intr_event_t *ie, intr_handler_t *ih) {
+static void intr_event_insert_handler(intr_event_t *ie, intr_handler_t *ih) {
   intr_handler_t *it;
-  TAILQ_FOREACH (it, &ie->ie_handlers, ih_link)
-    if (ih->ih_prio > it->ih_prio)
-      break;
 
-  if (it)
-    TAILQ_INSERT_BEFORE(it, ih, ih_link);
-  else
-    TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_link);
-
-  ih->ih_event = ie;
-  ie->ie_count++;
-}
-
-static void ie_add_handler(intr_event_t *ie, intr_handler_t *ih) {
   WITH_SPIN_LOCK (&ie->ie_lock) {
-    ie_insert_handler(ie, ih);
+    /* Add new handler according to it's priority */
+    TAILQ_FOREACH (it, &ie->ie_handlers, ih_link)
+      if (ih->ih_prio > it->ih_prio)
+        break;
+
+    if (it)
+      TAILQ_INSERT_BEFORE(it, ih, ih_link);
+    else
+      TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_link);
+
+    ih->ih_event = ie;
+    ie->ie_count++;
+
     if (ie->ie_count == 1 && ie->ie_enable)
       ie->ie_enable(ie);
   }
+}
+
+static void intr_thread_create(intr_event_t *ie) {
+  intr_thread_t *it = kmalloc(M_INTR, sizeof(intr_thread_t), M_ZERO);
+
+  ie->ie_ithread = it;
+  it->it_event = ie;
+  it->it_thread = thread_create(ie->ie_name, intr_thread, it, prio_ithread(0));
+
+  sched_add(it->it_thread);
 }
 
 intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
@@ -118,7 +126,9 @@ intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
   ih->ih_name = name;
   ih->ih_prio = 0;
   ih->ih_flags = 0;
-  ie_add_handler(ie, ih);
+  intr_event_insert_handler(ie, ih);
+  if (service != NULL && ie->ie_ithread == NULL)
+    intr_thread_create(ie);
   return ih;
 }
 
@@ -166,16 +176,6 @@ void intr_root_handler(ctx_t *ctx) {
     on_user_exc_leave();
 }
 
-static void intr_thread_create(intr_event_t *ie) {
-  intr_thread_t *it = kmalloc(M_INTR, sizeof(intr_thread_t), M_ZERO);
-
-  ie->ie_ithread = it;
-  it->it_event = ie;
-  it->it_thread = thread_create(ie->ie_name, intr_thread, it, prio_ithread(0));
-
-  sched_add(it->it_thread);
-}
-
 void intr_event_run_handlers(intr_event_t *ie) {
   intr_handler_t *ih, *next;
 
@@ -199,10 +199,6 @@ void intr_event_run_handlers(intr_event_t *ie) {
   if (ie_status & IF_DELEGATE) {
     if (ie->ie_disable)
       ie->ie_disable(ie);
-
-    if (ie->ie_ithread == NULL)
-      intr_thread_create(ie);
-
     sleepq_signal(ie->ie_ithread);
   }
 
