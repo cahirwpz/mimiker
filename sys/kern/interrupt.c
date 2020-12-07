@@ -144,57 +144,44 @@ void intr_root_handler(ctx_t *ctx) {
 static void intr_thread_create(intr_event_t *ie) {
   intr_thread_t *it = kmalloc(M_INTR, sizeof(intr_thread_t), M_ZERO);
 
-  assert(it);
-
   ie->ie_ithread = it;
   it->it_event = ie;
-
   it->it_thread = thread_create(ie->ie_name, intr_thread, it, prio_ithread(0));
-
-  assert(it->it_thread != NULL);
 
   sched_add(it->it_thread);
 }
 
 void intr_event_run_handlers(intr_event_t *ie) {
   intr_handler_t *ih, *next;
-  intr_filter_t status = IF_STRAY;
 
+  assert(intr_disabled());
   assert(ie != NULL);
 
   /* Do we wake up an ithread */
-  bool it_wakeup = false;
-
-  bool stray = true;
+  intr_filter_t ie_status = IF_STRAY;
 
   TAILQ_FOREACH_SAFE (ih, &ie->ie_handlers, ih_link, next) {
-    status = ih->ih_filter(ih->ih_argument);
-    if (status == IF_FILTERED) {
-      stray = false;
-      continue;
-    }
+    intr_filter_t status = ih->ih_filter(ih->ih_argument);
+
+    ie_status |= status;
+
     if (status == IF_DELEGATE) {
       assert(ih->ih_service);
-
-      stray = false;
-
-      if (ie->ie_disable)
-        ie->ie_disable(ie);
-
       ih->ih_flags = IH_DELEGATE;
-
-      it_wakeup = true;
     }
   }
 
-  if (it_wakeup) {
+  if (ie_status & IF_DELEGATE) {
+    if (ie->ie_disable)
+      ie->ie_disable(ie);
+
     if (ie->ie_ithread == NULL)
       intr_thread_create(ie);
 
     sleepq_signal(ie->ie_ithread);
   }
 
-  if (stray)
+  if (ie_status == IF_STRAY)
     klog("Spurious %s interrupt!", ie->ie_name);
 }
 
@@ -203,49 +190,31 @@ static void intr_thread(void *arg) {
 
   while (true) {
     intr_event_t *ie = it->it_event;
-
     intr_handler_t *ih = NULL;
 
-    /* We look at the list of handlers of our event and search for a handler
-     * marked as IH_DELEGATE. If we don't find any handlers to be serviced, we
-     * go to sleep.
-     */
-    do {
-      WITH_INTR_DISABLED {
-        TAILQ_FOREACH (ih, &ie->ie_handlers, ih_link) {
-          if (ih->ih_flags & IH_DELEGATE)
-            break;
+    /* The interrupt associated with `ie` was disabled by
+     * `intr_event_run_handlers`, so it's safe to use `ie` now. */
+    TAILQ_FOREACH (ih, &ie->ie_handlers, ih_link) {
+      if (ih->ih_flags & IH_DELEGATE) {
+        ih->ih_service(ih->ih_argument);
+        ih->ih_flags &= ~IH_DELEGATE;
+
+        if (ih->ih_flags & IH_REMOVE) {
+          TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
+          ie->ie_count--;
+          kfree(M_INTR, ih);
         }
       }
-      if (ih == NULL)
-        sleepq_wait(it, NULL);
-    } while (ih == NULL);
-
-    ih->ih_service(ih->ih_argument);
-
-    WITH_SPIN_LOCK (&ie->ie_lock) {
-
-      /* If the handler is flagged as IH_REMOVE, we remove it similarly to how
-       * we do it in intr_event_remove_handler. We are under a spin lock so we
-       * don't call kfree just yet.
-       */
-      if (ih->ih_flags & IH_REMOVE) {
-        intr_event_delete_handler(ih);
-      } else {
-        /* If the handler is not flagged as IH_REMOVE, we
-         * remove the IH_DELEGATE flag and enable interrupts from the event
-         * again.
-         */
-        ih->ih_flags &= ~IH_DELEGATE;
-        if (ie->ie_enable)
-          ie->ie_enable(ie);
-      }
     }
-    /* If the handler is flagged as IH_REMOVE, we kfree its memory here. We
-     * didn't want to do it in the code above, because we were under a spinlock
-     */
-    if (ih->ih_flags & IH_REMOVE) {
-      kfree(M_INTR, ih);
+
+    /* If there still handlers assign to the interrupt event, enable interrupts
+     * and wait for wakeup. We do it with interrupts disable to prevent a wakeup
+     * from being lost. */
+    WITH_INTR_DISABLED {
+      if (ie->ie_count > 0 && ie->ie_enable)
+        ie->ie_enable(ie);
+
+      sleepq_wait(it, NULL);
     }
   }
 }
