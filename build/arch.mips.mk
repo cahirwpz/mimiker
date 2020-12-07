@@ -19,3 +19,13 @@ CFLAGS += -DKASAN=$(KASAN)
 GCC_ABIFLAGS += -msoft-float
 CLANG_ABIFLAGS += -msoft-float
 endif
+
+ifeq ($(KERNEL), 1)
+KCSAN ?= 0
+ifeq ($(KCSAN), 1)
+  # Added to files that are sanitized
+  CFLAGS_KCSAN = -fsanitize=thread
+endif
+# Added to all files
+CFLAGS += -DKCSAN=$(KCSAN)
+endif
