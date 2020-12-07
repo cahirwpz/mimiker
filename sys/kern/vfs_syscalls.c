@@ -361,7 +361,7 @@ int do_truncate(proc_t *p, char *path, off_t length) {
   vnode_lock(vn);
   if (vn->v_type == V_DIR)
     error = EISDIR;
-  else if ((error = VOP_ACCESS(vn, VWRITE)))
+  else if (!(error = VOP_ACCESS(vn, VWRITE)))
     error = vfs_truncate(vn, length, &p->p_cred);
 
   vnode_put(vn);
