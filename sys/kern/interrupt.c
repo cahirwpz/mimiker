@@ -128,7 +128,7 @@ intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
   ih->ih_flags = 0;
   intr_event_insert_handler(ie, ih);
   if (service != NULL && ie->ie_ithread == NULL)
-    intr_thread_create(ie);
+    intr_thread_create(ie); /* XXX possible race here */
   return ih;
 }
 
@@ -211,11 +211,11 @@ static void intr_thread(void *arg) {
 
   while (true) {
     intr_event_t *ie = it->it_event;
-    intr_handler_t *ih = NULL;
+    intr_handler_t *ih, *ih_next;
 
     /* The interrupt associated with `ie` was disabled by
      * `intr_event_run_handlers`, so it's safe to use `ie` now. */
-    TAILQ_FOREACH (ih, &ie->ie_handlers, ih_link) {
+    TAILQ_FOREACH_SAFE (ih, &ie->ie_handlers, ih_link, ih_next) {
       if (ih->ih_flags & IH_DELEGATE) {
         ih->ih_service(ih->ih_argument);
         ih->ih_flags &= ~IH_DELEGATE;
@@ -228,9 +228,9 @@ static void intr_thread(void *arg) {
       }
     }
 
-    /* If there are still handlers assign to the interrupt event, enable
+    /* If there are still handlers assigned to the interrupt event, enable
      * interrupts and wait for a wakeup. We do it with interrupts disabled
-     * to prevent a wakeup from being lost. */
+     * to prevent the wakeup from being lost. */
     WITH_INTR_DISABLED {
       if (ie->ie_count > 0 && ie->ie_enable)
         ie->ie_enable(ie);
