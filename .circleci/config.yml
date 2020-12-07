@@ -83,7 +83,6 @@ workflows:
       - verify_pycodestyle
       - build:
           name: build_mips_gcc
-          use_kasan: '1'
           use_kcsan: '1'
           board: 'malta'
       - build:
