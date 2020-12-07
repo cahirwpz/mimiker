@@ -112,11 +112,15 @@ static int vnode_nop(vnode_t *v, ...) {
 #define vnode_remove_nop vnode_nop
 #define vnode_mkdir_nop vnode_nop
 #define vnode_rmdir_nop vnode_nop
-#define vnode_access_nop vnode_nop
 #define vnode_ioctl_nop vnode_nop
 #define vnode_reclaim_nop vnode_nop
 #define vnode_readlink_nop vnode_nop
 #define vnode_symlink_nop vnode_nop
+
+/* XXX when no v_access function don't return error */
+static int vnode_access_nop(vnode_t *v, mode_t m, cred_t *cred) {
+  return 0;
+}
 
 static int vnode_getattr_nop(vnode_t *v, vattr_t *va) {
   vattr_null(va);

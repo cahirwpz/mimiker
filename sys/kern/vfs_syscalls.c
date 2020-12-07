@@ -87,6 +87,25 @@ fail:
   return error;
 }
 
+static int vfs_check_open(vnode_t *v, int flags, cred_t *cred) {
+  mode_t accmode = 0;
+  switch(flags & O_ACCMODE) {
+    case O_RDONLY:
+      accmode = VREAD;
+      break;
+    case O_WRONLY:
+      accmode = VWRITE;
+      break;
+    case O_RDWR:
+      accmode = VREAD | VWRITE;
+      break;
+  }
+  if (flags & O_TRUNC)
+    accmode |= VWRITE;
+
+  return VOP_ACCESS(v, accmode, cred);
+}
+
 static int vfs_open(proc_t *p, file_t *f, int fdat, char *pathname, int flags,
                     int mode) {
   vnode_t *v;
@@ -99,6 +118,9 @@ static int vfs_open(proc_t *p, file_t *f, int fdat, char *pathname, int flags,
     if ((error = vfs_namelookupat(p, fdat, VNR_FOLLOW, pathname, &v)))
       return error;
   }
+
+  if ((error = vfs_check_open(v, flags, &p->p_cred)))
+    return error;
 
   if (flags & O_TRUNC)
     error = vfs_truncate(v, 0, &p->p_cred);
@@ -361,7 +383,7 @@ int do_truncate(proc_t *p, char *path, off_t length) {
   vnode_lock(vn);
   if (vn->v_type == V_DIR)
     error = EISDIR;
-  else if ((error = VOP_ACCESS(vn, VWRITE, &p->p_cred)))
+  else if (!(error = VOP_ACCESS(vn, VWRITE, &p->p_cred)))
     error = vfs_truncate(vn, length, &p->p_cred);
 
   vnode_put(vn);
