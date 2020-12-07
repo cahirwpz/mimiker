@@ -17,3 +17,13 @@ endif
 # Added to all files
 CFLAGS += -DKASAN=$(KASAN)
 endif
+
+ifeq ($(KERNEL), 1)
+KCSAN ?= 0
+ifeq ($(KCSAN), 1)
+  # Added to files that are sanitized
+  CFLAGS_KCSAN = -fsanitize=thread
+endif
+# Added to all files
+CFLAGS += -DKCSAN=$(KCSAN)
+endif

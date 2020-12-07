@@ -35,3 +35,4 @@ include $(TOPDIR)/build/build.kern.mk
 $(SOURCES): assym.h
 
 boot.o : CFLAGS_KASAN =
+boot.o : CFLAGS_KCSAN =
