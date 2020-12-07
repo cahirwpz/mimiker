@@ -31,6 +31,7 @@
 #define SIGUSR2 31 /* user defined signal 2 */
 #define NSIG 32
 
+typedef struct sigcontext sigcontext_t;
 typedef void (*sig_t)(int); /* type of signal function */
 
 #define SIG_ERR ((sig_t)-1)
@@ -142,7 +143,7 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi);
 /*! \brief Restore original user context after signal handler was invoked.
  *
  * \note This is machine dependent code! */
-int sig_return(void);
+int sig_return(sigcontext_t *scp);
 
 /*! \brief Returns whether the signal's current action is to stop a process. */
 bool sig_should_stop(sigaction_t *sigactions, signo_t sig);
@@ -155,7 +156,7 @@ void sig_onexec(proc_t *p);
 /* System calls implementation. */
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset);
-int do_sigreturn(void);
+int do_sigreturn(sigcontext_t *sc);
 int do_sigsuspend(proc_t *p, const sigset_t *mask);
 
 #endif /* !_KERNEL */
