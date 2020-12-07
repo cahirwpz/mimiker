@@ -91,7 +91,6 @@ typedef struct pci_device {
   uint8_t class_code;
   uint8_t pin, irq;
 
-  uint8_t nbars;
   pci_bar_t bar[PCI_BAR_MAX];
 } pci_device_t;
 

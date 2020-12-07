@@ -172,7 +172,7 @@ static int stdvga_attach(device_t *dev) {
   stdvga_state_t *stdvga = dev->state;
 
   stdvga->mem = device_take_memory(dev, 0, RF_ACTIVE | RF_PREFETCHABLE);
-  stdvga->io = device_take_memory(dev, 1, RF_ACTIVE);
+  stdvga->io = device_take_memory(dev, 2, RF_ACTIVE);
 
   assert(stdvga->mem != NULL);
   assert(stdvga->io != NULL);

@@ -412,7 +412,10 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type,
 
   int rid = r->r_rid;
   if (gt_pci_bar(dev, type, rid, r->r_start)) {
-    /* Write BAR address to PCI device register. */
+    /* Write BAR address to PCI device register.
+     * Note that in case of IO ports, BAR needs to contain
+     * a relative addres (relative to PCI IO base).
+     * Memory BARs should keep absolute physical addresses. */
     pci_write_config(dev, PCIR_BAR(rid), 4, r->r_start);
   }
 

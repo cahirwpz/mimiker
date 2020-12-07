@@ -132,20 +132,17 @@ void pci_bus_enumerate(device_t *pcib) {
         }
 
         size = -size;
-        uint8_t id = pcid->nbars;
-        pcid->bar[id] = (pci_bar_t){.owner = dev,
-                                    .type = type,
-                                    .prefetchable = prefetchable,
-                                    .size = size,
-                                    .rid = id};
+        pcid->bar[i] = (pci_bar_t){.owner = dev,
+                                   .type = type,
+                                   .prefetchable = prefetchable,
+                                   .size = size,
+                                   .rid = i};
 
         /* skip ISA I/O ports range */
         rman_addr_t start = (type == RT_IOPORTS) ? (IO_ISAEND + 1) : 0;
 
-        device_add_resource(dev, type, id, start, RMAN_ADDR_MAX, size,
+        device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size,
                             (prefetchable ? RF_PREFETCHABLE : 0));
-
-        pcid->nbars++;
       }
     }
   }
