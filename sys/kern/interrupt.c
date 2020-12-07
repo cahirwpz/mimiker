@@ -102,14 +102,19 @@ static void intr_event_insert_handler(intr_event_t *ie, intr_handler_t *ih) {
     TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_link);
 }
 
-static void intr_thread_create(intr_event_t *ie) {
-  intr_thread_t *it = kmalloc(M_INTR, sizeof(intr_thread_t), M_ZERO);
+static void intr_thread_maybe_attach(intr_event_t *ie, intr_handler_t *ih) {
+  /* Ensure we can create interrupt thread only once! */
+  WITH_SPIN_LOCK (&ie->ie_lock) {
+    if (ie->ie_ithread != NULL || ih->ih_service == NULL)
+      return;
+    ie->ie_ithread = (intr_thread_t *)1L;
+  }
 
-  ie->ie_ithread = it;
+  intr_thread_t *it = kmalloc(M_INTR, sizeof(intr_thread_t), M_ZERO);
   it->it_event = ie;
   it->it_thread = thread_create(ie->ie_name, intr_thread, it, prio_ithread(0));
-
   sched_add(it->it_thread);
+  ie->ie_ithread = it;
 }
 
 intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
@@ -125,8 +130,7 @@ intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
   ih->ih_prio = 0;
   ih->ih_flags = 0;
   intr_event_insert_handler(ie, ih);
-  if (service != NULL && ie->ie_ithread == NULL)
-    intr_thread_create(ie); /* XXX possible race here */
+  intr_thread_maybe_attach(ie, ih);
   return ih;
 }
 
