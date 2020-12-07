@@ -861,7 +861,8 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
 
 static int tty_vn_getattr(vnode_t *v, vattr_t *va) {
   memset(va, 0, sizeof(vattr_t));
-  va->va_mode = S_IFCHR;
+  /* XXX assume root owns tty and only root can read and write to it */
+  va->va_mode = S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
   va->va_nlink = 1;
   va->va_ino = 0;
   va->va_size = 0;
@@ -919,4 +920,5 @@ vnodeops_t tty_vnodeops = {
   .v_open = tty_vn_open,
   .v_close = tty_vn_close,
   .v_getattr = tty_vn_getattr,
+  .v_access = vnode_access_generic
 };
