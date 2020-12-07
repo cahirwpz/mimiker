@@ -56,19 +56,6 @@ typedef enum {
 } intr_filter_t;
 
 /*
- * IH_REMOVE: set when the handler cannot be removed, because it has been
- * delegated to an interrupt thread. The thread will free the handler after
- * ih_service has been executed.
- *
- * IH_DELEGATE: set when ih_service function was delegated to an interrupt
- * thread for execution.
- */
-typedef enum {
-  IH_REMOVE = 1,
-  IH_DELEGATE = 2,
-} ih_flags_t;
-
-/*
  * The filter routine is run in primary interrupt context and may not
  * block or use regular mutexes.  The filter may either completely
  * handle the interrupt or it may perform some of the work and
@@ -78,40 +65,19 @@ typedef intr_filter_t ih_filter_t(void *);
 typedef void ih_service_t(void *);
 typedef void ie_action_t(intr_event_t *);
 
-struct intr_handler {
-  TAILQ_ENTRY(intr_handler) ih_link;
-  ih_filter_t *ih_filter;   /* interrupt filter routine (run in irq ctx) */
-  ih_service_t *ih_service; /* interrupt service routine (run in thread ctx) */
-  intr_event_t *ih_event;   /* event we are connected to */
-  void *ih_argument;        /* argument to pass to filter/service routines */
-  const char *ih_name;      /* name of the handler */
-  /* XXX: do we really need ih_prio? it has no real use cases so far... */
-  prio_t ih_prio;      /* handler's priority (sort key for ie_handlers) */
-  ih_flags_t ih_flags; /* refer to IH_* flags description above */
-};
-
-typedef TAILQ_HEAD(, intr_handler) ih_list_t;
-
-typedef struct intr_thread {
-  intr_event_t *it_event; /* Associated event */
-  thread_t *it_thread;    /* Kernel thread. */
-} intr_thread_t;
-
 /* Software representation of interrupt line. */
 typedef struct intr_event {
   spin_t ie_lock;
   TAILQ_ENTRY(intr_event) ie_link; /* link on list of all interrupt events */
-  ih_list_t ie_handlers;   /* interrupt handlers sorted by descending ih_prio */
-  ie_action_t *ie_disable; /* called before ithread delegation (mask irq) */
-  ie_action_t *ie_enable;  /* called after ithread delagation (unmask irq) */
-  void *ie_source;         /* additional argument for actions */
-  const char *ie_name;     /* individual event name */
-  unsigned ie_irq;         /* physical interrupt request line number */
-  unsigned ie_count;       /* number of handlers attached */
+  TAILQ_HEAD(, intr_handler) ie_handlers; /* sorted by descending ih_prio */
+  ie_action_t *ie_disable;   /* called before ithread delegation (mask irq) */
+  ie_action_t *ie_enable;    /* called after ithread delagation (unmask irq) */
+  void *ie_source;           /* additional argument for actions */
+  const char *ie_name;       /* individual event name */
+  unsigned ie_irq;           /* physical interrupt request line number */
+  unsigned ie_count;         /* number of handlers attached */
   intr_thread_t *ie_ithread; /* Associated interrupt thread */
 } intr_event_t;
-
-typedef TAILQ_HEAD(, intr_event) ie_list_t;
 
 intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
                                 ie_action_t *enable, const char *name);

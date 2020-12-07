@@ -10,8 +10,40 @@
 
 static KMALLOC_DEFINE(M_INTR, "interrupt events & handlers");
 
+typedef TAILQ_HEAD(, intr_event) ie_list_t;
+
 static mtx_t all_ievents_mtx = MTX_INITIALIZER(0);
 static ie_list_t all_ievents_list = TAILQ_HEAD_INITIALIZER(all_ievents_list);
+
+/*
+ * IH_REMOVE: set when the handler cannot be removed, because it has been
+ * delegated to an interrupt thread. The thread will free the handler after
+ * ih_service has been executed.
+ *
+ * IH_DELEGATE: set when ih_service function was delegated to an interrupt
+ * thread for execution.
+ */
+typedef enum {
+  IH_REMOVE = 1,
+  IH_DELEGATE = 2,
+} ih_flags_t;
+
+typedef struct intr_thread {
+  intr_event_t *it_event; /* Associated event */
+  thread_t *it_thread;    /* Kernel thread. */
+} intr_thread_t;
+
+typedef struct intr_handler {
+  TAILQ_ENTRY(intr_handler) ih_link;
+  ih_filter_t *ih_filter;   /* interrupt filter routine (run in irq ctx) */
+  ih_service_t *ih_service; /* interrupt service routine (run in thread ctx) */
+  intr_event_t *ih_event;   /* event we are connected to */
+  void *ih_argument;        /* argument to pass to filter/service routines */
+  const char *ih_name;      /* name of the handler */
+  /* XXX: do we really need ih_prio? it has no real use cases so far... */
+  prio_t ih_prio;      /* handler's priority (sort key for ie_handlers) */
+  ih_flags_t ih_flags; /* refer to IH_* flags description above */
+} intr_handler_t;
 
 static void intr_thread(void *arg);
 
