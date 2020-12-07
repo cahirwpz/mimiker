@@ -86,15 +86,16 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
 
   devfs_node_t *dn;
   int error = devfs_add_entry(parent, name, &dn);
-  if (!error) {
-    dn->dn_vnode = vnode_new(V_DEV, vops, data);
-    if (vnode_p) {
-      vnode_hold(dn->dn_vnode);
-      *vnode_p = dn->dn_vnode;
-    }
-    klog("devfs: registered '%s' device", name);
+  if (error)
+    return error;
+
+  dn->dn_vnode = vnode_new(V_DEV, vops, data);
+  if (vnode_p) {
+    vnode_hold(dn->dn_vnode);
+    *vnode_p = dn->dn_vnode;
   }
-  return error;
+  klog("devfs: registered '%s' device", name);
+  return 0;
 }
 
 int devfs_makedir(devfs_node_t *parent, const char *name,

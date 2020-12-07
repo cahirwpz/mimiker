@@ -1,10 +1,9 @@
 #ifndef _SYS_DEVFS_H_
 #define _SYS_DEVFS_H_
 
-#include <sys/vnode.h>
-
 #define DEVFS_NAME_MAX 64
 
+typedef struct vnode vnode_t;
 typedef struct devfs_node devfs_node_t;
 typedef struct vnodeops vnodeops_t;
 
