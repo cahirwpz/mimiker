@@ -56,7 +56,7 @@ void longjmp(jmp_buf env, int val) {
    * since libpthread may want to interpose on signal handling.
    */
   uc.uc_flags =
-    _UC_CPU | ((sc_uc->uc_flags | _UC_STACK) ? _UC_SETSTACK : _UC_CLRSTACK);
+    _UC_CPU | ((sc_uc->uc_flags & _UC_STACK) ? _UC_SETSTACK : _UC_CLRSTACK);
 
   sigprocmask(SIG_SETMASK, &sc_uc->uc_sigmask, NULL);
 
