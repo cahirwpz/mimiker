@@ -78,6 +78,16 @@ intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
   return ie;
 }
 
+static void ie_enable(intr_event_t *ie) {
+  if (ie->ie_enable)
+    ie->ie_enable(ie);
+}
+
+static void ie_disable(intr_event_t *ie) {
+  if (ie->ie_disable)
+    ie->ie_disable(ie);
+}
+
 static void intr_event_insert_handler(intr_event_t *ie, intr_handler_t *ih) {
   SCOPED_SPIN_LOCK(&ie->ie_lock);
 
@@ -88,8 +98,8 @@ static void intr_event_insert_handler(intr_event_t *ie, intr_handler_t *ih) {
       break;
 
   /* Enable interrupt if this is the first handler. */
-  if (TAILQ_EMPTY(&ie->ie_handlers) && ie->ie_enable)
-    ie->ie_enable(ie);
+  if (TAILQ_EMPTY(&ie->ie_handlers))
+    ie_enable(ie);
 
   if (it)
     TAILQ_INSERT_BEFORE(it, ih, ih_link);
@@ -136,8 +146,8 @@ void intr_event_remove_handler(intr_handler_t *ih) {
 
     TAILQ_REMOVE(&ie->ie_handlers, ih, ih_link);
 
-    if (TAILQ_EMPTY(&ie->ie_handlers) && ie->ie_disable)
-      ie->ie_disable(ie);
+    if (TAILQ_EMPTY(&ie->ie_handlers))
+      ie_disable(ie);
   }
   kfree(M_INTR, ih);
 }
@@ -190,8 +200,7 @@ void intr_event_run_handlers(intr_event_t *ie) {
   }
 
   if (ie_status & IF_DELEGATE) {
-    if (ie->ie_disable)
-      ie->ie_disable(ie);
+    ie_disable(ie);
     sleepq_signal(ie);
   }
 
@@ -201,6 +210,10 @@ void intr_event_run_handlers(intr_event_t *ie) {
 
 static void intr_thread(void *arg) {
   intr_event_t *ie = (intr_event_t *)arg;
+
+  /* When we enter intr_thread `ie` specific interrupt may not have been
+   * disabled, but we execute the loop with that assumption. Fix that. */
+  ie_disable(ie);
 
   while (true) {
     intr_handler_t *ih, *ih_next;
@@ -223,8 +236,8 @@ static void intr_thread(void *arg) {
      * interrupts and wait for a wakeup. We do it with interrupts disabled
      * to prevent the wakeup from being lost. */
     WITH_INTR_DISABLED {
-      if (!TAILQ_EMPTY(&ie->ie_handlers) && ie->ie_enable)
-        ie->ie_enable(ie);
+      if (!TAILQ_EMPTY(&ie->ie_handlers))
+        ie_enable(ie);
 
       sleepq_wait(ie, NULL);
     }
