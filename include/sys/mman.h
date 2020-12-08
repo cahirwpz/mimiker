@@ -5,13 +5,19 @@
 
 #define MAP_FAILED ((void *)-1)
 
-#define MAP_FILE 0
-#define MAP_ANON 1
-#define MAP_SHARED 2
-#define MAP_PRIVATE 4
-#define MAP_FIXED 8
-#define MAP_STACK 16
+/* Mapping type */
+#define MAP_FILE 0x0000  /* map from file (default) */
+#define MAP_ANON 0x1000  /* anonymous memory (stored in swap) */
+#define MAP_STACK 0x2000 /* as above, grows down automatically */
 
+/* Flags contain sharing type - exactly one of them must be specified! */
+#define MAP_SHARED 0x0001
+#define MAP_PRIVATE 0x0002
+
+/* Extra flags for mmap. */
+#define MAP_FIXED 0x0004
+
+/* Protections for mapped pages (bitwise or'ed). */
 #define PROT_NONE 0
 #define PROT_READ 1
 #define PROT_WRITE 2
