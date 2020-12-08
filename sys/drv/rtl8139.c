@@ -13,7 +13,7 @@
 
 typedef struct rtl8139_state {
   resource_t *regs;
-  intr_handler_t intr_handler;
+  intr_handler_t *intr_handler;
 } rtl8139_state_t;
 
 static int rtl8139_probe(device_t *dev) {
