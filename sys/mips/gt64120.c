@@ -371,6 +371,11 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
       alignment = max(alignment, size);
   }
 
+  if (type == RT_MEMORY) {
+    /* XXX: Perhaps, the rman_alloc_resource should take this into account */
+    size = roundup(size, PAGESIZE);
+  }
+
   resource_t *r =
     rman_reserve_resource(rman, start, end, size, alignment, flags);
   if (r == NULL)

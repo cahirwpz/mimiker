@@ -14,7 +14,6 @@
 
 typedef struct rtl8139_state {
   resource_t *regs;
-  intr_handler_t *intr_handler;
 } rtl8139_state_t;
 
 static int rtl8139_probe(device_t *dev) {
@@ -34,10 +33,9 @@ static int rtl_reset(rtl8139_state_t *state) {
 }
 
 static int rtl8139_attach(device_t *dev) {
-  assert(dev->parent->bus == DEV_BUS_PCI);
   rtl8139_state_t *state = dev->state;
 
-  state->regs = bus_alloc_resource_any(dev, RT_MEMORY, 1, RF_ACTIVE);
+  state->regs = device_take_memory(dev, 1, RF_ACTIVE);
 
   if (state->regs == NULL)
     return -1;
