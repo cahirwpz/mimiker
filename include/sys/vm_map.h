@@ -10,8 +10,8 @@ typedef struct vm_map vm_map_t;
 typedef struct vm_segment vm_segment_t;
 
 typedef enum {
-  VM_SEG_PRIVATE = 0, /* private memory (default) */
   VM_SEG_SHARED = 1,  /* shared memory */
+  VM_SEG_PRIVATE = 2, /* private memory (default) */
 } vm_seg_flags_t;
 
 /*! \brief Called during kernel initialization. */
