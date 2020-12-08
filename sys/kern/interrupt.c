@@ -112,6 +112,8 @@ static void intr_thread_maybe_attach(intr_event_t *ie, intr_handler_t *ih) {
   WITH_SPIN_LOCK (&ie->ie_lock) {
     if (ie->ie_ithread != NULL || ih->ih_service == NULL)
       return;
+    /* We can't execute `thread_create` under spin lock, thus mark ie_thread
+     * so that no other thread will attempt to execute code below. */
     ie->ie_ithread = (thread_t *)1L;
   }
 
@@ -211,7 +213,7 @@ void intr_event_run_handlers(intr_event_t *ie) {
 static void intr_thread(void *arg) {
   intr_event_t *ie = (intr_event_t *)arg;
 
-  /* When we enter intr_thread `ie` specific interrupt may not have been
+  /* When we enter intr_thread `ie`-specific interrupt may not have been
    * disabled, but we execute the loop with that assumption. Fix that. */
   ie_disable(ie);
 
