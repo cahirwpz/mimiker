@@ -4,18 +4,26 @@
 #include <sys/mimiker.h>
 #include <sys/device.h>
 #include <sys/rman.h>
+#include <sys/bus.h>
 
 KMALLOC_DEFINE(M_DEV, "devices & drivers");
 
-void device_init(device_t *dev, devclass_t *dc, int unit) {
+typedef struct resource_list_entry {
+  SLIST_ENTRY(resource_list_entry) link;
+  resource_t *res; /* the actual resource */
+  res_type_t type; /* resource type */
+} resource_list_entry_t;
+
+device_t *device_alloc(int unit) {
+  device_t *dev = kmalloc(M_DEV, sizeof(device_t), M_ZERO);
   TAILQ_INIT(&dev->children);
+  SLIST_INIT(&dev->resources);
   dev->unit = unit;
-  dev->devclass = dc;
+  return dev;
 }
 
-device_t *device_add_child(device_t *parent, devclass_t *dc, int unit) {
-  device_t *child = kmalloc(M_DEV, sizeof(device_t), M_ZERO);
-  device_init(child, dc, unit);
+device_t *device_add_child(device_t *parent, int unit) {
+  device_t *child = device_alloc(unit);
   child->parent = parent;
   TAILQ_INSERT_TAIL(&parent->children, child, link);
   return child;
@@ -46,4 +54,40 @@ int device_detach(device_t *dev) {
   if (res == 0)
     kfree(M_DEV, dev->state);
   return res;
+}
+
+static resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
+                                                 int rid) {
+  resource_list_entry_t *rle;
+  SLIST_FOREACH(rle, &dev->resources, link) {
+    if (rle->type == type && rle->res->r_rid == rid)
+      return rle;
+  }
+  return NULL;
+}
+
+void device_add_resource(device_t *dev, res_type_t type, int rid,
+                         rman_addr_t start, rman_addr_t end, size_t size,
+                         res_flags_t flags) {
+  assert(!resource_list_find(dev, rid, type));
+
+  resource_list_entry_t *rle =
+    kmalloc(M_DEV, sizeof(resource_list_entry_t), M_WAITOK);
+  rle->type = type;
+  /* Allocate the actual resource from the parent bus. */
+  rle->res = bus_alloc_resource(dev, type, rid, start, end, size, flags);
+  assert(rle->res);
+  SLIST_INSERT_HEAD(&dev->resources, rle, link);
+}
+
+resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
+                                 res_flags_t flags) {
+  resource_list_entry_t *rle = resource_list_find(dev, type, rid);
+  if (!rle)
+    return NULL;
+
+  if (flags & RF_ACTIVE)
+    bus_activate_resource(dev, rle->type, rle->res);
+
+  return rle->res;
 }
