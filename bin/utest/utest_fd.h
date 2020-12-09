@@ -4,7 +4,7 @@
 
 #undef assert_open_ok
 #define assert_open_ok(fd, file, mode, flag)                                   \
-  n = open(file, flag, 0);                                                     \
+  n = open(file, flag, mode);                                                     \
   assert(n == fd + FD_OFFSET);
 
 #undef assert_open_fail

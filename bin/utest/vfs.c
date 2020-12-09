@@ -311,7 +311,7 @@ int test_vfs_link(void) {
   fill_random(wrbuf, 64);
 
   /* Create file and fill it with random data */
-  assert_open_ok(0, TESTDIR "/file", 0, O_RDWR | O_CREAT);
+  assert_open_ok(0, TESTDIR "/file", S_IRUSR | S_IWUSR, O_RDWR | O_CREAT);
   assert_ok(stat(TESTDIR "/file", &sb));
   assert(sb.st_nlink == 1);
 
