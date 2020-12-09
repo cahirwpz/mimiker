@@ -147,8 +147,6 @@ void pci_bus_enumerate(device_t *pcib) {
 }
 
 /* TODO: to be replaced with GDB python script */
-
-/* TODO: to be replaced with GDB python script */
 void pci_bus_dump(device_t *pcib) {
   device_t *dev;
 
