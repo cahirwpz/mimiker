@@ -77,10 +77,6 @@ bool cred_can_setlogin(cred_t *cred) {
 }
 
 int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode) {
-  /* root can access every file */
-  if (cred->cr_euid == 0)
-    return 0;
-
   accmode_t granted = 0;
   if (cred->cr_euid == va->va_uid) {
     granted |= VADMIN;
@@ -109,6 +105,12 @@ int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode) {
     granted |= VWRITE;
   if (va->va_mode & S_IXOTH)
     granted |= VEXEC;
+
+  if (cred->cr_euid == 0) {
+    granted |= VREAD | VWRITE;
+    if (va->va_mode & (S_IXUSR | S_IXGRP | S_IXOTH))
+      granted |= VEXEC;
+  }
 
 check:
   return (mode & granted) == mode ? 0 : EACCES;

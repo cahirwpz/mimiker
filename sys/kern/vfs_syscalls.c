@@ -51,7 +51,7 @@ static int vfs_truncate(vnode_t *v, size_t len, cred_t *cred) {
 }
 
 static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
-                      vnode_t **vp) {
+                      vnode_t **vp, int *created) {
   vnrstate_t vs;
   int error;
 
@@ -69,6 +69,7 @@ static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
     va.va_gid = p->p_cred.cr_rgid;
     error = VOP_CREATE(vs.vs_dvp, &vs.vs_lastcn, &va, &vs.vs_vp);
     vnode_put(vs.vs_dvp);
+    *created = 1;
   } else {
     if (vs.vs_vp == vs.vs_dvp)
       vnode_drop(vs.vs_dvp);
@@ -79,6 +80,7 @@ static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
       vnode_drop(vs.vs_vp);
       error = EEXIST;
     }
+    created = 0;
   }
   *vp = vs.vs_vp;
 
@@ -109,18 +111,19 @@ static int vfs_check_open(vnode_t *v, int flags, cred_t *cred) {
 static int vfs_open(proc_t *p, file_t *f, int fdat, char *pathname, int flags,
                     int mode) {
   vnode_t *v;
-  int error;
+  int error, created = 0;
 
   if (flags & O_CREAT) {
-    if ((error = vfs_create(p, fdat, pathname, flags, mode, &v)))
+    if ((error = vfs_create(p, fdat, pathname, flags, mode, &v, &created)))
       return error;
   } else {
     if ((error = vfs_namelookupat(p, fdat, VNR_FOLLOW, pathname, &v)))
       return error;
   }
 
-  if ((error = vfs_check_open(v, flags, &p->p_cred)))
-    return error;
+  if (!created)
+    if ((error = vfs_check_open(v, flags, &p->p_cred)))
+      return error;
 
   if (flags & O_TRUNC)
     error = vfs_truncate(v, 0, &p->p_cred);
@@ -314,7 +317,7 @@ int do_faccessat(proc_t *p, int fd, char *path, int mode, int flags) {
      the real user and group IDs for checking permission.*/
   error = VOP_ACCESS(v, mode, &p->p_cred);
   vnode_drop(v);
-  return error;
+  return error == EPERM ? EACCES : error;
 }
 
 int do_getcwd(proc_t *p, char *buf, size_t *lastp) {

@@ -943,7 +943,8 @@ static int dev_tty_open(vnode_t *v, int mode, file_t *fp) {
 }
 
 vnodeops_t dev_tty_vnodeops = {.v_open = dev_tty_open,
-                               .v_getattr = tty_vn_getattr};
+                               .v_getattr = tty_vn_getattr,
+                               .v_access = vnode_access_generic};
 
 static void init_dev_tty(void) {
   devfs_makedev(NULL, "tty", &dev_tty_vnodeops, NULL, NULL);
