@@ -131,6 +131,11 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   bus_write_4(pcicfg, GT_PCI0_CFG_DATA, data.dword);
 }
 
+static void gt_pci_enable_busmaster(device_t *dev) {
+  uint16_t cmd = pci_read_config_2(dev, PCIR_COMMAND);
+  pci_write_config_2(dev, PCIR_COMMAND, cmd | PCIM_CMD_BUSMASTEREN);
+}
+
 static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
   /* Enable the cascade IRQ (2) if 8-15 is enabled. */
   if ((gtpci->imask & 0xff00) != 0xff00)
@@ -402,12 +407,12 @@ static void gt_pci_release_resource(device_t *dev, res_type_t type,
 static int gt_pci_activate_resource(device_t *dev, res_type_t type,
                                     resource_t *r) {
   if (type == RT_MEMORY || type == RT_IOPORTS) {
-    uint16_t command = pci_read_config(dev, PCIR_COMMAND, 2);
+    uint16_t command = pci_read_config_2(dev, PCIR_COMMAND);
     if (type == RT_MEMORY)
       command |= PCIM_CMD_MEMEN;
     else if (type == RT_IOPORTS)
       command |= PCIM_CMD_PORTEN;
-    pci_write_config(dev, PCIR_COMMAND, 2, command);
+    pci_write_config_2(dev, PCIR_COMMAND, command);
   }
 
   int rid = r->r_rid;
@@ -416,7 +421,7 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type,
      * Note that in case of IO ports, BAR needs to contain
      * a relative addres (relative to PCI IO base).
      * Memory BARs should keep absolute physical addresses. */
-    pci_write_config(dev, PCIR_BAR(rid), 4, r->r_start);
+    pci_write_config_4(dev, PCIR_BAR(rid), r->r_start);
   }
 
   if (type == RT_MEMORY)
@@ -455,6 +460,7 @@ pci_bus_driver_t gt_pci_bus = {
   .pci_bus = {
     .read_config = gt_pci_read_config,
     .write_config = gt_pci_write_config,
+    .enable_busmaster = gt_pci_enable_busmaster,
   }
 };
 /* clang-format on */

@@ -41,6 +41,7 @@ extern const char *pci_class_code[];
 #define PCIR_COMMAND 0x06
 #define PCIM_CMD_PORTEN 0x0001
 #define PCIM_CMD_MEMEN 0x0002
+#define PCIM_CMD_BUSMASTEREN 0x0004
 #define PCIR_CLASSCODE 0x08
 #define PCIR_HEADERTYPE 0x0d
 #define PCIH_HDR_MF 0x80
@@ -63,10 +64,12 @@ typedef uint32_t (*pci_read_config_t)(device_t *device, unsigned reg,
                                       unsigned size);
 typedef void (*pci_write_config_t)(device_t *device, unsigned reg,
                                    unsigned size, uint32_t value);
+typedef void (*pci_enable_busmaster_t)(device_t *device);
 
 typedef struct pci_bus_methods {
   pci_read_config_t read_config;
   pci_write_config_t write_config;
+  pci_enable_busmaster_t enable_busmaster;
 } pci_bus_methods_t;
 
 typedef struct pci_bus_driver {
@@ -76,11 +79,11 @@ typedef struct pci_bus_driver {
 } pci_bus_driver_t;
 
 typedef struct pci_bar {
-  device_t *owner;   /* pci device owner of this bar */
-  size_t size;       /* identified size of this bar */
-  int rid;           /* BAR number in [0,PCI_BAR_MAX-1] */
-  res_type_t type;   /* RT_IOPORTS or RT_MEMORY */
-  bool prefetchable; /* states whether memory bar is prefetchable */
+  device_t *owner; /* pci device owner of this bar */
+  size_t size;     /* identified size of this bar */
+  int rid;         /* BAR number in [0,PCI_BAR_MAX-1] */
+  unsigned type;   /* RT_IOPORTS or RT_MEMORY */
+  unsigned flags;  /* nothing or RF_PREFETACHBLE */
 } pci_bar_t;
 
 typedef struct pci_device {
@@ -101,15 +104,21 @@ static inline uint32_t pci_read_config(device_t *device, unsigned reg,
   return PCI_DRIVER(device)->pci_bus.read_config(device, reg, size);
 }
 
+#define pci_read_config_1(d, r) pci_read_config((d), (r), 1)
+#define pci_read_config_2(d, r) pci_read_config((d), (r), 2)
+#define pci_read_config_4(d, r) pci_read_config((d), (r), 4)
+
 static inline void pci_write_config(device_t *device, unsigned reg,
                                     unsigned size, uint32_t value) {
   PCI_DRIVER(device)->pci_bus.write_config(device, reg, size, value);
 }
 
-/*! \brief Enable the bus master mode. */
-static inline void pci_enable_bus_master(device_t *device) {
-  uint16_t cmd = pci_read_config(device, PCIR_COMMAND, 2);
-  pci_write_config(device, PCIR_COMMAND, 2, cmd | 0x4);
+#define pci_write_config_1(d, r, v) pci_write_config((d), (r), 1, v)
+#define pci_write_config_2(d, r, v) pci_write_config((d), (r), 2, v)
+#define pci_write_config_4(d, r, v) pci_write_config((d), (r), 4, v)
+
+static inline void pci_enable_busmaster(device_t *device) {
+  PCI_DRIVER(device)->pci_bus.enable_busmaster(device);
 }
 
 void pci_bus_enumerate(device_t *pcib);

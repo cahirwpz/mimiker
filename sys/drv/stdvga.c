@@ -162,7 +162,7 @@ static int stdvga_probe(device_t *dev) {
   if (!pci_device_match(pcid, QEMU_STDVGA_VENDOR_ID, QEMU_STDVGA_DEVICE_ID))
     return 0;
 
-  if (!(pcid->bar[0].prefetchable))
+  if (!(pcid->bar[0].flags & RF_PREFETCHABLE))
     return 0;
 
   return 1;

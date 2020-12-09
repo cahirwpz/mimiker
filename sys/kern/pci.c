@@ -31,7 +31,7 @@ static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
 }
 
 static bool pci_device_present(device_t *pcid) {
-  return pci_read_config(pcid, PCIR_DEVICEID, 4) != -1U;
+  return pci_read_config_4(pcid, PCIR_DEVICEID) != -1U;
 }
 
 static int pci_device_nfunctions(device_t *pcid) {
@@ -39,29 +39,30 @@ static int pci_device_nfunctions(device_t *pcid) {
    * no more functions are present. */
   if (!pci_device_present(pcid))
     return 0;
-  uint32_t hdrtype = pci_read_config(pcid, PCIR_HEADERTYPE, 1);
+  uint32_t hdrtype = pci_read_config_1(pcid, PCIR_HEADERTYPE);
   return (hdrtype & PCIH_HDR_MF) ? PCI_FUN_MAX_NUM : 1;
 }
 
 static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
-  /* Memory and I/O space acceses must be disabled via the
+  /* Memory and I/O space accesses must be disabled via the
    * command register before sizing a Base Address Register. */
-  uint16_t cmd = pci_read_config(pcid, PCIR_COMMAND, 2);
-  pci_write_config(pcid, PCIR_COMMAND, 2, cmd & ~0x3);
+  uint16_t cmd = pci_read_config_2(pcid, PCIR_COMMAND);
+  pci_write_config_2(pcid, PCIR_COMMAND,
+                     cmd & ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN));
 
   /* Read the original value. */
-  uint32_t old = pci_read_config(pcid, PCIR_BAR(bar), 4);
+  uint32_t old = pci_read_config_4(pcid, PCIR_BAR(bar));
   /* XXX: we don't handle 64-bit memory space bars. */
 
   /* Write 0xFFFFFFFF and read it back. */
-  pci_write_config(pcid, PCIR_BAR(bar), 4, -1);
-  uint32_t size = pci_read_config(pcid, PCIR_BAR(bar), 4);
+  pci_write_config_4(pcid, PCIR_BAR(bar), -1);
+  uint32_t size = pci_read_config_4(pcid, PCIR_BAR(bar));
 
   /* The original value of the BAR should be restored. */
-  pci_write_config(pcid, PCIR_BAR(bar), 4, old);
+  pci_write_config_4(pcid, PCIR_BAR(bar), old);
 
   /* Restore the command register. */
-  pci_write_config(pcid, PCIR_COMMAND, 2, cmd);
+  pci_write_config_2(pcid, PCIR_COMMAND, cmd);
 
   *addr = old;
   return size;
@@ -103,11 +104,11 @@ void pci_bus_enumerate(device_t *pcib) {
       dev->instance = pcid;
 
       pcid->addr = PCIA(0, d, f);
-      pcid->device_id = pci_read_config(dev, PCIR_DEVICEID, 2);
-      pcid->vendor_id = pci_read_config(dev, PCIR_VENDORID, 2);
-      pcid->class_code = pci_read_config(dev, PCIR_CLASSCODE, 1);
-      pcid->pin = pci_read_config(dev, PCIR_IRQPIN, 1);
-      pcid->irq = pci_read_config(dev, PCIR_IRQLINE, 1);
+      pcid->device_id = pci_read_config_2(dev, PCIR_DEVICEID);
+      pcid->vendor_id = pci_read_config_2(dev, PCIR_VENDORID);
+      pcid->class_code = pci_read_config_1(dev, PCIR_CLASSCODE);
+      pcid->pin = pci_read_config_1(dev, PCIR_IRQPIN);
+      pcid->irq = pci_read_config_1(dev, PCIR_IRQLINE);
 
       /* XXX: we assume here that `dev` is a general PCI device
        * (i.e. header type = 0x00) and therefore has six bars. */
@@ -118,8 +119,7 @@ void pci_bus_enumerate(device_t *pcib) {
         if (size == 0 || addr == size)
           continue;
 
-        bool prefetchable = false;
-        res_type_t type;
+        unsigned type, flags = 0;
 
         if (addr & PCI_BAR_IO) {
           type = RT_IOPORTS;
@@ -127,28 +127,26 @@ void pci_bus_enumerate(device_t *pcib) {
         } else {
           type = RT_MEMORY;
           if (addr & PCI_BAR_PREFETCHABLE)
-            prefetchable = true;
+            flags |= RF_PREFETCHABLE;
           size &= ~PCI_BAR_MEMORY_MASK;
         }
 
         size = -size;
-        pcid->bar[i] = (pci_bar_t){.owner = dev,
-                                   .type = type,
-                                   .prefetchable = prefetchable,
-                                   .size = size,
-                                   .rid = i};
+        pcid->bar[i] = (pci_bar_t){
+          .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
 
         /* skip ISA I/O ports range */
         rman_addr_t start = (type == RT_IOPORTS) ? (IO_ISAEND + 1) : 0;
 
-        device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size,
-                            (prefetchable ? RF_PREFETCHABLE : 0));
+        device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size, flags);
       }
     }
   }
 
   pci_bus_dump(pcib);
 }
+
+/* TODO: to be replaced with GDB python script */
 
 /* TODO: to be replaced with GDB python script */
 void pci_bus_dump(device_t *pcib) {
@@ -191,8 +189,8 @@ void pci_bus_dump(device_t *pcib) {
       if (bar->type == RT_IOPORTS) {
         type = "I/O ports";
       } else {
-        type = bar->prefetchable ? "Memory (prefetchable)"
-                                 : "Memory (non-prefetchable)";
+        type = (bar->flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
+                                              : "Memory (non-prefetchable)";
       }
       kprintf("%s Region %x: %s [size=$%lx]\n", devstr, i, type, bar->size);
     }
