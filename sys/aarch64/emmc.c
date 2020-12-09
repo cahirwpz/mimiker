@@ -1,13 +1,15 @@
 #include <sys/memdev.h>
 #include <sys/mimiker.h>
+#include <sys/resource.h>
 #include <sys/klog.h>
 #include <sys/types.h>
 #include <aarch64/gpio.h>
 #include <sys/device.h>
+#include <bus.h>
 
 #define GPPUD ((volatile uint32_t *)(MMIO_BASE + 0x00200094))
 
-#define EMMC_ARG2 ((volatile uint32_t *)(MMIO_BASE + 0x00300000))
+/* #define EMMC_ARG2 ((volatile uint32_t *)(MMIO_BASE + 0x00300000))
 #define EMMC_BLKSIZECNT ((volatile uint32_t *)(MMIO_BASE + 0x00300004))
 #define EMMC_ARG1 ((volatile uint32_t *)(MMIO_BASE + 0x00300008))
 #define EMMC_CMDTM ((volatile uint32_t *)(MMIO_BASE + 0x0030000C))
@@ -23,7 +25,9 @@
 #define EMMC_INT_MASK ((volatile uint32_t *)(MMIO_BASE + 0x00300034))
 #define EMMC_INT_EN ((volatile uint32_t *)(MMIO_BASE + 0x00300038))
 #define EMMC_CONTROL2 ((volatile uint32_t *)(MMIO_BASE + 0x0030003C))
-#define EMMC_SLOTISR_VER ((volatile uint32_t *)(MMIO_BASE + 0x003000FC))
+#define EMMC_SLOTISR_VER ((volatile uint32_t *)(MMIO_BASE + 0x003000FC)) */
+
+#define EMMC_STATUS 24
 
 // command flags
 #define CMD_NEED_APP    0x80000000
@@ -106,6 +110,8 @@
 memdev_driver_t emmc_driver;
 
 typedef struct emmc_state {
+    resource_t *gpio_mem;
+    resource_t *emmc_mem;
     uint64_t sd_scr[2];
     uint64_t sd_ocr;
     uint64_t sd_rca;
@@ -135,7 +141,7 @@ static void delay(int64_t count) {
  */
 int sd_status(uint32_t mask) {
   int32_t cnt = 500000;
-  while ((*EMMC_STATUS & mask) && !(*EMMC_INTERRUPT & INT_ERROR_MASK) && cnt--)
+  while (*EMMC_STATUS & mask) && !(*EMMC_INTERRUPT & INT_ERROR_MASK) && cnt--)
     delay(150); /* Random value lol */
   return (cnt <= 0 || (*EMMC_INTERRUPT & INT_ERROR_MASK)) ? SD_ERROR : SD_OK;
 }
@@ -602,6 +608,8 @@ static int emmc_attach(device_t *dev) {
   state->last_lba = 0;
   state->last_code = 0;
   state->last_code_cnt = 0;
+  state->gpio_mem = device_take_memory(dev, 0, RF_ACTIVE);
+  state->emmc_mem = device_take_memory(dev, 1, RF_ACTIVE);
   emmc_init(dev);
   return 0;
 }
