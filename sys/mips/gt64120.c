@@ -342,10 +342,11 @@ static int gt_pci_attach(device_t *pcib) {
 
 static bool gt_pci_bar(device_t *dev, res_type_t type, int rid,
                        rman_addr_t start) {
+  /* Filter ISA IO ports and irq resources. */
+  if (!((type == RT_IOPORTS && start > IO_ISAEND) || type == RT_MEMORY))
+    return false;
   pci_device_t *pcid = pci_device_of(dev);
-  if ((type == RT_IOPORTS && start > IO_ISAEND) || type == RT_MEMORY)
-    return rid < PCI_BAR_MAX && pcid->bar[rid].size != 0;
-  return false;
+  return rid < PCI_BAR_MAX && pcid->bar[rid].size != 0;
 }
 
 static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,

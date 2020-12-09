@@ -113,9 +113,9 @@ static inline void pci_write_config(device_t *device, unsigned reg,
   PCI_DRIVER(device)->pci_bus.write_config(device, reg, size, value);
 }
 
-#define pci_write_config_1(d, r, v) pci_write_config((d), (r), 1, v)
-#define pci_write_config_2(d, r, v) pci_write_config((d), (r), 2, v)
-#define pci_write_config_4(d, r, v) pci_write_config((d), (r), 4, v)
+#define pci_write_config_1(d, r, v) pci_write_config((d), (r), 1, (v))
+#define pci_write_config_2(d, r, v) pci_write_config((d), (r), 2, (v))
+#define pci_write_config_4(d, r, v) pci_write_config((d), (r), 4, (v))
 
 static inline void pci_enable_busmaster(device_t *device) {
   PCI_DRIVER(device)->pci_bus.enable_busmaster(device);

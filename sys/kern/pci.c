@@ -39,7 +39,7 @@ static int pci_device_nfunctions(device_t *pcid) {
    * no more functions are present. */
   if (!pci_device_present(pcid))
     return 0;
-  uint32_t hdrtype = pci_read_config_1(pcid, PCIR_HEADERTYPE);
+  uint8_t hdrtype = pci_read_config_1(pcid, PCIR_HEADERTYPE);
   return (hdrtype & PCIH_HDR_MF) ? PCI_FUN_MAX_NUM : 1;
 }
 
@@ -54,7 +54,8 @@ static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
   uint32_t old = pci_read_config_4(pcid, PCIR_BAR(bar));
   /* XXX: we don't handle 64-bit memory space bars. */
 
-  /* Write 0xFFFFFFFF and read it back. */
+  /* If we write 0xFFFFFFFF to a BAR register and then read
+   * it back, we'll obtain a bar size indicator. */
   pci_write_config_4(pcid, PCIR_BAR(bar), -1);
   uint32_t size = pci_read_config_4(pcid, PCIR_BAR(bar));
 
