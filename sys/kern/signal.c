@@ -445,7 +445,7 @@ void sig_onexec(proc_t *p) {
   }
 }
 
-bool sig_should_stop(sigaction_t *sigactions, signo_t sig) {
+static bool sig_should_stop(sigaction_t *sigactions, signo_t sig) {
   return (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_STOP);
 }
 

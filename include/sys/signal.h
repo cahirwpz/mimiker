@@ -141,9 +141,6 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi);
  * \note This is machine dependent code! */
 int sig_return(void);
 
-/*! \brief Returns whether the signal's current action is to stop a process. */
-bool sig_should_stop(sigaction_t *sigactions, signo_t sig);
-
 /*! \brief Reset handlers for caught signals on process exec.
  *
  * \note Must be called with p::p_lock held. */
