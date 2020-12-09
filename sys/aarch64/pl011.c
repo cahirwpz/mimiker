@@ -225,7 +225,7 @@ static int pl011_attach(device_t *dev) {
   bus_intr_setup(dev, state->irq, pl011_intr, NULL, dev, "PL011 UART");
 
   /* Prepare /dev/uart interface. */
-  devfs_makedev(NULL, "uart", &dev_uart_ops, state);
+  devfs_makedev(NULL, "uart", &dev_uart_ops, state, NULL);
 
   return 0;
 }

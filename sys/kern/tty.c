@@ -19,6 +19,7 @@
 #include <sys/proc.h>
 #include <sys/thread.h>
 #include <sys/signal.h>
+#include <sys/devfs.h>
 #include <sys/file.h>
 
 /* START OF FreeBSD CODE */
@@ -920,3 +921,31 @@ vnodeops_t tty_vnodeops = {
   .v_close = tty_vn_close,
   .v_getattr = tty_vn_getattr,
 };
+
+/* Controlling terminal pseudo-device (/dev/tty) */
+
+static int dev_tty_open(vnode_t *v, int mode, file_t *fp) {
+  proc_t *p = proc_self();
+  int error;
+
+  SCOPED_MTX_LOCK(all_proc_mtx);
+  tty_t *tty = p->p_pgrp->pg_session->s_tty;
+  if (!tty)
+    return ENXIO;
+
+  if ((error = vnode_open_generic(tty->t_vnode, mode, fp)))
+    return error;
+
+  fp->f_ops = &tty_fileops;
+  fp->f_data = tty;
+  return error;
+}
+
+vnodeops_t dev_tty_vnodeops = {.v_open = dev_tty_open,
+                               .v_getattr = tty_vn_getattr};
+
+static void init_dev_tty(void) {
+  devfs_makedev(NULL, "tty", &dev_tty_vnodeops, NULL, NULL);
+}
+
+SET_ENTRY(devfs_init, init_dev_tty);

@@ -3,7 +3,7 @@
 #include <sys/sysent.h>
 #include <sys/mimiker.h>
 #include <sys/errno.h>
-#include <sys/mman.h>
+#include <sys/vm.h>
 #include <sys/vfs.h>
 #include <sys/uio.h>
 #include <sys/file.h>

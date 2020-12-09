@@ -86,7 +86,6 @@ __noreturn void kernel_init(void) {
   init_sched();
 
   /* With scheduler ready we can create necessary threads. */
-  init_ithreads();
   init_callout();
   preempt_enable();
 
