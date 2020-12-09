@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = chown env id stat wc su
+SUBDIR = env id stat wc su
 
 all: build
 
