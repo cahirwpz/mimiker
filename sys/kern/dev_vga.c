@@ -68,9 +68,9 @@ void dev_vga_install(vga_device_t *vga) {
     return;
 
   vnodeops_init(&framebuffer_vnodeops);
-  devfs_makedev(vga_root, "fb", &framebuffer_vnodeops, vga);
+  devfs_makedev(vga_root, "fb", &framebuffer_vnodeops, vga, NULL);
   vnodeops_init(&palette_vnodeops);
-  devfs_makedev(vga_root, "palette", &palette_vnodeops, vga);
+  devfs_makedev(vga_root, "palette", &palette_vnodeops, vga, NULL);
   vnodeops_init(&videomode_vnodeops);
-  devfs_makedev(vga_root, "videomode", &videomode_vnodeops, vga);
+  devfs_makedev(vga_root, "videomode", &videomode_vnodeops, vga, NULL);
 }
