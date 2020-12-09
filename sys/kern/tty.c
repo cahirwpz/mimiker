@@ -865,6 +865,8 @@ static int tty_vn_getattr(vnode_t *v, vattr_t *va) {
   /* XXX assume root owns tty and only root can read and write to it */
   va->va_mode =
     S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+  va->va_uid = 0;
+  va->va_gid = 0;
   va->va_nlink = 1;
   va->va_ino = 0;
   va->va_size = 0;
