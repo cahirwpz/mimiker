@@ -16,7 +16,7 @@
 /*
  * Config 1 register
  */
-#define RL_CFG1_PWRON 0x00
+#define RL_CFG1_PWRON 0x00 /* power on */
 
 #define RL_TIMEOUT (10 * 1000)
 #endif /* !_RTL8139_REG_H_ */
