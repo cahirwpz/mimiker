@@ -107,15 +107,4 @@ LEAF(_longjmp)
 	REG_EPILOGUE
 	j	ra
 	 move	v0, a1			# get return value in 1st arg
-
-botch:
-	/*
-	 * We know we aren't returning so we don't care about restoring
-	 * our caller's GP.
-	 */
-	jal	_C_LABEL(longjmperror)
-	 nop
-	
-	PIC_TAILCALL(abort)
-	 nop
 END(_longjmp)
