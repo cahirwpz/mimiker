@@ -3,7 +3,8 @@
 
 #include <sys/sigtypes.h>
 #include <sys/siginfo.h>
-#include <machine/signal.h>
+#include <sys/ucontext.h>
+#include <machine/cdefs.h>
 #include <stdbool.h>
 
 #define SIGHUP 1   /* hangup */
@@ -30,6 +31,8 @@
 #define SIGUSR1 30 /* user defined signal 1 */
 #define SIGUSR2 31 /* user defined signal 2 */
 #define NSIG 32
+
+typedef int sig_atomic_t;
 
 typedef void (*sig_t)(int); /* type of signal function */
 
@@ -69,6 +72,11 @@ typedef struct sigaction {
 #ifdef _KERNEL
 
 #include <sys/cdefs.h>
+
+/* Start and end address of signal trampoline that gets copied onto
+ * the user's stack. */
+extern char sigcode[];
+extern char esigcode[];
 
 typedef struct proc proc_t;
 typedef struct pgrp pgrp_t;
