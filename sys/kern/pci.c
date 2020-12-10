@@ -54,7 +54,7 @@ static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
   /* XXX: we don't handle 64-bit memory space bars. */
 
   /* If we write 0xFFFFFFFF to a BAR register and then read
-   * it back, we'll obtain a bar size indicator. */
+   * it back, we'll get a bar size indicator. */
   pci_write_config_4(pcid, PCIR_BAR(bar), -1);
   uint32_t size = pci_read_config_4(pcid, PCIR_BAR(bar));
 
