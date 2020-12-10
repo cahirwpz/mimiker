@@ -342,8 +342,7 @@ static int gt_pci_attach(device_t *pcib) {
 
 static bool gt_pci_bar(device_t *dev, res_type_t type, int rid,
                        rman_addr_t start) {
-  /* Filter ISA IO ports and irq resources. */
-  if (!((type == RT_IOPORTS && start > IO_ISAEND) || type == RT_MEMORY))
+  if ((type == RT_IOPORTS && start <= IO_ISAEND) || type == RT_IRQ)
     return false;
   pci_device_t *pcid = pci_device_of(dev);
   return rid < PCI_BAR_MAX && pcid->bar[rid].size != 0;
@@ -419,9 +418,8 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type,
   int rid = r->r_rid;
   if (gt_pci_bar(dev, type, rid, r->r_start)) {
     /* Write BAR address to PCI device register.
-     * Note that in case of IO ports, BAR needs to contain
-     * a relative address (relative to PCI IO base).
-     * Memory BARs should keep absolute physical addresses. */
+     * Note that IO ports require relative addresses
+     * whereas memory involves absolute addresses. */
     pci_write_config_4(dev, PCIR_BAR(rid), r->r_start);
   }
 

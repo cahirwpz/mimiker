@@ -50,7 +50,6 @@ static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
   pci_write_config_2(pcid, PCIR_COMMAND,
                      cmd & ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN));
 
-  /* Read the original value. */
   uint32_t old = pci_read_config_4(pcid, PCIR_BAR(bar));
   /* XXX: we don't handle 64-bit memory space bars. */
 
@@ -61,8 +60,6 @@ static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
 
   /* The original value of the BAR should be restored. */
   pci_write_config_4(pcid, PCIR_BAR(bar), old);
-
-  /* Restore the command register. */
   pci_write_config_2(pcid, PCIR_COMMAND, cmd);
 
   *addr = old;
