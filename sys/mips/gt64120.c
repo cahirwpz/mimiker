@@ -1,6 +1,29 @@
 /* GT64120 PCI bus driver
  *
- * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file. */
+ * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file.
+ *
+ * How do we handle `r_start` and `r_bus_handle` of assigned resources?
+ *
+ * - Interrupts:
+ *     - `r_bus_handle` is always equal to NULL.
+ *     - `r_start` is an interrupt number.
+ *
+ * - Memory:
+ *     - `gt_pci_alloc_resource` sets `r_bus_handle` to a physical
+ *       address of a resource, while `gt_pci_activate_resource`
+ *       upgrades it to a virtual address of the mapped resource.
+ *     - `r_start` is an absolute address of a resource.
+ *
+ *  - IO ports:
+ *     - All IO ports managed by the PCI bus driver are mapped in the
+ *       `gt_pci_attach` function, therefore `gt_pci_alloc_resource`
+ *       sets `r_bus_handle` to a virtual address of a resource.
+ *     - `r_start` is an offset in PCI IO space.
+ *
+ *   Memory BARs must contain absolute addresses, while IO BARs require
+ *   relative addresses. The above scheme allows us to unify updating of a
+ *   BAR register by using the `r_start` of a resource.
+ */
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
 #include <sys/mimiker.h>
@@ -416,12 +439,8 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type,
   }
 
   int rid = r->r_rid;
-  if (gt_pci_bar(dev, type, rid, r->r_start)) {
-    /* Write BAR address to PCI device register.
-     * Note that IO ports require relative addresses
-     * whereas memory involves absolute addresses. */
+  if (gt_pci_bar(dev, type, rid, r->r_start))
     pci_write_config_4(dev, PCIR_BAR(rid), r->r_start);
-  }
 
   if (type == RT_MEMORY)
     return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
