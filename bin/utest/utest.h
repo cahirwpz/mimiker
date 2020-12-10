@@ -87,6 +87,7 @@ int test_killpg_same_group(void);
 int test_killpg_other_group(void);
 int test_pgrp_orphan(void);
 int test_session_basic(void);
+int test_session_login_name(void);
 
 int test_gettimeofday(void);
 

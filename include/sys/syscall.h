@@ -77,6 +77,8 @@
 #define SYS_setregid 69
 #define SYS_fchown 70
 #define SYS_fchownat 71
-#define SYS_MAXSYSCALL 72
+#define SYS_getlogin 72
+#define SYS_setlogin 73
+#define SYS_MAXSYSCALL 74
 
 #define SYS_MAXSYSARGS 6

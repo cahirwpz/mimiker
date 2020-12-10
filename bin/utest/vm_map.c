@@ -1,4 +1,5 @@
 #include "utest.h"
+#include "util.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -27,9 +28,7 @@ int test_sharing_memory_simple(void) {
   }
 
   /* parent */
-  int status;
-  assert(waitpid(-1, &status, 0) == pid);
-  assert(WIFEXITED(status));
+  wait_for_child_exit(pid, 0);
   assert(strcmp(map, "Hello, World!") == 0);
   assert(munmap(map, pgsz) == 0);
   return 0;
@@ -57,18 +56,14 @@ int test_sharing_memory_child_and_grandchild(void) {
     }
 
     /* child */
-    int status;
-    assert(waitpid(-1, &status, 0) == pid);
-    assert(WIFEXITED(status));
+    wait_for_child_exit(pid, 0);
     assert(strcmp(map, "Hello from grandchild!") == 0);
     strcpy(map, "Hello from child!");
     exit(0);
   }
 
   /* parent */
-  int status;
-  assert(waitpid(-1, &status, 0) == pid);
-  assert(WIFEXITED(status));
+  wait_for_child_exit(pid, 0);
   assert(strcmp(map, "Hello from child!") == 0);
   assert(munmap(map, pgsz) == 0);
   return 0;

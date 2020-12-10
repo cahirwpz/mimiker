@@ -144,6 +144,7 @@ UTEST_ADD_SIMPLE(killpg_same_group);
 UTEST_ADD_SIMPLE(killpg_other_group);
 UTEST_ADD_SIMPLE(pgrp_orphan);
 UTEST_ADD_SIMPLE(session_basic);
+UTEST_ADD_SIMPLE(session_login_name);
 
 UTEST_ADD_SIMPLE(gettimeofday);
 

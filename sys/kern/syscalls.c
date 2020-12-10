@@ -1055,3 +1055,30 @@ static int sys_setregid(proc_t *p, setregid_args_t *args, register_t *res) {
   gid_t egid = SCARG(args, egid);
   return do_setregid(p, rgid, egid);
 }
+
+static int sys_getlogin(proc_t *p, getlogin_args_t *args, register_t *res) {
+  char *namebuf = SCARG(args, namebuf);
+  size_t buflen = SCARG(args, buflen);
+  char login_tmp[LOGIN_NAME_MAX];
+
+  klog("getlogin(%p, %zu)", namebuf, buflen);
+
+  WITH_MTX_LOCK (all_proc_mtx)
+    memcpy(login_tmp, p->p_pgrp->pg_session->s_login, sizeof(login_tmp));
+
+  return copyout(login_tmp, namebuf, MIN(buflen, sizeof(login_tmp)));
+}
+
+static int sys_setlogin(proc_t *p, setlogin_args_t *args, register_t *res) {
+  char *name = SCARG(args, name);
+  char login_tmp[LOGIN_NAME_MAX];
+  int error;
+
+  klog("setlogin(%p)", name);
+
+  error = copyinstr(name, login_tmp, sizeof(login_tmp), NULL);
+  if (error)
+    return (error == ENAMETOOLONG ? EINVAL : error);
+
+  return do_setlogin(login_tmp);
+}

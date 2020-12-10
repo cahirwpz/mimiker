@@ -35,6 +35,12 @@ int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags) {
   *addr_p = (vaddr_t)MAP_FAILED;
   length = roundup(length, PAGESIZE);
 
+  vm_flags_t sharing = flags & (VM_SHARED | VM_PRIVATE);
+  if (sharing == (VM_SHARED | VM_PRIVATE))
+    return EINVAL;
+  if (sharing == 0)
+    return EINVAL;
+
   int error;
   vm_segment_t *seg;
   if ((error = vm_map_alloc_segment(vmap, addr, length, prot, flags, &seg)))
