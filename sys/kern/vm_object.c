@@ -99,15 +99,9 @@ void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
   vm_object_remove_page_nolock(obj, page);
 }
 
-void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
-  SCOPED_MTX_LOCK(&obj->mtx);
-
-  vm_object_remove_page_nolock(obj, page);
-}
-
 void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
   vm_page_t *pg, *next;
-  
+
   SCOPED_RW_ENTER(&object->mtx, RW_WRITER);
 
   TAILQ_FOREACH_SAFE (pg, &object->list, obj.list, next) {
