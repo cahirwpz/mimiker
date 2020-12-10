@@ -88,7 +88,7 @@ void longjmp(jmp_buf env, int val) {
     /* FP saved regs are $f20 .. $f31 */
     memcpy(&uc.uc_mcontext.__fpregs.__fp_r.__fp_regs[20],
            &sc_uc->uc_mcontext.__fpregs.__fp_r.__fp_regs[20],
-           (32 - 20) * sizeof(float));
+           (32 - 20) * sizeof(fpregister_t));
     uc.uc_mcontext.__fpregs.__fp_csr = sc_uc->uc_mcontext.__fpregs.__fp_csr;
     /* XXX sc_fp_control */
     uc.uc_flags |= _UC_FPU;
