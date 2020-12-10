@@ -39,11 +39,10 @@
 #define _REG(ctx, n) ((ctx)->uc_mcontext.__gregs[_REG_##n])
 
 void longjmp(jmp_buf env, int val) {
-  struct sigcontext *sc = (void *)env;
-  ucontext_t *sc_uc = &sc->sc_uc;
+  ucontext_t *sc_uc = (void *)env;
   ucontext_t uc;
 
-  /* Ensure non-zero SP and sigcontext magic number is present */
+  /* Ensure non-zero SP */
   if (_REG(sc_uc, SP) == 0)
     goto err;
 

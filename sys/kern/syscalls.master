@@ -29,7 +29,7 @@
 17  { int sys_dup2(int from, int to); }
 18  { int sys_sigaction(int signum, const struct sigaction *nsa, \
                         struct sigaction *osa); }
-19  { int sys_sigreturn(struct sigcontext *sigctx_p); }
+19  { int sys_sigreturn(ucontext_t *sigctx_p); }
 20  { int sys_wait4(pid_t pid, int *status, int options, struct rusage *rusage); }
 21  { int sys_mkdirat(int fd, const char *path, mode_t mode); }
 22  { int sys_symlinkat(const char *target, int newdirfd, const char *linkpath); }

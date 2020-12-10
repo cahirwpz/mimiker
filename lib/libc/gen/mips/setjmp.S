@@ -42,7 +42,7 @@
  * C library -- setjmp, longjmp
  *
  * longjmp(a,v) will generate a "return(v)" from the last call to setjmp(a) by
- * restoring registers from the stack, and a struct sigcontext, see <signal.h>
+ * restoring registers from the stack, and a struct ucontext, see <signal.h>
  */
 
 #define SETJMP_FRAME_SIZE	(CALLFRAME_SIZ + STACK_T_SIZE)

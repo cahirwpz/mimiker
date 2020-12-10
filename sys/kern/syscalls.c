@@ -156,7 +156,7 @@ static int sys_sigaction(proc_t *p, sigaction_args_t *args, register_t *res) {
   return error;
 }
 
-/* TODO: handle sigcontext argument */
+/* TODO: handle ucontext argument */
 static int sys_sigreturn(proc_t *p, sigreturn_args_t *args, register_t *res) {
   klog("sigreturn()");
   return do_sigreturn();
