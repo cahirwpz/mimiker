@@ -71,7 +71,8 @@ int test_sharing_memory_child_and_grandchild(void) {
 
 int test_cow_private_simple(void) {
   size_t pgsz = getpagesize();
-  char *map = mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
+  char *map =
+    mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
 
   assert(map != (char *)MAP_FAILED);
 
@@ -89,9 +90,7 @@ int test_cow_private_simple(void) {
     exit(0);
   } else {
     /* parent */
-    int status;
-    assert(waitpid(-1, &status, 0) == pid);
-    assert(WIFEXITED(status));
+    wait_for_child_exit(pid, 0);
 
     assert(strcmp(map, "Hello, World!") == 0);
   }
