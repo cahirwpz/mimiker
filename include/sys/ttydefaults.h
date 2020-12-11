@@ -45,10 +45,11 @@
 /*
  * Defaults on "first" open.
  */
-#define TTYDEF_IFLAG (BRKINT | ICRNL | IMAXBEL | IXON | IXANY)
-#define TTYDEF_OFLAG (OPOST | ONLCR | OXTABS)
-#define TTYDEF_LFLAG (ECHO | ICANON | ISIG | IEXTEN | ECHOE | ECHOKE | ECHOCTL)
-#define TTYDEF_CFLAG (CREAD | CS8 | HUPCL)
+#define TTYDEF_IFLAG (/* BRKINT | */ ICRNL | IMAXBEL /* | IXON | IXANY */)
+#define TTYDEF_OFLAG (OPOST | ONLCR /* | OXTABS */)
+#define TTYDEF_LFLAG                                                           \
+  (ECHO | ICANON /* | ISIG | IEXTEN */ | ECHOE | ECHOKE | ECHOCTL)
+#define TTYDEF_CFLAG (CREAD | CS8 /* | HUPCL */)
 #define TTYDEF_SPEED (B9600)
 
 /*

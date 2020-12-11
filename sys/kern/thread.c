@@ -51,6 +51,7 @@ void init_thread0(void) {
   cv_init(&td->td_waitcv, "thread waiters");
   td->td_sleepqueue = sleepq_alloc();
   td->td_turnstile = turnstile_alloc();
+  sigpend_init(&td->td_sigpend);
   LIST_INIT(&td->td_contested);
 
   WITH_MTX_LOCK (threads_lock)
@@ -96,6 +97,8 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   td->td_sleepqueue = sleepq_alloc();
   td->td_turnstile = turnstile_alloc();
 
+  sigpend_init(&td->td_sigpend);
+
   thread_entry_setup(td, fn, arg);
 
   /* From now on, you must use locks on new thread structure. */
@@ -122,6 +125,7 @@ void thread_delete(thread_t *td) {
   callout_drain(&td->td_slpcallout);
   sleepq_destroy(td->td_sleepqueue);
   turnstile_destroy(td->td_turnstile);
+  sigpend_destroy(&td->td_sigpend);
   kfree(M_STR, td->td_name);
   kfree(M_TEMP, td->td_lock);
   pool_free(P_THREAD, td);
@@ -201,4 +205,13 @@ thread_t *thread_find(tid_t id) {
     spin_unlock(td->td_lock);
   }
   return NULL;
+}
+
+void thread_continue(thread_t *td) {
+  assert(spin_owned(td->td_lock));
+
+  if (td->td_flags & TDF_STOPPING)
+    td->td_flags &= ~TDF_STOPPING;
+  else if (td_is_stopped(td))
+    sched_wakeup(td, 0);
 }

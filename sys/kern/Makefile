@@ -11,6 +11,7 @@ SOURCES = \
 	condvar.c \
 	console.c \
 	cred.c \
+	cred_checks.c \
 	cred_syscalls.c \
 	devclass.c \
 	device.c \
@@ -59,6 +60,7 @@ SOURCES = \
 	time.c \
 	timer.c \
 	tmpfs.c \
+	tty.c \
 	uio.c \
 	ustack.c \
 	vfs.c \

@@ -89,10 +89,10 @@ class VmMapSeg(UserCommand):
             print('No active %s vm_map!' % args)
             return
         entries = vm_map['entries']
-        table = TextTable(types='itttt', align='rrrrr')
-        table.header(['segment', 'start', 'end', 'prot', 'object'])
+        table = TextTable(types='ittttt', align='rrrrrr')
+        table.header(['segment', 'start', 'end', 'prot', 'flags', 'object'])
         segments = TailQueue(entries, 'link')
         for idx, seg in enumerate(segments):
             table.add_row([idx, seg['start'], seg['end'], seg['prot'],
-                           seg['object']])
+                           seg['flags'], seg['object']])
         print(table)

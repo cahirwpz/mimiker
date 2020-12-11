@@ -9,8 +9,12 @@
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
+#include <sys/spinlock.h>
+#include <sys/condvar.h>
 
 static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
+
+static void vnlock_init(vnlock_t *vl);
 
 /* Actually, vnode management should be much more complex than this, because
    this stub does not recycle vnodes, does not store them on a free list,
@@ -23,17 +27,35 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
   v->v_data = data;
   v->v_ops = ops;
   v->v_usecnt = 1;
-  mtx_init(&v->v_mtx, 0);
-
+  vnlock_init(&v->v_lock);
   return v;
 }
 
+/* XXX vnodes used to use a mutex for synchronizing file operations,
+ * but sometimes we need to sleep, e.g. in VOP_READ.
+ * This solves the problem, but should be replaced by a proper lock
+ * that allows sleeping. */
+
+static void vnlock_init(vnlock_t *vl) {
+  spin_init(&vl->vl_interlock, 0);
+  cv_init(&vl->vl_cv, "vnode sleep cv");
+}
+
 void vnode_lock(vnode_t *v) {
-  mtx_lock(&v->v_mtx);
+  vnlock_t *vl = &v->v_lock;
+  WITH_SPIN_LOCK (&vl->vl_interlock) {
+    while (vl->vl_locked)
+      cv_wait(&vl->vl_cv, &vl->vl_interlock);
+    vl->vl_locked = true;
+  }
 }
 
 void vnode_unlock(vnode_t *v) {
-  mtx_unlock(&v->v_mtx);
+  vnlock_t *vl = &v->v_lock;
+  WITH_SPIN_LOCK (&vl->vl_interlock) {
+    vl->vl_locked = false;
+    cv_signal(&vl->vl_cv);
+  }
 }
 
 void vnode_hold(vnode_t *v) {
@@ -147,7 +169,7 @@ void vattr_null(vattr_t *va) {
 }
 
 /* Default file operations using v-nodes. */
-static int default_vnread(file_t *f, uio_t *uio) {
+int default_vnread(file_t *f, uio_t *uio) {
   vnode_t *v = f->f_vnode;
   int error = 0;
   vnode_lock(v);
@@ -158,7 +180,7 @@ static int default_vnread(file_t *f, uio_t *uio) {
   return error;
 }
 
-static int default_vnwrite(file_t *f, uio_t *uio) {
+int default_vnwrite(file_t *f, uio_t *uio) {
   vnode_t *v = f->f_vnode;
   int error = 0, ioflag = 0;
   if (f->f_flags & FF_APPEND)
@@ -171,13 +193,13 @@ static int default_vnwrite(file_t *f, uio_t *uio) {
   return error;
 }
 
-static int default_vnclose(file_t *f) {
+int default_vnclose(file_t *f) {
   (void)VOP_CLOSE(f->f_vnode, f);
   vnode_drop(f->f_vnode);
   return 0;
 }
 
-static int default_vnstat(file_t *f, stat_t *sb) {
+int default_vnstat(file_t *f, stat_t *sb) {
   vnode_t *v = f->f_vnode;
   vattr_t va;
   int error;
@@ -187,7 +209,7 @@ static int default_vnstat(file_t *f, stat_t *sb) {
   return 0;
 }
 
-static int default_vnseek(file_t *f, off_t offset, int whence, off_t *newoffp) {
+int default_vnseek(file_t *f, off_t offset, int whence, off_t *newoffp) {
   vnode_t *v = f->f_vnode;
   int error;
   vattr_t va;
@@ -234,7 +256,7 @@ out:
   return error;
 }
 
-static int default_ioctl(file_t *f, u_long cmd, void *data) {
+int default_vnioctl(file_t *f, u_long cmd, void *data) {
   vnode_t *v = f->f_vnode;
   int error = EPASSTHROUGH;
 
@@ -259,7 +281,7 @@ static fileops_t default_vnode_fileops = {
   .fo_close = default_vnclose,
   .fo_seek = default_vnseek,
   .fo_stat = default_vnstat,
-  .fo_ioctl = default_ioctl,
+  .fo_ioctl = default_vnioctl,
 };
 
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {

@@ -306,7 +306,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   paddr_t pa = pg->paddr;
 
   assert(page_aligned_p(va));
-  assert(pmap_address_p(pmap, pa));
+  assert(pmap_address_p(pmap, va));
 
   klog("Enter virtual mapping %p for frame %p", va, pa);
 

@@ -68,6 +68,12 @@
 
 .macro  load_ctx el
         msr     daifset, #2
+.if \el == 0
+        mrs     x18, tpidr_el1
+        ldr     x18, [x18, #PCPU_CURTHREAD]
+        ldr     x18, [x18, #TD_UCTX]
+        mov     sp,  x18
+.endif
         ldp     lr, x18, [sp, #CTX_LR]
 .if \el == 0
         msr     sp_el0, x18
@@ -117,7 +123,7 @@ ENTRY(handle_kern_intr)
         .cfi_signal_frame
         save_ctx 1
         mov     x0, sp
-        bl      cpu_intr_handler
+        bl      intr_root_handler
         load_ctx 1
         ERET
 END(handle_kern_intr)
@@ -136,7 +142,7 @@ ENTRY(handle_user_intr)
         .cfi_signal_frame
         save_ctx 0
         mov     x0, sp
-        bl      cpu_intr_handler
+        bl      intr_root_handler
         load_ctx 0
         ERET
 END(handle_user_intr)

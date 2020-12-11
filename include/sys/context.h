@@ -3,11 +3,15 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 typedef struct thread thread_t;
 typedef struct __ucontext ucontext_t;
 typedef struct ctx ctx_t;
 typedef struct mcontext user_ctx_t;
+
+/*! \brief Checks if saved context belongs to user space. */
+bool user_mode_p(ctx_t *ctx);
 
 /*! \brief Prepare ctx to jump into a kernel thread. */
 void ctx_init(ctx_t *ctx, void *pc, void *sp);
