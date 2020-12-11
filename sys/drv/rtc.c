@@ -90,8 +90,7 @@ static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
   return uiomove_frombuf(rtc->asctime, count, uio);
 }
 
-static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
-                                       .v_read = rtc_time_read};
+static vnodeops_t rtc_time_vnodeops = {.v_read = rtc_time_read};
 
 static int rtc_attach(device_t *dev) {
   rtc_state_t *rtc = dev->state;

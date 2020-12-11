@@ -39,12 +39,10 @@ static int dev_zero_read(vnode_t *v, uio_t *uio, int ioflag) {
   return error;
 }
 
-static vnodeops_t dev_null_vnodeops = {.v_open = vnode_open_generic,
-                                       .v_read = dev_null_read,
+static vnodeops_t dev_null_vnodeops = {.v_read = dev_null_read,
                                        .v_write = dev_null_write};
 
-static vnodeops_t dev_zero_vnodeops = {.v_open = vnode_open_generic,
-                                       .v_read = dev_zero_read,
+static vnodeops_t dev_zero_vnodeops = {.v_read = dev_zero_read,
                                        .v_write = dev_zero_write};
 
 static void init_dev_null(void) {

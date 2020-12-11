@@ -37,8 +37,10 @@ static devfs_mount_t devfs = {
   .lock = MTX_INITIALIZER(0), .next_ino = 2, .root = {}};
 static vnode_lookup_t devfs_vop_lookup;
 static vnode_readdir_t devfs_vop_readdir;
+static vnode_getattr_t devfs_vop_getattr;
 static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup,
                                     .v_readdir = devfs_vop_readdir,
+                                    .v_getattr = devfs_vop_getattr,
                                     .v_open = vnode_open_generic};
 
 static devfs_node_t *devfs_find_child(devfs_node_t *parent,
@@ -93,8 +95,12 @@ static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
 }
 
 void devfs_add_default_vops(vnodeops_t *vops) {
+  if (vops->v_open == NULL)
+    vops ->v_open = vnode_open_generic;
+
   if (vops->v_access == NULL)
     vops->v_access = vnode_access_generic;
+
   if (vops->v_getattr == NULL)
     vops->v_getattr = devfs_vop_getattr;
 }

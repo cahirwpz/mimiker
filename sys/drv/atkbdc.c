@@ -81,7 +81,6 @@ static int scancode_read(vnode_t *v, uio_t *uio, int ioflag) {
 }
 
 static vnodeops_t scancode_vnodeops = {
-  .v_open = vnode_open_generic,
   .v_read = scancode_read,
 };
 

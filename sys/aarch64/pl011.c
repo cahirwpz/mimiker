@@ -124,7 +124,6 @@ static int pl011_getattr(vnode_t *v, vattr_t *va) {
 
 /* clang-format off */
 static vnodeops_t dev_uart_ops = {
-  .v_open = vnode_open_generic,
   .v_write = pl011_write,
   .v_read = pl011_read,
   .v_close = pl011_close,
