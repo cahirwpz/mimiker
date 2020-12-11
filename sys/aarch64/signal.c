@@ -3,7 +3,7 @@
 #include <sys/signal.h>
 #include <sys/thread.h>
 #include <sys/klog.h>
-#include <aarch64/context.h>
+#include <sys/context.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
 

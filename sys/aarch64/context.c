@@ -1,5 +1,5 @@
 #include <sys/libkern.h>
-#include <aarch64/context.h>
+#include <sys/context.h>
 #include <aarch64/armreg.h>
 
 void ctx_init(ctx_t *ctx, void *pc, void *sp) {

@@ -1,5 +1,5 @@
 #include <sys/thread.h>
-#include <aarch64/context.h>
+#include <sys/context.h>
 
 extern __noreturn void thread_exit(void);
 extern __noreturn void kern_exc_leave(void);
