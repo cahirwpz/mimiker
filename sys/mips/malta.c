@@ -3,7 +3,7 @@
 #include <mips/cpuinfo.h>
 #include <mips/mips.h>
 #include <mips/malta.h>
-#include <sys/context.h>
+#include <mips/mcontext.h>
 #include <mips/interrupt.h>
 #include <mips/tlb.h>
 #include <sys/klog.h>

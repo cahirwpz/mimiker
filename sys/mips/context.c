@@ -1,6 +1,7 @@
 #include <sys/libkern.h>
 #include <mips/mips.h>
 #include <mips/m32c0.h>
+#include <mips/mcontext.h>
 #include <sys/context.h>
 
 void ctx_init(ctx_t *ctx, void *pc, void *sp) {

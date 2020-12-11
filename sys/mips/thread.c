@@ -1,5 +1,6 @@
 #include <sys/thread.h>
 #include <sys/context.h>
+#include <mips/mcontext.h>
 
 extern __noreturn void thread_exit(void);
 extern __noreturn void kern_exc_leave(void);

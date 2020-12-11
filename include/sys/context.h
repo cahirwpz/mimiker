@@ -3,7 +3,6 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
-#include <machine/mcontext.h>
 #include <stdbool.h>
 
 typedef struct thread thread_t;

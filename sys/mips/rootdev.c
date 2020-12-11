@@ -8,7 +8,7 @@
 #include <sys/exception.h>
 #include <sys/interrupt.h>
 #include <sys/devclass.h>
-#include <sys/context.h>
+#include <mips/mcontext.h>
 
 typedef struct rootdev {
   rman_t mem, irq;
