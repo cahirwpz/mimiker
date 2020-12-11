@@ -2,7 +2,6 @@
 #include <sys/thread.h>
 #include <sys/errno.h>
 #include <sys/ucontext.h>
-#include <mips/context.h>
 
 int do_setcontext(thread_t *td, ucontext_t *uc) {
   mcontext_t *from = &uc->uc_mcontext;

@@ -3,7 +3,6 @@
 #include <sys/signal.h>
 #include <sys/thread.h>
 #include <sys/klog.h>
-#include <mips/context.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/ucontext.h>
