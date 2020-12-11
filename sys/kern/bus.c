@@ -1,10 +1,8 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
-#include <sys/device.h>
-#include <sys/pci.h>
+#include <sys/bus.h>
 #include <sys/kmem.h>
 #include <sys/pmap.h>
-#include <sys/rman.h>
 #include <sys/devclass.h>
 
 int generic_bs_map(bus_addr_t addr, bus_size_t size,
@@ -100,15 +98,20 @@ bus_space_t *generic_bus_space = &(bus_space_t){
 };
 /* clang-format on */
 
-int bus_activate_resource(device_t *dev, res_type_t type, int rid,
-                          resource_t *r) {
+int bus_activate_resource(device_t *dev, res_type_t type, resource_t *r) {
   if (r->r_flags & RF_ACTIVE)
     return 0;
 
-  int error = BUS_DRIVER(dev)->bus.activate_resource(dev, type, rid, r);
+  int error = BUS_METHODS(dev->parent).activate_resource(dev, type, r);
   if (error == 0)
     rman_activate_resource(r);
   return error;
+}
+
+void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r) {
+  if (r->r_flags & RF_ACTIVE)
+    BUS_METHODS(dev->parent).deactivate_resource(dev, type, r);
+  rman_deactivate_resource(r);
 }
 
 int bus_generic_probe(device_t *bus) {

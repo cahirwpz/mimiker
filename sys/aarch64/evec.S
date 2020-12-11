@@ -72,6 +72,12 @@
 
 .macro  load_ctx el
         msr     daifset, #2
+.if \el == 0
+        mrs     x18, tpidr_el1
+        ldr     x18, [x18, #PCPU_CURTHREAD]
+        ldr     x18, [x18, #TD_UCTX]
+        mov     sp,  x18
+.endif
         ldp     lr, x18, [sp, #CTX_LR]
 .if \el == 0
         msr     sp_el0, x18

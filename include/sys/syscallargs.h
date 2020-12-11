@@ -104,7 +104,7 @@ typedef struct {
 } sigaction_args_t;
 
 typedef struct {
-  SYSCALLARG(struct sigcontext *) sigctx_p;
+  SYSCALLARG(ucontext_t *) sigctx_p;
 } sigreturn_args_t;
 
 typedef struct {
@@ -366,3 +366,12 @@ typedef struct {
   SYSCALLARG(gid_t) gid;
   SYSCALLARG(int) flag;
 } fchownat_args_t;
+
+typedef struct {
+  SYSCALLARG(char *) namebuf;
+  SYSCALLARG(size_t) buflen;
+} getlogin_args_t;
+
+typedef struct {
+  SYSCALLARG(char *) name;
+} setlogin_args_t;

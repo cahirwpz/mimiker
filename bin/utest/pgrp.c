@@ -1,10 +1,12 @@
 #include <assert.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sched.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "utest.h"
 #include "util.h"
@@ -312,5 +314,40 @@ int test_session_basic(void) {
 
   kill(cpid, SIGUSR1);
   wait_for_child_exit(cpid, 0);
+  return 0;
+}
+
+int test_session_login_name(void) {
+  const char *name = "foo";
+  /* Assume login name is not set. */
+  assert(getlogin() == NULL);
+  /* Assume tests are run as root, otherwise this should fail. */
+  assert(setlogin(name) == 0);
+  assert(getlogin() != NULL);
+  assert(strcmp(getlogin(), name) == 0);
+  /* Name too long: should fail with EINVAL. */
+  assert(setlogin("this_is_a_very_long_name") == -1);
+  assert(errno == EINVAL);
+  /* Failure shouldn't affect the login name. */
+  assert(getlogin() != NULL);
+  assert(strcmp(getlogin(), name) == 0);
+  /* Drop root privileges: setlogin() shoud fail with EPERM. */
+  assert(seteuid(1) == 0);
+  assert(setlogin(name) == -1);
+  assert(errno == EPERM);
+  /* getlogin() should succeed with dropped privileges. */
+  assert(getlogin() != NULL);
+  assert(strcmp(getlogin(), name) == 0);
+  /* Restore root privileges. */
+  assert(seteuid(0) == 0);
+  /* Invalid pointer: setlogin() should fail with EFAULT. */
+  assert(setlogin((void *)1) == -1);
+  assert(errno == EFAULT);
+  /* Failure shouldn't affect the login name. */
+  assert(getlogin() != NULL);
+  assert(strcmp(getlogin(), name) == 0);
+  /* Setting the name to an empty string should "unset" it. */
+  assert(setlogin("") == 0);
+  assert(getlogin() == NULL);
   return 0;
 }
