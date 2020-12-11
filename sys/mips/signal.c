@@ -68,7 +68,7 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   return 0;
 }
 
-int sig_return(ucontext_t *ucp) {
+int do_sigreturn(ucontext_t *ucp) {
   int error = 0;
   thread_t *td = thread_self();
   ucontext_t uc;
