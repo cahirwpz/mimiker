@@ -10,6 +10,7 @@
 #include <sys/linker_set.h>
 #include <sys/dirent.h>
 #include <sys/vfs.h>
+#include <sys/stat.h>
 
 typedef struct devfs_node devfs_node_t;
 typedef TAILQ_HEAD(, devfs_node) devfs_node_list_t;
@@ -80,6 +81,24 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name,
   return 0;
 }
 
+static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
+  memset(va, 0, sizeof(vattr_t));
+  va->va_mode = S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+  va->va_uid = 0;
+  va->va_gid = 0;
+  va->va_nlink = 1;
+  va->va_ino = 0;
+  va->va_size = 0;
+  return 0;
+}
+
+void devfs_add_default_vops(vnodeops_t *vops) {
+  if (vops->v_access == NULL)
+    vops->v_access = vnode_access_generic;
+  if (vops->v_getattr == NULL)
+    vops->v_getattr = devfs_vop_getattr;
+}
+
 int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
                   void *data, vnode_t **vnode_p) {
   SCOPED_MTX_LOCK(&devfs.lock);
@@ -88,6 +107,9 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
   int error = devfs_add_entry(parent, name, &dn);
   if (error)
     return error;
+
+  devfs_add_default_vops(vops);
+  vnodeops_init(vops);
 
   dn->dn_vnode = vnode_new(V_DEV, vops, data);
   if (vnode_p) {

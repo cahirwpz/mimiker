@@ -94,8 +94,6 @@ static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
                                        .v_read = rtc_time_read};
 
 static int rtc_attach(device_t *dev) {
-  vnodeops_init(&rtc_time_vnodeops);
-
   rtc_state_t *rtc = dev->state;
 
   rtc->regs = device_take_ioports(dev, 0, RF_ACTIVE);

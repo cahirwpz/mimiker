@@ -148,8 +148,6 @@ static int atkbdc_probe(device_t *dev) {
 }
 
 static int atkbdc_attach(device_t *dev) {
-  vnodeops_init(&scancode_vnodeops);
-
   atkbdc_state_t *atkbdc = dev->state;
 
   atkbdc->scancodes.data = kmalloc(M_DEV, KBD_BUFSIZE, M_ZERO);
