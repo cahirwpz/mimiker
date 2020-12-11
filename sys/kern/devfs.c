@@ -85,7 +85,8 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name,
 
 static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
   memset(va, 0, sizeof(vattr_t));
-  va->va_mode = S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+  va->va_mode =
+    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
   va->va_uid = 0;
   va->va_gid = 0;
   va->va_nlink = 1;
@@ -96,7 +97,7 @@ static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
 
 void devfs_add_default_vops(vnodeops_t *vops) {
   if (vops->v_open == NULL)
-    vops ->v_open = vnode_open_generic;
+    vops->v_open = vnode_open_generic;
 
   if (vops->v_access == NULL)
     vops->v_access = vnode_access_generic;
