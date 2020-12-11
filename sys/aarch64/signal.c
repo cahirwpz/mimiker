@@ -11,7 +11,7 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   panic("Not implemented!");
 }
 
-int sig_return(void) {
+int do_sigreturn(ucontext_t *ucp) {
   panic("Not implemented!");
 }
 
