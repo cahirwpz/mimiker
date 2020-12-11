@@ -2,12 +2,13 @@
 #include <sys/klog.h>
 #include <mips/malta.h>
 #include <mips/mips.h>
-#include <mips/context.h>
+#include <mips/m32c0.h>
 #include <mips/interrupt.h>
 #include <sys/bus.h>
 #include <sys/exception.h>
 #include <sys/interrupt.h>
 #include <sys/devclass.h>
+#include <mips/mcontext.h>
 
 typedef struct rootdev {
   rman_t mem, irq;
@@ -106,7 +107,7 @@ static void rootdev_release_resource(device_t *dev, res_type_t type,
 static int rootdev_activate_resource(device_t *dev, res_type_t type,
                                      resource_t *r) {
   if (type == RT_MEMORY)
-    return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
+    return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
                          &r->r_bus_handle);
 
   return 0;

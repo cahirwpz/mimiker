@@ -3,7 +3,7 @@
 #include <mips/cpuinfo.h>
 #include <mips/mips.h>
 #include <mips/malta.h>
-#include <mips/context.h>
+#include <mips/mcontext.h>
 #include <mips/interrupt.h>
 #include <mips/tlb.h>
 #include <sys/klog.h>
@@ -78,7 +78,7 @@ void *board_stack(int argc, char **argv, char **envp) {
   kstack_t *stk = &thread0.td_kstack;
 
   /* See thread_entry_setup for explanation. */
-  thread0.td_uctx = kstack_alloc_s(stk, user_ctx_t);
+  thread0.td_uctx = kstack_alloc_s(stk, mcontext_t);
 
   int ntokens = count_args(argc, argv, envp);
   char **kenvp = kstack_alloc(stk, (ntokens + 2) * sizeof(char *));

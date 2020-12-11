@@ -8,8 +8,8 @@
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/errno.h>
+#include <sys/context.h>
 #include <aarch64/armreg.h>
-#include <aarch64/context.h>
 #include <aarch64/interrupt.h>
 #include <aarch64/pmap.h>
 
@@ -103,7 +103,7 @@ fault:
   }
 }
 
-void user_trap_handler(user_ctx_t *uctx) {
+void user_trap_handler(mcontext_t *uctx) {
   /* Let's read special registers before enabling interrupts.
    * This ensures their values will not be lost. */
   ctx_t *ctx = (ctx_t *)uctx;

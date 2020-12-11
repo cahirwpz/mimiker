@@ -2,10 +2,11 @@ include <stddef.h>
 include <sys/thread.h>
 include <sys/pcpu.h>
 include <sys/proc.h>
-include <aarch64/context.h>
+include <aarch64/mcontext.h>
 
 define TD_PROC offsetof(thread_t, td_proc)
 define TD_KCTX offsetof(thread_t, td_kctx)
+define TD_UCTX offsetof(thread_t, td_uctx)
 define TD_ONFAULT offsetof(thread_t, td_onfault)
 
 define P_USPACE offsetof(proc_t, p_uspace)

@@ -3,8 +3,6 @@
 
 #include <sys/sigtypes.h>
 #include <sys/siginfo.h>
-#include <machine/signal.h>
-#include <stdbool.h>
 
 #define SIGHUP 1   /* hangup */
 #define SIGINT 2   /* interrupt */
@@ -30,6 +28,8 @@
 #define SIGUSR1 30 /* user defined signal 1 */
 #define SIGUSR2 31 /* user defined signal 2 */
 #define NSIG 32
+
+typedef int sig_atomic_t;
 
 typedef void (*sig_t)(int); /* type of signal function */
 
@@ -68,12 +68,19 @@ typedef struct sigaction {
 
 #ifdef _KERNEL
 
+#include <stdbool.h>
 #include <sys/cdefs.h>
+
+/* Start and end address of signal trampoline that gets copied onto
+ * the user's stack. */
+extern char sigcode[];
+extern char esigcode[];
 
 typedef struct proc proc_t;
 typedef struct pgrp pgrp_t;
 typedef struct thread thread_t;
 typedef struct ctx ctx_t;
+typedef struct __ucontext ucontext_t;
 
 /*! \brief Notify the parent of a change in the child's status.
  *
@@ -139,7 +146,7 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi);
 /*! \brief Restore original user context after signal handler was invoked.
  *
  * \note This is machine dependent code! */
-int sig_return(void);
+int do_sigreturn(ucontext_t *ucp);
 
 /*! \brief Reset handlers for caught signals on process exec.
  *
@@ -149,7 +156,6 @@ void sig_onexec(proc_t *p);
 /* System calls implementation. */
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset);
-int do_sigreturn(void);
 int do_sigsuspend(proc_t *p, const sigset_t *mask);
 
 #endif /* !_KERNEL */
