@@ -1,7 +1,9 @@
 #include <sys/libkern.h>
+#include <sys/mimiker.h>
+#include <sys/thread.h>
 #include <sys/context.h>
-#include <aarch64/mcontext.h>
 #include <aarch64/armreg.h>
+#include <aarch64/mcontext.h>
 
 void ctx_init(ctx_t *ctx, void *pc, void *sp) {
   bzero(ctx, sizeof(ctx_t));
@@ -39,4 +41,8 @@ void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
 
 bool user_mode_p(ctx_t *ctx) {
   return (_REG(ctx, SPSR) & PSR_M_MASK) == PSR_M_EL0t;
+}
+
+int do_setcontext(thread_t *td, ucontext_t *uc) {
+  panic("Not implemented!");
 }

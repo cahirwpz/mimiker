@@ -1,7 +1,10 @@
 #include <sys/libkern.h>
+#include <sys/errno.h>
+#include <sys/thread.h>
 #include <mips/mips.h>
 #include <mips/m32c0.h>
 #include <mips/mcontext.h>
+#include <sys/ucontext.h>
 #include <sys/context.h>
 
 void ctx_init(ctx_t *ctx, void *pc, void *sp) {
@@ -50,4 +53,19 @@ void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
 
 bool user_mode_p(ctx_t *ctx) {
   return (_REG(ctx, SR) & SR_KSU_MASK) == SR_KSU_USER;
+}
+
+int do_setcontext(thread_t *td, ucontext_t *uc) {
+  mcontext_t *from = &uc->uc_mcontext;
+  mcontext_t *to = td->td_uctx;
+
+  /* registers AT-PC */
+  memcpy(&_REG(to, AT), &_REG(from, AT),
+         sizeof(__greg_t) * (_REG_EPC - _REG_AT + 1));
+
+  /* 32 FP registers + FP CSR */
+  memcpy(&to->__fpregs.__fp_r, &from->__fpregs.__fp_r,
+         sizeof(from->__fpregs.__fp_r) + sizeof(from->__fpregs.__fp_csr));
+
+  return EJUSTRETURN;
 }
