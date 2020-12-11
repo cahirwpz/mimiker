@@ -5,7 +5,7 @@
 
 int do_setcontext(thread_t *td, ucontext_t *uc) {
   mcontext_t *from = &uc->uc_mcontext;
-  user_ctx_t *to = td->td_uctx;
+  mcontext_t *to = td->td_uctx;
 
   /* registers AT-PC */
   memcpy(&_REG(to, AT), &_REG(from, AT),

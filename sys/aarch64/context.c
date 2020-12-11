@@ -21,18 +21,18 @@ void ctx_set_retval(ctx_t *ctx, long value) {
   _REG(ctx, X0) = value;
 }
 
-void user_ctx_copy(user_ctx_t *to, user_ctx_t *from) {
-  memcpy(to, from, sizeof(user_ctx_t));
+void mcontext_copy(mcontext_t *to, mcontext_t *from) {
+  memcpy(to, from, sizeof(mcontext_t));
 }
 
-void user_ctx_init(user_ctx_t *ctx, void *pc, void *sp) {
-  bzero(ctx, sizeof(user_ctx_t));
+void mcontext_init(mcontext_t *ctx, void *pc, void *sp) {
+  bzero(ctx, sizeof(mcontext_t));
 
   _REG(ctx, PC) = (register_t)pc;
   _REG(ctx, SP) = (register_t)sp;
 }
 
-void user_ctx_set_retval(user_ctx_t *ctx, register_t value, register_t error) {
+void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
   _REG(ctx, X0) = value;
   _REG(ctx, X1) = error;
 }

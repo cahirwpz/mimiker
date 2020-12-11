@@ -14,7 +14,7 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
    * full exception frame has to be allocated at the bottom of kernel stack.
    * Just under it there's a kernel exception frame (cpu part of full one) that
    * is used to enter kernel thread for the first time. */
-  user_ctx_t *uctx = kstack_alloc_s(stk, user_ctx_t);
+  mcontext_t *uctx = kstack_alloc_s(stk, mcontext_t);
   ctx_t *kframe = kstack_alloc_s(stk, ctx_t);
   ctx_t *kctx = kstack_alloc_s(stk, ctx_t);
 
