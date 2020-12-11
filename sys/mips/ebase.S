@@ -308,7 +308,7 @@ exc_enter:
 # - Status, cause, epc & badvaddr registers cannot be saved directly to kernel
 #   stack (kseg2) as it may trigger TLB handler which would overwrite them!
 
-SNESTED(user_exc_enter, USER_CTX_SIZE, ra)
+SNESTED(user_exc_enter, MCONTEXT_SIZE, ra)
         .cfi_signal_frame
 
         # Fetch PCPU address
