@@ -11,9 +11,6 @@
 typedef struct sig_ctx {
   ucontext_t sc_uc;
   siginfo_t sc_info;
-  /* TODO: Store handler signal mask. */
-  /* TODO: Store previous stack data, if the sigaction requested a different
-   * stack. */
 } sig_ctx_t;
 
 static void stack_unusable(thread_t *td, register_t sp) {
@@ -26,25 +23,23 @@ static void stack_unusable(thread_t *td, register_t sp) {
 
 int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   thread_t *td = thread_self();
-
   user_ctx_t *uctx = td->td_uctx;
-
-  /* Prepare signal context. */
-  sig_ctx_t ksc = {.sc_info = ksi->ksi_info};
-  user_ctx_copy(&ksc.sc_uc.uc_mcontext, uctx);
-  ksc.sc_uc.uc_sigmask = *mask;
 
   /* Copyout sigcode to user stack. */
   unsigned sigcode_size = esigcode - sigcode;
-  void *sp = (void *)_REG(uctx, SP) - sigcode_size;
-  void *sigcode_stack_addr = sp;
+  void *sp = (void *)_REG(uctx, SP);
+  sp -= sigcode_size;
+  void *sigcode_ptr = sp;
 
-  if (copyout(sigcode, sigcode_stack_addr, sigcode_size))
+  if (copyout(sigcode, sigcode_ptr, sigcode_size))
     stack_unusable(td, _REG(uctx, SP));
 
-  /* Copyout signal context to user stack. */
-  sig_ctx_t *cp = (sig_ctx_t *)sp;
-  cp--;
+  /* Prepare signal context and copy it to user stack. */
+  sig_ctx_t ksc = {.sc_info = ksi->ksi_info};
+  user_ctx_copy(&ksc.sc_uc.uc_mcontext, uctx);
+  ksc.sc_uc.uc_sigmask = *mask;
+  sp -= sizeof(sig_ctx_t);
+  sig_ctx_t *cp = sp;
   if (copyout(&ksc, cp, sizeof(sig_ctx_t)))
     stack_unusable(td, _REG(uctx, SP));
 
@@ -61,9 +56,9 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   /* The calling convention is such that the callee may write to the address
    * pointed by sp before extending the stack - so we need to set it 1 word
    * before the stored context! */
-  _REG(uctx, SP) = (register_t)((intptr_t *)cp - 1);
+  _REG(uctx, SP) = (register_t)(sp - sizeof(intptr_t *));
   /* Also, make sure that sigcode runs when the handler exits. */
-  _REG(uctx, RA) = (register_t)sigcode_stack_addr;
+  _REG(uctx, RA) = (register_t)sigcode_ptr;
 
   return 0;
 }
