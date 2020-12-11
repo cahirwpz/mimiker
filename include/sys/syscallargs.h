@@ -104,7 +104,7 @@ typedef struct {
 } sigaction_args_t;
 
 typedef struct {
-  SYSCALLARG(struct sigcontext *) sigctx_p;
+  SYSCALLARG(ucontext_t *) sigctx_p;
 } sigreturn_args_t;
 
 typedef struct {
