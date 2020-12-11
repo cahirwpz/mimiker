@@ -37,6 +37,8 @@
 #include <setjmp.h>
 
 #define _REG(ctx, n) ((ctx)->uc_mcontext.__gregs[_REG_##n])
+#define _FPREG(ctx, n) ((ctx)->uc_mcontext.__fpregs.__fp_r.__fp_regs[(n)])
+#define _FPCSR(ctx) ((ctx)->uc_mcontext.__fpregs.__fp_csr)
 
 void longjmp(jmp_buf env, int val) {
   ucontext_t *sc_uc = (void *)env;
@@ -87,10 +89,9 @@ void longjmp(jmp_buf env, int val) {
   /* Copy FP state */
   if (sc_uc->uc_flags & _UC_FPU) {
     /* FP saved regs are $f20 .. $f31 */
-    memcpy(&uc.uc_mcontext.__fpregs.__fp_r.__fp_regs[20],
-           &sc_uc->uc_mcontext.__fpregs.__fp_r.__fp_regs[20],
+    memcpy(&_FPREG(&uc, 20), &_FPREG(sc_uc, 20),
            (32 - 20) * sizeof(fpregister_t));
-    uc.uc_mcontext.__fpregs.__fp_csr = sc_uc->uc_mcontext.__fpregs.__fp_csr;
+    _FPCSR(&uc) = _FPCSR(sc_uc);
     /* XXX sc_fp_control */
     uc.uc_flags |= _UC_FPU;
   }

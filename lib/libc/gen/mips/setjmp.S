@@ -33,8 +33,8 @@
  */
 
 #include <sys/syscall.h>
-#include <mips/asm.h>
 #include <sys/ucontext.h>
+#include <mips/asm.h>
 
 #include "mips/assym.h"
 
@@ -67,8 +67,7 @@ NON_LEAF(setjmp, SETJMP_FRAME_SIZE, ra)
 	PTR_ADDU	a1, sp, CALLFRAME_SIZ		# pointer to stack_t
 	jal		_C_LABEL(sigaltstack)
 
-	move		a0, s0
-	INT_L		a0, _OFFSETOF_SC_FLAGS(a0)
+	INT_L		a0, _OFFSETOF_SC_FLAGS(s0)
 
 	INT_L		v1, CALLFRAME_SIZ+_OFFSETOF_STACK_T_FLAGS(sp)
 							# get old ss_onstack

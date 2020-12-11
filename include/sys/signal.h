@@ -3,9 +3,6 @@
 
 #include <sys/sigtypes.h>
 #include <sys/siginfo.h>
-#include <sys/ucontext.h>
-#include <machine/cdefs.h>
-#include <stdbool.h>
 
 #define SIGHUP 1   /* hangup */
 #define SIGINT 2   /* interrupt */
@@ -71,6 +68,7 @@ typedef struct sigaction {
 
 #ifdef _KERNEL
 
+#include <stdbool.h>
 #include <sys/cdefs.h>
 
 /* Start and end address of signal trampoline that gets copied onto
