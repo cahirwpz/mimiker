@@ -40,8 +40,8 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
      as they will be prepared by sched_add. */
 
   /* Copy user context.. */
-  user_ctx_copy(newtd->td_uctx, td->td_uctx);
-  user_ctx_set_retval(newtd->td_uctx, 0, 0);
+  mcontext_copy(newtd->td_uctx, td->td_uctx);
+  mcontext_set_retval(newtd->td_uctx, 0, 0);
 
   /* New thread does not need the exception frame just yet. */
   newtd->td_kframe = NULL;

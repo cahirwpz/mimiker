@@ -3,7 +3,6 @@
 #include <sys/signal.h>
 #include <sys/thread.h>
 #include <sys/klog.h>
-#include <mips/context.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/ucontext.h>
@@ -23,7 +22,7 @@ static void stack_unusable(thread_t *td, register_t sp) {
 
 int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   thread_t *td = thread_self();
-  user_ctx_t *uctx = td->td_uctx;
+  mcontext_t *uctx = td->td_uctx;
 
   /* Copyout sigcode to user stack. */
   unsigned sigcode_size = esigcode - sigcode;
@@ -36,7 +35,7 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
 
   /* Prepare signal context and copy it to user stack. */
   sig_ctx_t ksc = {.sc_info = ksi->ksi_info};
-  user_ctx_copy(&ksc.sc_uc.uc_mcontext, uctx);
+  mcontext_copy(&ksc.sc_uc.uc_mcontext, uctx);
   ksc.sc_uc.uc_sigmask = *mask;
   sp -= sizeof(sig_ctx_t);
   sig_ctx_t *cp = sp;
@@ -68,14 +67,14 @@ int do_sigreturn(ucontext_t *ucp) {
   thread_t *td = thread_self();
   ucontext_t uc;
 
-  user_ctx_t *uctx = td->td_uctx;
+  mcontext_t *uctx = td->td_uctx;
 
   error = copyin_s(ucp, uc);
   if (error)
     return error;
 
   /* Restore user context. */
-  user_ctx_copy(uctx, &uc.uc_mcontext);
+  mcontext_copy(uctx, &uc.uc_mcontext);
 
   WITH_MTX_LOCK (&td->td_proc->p_lock)
     error = do_sigprocmask(SIG_SETMASK, &uc.uc_sigmask, NULL);
