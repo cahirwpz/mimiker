@@ -33,8 +33,8 @@
  */
 
 #include <sys/syscall.h>
-#include <mips/asm.h>
 #include <sys/ucontext.h>
+#include <mips/asm.h>
 
 #include "mips/assym.h"
 
@@ -42,7 +42,7 @@
  * C library -- setjmp, longjmp
  *
  * longjmp(a,v) will generate a "return(v)" from the last call to setjmp(a) by
- * restoring registers from the stack, and a struct sigcontext, see <signal.h>
+ * restoring registers from the stack, and a struct ucontext, see <signal.h>
  */
 
 #define SETJMP_FRAME_SIZE	(CALLFRAME_SIZ + STACK_T_SIZE)
@@ -67,15 +67,14 @@ NON_LEAF(setjmp, SETJMP_FRAME_SIZE, ra)
 	PTR_ADDU	a1, sp, CALLFRAME_SIZ		# pointer to stack_t
 	jal		_C_LABEL(sigaltstack)
 
-    move        a0, s0
-    INT_L       a0, _OFFSETOF_SC_FLAGS(a0)
+	INT_L		a0, _OFFSETOF_SC_FLAGS(s0)
 
 	INT_L		v1, CALLFRAME_SIZ+_OFFSETOF_STACK_T_FLAGS(sp)
 							# get old ss_onstack
 	and		v1, v1, SS_ONSTACK		# extract onstack flag
-    or          v1, v1, a0
+	or		v1, v1, a0
 
-    move		a0, s0				# restore jmpbuf
+	move		a0, s0				# restore jmpbuf
 	INT_S		v1, _OFFSETOF_SC_FLAGS(a0)
 
 	REG_L		s0, CALLFRAME_S0(sp)		# restore S0
@@ -101,8 +100,8 @@ NON_LEAF(setjmp, SETJMP_FRAME_SIZE, ra)
 	REG_S	gp, _OFFSETOF_SC_REGS_GP(a0)
 	REG_S	sp, _OFFSETOF_SC_REGS_SP(a0)
 	REG_S	s8, _OFFSETOF_SC_REGS_S8(a0)
-    INT_L   v0, _OFFSETOF_SC_FLAGS(a0)
-    or          v0, _UC_FPU
+	INT_L	v0, _OFFSETOF_SC_FLAGS(a0)
+	or	v0, _UC_FPU
 	INT_S	v0, _OFFSETOF_SC_FLAGS(a0)	# sc_fpused = 1
 	cfc1	v0, $31
 	INT_S	v0, _OFFSETOF_SC_FPREGS_FCSR(a0)

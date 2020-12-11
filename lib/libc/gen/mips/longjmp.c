@@ -36,13 +36,16 @@
 #include <string.h>
 #include <setjmp.h>
 
+#define _REG(ctx, n) ((ctx)->uc_mcontext.__gregs[_REG_##n])
+#define _FPREG(ctx, n) ((ctx)->uc_mcontext.__fpregs.__fp_r.__fp_regs[(n)])
+#define _FPCSR(ctx) ((ctx)->uc_mcontext.__fpregs.__fp_csr)
+
 void longjmp(jmp_buf env, int val) {
-  struct sigcontext *sc = (void *)env;
-  ucontext_t *sc_uc = &sc->sc_uc;
+  ucontext_t *sc_uc = (void *)env;
   ucontext_t uc;
 
-  /* Ensure non-zero SP and sigcontext magic number is present */
-  if (sc_uc->uc_mcontext.__gregs[_REG_SP] == 0)
+  /* Ensure non-zero SP */
+  if (_REG(sc_uc, SP) == 0)
     goto err;
 
   /* Ensure non-zero return value */
@@ -64,32 +67,31 @@ void longjmp(jmp_buf env, int val) {
   uc.uc_link = 0;
 
   /* Save return value in context */
-  uc.uc_mcontext.__gregs[_REG_V0] = val;
+  _REG(&uc, V0) = val;
 
   /* Copy saved registers */
-  uc.uc_mcontext.__gregs[_REG_S0] = sc_uc->uc_mcontext.__gregs[_REG_S0];
-  uc.uc_mcontext.__gregs[_REG_S1] = sc_uc->uc_mcontext.__gregs[_REG_S1];
-  uc.uc_mcontext.__gregs[_REG_S2] = sc_uc->uc_mcontext.__gregs[_REG_S2];
-  uc.uc_mcontext.__gregs[_REG_S3] = sc_uc->uc_mcontext.__gregs[_REG_S3];
-  uc.uc_mcontext.__gregs[_REG_S4] = sc_uc->uc_mcontext.__gregs[_REG_S4];
-  uc.uc_mcontext.__gregs[_REG_S5] = sc_uc->uc_mcontext.__gregs[_REG_S5];
-  uc.uc_mcontext.__gregs[_REG_S6] = sc_uc->uc_mcontext.__gregs[_REG_S6];
-  uc.uc_mcontext.__gregs[_REG_S7] = sc_uc->uc_mcontext.__gregs[_REG_S7];
-  uc.uc_mcontext.__gregs[_REG_S8] = sc_uc->uc_mcontext.__gregs[_REG_S8];
+  _REG(&uc, S0) = _REG(sc_uc, S0);
+  _REG(&uc, S1) = _REG(sc_uc, S1);
+  _REG(&uc, S2) = _REG(sc_uc, S2);
+  _REG(&uc, S3) = _REG(sc_uc, S3);
+  _REG(&uc, S4) = _REG(sc_uc, S4);
+  _REG(&uc, S5) = _REG(sc_uc, S5);
+  _REG(&uc, S6) = _REG(sc_uc, S6);
+  _REG(&uc, S7) = _REG(sc_uc, S7);
+  _REG(&uc, S8) = _REG(sc_uc, S8);
 #if !defined(__mips_abicalls)
-  uc.uc_mcontext.__gregs[_REG_GP] = sc_uc->uc_mcontext.__gregs[_REG_GP];
+  _REG(&uc, GP) = _REG(sc_uc, GP);
 #endif
-  uc.uc_mcontext.__gregs[_REG_SP] = sc_uc->uc_mcontext.__gregs[_REG_SP];
-  uc.uc_mcontext.__gregs[_REG_RA] = sc_uc->uc_mcontext.__gregs[_REG_RA];
-  uc.uc_mcontext.__gregs[_REG_EPC] = sc_uc->uc_mcontext.__gregs[_REG_EPC];
+  _REG(&uc, SP) = _REG(sc_uc, SP);
+  _REG(&uc, RA) = _REG(sc_uc, RA);
+  _REG(&uc, EPC) = _REG(sc_uc, EPC);
 
   /* Copy FP state */
   if (sc_uc->uc_flags & _UC_FPU) {
     /* FP saved regs are $f20 .. $f31 */
-    memcpy(&uc.uc_mcontext.__fpregs.__fp_r.__fp_regs[20],
-           &sc_uc->uc_mcontext.__fpregs.__fp_r.__fp_regs[20],
-           (32 - 20) * sizeof(float));
-    uc.uc_mcontext.__fpregs.__fp_csr = sc_uc->uc_mcontext.__fpregs.__fp_csr;
+    memcpy(&_FPREG(&uc, 20), &_FPREG(sc_uc, 20),
+           (32 - 20) * sizeof(fpregister_t));
+    _FPCSR(&uc) = _FPCSR(sc_uc);
     /* XXX sc_fp_control */
     uc.uc_flags |= _UC_FPU;
   }

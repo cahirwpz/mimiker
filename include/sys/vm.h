@@ -28,12 +28,12 @@ typedef enum {
 #define VM_PROT_MASK (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC)
 
 typedef enum {
-  VM_FILE = 0,    /* map from file (default) */
-  VM_ANON = 1,    /* allocated from memory */
-  VM_SHARED = 2,  /* share changes */
-  VM_PRIVATE = 4, /* changes are private */
-  VM_FIXED = 8,   /* map addr must be exactly as requested */
-  VM_STACK = 16,  /* region grows down, like a stack */
+  VM_FILE = 0x0000,    /* map from file (default) */
+  VM_ANON = 0x1000,    /* allocated from memory */
+  VM_STACK = 0x2000,   /* region grows down, like a stack */
+  VM_SHARED = 0x0001,  /* share changes */
+  VM_PRIVATE = 0x0002, /* changes are private */
+  VM_FIXED = 0x0004,   /* map addr must be exactly as requested */
 } vm_flags_t;
 
 typedef struct vm_page vm_page_t;
@@ -61,5 +61,8 @@ struct vm_page {
   pg_flags_t flags;               /* page flags (used by physmem as well) */
   uint32_t size;                  /* size of page in PAGESIZE units */
 };
+
+int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags);
+int do_munmap(vaddr_t addr, size_t length);
 
 #endif /* !_SYS_VM_H_ */

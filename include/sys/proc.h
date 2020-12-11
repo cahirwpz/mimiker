@@ -8,6 +8,8 @@
 #include <sys/signal.h>
 #include <sys/vm_map.h>
 #include <sys/cred.h>
+#include <sys/syslimits.h>
+#include <sys/uio.h>
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
@@ -37,11 +39,12 @@ extern proc_t proc0;
  *  (!) read-only access, do not modify!
  */
 typedef struct session {
-  TAILQ_ENTRY(session) s_hash; /* (a) link on sid hash chain */
-  proc_t *s_leader;            /* (a) Session leader */
-  int s_count;                 /* (a) Count of pgrps in session */
-  sid_t s_sid;                 /* (!) PID of session leader */
-  tty_t *s_tty;                /* (a) Controlling terminal (if any) */
+  TAILQ_ENTRY(session) s_hash;  /* (a) link on sid hash chain */
+  proc_t *s_leader;             /* (a) Session leader */
+  int s_count;                  /* (a) Count of pgrps in session */
+  sid_t s_sid;                  /* (!) PID of session leader */
+  tty_t *s_tty;                 /* (a) Controlling terminal (if any) */
+  char s_login[LOGIN_NAME_MAX]; /* (a) Login name set by setlogin() */
 } session_t;
 
 /*! \brief Structure allocated per process group.
@@ -187,6 +190,9 @@ void proc_wakeup_parent(proc_t *parent);
 void proc_stop(signo_t sig);
 
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp);
+
+/*! \brief Set login name associated with current session. */
+int do_setlogin(const char *name);
 
 static inline bool proc_is_alive(proc_t *p) {
   return (p->p_state == PS_NORMAL || p->p_state == PS_STOPPED);
