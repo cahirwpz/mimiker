@@ -30,6 +30,7 @@ SOURCES = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
+	isa.c \
 	kenv.c \
 	klog.c \
 	kmem.c \

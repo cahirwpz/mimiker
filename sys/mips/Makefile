@@ -3,6 +3,7 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
+	82371AB.c \
 	boot.c \
 	cbus.c \
 	context.c \
