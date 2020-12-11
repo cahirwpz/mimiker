@@ -157,9 +157,9 @@ static int sys_sigaction(proc_t *p, sigaction_args_t *args, register_t *res) {
 }
 
 static int sys_sigreturn(proc_t *p, sigreturn_args_t *args, register_t *res) {
-  ucontext_t *uc = SCARG(args, sigctx_p);
-  klog("sigreturn(%p)", uc);
-  return do_sigreturn(uc);
+  ucontext_t *ucp = SCARG(args, sigctx_p);
+  klog("sigreturn(%p)", ucp);
+  return do_sigreturn(ucp);
 }
 
 static int sys_mmap(proc_t *p, mmap_args_t *args, register_t *res) {

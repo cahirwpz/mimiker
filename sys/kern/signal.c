@@ -546,6 +546,6 @@ __noreturn void sig_exit(thread_t *td, signo_t sig) {
   proc_exit(MAKE_STATUS_SIG_TERM(sig));
 }
 
-int do_sigreturn(ucontext_t *sc) {
-  return sig_return(sc);
+int do_sigreturn(ucontext_t *ucp) {
+  return sig_return(ucp);
 }

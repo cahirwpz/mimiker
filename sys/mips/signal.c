@@ -9,7 +9,7 @@
 #include <sys/ucontext.h>
 
 typedef struct sig_ctx {
-  ucontext_t sc_sc;
+  ucontext_t sc_uc;
   siginfo_t sc_info;
   /* TODO: Store handler signal mask. */
   /* TODO: Store previous stack data, if the sigaction requested a different
@@ -31,8 +31,8 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
 
   /* Prepare signal context. */
   sig_ctx_t ksc = {.sc_info = ksi->ksi_info};
-  user_ctx_copy(&ksc.sc_sc.uc_mcontext, uctx);
-  ksc.sc_sc.uc_sigmask = *mask;
+  user_ctx_copy(&ksc.sc_uc.uc_mcontext, uctx);
+  ksc.sc_uc.uc_sigmask = *mask;
 
   /* Copyout sigcode to user stack. */
   unsigned sigcode_size = esigcode - sigcode;
@@ -57,7 +57,7 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   /* Set arguments to signal number, signal info, and user context. */
   _REG(uctx, A0) = sig;
   _REG(uctx, A1) = (register_t)&cp->sc_info;
-  _REG(uctx, A2) = (register_t)&cp->sc_sc.uc_mcontext;
+  _REG(uctx, A2) = (register_t)&cp->sc_uc.uc_mcontext;
   /* The calling convention is such that the callee may write to the address
    * pointed by sp before extending the stack - so we need to set it 1 word
    * before the stored context! */
@@ -68,22 +68,22 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   return 0;
 }
 
-int sig_return(ucontext_t *scp) {
+int sig_return(ucontext_t *ucp) {
   int error = 0;
   thread_t *td = thread_self();
-  ucontext_t sc;
+  ucontext_t uc;
 
   user_ctx_t *uctx = td->td_uctx;
 
-  error = copyin_s(scp, sc);
+  error = copyin_s(ucp, uc);
   if (error)
     return error;
 
   /* Restore user context. */
-  user_ctx_copy(uctx, &sc.uc_mcontext);
+  user_ctx_copy(uctx, &uc.uc_mcontext);
 
   WITH_MTX_LOCK (&td->td_proc->p_lock)
-    error = do_sigprocmask(SIG_SETMASK, &sc.uc_sigmask, NULL);
+    error = do_sigprocmask(SIG_SETMASK, &uc.uc_sigmask, NULL);
   assert(error == 0);
 
   return EJUSTRETURN;
