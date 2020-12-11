@@ -91,7 +91,7 @@ static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
   va->va_gid = 0;
   va->va_nlink = 1;
   va->va_ino = 0;
-  va->va_size = 0;
+  va->va_size = -1;
   return 0;
 }
 
