@@ -36,7 +36,7 @@ void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error);
 /*! \brief Set up the user context to restart a syscall.
  *
  * `ctx` is assumed to be exactly the same as it was on syscall entry. */
-void user_ctx_restart_syscall(user_ctx_t *ctx);
+void mcontext_restart_syscall(mcontext_t *ctx);
 
 /* This function stores the current context to @from, and resumes the
  * context stored in @to. It does not return immediatelly, it returns

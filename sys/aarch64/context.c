@@ -40,7 +40,7 @@ void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
   _REG(ctx, X1) = error;
 }
 
-void user_ctx_restart_syscall(user_ctx_t *ctx) {
+void mcontext_restart_syscall(mcontext_t *ctx) {
   _REG(ctx, PC) -= 4; /* TODO subtract 2 if in thumb mode */
 }
 

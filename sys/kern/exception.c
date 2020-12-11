@@ -21,7 +21,7 @@ void on_exc_leave(void) {
   }
 }
 
-static void set_syscall_retval(user_ctx_t *ctx, syscall_result_t *result,
+static void set_syscall_retval(mcontext_t *ctx, syscall_result_t *result,
                                int sig) {
   int error = result->error;
   proc_t *p = proc_self();
@@ -32,16 +32,16 @@ static void set_syscall_retval(user_ctx_t *ctx, syscall_result_t *result,
   if (error == ERESTARTSYS || error == ERESTARTNOHAND) {
     if (!sig || (error == ERESTARTSYS &&
                  (p->p_sigactions[sig].sa_flags & SA_RESTART))) {
-      user_ctx_restart_syscall(ctx);
+      mcontext_restart_syscall(ctx);
       return;
     }
     error = EINTR;
   }
 
-  user_ctx_set_retval(ctx, result->retval, error);
+  mcontext_set_retval(ctx, result->retval, error);
 }
 
-void on_user_exc_leave(user_ctx_t *ctx, syscall_result_t *result) {
+void on_user_exc_leave(mcontext_t *ctx, syscall_result_t *result) {
   thread_t *td = thread_self();
   proc_t *p = td->td_proc;
   int sig = 0;

@@ -52,7 +52,7 @@ void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
   _REG(ctx, EPC) += 4;
 }
 
-void user_ctx_restart_syscall(user_ctx_t *ctx) {
+void mcontext_restart_syscall(mcontext_t *ctx) {
   /* Nothing needs to be done. */
 }
 
