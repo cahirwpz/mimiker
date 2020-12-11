@@ -1,6 +1,29 @@
 /* GT64120 PCI bus driver
  *
- * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file. */
+ * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file.
+ *
+ * How do we handle `r_start` and `r_bus_handle` of assigned resources?
+ *
+ * - Interrupts:
+ *     - `r_bus_handle` is always equal to NULL.
+ *     - `r_start` is an interrupt number.
+ *
+ * - Memory:
+ *     - `gt_pci_alloc_resource` sets `r_bus_handle` to a physical
+ *       address of a resource, while `gt_pci_activate_resource`
+ *       upgrades it to a virtual address of the mapped resource.
+ *     - `r_start` is an absolute address of a resource.
+ *
+ *  - IO ports:
+ *     - All IO ports managed by the PCI bus driver are mapped in the
+ *       `gt_pci_attach` function, therefore `gt_pci_alloc_resource`
+ *       sets `r_bus_handle` to a virtual address of a resource.
+ *     - `r_start` is an offset in PCI IO space.
+ *
+ *   Memory BARs must contain absolute addresses, while IO BARs require
+ *   relative addresses. The above scheme allows us to unify updating of a
+ *   BAR register by using the `r_start` of a resource.
+ */
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
 #include <sys/mimiker.h>
@@ -129,6 +152,11 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   }
 
   bus_write_4(pcicfg, GT_PCI0_CFG_DATA, data.dword);
+}
+
+static void gt_pci_enable_busmaster(device_t *dev) {
+  uint16_t cmd = pci_read_config_2(dev, PCIR_COMMAND);
+  pci_write_config_2(dev, PCIR_COMMAND, cmd | PCIM_CMD_BUSMASTEREN);
 }
 
 static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
@@ -335,7 +363,10 @@ static int gt_pci_attach(device_t *pcib) {
   return bus_generic_probe(pcib);
 }
 
-static bool gt_pci_bar(device_t *dev, int rid) {
+static bool gt_pci_bar(device_t *dev, res_type_t type, int rid,
+                       rman_addr_t start) {
+  if ((type == RT_IOPORTS && start <= IO_ISAEND) || type == RT_IRQ)
+    return false;
   pci_device_t *pcid = pci_device_of(dev);
   return rid < PCI_BAR_MAX && pcid->bar[rid].size != 0;
 }
@@ -366,10 +397,8 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     panic("Unknown PCI device type: %d", type);
   }
 
-  if ((type == RT_IOPORTS && start > IO_ISAEND) || type == RT_MEMORY) {
-    if (gt_pci_bar(dev, rid))
-      alignment = max(alignment, size);
-  }
+  if (gt_pci_bar(dev, type, rid, start))
+    alignment = max(alignment, size);
 
   resource_t *r =
     rman_reserve_resource(rman, start, end, size, alignment, flags);
@@ -401,24 +430,21 @@ static void gt_pci_release_resource(device_t *dev, res_type_t type,
 static int gt_pci_activate_resource(device_t *dev, res_type_t type,
                                     resource_t *r) {
   if (type == RT_MEMORY || type == RT_IOPORTS) {
-    uint16_t command = pci_read_config(dev, PCIR_COMMAND, 2);
+    uint16_t command = pci_read_config_2(dev, PCIR_COMMAND);
     if (type == RT_MEMORY)
       command |= PCIM_CMD_MEMEN;
     else if (type == RT_IOPORTS)
       command |= PCIM_CMD_PORTEN;
-    pci_write_config(dev, PCIR_COMMAND, 2, command);
+    pci_write_config_2(dev, PCIR_COMMAND, command);
   }
 
   int rid = r->r_rid;
-  if (type == RT_MEMORY) {
-    /* Is this a PCI bar? */
-    if (gt_pci_bar(dev, rid)) {
-      /* Write BAR address to PCI device register. */
-      pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
-    }
-    return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
+  if (gt_pci_bar(dev, type, rid, r->r_start))
+    pci_write_config_4(dev, PCIR_BAR(rid), r->r_start);
+
+  if (type == RT_MEMORY)
+    return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
                          &r->r_bus_handle);
-  }
 
   return 0;
 }
@@ -452,6 +478,7 @@ pci_bus_driver_t gt_pci_bus = {
   .pci_bus = {
     .read_config = gt_pci_read_config,
     .write_config = gt_pci_write_config,
+    .enable_busmaster = gt_pci_enable_busmaster,
   }
 };
 /* clang-format on */

@@ -383,7 +383,7 @@ static int _do_execve(exec_args_t *args) {
   fdtab_onexec(p->p_fdtable);
 
   /* Set up user context. */
-  user_ctx_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
+  mcontext_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
 
   WITH_PROC_LOCK(p) {
     sig_onexec(p);
