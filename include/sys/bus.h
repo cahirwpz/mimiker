@@ -144,6 +144,8 @@ struct bus_methods {
   void (*release_resource)(device_t *dev, res_type_t type, resource_t *r);
   int (*activate_resource)(device_t *dev, res_type_t type, resource_t *r);
   void (*deactivate_resource)(device_t *dev, res_type_t type, resource_t *r);
+  void (*mask_irq)(intr_event_t *ie);
+  void (*unmask_irq)(intr_event_t *ie);
 };
 
 struct bus_driver {
@@ -205,6 +207,14 @@ void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r);
 static inline void bus_release_resource(device_t *dev, res_type_t type,
                                         resource_t *r) {
   BUS_METHODS(dev->parent).release_resource(dev, type, r);
+}
+
+static inline void bus_mask_irq(device_t *dev, intr_event_t *ie) {
+  BUS_METHODS(dev->parent).mask_irq(ie);
+}
+
+static inline void bus_unmask_irq(device_t *dev, intr_event_t *ie) {
+  BUS_METHODS(dev->parent).unmask_irq(ie);
 }
 
 int bus_generic_probe(device_t *bus);

@@ -26,7 +26,6 @@
 
 bus_driver_t intel_isa_bus;
 
-
 /* DEVCLASS_DECLARE(isa); */
 
 typedef struct intel_isa_state {
@@ -58,7 +57,7 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
   resource_t *r = rman_reserve_resource(rman, start, end, size, size, flags);
   if (r == NULL)
     return NULL;
-  
+
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, type, r)) {
       rman_release_resource(r);
@@ -77,7 +76,7 @@ static int intel_isa_activate_resource(device_t *dev, res_type_t type,
 }
 
 static void intel_isa_release_resource(device_t *dev, res_type_t type,
-                                      resource_t *r) {
+                                       resource_t *r) {
   assert(type != RT_MEMORY);
   rman_release_resource(r);
 }
@@ -87,58 +86,35 @@ static int intel_isa_probe(device_t *d) {
 }
 
 static void intel_isa_mask_irq(intr_event_t *ie) {
-/*   intel_isa_state_t *sia = ie->ie_source;
-  unsigned irq = ie->ie_irq;
-
-  isa->imask |= (1 << irq);
-  isa->elcr |= (1 << irq);
-  gt_pci_set_icus(gtpci); */
-
-  /* UNIIMPLEMENDTED!!!!!! */
+  device_t *dev = ie->ie_source;
+  assert(dev->parent != NULL);
+  device_t *isadev = dev->parent;
+  assert(isadev->driver == (driver_t *)&intel_isa_bus);
+  assert(isadev->parent != NULL);
+  bus_mask_irq(isadev->parent, ie);
 }
 
 static void intel_isa_unmask_irq(intr_event_t *ie) {
-/*   gt_pci_state_t *gtpci = ie->ie_source;
-  unsigned irq = ie->ie_irq;
-
-  gtpci->imask &= ~(1 << irq);
-  gtpci->elcr &= ~(1 << irq);
-  gt_pci_set_icus(gtpci); */
-
-  /* UNIIMPLEMENDTED!!!!!! */
+  device_t *dev = ie->ie_source;
+  assert(dev->parent != NULL);
+  device_t *isadev = dev->parent;
+  assert(isadev->driver == (driver_t *)&intel_isa_bus);
+  assert(isadev->parent != NULL);
+  bus_unmask_irq(isadev->parent, ie);
 }
-
-static const char *intel_isa_intr_name[ICU_LEN] = {
-  [0] = "timer",
-  [1] = "kbd",        /* kbd controller (keyboard) */
-  [2] = "pic-slave",  /* PIC cascade */
-  [3] = "uart(1)",    /* COM 2 */
-  [4] = "uart(0)",    /* COM 1 */
-  [5] = "unused(0)",
-  [6] = "floppy",     /* floppy */
-  [7] = "parallel",   /* centronics */
-  [8] = "rtc",        /* RTC */
-  [9] = "i2c",        /* I2C */
-  [10] = "unused(1)",
-  [11] = "unused(2)",
-  [12] = "mouse",     /* kbd controller (mouse) */
-  [13] = "unused(3)",
-  [14] = "ide(0)",    /* IDE primary */
-  [15] = "ide(1)",    /* IDE secondary */
-};
 
 static void intel_isa_intr_setup(device_t *dev, resource_t *r,
                                  ih_filter_t *filter, ih_service_t *service,
-                                 void *arg, const char *name)  {
+                                 void *arg, const char *name) {
   assert(dev->parent->driver == &intel_isa_bus.driver);
   intel_isa_state_t *isa = dev->parent->state;
   int irq = r->r_start;
   assert(irq < ISA_IRQ_BASE + ICU_LEN && irq >= ISA_IRQ_BASE);
-  
+
   if (isa->intr_event[irq] == NULL)
-      isa->intr_event[irq] = intr_event_create(
-        isa, irq, intel_isa_mask_irq, intel_isa_unmask_irq,
-        intel_isa_intr_name[irq]);
+    isa->intr_event[irq] =
+      intr_event_create(isa, irq, intel_isa_mask_irq, intel_isa_unmask_irq,
+                        gt_pci_intr_name[irq]);
 
   r->r_handler =
     intr_event_add_handler(isa->intr_event[irq], filter, service, arg, name);

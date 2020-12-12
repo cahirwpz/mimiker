@@ -146,7 +146,10 @@ static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
 }
 
 static void gt_pci_mask_irq(intr_event_t *ie) {
-  gt_pci_state_t *gtpci = ie->ie_source;
+  device_t *dev = ie->ie_source;
+  assert(dev->parent != NULL);
+  assert(dev->parent->driver == (driver_t *)&gt_pci_bus);
+  gt_pci_state_t *gtpci = dev->parent->state;
   unsigned irq = ie->ie_irq;
 
   gtpci->imask |= (1 << irq);
@@ -155,7 +158,10 @@ static void gt_pci_mask_irq(intr_event_t *ie) {
 }
 
 static void gt_pci_unmask_irq(intr_event_t *ie) {
-  gt_pci_state_t *gtpci = ie->ie_source;
+  device_t *dev = ie->ie_source;
+  assert(dev->parent != NULL);
+  assert(dev->parent->driver == (driver_t *)&gt_pci_bus);
+  gt_pci_state_t *gtpci = dev->parent->state;
   unsigned irq = ie->ie_irq;
 
   gtpci->imask &= ~(1 << irq);
@@ -164,7 +170,7 @@ static void gt_pci_unmask_irq(intr_event_t *ie) {
 }
 
 /* clang-format off */
-static const char *gt_pci_intr_name[ICU_LEN] = {
+const char *gt_pci_intr_name[ICU_LEN] = {
   [0] = "timer",
   [1] = "kbd",        /* kbd controller (keyboard) */
   [2] = "pic-slave",  /* PIC cascade */
@@ -194,7 +200,7 @@ static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
 
   if (gtpci->intr_event[irq] == NULL)
     gtpci->intr_event[irq] = intr_event_create(
-      gtpci, irq, gt_pci_mask_irq, gt_pci_unmask_irq, gt_pci_intr_name[irq]);
+      dev, irq, gt_pci_mask_irq, gt_pci_unmask_irq, gt_pci_intr_name[irq]);
 
   r->r_handler =
     intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg, name);
@@ -434,6 +440,8 @@ pci_bus_driver_t gt_pci_bus = {
     .release_resource = gt_pci_release_resource,
     .activate_resource = gt_pci_activate_resource,
     .deactivate_resource = gt_pci_deactivate_resource,
+    .mask_irq = gt_pci_mask_irq,
+    .unmask_irq = gt_pci_unmask_irq
   },
   .pci_bus = {
     .read_config = gt_pci_read_config,
