@@ -290,6 +290,7 @@ static void rootdev_deactivate_resource(device_t *dev, res_type_t type,
   /* TODO: unmap mapped resources. */
 }
 
+/* clang-format off */
 static bus_driver_t rootdev_driver = {
   .driver =
     {
