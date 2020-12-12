@@ -2,7 +2,7 @@
 #include <sys/mimiker.h>
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
-#include <sys/pci.h>
+#include <sys/isa.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/timer.h>
@@ -145,4 +145,4 @@ static driver_t pit_driver = {
 };
 /* clang-format on */
 
-DEVCLASS_ENTRY(pci, pit_driver);
+DEVCLASS_ENTRY(isa, pit_driver);

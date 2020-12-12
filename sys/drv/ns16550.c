@@ -6,7 +6,7 @@
 #include <sys/klog.h>
 #include <sys/condvar.h>
 #include <sys/ringbuf.h>
-#include <sys/pci.h>
+#include <sys/isa.h>
 #include <sys/termios.h>
 #include <sys/ttycom.h>
 #include <dev/isareg.h>
@@ -250,4 +250,4 @@ static driver_t ns16550_driver = {
 };
 /* clang-format on */
 
-DEVCLASS_ENTRY(pci, ns16550_driver);
+DEVCLASS_ENTRY(isa, ns16550_driver);
