@@ -19,13 +19,12 @@ typedef int (*d_probe_t)(device_t *dev);
 typedef int (*d_attach_t)(device_t *dev);
 typedef int (*d_detach_t)(device_t *dev);
 
-
+/* Update this section if you add any new driver interface */
 typedef enum dev_interface {
   DEV_INTERFACE_BUS = 0,
-  DEV_INTERFACE_PCI = 1,
-  DEV_INTERFACE_ICU = 2
+  DEV_INTERFACE_PCI = 1
 } dev_interface_t;
-#define DEVICE_INTERFACE_CNT 3
+#define DEVICE_INTERFACE_CNT 2
 
 #define INTERFACE(driver, itype, field_name) \
 [itype] = offsetof(driver, field_name)
