@@ -1,7 +1,7 @@
 #include <sys/interrupt.h>
 #include <sys/sched.h>
 #include <mips/mips.h>
-#include <mips/context.h>
+#include <mips/m32c0.h>
 #include <mips/interrupt.h>
 
 /* Extra information regarding DI / EI usage (from MIPS® ISA documentation):
