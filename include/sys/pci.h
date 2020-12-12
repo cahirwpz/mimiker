@@ -97,11 +97,12 @@ typedef struct pci_device {
   pci_bar_t bar[PCI_BAR_MAX];
 } pci_device_t;
 
-#define PCI_DRIVER(dev) ((pci_bus_driver_t *)((dev)->parent->driver))
+#define pci_get_interface(dev)                                                 \
+  ((pci_bus_methods_t *)device_get_interface(dev, DEV_INTERFACE_PCI))
 
 static inline uint32_t pci_read_config(device_t *device, unsigned reg,
                                        unsigned size) {
-  return PCI_DRIVER(device)->pci_bus.read_config(device, reg, size);
+  return pci_get_interface(device->parent)->read_config(device, reg, size);
 }
 
 #define pci_read_config_1(d, r) pci_read_config((d), (r), 1)
@@ -110,7 +111,7 @@ static inline uint32_t pci_read_config(device_t *device, unsigned reg,
 
 static inline void pci_write_config(device_t *device, unsigned reg,
                                     unsigned size, uint32_t value) {
-  PCI_DRIVER(device)->pci_bus.write_config(device, reg, size, value);
+  pci_get_interface(device->parent)->write_config(device, reg, size, value);
 }
 
 #define pci_write_config_1(d, r, v) pci_write_config((d), (r), 1, (v))
@@ -118,7 +119,7 @@ static inline void pci_write_config(device_t *device, unsigned reg,
 #define pci_write_config_4(d, r, v) pci_write_config((d), (r), 4, (v))
 
 static inline void pci_enable_busmaster(device_t *device) {
-  PCI_DRIVER(device)->pci_bus.enable_busmaster(device);
+  pci_get_interface(device->parent)->enable_busmaster(device);
 }
 
 void pci_bus_enumerate(device_t *pcib);
@@ -133,8 +134,5 @@ static inline bool pci_device_match(pci_device_t *pcid, uint16_t vendor_id,
   return (pcid != NULL) && (pcid->vendor_id == vendor_id) &&
          (pcid->device_id == device_id);
 }
-
-#define pci_get_interface(dev)                                                 \
-  ((pci_bus_methods_t *)device_get_interface(dev, DEV_INTERFACE_PCI))
 
 #endif /* !_SYS_PCI_H_ */

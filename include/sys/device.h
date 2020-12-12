@@ -27,7 +27,7 @@ typedef enum dev_interface {
 #define DEVICE_INTERFACE_CNT 2
 
 #define INTERFACE(driver, itype, field_name) \
-[itype] = offsetof(driver, field_name)
+  [itype] = offsetof(driver, field_name)
 
 struct driver {
   const char *desc;  /* short driver description */
@@ -96,8 +96,7 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
 
 static inline void *device_get_interface(device_t *dev, dev_interface_t itype) {
   size_t offset = dev->driver->interfaces[(size_t)itype];
-  if (offset == 0)
-    return NULL;
+  assert(offset != 0);
   return ((void *)dev->driver) + offset;
 }
 
