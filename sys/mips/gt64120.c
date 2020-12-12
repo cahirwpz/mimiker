@@ -88,7 +88,14 @@ typedef struct gt_pci_state {
   uint16_t elcr;
 } gt_pci_state_t;
 
-pci_bus_driver_t gt_pci_bus;
+struct gt_pci_driver;
+
+struct gt_pci_driver {
+  driver_t driver;
+  bus_methods_t bus;
+  pci_bus_methods_t pci_bus;
+};
+struct gt_pci_driver gt_pci_bus;
 
 /* Access configuration space through memory mapped GT-64120 registers. Take
  * care of the fact that MIPS processor cannot handle unaligned accesses. */
@@ -460,15 +467,15 @@ static int gt_pci_probe(device_t *d) {
 }
 
 /* clang-format off */
-pci_bus_driver_t gt_pci_bus = {
+struct gt_pci_driver gt_pci_bus = {
   .driver = {
     .desc = "GT-64120 PCI bus driver",
     .size = sizeof(gt_pci_state_t),
     .attach = gt_pci_attach,
     .probe = gt_pci_probe,
     .interfaces = {
-      INTERFACE(struct pci_bus_driver, DEV_INTERFACE_BUS, bus),
-      INTERFACE(struct pci_bus_driver, DEV_INTERFACE_PCI, pci_bus)
+      INTERFACE(struct gt_pci_driver, DEV_INTERFACE_BUS, bus),
+      INTERFACE(struct gt_pci_driver, DEV_INTERFACE_PCI, pci_bus)
     }
   },
   .bus = {

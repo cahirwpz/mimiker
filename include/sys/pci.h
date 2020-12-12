@@ -72,12 +72,6 @@ typedef struct pci_bus_methods {
   pci_enable_busmaster_t enable_busmaster;
 } pci_bus_methods_t;
 
-typedef struct pci_bus_driver {
-  driver_t driver;
-  bus_methods_t bus;
-  pci_bus_methods_t pci_bus;
-} pci_bus_driver_t;
-
 typedef struct pci_bar {
   device_t *owner; /* pci device owner of this bar */
   size_t size;     /* identified size of this bar */

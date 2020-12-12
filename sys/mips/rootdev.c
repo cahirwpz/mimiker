@@ -174,14 +174,17 @@ static int rootdev_attach(device_t *bus) {
 }
 
 /* clang-format off */
-static bus_driver_t rootdev_driver = {
+static struct rootdev_driver {
+  driver_t driver;
+  bus_methods_t bus;
+} rootdev_driver = {
   .driver = {
     .size = sizeof(rootdev_t),
     .desc = "MIPS platform root bus driver",
     .probe = rootdev_probe,
     .attach = rootdev_attach,
     .interfaces = {
-      INTERFACE(struct bus_driver, DEV_INTERFACE_BUS, bus)
+      INTERFACE(struct rootdev_driver, DEV_INTERFACE_BUS, bus)
     }
   },
   .bus = {

@@ -6,7 +6,6 @@
 #include <sys/interrupt.h>
 
 typedef struct bus_methods bus_methods_t;
-typedef struct bus_driver bus_driver_t;
 typedef struct intr_handler intr_handler_t;
 
 /* `bus space` describes a method to access hardware resources mapped at some
@@ -144,11 +143,6 @@ struct bus_methods {
   void (*release_resource)(device_t *dev, res_type_t type, resource_t *r);
   int (*activate_resource)(device_t *dev, res_type_t type, resource_t *r);
   void (*deactivate_resource)(device_t *dev, res_type_t type, resource_t *r);
-};
-
-struct bus_driver {
-  driver_t driver;
-  bus_methods_t bus;
 };
 
 #define bus_get_interface(dev)                                                 \

@@ -290,15 +290,17 @@ static void rootdev_deactivate_resource(device_t *dev, res_type_t type,
   /* TODO: unmap mapped resources. */
 }
 
-/* clang-format off */
-static bus_driver_t rootdev_driver = {
+static struct rootdev_driver {
+  driver_t driver;
+  bus_methods_t bus;
+} rootdev_driver = {
   .driver =
     {
       .size = sizeof(rootdev_t),
       .desc = "RPI3 platform root bus driver",
       .attach = rootdev_attach,
       .interfaces = {
-        INTERFACE(struct bus_driver, DEV_INTERFACE_BUS, bus)
+        INTERFACE(struct rootdev_driver, DEV_INTERFACE_BUS, bus)
       }
     },
   .bus =
