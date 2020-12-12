@@ -19,12 +19,24 @@ typedef int (*d_probe_t)(device_t *dev);
 typedef int (*d_attach_t)(device_t *dev);
 typedef int (*d_detach_t)(device_t *dev);
 
+
+typedef enum dev_interface {
+  DEV_INTERFACE_BUS = 0,
+  DEV_INTERFACE_PCI = 1,
+  DEV_INTERFACE_ICU = 2
+} dev_interface_t;
+#define DEVICE_INTERFACE_CNT 3
+
+#define INTERFACE(driver, itype, field_name) \
+[itype] = offsetof(driver, field_name)
+
 struct driver {
   const char *desc;  /* short driver description */
   size_t size;       /* device->state object size */
   d_probe_t probe;   /* probe for specific device(s) */
   d_attach_t attach; /* attach device to system */
   d_detach_t detach; /* detach device from system */
+  const size_t interfaces[DEVICE_INTERFACE_CNT];
 };
 
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
@@ -82,6 +94,13 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
 
 #define device_take_irq(dev, rid, flags)                                       \
   device_take_resource((dev), RT_IRQ, (rid), (flags))
+
+static inline void *device_get_interface(device_t *dev, dev_interface_t itype) {
+  size_t offset = dev->driver->interfaces[(size_t)itype];
+  if (offset == 0)
+    return NULL;
+  return ((void *)dev->driver) + offset;
+}
 
 /* A universal memory pool to be used by all drivers. */
 KMALLOC_DECLARE(M_DEV);

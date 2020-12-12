@@ -296,6 +296,9 @@ static bus_driver_t rootdev_driver = {
       .size = sizeof(rootdev_t),
       .desc = "RPI3 platform root bus driver",
       .attach = rootdev_attach,
+      .interfaces = {
+        INTERFACE(struct bus_driver, DEV_INTERFACE_BUS, bus)
+      }
     },
   .bus =
     {

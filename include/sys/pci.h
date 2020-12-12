@@ -134,4 +134,7 @@ static inline bool pci_device_match(pci_device_t *pcid, uint16_t vendor_id,
          (pcid->device_id == device_id);
 }
 
+#define pci_get_interface(dev)                                                 \
+  ((pci_bus_methods_t *)device_get_interface(dev, DEV_INTERFACE_PCI))
+
 #endif /* !_SYS_PCI_H_ */

@@ -466,6 +466,10 @@ pci_bus_driver_t gt_pci_bus = {
     .size = sizeof(gt_pci_state_t),
     .attach = gt_pci_attach,
     .probe = gt_pci_probe,
+    .interfaces = {
+      INTERFACE(struct pci_bus_driver, DEV_INTERFACE_BUS, bus),
+      INTERFACE(struct pci_bus_driver, DEV_INTERFACE_PCI, pci_bus)
+    }
   },
   .bus = {
     .intr_setup = gt_pci_intr_setup,
