@@ -317,7 +317,7 @@ int do_faccessat(proc_t *p, int fd, char *path, int mode, int flags) {
      the real user and group IDs for checking permission.*/
   error = VOP_ACCESS(v, mode, &p->p_cred);
   vnode_drop(v);
-  return error == EPERM ? EACCES : error;
+  return error;
 }
 
 int do_getcwd(proc_t *p, char *buf, size_t *lastp) {

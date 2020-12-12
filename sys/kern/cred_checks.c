@@ -106,12 +106,16 @@ int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode) {
   if (va->va_mode & S_IXOTH)
     granted |= VEXEC;
 
+check:
   if (cred->cr_euid == 0) {
     granted |= VREAD | VWRITE;
-    if (va->va_mode & (S_IXUSR | S_IXGRP | S_IXOTH))
+    /* root has exec permission when:
+     *   - file is directory
+     *   - at lest one exec bit is se
+     */
+    if (va->va_mode & (S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH))
       granted |= VEXEC;
   }
 
-check:
   return (mode & granted) == mode ? 0 : EACCES;
 }
