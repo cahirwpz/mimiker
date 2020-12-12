@@ -113,7 +113,7 @@ check:
      *   - file is directory
      *   - at lest one exec bit is se
      */
-    if (va->va_mode & (S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH))
+    if (S_ISDIR(va->va_mode) || va->va_mode & (S_IXUSR | S_IXGRP | S_IXOTH))
       granted |= VEXEC;
   }
 
