@@ -1,9 +1,10 @@
 #!/bin/sh
 
 PAGER=cat
+BOARD=${1:-malta}
 
 # Use make format to cleanup the copied tree
-make format > /dev/null
+make format BOARD=$BOARD > /dev/null
 
 # See if there are any changes compared to checked out sources.
 if ! git diff --check --exit-code >/dev/null; then

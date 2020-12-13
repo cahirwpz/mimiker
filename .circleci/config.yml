@@ -8,9 +8,14 @@ defaults: &defaults
 jobs:
   verify_formatting:
     <<: *defaults
+    parameters:
+      board:
+        description: 'Board emulated by qemu (malta, rpi3)'
+        default: 'malta'
+        type: string
     steps:
       - checkout
-      - run: './verify-format.sh'
+      - run: './verify-format.sh << parameters.board >>'
 
   verify_pycodestyle:
     <<: *defaults
@@ -76,6 +81,11 @@ workflows:
   build_and_test:
     jobs:
       - verify_formatting
+          name: verify_formatting_mips
+          board: 'malta'
+      - verify_formatting
+          name: verify_formatting_aarch64
+          board: 'rpi3'
       - verify_pycodestyle
       - build:
           name: build_mips_gcc
