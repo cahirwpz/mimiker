@@ -19,8 +19,7 @@ SOURCES = boot.c \
 	  timer.c \
 	  thread.c \
 	  tlb.c \
-	  trap.c \
-	  ucontext.c
+	  trap.c
 
 CFLAGS.boot.c = -mcmodel=large
 CFLAGS.rpi3.c = -mcmodel=large

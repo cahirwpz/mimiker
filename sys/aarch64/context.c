@@ -1,6 +1,9 @@
 #include <sys/libkern.h>
-#include <aarch64/context.h>
+#include <sys/mimiker.h>
+#include <sys/thread.h>
+#include <sys/context.h>
 #include <aarch64/armreg.h>
+#include <aarch64/mcontext.h>
 
 void ctx_init(ctx_t *ctx, void *pc, void *sp) {
   bzero(ctx, sizeof(ctx_t));
@@ -20,23 +23,26 @@ void ctx_set_retval(ctx_t *ctx, long value) {
   _REG(ctx, X0) = value;
 }
 
-void user_ctx_copy(user_ctx_t *to, user_ctx_t *from) {
-  memcpy(to, from, sizeof(user_ctx_t));
+void mcontext_copy(mcontext_t *to, mcontext_t *from) {
+  memcpy(to, from, sizeof(mcontext_t));
 }
 
-void user_ctx_init(user_ctx_t *ctx, void *pc, void *sp) {
-  bzero(ctx, sizeof(user_ctx_t));
+void mcontext_init(mcontext_t *ctx, void *pc, void *sp) {
+  bzero(ctx, sizeof(mcontext_t));
 
   _REG(ctx, PC) = (register_t)pc;
   _REG(ctx, SP) = (register_t)sp;
 }
 
-void user_ctx_set_retval(user_ctx_t *ctx, register_t value, register_t error) {
+void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
   _REG(ctx, X0) = value;
   _REG(ctx, X1) = error;
 }
 
 bool user_mode_p(ctx_t *ctx) {
-  /* XXX Not implemented! */
-  return false;
+  return (_REG(ctx, SPSR) & PSR_M_MASK) == PSR_M_EL0t;
+}
+
+int do_setcontext(thread_t *td, ucontext_t *uc) {
+  panic("Not implemented!");
 }

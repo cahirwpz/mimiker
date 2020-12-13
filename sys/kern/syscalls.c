@@ -3,7 +3,7 @@
 #include <sys/sysent.h>
 #include <sys/mimiker.h>
 #include <sys/errno.h>
-#include <sys/mman.h>
+#include <sys/vm.h>
 #include <sys/vfs.h>
 #include <sys/uio.h>
 #include <sys/file.h>
@@ -156,10 +156,10 @@ static int sys_sigaction(proc_t *p, sigaction_args_t *args, register_t *res) {
   return error;
 }
 
-/* TODO: handle sigcontext argument */
 static int sys_sigreturn(proc_t *p, sigreturn_args_t *args, register_t *res) {
-  klog("sigreturn()");
-  return do_sigreturn();
+  ucontext_t *ucp = SCARG(args, sigctx_p);
+  klog("sigreturn(%p)", ucp);
+  return do_sigreturn(ucp);
 }
 
 static int sys_mmap(proc_t *p, mmap_args_t *args, register_t *res) {
@@ -858,6 +858,38 @@ end:
   return error;
 }
 
+static int sys_fchown(proc_t *p, fchown_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  uid_t uid = SCARG(args, uid);
+  gid_t gid = SCARG(args, gid);
+
+  klog("fchown(%d, %d)", uid, gid);
+
+  return do_fchown(p, fd, uid, gid);
+}
+
+static int sys_fchownat(proc_t *p, fchownat_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  uid_t uid = SCARG(args, uid);
+  gid_t gid = SCARG(args, gid);
+  int flag = SCARG(args, flag);
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("fchownat(%d, \"%s\", %d, %d)", fd, path, uid, uid);
+
+  error = do_fchownat(p, fd, path, uid, gid, flag);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
 static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
   klog("sched_yield()");
   thread_yield();
@@ -1022,4 +1054,31 @@ static int sys_setregid(proc_t *p, setregid_args_t *args, register_t *res) {
   gid_t rgid = SCARG(args, rgid);
   gid_t egid = SCARG(args, egid);
   return do_setregid(p, rgid, egid);
+}
+
+static int sys_getlogin(proc_t *p, getlogin_args_t *args, register_t *res) {
+  char *namebuf = SCARG(args, namebuf);
+  size_t buflen = SCARG(args, buflen);
+  char login_tmp[LOGIN_NAME_MAX];
+
+  klog("getlogin(%p, %zu)", namebuf, buflen);
+
+  WITH_MTX_LOCK (all_proc_mtx)
+    memcpy(login_tmp, p->p_pgrp->pg_session->s_login, sizeof(login_tmp));
+
+  return copyout(login_tmp, namebuf, MIN(buflen, sizeof(login_tmp)));
+}
+
+static int sys_setlogin(proc_t *p, setlogin_args_t *args, register_t *res) {
+  char *name = SCARG(args, name);
+  char login_tmp[LOGIN_NAME_MAX];
+  int error;
+
+  klog("setlogin(%p)", name);
+
+  error = copyinstr(name, login_tmp, sizeof(login_tmp), NULL);
+  if (error)
+    return (error == ENAMETOOLONG ? EINVAL : error);
+
+  return do_setlogin(login_tmp);
 }

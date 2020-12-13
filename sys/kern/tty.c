@@ -19,6 +19,7 @@
 #include <sys/proc.h>
 #include <sys/thread.h>
 #include <sys/signal.h>
+#include <sys/devfs.h>
 #include <sys/file.h>
 
 /* START OF FreeBSD CODE */
@@ -508,6 +509,7 @@ void tty_input(tty_t *tty, uint8_t c) {
 
 static int tty_read(file_t *f, uio_t *uio) {
   tty_t *tty = f->f_data;
+  size_t start_resid = uio->uio_resid;
   int error = 0;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
@@ -550,6 +552,10 @@ static int tty_read(file_t *f, uio_t *uio) {
       error = uiomove(&c, 1, uio);
     }
   }
+
+  /* Don't report errors on partial reads. */
+  if (start_resid > uio->uio_resid)
+    error = 0;
 
   return error;
 }
@@ -658,6 +664,7 @@ static void tty_output_sleep(tty_t *tty, uint8_t c) {
 
 static int tty_do_write(tty_t *tty, uio_t *uio) {
   uint8_t c;
+  size_t start_resid = uio->uio_resid;
   int error = 0;
 
   while (uio->uio_resid > 0) {
@@ -667,6 +674,10 @@ static int tty_do_write(tty_t *tty, uio_t *uio) {
     tty->t_rocount = 0;
   }
   tty_notify_out(tty);
+
+  /* Don't report errors on partial writes. */
+  if (start_resid > uio->uio_resid)
+    error = 0;
 
   return error;
 }
@@ -910,3 +921,31 @@ vnodeops_t tty_vnodeops = {
   .v_close = tty_vn_close,
   .v_getattr = tty_vn_getattr,
 };
+
+/* Controlling terminal pseudo-device (/dev/tty) */
+
+static int dev_tty_open(vnode_t *v, int mode, file_t *fp) {
+  proc_t *p = proc_self();
+  int error;
+
+  SCOPED_MTX_LOCK(all_proc_mtx);
+  tty_t *tty = p->p_pgrp->pg_session->s_tty;
+  if (!tty)
+    return ENXIO;
+
+  if ((error = vnode_open_generic(tty->t_vnode, mode, fp)))
+    return error;
+
+  fp->f_ops = &tty_fileops;
+  fp->f_data = tty;
+  return error;
+}
+
+vnodeops_t dev_tty_vnodeops = {.v_open = dev_tty_open,
+                               .v_getattr = tty_vn_getattr};
+
+static void init_dev_tty(void) {
+  devfs_makedev(NULL, "tty", &dev_tty_vnodeops, NULL, NULL);
+}
+
+SET_ENTRY(devfs_init, init_dev_tty);

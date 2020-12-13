@@ -43,11 +43,11 @@ static int vfs_namelookupat(proc_t *p, int fdat, uint32_t flags,
   return error;
 }
 
-static int vfs_truncate(vnode_t *v, size_t len) {
+static int vfs_truncate(vnode_t *v, size_t len, cred_t *cred) {
   vattr_t va;
   vattr_null(&va);
   va.va_size = len;
-  return VOP_SETATTR(v, &va);
+  return VOP_SETATTR(v, &va, cred);
 }
 
 static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
@@ -101,7 +101,7 @@ static int vfs_open(proc_t *p, file_t *f, int fdat, char *pathname, int flags,
   }
 
   if (flags & O_TRUNC)
-    error = vfs_truncate(v, 0);
+    error = vfs_truncate(v, 0, &p->p_cred);
 
   if (!error)
     error = VOP_OPEN(v, flags, f);
@@ -362,7 +362,7 @@ int do_truncate(proc_t *p, char *path, off_t length) {
   if (vn->v_type == V_DIR)
     error = EISDIR;
   else if ((error = VOP_ACCESS(vn, VWRITE)))
-    error = vfs_truncate(vn, length);
+    error = vfs_truncate(vn, length, &p->p_cred);
 
   vnode_put(vn);
   return error;
@@ -380,7 +380,7 @@ int do_ftruncate(proc_t *p, int fd, off_t length) {
   if (vn->v_type == V_DIR)
     error = EINVAL;
   else
-    error = vfs_truncate(vn, length);
+    error = vfs_truncate(vn, length, &p->p_cred);
 
   vnode_unlock(vn);
   file_drop(f);
@@ -521,11 +521,19 @@ fail1:
   return error;
 }
 
-static int vfs_change_mode(vnode_t *v, mode_t mode) {
+static int vfs_change_mode(vnode_t *v, mode_t mode, cred_t *cred) {
   vattr_t va;
   vattr_null(&va);
   va.va_mode = mode & ALLPERMS;
-  return VOP_SETATTR(v, &va);
+  return VOP_SETATTR(v, &va, cred);
+}
+
+static int vfs_change_owner(vnode_t *v, uid_t uid, gid_t gid, cred_t *cred) {
+  vattr_t va;
+  vattr_null(&va);
+  va.va_uid = uid;
+  va.va_gid = gid;
+  return VOP_SETATTR(v, &va, cred);
 }
 
 int do_fchmod(proc_t *p, int fd, mode_t mode) {
@@ -537,7 +545,7 @@ int do_fchmod(proc_t *p, int fd, mode_t mode) {
 
   vnode_t *vn = f->f_vnode;
   vnode_lock(vn);
-  error = vfs_change_mode(vn, mode);
+  error = vfs_change_mode(vn, mode, &p->p_cred);
   vnode_unlock(vn);
   file_drop(f);
   return error;
@@ -554,7 +562,38 @@ int do_fchmodat(proc_t *p, int fd, char *path, mode_t mode, int flag) {
   if ((error = vfs_namelookupat(p, fd, vnrflags, path, &v)))
     return error;
   vnode_lock(v);
-  error = vfs_change_mode(v, mode);
+  error = vfs_change_mode(v, mode, &p->p_cred);
+  vnode_put(v);
+  return error;
+}
+
+int do_fchown(proc_t *p, int fd, uid_t uid, gid_t gid) {
+  int error;
+  file_t *f;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
+    return error;
+
+  vnode_t *vn = f->f_vnode;
+  vnode_lock(vn);
+  error = vfs_change_owner(vn, uid, gid, &p->p_cred);
+  vnode_unlock(vn);
+  file_drop(f);
+  return error;
+}
+
+int do_fchownat(proc_t *p, int fd, char *path, uid_t uid, gid_t gid, int flag) {
+  int error;
+  uint32_t vnrflags = 0;
+
+  if (!(flag & AT_SYMLINK_NOFOLLOW))
+    vnrflags |= VNR_FOLLOW;
+
+  vnode_t *v;
+  if ((error = vfs_namelookupat(p, fd, vnrflags, path, &v)))
+    return error;
+  vnode_lock(v);
+  error = vfs_change_owner(v, uid, gid, &p->p_cred);
   vnode_put(v);
   return error;
 }

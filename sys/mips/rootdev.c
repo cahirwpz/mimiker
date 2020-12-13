@@ -2,12 +2,13 @@
 #include <sys/klog.h>
 #include <mips/malta.h>
 #include <mips/mips.h>
-#include <mips/context.h>
+#include <mips/m32c0.h>
 #include <mips/interrupt.h>
 #include <sys/bus.h>
 #include <sys/exception.h>
 #include <sys/interrupt.h>
 #include <sys/devclass.h>
+#include <mips/mcontext.h>
 
 typedef struct rootdev {
   rman_t mem, irq;
@@ -64,12 +65,12 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
                                           rman_addr_t end, size_t size,
                                           res_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
-  rman_t *rman = NULL;
   size_t alignment = 0;
+  rman_t *rman = NULL;
 
   if (type == RT_MEMORY) {
-    rman = &rd->mem;
     alignment = PAGESIZE;
+    rman = &rd->mem;
   } else if (type == RT_IRQ) {
     rman = &rd->irq;
   } else {
@@ -80,6 +81,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
     rman_reserve_resource(rman, start, end, size, alignment, flags);
   if (r == NULL)
     return NULL;
+  r->r_rid = rid;
 
   if (type == RT_MEMORY) {
     r->r_bus_tag = generic_bus_space;
@@ -87,7 +89,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   }
 
   if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, type, rid, r)) {
+    if (bus_activate_resource(dev, type, r)) {
       rman_release_resource(r);
       return NULL;
     }
@@ -96,18 +98,24 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   return r;
 }
 
-static void rootdev_release_resource(device_t *dev, res_type_t type, int rid,
+static void rootdev_release_resource(device_t *dev, res_type_t type,
                                      resource_t *r) {
-  panic("not implemented!");
+  bus_deactivate_resource(dev, type, r);
+  rman_release_resource(r);
 }
 
-static int rootdev_activate_resource(device_t *dev, res_type_t type, int rid,
+static int rootdev_activate_resource(device_t *dev, res_type_t type,
                                      resource_t *r) {
   if (type == RT_MEMORY)
-    return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
+    return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
                          &r->r_bus_handle);
 
   return 0;
+}
+
+static void rootdev_deactivate_resource(device_t *dev, res_type_t type,
+                                        resource_t *r) {
+  /* TODO: unmap mapped resources. */
 }
 
 static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
@@ -128,6 +136,8 @@ static int rootdev_probe(device_t *bus) {
   return 1;
 }
 
+DEVCLASS_DECLARE(pci);
+
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
@@ -141,8 +151,24 @@ static int rootdev_attach(device_t *bus) {
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 
-  (void)device_add_child(bus, NULL, 0); /* for MIPS timer */
-  (void)device_add_child(bus, NULL, 1); /* for GT PCI */
+  /* Create MIPS timer device and assign resources to it. */
+  device_t *dev = device_add_child(bus, 0);
+  device_add_irq(dev, 0, MIPS_HWINT5);
+
+  /* Create GT PCI device and assign resources to it. */
+  dev = device_add_child(bus, 1);
+  dev->bus = DEV_BUS_PCI;
+  dev->devclass = &DEVCLASS(pci);
+  /* PCI I/O memory. */
+  device_add_memory(dev, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_SIZE);
+  /* PCI I/O ports 0x0000-0xffff. */
+  device_add_memory(dev, 1, MALTA_PCI0_IO_BASE, 0x10000);
+  /* GT64120 registers. */
+  device_add_memory(dev, 2, MALTA_CORECTRL_BASE, MALTA_CORECTRL_SIZE);
+  /* GT64120 main irq. */
+  device_add_irq(dev, 0, MIPS_HWINT0);
+
+  /* TODO: replace raw resource assignments by parsing FDT file. */
 
   return bus_generic_probe(bus);
 }
@@ -159,15 +185,15 @@ static bus_driver_t rootdev_driver = {
           .intr_teardown = rootdev_intr_teardown,
           .alloc_resource = rootdev_alloc_resource,
           .release_resource = rootdev_release_resource,
-          .activate_resource = rootdev_activate_resource}};
+          .activate_resource = rootdev_activate_resource,
+          .deactivate_resource = rootdev_deactivate_resource}};
 
 DEVCLASS_CREATE(root);
 
 void init_devices(void) {
-  static device_t rootdev;
-
-  device_init(&rootdev, &DEVCLASS(root), 0);
-  rootdev.driver = (driver_t *)&rootdev_driver;
-  (void)device_probe(&rootdev);
-  device_attach(&rootdev);
+  device_t *rootdev = device_alloc(0);
+  rootdev->devclass = &DEVCLASS(root);
+  rootdev->driver = (driver_t *)&rootdev_driver;
+  (void)device_probe(rootdev);
+  device_attach(rootdev);
 }
