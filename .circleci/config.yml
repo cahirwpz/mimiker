@@ -80,10 +80,10 @@ workflows:
   version: 2.1
   build_and_test:
     jobs:
-      - verify_formatting
+      - verify_formatting:
           name: verify_formatting_mips
           board: 'malta'
-      - verify_formatting
+      - verify_formatting:
           name: verify_formatting_aarch64
           board: 'rpi3'
       - verify_pycodestyle
