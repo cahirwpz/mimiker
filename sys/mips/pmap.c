@@ -46,7 +46,6 @@ static pmap_t kernel_pmap;
 pde_t *_kernel_pmap_pde;
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
-
 static mtx_t *pv_list_lock = &MTX_INITIALIZER(0);
 
 #define PDE_OF(pmap, vaddr) ((pmap)->pde[PDE_INDEX(vaddr)])
@@ -399,8 +398,8 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
 }
 
 static void pmap_modify_flags(vm_page_t *pg, pte_t set, pte_t clr) {
-  pv_entry_t *pv;
   SCOPED_MTX_LOCK(pv_list_lock);
+  pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
     pmap_t *pmap = pv->pmap;
     vaddr_t va = pv->va;
