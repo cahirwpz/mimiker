@@ -16,7 +16,6 @@
 typedef struct vm_object {
   mtx_t mtx;
   vm_pagelist_t list;   /* (@) List of pages */
-  vm_pagetree_t tree;   /* (@) Tree of pages */
   size_t npages;        /* (@) Number of pages */
   vm_pager_t *pager;    /* Pager type and page fault function for object */
   refcnt_t ref_counter; /* (a) How many objects refer to this object? */

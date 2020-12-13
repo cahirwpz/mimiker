@@ -3,7 +3,6 @@
 
 #include <sys/types.h>
 #include <sys/queue.h>
-#include <sys/tree.h>
 #include <machine/vm_param.h>
 
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
@@ -38,7 +37,6 @@ typedef enum {
 
 typedef struct vm_page vm_page_t;
 typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
-typedef RB_HEAD(vm_pagetree, vm_page) vm_pagetree_t;
 
 typedef struct pv_entry pv_entry_t;
 typedef struct vm_object vm_object_t;
@@ -50,7 +48,6 @@ struct vm_page {
     TAILQ_ENTRY(vm_page) pageq; /* used to group allocated pages */
     struct {
       TAILQ_ENTRY(vm_page) list;
-      RB_ENTRY(vm_page) tree;
     } obj;
     slab_t *slab; /* active when page is used by pool allocator */
   };
