@@ -19,6 +19,10 @@ struct devfs_node {
   TAILQ_ENTRY(devfs_node) dn_link;
   char *dn_name;
   ino_t dn_ino;
+  nlink_t dn_nlinks;
+  mode_t dn_mode;
+  uid_t dn_uid;
+  gid_t dn_gid;
   void *dn_data;
   vnode_t *dn_vnode;
   devfs_node_t *dn_parent;
@@ -47,7 +51,6 @@ static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup,
 static inline devfs_node_t *vn2dn(vnode_t *v) {
   return (devfs_node_t *)v->v_data;
 }
-
 
 static devfs_node_t *devfs_find_child(devfs_node_t *parent,
                                       const componentname_t *cn) {
@@ -83,21 +86,27 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name,
 
   devfs_node_t *dn = kmalloc(M_DEVFS, sizeof(devfs_node_t), M_ZERO);
   dn->dn_ino = ++devfs.next_ino;
+  dn->dn_uid = 0;
+  dn->dn_gid = 0;
+  dn->dn_nlinks = 1;
+  dn->dn_parent = parent;
   dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
   TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
+  parent->dn_nlinks++;
   *dnp = dn;
   return 0;
 }
 
 static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
+  devfs_node_t *dn = vn2dn(v);
   memset(va, 0, sizeof(vattr_t));
-  va->va_mode =
-    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-  va->va_uid = 0;
-  va->va_gid = 0;
-  va->va_nlink = 1;
-  va->va_ino = 0;
-  va->va_size = -1;
+  va->va_mode = dn->dn_mode;
+  va->va_uid = dn->dn_uid;
+  va->va_gid = dn->dn_gid;
+  va->va_nlink = dn->dn_nlinks;
+  va->va_ino = dn->dn_ino;
+  /* XXX we have only devices which should have size 0 */
+  va->va_size = 0;
   return 0;
 }
 
@@ -126,6 +135,8 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
 
   dn->dn_vnode = vnode_new(V_DEV, vops, dn);
   dn->dn_data = data;
+  dn->dn_mode =
+    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
   if (vnode_p) {
     vnode_hold(dn->dn_vnode);
     *vnode_p = dn->dn_vnode;
@@ -143,7 +154,7 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
   if (!error) {
     dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, dn);
     dn->dn_data = NULL;
-    dn->dn_parent = parent;
+    dn->dn_mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
     TAILQ_INIT(&dn->dn_children);
     *dir_p = dn;
   }
