@@ -282,9 +282,9 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
   *stack_top_p = USER_STACK_TOP;
 
   vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *stack_seg =
-    vm_segment_alloc(stack_obj, USER_STACK_TOP - USER_STACK_SIZE,
-                     USER_STACK_TOP, VM_PROT_READ | VM_PROT_WRITE);
+  vm_segment_t *stack_seg = vm_segment_alloc(
+    stack_obj, USER_STACK_TOP - USER_STACK_SIZE, USER_STACK_TOP,
+    VM_PROT_READ | VM_PROT_WRITE, VM_SEG_PRIVATE);
   int error = vm_map_insert(p->p_uspace, stack_seg, VM_FIXED);
   assert(error == 0);
 
@@ -383,7 +383,7 @@ static int _do_execve(exec_args_t *args) {
   fdtab_onexec(p->p_fdtable);
 
   /* Set up user context. */
-  user_ctx_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
+  mcontext_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
 
   WITH_PROC_LOCK(p) {
     sig_onexec(p);

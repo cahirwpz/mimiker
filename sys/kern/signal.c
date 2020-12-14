@@ -545,7 +545,3 @@ __noreturn void sig_exit(thread_t *td, signo_t sig) {
        sig_name[sig]);
   proc_exit(MAKE_STATUS_SIG_TERM(sig));
 }
-
-int do_sigreturn(void) {
-  return sig_return();
-}

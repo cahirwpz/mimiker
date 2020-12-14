@@ -1,4 +1,4 @@
-/* Programable Interval Timer (PIT) driver for Intel 8253 */
+/* Programmable Interval Timer (PIT) driver for Intel 8253 */
 #include <sys/mimiker.h>
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
@@ -8,9 +8,6 @@
 #include <sys/timer.h>
 #include <sys/spinlock.h>
 #include <sys/devclass.h>
-
-#define PIIX4_IDE_VENDOR_ID 0x8086
-#define PIIX4_IDE_DEVICE_ID 0x7111
 
 typedef struct pit_state {
   resource_t *regs;
@@ -110,17 +107,13 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
 }
 
 static int pit_attach(device_t *dev) {
-  assert(dev->parent->bus == DEV_BUS_PCI);
-
   pit_state_t *pit = dev->state;
 
-  pit->regs =
-    bus_alloc_resource(dev, RT_IOPORTS, 0, IO_TIMER1,
-                       IO_TIMER1 + IO_TMRSIZE - 1, IO_TMRSIZE, RF_ACTIVE);
+  pit->regs = device_take_ioports(dev, 0, RF_ACTIVE);
   assert(pit->regs != NULL);
 
   pit->lock = SPIN_INITIALIZER(0);
-  pit->irq_res = bus_alloc_irq(dev, 0, 0 /* magic */, RF_ACTIVE);
+  pit->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
 
   pit->timer = (timer_t){
     .tm_name = "i8254",
@@ -140,8 +133,7 @@ static int pit_attach(device_t *dev) {
 }
 
 static int pit_probe(device_t *dev) {
-  pci_device_t *pcid = pci_device_of(dev);
-  return pci_device_match(pcid, PIIX4_IDE_VENDOR_ID, PIIX4_IDE_DEVICE_ID);
+  return dev->unit == 3; /* XXX: unit 3 assigned by gt_pci */
 }
 
 /* clang-format off */

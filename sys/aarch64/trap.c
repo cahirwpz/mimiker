@@ -8,8 +8,8 @@
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/errno.h>
+#include <sys/context.h>
 #include <aarch64/armreg.h>
-#include <aarch64/context.h>
 #include <aarch64/interrupt.h>
 #include <aarch64/pmap.h>
 
@@ -42,7 +42,7 @@ static void syscall_handler(register_t code, ctx_t *ctx) {
   int error = se->call(td->td_proc, (void *)args, &retval);
 
   if (error != EJUSTRETURN)
-    user_ctx_set_retval((user_ctx_t *)ctx, error ? -1 : retval, error);
+    mcontext_set_retval((mcontext_t *)ctx, error ? -1 : retval, error);
 }
 
 static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
@@ -103,7 +103,7 @@ fault:
   }
 }
 
-void user_trap_handler(user_ctx_t *uctx) {
+void user_trap_handler(mcontext_t *uctx) {
   /* Let's read special registers before enabling interrupts.
    * This ensures their values will not be lost. */
   ctx_t *ctx = (ctx_t *)uctx;

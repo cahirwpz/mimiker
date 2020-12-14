@@ -2,9 +2,12 @@
 #include <mips/regdef.h>
 #include <sys/syscall.h>
 
+#include "assym.h"
+
         .set noreorder
 
 LEAF_NOPROFILE(sigcode)
+        add a0, sp, 4
         li v0, SYS_sigreturn
         syscall
         # just in case sigreturn fails

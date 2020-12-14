@@ -3,6 +3,7 @@
 #include <sys/device.h>
 #include <sys/devclass.h>
 #include <sys/pci.h>
+#include <dev/isareg.h>
 
 /* For reference look at: http://wiki.osdev.org/PCI */
 
@@ -30,62 +31,88 @@ static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
 }
 
 static bool pci_device_present(device_t *pcid) {
-  return pci_read_config(pcid, PCIR_DEVICEID, 4) != -1U;
+  return pci_read_config_4(pcid, PCIR_DEVICEID) != -1U;
 }
 
 static int pci_device_nfunctions(device_t *pcid) {
+  /* If first function of a device is invalid, then
+   * no more functions are present. */
   if (!pci_device_present(pcid))
     return 0;
-  uint32_t hdrtype = pci_read_config(pcid, PCIR_HEADERTYPE, 1);
+  uint8_t hdrtype = pci_read_config_1(pcid, PCIR_HEADERTYPE);
   return (hdrtype & PCIH_HDR_MF) ? PCI_FUN_MAX_NUM : 1;
 }
 
-static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t addr) {
-  pci_write_config(pcid, PCIR_BAR(bar), 4, -1U);
-  uint32_t res = pci_read_config(pcid, PCIR_BAR(bar), 4);
+static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
+  /* Memory and I/O space accesses must be disabled via the
+   * command register before sizing a Base Address Register. */
+  uint16_t cmd = pci_read_config_2(pcid, PCIR_COMMAND);
+  pci_write_config_2(pcid, PCIR_COMMAND,
+                     cmd & ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN));
+
+  uint32_t old = pci_read_config_4(pcid, PCIR_BAR(bar));
+  /* XXX: we don't handle 64-bit memory space bars. */
+
+  /* If we write 0xFFFFFFFF to a BAR register and then read
+   * it back, we'll get a bar size indicator. */
+  pci_write_config_4(pcid, PCIR_BAR(bar), -1);
+  uint32_t size = pci_read_config_4(pcid, PCIR_BAR(bar));
+
   /* The original value of the BAR should be restored. */
-  pci_write_config(pcid, PCIR_BAR(bar), 4, addr);
-  return res;
+  pci_write_config_4(pcid, PCIR_BAR(bar), old);
+  pci_write_config_2(pcid, PCIR_COMMAND, cmd);
+
+  *addr = old;
+  return size;
 }
 
 DEVCLASS_CREATE(pci);
 
+#define PCIA(b, d, f)                                                          \
+  (pci_addr_t) {                                                               \
+    .bus = (b), .device = (d), .function = (f)                                 \
+  }
+#define SET_PCIA(pcid, b, d, f)                                                \
+  (((pci_device_t *)(pcid)->instance)->addr = PCIA((b), (d), (f)))
+
 void pci_bus_enumerate(device_t *pcib) {
-  pci_addr_t pcia = {.bus = 0, .device = 0};
-  device_t pcid = {.parent = pcib, .bus = DEV_BUS_PCI, .instance = &pcia};
+  device_t pcid = {.parent = pcib,
+                   .bus = DEV_BUS_PCI,
+                   .instance = (pci_device_t[1]){},
+                   .state = NULL};
 
-  for (; pcia.device < PCI_DEV_MAX_NUM; pcia.device++) {
-    pcia.function = 0;
-
+  for (int d = 0; d < PCI_DEV_MAX_NUM; d++) {
+    SET_PCIA(&pcid, 0, d, 0);
     /* Note that if we don't check the MF bit of the device
      * and scan all functions, then some single-function devices
      * will report details for "fucntion 0" for every function. */
     int max_fun = pci_device_nfunctions(&pcid);
 
-    for (; pcia.function < max_fun; pcia.function++) {
+    for (int f = 0; f < max_fun; f++) {
+      SET_PCIA(&pcid, 0, d, f);
       if (!pci_device_present(&pcid))
         continue;
 
       /* It looks like dev is a leaf in device tree, but it can also be an inner
        * node. */
-      device_t *dev = device_add_child(pcib, &DEVCLASS(pci), 0);
+      device_t *dev = device_add_child(pcib, -1);
       pci_device_t *pcid = kmalloc(M_DEV, sizeof(pci_device_t), M_ZERO);
 
       dev->bus = DEV_BUS_PCI;
       dev->instance = pcid;
 
-      pcid->addr = pcia;
-      pcid->device_id = pci_read_config(dev, PCIR_DEVICEID, 2);
-      pcid->vendor_id = pci_read_config(dev, PCIR_VENDORID, 2);
-      pcid->class_code = pci_read_config(dev, PCIR_CLASSCODE, 1);
-      pcid->pin = pci_read_config(dev, PCIR_IRQPIN, 1);
-      pcid->irq = pci_read_config(dev, PCIR_IRQLINE, 1);
+      pcid->addr = PCIA(0, d, f);
+      pcid->device_id = pci_read_config_2(dev, PCIR_DEVICEID);
+      pcid->vendor_id = pci_read_config_2(dev, PCIR_VENDORID);
+      pcid->class_code = pci_read_config_1(dev, PCIR_CLASSCODE);
+      pcid->pin = pci_read_config_1(dev, PCIR_IRQPIN);
+      pcid->irq = pci_read_config_1(dev, PCIR_IRQLINE);
 
       /* XXX: we assume here that `dev` is a general PCI device
        * (i.e. header type = 0x00) and therefore has six bars. */
       for (int i = 0; i < PCI_BAR_MAX; i++) {
-        uint32_t addr = pci_read_config(dev, PCIR_BAR(i), 4);
-        uint32_t size = pci_bar_size(dev, i, addr);
+        uint32_t addr;
+        uint32_t size = pci_bar_size(dev, i, &addr);
 
         if (size == 0 || addr == size)
           continue;
@@ -103,10 +130,13 @@ void pci_bus_enumerate(device_t *pcib) {
         }
 
         size = -size;
-        uint8_t id = pcid->nbars;
-        pcid->bar[id] = (pci_bar_t){
-          .owner = dev, .type = type, .flags = flags, .size = size, .rid = id};
-        pcid->nbars++;
+        pcid->bar[i] = (pci_bar_t){
+          .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
+
+        /* skip ISA I/O ports range */
+        rman_addr_t start = (type == RT_IOPORTS) ? (IO_ISAEND + 1) : 0;
+
+        device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size, flags);
       }
     }
   }

@@ -8,7 +8,7 @@
 typedef struct thread thread_t;
 typedef struct __ucontext ucontext_t;
 typedef struct ctx ctx_t;
-typedef struct mcontext user_ctx_t;
+typedef struct mcontext mcontext_t;
 
 /*! \brief Checks if saved context belongs to user space. */
 bool user_mode_p(ctx_t *ctx);
@@ -23,15 +23,15 @@ void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg);
 void ctx_set_retval(ctx_t *ctx, long value);
 
 /*! \brief Copy user exception ctx. */
-void user_ctx_copy(user_ctx_t *to, user_ctx_t *from);
+void mcontext_copy(mcontext_t *to, mcontext_t *from);
 
 /*! \brief Prepare ctx to jump into a user-space program. */
-void user_ctx_init(user_ctx_t *ctx, void *pc, void *sp);
+void mcontext_init(mcontext_t *ctx, void *pc, void *sp);
 
 /*! \brief Set a return value within the ctx and advance the program counter.
  *
  * Useful for returning values from syscalls. */
-void user_ctx_set_retval(user_ctx_t *ctx, register_t value, register_t error);
+void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error);
 
 /* This function stores the current context to @from, and resumes the
  * context stored in @to. It does not return immediatelly, it returns
