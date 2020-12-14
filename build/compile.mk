@@ -21,7 +21,8 @@ $(DEPENDENCY-FILES): $(SOURCES_GEN)
 	@echo "[DEP] $(DIR)$@"
 	$(AS) $(ASFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -MF $@
 
-ifeq ($(words $(findstring $(MAKECMDGOALS), download clean distclean)), 0)
+NODEPSGOALS := download format clean distclean
+ifeq ($(words $(findstring $(MAKECMDGOALS), $(NODEPSGOALS))), 0)
   -include $(DEPENDENCY-FILES)
 endif
 
