@@ -535,17 +535,19 @@ static int sys_clock_nanosleep(proc_t *p, clock_nanosleep_args_t *args,
   timespec_t rqtp, rmtp;
   int error;
 
-  if ((error = copyin_s(u_rqtp, rqtp))) {
+  error = copyin_s(u_rqtp, rqtp);
+  if (error) {
     *res = error;
     return 0;
   }
 
   error = do_clock_nanosleep(clock_id, flags, &rqtp, u_rmtp ? &rmtp : NULL);
-
   *res = error;
+  if ((u_rmtp == NULL || (error != 0 && error != EINTR)))
+    return 0;
 
-  if ((u_rmtp != NULL && (error == 0 || error == EINTR)) &&
-      (flags & TIMER_ABSTIME) == 0 && (error = copyout_s(rmtp, u_rmtp)))
+  /*  TIMER_ABSTIME - sleep to an absolute deadline */
+  if ((flags & TIMER_ABSTIME) == 0 && (error = copyout_s(rmtp, u_rmtp)))
     *res = error;
 
   return 0;
