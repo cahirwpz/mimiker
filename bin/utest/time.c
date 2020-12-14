@@ -46,6 +46,12 @@ int test_nanosleep(void) {
   assert(nanosleep(&rqt, NULL) == EINVAL);
   assert(nanosleep(&rqt, &rmt) == EINVAL);
 
+  rqt.tv_nsec = 1000;
+  assert(nanosleep(NULL, NULL) == EFAULT);
+  assert(nanosleep(NULL, &rmt) == EFAULT);
+  assert(nanosleep(0, NULL) == EFAULT);
+  assert(nanosleep(0, &rmt) == EFAULT);
+
   /* Check if sleept at least requested time */;
   for (int g = 0; g < 20; g++) {
     rqt.tv_nsec = (1000 << g);
