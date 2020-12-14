@@ -58,6 +58,7 @@ typedef struct tty {
   struct termios t_termios;
   pgrp_t *t_pgrp;       /* Foreground process group */
   session_t *t_session; /* Session controlled by this tty */
+  vnode_t *t_vnode;     /* Device vnode */
   void *t_data;         /* Serial device driver's private data */
 } tty_t;
 
