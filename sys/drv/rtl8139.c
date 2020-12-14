@@ -36,12 +36,13 @@ static int rtl8139_attach(device_t *dev) {
   rtl8139_state_t *state = dev->state;
 
   state->regs = device_take_memory(dev, 1, RF_ACTIVE);
-
   if (state->regs == NULL)
-    return -1;
+    return ENXIO;
 
-  if (rtl_reset(state))
+  if (rtl_reset(state)) {
     klog("RTL8139: Failed to reset device!");
+    return ENXIO;
+  }
 
   return 0;
 }
