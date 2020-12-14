@@ -91,7 +91,7 @@ typedef struct pci_device {
   pci_bar_t bar[PCI_BAR_MAX];
 } pci_device_t;
 
-#define PCI_BUS_METHODS(dev) \
+#define PCI_BUS_METHODS(dev)                                                   \
   (*(pci_bus_methods_t *)(dev)->driver->interfaces[DIF_PCI_BUS])
 
 static inline uint32_t pci_read_config(device_t *dev, unsigned reg,
@@ -103,8 +103,8 @@ static inline uint32_t pci_read_config(device_t *dev, unsigned reg,
 #define pci_read_config_2(d, r) pci_read_config((d), (r), 2)
 #define pci_read_config_4(d, r) pci_read_config((d), (r), 4)
 
-static inline void pci_write_config(device_t *dev, unsigned reg,
-                                    unsigned size, uint32_t value) {
+static inline void pci_write_config(device_t *dev, unsigned reg, unsigned size,
+                                    uint32_t value) {
   PCI_BUS_METHODS(dev->parent).write_config(dev, reg, size, value);
 }
 
