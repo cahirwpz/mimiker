@@ -50,8 +50,9 @@ static int vfs_truncate(vnode_t *v, size_t len, cred_t *cred) {
   return VOP_SETATTR(v, &va, cred);
 }
 
-static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
-                      vnode_t **vp, int *created) {
+/* This function cleans O_CREAT in flags when file is not being created. */
+static int vfs_create(proc_t *p, int fdat, char *pathname, int *flags, int mode,
+                      vnode_t **vp) {
   vnrstate_t vs;
   int error;
 
@@ -69,18 +70,17 @@ static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
     va.va_gid = p->p_cred.cr_rgid;
     error = VOP_CREATE(vs.vs_dvp, &vs.vs_lastcn, &va, &vs.vs_vp);
     vnode_put(vs.vs_dvp);
-    *created = 1;
   } else {
     if (vs.vs_vp == vs.vs_dvp)
       vnode_drop(vs.vs_dvp);
     else
       vnode_put(vs.vs_dvp);
 
-    if (flags & O_EXCL) {
+    if (*flags & O_EXCL) {
       vnode_drop(vs.vs_vp);
       error = EEXIST;
     }
-    *created = 0;
+    *flags &= ~O_CREAT;
   }
   *vp = vs.vs_vp;
 
@@ -111,17 +111,18 @@ static int vfs_check_open(vnode_t *v, int flags, cred_t *cred) {
 static int vfs_open(proc_t *p, file_t *f, int fdat, char *pathname, int flags,
                     int mode) {
   vnode_t *v;
-  int error, created = 0;
+  int error;
 
   if (flags & O_CREAT) {
-    if ((error = vfs_create(p, fdat, pathname, flags, mode, &v, &created)))
+    /* XXX O_CREAT can be cleaned here */
+    if ((error = vfs_create(p, fdat, pathname, &flags, mode, &v)))
       return error;
   } else {
     if ((error = vfs_namelookupat(p, fdat, VNR_FOLLOW, pathname, &v)))
       return error;
   }
 
-  if (!created)
+  if (!(flags & O_CREAT))
     if ((error = vfs_check_open(v, flags, &p->p_cred)))
       return error;
 
