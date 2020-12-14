@@ -862,7 +862,8 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
 
 static int tty_vn_getattr(vnode_t *v, vattr_t *va) {
   memset(va, 0, sizeof(vattr_t));
-  va->va_mode = S_IFCHR;
+  va->va_mode =
+    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
   va->va_nlink = 1;
   va->va_ino = 0;
   va->va_size = 0;
