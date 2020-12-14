@@ -88,14 +88,7 @@ typedef struct gt_pci_state {
   uint16_t elcr;
 } gt_pci_state_t;
 
-struct gt_pci_driver;
-
-struct gt_pci_driver {
-  driver_t driver;
-  bus_methods_t bus;
-  pci_bus_methods_t pci_bus;
-};
-struct gt_pci_driver gt_pci_bus;
+static driver_t gt_pci_bus;
 
 /* Access configuration space through memory mapped GT-64120 registers. Take
  * care of the fact that MIPS processor cannot handle unaligned accesses. */
@@ -222,7 +215,7 @@ static const char *gt_pci_intr_name[ICU_LEN] = {
 static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
                               ih_service_t *service, void *arg,
                               const char *name) {
-  assert(dev->parent->driver == &gt_pci_bus.driver);
+  assert(dev->parent->driver == &gt_pci_bus);
   gt_pci_state_t *gtpci = dev->parent->state;
   int irq = r->r_start;
   assert(irq < ICU_LEN);
@@ -236,7 +229,7 @@ static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
 }
 
 static void gt_pci_intr_teardown(device_t *pcib, resource_t *irq) {
-  assert(pcib->parent->driver == &gt_pci_bus.driver);
+  assert(pcib->parent->driver == &gt_pci_bus);
 
   intr_event_remove_handler(irq->r_handler);
 }
@@ -466,32 +459,30 @@ static int gt_pci_probe(device_t *d) {
   return d->unit == 1;
 }
 
-/* clang-format off */
-struct gt_pci_driver gt_pci_bus = {
-  .driver = {
-    .desc = "GT-64120 PCI bus driver",
-    .size = sizeof(gt_pci_state_t),
-    .attach = gt_pci_attach,
-    .probe = gt_pci_probe,
-    .interfaces = {
-      INTERFACE(struct gt_pci_driver, DEV_INTERFACE_BUS, bus),
-      INTERFACE(struct gt_pci_driver, DEV_INTERFACE_PCI, pci_bus)
-    }
-  },
-  .bus = {
-    .intr_setup = gt_pci_intr_setup,
-    .intr_teardown = gt_pci_intr_teardown,
-    .alloc_resource = gt_pci_alloc_resource,
-    .release_resource = gt_pci_release_resource,
-    .activate_resource = gt_pci_activate_resource,
-    .deactivate_resource = gt_pci_deactivate_resource,
-  },
-  .pci_bus = {
-    .read_config = gt_pci_read_config,
-    .write_config = gt_pci_write_config,
-    .enable_busmaster = gt_pci_enable_busmaster,
+static bus_methods_t gt_pci_bus_if = {
+  .intr_setup = gt_pci_intr_setup,
+  .intr_teardown = gt_pci_intr_teardown,
+  .alloc_resource = gt_pci_alloc_resource,
+  .release_resource = gt_pci_release_resource,
+  .activate_resource = gt_pci_activate_resource,
+  .deactivate_resource = gt_pci_deactivate_resource,
+};
+
+static pci_bus_methods_t gt_pci_pci_bus_if = {
+  .read_config = gt_pci_read_config,
+  .write_config = gt_pci_write_config,
+  .enable_busmaster = gt_pci_enable_busmaster,
+};
+
+static driver_t gt_pci_bus = {
+  .desc = "GT-64120 PCI bus driver",
+  .size = sizeof(gt_pci_state_t),
+  .attach = gt_pci_attach,
+  .probe = gt_pci_probe,
+  .interfaces = {
+    DRVIF_ADD(DIF_BUS, gt_pci_bus_if),
+    DRVIF_ADD(DIF_PCI_BUS, gt_pci_pci_bus_if),
   }
 };
-/* clang-format on */
 
 DEVCLASS_ENTRY(root, gt_pci_bus);

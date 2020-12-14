@@ -91,29 +91,29 @@ typedef struct pci_device {
   pci_bar_t bar[PCI_BAR_MAX];
 } pci_device_t;
 
-#define pci_get_interface(dev)                                                 \
-  ((pci_bus_methods_t *)device_get_interface(dev, DEV_INTERFACE_PCI))
+#define PCI_BUS_METHODS(dev) \
+  (*(pci_bus_methods_t *)(dev)->driver->interfaces[DIF_PCI_BUS])
 
-static inline uint32_t pci_read_config(device_t *device, unsigned reg,
+static inline uint32_t pci_read_config(device_t *dev, unsigned reg,
                                        unsigned size) {
-  return pci_get_interface(device->parent)->read_config(device, reg, size);
+  return PCI_BUS_METHODS(dev->parent).read_config(dev, reg, size);
 }
 
 #define pci_read_config_1(d, r) pci_read_config((d), (r), 1)
 #define pci_read_config_2(d, r) pci_read_config((d), (r), 2)
 #define pci_read_config_4(d, r) pci_read_config((d), (r), 4)
 
-static inline void pci_write_config(device_t *device, unsigned reg,
+static inline void pci_write_config(device_t *dev, unsigned reg,
                                     unsigned size, uint32_t value) {
-  pci_get_interface(device->parent)->write_config(device, reg, size, value);
+  PCI_BUS_METHODS(dev->parent).write_config(dev, reg, size, value);
 }
 
 #define pci_write_config_1(d, r, v) pci_write_config((d), (r), 1, (v))
 #define pci_write_config_2(d, r, v) pci_write_config((d), (r), 2, (v))
 #define pci_write_config_4(d, r, v) pci_write_config((d), (r), 4, (v))
 
-static inline void pci_enable_busmaster(device_t *device) {
-  pci_get_interface(device->parent)->enable_busmaster(device);
+static inline void pci_enable_busmaster(device_t *dev) {
+  PCI_BUS_METHODS(dev->parent).enable_busmaster(dev);
 }
 
 void pci_bus_enumerate(device_t *pcib);

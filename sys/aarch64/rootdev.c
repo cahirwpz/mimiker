@@ -290,28 +290,22 @@ static void rootdev_deactivate_resource(device_t *dev, res_type_t type,
   /* TODO: unmap mapped resources. */
 }
 
-static struct rootdev_driver {
-  driver_t driver;
-  bus_methods_t bus;
-} rootdev_driver = {
-  .driver =
-    {
-      .size = sizeof(rootdev_t),
-      .desc = "RPI3 platform root bus driver",
-      .attach = rootdev_attach,
-      .interfaces = {
-        INTERFACE(struct rootdev_driver, DEV_INTERFACE_BUS, bus)
-      }
-    },
-  .bus =
-    {
-      .intr_setup = rootdev_intr_setup,
-      .intr_teardown = rootdev_intr_teardown,
-      .alloc_resource = rootdev_alloc_resource,
-      .release_resource = rootdev_release_resource,
-      .activate_resource = rootdev_activate_resource,
-      .deactivate_resource = rootdev_deactivate_resource,
-    },
+static bus_methods_t rootdev_bus_if = {
+  .intr_setup = rootdev_intr_setup,
+  .intr_teardown = rootdev_intr_teardown,
+  .alloc_resource = rootdev_alloc_resource,
+  .release_resource = rootdev_release_resource,
+  .activate_resource = rootdev_activate_resource,
+  .deactivate_resource = rootdev_deactivate_resource,
+};
+
+static driver_t rootdev_driver = {
+  .size = sizeof(rootdev_t),
+  .desc = "RPI3 platform root bus driver",
+  .attach = rootdev_attach,
+  .interfaces = {
+    DRVIF_ADD(DIF_BUS, rootdev_bus_if),
+  }
 };
 
 static device_t rootdev = (device_t){
