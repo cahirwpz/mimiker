@@ -103,7 +103,7 @@ __noreturn void kernel_init(void) {
 
   init_proc();
   init_proc0();
-  // init_prof();
+  init_prof();
 
   klog("Kernel initialized!");
 

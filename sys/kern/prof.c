@@ -10,15 +10,16 @@
 
 gmonparam_t _gmonparam = {.state = GMON_PROF_OFF};
 void __cyg_profile_func_exit(void *this_fn, void *call_site) {
-} 
+}
 void init_prof(void) {
   void *profptr;
   gmonparam_t *p = &_gmonparam;
 
-  p->state = GMON_PROF_ON;
-  p->lowpc = rounddown((unsigned int)__kernel_start, HISTFRACTION * sizeof(HISTFRACTION));
+  p->lowpc = rounddown((unsigned int)__kernel_start,
+                       HISTFRACTION * sizeof(HISTFRACTION));
   /* TODO: Get the compiled kernel space end (kernel text end) */
-  p->highpc = roundup((unsigned int)__kernel_end, HISTFRACTION * sizeof(HISTFRACTION));
+  p->highpc =
+    roundup((unsigned int)__kernel_end, HISTFRACTION * sizeof(HISTFRACTION));
   p->textsize = p->highpc - p->lowpc;
   p->hashfraction = HASHFRACTION;
   p->fromssize = p->textsize / HASHFRACTION;
@@ -38,15 +39,15 @@ void init_prof(void) {
   p->tos = (tostruct_t *)profptr;
   profptr += p->tossize;
   p->froms = (u_short *)profptr;
+  p->state = GMON_PROF_ON;
 }
 
 _MCOUNT_DECL(void *from, void *self) {
-  u_long frompc = (u_long) from, selfpc = (u_long) self;
+  u_long frompc = (u_long)from, selfpc = (u_long)self;
   u_short *frompcindex;
   tostruct_t *top, *prevtop;
   gmonparam_t *p = &_gmonparam;
   long toindex;
-
 
   // compare and swap?
   if (p->state != GMON_PROF_ON)
@@ -56,7 +57,6 @@ _MCOUNT_DECL(void *from, void *self) {
   intr_disable();
 
   /* TODO: Handle SMP */
-
 
   /* Checking if frompc is in range of kernel space
      - signal catchers get called from the stack*/
