@@ -62,8 +62,8 @@ typedef enum {
 #define TDF_SLICEEND 0x00000001   /* run out of time slice */
 #define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
 #define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
+#define TDF_STOPPING 0x00000008   /* thread is about to stop */
 #define TDF_BORROWING 0x00000010  /* priority propagation */
-#define TDF_SLEEPY 0x00000020     /* thread is about to go to sleep */
 /* TDF_SLP* flags are used internally by sleep queue */
 #define TDF_SLPINTR 0x00000040  /* sleep is interruptible */
 #define TDF_SLPTIMED 0x00000080 /* sleep with timeout */
@@ -111,7 +111,7 @@ typedef struct thread {
   /* thread context */
   volatile unsigned td_idnest; /*!< (*) interrupt disable nest level */
   volatile unsigned td_pdnest; /*!< (*) preemption disable nest level */
-  user_ctx_t *td_uctx;         /*!< (*) user context (full exc. frame) */
+  mcontext_t *td_uctx;         /*!< (*) user context (full exc. frame) */
   ctx_t *td_kframe;            /*!< (*) kernel context (last trap frame) */
   ctx_t *td_kctx;              /*!< (*) kernel context (switch) */
   intptr_t td_onfault;         /*!< (*) PC for copyin/copyout faults */
@@ -135,7 +135,7 @@ typedef struct thread {
   bintime_t td_last_slptime; /*!< (*) time of last switch to sleep state */
   unsigned td_nctxsw;        /*!< (*) total number of context switches */
   /* signal handling */
-  sigset_t td_sigpend;    /*!< (p) Pending signals for this thread. */
+  sigpend_t td_sigpend;   /*!< (p) Pending signals for this thread. */
   sigset_t td_sigmask;    /*!< (p) Signal mask */
   sigset_t td_oldsigmask; /*!< (*) Signal mask from before sigsuspend() */
 } thread_t;
@@ -198,6 +198,11 @@ void thread_join(thread_t *td);
  * some tests need to explicitly wait until threads are reaped before they can
  * verify test success. */
 void thread_reap(void);
+
+/*! \brief Continue stopped thread.
+ *
+ * Must be called with acquired td_lock. */
+void thread_continue(thread_t *td);
 
 /* Please use following functions to read state of a thread! */
 static inline bool td_is_ready(thread_t *td) {

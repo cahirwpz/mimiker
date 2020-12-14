@@ -1,31 +1,32 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
+#include <sys/errno.h>
 #include <sys/mimiker.h>
 #include <sys/device.h>
 #include <sys/rman.h>
+#include <sys/bus.h>
 
 KMALLOC_DEFINE(M_DEV, "devices & drivers");
 
-static device_t *device_alloc(device_t *parent, devclass_t *dc, int unit) {
+typedef struct resource_list_entry {
+  SLIST_ENTRY(resource_list_entry) link;
+  resource_t *res; /* the actual resource */
+  res_type_t type; /* resource type */
+} resource_list_entry_t;
+
+device_t *device_alloc(int unit) {
   device_t *dev = kmalloc(M_DEV, sizeof(device_t), M_ZERO);
-  TAILQ_INIT(&dev->resources);
   TAILQ_INIT(&dev->children);
-  dev->parent = parent;
+  SLIST_INIT(&dev->resources);
   dev->unit = unit;
-  dev->devclass = dc;
   return dev;
 }
 
-device_t *device_add_child(device_t *parent, devclass_t *dc, int unit) {
-  device_t *child = device_alloc(parent, dc, unit);
+device_t *device_add_child(device_t *parent, int unit) {
+  device_t *child = device_alloc(unit);
+  child->parent = parent;
   TAILQ_INSERT_TAIL(&parent->children, child, link);
   return child;
-}
-
-device_t *device_identify(driver_t *driver, device_t *parent) {
-  assert(driver != NULL);
-  d_identify_t identify = driver->identify;
-  return identify ? identify(driver, parent) : NULL;
 }
 
 /* TODO: this routine should go over all drivers within a suitable class and
@@ -34,7 +35,7 @@ device_t *device_identify(driver_t *driver, device_t *parent) {
 int device_probe(device_t *dev) {
   assert(dev->driver != NULL);
   d_probe_t probe = dev->driver->probe;
-  int found = probe ? probe(dev) : 1;
+  int found = probe ? probe(dev) : 0;
   if (found)
     dev->state = kmalloc(M_DEV, dev->driver->size, M_ZERO);
   return found;
@@ -43,7 +44,7 @@ int device_probe(device_t *dev) {
 int device_attach(device_t *dev) {
   assert(dev->driver != NULL);
   d_attach_t attach = dev->driver->attach;
-  return attach ? attach(dev) : 0;
+  return attach ? attach(dev) : ENODEV;
 }
 
 int device_detach(device_t *dev) {
@@ -55,12 +56,38 @@ int device_detach(device_t *dev) {
   return res;
 }
 
-void device_add_resource(device_t *dev, resource_t *r, int rid) {
-  r->r_owner = dev;
-  r->r_id = rid;
-  TAILQ_INSERT_HEAD(&dev->resources, r, r_device);
+static resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
+                                                 int rid) {
+  resource_list_entry_t *rle;
+  SLIST_FOREACH(rle, &dev->resources, link) {
+    if (rle->type == type && rle->res->r_rid == rid)
+      return rle;
+  }
+  return NULL;
 }
 
-void device_remove_resource(device_t *dev, resource_t *r) {
-  TAILQ_REMOVE(&dev->resources, r, r_device);
+void device_add_resource(device_t *dev, res_type_t type, int rid,
+                         rman_addr_t start, rman_addr_t end, size_t size,
+                         res_flags_t flags) {
+  assert(!resource_list_find(dev, rid, type));
+
+  resource_list_entry_t *rle =
+    kmalloc(M_DEV, sizeof(resource_list_entry_t), M_WAITOK);
+  rle->type = type;
+  /* Allocate the actual resource from the parent bus. */
+  rle->res = bus_alloc_resource(dev, type, rid, start, end, size, flags);
+  assert(rle->res);
+  SLIST_INSERT_HEAD(&dev->resources, rle, link);
+}
+
+resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
+                                 res_flags_t flags) {
+  resource_list_entry_t *rle = resource_list_find(dev, type, rid);
+  if (!rle)
+    return NULL;
+
+  if (flags & RF_ACTIVE)
+    bus_activate_resource(dev, rle->type, rle->res);
+
+  return rle->res;
 }

@@ -10,6 +10,9 @@ static const pci_device_id pci_vendor_1022[] = {
 static const pci_device_id pci_vendor_11ab[] = {
   {0x4620, "GT-64120/64120A/64121A System Controller"}, {0, 0}};
 
+static const pci_device_id pci_vendor_10ec[] = {
+  {0x8139, "RTL-8100/8101L/8139 PCI Fast Ethernet Adapter"}, {0, 0}};
+
 static const pci_device_id pci_vendor_8086[] = {
   {0x7110, "82371AB/EB/MB PIIX4 ISA"},
   {0x7111, "82371AB/EB/MB PIIX4 IDE"},
@@ -20,6 +23,7 @@ static const pci_device_id pci_vendor_8086[] = {
 const pci_vendor_id pci_vendor_list[] = {
   {0x1013, "Cirrus Logic", pci_vendor_1013},
   {0x1022, "Advanced Micro Devices, Inc.", pci_vendor_1022},
+  {0x10ec, "Realtek Semiconductor Co., Ltd.", pci_vendor_10ec},
   {0x11ab, "Marvell Technology Group Ltd.", pci_vendor_11ab},
   {0x8086, "Intel Corporation", pci_vendor_8086},
   {0, 0, 0}};

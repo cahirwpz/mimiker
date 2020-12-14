@@ -25,14 +25,6 @@ typedef struct sleepq_chain {
   TAILQ_HEAD(, sleepq) sc_queues; /*!< list of sleep queues */
 } sleepq_chain_t;
 
-/*! \brief Sleeping mode.
- *
- * Used to select sleeping mode in `sq_wait`. For sleeping purposes given
- * mode implies former modes, i.e. sleep with timeout (`SLP_TIMED`) is also
- * interruptible (`SLP_INTR`).
- */
-typedef enum { SLP_NORMAL = 0, SLP_INTR = 1, SLP_TIMED = 2 } sleep_t;
-
 static sleepq_chain_t sleepq_chains[SC_TABLESIZE];
 
 static sleepq_chain_t *sc_acquire(void *wchan) {
@@ -107,10 +99,10 @@ static sleepq_t *sq_lookup(sleepq_chain_t *sc, void *wchan) {
   return NULL;
 }
 
-static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
-                     sleep_t sleep) {
-  sleepq_chain_t *sc = SC_LOOKUP(wchan);
+static void sq_enter(thread_t *td, sleepq_chain_t *sc, void *wchan,
+                     const void *waitpt) {
   assert(sc_owned(sc));
+  assert(spin_owned(td->td_lock));
 
   klog("Thread %ld goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
@@ -140,81 +132,13 @@ static void sq_enter(thread_t *td, void *wchan, const void *waitpt,
 
   TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_sleepq);
   sq->sq_nblocked++;
-
-  WITH_SPIN_LOCK (td->td_lock) {
-    td->td_wchan = wchan;
-    td->td_waitpt = waitpt;
-    td->td_sleepqueue = NULL;
-
-    /* The thread is about to fall asleep, but it still needs to reach
-     * sched_switch - it may get interrupted on the way, so mark our intent. */
-    td->td_flags |= TDF_SLEEPY;
-
-    if (sleep >= SLP_INTR)
-      td->td_flags |= TDF_SLPINTR;
-    if (sleep >= SLP_TIMED)
-      td->td_flags |= TDF_SLPTIMED;
-  }
-}
-
-static inline bool sq_interrupted_early(thread_t *td, sleep_t sleep) {
-  return (td->td_flags & TDF_NEEDSIGCHK) != 0 && sleep == SLP_INTR;
-}
-
-static int sq_suspend(thread_t *td, void *wchan, const void *waitpt,
-                      sleep_t sleep) {
-  int status = 0;
-
-  WITH_SPIN_LOCK (td->td_lock) {
-    if (td->td_flags & TDF_SLEEPY) {
-      td->td_flags &= ~TDF_SLEEPY;
-      if (sq_interrupted_early(td, sleep)) {
-        td->td_flags &= ~(TDF_SLPINTR | TDF_SLPTIMED);
-        status = EINTR;
-      } else {
-        td->td_state = TDS_SLEEPING;
-        sched_switch();
-        spin_lock(td->td_lock);
-      }
-    }
-    /* After wakeup, only one of the following flags may be set:
-     *  - TDF_SLPINTR if sleep was aborted,
-     *  - TDF_SLPTIMED if sleep has timed out. */
-    if (td->td_flags & TDF_SLPINTR) {
-      td->td_flags &= ~TDF_SLPINTR;
-      status = EINTR;
-    } else if (td->td_flags & TDF_SLPTIMED) {
-      td->td_flags &= ~TDF_SLPTIMED;
-      status = ETIMEDOUT;
-    }
-  }
-
-  return status;
-}
-
-static int sq_wait(void *wchan, const void *waitpt, sleep_t sleep) {
-  thread_t *td = thread_self();
-
-  /* If there are pending signals, interrupt the sleep immediately. */
-  WITH_SPIN_LOCK (td->td_lock) {
-    if (sq_interrupted_early(td, sleep))
-      return EINTR;
-  }
-
-  if (waitpt == NULL)
-    waitpt = __caller(0);
-
-  sleepq_chain_t *sc = sc_acquire(wchan);
-  sq_enter(td, wchan, waitpt, sleep);
   sc_release(sc);
 
-  /* The code can be interrupted in here.
-   * A race is avoided by clever use of TDF_SLEEPY flag.
-   * We can also get a signal in here -- interrupt early if we got one.
-   * The first signal check is an optimization that saves us the call
-   * to sq_enter. */
-
-  return sq_suspend(td, wchan, waitpt, sleep);
+  td->td_wchan = wchan;
+  td->td_waitpt = waitpt;
+  td->td_sleepqueue = NULL;
+  td->td_state = TDS_SLEEPING;
+  sched_switch();
 }
 
 static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
@@ -222,6 +146,7 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
        td->td_waitpt);
 
   assert(sc_owned(sc));
+  assert(spin_owned(td->td_lock));
 
   assert(td->td_wchan != NULL);
   assert(td->td_sleepqueue == NULL);
@@ -245,44 +170,29 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
     TAILQ_REMOVE(&sq->sq_free, sq, sq_entry);
   }
 
-  WITH_SPIN_LOCK (td->td_lock) {
-    td->td_wchan = NULL;
-    td->td_waitpt = NULL;
-    td->td_sleepqueue = sq;
-  }
-}
-
-static void sq_resume(thread_t *td, int wakeup) {
-  WITH_SPIN_LOCK (td->td_lock) {
-    /* Clear TDF_SLPINTR flag if thread's sleep was not aborted. */
-    if (wakeup != EINTR)
-      td->td_flags &= ~TDF_SLPINTR;
-    if (wakeup != ETIMEDOUT)
-      td->td_flags &= ~TDF_SLPTIMED;
-    /* Do not try to wake up a thread that is sleepy but did not fall asleep! */
-    if (td->td_flags & TDF_SLEEPY) {
-      td->td_flags &= ~TDF_SLEEPY;
-    } else {
-      sched_wakeup(td, 0);
-    }
-  }
+  td->td_wchan = NULL;
+  td->td_waitpt = NULL;
+  td->td_sleepqueue = sq;
+  sched_wakeup(td, 0);
 }
 
 /* Remove a thread from the sleep queue and resume it. */
 static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
                       int wakeup) {
-  /* Only sq_enter sets TDF_SLP... flags and it holds the same sleepq spinlock
-   * as sq_wakeup. Hence it's safe to read flags without holding thread's
-   * spinlock. */
+  assert(sc_owned(sc));
 
-  /* Do not try to abort thread's sleep if it's not prepared for that. */
-  if ((wakeup == EINTR) && !(td->td_flags & TDF_SLPINTR))
-    return false;
-  if ((wakeup == ETIMEDOUT) && !(td->td_flags & TDF_SLPTIMED))
-    return false;
-
-  sq_leave(td, sc, sq);
-  sq_resume(td, wakeup);
+  WITH_SPIN_LOCK (td->td_lock) {
+    if ((wakeup == EINTR) && (td->td_flags & TDF_SLPINTR)) {
+      td->td_flags &= ~TDF_SLPTIMED; /* Not woken up by timeout. */
+    } else if ((wakeup == ETIMEDOUT) && (td->td_flags & TDF_SLPTIMED)) {
+      td->td_flags &= ~TDF_SLPINTR; /* Not woken up by signal. */
+    } else if (wakeup == 0) {
+      td->td_flags &= ~(TDF_SLPINTR | TDF_SLPTIMED); /* Regular wakeup. */
+    } else {
+      return false;
+    }
+    sq_leave(td, sc, sq);
+  }
 
   return true;
 }
@@ -303,7 +213,7 @@ bool sleepq_signal(void *wchan) {
       best_td = td;
   }
 
-  sq_wakeup(best_td, sc, sq, SLP_NORMAL);
+  sq_wakeup(best_td, sc, sq, 0);
   sc_release(sc);
 
   sched_maybe_preempt();
@@ -321,20 +231,24 @@ bool sleepq_broadcast(void *wchan) {
 
   thread_t *td;
   TAILQ_FOREACH (td, &sq->sq_blocked, td_sleepq)
-    sq_wakeup(td, sc, sq, SLP_NORMAL);
+    sq_wakeup(td, sc, sq, 0);
   sc_release(sc);
 
   sched_maybe_preempt();
   return true;
 }
 
-static bool _sleepq_abort(thread_t *td, int reason) {
+static bool _sleepq_abort(thread_t *td, int wakeup) {
   sleepq_chain_t *sc = sc_acquire(td->td_wchan);
   sleepq_t *sq = sq_lookup(sc, td->td_wchan);
-  bool aborted = false;
 
-  if (sq != NULL)
-    aborted = sq_wakeup(td, sc, sq, reason);
+  if (sq == NULL) {
+    sc_release(sc);
+    return false;
+  }
+
+  /* Remove a thread from the sleep queue and resume it. */
+  bool aborted = sq_wakeup(td, sc, sq, wakeup);
   sc_release(sc);
 
   /* If we woke up higher priority thread, we should switch to it immediately.
@@ -349,8 +263,18 @@ bool sleepq_abort(thread_t *td) {
 }
 
 void sleepq_wait(void *wchan, const void *waitpt) {
-  int status = sq_wait(wchan, waitpt, 0);
-  assert(status == 0);
+  thread_t *td = thread_self();
+
+  if (waitpt == NULL)
+    waitpt = __caller(0);
+
+  sleepq_chain_t *sc = sc_acquire(wchan);
+  spin_lock(td->td_lock);
+  td->td_state = TDS_SLEEPING;
+  sq_enter(td, sc, wchan, waitpt);
+
+  /* Panic if we were interrupted by timeout or signal. */
+  assert((td->td_flags & (TDF_SLPINTR | TDF_SLPTIMED)) == 0);
 }
 
 static void sq_timeout(thread_t *td) {
@@ -359,14 +283,42 @@ static void sq_timeout(thread_t *td) {
 
 int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
   thread_t *td = thread_self();
-  int status = 0;
-  WITH_INTR_DISABLED {
-    if (timeout > 0)
-      callout_setup_relative(&td->td_slpcallout, timeout, (timeout_t)sq_timeout,
-                             thread_self());
-    status = sq_wait(wchan, waitpt, timeout ? SLP_TIMED : SLP_INTR);
+
+  if (waitpt == NULL)
+    waitpt = __caller(0);
+
+  sleepq_chain_t *sc = sc_acquire(wchan);
+  spin_lock(td->td_lock);
+
+  /* If there are pending signals, interrupt the sleep immediately. */
+  if ((td->td_flags & TDF_NEEDSIGCHK) && (timeout == 0)) {
+    spin_unlock(td->td_lock);
+    sc_release(sc);
+    return EINTR;
   }
+
+  if (timeout > 0)
+    callout_setup_relative(&td->td_slpcallout, timeout, (timeout_t)sq_timeout,
+                           td);
+
+  td->td_flags |= (timeout > 0) ? TDF_SLPTIMED : TDF_SLPINTR;
+  sq_enter(td, sc, wchan, waitpt);
+
+  /* After wakeup, only one of the following flags may be set:
+   *  - TDF_SLPINTR if sleep was aborted,
+   *  - TDF_SLPTIMED if sleep has timed out. */
+  int error = 0;
+  WITH_SPIN_LOCK (td->td_lock) {
+    if (td->td_flags & TDF_SLPINTR) {
+      error = EINTR;
+    } else if (td->td_flags & TDF_SLPTIMED) {
+      error = ETIMEDOUT;
+    }
+    td->td_flags &= ~(TDF_SLPINTR | TDF_SLPTIMED);
+  }
+
   if (timeout > 0)
     callout_stop(&td->td_slpcallout);
-  return status;
+
+  return error;
 }

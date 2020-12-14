@@ -75,11 +75,14 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(wait_nohang);
 
   CHECKRUN_TEST(setpgid);
+  CHECKRUN_TEST(setpgid_leader);
+  CHECKRUN_TEST(setpgid_child);
   CHECKRUN_TEST(kill);
   CHECKRUN_TEST(killpg_same_group);
   CHECKRUN_TEST(killpg_other_group);
   CHECKRUN_TEST(pgrp_orphan);
   CHECKRUN_TEST(session_basic);
+  CHECKRUN_TEST(session_login_name);
 
 #ifdef __mips__
   CHECKRUN_TEST(fpu_fcsr);
@@ -96,6 +99,9 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(get_set_uid);
   CHECKRUN_TEST(get_set_gid);
   CHECKRUN_TEST(get_set_groups);
+
+  CHECKRUN_TEST(sharing_memory_simple);
+  CHECKRUN_TEST(sharing_memory_child_and_grandchild);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;

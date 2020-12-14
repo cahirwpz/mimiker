@@ -1,4 +1,4 @@
-/* Programable Interval Timer (PIT) driver for Intel 8253 */
+/* Programmable Interval Timer (PIT) driver for Intel 8253 */
 #include <sys/mimiker.h>
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
@@ -12,7 +12,7 @@
 typedef struct pit_state {
   resource_t *regs;
   spin_t lock;
-  intr_handler_t intr_handler;
+  resource_t *irq_res;
   timer_t timer;
   uint64_t period_frac;        /* period as a fraction of a second */
   uint16_t period_cntr;        /* period as PIT counter value */
@@ -74,15 +74,14 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
     pit_set_frequency(pit, counter);
     pit->last_cntr = pit_get_counter(pit);
   }
-  bus_intr_setup(dev, 0, &pit->intr_handler);
+  bus_intr_setup(dev, pit->irq_res, pit_intr, NULL, pit, "i8254 timer");
   return 0;
 }
 
 static int timer_pit_stop(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-
-  bus_intr_teardown(dev, &pit->intr_handler);
+  bus_intr_teardown(dev, pit->irq_res);
   return 0;
 }
 
@@ -108,17 +107,13 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
 }
 
 static int pit_attach(device_t *dev) {
-  assert(dev->parent->bus == DEV_BUS_PCI);
-
   pit_state_t *pit = dev->state;
 
-  pit->regs =
-    bus_alloc_resource(dev, RT_ISA, 0, IO_TIMER1, IO_TIMER1 + IO_TMRSIZE - 1,
-                       IO_TMRSIZE, RF_ACTIVE);
+  pit->regs = device_take_ioports(dev, 0, RF_ACTIVE);
   assert(pit->regs != NULL);
 
   pit->lock = SPIN_INITIALIZER(0);
-  pit->intr_handler = INTR_HANDLER_INIT(pit_intr, NULL, pit, "i8254 timer", 0);
+  pit->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
 
   pit->timer = (timer_t){
     .tm_name = "i8254",
@@ -137,11 +132,17 @@ static int pit_attach(device_t *dev) {
   return 0;
 }
 
+static int pit_probe(device_t *dev) {
+  return dev->unit == 3; /* XXX: unit 3 assigned by gt_pci */
+}
+
+/* clang-format off */
 static driver_t pit_driver = {
   .desc = "i8254 PIT driver",
   .size = sizeof(pit_state_t),
   .attach = pit_attach,
-  .identify = bus_generic_identify,
+  .probe = pit_probe
 };
+/* clang-format on */
 
 DEVCLASS_ENTRY(pci, pit_driver);

@@ -1,20 +1,13 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
-#include <sys/device.h>
-#include <sys/pci.h>
+#include <sys/bus.h>
 #include <sys/kmem.h>
 #include <sys/pmap.h>
-#include <sys/rman.h>
 #include <sys/devclass.h>
 
 int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p) {
-  vaddr_t handle = kva_alloc(size);
-  for (bus_size_t start = 0; start < size; start += PAGESIZE) {
-    pmap_kenter(handle + start, addr + start, VM_PROT_READ | VM_PROT_WRITE,
-                PMAP_NOCACHE);
-  }
-  *handle_p = handle;
+  *handle_p = kmem_map(addr, size, PMAP_NOCACHE);
   return 0;
 }
 
@@ -105,28 +98,42 @@ bus_space_t *generic_bus_space = &(bus_space_t){
 };
 /* clang-format on */
 
+int bus_activate_resource(device_t *dev, res_type_t type, resource_t *r) {
+  if (r->r_flags & RF_ACTIVE)
+    return 0;
+
+  int error = BUS_METHODS(dev->parent).activate_resource(dev, type, r);
+  if (error == 0)
+    rman_activate_resource(r);
+  return error;
+}
+
+void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r) {
+  if (r->r_flags & RF_ACTIVE)
+    BUS_METHODS(dev->parent).deactivate_resource(dev, type, r);
+  rman_deactivate_resource(r);
+}
+
 int bus_generic_probe(device_t *bus) {
   int error = 0;
   devclass_t *dc = bus->devclass;
   if (!dc)
     return error;
-  driver_t **drv_p;
-  DEVCLASS_FOREACH(drv_p, dc) {
-    driver_t *drv = *drv_p;
-    device_t *dev = device_identify(drv, bus);
-    if (dev == NULL)
-      continue;
-    dev->driver = drv;
-    if (device_probe(dev)) {
-      klog("%s detected!", drv->desc);
-      error = device_attach(dev);
-      if (error)
-        return error;
+  device_t *dev;
+  TAILQ_FOREACH (dev, &bus->children, link) {
+    driver_t **drv_p;
+    DEVCLASS_FOREACH(drv_p, dc) {
+      dev->driver = *drv_p;
+      if (device_probe(dev)) {
+        klog("%s detected!", dev->driver->desc);
+        /* device_attach returns error ! */
+        if (!device_attach(dev)) {
+          klog("%s attached to %p!", dev->driver->desc, dev);
+          break;
+        }
+      }
+      dev->driver = NULL;
     }
   }
   return error;
-}
-
-device_t *bus_generic_identify(driver_t *driver, device_t *bus) {
-  return device_add_child(bus, NULL, -1);
 }

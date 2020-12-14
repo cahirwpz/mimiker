@@ -96,6 +96,8 @@ int do_linkat(proc_t *p, int fd, char *path, int linkfd, char *linkpath,
               int flags);
 int do_fchmod(proc_t *p, int fd, mode_t mode);
 int do_fchmodat(proc_t *p, int fd, char *path, mode_t mode, int flag);
+int do_fchown(proc_t *p, int fd, uid_t uid, gid_t gid);
+int do_fchownat(proc_t *p, int fd, char *path, uid_t uid, gid_t gid, int flag);
 
 /* Mount a new instance of the filesystem named fs at the requested path. */
 int do_mount(const char *fs, const char *path);
@@ -114,10 +116,13 @@ int vfs_nameresolve(vnrstate_t *vs);
  * Increases use count on returned vnode. */
 int vfs_namelookup(const char *path, vnode_t **vp);
 
-/* Uncovers mountpoint if node is mounted. */
+/* Uncovers mountpoint if node is mounted.
+ * Given vnode should be locked. The returned vnode is also locked. */
 void vfs_maybe_ascend(vnode_t **vp);
 
-/* Get the root of filesystem if node is a mountpoint. */
+/* Get the root of filesystem if node is a mountpoint.
+ * Given vnode should be locked. The returned vnode is locked on success
+ * and released on error.*/
 int vfs_maybe_descend(vnode_t **vp);
 
 /* Finds name of v-node in given directory. */
