@@ -982,6 +982,7 @@ static int tmpfs_root(mount_t *mp, vnode_t **vp) {
 }
 
 static int tmpfs_init(vfsconf_t *vfc) {
+  vnodeops_init(&tmpfs_vnodeops);
   return 0;
 }
 
