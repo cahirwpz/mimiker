@@ -30,11 +30,19 @@ static void set_syscall_retval(mcontext_t *ctx, syscall_result_t *result,
     return;
 
   if (error == ERESTARTSYS || error == ERESTARTNOHAND) {
-    if (!sig || (error == ERESTARTSYS &&
-                 (p->p_sigactions[sig].sa_flags & SA_RESTART))) {
+    bool restart = false;
+    if (error == ERESTARTSYS)
+      /* Restart iff no signal was caught or caught signal has SA_RESTART set */
+      restart = !sig || (p->p_sigactions[sig].sa_flags & SA_RESTART);
+    else
+      /* Restart iff no signal was caught. */
+      restart = !sig;
+
+    if (restart) {
       mcontext_restart_syscall(ctx);
       return;
     }
+    /* ERESTART* are internal to the kernel. Change error code to EINTR. */
     error = EINTR;
   }
 
