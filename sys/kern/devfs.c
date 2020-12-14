@@ -246,6 +246,9 @@ static int devfs_init(vfsconf_t *vfc) {
 
   devfs_node_t *dn = &devfs.root;
   dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, dn);
+  dn->dn_mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+  dn->dn_uid = 0;
+  dn->dn_gid = 0;
   dn->dn_name = "";
   dn->dn_parent = dn;
   dn->dn_ino = devfs.next_ino;
