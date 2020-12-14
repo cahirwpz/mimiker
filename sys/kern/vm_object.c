@@ -67,7 +67,7 @@ bool vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *page) {
   return true;
 }
 
-static void vm_object_remove_page_no_lock(vm_object_t *obj, vm_page_t *page) {
+static void vm_object_remove_page_nolock(vm_object_t *obj, vm_page_t *page) {
   page->offset = 0;
   page->object = NULL;
 
@@ -79,7 +79,7 @@ static void vm_object_remove_page_no_lock(vm_object_t *obj, vm_page_t *page) {
 void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
   SCOPED_MTX_LOCK(&obj->mtx);
 
-  vm_object_remove_page_no_lock(obj, page);
+  vm_object_remove_page_nolock(obj, page);
 }
 
 void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
@@ -91,7 +91,7 @@ void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
     if (pg->offset >= (off_t)(offset + length))
       break;
     if (pg->offset >= offset)
-      vm_object_remove_page_no_lock(object, pg);
+      vm_object_remove_page_nolock(object, pg);
   }
 }
 
@@ -103,7 +103,7 @@ void vm_object_free(vm_object_t *obj) {
 
     while (!TAILQ_EMPTY(&obj->list)) {
       vm_page_t *pg = TAILQ_FIRST(&obj->list);
-      vm_object_remove_page_no_lock(obj, pg);
+      vm_object_remove_page_nolock(obj, pg);
     }
   }
   pool_free(P_VMOBJ, obj);
