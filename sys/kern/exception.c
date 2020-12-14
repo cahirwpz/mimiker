@@ -55,6 +55,11 @@ void on_user_exc_leave(mcontext_t *ctx, syscall_result_t *result) {
   int sig = 0;
   ksiginfo_t ksi;
 
+  /* XXX we need to know if there's a signal to be delivered in order to call
+   * set_syscall_retval(), but we also need to call set_syscall_retval() before
+   * sig_post(), as set_syscall_retval() assumes the context has not been
+   * modified, and sig_post() modifies it. This is why the logic here looks
+   * a bit weird. */
   if (td->td_flags & TDF_NEEDSIGCHK) {
     WITH_PROC_LOCK(p) {
       sig = sig_check(td, &ksi);
