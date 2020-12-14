@@ -110,6 +110,16 @@ typedef struct mcontext {
   __greg_t _mc_tlsbase;
 } mcontext_t;
 
+#if defined(_MACHDEP) && defined(_KERNEL)
+
+typedef struct ctx {
+  __gregset_t __gregs;
+} ctx_t;
+
+#define _REG(ctx, n) ((ctx)->__gregs[_REG_##n])
+
+#endif /* !_MACHDEP && !_KERNEL */
+
 #endif /* !__ASSEMBLER__ */
 
 #define _UC_SETSTACK 0x00010000

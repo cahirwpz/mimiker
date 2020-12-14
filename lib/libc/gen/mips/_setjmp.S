@@ -33,7 +33,6 @@
  */
 
 #include <machine/cdefs.h>
-#include <mips/regnum.h>
 #include <mips/asm.h>
 #include <machine/setjmp.h>
 
@@ -53,9 +52,7 @@
 
 LEAF(_setjmp)
 	REG_PROLOGUE
-	REG_LI	v0, 0xACEDBADE			# sigcontext magic number
 	REG_S	ra, _OFFSETOF_SC_PC(a0)		# sc_pc = return address
-	REG_S	v0, _OFFSETOF_SC_REGS(a0)	#   saved in sc_regs[0]
 	REG_S	s0, _OFFSETOF_SC_REGS_S0(a0)
 	REG_S	s1, _OFFSETOF_SC_REGS_S1(a0)
 	REG_S	s2, _OFFSETOF_SC_REGS_S2(a0)
@@ -85,10 +82,7 @@ LEAF(_longjmp)
 	SAVE_GP(CALLFRAME_GP)
 
 	REG_PROLOGUE
-	REG_L		v0, _OFFSETOF_SC_REGS(a0)	# get magic number
 	REG_L		ra, _OFFSETOF_SC_PC(a0)
-	REG_LI		t0, 0xACEDBADE
-	bne		v0, t0, botch		# jump if error
 	PTR_ADDU	sp, sp, CALLFRAME_SIZ	# does not matter, sanity
 	REG_S		a1, _OFFSETOF_SC_REGS_V0(a0)	# save return value
 	REG_L		s0, _OFFSETOF_SC_REGS_S0(a0)
@@ -113,15 +107,4 @@ LEAF(_longjmp)
 	REG_EPILOGUE
 	j	ra
 	 move	v0, a1			# get return value in 1st arg
-
-botch:
-	/*
-	 * We know we aren't returning so we don't care about restoring
-	 * our caller's GP.
-	 */
-	jal	_C_LABEL(longjmperror)
-	 nop
-	
-	PIC_TAILCALL(abort)
-	 nop
 END(_longjmp)

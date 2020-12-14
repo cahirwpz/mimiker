@@ -32,14 +32,10 @@
 #ifndef _AARCH64_MCONTEXT_H_
 #define _AARCH64_MCONTEXT_H_
 
-#include <sys/types.h>
-
 /*
  * General register state
  */
 #define _NGREG 35 /* GR0-30, SP, PC, APSR, TPIDR */
-typedef uint64_t __greg_t;
-typedef __greg_t __gregset_t[_NGREG];
 
 #define _REG_X0 0
 #define _REG_X1 1
@@ -84,6 +80,13 @@ typedef __greg_t __gregset_t[_NGREG];
 #define _REG_SP _REG_X31
 #define _REG_PC _REG_ELR
 
+#ifndef __ASSEMBLER__
+
+#include <sys/types.h>
+
+typedef uint64_t __greg_t;
+typedef __greg_t __gregset_t[_NGREG];
+
 /*
  * Floating point register state
  */
@@ -105,6 +108,18 @@ typedef struct mcontext {
   __fregset_t __fregs; /* FPU/SIMD Register File */
   __greg_t __spare[8]; /* future proof */
 } mcontext_t;
+
+#if defined(_MACHDEP) && defined(_KERNEL)
+
+typedef struct ctx {
+  __gregset_t __gregs;
+} ctx_t;
+
+#define _REG(ctx, n) ((ctx)->__gregs[_REG_##n])
+
+#endif /* !_MACHDEP && !_KERNEL */
+
+#endif /* !__ASSEMBLER__ */
 
 /* Machine-dependent uc_flags */
 #define _UC_TLSBASE 0x00080000 /* see <sys/ucontext.h> */
