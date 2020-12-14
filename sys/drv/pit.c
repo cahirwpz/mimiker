@@ -9,15 +9,26 @@
 #include <sys/spinlock.h>
 #include <sys/devclass.h>
 
+/* It allows to extend the capacity
+   for counters with 16/32 bits */
+typedef union {
+  /* assumes little endian order */
+  struct {
+    uint32_t lo;
+    uint32_t hi;
+  };
+  uint64_t val;
+} counter_t;
+
 typedef struct pit_state {
   resource_t *regs;
   spin_t lock;
   resource_t *irq_res;
   timer_t timer;
-  uint16_t period_cntr;     /* period as PIT counter value */
-  uint16_t counter16_last;  /* last seen counter value */
-  counter_t counter64_last; /* counter value since timer initialization */
-  volatile bintime_t time;  /* last time measured by the timer */
+  uint16_t period_cntr;      /* period as PIT counter value */
+  uint16_t cntr16_prev_read; /* last read counter value */
+  counter_t cntr64;          /* counter value since timer initialization */
+  volatile bintime_t time;   /* last time measured by the timer */
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
@@ -38,26 +49,28 @@ static uint16_t pit_get_counter16(pit_state_t *pit) {
 }
 
 static uint64_t pit_get_counter64(pit_state_t *pit) {
-  uint16_t counter16_now, ticks;
+  uint16_t cntr16_now, ticks;
   uint32_t oldlow;
 
-  counter16_now = pit_get_counter16(pit);
+  cntr16_now = pit_get_counter16(pit);
   /* PIT counter counts from n to 1 and when we get to 1 an interrupt
-     is send and the counter starts from the beginning (n = pit->period_cntr)*/
-  if (pit->counter16_last >= counter16_now)
-    ticks = pit->counter16_last - counter16_now;
-  else
-    ticks = pit->counter16_last + (pit->period_cntr - counter16_now);
+     is send and the counter starts from the beginning (n = pit->period_cntr).
+     We do not guarantee that we will not miss the whole period (n ticks) */
+  ticks = pit->cntr16_prev_read - cntr16_now;
+  if (pit->cntr16_prev_read < cntr16_now)
+    ticks += pit->period_cntr;
 
-  pit->counter16_last = counter16_now;
+  /* We want to keep the last read counter value to detect possible future
+   * overflows of our counter */
+  pit->cntr16_prev_read = cntr16_now;
 
-  oldlow = pit->counter64_last.lo;
-  pit->counter64_last.lo += ticks;
+  oldlow = pit->cntr64.lo;
+  pit->cntr64.lo += ticks;
 
   if (oldlow > oldlow + ticks)
-    pit->counter64_last.hi++;
+    pit->cntr64.hi++;
 
-  return pit->counter64_last.val;
+  return pit->cntr64.val;
 }
 
 static void pit_update_time(pit_state_t *pit) {
@@ -96,8 +109,8 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   assert(counter <= 0xFFFF);
 
   pit->time = BINTIME(0);
-  pit->counter64_last.val = 0;
-  pit->counter16_last = 0;
+  pit->cntr64.val = 0;
+  pit->cntr16_prev_read = 0;
   pit->period_cntr = counter;
 
   pit_set_frequency(pit);

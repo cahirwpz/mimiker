@@ -10,6 +10,17 @@
 #include <sys/time.h>
 #include <sys/timer.h>
 
+/* It allows to extend the capacity
+   for counters with 16/32 bits */
+typedef union {
+  /* assumes little endian order */
+  struct {
+    uint32_t lo;
+    uint32_t hi;
+  };
+  uint64_t val;
+} counter_t;
+
 typedef struct mips_timer_state {
   uint32_t period_cntr;       /* number of counter ticks in a period */
   uint32_t last_count_lo;     /* used to detect counter overflow */
