@@ -78,6 +78,19 @@ bool cred_can_setlogin(cred_t *cred) {
 
 int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode) {
   accmode_t granted = 0;
+
+  if (cred->cr_euid == 0) {
+    granted |= VREAD | VWRITE;
+    /* root has exec permission when:
+     *   - file is directory
+     *   - at least one exec bit is se
+     */
+    if (S_ISDIR(va->va_mode) || va->va_mode & (S_IXUSR | S_IXGRP | S_IXOTH))
+      granted |= VEXEC;
+
+    goto check;
+  }
+
   if (cred->cr_euid == va->va_uid) {
     granted |= VADMIN;
     if (va->va_mode & S_IRUSR)
@@ -107,15 +120,5 @@ int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode) {
     granted |= VEXEC;
 
 check:
-  if (cred->cr_euid == 0) {
-    granted |= VREAD | VWRITE;
-    /* root has exec permission when:
-     *   - file is directory
-     *   - at lest one exec bit is se
-     */
-    if (S_ISDIR(va->va_mode) || va->va_mode & (S_IXUSR | S_IXGRP | S_IXOTH))
-      granted |= VEXEC;
-  }
-
   return (mode & granted) == mode ? 0 : EACCES;
 }
