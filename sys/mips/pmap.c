@@ -347,7 +347,8 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
       paddr_t pa;
       if (pmap_extract_nolock(pmap, va, &pa)) {
         vm_page_t *pg = vm_page_find(pa);
-        WITH_MTX_LOCK (pv_list_lock) { pv_remove(pmap, va, pg); }
+        WITH_MTX_LOCK (pv_list_lock)
+          pv_remove(pmap, va, pg);
         pmap_pte_write(pmap, va, empty_pte(pmap), 0);
       }
     }
@@ -484,7 +485,8 @@ void pmap_delete(pmap_t *pmap) {
     paddr_t pa;
     pmap_extract_nolock(pmap, pv->va, &pa);
     pg = vm_page_find(pa);
-    WITH_MTX_LOCK (pv_list_lock) { TAILQ_REMOVE(&pg->pv_list, pv, page_link); }
+    WITH_MTX_LOCK (pv_list_lock)
+      TAILQ_REMOVE(&pg->pv_list, pv, page_link);
     TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
     pool_free(P_PV, pv);
   }
