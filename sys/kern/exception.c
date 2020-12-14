@@ -31,12 +31,13 @@ static void set_syscall_retval(mcontext_t *ctx, syscall_result_t *result,
 
   if (error == ERESTARTSYS || error == ERESTARTNOHAND) {
     bool restart = false;
-    if (error == ERESTARTSYS)
+    if (error == ERESTARTSYS) {
       /* Restart iff no signal was caught or caught signal has SA_RESTART set */
       restart = !sig || (p->p_sigactions[sig].sa_flags & SA_RESTART);
-    else
+    } else {
       /* Restart iff no signal was caught. */
       restart = !sig;
+    }
 
     if (restart) {
       mcontext_restart_syscall(ctx);
