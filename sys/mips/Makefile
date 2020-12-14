@@ -29,6 +29,7 @@ OBJECTS += $(BOARD)_dtb.o
 
 CLEAN-FILES += assym.h *-devhint.c
 
+CFLAGS   += -fno-builtin -nostdinc -nostdlib -ffreestanding
 CPPFLAGS += -D_MACHDEP
 
 include $(TOPDIR)/build/build.kern.mk

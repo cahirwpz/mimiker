@@ -34,12 +34,14 @@
  *	@(#)profile.h	8.1 (Berkeley) 6/10/93
  */
 
-#define _MCOUNT_DECL void __attribute__((unused)) __mcount
-
+#define _MCOUNT_DECL void __attribute__((no_instrument_function)) __cyg_profile_func_enter
+void __cyg_profile_func_exit(void *this_fn, void *call_site)
+                             __attribute__((no_instrument_function));
+                             
 #define MCOUNT                                                                 \
-  __asm(".globl _mcount;"                                                      \
-        ".type _mcount,@function;"                                             \
-        "_mcount:;"                                                            \
+  __asm(".globl _cyg_profile_func_enter;"                                                      \
+        ".type _cyg_profile_func_enter,@function;"                                             \
+        "_cyg_profile_func_enter:;"                                                            \
         ".set noreorder;"                                                      \
         ".set noat;"                                                           \
         "addu $29,$29,-16;"                                                    \
@@ -51,7 +53,7 @@
         "sw $31,4($29);"                                                       \
         "move $5,$31;"                                                         \
         "move $4,$1;"                                                          \
-        "jal __mcount;"                                                        \
+        "jal _cyg_profile_func_enter;"                                                        \
         "nop;"                                                                 \
         "lw $4,8($29);"                                                        \
         "lw $5,12($29);"                                                       \
