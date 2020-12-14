@@ -92,7 +92,6 @@ int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode) {
   }
 
   if (cred->cr_euid == va->va_uid) {
-    granted |= VADMIN;
     if (va->va_mode & S_IRUSR)
       granted |= VREAD;
     if (va->va_mode & S_IWUSR)
