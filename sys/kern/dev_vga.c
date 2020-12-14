@@ -7,13 +7,13 @@
 #include <sys/vga.h>
 
 static int framebuffer_write(vnode_t *v, uio_t *uio, int ioflag) {
-  return vga_fb_write((vga_device_t *)v->v_data, uio);
+  return vga_fb_write(devfs_getdata(v), uio);
 }
 
 static vnodeops_t framebuffer_vnodeops = {.v_write = framebuffer_write};
 
 static int palette_write(vnode_t *v, uio_t *uio, int ioflag) {
-  return vga_palette_write((vga_device_t *)v->v_data, uio);
+  return vga_palette_write(devfs_getdata(v), uio);
 }
 
 static vnodeops_t palette_vnodeops = {.v_write = palette_write};
@@ -21,7 +21,7 @@ static vnodeops_t palette_vnodeops = {.v_write = palette_write};
 #define RES_CTRL_BUFFER_SIZE 16
 
 static int videomode_write(vnode_t *v, uio_t *uio, int ioflag) {
-  vga_device_t *vga = (vga_device_t *)v->v_data;
+  vga_device_t *vga = devfs_getdata(v);
   uio->uio_offset = 0; /* This file does not support offsets. */
   unsigned xres, yres, bpp;
   int error = vga_get_videomode(vga, &xres, &yres, &bpp);
@@ -42,7 +42,7 @@ static int videomode_write(vnode_t *v, uio_t *uio, int ioflag) {
 }
 
 static int videomode_read(vnode_t *v, uio_t *uio, int ioflag) {
-  vga_device_t *vga = (vga_device_t *)v->v_data;
+  vga_device_t *vga = devfs_getdata(v);
   unsigned xres, yres, bpp;
   int error;
   if ((error = vga_get_videomode(vga, &xres, &yres, &bpp)))

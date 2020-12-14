@@ -19,6 +19,7 @@ struct devfs_node {
   TAILQ_ENTRY(devfs_node) dn_link;
   char *dn_name;
   ino_t dn_ino;
+  void *dn_data;
   vnode_t *dn_vnode;
   devfs_node_t *dn_parent;
   devfs_node_list_t dn_children;
@@ -42,6 +43,11 @@ static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup,
                                     .v_readdir = devfs_vop_readdir,
                                     .v_getattr = devfs_vop_getattr,
                                     .v_open = vnode_open_generic};
+
+static inline devfs_node_t *vn2dn(vnode_t *v) {
+  return (devfs_node_t *)v->v_data;
+}
+
 
 static devfs_node_t *devfs_find_child(devfs_node_t *parent,
                                       const componentname_t *cn) {
@@ -118,7 +124,8 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
   devfs_add_default_vops(vops);
   vnodeops_init(vops);
 
-  dn->dn_vnode = vnode_new(V_DEV, vops, data);
+  dn->dn_vnode = vnode_new(V_DEV, vops, dn);
+  dn->dn_data = data;
   if (vnode_p) {
     vnode_hold(dn->dn_vnode);
     *vnode_p = dn->dn_vnode;
@@ -135,11 +142,17 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
   int error = devfs_add_entry(parent, name, &dn);
   if (!error) {
     dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, dn);
+    dn->dn_data = NULL;
     dn->dn_parent = parent;
     TAILQ_INIT(&dn->dn_children);
     *dir_p = dn;
   }
   return 0;
+}
+
+void *devfs_getdata(vnode_t *v) {
+  devfs_node_t *dn = vn2dn(v);
+  return dn->dn_data;
 }
 
 /* We are using a single vnode for each devfs_node instead of allocating a new
@@ -156,16 +169,12 @@ static int devfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
   if (dv->v_type != V_DIR)
     return ENOTDIR;
 
-  devfs_node_t *dn = devfs_find_child(dv->v_data, cn);
+  devfs_node_t *dn = devfs_find_child(vn2dn(dv), cn);
   if (!dn)
     return ENOENT;
   *vp = dn->dn_vnode;
   vnode_hold(*vp);
   return 0;
-}
-
-static inline devfs_node_t *vn2dn(vnode_t *v) {
-  return (devfs_node_t *)v->v_data;
 }
 
 static void *devfs_dirent_next(vnode_t *v, void *it) {
