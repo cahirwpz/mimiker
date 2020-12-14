@@ -80,7 +80,7 @@ static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
       vnode_drop(vs.vs_vp);
       error = EEXIST;
     }
-    created = 0;
+    *created = 0;
   }
   *vp = vs.vs_vp;
 
