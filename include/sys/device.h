@@ -15,7 +15,10 @@ typedef SLIST_HEAD(, resource_list_entry) resource_list_t;
 
 typedef enum { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
 
+/* Driver that returns the highest value from its probe action
+ * will be selected for attach action. */
 typedef int (*d_probe_t)(device_t *dev);
+/* Returns value from <errno.h> on failure, 0 on success. */
 typedef int (*d_attach_t)(device_t *dev);
 typedef int (*d_detach_t)(device_t *dev);
 
