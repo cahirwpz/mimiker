@@ -474,13 +474,16 @@ static pci_bus_methods_t gt_pci_pci_bus_if = {
   .enable_busmaster = gt_pci_enable_busmaster,
 };
 
-static driver_t gt_pci_bus = {.desc = "GT-64120 PCI bus driver",
-                              .size = sizeof(gt_pci_state_t),
-                              .attach = gt_pci_attach,
-                              .probe = gt_pci_probe,
-                              .interfaces = {
-                                DRVIF_ADD(DIF_BUS, gt_pci_bus_if),
-                                DRVIF_ADD(DIF_PCI_BUS, gt_pci_pci_bus_if),
-                              }};
+static driver_t gt_pci_bus = {
+  .desc = "GT-64120 PCI bus driver",
+  .size = sizeof(gt_pci_state_t),
+  .attach = gt_pci_attach,
+  .probe = gt_pci_probe,
+  .interfaces =
+    {
+      [DIF_BUS] = &gt_pci_bus_if,
+      [DIF_PCI_BUS] = &gt_pci_pci_bus_if,
+    },
+};
 
 DEVCLASS_ENTRY(root, gt_pci_bus);

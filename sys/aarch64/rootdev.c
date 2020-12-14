@@ -304,8 +304,8 @@ static driver_t rootdev_driver = {
   .desc = "RPI3 platform root bus driver",
   .attach = rootdev_attach,
   .interfaces = {
-    DRVIF_ADD(DIF_BUS, rootdev_bus_if),
-  }
+    [DIF_BUS] = &rootdev_bus_if,
+  },
 };
 
 static device_t rootdev = (device_t){

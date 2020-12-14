@@ -179,15 +179,19 @@ static bus_methods_t rootdev_bus_if = {
   .alloc_resource = rootdev_alloc_resource,
   .release_resource = rootdev_release_resource,
   .activate_resource = rootdev_activate_resource,
-  .deactivate_resource = rootdev_deactivate_resource};
+  .deactivate_resource = rootdev_deactivate_resource,
+};
 
-static driver_t rootdev_driver = {.size = sizeof(rootdev_t),
-                                  .desc = "MIPS platform root bus driver",
-                                  .probe = rootdev_probe,
-                                  .attach = rootdev_attach,
-                                  .interfaces = {
-                                    DRVIF_ADD(DIF_BUS, rootdev_bus_if),
-                                  }};
+static driver_t rootdev_driver = {
+  .size = sizeof(rootdev_t),
+  .desc = "MIPS platform root bus driver",
+  .probe = rootdev_probe,
+  .attach = rootdev_attach,
+  .interfaces =
+    {
+      [DIF_BUS] = &rootdev_bus_if,
+    },
+};
 
 DEVCLASS_CREATE(root);
 

@@ -135,6 +135,5 @@ int bus_generic_probe(device_t *bus) {
       dev->driver = NULL;
     }
   }
-
   return error;
 }

@@ -26,8 +26,6 @@ typedef enum {
   DIF_COUNT /* this must be the last item */
 } drv_if_t;
 
-#define DRVIF_ADD(itype, methods) [(itype)] = (void *)(&(methods))
-
 struct driver {
   const char *desc;  /* short driver description */
   size_t size;       /* device->state object size */
