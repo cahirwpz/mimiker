@@ -54,8 +54,10 @@ static int videomode_read(vnode_t *v, uio_t *uio, int ioflag) {
   return uiomove_frombuf(buffer, RES_CTRL_BUFFER_SIZE, uio);
 }
 
-static vnodeops_t videomode_vnodeops = {.v_read = videomode_read,
-                                        .v_write = videomode_write};
+static vnodeops_t videomode_vnodeops = {
+  .v_read = videomode_read,
+  .v_write = videomode_write
+};
 
 void dev_vga_install(vga_device_t *vga) {
   devfs_node_t *vga_root;
