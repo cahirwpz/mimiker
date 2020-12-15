@@ -37,10 +37,10 @@ void vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *pg) {
   pg->object = obj;
   pg->offset = offset;
 
-  refcnt_acquire(&page->ref_counter);
+  refcnt_acquire(&pg->ref_counter);
 
   SCOPED_RW_ENTER(&obj->mtx, RW_WRITER);
-    
+
   vm_page_t *it;
   TAILQ_FOREACH (it, &obj->list, obj.list) {
     if (it->offset > pg->offset) {
@@ -65,7 +65,7 @@ static void vm_object_remove_page_nolock(vm_object_t *obj, vm_page_t *page) {
   if (refcnt_release(&page->ref_counter)) {
     vm_page_free(page);
   }
-  
+
   obj->npages--;
 }
 
@@ -91,11 +91,11 @@ void vm_object_free(vm_object_t *obj) {
     if (!refcnt_release(&obj->ref_counter)) {
       return;
     }
-    
+
     vm_page_t *pg, *next;
     TAILQ_FOREACH_SAFE (pg, &obj->list, obj.list, next)
       vm_object_remove_page_nolock(obj, pg);
-  
+
     if (obj->shadow_object) {
       vm_object_free(obj->shadow_object);
     }
