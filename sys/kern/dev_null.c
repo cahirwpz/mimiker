@@ -39,15 +39,11 @@ static int dev_zero_read(vnode_t *v, uio_t *uio, int ioflag) {
   return error;
 }
 
-static vnodeops_t dev_null_vnodeops = {
-  .v_read = dev_null_read,
-  .v_write = dev_null_write
-};
+static vnodeops_t dev_null_vnodeops = {.v_read = dev_null_read,
+                                       .v_write = dev_null_write};
 
-static vnodeops_t dev_zero_vnodeops = {
-  .v_read = dev_zero_read,
-  .v_write = dev_zero_write
-};
+static vnodeops_t dev_zero_vnodeops = {.v_read = dev_zero_read,
+                                       .v_write = dev_zero_write};
 
 static void init_dev_null(void) {
   zero_page = kmem_alloc(PAGESIZE, M_ZERO);
