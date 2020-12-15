@@ -2,7 +2,7 @@
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
-#include <mips/context.h>
+#include <sys/context.h>
 #include <mips/interrupt.h>
 #include <mips/tlb.h>
 #include <sys/pmap.h>
@@ -60,7 +60,7 @@ static void syscall_handler(ctx_t *ctx) {
     error = se->call(td->td_proc, (void *)args, &retval);
 
   if (error != EJUSTRETURN)
-    user_ctx_set_retval((user_ctx_t *)ctx, error ? -1 : retval, error);
+    mcontext_set_retval((mcontext_t *)ctx, error ? -1 : retval, error);
 }
 
 /*
