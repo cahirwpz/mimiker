@@ -10,6 +10,7 @@
 #include <sys/linker_set.h>
 #include <sys/dirent.h>
 #include <sys/vfs.h>
+#include <sys/queue.h>
 
 typedef struct devfs_node devfs_node_t;
 typedef TAILQ_HEAD(, devfs_node) devfs_node_list_t;
@@ -80,8 +81,24 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name,
   return 0;
 }
 
+int devfs_remove(devfs_node_t *dn) {
+  SCOPED_MTX_LOCK(&devfs.lock);
+
+  assert(dn->dn_parent != NULL);
+
+  /* Only allow removal of empty directories. */
+  if (dn->dn_vnode->v_type == V_DIR && !TAILQ_EMPTY(&dn->dn_children))
+    return EINVAL;
+
+  TAILQ_REMOVE(&dn->dn_parent->dn_children, dn, dn_link);
+  vnode_drop(dn->dn_vnode);
+  kfree(M_STR, dn->dn_name);
+  kfree(M_DEVFS, dn);
+  return 0;
+}
+
 int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
-                  void *data, vnode_t **vnode_p) {
+                  void *data, devfs_node_t **dnode_p) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
   devfs_node_t *dn;
@@ -90,9 +107,8 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
     return error;
 
   dn->dn_vnode = vnode_new(V_DEV, vops, data);
-  if (vnode_p) {
-    vnode_hold(dn->dn_vnode);
-    *vnode_p = dn->dn_vnode;
+  if (dnode_p) {
+    *dnode_p = dn;
   }
   klog("devfs: registered '%s' device", name);
   return 0;
@@ -137,6 +153,10 @@ static int devfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
 
 static inline devfs_node_t *vn2dn(vnode_t *v) {
   return (devfs_node_t *)v->v_data;
+}
+
+vnode_t *devfs_node_to_vnode(devfs_node_t *dn) {
+  return dn->dn_vnode;
 }
 
 static void *devfs_dirent_next(vnode_t *v, void *it) {

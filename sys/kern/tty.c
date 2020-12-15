@@ -933,7 +933,7 @@ static int dev_tty_open(vnode_t *v, int mode, file_t *fp) {
   if (!tty)
     return ENXIO;
 
-  if ((error = vnode_open_generic(tty->t_vnode, mode, fp)))
+  if ((error = vnode_open_generic(devfs_node_to_vnode(tty->t_dnode), mode, fp)))
     return error;
 
   fp->f_ops = &tty_fileops;
