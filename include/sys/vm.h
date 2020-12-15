@@ -42,21 +42,26 @@ typedef struct pv_entry pv_entry_t;
 typedef struct vm_object vm_object_t;
 typedef struct slab slab_t;
 
+/* Field marking and corresponding locks:
+ * (@) pv_list_lock (in pmap.c)
+ * (P) physmem_lock (in vm_physmem.c)
+ * (O) vm_object::mtx */
+
 struct vm_page {
   union {
-    TAILQ_ENTRY(vm_page) freeq; /* list of free pages for buddy system */
+    TAILQ_ENTRY(vm_page) freeq; /* (P) list of free pages for buddy system */
     TAILQ_ENTRY(vm_page) pageq; /* used to group allocated pages */
     struct {
       TAILQ_ENTRY(vm_page) list;
-    } obj;
+    } obj;        /* (O) list of pages in vm_object */
     slab_t *slab; /* active when page is used by pool allocator */
   };
-  TAILQ_HEAD(, pv_entry) pv_list; /* where this page is mapped? */
-  vm_object_t *object;            /* object owning that page */
-  off_t offset;                   /* offset to page in vm_object */
-  paddr_t paddr;                  /* physical address of page */
-  pg_flags_t flags;               /* page flags (used by physmem as well) */
-  uint32_t size;                  /* size of page in PAGESIZE units */
+  TAILQ_HEAD(, pv_entry) pv_list; /* (@) where this page is mapped? */
+  vm_object_t *object;            /* (O) object owning that page */
+  off_t offset;                   /* (O) offset to page in vm_object */
+  paddr_t paddr;                  /* (P) physical address of page */
+  pg_flags_t flags;               /* (P) page flags (used by physmem as well) */
+  uint32_t size;                  /* (P) size of page in PAGESIZE units */
 };
 
 int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags);
