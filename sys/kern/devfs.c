@@ -110,7 +110,7 @@ static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
   return 0;
 }
 
-void devfs_add_default_vops(vnodeops_t *vops) {
+static void devfs_add_default_vops(vnodeops_t *vops) {
   if (vops->v_open == NULL)
     vops->v_open = vnode_open_generic;
 
