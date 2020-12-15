@@ -43,13 +43,13 @@ typedef struct vm_object vm_object_t;
 typedef struct slab slab_t;
 
 /* Field marking and corresponding locks:
- * (@) pmap.c::pv_list_lock
- * (P) vm_physmem.c::physmem_lock
+ * (@) pv_list_lock (in pmap.c)
+ * (P) physmem_lock (in vm_physmem.c)
  * (O) vm_object::mtx */
 
 struct vm_page {
   union {
-    TAILQ_ENTRY(vm_page) freeq; /* list of free pages for buddy system */
+    TAILQ_ENTRY(vm_page) freeq; /* (P) list of free pages for buddy system */
     TAILQ_ENTRY(vm_page) pageq; /* used to group allocated pages */
     struct {
       TAILQ_ENTRY(vm_page) list;
