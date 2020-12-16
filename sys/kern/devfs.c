@@ -81,20 +81,24 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name,
   return 0;
 }
 
-int devfs_remove(devfs_node_t *dn) {
+int devfs_unlink(devfs_node_t *dn) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
   assert(dn->dn_parent != NULL);
 
   /* Only allow removal of empty directories. */
   if (dn->dn_vnode->v_type == V_DIR && !TAILQ_EMPTY(&dn->dn_children))
-    return EINVAL;
+    return ENOTEMPTY;
 
   TAILQ_REMOVE(&dn->dn_parent->dn_children, dn, dn_link);
   vnode_drop(dn->dn_vnode);
+  return 0;
+}
+
+void devfs_free(devfs_node_t *dn) {
+  assert(dn->dn_vnode->v_usecnt == 0);
   kfree(M_STR, dn->dn_name);
   kfree(M_DEVFS, dn);
-  return 0;
 }
 
 int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,

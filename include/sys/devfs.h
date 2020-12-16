@@ -16,11 +16,20 @@ int devfs_makedir(devfs_node_t *parent, const char *name, devfs_node_t **dir_p);
 
 /*
  * Remove a node from the devfs tree.
- * The corresponding vnode will no longer be accessible, but there may still be
- * existing references to it. The device driver should provide vop_reclaim so
- * that it is notified when it is safe to delete the any driver-private data.
+ * The devfs node and the corresponding vnode will no longer be accessible, but
+ * there may still be existing references to them. The device driver should
+ * provide VOP_RECLAIM() so that it is notified when it is safe to free the
+ * devfs node and any driver-private data.
  */
-int devfs_remove(devfs_node_t *dn);
+int devfs_unlink(devfs_node_t *dn);
+
+/*
+ * Deallocate a devfs node.
+ * Only call this function once you are sure that there are no outstanding
+ * references to this devfs node, preferably from a device driver's
+ * implementation of VOP_RECLAIM().
+ */
+void devfs_free(devfs_node_t *dn);
 
 /* Get the vnode corresponding to a devfs node.  */
 vnode_t *devfs_node_to_vnode(devfs_node_t *dn);
