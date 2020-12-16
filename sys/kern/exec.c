@@ -233,7 +233,7 @@ static int open_executable(const char *path, vnode_t **vn_p, cred_t *cred) {
   klog("Loading program '%s'", path);
 
   /* Translate program name to vnode. */
-  if ((error = vfs_namelookup(path, &vn)))
+  if ((error = vfs_namelookup(path, &vn, cred)))
     return error;
 
   /* It must be a regular executable file with non-zero size. */
