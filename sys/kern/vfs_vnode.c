@@ -230,6 +230,12 @@ int default_vnseek(file_t *f, off_t offset, int whence, off_t *newoffp) {
     goto out;
   }
 
+  if (S_ISCHR(va.va_mode)) {
+    /* Character devices do not implement seek operation! */
+    error = ESPIPE;
+    goto out;
+  }
+
   switch (whence) {
     case SEEK_CUR:
       /* TODO: offset overflow */
