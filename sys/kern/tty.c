@@ -929,7 +929,7 @@ static int dev_tty_open(vnode_t *v, int mode, file_t *fp) {
   return error;
 }
 
-vnodeops_t dev_tty_vnodeops = {.v_open = dev_tty_open};
+static vnodeops_t dev_tty_vnodeops = {.v_open = dev_tty_open};
 
 static void init_dev_tty(void) {
   devfs_makedev(NULL, "tty", &dev_tty_vnodeops, NULL, NULL);
