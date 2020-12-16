@@ -173,6 +173,7 @@ tty_t *tty_alloc(void) {
   tty->t_data = NULL;
   tty->t_column = 0;
   tty->t_rocol = tty->t_rocount = 0;
+  tty->t_vnode = NULL;
   tty->t_flags = 0;
   return tty;
 }
@@ -860,15 +861,6 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
   }
 }
 
-static int tty_vn_getattr(vnode_t *v, vattr_t *va) {
-  memset(va, 0, sizeof(vattr_t));
-  va->va_mode = S_IFCHR;
-  va->va_nlink = 1;
-  va->va_ino = 0;
-  va->va_size = 0;
-  return 0;
-}
-
 /* We implement I/O operations as fileops in order to bypass
  * the vnode layer's locking. */
 static fileops_t tty_fileops = {
@@ -902,7 +894,7 @@ static void maybe_assoc_ctty(proc_t *p, tty_t *tty) {
 }
 
 static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
-  tty_t *tty = v->v_data;
+  tty_t *tty = devfs_node_data(v);
   proc_t *p = proc_self();
   int error;
 
@@ -916,11 +908,7 @@ static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
   return error;
 }
 
-vnodeops_t tty_vnodeops = {
-  .v_open = tty_vn_open,
-  .v_close = tty_vn_close,
-  .v_getattr = tty_vn_getattr,
-};
+vnodeops_t tty_vnodeops = {.v_open = tty_vn_open, .v_close = tty_vn_close};
 
 /* Controlling terminal pseudo-device (/dev/tty) */
 
@@ -941,8 +929,7 @@ static int dev_tty_open(vnode_t *v, int mode, file_t *fp) {
   return error;
 }
 
-vnodeops_t dev_tty_vnodeops = {.v_open = dev_tty_open,
-                               .v_getattr = tty_vn_getattr};
+static vnodeops_t dev_tty_vnodeops = {.v_open = dev_tty_open};
 
 static void init_dev_tty(void) {
   devfs_makedev(NULL, "tty", &dev_tty_vnodeops, NULL, NULL);
