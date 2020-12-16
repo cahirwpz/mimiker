@@ -1,7 +1,6 @@
 #ifndef _SYS_TTY_H_
 #define _SYS_TTY_H_
 
-#include <sys/devfs.h>
 #include <sys/termios.h>
 #include <sys/vnode.h>
 #include <sys/ringbuf.h>
@@ -57,10 +56,10 @@ typedef struct tty {
   condvar_t t_background_cv; /* Background wait CV */
   ttyops_t t_ops;            /* Serial device operations */
   struct termios t_termios;
-  pgrp_t *t_pgrp;        /* Foreground process group */
-  session_t *t_session;  /* Session controlled by this tty */
-  devfs_node_t *t_dnode; /* Devfs node of the tty */
-  void *t_data;          /* Serial device driver's private data */
+  pgrp_t *t_pgrp;       /* Foreground process group */
+  session_t *t_session; /* Session controlled by this tty */
+  vnode_t *t_vnode;     /* Devfs vnode of the tty */
+  void *t_data;         /* Serial device driver's private data */
 } tty_t;
 
 /*

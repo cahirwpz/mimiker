@@ -8,11 +8,12 @@ typedef struct devfs_node devfs_node_t;
 typedef struct vnodeops vnodeops_t;
 
 /* If parent is NULL new device will be attached to root devfs directory.
- * If dnode_p is not NULL, on success *dnode_p will point to the devfs_node_t of
+ * If vnode_p is not NULL, on success *vnode_p will point to the vnode of
  * the newly created device. */
 int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
-                  void *data, devfs_node_t **dnode_p);
+                  void *data, vnode_t **vnode_p);
 int devfs_makedir(devfs_node_t *parent, const char *name, devfs_node_t **dir_p);
+void *devfs_node_data(vnode_t *vnode);
 
 /*
  * Remove a node from the devfs tree.
@@ -30,8 +31,5 @@ int devfs_unlink(devfs_node_t *dn);
  * implementation of VOP_RECLAIM().
  */
 void devfs_free(devfs_node_t *dn);
-
-/* Get the vnode corresponding to a devfs node.  */
-vnode_t *devfs_node_to_vnode(devfs_node_t *dn);
 
 #endif /* !_SYS_DEVFS_H_ */

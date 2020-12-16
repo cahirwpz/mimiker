@@ -11,6 +11,7 @@
 #include <sys/dirent.h>
 #include <sys/vfs.h>
 #include <sys/queue.h>
+#include <sys/stat.h>
 
 typedef struct devfs_node devfs_node_t;
 typedef TAILQ_HEAD(, devfs_node) devfs_node_list_t;
@@ -19,6 +20,11 @@ struct devfs_node {
   TAILQ_ENTRY(devfs_node) dn_link;
   char *dn_name;
   ino_t dn_ino;
+  nlink_t dn_nlinks;
+  mode_t dn_mode;
+  uid_t dn_uid;
+  gid_t dn_gid;
+  void *dn_data;
   vnode_t *dn_vnode;
   devfs_node_t *dn_parent;
   devfs_node_list_t dn_children;
@@ -37,9 +43,15 @@ static devfs_mount_t devfs = {
   .lock = MTX_INITIALIZER(0), .next_ino = 2, .root = {}};
 static vnode_lookup_t devfs_vop_lookup;
 static vnode_readdir_t devfs_vop_readdir;
+static vnode_getattr_t devfs_vop_getattr;
 static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup,
                                     .v_readdir = devfs_vop_readdir,
+                                    .v_getattr = devfs_vop_getattr,
                                     .v_open = vnode_open_generic};
+
+static inline devfs_node_t *vn2dn(vnode_t *v) {
+  return (devfs_node_t *)v->v_data;
+}
 
 static devfs_node_t *devfs_find_child(devfs_node_t *parent,
                                       const componentname_t *cn) {
@@ -75,8 +87,13 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name,
 
   devfs_node_t *dn = kmalloc(M_DEVFS, sizeof(devfs_node_t), M_ZERO);
   dn->dn_ino = ++devfs.next_ino;
+  dn->dn_uid = 0;
+  dn->dn_gid = 0;
+  dn->dn_nlinks = 1;
+  dn->dn_parent = parent;
   dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
   TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
+  parent->dn_nlinks++;
   *dnp = dn;
   return 0;
 }
@@ -101,8 +118,32 @@ void devfs_free(devfs_node_t *dn) {
   kfree(M_DEVFS, dn);
 }
 
+static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
+  devfs_node_t *dn = vn2dn(v);
+  memset(va, 0, sizeof(vattr_t));
+  va->va_mode = dn->dn_mode;
+  va->va_uid = dn->dn_uid;
+  va->va_gid = dn->dn_gid;
+  va->va_nlink = dn->dn_nlinks;
+  va->va_ino = dn->dn_ino;
+  /* XXX we have only devices which should have size 0 */
+  va->va_size = 0;
+  return 0;
+}
+
+static void devfs_add_default_vops(vnodeops_t *vops) {
+  if (vops->v_open == NULL)
+    vops->v_open = vnode_open_generic;
+
+  if (vops->v_access == NULL)
+    vops->v_access = vnode_access_generic;
+
+  if (vops->v_getattr == NULL)
+    vops->v_getattr = devfs_vop_getattr;
+}
+
 int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
-                  void *data, devfs_node_t **dnode_p) {
+                  void *data, vnode_t **vnode_p) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
   devfs_node_t *dn;
@@ -110,9 +151,16 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
   if (error)
     return error;
 
-  dn->dn_vnode = vnode_new(V_DEV, vops, data);
-  if (dnode_p) {
-    *dnode_p = dn;
+  devfs_add_default_vops(vops);
+  vnodeops_init(vops);
+
+  dn->dn_vnode = vnode_new(V_DEV, vops, dn);
+  dn->dn_data = data;
+  dn->dn_mode =
+    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+  if (vnode_p) {
+    vnode_hold(dn->dn_vnode);
+    *vnode_p = dn->dn_vnode;
   }
   klog("devfs: registered '%s' device", name);
   return 0;
@@ -126,11 +174,17 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
   int error = devfs_add_entry(parent, name, &dn);
   if (!error) {
     dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, dn);
-    dn->dn_parent = parent;
+    dn->dn_data = NULL;
+    dn->dn_mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
     TAILQ_INIT(&dn->dn_children);
     *dir_p = dn;
   }
   return 0;
+}
+
+void *devfs_node_data(vnode_t *v) {
+  devfs_node_t *dn = vn2dn(v);
+  return dn->dn_data;
 }
 
 /* We are using a single vnode for each devfs_node instead of allocating a new
@@ -147,20 +201,12 @@ static int devfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
   if (dv->v_type != V_DIR)
     return ENOTDIR;
 
-  devfs_node_t *dn = devfs_find_child(dv->v_data, cn);
+  devfs_node_t *dn = devfs_find_child(vn2dn(dv), cn);
   if (!dn)
     return ENOENT;
   *vp = dn->dn_vnode;
   vnode_hold(*vp);
   return 0;
-}
-
-static inline devfs_node_t *vn2dn(vnode_t *v) {
-  return (devfs_node_t *)v->v_data;
-}
-
-vnode_t *devfs_node_to_vnode(devfs_node_t *dn) {
-  return dn->dn_vnode;
 }
 
 static void *devfs_dirent_next(vnode_t *v, void *it) {
@@ -221,6 +267,9 @@ static int devfs_init(vfsconf_t *vfc) {
 
   devfs_node_t *dn = &devfs.root;
   dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, dn);
+  dn->dn_mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+  dn->dn_uid = 0;
+  dn->dn_gid = 0;
   dn->dn_name = "";
   dn->dn_parent = dn;
   dn->dn_ino = devfs.next_ino;

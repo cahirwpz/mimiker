@@ -58,7 +58,7 @@ static uint32_t pl011_getc(pl011_state_t *state) {
 }
 
 static int pl011_read(vnode_t *v, uio_t *uio, int ioflags) {
-  pl011_state_t *state = v->v_data;
+  pl011_state_t *state = devfs_node_data(v);
 
   /* This device does not support offsets. */
   uio->uio_offset = 0;
@@ -74,7 +74,7 @@ static int pl011_read(vnode_t *v, uio_t *uio, int ioflags) {
 }
 
 static int pl011_write(vnode_t *v, uio_t *uio, int ioflags) {
-  pl011_state_t *state = v->v_data;
+  pl011_state_t *state = devfs_node_data(v);
 
   /* This device does not support offsets. */
   uio->uio_offset = 0;
@@ -124,7 +124,6 @@ static int pl011_getattr(vnode_t *v, vattr_t *va) {
 
 /* clang-format off */
 static vnodeops_t dev_uart_ops = {
-  .v_open = vnode_open_generic,
   .v_write = pl011_write,
   .v_read = pl011_read,
   .v_close = pl011_close,
