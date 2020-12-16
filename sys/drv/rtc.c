@@ -76,7 +76,7 @@ static intr_filter_t rtc_intr(void *data) {
 }
 
 static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
-  rtc_state_t *rtc = devfs_getdata(v);
+  rtc_state_t *rtc = devfs_node_data(v);
   tm_t t;
 
   uio->uio_offset = 0; /* This device does not support offsets. */

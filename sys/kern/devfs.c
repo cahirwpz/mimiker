@@ -161,7 +161,7 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
   return 0;
 }
 
-void *devfs_getdata(vnode_t *v) {
+void *devfs_node_data(vnode_t *v) {
   devfs_node_t *dn = vn2dn(v);
   return dn->dn_data;
 }

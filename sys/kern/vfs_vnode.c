@@ -231,7 +231,7 @@ int default_vnseek(file_t *f, off_t offset, int whence, off_t *newoffp) {
   }
 
   if (S_ISCHR(va.va_mode)) {
-    /* TODO implement seek on cheracter device */
+    /* Character devices do not implement seek operation! */
     error = ESPIPE;
     goto out;
   }

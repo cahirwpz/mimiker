@@ -63,7 +63,7 @@ static void write_data(resource_t *regs, uint8_t byte) {
 }
 
 static int scancode_read(vnode_t *v, uio_t *uio, int ioflag) {
-  atkbdc_state_t *atkbdc = devfs_getdata(v);
+  atkbdc_state_t *atkbdc = devfs_node_data(v);
   int error;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
