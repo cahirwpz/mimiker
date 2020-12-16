@@ -922,7 +922,7 @@ static void maybe_assoc_ctty(proc_t *p, tty_t *tty) {
 }
 
 static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
-  tty_t *tty = v->v_data;
+  tty_t *tty = devfs_node_data(v);
   proc_t *p = proc_self();
   int error;
 

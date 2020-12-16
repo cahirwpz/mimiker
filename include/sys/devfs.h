@@ -13,5 +13,6 @@ typedef struct vnodeops vnodeops_t;
 int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
                   void *data, vnode_t **vnode_p);
 int devfs_makedir(devfs_node_t *parent, const char *name, devfs_node_t **dir_p);
+void *devfs_node_data(vnode_t *vnode);
 
 #endif /* !_SYS_DEVFS_H_ */
