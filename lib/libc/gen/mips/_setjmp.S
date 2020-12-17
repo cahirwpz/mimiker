@@ -34,7 +34,6 @@
 
 #include <machine/cdefs.h>
 #include <mips/asm.h>
-#include <machine/setjmp.h>
 
 #include "mips/assym.h"
 #include "mips/SYS.h"

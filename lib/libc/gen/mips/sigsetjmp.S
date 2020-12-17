@@ -34,7 +34,6 @@
 
 #include <sys/syscall.h>
 #include <mips/asm.h>
-#include <machine/setjmp.h>
 
 #include "mips/assym.h"
 #include "mips/SYS.h"
@@ -53,7 +52,7 @@
 
 LEAF(sigsetjmp)
 	PIC_PROLOGUE(sigsetjmp)
-	REG_S	a1, _JBLEN*SZREG(a0)		# save "savemask"
+	REG_S	a1, (a0)		        # save "savemask"
 	bne	a1, 0x0, 1f			# do saving of signal mask?
 	PIC_TAILCALL(_setjmp)
 
@@ -62,7 +61,7 @@ END(sigsetjmp)
 
 LEAF(siglongjmp)
 	PIC_PROLOGUE(siglongjmp)
-	REG_L	t0, _JBLEN*SZREG(a0)		# get "savemask"
+	REG_L	t0, (a0)		        # get "savemask"
 	bne	t0, 0x0, 1f			# restore signal mask?
 	PIC_TAILCALL(_longjmp)
 
