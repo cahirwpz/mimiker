@@ -27,12 +27,12 @@ typedef enum {
 } drv_if_t;
 
 struct driver {
-  const char *desc;  /* short driver description */
-  size_t size;       /* device->state object size */
-  d_probe_t probe;   /* probe for specific device(s) */
-  d_attach_t attach; /* attach device to system */
-  d_detach_t detach; /* detach device from system */
-  void *interfaces[DIF_COUNT];
+  const char *desc;            /* short driver description */
+  size_t size;                 /* device->state object size */
+  d_probe_t probe;             /* probe for specific device(s) */
+  d_attach_t attach;           /* attach device to system */
+  d_detach_t detach;           /* detach device from system */
+  void *interfaces[DIF_COUNT]; /* pointers to device methods structures */
 };
 
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
