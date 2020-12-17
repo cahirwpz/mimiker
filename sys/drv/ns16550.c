@@ -7,6 +7,7 @@
 #include <sys/condvar.h>
 #include <sys/ringbuf.h>
 #include <sys/pci.h>
+#include <sys/icu.h>
 #include <sys/termios.h>
 #include <sys/ttycom.h>
 #include <dev/isareg.h>
@@ -224,7 +225,7 @@ static int ns16550_attach(device_t *dev) {
   assert(ns16550->regs != NULL);
 
   ns16550->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
-  bus_intr_setup(dev, ns16550->irq_res, ns16550_intr, NULL, ns16550,
+  icu_intr_setup(dev, ns16550->irq_res, ns16550_intr, NULL, ns16550,
                  "NS16550 UART");
 
   /* Setup UART and enable interrupts */

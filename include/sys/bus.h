@@ -134,9 +134,6 @@ extern bus_space_t *generic_bus_space;
 #define bus_space_map(t, a, s, hp) (*(t)->bs_map)((a), (s), (hp))
 
 struct bus_methods {
-  void (*intr_setup)(device_t *dev, resource_t *irq, ih_filter_t *filter,
-                     ih_service_t *service, void *arg, const char *name);
-  void (*intr_teardown)(device_t *dev, resource_t *irq);
   resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
                                 rman_addr_t start, rman_addr_t end, size_t size,
                                 res_flags_t flags);
@@ -146,16 +143,6 @@ struct bus_methods {
 };
 
 #define BUS_METHODS(dev) (*(bus_methods_t *)(dev)->driver->interfaces[DIF_BUS])
-
-static inline void bus_intr_setup(device_t *dev, resource_t *irq,
-                                  ih_filter_t *filter, ih_service_t *service,
-                                  void *arg, const char *name) {
-  BUS_METHODS(dev->parent).intr_setup(dev, irq, filter, service, arg, name);
-}
-
-static inline void bus_intr_teardown(device_t *dev, resource_t *irq) {
-  BUS_METHODS(dev->parent).intr_teardown(dev, irq);
-}
 
 /*! \brief Allocates a resource of type \a type and size \a size between
  * \a start and \a end for a device \a dev.

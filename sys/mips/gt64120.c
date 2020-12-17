@@ -38,6 +38,7 @@
 #include <sys/spinlock.h>
 #include <sys/libkern.h>
 #include <sys/bus.h>
+#include <sys/icu.h>
 #include <sys/devclass.h>
 
 #define ICU_LEN 16 /* number of ISA IRQs */
@@ -324,7 +325,7 @@ static int gt_pci_attach(device_t *pcib) {
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
   gtpci->irq_res = device_take_irq(pcib, 0, RF_ACTIVE);
-  bus_intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
+  icu_intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
                  "GT64120 main irq");
 
   pci_bus_enumerate(pcib);
@@ -464,9 +465,12 @@ static int gt_pci_probe(device_t *d) {
   return d->unit == 1;
 }
 
-static bus_methods_t gt_pci_bus_if = {
+static icu_methods_t gt_pci_icu_if = {
   .intr_setup = gt_pci_intr_setup,
   .intr_teardown = gt_pci_intr_teardown,
+};
+
+static bus_methods_t gt_pci_bus_if = {
   .alloc_resource = gt_pci_alloc_resource,
   .release_resource = gt_pci_release_resource,
   .activate_resource = gt_pci_activate_resource,
@@ -488,6 +492,7 @@ static driver_t gt_pci_bus = {
     {
       [DIF_BUS] = &gt_pci_bus_if,
       [DIF_PCI_BUS] = &gt_pci_pci_bus_if,
+      [DIF_ICU] = &gt_pci_icu_if,
     },
 };
 

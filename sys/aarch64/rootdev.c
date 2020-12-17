@@ -7,6 +7,7 @@
 #include <aarch64/interrupt.h>
 #include <sys/kmem.h>
 #include <sys/pmap.h>
+#include <sys/icu.h>
 #include <sys/interrupt.h>
 
 DEVCLASS_CREATE(root);
@@ -290,9 +291,12 @@ static void rootdev_deactivate_resource(device_t *dev, res_type_t type,
   /* TODO: unmap mapped resources. */
 }
 
-static bus_methods_t rootdev_bus_if = {
+static icu_methods_t rootdev_icu_if = {
   .intr_setup = rootdev_intr_setup,
   .intr_teardown = rootdev_intr_teardown,
+};
+
+static bus_methods_t rootdev_bus_if = {
   .alloc_resource = rootdev_alloc_resource,
   .release_resource = rootdev_release_resource,
   .activate_resource = rootdev_activate_resource,
@@ -305,6 +309,7 @@ static driver_t rootdev_driver = {
   .attach = rootdev_attach,
   .interfaces = {
     [DIF_BUS] = &rootdev_bus_if,
+    [DIF_ICU] = &rootdev_icu_if,
   },
 };
 

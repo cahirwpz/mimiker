@@ -3,6 +3,7 @@
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
 #include <sys/pci.h>
+#include <sys/icu.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/timer.h>
@@ -74,14 +75,14 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
     pit_set_frequency(pit, counter);
     pit->last_cntr = pit_get_counter(pit);
   }
-  bus_intr_setup(dev, pit->irq_res, pit_intr, NULL, pit, "i8254 timer");
+  icu_intr_setup(dev, pit->irq_res, pit_intr, NULL, pit, "i8254 timer");
   return 0;
 }
 
 static int timer_pit_stop(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  bus_intr_teardown(dev, pit->irq_res);
+  icu_intr_teardown(dev, pit->irq_res);
   return 0;
 }
 

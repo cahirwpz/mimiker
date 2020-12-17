@@ -8,6 +8,7 @@
 #include <sys/exception.h>
 #include <sys/interrupt.h>
 #include <sys/devclass.h>
+#include <sys/icu.h>
 #include <mips/mcontext.h>
 
 typedef struct rootdev {
@@ -173,9 +174,12 @@ static int rootdev_attach(device_t *bus) {
   return bus_generic_probe(bus);
 }
 
-static bus_methods_t rootdev_bus_if = {
+static icu_methods_t rootdev_icu_if = {
   .intr_setup = rootdev_intr_setup,
   .intr_teardown = rootdev_intr_teardown,
+};
+
+static bus_methods_t rootdev_bus_if = {
   .alloc_resource = rootdev_alloc_resource,
   .release_resource = rootdev_release_resource,
   .activate_resource = rootdev_activate_resource,
@@ -190,6 +194,7 @@ static driver_t rootdev_driver = {
   .interfaces =
     {
       [DIF_BUS] = &rootdev_bus_if,
+      [DIF_ICU] = &rootdev_icu_if,
     },
 };
 

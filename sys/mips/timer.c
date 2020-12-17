@@ -4,6 +4,7 @@
 #include <mips/config.h>
 #include <mips/interrupt.h>
 #include <sys/bus.h>
+#include <sys/icu.h>
 #include <sys/devclass.h>
 #include <sys/device.h>
 #include <sys/interrupt.h>
@@ -80,7 +81,7 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
   state->compare.val = read_count(state);
   state->last_count_lo = state->count.lo;
   set_next_tick(state);
-  bus_intr_setup(dev, state->irq_res, mips_timer_intr, NULL, dev,
+  icu_intr_setup(dev, state->irq_res, mips_timer_intr, NULL, dev,
                  "MIPS CPU timer");
   return 0;
 }
@@ -88,7 +89,7 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
 static int mips_timer_stop(timer_t *tm) {
   device_t *dev = tm->tm_priv;
   mips_timer_state_t *state = dev->state;
-  bus_intr_teardown(dev, state->irq_res);
+  icu_intr_teardown(dev, state->irq_res);
   return 0;
 }
 
