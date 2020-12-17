@@ -16,7 +16,7 @@ typedef struct icu_methods {
 static inline void icu_intr_setup(device_t *dev, resource_t *irq,
                                   ih_filter_t *filter, ih_service_t *service,
                                   void *arg, const char *name) {
-  assert (dev->parent);
+  assert(dev->parent);
   if (!dev->parent->driver->interfaces[DIF_ICU]) {
     icu_intr_setup(dev, irq, filter, service, arg, name);
     return;
@@ -25,7 +25,7 @@ static inline void icu_intr_setup(device_t *dev, resource_t *irq,
 }
 
 static inline void icu_intr_teardown(device_t *dev, resource_t *irq) {
-  assert (dev->parent);
+  assert(dev->parent);
   if (!dev->parent->driver->interfaces[DIF_ICU]) {
     icu_intr_teardown(dev, irq);
     return;
