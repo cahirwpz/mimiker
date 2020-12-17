@@ -11,6 +11,7 @@
 #include <sys/ttycom.h>
 #include <sys/interrupt.h>
 #include <sys/ringbuf.h>
+#include <sys/icu.h>
 #include <aarch64/bcm2835reg.h>
 #include <aarch64/bcm2835_gpioreg.h>
 #include <aarch64/plcomreg.h>
@@ -221,7 +222,7 @@ static int pl011_attach(device_t *dev) {
   bus_write_4(r, PL011COM_IMSC, PL011_INT_RX);
 
   state->irq = device_take_irq(dev, 0, RF_ACTIVE);
-  bus_intr_setup(dev, state->irq, pl011_intr, NULL, dev, "PL011 UART");
+  icu_intr_setup(dev, state->irq, pl011_intr, NULL, dev, "PL011 UART");
 
   /* Prepare /dev/uart interface. */
   devfs_makedev(NULL, "uart", &dev_uart_ops, state, NULL);

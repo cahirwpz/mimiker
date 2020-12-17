@@ -5,6 +5,7 @@
 #include <aarch64/bcm2835reg.h>
 #include <sys/interrupt.h>
 #include <sys/bus.h>
+#include <sys/icu.h>
 #include <sys/devclass.h>
 
 #define CNTCTL_ENABLE 1
@@ -84,7 +85,7 @@ static int arm_timer_attach(device_t *dev) {
   tm_register(&state->timer);
   tm_select(&state->timer);
 
-  bus_intr_setup(dev, state->irq_res, arm_timer_intr, NULL, dev,
+  icu_intr_setup(dev, state->irq_res, arm_timer_intr, NULL, dev,
                  "ARM CPU timer");
 
   return 0;
