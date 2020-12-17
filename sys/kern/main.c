@@ -27,9 +27,9 @@
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
 static void mount_fs(proc_t *p) {
-  do_mount("initrd", "/", &p->p_cred);
-  do_mount("devfs", "/dev", &p->p_cred);
-  do_mount("tmpfs", "/tmp", &p->p_cred);
+  do_mount(p, "initrd", "/");
+  do_mount(p, "devfs", "/dev");
+  do_mount(p, "tmpfs", "/tmp");
 }
 
 static __noreturn void start_init(__unused void *arg) {

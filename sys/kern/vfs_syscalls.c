@@ -205,14 +205,14 @@ int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
   return error;
 }
 
-int do_mount(const char *fs, const char *path, cred_t *cred) {
+int do_mount(proc_t *p, const char *fs, const char *path) {
   vfsconf_t *vfs;
   vnode_t *v;
   int error;
 
   if (!(vfs = vfs_get_by_name(fs)))
     return EINVAL;
-  if ((error = vfs_namelookup(path, &v, cred)))
+  if ((error = vfs_namelookup(path, &v, &p->p_cred)))
     return error;
 
   return vfs_domount(vfs, v);
