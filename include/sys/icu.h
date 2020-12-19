@@ -11,26 +11,24 @@ typedef struct icu_methods {
   void (*intr_teardown)(device_t *dev, resource_t *irq);
 } icu_methods_t;
 
-#define ICU_METHODS(dev) (*(icu_methods_t *)(dev)->driver->interfaces[DIF_ICU])
+#define ICU_METHODS(dev) ((icu_methods_t *)(dev)->driver->interfaces[DIF_ICU])
 
 static inline void icu_intr_setup(device_t *dev, resource_t *irq,
                                   ih_filter_t *filter, ih_service_t *service,
                                   void *arg, const char *name) {
-  assert(dev->parent);
-  if (!dev->parent->driver->interfaces[DIF_ICU]) {
-    icu_intr_setup(dev, irq, filter, service, arg, name);
-    return;
+  while (!ICU_METHODS(dev->parent)) {
+    assert(dev->parent->parent);
+    dev = dev->parent;
   }
-  ICU_METHODS(dev->parent).intr_setup(dev, irq, filter, service, arg, name);
+  ICU_METHODS(dev->parent)->intr_setup(dev, irq, filter, service, arg, name);
 }
 
 static inline void icu_intr_teardown(device_t *dev, resource_t *irq) {
-  assert(dev->parent);
-  if (!dev->parent->driver->interfaces[DIF_ICU]) {
-    icu_intr_teardown(dev, irq);
-    return;
+  while (!ICU_METHODS(dev->parent)) {
+    assert(dev->parent->parent);
+    dev = dev->parent;
   }
-  ICU_METHODS(dev->parent).intr_teardown(dev, irq);
+  ICU_METHODS(dev->parent)->intr_teardown(dev, irq);
 }
 
 #endif

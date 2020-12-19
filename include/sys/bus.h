@@ -142,7 +142,7 @@ struct bus_methods {
   void (*deactivate_resource)(device_t *dev, res_type_t type, resource_t *r);
 };
 
-#define BUS_METHODS(dev) (*(bus_methods_t *)(dev)->driver->interfaces[DIF_BUS])
+#define BUS_METHODS(dev) ((bus_methods_t *)(dev)->driver->interfaces[DIF_BUS])
 
 /*! \brief Allocates a resource of type \a type and size \a size between
  * \a start and \a end for a device \a dev.
@@ -161,8 +161,8 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
                                              int rid, rman_addr_t start,
                                              rman_addr_t end, size_t size,
                                              res_flags_t flags) {
-  return BUS_METHODS(dev->parent)
-    .alloc_resource(dev, type, rid, start, end, size, flags);
+  return BUS_METHODS(dev->parent)->alloc_resource(dev, type, rid, start, end,
+                                                  size, flags);
 }
 
 /*! \brief Activates resource for a device.
@@ -185,7 +185,7 @@ void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r);
 
 static inline void bus_release_resource(device_t *dev, res_type_t type,
                                         resource_t *r) {
-  BUS_METHODS(dev->parent).release_resource(dev, type, r);
+  BUS_METHODS(dev->parent)->release_resource(dev, type, r);
 }
 
 int bus_generic_probe(device_t *bus);

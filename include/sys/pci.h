@@ -92,11 +92,11 @@ typedef struct pci_device {
 } pci_device_t;
 
 #define PCI_BUS_METHODS(dev)                                                   \
-  (*(pci_bus_methods_t *)(dev)->driver->interfaces[DIF_PCI_BUS])
+  ((pci_bus_methods_t *)(dev)->driver->interfaces[DIF_PCI_BUS])
 
 static inline uint32_t pci_read_config(device_t *dev, unsigned reg,
                                        unsigned size) {
-  return PCI_BUS_METHODS(dev->parent).read_config(dev, reg, size);
+  return PCI_BUS_METHODS(dev->parent)->read_config(dev, reg, size);
 }
 
 #define pci_read_config_1(d, r) pci_read_config((d), (r), 1)
@@ -105,7 +105,7 @@ static inline uint32_t pci_read_config(device_t *dev, unsigned reg,
 
 static inline void pci_write_config(device_t *dev, unsigned reg, unsigned size,
                                     uint32_t value) {
-  PCI_BUS_METHODS(dev->parent).write_config(dev, reg, size, value);
+  PCI_BUS_METHODS(dev->parent)->write_config(dev, reg, size, value);
 }
 
 #define pci_write_config_1(d, r, v) pci_write_config((d), (r), 1, (v))
@@ -113,7 +113,7 @@ static inline void pci_write_config(device_t *dev, unsigned reg, unsigned size,
 #define pci_write_config_4(d, r, v) pci_write_config((d), (r), 4, (v))
 
 static inline void pci_enable_busmaster(device_t *dev) {
-  PCI_BUS_METHODS(dev->parent).enable_busmaster(dev);
+  PCI_BUS_METHODS(dev->parent)->enable_busmaster(dev);
 }
 
 void pci_bus_enumerate(device_t *pcib);
