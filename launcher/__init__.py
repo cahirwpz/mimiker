@@ -50,7 +50,9 @@ CONFIG = {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
                     '-device', 'VGA',
-                    '-device', 'rtl8139',
+                    '-device', 'rtl8139,netdev=net0',
+                    '-netdev', 'user,id=net0,hostfwd=tcp::10022-:22',
+                    '-object', 'filter-dump,id=net0,netdev=net0,file=rtl8139.pcap',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
                 'uarts': [
