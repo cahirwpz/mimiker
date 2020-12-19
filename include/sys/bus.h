@@ -161,8 +161,8 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
                                              int rid, rman_addr_t start,
                                              rman_addr_t end, size_t size,
                                              res_flags_t flags) {
-  return BUS_METHODS(dev->parent)->alloc_resource(dev, type, rid, start, end,
-                                                  size, flags);
+  return BUS_METHODS(dev->parent)
+    ->alloc_resource(dev, type, rid, start, end, size, flags);
 }
 
 /*! \brief Activates resource for a device.
