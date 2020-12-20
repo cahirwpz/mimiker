@@ -343,7 +343,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
       vm_seg_flags_t flags = it->flags;
       vm_object_t *obj;
       vm_segment_t *seg;
-      vm_object_t *shadow;
+      vm_object_t *backing;
 
       if (it->flags & VM_SEG_SHARED) {
         refcnt_acquire(&it->object->ref_counter);
@@ -351,19 +351,19 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
       } else {
         if ((it->flags & VM_SEG_NEED_COPY) != 0 && it->object->npages == 0) {
           obj = vm_object_alloc(VM_SHADOW);
-          shadow = it->object->shadow_object;
-          obj->shadow_object = shadow;
+          backing = it->object->backing_object;
+          obj->backing_object = backing;
         } else {
-          shadow = it->object;
+          backing = it->object;
           obj = vm_object_alloc(VM_SHADOW);
-          obj->shadow_object = shadow;
+          obj->backing_object = backing;
           it->object = vm_object_alloc(VM_SHADOW);
-          it->object->shadow_object = shadow;
-          vm_object_set_readonly(shadow);
+          it->object->backing_object = backing;
+          vm_object_set_readonly(backing);
         }
 
-        refcnt_acquire(&shadow->ref_counter);
-        vm_object_increase_pages_references(shadow);
+        refcnt_acquire(&backing->ref_counter);
+        vm_object_increase_pages_references(backing);
 
         flags |= VM_SEG_NEED_COPY;
         it->flags |= VM_SEG_NEED_COPY;
@@ -413,13 +413,13 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   vaddr_t offset = fault_page - seg->start;
   vm_page_t *frame = vm_object_find_page(obj, offset);
 
-  if (frame == NULL && obj->shadow_object && fault_type == VM_PROT_READ &&
+  if (frame == NULL && obj->backing_object && fault_type == VM_PROT_READ &&
       seg->prot == VM_PROT_READ) {
-    vm_object_t *it = obj->shadow_object;
+    vm_object_t *it = obj->backing_object;
 
     while (frame == NULL && it != NULL) {
       frame = vm_object_find_page(it, offset);
-      it = it->shadow_object;
+      it = it->backing_object;
     }
   }
 

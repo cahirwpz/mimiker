@@ -19,7 +19,7 @@ static vm_page_t *anon_pager_fault(vm_object_t *obj, off_t offset) {
 
 static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
   assert(obj != NULL);
-  assert(obj->shadow_object != NULL);
+  assert(obj->backing_object != NULL);
 
   vm_page_t *pg = NULL;
   vm_page_t *new_pg = NULL;
@@ -29,11 +29,11 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
 
   WITH_RW_LOCK (&obj->mtx, RW_READER) {
 
-    while (pg == NULL && it->shadow_object != NULL) {
-      SCOPED_RW_ENTER(&it->shadow_object->mtx, RW_READER);
-      pg = vm_object_find_page(it->shadow_object, offset);
+    while (pg == NULL && it->backing_object != NULL) {
+      SCOPED_RW_ENTER(&it->backing_object->mtx, RW_READER);
+      pg = vm_object_find_page(it->backing_object, offset);
       prev = it;
-      it = it->shadow_object;
+      it = it->backing_object;
     }
   }
 
@@ -54,10 +54,10 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
       refcnt_release(&pg->ref_counter);
 
       if (it->npages == 0) {
-        prev->shadow_object = it->shadow_object;
+        prev->backing_object = it->backing_object;
         prev->pager = it->pager;
-        if (it->shadow_object != NULL) {
-          refcnt_acquire(&it->shadow_object->ref_counter);
+        if (it->backing_object != NULL) {
+          refcnt_acquire(&it->backing_object->ref_counter);
         }
 
         vm_object_free(it);

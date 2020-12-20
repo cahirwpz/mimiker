@@ -96,8 +96,8 @@ void vm_object_free(vm_object_t *obj) {
     TAILQ_FOREACH_SAFE (pg, &obj->list, obj.list, next)
       vm_object_remove_page_nolock(obj, pg);
 
-    if (obj->shadow_object) {
-      vm_object_free(obj->shadow_object);
+    if (obj->backing_object) {
+      vm_object_free(obj->backing_object);
     }
   }
 
@@ -140,7 +140,7 @@ void vm_object_increase_pages_references(vm_object_t *obj) {
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) { refcnt_acquire(&pg->ref_counter); }
 
-  if (obj->shadow_object) {
-    vm_object_increase_pages_references(obj->shadow_object);
+  if (obj->backing_object) {
+    vm_object_increase_pages_references(obj->backing_object);
   }
 }
