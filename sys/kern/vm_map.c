@@ -359,7 +359,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
           obj->backing_object = backing;
           it->object = vm_object_alloc(VM_SHADOW);
           it->object->backing_object = backing;
-          vm_object_set_readonly(backing);
+          vm_object_set_prot(backing, VM_PROT_READ);
         }
 
         refcnt_acquire(&backing->ref_counter);

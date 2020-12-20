@@ -127,11 +127,11 @@ void vm_map_object_dump(vm_object_t *obj) {
   }
 }
 
-void vm_object_set_readonly(vm_object_t *obj) {
+void vm_object_set_prot(vm_object_t *obj, vm_prot_t prot){
   SCOPED_RW_ENTER(&obj->mtx, RW_WRITER);
 
   vm_page_t *pg;
-  TAILQ_FOREACH (pg, &obj->list, obj.list) { pmap_set_page_readonly(pg); }
+  TAILQ_FOREACH (pg, &obj->list, obj.list) { pmap_set_page_prot(pg, prot); }
 }
 
 void vm_object_increase_pages_references(vm_object_t *obj) {

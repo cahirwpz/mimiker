@@ -32,6 +32,6 @@ void vm_object_remove_range(vm_object_t *obj, off_t offset, size_t length);
 vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset);
 vm_object_t *vm_object_clone(vm_object_t *obj);
 void vm_map_object_dump(vm_object_t *obj);
-void vm_object_set_readonly(vm_object_t *obj);
+void vm_object_set_prot(vm_object_t *obj, vm_prot_t prot);
 void vm_object_increase_pages_references(vm_object_t *obj);
 #endif /* !_SYS_VM_OBJECT_H_ */

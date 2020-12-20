@@ -533,9 +533,9 @@ void pmap_delete(pmap_t *pmap) {
   pool_free(P_PMAP, pmap);
 }
 
-void pmap_set_page_readonly(vm_page_t *pg) {
+void pmap_set_page_prot(vm_page_t *pg, vm_prot_t prot) {
   pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
-    pmap_protect(pv->pmap, pv->va, pv->va + pg->size * PAGESIZE, VM_PROT_READ);
+    pmap_protect(pv->pmap, pv->va, pv->va + pg->size * PAGESIZE, prot);
   }
 }
