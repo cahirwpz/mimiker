@@ -154,6 +154,17 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   bus_write_4(pcicfg, GT_PCI0_CFG_DATA, data.dword);
 }
 
+static int gt_pci_route_interrupt(device_t *dev) {
+  pci_device_t *pcid = pci_device_of(dev);
+  int pin = pcid->pin;
+
+  if (pin == 1 || pin == 2)
+    return 10;
+  if (pin == 3 || pin == 4)
+    return 11;
+  return -1;
+}
+
 static void gt_pci_enable_busmaster(device_t *dev) {
   uint16_t cmd = pci_read_config_2(dev, PCIR_COMMAND);
   pci_write_config_2(dev, PCIR_COMMAND, cmd | PCIM_CMD_BUSMASTEREN);
@@ -476,6 +487,7 @@ static bus_methods_t gt_pci_bus_if = {
 static pci_bus_methods_t gt_pci_pci_bus_if = {
   .read_config = gt_pci_read_config,
   .write_config = gt_pci_write_config,
+  .route_interrupt = gt_pci_route_interrupt,
   .enable_busmaster = gt_pci_enable_busmaster,
 };
 

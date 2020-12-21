@@ -137,6 +137,10 @@ void pci_bus_enumerate(device_t *pcib) {
         rman_addr_t start = (type == RT_IOPORTS) ? (IO_ISAEND + 1) : 0;
 
         device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size, flags);
+
+        int irq = pci_route_interrupt(dev);
+        if (irq != -1)
+          device_add_irq(dev, 0, irq);
       }
     }
   }
