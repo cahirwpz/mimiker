@@ -909,7 +909,7 @@ static void maybe_assoc_ctty(proc_t *p, tty_t *tty) {
   tty->t_pgrp = p->p_pgrp;
 }
 
-static int __tty_vn_open(vnode_t *v, int mode, file_t *fp) {
+static int _tty_vn_open(vnode_t *v, int mode, file_t *fp) {
   tty_t *tty = devfs_node_data(v);
   proc_t *p = proc_self();
   int error;
@@ -933,7 +933,7 @@ static int __tty_vn_open(vnode_t *v, int mode, file_t *fp) {
 
 static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
   SCOPED_MTX_LOCK(all_proc_mtx);
-  return __tty_vn_open(v, mode, fp);
+  return _tty_vn_open(v, mode, fp);
 }
 
 static vnodeops_t tty_vnodeops = {.v_open = tty_vn_open,
@@ -953,7 +953,7 @@ static int dev_tty_open(vnode_t *v, int mode, file_t *fp) {
   if (!tty)
     return ENXIO;
 
-  return __tty_vn_open(tty->t_vnode, mode, fp);
+  return _tty_vn_open(tty->t_vnode, mode, fp);
 }
 
 static vnodeops_t dev_tty_vnodeops = {.v_open = dev_tty_open};
