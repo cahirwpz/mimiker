@@ -1,9 +1,8 @@
 #include "utest.h"
 
 #include <assert.h>
-#include <sys/errno.h>
+#include <errno.h>
 #include <sys/time.h>
-#include <stdio.h>
 
 int test_gettimeofday(void) {
   timeval_t time1, time2;
@@ -29,28 +28,39 @@ int test_gettimeofday(void) {
 int test_nanosleep(void) {
   timespec_t rqt, rmt;
   timeval_t time1, time2, diff;
-  int error;
+  int ret;
 
   /* Incorrect arguments */
   rqt.tv_sec = -1;
+
   rqt.tv_nsec = 1;
-  assert(nanosleep(&rqt, NULL) == EINVAL);
-  assert(nanosleep(&rqt, &rmt) == EINVAL);
+  ret = nanosleep(&rqt, NULL);
+  assert(ret == -1 && errno == EINVAL);
+  ret = nanosleep(&rqt, &rmt);
+  assert(ret == -1 && errno == EINVAL);
 
   rqt.tv_sec = 0;
   rqt.tv_nsec = -1;
-  assert(nanosleep(&rqt, NULL) == EINVAL);
-  assert(nanosleep(&rqt, &rmt) == EINVAL);
+  ret = nanosleep(&rqt, NULL);
+  assert(ret == -1 && errno == EINVAL);
+  ret = nanosleep(&rqt, &rmt);
+  assert(ret == -1 && errno == EINVAL);
 
   rqt.tv_nsec = 1000000000;
-  assert(nanosleep(&rqt, NULL) == EINVAL);
-  assert(nanosleep(&rqt, &rmt) == EINVAL);
+  ret = nanosleep(&rqt, NULL);
+  assert(ret == -1 && errno == EINVAL);
+  ret = nanosleep(&rqt, &rmt);
+  assert(ret == -1 && errno == EINVAL);
 
   rqt.tv_nsec = 1000;
-  assert(nanosleep(NULL, NULL) == EFAULT);
-  assert(nanosleep(NULL, &rmt) == EFAULT);
-  assert(nanosleep(0, NULL) == EFAULT);
-  assert(nanosleep(0, &rmt) == EFAULT);
+  ret = nanosleep(NULL, NULL);
+  assert(ret == -1 && errno == EFAULT);
+  ret = nanosleep(NULL, &rmt);
+  assert(ret == -1 && errno == EFAULT);
+  ret = nanosleep(0, NULL);
+  assert(ret == -1 && errno == EFAULT);
+  ret = nanosleep(0, &rmt);
+  assert(ret == -1 && errno == EFAULT);
 
   /* Check if sleept at least requested time */;
   for (int g = 0; g < 20; g++) {
@@ -58,11 +68,13 @@ int test_nanosleep(void) {
     diff = *((timeval_t *)&rqt);
     diff.tv_usec /= 1000;
 
-    assert(gettimeofday(&time1, NULL) == 0);
-    while ((error = nanosleep(&rqt, &rmt)) == EINTR)
+    ret = gettimeofday(&time1, NULL);
+    assert(ret == 0);
+    while ((ret = nanosleep(&rqt, &rmt)) == EINTR)
       rqt = rmt;
-    assert(error == 0);
-    assert(gettimeofday(&time2, NULL) == 0);
+    assert(ret == 0);
+    ret = gettimeofday(&time2, NULL);
+    assert(ret == 0);
 
     timeradd(&time1, &diff, &time1);
     assert(timercmp(&time1, &time2, <=));
