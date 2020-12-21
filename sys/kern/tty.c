@@ -188,6 +188,18 @@ static void tty_notify_out(tty_t *tty) {
   }
 }
 
+static void tty_notify_active(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  if (tty->t_ops.t_notify_active)
+    tty->t_ops.t_notify_active(tty);
+}
+
+static void tty_notify_inactive(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  if (tty->t_ops.t_notify_inactive)
+    tty->t_ops.t_notify_inactive(tty);
+}
+
 /* Line buffer helper functions */
 static bool tty_line_putc(tty_t *tty, uint8_t c) {
   linebuf_t *line = &tty->t_line;
@@ -742,8 +754,8 @@ static int tty_vn_close(vnode_t *v, file_t *fp) {
   SCOPED_MTX_LOCK(&tty->t_lock);
   assert(tty->t_opencount > 0);
   tty->t_opencount--;
-  if (tty->t_opencount == 0 && tty->t_ops.t_notify_inactive)
-    tty->t_ops.t_notify_inactive(tty);
+  if (tty->t_opencount == 0)
+    tty_notify_inactive(tty);
   return 0;
 }
 
@@ -911,8 +923,8 @@ static int __tty_vn_open(vnode_t *v, int mode, file_t *fp, bool assoc) {
 
     tty->t_opencount++;
 
-    if (tty->t_opencount == 1 && tty->t_ops.t_notify_active)
-      tty->t_ops.t_notify_active(tty);
+    if (tty->t_opencount == 1)
+      tty_notify_active(tty);
   }
 
   fp->f_ops = &tty_fileops;
