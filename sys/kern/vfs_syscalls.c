@@ -50,7 +50,8 @@ static int vfs_truncate(vnode_t *v, size_t len, cred_t *cred) {
   return VOP_SETATTR(v, &va, cred);
 }
 
-static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
+/* This function cleans O_CREAT in flags when file is not being created. */
+static int vfs_create(proc_t *p, int fdat, char *pathname, int *flags, int mode,
                       vnode_t **vp) {
   vnrstate_t vs;
   int error;
@@ -75,10 +76,11 @@ static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
     else
       vnode_put(vs.vs_dvp);
 
-    if (flags & O_EXCL) {
+    if (*flags & O_EXCL) {
       vnode_drop(vs.vs_vp);
       error = EEXIST;
     }
+    *flags &= ~O_CREAT;
   }
   *vp = vs.vs_vp;
 
@@ -87,18 +89,42 @@ fail:
   return error;
 }
 
+static int vfs_check_open(vnode_t *v, int flags, cred_t *cred) {
+  mode_t accmode = 0;
+  switch (flags & O_ACCMODE) {
+    case O_RDONLY:
+      accmode = VREAD;
+      break;
+    case O_WRONLY:
+      accmode = VWRITE;
+      break;
+    case O_RDWR:
+      accmode = VREAD | VWRITE;
+      break;
+  }
+  if (flags & O_TRUNC)
+    accmode |= VWRITE;
+
+  return VOP_ACCESS(v, accmode, cred);
+}
+
 static int vfs_open(proc_t *p, file_t *f, int fdat, char *pathname, int flags,
                     int mode) {
   vnode_t *v;
   int error;
 
   if (flags & O_CREAT) {
-    if ((error = vfs_create(p, fdat, pathname, flags, mode, &v)))
+    /* XXX O_CREAT can be cleaned here */
+    if ((error = vfs_create(p, fdat, pathname, &flags, mode, &v)))
       return error;
   } else {
     if ((error = vfs_namelookupat(p, fdat, VNR_FOLLOW, pathname, &v)))
       return error;
   }
+
+  if (!(flags & O_CREAT))
+    if ((error = vfs_check_open(v, flags, &p->p_cred)))
+      return error;
 
   if (flags & O_TRUNC)
     error = vfs_truncate(v, 0, &p->p_cred);
@@ -290,7 +316,7 @@ int do_faccessat(proc_t *p, int fd, char *path, int mode, int flags) {
 
   /* TODO handle AT_EACCESS: Use the effective user and group IDs instead of
      the real user and group IDs for checking permission.*/
-  error = VOP_ACCESS(v, mode);
+  error = VOP_ACCESS(v, mode, &p->p_cred);
   vnode_drop(v);
   return error;
 }
@@ -361,7 +387,7 @@ int do_truncate(proc_t *p, char *path, off_t length) {
   vnode_lock(vn);
   if (vn->v_type == V_DIR)
     error = EISDIR;
-  else if ((error = VOP_ACCESS(vn, VWRITE)))
+  else if (!(error = VOP_ACCESS(vn, VWRITE, &p->p_cred)))
     error = vfs_truncate(vn, length, &p->p_cred);
 
   vnode_put(vn);
@@ -396,7 +422,7 @@ ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio) {
 
   if (v->v_type != V_LNK)
     error = EINVAL;
-  else if (!(error = VOP_ACCESS(v, VREAD)))
+  else if (!(error = VOP_ACCESS(v, VREAD, &p->p_cred)))
     error = VOP_READLINK(v, uio);
 
   vnode_drop(v);

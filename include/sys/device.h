@@ -15,16 +15,27 @@ typedef SLIST_HEAD(, resource_list_entry) resource_list_t;
 
 typedef enum { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
 
+/* Driver that returns the highest value from its probe action
+ * will be selected for attach action. */
 typedef int (*d_probe_t)(device_t *dev);
+/* Returns value from <errno.h> on failure, 0 on success. */
 typedef int (*d_attach_t)(device_t *dev);
 typedef int (*d_detach_t)(device_t *dev);
 
+/* Update this section if you add any new driver interface */
+typedef enum {
+  DIF_BUS,
+  DIF_PCI_BUS,
+  DIF_COUNT /* this must be the last item */
+} drv_if_t;
+
 struct driver {
-  const char *desc;  /* short driver description */
-  size_t size;       /* device->state object size */
-  d_probe_t probe;   /* probe for specific device(s) */
-  d_attach_t attach; /* attach device to system */
-  d_detach_t detach; /* detach device from system */
+  const char *desc;            /* short driver description */
+  size_t size;                 /* device->state object size */
+  d_probe_t probe;             /* probe for specific device(s) */
+  d_attach_t attach;           /* attach device to system */
+  d_detach_t detach;           /* detach device from system */
+  void *interfaces[DIF_COUNT]; /* pointers to device methods structures */
 };
 
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
