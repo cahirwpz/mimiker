@@ -1,3 +1,4 @@
+#include <sys/context.h>
 #include <sys/libkern.h>
 #include <sys/mimiker.h>
 #include <sys/thread.h>
@@ -39,6 +40,10 @@ void mcontext_init(mcontext_t *ctx, void *pc, void *sp) {
 void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
   _REG(ctx, X0) = value;
   _REG(ctx, X1) = error;
+}
+
+void mcontext_restart_syscall(mcontext_t *ctx) {
+  _REG(ctx, PC) -= 4; /* TODO subtract 2 if in thumb mode */
 }
 
 bool user_mode_p(ctx_t *ctx) {
