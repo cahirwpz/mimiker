@@ -44,9 +44,11 @@ static devfs_mount_t devfs = {
 static vnode_lookup_t devfs_vop_lookup;
 static vnode_readdir_t devfs_vop_readdir;
 static vnode_getattr_t devfs_vop_getattr;
+static vnode_reclaim_t devfs_vop_reclaim;
 static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup,
                                     .v_readdir = devfs_vop_readdir,
                                     .v_getattr = devfs_vop_getattr,
+                                    .v_reclaim = devfs_vop_reclaim,
                                     .v_open = vnode_open_generic};
 
 static inline devfs_node_t *vn2dn(vnode_t *v) {
@@ -116,6 +118,13 @@ void devfs_free(devfs_node_t *dn) {
   assert(dn->dn_vnode->v_usecnt == 0);
   kfree(M_STR, dn->dn_name);
   kfree(M_DEVFS, dn);
+}
+
+/* Free a devfs directory after unlinking it. */
+static int devfs_vop_reclaim(vnode_t *v) {
+  assert(v->v_type == V_DIR);
+  devfs_free(vn2dn(v));
+  return 0;
 }
 
 static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
