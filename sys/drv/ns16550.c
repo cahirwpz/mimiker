@@ -233,7 +233,7 @@ static int ns16550_attach(device_t *dev) {
   out(ns16550->regs, IER, IER_ERXRDY | IER_ETXRDY);
 
   /* Prepare /dev/uart interface. */
-  devfs_makedev(NULL, "uart", &tty_vnodeops, ns16550->tty, &tty->t_vnode);
+  tty_makedev(NULL, "uart", tty);
 
   return 0;
 }

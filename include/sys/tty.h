@@ -7,6 +7,7 @@
 #include <sys/condvar.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/devfs.h>
 
 #define TTY_QUEUE_SIZE 0x400
 #define TTY_OUT_LOW_WATER (TTY_QUEUE_SIZE / 4)
@@ -19,6 +20,8 @@ struct tty;
 
 typedef void (*t_notify_out_t)(struct tty *);
 typedef void (*t_notify_in_t)(struct tty *);
+typedef void (*t_notify_active_t)(struct tty *);
+typedef void (*t_notify_inactive_t)(struct tty *);
 
 /* Routines supplied by the serial device driver. */
 typedef struct {
@@ -31,6 +34,10 @@ typedef struct {
    * This function will be called only after tty_input() fails to put the
    * received character in the input queue. */
   t_notify_in_t t_notify_in;
+  /* Called when t_opencount goes from 0 to 1. */
+  t_notify_active_t t_notify_active;
+  /* Called when t_opencount goes from 1 to 0. */
+  t_notify_inactive_t t_notify_inactive;
 } ttyops_t;
 
 /* TTY flags */
@@ -67,6 +74,7 @@ typedef struct tty {
   pgrp_t *t_pgrp;       /* Foreground process group */
   session_t *t_session; /* Session controlled by this tty */
   vnode_t *t_vnode;     /* Device vnode */
+  uint32_t t_opencount; /* Incremented on open(), decremented on close(). */
   void *t_data;         /* Serial device driver's private data */
 } tty_t;
 
@@ -116,8 +124,6 @@ typedef struct tty {
 #define t_oflag t_termios.c_oflag
 #define t_ospeed t_termios.c_ospeed
 
-extern vnodeops_t tty_vnodeops;
-
 /*
  * Allocate and initialize a new `tty` structure.
  */
@@ -139,6 +145,11 @@ bool tty_input(tty_t *tty, uint8_t c);
 void tty_getc_done(tty_t *tty);
 
 /*
+ * Create a TTY device node in devfs.
+ */
+int tty_makedev(devfs_node_t *parent, const char *name, tty_t *tty);
+
+/*
  * Returns whether `tty` is the controlling terminal of process `p`.
  * Must be called with `tty->t_lock` and `p->p_lock` held.
  */
@@ -146,6 +157,10 @@ static inline bool tty_is_ctty(tty_t *tty, proc_t *p) {
   assert(mtx_owned(&tty->t_lock));
   assert(mtx_owned(&p->p_lock));
   return (tty->t_session == p->p_pgrp->pg_session);
+}
+
+static inline bool tty_opened(tty_t *tty) {
+  return (tty->t_opencount > 0);
 }
 
 #endif /* !_SYS_TTY_H_ */
