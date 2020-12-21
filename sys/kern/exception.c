@@ -31,21 +31,20 @@ static void set_syscall_retval(mcontext_t *ctx, syscall_result_t *result,
       return;
 
     case ERESTARTSYS:
-    case ERESTARTNOHAND:
-      {
-        /* Restart iff no signal was caught... */
-        if (sig == 0)
-          break;
+    case ERESTARTNOHAND: {
+      /* Restart iff no signal was caught... */
+      if (sig == 0)
+        break;
 
-        /* ... or caught signal has SA_RESTART set. */
-        if (error == ERESTARTSYS &&
-            (p->p_sigactions[sig].sa_flags & SA_RESTART))
-          break;
+      /* ... or caught signal has SA_RESTART set. */
+      if (error == ERESTARTSYS && (p->p_sigactions[sig].sa_flags & SA_RESTART))
+        break;
 
-        /* ERESTART* are internal to the kernel. Change error code to EINTR. */
-        error = EINTR;
-      }
+      /* ERESTART* are internal to the kernel. Change error code to EINTR. */
+      error = EINTR;
+
       __fallthrough;
+    }
 
     default:
       mcontext_set_retval(ctx, result->retval, error);
