@@ -11,6 +11,7 @@
 
 #define TTY_QUEUE_SIZE 0x400
 #define TTY_OUT_LOW_WATER (TTY_QUEUE_SIZE / 4)
+#define TTY_IN_LOW_WATER (TTY_QUEUE_SIZE / 4)
 #define LINEBUF_SIZE 0x100
 
 typedef struct session session_t;
@@ -18,6 +19,7 @@ typedef struct session session_t;
 struct tty;
 
 typedef void (*t_notify_out_t)(struct tty *);
+typedef void (*t_notify_in_t)(struct tty *);
 typedef void (*t_notify_active_t)(struct tty *);
 typedef void (*t_notify_inactive_t)(struct tty *);
 
@@ -28,6 +30,10 @@ typedef struct {
    * characters in the tty's output queue at the time of the call will
    * be written to the device. */
   t_notify_out_t t_notify_out;
+  /* Called when space becomes available in the tty's input queue.
+   * This function will be called only after tty_input() fails to put the
+   * received character in the input queue. */
+  t_notify_in_t t_notify_in;
   /* Called when t_opencount goes from 0 to 1. */
   t_notify_active_t t_notify_active;
   /* Called when t_opencount goes from 1 to 0. */
@@ -40,6 +46,8 @@ typedef enum {
   TF_WAIT_DRAIN_OUT = 0x2, /* Someone is waiting for outq to drain */
   TF_OUT_BUSY = 0x4,       /* Serialization of write() calls:
                             * a thread is currently writing to this TTY. */
+  TF_IN_HIWAT = 0x8,       /* Input high watermark reached. Once space becomes
+                            * available in the inq, call t_notify_in(). */
 } tty_flags_t;
 
 /* Line buffer */
@@ -124,8 +132,9 @@ tty_t *tty_alloc(void);
 /*
  * Put a single character into the tty's input queue, provided it's not full.
  * Must be called with tty->t_lock held.
+ * Returns false if there's no space in the tty's input queue, true on success.
  */
-void tty_input(tty_t *tty, uint8_t c);
+bool tty_input(tty_t *tty, uint8_t c);
 
 /*
  * Wake up threads waiting for space in the output queue.

@@ -188,6 +188,12 @@ static void tty_notify_out(tty_t *tty) {
   }
 }
 
+static void tty_notify_in(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  if (tty->t_ops.t_notify_in)
+    tty->t_ops.t_notify_in(tty);
+}
+
 static void tty_notify_active(tty_t *tty) {
   assert(mtx_owned(&tty->t_lock));
   if (tty->t_ops.t_notify_active)
@@ -429,21 +435,23 @@ static int tty_wait_background(tty_t *tty, int sig) {
   }
 }
 
-static void tty_bell(tty_t *tty) {
+static void tty_in_hiwat(tty_t *tty) {
+  tty->t_flags |= TF_IN_HIWAT;
+
   if (tty->t_iflag & IMAXBEL) {
     tty_output(tty, CTRL('g'));
     tty_notify_out(tty);
   }
 }
 
-void tty_input(tty_t *tty, uint8_t c) {
+bool tty_input(tty_t *tty, uint8_t c) {
   int iflag = tty->t_iflag;
   int lflag = tty->t_lflag;
   uint8_t *cc = tty->t_cc;
 
   if (c == '\r') {
     if (iflag & IGNCR)
-      return;
+      return true;
     else if (iflag & ICRNL)
       c = '\n';
   } else if (c == '\n' && (iflag & INLCR)) {
@@ -459,7 +467,7 @@ void tty_input(tty_t *tty, uint8_t c) {
         tty_erase(tty, erased);
         tty_notify_out(tty);
       }
-      return;
+      return true;
     }
 
     if (CCEQ(cc[VKILL], c)) {
@@ -476,7 +484,7 @@ void tty_input(tty_t *tty, uint8_t c) {
         tty->t_rocount = 0;
       }
       tty_notify_out(tty);
-      return;
+      return true;
     }
 
     bool is_break = tty_is_break(tty, c);
@@ -485,8 +493,8 @@ void tty_input(tty_t *tty, uint8_t c) {
     if ((tty->t_inq.count + tty->t_line.ln_count >= TTY_QUEUE_SIZE - 1 ||
          tty->t_line.ln_count == LINEBUF_SIZE - 1) &&
         !is_break) {
-      tty_bell(tty);
-      return;
+      tty_in_hiwat(tty);
+      return false;
     }
 
     tty_line_putc(tty, c);
@@ -507,17 +515,29 @@ void tty_input(tty_t *tty, uint8_t c) {
         tty_output(tty, '\b');
     }
     tty_notify_out(tty);
-    return;
+    return true;
   } else {
     /* Raw (non-canonical) mode */
     if (tty->t_inq.count >= TTY_QUEUE_SIZE) {
-      tty_bell(tty);
-      return;
+      tty_in_hiwat(tty);
+      return false;
     }
 
     ringbuf_putb(&tty->t_inq, c);
     tty_wakeup(tty);
+    return true;
+  }
+}
+
+static void tty_check_in_lowat(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+
+  if (!(tty->t_flags & TF_IN_HIWAT))
     return;
+
+  if (tty->t_inq.count < TTY_IN_LOW_WATER) {
+    tty->t_flags &= ~TF_IN_HIWAT;
+    tty_notify_in(tty);
   }
 }
 
@@ -565,6 +585,8 @@ static int tty_read(file_t *f, uio_t *uio) {
       ringbuf_getb(&tty->t_inq, &c);
       error = uiomove(&c, 1, uio);
     }
+
+    tty_check_in_lowat(tty);
   }
 
   /* Don't report errors on partial reads. */
@@ -578,6 +600,7 @@ static void tty_discard_input(tty_t *tty) {
   assert(mtx_owned(&tty->t_lock));
   ringbuf_reset(&tty->t_inq);
   tty->t_line.ln_count = 0;
+  tty_check_in_lowat(tty);
 }
 
 /*

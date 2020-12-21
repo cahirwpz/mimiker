@@ -171,7 +171,8 @@ static void ns16550_tty_thread(void *arg) {
       if (work & TTY_THREAD_RXRDY) {
         /* Move characters from rx_buf into the tty's input queue. */
         while (ns16550_getb_lock(ns16550, &byte))
-          tty_input(tty, byte);
+          if (!tty_input(tty, byte))
+            klog("dropped character %hhx", byte);
       }
       if (work & TTY_THREAD_TXRDY) {
         ns16550_fill_txbuf(ns16550, tty);
