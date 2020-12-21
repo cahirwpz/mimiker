@@ -186,6 +186,12 @@ static void tty_notify_out(tty_t *tty) {
   }
 }
 
+static void tty_notify_in(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  if (tty->t_ops.t_notify_in)
+    tty->t_ops.t_notify_in(tty);
+}
+
 /* Line buffer helper functions */
 static bool tty_line_putc(tty_t *tty, uint8_t c) {
   linebuf_t *line = &tty->t_line;
@@ -517,8 +523,7 @@ static void tty_check_in_lowat(tty_t *tty) {
 
   if (tty->t_inq.count < TTY_IN_LOW_WATER) {
     tty->t_flags &= ~TF_IN_HIWAT;
-    if (tty->t_ops.t_notify_in)
-      tty->t_ops.t_notify_in(tty);
+    tty_notify_in(tty);
   }
 }
 
