@@ -116,8 +116,6 @@ typedef struct tty {
 #define t_oflag t_termios.c_oflag
 #define t_ospeed t_termios.c_ospeed
 
-extern vnodeops_t tty_vnodeops;
-
 /*
  * Allocate and initialize a new `tty` structure.
  */

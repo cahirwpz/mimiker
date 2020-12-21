@@ -925,7 +925,8 @@ static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
   return __tty_vn_open(v, mode, fp, true);
 }
 
-vnodeops_t tty_vnodeops = {.v_open = tty_vn_open, .v_close = tty_vn_close};
+static vnodeops_t tty_vnodeops = {.v_open = tty_vn_open,
+                                  .v_close = tty_vn_close};
 
 int tty_makedev(devfs_node_t *parent, const char *name, tty_t *tty) {
   return devfs_makedev(parent, name, &tty_vnodeops, tty, &tty->t_vnode);
