@@ -11,15 +11,14 @@ static POOL_DEFINE(P_VMOBJ, "vm_object", sizeof(vm_object_t));
 vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   vm_object_t *obj = pool_alloc(P_VMOBJ, M_ZERO);
   TAILQ_INIT(&obj->list);
+  TAILQ_INIT(&obj->shadows_list);
   rw_init(&obj->mtx, NULL, 0);
   obj->pager = &pagers[type];
   obj->ref_counter = 1;
   return obj;
 }
 
-vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset) {
-  SCOPED_RW_ENTER(&obj->mtx, RW_READER);
-
+vm_page_t *vm_object_find_page_nolock(vm_object_t *obj, off_t offset) {
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) {
     if (pg->offset == offset)
@@ -29,7 +28,12 @@ vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset) {
   return NULL;
 }
 
-void vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *pg) {
+vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset) {
+  SCOPED_RW_ENTER(&obj->mtx, RW_READER);
+  return vm_object_find_page_nolock(obj, offset);
+}
+
+void vm_object_add_page_nolock(vm_object_t *obj, off_t offset, vm_page_t *pg) {
   assert(page_aligned_p(pg->offset));
   /* For simplicity of implementation let's insert pages of size 1 only */
   assert(pg->size == 1);
@@ -38,8 +42,6 @@ void vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *pg) {
   pg->offset = offset;
 
   refcnt_acquire(&pg->ref_counter);
-
-  SCOPED_RW_ENTER(&obj->mtx, RW_WRITER);
 
   vm_page_t *it;
   TAILQ_FOREACH (it, &obj->list, obj.list) {
@@ -55,6 +57,11 @@ void vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *pg) {
   /* offset of page is greater than the offset of any other page */
   TAILQ_INSERT_TAIL(&obj->list, pg, obj.list);
   obj->npages++;
+}
+
+void vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *pg) {
+  SCOPED_RW_ENTER(&obj->mtx, RW_WRITER);
+  vm_object_add_page_nolock(obj, offset, pg);
 }
 
 static void vm_object_remove_page_nolock(vm_object_t *obj, vm_page_t *page) {
@@ -86,6 +93,42 @@ void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
   }
 }
 
+static void merge_shadow(vm_object_t *shadow) {
+  vm_object_t *elem;
+
+  SCOPED_RW_ENTER(&shadow->mtx, RW_WRITER);
+
+  TAILQ_FOREACH (elem, &shadow->shadows_list, link) {
+    assert(elem != NULL);
+
+    SCOPED_RW_ENTER(&elem->mtx, RW_WRITER);
+
+    vm_page_t *pg;
+    TAILQ_FOREACH (pg, &shadow->list, obj.list) {
+      if (vm_object_find_page_nolock(elem, pg->offset) == NULL) {
+        /* here releasing the counter for pg is missing */
+        TAILQ_REMOVE(&shadow->list, pg, obj.list);
+        vm_object_add_page_nolock(elem, pg->offset, pg);
+      }
+    }
+
+    elem->backing_object = shadow->backing_object;
+    elem->pager = shadow->pager;
+
+    if (elem->backing_object) {
+      WITH_RW_LOCK (&elem->backing_object->mtx, RW_WRITER) {
+        refcnt_acquire(&elem->backing_object->ref_counter);
+        /* here can be the problem with reference counters in pages */
+        /* also maybe in case when we free an object that has the shadow object
+         */
+        /* because we decrease the reference counter for shadow, but not for his
+         * pages */
+        TAILQ_INSERT_HEAD(&elem->backing_object->shadows_list, elem, link);
+      }
+    }
+  }
+}
+
 void vm_object_free(vm_object_t *obj) {
   WITH_RW_LOCK (&obj->mtx, RW_WRITER) {
     if (!refcnt_release(&obj->ref_counter)) {
@@ -97,6 +140,14 @@ void vm_object_free(vm_object_t *obj) {
       vm_object_remove_page_nolock(obj, pg);
 
     if (obj->backing_object) {
+      vm_object_t *shadow = obj->backing_object;
+      TAILQ_REMOVE(&shadow->shadows_list, obj, link);
+
+      if (shadow->ref_counter == 2) {
+        merge_shadow(shadow);
+        vm_object_free(obj->backing_object);
+      }
+
       vm_object_free(obj->backing_object);
     }
   }

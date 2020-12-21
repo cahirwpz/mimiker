@@ -16,6 +16,8 @@
  */
 
 typedef struct vm_object {
+  TAILQ_HEAD(vm_object_list, vm_object) shadows_list;
+  TAILQ_ENTRY(vm_object) link;
   rwlock_t mtx;
   vm_pagelist_t list;   /* (@) List of pages */
   size_t npages;        /* (@) Number of pages */
