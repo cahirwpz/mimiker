@@ -33,6 +33,7 @@ configure-stamp: patch-stamp
 	cd qemu-build && \
 	    ../$(QEMU)/configure \
 	        --prefix=/usr \
+		--with-suffix=qemu-mimiker \
 		--enable-fdt \
 		--disable-docs \
 		--disable-tools \
@@ -45,8 +46,6 @@ configure-stamp: patch-stamp
 		--disable-tpm \
 		--disable-linux-aio \
 	    	--target-list=mipsel-softmmu,aarch64-softmmu
-	sed -i -e '/qemu_.*dir=/s,/qemu,/qemu-mimiker,' \
-		qemu-build/config-host.mak
 	touch $@
 
 build: build-stamp
