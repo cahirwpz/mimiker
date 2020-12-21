@@ -195,7 +195,7 @@ static void ns16550_notify_out(tty_t *tty) {
 }
 
 static int ns16550_attach(device_t *dev) {
-  assert(dev->parent->bus == DEV_BUS_PCI);
+  // assert(dev->parent->bus == DEV_BUS_CBUS);
 
   ns16550_state_t *ns16550 = dev->state;
 
@@ -251,3 +251,4 @@ static driver_t ns16550_driver = {
 /* clang-format on */
 
 DEVCLASS_ENTRY(pci, ns16550_driver);
+DEVCLASS_ENTRY(cbus, ns16550_driver);

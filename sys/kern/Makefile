@@ -6,6 +6,7 @@ SOURCES = \
 	assert.c \
 	bus.c \
 	callout.c \
+	cbus.c \
 	clock.c \
 	cmdline.c \
 	condvar.c \

@@ -126,6 +126,8 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
     unsigned irq = CR_IP0 << i;
 
     if (pending & irq) {
+      if (i != 7)
+        klog("%d\n", i);
       intr_event_run_handlers(rd->intr_event[i]);
       pending &= ~irq;
     }
@@ -137,6 +139,7 @@ static int rootdev_probe(device_t *bus) {
 }
 
 DEVCLASS_DECLARE(pci);
+DEVCLASS_DECLARE(cbus);
 
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
@@ -167,6 +170,16 @@ static int rootdev_attach(device_t *bus) {
   device_add_memory(dev, 2, MALTA_CORECTRL_BASE, MALTA_CORECTRL_SIZE);
   /* GT64120 main irq. */
   device_add_irq(dev, 0, MIPS_HWINT0);
+
+  /* Create CBUS device and assign resources to it. */
+  dev = device_add_child(bus, 2);
+  dev->bus = DEV_BUS_CBUS;
+  dev->devclass = &DEVCLASS(cbus);
+  /* CBUS I/O */
+  device_add_memory(dev, 0, MALTA_FPGA_BASE, 0x1000);
+
+  /* CBUS IRQ */
+  device_add_irq(dev, 0, MIPS_HWINT2);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
 
