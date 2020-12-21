@@ -15,7 +15,7 @@ static bool fsname_of(vnode_t *v, const char *fsname) {
 static int test_vfs(void) {
   vnode_t *v;
   int error;
-  cred_t *cred = &proc_self()->p_cred;
+  cred_t *cred = cred_self();
 
   error = vfs_namelookup("/dev/SPAM", &v, cred);
   assert(error == ENOENT);
