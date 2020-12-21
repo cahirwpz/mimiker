@@ -5,6 +5,8 @@
 #include <sys/context.h>
 #include <aarch64/armreg.h>
 #include <aarch64/mcontext.h>
+#include <sys/ucontext.h>
+#include <sys/errno.h>
 
 void ctx_init(ctx_t *ctx, void *pc, void *sp) {
   bzero(ctx, sizeof(ctx_t));
@@ -49,5 +51,15 @@ bool user_mode_p(ctx_t *ctx) {
 }
 
 int do_setcontext(thread_t *td, ucontext_t *uc) {
-  panic("Not implemented!");
+  mcontext_t *from = &uc->uc_mcontext;
+  mcontext_t *to = td->td_uctx;
+
+  if (uc->uc_flags & _UC_CPU)
+    memcpy(&to->__gregs, &from->__gregs, sizeof(__gregset_t));
+
+  /* 32 FP registers + FPCR + FPSR */
+  if (uc->uc_flags & _UC_FPU)
+    memcpy(&to->__fregs, &from->__fregs, sizeof(__fregset_t));
+
+  return EJUSTRETURN;
 }
