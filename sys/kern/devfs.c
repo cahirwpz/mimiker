@@ -10,6 +10,7 @@
 #include <sys/linker_set.h>
 #include <sys/dirent.h>
 #include <sys/vfs.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 
 typedef struct devfs_node devfs_node_t;
@@ -43,9 +44,11 @@ static devfs_mount_t devfs = {
 static vnode_lookup_t devfs_vop_lookup;
 static vnode_readdir_t devfs_vop_readdir;
 static vnode_getattr_t devfs_vop_getattr;
+static vnode_reclaim_t devfs_vop_reclaim;
 static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup,
                                     .v_readdir = devfs_vop_readdir,
                                     .v_getattr = devfs_vop_getattr,
+                                    .v_reclaim = devfs_vop_reclaim,
                                     .v_open = vnode_open_generic};
 
 static inline devfs_node_t *vn2dn(vnode_t *v) {
@@ -94,6 +97,33 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name,
   TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
   parent->dn_nlinks++;
   *dnp = dn;
+  return 0;
+}
+
+int devfs_unlink(devfs_node_t *dn) {
+  SCOPED_MTX_LOCK(&devfs.lock);
+
+  assert(dn->dn_parent != NULL);
+
+  /* Only allow removal of empty directories. */
+  if (dn->dn_vnode->v_type == V_DIR && !TAILQ_EMPTY(&dn->dn_children))
+    return ENOTEMPTY;
+
+  TAILQ_REMOVE(&dn->dn_parent->dn_children, dn, dn_link);
+  vnode_drop(dn->dn_vnode);
+  return 0;
+}
+
+void devfs_free(devfs_node_t *dn) {
+  assert(dn->dn_vnode->v_usecnt == 0);
+  kfree(M_STR, dn->dn_name);
+  kfree(M_DEVFS, dn);
+}
+
+/* Free a devfs directory after unlinking it. */
+static int devfs_vop_reclaim(vnode_t *v) {
+  assert(v->v_type == V_DIR);
+  devfs_free(vn2dn(v));
   return 0;
 }
 
