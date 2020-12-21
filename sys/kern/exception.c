@@ -26,28 +26,33 @@ static void set_syscall_retval(mcontext_t *ctx, syscall_result_t *result,
   int error = result->error;
   proc_t *p = proc_self();
 
-  if (error == EJUSTRETURN)
-    return;
-
-  if (error == ERESTARTSYS || error == ERESTARTNOHAND) {
-    bool restart = false;
-    if (error == ERESTARTSYS) {
-      /* Restart iff no signal was caught or caught signal has SA_RESTART set */
-      restart = !sig || (p->p_sigactions[sig].sa_flags & SA_RESTART);
-    } else {
-      /* Restart iff no signal was caught. */
-      restart = !sig;
-    }
-
-    if (restart) {
-      mcontext_restart_syscall(ctx);
+  switch (error) {
+    case EJUSTRETURN:
       return;
-    }
-    /* ERESTART* are internal to the kernel. Change error code to EINTR. */
-    error = EINTR;
+
+    case ERESTARTSYS:
+    case ERESTARTNOHAND:
+      {
+        /* Restart iff no signal was caught... */
+        if (sig == 0)
+          break;
+
+        /* ... or caught signal has SA_RESTART set. */
+        if (error == ERESTARTSYS &&
+            (p->p_sigactions[sig].sa_flags & SA_RESTART))
+          break;
+
+        /* ERESTART* are internal to the kernel. Change error code to EINTR. */
+        error = EINTR;
+      }
+      __fallthrough;
+
+    default:
+      mcontext_set_retval(ctx, result->retval, error);
+      return;
   }
 
-  mcontext_set_retval(ctx, result->retval, error);
+  mcontext_restart_syscall(ctx);
 }
 
 void on_user_exc_leave(mcontext_t *ctx, syscall_result_t *result) {
