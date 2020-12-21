@@ -357,17 +357,22 @@ static void session_leave(proc_t *p) {
     return;
 
   session_t *s = p->p_pgrp->pg_session;
-  s->s_leader = NULL;
 
   tty_t *tty = s->s_tty;
-  if (tty == NULL)
+  if (tty == NULL) {
+    /* XXX If the session has an associated terminal, don't change the leader
+     * until we acquire tty->t_lock. This is to avoid a race when signaling the
+     * session leader in tty_hangup(). */
+    s->s_leader = NULL;
     return;
+  }
 
   WITH_MTX_LOCK (&tty->t_lock) {
     pgrp_t *pgrp = tty->t_pgrp;
     tty->t_session = NULL;
     tty->t_pgrp = NULL;
     s->s_tty = NULL;
+    s->s_leader = NULL;
     if (pgrp) {
       WITH_MTX_LOCK (&pgrp->pg_lock)
         sig_pgkill(pgrp, &DEF_KSI_RAW(SIGHUP));

@@ -48,6 +48,7 @@ typedef enum {
                             * a thread is currently writing to this TTY. */
   TF_IN_HIWAT = 0x8,       /* Input high watermark reached. Once space becomes
                             * available in the inq, call t_notify_in(). */
+  TF_DRIVER_DETACHED = 0x10
 } tty_flags_t;
 
 /* Line buffer */
@@ -130,6 +131,11 @@ typedef struct tty {
 tty_t *tty_alloc(void);
 
 /*
+ * Free a `tty` structure and associated buffers.
+ */
+void tty_free(tty_t *tty);
+
+/*
  * Put a single character into the tty's input queue, provided it's not full.
  * Must be called with tty->t_lock held.
  * Returns false if there's no space in the tty's input queue, true on success.
@@ -145,6 +151,18 @@ bool tty_input(tty_t *tty, uint8_t c);
 void tty_getc_done(tty_t *tty);
 
 /*
+ * Detach the underlying serial device driver from the tty.
+ * After this function is called, the functions from t_ops will not be called
+ * from the tty layer.
+ * Any further attempts to open this tty will fail.
+ * Subsequent reads will report EOF, and subsequent writes will fail.
+ * Existing reads and writes that have partially completed will return the
+ * partial result to the caller.
+ * Once the open count drops to 0, the tty will be deallocated.
+ */
+void tty_detach_driver(tty_t *tty);
+
+/*
  * Create a TTY device node in devfs.
  */
 int tty_makedev(devfs_node_t *parent, const char *name, tty_t *tty);
@@ -157,6 +175,10 @@ static inline bool tty_is_ctty(tty_t *tty, proc_t *p) {
   assert(mtx_owned(&tty->t_lock));
   assert(mtx_owned(&p->p_lock));
   return (tty->t_session == p->p_pgrp->pg_session);
+}
+
+static inline bool tty_detached(tty_t *tty) {
+  return (tty->t_flags & TF_DRIVER_DETACHED);
 }
 
 static inline bool tty_opened(tty_t *tty) {
