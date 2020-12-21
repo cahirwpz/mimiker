@@ -349,7 +349,7 @@ static int sys_mount(proc_t *p, mount_args_t *args, register_t *res) {
 
   klog("mount(\"%s\", \"%s\")", path, type);
 
-  error = do_mount(type, path);
+  error = do_mount(p, type, path);
 end:
   kfree(M_TEMP, type);
   kfree(M_TEMP, path);
