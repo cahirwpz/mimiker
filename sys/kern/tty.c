@@ -510,6 +510,8 @@ bool tty_input(tty_t *tty, uint8_t c) {
 }
 
 static void tty_check_in_lowat(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+
   if (!(tty->t_flags & TF_IN_HIWAT))
     return;
 
