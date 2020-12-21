@@ -21,8 +21,7 @@ SOURCES = \
 	thread.c \
 	timer.c \
 	tlb.c \
-	trap.c \
-	uart_cbus.c
+	trap.c \	
 
 OBJECTS += $(BOARD)_dtb.o
 
