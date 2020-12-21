@@ -2,7 +2,7 @@
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
-#include <mips/context.h>
+#include <sys/context.h>
 #include <mips/interrupt.h>
 #include <mips/tlb.h>
 #include <sys/pmap.h>
@@ -246,7 +246,7 @@ static void user_trap_handler(ctx_t *ctx) {
   on_exc_leave();
 
   /* If we're about to return to user mode then check pending signals, etc. */
-  on_user_exc_leave((user_ctx_t *)ctx, code == EXC_SYS ? &result : NULL);
+  on_user_exc_leave((mcontext_t *)ctx, code == EXC_SYS ? &result : NULL);
 }
 
 static void kern_trap_handler(ctx_t *ctx) {

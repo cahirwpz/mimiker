@@ -206,7 +206,7 @@ vm_page_t *vm_page_alloc(size_t npages) {
   while (i < PM_NQUEUES && TAILQ_EMPTY(&freelist[i]))
     i++;
 
-  if (i == PM_NQUEUES)
+  if (i >= PM_NQUEUES)
     return NULL;
 
   for (; i > n; i--)

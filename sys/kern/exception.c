@@ -21,32 +21,50 @@ void on_exc_leave(void) {
   }
 }
 
-static void set_syscall_retval(user_ctx_t *ctx, syscall_result_t *result,
+static void set_syscall_retval(mcontext_t *ctx, syscall_result_t *result,
                                int sig) {
   int error = result->error;
   proc_t *p = proc_self();
 
-  if (error == EJUSTRETURN)
-    return;
-
-  if (error == ERESTARTSYS || error == ERESTARTNOHAND) {
-    if (!sig || (error == ERESTARTSYS &&
-                 (p->p_sigactions[sig].sa_flags & SA_RESTART))) {
-      user_ctx_restart_syscall(ctx);
+  switch (error) {
+    case EJUSTRETURN:
       return;
+
+    case ERESTARTSYS:
+    case ERESTARTNOHAND: {
+      /* Restart iff no signal was caught... */
+      if (sig == 0)
+        break;
+
+      /* ... or caught signal has SA_RESTART set. */
+      if (error == ERESTARTSYS && (p->p_sigactions[sig].sa_flags & SA_RESTART))
+        break;
+
+      /* ERESTART* are internal to the kernel. Change error code to EINTR. */
+      error = EINTR;
+
+      __fallthrough;
     }
-    error = EINTR;
+
+    default:
+      mcontext_set_retval(ctx, result->retval, error);
+      return;
   }
 
-  user_ctx_set_retval(ctx, result->retval, error);
+  mcontext_restart_syscall(ctx);
 }
 
-void on_user_exc_leave(user_ctx_t *ctx, syscall_result_t *result) {
+void on_user_exc_leave(mcontext_t *ctx, syscall_result_t *result) {
   thread_t *td = thread_self();
   proc_t *p = td->td_proc;
   int sig = 0;
   ksiginfo_t ksi;
 
+  /* XXX we need to know if there's a signal to be delivered in order to call
+   * set_syscall_retval(), but we also need to call set_syscall_retval() before
+   * sig_post(), as set_syscall_retval() assumes the context has not been
+   * modified, and sig_post() modifies it. This is why the logic here looks
+   * a bit weird. */
   if (td->td_flags & TDF_NEEDSIGCHK) {
     WITH_PROC_LOCK(p) {
       sig = sig_check(td, &ksi);

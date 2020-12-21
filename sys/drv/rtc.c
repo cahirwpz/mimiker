@@ -76,7 +76,7 @@ static intr_filter_t rtc_intr(void *data) {
 }
 
 static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
-  rtc_state_t *rtc = v->v_data;
+  rtc_state_t *rtc = devfs_node_data(v);
   tm_t t;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
@@ -90,12 +90,9 @@ static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
   return uiomove_frombuf(rtc->asctime, count, uio);
 }
 
-static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
-                                       .v_read = rtc_time_read};
+static vnodeops_t rtc_time_vnodeops = {.v_read = rtc_time_read};
 
 static int rtc_attach(device_t *dev) {
-  vnodeops_init(&rtc_time_vnodeops);
-
   rtc_state_t *rtc = dev->state;
 
   rtc->regs = device_take_ioports(dev, 0, RF_ACTIVE);
@@ -112,7 +109,7 @@ static int rtc_attach(device_t *dev) {
   rtc_setb(rtc->regs, MC_REGB, MC_REGB_PIE);
 
   /* Prepare /dev/rtc interface. */
-  devfs_makedev(NULL, "rtc", &rtc_time_vnodeops, rtc);
+  devfs_makedev(NULL, "rtc", &rtc_time_vnodeops, rtc, NULL);
 
   tm_t t;
 

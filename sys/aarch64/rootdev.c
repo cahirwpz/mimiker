@@ -233,10 +233,10 @@ static int rootdev_attach(device_t *bus) {
   return bus_generic_probe(bus);
 }
 
-static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type, 
-		                          int rid, rman_addr_t start,
-					  rman_addr_t end, size_t size,
-					  res_flags_t flags) {
+static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
+                                          int rid, rman_addr_t start,
+                                          rman_addr_t end, size_t size,
+                                          res_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
   size_t alignment = 0;
   rman_t *rman = NULL;
@@ -250,7 +250,8 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
     panic("Resource type not handled!");
   }
 
-  resource_t *r = rman_reserve_resource(rman, start, end, size, alignment, flags);
+  resource_t *r =
+    rman_reserve_resource(rman, start, end, size, alignment, flags);
   if (!r)
     return NULL;
   r->r_rid = rid;
@@ -270,38 +271,41 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   return r;
 }
 
-static void rootdev_release_resource(device_t *dev, res_type_t type, resource_t *r) {
+static void rootdev_release_resource(device_t *dev, res_type_t type,
+                                     resource_t *r) {
   bus_deactivate_resource(dev, type, r);
   rman_release_resource(r);
 }
 
-static int rootdev_activate_resource(device_t *dev, res_type_t type, resource_t *r) {
+static int rootdev_activate_resource(device_t *dev, res_type_t type,
+                                     resource_t *r) {
   if (type == RT_MEMORY)
-    return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
+    return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
                          &r->r_bus_handle);
   return 0;
 }
 
-static void rootdev_deactivate_resource(device_t *dev, res_type_t type, resource_t *r) {
+static void rootdev_deactivate_resource(device_t *dev, res_type_t type,
+                                        resource_t *r) {
   /* TODO: unmap mapped resources. */
 }
 
-static bus_driver_t rootdev_driver = {
-  .driver =
-    {
-      .size = sizeof(rootdev_t),
-      .desc = "RPI3 platform root bus driver",
-      .attach = rootdev_attach,
-    },
-  .bus =
-    {
-      .intr_setup = rootdev_intr_setup,
-      .intr_teardown = rootdev_intr_teardown,
-      .alloc_resource = rootdev_alloc_resource,
-      .release_resource = rootdev_release_resource,
-      .activate_resource = rootdev_activate_resource,
-      .deactivate_resource = rootdev_deactivate_resource,
-    },
+static bus_methods_t rootdev_bus_if = {
+  .intr_setup = rootdev_intr_setup,
+  .intr_teardown = rootdev_intr_teardown,
+  .alloc_resource = rootdev_alloc_resource,
+  .release_resource = rootdev_release_resource,
+  .activate_resource = rootdev_activate_resource,
+  .deactivate_resource = rootdev_deactivate_resource,
+};
+
+static driver_t rootdev_driver = {
+  .size = sizeof(rootdev_t),
+  .desc = "RPI3 platform root bus driver",
+  .attach = rootdev_attach,
+  .interfaces = {
+    [DIF_BUS] = &rootdev_bus_if,
+  },
 };
 
 static device_t rootdev = (device_t){

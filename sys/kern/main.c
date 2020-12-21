@@ -27,9 +27,10 @@
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
 static void mount_fs(void) {
-  do_mount("initrd", "/");
-  do_mount("devfs", "/dev");
-  do_mount("tmpfs", "/tmp");
+  proc_t *p = &proc0;
+  do_mount(p, "initrd", "/");
+  do_mount(p, "devfs", "/dev");
+  do_mount(p, "tmpfs", "/tmp");
 }
 
 static __noreturn void start_init(__unused void *arg) {
@@ -86,12 +87,16 @@ __noreturn void kernel_init(void) {
   init_sched();
 
   /* With scheduler ready we can create necessary threads. */
-  init_ithreads();
   init_callout();
   preempt_enable();
 
-  /* Init VFS and mount filesystems (including devfs). */
+  /* Init VFS. */
   init_vfs();
+
+  init_proc();
+  init_proc0();
+
+  /* Mount filesystems (including devfs). */
   mount_fs();
 
   /* First (FTTB also last) stage of device init. */
@@ -100,9 +105,6 @@ __noreturn void kernel_init(void) {
   /* Some clocks has been found during device init process,
    * so it's high time to start system clock. */
   init_clock();
-
-  init_proc();
-  init_proc0();
 
   klog("Kernel initialized!");
 

@@ -3,6 +3,10 @@
 #include <sys/libkern.h>
 #include <sys/mutex.h>
 
+cred_t *cred_self(void) {
+  return &proc_self()->p_cred;
+}
+
 void cred_fork(proc_t *to, proc_t *from) {
   assert(mtx_owned(&from->p_lock));
   memcpy(&to->p_cred, &from->p_cred, sizeof(cred_t));

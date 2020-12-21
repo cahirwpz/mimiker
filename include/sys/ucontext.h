@@ -32,6 +32,8 @@
 #ifndef _SYS_UCONTEXT_H_
 #define _SYS_UCONTEXT_H_
 
+#ifndef __ASSEMBLER__
+
 #include <sys/sigtypes.h>
 #include <machine/mcontext.h>
 
@@ -44,6 +46,8 @@ struct __ucontext {
   stack_t uc_stack;       /* the stack used by this context */
   mcontext_t uc_mcontext; /* machine state */
 };
+
+#endif /* !__ASSEMBLER__ */
 
 /* uc_flags */
 #define _UC_SIGMASK 0x01 /* valid uc_sigmask */

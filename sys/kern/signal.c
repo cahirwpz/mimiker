@@ -431,24 +431,22 @@ void sig_onexec(proc_t *p) {
   }
 }
 
-bool sig_should_stop(sigaction_t *sigactions, signo_t sig) {
+static bool sig_should_stop(sigaction_t *sigactions, signo_t sig) {
   return (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_STOP);
+}
+
+static bool sig_should_kill(sigaction_t *sigactions, signo_t sig) {
+  return (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_KILL);
 }
 
 int sig_check(thread_t *td, ksiginfo_t *out) {
   proc_t *p = td->td_proc;
+  signo_t sig;
 
   assert(p != NULL);
   assert(mtx_owned(&p->p_lock));
 
-  while (true) {
-    signo_t sig = sig_pending(td);
-    if (sig == 0) {
-      /* No pending signals, signal checking done. */
-      WITH_SPIN_LOCK (td->td_lock)
-        td->td_flags &= ~TDF_NEEDSIGCHK;
-      return 0;
-    }
+  while ((sig = sig_pending(td))) {
     sigpend_get(&td->td_sigpend, sig, out);
 
     /* We should never get a pending signal that's ignored,
@@ -463,7 +461,7 @@ int sig_check(thread_t *td, ksiginfo_t *out) {
       continue;
     }
 
-    if (p->p_sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_KILL) {
+    if (sig_should_kill(p->p_sigactions, sig)) {
       /* Terminate this thread as result of a signal. */
       sig_exit(td, sig);
       __unreachable();
@@ -472,6 +470,11 @@ int sig_check(thread_t *td, ksiginfo_t *out) {
     /* If we reached here, then the signal has to be posted. */
     return sig;
   }
+
+  /* No pending signals, signal checking done. */
+  WITH_SPIN_LOCK (td->td_lock)
+    td->td_flags &= ~TDF_NEEDSIGCHK;
+  return 0;
 }
 
 void sig_post(ksiginfo_t *ksi) {
@@ -514,8 +517,4 @@ __noreturn void sig_exit(thread_t *td, signo_t sig) {
   klog("PID(%d) terminated due to signal %s ", td->td_proc->p_pid,
        sig_name[sig]);
   proc_exit(MAKE_STATUS_SIG_TERM(sig));
-}
-
-int do_sigreturn(void) {
-  return sig_return();
 }
