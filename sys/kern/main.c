@@ -26,7 +26,8 @@
 
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
-static void mount_fs(proc_t *p) {
+static void mount_fs(void) {
+  proc_t *p = &proc0;
   do_mount(p, "initrd", "/");
   do_mount(p, "devfs", "/dev");
   do_mount(p, "tmpfs", "/tmp");
@@ -96,8 +97,7 @@ __noreturn void kernel_init(void) {
   init_proc0();
 
   /* Mount filesystems (including devfs). */
-
-  mount_fs(&proc0);
+  mount_fs();
 
   /* First (FTTB also last) stage of device init. */
   init_devices();

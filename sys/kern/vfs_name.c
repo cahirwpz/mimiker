@@ -101,11 +101,11 @@ end:
   return error;
 }
 
-static int vnr_check_lookup(vnode_t *searchdir, cred_t *cred) {
-  if (searchdir->v_type != V_DIR)
+static int can_lookup(vnode_t *vn, cred_t *cred) {
+  if (vn->v_type != V_DIR)
     return ENOTDIR;
 
-  return VOP_ACCESS(searchdir, VEXEC, cred);
+  return VOP_ACCESS(vn, VEXEC, cred);
 }
 
 /* Call VOP_LOOKUP for a single lookup.
@@ -121,7 +121,7 @@ static int vnr_lookup_once(vnrstate_t *vs, vnode_t **searchdir_p,
   if (componentname_equal(cn, ".."))
     vfs_maybe_ascend(&searchdir);
 
-  if ((error = vnr_check_lookup(searchdir, cred)))
+  if ((error = can_lookup(searchdir, cred)))
     return error;
 
   if ((error = VOP_LOOKUP(searchdir, cn, &foundvn))) {
