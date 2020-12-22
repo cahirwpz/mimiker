@@ -154,9 +154,8 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
     return r;
   }
 
-  /* Now try to find an acceptable shared region,
-   * if the request allows sharing. Note that we only
-   * support interrupt sharing. */
+  /* Now try to find an acceptable shared region, if the request allows sharing.
+   * Note that we only support interrupt sharing. */
 
   if (!(flags & RF_SHAREABLE) || count > 1)
     return NULL;
@@ -164,13 +163,16 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
   TAILQ_FOREACH (r, &rm->rm_resources, r_link) {
     if (r_shareable(r) && resource_size(r) == 1 && r->r_start >= start) {
       resource_t *new = resource_alloc(rm, start, start, flags | RF_RESERVED);
+
       if (!r->r_sharelist) {
         r->r_sharelist = kmalloc(M_RES, sizeof(share_list_t), M_WAITOK);
-	TAILQ_INIT(r->r_sharelist);
+        TAILQ_INIT(r->r_sharelist);
         TAILQ_INSERT_HEAD(r->r_sharelist, r, r_sharelink);
       }
+
       new->r_sharelist = r->r_sharelist;
       TAILQ_INSERT_TAIL(r->r_sharelist, new, r_sharelink);
+
       return new;
     }
   }
@@ -199,7 +201,7 @@ void rman_release_resource(resource_t *r) {
     /* If a share list exists, then there must be at least two sharers. */
     resource_t *next = TAILQ_NEXT(r, r_sharelink);
 
-    /* Make sure that the resource is visible in the rman list. */
+    /* Make sure that the resource is visible in rman list. */
     if (r == TAILQ_FIRST(r->r_sharelist)) {
       TAILQ_INSERT_BEFORE(r, next, r_link);
       TAILQ_REMOVE(&rm->rm_resources, r, r_link);

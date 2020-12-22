@@ -38,11 +38,11 @@ struct resource {
   union {
     intr_handler_t *r_handler;
   };
-  int r_rid;                    /* resource identifier */
-  res_flags_t r_flags;          /* or'ed RF_* values */
-  TAILQ_ENTRY(resource) r_link; /* link on resource manager list */
+  int r_rid;                         /* resource identifier */
+  res_flags_t r_flags;               /* or'ed RF_* values */
+  TAILQ_ENTRY(resource) r_link;      /* link on resource manager list */
   TAILQ_ENTRY(resource) r_sharelink; /* (for interrupts) link on a share list */
-  share_list_t *r_sharelist; /* (for interrupts) share list pointer */
+  share_list_t *r_sharelist;         /* (for interrupts) share list pointer */
 };
 
 /*! \brief Calculate resource size. */
