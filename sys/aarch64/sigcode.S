@@ -5,6 +5,7 @@
         .global esigcode
 
 ENTRY(sigcode)
+        add x0, sp, 8
         svc #SYS_sigreturn
         b 0
 esigcode:

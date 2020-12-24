@@ -23,7 +23,7 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   mcontext_t *uctx = td->td_uctx;
 
   /* Copyout sigcode to user stack. */
-  unsigned sigcode_size = esigcode - sigcode;
+  unsigned sigcode_size = roundup(esigcode - sigcode, 16);
   void *sp = (void *)_REG(uctx, SP);
   sp -= sigcode_size;
   void *sigcode_ptr = sp;
@@ -35,12 +35,12 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   sig_ctx_t ksc = {.sc_info = ksi->ksi_info};
   mcontext_copy(&ksc.sc_uc.uc_mcontext, uctx);
   ksc.sc_uc.uc_sigmask = *mask;
-  sp -= sizeof(sig_ctx_t);
+  sp -= roundup(sizeof(sig_ctx_t), 16);
   sig_ctx_t *cp = sp;
   if (copyout(&ksc, cp, sizeof(sig_ctx_t)))
     stack_unusable(td, _REG(uctx, SP));
 
-  _REG(uctx, PC) = (register_t)sa->sa_handler;
+  _REG(uctx, ELR) = (register_t)sa->sa_handler;
   _REG(uctx, X0) = sig;
   _REG(uctx, X1) = (register_t)&cp->sc_info;
   _REG(uctx, X2) = (register_t)&cp->sc_uc.uc_mcontext;
