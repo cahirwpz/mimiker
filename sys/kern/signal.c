@@ -445,27 +445,50 @@ void sig_onexec(proc_t *p) {
   }
 }
 
+static bool sig_should_stop(sigaction_t *sigactions, signo_t sig) {
+  return (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_STOP);
+}
+
+static bool sig_should_kill(sigaction_t *sigactions, signo_t sig) {
+  return (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_KILL);
+}
+
 int sig_check(thread_t *td, ksiginfo_t *out) {
   proc_t *p = td->td_proc;
+  signo_t sig;
 
   assert(p != NULL);
   assert(mtx_owned(&p->p_lock));
 
-  signo_t sig = sig_pending(td);
-  if (sig == 0) {
-    /* No pending signals, signal checking done. */
-    WITH_SPIN_LOCK (td->td_lock)
-      td->td_flags &= ~TDF_NEEDSIGCHK;
-    return 0;
+  while ((sig = sig_pending(td))) {
+    sigpend_get(&td->td_sigpend, sig, out);
+
+    /* We should never get a pending signal that's ignored,
+     * since we discard such signals in do_sigaction(). */
+    assert(!sig_ignored(p->p_sigactions, sig));
+
+    if (sig_should_stop(p->p_sigactions, sig)) {
+      /* Theoretically, we should hold all_proc_mtx since sig_ignore_ttystop()
+       * reads pg_jobc, but the race here is harmless. */
+      if (!sig_ignore_ttystop(p, sig))
+        proc_stop(sig);
+      continue;
+    }
+
+    if (sig_should_kill(p->p_sigactions, sig)) {
+      /* Terminate this thread as result of a signal. */
+      sig_exit(td, sig);
+      __unreachable();
+    }
+
+    /* If we reached here, then the signal has to be posted. */
+    return sig;
   }
-  sigpend_get(&td->td_sigpend, sig, out);
 
-  /* We should never get a pending signal that's ignored,
-   * since we discard such signals in do_sigaction(). */
-  assert(!sig_ignored(p->p_sigactions, sig));
-
-  /* If we reached here, then the signal has to be posted. */
-  return sig;
+  /* No pending signals, signal checking done. */
+  WITH_SPIN_LOCK (td->td_lock)
+    td->td_flags &= ~TDF_NEEDSIGCHK;
+  return 0;
 }
 
 void sig_post(ksiginfo_t *ksi) {
@@ -481,42 +504,6 @@ void sig_post(ksiginfo_t *ksi) {
   sig_t handler = sa->sa_handler;
 
   assert(handler != SIG_IGN);
-
-  /* Theoretically, we should hold all_proc_mtx since sig_ignore_ttystop()
-   * reads pg_jobc, but the race here is harmless. */
-  if (sig_ignore_ttystop(p, sig))
-    return;
-
-  if (handler == SIG_DFL && defact(sig) == SA_KILL) {
-    /* Terminate this thread as result of a signal. */
-    sig_exit(td, sig);
-    __unreachable();
-  }
-
-  if (sa->sa_handler == SIG_DFL && defact(sig) == SA_STOP) {
-    klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
-    p->p_stopsig = sig;
-    p->p_state = PS_STOPPED;
-    p->p_flags |= PF_STATE_CHANGED;
-    WITH_PROC_LOCK(p->p_parent) {
-      proc_wakeup_parent(p->p_parent);
-      sig_child(p, CLD_STOPPED);
-    }
-    WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
-    proc_unlock(p);
-    /* We're holding no locks here, so our process can be continued before we
-     * actually stop the thread. This is why we need the TDF_STOPPING flag. */
-    spin_lock(td->td_lock);
-    if (td->td_flags & TDF_STOPPING) {
-      td->td_flags &= ~TDF_STOPPING;
-      td->td_state = TDS_STOPPED;
-      sched_switch(); /* Releases td_lock. */
-    } else {
-      spin_unlock(td->td_lock);
-    }
-    proc_lock(p);
-    return;
-  }
 
   klog("Post signal %s (handler %p) to thread %lu in process PID(%d)",
        sig_name[sig], handler, td->td_tid, p->p_pid);
