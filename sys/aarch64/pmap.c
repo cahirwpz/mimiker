@@ -427,7 +427,7 @@ void pmap_zero_page(vm_page_t *pg) {
 }
 
 void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
-  memcpy(PG_DMAP_ADDR(src), PG_DMAP_ADDR(dst), PAGESIZE);
+  memcpy(PG_DMAP_ADDR(dst), PG_DMAP_ADDR(src), PAGESIZE);
 }
 
 static void pmap_modify_flags(vm_page_t *pg, pte_t set, pte_t clr) {
