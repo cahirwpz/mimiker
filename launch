@@ -69,6 +69,8 @@ if __name__ == '__main__':
                               (', '.join(sorted(Debuggers.keys())), 'gdb')))
     parser.add_argument('-d', '--debug', action='store_true',
                         help='Start debugging session with selected debugger.')
+    parser.add_argument('-n', '--network', action='store_true',
+                        help='Run qemu with network configuration enabled.')
     parser.add_argument('-t', '--test-run', action='store_true',
                         help='Test-run mode: simulator output goes to stdout.')
     parser.add_argument('-g', '--graphics', action='store_true',
@@ -84,6 +86,7 @@ if __name__ == '__main__':
     setvar('config.debug', args.debug)
     setvar('config.graphics', args.graphics)
     setvar('config.args', args.args)
+    setvar('config.network', args.network)
 
     # Check if the kernel file is available
     if not os.path.isfile(getvar('config.kernel')):

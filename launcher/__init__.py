@@ -25,6 +25,7 @@ CONFIG = {
     'config': {
         'debug': False,
         'graphics': False,
+        'network': False,
         'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
         'args': [],
@@ -50,9 +51,6 @@ CONFIG = {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
                     '-device', 'VGA',
-                    '-device', 'rtl8139,netdev=net0',
-                    '-netdev', 'user,id=net0,hostfwd=tcp::10022-:22',
-                    '-object', 'filter-dump,id=net0,netdev=net0,file=rtl8139.pcap',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
                 'uarts': [
@@ -227,6 +225,12 @@ class QEMU(Launchable):
             self.options += ['-S']
         if not getvar('config.graphics'):
             self.options += ['-display', 'none']
+        if getvar('config.network'):
+            self.options += [
+                '-device', 'rtl8139,netdev=net0',
+                '-netdev', 'user,id=net0,hostfwd=tcp::10022-:22',
+                '-object', 'filter-dump,id=net0,netdev=net0,file=rtl8139.pcap'
+            ]
 
 
 class GDB(Launchable):
