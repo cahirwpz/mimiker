@@ -21,7 +21,6 @@ typedef struct rtl8139_state {
   paddr_t paddr;
 } rtl8139_state_t;
 
-
 static int rtl8139_probe(device_t *dev) {
   pci_device_t *pcid = pci_device_of(dev);
   return pci_device_match(pcid, RTL8139_VENDOR_ID, RTL8139_DEVICE_ID);
@@ -62,8 +61,7 @@ int rtl8139_attach(device_t *dev) {
     klog("rtl8139 failed to init resources");
     return ENXIO;
   }
-  bus_intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state,
-                 "RTL8139");
+  bus_intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
 
   // TODO: mark this memory as PMAP_NOCACHE
   // TODO: assure contig memory area
