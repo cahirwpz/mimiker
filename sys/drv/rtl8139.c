@@ -80,7 +80,6 @@ int rtl8139_attach(device_t *dev) {
   bus_intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
 
   // TODO: mark this memory as PMAP_NOCACHE
-  // TODO: assure contig memory area
   state->rx_buf = (vaddr_t)kmem_alloc(2 * PAGESIZE, M_ZERO);
   if (set_mem_contig_address(state)) {
     klog("failed to alloc contig memory");
