@@ -40,11 +40,10 @@ static int rtl_reset(rtl8139_state_t *state) {
 static intr_filter_t rtl8139_intr(void *data) {
   rtl8139_state_t *state = data;
   // TODO: add enqueue routines
-  bus_write_2(state->regs, 0x3E, 0x1);
+  bus_write_2(state->regs, RL_ISR, RL_ISR_RX_OK);
   return IF_FILTERED;
 }
 
-// TODO: replace all magic constants
 int rtl8139_attach(device_t *dev) {
   rtl8139_state_t *state = dev->state;
 
@@ -77,11 +76,16 @@ int rtl8139_attach(device_t *dev) {
     return ENXIO;
   }
 
-  bus_write_4(state->regs, 0x30, state->paddr);
-  bus_write_4(state->regs, 0x44, 0xf | (1 << 7));
-  bus_write_1(state->regs, 0x37, 0x0C);
+  /* set-up address for dma */
+  bus_write_4(state->regs, RL_RXADDR, state->paddr);
+  /* we want to receive all packets - promiscious mode */
+  /* 0xf - accept broadcast, multicast, physical match, all other packets
+   * (promisc) */
+  /* 0x80 - wrap bit */
+  bus_write_4(state->regs, RL_RXCFG, 0x8f);
+  bus_write_1(state->regs, RL_COMMAND, RL_CMD_RX_ENB | RL_CMD_TX_ENB);
   // IMR - mask rx enable
-  bus_write_2(state->regs, 0x3C, 0x1);
+  bus_write_2(state->regs, RL_IMR, RL_ISR_RX_OK);
 
   return 0;
 }
