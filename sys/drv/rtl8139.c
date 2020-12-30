@@ -44,6 +44,23 @@ static intr_filter_t rtl8139_intr(void *data) {
   return IF_FILTERED;
 }
 
+static int set_mem_contig_address(rtl8139_state_t *state) {
+  paddr_t page2; /* address of second allocated page */
+
+  /* set and check if any address is assigned */
+  if (!pmap_kextract(state->rx_buf, &state->paddr))
+    return -1;
+
+  /* check if memory is contiguous */
+  if (!pmap_kextract(state->rx_buf + PAGESIZE, &page2))
+    return -1;
+
+  if (state->paddr + PAGESIZE != page2)
+    return -1;
+
+  return 0;
+}
+
 int rtl8139_attach(device_t *dev) {
   rtl8139_state_t *state = dev->state;
 
@@ -65,8 +82,8 @@ int rtl8139_attach(device_t *dev) {
   // TODO: mark this memory as PMAP_NOCACHE
   // TODO: assure contig memory area
   state->rx_buf = (vaddr_t)kmem_alloc(2 * PAGESIZE, M_ZERO);
-  if (!pmap_kextract(state->rx_buf, &state->paddr)) {
-    klog("failed to find paddr");
+  if (set_mem_contig_address(state)) {
+    klog("failed to alloc contig memory");
     return ENXIO;
   }
   // TODO: introduce ring buffer
