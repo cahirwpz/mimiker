@@ -16,6 +16,7 @@
  * Interrupt status register bits.
  */
 #define RL_ISR_RX_OK 0x0001
+#define RL_ISR_TX_OK 0x0004
 
 /*
  * Command register.
