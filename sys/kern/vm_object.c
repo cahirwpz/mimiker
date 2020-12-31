@@ -106,9 +106,11 @@ static void merge_shadow(vm_object_t *shadow) {
     vm_page_t *pg;
     TAILQ_FOREACH (pg, &shadow->list, obj.list) {
       if (vm_object_find_page_nolock(elem, pg->offset) == NULL) {
-        /* here releasing the counter for pg is missing */
-        TAILQ_REMOVE(&shadow->list, pg, obj.list);
-        vm_object_add_page_nolock(elem, pg->offset, pg);
+        off_t offset = pg->offset;
+        vm_object_add_page_nolock(elem, offset, pg);
+        vm_object_remove_page_nolock(shadow, pg);
+        pg->object = elem;
+        pg->offset = offset;
       }
     }
 
