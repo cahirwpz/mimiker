@@ -773,7 +773,7 @@ static void tty_drain_out(tty_t *tty) {
 }
 
 static int tty_vn_close(vnode_t *v, file_t *fp) {
-  tty_t *tty = v->v_data;
+  tty_t *tty = devfs_node_data(v);
   SCOPED_MTX_LOCK(&tty->t_lock);
   assert(tty->t_opencount > 0);
   tty->t_opencount--;
