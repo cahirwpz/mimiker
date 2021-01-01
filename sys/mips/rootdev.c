@@ -49,12 +49,14 @@ static void rootdev_intr_setup(device_t *dev, resource_t *r,
     rd->intr_event[irq] = intr_event_create(
       dev, irq, rootdev_mask_irq, rootdev_unmask_irq, rootdev_intr_name[irq]);
 
-  r->r_handler =
+  intr_handler_t *handler =
     intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
+  resource_set_handler(r, dev, handler);
 }
 
 static void rootdev_intr_teardown(device_t *dev, resource_t *irq) {
-  intr_event_remove_handler(irq->r_handler);
+  intr_handler_t *handler = resource_get_handler(irq, dev);
+  intr_event_remove_handler(handler);
 
   /* TODO: should we remove empty interrupt event here and in every other
    * intr_teardown method? probably not... maybe in detach method? */
@@ -81,7 +83,6 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
     rman_reserve_resource(rman, start, end, size, alignment, flags);
   if (r == NULL)
     return NULL;
-  r->r_rid = rid;
 
   if (type == RT_MEMORY) {
     r->r_bus_tag = generic_bus_space;

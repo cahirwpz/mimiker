@@ -8,12 +8,6 @@
 
 KMALLOC_DEFINE(M_DEV, "devices & drivers");
 
-typedef struct resource_list_entry {
-  SLIST_ENTRY(resource_list_entry) link;
-  resource_t *res; /* the actual resource */
-  res_type_t type; /* resource type */
-} resource_list_entry_t;
-
 device_t *device_alloc(int unit) {
   device_t *dev = kmalloc(M_DEV, sizeof(device_t), M_ZERO);
   TAILQ_INIT(&dev->children);
@@ -60,7 +54,7 @@ static resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
                                                  int rid) {
   resource_list_entry_t *rle;
   SLIST_FOREACH(rle, &dev->resources, link) {
-    if (rle->type == type && rle->res->r_rid == rid)
+    if (rle->type == type && rle->rid == rid)
       return rle;
   }
   return NULL;
@@ -74,6 +68,7 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
   resource_list_entry_t *rle =
     kmalloc(M_DEV, sizeof(resource_list_entry_t), M_WAITOK);
   rle->type = type;
+  rle->rid = rid;
   /* Allocate the actual resource from the parent bus. */
   rle->res = bus_alloc_resource(dev, type, rid, start, end, size, flags);
   assert(rle->res);
@@ -90,4 +85,26 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
     bus_activate_resource(dev, rle->type, rle->res);
 
   return rle->res;
+}
+
+/* Find resource list entry containing resource `res`. */
+static resource_list_entry_t *resource_get_rle(resource_t *res, device_t *dev) {
+  resource_list_entry_t *rle;
+  SLIST_FOREACH(rle, &dev->resources, link) {
+    if (rle->res == res)
+      break;
+  }
+  return rle;
+}
+
+int resource_get_rid(resource_t *res, device_t *dev) {
+  resource_list_entry_t *rle = resource_get_rle(res, dev);
+  assert(rle);
+  return rle->rid;
+}
+
+void *resource_get_aux(resource_t *res, device_t *dev) {
+  resource_list_entry_t *rle = resource_get_rle(res, dev);
+  assert(rle);
+  return &rle->aux;
 }

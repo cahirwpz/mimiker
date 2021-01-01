@@ -10,10 +10,23 @@ typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;
 typedef struct bus_space bus_space_t;
+typedef struct intr_handler intr_handler_t;
 typedef TAILQ_HEAD(, device) device_list_t;
 typedef SLIST_HEAD(, resource_list_entry) resource_list_t;
+typedef struct resource_list_entry resource_list_entry_t;
 
 typedef enum { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
+
+struct resource_list_entry {
+  SLIST_ENTRY(resource_list_entry) link;
+  resource_t *res; /* the actual resource */
+  res_type_t type; /* resource type */
+  /* auxiliary data associated with a resource */
+  union {
+    intr_handler_t *handler;
+  } aux;
+  int rid; /* resource identifier */
+};
 
 /* Driver that returns the highest value from its probe action
  * will be selected for attach action. */
@@ -93,6 +106,28 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
 
 #define device_take_irq(dev, rid, flags)                                       \
   device_take_resource((dev), RT_IRQ, (rid), (flags))
+
+/*! \brief Return resource identifier associated with resource `res`
+ * in the context of device `dev`. */
+int resource_get_rid(resource_t *res, device_t *dev);
+
+/*! \brief Return auxilary data associated with resource `res`
+ * in the context of device `dev`. */
+void *resource_get_aux(resource_t *res, device_t *dev);
+
+/*! \brief Return interrupt handler associated with resource `res`
+ * in the context of device `dev`. */
+static inline intr_handler_t *resource_get_handler(resource_t *res,
+                                                   device_t *dev) {
+  return *(intr_handler_t **)resource_get_aux(res, dev);
+}
+
+/*! \brief Set interrupt handler associated with resource `res`
+ * in the context of device `dev`. */
+static inline void resource_set_handler(resource_t *res, device_t *dev,
+                                        intr_handler_t *handler) {
+  *(intr_handler_t **)resource_get_aux(res, dev) = handler;
+}
 
 /* A universal memory pool to be used by all drivers. */
 KMALLOC_DECLARE(M_DEV);

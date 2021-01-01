@@ -149,12 +149,14 @@ static void rootdev_intr_setup(device_t *dev, resource_t *r,
     rd->intr_event[irq] = intr_event_create(dev, irq, rootdev_disable_irq,
                                             rootdev_enable_irq, "???");
 
-  r->r_handler =
+  intr_handler_t *handler =
     intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
+  resource_set_handler(r, dev, handler);
 }
 
 static void rootdev_intr_teardown(device_t *dev, resource_t *irq) {
-  intr_event_remove_handler(irq->r_handler);
+  intr_handler_t *handler = resource_get_handler(irq, dev);
+  intr_event_remove_handler(handler);
 }
 
 /* Read 32 bit pending register located at irq_base + offset and run
@@ -254,7 +256,6 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
     rman_reserve_resource(rman, start, end, size, alignment, flags);
   if (!r)
     return NULL;
-  r->r_rid = rid;
 
   if (type == RT_MEMORY) {
     r->r_bus_tag = rootdev_bus_space;
@@ -303,9 +304,10 @@ static driver_t rootdev_driver = {
   .size = sizeof(rootdev_t),
   .desc = "RPI3 platform root bus driver",
   .attach = rootdev_attach,
-  .interfaces = {
-    [DIF_BUS] = &rootdev_bus_if,
-  },
+  .interfaces =
+    {
+      [DIF_BUS] = &rootdev_bus_if,
+    },
 };
 
 static device_t rootdev = (device_t){

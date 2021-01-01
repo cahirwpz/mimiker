@@ -224,14 +224,16 @@ static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
     gtpci->intr_event[irq] = intr_event_create(
       gtpci, irq, gt_pci_mask_irq, gt_pci_unmask_irq, gt_pci_intr_name[irq]);
 
-  r->r_handler =
+  intr_handler_t *handler =
     intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg, name);
+  resource_set_handler(r, dev, handler);
 }
 
-static void gt_pci_intr_teardown(device_t *pcib, resource_t *irq) {
-  assert(pcib->parent->driver == &gt_pci_bus);
+static void gt_pci_intr_teardown(device_t *dev, resource_t *irq) {
+  assert(dev->parent->driver == &gt_pci_bus);
 
-  intr_event_remove_handler(irq->r_handler);
+  intr_handler_t *handler = resource_get_handler(irq, dev);
+  intr_event_remove_handler(handler);
 }
 
 static void init_8259(resource_t *io, unsigned icu, unsigned imask) {
@@ -400,16 +402,10 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   if (gt_pci_bar(dev, type, rid, start))
     alignment = max(alignment, size);
 
-  if (type == RT_MEMORY) {
-    /* XXX: Perhaps, the rman_alloc_resource should take this into account */
-    size = roundup(size, PAGESIZE);
-  }
-
   resource_t *r =
     rman_reserve_resource(rman, start, end, size, alignment, flags);
   if (r == NULL)
     return NULL;
-  r->r_rid = rid;
 
   if (type != RT_IRQ) {
     r->r_bus_tag = generic_bus_space;
@@ -443,7 +439,7 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type,
     pci_write_config_2(dev, PCIR_COMMAND, command);
   }
 
-  int rid = r->r_rid;
+  int rid = resource_get_rid(r, dev);
   if (gt_pci_bar(dev, type, rid, r->r_start))
     pci_write_config_4(dev, PCIR_BAR(rid), r->r_start);
 

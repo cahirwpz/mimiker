@@ -12,11 +12,8 @@
 typedef uintptr_t rman_addr_t;
 typedef struct rman rman_t;
 typedef struct resource resource_t;
-typedef struct device device_t;
 typedef struct bus_space bus_space_t;
-typedef struct intr_handler intr_handler_t;
 typedef TAILQ_HEAD(res_list, resource) res_list_t;
-typedef TAILQ_HEAD(, resource) share_list_t;
 
 typedef enum {
   RF_RESERVED = 1,
@@ -24,8 +21,8 @@ typedef enum {
   /* According to PCI specification prefetchable bit is CLEAR when memory mapped
    * resource contains locations with read side-effects or locations in which
    * the device does not tolerate write merging. */
-  RF_SHAREABLE = 4, /* (for interrupts) resource permits sharing */
-  RF_PREFETCHABLE = 8,
+  RF_PREFETCHABLE = 4,
+  RF_SHAREABLE = 8, /* (for interrupts) resource permits sharing */
 } res_flags_t;
 
 struct resource {
@@ -34,15 +31,8 @@ struct resource {
   rman_t *r_rman;                  /* resource manager of this resource */
   rman_addr_t r_start;             /* first physical address of the resource */
   rman_addr_t r_end;               /* last (inclusive) physical address */
-  /* auxiliary data associated with a resource */
-  union {
-    intr_handler_t *r_handler;
-  };
-  int r_rid;                         /* resource identifier */
-  res_flags_t r_flags;               /* or'ed RF_* values */
-  TAILQ_ENTRY(resource) r_link;      /* link on resource manager list */
-  TAILQ_ENTRY(resource) r_sharelink; /* (for interrupts) link on a share list */
-  share_list_t *r_sharelist;         /* (for interrupts) share list pointer */
+  res_flags_t r_flags;             /* or'ed RF_* values */
+  TAILQ_ENTRY(resource) r_link;    /* link on resource manager list */
 };
 
 /*! \brief Calculate resource size. */

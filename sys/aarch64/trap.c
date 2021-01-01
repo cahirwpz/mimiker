@@ -18,7 +18,8 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
   panic();
 }
 
-static void syscall_handler(register_t code, ctx_t *ctx, syscall_result_t *result) {
+static void syscall_handler(register_t code, ctx_t *ctx,
+                            syscall_result_t *result) {
   register_t args[SYS_MAXSYSARGS];
   const int nregs = 8;
 
