@@ -93,3 +93,21 @@ int test_mmap(void) {
   munmap_bad();
   return 0;
 }
+
+int test_mprotect(void) {
+  void *addr = mmap(NULL, 2355, PROT_READ, MAP_ANON | MAP_PRIVATE, -1, 0);
+  assert(addr != MAP_FAILED);
+  printf("mmap returned pointer: %p\n", addr);
+
+  /* Ensure mapped area is cleared. */
+  // assert(*(char *)(addr + 100) == 0);
+  // assert(*(char *)(addr + 1000) == 0);
+
+  /* Ensure we didn't have access to write to mapped area. */
+  // memset(addr, -1, 2355);
+
+  // assert(*(char *)(addr + 100) == 0);
+  // assert(*(char *)(addr + 1000) == 0);
+
+  return 0;
+}
