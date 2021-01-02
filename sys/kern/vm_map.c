@@ -411,17 +411,23 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   assert(obj != NULL);
 
-  vaddr_t fault_page = fault_addr & -PAGESIZE;
-  vaddr_t offset = fault_page - seg->start;
-  vm_page_t *frame = vm_object_find_page(obj, offset);
+  vaddr_t fault_page = 0;
+  vaddr_t offset = 0;
+  vm_page_t *frame = NULL;
 
-  if (frame == NULL && obj->backing_object && fault_type == VM_PROT_READ &&
-      seg->prot == VM_PROT_READ) {
-    vm_object_t *it = obj->backing_object;
+  WITH_RW_LOCK (&obj->mtx, RW_READER) {
+    fault_page = fault_addr & -PAGESIZE;
+    offset = fault_page - seg->start;
+    frame = vm_object_find_page(obj, offset);
 
-    while (frame == NULL && it != NULL) {
-      frame = vm_object_find_page(it, offset);
-      it = it->backing_object;
+    if (frame == NULL && (seg->flags & VM_SEG_NEED_COPY) &&
+        fault_type == VM_PROT_READ && seg->prot == VM_PROT_READ) {
+      vm_object_t *it = obj->backing_object;
+
+      while (frame == NULL && it != NULL) {
+        frame = vm_object_find_page(it, offset);
+        it = it->backing_object;
+      }
     }
   }
 
