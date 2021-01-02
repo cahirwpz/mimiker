@@ -128,8 +128,8 @@ void vm_object_protect(vm_object_t *obj, vaddr_t start, vaddr_t end,
 
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) {
-    if (start <= pg->offset && pg->offset < end) {
-      pmap_protect()
+    if (start <= (vaddr_t)pg->offset && (vaddr_t)pg->offset < end) {
+      pmap_vm_page_protect(pg, start, end, prot);
     }
   }
 }

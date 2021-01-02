@@ -82,11 +82,6 @@ int do_mprotect(vaddr_t addr, size_t length, vm_prot_t prot) {
 
   vm_map_t *uspace = td->td_proc->p_uspace;
 
-  /* the addr argument has to be multiple of the page size */
-  /* posix specifies that mprotect may fail in this case */
-  if (!page_aligned_p(addr))
-    return EINVAL;
-
   WITH_VM_MAP_LOCK (uspace) {
     /* addresses in range [addr, addr + length) are invalid for the address
      * space of the process */

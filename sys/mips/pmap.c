@@ -502,3 +502,13 @@ void pmap_delete(pmap_t *pmap) {
   free_asid(pmap->asid);
   pool_free(P_PMAP, pmap);
 }
+
+void pmap_vm_page_protect(vm_page_t *pg, vaddr_t start, vaddr_t end,
+                          vm_prot_t prot) {
+  SCOPED_MTX_LOCK(pv_list_lock);
+  pv_entry_t *pv;
+  TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
+    if (start <= pv->va && pv->va < end)
+      pmap_protect(pv->pmap, pv->va, min(pv->va + pg->size * PAGESIZE, end), prot);
+  }
+}
