@@ -28,39 +28,36 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
   vm_object_t *prev = obj;
 
   WITH_RW_LOCK (&obj->mtx, RW_READER) {
-
     while (pg == NULL && it->backing_object != NULL) {
       SCOPED_RW_ENTER(&it->backing_object->mtx, RW_READER);
       pg = vm_object_find_page(it->backing_object, offset);
       prev = it;
       it = it->backing_object;
     }
-  }
 
-  if (pg == NULL) {
-    new_pg = it->pager->pgr_fault(obj, offset);
-  } else {
-    if (!refcnt_release(&pg->ref_counter)) {
-      new_pg = vm_page_alloc(1);
-      pmap_copy_page(pg, new_pg);
+    if (pg == NULL) {
+      new_pg = it->pager->pgr_fault(obj, offset);
     } else {
-      new_pg = pg;
+      if (!refcnt_release(&pg->ref_counter)) {
+        new_pg = vm_page_alloc(1);
+        pmap_copy_page(pg, new_pg);
+      } else {
+        new_pg = pg;
 
-      refcnt_acquire(&pg->ref_counter);
-      refcnt_acquire(&pg->ref_counter);
+        /* obj now also refers to the pg page */
+        refcnt_acquire(&pg->ref_counter);
+        vm_object_remove_page(it, pg);
 
-      vm_object_remove_page(it, pg);
+        if (it->npages == 0) {
+          prev->backing_object = it->backing_object;
+          prev->pager = it->pager;
+          if (it->backing_object != NULL) {
+            refcnt_acquire(&it->backing_object->ref_counter);
+          }
+          /* TODO: removing VM_SEG_NEEDS_COPY flag is missing */
 
-      refcnt_release(&pg->ref_counter);
-
-      if (it->npages == 0) {
-        prev->backing_object = it->backing_object;
-        prev->pager = it->pager;
-        if (it->backing_object != NULL) {
-          refcnt_acquire(&it->backing_object->ref_counter);
+          vm_object_free(it);
         }
-
-        vm_object_free(it);
       }
     }
   }

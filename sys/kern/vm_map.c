@@ -359,6 +359,8 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
           obj->backing_object = backing;
           it->object = vm_object_alloc(VM_SHADOW);
           it->object->backing_object = backing;
+          /* all pages in backing object are now read-only,
+           * that refers also to pages which previously had VM_PROT_EXEC set */
           vm_object_set_prot(backing, VM_PROT_READ);
         }
 
