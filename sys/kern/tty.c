@@ -213,6 +213,10 @@ static int tty_wait(tty_t *tty, condvar_t *cv) {
   if (tty_detached(tty))
     return ENXIO;
 
+  /* Did we receive a signal while sleeping? */
+  if (error == EINTR)
+    return ERESTARTSYS;
+
   return error;
 }
 
