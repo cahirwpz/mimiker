@@ -21,8 +21,8 @@ main(int argc, char *argv[])
 {
   FILE *fp = fopen("/dev/rtl8139", "r+b");
 
-	setprogname(argv[0]);
-	(void)setlocale(LC_ALL, "");
+  setprogname(argv[0]);
+  (void)setlocale(LC_ALL, "");
 
   int n = fread(packet, sizeof(uint8_t), PACKET_SIZE, fp);
   printf("Netdump: read %d bytes of packet:\n", n);
@@ -32,8 +32,7 @@ main(int argc, char *argv[])
     printf("%02X ", packet[i]);
   }
   printf("\n");
-
   fclose(fp);
 
-	exit(0);
+  exit(0);
 }
