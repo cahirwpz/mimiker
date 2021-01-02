@@ -77,5 +77,24 @@ int do_munmap(vaddr_t addr, size_t length) {
 }
 
 int do_mprotect(vaddr_t addr, size_t length, vm_prot_t prot) {
-  return ENOTSUP;
+  thread_t *td = thread_self();
+  assert(td && td->td_proc && td->td_proc->p_uspace);
+
+  vm_map_t *uspace = td->td_proc->p_uspace;
+
+  /* the addr argument has to be multiple of the page size */
+  /* posix specifies that mprotect may fail in this case */
+  if (!page_aligned_p(addr))
+    return EINVAL;
+
+  WITH_VM_MAP_LOCK (uspace) {
+    /* addresses in range [addr, addr + length) are invalid for the address
+     * space of the process */
+    if (!vm_map_contains_p(uspace, addr, addr + length))
+      return ENOMEM;
+
+    vm_map_protect(uspace, addr, addr + length, prot);
+  }
+
+  return 0;
 }

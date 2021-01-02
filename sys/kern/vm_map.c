@@ -171,8 +171,27 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VMMAP, map);
 }
 
+static void vm_segment_protect(vm_segment_t *seg, vaddr_t start,
+                               vaddr_t end, vm_prot_t prot) {
+  assert(seg != NULL);
+  assert (seg->object != NULL);
+
+  vm_object_protect(seg->object, start, end, prot);
+}
+
 /* TODO: not implemented */
 void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+  assert(map != NULL);
+  WITH_MTX_LOCK (&map->mtx) {
+    vaddr_t addr = start;
+
+    while (addr < end) {
+      vm_segment_t *seg = vm_map_find_segment(map, addr);
+      assert(seg != NULL);
+      vm_segment_protect(seg, addr, min(end, seg->end), prot);
+      addr = seg->end + 1;
+    }
+  }
 }
 
 static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,

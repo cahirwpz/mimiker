@@ -119,3 +119,17 @@ void vm_map_object_dump(vm_object_t *obj) {
     klog("(vm-obj) offset: 0x%08lx, size: %ld", pg->offset, pg->size);
   }
 }
+
+void vm_object_protect(vm_object_t *obj, vaddr_t start, vaddr_t end,
+                       vm_prot_t prot) {
+  assert(obj != NULL);
+
+  SCOPED_MTX_LOCK(&obj->mtx);
+
+  vm_page_t *pg;
+  TAILQ_FOREACH (pg, &obj->list, obj.list) {
+    if (start <= pg->offset && pg->offset < end) {
+      pmap_protect()
+    }
+  }
+}
