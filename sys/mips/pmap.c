@@ -327,12 +327,12 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
       pv_entry_t *pv = pv_find(pmap, va, pg);
       if (pv == NULL)
         pv_add(pmap, va, pg);
+      if (kern_mapping)
+        pg->flags |= PG_MODIFIED | PG_REFERENCED;
+      else
+        pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
+      pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
     }
-    if (kern_mapping)
-      pg->flags |= PG_MODIFIED | PG_REFERENCED;
-    else
-      pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
-    pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
   }
 }
 
@@ -347,9 +347,10 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
       paddr_t pa;
       if (pmap_extract_nolock(pmap, va, &pa)) {
         vm_page_t *pg = vm_page_find(pa);
-        WITH_MTX_LOCK (pv_list_lock)
+        WITH_MTX_LOCK (pv_list_lock) {
           pv_remove(pmap, va, pg);
-        pmap_pte_write(pmap, va, empty_pte(pmap), 0);
+          pmap_pte_write(pmap, va, empty_pte(pmap), 0);
+        }
       }
     }
 
