@@ -31,6 +31,7 @@ typedef struct rtl8139_state {
   size_t rx_offset;
   paddr_t paddr;
   skb_list_t rx_queue;
+  skb_list_t tx_queue;
 } rtl8139_state_t;
 
 static int rtl8139_probe(device_t *dev) {
@@ -108,13 +109,22 @@ static void skb_free(struct sk_buff *skb) {
 
 static int rtl8139_read(vnode_t *v, uio_t *uio, int ioflag) {
   rtl8139_state_t *state = devfs_node_data(v);
+  /* temporary workaround to stop fread */
+  static int fake_0 = 0;
   /* TODO: WITH_MTX_LOCK { */
   uio->uio_offset = 0;
+
+  if (fake_0) {
+    fake_0 = 0;
+    return uiomove_frombuf(NULL, 0, uio);
+  }
+
   struct sk_buff *skb = TAILQ_FIRST(&state->rx_queue);
   if (skb) {
     int res = uiomove_frombuf(skb->data, skb->length, uio);
     TAILQ_REMOVE(&state->rx_queue, skb, queue);
     skb_free(skb);
+    fake_0 = 1;
     return res;
   } else
     return uiomove_frombuf(NULL, 0, uio);
@@ -141,6 +151,7 @@ int rtl8139_attach(device_t *dev) {
   bus_intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
 
   TAILQ_INIT(&state->rx_queue);
+  TAILQ_INIT(&state->tx_queue);
   state->rx_offset = 0;
   state->rx_buf = (vaddr_t)kmem_alloc(2 * PAGESIZE, M_ZERO);
   // TODO: mark this memory as PMAP_NOCACHE
