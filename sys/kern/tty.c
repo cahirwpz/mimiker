@@ -762,7 +762,8 @@ static int tty_do_write(tty_t *tty, uio_t *uio) {
   while (uio->uio_resid > 0) {
     if ((error = uiomove(&c, 1, uio)))
       break;
-    tty_output_sleep(tty, c);
+    if ((error = tty_output_sleep(tty, c)))
+      break;
     tty->t_rocount = 0;
   }
   tty_notify_out(tty);
