@@ -69,7 +69,7 @@ int test_sharing_memory_child_and_grandchild(void) {
   return 0;
 }
 
-int test_cow_private_simple(void) {
+int test_anon_private_simple(void) {
   size_t pgsz = getpagesize();
   char *map =
     mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
