@@ -804,3 +804,33 @@ int do_setlogin(const char *name) {
 
   return 0;
 }
+
+void proc_stop(signo_t sig) {
+  thread_t *td = thread_self();
+  proc_t *p = td->td_proc;
+
+  assert(mtx_owned(&p->p_lock));
+
+  klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
+  p->p_stopsig = sig;
+  p->p_state = PS_STOPPED;
+  p->p_flags |= PF_STATE_CHANGED;
+  WITH_PROC_LOCK(p->p_parent) {
+    proc_wakeup_parent(p->p_parent);
+    sig_child(p, CLD_STOPPED);
+  }
+  WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
+  proc_unlock(p);
+  /* We're holding no locks here, so our process can be continued before we
+   * actually stop the thread. This is why we need the TDF_STOPPING flag. */
+  spin_lock(td->td_lock);
+  if (td->td_flags & TDF_STOPPING) {
+    td->td_flags &= ~TDF_STOPPING;
+    td->td_state = TDS_STOPPED;
+    sched_switch(); /* Releases td_lock. */
+  } else {
+    spin_unlock(td->td_lock);
+  }
+  proc_lock(p);
+  return;
+}
