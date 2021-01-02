@@ -100,14 +100,14 @@ int test_mprotect(void) {
   printf("mmap returned pointer: %p\n", addr);
 
   /* Ensure mapped area is cleared. */
-  // assert(*(char *)(addr + 100) == 0);
+  assert(*(char *)(addr + 100) == 0);
+  assert(*(char *)(addr + 1000) == 0);
+
+  /* Ensure we don't have access to write to mapped area. */
+  *(char *)addr = '1';
+
+  assert(*(char *)addr == '1');
   // assert(*(char *)(addr + 1000) == 0);
-
-  /* Ensure we didn't have access to write to mapped area. */
-  // memset(addr, -1, 2355);
-
-  // assert(*(char *)(addr + 100) == 0);
-  // assert(*(char *)(addr + 1000) == 0);
-
+  // assert(0);
   return 0;
 }

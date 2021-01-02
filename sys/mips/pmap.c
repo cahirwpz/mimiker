@@ -319,20 +319,21 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   bool kern_mapping = (pmap == pmap_kernel());
 
   /* Mark user pages as non-referenced & non-modified. */
-  pte_t mask = kern_mapping ? (PTE_VALID | PTE_DIRTY) : 0;
-  pte_t pte = (vm_prot_map[prot] & mask) | empty_pte(pmap);
+  // pte_t mask = kern_mapping ? (PTE_VALID | PTE_DIRTY) : 0;
+  pte_t pte = (vm_prot_map[prot] & PTE_PROT_MASK) | empty_pte(pmap);
+  // pte_t pte = (vm_prot_map[prot] & ~mask) | empty_pte(pmap);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     WITH_MTX_LOCK (pv_list_lock) {
       pv_entry_t *pv = pv_find(pmap, va, pg);
       if (pv == NULL)
         pv_add(pmap, va, pg);
+      if (kern_mapping)
+        pg->flags |= PG_MODIFIED | PG_REFERENCED;
+      else
+        pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
+      pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
     }
-    if (kern_mapping)
-      pg->flags |= PG_MODIFIED | PG_REFERENCED;
-    else
-      pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
-    pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
   }
 }
 
@@ -347,9 +348,10 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
       paddr_t pa;
       if (pmap_extract_nolock(pmap, va, &pa)) {
         vm_page_t *pg = vm_page_find(pa);
-        WITH_MTX_LOCK (pv_list_lock)
+        WITH_MTX_LOCK (pv_list_lock) {
           pv_remove(pmap, va, pg);
-        pmap_pte_write(pmap, va, empty_pte(pmap), 0);
+          pmap_pte_write(pmap, va, empty_pte(pmap), 0);
+        }
       }
     }
 
@@ -366,10 +368,12 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
-      pte_t pte = pmap_pte_read(pmap, va);
-      if (pte == 0)
-        continue;
-      pmap_pte_write(pmap, va, (pte & ~PTE_PROT_MASK) | vm_prot_map[prot], 0);
+      WITH_MTX_LOCK (pv_list_lock) {
+        pte_t pte = pmap_pte_read(pmap, va);
+        if (pte == 0)
+          continue;
+        pmap_pte_write(pmap, va, (pte & ~PTE_PROT_MASK) | vm_prot_map[prot], 0);
+      }
     }
   }
 }
@@ -512,4 +516,29 @@ void pmap_vm_page_protect(vm_page_t *pg, vaddr_t start, vaddr_t end,
       pmap_protect(pv->pmap, pv->va, min(pv->va + pg->size * PAGESIZE, end),
                    prot);
   }
+}
+
+bool pmap_check_page_protection(vm_page_t *pg, vm_prot_t wanted_prot) {
+  SCOPED_MTX_LOCK(pv_list_lock);
+  pv_entry_t *pv;
+  TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
+    pmap_t *pmap = pv->pmap;
+    WITH_MTX_LOCK (&pmap->mtx) {
+      for (vaddr_t va = pv->va; va < pv->va + pg->size * PAGESIZE;
+           va += PAGESIZE) {
+        pte_t pte = pmap_pte_read(pmap, va);
+
+        if (wanted_prot == VM_PROT_EXEC && (pte & PTE_NO_EXEC))
+          return false;
+
+        if (wanted_prot == VM_PROT_READ && (pte & PTE_NO_READ))
+          return false;
+
+        if (wanted_prot == VM_PROT_WRITE && !(pte & PTE_DIRTY))
+          return false;
+      }
+    }
+  }
+
+  return true;
 }

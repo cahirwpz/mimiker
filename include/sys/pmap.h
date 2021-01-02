@@ -68,4 +68,5 @@ pmap_t *pmap_user(void);
 void pmap_vm_page_protect(vm_page_t *pg, vaddr_t start, vaddr_t end,
                           vm_prot_t prot);
 
+bool pmap_check_page_protection(vm_page_t *pg, vm_prot_t wanted_prot);
 #endif /* !_SYS_PMAP_H_ */

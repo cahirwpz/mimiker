@@ -543,3 +543,22 @@ void pmap_vm_page_protect(vm_page_t *pg, vaddr_t start, vaddr_t end,
                    prot);
   }
 }
+
+bool pmap_check_page_protection(vm_page_t *pg, vm_prot_t wanted_prot) {
+  pte_t wanted_pte = vm_prot_map[wanted_prot];
+
+  SCOPED_MTX_LOCK(pv_list_lock);
+  pv_entry_t *pv;
+  TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
+    pmap_t *pmap = pv->pmap;
+    WITH_MTX_LOCK (&pmap->mtx) {
+      for (vaddr_t va = pv->va; va < pv->va + pg->size * PAGESIZE; va += PAGESIZE) {
+        pte_t pte = pmap_pte_read(pmap, va);
+        if ((pte & wanted_pte) == 0)
+          return false;
+      }
+    }
+  }
+
+  return true;
+}
