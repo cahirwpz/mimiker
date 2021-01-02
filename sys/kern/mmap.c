@@ -75,3 +75,7 @@ int do_munmap(vaddr_t addr, size_t length) {
   }
   return 0;
 }
+
+int do_mprotect(vaddr_t addr, size_t length, vm_prot_t prot) {
+  return ENOTSUP;
+}
