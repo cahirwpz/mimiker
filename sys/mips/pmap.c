@@ -479,7 +479,8 @@ pmap_t *pmap_new(void) {
 
 void pmap_delete(pmap_t *pmap) {
   assert(pmap != pmap_kernel());
-  WITH_MTX_LOCK(&pmap->mtx) {
+
+  WITH_MTX_LOCK (&pmap->mtx) {
     while (!TAILQ_EMPTY(&pmap->pv_list)) {
       pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
       vm_page_t *pg;
