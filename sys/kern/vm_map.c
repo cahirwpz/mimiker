@@ -171,10 +171,10 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VMMAP, map);
 }
 
-static void vm_segment_protect(vm_segment_t *seg, vaddr_t start,
-                               vaddr_t end, vm_prot_t prot) {
+static void vm_segment_protect(vm_segment_t *seg, vaddr_t start, vaddr_t end,
+                               vm_prot_t prot) {
   assert(seg != NULL);
-  assert (seg->object != NULL);
+  assert(seg->object != NULL);
 
   vm_object_protect(seg->object, start, end, prot);
 }
