@@ -383,7 +383,8 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   }
 }
 
-void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+void pmap_protect_nolock(pmap_t *pmap, vaddr_t start, vaddr_t end,
+                         vm_prot_t prot) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(pmap_contains_p(pmap, start, end));
 
@@ -399,6 +400,11 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
       pmap_write_pte(pmap, ptep, pte);
     }
   }
+}
+
+void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+  SCOPED_MTX_LOCK(pv_list_lock);
+  pmap_protect_nolock(pmap, start, end, prot);
 }
 
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
@@ -539,8 +545,7 @@ void pmap_vm_page_protect(vm_page_t *pg, vaddr_t start, vaddr_t end,
   pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
     if (start <= pv->va && pv->va < end)
-      pmap_protect(pv->pmap, pv->va, min(pv->va + pg->size * PAGESIZE, end),
-                   prot);
+      pmap_protect_nolock(pv->pmap, pv->va, min(pv->va + PAGESIZE, end), prot);
   }
 }
 
