@@ -92,9 +92,13 @@ static driver_t gt_pci_bus;
 
 /* Access configuration space through memory mapped GT-64120 registers. Take
  * care of the fact that MIPS processor cannot handle unaligned accesses. */
-static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
-  pci_device_t *pcid = pci_device_of(dev);
-  gt_pci_state_t *gtpci = dev->parent->state;
+static uint32_t gt_pci_read_config(device_t *dev, device_t *target,
+                                   unsigned reg, unsigned size) {
+  /* dispatching this method is a pure non-sense, so let's just not do it */
+  assert(target->parent == dev);
+
+  pci_device_t *pcid = pci_device_of(target);
+  gt_pci_state_t *gtpci = dev->state;
   resource_t *pcicfg = gtpci->corectrl;
 
   if (!pcid) /* XXX: ISA device workaround */
@@ -120,10 +124,13 @@ static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
   }
 }
 
-static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
-                                uint32_t value) {
-  pci_device_t *pcid = pci_device_of(dev);
-  gt_pci_state_t *gtpci = dev->parent->state;
+static void gt_pci_write_config(device_t *dev, device_t *target, unsigned reg,
+                                unsigned size, uint32_t value) {
+  /* dispatching this method is a pure non-sense, so let's just not do it */
+  assert(target->parent == dev);
+
+  pci_device_t *pcid = pci_device_of(target);
+  gt_pci_state_t *gtpci = dev->state;
   resource_t *pcicfg = gtpci->corectrl;
 
   if (!pcid) /* XXX: ISA device workaround */
@@ -154,9 +161,11 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   bus_write_4(pcicfg, GT_PCI0_CFG_DATA, data.dword);
 }
 
-static void gt_pci_enable_busmaster(device_t *dev) {
-  uint16_t cmd = pci_read_config_2(dev, PCIR_COMMAND);
-  pci_write_config_2(dev, PCIR_COMMAND, cmd | PCIM_CMD_BUSMASTEREN);
+static void gt_pci_enable_busmaster(device_t *dev, device_t *target) {
+  /* dispatching this method is a pure non-sense, so let's just not do it */
+  assert(target->parent == dev);
+  uint16_t cmd = pci_read_config_2(target, PCIR_COMMAND);
+  pci_write_config_2(target, PCIR_COMMAND, cmd | PCIM_CMD_BUSMASTEREN);
 }
 
 static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
