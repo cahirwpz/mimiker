@@ -65,4 +65,5 @@ pmap_t *pmap_lookup(vaddr_t va);
 pmap_t *pmap_kernel(void);
 pmap_t *pmap_user(void);
 
+bool pmap_check_page_protection(vm_page_t *pg, vm_prot_t wanted_prot);
 #endif /* !_SYS_PMAP_H_ */

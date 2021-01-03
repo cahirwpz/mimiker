@@ -532,3 +532,31 @@ void pmap_delete(pmap_t *pmap) {
   free_asid(pmap->asid);
   pool_free(P_PMAP, pmap);
 }
+
+bool pmap_check_page_protection(vm_page_t *pg, vm_prot_t wanted_prot) {
+  SCOPED_MTX_LOCK(pv_list_lock);
+  pv_entry_t *pv;
+  TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
+    pmap_t *pmap = pv->pmap;
+    WITH_MTX_LOCK (&pmap->mtx) {
+      for (vaddr_t va = pv->va; va < pv->va + pg->size * PAGESIZE;
+           va += PAGESIZE) {
+        pte_t *ptep = pmap_lookup_pte(pmap, va);
+
+        if (ptep == NULL) {
+          return false;
+        }
+
+        if (wanted_prot == VM_PROT_READ &&
+            !(*ptep & (ATTR_AP(ATTR_AP_RO) | pte_default)))
+          return false;
+
+        if (wanted_prot == VM_PROT_WRITE &&
+            !(*ptep & (ATTR_AP(ATTR_AP_RW) | pte_default)))
+          return false;
+      }
+    }
+  }
+
+  return true;
+}
