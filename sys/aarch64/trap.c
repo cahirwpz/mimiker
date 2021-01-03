@@ -18,7 +18,8 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
   panic();
 }
 
-static void syscall_handler(register_t code, ctx_t *ctx, syscall_result_t *result) {
+static void syscall_handler(register_t code, ctx_t *ctx,
+                            syscall_result_t *result) {
   register_t args[SYS_MAXSYSARGS];
   const int nregs = 8;
 
@@ -72,8 +73,15 @@ static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
     vm_page_t *pg = vm_page_find(pa);
 
     if (access & (VM_PROT_READ | VM_PROT_EXEC)) {
+      if (!pmap_check_page_protection(pg,
+                                      access & (VM_PROT_READ | VM_PROT_EXEC))) {
+        goto fault;
+      }
       pmap_set_referenced(pg);
     } else if (access & VM_PROT_WRITE) {
+      if (!pmap_check_page_protection(pg, VM_PROT_WRITE)) {
+        goto fault;
+      }
       pmap_set_referenced(pg);
       pmap_set_modified(pg);
     } else {

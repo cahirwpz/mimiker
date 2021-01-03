@@ -20,6 +20,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(mmap);
   CHECKRUN_TEST(munmap_sigsegv);
   CHECKRUN_TEST(mprotect);
+  CHECKRUN_TEST(mmap_permissions);
   CHECKRUN_TEST(sbrk);
   CHECKRUN_TEST(sbrk_sigsegv);
   CHECKRUN_TEST(misbehave);

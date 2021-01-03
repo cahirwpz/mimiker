@@ -533,6 +533,7 @@ void pmap_delete(pmap_t *pmap) {
   pool_free(P_PMAP, pmap);
 }
 
+<<<<<<< HEAD
 void pmap_vm_page_protect(vm_page_t *pg, vaddr_t start, vaddr_t end,
                           vm_prot_t prot) {
   SCOPED_MTX_LOCK(pv_list_lock);
@@ -545,16 +546,25 @@ void pmap_vm_page_protect(vm_page_t *pg, vaddr_t start, vaddr_t end,
 }
 
 bool pmap_check_page_protection(vm_page_t *pg, vm_prot_t wanted_prot) {
-  pte_t wanted_pte = vm_prot_map[wanted_prot];
-
   SCOPED_MTX_LOCK(pv_list_lock);
   pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
     pmap_t *pmap = pv->pmap;
     WITH_MTX_LOCK (&pmap->mtx) {
-      for (vaddr_t va = pv->va; va < pv->va + pg->size * PAGESIZE; va += PAGESIZE) {
-        pte_t pte = pmap_pte_read(pmap, va);
-        if ((pte & wanted_pte) == 0)
+      for (vaddr_t va = pv->va; va < pv->va + pg->size * PAGESIZE;
+           va += PAGESIZE) {
+        pte_t *ptep = pmap_lookup_pte(pmap, va);
+
+        if (ptep == NULL) {
+          return false;
+        }
+
+        if (wanted_prot == VM_PROT_READ &&
+            !(*ptep & (ATTR_AP(ATTR_AP_RO) | pte_default)))
+          return false;
+
+        if (wanted_prot == VM_PROT_WRITE &&
+            !(*ptep & (ATTR_AP(ATTR_AP_RW) | pte_default)))
           return false;
       }
     }

@@ -111,3 +111,13 @@ int test_mprotect(void) {
   // assert(0);
   return 0;
 }
+
+int test_mmap_permissions(void) {
+  void *addr = mmap(NULL, 2355, PROT_READ, MAP_ANON | MAP_PRIVATE, -1, 0);
+  assert(addr != MAP_FAILED);
+
+  /* Try to write to readonly memory. It should raise SIGSEGV */
+  memset(addr, -1, 2355);
+
+  return 1;
+}
