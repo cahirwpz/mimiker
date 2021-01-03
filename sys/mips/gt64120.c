@@ -436,7 +436,7 @@ static int gt_pci_activate_resource(device_t *dev, device_t *target,
   assert(target->parent == dev);
 
   if (type == RT_MEMORY || type == RT_IOPORTS) {
-    uint16_t command = pci_read_config_2(dev, PCIR_COMMAND);
+    uint16_t command = pci_read_config_2(target, PCIR_COMMAND);
     if (type == RT_MEMORY)
       command |= PCIM_CMD_MEMEN;
     else if (type == RT_IOPORTS)
