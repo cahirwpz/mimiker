@@ -65,6 +65,10 @@ static int vfs_create(proc_t *p, int fdat, char *pathname, int *flags, int mode,
     goto fail;
 
   if (vs.vs_vp == NULL) {
+    if ((error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred))) {
+      vnode_put(vs.vs_dvp);
+      goto fail;
+    }
     vattr_t va;
     vattr_null(&va);
     va.va_mode = S_IFREG | (mode & ALLPERMS);
@@ -279,6 +283,11 @@ int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
   if (vs.vs_vp != NULL) {
     vnode_drop_both(vs.vs_vp, vs.vs_dvp);
     error = EEXIST;
+    goto fail;
+  }
+
+  if ((error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred))) {
+    vnode_put(vs.vs_dvp);
     goto fail;
   }
 
