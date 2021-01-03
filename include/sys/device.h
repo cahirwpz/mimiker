@@ -22,6 +22,11 @@ typedef int (*d_probe_t)(device_t *dev);
 typedef int (*d_attach_t)(device_t *dev);
 typedef int (*d_detach_t)(device_t *dev);
 
+/* Some methods in interfaces may take two `device_t *` values as
+   first two arguments. The first one is the device which owns implements the
+   interface and whose driver will perform the action. The second one is a
+   target device, one for which the device implementing the interface performs
+   the action, typically one down the hierarchy. */
 /* Update this section if you add any new driver interface */
 typedef enum {
   DIF_BUS,
@@ -96,5 +101,9 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
 
 /* A universal memory pool to be used by all drivers. */
 KMALLOC_DECLARE(M_DEV);
+
+/* Finds a device that implements a method for given interface */
+device_t *device_if_find_impl(device_t *dev, size_t iface,
+                              size_t method_offset);
 
 #endif /* !_SYS_DEVICE_H_ */

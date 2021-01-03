@@ -91,3 +91,13 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
 
   return rle->res;
 }
+
+device_t *device_if_find_impl(device_t *dev, size_t iface,
+                              size_t method_offset) {
+  while (!(dev->driver->interfaces[iface]) ||
+         !(dev->driver->interfaces[iface] + method_offset)) {
+    assert(dev->parent);
+    dev = dev->parent;
+  }
+  return dev;
+}

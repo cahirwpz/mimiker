@@ -212,11 +212,10 @@ static const char *gt_pci_intr_name[ICU_LEN] = {
 };
 /* clang-format on */
 
-static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
-                              ih_service_t *service, void *arg,
-                              const char *name) {
-  assert(dev->parent->driver == &gt_pci_bus);
-  gt_pci_state_t *gtpci = dev->parent->state;
+static void gt_pci_intr_setup(device_t *dev, device_t *target, resource_t *r,
+                              ih_filter_t *filter, ih_service_t *service,
+                              void *arg, const char *name) {
+  gt_pci_state_t *gtpci = dev->state;
   int irq = r->r_start;
   assert(irq < ICU_LEN);
 
@@ -228,9 +227,7 @@ static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
     intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg, name);
 }
 
-static void gt_pci_intr_teardown(device_t *pcib, resource_t *irq) {
-  assert(pcib->parent->driver == &gt_pci_bus);
-
+static void gt_pci_intr_teardown(device_t *dev, resource_t *irq) {
   intr_event_remove_handler(irq->r_handler);
 }
 
@@ -371,16 +368,14 @@ static bool gt_pci_bar(device_t *dev, res_type_t type, int rid,
   return rid < PCI_BAR_MAX && pcid->bar[rid].size != 0;
 }
 
-static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
-                                         int rid, rman_addr_t start,
-                                         rman_addr_t end, size_t size,
-                                         res_flags_t flags) {
-  /* Currently all devices are logicaly attached to PCI bus,
-   * because we don't have PCI-ISA bridge implemented. */
-  assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
+static resource_t *gt_pci_alloc_resource(device_t *dev, device_t *target,
+                                         res_type_t type, int rid,
+                                         rman_addr_t start, rman_addr_t end,
+                                         size_t size, res_flags_t flags) {
+  /* dispatching this method is a pure non-sense, so let's just not do it */
+  assert(target->parent == dev);
 
-  device_t *pcib = dev->parent;
-  gt_pci_state_t *gtpci = pcib->state;
+  gt_pci_state_t *gtpci = dev->state;
   bus_space_handle_t bh = 0;
   size_t alignment = 0;
   rman_t *rman = NULL;
@@ -397,7 +392,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     panic("Unknown PCI device type: %d", type);
   }
 
-  if (gt_pci_bar(dev, type, rid, start))
+  if (gt_pci_bar(target, type, rid, start))
     alignment = max(alignment, size);
 
   if (type == RT_MEMORY) {
@@ -417,7 +412,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   }
 
   if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, type, r)) {
+    if (BUS_METHODS(dev).activate_resource(dev, target, type, r)) {
       rman_release_resource(r);
       return NULL;
     }
@@ -426,26 +421,32 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   return r;
 }
 
-static void gt_pci_release_resource(device_t *dev, res_type_t type,
-                                    resource_t *r) {
-  bus_deactivate_resource(dev, type, r);
+static void gt_pci_release_resource(device_t *dev, device_t *target,
+                                    res_type_t type, resource_t *r) {
+  /* dispatching this method is a pure non-sense, so let's just not do it */
+  assert(target->parent == dev);
+
+  BUS_METHODS(dev).deactivate_resource(dev, target, type, r);
   rman_release_resource(r);
 }
 
-static int gt_pci_activate_resource(device_t *dev, res_type_t type,
-                                    resource_t *r) {
+static int gt_pci_activate_resource(device_t *dev, device_t *target,
+                                    res_type_t type, resource_t *r) {
+  /* dispatching this method is a pure non-sense, so let's just not do it */
+  assert(target->parent == dev);
+
   if (type == RT_MEMORY || type == RT_IOPORTS) {
     uint16_t command = pci_read_config_2(dev, PCIR_COMMAND);
     if (type == RT_MEMORY)
       command |= PCIM_CMD_MEMEN;
     else if (type == RT_IOPORTS)
       command |= PCIM_CMD_PORTEN;
-    pci_write_config_2(dev, PCIR_COMMAND, command);
+    pci_write_config_2(target, PCIR_COMMAND, command);
   }
 
   int rid = r->r_rid;
-  if (gt_pci_bar(dev, type, rid, r->r_start))
-    pci_write_config_4(dev, PCIR_BAR(rid), r->r_start);
+  if (gt_pci_bar(target, type, rid, r->r_start))
+    pci_write_config_4(target, PCIR_BAR(rid), r->r_start);
 
   if (type == RT_MEMORY)
     return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
@@ -454,8 +455,10 @@ static int gt_pci_activate_resource(device_t *dev, res_type_t type,
   return 0;
 }
 
-static void gt_pci_deactivate_resource(device_t *dev, res_type_t type,
-                                       resource_t *r) {
+static void gt_pci_deactivate_resource(device_t *dev, device_t *target,
+                                       res_type_t type, resource_t *r) {
+  /* dispatching this method is a pure non-sense, so let's just not do it */
+  assert(target->parent == dev);
   /* TODO: unmap mapped resources. */
 }
 

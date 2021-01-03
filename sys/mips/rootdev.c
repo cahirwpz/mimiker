@@ -38,16 +38,17 @@ static const char *rootdev_intr_name[MIPS_NIRQ] = {
 };
 /* clang-format on */
 
-static void rootdev_intr_setup(device_t *dev, resource_t *r,
+static void rootdev_intr_setup(device_t *dev, device_t *target, resource_t *r,
                                ih_filter_t *filter, ih_service_t *service,
                                void *arg, const char *name) {
-  rootdev_t *rd = dev->parent->state;
+  rootdev_t *rd = dev->state;
   int irq = r->r_start;
   assert(irq < MIPS_NIRQ);
 
   if (rd->intr_event[irq] == NULL)
-    rd->intr_event[irq] = intr_event_create(
-      dev, irq, rootdev_mask_irq, rootdev_unmask_irq, rootdev_intr_name[irq]);
+    rd->intr_event[irq] =
+      intr_event_create(target, irq, rootdev_mask_irq, rootdev_unmask_irq,
+                        rootdev_intr_name[irq]);
 
   r->r_handler =
     intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
@@ -60,11 +61,11 @@ static void rootdev_intr_teardown(device_t *dev, resource_t *irq) {
    * intr_teardown method? probably not... maybe in detach method? */
 }
 
-static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
-                                          int rid, rman_addr_t start,
-                                          rman_addr_t end, size_t size,
-                                          res_flags_t flags) {
-  rootdev_t *rd = dev->parent->state;
+static resource_t *rootdev_alloc_resource(device_t *dev, device_t *target,
+                                          res_type_t type, int rid,
+                                          rman_addr_t start, rman_addr_t end,
+                                          size_t size, res_flags_t flags) {
+  rootdev_t *rd = dev->state;
   size_t alignment = 0;
   rman_t *rman = NULL;
 
@@ -89,7 +90,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   }
 
   if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, type, r)) {
+    if (BUS_METHODS(dev).activate_resource(dev, target, type, r)) {
       rman_release_resource(r);
       return NULL;
     }
@@ -98,14 +99,14 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   return r;
 }
 
-static void rootdev_release_resource(device_t *dev, res_type_t type,
-                                     resource_t *r) {
-  bus_deactivate_resource(dev, type, r);
+static void rootdev_release_resource(device_t *dev, device_t *target,
+                                     res_type_t type, resource_t *r) {
+  BUS_METHODS(dev).deactivate_resource(dev, target, type, r);
   rman_release_resource(r);
 }
 
-static int rootdev_activate_resource(device_t *dev, res_type_t type,
-                                     resource_t *r) {
+static int rootdev_activate_resource(device_t *dev, device_t *target,
+                                     res_type_t type, resource_t *r) {
   if (type == RT_MEMORY)
     return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
                          &r->r_bus_handle);
@@ -113,8 +114,8 @@ static int rootdev_activate_resource(device_t *dev, res_type_t type,
   return 0;
 }
 
-static void rootdev_deactivate_resource(device_t *dev, res_type_t type,
-                                        resource_t *r) {
+static void rootdev_deactivate_resource(device_t *dev, device_t *target,
+                                        res_type_t type, resource_t *r) {
   /* TODO: unmap mapped resources. */
 }
 

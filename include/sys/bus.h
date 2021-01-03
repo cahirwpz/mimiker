@@ -134,27 +134,38 @@ extern bus_space_t *generic_bus_space;
 #define bus_space_map(t, a, s, hp) (*(t)->bs_map)((a), (s), (hp))
 
 struct bus_methods {
-  void (*intr_setup)(device_t *dev, resource_t *irq, ih_filter_t *filter,
-                     ih_service_t *service, void *arg, const char *name);
+  void (*intr_setup)(device_t *dev, device_t *target, resource_t *irq,
+                     ih_filter_t *filter, ih_service_t *service, void *arg,
+                     const char *name);
   void (*intr_teardown)(device_t *dev, resource_t *irq);
-  resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
-                                rman_addr_t start, rman_addr_t end, size_t size,
+  resource_t *(*alloc_resource)(device_t *dev, device_t *target,
+                                res_type_t type, int rid, rman_addr_t start,
+                                rman_addr_t end, size_t size,
                                 res_flags_t flags);
-  void (*release_resource)(device_t *dev, res_type_t type, resource_t *r);
-  int (*activate_resource)(device_t *dev, res_type_t type, resource_t *r);
-  void (*deactivate_resource)(device_t *dev, res_type_t type, resource_t *r);
+  void (*release_resource)(device_t *dev, device_t *target, res_type_t type,
+                           resource_t *r);
+  int (*activate_resource)(device_t *dev, device_t *target, res_type_t type,
+                           resource_t *r);
+  void (*deactivate_resource)(device_t *dev, device_t *target, res_type_t type,
+                              resource_t *r);
 };
 
 #define BUS_METHODS(dev) (*(bus_methods_t *)(dev)->driver->interfaces[DIF_BUS])
 
+#define BUS_METHOD_IMPLEMENTATOR(dev, method)                                  \
+  (device_if_find_impl((dev)->parent, DIF_BUS,                                 \
+                       offsetof(struct bus_methods, method)))
+
 static inline void bus_intr_setup(device_t *dev, resource_t *irq,
                                   ih_filter_t *filter, ih_service_t *service,
                                   void *arg, const char *name) {
-  BUS_METHODS(dev->parent).intr_setup(dev, irq, filter, service, arg, name);
+  device_t *idev = BUS_METHOD_IMPLEMENTATOR(dev, intr_setup);
+  BUS_METHODS(idev).intr_setup(idev, dev, irq, filter, service, arg, name);
 }
 
 static inline void bus_intr_teardown(device_t *dev, resource_t *irq) {
-  BUS_METHODS(dev->parent).intr_teardown(dev, irq);
+  device_t *idev = BUS_METHOD_IMPLEMENTATOR(dev, intr_teardown);
+  BUS_METHODS(idev).intr_teardown(idev, irq);
 }
 
 /*! \brief Allocates a resource of type \a type and size \a size between
@@ -174,8 +185,9 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
                                              int rid, rman_addr_t start,
                                              rman_addr_t end, size_t size,
                                              res_flags_t flags) {
-  return BUS_METHODS(dev->parent)
-    .alloc_resource(dev, type, rid, start, end, size, flags);
+  device_t *idev = BUS_METHOD_IMPLEMENTATOR(dev, alloc_resource);
+  return BUS_METHODS(idev).alloc_resource(idev, dev, type, rid, start, end,
+                                          size, flags);
 }
 
 /*! \brief Activates resource for a device.
@@ -198,7 +210,8 @@ void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r);
 
 static inline void bus_release_resource(device_t *dev, res_type_t type,
                                         resource_t *r) {
-  BUS_METHODS(dev->parent).release_resource(dev, type, r);
+  device_t *idev = BUS_METHOD_IMPLEMENTATOR(dev, release_resource);
+  BUS_METHODS(idev).release_resource(idev, dev, type, r);
 }
 
 int bus_generic_probe(device_t *bus);
