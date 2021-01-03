@@ -533,7 +533,6 @@ void pmap_delete(pmap_t *pmap) {
   pool_free(P_PMAP, pmap);
 }
 
-<<<<<<< HEAD
 void pmap_vm_page_protect(vm_page_t *pg, vaddr_t start, vaddr_t end,
                           vm_prot_t prot) {
   SCOPED_MTX_LOCK(pv_list_lock);
