@@ -320,8 +320,9 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
 
   /* Mark user pages as non-referenced & non-modified. */
   // pte_t mask = kern_mapping ? (PTE_VALID | PTE_DIRTY) : 0;
-  pte_t pte = (vm_prot_map[prot] & PTE_PROT_MASK) | empty_pte(pmap);
-  // pte_t pte = (vm_prot_map[prot] & ~mask) | empty_pte(pmap);
+  pte_t pte =
+    (vm_prot_map[prot] & ~(PTE_PROT_MASK & PTE_VALID)) | empty_pte(pmap);
+  // pte_t pte = (vm_prot_map[prot] & mask) | empty_pte(pmap);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     WITH_MTX_LOCK (pv_list_lock) {
