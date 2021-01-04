@@ -254,7 +254,7 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
   size_t length = seg->end - seg->start;
   vm_seg_flags_t seg_flags = 0;
 
-  int error;
+  int error = 0;
 
   if ((flags & VM_FIXED)) {
     error = vm_map_preparespace_nolock(map, start, length);
