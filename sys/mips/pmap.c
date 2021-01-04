@@ -399,12 +399,14 @@ void pmap_page_remove(vm_page_t *pg) {
   while (!TAILQ_EMPTY(&pg->pv_list)) {
     pv_entry_t *pv = TAILQ_FIRST(&pg->pv_list);
     pmap_t *pmap = pv->pmap;
-    assert(mtx_owned(&pmap->mtx));
-    vaddr_t va = pv->va;
-    TAILQ_REMOVE(&pg->pv_list, pv, page_link);
-    TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
-    pmap_pte_write(pmap, va, empty_pte(pmap), 0);
-    pool_free(P_PV, pv);
+    assert(!mtx_owned(&pmap->mtx));
+    WITH_MTX_LOCK (&pmap->mtx) {
+      vaddr_t va = pv->va;
+      TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+      TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+      pmap_pte_write(pmap, va, empty_pte(pmap), 0);
+      pool_free(P_PV, pv);
+    }
   }
 }
 
