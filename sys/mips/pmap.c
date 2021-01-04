@@ -259,28 +259,29 @@ void pmap_activate(pmap_t *umap) {
 void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
   pmap_t *pmap = pmap_kernel();
 
-  assert(page_aligned_p(pa) && page_aligned_p(va));
-  assert(pmap_address_p(pmap, va));
-  assert(pa != 0);
+  WITH_MTX_LOCK (&pmap->mtx) {
+    assert(page_aligned_p(pa) && page_aligned_p(va));
+    assert(pmap_address_p(pmap, va));
+    assert(pa != 0);
 
-  klog("Enter unmanaged mapping from %p to %p", va, pa);
+    klog("Enter unmanaged mapping from %p to %p", va, pa);
 
-  pte_t pte = vm_prot_map[prot] | PTE_GLOBAL;
+    pte_t pte = vm_prot_map[prot] | PTE_GLOBAL;
 
-  WITH_MTX_LOCK (&pmap->mtx)
     pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
+  }
 }
 
 void pmap_kremove(vaddr_t va, size_t size) {
   pmap_t *pmap = pmap_kernel();
 
-  assert(page_aligned_p(va) && page_aligned_p(size));
-  assert(pmap_contains_p(pmap, va, va + size));
-
-  klog("%s: remove unmanaged mapping for %p - %p range", __func__, va,
-       va + size - 1);
-
   WITH_MTX_LOCK (&pmap->mtx) {
+    assert(page_aligned_p(va) && page_aligned_p(size));
+    assert(pmap_contains_p(pmap, va, va + size));
+
+    klog("%s: remove unmanaged mapping for %p - %p range", __func__, va,
+         va + size - 1);
+
     for (size_t off = 0; off < size; off += PAGESIZE)
       pmap_pte_write(pmap, va + off, PTE_GLOBAL, 0);
   }
@@ -311,19 +312,19 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
                 unsigned flags) {
   paddr_t pa = pg->paddr;
 
-  assert(page_aligned_p(va));
-  assert(pmap_address_p(pmap, va));
-
-  klog("Enter virtual mapping %p for frame %p", va, pa);
-
-  bool kern_mapping = (pmap == pmap_kernel());
-
-  /* Mark user pages as non-referenced & non-modified. */
-  // pte_t mask = kern_mapping ? (PTE_VALID | PTE_DIRTY) : 0;
-  // pte_t pte = (vm_prot_map[prot] & mask) | empty_pte(pmap);
-  pte_t pte = (vm_prot_map[prot] & ~PTE_VALID) | empty_pte(pmap);
-
   WITH_MTX_LOCK (&pmap->mtx) {
+    assert(page_aligned_p(va));
+    assert(pmap_address_p(pmap, va));
+
+    klog("Enter virtual mapping %p for frame %p", va, pa);
+
+    bool kern_mapping = (pmap == pmap_kernel());
+
+    /* Mark user pages as non-referenced & non-modified. */
+    // pte_t mask = kern_mapping ? (PTE_VALID | PTE_DIRTY) : 0;
+    // pte_t pte = (vm_prot_map[prot] & mask) | empty_pte(pmap);
+    pte_t pte = (vm_prot_map[prot] & ~PTE_VALID) | empty_pte(pmap);
+
     WITH_MTX_LOCK (pv_list_lock) {
       pv_entry_t *pv = pv_find(pmap, va, pg);
       if (pv == NULL)
@@ -392,7 +393,16 @@ void pmap_page_remove(vm_page_t *pg) {
   while (!TAILQ_EMPTY(&pg->pv_list)) {
     pv_entry_t *pv = TAILQ_FIRST(&pg->pv_list);
     pmap_t *pmap = pv->pmap;
-    WITH_MTX_LOCK (&pmap->mtx) {
+
+    if (!mtx_owned(&pmap->mtx)) {
+      WITH_MTX_LOCK (&pmap->mtx) {
+        vaddr_t va = pv->va;
+        TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+        TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+        pmap_pte_write(pmap, va, empty_pte(pmap), 0);
+        pool_free(P_PV, pv);
+      }
+    } else {
       vaddr_t va = pv->va;
       TAILQ_REMOVE(&pg->pv_list, pv, page_link);
       TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
@@ -503,17 +513,17 @@ void pmap_delete(pmap_t *pmap) {
         pool_free(P_PV, pv);
       }
     }
-  }
 
-  while (!TAILQ_EMPTY(&pmap->pte_pages)) {
-    vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
-    TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
+    while (!TAILQ_EMPTY(&pmap->pte_pages)) {
+      vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
+      TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
+      vm_page_free(pg);
+    }
+
+    vm_page_t *pg = vm_page_find(MIPS_KSEG0_TO_PHYS(pmap->pde));
     vm_page_free(pg);
+    free_asid(pmap->asid);
   }
-
-  vm_page_t *pg = vm_page_find(MIPS_KSEG0_TO_PHYS(pmap->pde));
-  vm_page_free(pg);
-  free_asid(pmap->asid);
 
   pool_free(P_PMAP, pmap);
 }
