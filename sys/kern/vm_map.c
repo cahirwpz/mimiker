@@ -238,8 +238,8 @@ int vm_map_preparespace_nolock(vm_map_t *map, vaddr_t start, size_t length) {
 
   vm_segment_t *seg, *next;
   TAILQ_FOREACH_SAFE (seg, &map->entries, link, next) {
-    if ((start <= seg->start && seg->start <= start + length) ||
-        (start <= seg->end && seg->end <= start + length)) {
+    if ((start <= seg->start && seg->start < start + length) ||
+        (start < seg->end && seg->end < start + length)) {
       vm_segment_destroy(map, seg);
     }
   }
@@ -267,7 +267,7 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
   if (error)
     return error;
 
-  assert((flags & VM_FIXED) && (start == seg->start));
+  assert(((flags & VM_FIXED) && (start == seg->start)) || !(flags & VM_FIXED));
 
   assert((flags & (VM_SHARED | VM_PRIVATE)) != (VM_SHARED | VM_PRIVATE));
 
