@@ -258,7 +258,7 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
     vm_map_preparespace_nolock(map, start, length);
   }
 
-  inr error = vm_map_findspace_nolock(map, &start, length, &after);
+  int error = vm_map_findspace_nolock(map, &start, length, &after);
 
   if (error)
     return error;
