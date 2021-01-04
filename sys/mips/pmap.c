@@ -395,11 +395,11 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
 }
 
 void pmap_page_remove(vm_page_t *pg) {
-  assert(mtx_owned(&pmap->mtx));
   SCOPED_MTX_LOCK(pv_list_lock);
   while (!TAILQ_EMPTY(&pg->pv_list)) {
     pv_entry_t *pv = TAILQ_FIRST(&pg->pv_list);
     pmap_t *pmap = pv->pmap;
+    assert(mtx_owned(&pmap->mtx));
     vaddr_t va = pv->va;
     TAILQ_REMOVE(&pg->pv_list, pv, page_link);
     TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
