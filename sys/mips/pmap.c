@@ -503,17 +503,18 @@ void pmap_delete(pmap_t *pmap) {
         pool_free(P_PV, pv);
       }
     }
-
-    while (!TAILQ_EMPTY(&pmap->pte_pages)) {
-      vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
-      TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
-      vm_page_free(pg);
-    }
-
-    vm_page_t *pg = vm_page_find(MIPS_KSEG0_TO_PHYS(pmap->pde));
-    vm_page_free(pg);
-    free_asid(pmap->asid);
   }
+
+  while (!TAILQ_EMPTY(&pmap->pte_pages)) {
+    vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
+    TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
+    vm_page_free(pg);
+  }
+
+  vm_page_t *pg = vm_page_find(MIPS_KSEG0_TO_PHYS(pmap->pde));
+  vm_page_free(pg);
+  free_asid(pmap->asid);
+
   pool_free(P_PMAP, pmap);
 }
 
