@@ -123,8 +123,10 @@ resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
   TAILQ_FOREACH (r, &rm->rm_resources, r_link) {
     if (r_reserved(r)) {
       /* See if we can share the resource. */
-      if (r_share_hit(r, start, count, flags))
+      if (r_share_hit(r, start, count, flags)) {
+        r->r_refcnt++;
         return r;
+      }
       continue;
     }
 
@@ -179,6 +181,9 @@ void rman_release_resource(resource_t *r) {
 
   assert(!r_active(r));
   assert(r_reserved(r));
+
+  if (r_shareable(r) && --r->r_refcnt)
+    return;
 
   /*
    * Look at the adjacent resources in the list and see if our resource

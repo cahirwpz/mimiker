@@ -32,6 +32,7 @@ struct resource {
   rman_addr_t r_start;             /* first physical address of the resource */
   rman_addr_t r_end;               /* last (inclusive) physical address */
   res_flags_t r_flags;             /* or'ed RF_* values */
+  int r_refcnt;                    /* number of sharers */
   TAILQ_ENTRY(resource) r_link;    /* link on resource manager list */
 };
 

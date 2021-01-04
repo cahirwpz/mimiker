@@ -24,7 +24,7 @@ struct resource_list_entry {
   /* auxiliary data associated with a resource */
   union {
     intr_handler_t *handler;
-  } aux;
+  };
   int rid; /* resource identifier */
 };
 
@@ -107,26 +107,28 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
 #define device_take_irq(dev, rid, flags)                                       \
   device_take_resource((dev), RT_IRQ, (rid), (flags))
 
+/*! \brief Return resource list entry of device `dev` correspoinding
+ * to resource `res`. */
+resource_list_entry_t *resource_rle(resource_t *res, device_t *dev);
+
 /*! \brief Return resource identifier associated with resource `res`
  * in the context of device `dev`. */
-int resource_get_rid(resource_t *res, device_t *dev);
-
-/*! \brief Return auxilary data associated with resource `res`
- * in the context of device `dev`. */
-void *resource_get_aux(resource_t *res, device_t *dev);
+static inline int resource_get_rid(resource_t *res, device_t *dev) {
+  return resource_rle(res, dev)->rid;
+}
 
 /*! \brief Return interrupt handler associated with resource `res`
  * in the context of device `dev`. */
 static inline intr_handler_t *resource_get_handler(resource_t *res,
                                                    device_t *dev) {
-  return *(intr_handler_t **)resource_get_aux(res, dev);
+  return resource_rle(res, dev)->handler;
 }
 
 /*! \brief Set interrupt handler associated with resource `res`
  * in the context of device `dev`. */
 static inline void resource_set_handler(resource_t *res, device_t *dev,
                                         intr_handler_t *handler) {
-  *(intr_handler_t **)resource_get_aux(res, dev) = handler;
+  resource_rle(res, dev)->handler = handler;
 }
 
 /* A universal memory pool to be used by all drivers. */

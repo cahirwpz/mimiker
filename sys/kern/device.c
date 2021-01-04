@@ -87,24 +87,11 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
   return rle->res;
 }
 
-/* Find resource list entry containing resource `res`. */
-static resource_list_entry_t *resource_get_rle(resource_t *res, device_t *dev) {
+resource_list_entry_t *resource_rle(resource_t *res, device_t *dev) {
   resource_list_entry_t *rle;
   SLIST_FOREACH(rle, &dev->resources, link) {
     if (rle->res == res)
       break;
   }
   return rle;
-}
-
-int resource_get_rid(resource_t *res, device_t *dev) {
-  resource_list_entry_t *rle = resource_get_rle(res, dev);
-  assert(rle);
-  return rle->rid;
-}
-
-void *resource_get_aux(resource_t *res, device_t *dev) {
-  resource_list_entry_t *rle = resource_get_rle(res, dev);
-  assert(rle);
-  return &rle->aux;
 }
