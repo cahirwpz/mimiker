@@ -82,19 +82,19 @@ int do_mprotect(vaddr_t addr, size_t length, vm_prot_t prot) {
 
   vm_map_t *uspace = td->td_proc->p_uspace;
 
-  /* We support only changing protection for full pages */
-  if (!page_aligned_p(addr) || !page_aligned_p(addr + length)) {
-    return EINVAL;
-  }
+  /* we want to change permissions for those pages containing any part of the
+   * address space [addr, addr + length) */
+  vaddr_t right_boundary = roundup(addr + length, PAGESIZE);
+  addr = rounddown(addr, PAGESIZE);
 
   WITH_VM_MAP_LOCK (uspace) {
     /* addresses in range [addr, addr + length) are invalid for the address
      * space of the process */
-    if (!vm_map_contains_p(uspace, addr, addr + length))
+    if (!vm_map_contains_p(uspace, addr, right_boundary))
       return ENOMEM;
   }
 
-  vm_map_protect(uspace, addr, addr + length, prot);
+  vm_map_protect(uspace, addr, right_boundary, prot);
 
   return 0;
 }
