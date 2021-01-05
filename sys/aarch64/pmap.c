@@ -548,7 +548,8 @@ void pmap_vm_page_protect(vm_page_t *pg, vaddr_t start, vaddr_t end,
   pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
     if (start <= pv->va && pv->va < end)
-      pmap_protect_nolock(pv->pmap, pv->va, min(pv->va + PAGESIZE, end), prot);
+      pmap_protect_nolock(pv->pmap, max(start, pv->va),
+                          min(pv->va + PAGESIZE, end), prot);
   }
 }
 

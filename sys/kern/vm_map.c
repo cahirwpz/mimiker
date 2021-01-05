@@ -182,14 +182,15 @@ static void vm_segment_protect(vm_segment_t *seg, vaddr_t start, vaddr_t end,
 /* TODO: not implemented */
 void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   assert(map != NULL);
+
   WITH_MTX_LOCK (&map->mtx) {
     vaddr_t addr = start;
 
     while (addr < end) {
       vm_segment_t *seg = vm_map_find_segment(map, addr);
       assert(seg != NULL);
-      vm_segment_protect(seg, addr, min(end, seg->end), prot);
-      addr = seg->end + 1;
+      vm_segment_protect(seg, max(addr, seg->start), min(end, seg->end), prot);
+      addr = seg->end;
     }
   }
 }
