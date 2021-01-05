@@ -60,18 +60,37 @@ int do_munmap(vaddr_t addr, size_t length) {
 
   vm_map_t *uspace = proc_self()->p_uspace;
 
+  if (length == 0)
+    return EINVAL;
+
+  /* Round boundaries to contain entire pages from range [addr, addr + length)
+   */
+  vaddr_t right_boundary = roundup(addr + length, PAGESIZE);
+  addr = rounddown(addr, PAGESIZE);
+
   WITH_VM_MAP_LOCK (uspace) {
-    vm_segment_t *seg = vm_map_find_segment(uspace, addr);
-    if (!seg)
-      return EINVAL;
+    while (addr < right_boundary) {
+      vm_segment_t *seg = vm_map_find_segment(uspace, addr);
+      if (!seg)
+        return EINVAL;
 
-    /* TODO We support unmaping entire segments only! */
-    vaddr_t start = vm_segment_start(seg);
-    vaddr_t end = vm_segment_end(seg);
-    if ((addr != start) || (addr + length != end))
-      return ENOTSUP;
+      /* TODO We support unmaping entire segments only! */
+      vaddr_t start = vm_segment_start(seg);
+      vaddr_t end = vm_segment_end(seg);
+      if ((addr != start) || (addr + length != end))
+        return ENOTSUP;
 
-    vm_segment_destroy(uspace, seg);
+      /* there are few cases:
+       * - we want to free the whole segment
+       * - we want to free the beginning of the segment and leave the end
+       * without changes
+       * - we want to free the end of the segment and leave the beginning
+       * without changes
+       * - we want to free the middle of the segment, so we want to split it to
+       * the new two segments with the hole between them */
+      vm_segment_destroy_range(uspace, seg, max(addr, start),
+                               min(right_boundary, end));
+    }
   }
   return 0;
 }
