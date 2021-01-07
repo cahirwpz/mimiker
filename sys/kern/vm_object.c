@@ -95,8 +95,7 @@ static void merge_shadow(vm_object_t *shadow) {
   SCOPED_MTX_LOCK(&shadow->mtx);
 
   TAILQ_FOREACH_SAFE (elem, &shadow->shadows_list, link, next_elem) {
-    assert(elem != NULL);
-
+    assert(shadow != elem);
     SCOPED_MTX_LOCK(&elem->mtx);
 
     vm_page_t *pg, *next;
