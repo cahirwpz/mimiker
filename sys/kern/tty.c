@@ -179,20 +179,6 @@ tty_t *tty_alloc(void) {
   return tty;
 }
 
-static void tty_maybe_destroy(tty_t *tty) {
-  assert(mtx_owned(&tty->t_lock));
-
-  if (tty_opened(tty) || !tty_detached(tty)) {
-    /* TTY still in use: can't destroy. */
-    return;
-  }
-
-  /* We can't free the tty structure yet, as there may still be existing
-   * references to the vnode. We free it in tty_vn_reclaim, once all references
-   * to the vnode are gone. */
-  devfs_unlink(tty->t_vnode->v_data);
-}
-
 void tty_free(tty_t *tty) {
   assert(!tty_opened(tty));
   assert(tty_detached(tty));
@@ -842,7 +828,6 @@ static int tty_vn_close(vnode_t *v, file_t *fp) {
   tty->t_opencount--;
   if (tty->t_opencount == 0)
     tty_notify_inactive(tty);
-  tty_maybe_destroy(tty);
   return 0;
 }
 
@@ -1013,7 +998,10 @@ void tty_detach_driver(tty_t *tty) {
   cv_broadcast(&tty->t_serialize_cv);
   cv_broadcast(&tty->t_background_cv);
 
-  tty_maybe_destroy(tty);
+  /* We can't free the tty structure yet, as there may still be existing
+   * references to the vnode. We free it in tty_vn_reclaim, once all references
+   * to the vnode are gone. */
+  devfs_unlink(tty->t_vnode->v_data);
 }
 
 /* We implement I/O operations as fileops in order to bypass
