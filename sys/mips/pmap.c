@@ -395,8 +395,8 @@ void pmap_page_remove(vm_page_t *pg) {
     pv_entry_t *pv = TAILQ_FIRST(&pg->pv_list);
     pmap_t *pmap = pv->pmap;
     vaddr_t va = pv->va;
+    TAILQ_REMOVE(&pg->pv_list, pv, page_link);
     WITH_MTX_LOCK (&pmap->mtx) {
-      TAILQ_REMOVE(&pg->pv_list, pv, page_link);
       TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
       pmap_pte_write(pmap, va, empty_pte(pmap), 0);
     }
