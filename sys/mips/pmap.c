@@ -356,21 +356,25 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   }
 }
 
-void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+void pmap_protect_nolock(pmap_t *pmap, vaddr_t start, vaddr_t end,
+                         vm_prot_t prot) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(pmap_contains_p(pmap, start, end));
 
   klog("Change protection bits to %x for address range %p-%p", prot, start,
        end);
 
-  WITH_MTX_LOCK (&pmap->mtx) {
-    for (vaddr_t va = start; va < end; va += PAGESIZE) {
-      pte_t pte = pmap_pte_read(pmap, va);
-      if (pte == 0)
-        continue;
-      pmap_pte_write(pmap, va, (pte & ~PTE_PROT_MASK) | vm_prot_map[prot], 0);
-    }
+  for (vaddr_t va = start; va < end; va += PAGESIZE) {
+    pte_t pte = pmap_pte_read(pmap, va);
+    if (pte == 0)
+      continue;
+    pmap_pte_write(pmap, va, (pte & ~PTE_PROT_MASK) | vm_prot_map[prot], 0);
   }
+}
+
+void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+  SCOPED_MTX_LOCK(&pmap->mtx);
+  return pmap_protect_nolock(pmap, start, end, prot);
 }
 
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
