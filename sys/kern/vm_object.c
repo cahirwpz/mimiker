@@ -60,7 +60,7 @@ static void vm_object_remove_page_nolock(vm_object_t *obj, vm_page_t *page) {
   page->object = NULL;
 
   TAILQ_REMOVE(&obj->list, page, obj.list);
-    vm_page_free(page);
+  vm_page_free(page);
 
   obj->npages--;
 }
