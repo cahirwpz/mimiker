@@ -220,8 +220,6 @@ vm_page_t *vm_page_alloc(size_t npages) {
   for (unsigned j = 0; j < page->size; j++)
     page[j].flags |= PG_ALLOCATED;
 
-  page->ref_counter = 0;
-
   return page;
 }
 

@@ -359,13 +359,14 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
           obj->backing_object = backing;
           it->object = vm_object_alloc(VM_SHADOW);
           it->object->backing_object = backing;
+          /* all pages in backing object are now read-only,
+           * that refers also to pages which previously had VM_PROT_EXEC set */
           vm_object_set_prot(backing, VM_PROT_READ);
           TAILQ_INSERT_HEAD(&backing->shadows_list, it->object, link);
         }
 
         TAILQ_INSERT_HEAD(&backing->shadows_list, obj, link);
         refcnt_acquire(&backing->ref_counter);
-        vm_object_increase_pages_references(backing);
 
         flags |= VM_SEG_NEED_COPY;
         it->flags |= VM_SEG_NEED_COPY;
@@ -415,13 +416,15 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   vaddr_t offset = fault_page - seg->start;
   vm_page_t *frame = vm_object_find_page(obj, offset);
 
-  if (frame == NULL && obj->backing_object && fault_type == VM_PROT_READ &&
-      seg->prot == VM_PROT_READ) {
-    vm_object_t *it = obj->backing_object;
+  WITH_MTX_LOCK (&obj->mtx) {
+    if (frame == NULL && (seg->flags & VM_SEG_NEED_COPY) &&
+        fault_type == VM_PROT_READ && seg->prot == VM_PROT_READ) {
+      vm_object_t *it = obj->backing_object;
 
-    while (frame == NULL && it != NULL) {
-      frame = vm_object_find_page(it, offset);
-      it = it->backing_object;
+      while (frame == NULL && it != NULL) {
+        frame = vm_object_find_page(it, offset);
+        it = it->backing_object;
+      }
     }
   }
 

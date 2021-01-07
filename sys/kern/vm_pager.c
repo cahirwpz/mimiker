@@ -27,10 +27,8 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
   vm_object_t *it = obj;
   vm_object_t *prev = obj;
 
-  WITH_RW_LOCK (&obj->mtx, RW_READER) {
-
+  WITH_MTX_LOCK (&obj->mtx) {
     while (pg == NULL && it->backing_object != NULL) {
-      SCOPED_RW_ENTER(&it->backing_object->mtx, RW_READER);
       pg = vm_object_find_page(it->backing_object, offset);
       prev = it;
       it = it->backing_object;
@@ -40,30 +38,8 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
   if (pg == NULL) {
     new_pg = it->pager->pgr_fault(obj, offset);
   } else {
-    if (!refcnt_release(&pg->ref_counter)) {
-      new_pg = vm_page_alloc(1);
-      pmap_copy_page(pg, new_pg);
-    } else {
-      new_pg = pg;
-
-      refcnt_acquire(&pg->ref_counter);
-      refcnt_acquire(&pg->ref_counter);
-
-      vm_object_remove_page(it, pg);
-
-      refcnt_release(&pg->ref_counter);
-
-      if (it->npages == 0) {
-        prev->backing_object = it->backing_object;
-        prev->pager = it->pager;
-        if (it->backing_object != NULL) {
-          refcnt_acquire(&it->backing_object->ref_counter);
-          TAILQ_INSERT_HEAD(&it->backing_object->shadows_list, prev, link);
-        }
-
-        vm_object_free(it);
-      }
-    }
+    new_pg = vm_page_alloc(1);
+    pmap_copy_page(pg, new_pg);
   }
 
   vm_object_add_page(obj, offset, new_pg);
