@@ -139,16 +139,16 @@ static int pty_ioctl(file_t *f, u_long cmd, void *data) {
   tty_t *tty = f->f_data;
 
   switch (cmd) {
+    case TIOCSETAF:
+    case TIOCSETAW:
       /* Convert TIOCSETAF and TIOCSETAW to TIOCSETA.
        * If we dont't do this, the process might deadlock waiting for all data
        * to be read from the master device. */
-    case TIOCSETAF:
-    case TIOCSETAW:
       cmd = TIOCSETA;
       break;
+    case TIOCGPGRP: {
       /* Re-implement TIOCGPGRP, this time bypassing
        * the controlling terminal check. */
-    case TIOCGPGRP: {
       int *pgid_p = data;
 
       SCOPED_MTX_LOCK(&tty->t_lock);
