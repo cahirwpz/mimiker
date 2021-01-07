@@ -90,21 +90,22 @@ void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
 }
 
 static void merge_shadow(vm_object_t *shadow) {
-  vm_object_t *elem;
+  vm_object_t *elem, *next_elem;
 
   SCOPED_MTX_LOCK(&shadow->mtx);
 
-  TAILQ_FOREACH (elem, &shadow->shadows_list, link) {
+  TAILQ_FOREACH_SAFE (elem, &shadow->shadows_list, link, next_elem) {
     assert(elem != NULL);
 
     SCOPED_MTX_LOCK(&elem->mtx);
 
-    vm_page_t *pg;
-    TAILQ_FOREACH (pg, &shadow->list, obj.list) {
+    vm_page_t *pg, *next;
+    TAILQ_FOREACH_SAFE (pg, &shadow->list, obj.list, next) {
       if (vm_object_find_page_nolock(elem, pg->offset) == NULL) {
         off_t offset = pg->offset;
         vm_object_add_page_nolock(elem, offset, pg);
-        vm_object_remove_page_nolock(shadow, pg);
+        TAILQ_REMOVE(&shadow->list, pg, obj.list);
+        shadow->npages--;
         pg->object = elem;
         pg->offset = offset;
       }
@@ -124,6 +125,9 @@ static void merge_shadow(vm_object_t *shadow) {
         TAILQ_INSERT_HEAD(&elem->backing_object->shadows_list, elem, link);
       }
     }
+
+    TAILQ_REMOVE(&shadow->shadows_list, elem, link);
+    refcnt_release(&shadow->ref_counter);
   }
 }
 
@@ -143,7 +147,6 @@ void vm_object_free(vm_object_t *obj) {
 
       if (shadow->ref_counter == 2) {
         merge_shadow(shadow);
-        vm_object_free(obj->backing_object);
       }
 
       vm_object_free(obj->backing_object);
