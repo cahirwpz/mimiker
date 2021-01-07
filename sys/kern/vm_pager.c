@@ -26,17 +26,34 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
 
   WITH_MTX_LOCK (&obj->mtx) {
     vm_object_t *it = obj;
+    vm_object_t *prev = obj;
 
     while (pg == NULL && it->backing_object != NULL) {
       pg = vm_object_find_page(it->backing_object, offset);
+      prev = it;
       it = it->backing_object;
     }
 
-    if (pg == NULL) {
-      new_pg = it->pager->pgr_fault(obj, offset);
-    } else {
+    if (!refcnt_release(&pg->ref_counter)) {
       new_pg = vm_page_alloc(1);
       pmap_copy_page(pg, new_pg);
+    } else {
+      new_pg = pg;
+
+      /* obj now also refers to the pg page */
+      refcnt_acquire(&pg->ref_counter);
+      vm_object_remove_page(it, pg);
+
+      if (it->npages == 0) {
+        prev->backing_object = it->backing_object;
+        prev->pager = it->pager;
+        if (it->backing_object != NULL) {
+          refcnt_acquire(&it->backing_object->ref_counter);
+        }
+        /* TODO: removing VM_SEG_NEEDS_COPY flag is missing */
+
+        vm_object_free(it);
+      }
     }
   }
 

@@ -365,6 +365,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         }
 
         refcnt_acquire(&backing->ref_counter);
+        vm_object_increase_pages_references(backing);
 
         flags |= VM_SEG_NEED_COPY;
         it->flags |= VM_SEG_NEED_COPY;
