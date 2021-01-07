@@ -103,11 +103,9 @@ static void merge_shadow(vm_object_t *shadow) {
     TAILQ_FOREACH_SAFE (pg, &shadow->list, obj.list, next) {
       if (vm_object_find_page_nolock(elem, pg->offset) == NULL) {
         off_t offset = pg->offset;
-        vm_object_add_page_nolock(elem, offset, pg);
         TAILQ_REMOVE(&shadow->list, pg, obj.list);
         shadow->npages--;
-        pg->object = elem;
-        pg->offset = offset;
+        vm_object_add_page_nolock(elem, offset, pg);
       }
     }
 
@@ -122,7 +120,7 @@ static void merge_shadow(vm_object_t *shadow) {
          */
         /* because we decrease the reference counter for shadow, but not for his
          * pages */
-        TAILQ_INSERT_HEAD(&elem->backing_object->shadows_list, elem, link);
+        TAILQ_INSERT_TAIL(&elem->backing_object->shadows_list, elem, link);
       }
     }
 
