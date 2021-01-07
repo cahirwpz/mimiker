@@ -349,6 +349,8 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         refcnt_acquire(&it->object->ref_counter);
         obj = it->object;
       } else {
+        SCOPED_MTX_LOCK(&it->object->mtx);
+
         if ((it->flags & VM_SEG_NEED_COPY) != 0 && it->object->npages == 0) {
           obj = vm_object_alloc(VM_SHADOW);
           backing = it->object->backing_object;
