@@ -139,6 +139,17 @@ static int pty_ioctl(file_t *f, u_long cmd, void *data) {
   tty_t *tty = f->f_data;
 
   switch (cmd) {
+    case TIOCPTSNAME: {
+      char *user_buf = *(char **)data;
+      char tmp_buf[16];
+      int error;
+      pty_t *pty = tty->t_data;
+
+      snprintf(tmp_buf, sizeof(tmp_buf), "/dev/pts/%d", pty->pt_number);
+      if ((error = copyout(tmp_buf, user_buf, strlen(tmp_buf) + 1)))
+        return error;
+      return 0;
+    }
     case TIOCSETAF:
     case TIOCSETAW:
       /* Convert TIOCSETAF and TIOCSETAW to TIOCSETA.

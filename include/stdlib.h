@@ -133,6 +133,9 @@ size_t wcstombs_l(char *__restrict, const wchar_t *__restrict, size_t,
  * Extensions made by POSIX relative to C.
  */
 char *realpath(const char *__restrict, char *__restrict);
+int grantpt(int);
+int unlockpt(int);
+char *ptsname(int);
 int posix_openpt(int flags);
 
 /*
