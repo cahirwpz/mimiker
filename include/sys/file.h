@@ -31,6 +31,7 @@ typedef struct {
 typedef enum {
   FT_VNODE = 1, /* regular file */
   FT_PIPE = 2,  /* pipe */
+  FT_PTY = 3,   /* master side of a pseudoterminal */
 } filetype_t;
 
 #define FF_READ 0x0001
