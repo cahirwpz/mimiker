@@ -169,12 +169,13 @@ tty_t *tty_alloc(void) {
   tty->t_line.ln_size = LINEBUF_SIZE;
   tty->t_line.ln_count = 0;
   tty_init_termios(&tty->t_termios);
-  tty->t_ops.t_notify_out = NULL;
+  tty->t_ops = (ttyops_t){0};
   tty->t_data = NULL;
   tty->t_column = 0;
   tty->t_rocol = tty->t_rocount = 0;
   tty->t_vnode = NULL;
   tty->t_flags = 0;
+  tty->t_opencount = 0;
   return tty;
 }
 
@@ -185,6 +186,24 @@ static void tty_notify_out(tty_t *tty) {
   if (tty->t_outq.count > 0) {
     tty->t_ops.t_notify_out(tty);
   }
+}
+
+static void tty_notify_in(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  if (tty->t_ops.t_notify_in)
+    tty->t_ops.t_notify_in(tty);
+}
+
+static void tty_notify_active(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  if (tty->t_ops.t_notify_active)
+    tty->t_ops.t_notify_active(tty);
+}
+
+static void tty_notify_inactive(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  if (tty->t_ops.t_notify_inactive)
+    tty->t_ops.t_notify_inactive(tty);
 }
 
 /* Line buffer helper functions */
@@ -416,21 +435,23 @@ static int tty_wait_background(tty_t *tty, int sig) {
   }
 }
 
-static void tty_bell(tty_t *tty) {
+static void tty_in_hiwat(tty_t *tty) {
+  tty->t_flags |= TF_IN_HIWAT;
+
   if (tty->t_iflag & IMAXBEL) {
     tty_output(tty, CTRL('g'));
     tty_notify_out(tty);
   }
 }
 
-void tty_input(tty_t *tty, uint8_t c) {
+bool tty_input(tty_t *tty, uint8_t c) {
   int iflag = tty->t_iflag;
   int lflag = tty->t_lflag;
   uint8_t *cc = tty->t_cc;
 
   if (c == '\r') {
     if (iflag & IGNCR)
-      return;
+      return true;
     else if (iflag & ICRNL)
       c = '\n';
   } else if (c == '\n' && (iflag & INLCR)) {
@@ -446,7 +467,7 @@ void tty_input(tty_t *tty, uint8_t c) {
         tty_erase(tty, erased);
         tty_notify_out(tty);
       }
-      return;
+      return true;
     }
 
     if (CCEQ(cc[VKILL], c)) {
@@ -463,7 +484,7 @@ void tty_input(tty_t *tty, uint8_t c) {
         tty->t_rocount = 0;
       }
       tty_notify_out(tty);
-      return;
+      return true;
     }
 
     bool is_break = tty_is_break(tty, c);
@@ -472,8 +493,8 @@ void tty_input(tty_t *tty, uint8_t c) {
     if ((tty->t_inq.count + tty->t_line.ln_count >= TTY_QUEUE_SIZE - 1 ||
          tty->t_line.ln_count == LINEBUF_SIZE - 1) &&
         !is_break) {
-      tty_bell(tty);
-      return;
+      tty_in_hiwat(tty);
+      return false;
     }
 
     tty_line_putc(tty, c);
@@ -494,17 +515,29 @@ void tty_input(tty_t *tty, uint8_t c) {
         tty_output(tty, '\b');
     }
     tty_notify_out(tty);
-    return;
+    return true;
   } else {
     /* Raw (non-canonical) mode */
     if (tty->t_inq.count >= TTY_QUEUE_SIZE) {
-      tty_bell(tty);
-      return;
+      tty_in_hiwat(tty);
+      return false;
     }
 
     ringbuf_putb(&tty->t_inq, c);
     tty_wakeup(tty);
+    return true;
+  }
+}
+
+static void tty_check_in_lowat(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+
+  if (!(tty->t_flags & TF_IN_HIWAT))
     return;
+
+  if (tty->t_inq.count < TTY_IN_LOW_WATER) {
+    tty->t_flags &= ~TF_IN_HIWAT;
+    tty_notify_in(tty);
   }
 }
 
@@ -552,6 +585,8 @@ static int tty_read(file_t *f, uio_t *uio) {
       ringbuf_getb(&tty->t_inq, &c);
       error = uiomove(&c, 1, uio);
     }
+
+    tty_check_in_lowat(tty);
   }
 
   /* Don't report errors on partial reads. */
@@ -565,6 +600,7 @@ static void tty_discard_input(tty_t *tty) {
   assert(mtx_owned(&tty->t_lock));
   ringbuf_reset(&tty->t_inq);
   tty->t_line.ln_count = 0;
+  tty_check_in_lowat(tty);
 }
 
 /*
@@ -737,7 +773,12 @@ static void tty_drain_out(tty_t *tty) {
 }
 
 static int tty_vn_close(vnode_t *v, file_t *fp) {
-  /* TODO implement. */
+  tty_t *tty = devfs_node_data(v);
+  SCOPED_MTX_LOCK(&tty->t_lock);
+  assert(tty->t_opencount > 0);
+  tty->t_opencount--;
+  if (tty->t_opencount == 0)
+    tty_notify_inactive(tty);
   return 0;
 }
 
@@ -876,24 +917,22 @@ static fileops_t tty_fileops = {
  * and the terminal has no associated session, make this terminal
  * the controlling terminal for the session. */
 static void maybe_assoc_ctty(proc_t *p, tty_t *tty) {
-  SCOPED_MTX_LOCK(all_proc_mtx);
+  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&tty->t_lock));
 
   if (!proc_is_session_leader(p))
     return;
-
-  WITH_MTX_LOCK (&tty->t_lock) {
-    if (tty->t_session != NULL)
-      return;
-    session_t *s = p->p_pgrp->pg_session;
-    if (s->s_tty != NULL)
-      return;
-    tty->t_session = s;
-    s->s_tty = tty;
-    tty->t_pgrp = p->p_pgrp;
-  }
+  if (tty->t_session != NULL)
+    return;
+  session_t *s = p->p_pgrp->pg_session;
+  if (s->s_tty != NULL)
+    return;
+  tty->t_session = s;
+  s->s_tty = tty;
+  tty->t_pgrp = p->p_pgrp;
 }
 
-static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
+static int _tty_vn_open(vnode_t *v, int mode, file_t *fp) {
   tty_t *tty = devfs_node_data(v);
   proc_t *p = proc_self();
   int error;
@@ -901,32 +940,43 @@ static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
   if ((error = vnode_open_generic(v, mode, fp)) != 0)
     return error;
 
-  maybe_assoc_ctty(p, tty);
+  WITH_MTX_LOCK (&tty->t_lock) {
+    maybe_assoc_ctty(p, tty);
+
+    tty->t_opencount++;
+
+    if (tty->t_opencount == 1)
+      tty_notify_active(tty);
+  }
 
   fp->f_ops = &tty_fileops;
   fp->f_data = tty;
   return error;
 }
 
-vnodeops_t tty_vnodeops = {.v_open = tty_vn_open, .v_close = tty_vn_close};
+static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
+  SCOPED_MTX_LOCK(all_proc_mtx);
+  return _tty_vn_open(v, mode, fp);
+}
+
+static vnodeops_t tty_vnodeops = {.v_open = tty_vn_open,
+                                  .v_close = tty_vn_close};
+
+int tty_makedev(devfs_node_t *parent, const char *name, tty_t *tty) {
+  return devfs_makedev(parent, name, &tty_vnodeops, tty, &tty->t_vnode);
+}
 
 /* Controlling terminal pseudo-device (/dev/tty) */
 
 static int dev_tty_open(vnode_t *v, int mode, file_t *fp) {
   proc_t *p = proc_self();
-  int error;
 
   SCOPED_MTX_LOCK(all_proc_mtx);
   tty_t *tty = p->p_pgrp->pg_session->s_tty;
   if (!tty)
     return ENXIO;
 
-  if ((error = vnode_open_generic(tty->t_vnode, mode, fp)))
-    return error;
-
-  fp->f_ops = &tty_fileops;
-  fp->f_data = tty;
-  return error;
+  return _tty_vn_open(tty->t_vnode, mode, fp);
 }
 
 static vnodeops_t dev_tty_vnodeops = {.v_open = dev_tty_open};

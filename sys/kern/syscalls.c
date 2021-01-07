@@ -389,7 +389,7 @@ static int sys_dup2(proc_t *p, dup2_args_t *args, register_t *res) {
 }
 
 static int sys_fcntl(proc_t *p, fcntl_args_t *args, register_t *res) {
-  int error, value;
+  int error, value = 0;
   klog("fcntl(%d, %d, %ld)", SCARG(args, fd), SCARG(args, cmd),
        (long)SCARG(args, arg));
   error = do_fcntl(p, SCARG(args, fd), SCARG(args, cmd), (long)SCARG(args, arg),
