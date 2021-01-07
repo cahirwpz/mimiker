@@ -67,6 +67,7 @@ static inline bool is_valid_pde(pde_t pde) {
 }
 
 static inline pte_t empty_pte(pmap_t *pmap) {
+  assert(mtx_owned(&pmap->mtx));
   return (pmap == pmap_kernel()) ? PTE_GLOBAL : 0;
 }
 
@@ -79,18 +80,22 @@ static bool kern_addr_p(vaddr_t addr) {
 }
 
 inline vaddr_t pmap_start(pmap_t *pmap) {
+  assert(mtx_owned(&pmap->mtx));
   return pmap->asid ? PMAP_USER_BEGIN : PMAP_KERNEL_BEGIN;
 }
 
 inline vaddr_t pmap_end(pmap_t *pmap) {
+  assert(mtx_owned(&pmap->mtx));
   return pmap->asid ? PMAP_USER_END : PMAP_KERNEL_END;
 }
 
 inline bool pmap_address_p(pmap_t *pmap, vaddr_t va) {
+  assert(mtx_owned(&pmap->mtx));
   return pmap_start(pmap) <= va && va < pmap_end(pmap);
 }
 
 inline bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
+  assert(mtx_owned(&pmap->mtx));
   return pmap_start(pmap) <= start && end <= pmap_end(pmap);
 }
 
@@ -139,6 +144,7 @@ static void free_asid(asid_t asid) {
 
 static void pv_add(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
   assert(mtx_owned(pv_list_lock));
+  assert(mtx_owned(&pmap->mtx));
   pv_entry_t *pv = pool_alloc(P_PV, M_ZERO);
   pv->pmap = pmap;
   pv->va = va;
@@ -148,6 +154,7 @@ static void pv_add(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
 
 static pv_entry_t *pv_find(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
   assert(mtx_owned(pv_list_lock));
+  assert(mtx_owned(&pmap->mtx));
   pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
     if (pv->pmap == pmap && pv->va == va)
@@ -158,6 +165,7 @@ static pv_entry_t *pv_find(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
 
 static void pv_remove(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
   assert(mtx_owned(pv_list_lock));
+  assert(mtx_owned(&pmap->mtx));
   pv_entry_t *pv = pv_find(pmap, va, pg);
   assert(pv != NULL);
   TAILQ_REMOVE(&pg->pv_list, pv, page_link);
@@ -177,6 +185,7 @@ static vm_page_t *pmap_pagealloc(void) {
 
 /* Add PT to PD so kernel can handle access to @vaddr. */
 static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
+  assert(mtx_owned(&pmap->mtx));
   assert(!is_valid_pde(PDE_OF(pmap, vaddr)));
 
   vm_page_t *pg = pmap_pagealloc();
@@ -198,6 +207,7 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
 
 /*! \brief Reads the PTE mapping virtual address \a vaddr. */
 static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr) {
+  assert(mtx_owned(&pmap->mtx));
   pde_t pde = PDE_OF(pmap, vaddr);
   if (!is_valid_pde(pde))
     return 0;
@@ -207,6 +217,7 @@ static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr) {
 /*! \brief Writes \a pte as the new PTE mapping virtual address \a vaddr. */
 static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte,
                            unsigned flags) {
+  assert(mtx_owned(&pmap->mtx));
   unsigned cacheflags = flags & PMAP_CACHE_MASK;
 
   if (cacheflags == PMAP_NOCACHE)
@@ -259,6 +270,8 @@ void pmap_activate(pmap_t *umap) {
 void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
   pmap_t *pmap = pmap_kernel();
 
+  SCOPED_MTX_LOCK(&pmap->mtx);
+
   assert(page_aligned_p(pa) && page_aligned_p(va));
   assert(pmap_address_p(pmap, va));
   assert(pa != 0);
@@ -267,12 +280,13 @@ void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
 
   pte_t pte = vm_prot_map[prot] | PTE_GLOBAL;
 
-  WITH_MTX_LOCK (&pmap->mtx)
-    pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
+  pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
 }
 
 void pmap_kremove(vaddr_t va, size_t size) {
   pmap_t *pmap = pmap_kernel();
+
+  SCOPED_MTX_LOCK(&pmap->mtx);
 
   assert(page_aligned_p(va) && page_aligned_p(size));
   assert(pmap_contains_p(pmap, va, va + size));
@@ -280,10 +294,8 @@ void pmap_kremove(vaddr_t va, size_t size) {
   klog("%s: remove unmanaged mapping for %p - %p range", __func__, va,
        va + size - 1);
 
-  WITH_MTX_LOCK (&pmap->mtx) {
-    for (size_t off = 0; off < size; off += PAGESIZE)
-      pmap_pte_write(pmap, va + off, PTE_GLOBAL, 0);
-  }
+  for (size_t off = 0; off < size; off += PAGESIZE)
+    pmap_pte_write(pmap, va + off, PTE_GLOBAL, 0);
 }
 
 bool pmap_kextract(vaddr_t va, paddr_t *pap) {
@@ -311,6 +323,8 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
                 unsigned flags) {
   paddr_t pa = pg->paddr;
 
+  SCOPED_MTX_LOCK(&pmap->mtx);
+
   assert(page_aligned_p(va));
   assert(pmap_address_p(pmap, va));
 
@@ -322,55 +336,51 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   pte_t mask = kern_mapping ? (PTE_VALID | PTE_DIRTY) : 0;
   pte_t pte = (vm_prot_map[prot] & mask) | empty_pte(pmap);
 
-  WITH_MTX_LOCK (&pmap->mtx) {
-    WITH_MTX_LOCK (pv_list_lock) {
-      pv_entry_t *pv = pv_find(pmap, va, pg);
-      if (pv == NULL)
-        pv_add(pmap, va, pg);
-    }
-    if (kern_mapping)
-      pg->flags |= PG_MODIFIED | PG_REFERENCED;
-    else
-      pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
-    pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
+  WITH_MTX_LOCK (pv_list_lock) {
+    pv_entry_t *pv = pv_find(pmap, va, pg);
+    if (pv == NULL)
+      pv_add(pmap, va, pg);
   }
+  if (kern_mapping)
+    pg->flags |= PG_MODIFIED | PG_REFERENCED;
+  else
+    pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
+  pmap_pte_write(pmap, va, PTE_PFN(pa) | pte, flags);
 }
 
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
+  SCOPED_MTX_LOCK(&pmap->mtx);
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(pmap_contains_p(pmap, start, end));
 
   klog("Remove page mapping for address range %p-%p", start, end);
 
-  WITH_MTX_LOCK (&pmap->mtx) {
-    for (vaddr_t va = start; va < end; va += PAGESIZE) {
-      paddr_t pa;
-      if (pmap_extract_nolock(pmap, va, &pa)) {
-        vm_page_t *pg = vm_page_find(pa);
-        WITH_MTX_LOCK (pv_list_lock)
-          pv_remove(pmap, va, pg);
-        pmap_pte_write(pmap, va, empty_pte(pmap), 0);
-      }
+  for (vaddr_t va = start; va < end; va += PAGESIZE) {
+    paddr_t pa;
+    if (pmap_extract_nolock(pmap, va, &pa)) {
+      vm_page_t *pg = vm_page_find(pa);
+      WITH_MTX_LOCK (pv_list_lock)
+        pv_remove(pmap, va, pg);
+      pmap_pte_write(pmap, va, empty_pte(pmap), 0);
     }
-
-    /* TODO: Deallocate empty page table fragment by calling pmap_remove_pde. */
   }
+
+  /* TODO: Deallocate empty page table fragment by calling pmap_remove_pde. */
 }
 
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+  SCOPED_MTX_LOCK(&pmap->mtx);
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(pmap_contains_p(pmap, start, end));
 
   klog("Change protection bits to %x for address range %p-%p", prot, start,
        end);
 
-  WITH_MTX_LOCK (&pmap->mtx) {
-    for (vaddr_t va = start; va < end; va += PAGESIZE) {
-      pte_t pte = pmap_pte_read(pmap, va);
-      if (pte == 0)
-        continue;
-      pmap_pte_write(pmap, va, (pte & ~PTE_PROT_MASK) | vm_prot_map[prot], 0);
-    }
+  for (vaddr_t va = start; va < end; va += PAGESIZE) {
+    pte_t pte = pmap_pte_read(pmap, va);
+    if (pte == 0)
+      continue;
+    pmap_pte_write(pmap, va, (pte & ~PTE_PROT_MASK) | vm_prot_map[prot], 0);
   }
 }
 
@@ -385,9 +395,11 @@ void pmap_page_remove(vm_page_t *pg) {
     pv_entry_t *pv = TAILQ_FIRST(&pg->pv_list);
     pmap_t *pmap = pv->pmap;
     vaddr_t va = pv->va;
-    TAILQ_REMOVE(&pg->pv_list, pv, page_link);
-    TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
-    pmap_pte_write(pmap, va, empty_pte(pmap), 0);
+    WITH_MTX_LOCK (&pmap->mtx) {
+      TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+      TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+      pmap_pte_write(pmap, va, empty_pte(pmap), 0);
+    }
     pool_free(P_PV, pv);
   }
 }
@@ -479,26 +491,28 @@ pmap_t *pmap_new(void) {
 
 void pmap_delete(pmap_t *pmap) {
   assert(pmap != pmap_kernel());
-  while (!TAILQ_EMPTY(&pmap->pv_list)) {
-    pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
-    vm_page_t *pg;
-    paddr_t pa;
-    pmap_extract_nolock(pmap, pv->va, &pa);
-    pg = vm_page_find(pa);
-    WITH_MTX_LOCK (pv_list_lock)
-      TAILQ_REMOVE(&pg->pv_list, pv, page_link);
-    TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
-    pool_free(P_PV, pv);
-  }
+  WITH_MTX_LOCK (&pmap->mtx) {
+    while (!TAILQ_EMPTY(&pmap->pv_list)) {
+      pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
+      vm_page_t *pg;
+      paddr_t pa;
+      pmap_extract_nolock(pmap, pv->va, &pa);
+      pg = vm_page_find(pa);
+      WITH_MTX_LOCK (pv_list_lock)
+        TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+      TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+      pool_free(P_PV, pv);
+    }
 
-  while (!TAILQ_EMPTY(&pmap->pte_pages)) {
-    vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
-    TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
+    while (!TAILQ_EMPTY(&pmap->pte_pages)) {
+      vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
+      TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
+      vm_page_free(pg);
+    }
+
+    vm_page_t *pg = vm_page_find(MIPS_KSEG0_TO_PHYS(pmap->pde));
     vm_page_free(pg);
+    free_asid(pmap->asid);
   }
-
-  vm_page_t *pg = vm_page_find(MIPS_KSEG0_TO_PHYS(pmap->pde));
-  vm_page_free(pg);
-  free_asid(pmap->asid);
   pool_free(P_PMAP, pmap);
 }
