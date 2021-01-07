@@ -60,8 +60,10 @@ static int pty_read(file_t *f, uio_t *uio) {
     /* Don't wait for data if slave device isn't opened. */
     if (!tty_opened(tty))
       return 0;
-    if ((error = cv_wait_intr(&pty->pt_incv, &tty->t_lock)))
+    if (cv_wait_intr(&pty->pt_incv, &tty->t_lock)) {
+      error = ERESTARTSYS;
       break;
+    }
   }
 
   /* Don't report errors on partial reads. */
