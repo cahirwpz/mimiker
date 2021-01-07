@@ -365,7 +365,6 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         }
 
         refcnt_acquire(&backing->ref_counter);
-        vm_object_increase_pages_references(backing);
 
         flags |= VM_SEG_NEED_COPY;
         it->flags |= VM_SEG_NEED_COPY;
@@ -415,7 +414,7 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   vaddr_t offset = 0;
   vm_page_t *frame = NULL;
 
-  WITH_RW_LOCK (&obj->mtx, RW_READER) {
+  WITH_MTX_LOCK (&obj->mtx) {
     fault_page = fault_addr & -PAGESIZE;
     offset = fault_page - seg->start;
     frame = vm_object_find_page(obj, offset);
