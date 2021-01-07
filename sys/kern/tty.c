@@ -950,7 +950,7 @@ static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
   return 0;
 }
 
-static int tty_ioctl(file_t *f, u_long cmd, void *data) {
+int tty_ioctl(file_t *f, u_long cmd, void *data) {
   tty_t *tty = f->f_data;
 
   switch (cmd) {

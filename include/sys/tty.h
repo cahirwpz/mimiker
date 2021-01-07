@@ -175,6 +175,8 @@ void maybe_assoc_ctty(proc_t *p, tty_t *tty);
  */
 int tty_makedev(devfs_node_t *parent, const char *name, tty_t *tty);
 
+int tty_ioctl(file_t *f, u_long cmd, void *data);
+
 /*
  * Returns whether `tty` is the controlling terminal of process `p`.
  * Must be called with `tty->t_lock` and `p->p_lock` held.
