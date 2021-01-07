@@ -119,8 +119,8 @@ static int pty_close(file_t *f) {
   tty_t *tty = f->f_data;
   pty_t *pty = tty->t_data;
 
-  WITH_MTX_LOCK (&tty->t_lock)
-    tty_detach_driver(tty);
+  mtx_lock(&tty->t_lock);
+  tty_detach_driver(tty); /* Releases t_lock. */
   pty_free(pty);
   return 0;
 }
