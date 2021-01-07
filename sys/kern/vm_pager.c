@@ -28,7 +28,6 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
     vm_object_t *it = obj;
 
     while (pg == NULL && it->backing_object != NULL) {
-      SCOPED_MTX_LOCK(&it->backing_object->mtx);
       pg = vm_object_find_page(it->backing_object, offset);
       it = it->backing_object;
     }
