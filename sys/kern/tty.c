@@ -1027,10 +1027,7 @@ static fileops_t tty_fileops = {
   .fo_ioctl = tty_ioctl,
 };
 
-/* If the process is a session leader, the session has no associated terminal,
- * and the terminal has no associated session, make this terminal
- * the controlling terminal for the session. */
-static void maybe_assoc_ctty(proc_t *p, tty_t *tty) {
+void maybe_assoc_ctty(proc_t *p, tty_t *tty) {
   assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&tty->t_lock));
 
