@@ -383,8 +383,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   }
 }
 
-void pmap_protect_nolock(pmap_t *pmap, vaddr_t start, vaddr_t end,
-                         vm_prot_t prot) {
+void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(pmap_contains_p(pmap, start, end));
 
@@ -400,11 +399,6 @@ void pmap_protect_nolock(pmap_t *pmap, vaddr_t start, vaddr_t end,
       pmap_write_pte(pmap, ptep, pte);
     }
   }
-}
-
-void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
-  SCOPED_MTX_LOCK(pv_list_lock);
-  pmap_protect_nolock(pmap, start, end, prot);
 }
 
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
@@ -517,28 +511,25 @@ pmap_t *pmap_new(void) {
 void pmap_delete(pmap_t *pmap) {
   assert(pmap != pmap_kernel());
 
-  WITH_MTX_LOCK (&pmap->mtx) {
-    WITH_MTX_LOCK (pv_list_lock) {
-      while (!TAILQ_EMPTY(&pmap->pv_list)) {
-        pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
-        vm_page_t *pg;
-        paddr_t pa;
-        pmap_extract_nolock(pmap, pv->va, &pa);
-        pg = vm_page_find(pa);
-        TAILQ_REMOVE(&pg->pv_list, pv, page_link);
-        TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
-        pool_free(P_PV, pv);
-      }
-    }
-
-    while (!TAILQ_EMPTY(&pmap->pte_pages)) {
-      vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
-      TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
-      vm_page_free(pg);
-    }
-
-    free_asid(pmap->asid);
+  while (!TAILQ_EMPTY(&pmap->pv_list)) {
+    pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
+    vm_page_t *pg;
+    paddr_t pa;
+    pmap_extract_nolock(pmap, pv->va, &pa);
+    pg = vm_page_find(pa);
+    WITH_MTX_LOCK (pv_list_lock)
+      TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+    TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+    pool_free(P_PV, pv);
   }
+
+  while (!TAILQ_EMPTY(&pmap->pte_pages)) {
+    vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
+    TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
+    vm_page_free(pg);
+  }
+
+  free_asid(pmap->asid);
   pool_free(P_PMAP, pmap);
 }
 
