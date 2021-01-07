@@ -362,10 +362,10 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
           /* all pages in backing object are now read-only,
            * that refers also to pages which previously had VM_PROT_EXEC set */
           vm_object_set_prot(backing, VM_PROT_READ);
-          TAILQ_INSERT_HEAD(&backing->shadows_list, it->object, link);
+          TAILQ_INSERT_TAIL(&backing->shadows_list, it->object, link);
         }
 
-        TAILQ_INSERT_HEAD(&backing->shadows_list, obj, link);
+        TAILQ_INSERT_TAIL(&backing->shadows_list, obj, link);
         refcnt_acquire(&backing->ref_counter);
 
         flags |= VM_SEG_NEED_COPY;
