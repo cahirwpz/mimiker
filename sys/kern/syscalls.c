@@ -1089,7 +1089,7 @@ static int sys_posix_openpt(proc_t *p, posix_openpt_args_t *args,
 
   int flags = SCARG(args, flags);
 
-  klog("setlogin(%x)", flags);
+  klog("posix_openpt(0x%x)", flags);
 
   return do_posix_openpt(p, flags, res);
 }
