@@ -1002,6 +1002,12 @@ void tty_detach_driver(tty_t *tty) {
    * references to the vnode. We free it in tty_vn_reclaim, once all references
    * to the vnode are gone. */
   devfs_unlink(tty->t_vnode->v_data);
+  vnode_t *v = tty->t_vnode;
+  tty->t_vnode = NULL;
+  /* Unlock the tty before dropping our reference to the vnode,
+   * since we don't want to free the tty while holding its lock! */
+  mtx_unlock(&tty->t_lock);
+  vnode_drop(v);
 }
 
 /* We implement I/O operations as fileops in order to bypass
