@@ -20,20 +20,6 @@ typedef struct ide_state {
 #define out4b(addr, val) bus_write_4(ide->regs, (addr), (val))
 
 /*
-static intr_filter_t pit_intr(void *data) {
-  pit_state_t *pit = data;
-
-  WITH_SPIN_LOCK (&pit->lock) {
-    bintime_add_frac(&pit->time, pit->period_frac);
-    pit->overflow = false;
-    pit->last_cntr = pit_get_counter(pit);
-  }
-  tm_trigger(&pit->timer);
-  return IF_FILTERED;
-}
-*/
-
-/*
 BAR0: Base address of primary channel (I/O space), if it is 0x0 or 0x1, the port
 is 0x1F0. BAR1: Base address of primary channel control port (I/O space), if it
 is 0x0 or 0x1, the port is 0x3F6. BAR2: Base address of secondary channel (I/O
@@ -63,18 +49,6 @@ void read_sectors(ide_state_t *ide) {
 
   // reg cheat sheet https://www.bswd.com/idems100.pdf
 
-  /*
-    int __unused r0 = 0xf0, __unused r1 = 0xf0, __unused r2 = 0xf0,
-                 __unused r3 = 0xf0, __unused r4 = 0xf0, r5 = 0xf0,
-                 __unused r6 = 0xf0, __unused r7 = 0xf0;
-
-    for (int i = 0; i < 16; i++)
-      if (i != 10)
-        outb(i, 0xff);
-
-    for (int i = 0; i < 16; i++)
-      klog("%d  %d\n", i, inb(i));
-  */
   unsigned short a[256];
   for (int i = 0; i < 256; i++)
     a[i] = 1;
