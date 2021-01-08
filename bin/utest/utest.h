@@ -99,4 +99,6 @@ int test_get_set_groups(void);
 int test_sharing_memory_simple(void);
 int test_sharing_memory_child_and_grandchild(void);
 
+int test_pty_simple(void);
+
 #endif /* __UTEST_H__ */

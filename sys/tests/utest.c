@@ -155,3 +155,5 @@ UTEST_ADD_SIMPLE(get_set_groups);
 
 UTEST_ADD_SIMPLE(sharing_memory_simple);
 UTEST_ADD_SIMPLE(sharing_memory_child_and_grandchild);
+
+UTEST_ADD_SIMPLE(pty_simple);
