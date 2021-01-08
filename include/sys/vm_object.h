@@ -3,7 +3,7 @@
 
 #include <sys/vm.h>
 #include <sys/vm_pager.h>
-#include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/refcnt.h>
 #include <sys/vm_map.h>
 
@@ -15,7 +15,7 @@
  */
 
 typedef struct vm_object {
-  mtx_t mtx;
+  rwlock_t mtx;
   vm_pagelist_t list;   /* (@) List of pages */
   size_t npages;        /* (@) Number of pages */
   vm_pager_t *pager;    /* Pager type and page fault function for object */

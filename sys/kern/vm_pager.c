@@ -24,7 +24,7 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
   vm_page_t *pg = NULL;
   vm_page_t *new_pg = NULL;
 
-  WITH_MTX_LOCK (&obj->mtx) {
+  WITH_RW_LOCK (&obj->mtx, RW_READER) {
     vm_object_t *it = obj;
 
     while (pg == NULL && it->backing_object != NULL) {

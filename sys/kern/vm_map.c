@@ -418,7 +418,7 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   offset = fault_page - seg->start;
   frame = vm_object_find_page(obj, offset);
 
-  WITH_MTX_LOCK (&obj->mtx) {
+  WITH_RW_LOCK (&obj->mtx, RW_READER) {
     if (frame == NULL && (seg->flags & VM_SEG_NEED_COPY) &&
         fault_type == VM_PROT_READ && seg->prot == VM_PROT_READ) {
       vm_object_t *it = obj->backing_object;

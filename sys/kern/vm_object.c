@@ -11,14 +11,14 @@ static POOL_DEFINE(P_VMOBJ, "vm_object", sizeof(vm_object_t));
 vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   vm_object_t *obj = pool_alloc(P_VMOBJ, M_ZERO);
   TAILQ_INIT(&obj->list);
-  mtx_init(&obj->mtx, 0);
+  rw_init(&obj->mtx, NULL, 0);
   obj->pager = &pagers[type];
   obj->ref_counter = 1;
   return obj;
 }
 
 vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset) {
-  SCOPED_MTX_LOCK(&obj->mtx);
+  SCOPED_RW_ENTER(&obj->mtx, RW_READER);
 
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) {
@@ -37,7 +37,7 @@ void vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *pg) {
   pg->object = obj;
   pg->offset = offset;
 
-  SCOPED_MTX_LOCK(&obj->mtx);
+  SCOPED_RW_ENTER(&obj->mtx, RW_WRITER);
 
   vm_page_t *it;
   TAILQ_FOREACH (it, &obj->list, obj.list) {
@@ -66,12 +66,12 @@ static void vm_object_remove_page_nolock(vm_object_t *obj, vm_page_t *page) {
 }
 
 void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
-  SCOPED_MTX_LOCK(&obj->mtx);
+  SCOPED_RW_ENTER(&obj->mtx, RW_WRITER);
   vm_object_remove_page_nolock(obj, page);
 }
 
 void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
-  SCOPED_MTX_LOCK(&object->mtx);
+  SCOPED_RW_ENTER(&object->mtx, RW_WRITER);
 
   vm_page_t *pg, *next;
   TAILQ_FOREACH_SAFE (pg, &object->list, obj.list, next) {
@@ -83,7 +83,7 @@ void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
 }
 
 void vm_object_free(vm_object_t *obj) {
-  WITH_MTX_LOCK (&obj->mtx) {
+  WITH_RW_LOCK (&obj->mtx, RW_WRITER) {
     if (!refcnt_release(&obj->ref_counter)) {
       return;
     }
@@ -103,7 +103,7 @@ void vm_object_free(vm_object_t *obj) {
 vm_object_t *vm_object_clone(vm_object_t *obj) {
   vm_object_t *new_obj = vm_object_alloc(VM_DUMMY);
   new_obj->pager = obj->pager;
-  SCOPED_MTX_LOCK(&obj->mtx);
+  SCOPED_RW_ENTER(&obj->mtx, RW_READER);
 
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) {
@@ -116,7 +116,7 @@ vm_object_t *vm_object_clone(vm_object_t *obj) {
 }
 
 void vm_map_object_dump(vm_object_t *obj) {
-  SCOPED_MTX_LOCK(&obj->mtx);
+  SCOPED_RW_ENTER(&obj->mtx, RW_READER);
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) {
     klog("(vm-obj) offset: 0x%08lx, size: %ld", pg->offset, pg->size);
@@ -124,7 +124,7 @@ void vm_map_object_dump(vm_object_t *obj) {
 }
 
 void vm_object_set_prot(vm_object_t *obj, vm_prot_t prot) {
-  SCOPED_MTX_LOCK(&obj->mtx);
+  SCOPED_RW_ENTER(&obj->mtx, RW_WRITER);
 
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) { pmap_set_page_prot(pg, prot); }
