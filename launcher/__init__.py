@@ -51,6 +51,8 @@ CONFIG = {
                 'options': [
                     '-device', 'VGA',
                     '-device', 'rtl8139',
+                    '-device', 'piix4-ide',
+                    '-hda', '/home/tstach/mimiker/testdrive.img',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
                 'uarts': [
