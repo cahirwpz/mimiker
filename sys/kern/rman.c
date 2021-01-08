@@ -105,7 +105,7 @@ static int r_share_hit(resource_t *r, rman_addr_t start, size_t count,
                        res_flags_t flags) {
   size_t rsize = r->r_end - r->r_start + 1;
   return r_shareable(r) && (flags & RF_SHAREABLE) && rsize == count &&
-         r->r_start <= start;
+         r->r_start >= start;
 }
 
 resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
