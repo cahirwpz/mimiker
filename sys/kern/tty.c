@@ -1049,7 +1049,8 @@ static int _tty_vn_open(vnode_t *v, int mode, file_t *fp) {
     if ((error = vnode_open_generic(v, mode, fp)) != 0)
       return error;
 
-    maybe_assoc_ctty(p, tty);
+    if (!(mode & O_NOCTTY))
+      maybe_assoc_ctty(p, tty);
 
     tty->t_opencount++;
 
