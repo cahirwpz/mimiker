@@ -2,11 +2,21 @@
 #include <grp.h>
 
 const char *user_from_uid(uid_t uid, int noname) {
-  return NULL;
+  struct passwd *pw;
+  pw = getpwuid(uid);
+  if (pw == NULL)
+    return NULL;
+
+  return pw->pw_name;
 }
 
 const char *group_from_gid(gid_t gid, int noname) {
-  return NULL;
+  struct group *gr;
+  gr = getgrgid(gid);
+  if (gr == NULL)
+    return NULL;
+
+  return gr->gr_name;
 }
 
 int uid_from_user(const char *name, uid_t *uid) {
