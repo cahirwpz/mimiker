@@ -256,7 +256,6 @@ err:
 }
 
 static void init_pty(void) {
-  static devfs_node_t *pts_dir;
   if (devfs_makedir(NULL, "pts", &pts_dir) != 0)
     panic("failed to create /dev/pts directory");
   /* Initialize pty_array. */
