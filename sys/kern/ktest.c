@@ -137,7 +137,7 @@ inline static int test_is_autorunnable(test_entry_t *t) {
 static int test_name_compare(const void *a_, const void *b_) {
   const test_entry_t *a = *(test_entry_t **)a_;
   const test_entry_t *b = *(test_entry_t **)b_;
-  return strncmp(a->test_name, b->test_name, KTEST_NAME_MAX);
+  return strcmp(a->test_name, b->test_name);
 }
 
 static void print_tests(test_entry_t **tests, int count) {
