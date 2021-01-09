@@ -16,7 +16,17 @@
 #define RTL8139_VENDOR_ID 0x10ec
 #define RTL8139_DEVICE_ID 0x8139
 
+#define TX_BUF_NUM 4
+/* to be honest, the max size of tx buffer is 1792 - but now we alloc whole page
+ */
+#define TX_BUF_SIZE PAGESIZE
+#define RX_BUF_SIZE (2 * PAGESIZE)
+
 typedef TAILQ_HEAD(skb_list, sk_buff) skb_list_t;
+static uint8_t RL_TXSTAT[TX_BUF_NUM] = {RL_TXSTAT0, RL_TXSTAT1, RL_TXSTAT2,
+                                        RL_TXSTAT3};
+static uint8_t RL_TXADDR[TX_BUF_NUM] = {RL_TXADDR0, RL_TXADDR1, RL_TXADDR2,
+                                        RL_TXADDR3};
 
 struct sk_buff {
   TAILQ_ENTRY(sk_buff) queue;
@@ -29,7 +39,10 @@ typedef struct rtl8139_state {
   resource_t *irq_res;
   vaddr_t rx_buf;
   size_t rx_offset;
-  paddr_t paddr;
+  paddr_t rx_buf_paddr;
+  int tx_cur;
+  vaddr_t tx_buf[TX_BUF_NUM];
+  paddr_t tx_buf_paddr[TX_BUF_NUM];
   skb_list_t rx_queue;
   skb_list_t tx_queue;
 } rtl8139_state_t;
@@ -50,6 +63,18 @@ static int rtl_reset(rtl8139_state_t *state) {
   return 1;
 }
 
+static void send_dummy_ack(rtl8139_state_t *state) {
+  const uint32_t dummy_msg_size = 4 * sizeof(uint32_t);
+  const uint32_t dummy_msg[] = {0xFECAFECA, 0xFECAFECA, 0xFECAFECA, 0xFECAFECA};
+  int idx = state->tx_cur;
+
+  memcpy((uint32_t *)state->tx_buf[idx], dummy_msg, dummy_msg_size);
+  bus_write_4(state->regs, RL_TXSTAT[idx], dummy_msg_size);
+  state->tx_cur++;
+  if (state->tx_cur > 3)
+    state->tx_cur = 0;
+}
+
 static void do_receive(rtl8139_state_t *state) {
   /* the device insert their own header which contains size and status of packet
    */
@@ -65,7 +90,7 @@ static void do_receive(rtl8139_state_t *state) {
   TAILQ_INSERT_TAIL(&state->rx_queue, skb, queue);
 
   state->rx_offset += size + /* rtl8139 header */ 4;
-  bus_write_2(state->regs, RL_ISR, RL_ISR_RX_OK);
+  send_dummy_ack(state);
 }
 
 static void do_transceive(rtl8139_state_t *state) {
@@ -81,6 +106,7 @@ static intr_filter_t rtl8139_intr(void *data) {
   else if (status & RL_ISR_TX_OK)
     do_transceive(state);
 
+  bus_write_2(state->regs, RL_ISR, RL_ISR_RX_OK | RL_ISR_TX_OK);
   return IF_FILTERED;
 }
 
@@ -88,14 +114,14 @@ static int set_mem_contig_address(rtl8139_state_t *state) {
   paddr_t page2; /* address of second allocated page */
 
   /* set and check if any address is assigned */
-  if (!pmap_kextract(state->rx_buf, &state->paddr))
+  if (!pmap_kextract(state->rx_buf, &state->rx_buf_paddr))
     return -1;
 
   /* check if memory is contiguous */
   if (!pmap_kextract(state->rx_buf + PAGESIZE, &page2))
     return -1;
 
-  if (state->paddr + PAGESIZE != page2)
+  if (state->rx_buf_paddr + PAGESIZE != page2)
     return -1;
 
   return 0;
@@ -153,11 +179,19 @@ int rtl8139_attach(device_t *dev) {
   TAILQ_INIT(&state->rx_queue);
   TAILQ_INIT(&state->tx_queue);
   state->rx_offset = 0;
-  state->rx_buf = (vaddr_t)kmem_alloc(2 * PAGESIZE, M_ZERO);
+  state->rx_buf = (vaddr_t)kmem_alloc(RX_BUF_SIZE, M_ZERO);
   // TODO: mark this memory as PMAP_NOCACHE
   if (set_mem_contig_address(state)) {
     klog("failed to alloc contig memory");
     return ENXIO;
+  }
+
+  state->tx_cur = 0;
+  for (int i = 0; i < TX_BUF_NUM; ++i) {
+    state->tx_buf[i] = (vaddr_t)kmem_alloc(TX_BUF_SIZE, M_ZERO);
+    if (!pmap_kextract(state->tx_buf[i], &state->tx_buf_paddr[i]))
+      return ENXIO;
+    bus_write_4(state->regs, RL_TXADDR[i], state->tx_buf_paddr[i]);
   }
 
   if (rtl_reset(state)) {
@@ -166,10 +200,9 @@ int rtl8139_attach(device_t *dev) {
   }
 
   /* set-up address for dma */
-  bus_write_4(state->regs, RL_RXADDR, state->paddr);
+  bus_write_4(state->regs, RL_RXADDR, state->rx_buf_paddr);
   /* we want to receive all packets - promiscious mode */
-  /* 0xf - accept broadcast, multicast, physical match, all other packets
-   * (promisc) */
+  /* 0xf - accept broadcast, multicast, physical match, all other packets */
   /* 0x80 - wrap bit */
   bus_write_4(state->regs, RL_RXCFG, 0x8f);
   bus_write_1(state->regs, RL_COMMAND, RL_CMD_RX_ENB | RL_CMD_TX_ENB);

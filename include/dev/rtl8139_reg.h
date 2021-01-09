@@ -4,6 +4,16 @@
  * Copied from FreeBSD: sys/dev/rl/if_rlreg.h
  */
 
+#define RL_TXSTAT0 0x0010 /* status of TX descriptor 0 */
+#define RL_TXSTAT1 0x0014 /* status of TX descriptor 1 */
+#define RL_TXSTAT2 0x0018 /* status of TX descriptor 2 */
+#define RL_TXSTAT3 0x001C /* status of TX descriptor 3 */
+
+#define RL_TXADDR0 0x0020 /* address of TX descriptor 0 */
+#define RL_TXADDR1 0x0024 /* address of TX descriptor 1 */
+#define RL_TXADDR2 0x0028 /* address of TX descriptor 2 */
+#define RL_TXADDR3 0x002C /* address of TX descriptor 3 */
+
 #define RL_RXADDR 0x0030  /* RX ring start address */
 #define RL_COMMAND 0x0037 /* command register */
 #define RL_IMR 0x003C     /* interrupt mask register */
