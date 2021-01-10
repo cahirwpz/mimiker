@@ -151,14 +151,8 @@ static void tlb_exception_handler(ctx_t *ctx) {
       goto fault;
 
     if (code == EXC_TLBL) {
-      if (!pmap_check_page_protection(pg, VM_PROT_READ)) {
-        goto fault;
-      }
       pmap_set_referenced(pg);
     } else if (code == EXC_TLBS || code == EXC_MOD) {
-      if (!pmap_check_page_protection(pg, VM_PROT_WRITE)) {
-        goto fault;
-      }
       pmap_set_referenced(pg);
       pmap_set_modified(pg);
     } else {

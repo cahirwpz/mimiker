@@ -128,6 +128,6 @@ void vm_object_protect(vm_object_t *obj, vaddr_t start, vaddr_t end,
 
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) {
-    pmap_vm_page_protect(pg, start, end, prot);
+    pmap_page_protect(pg, start, end, prot);
   }
 }

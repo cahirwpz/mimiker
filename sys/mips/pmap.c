@@ -319,7 +319,8 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   bool kern_mapping = (pmap == pmap_kernel());
 
   /* Mark user pages as non-referenced & non-modified. */
-  pte_t pte = (vm_prot_map[prot] & ~PTE_VALID) | empty_pte(pmap);
+  pte_t mask = kern_mapping ? (PTE_VALID | PTE_DIRTY) : 0;
+  pte_t pte = (vm_prot_map[prot] & mask) | empty_pte(pmap);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     WITH_MTX_LOCK (pv_list_lock) {
@@ -364,17 +365,19 @@ void pmap_protect_nolock(pmap_t *pmap, vaddr_t start, vaddr_t end,
   klog("Change protection bits to %x for address range %p-%p", prot, start,
        end);
 
-  for (vaddr_t va = start; va < end; va += PAGESIZE) {
-    pte_t pte = pmap_pte_read(pmap, va);
-    if (pte == 0)
-      continue;
-    pmap_pte_write(pmap, va, (pte & ~PTE_PROT_MASK) | vm_prot_map[prot], 0);
+  WITH_MTX_LOCK (&pmap->mtx) {
+    for (vaddr_t va = start; va < end; va += PAGESIZE) {
+      pte_t pte = pmap_pte_read(pmap, va);
+      if (pte == 0)
+        continue;
+      pmap_pte_write(pmap, va, (pte & ~PTE_PROT_MASK) | vm_prot_map[prot], 0);
+    }
   }
 }
 
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   SCOPED_MTX_LOCK(&pmap->mtx);
-  return pmap_protect_nolock(pmap, start, end, prot);
+  pmap_protect_nolock(pmap, start, end, prot);
 }
 
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
@@ -506,8 +509,8 @@ void pmap_delete(pmap_t *pmap) {
   pool_free(P_PMAP, pmap);
 }
 
-void pmap_vm_page_protect(vm_page_t *pg, vaddr_t start, vaddr_t end,
-                          vm_prot_t prot) {
+void pmap_page_protect(vm_page_t *pg, vaddr_t start, vaddr_t end,
+                       vm_prot_t prot) {
   SCOPED_MTX_LOCK(pv_list_lock);
   pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
@@ -516,29 +519,4 @@ void pmap_vm_page_protect(vm_page_t *pg, vaddr_t start, vaddr_t end,
                           min(pv->va + PAGESIZE, end), prot);
     }
   }
-}
-
-bool pmap_check_page_protection(vm_page_t *pg, vm_prot_t wanted_prot) {
-  SCOPED_MTX_LOCK(pv_list_lock);
-  pv_entry_t *pv;
-  TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
-    pmap_t *pmap = pv->pmap;
-    WITH_MTX_LOCK (&pmap->mtx) {
-      for (vaddr_t va = pv->va; va < pv->va + pg->size * PAGESIZE;
-           va += PAGESIZE) {
-        pte_t pte = pmap_pte_read(pmap, va);
-
-        if (wanted_prot == VM_PROT_EXEC && (pte & PTE_NO_EXEC))
-          return false;
-
-        if (wanted_prot == VM_PROT_READ && (pte & PTE_NO_READ))
-          return false;
-
-        if (wanted_prot == VM_PROT_WRITE && !(pte & PTE_DIRTY))
-          return false;
-      }
-    }
-  }
-
-  return true;
 }
