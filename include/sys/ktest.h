@@ -10,8 +10,6 @@
 #include <sys/malloc.h>
 #include <stdbool.h>
 
-#define KTEST_NAME_MAX 40
-
 #define KTEST_SUCCESS 0
 #define KTEST_FAILURE 1
 
@@ -29,7 +27,7 @@
 #define KTEST_FLAG_RANDINT 0x10
 
 typedef struct {
-  const char test_name[KTEST_NAME_MAX];
+  const char *test_name;
   int (*test_func)(void);
   uint32_t flags;
   uint32_t randint_max;
