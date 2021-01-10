@@ -1,4 +1,4 @@
-#include <machine/vm_param.h>
+#include <sys/vm.h>
 
 int getpagesize(void) {
   return PAGESIZE;
