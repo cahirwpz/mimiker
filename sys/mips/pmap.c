@@ -139,7 +139,6 @@ static void free_asid(asid_t asid) {
 
 static void pv_add(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
   assert(mtx_owned(pv_list_lock));
-  assert(mtx_owned(&pmap->mtx));
   pv_entry_t *pv = pool_alloc(P_PV, M_ZERO);
   pv->pmap = pmap;
   pv->va = va;
@@ -149,7 +148,6 @@ static void pv_add(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
 
 static pv_entry_t *pv_find(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
   assert(mtx_owned(pv_list_lock));
-  assert(mtx_owned(&pmap->mtx));
   pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
     if (pv->pmap == pmap && pv->va == va)
@@ -160,7 +158,6 @@ static pv_entry_t *pv_find(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
 
 static void pv_remove(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
   assert(mtx_owned(pv_list_lock));
-  assert(mtx_owned(&pmap->mtx));
   pv_entry_t *pv = pv_find(pmap, va, pg);
   assert(pv != NULL);
   TAILQ_REMOVE(&pg->pv_list, pv, page_link);
@@ -180,7 +177,6 @@ static vm_page_t *pmap_pagealloc(void) {
 
 /* Add PT to PD so kernel can handle access to @vaddr. */
 static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
-  assert(mtx_owned(&pmap->mtx));
   assert(!is_valid_pde(PDE_OF(pmap, vaddr)));
 
   vm_page_t *pg = pmap_pagealloc();
@@ -202,7 +198,6 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
 
 /*! \brief Reads the PTE mapping virtual address \a vaddr. */
 static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr) {
-  assert(mtx_owned(&pmap->mtx));
   pde_t pde = PDE_OF(pmap, vaddr);
   if (!is_valid_pde(pde))
     return 0;
@@ -212,7 +207,6 @@ static pte_t pmap_pte_read(pmap_t *pmap, vaddr_t vaddr) {
 /*! \brief Writes \a pte as the new PTE mapping virtual address \a vaddr. */
 static void pmap_pte_write(pmap_t *pmap, vaddr_t vaddr, pte_t pte,
                            unsigned flags) {
-  assert(mtx_owned(&pmap->mtx));
   unsigned cacheflags = flags & PMAP_CACHE_MASK;
 
   if (cacheflags == PMAP_NOCACHE)
