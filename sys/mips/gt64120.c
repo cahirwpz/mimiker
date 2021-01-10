@@ -359,12 +359,6 @@ static int gt_pci_attach(device_t *pcib) {
   device_add_ioports(dev, 0, IO_TIMER1, IO_TMRSIZE);
   device_add_irq(dev, 0, 0);
 
-  /* IDE device */
-  dev = device_add_child(pcib, 4);
-  dev->bus = DEV_BUS_PCI;
-  device_add_ioports(dev, 0, IDE_IO_BEGIN, IDE_IO_SIZE);
-  // device_add_irq(dev, 0, 0);
-
   /* TODO: replace raw resource assignments by parsing FDT file. */
 
   return bus_generic_probe(pcib);

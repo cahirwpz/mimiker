@@ -49,6 +49,21 @@ void read_sectors(ide_state_t *ide) {
 
   // reg cheat sheet https://www.bswd.com/idems100.pdf
 
+  int __unused r0 = 0xf0, __unused r1 = 0xf0, __unused r2 = 0xf0,
+               __unused r3 = 0xf0, __unused r4 = 0xf0, r5 = 0xf0,
+               __unused r6 = 0xf0, __unused r7 = 0xf0;
+
+  for (int i = 0; i < 16; i++)
+    klog("%d  %d\n", i, inb(i));
+
+  klog("------------------\n");
+
+  for (int i = 0; i < 16; i++)
+    if (i != 10)
+      outb(i, 0xff);
+  for (int i = 0; i < 16; i++)
+    klog("%d  %d\n", i, inb(i));
+
   unsigned short a[256];
   for (int i = 0; i < 256; i++)
     a[i] = 1;
@@ -89,7 +104,7 @@ void read_sectors(ide_state_t *ide) {
 static int ide_attach(device_t *dev) {
   ide_state_t *ide = dev->state;
 
-  ide->regs = device_take_ioports(dev, 0, RF_ACTIVE);
+  ide->regs = device_take_ioports(dev, 4, RF_ACTIVE);
   assert(ide->regs != NULL);
 
   // ide->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
@@ -100,7 +115,12 @@ static int ide_attach(device_t *dev) {
 }
 
 static int ide_probe(device_t *dev) {
-  return dev->unit == 4; /* XXX: unit 4 assigned by gt_pci */
+  pci_device_t *pcid = pci_device_of(dev);
+
+  if (!pci_device_match(pcid, 0x8086, 0x7111))
+    return 0;
+
+  return 1;
 }
 
 /* clang-format off */
