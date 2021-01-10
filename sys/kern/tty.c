@@ -970,6 +970,7 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
 static void tty_hangup(tty_t *tty) {
   assert(mtx_owned(&tty->t_lock));
 
+  /* CLOCAL means we should ignore modem status changes. */
   if (!tty_opened(tty) || (tty->t_lflag & CLOCAL))
     return;
 
