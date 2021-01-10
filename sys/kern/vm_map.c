@@ -345,10 +345,15 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
       vm_segment_t *seg;
       vm_object_t *backing;
 
+      SCOPED_MTX_LOCK(&it->object->mtx);
+
       if (it->flags & VM_SEG_SHARED) {
         refcnt_acquire(&it->object->ref_counter);
         obj = it->object;
       } else {
+        /* check if this object didn't copy any page, if so,
+         * then we don't have to create another element in vm_objects chain,
+         * we can just use existing one */
         if ((it->flags & VM_SEG_NEED_COPY) != 0 && it->object->npages == 0) {
           obj = vm_object_alloc(VM_SHADOW);
           backing = it->object->backing_object;
