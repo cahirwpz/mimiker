@@ -56,30 +56,34 @@ NON_LEAF(setjmp, SETJMP_FRAME_SIZE, ra)
 	REG_S		s0, CALLFRAME_S0(sp)		# save S0
 	move		s0, a0				# save sigcontext
 
-	/* Get the signal mask. */
-	PTR_ADDU	a2, a0, UC_MASK
-	move		a1, zero
+	/* Get the signal mask (the value of `how` doesn't matter). */
+	PTR_ADDU	a2, a0, UC_MASK         # old mask
+	move		a1, zero                # new mask (NULL)
 	jal		_C_LABEL(sigprocmask)	# get current signal mask
 
 	/* Get the signal stack. */
-	move		a0, zero
+	move		a0, zero                        # new stack (NULL)
 	PTR_ADDU	a1, sp, CALLFRAME_SIZ		# pointer to stack_t
 	jal		_C_LABEL(sigaltstack)
-
-	INT_L		a0, UC_FLAGS(s0)
 
 	INT_L		v1, CALLFRAME_SIZ+SS_FLAGS(sp)
 							# get old ss_onstack
 	and		v1, v1, SS_ONSTACK		# extract onstack flag
-	or		v1, v1, a0
+        beq             v1, 0x0, 1f
+        nop
+	
+        INT_L		a0, UC_FLAGS(s0)
+        or              v1, a0, _UC_STACK
 
+	INT_S		v1, UC_FLAGS(s0)
+1:
 	move		a0, s0				# restore jmpbuf
-	INT_S		v1, UC_FLAGS(a0)
 
 	REG_L		s0, CALLFRAME_S0(sp)		# restore S0
 	REG_L		ra, CALLFRAME_RA(sp)		# restore RA
 	blt		v0, zero, botch		# check for sigaltstack() error
 	nop
+
 	/*
 	 * We know we won't need this routine's GP anymore.
 	 */
@@ -101,6 +105,7 @@ NON_LEAF(setjmp, SETJMP_FRAME_SIZE, ra)
 	REG_S	s8, UC_GREGS_S8(a0)
 	INT_L	v0, UC_FLAGS(a0)
 	or	v0, _UC_FPU
+        or      v0, _UC_CPU
 	INT_S	v0, UC_FLAGS(a0)	# sc_fpused = 1
 	cfc1	v0, $31
 	INT_S	v0, UC_FPREGS_FCSR(a0)

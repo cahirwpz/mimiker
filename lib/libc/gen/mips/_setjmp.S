@@ -63,12 +63,16 @@ LEAF(_setjmp)
 	REG_S	sp, UC_GREGS_SP(a0)
 	REG_S	s8, UC_GREGS_S8(a0)
 	/* In O32, FP registers F20 .. F23 are callee-saved. */
-	cfc1	v0, $31				# too bad cant check if FP used
-	FP_S	$f22, UC_FPREGS_F22(a0)
+        INT_L   v0, UC_FLAGS(a0)
+	or	v0, _UC_FPU
+        or      v0, _UC_CPU
+	INT_S	v0, UC_FLAGS(a0)
+	cfc1	v0, $31
+	INT_S	v0, UC_FPREGS_FCSR(a0)
 	FP_S	$f20, UC_FPREGS_F20(a0)
 	FP_S	$f21, UC_FPREGS_F21(a0)
+	FP_S	$f22, UC_FPREGS_F22(a0)
 	FP_S	$f23, UC_FPREGS_F23(a0)
-	INT_S	v0, UC_FPREGS_FCSR(a0)
 	REG_EPILOGUE
 
 	j	ra

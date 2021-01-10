@@ -67,7 +67,10 @@ define UC_FLAGS offsetof(ucontext_t, uc_flags)
 define UC_LINK offsetof(ucontext_t, uc_link)
 define UCONTEXT_SIZ sizeof(ucontext_t)
 
+define _UC_SIGMASK _UC_SIGMASK
+define _UC_CPU _UC_CPU
 define _UC_FPU _UC_FPU
+define _UC_STACK _UC_STACK
 
 define SS_SP offsetof(stack_t, ss_sp)
 define SS_SIZE offsetof(stack_t, ss_size)
