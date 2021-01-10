@@ -227,7 +227,6 @@ static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte) {
  */
 
 static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
-  assert(mtx_owned(&pmap->mtx));
   pde_t *pdep;
   paddr_t pa = pmap->pde;
 
