@@ -15,11 +15,11 @@ void init_prof(void) {
   void *profptr;
   gmonparam_t *p = &_gmonparam;
 
-  p->lowpc = rounddown((unsigned int)__kernel_start,
+  p->lowpc = rounddown((unsigned long)__kernel_start,
                        HISTFRACTION * sizeof(HISTFRACTION));
   /* TODO: Get the compiled kernel space end (kernel text end) */
   p->highpc =
-    roundup((unsigned int)__kernel_end, HISTFRACTION * sizeof(HISTFRACTION));
+    roundup((unsigned long)__kernel_end, HISTFRACTION * sizeof(HISTFRACTION));
   p->textsize = p->highpc - p->lowpc;
   p->hashfraction = HASHFRACTION;
   p->fromssize = p->textsize / HASHFRACTION;
