@@ -41,19 +41,17 @@
  * static buffer, both functions supply their own buffers to strerror_r().
  */
 
-void
-perror(const char *s)
-{
-	const char *separator;
-	char buf[NL_TEXTMAX];
+void perror(const char *s) {
+  const char *separator;
+  char buf[NL_TEXTMAX];
 
-	if (s == NULL)
-		s = "";
-	if (*s == '\0')
-		separator = "";
-	else
-		separator = ": ";
+  if (s == NULL)
+    s = "";
+  if (*s == '\0')
+    separator = "";
+  else
+    separator = ": ";
 
-	(void)strerror_r(errno, buf, sizeof(buf));
-	(void)fprintf(stderr, "%s%s%s\n", s, separator, buf);
+  (void)strerror_r(errno, buf, sizeof(buf));
+  (void)fprintf(stderr, "%s%s%s\n", s, separator, buf);
 }
