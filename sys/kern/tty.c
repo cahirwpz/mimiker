@@ -415,10 +415,10 @@ static void tty_wakeup(tty_t *tty) {
 }
 
 /*
- * Wait for our process group to become the foreground process group.
- * Heavily based on FreeBSD's implementation of this routine.
+ * Check whether we're allowed to continue with an operation.
+ * Heavily based on FreeBSD's tty_wait_background().
  */
-static int tty_wait_background(tty_t *tty, int sig) {
+static int tty_check_background(tty_t *tty, int sig) {
   thread_t *td = thread_self();
   proc_t *p = td->td_proc;
   pgrp_t *pg;
@@ -579,7 +579,7 @@ static int tty_do_read(file_t *f, uio_t *uio) {
       return ENXIO;
 
     while (true) {
-      if ((error = tty_wait_background(tty, SIGTTIN)))
+      if ((error = tty_check_background(tty, SIGTTIN)))
         return error;
 
       if (tty->t_inq.count > 0)
@@ -774,7 +774,7 @@ static int tty_write(file_t *f, uio_t *uio) {
 
     if (tty->t_lflag & TOSTOP) {
       /* Wait until we're the foreground process group. */
-      if ((error = tty_wait_background(tty, SIGTTOU)))
+      if ((error = tty_check_background(tty, SIGTTOU)))
         return error;
     }
 
