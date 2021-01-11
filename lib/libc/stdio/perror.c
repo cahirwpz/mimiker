@@ -1,13 +1,8 @@
-/*  $NetBSD: grp.h,v 1.24 2007/10/19 15:58:52 christos Exp $    */
+/*	$NetBSD: perror.c,v 1.24 2006/01/26 11:13:42 kleink Exp $	*/
 
-/*-
- * Copyright (c) 1989, 1993
- *  The Regents of the University of California.  All rights reserved.
- * (c) UNIX System Laboratories, Inc.
- * All or some portions of this file are derived from material licensed
- * to the University of California by American Telephone and Telegraph
- * Co. or Unix System Laboratories, Inc. and are reproduced herein with
- * the permission of UNIX System Laboratories, Inc.
+/*
+ * Copyright (c) 1988, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,41 +27,31 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *  @(#)grp.h   8.2 (Berkeley) 1/21/94
  */
 
-#ifndef _GRP_H_
-#define _GRP_H_
-
 #include <sys/cdefs.h>
-#include <sys/types.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+#include "extern.h"
 
-#define _PATH_GROUP "/etc/group"
+/*
+ * Since perror() is not allowed to change the contents of strerror()'s
+ * static buffer, both functions supply their own buffers to strerror_r().
+ */
 
-struct group {
-  const char *gr_name;       /* group name */
-  const char *gr_passwd;     /* group password */
-  gid_t gr_gid;              /* group id */
-  const char *const *gr_mem; /* group members */
-};
+void perror(const char *s) {
+  const char *separator;
+  char buf[NL_TEXTMAX];
 
-__BEGIN_DECLS
-int getgrouplist(const char *, gid_t, gid_t *, int *);
+  if (s == NULL)
+    s = "";
+  if (*s == '\0')
+    separator = "";
+  else
+    separator = ": ";
 
-struct group *getgrgid(gid_t);
-struct group *getgrnam(const char *);
-int getgrgid_r(gid_t, struct group *, char *, size_t, struct group **);
-int getgrnam_r(const char *, struct group *, char *, size_t, struct group **);
-struct group *getgrent(void);
-void setgrent(void);
-void endgrent(void);
-
-void setgrfile(const char *);
-int setgroupent(int);
-int getgrent_r(struct group *, char *, size_t, struct group **);
-const char *group_from_gid(gid_t, int);
-int gid_from_group(const char *, gid_t *);
-__END_DECLS
-
-#endif /* !_GRP_H_ */
+  (void)strerror_r(errno, buf, sizeof(buf));
+  (void)fprintf(stderr, "%s%s%s\n", s, separator, buf);
+}
