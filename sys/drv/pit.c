@@ -5,20 +5,10 @@
 #include <sys/pci.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
+#include <sys/time.h>
 #include <sys/timer.h>
 #include <sys/spinlock.h>
 #include <sys/devclass.h>
-
-/* It allows to extend the capacity
-   for counters with 16/32 bits */
-typedef union {
-  /* assumes little endian order */
-  struct {
-    uint32_t lo;
-    uint32_t hi;
-  };
-  uint64_t val;
-} counter_t;
 
 typedef struct pit_state {
   resource_t *regs;
@@ -27,7 +17,7 @@ typedef struct pit_state {
   timer_t timer;
   uint16_t period_cntr;      /* period as PIT counter value */
   uint16_t cntr16_prev_read; /* last read counter value */
-  counter_t cntr64;          /* counter value since timer initialization */
+  timercounter_t cntr64;          /* counter value since timer initialization */
   volatile bintime_t time;   /* last time measured by the timer */
 } pit_state_t;
 
