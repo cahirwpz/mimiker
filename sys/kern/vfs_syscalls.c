@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/libkern.h>
 #include <sys/statvfs.h>
+#include <sys/cred.h>
 
 static int vfs_nameresolveat(proc_t *p, int fdat, vnrstate_t *vs) {
   file_t *f;
@@ -33,7 +34,7 @@ static int vfs_namelookupat(proc_t *p, int fdat, uint32_t flags,
   vnrstate_t vs;
   int error;
 
-  if ((error = vnrstate_init(&vs, VNR_LOOKUP, flags, path)))
+  if ((error = vnrstate_init(&vs, VNR_LOOKUP, flags, path, &p->p_cred)))
     return error;
 
   error = vfs_nameresolveat(p, fdat, &vs);
@@ -56,13 +57,18 @@ static int vfs_create(proc_t *p, int fdat, char *pathname, int *flags, int mode,
   vnrstate_t vs;
   int error;
 
-  if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, pathname)))
+  if ((error =
+         vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, pathname, &p->p_cred)))
     return error;
 
   if ((error = vfs_nameresolveat(p, fdat, &vs)))
     goto fail;
 
   if (vs.vs_vp == NULL) {
+    if ((error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred))) {
+      vnode_put(vs.vs_dvp);
+      goto fail;
+    }
     vattr_t va;
     vattr_null(&va);
     va.va_mode = S_IFREG | (mode & ALLPERMS);
@@ -203,14 +209,14 @@ int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
   return error;
 }
 
-int do_mount(const char *fs, const char *path) {
+int do_mount(proc_t *p, const char *fs, const char *path) {
   vfsconf_t *vfs;
   vnode_t *v;
   int error;
 
   if (!(vfs = vfs_get_by_name(fs)))
     return EINVAL;
-  if ((error = vfs_namelookup(path, &v)))
+  if ((error = vfs_namelookup(path, &v, &p->p_cred)))
     return error;
 
   return vfs_domount(vfs, v);
@@ -234,7 +240,7 @@ int do_unlinkat(proc_t *p, int fd, char *path, int flag) {
   vnrstate_t vs;
   int error;
 
-  if ((error = vnrstate_init(&vs, VNR_DELETE, 0, path)))
+  if ((error = vnrstate_init(&vs, VNR_DELETE, 0, path, &p->p_cred)))
     return error;
 
   if ((error = vfs_nameresolveat(p, fd, &vs)))
@@ -247,12 +253,12 @@ int do_unlinkat(proc_t *p, int fd, char *path, int flag) {
   else if (vs.vs_vp->v_type == V_DIR) {
     if (!(flag & AT_REMOVEDIR))
       error = EPERM;
-    else
+    else if (!(error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred)))
       error = VOP_RMDIR(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
   } else {
     if (flag & AT_REMOVEDIR)
       error = ENOTDIR;
-    else
+    else if (!(error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred)))
       error = VOP_REMOVE(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
   }
 
@@ -268,7 +274,7 @@ int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
   vattr_t va;
   int error;
 
-  if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, path)))
+  if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, path, &p->p_cred)))
     return error;
 
   if ((error = vfs_nameresolveat(p, fd, &vs)))
@@ -277,6 +283,11 @@ int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
   if (vs.vs_vp != NULL) {
     vnode_drop_both(vs.vs_vp, vs.vs_dvp);
     error = EEXIST;
+    goto fail;
+  }
+
+  if ((error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred))) {
+    vnode_put(vs.vs_dvp);
     goto fail;
   }
 
@@ -382,7 +393,7 @@ int do_truncate(proc_t *p, char *path, off_t length) {
   int error;
   vnode_t *vn;
 
-  if ((error = vfs_namelookup(path, &vn)))
+  if ((error = vfs_namelookup(path, &vn, &p->p_cred)))
     return error;
   vnode_lock(vn);
   if (vn->v_type == V_DIR)
@@ -433,7 +444,7 @@ int do_chdir(proc_t *p, const char *path) {
   vnode_t *cwd;
   int error;
 
-  if ((error = vfs_namelookup(path, &cwd)))
+  if ((error = vfs_namelookup(path, &cwd, &p->p_cred)))
     return error;
 
   if (cwd->v_type != V_DIR) {
@@ -473,7 +484,7 @@ int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath) {
   vattr_t va;
   int error;
 
-  if ((error = vnrstate_init(&vs, VNR_CREATE, 0, linkpath)))
+  if ((error = vnrstate_init(&vs, VNR_CREATE, 0, linkpath, &p->p_cred)))
     return error;
 
   if ((error = vfs_nameresolveat(p, newdirfd, &vs)))
@@ -521,7 +532,8 @@ int do_linkat(proc_t *p, int fd, char *path, int linkfd, char *linkpath,
     goto fail1;
   }
 
-  if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, linkpath)))
+  if ((error =
+         vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, linkpath, &p->p_cred)))
     goto fail1;
 
   if ((error = vfs_nameresolveat(p, linkfd, &vs)))
@@ -628,7 +640,7 @@ int do_statvfs(proc_t *p, char *path, statvfs_t *buf) {
   vnode_t *v;
   int error;
 
-  if ((error = vfs_namelookup(path, &v)))
+  if ((error = vfs_namelookup(path, &v, &p->p_cred)))
     return error;
 
   memset(buf, 0, sizeof(*buf));

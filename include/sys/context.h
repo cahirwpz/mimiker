@@ -33,6 +33,11 @@ void mcontext_init(mcontext_t *ctx, void *pc, void *sp);
  * Useful for returning values from syscalls. */
 void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error);
 
+/*! \brief Set up the user context to restart a syscall.
+ *
+ * `ctx` is assumed to be exactly the same as it was on syscall entry. */
+void mcontext_restart_syscall(mcontext_t *ctx);
+
 /* This function stores the current context to @from, and resumes the
  * context stored in @to. It does not return immediatelly, it returns
  * only when the @from context is resumed.
