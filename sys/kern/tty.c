@@ -182,6 +182,11 @@ tty_t *tty_alloc(void) {
 void tty_free(tty_t *tty) {
   assert(!tty_opened(tty));
   assert(tty_detached(tty));
+  assert(!mtx_owned(&tty->t_lock));
+  mtx_destroy(&tty->t_lock);
+  cv_destroy(&tty->t_incv);
+  cv_destroy(&tty->t_outcv);
+  cv_destroy(&tty->t_serialize_cv);
   kfree(M_DEV, tty->t_line.ln_buf);
   kfree(M_DEV, tty->t_inq.data);
   kfree(M_DEV, tty->t_outq.data);
@@ -965,6 +970,7 @@ int tty_ioctl(file_t *f, u_long cmd, void *data) {
 static void tty_hangup(tty_t *tty) {
   assert(mtx_owned(&tty->t_lock));
 
+  /* CLOCAL means we should ignore modem status changes. */
   if (!tty_opened(tty) || (tty->t_lflag & CLOCAL))
     return;
 
