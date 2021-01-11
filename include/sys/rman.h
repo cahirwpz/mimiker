@@ -42,7 +42,7 @@ struct rman {
   rman_res_list_t rm_resources; /* resources managed by this resource manager */
 };
 
-/* !\brief Reserve a rman resource within given rman.
+/* !\brief Reserve an rman resource within given rman.
  *
  * Looks up a region of size `count` between `start` and `end` address.
  * Assigned starting address will be aligned to `alignment` which must be
