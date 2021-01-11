@@ -1,52 +1,41 @@
 TOPDIR = $(realpath ../..)
 
-PKG = atto
-URL = https://github.com/hughbarney/atto.git
+ATTO_URL = https://github.com/hughbarney/atto.git
 INCURSES_URL = https://github.com/infinnovation-dev/incurses.git
-INCURSES_DIR = incurses
-INCURSES_PATH = $(realpath $(INCURSES_DIR))
-INCURSES_LIBFILE = $(INCURSES_DIR)/libncursesw.a
-SRCDIR = $(PKG)
-PKG-CFLAGS = -I$(INCURSES_PATH)
-PKG-LDFLAGS = -L$(INCURSES_PATH)
+
+PROGRAM = atto
+BINDIR = usr/bin
+SOURCES = incurses/incurses.c \
+	  atto/command.c \
+	  atto/display.c \
+	  atto/gap.c \
+	  atto/key.c \
+	  atto/search.c \
+	  atto/buffer.c \
+	  atto/replace.c \
+	  atto/window.c \
+	  atto/complete.c \
+	  atto/hilite.c \
+	  atto/main.c
+
+FORMAT-EXCLUDE = $(SOURCES)
+
+# XXX Build fails if download is called for the first time.
 
 all: download build install
 
-$(PKG):
-	@echo "[GIT] clone $(URL) -> $@"
-	$(GIT) clone $(URL) $(PKG)
+atto:
+	@echo "[GIT] clone $(ATTO_URL) -> $@"
+	$(GIT) clone $(ATTO_URL) $@
 
-$(INCURSES_DIR):
+incurses:
 	@echo "[GIT] clone $(INCURSES_URL) -> $@"
 	$(GIT) clone $(INCURSES_URL) $@
 
-download-here: $(PKG) $(INCURSES_DIR)
+download-here: atto incurses
 
-$(INCURSES_DIR)/incurses.c: $(INCURSES_DIR)
+include $(TOPDIR)/build/build.prog.mk
 
-$(INCURSES_LIBFILE): $(INCURSES_DIR)/incurses.o
-
-build-here: $(INCURSES_LIBFILE)
-	@echo "[MAKE] build $(SRCDIR)"
-	$(MAKE) -C $(SRCDIR) CC="$(CC)" LD="$(LD)" \
-	  CFLAGS="$(CPPFLAGS) $(CFLAGS) $(PKG-CFLAGS)" \
-	  LDFLAGS="$(PKG-LDFLAGS) $(LDFLAGS)"
-
-install-here:
-	@echo "[INSTALL] $(SRCDIR)/atto -> /bin/atto"
-	$(INSTALL) -T $(SRCDIR)/atto $(SYSROOT)/bin/atto
-	@echo "[STRIP] /bin/atto"
-	$(STRIP) -s $(SYSROOT)/bin/atto
-
-clean-here:
-	@echo "[MAKE] clean $(SRCDIR)"
-	$(MAKE) -C $(SRCDIR) clean RM="$(RM)"
-	$(RM) $(INCURSES_LIBFILE) $(INCURSES_DIR)/incurses.o
-
-distclean-here:
-	$(RM) -r $(PKG) $(INCURSES_DIR)
-
-include $(TOPDIR)/build/flags.user.mk
-include $(TOPDIR)/build/common.mk
-
-CPPFLAGS += -UDEBUG
+CPPFLAGS += -Iincurses -UDEBUG
+WFLAGS += -Wno-strict-prototypes -Wno-implicit-fallthrough -Wno-sign-compare \
+          -Wno-char-subscripts
