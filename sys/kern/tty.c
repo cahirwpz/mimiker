@@ -120,7 +120,8 @@ unsigned char const char_type[] = {
 #define TTYSUP_IFLAG_CHANGE (INLCR | IGNCR | ICRNL | IMAXBEL)
 #define TTYSUP_OFLAG_CHANGE (OPOST | ONLCR | OCRNL | ONOCR | ONLRET)
 #define TTYSUP_LFLAG_CHANGE                                                    \
-  (ECHOKE | ECHOE | ECHOK | ECHO | ECHONL | ECHOCTL | ICANON | ISIG | TOSTOP)
+  (ECHOKE | ECHOE | ECHOK | ECHO | ECHONL | ECHOCTL | ICANON | ISIG | TOSTOP | \
+   NOFLSH)
 
 static bool tty_output(tty_t *tty, uint8_t c);
 
@@ -474,6 +475,31 @@ static void tty_in_hiwat(tty_t *tty) {
   }
 }
 
+static void tty_check_in_lowat(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+
+  if (!(tty->t_flags & TF_IN_HIWAT))
+    return;
+
+  if (tty->t_inq.count < TTY_IN_LOW_WATER) {
+    tty->t_flags &= ~TF_IN_HIWAT;
+    tty_notify_in(tty);
+  }
+}
+
+static void tty_discard_input(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  ringbuf_reset(&tty->t_inq);
+  tty->t_line.ln_count = 0;
+  tty_check_in_lowat(tty);
+}
+
+static void tty_discard_output(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  ringbuf_reset(&tty->t_outq);
+  cv_broadcast(&tty->t_outcv);
+}
+
 bool tty_input(tty_t *tty, uint8_t c) {
   int iflag = tty->t_iflag;
   int lflag = tty->t_lflag;
@@ -529,6 +555,10 @@ bool tty_input(tty_t *tty, uint8_t c) {
       }
 
       if (signal) {
+        if (!(lflag & NOFLSH)) {
+          tty_discard_input(tty);
+          tty_discard_output(tty);
+        }
         tty_echo(tty, c);
         pgrp_t *pg = tty->t_pgrp;
         if (pg)
@@ -578,18 +608,6 @@ bool tty_input(tty_t *tty, uint8_t c) {
     ringbuf_putb(&tty->t_inq, c);
     tty_wakeup(tty);
     return true;
-  }
-}
-
-static void tty_check_in_lowat(tty_t *tty) {
-  assert(mtx_owned(&tty->t_lock));
-
-  if (!(tty->t_flags & TF_IN_HIWAT))
-    return;
-
-  if (tty->t_inq.count < TTY_IN_LOW_WATER) {
-    tty->t_flags &= ~TF_IN_HIWAT;
-    tty_notify_in(tty);
   }
 }
 
@@ -659,13 +677,6 @@ static int tty_read(file_t *f, uio_t *uio) {
 
   /* Report EOF instead of error if the driver is detached. */
   return (error == ENXIO ? 0 : error);
-}
-
-static void tty_discard_input(tty_t *tty) {
-  assert(mtx_owned(&tty->t_lock));
-  ringbuf_reset(&tty->t_inq);
-  tty->t_line.ln_count = 0;
-  tty_check_in_lowat(tty);
 }
 
 /*
