@@ -514,6 +514,32 @@ bool tty_input(tty_t *tty, uint8_t c) {
     c = '\r';
   }
 
+  if (lflag & ISIG) {
+    signo_t signal = 0;
+    /* Signal processing. */
+    if (CCEQ(cc[VINTR], c)) {
+      signal = SIGINT;
+    } else if (CCEQ(cc[VQUIT], c)) {
+      signal = SIGQUIT;
+    } else if (CCEQ(cc[VSUSP], c)) {
+      signal = SIGTSTP;
+    }
+
+    if (signal) {
+      if (!(lflag & NOFLSH)) {
+        tty_discard_input(tty);
+        tty_discard_output(tty);
+      }
+      tty_echo(tty, c);
+      pgrp_t *pg = tty->t_pgrp;
+      if (pg)
+        WITH_MTX_LOCK (&pg->pg_lock)
+          sig_pgkill(pg, &DEF_KSI_RAW(signal));
+      tty_notify_out(tty);
+      return true;
+    }
+  }
+
   if (lflag & ICANON) {
     /* Canonical mode character processing takes place here. */
     if (CCEQ(cc[VERASE], c)) {
@@ -541,32 +567,6 @@ bool tty_input(tty_t *tty, uint8_t c) {
       }
       tty_notify_out(tty);
       return true;
-    }
-
-    if (lflag & ISIG) {
-      signo_t signal = 0;
-      /* Signal processing. */
-      if (CCEQ(cc[VINTR], c)) {
-        signal = SIGINT;
-      } else if (CCEQ(cc[VQUIT], c)) {
-        signal = SIGQUIT;
-      } else if (CCEQ(cc[VSUSP], c)) {
-        signal = SIGTSTP;
-      }
-
-      if (signal) {
-        if (!(lflag & NOFLSH)) {
-          tty_discard_input(tty);
-          tty_discard_output(tty);
-        }
-        tty_echo(tty, c);
-        pgrp_t *pg = tty->t_pgrp;
-        if (pg)
-          WITH_MTX_LOCK (&pg->pg_lock)
-            sig_pgkill(pg, &DEF_KSI_RAW(signal));
-        tty_notify_out(tty);
-        return true;
-      }
     }
 
     bool is_break = tty_is_break(tty, c);
