@@ -230,11 +230,12 @@ int vm_map_findspace(vm_map_t *map, vaddr_t *start_p, size_t length) {
   return vm_map_findspace_nolock(map, start_p, length, NULL);
 }
 
-int vm_map_preparespace_nolock(vm_map_t *map, vaddr_t start, size_t length) {
+static void vm_map_preparespace_nolock(vm_map_t *map, vaddr_t start,
+                                       size_t length) {
   assert(page_aligned_p(start) && page_aligned_p(length));
 
   if (!vm_map_contains_p(map, start, start + length))
-    return ENOMEM;
+    return;
 
   vm_segment_t *seg, *next;
   TAILQ_FOREACH_SAFE (seg, &map->entries, link, next) {
@@ -243,8 +244,6 @@ int vm_map_preparespace_nolock(vm_map_t *map, vaddr_t start, size_t length) {
       vm_segment_destroy(map, seg);
     }
   }
-
-  return 0;
 }
 
 int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {

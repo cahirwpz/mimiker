@@ -205,6 +205,55 @@ static int vm_map_insert_fixed(void) {
   return KTEST_SUCCESS;
 }
 
+static int vm_map_fixed_bad(void) {
+  /* This test mustn't be preempted since PCPU's user-space vm_map will not be
+   * restored while switching back. */
+  SCOPED_NO_PREEMPTION();
+
+  vm_map_t *orig = vm_map_user();
+
+  vm_map_t *umap = vm_map_new();
+  vm_map_activate(umap);
+
+  const vaddr_t addr0 = 0x10000000;
+  const vaddr_t addr1 = 0x10006000;
+  const vaddr_t addr2 = 0x10007000;
+  const vaddr_t addr3 = 0x10010000;
+
+  vm_segment_t *seg;
+  vaddr_t t;
+  int n;
+
+  seg = vm_segment_alloc(NULL, addr0, addr1, VM_PROT_NONE, VM_SEG_PRIVATE);
+  n = vm_map_insert(umap, seg, VM_FIXED);
+  assert(n == 0);
+
+  seg = vm_segment_alloc(NULL, addr2, addr3, VM_PROT_NONE, VM_SEG_PRIVATE);
+  n = vm_map_insert(umap, seg, VM_FIXED);
+  assert(n == 0);
+
+  t = addr1;
+  n = vm_map_findspace(umap, &t, PAGESIZE);
+  assert(n == 0 && t == addr1);
+
+  t = addr1;
+  n = vm_map_findspace(umap, &t, 9 * PAGESIZE);
+  assert(n == 0 && t == addr3);
+
+  t = addr1;
+  seg = vm_segment_alloc(NULL, addr3, addr3 + 0x90000000, VM_PROT_NONE,
+                         VM_SEG_PRIVATE);
+  n = vm_map_insert(umap, seg, VM_FIXED);
+  assert(n == ENOMEM);
+
+  vm_map_delete(umap);
+
+  /* Restore original vm_map */
+  vm_map_activate(orig);
+  return KTEST_SUCCESS;
+}
+
 KTEST_ADD(vm, paging_on_demand_and_memory_protection_demo, 0);
 KTEST_ADD(findspace, findspace_demo, 0);
 KTEST_ADD(vm_map_insert_fixed, vm_map_insert_fixed, 0);
+KTEST_ADD(vm_map_fixed_bad, vm_map_fixed_bad, 0);
