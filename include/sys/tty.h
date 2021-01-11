@@ -158,6 +158,7 @@ void tty_getc_done(tty_t *tty);
  * Existing reads and writes that have partially completed will return the
  * partial result to the caller.
  * Once the open count drops to 0, the tty will be deallocated.
+ * Must be called with tty->t_lock held, which it releases.
  */
 void tty_detach_driver(tty_t *tty);
 
@@ -177,7 +178,7 @@ static inline bool tty_is_ctty(tty_t *tty, proc_t *p) {
 }
 
 static inline bool tty_detached(tty_t *tty) {
-  return (tty->t_flags & TF_DRIVER_DETACHED);
+  return (tty->t_flags & TF_DRIVER_DETACHED) != 0;
 }
 
 static inline bool tty_opened(tty_t *tty) {
