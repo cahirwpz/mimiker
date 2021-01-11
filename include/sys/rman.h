@@ -12,10 +12,9 @@
 typedef uintptr_t rman_addr_t;
 typedef struct rman rman_t;
 typedef struct resource resource_t;
+typedef struct rman_resource rman_resource_t;
 typedef struct device device_t;
-typedef struct bus_space bus_space_t;
-typedef struct intr_handler intr_handler_t;
-typedef TAILQ_HEAD(res_list, resource) res_list_t;
+typedef TAILQ_HEAD(rman_res_list, rman_resource) rman_res_list_t;
 
 typedef enum {
   RF_RESERVED = 1,
@@ -26,35 +25,24 @@ typedef enum {
   RF_PREFETCHABLE = 4,
 } res_flags_t;
 
-struct resource {
-  bus_space_tag_t r_bus_tag;       /* bus space methods */
-  bus_space_handle_t r_bus_handle; /* bus space base address */
-  rman_t *r_rman;                  /* resource manager of this resource */
-  rman_addr_t r_start;             /* first physical address of the resource */
-  rman_addr_t r_end;               /* last (inclusive) physical address */
-  /* auxiliary data associated with a resource */
-  union {
-    intr_handler_t *r_handler;
-  };
-  int r_rid;                    /* resource identifier */
-  res_flags_t r_flags;          /* or'ed RF_* values */
-  TAILQ_ENTRY(resource) r_link; /* link on resource manager list */
-};
-
 /*! \brief Calculate resource size. */
-static inline bus_size_t resource_size(resource_t *r) {
-  return r->r_end - r->r_start + 1;
-}
+bus_size_t resource_size(resource_t *r);
+
+/*! \brief Return resource start address within the rman range. */
+rman_addr_t resource_start(resource_t *r);
+
+/*! \brief Check whether a resource is active. */
+bool resource_active(resource_t *r);
 
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
 
 struct rman {
-  mtx_t rm_lock;           /* protects all fields of resource manager */
-  const char *rm_name;     /* description of the resource manager */
-  res_list_t rm_resources; /* resources managed by this resource manager */
+  mtx_t rm_lock;                /* protects all fields of resource manager */
+  const char *rm_name;          /* description of the resource manager */
+  rman_res_list_t rm_resources; /* resources managed by this resource manager */
 };
 
-/* !\brief Allocate resource within given rman.
+/* !\brief Reserve a rman resource within given rman.
  *
  * Looks up a region of size `count` between `start` and `end` address.
  * Assigned starting address will be aligned to `alignment` which must be
@@ -62,18 +50,18 @@ struct rman {
  *
  * \returns NULL if could not allocate a resource
  */
-resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
-                                  rman_addr_t end, size_t count,
-                                  size_t alignment, res_flags_t flags);
+rman_resource_t *rman_reserve_resource(rman_t *rm, rman_addr_t start,
+                                       rman_addr_t end, size_t count,
+                                       size_t alignment, res_flags_t flags);
 
 /*! \brief Removes a resource from its resource manager and releases memory. */
-void rman_release_resource(resource_t *r);
+void rman_release_resource(rman_resource_t *r);
 
 /*! \brief Marks resource as ready to be used with bus_space interface. */
-void rman_activate_resource(resource_t *r);
+void rman_activate_resource(rman_resource_t *r);
 
 /*! \brief Marks resource as deactivated. */
-void rman_deactivate_resource(resource_t *r);
+void rman_deactivate_resource(rman_resource_t *r);
 
 /* !\brief Initializes resource manager for further use. */
 void rman_init(rman_t *rm, const char *name);

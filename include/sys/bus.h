@@ -137,12 +137,11 @@ struct bus_methods {
   void (*intr_setup)(device_t *dev, resource_t *irq, ih_filter_t *filter,
                      ih_service_t *service, void *arg, const char *name);
   void (*intr_teardown)(device_t *dev, resource_t *irq);
-  resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
-                                rman_addr_t start, rman_addr_t end, size_t size,
-                                res_flags_t flags);
-  void (*release_resource)(device_t *dev, res_type_t type, resource_t *r);
-  int (*activate_resource)(device_t *dev, res_type_t type, resource_t *r);
-  void (*deactivate_resource)(device_t *dev, res_type_t type, resource_t *r);
+  void (*alloc_resource)(device_t *dev, resource_t *r, rman_addr_t start,
+                         rman_addr_t end, size_t size, res_flags_t flags);
+  void (*release_resource)(device_t *dev, resource_t *r);
+  int (*activate_resource)(device_t *dev, resource_t *r);
+  void (*deactivate_resource)(device_t *dev, resource_t *r);
 };
 
 #define BUS_METHODS(dev) (*(bus_methods_t *)(dev)->driver->interfaces[DIF_BUS])
@@ -157,25 +156,23 @@ static inline void bus_intr_teardown(device_t *dev, resource_t *irq) {
   BUS_METHODS(dev->parent).intr_teardown(dev, irq);
 }
 
-/*! \brief Allocates a resource of type \a type and size \a size between
- * \a start and \a end for a device \a dev.
+/*! \brief Bus dependent part of resource allocation.
  *
- * Should be called inside device's \fn attach function.
+ * This function is only called within the `device_add_resource` function.
+ * It's responsible for setting `r->r_res` and resource type dependent fields.
  *
  * \param dev device which needs resource
- * \param type resource type RT_* defined in rman.h
- * \param rid resource identifier as in \a resource_t structure
+ * \param r container for allocated hardware resources
  * \param start/end - range of the addresses from which the resource will be
  * allocated
  * \param size the size of the resource
  * \param flags RF_* flags defined in rman.h
  */
-static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
-                                             int rid, rman_addr_t start,
-                                             rman_addr_t end, size_t size,
-                                             res_flags_t flags) {
+static inline void bus_alloc_resource(device_t *dev, resource_t *r,
+                                      rman_addr_t start, rman_addr_t end,
+                                      size_t size, res_flags_t flags) {
   return BUS_METHODS(dev->parent)
-    .alloc_resource(dev, type, rid, start, end, size, flags);
+    .alloc_resource(dev, r, start, end, size, flags);
 }
 
 /*! \brief Activates resource for a device.
@@ -185,7 +182,7 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
  * It performs common tasks like: check if resource has been already activated,
  * mark resource as activated if the method returned success.
  */
-int bus_activate_resource(device_t *dev, res_type_t type, resource_t *r);
+int bus_activate_resource(device_t *dev, resource_t *r);
 
 /*! \brief Deactivates resource on device behalf.
  *
@@ -194,11 +191,10 @@ int bus_activate_resource(device_t *dev, res_type_t type, resource_t *r);
  * It performs common tasks like: check if resource has been already deactivated
  * and mark resource as dactivated.
  */
-void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r);
+void bus_deactivate_resource(device_t *dev, resource_t *r);
 
-static inline void bus_release_resource(device_t *dev, res_type_t type,
-                                        resource_t *r) {
-  BUS_METHODS(dev->parent).release_resource(dev, type, r);
+static inline void bus_release_resource(device_t *dev, resource_t *r) {
+  BUS_METHODS(dev->parent).release_resource(dev, r);
 }
 
 int bus_generic_probe(device_t *bus);

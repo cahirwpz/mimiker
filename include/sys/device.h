@@ -9,11 +9,29 @@
 typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;
-typedef struct bus_space bus_space_t;
+typedef struct intr_handler intr_handler_t;
 typedef TAILQ_HEAD(, device) device_list_t;
-typedef SLIST_HEAD(, resource_list_entry) resource_list_t;
+typedef SLIST_HEAD(, resource) resource_list_t;
 
 typedef enum { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
+
+struct resource {
+  SLIST_ENTRY(resource) r_link;
+  rman_resource_t *r_res; /* the corresponding rman resource */
+  /* data dependent on resource type */
+  union {
+    /* interrupts */
+    intr_handler_t *r_handler;
+
+    /* memoty and IO ports */
+    struct {
+      bus_space_tag_t r_bus_tag;       /* bus space methods */
+      bus_space_handle_t r_bus_handle; /* bus space base address */
+    };
+  };
+  res_type_t r_type; /* resource type */
+  int r_rid;         /* resource identifier */
+};
 
 /* Driver that returns the highest value from its probe action
  * will be selected for attach action. */
@@ -65,10 +83,12 @@ int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);
 
-/*! \brief Add a resource entry to resource list. */
-void device_add_resource(device_t *dev, res_type_t type, int rid,
-                         rman_addr_t start, rman_addr_t end, size_t size,
-                         res_flags_t flags);
+/*! \brief Assign a resource to a device.
+ * This function is mainly called by bus drivers but can be also
+ * used by other device drivers to gain new resources from parent bus. */
+resource_t *device_add_resource(device_t *dev, res_type_t type, int rid,
+                                rman_addr_t start, rman_addr_t end, size_t size,
+                                res_flags_t flags);
 
 #define device_add_memory(dev, rid, start, size)                               \
   device_add_resource((dev), RT_MEMORY, (rid), (start), (start) + (size)-1,    \
