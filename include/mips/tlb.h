@@ -30,6 +30,8 @@ typedef struct {
 /* MIPS® Architecture For Programmers Volume III, section 9.6 */
 #define PTE_NO_READ 0x80000000
 #define PTE_NO_EXEC 0x40000000
+#define PTE_READ 0x80000000
+#define PTE_WRITE 0x40000000
 #define PTE_PFN_MASK 0x3fffffc0
 #define PTE_PFN_SHIFT 6
 #define PTE_CACHE_MASK 0x00000038

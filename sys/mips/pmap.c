@@ -33,13 +33,17 @@ static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 
 static const pte_t vm_prot_map[] = {
   [VM_PROT_NONE] = 0,
-  [VM_PROT_READ] = PTE_VALID | PTE_NO_EXEC,
-  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_NO_READ | PTE_NO_EXEC,
-  [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_NO_EXEC,
-  [VM_PROT_EXEC] = PTE_VALID | PTE_NO_READ,
-  [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID,
-  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY | PTE_NO_READ,
-  [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
+  [VM_PROT_READ] = PTE_VALID | /*PTE_NO_EXEC*/ PTE_READ,
+  [VM_PROT_WRITE] =
+    PTE_VALID | PTE_DIRTY | /*PTE_NO_READ | PTE_NO_EXEC*/ PTE_WRITE,
+  [VM_PROT_READ | VM_PROT_WRITE] =
+    PTE_VALID | PTE_DIRTY | /*PTE_NO_EXEC*/ PTE_READ | PTE_WRITE,
+  [VM_PROT_EXEC] = PTE_VALID /*| PTE_NO_READ*/,
+  [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID | PTE_READ,
+  [VM_PROT_WRITE | VM_PROT_EXEC] =
+    PTE_VALID | PTE_DIRTY | /*PTE_NO_READ*/ PTE_WRITE,
+  [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] =
+    PTE_VALID | PTE_DIRTY | PTE_READ | PTE_WRITE,
 };
 
 static pmap_t kernel_pmap;
@@ -319,8 +323,8 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   bool kern_mapping = (pmap == pmap_kernel());
 
   /* Mark user pages as non-referenced & non-modified. */
-  pte_t mask = kern_mapping ? (PTE_VALID | PTE_DIRTY) : 0;
-  pte_t pte = (vm_prot_map[prot] & mask) | empty_pte(pmap);
+  pte_t mask = kern_mapping ? 0 : (PTE_VALID | PTE_DIRTY);
+  pte_t pte = (vm_prot_map[prot] & ~mask) | empty_pte(pmap);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     WITH_MTX_LOCK (pv_list_lock) {
