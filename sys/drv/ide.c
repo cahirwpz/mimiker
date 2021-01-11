@@ -9,6 +9,7 @@
 #include <sys/spinlock.h>
 #include <sys/devclass.h>
 #include <dev/atareg.h>
+#include <dev/pciidereg.h>
 
 typedef struct ide_state {
   resource_t *regs;
@@ -36,12 +37,17 @@ controls DMA on the primary and secondary channel respectively.
 #define STATUS_ERR 0x01
 
 static void ATA_wait_BSY(ide_state_t *ide) // Wait for bsy to be 0
-{
-  while (inb(7) & STATUS_BSY)
+{                                          /*
+                                           for (int i = 0; i < 1000000; i++)
+                                             ;
+                                           return;*/
+
+  while (inb(IDEDMA_CTL) & 0x01)
     ;
 }
 static void ATA_wait_DRQ(ide_state_t *ide) // Wait fot drq to be 1
 {
+  return;
   while (!(inb(7) & STATUS_RDY))
     ;
 }
@@ -49,40 +55,65 @@ void read_sectors(ide_state_t *ide) {
 
   // reg cheat sheet https://www.bswd.com/idems100.pdf
 
-  int __unused r0 = 0xf0, __unused r1 = 0xf0, __unused r2 = 0xf0,
-               __unused r3 = 0xf0, __unused r4 = 0xf0, r5 = 0xf0,
-               __unused r6 = 0xf0, __unused r7 = 0xf0;
-
-  for (int i = 0; i < 16; i++)
-    klog("%d  %d\n", i, inb(i));
-
-  klog("------------------\n");
-
-  for (int i = 0; i < 16; i++)
-    if (i != 10)
-      outb(i, 0xff);
-  for (int i = 0; i < 16; i++)
-    klog("%d  %d\n", i, inb(i));
-
   unsigned short a[256];
   for (int i = 0; i < 256; i++)
-    a[i] = 1;
+    a[i] = 2;
 
-  uint64_t prd[2];
+  struct idedma_table prd[1];
 
-  prd[0] = (uint32_t)a;
+  prd[0].base_addr = (uint32_t)a;
 
-  prd[1] = 128;
+  prd[0].byte_count = 1;
 
-  outb(0xc, (uint32_t)prd);
+  outb(IDEDMA_CMD, 0);
 
-  outb(0x8, 0);
-  outb(0xa, 6);
+  out4b(IDEDMA_TBL, (uint32_t)prd & IDEDMA_TBL_MASK);
 
-  outb(0x8, 1);
+  outb(IDEDMA_CTL, IDEDMA_CTL_INTR);
+
+  outb(IDEDMA_CTL, IDEDMA_CTL_ERR);
+
+  for (int i = 0; i < 8; i++)
+    klog("%d  %d\n", i, inb(i));
+
+  // outb(IDEDMA_CTL, IDEDMA_CTL_DRV_DMA(0));
+
+  outb(IDEDMA_CTL, IDEDMA_CTL_DRV_DMA(0));
+
+  for (int i = 0; i < 8; i++)
+    klog("%d  %d\n", i, inb(i));
+
+  outb(IDEDMA_CMD, IDEDMA_CMD_START);
+
+  klog("---------------------------");
+
+  for (int i = 0; i < 8; i++)
+    klog("%d  %d\n", i, inb(i));
+
+  /*
+  volatile int i_ = 0;
+  for (; i_ < 250000000; i_++)
+    ;
+    */
+
+  klog("---------------------------");
+
+  for (int i = 0; i < 8; i++)
+    klog("%d  %d\n", i, inb(i));
+
+  klog("%d\n", a[0]);
+
+  // panic();
+
+  // outb(0xc, (uint32_t)prd);
+
+  // outb(0x8, 0);
+  // outb(0xa, 6);
+
+  // outb(0x8, 1);
 
   ATA_wait_BSY(ide);
-
+  /*
   for (int i = 0; i < 16; i++)
     klog("%d  %d\n", i, inb(i));
   outb(5, 1);
@@ -91,14 +122,18 @@ void read_sectors(ide_state_t *ide) {
   outb(4, 0);
   outb(5, 0);
   outb(7, 0x20); // Send the read command
+  */
 
   uint16_t *target = (uint16_t *)a;
 
-  ATA_wait_BSY(ide);
   ATA_wait_DRQ(ide);
-  for (int i = 0; i < 256; i++)
-    target[i] = inb(0);
-  target += 256;
+  // for (int i = 0; i < 256; i++)
+  //  target[i] = inb(0);
+
+  klog("%d\n", target[0]);
+
+  while (true)
+    ;
 }
 
 static int ide_attach(device_t *dev) {
@@ -109,7 +144,7 @@ static int ide_attach(device_t *dev) {
 
   // ide->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
 
-  read_sectors(ide);
+  // read_sectors(ide);
 
   return 0;
 }
