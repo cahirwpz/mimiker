@@ -84,7 +84,8 @@ int device_attach(device_t *dev);
 int device_detach(device_t *dev);
 
 /*! \brief Assign a resource to a device.
- * This function is mainly called by bus drivers but can be also
+ *
+ * This function is mainly called by bus drivers but can also be
  * used by other device drivers to gain new resources from parent bus. */
 resource_t *device_add_resource(device_t *dev, res_type_t type, int rid,
                                 rman_addr_t start, rman_addr_t end, size_t size,
