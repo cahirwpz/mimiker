@@ -42,46 +42,46 @@ void __cyg_profile_func_exit(void *this_fn, void *call_site)
 
 #define MCOUNT_ASM_NAME "__mcount"
 
-#define	MCOUNT								\
-	__asm(".text");							\
-	__asm(".align	0");						\
-	__asm(".type	" MCOUNT_ASM_NAME ",@function");		\
-	__asm(".global	" MCOUNT_ASM_NAME);				\
-	__asm(MCOUNT_ASM_NAME ":");					\
-	/*								\
-	 * Preserve registers that are trashed during mcount		\
-	 */								\
-	__asm("stp	x29, x30, [sp, #-80]!");			\
-	__asm("stp	x0, x1, [sp, #16]");				\
-	__asm("stp	x2, x3, [sp, #32]");				\
-	__asm("stp	x4, x5, [sp, #48]");				\
-	__asm("stp	x6, x7, [sp, #64]");				\
-	/*								\
-	 * find the return address for mcount,				\
-	 * and the return address for mcount's caller.			\
-	 *								\
-	 * frompcindex = pc pushed by call into self.			\
-	 */								\
-	__asm("ldr	x0, [x29, #8]");				\
-	/*								\
-	 * selfpc = pc pushed by mcount call				\
-	 */								\
-	__asm("mov	x1, x30");					\
-	/*								\
-	 * Call the real mcount code					\
-	 */								\
-	__asm("bl	" ___STRING(_C_LABEL(_mcount)));		\
-	/*								\
-	 * Restore registers that were trashed during mcount		\
-	 */								\
-	__asm("ldp	x0, x1, [sp, #16]");				\
-	__asm("ldp	x2, x3, [sp, #32]");				\
-	__asm("ldp	x4, x5, [sp, #48]");				\
-	__asm("ldp	x6, x7, [sp, #64]");				\
-	__asm("ldp	x29, x30, [sp], #80");				\
-	__asm("ret");							\
-	__asm(".size	" MCOUNT_ASM_NAME ", .-" MCOUNT_ASM_NAME);
-  
+#define MCOUNT                                                                 \
+  __asm(".text");                                                              \
+  __asm(".align	0");                                                           \
+  __asm(".type	" MCOUNT_ASM_NAME ",@function");                               \
+  __asm(".global	" MCOUNT_ASM_NAME);                                    \
+  __asm(MCOUNT_ASM_NAME ":");                                                  \
+  /*                                                                           \
+   * Preserve registers that are trashed during mcount                         \
+   */                                                                          \
+  __asm("stp	x29, x30, [sp, #-80]!");                                       \
+  __asm("stp	x0, x1, [sp, #16]");                                           \
+  __asm("stp	x2, x3, [sp, #32]");                                           \
+  __asm("stp	x4, x5, [sp, #48]");                                           \
+  __asm("stp	x6, x7, [sp, #64]");                                           \
+  /*                                                                           \
+   * find the return address for mcount,                                       \
+   * and the return address for mcount's caller.                               \
+   *                                                                           \
+   * frompcindex = pc pushed by call into self.                                \
+   */                                                                          \
+  __asm("ldr	x0, [x29, #8]");                                               \
+  /*                                                                           \
+   * selfpc = pc pushed by mcount call                                         \
+   */                                                                          \
+  __asm("mov	x1, x30");                                                     \
+  /*                                                                           \
+   * Call the real mcount code                                                 \
+   */                                                                          \
+  __asm("bl	" ___STRING(_C_LABEL(_mcount)));                               \
+  /*                                                                           \
+   * Restore registers that were trashed during mcount                         \
+   */                                                                          \
+  __asm("ldp	x0, x1, [sp, #16]");                                           \
+  __asm("ldp	x2, x3, [sp, #32]");                                           \
+  __asm("ldp	x4, x5, [sp, #48]");                                           \
+  __asm("ldp	x6, x7, [sp, #64]");                                           \
+  __asm("ldp	x29, x30, [sp], #80");                                         \
+  __asm("ret");                                                                \
+  __asm(".size	" MCOUNT_ASM_NAME ", .-" MCOUNT_ASM_NAME);
+
 #define MCOUNT_ENTER cpu_intr_disable()
 
 #define MCOUNT_EXIT cpu_intr_enable()
