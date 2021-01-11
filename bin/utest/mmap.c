@@ -5,6 +5,9 @@
 #include <string.h>
 #include <assert.h>
 #include <sys/mman.h>
+#include <signal.h>
+#include <setjmp.h>
+#include <unistd.h>
 
 #define mmap_anon_prw(addr, length)                                            \
   mmap((addr), (length), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0)
@@ -91,5 +94,56 @@ int test_mmap(void) {
   mmap_with_hint();
   mmap_bad();
   munmap_bad();
+  return 0;
+}
+
+static volatile int sigsegv_handled = 0;
+static jmp_buf return_to;
+static void sigsegv_handler(int signo) {
+  printf("sigsegv handled!\n");
+  sigsegv_handled++;
+  longjmp(return_to, 5);
+}
+int test_mprotect(void) {
+  size_t pgsz = getpagesize();
+  signal(SIGSEGV, sigsegv_handler);
+  void *addr = mmap(NULL, pgsz * 8, PROT_READ, MAP_ANON | MAP_PRIVATE, -1, 0);
+  assert(addr != MAP_FAILED);
+  printf("mmap returned pointer: %p\n", addr);
+
+  /* Ensure mapped area is cleared. */
+  assert(*(char *)(addr + 100) == 0);
+  assert(*(char *)(addr + 1000) == 0);
+
+  sigsegv_handled = 0;
+
+  if (setjmp(return_to) == 0) {
+    printf("Try to write to readonly memory\n");
+    /* Try to write to readonly memory. It should raise SIGSEGV */
+    *(char *)addr = '9';
+  }
+
+  assert(sigsegv_handled == 1);
+  assert(*(char *)addr == 0);
+
+  /*int error;
+  error = mprotect(addr, pgsz, PROT_READ | PROT_WRITE);
+  assert(error == 0);
+
+  printf("sigsegv handled = %d\n", sigsegv_handled);
+  *(char *)addr = '1';
+  assert(*(char *)addr == '1');
+  assert(sigsegv_handled == 1);
+
+  if (setjmp(return_to) == 0) {
+    *(char *)(addr + pgsz + 1) = 7;
+    printf("sigsegv handled = %d\n", sigsegv_handled);
+    assert(*(char *)(addr + pgsz + 1) == 0);
+    assert(sigsegv_handled == 2);
+  }*/
+
+  /* restore original behavior */
+  signal(SIGSEGV, SIG_DFL);
+
   return 0;
 }
