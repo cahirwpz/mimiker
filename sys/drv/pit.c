@@ -17,7 +17,7 @@ typedef struct pit_state {
   timer_t timer;
   uint16_t period_cntr;      /* period as PIT counter value */
   uint16_t cntr16_prev_read; /* last read counter value */
-  timercounter_t cntr64;          /* counter value since timer initialization */
+  timercounter_t cntr64;     /* counter value since timer initialization */
   volatile bintime_t time;   /* last time measured by the timer */
 } pit_state_t;
 

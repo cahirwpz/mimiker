@@ -11,10 +11,12 @@
 #include <sys/timer.h>
 
 typedef struct mips_timer_state {
-  uint32_t period_cntr;       /* number of counter ticks in a period */
-  uint32_t last_count_lo;     /* used to detect counter overflow */
-  volatile timercounter_t count;   /* last written value of counter reg. (64 bits) */
-  volatile timercounter_t compare; /* last read value of compare reg. (64 bits) */
+  uint32_t period_cntr;   /* number of counter ticks in a period */
+  uint32_t last_count_lo; /* used to detect counter overflow */
+  volatile timercounter_t
+    count; /* last written value of counter reg. (64 bits) */
+  volatile timercounter_t
+    compare; /* last read value of compare reg. (64 bits) */
   timer_t timer;
   resource_t *irq_res;
 } mips_timer_state_t;
