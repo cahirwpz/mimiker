@@ -74,7 +74,6 @@ int do_munmap(vaddr_t addr, size_t length) {
       if (!seg)
         return EINVAL;
 
-      /* TODO We support unmaping entire segments only! */
       vaddr_t start = vm_segment_start(seg);
       vaddr_t end = vm_segment_end(seg);
 
