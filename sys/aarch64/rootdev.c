@@ -251,9 +251,9 @@ static void rootdev_alloc_resource(device_t *dev, resource_t *r,
 
   r->r_res = rman_reserve_resource(rman, start, end, size, alignment, flags);
 
-  if (type == RT_MEMORY) {
+  if (r->r_type == RT_MEMORY) {
     r->r_bus_tag = rootdev_bus_space;
-    r->r_bus_handle = r->r_start;
+    r->r_bus_handle = resource_start(r);
   }
 }
 
@@ -286,9 +286,10 @@ static driver_t rootdev_driver = {
   .size = sizeof(rootdev_t),
   .desc = "RPI3 platform root bus driver",
   .attach = rootdev_attach,
-  .interfaces = {
-    [DIF_BUS] = &rootdev_bus_if,
-  },
+  .interfaces =
+    {
+      [DIF_BUS] = &rootdev_bus_if,
+    },
 };
 
 static device_t rootdev = (device_t){
