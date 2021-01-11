@@ -165,7 +165,7 @@ tty_t *tty_alloc(void) {
                TTY_QUEUE_SIZE);
   cv_init(&tty->t_outcv, "t_outcv");
   cv_init(&tty->t_serialize_cv, "t_serialize_cv");
-  tty->t_line.ln_buf = kmalloc(M_TEMP, LINEBUF_SIZE, M_WAITOK);
+  tty->t_line.ln_buf = kmalloc(M_DEV, LINEBUF_SIZE, M_WAITOK);
   tty->t_line.ln_size = LINEBUF_SIZE;
   tty->t_line.ln_count = 0;
   tty_init_termios(&tty->t_termios);
@@ -177,6 +177,34 @@ tty_t *tty_alloc(void) {
   tty->t_flags = 0;
   tty->t_opencount = 0;
   return tty;
+}
+
+void tty_free(tty_t *tty) {
+  assert(!tty_opened(tty));
+  assert(tty_detached(tty));
+  assert(!mtx_owned(&tty->t_lock));
+  mtx_destroy(&tty->t_lock);
+  cv_destroy(&tty->t_incv);
+  cv_destroy(&tty->t_outcv);
+  cv_destroy(&tty->t_serialize_cv);
+  kfree(M_DEV, tty->t_line.ln_buf);
+  kfree(M_DEV, tty->t_inq.data);
+  kfree(M_DEV, tty->t_outq.data);
+  kfree(M_DEV, tty);
+}
+
+static int tty_wait(tty_t *tty, condvar_t *cv) {
+  assert(mtx_owned(&tty->t_lock));
+  assert(!tty_detached(tty));
+
+  int error;
+
+  error = cv_wait_intr(cv, &tty->t_lock);
+
+  if (tty_detached(tty))
+    return ENXIO;
+
+  return error;
 }
 
 /* Notify the serial device driver that there are characters
@@ -390,6 +418,7 @@ static int tty_wait_background(tty_t *tty, int sig) {
   thread_t *td = thread_self();
   proc_t *p = td->td_proc;
   pgrp_t *pg;
+  int error;
 
   assert(sig == SIGTTIN || sig == SIGTTOU);
   assert(mtx_owned(&tty->t_lock));
@@ -431,7 +460,8 @@ static int tty_wait_background(tty_t *tty, int sig) {
       sig_pgkill(pg, &DEF_KSI_RAW(sig));
     }
 
-    cv_wait(&tty->t_background_cv, &tty->t_lock);
+    if ((error = tty_wait(tty, &tty->t_background_cv)))
+      return error;
   }
 }
 
@@ -541,15 +571,16 @@ static void tty_check_in_lowat(tty_t *tty) {
   }
 }
 
-static int tty_read(file_t *f, uio_t *uio) {
+static int tty_do_read(file_t *f, uio_t *uio) {
   tty_t *tty = f->f_data;
   size_t start_resid = uio->uio_resid;
   int error = 0;
 
-  uio->uio_offset = 0; /* This device does not support offsets. */
-
   uint8_t c;
   WITH_MTX_LOCK (&tty->t_lock) {
+
+    if (tty_detached(tty))
+      return ENXIO;
 
     while (true) {
       if ((error = tty_wait_background(tty, SIGTTIN)))
@@ -558,7 +589,8 @@ static int tty_read(file_t *f, uio_t *uio) {
       if (tty->t_inq.count > 0)
         break;
 
-      cv_wait(&tty->t_incv, &tty->t_lock);
+      if ((error = tty_wait(tty, &tty->t_incv)))
+        return error;
       /* The foreground process group may have changed while
        * we were sleeping, so go to the beginning of the loop
        * and check again. */
@@ -594,6 +626,17 @@ static int tty_read(file_t *f, uio_t *uio) {
     error = 0;
 
   return error;
+}
+
+static int tty_read(file_t *f, uio_t *uio) {
+  int error;
+
+  uio->uio_offset = 0; /* This device does not support offsets. */
+
+  error = tty_do_read(f, uio);
+
+  /* Report EOF instead of error if the driver is detached. */
+  return (error == ENXIO ? 0 : error);
 }
 
 static void tty_discard_input(tty_t *tty) {
@@ -687,7 +730,8 @@ static bool tty_output(tty_t *tty, uint8_t c) {
  * If it can't immediately write the character due to lack of space
  * in the output queue, it goes to sleep waiting for space to become available.
  */
-static void tty_output_sleep(tty_t *tty, uint8_t c) {
+static int tty_output_sleep(tty_t *tty, uint8_t c) {
+  int error;
   while (!tty_output(tty, c)) {
     tty_notify_out(tty);
     /* tty_notify_out() can synchronously write characters to the device,
@@ -695,8 +739,10 @@ static void tty_output_sleep(tty_t *tty, uint8_t c) {
     if (tty->t_outq.count < TTY_OUT_LOW_WATER)
       continue;
     tty->t_flags |= TF_WAIT_OUT_LOWAT;
-    cv_wait(&tty->t_outcv, &tty->t_lock);
+    if ((error = tty_wait(tty, &tty->t_outcv)))
+      return error;
   }
+  return 0;
 }
 
 static int tty_do_write(tty_t *tty, uio_t *uio) {
@@ -707,7 +753,8 @@ static int tty_do_write(tty_t *tty, uio_t *uio) {
   while (uio->uio_resid > 0) {
     if ((error = uiomove(&c, 1, uio)))
       break;
-    tty_output_sleep(tty, c);
+    if ((error = tty_output_sleep(tty, c)))
+      break;
     tty->t_rocount = 0;
   }
   tty_notify_out(tty);
@@ -726,6 +773,9 @@ static int tty_write(file_t *f, uio_t *uio) {
   uio->uio_offset = 0; /* This device does not support offsets. */
 
   WITH_MTX_LOCK (&tty->t_lock) {
+    if (tty_detached(tty))
+      return ENXIO;
+
     if (tty->t_lflag & TOSTOP) {
       /* Wait until we're the foreground process group. */
       if ((error = tty_wait_background(tty, SIGTTOU)))
@@ -736,7 +786,8 @@ static int tty_write(file_t *f, uio_t *uio) {
      * We need to use TF_OUT_BUSY to serialize calls to tty_write(),
      * since tty_do_write() may sleep, releasing the tty lock. */
     while (tty->t_flags & TF_OUT_BUSY)
-      cv_wait(&tty->t_serialize_cv, &tty->t_lock);
+      if ((error = tty_wait(tty, &tty->t_serialize_cv)))
+        return error;
     tty->t_flags |= TF_OUT_BUSY;
 
     error = tty_do_write(tty, uio);
@@ -763,13 +814,16 @@ void tty_getc_done(tty_t *tty) {
     cv_broadcast(&tty->t_outcv);
 }
 
-static void tty_drain_out(tty_t *tty) {
+static int tty_drain_out(tty_t *tty) {
   assert(mtx_owned(&tty->t_lock));
+  int error;
 
   while (tty->t_outq.count > 0) {
     tty->t_flags |= TF_WAIT_DRAIN_OUT;
-    cv_wait(&tty->t_outcv, &tty->t_lock);
+    if ((error = tty_wait(tty, &tty->t_outcv)))
+      return error;
   }
+  return 0;
 }
 
 static int tty_vn_close(vnode_t *v, file_t *fp) {
@@ -795,15 +849,22 @@ static void tty_reinput(tty_t *tty) {
 
 static int tty_get_termios(tty_t *tty, struct termios *t) {
   SCOPED_MTX_LOCK(&tty->t_lock);
+  if (tty_detached(tty))
+    return ENXIO;
   memcpy(t, &tty->t_termios, sizeof(struct termios));
   return 0;
 }
 
 static int tty_set_termios(tty_t *tty, u_long cmd, struct termios *t) {
+  int error;
+
   SCOPED_MTX_LOCK(&tty->t_lock);
+  if (tty_detached(tty))
+    return ENXIO;
 
   if (cmd == TIOCSETAW || cmd == TIOCSETAF)
-    tty_drain_out(tty);
+    if ((error = tty_drain_out(tty)))
+      return error;
   if (cmd == TIOCSETAF)
     tty_discard_input(tty);
 
@@ -845,6 +906,8 @@ static int tty_set_termios(tty_t *tty, u_long cmd, struct termios *t) {
 
 static int tty_get_fg_pgrp(tty_t *tty, int *pgid_p) {
   SCOPED_MTX_LOCK(&tty->t_lock);
+  if (tty_detached(tty))
+    return ENXIO;
   proc_t *p = proc_self();
   if (tty->t_session != p->p_pgrp->pg_session)
     return ENOTTY;
@@ -860,11 +923,13 @@ static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
   WITH_MTX_LOCK (all_proc_mtx) {
     proc_t *p = proc_self();
     pgrp_t *pg = pgrp_lookup(pgid);
-    /* The target process group must be in the same session
-     * as the calling process. */
-    if (pg == NULL || pg->pg_session != p->p_pgrp->pg_session)
-      return EPERM;
     WITH_MTX_LOCK (&tty->t_lock) {
+      if (tty_detached(tty))
+        return ENXIO;
+      /* The target process group must be in the same session
+       * as the calling process. */
+      if (pg == NULL || pg->pg_session != p->p_pgrp->pg_session)
+        return EPERM;
       /* Calling process must be controlled by the terminal. */
       if (tty->t_session != p->p_pgrp->pg_session)
         return ENOTTY;
@@ -902,6 +967,55 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
   }
 }
 
+static void tty_hangup(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+
+  /* CLOCAL means we should ignore modem status changes. */
+  if (!tty_opened(tty) || (tty->t_lflag & CLOCAL))
+    return;
+
+  session_t *s = tty->t_session;
+
+  /* Send SIGHUP to session leader.
+   * NOTE: access to s_leader is safe here,
+   * even though we're not holding all_proc_mtx. See session_leave(). */
+  if (s && s->s_leader) {
+    proc_t *leader = s->s_leader;
+    WITH_PROC_LOCK(leader) {
+      sig_kill(leader, &DEF_KSI_RAW(SIGHUP));
+    }
+  }
+
+  tty_discard_input(tty);
+}
+
+void tty_detach_driver(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  assert(!tty_detached(tty));
+
+  /* Simulate a modem hangup. */
+  tty_hangup(tty);
+
+  tty->t_flags |= TF_DRIVER_DETACHED;
+
+  /* Wake up sleepers so that they abort. */
+  cv_broadcast(&tty->t_incv);
+  cv_broadcast(&tty->t_outcv);
+  cv_broadcast(&tty->t_serialize_cv);
+  cv_broadcast(&tty->t_background_cv);
+
+  /* We can't free the tty structure yet, as there may still be existing
+   * references to the vnode. We free it in tty_vn_reclaim, once all references
+   * to the vnode are gone. */
+  devfs_unlink(tty->t_vnode->v_data);
+  vnode_t *v = tty->t_vnode;
+  tty->t_vnode = NULL;
+  /* Unlock the tty before dropping our reference to the vnode,
+   * since we don't want to free the tty while holding its lock! */
+  mtx_unlock(&tty->t_lock);
+  vnode_drop(v);
+}
+
 /* We implement I/O operations as fileops in order to bypass
  * the vnode layer's locking. */
 static fileops_t tty_fileops = {
@@ -937,10 +1051,13 @@ static int _tty_vn_open(vnode_t *v, int mode, file_t *fp) {
   proc_t *p = proc_self();
   int error;
 
-  if ((error = vnode_open_generic(v, mode, fp)) != 0)
-    return error;
-
   WITH_MTX_LOCK (&tty->t_lock) {
+    if (tty_detached(tty))
+      return ENXIO;
+
+    if ((error = vnode_open_generic(v, mode, fp)) != 0)
+      return error;
+
     maybe_assoc_ctty(p, tty);
 
     tty->t_opencount++;
@@ -959,8 +1076,17 @@ static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
   return _tty_vn_open(v, mode, fp);
 }
 
-static vnodeops_t tty_vnodeops = {.v_open = tty_vn_open,
-                                  .v_close = tty_vn_close};
+static int tty_vn_reclaim(vnode_t *v) {
+  tty_free(devfs_node_data(v));
+  devfs_free(v->v_data);
+  return 0;
+}
+
+static vnodeops_t tty_vnodeops = {
+  .v_open = tty_vn_open,
+  .v_close = tty_vn_close,
+  .v_reclaim = tty_vn_reclaim,
+};
 
 int tty_makedev(devfs_node_t *parent, const char *name, tty_t *tty) {
   return devfs_makedev(parent, name, &tty_vnodeops, tty, &tty->t_vnode);
