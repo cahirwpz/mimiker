@@ -36,11 +36,13 @@ systime_t ts2hz(timespec_t *ts) {
     if (ticks <= UINT_MAX - nsectck - 1) {
       /* We are adding 1 for the current tick to expire */
       ticks += nsectck + 1;
-    } else
+    } else {
       ticks = UINT_MAX;
+    }
 
-  } else
+  } else {
     ticks = UINT_MAX;
+  }
 
   return ticks;
 }
