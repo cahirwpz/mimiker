@@ -37,12 +37,12 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_FILIO_H_
-#define	_SYS_FILIO_H_
+#ifndef _SYS_FILIO_H_
+#define _SYS_FILIO_H_
 
 #include <sys/ioccom.h>
 
 /* Generic file-descriptor ioctl's. */
-#define	FIONREAD	_IOR('f', 127, int)	/* get # bytes to read */
+#define FIONREAD _IOR('f', 127, int) /* get # bytes to read */
 
 #endif /* !_SYS_FILIO_H_ */
