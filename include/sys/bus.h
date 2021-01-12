@@ -148,7 +148,7 @@ struct bus_methods {
 #define BUS_METHODS(dev) (*(bus_methods_t *)(dev)->driver->interfaces[DIF_BUS])
 
 /* As for now this actually returns a child of the bus, see a comment 
- * above `device_if_find_impl` in sys/kern/device.c */
+ * above `device_if_find_impl` in include/sys/device.c */
 #define BUS_METHOD_IMPLEMENTATOR(dev, method)                                  \
   (device_if_find_impl((dev), DIF_BUS, offsetof(struct bus_methods, method)))
 

@@ -95,7 +95,7 @@ typedef struct pci_device {
   (*(pci_bus_methods_t *)(dev)->driver->interfaces[DIF_PCI_BUS])
 
 /* As for now this actually returns a child of the bus, see a comment 
- * above `device_if_find_impl` in sys/kern/device.c */
+ * above `device_if_find_impl` in include/sys/device.c */
 #define PCI_BUS_METHOD_IMPLEMENTATOR(dev, method)                              \
   (device_if_find_impl((dev), DIF_PCI_BUS,                                     \
                        offsetof(struct pci_bus_methods, method)))
