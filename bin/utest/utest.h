@@ -102,5 +102,6 @@ int test_sharing_memory_child_and_grandchild(void);
 int test_pty_simple(void);
 
 int test_tty_canon(void);
+int test_tty_echo(void);
 
 #endif /* __UTEST_H__ */

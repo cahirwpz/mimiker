@@ -82,3 +82,50 @@ int test_tty_canon(void) {
 
   return 0;
 }
+
+int test_tty_echo(void) {
+  int master_fd, slave_fd;
+  open_pty(&master_fd, &slave_fd);
+
+  /* Set raw mode and ECHO flag. */
+  struct termios t;
+  assert(tcgetattr(slave_fd, &t) == 0);
+  cfmakeraw(&t);
+  t.c_lflag &= ~ECHOCTL;
+  t.c_lflag |= ECHO;
+  assert(tcsetattr(slave_fd, TCSANOW, &t) == 0);
+
+  /* Non-control characters should be echoed. */
+  assert(write(master_fd, "hello", 5) == 5);
+  char buf[8];
+  assert(read(master_fd, buf, 5) == 5);
+  assert(strncmp(buf, "hello", 5) == 0);
+
+  /* Control characters should be echoed verbatim unless
+   * the ECHOCTL flag is set. */
+#define CTRL(x) (x & 037)
+  assert(write(master_fd, &(char){CTRL('c')}, 1) == 1);
+  assert(write(master_fd, "hello", 5) == 5);
+  assert(read(master_fd, buf, 6) == 6);
+  assert(buf[0] == CTRL('c'));
+  assert(strncmp(buf + 1, "hello", 5) == 0);
+
+  t.c_lflag |= ECHOCTL;
+  assert(tcsetattr(slave_fd, TCSANOW, &t) == 0);
+
+  assert(write(master_fd, &(char){CTRL('c')}, 1) == 1);
+  assert(write(master_fd, "hello", 5) == 5);
+  assert(read(master_fd, buf, 7) == 7);
+  assert(strncmp(buf, "^Chello", 7) == 0);
+
+  /* Turn off ECHO, but turn on ECHONL. Only newlines should be echoed. */
+  t.c_lflag &= ~(ECHO | ECHOCTL);
+  t.c_lflag |= ECHONL;
+  assert(tcsetattr(slave_fd, TCSANOW, &t) == 0);
+
+  assert(write(master_fd, "hello\n", 6) == 6);
+  assert(read(master_fd, buf, 1) == 1);
+  assert(buf[0] == '\n');
+
+  return 0;
+}
