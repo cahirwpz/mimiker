@@ -14,7 +14,7 @@ $(error PROGRAM is not set)
 endif
 
 SOURCES ?= $(PROGRAM).c
-BINDIR = $(shell echo $(DIR) | cut -f 1 -d / | tr . /)
+BINDIR ?= $(shell echo $(DIR) | cut -f 1 -d / | tr . /)
 
 BUILD-FILES += $(PROGRAM).uelf
 INSTALL-FILES += $(SYSROOT)/$(BINDIR)/$(PROGRAM)
