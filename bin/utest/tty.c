@@ -22,6 +22,7 @@ int test_tty_canon(void) {
   assert(tcgetattr(slave_fd, &t) == 0);
   t.c_lflag |= ICANON;
   t.c_lflag &= ~(ECHO | ECHONL);
+  assert(tcsetattr(slave_fd, TCSANOW, &t) == 0);
 
   /* Write an incomplete line to the master side -- the slave side shouldn't be
    * able to read any of it yet. */
