@@ -1,8 +1,8 @@
-/*  $NetBSD: grp.h,v 1.24 2007/10/19 15:58:52 christos Exp $    */
-
 /*-
- * Copyright (c) 1989, 1993
- *  The Regents of the University of California.  All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Copyright (c) 1982, 1986, 1990, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
  * All or some portions of this file are derived from material licensed
  * to the University of California by American Telephone and Telegraph
@@ -33,40 +33,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  @(#)grp.h   8.2 (Berkeley) 1/21/94
+ *	@(#)filio.h	8.1 (Berkeley) 3/28/94
+ * $FreeBSD$
  */
 
-#ifndef _GRP_H_
-#define _GRP_H_
+#ifndef _SYS_FILIO_H_
+#define _SYS_FILIO_H_
 
-#include <sys/cdefs.h>
-#include <sys/types.h>
+#include <sys/ioccom.h>
 
-#define _PATH_GROUP "/etc/group"
+/* Generic file-descriptor ioctl's. */
+#define FIONREAD _IOR('f', 127, int) /* get # bytes to read */
 
-struct group {
-  const char *gr_name;       /* group name */
-  const char *gr_passwd;     /* group password */
-  gid_t gr_gid;              /* group id */
-  const char *const *gr_mem; /* group members */
-};
-
-__BEGIN_DECLS
-int getgrouplist(const char *, gid_t, gid_t *, int *);
-
-struct group *getgrgid(gid_t);
-struct group *getgrnam(const char *);
-int getgrgid_r(gid_t, struct group *, char *, size_t, struct group **);
-int getgrnam_r(const char *, struct group *, char *, size_t, struct group **);
-struct group *getgrent(void);
-void setgrent(void);
-void endgrent(void);
-
-void setgrfile(const char *);
-int setgroupent(int);
-int getgrent_r(struct group *, char *, size_t, struct group **);
-const char *group_from_gid(gid_t, int);
-int gid_from_group(const char *, gid_t *);
-__END_DECLS
-
-#endif /* !_GRP_H_ */
+#endif /* !_SYS_FILIO_H_ */

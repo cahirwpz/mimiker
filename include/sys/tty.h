@@ -189,7 +189,7 @@ static inline bool tty_is_ctty(tty_t *tty, proc_t *p) {
 }
 
 static inline bool tty_detached(tty_t *tty) {
-  return (tty->t_flags & TF_DRIVER_DETACHED);
+  return (tty->t_flags & TF_DRIVER_DETACHED) != 0;
 }
 
 static inline bool tty_opened(tty_t *tty) {
