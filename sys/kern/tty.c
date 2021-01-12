@@ -124,6 +124,8 @@ unsigned char const char_type[] = {
    NOFLSH)
 
 static bool tty_output(tty_t *tty, uint8_t c);
+static void tty_discard_input(tty_t *tty);
+static void tty_discard_output(tty_t *tty);
 
 static inline bool tty_is_break(tty_t *tty, uint8_t c) {
   return (c == '\n' || ((c == tty->t_cc[VEOF] || c == tty->t_cc[VEOL]) &&
@@ -475,31 +477,6 @@ static void tty_in_hiwat(tty_t *tty) {
   }
 }
 
-static void tty_check_in_lowat(tty_t *tty) {
-  assert(mtx_owned(&tty->t_lock));
-
-  if (!(tty->t_flags & TF_IN_HIWAT))
-    return;
-
-  if (tty->t_inq.count < TTY_IN_LOW_WATER) {
-    tty->t_flags &= ~TF_IN_HIWAT;
-    tty_notify_in(tty);
-  }
-}
-
-static void tty_discard_input(tty_t *tty) {
-  assert(mtx_owned(&tty->t_lock));
-  ringbuf_reset(&tty->t_inq);
-  tty->t_line.ln_count = 0;
-  tty_check_in_lowat(tty);
-}
-
-static void tty_discard_output(tty_t *tty) {
-  assert(mtx_owned(&tty->t_lock));
-  ringbuf_reset(&tty->t_outq);
-  cv_broadcast(&tty->t_outcv);
-}
-
 bool tty_input(tty_t *tty, uint8_t c) {
   int iflag = tty->t_iflag;
   int lflag = tty->t_lflag;
@@ -611,6 +588,18 @@ bool tty_input(tty_t *tty, uint8_t c) {
   }
 }
 
+static void tty_check_in_lowat(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+
+  if (!(tty->t_flags & TF_IN_HIWAT))
+    return;
+
+  if (tty->t_inq.count < TTY_IN_LOW_WATER) {
+    tty->t_flags &= ~TF_IN_HIWAT;
+    tty_notify_in(tty);
+  }
+}
+
 static int tty_do_read(file_t *f, uio_t *uio) {
   tty_t *tty = f->f_data;
   size_t start_resid = uio->uio_resid;
@@ -677,6 +666,19 @@ static int tty_read(file_t *f, uio_t *uio) {
 
   /* Report EOF instead of error if the driver is detached. */
   return (error == ENXIO ? 0 : error);
+}
+
+static void tty_discard_input(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  ringbuf_reset(&tty->t_inq);
+  tty->t_line.ln_count = 0;
+  tty_check_in_lowat(tty);
+}
+
+static void tty_discard_output(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  ringbuf_reset(&tty->t_outq);
+  cv_broadcast(&tty->t_outcv);
 }
 
 /*
