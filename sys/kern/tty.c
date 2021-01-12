@@ -554,6 +554,7 @@ bool tty_input(tty_t *tty, uint8_t c) {
       return false;
     }
 
+    tty_echo(tty, c);
     ringbuf_putb(&tty->t_inq, c);
     tty_wakeup(tty);
     return true;
