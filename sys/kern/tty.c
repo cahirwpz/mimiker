@@ -157,7 +157,7 @@ static void tty_init_termios(struct termios *tio) {
 }
 
 tty_t *tty_alloc(void) {
-  tty_t *tty = kmalloc(M_DEV, sizeof(tty_t), M_WAITOK);
+  tty_t *tty = kmalloc(M_DEV, sizeof(tty_t), M_WAITOK | M_ZERO);
   mtx_init(&tty->t_lock, 0);
   ringbuf_init(&tty->t_inq, kmalloc(M_DEV, TTY_QUEUE_SIZE, M_WAITOK),
                TTY_QUEUE_SIZE);
@@ -168,15 +168,7 @@ tty_t *tty_alloc(void) {
   cv_init(&tty->t_serialize_cv, "t_serialize_cv");
   tty->t_line.ln_buf = kmalloc(M_DEV, LINEBUF_SIZE, M_WAITOK);
   tty->t_line.ln_size = LINEBUF_SIZE;
-  tty->t_line.ln_count = 0;
   tty_init_termios(&tty->t_termios);
-  tty->t_ops = (ttyops_t){0};
-  tty->t_data = NULL;
-  tty->t_column = 0;
-  tty->t_rocol = tty->t_rocount = 0;
-  tty->t_vnode = NULL;
-  tty->t_flags = 0;
-  tty->t_opencount = 0;
   return tty;
 }
 
