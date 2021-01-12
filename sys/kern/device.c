@@ -92,11 +92,20 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
   return rle->res;
 }
 
+/* As for now this actually returns a child of the bus, not the bus itself.
+ * This is consistent with the current method semantics. Hopefully the
+ * signatures will change in a future PR to be more suited for dispatching.
+ * Currently the information about the caller is lost as the `dev` argument is
+ * not guarenteed to be the caller, it's just a child of the bus. It just so
+ * happens that the current scenarios in which we'll need the dispatching
+ * don't require to know anything about the caller. Again, this will hopefully
+ * change with extesion of method semantics. */
 device_t *device_if_find_impl(device_t *dev, size_t iface,
                               size_t method_offset) {
-  while ((!dev->driver->interfaces[iface]) ||
-         (!*(vaddr_t **)(dev->driver->interfaces[iface] + method_offset))) {
-    assert(dev->parent);
+  while ((!dev->parent->driver->interfaces[iface]) ||
+         (!*(vaddr_t **)(dev->parent->driver->interfaces[iface]
+                         + method_offset))) {
+    assert(dev->parent->parent);
     dev = dev->parent;
   }
   return dev;
