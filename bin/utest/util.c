@@ -1,6 +1,9 @@
+#include <stdio.h>
 #include <assert.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <sys/wait.h>
+#include <sys/fcntl.h>
 
 void wait_for_child_exit(int pid, int exit_code) {
   int status;
@@ -25,4 +28,11 @@ void wait_for_signal(int signo, sigset_t *oldmask) {
   __sigfillset(&mask);
   sigdelset(&mask, signo);
   sigsuspend(&mask);
+}
+
+void open_pty(int *master_fd, int *slave_fd) {
+  *master_fd = posix_openpt(O_NOCTTY | O_RDWR);
+  assert(*master_fd >= 0);
+  *slave_fd = open(ptsname(*master_fd), O_NOCTTY | O_RDWR);
+  assert(*slave_fd >= 0);
 }

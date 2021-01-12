@@ -14,10 +14,8 @@
 static const char *test_str = "hello";
 
 int test_pty_simple(void) {
-  int master_fd = posix_openpt(O_NOCTTY | O_RDWR);
-  assert(master_fd >= 0);
-  int slave_fd = open(ptsname(master_fd), O_NOCTTY | O_RDWR);
-  assert(slave_fd >= 0);
+  int master_fd, slave_fd;
+  open_pty(&master_fd, &slave_fd);
 
   /* Put the tty into raw mode. */
   struct termios t;
