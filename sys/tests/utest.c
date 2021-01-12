@@ -157,3 +157,5 @@ UTEST_ADD_SIMPLE(sharing_memory_simple);
 UTEST_ADD_SIMPLE(sharing_memory_child_and_grandchild);
 
 UTEST_ADD_SIMPLE(pty_simple);
+
+UTEST_ADD_SIMPLE(tty_canon);

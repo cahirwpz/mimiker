@@ -20,6 +20,7 @@ SOURCES = \
 	setjmp.c \
 	sigaction.c \
 	time.c \
+	tty.c \
 	utest.c \
 	util.c \
 	vfs.c \
