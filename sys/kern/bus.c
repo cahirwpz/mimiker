@@ -124,15 +124,15 @@ int bus_generic_probe(device_t *bus) {
   TAILQ_FOREACH (dev, &bus->children, link) {
     driver_t **drv_p;
     DEVCLASS_FOREACH(drv_p, dc) {
-      driver_t *drv = *drv_p;
-      if (drv->pass != current_pass)
+      driver_t *driver = *drv_p;
+      if (driver->pass != current_pass)
         continue;
-      dev->driver = drv;
+      dev->driver = driver;
       if (device_probe(dev)) {
-        klog("%s detected!", dev->driver->desc);
+        klog("%s detected!", driver->desc);
         /* device_attach returns error ! */
         if (!device_attach(dev)) {
-          klog("%s attached to %p!", dev->driver->desc, dev);
+          klog("%s attached to %p!", driver->desc, dev);
           break;
         }
       }
@@ -141,8 +141,8 @@ int bus_generic_probe(device_t *bus) {
     if (device_bus(dev)) {
       /*
        * Bus attach function calls `bus_generic_probe`, but if
-       * the current pass number is different than the bus's pass numer
-       * or the bus doen't have a driver attached, then the attach function
+       * the current pass number is different than the bus's pass number
+       * or the bus doesn't have a driver attached, then the attach function
        * hasn't been called and we need to call `bus_generic_probe` directly.
        */
       driver_t *driver = dev->driver;
