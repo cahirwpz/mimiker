@@ -191,14 +191,21 @@ static driver_t rootdev_driver = {
     {
       [DIF_BUS] = &rootdev_bus_if,
     },
+  .pass = FIRST_PASS,
 };
 
 DEVCLASS_CREATE(root);
 
-void init_devices(void) {
-  device_t *rootdev = device_alloc(0);
-  rootdev->devclass = &DEVCLASS(root);
-  rootdev->driver = (driver_t *)&rootdev_driver;
-  (void)device_probe(rootdev);
-  device_attach(rootdev);
+void init_devices(pass_num_t pass) {
+  static device_t *rootdev;
+  current_pass = pass;
+  if (pass == FIRST_PASS) {
+    rootdev = device_alloc(0);
+    rootdev->devclass = &DEVCLASS(root);
+    rootdev->driver = &rootdev_driver;
+    device_probe(rootdev);
+    device_attach(rootdev);
+  } else {
+    bus_generic_probe(rootdev);
+  }
 }

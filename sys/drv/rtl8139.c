@@ -52,6 +52,7 @@ static driver_t rtl8139_driver = {
   .size = sizeof(rtl8139_state_t),
   .probe = rtl8139_probe,
   .attach = rtl8139_attach,
+  .pass = SECOND_PASS,
 };
 
 DEVCLASS_ENTRY(pci, rtl8139_driver);

@@ -136,6 +136,7 @@ static driver_t cpu_mips_timer = {
   .size = sizeof(mips_timer_state_t),
   .probe = mips_timer_probe,
   .attach = mips_timer_attach,
+  .pass = FIRST_PASS,
 };
 
 DEVCLASS_ENTRY(root, cpu_mips_timer);

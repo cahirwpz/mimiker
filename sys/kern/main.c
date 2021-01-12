@@ -37,6 +37,9 @@ static __noreturn void start_init(__unused void *arg) {
   proc_t *p = proc_self();
   int error;
 
+  /* Second stage of device init. */
+  init_devices(SECOND_PASS);
+
   assert(p->p_pid == 1);
   error = session_enter(p);
   assert(error == 0);
@@ -99,8 +102,8 @@ __noreturn void kernel_init(void) {
   /* Mount filesystems (including devfs). */
   mount_fs();
 
-  /* First (FTTB also last) stage of device init. */
-  init_devices();
+  /* First stage of device init. */
+  init_devices(FIRST_PASS);
 
   /* Some clocks has been found during device init process,
    * so it's high time to start system clock. */

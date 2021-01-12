@@ -123,13 +123,12 @@ static int rtc_probe(device_t *dev) {
   return dev->unit == 2; /* XXX: unit 2 assigned by gt_pci */
 }
 
-/* clang-format off */
 static driver_t rtc_driver = {
   .desc = "MC146818 RTC driver",
   .size = sizeof(rtc_state_t),
   .attach = rtc_attach,
-  .probe = rtc_probe
+  .probe = rtc_probe,
+  .pass = FIRST_PASS,
 };
-/* clang-format on */
 
 DEVCLASS_ENTRY(pci, rtc_driver);

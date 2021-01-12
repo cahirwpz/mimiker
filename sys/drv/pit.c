@@ -136,13 +136,12 @@ static int pit_probe(device_t *dev) {
   return dev->unit == 3; /* XXX: unit 3 assigned by gt_pci */
 }
 
-/* clang-format off */
 static driver_t pit_driver = {
   .desc = "i8254 PIT driver",
   .size = sizeof(pit_state_t),
   .attach = pit_attach,
-  .probe = pit_probe
+  .probe = pit_probe,
+  .pass = FIRST_PASS,
 };
-/* clang-format on */
 
 DEVCLASS_ENTRY(pci, pit_driver);

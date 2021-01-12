@@ -29,6 +29,15 @@ typedef enum {
   DIF_COUNT /* this must be the last item */
 } drv_if_t;
 
+/* During boot, the device tree is scanned multiple times.
+ * Each scan, drivers may be attached to devices. Each driver is assigned
+ * a pass number. Drivers may only probe and attach to devices if their
+ * pass numer is equal to the current pass number. */
+typedef enum {
+  FIRST_PASS,
+  SECOND_PASS,
+} pass_num_t;
+
 struct driver {
   const char *desc;            /* short driver description */
   size_t size;                 /* device->state object size */
@@ -36,6 +45,7 @@ struct driver {
   d_attach_t attach;           /* attach device to system */
   d_detach_t detach;           /* detach device from system */
   void *interfaces[DIF_COUNT]; /* pointers to device methods structures */
+  pass_num_t pass;             /* device tree pass number */
 };
 
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
@@ -56,8 +66,13 @@ struct device {
   resource_list_t resources; /* used by driver, assigned by parent bus */
 };
 
+/*! \brief Check whether a device is a bus or a regular device. */
+static inline bool device_bus(device_t *dev) {
+  return dev->devclass != NULL;
+}
+
 /*! \brief Called during kernel initialization. */
-void init_devices(void);
+void init_devices(pass_num_t pass);
 
 device_t *device_alloc(int unit);
 device_t *device_add_child(device_t *parent, int unit);

@@ -489,6 +489,7 @@ static driver_t gt_pci_bus = {
       [DIF_BUS] = &gt_pci_bus_if,
       [DIF_PCI_BUS] = &gt_pci_pci_bus_if,
     },
+  .pass = FIRST_PASS,
 };
 
 DEVCLASS_ENTRY(root, gt_pci_bus);

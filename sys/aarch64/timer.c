@@ -95,6 +95,7 @@ static driver_t arm_timer = {
   .size = sizeof(arm_timer_state_t),
   .probe = arm_timer_probe,
   .attach = arm_timer_attach,
+  .pass = FIRST_PASS,
 };
 
 DEVCLASS_ENTRY(root, arm_timer);

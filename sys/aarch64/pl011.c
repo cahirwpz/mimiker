@@ -229,13 +229,12 @@ static int pl011_attach(device_t *dev) {
   return 0;
 }
 
-/* clang-format off */
 static driver_t pl011_driver = {
   .desc = "PL011 UART driver",
   .size = sizeof(pl011_state_t),
   .attach = pl011_attach,
   .probe = pl011_probe,
+  .pass = SECOND_PASS,
 };
-/* clang-format on */
 
 DEVCLASS_ENTRY(root, pl011_driver);

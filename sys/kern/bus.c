@@ -114,16 +114,20 @@ void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r) {
   rman_deactivate_resource(r);
 }
 
+pass_num_t current_pass;
+
 int bus_generic_probe(device_t *bus) {
-  int error = 0;
   devclass_t *dc = bus->devclass;
   if (!dc)
-    return error;
+    return 0;
   device_t *dev;
   TAILQ_FOREACH (dev, &bus->children, link) {
     driver_t **drv_p;
     DEVCLASS_FOREACH(drv_p, dc) {
-      dev->driver = *drv_p;
+      driver_t *drv = *drv_p;
+      if (drv->pass != current_pass)
+        continue;
+      dev->driver = drv;
       if (device_probe(dev)) {
         klog("%s detected!", dev->driver->desc);
         /* device_attach returns error ! */
@@ -134,6 +138,17 @@ int bus_generic_probe(device_t *bus) {
       }
       dev->driver = NULL;
     }
+    if (device_bus(dev)) {
+      /*
+       * Bus attach function calls `bus_generic_probe`, but if
+       * the current pass number is different than the bus's pass numer
+       * or the bus doen't have a driver attached, then the attach function
+       * hasn't been called and we need to call `bus_generic_probe` directly.
+       */
+      driver_t *driver = dev->driver;
+      if (!driver || driver->pass != current_pass)
+        bus_generic_probe(dev);
+    }
   }
-  return error;
+  return 0;
 }
