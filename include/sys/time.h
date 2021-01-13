@@ -168,7 +168,7 @@ typedef union {
     uint32_t hi;
   };
   uint64_t val;
-} timercounter_t;
+} timercntr_t;
 
 /* Time measured from the start of system. */
 bintime_t binuptime(void);

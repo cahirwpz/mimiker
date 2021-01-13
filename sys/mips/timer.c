@@ -13,10 +13,8 @@
 typedef struct mips_timer_state {
   uint32_t period_cntr;   /* number of counter ticks in a period */
   uint32_t last_count_lo; /* used to detect counter overflow */
-  volatile timercounter_t
-    count; /* last written value of counter reg. (64 bits) */
-  volatile timercounter_t
-    compare; /* last read value of compare reg. (64 bits) */
+  volatile timercntr_t count; /* last written value of counter reg. (64 bits) */
+  volatile timercntr_t compare; /* last read value of compare reg. (64 bits) */
   timer_t timer;
   resource_t *irq_res;
 } mips_timer_state_t;
@@ -56,7 +54,7 @@ static intr_filter_t mips_timer_intr(void *data) {
   device_t *dev = data;
   mips_timer_state_t *state = dev->state;
   /* TODO(cahir): can we tell scheduler that clock ticked more than once? */
-  set_next_tick(state);
+  (void)set_next_tick(state);
   tm_trigger(&state->timer);
   return IF_FILTERED;
 }

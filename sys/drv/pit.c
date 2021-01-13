@@ -17,7 +17,7 @@ typedef struct pit_state {
   timer_t timer;
   uint16_t period_cntr;      /* period as PIT counter value */
   uint16_t cntr16_prev_read; /* last read counter value */
-  timercounter_t cntr64;     /* counter value since timer initialization */
+  timercntr_t cntr64;     /* counter value since timer initialization */
   volatile bintime_t time;   /* last time measured by the timer */
 } pit_state_t;
 
@@ -115,7 +115,9 @@ static int timer_pit_stop(timer_t *tm) {
 static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  WITH_SPIN_LOCK (&pit->lock) { return pit->time; }
+  bintime_t bt;
+  WITH_SPIN_LOCK (&pit->lock) { bt = pit->time; }
+  return bt;
 }
 
 static int pit_attach(device_t *dev) {
