@@ -60,14 +60,14 @@ LEAF(_setjmp)
 	REG_S	s5, UC_GREGS_S5(a0)
 	REG_S	s6, UC_GREGS_S6(a0)
 	REG_S	s7, UC_GREGS_S7(a0)
+	REG_S	gp, UC_GREGS_GP(a0)
 	REG_S	sp, UC_GREGS_SP(a0)
 	REG_S	s8, UC_GREGS_S8(a0)
 	/* In O32, FP registers F20 .. F23 are callee-saved. */
         INT_L   v0, UC_FLAGS(a0)
-	or	v0, _UC_FPU
-        or      v0, _UC_CPU
+	or	v0, (_UC_FPU|_UC_CPU)
 	INT_S	v0, UC_FLAGS(a0)
-	cfc1	v0, $31
+	cfc1	v0, fcsr
 	INT_S	v0, UC_FPREGS_FCSR(a0)
 	FP_S	$f20, UC_FPREGS_F20(a0)
 	FP_S	$f21, UC_FPREGS_F21(a0)
@@ -100,12 +100,12 @@ LEAF(_longjmp)
 	INT_L		v0, UC_FPREGS_FCSR(a0)
 	REG_L		sp, UC_GREGS_SP(a0)
 	REG_L		s8, UC_GREGS_S8(a0)
-	ctc1		v0, $31
+	ctc1		v0, fcsr
 	/* In O32, FP registers F20 .. F23 are callee-saved. */
-	FP_L	$f22, UC_FPREGS_F22(a0)
-	FP_L	$f20, UC_FPREGS_F20(a0)
-	FP_L	$f21, UC_FPREGS_F21(a0)
-	FP_L	$f23, UC_FPREGS_F23(a0)
+	FP_L		$f22, UC_FPREGS_F22(a0)
+	FP_L		$f20, UC_FPREGS_F20(a0)
+	FP_L		$f21, UC_FPREGS_F21(a0)
+	FP_L		$f23, UC_FPREGS_F23(a0)
 
 	REG_EPILOGUE
 	j	ra
