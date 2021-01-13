@@ -25,6 +25,8 @@ int test_gettimeofday(void) {
   return 0;
 }
 
+#define assert_fail(expr, err) assert(expr == -1 && errno == err)
+
 int test_nanosleep(void) {
   /* Requested and remaining time */
   timespec_t rqt, rmt;
@@ -35,33 +37,23 @@ int test_nanosleep(void) {
   rqt.tv_sec = -1;
 
   rqt.tv_nsec = 1;
-  ret = nanosleep(&rqt, NULL);
-  assert(ret == -1 && errno == EINVAL);
-  ret = nanosleep(&rqt, &rmt);
-  assert(ret == -1 && errno == EINVAL);
+  assert_fail(nanosleep(&rqt, NULL), EINVAL);
+  assert_fail(nanosleep(&rqt, &rmt), EINVAL);
 
   rqt.tv_sec = 0;
   rqt.tv_nsec = -1;
-  ret = nanosleep(&rqt, NULL);
-  assert(ret == -1 && errno == EINVAL);
-  ret = nanosleep(&rqt, &rmt);
-  assert(ret == -1 && errno == EINVAL);
+  assert_fail(nanosleep(&rqt, NULL), EINVAL);
+  assert_fail(nanosleep(&rqt, &rmt), EINVAL);
 
   rqt.tv_nsec = 1000000000;
-  ret = nanosleep(&rqt, NULL);
-  assert(ret == -1 && errno == EINVAL);
-  ret = nanosleep(&rqt, &rmt);
-  assert(ret == -1 && errno == EINVAL);
+  assert_fail(nanosleep(&rqt, NULL), EINVAL);
+  assert_fail(nanosleep(&rqt, &rmt), EINVAL);
 
   rqt.tv_nsec = 1000;
-  ret = nanosleep(NULL, NULL);
-  assert(ret == -1 && errno == EFAULT);
-  ret = nanosleep(NULL, &rmt);
-  assert(ret == -1 && errno == EFAULT);
-  ret = nanosleep(0, NULL);
-  assert(ret == -1 && errno == EFAULT);
-  ret = nanosleep(0, &rmt);
-  assert(ret == -1 && errno == EFAULT);
+  assert_fail(nanosleep(NULL, NULL), EFAULT);
+  assert_fail(nanosleep(NULL, &rmt), EFAULT);
+  assert_fail( nanosleep(0, NULL), EFAULT);
+  assert_fail(nanosleep(0, &rmt), EFAULT);
 
   /* Check if sleept at least requested time */;
   for (int g = 0; g < 20; g++) {
