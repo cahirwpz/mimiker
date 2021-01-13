@@ -20,13 +20,8 @@
  * If you plan to change this function look at machine dependent implementation
  * of copyerr.
  */
-<<<<<<< HEAD
 __no_sanitize int copystr(const void *kfaddr, void *kdaddr, size_t len,
                           size_t *done) {
-=======
-__no_instrument int copystr(const void *kfaddr, void *kdaddr, size_t len,
-                            size_t *done) {
->>>>>>> Add an attribute to disable the compiler instrumentation
   const char *src = kfaddr;
   char *dst = kdaddr;
   size_t i;
