@@ -2,12 +2,10 @@
 #define _SETJMP_H_
 
 #include <sys/cdefs.h>
-#include <machine/setjmp.h>
+#include <ucontext.h>
 
-typedef long _jmpbuf_slot_t;
-
-typedef _jmpbuf_slot_t sigjmp_buf[_JBLEN + 1];
-typedef _jmpbuf_slot_t jmp_buf[_JBLEN];
+typedef ucontext_t sigjmp_buf[1];
+typedef ucontext_t jmp_buf[1];
 
 __BEGIN_DECLS
 int setjmp(jmp_buf) __returns_twice;
