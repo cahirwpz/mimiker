@@ -4,6 +4,7 @@
 #include <sys/time.h>
 
 static int test_do_clock_nanosleep(void) {
+  /* Requested and remaining time */
   timespec_t rqt, rmt;
   int clk_mono = CLOCK_MONOTONIC, clk_rltm = CLOCK_REALTIME;
   /* Incorrect requested time argument */

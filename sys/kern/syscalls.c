@@ -530,6 +530,7 @@ static int sys_clock_nanosleep(proc_t *p, clock_nanosleep_args_t *args,
                                register_t *res) {
   clockid_t clock_id = SCARG(args, clock_id);
   int flags = SCARG(args, flags);
+  /* u_ - user, rm - reamining, rq - requested, t - time, p - pointer */
   const timespec_t *u_rqtp = SCARG(args, rqtp);
   timespec_t *u_rmtp = SCARG(args, rmtp);
   timespec_t rqtp, rmtp;

@@ -72,6 +72,7 @@ static int ts2timo(clockid_t clock_id, int flags, timespec_t *ts,
 
 int do_clock_nanosleep(clockid_t clk, int flags, timespec_t *rqtp,
                        timespec_t *rmtp) {
+  /* rm - reamining, rq - requested, t - time, p - pointer */
   timespec_t rmtstart;
   int error;
   systime_t timo;

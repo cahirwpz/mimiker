@@ -26,6 +26,7 @@ int test_gettimeofday(void) {
 }
 
 int test_nanosleep(void) {
+  /* Requested and remaining time */
   timespec_t rqt, rmt;
   timeval_t time1, time2, diff;
   int ret;
