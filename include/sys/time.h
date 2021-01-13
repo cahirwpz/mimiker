@@ -160,16 +160,6 @@ struct itimerval {
 
 #ifdef _KERNEL
 
-/* Used to maintain full 64-bit time counters for 16/32-bit counters. */
-typedef union {
-  /* assume little endian order */
-  struct {
-    uint32_t lo;
-    uint32_t hi;
-  };
-  uint64_t val;
-} timercntr_t;
-
 /* Time measured from the start of system. */
 bintime_t binuptime(void);
 

@@ -5,7 +5,6 @@
 #include <sys/pci.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
-#include <sys/time.h>
 #include <sys/timer.h>
 #include <sys/spinlock.h>
 #include <sys/devclass.h>
@@ -17,7 +16,7 @@ typedef struct pit_state {
   timer_t timer;
   uint16_t period_cntr;      /* period as PIT counter value */
   uint16_t cntr16_prev_read; /* last read counter value */
-  timercntr_t cntr64;     /* counter value since timer initialization */
+  timercntr_t cntr64;        /* counter value since timer initialization */
   volatile bintime_t time;   /* last time measured by the timer */
 } pit_state_t;
 
