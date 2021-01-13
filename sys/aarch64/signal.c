@@ -7,46 +7,36 @@
 #include <sys/proc.h>
 #include <sys/ucontext.h>
 
-typedef struct sig_ctx {
-  ucontext_t sc_uc;
-  siginfo_t sc_info;
-} sig_ctx_t;
-
-static void stack_unusable(thread_t *td, register_t sp) {
-  klog("User stack (%p) is corrupted, terminating with SIGILL!", sp);
-  sig_exit(td, SIGILL);
-  __unreachable();
+static register_t sig_stack_push(mcontext_t *uctx, void *data, size_t len) {
+  _REG(uctx, SP) -= roundup(len, STACK_ALIGN);
+  register_t sp = _REG(uctx, SP);
+  if (copyout(data, (void *)sp, len)) {
+    /* This thread has a corrupted stack, it can no longer react on a signal
+     * with a custom handler. Kill the process. */
+    klog("User stack (%p) is corrupted, terminating with SIGILL!", sp);
+    sig_exit(thread_self(), SIGILL);
+  }
+  return sp;
 }
 
 int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   thread_t *td = thread_self();
   mcontext_t *uctx = td->td_uctx;
 
-  /* Copyout sigcode to user stack. */
-  unsigned sigcode_size = roundup(esigcode - sigcode, 16);
-  void *sp = (void *)_REG(uctx, SP);
-  sp -= sigcode_size;
-  void *sigcode_ptr = sp;
+  ucontext_t uc;
+  mcontext_copy(&uc.uc_mcontext, uctx);
+  uc.uc_sigmask = *mask;
 
-  if (copyout(sigcode, sigcode_ptr, sigcode_size))
-    stack_unusable(td, _REG(uctx, SP));
-
-  /* Prepare signal context and copy it to user stack. */
-  sig_ctx_t ksc = {.sc_info = ksi->ksi_info};
-  mcontext_copy(&ksc.sc_uc.uc_mcontext, uctx);
-  ksc.sc_uc.uc_sigmask = *mask;
-  sp -= roundup(sizeof(sig_ctx_t), 16);
-  sig_ctx_t *cp = sp;
-  if (copyout(&ksc, cp, sizeof(sig_ctx_t)))
-    stack_unusable(td, _REG(uctx, SP));
+  register_t sc_code = ctx_push_data(uctx, sigcode, esigcode - sigcode);
+  register_t sc_info = ctx_push_data(uctx, ksi, sizeof(ksiginfo_t));
+  register_t sc_uctx = ctx_push_data(uctx, &uc, sizeof(ucontext_t));
 
   _REG(uctx, ELR) = (register_t)sa->sa_handler;
   _REG(uctx, X0) = sig;
-  _REG(uctx, X1) = (register_t)&cp->sc_info;
-  _REG(uctx, X2) = (register_t)&cp->sc_uc.uc_mcontext;
-
-  _REG(uctx, SP) = (register_t)(sp - sizeof(intptr_t *));
-  _REG(uctx, LR) = (register_t)sigcode_ptr;
+  _REG(uctx, X1) = (register_t)sc_info;
+  _REG(uctx, X2) = (register_t)sc_uctx;
+  _REG(uctx, SP) -= sizeof(intptr_t *);
+  _REG(uctx, LR) = (register_t)sc_code;
 
   return 0;
 }
