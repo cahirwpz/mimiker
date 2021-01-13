@@ -147,14 +147,21 @@ struct bus_methods {
 
 #define BUS_METHODS(dev) (*(bus_methods_t *)(dev)->driver->interfaces[DIF_BUS])
 
+/* As for now this actually returns a child of the bus, see a comment
+ * above `device_method_provider` in include/sys/device.c */
+#define BUS_METHOD_PROVIDER(dev, method)                                       \
+  (device_method_provider((dev), DIF_BUS, offsetof(struct bus_methods, method)))
+
 static inline void bus_intr_setup(device_t *dev, resource_t *irq,
                                   ih_filter_t *filter, ih_service_t *service,
                                   void *arg, const char *name) {
-  BUS_METHODS(dev->parent).intr_setup(dev, irq, filter, service, arg, name);
+  device_t *idev = BUS_METHOD_PROVIDER(dev, intr_setup);
+  BUS_METHODS(idev->parent).intr_setup(idev, irq, filter, service, arg, name);
 }
 
 static inline void bus_intr_teardown(device_t *dev, resource_t *irq) {
-  BUS_METHODS(dev->parent).intr_teardown(dev, irq);
+  device_t *idev = BUS_METHOD_PROVIDER(dev, intr_teardown);
+  BUS_METHODS(idev->parent).intr_teardown(idev, irq);
 }
 
 /*! \brief Allocates a resource of type \a type and size \a size between
@@ -174,8 +181,9 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
                                              int rid, rman_addr_t start,
                                              rman_addr_t end, size_t size,
                                              res_flags_t flags) {
-  return BUS_METHODS(dev->parent)
-    .alloc_resource(dev, type, rid, start, end, size, flags);
+  device_t *idev = BUS_METHOD_PROVIDER(dev, alloc_resource);
+  return BUS_METHODS(idev->parent)
+    .alloc_resource(idev, type, rid, start, end, size, flags);
 }
 
 /*! \brief Activates resource for a device.
@@ -198,7 +206,8 @@ void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r);
 
 static inline void bus_release_resource(device_t *dev, res_type_t type,
                                         resource_t *r) {
-  BUS_METHODS(dev->parent).release_resource(dev, type, r);
+  device_t *idev = BUS_METHOD_PROVIDER(dev, release_resource);
+  BUS_METHODS(idev->parent).release_resource(idev, type, r);
 }
 
 int bus_generic_probe(device_t *bus);

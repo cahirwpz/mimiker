@@ -97,4 +97,16 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
 /* A universal memory pool to be used by all drivers. */
 KMALLOC_DECLARE(M_DEV);
 
+/* Finds a device that implements a method for given interface */
+/* As for now this actually returns a child of the bus, not the bus itself.
+ * This is consistent with the current method semantics. Hopefully the
+ * signatures will change in a future PR to be more suited for dispatching.
+ * Currently the information about the caller is lost as the `dev` argument is
+ * not guarenteed to be the caller, it's just a child of the bus. It just so
+ * happens that the current scenarios in which we'll need the dispatching
+ * don't require to know anything about the caller. Again, this will hopefully
+ * change thanks to future extension of method semantics. */
+device_t *device_method_provider(device_t *dev, drv_if_t iface,
+                                 ptrdiff_t method_offset);
+
 #endif /* !_SYS_DEVICE_H_ */
