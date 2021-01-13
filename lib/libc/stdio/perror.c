@@ -1,11 +1,8 @@
-/*	$NetBSD: sigsetjmp.S,v 1.9 2009/12/14 01:07:42 matt Exp $	*/
+/*	$NetBSD: perror.c,v 1.24 2006/01/26 11:13:42 kleink Exp $	*/
 
-/*-
- * Copyright (c) 1991, 1993, 1995,
+/*
+ * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Havard Eidnes.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,41 +29,29 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/syscall.h>
-#include <mips/asm.h>
-
-#include "mips/assym.h"
-#include "mips/SYS.h"
+#include <sys/cdefs.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+#include "extern.h"
 
 /*
- * C library -- sigsetjmp, siglongjmp
- *
- *	siglongjmp(a,v)
- * will generate a "return(v)" from
- * the last call to
- *	sigsetjmp(a, savemask)
- * by restoring registers from the stack,
- * and dependent on savemask restores the
- * signal mask.
+ * Since perror() is not allowed to change the contents of strerror()'s
+ * static buffer, both functions supply their own buffers to strerror_r().
  */
 
-LEAF(sigsetjmp)
-	PIC_PROLOGUE(sigsetjmp)
-	bnez	a1, 1f			# do saving of signal mask?
-	REG_S	a1, UC_FLAGS(a0)	# savemask is 0
-	PIC_TAILCALL(_setjmp)		# doesn't save signal mask
+void perror(const char *s) {
+  const char *separator;
+  char buf[NL_TEXTMAX];
 
-1:	li	a1, _UC_SIGMASK
-	REG_S	a1, UC_FLAGS(a0)	# valid user context sigmask
-	PIC_TAILCALL(setjmp)		# saves signal mask
-END(sigsetjmp)
+  if (s == NULL)
+    s = "";
+  if (*s == '\0')
+    separator = "";
+  else
+    separator = ": ";
 
-LEAF(siglongjmp)
-	PIC_PROLOGUE(siglongjmp)
-	REG_L	t0, UC_FLAGS(a0)	# get "savemask"
-	and	t0, t0, _UC_SIGMASK
-	beq	t0, _UC_SIGMASK, 1f	# restore signal mask?
-	PIC_TAILCALL(_longjmp)		# doesn't restore signal mask
-
-1:	PIC_TAILCALL(longjmp)		# restores signal mask
-END(siglongjmp)
+  (void)strerror_r(errno, buf, sizeof(buf));
+  (void)fprintf(stderr, "%s%s%s\n", s, separator, buf);
+}

@@ -77,8 +77,6 @@
 #define _REG_SR 35
 #define _REG_BADVADDR 36
 
-#ifndef __ASSEMBLER__
-
 /* Make sure this is signed; we need pointers to be sign-extended. */
 typedef long __greg_t;
 
@@ -119,8 +117,6 @@ typedef struct ctx {
 #define _REG(ctx, n) ((ctx)->__gregs[_REG_##n])
 
 #endif /* !_MACHDEP && !_KERNEL */
-
-#endif /* !__ASSEMBLER__ */
 
 #define _UC_SETSTACK 0x00010000
 #define _UC_CLRSTACK 0x00020000

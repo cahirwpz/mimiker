@@ -226,20 +226,20 @@ fail:
   return error;
 }
 
-static int open_executable(const char *path, vnode_t **vn_p) {
+static int open_executable(const char *path, vnode_t **vn_p, cred_t *cred) {
   vnode_t *vn = *vn_p;
   int error;
 
   klog("Loading program '%s'", path);
 
   /* Translate program name to vnode. */
-  if ((error = vfs_namelookup(path, &vn)))
+  if ((error = vfs_namelookup(path, &vn, cred)))
     return error;
 
   /* It must be a regular executable file with non-zero size. */
   if (vn->v_type != V_REG)
     return EACCES;
-  if ((error = VOP_ACCESS(vn, VEXEC)))
+  if ((error = VOP_ACCESS(vn, VEXEC, cred)))
     return error;
 
   /* TODO Some checks are missing:
@@ -336,7 +336,7 @@ static int _do_execve(exec_args_t *args) {
   for (;;) {
     prog = args->interp ? args->interp : args->path;
 
-    if ((error = open_executable(prog, &vn))) {
+    if ((error = open_executable(prog, &vn, &p->p_cred))) {
       klog("No file found: '%s'!", prog);
       return error;
     }

@@ -72,12 +72,6 @@ typedef struct pci_bus_methods {
   pci_enable_busmaster_t enable_busmaster;
 } pci_bus_methods_t;
 
-typedef struct pci_bus_driver {
-  driver_t driver;
-  bus_methods_t bus;
-  pci_bus_methods_t pci_bus;
-} pci_bus_driver_t;
-
 typedef struct pci_bar {
   device_t *owner; /* pci device owner of this bar */
   size_t size;     /* identified size of this bar */
@@ -97,28 +91,29 @@ typedef struct pci_device {
   pci_bar_t bar[PCI_BAR_MAX];
 } pci_device_t;
 
-#define PCI_DRIVER(dev) ((pci_bus_driver_t *)((dev)->parent->driver))
+#define PCI_BUS_METHODS(dev)                                                   \
+  (*(pci_bus_methods_t *)(dev)->driver->interfaces[DIF_PCI_BUS])
 
-static inline uint32_t pci_read_config(device_t *device, unsigned reg,
+static inline uint32_t pci_read_config(device_t *dev, unsigned reg,
                                        unsigned size) {
-  return PCI_DRIVER(device)->pci_bus.read_config(device, reg, size);
+  return PCI_BUS_METHODS(dev->parent).read_config(dev, reg, size);
 }
 
 #define pci_read_config_1(d, r) pci_read_config((d), (r), 1)
 #define pci_read_config_2(d, r) pci_read_config((d), (r), 2)
 #define pci_read_config_4(d, r) pci_read_config((d), (r), 4)
 
-static inline void pci_write_config(device_t *device, unsigned reg,
-                                    unsigned size, uint32_t value) {
-  PCI_DRIVER(device)->pci_bus.write_config(device, reg, size, value);
+static inline void pci_write_config(device_t *dev, unsigned reg, unsigned size,
+                                    uint32_t value) {
+  PCI_BUS_METHODS(dev->parent).write_config(dev, reg, size, value);
 }
 
 #define pci_write_config_1(d, r, v) pci_write_config((d), (r), 1, (v))
 #define pci_write_config_2(d, r, v) pci_write_config((d), (r), 2, (v))
 #define pci_write_config_4(d, r, v) pci_write_config((d), (r), 4, (v))
 
-static inline void pci_enable_busmaster(device_t *device) {
-  PCI_DRIVER(device)->pci_bus.enable_busmaster(device);
+static inline void pci_enable_busmaster(device_t *dev) {
+  PCI_BUS_METHODS(dev->parent).enable_busmaster(dev);
 }
 
 void pci_bus_enumerate(device_t *pcib);
