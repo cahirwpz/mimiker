@@ -51,7 +51,7 @@
 
 LEAF(_setjmp)
 	REG_PROLOGUE
-	REG_S	ra, UC_GREGS_PC(a0)		# return address
+	REG_S	ra, UC_GREGS_PC(a0)	# return address
 	REG_S	s0, UC_GREGS_S0(a0)
 	REG_S	s1, UC_GREGS_S1(a0)
 	REG_S	s2, UC_GREGS_S2(a0)
@@ -64,7 +64,7 @@ LEAF(_setjmp)
 	REG_S	sp, UC_GREGS_SP(a0)
 	REG_S	s8, UC_GREGS_S8(a0)
 	/* In O32, FP registers F20 .. F23 are callee-saved. */
-        INT_L   v0, UC_FLAGS(a0)
+	INT_L	v0, UC_FLAGS(a0)
 	or	v0, (_UC_FPU|_UC_CPU)
 	INT_S	v0, UC_FLAGS(a0)
 	cfc1	v0, fcsr
@@ -109,5 +109,5 @@ LEAF(_longjmp)
 
 	REG_EPILOGUE
 	j	ra
-	 move	v0, a1			# get return value in 1st arg
+	 move	v0, a1	# get return value in 1st arg
 END(_longjmp)
