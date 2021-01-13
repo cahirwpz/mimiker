@@ -5,10 +5,8 @@
         .global esigcode
 
 ENTRY(sigcode)
-        add x0, sp, 8
-        svc #SYS_sigreturn
-        b 0
-esigcode:
+        add     x0, sp, 8       /* address of ucontext_t to restore */
+        svc     #SYS_sigreturn
+        brk     #0
+EXPORT(esigcode)
 END(sigcode)
-
-# vim: sw=8 ts=8 et
