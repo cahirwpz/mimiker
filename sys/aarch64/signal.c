@@ -27,9 +27,9 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   mcontext_copy(&uc.uc_mcontext, uctx);
   uc.uc_sigmask = *mask;
 
-  register_t sc_code = ctx_push_data(uctx, sigcode, esigcode - sigcode);
-  register_t sc_info = ctx_push_data(uctx, ksi, sizeof(ksiginfo_t));
-  register_t sc_uctx = ctx_push_data(uctx, &uc, sizeof(ucontext_t));
+  register_t sc_code = sig_stack_push(uctx, sigcode, esigcode - sigcode);
+  register_t sc_info = sig_stack_push(uctx, ksi, sizeof(ksiginfo_t));
+  register_t sc_uctx = sig_stack_push(uctx, &uc, sizeof(ucontext_t));
 
   _REG(uctx, ELR) = (register_t)sa->sa_handler;
   _REG(uctx, X0) = sig;
