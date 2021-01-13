@@ -34,17 +34,6 @@ typedef struct bintime {
   uint64_t frac; /* a fraction of second */
 } bintime_t;
 
-/* It allows to extend the capacity
-   for counters with 16/32 bits */
-typedef union {
-  /* assumes little endian order */
-  struct {
-    uint32_t lo;
-    uint32_t hi;
-  };
-  uint64_t val;
-} timercounter_t;
-
 #define _BINTIME_SEC(fp) ((time_t)(int64_t)(fp))
 #define _BINTIME_FRAC(fp) ((uint64_t)((fp - (int64_t)(fp)) * (1ULL << 63) * 2))
 
@@ -170,6 +159,16 @@ struct itimerval {
 };
 
 #ifdef _KERNEL
+
+/* Used to maintain full 64-bit time counters for 16/32-bit counters. */
+typedef union {
+  /* assume little endian order */
+  struct {
+    uint32_t lo;
+    uint32_t hi;
+  };
+  uint64_t val;
+} timercounter_t;
 
 /* Time measured from the start of system. */
 bintime_t binuptime(void);

@@ -39,14 +39,11 @@ static uint16_t pit_get_counter16(pit_state_t *pit) {
 }
 
 static uint64_t pit_get_counter64(pit_state_t *pit) {
-  uint16_t cntr16_now, ticks;
-  uint32_t oldlow;
-
-  cntr16_now = pit_get_counter16(pit);
+  uint16_t cntr16_now = pit_get_counter16(pit);
   /* PIT counter counts from n to 1 and when we get to 1 an interrupt
      is send and the counter starts from the beginning (n = pit->period_cntr).
      We do not guarantee that we will not miss the whole period (n ticks) */
-  ticks = pit->cntr16_prev_read - cntr16_now;
+  uint16_t ticks = pit->cntr16_prev_read - cntr16_now;
   if (pit->cntr16_prev_read < cntr16_now)
     ticks += pit->period_cntr;
 
@@ -54,9 +51,8 @@ static uint64_t pit_get_counter64(pit_state_t *pit) {
    * overflows of our counter */
   pit->cntr16_prev_read = cntr16_now;
 
-  oldlow = pit->cntr64.lo;
+  uint32_t oldlow = pit->cntr64.lo;
   pit->cntr64.lo += ticks;
-
   if (oldlow > oldlow + ticks)
     pit->cntr64.hi++;
 
@@ -76,7 +72,7 @@ static void pit_update_time(pit_state_t *pit) {
 static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
-  /* We do not prevent tick loss */
+  /* XXX: It's still possible for a tick to be lost. */
   pit_update_time(pit);
   tm_trigger(&pit->timer);
   return IF_FILTERED;
@@ -119,9 +115,7 @@ static int timer_pit_stop(timer_t *tm) {
 static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  bintime_t res;
-  WITH_SPIN_LOCK (&pit->lock) { res = pit->time; }
-  return res;
+  WITH_SPIN_LOCK (&pit->lock) { return pit->time; }
 }
 
 static int pit_attach(device_t *dev) {
