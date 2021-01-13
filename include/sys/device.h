@@ -106,7 +106,7 @@ KMALLOC_DECLARE(M_DEV);
  * happens that the current scenarios in which we'll need the dispatching
  * don't require to know anything about the caller. Again, this will hopefully
  * change thanks to future extension of method semantics. */
-device_t *device_if_find_impl(device_t *dev, size_t iface,
-                              size_t method_offset);
+device_t *device_method_provider(device_t *dev, drv_if_t iface,
+                                 ptrdiff_t method_offset);
 
 #endif /* !_SYS_DEVICE_H_ */
