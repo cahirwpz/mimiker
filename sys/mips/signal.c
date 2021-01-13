@@ -62,27 +62,7 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   return 0;
 }
 
-int do_sigreturn(ucontext_t *ucp) {
-  int error = 0;
-  thread_t *td = thread_self();
-  ucontext_t uc;
-
-  mcontext_t *uctx = td->td_uctx;
-
-  error = copyin_s(ucp, uc);
-  if (error)
-    return error;
-
-  /* Restore user context. */
-  mcontext_copy(uctx, &uc.uc_mcontext);
-
-  WITH_MTX_LOCK (&td->td_proc->p_lock)
-    error = do_sigprocmask(SIG_SETMASK, &uc.uc_sigmask, NULL);
-  assert(error == 0);
-
-  return EJUSTRETURN;
-}
-
+/* TODO: fill in various fields of ksiginfo_t based on context values. */
 void sig_trap(ctx_t *ctx, signo_t sig) {
   proc_t *proc = proc_self();
   WITH_MTX_LOCK (&proc->p_lock)
