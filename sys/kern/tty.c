@@ -21,6 +21,7 @@
 #include <sys/signal.h>
 #include <sys/devfs.h>
 #include <sys/file.h>
+#include <sys/filio.h>
 
 /* START OF FreeBSD CODE */
 
@@ -944,6 +945,11 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
   tty_t *tty = f->f_data;
 
   switch (cmd) {
+    case FIONREAD: {
+      SCOPED_MTX_LOCK(&tty->t_lock);
+      *(int *)data = tty->t_inq.count;
+      return 0;
+    }
     case TIOCGETA:
       return tty_get_termios(tty, (struct termios *)data);
     case TIOCSETA:  /* Set termios immediately */
