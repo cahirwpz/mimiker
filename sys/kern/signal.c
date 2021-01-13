@@ -520,14 +520,12 @@ __noreturn void sig_exit(thread_t *td, signo_t sig) {
 }
 
 int do_sigreturn(ucontext_t *ucp) {
-  int error = 0;
   thread_t *td = thread_self();
-  ucontext_t uc;
-
   mcontext_t *uctx = td->td_uctx;
+  int error = 0;
 
-  error = copyin_s(ucp, uc);
-  if (error)
+  ucontext_t uc;
+  if ((error = copyin_s(ucp, uc)))
     return error;
 
   /* Restore user context. */
