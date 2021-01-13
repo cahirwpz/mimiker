@@ -57,18 +57,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if HAVE_NBTOOL_CONFIG_H
-#include "nbtool_config.h"
-/*
- * XXX Undefine the renames of these functions so that we don't
- * XXX rename the versions found in the host's <pwd.h> by mistake!
- */
-#undef group_from_gid
-#undef user_from_uid
-#endif
-
 #include <sys/cdefs.h>
-
 #include <sys/types.h>
 #include <sys/param.h>
 
@@ -80,13 +69,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#if HAVE_NBTOOL_CONFIG_H
-/* XXX Now, re-apply the renaming that we undid above. */
-#define group_from_gid __nbcompat_group_from_gid
-#define user_from_uid __nbcompat_user_from_uid
-#endif
-
-#if !HAVE_PWCACHE_USERDB || HAVE_NBTOOL_CONFIG_H
 #include "pwcache.h"
 
 /*
@@ -532,61 +514,3 @@ int pwcache_groupdb(int (*a_setgroupent)(int), void (*a_endgrent)(void),
 
   return (0);
 }
-
-#ifdef TEST_PWCACHE
-
-struct passwd *test_getpwnam(const char *name) {
-  static struct passwd foo;
-
-  memset(&foo, 0, sizeof(foo));
-  if (strcmp(name, "toor") == 0) {
-    foo.pw_uid = 666;
-    return &foo;
-  }
-  return (getpwnam(name));
-}
-
-int main(int argc, char *argv[]) {
-  uid_t u;
-  int r, i;
-
-  printf("pass 1 (default userdb)\n");
-  for (i = 1; i < argc; i++) {
-    printf("i: %d, pwopn %d usrtb_fail %d usrtb %p\n", i, pwopn, usrtb_fail,
-           usrtb);
-    r = uid_from_user(argv[i], &u);
-    if (r == -1)
-      printf("  uid_from_user %s: failed\n", argv[i]);
-    else
-      printf("  uid_from_user %s: %d\n", argv[i], u);
-  }
-  printf("pass 1 finish: pwopn %d usrtb_fail %d usrtb %p\n", pwopn, usrtb_fail,
-         usrtb);
-
-  puts("");
-  printf("pass 2 (replacement userdb)\n");
-  printf("pwcache_userdb returned %d\n",
-         pwcache_userdb(setpassent, test_getpwnam, getpwuid));
-  printf("pwopn %d usrtb_fail %d usrtb %p\n", pwopn, usrtb_fail, usrtb);
-
-  for (i = 1; i < argc; i++) {
-    printf("i: %d, pwopn %d usrtb_fail %d usrtb %p\n", i, pwopn, usrtb_fail,
-           usrtb);
-    u = -1;
-    r = uid_from_user(argv[i], &u);
-    if (r == -1)
-      printf("  uid_from_user %s: failed\n", argv[i]);
-    else
-      printf("  uid_from_user %s: %d\n", argv[i], u);
-  }
-  printf("pass 2 finish: pwopn %d usrtb_fail %d usrtb %p\n", pwopn, usrtb_fail,
-         usrtb);
-
-  puts("");
-  printf("pass 3 (null pointers)\n");
-  printf("pwcache_userdb returned %d\n", pwcache_userdb(NULL, NULL, NULL));
-
-  return (0);
-}
-#endif /* TEST_PWCACHE */
-#endif /* !HAVE_PWCACHE_USERDB */
