@@ -73,8 +73,12 @@
 #define __long_call
 #endif
 #define __transparent_union __attribute__((__transparent_union__))
+<<<<<<< HEAD
 #define __no_sanitize                                                          \
   __attribute__((no_sanitize("address", "thread", "undefined")))
+=======
+#define __no_instrument __attribute__((no_sanitize("address", "thread", "undefined")))
+>>>>>>> fix attribute on clang
 
 /* Clang introduces support for the fallthrough attribute in C2x. */
 #ifdef __clang__
