@@ -22,7 +22,8 @@ ifeq ($(KERNEL), 1)
 KCSAN ?= 0
 ifeq ($(KCSAN), 1)
   # Added to files that are sanitized
-  CFLAGS_KCSAN = -fsanitize=thread
+  CFLAGS_KCSAN = -fsanitize=thread \
+                  --param tsan-distinguish-volatile=1
 endif
 # Added to all files
 CFLAGS += -DKCSAN=$(KCSAN)

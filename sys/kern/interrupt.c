@@ -187,6 +187,8 @@ void intr_event_run_handlers(intr_event_t *ie) {
   assert(intr_disabled());
   assert(ie != NULL);
 
+  klog("interrupt: %s", ie->ie_name);
+
   /* Do we wake up an ithread */
   intr_filter_t ie_status = IF_STRAY;
 
