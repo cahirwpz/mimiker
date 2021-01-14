@@ -7,9 +7,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
-#include <sys/bswap.h>
-
-#undef bswap64
+#include <stdlib.h>
 
 uint64_t bswap64(uint64_t x) {
 #ifdef _LP64
