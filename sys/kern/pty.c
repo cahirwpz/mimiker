@@ -52,19 +52,17 @@ static int pty_read(file_t *f, uio_t *uio) {
 
   SCOPED_MTX_LOCK(&tty->t_lock);
 
-  while (true) {
-    if ((error = ringbuf_read(&tty->t_outq, uio)))
-      break;
-    if (uio->uio_resid == 0)
-      return 0;
+  /* Wait until there is at least one byte of data. */
+  while (ringbuf_empty(&tty->t_outq)) {
     /* Don't wait for data if slave device isn't opened. */
     if (!tty_opened(tty))
-      return 0;
-    if (cv_wait_intr(&pty->pt_incv, &tty->t_lock)) {
-      error = ERESTARTSYS;
-      break;
-    }
+        return 0;
+    if (cv_wait_intr(&pty->pt_incv, &tty->t_lock))
+        return ERESTARTSYS;
   }
+
+  /* Data is available: transfer as much as we can. */
+  error = ringbuf_read(&tty->t_outq, uio);
 
   /* Don't report errors on partial reads. */
   if (start_resid > uio->uio_resid)
