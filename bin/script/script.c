@@ -282,7 +282,7 @@ doshell(const char *command)
 	if (command == NULL) {
 		shell = getenv("SHELL");
 		if (shell == NULL)
-			shell = _PATH_BSHELL;
+			shell = _PATH_KSHELL;
 		execl(shell, shell, "-i", NULL);
 		warn("execl `%s'", shell);
 	} else {
