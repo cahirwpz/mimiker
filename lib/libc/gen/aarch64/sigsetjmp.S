@@ -1,5 +1,4 @@
 #include <aarch64/asm.h>
-#include <machine/setjmp.h>
 
 ENTRY(sigsetjmp)
         ret
