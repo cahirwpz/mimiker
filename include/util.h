@@ -2,6 +2,7 @@
 #define _UTIL_H_
 
 #include <sys/types.h>
+#include <sys/termios.h>
 
 __BEGIN_DECLS
 char *strpct(char *, size_t, uintmax_t, uintmax_t, size_t);
@@ -9,6 +10,8 @@ char *strspct(char *, size_t, intmax_t, intmax_t, size_t);
 time_t parsedate(const char *, const time_t *, const int *);
 
 void logwtmp(const char *, const char *, const char *);
+
+int openpty(int *, int *, char *, struct termios *, struct winsize *);
 
 /* Error checked functions */
 void (*esetfunc(void (*)(int, const char *, ...)))(int, const char *, ...);
