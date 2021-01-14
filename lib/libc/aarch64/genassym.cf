@@ -56,4 +56,5 @@ define _OFFSETOF_STACK_T_SP	offsetof(stack_t, ss_sp)
 define _OFFSETOF_STACK_T_SIZE	offsetof(stack_t, ss_size)
 define _OFFSETOF_STACK_T_FLAGS	offsetof(stack_t, ss_flags)
 
-define SS_ONSTACK		SS_ONSTACK
+define SS_ONSTACK       SS_ONSTACK
+define _UC_SIGMASK      _UC_SIGMASK

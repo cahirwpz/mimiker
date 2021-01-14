@@ -43,42 +43,22 @@ ENTRY(setjmp)
         /* stack_t::ss_flags is a int */
         ldr     w0, [x0, _OFFSETOF_STACK_T_FLAGS]
         and     w0, w0, SS_ONSTACK
+        cmp     w0, wzr
+        beq     1f
+
         /* ucontext_t::uc_flags is a int */
         ldr     w1, [x19, _OFFSETOF_SC_FLAGS]
         orr     w0, w0, w1
         str     w0, [x19, _OFFSETOF_SC_FLAGS]
 
+1:
         /* restore jpmbuf */
         mov     x0, x19
         ldp     lr, x19, [sp]
 
         add     sp, sp, #16
 
-        /* Copy saved registers */
-        str     x19, [x0, _OFFSETOF_SC_REGS_X19]
-        str     x20, [x0, _OFFSETOF_SC_REGS_X20]
-        str     x21, [x0, _OFFSETOF_SC_REGS_X21]
-        str     x22, [x0, _OFFSETOF_SC_REGS_X22]
-        str     x23, [x0, _OFFSETOF_SC_REGS_X23]
-        str     x24, [x0, _OFFSETOF_SC_REGS_X24]
-        str     x25, [x0, _OFFSETOF_SC_REGS_X25]
-        str     x26, [x0, _OFFSETOF_SC_REGS_X26]
-        str     x27, [x0, _OFFSETOF_SC_REGS_X27]
-        str     x28, [x0, _OFFSETOF_SC_REGS_X28]
-        str     x29, [x0, _OFFSETOF_SC_REGS_X29]
-        str     lr, [x0, _OFFSETOF_SC_REGS_LR]
-
-        mov     x29, sp
-        str     x29, [x0, _OFFSETOF_SC_REGS_SP]
-        
-        ldr     x29, [x0, _OFFSETOF_SC_REGS_X29]
-
-        /* TODO(pj): FPU */
-
-
-        mov     x0, xzr
-        ret
-
+        b       _setjmp
 botch:
         bl      abort
 END(setjmp)

@@ -19,10 +19,14 @@ ENTRY(_setjmp)
         str     x29, [x0, _OFFSETOF_SC_REGS_X29]
         str     lr, [x0, _OFFSETOF_SC_REGS_LR]
 
-        mov     x29, sp
-        str     x29, [x0, _OFFSETOF_SC_REGS_SP]
+        mov     x1, sp
+        str     x1, [x0, _OFFSETOF_SC_REGS_SP]
         
-        ldr     x29, [x0, _OFFSETOF_SC_REGS_X29]
+        ldr     x1, [x0, _OFFSETOF_SC_REGS_X29]
+
+        ldr     x1, [x0, _OFFSETOF_SC_FLAGS]
+        orr     x1, x1, (_UC_FPU | _UC_CPU)
+        str     x1, [x0, _OFFSETOF_SC_FLAGS]
 
         /* TODO(pj): FPU */
         mov     x0, xzr
