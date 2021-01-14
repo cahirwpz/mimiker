@@ -69,7 +69,6 @@ typedef struct tty {
   size_t t_column;           /* Cursor's column position */
   size_t t_rocol, t_rocount; /* See explanation below */
   condvar_t t_serialize_cv;  /* CV used to serialize write() calls */
-  condvar_t t_background_cv; /* Background wait CV */
   ttyops_t t_ops;            /* Serial device operations */
   struct termios t_termios;
   pgrp_t *t_pgrp;       /* Foreground process group */
