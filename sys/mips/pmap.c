@@ -33,15 +33,12 @@ static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 
 static const pte_t vm_prot_map[] = {
   [VM_PROT_NONE] = 0,
-  [VM_PROT_READ] = PTE_VALID | /*PTE_NO_EXEC*/ PTE_READ,
-  [VM_PROT_WRITE] =
-    PTE_VALID | PTE_DIRTY | /*PTE_NO_READ | PTE_NO_EXEC*/ PTE_WRITE,
-  [VM_PROT_READ | VM_PROT_WRITE] =
-    PTE_VALID | PTE_DIRTY | /*PTE_NO_EXEC*/ PTE_READ | PTE_WRITE,
-  [VM_PROT_EXEC] = PTE_VALID /*| PTE_NO_READ*/,
+  [VM_PROT_READ] = PTE_VALID | PTE_READ,
+  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_WRITE,
+  [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_READ | PTE_WRITE,
+  [VM_PROT_EXEC] = PTE_VALID,
   [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID | PTE_READ,
-  [VM_PROT_WRITE | VM_PROT_EXEC] =
-    PTE_VALID | PTE_DIRTY | /*PTE_NO_READ*/ PTE_WRITE,
+  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY | PTE_WRITE,
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] =
     PTE_VALID | PTE_DIRTY | PTE_READ | PTE_WRITE,
 };
@@ -308,6 +305,31 @@ static bool pmap_extract_nolock(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
     return false;
 
   *pap = pa | PAGE_OFFSET(va);
+  return true;
+}
+
+bool pmap_extract_and_hold(pmap_t *pmap, vaddr_t va, paddr_t *pap,
+                           vm_prot_t prot) {
+  assert(pap != NULL);
+  paddr_t old = *pap;
+
+  SCOPED_MTX_LOCK(&pmap->mtx);
+
+  bool result = pmap_extract_nolock(pmap, va, pap);
+
+  if (!result) {
+    *pap = old;
+    return false;
+  }
+
+  pte_t pte = pmap_pte_read(pmap, va);
+
+  if ((prot & VM_PROT_READ && !(pte & PTE_READ)) ||
+      (prot & VM_PROT_WRITE && !(pte & PTE_WRITE))) {
+    *pap = old;
+    return false;
+  }
+
   return true;
 }
 

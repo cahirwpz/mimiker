@@ -143,7 +143,8 @@ static void tlb_exception_handler(ctx_t *ctx) {
   }
 
   paddr_t pa;
-  if (pmap_extract(pmap, vaddr, &pa)) {
+  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
+  if (pmap_extract_and_hold(pmap, vaddr, &pa, access)) {
     vm_page_t *pg = vm_page_find(pa);
 
     /* Kernel non-pageable memory? */
@@ -167,7 +168,7 @@ static void tlb_exception_handler(ctx_t *ctx) {
     klog("No virtual address space defined for %08lx!", vaddr);
     goto fault;
   }
-  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
+
   if (vm_page_fault(vmap, vaddr, access) == 0)
     return;
 

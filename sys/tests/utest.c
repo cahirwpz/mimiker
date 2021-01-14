@@ -63,7 +63,7 @@ static int utest_generic(const char *name, int status_success) {
 
 UTEST_ADD_SIMPLE(mmap);
 UTEST_ADD_SIGNAL(munmap_sigsegv, SIGSEGV);
-UTEST_ADD_SIMPLE(mprotect);
+UTEST_ADD_SIMPLE(mmap_readonly);
 UTEST_ADD_SIMPLE(sbrk);
 UTEST_ADD_SIGNAL(sbrk_sigsegv, SIGSEGV);
 UTEST_ADD_SIMPLE(misbehave);
