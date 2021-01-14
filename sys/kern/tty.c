@@ -969,6 +969,13 @@ int tty_ioctl(file_t *f, u_long cmd, void *data) {
     }
     case TIOCSWINSZ:
       return tty_set_winsize(tty, data);
+    case TIOCSCTTY: {
+      SCOPED_MTX_LOCK(all_proc_mtx);
+      SCOPED_MTX_LOCK(&tty->t_lock);
+      if (!maybe_assoc_ctty(proc_self(), tty))
+        return EPERM;
+      return 0;
+    }
     case 0:
       return EPASSTHROUGH;
     default: {
