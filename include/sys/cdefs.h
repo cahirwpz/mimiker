@@ -25,7 +25,7 @@
 #else
 #define __BEGIN_DECLS
 #define __END_DECLS
-#define __static_cast(x, y) (x) y
+#define __static_cast(x, y) ((x)(y))
 #endif
 #endif
 
