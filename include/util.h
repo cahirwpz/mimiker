@@ -13,6 +13,8 @@ void logwtmp(const char *, const char *, const char *);
 
 int openpty(int *, int *, char *, struct termios *, struct winsize *);
 
+int login_tty(int);
+
 /* Error checked functions */
 void (*esetfunc(void (*)(int, const char *, ...)))(int, const char *, ...);
 size_t estrlcpy(char *, const char *, size_t);
