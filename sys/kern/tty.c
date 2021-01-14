@@ -1041,20 +1041,21 @@ static fileops_t tty_fileops = {
   .fo_ioctl = tty_ioctl,
 };
 
-void maybe_assoc_ctty(proc_t *p, tty_t *tty) {
+bool maybe_assoc_ctty(proc_t *p, tty_t *tty) {
   assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&tty->t_lock));
 
   if (!proc_is_session_leader(p))
-    return;
+    return false;
   if (tty->t_session != NULL)
-    return;
+    return false;
   session_t *s = p->p_pgrp->pg_session;
   if (s->s_tty != NULL)
-    return;
+    return false;
   tty->t_session = s;
   s->s_tty = tty;
   tty->t_pgrp = p->p_pgrp;
+  return true;
 }
 
 static int _tty_vn_open(vnode_t *v, int mode, file_t *fp) {
