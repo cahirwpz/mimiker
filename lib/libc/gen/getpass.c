@@ -29,14 +29,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-#if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: getpass.c,v 1.30 2016/01/31 23:41:38 christos Exp $");
-#endif /* LIBC_SCCS and not lint */
 
 #include <assert.h>
-#ifdef TEST
-#include <stdio.h>
-#endif
 #include <errno.h>
 #include <ctype.h>
 #include <signal.h>
@@ -321,12 +315,3 @@ char *getpass(const char *prompt) {
 
   return rv;
 }
-
-#ifdef TEST
-int main(int argc, char *argv[]) {
-  char buf[28];
-  printf("[%s]\n", getpassfd("foo>", buf, sizeof(buf), NULL,
-                             GETPASS_ECHO_STAR | GETPASS_ECHO_NL, 2));
-  return 0;
-}
-#endif
