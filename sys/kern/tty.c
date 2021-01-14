@@ -197,6 +197,10 @@ static int tty_wait(tty_t *tty, condvar_t *cv) {
   if (tty_detached(tty))
     return ENXIO;
 
+  /* Did we receive a signal while sleeping? */
+  if (error == EINTR)
+    return ERESTARTSYS;
+
   return error;
 }
 
@@ -404,58 +408,50 @@ static void tty_wakeup(tty_t *tty) {
 }
 
 /*
- * Wait for our process group to become the foreground process group.
- * Heavily based on FreeBSD's implementation of this routine.
+ * Check whether we're allowed to continue with an operation.
+ * Heavily based on FreeBSD's tty_wait_background().
  */
-static int tty_wait_background(tty_t *tty, int sig) {
+static int tty_check_background(tty_t *tty, int sig) {
   thread_t *td = thread_self();
   proc_t *p = td->td_proc;
   pgrp_t *pg;
-  int error;
 
   assert(sig == SIGTTIN || sig == SIGTTOU);
   assert(mtx_owned(&tty->t_lock));
 
-  while (true) {
-  tryagain:
-    WITH_PROC_LOCK(p) {
-      /*
-       * The process should only sleep, when:
-       * - This terminal is the controlling terminal
-       * - Its process group is not the foreground process
-       *   group
-       * - The signal to send to the process isn't masked
-       * - Its process group is not orphaned
-       */
-      if (!tty_is_ctty(tty, p) || p->p_pgrp == tty->t_pgrp)
-        return 0;
+tryagain:
+  WITH_PROC_LOCK(p) {
+    /*
+     * The current process group should only get the signal, when:
+     * - This terminal is the controlling terminal
+     * - The process group is not the foreground process group
+     * - The signal to send to the process isn't masked
+     * - Its process group is not orphaned
+     */
+    if (!tty_is_ctty(tty, p) || p->p_pgrp == tty->t_pgrp)
+      return 0;
 
-      if (p->p_sigactions[sig].sa_handler == SIG_IGN ||
-          __sigismember(&td->td_sigmask, sig))
-        return (sig == SIGTTOU ? 0 : EIO);
+    if (p->p_sigactions[sig].sa_handler == SIG_IGN ||
+        __sigismember(&td->td_sigmask, sig))
+      return (sig == SIGTTOU ? 0 : EIO);
 
-      pg = p->p_pgrp;
-    }
-
-    WITH_MTX_LOCK (&pg->pg_lock) {
-      /* Our process group might have changed: check. */
-      if (p->p_pgrp != pg)
-        goto tryagain;
-
-      /* Unlocked read of pg_jobc: not a big deal. */
-      if (pg->pg_jobc == 0)
-        return EIO;
-
-      /*
-       * Send the signal and sleep until we're in the foreground
-       * process group.
-       */
-      sig_pgkill(pg, &DEF_KSI_RAW(sig));
-    }
-
-    if ((error = tty_wait(tty, &tty->t_background_cv)))
-      return error;
+    pg = p->p_pgrp;
   }
+
+  WITH_MTX_LOCK (&pg->pg_lock) {
+    /* Our process group might have changed: check. */
+    if (p->p_pgrp != pg)
+      goto tryagain;
+
+    /* Unlocked read of pg_jobc: not a big deal. */
+    if (pg->pg_jobc == 0)
+      return EIO;
+
+    sig_pgkill(pg, &DEF_KSI_RAW(sig));
+  }
+
+  /* Handle the signal at userspace boundary. */
+  return ERESTARTSYS;
 }
 
 static void tty_in_hiwat(tty_t *tty) {
@@ -577,7 +573,7 @@ static int tty_do_read(file_t *f, uio_t *uio) {
       return ENXIO;
 
     while (true) {
-      if ((error = tty_wait_background(tty, SIGTTIN)))
+      if ((error = tty_check_background(tty, SIGTTIN)))
         return error;
 
       if (tty->t_inq.count > 0)
@@ -772,7 +768,7 @@ static int tty_write(file_t *f, uio_t *uio) {
 
     if (tty->t_lflag & TOSTOP) {
       /* Wait until we're the foreground process group. */
-      if ((error = tty_wait_background(tty, SIGTTOU)))
+      if ((error = tty_check_background(tty, SIGTTOU)))
         return error;
     }
 
@@ -928,7 +924,6 @@ static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
       if (tty->t_session != p->p_pgrp->pg_session)
         return ENOTTY;
       tty->t_pgrp = pg;
-      cv_broadcast(&tty->t_background_cv);
     }
   }
   return 0;
@@ -1001,7 +996,6 @@ void tty_detach_driver(tty_t *tty) {
   cv_broadcast(&tty->t_incv);
   cv_broadcast(&tty->t_outcv);
   cv_broadcast(&tty->t_serialize_cv);
-  cv_broadcast(&tty->t_background_cv);
 
   /* We can't free the tty structure yet, as there may still be existing
    * references to the vnode. We free it in tty_vn_reclaim, once all references
