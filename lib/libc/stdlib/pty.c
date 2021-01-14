@@ -61,10 +61,11 @@ char *ptsname(int fildes) {
 
 int ptsname_r(int fildes, char *buf, size_t buflen) {
   char p[PATH_MAX];
+  char *bufptr = p;
 
   if (buf == NULL)
     return EINVAL;
-  if (ioctl(fildes, TIOCPTSNAME, p) == -1)
+  if (ioctl(fildes, TIOCPTSNAME, &bufptr) == -1)
     return errno;
   if (strlcpy(buf, p, buflen) > buflen)
     return ERANGE;
