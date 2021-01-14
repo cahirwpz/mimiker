@@ -63,10 +63,10 @@ int do_munmap(vaddr_t addr, size_t length) {
   if (length == 0)
     return EINVAL;
 
-  /* Round boundaries to contain entire pages from range [addr, addr + length)
-   */
-  vaddr_t right_boundary = roundup(addr + length, PAGESIZE);
-  addr = rounddown(addr, PAGESIZE);
+  if (!page_aligned_p(addr) || !page_aligned_p(length))
+    return EINVAL;
+
+  vaddr_t right_boundary = addr + length;
 
   WITH_VM_MAP_LOCK (uspace) {
     while (addr < right_boundary) {
