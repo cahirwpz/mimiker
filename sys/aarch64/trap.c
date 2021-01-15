@@ -21,7 +21,7 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
 static void syscall_handler(register_t code, ctx_t *ctx,
                             syscall_result_t *result) {
   register_t args[SYS_MAXSYSARGS];
-  const int nregs = 6;
+  const size_t nregs = min(SYS_MAXSYSARGS, SYS_MAXREGS);
 
   memcpy(args, &_REG(ctx, X0), nregs * sizeof(register_t));
 

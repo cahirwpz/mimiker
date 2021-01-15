@@ -78,4 +78,6 @@
 #define CALLFRAME_SP (CALLFRAME_SIZ - 2 * SZREG)
 #define CALLFRAME_RA (CALLFRAME_SIZ - 1 * SZREG)
 
+#define SYS_MAXREGS 4
+
 #endif /* !_MACHINE_ABI_H_ */

@@ -20,7 +20,7 @@ static void syscall_handler(ctx_t *ctx, syscall_result_t *result) {
   /* TODO Eventually we should have a platform-independent syscall handler. */
   register_t args[SYS_MAXSYSARGS];
   register_t code = _REG(ctx, V0);
-  const int nregs = 4;
+  const size_t nregs = min(SYS_MAXSYSARGS, SYS_MAXREGS);
   int error = 0;
 
   /*
