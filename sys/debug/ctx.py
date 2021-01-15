@@ -25,8 +25,8 @@ class Context():
         # The program counter in that context is actually the return address
         # from ctx_switch(), pointing to somewhere in sched_switch().
         # Therefore, we need to skip the stack frame of ctx_switch() for gdb
-        # to print a proper backtrace. This is why we add the size of `*td_kctx`
-        # to `kctx`.
+        # to print a proper backtrace. This is why we add the size
+        # of `*td_kctx` to `kctx`.
         c.regs['sp'] = int(kctx) + kctx.type.target().sizeof
         return c
 
@@ -45,6 +45,6 @@ class Context():
 
     def dump(self):
         table = TextTable(align='rl')
-        table.add_rows([[name, '0x%08x' % (val & 0xffffffff)] for name, val in self.regs.items()])
+        table.add_rows([[name, '0x%08x' % (val & 0xffffffff)]
+                        for name, val in self.regs.items()])
         print(table)
-
