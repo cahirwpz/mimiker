@@ -64,6 +64,7 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
                          res_flags_t flags) {
   assert(!resource_list_find(dev, rid, type));
   resource_t *r = bus_alloc_resource(dev, type, rid, start, end, size, flags);
+  assert(r);
   SLIST_INSERT_HEAD(&dev->resources, r, r_link);
 }
 
