@@ -60,7 +60,7 @@ static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
   /* XXX: It's still possible for a tick to be lost. */
-  (void) pit_get_counter64(pit);
+  (void)pit_get_counter64(pit);
   tm_trigger(&pit->timer);
   return IF_FILTERED;
 }
