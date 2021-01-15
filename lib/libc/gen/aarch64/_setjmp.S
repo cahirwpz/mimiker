@@ -19,16 +19,38 @@ ENTRY(_setjmp)
         str     x29, [x0, _OFFSETOF_SC_REGS_X29]
         str     lr, [x0, _OFFSETOF_SC_REGS_LR]
 
+        /* sp register is special :( */
         mov     x1, sp
         str     x1, [x0, _OFFSETOF_SC_REGS_SP]
         
-        ldr     x1, [x0, _OFFSETOF_SC_REGS_X29]
-
+        /* save flags */
         ldr     x1, [x0, _OFFSETOF_SC_FLAGS]
         orr     x1, x1, (_UC_FPU | _UC_CPU)
         str     x1, [x0, _OFFSETOF_SC_FLAGS]
 
-        /* TODO(pj): FPU */
+        /* FPU status */
+        mrs     x1, fpcr
+        str     w1, [x0, _OFFSETOF_SC_REGS_FPCR]
+        mrs     x1, fpsr
+        str     w1, [x0, _OFFSETOF_SC_REGS_FPSR]
+
+        stp     q0, q1, [x0, _OFFSETOF_SC_REGS_Q0]
+        stp     q2, q3, [x0, _OFFSETOF_SC_REGS_Q2]
+        stp     q4, q5, [x0, _OFFSETOF_SC_REGS_Q4]
+        stp     q6, q7, [x0, _OFFSETOF_SC_REGS_Q6]
+        stp     q8, q9, [x0, _OFFSETOF_SC_REGS_Q8]
+        stp     q10, q11, [x0, _OFFSETOF_SC_REGS_Q10]
+        stp     q12, q13, [x0, _OFFSETOF_SC_REGS_Q12]
+        stp     q14, q15, [x0, _OFFSETOF_SC_REGS_Q14]
+        stp     q16, q17, [x0, _OFFSETOF_SC_REGS_Q16]
+        stp     q18, q19, [x0, _OFFSETOF_SC_REGS_Q18]
+        stp     q20, q21, [x0, _OFFSETOF_SC_REGS_Q20]
+        stp     q22, q23, [x0, _OFFSETOF_SC_REGS_Q22]
+        stp     q24, q25, [x0, _OFFSETOF_SC_REGS_Q24]
+        stp     q26, q27, [x0, _OFFSETOF_SC_REGS_Q26]
+        stp     q28, q29, [x0, _OFFSETOF_SC_REGS_Q28]
+        stp     q30, q31, [x0, _OFFSETOF_SC_REGS_Q30]
+
         mov     x0, xzr
         ret
 END(_setjmp)
@@ -49,7 +71,29 @@ ENTRY(_longjmp)
         ldr     x29, [x0, _OFFSETOF_SC_REGS_X29]
         ldr     lr, [x0, _OFFSETOF_SC_REGS_LR]
 
-        /* TODO(pj): FPU */
+        /* FPU status */
+        ldr     w2, [x0, _OFFSETOF_SC_REGS_FPCR]
+        msr     fpcr, x1
+        ldr     w2, [x0, _OFFSETOF_SC_REGS_FPSR]
+        mrs     x2, fpsr
+
+        ldp     q0, q1, [x0, _OFFSETOF_SC_REGS_Q0]
+        ldp     q2, q3, [x0, _OFFSETOF_SC_REGS_Q2]
+        ldp     q4, q5, [x0, _OFFSETOF_SC_REGS_Q4]
+        ldp     q6, q7, [x0, _OFFSETOF_SC_REGS_Q6]
+        ldp     q8, q9, [x0, _OFFSETOF_SC_REGS_Q8]
+        ldp     q10, q11, [x0, _OFFSETOF_SC_REGS_Q10]
+        ldp     q12, q13, [x0, _OFFSETOF_SC_REGS_Q12]
+        ldp     q14, q15, [x0, _OFFSETOF_SC_REGS_Q14]
+        ldp     q16, q17, [x0, _OFFSETOF_SC_REGS_Q16]
+        ldp     q18, q19, [x0, _OFFSETOF_SC_REGS_Q18]
+        ldp     q20, q21, [x0, _OFFSETOF_SC_REGS_Q20]
+        ldp     q22, q23, [x0, _OFFSETOF_SC_REGS_Q22]
+        ldp     q24, q25, [x0, _OFFSETOF_SC_REGS_Q24]
+        ldp     q26, q27, [x0, _OFFSETOF_SC_REGS_Q26]
+        ldp     q28, q29, [x0, _OFFSETOF_SC_REGS_Q28]
+        ldp     q30, q31, [x0, _OFFSETOF_SC_REGS_Q30]
+
         mov     x0, x1
         ret
 END(_longjmp)
