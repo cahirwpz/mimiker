@@ -63,6 +63,7 @@ static int pty_read(file_t *f, uio_t *uio) {
 
   /* Data is available: transfer as much as we can. */
   error = ringbuf_read(&tty->t_outq, uio);
+  tty_getc_done(tty);
 
   /* Don't report errors on partial reads. */
   if (start_resid > uio->uio_resid)
