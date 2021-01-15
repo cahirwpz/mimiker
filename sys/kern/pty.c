@@ -56,9 +56,9 @@ static int pty_read(file_t *f, uio_t *uio) {
   while (ringbuf_empty(&tty->t_outq)) {
     /* Don't wait for data if slave device isn't opened. */
     if (!tty_opened(tty))
-        return 0;
+      return 0;
     if (cv_wait_intr(&pty->pt_incv, &tty->t_lock))
-        return ERESTARTSYS;
+      return ERESTARTSYS;
   }
 
   /* Data is available: transfer as much as we can. */
