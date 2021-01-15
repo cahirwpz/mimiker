@@ -146,8 +146,6 @@ void pci_bus_enumerate(device_t *pcib) {
         uint32_t addr;
         uint32_t size = pci_bar_size(dev, i, &addr);
 
-        klog("%d", size);
-
         if (size == 0 || addr == size)
           continue;
 
