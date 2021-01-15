@@ -372,9 +372,10 @@ static bool gt_pci_bar(device_t *dev, resource_t *r, rman_addr_t start) {
   return r->r_rid < PCI_BAR_MAX && pcid->bar[r->r_rid].size != 0;
 }
 
-static void gt_pci_alloc_resource(device_t *dev, resource_t *r,
-                                  rman_addr_t start, rman_addr_t end,
-                                  size_t size, res_flags_t flags) {
+static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
+                                         int rid, rman_addr_t start,
+                                         rman_addr_t end, size_t size,
+                                         res_flags_t flags) {
   /* Currently all devices are logicaly attached to PCI bus,
    * because we don't have PCI-ISA bridge implemented. */
   assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
@@ -385,37 +386,57 @@ static void gt_pci_alloc_resource(device_t *dev, resource_t *r,
   size_t alignment = 0;
   rman_t *rman = NULL;
 
-  if (r->r_type == RT_IOPORTS) {
+  if (type == RT_IOPORTS) {
     rman = &gtpci->pci_io_rman;
     bh = gtpci->pci_io->r_bus_handle;
-  } else if (r->r_type == RT_IRQ) {
+  } else if (type == RT_IRQ) {
     rman = &gtpci->irq_rman;
-  } else if (r->r_type == RT_MEMORY) {
+  } else if (type == RT_MEMORY) {
     alignment = PAGESIZE;
     rman = &gtpci->pci_mem_rman;
   } else {
-    panic("Unknown PCI device type: %d", r->r_type);
+    panic("Unknown PCI device type: %d", type);
   }
+
+  resource_t *r = kmalloc(M_DEV, sizeof(resource_t), M_WAITOK);
+  r->r_type = type;
+  r->r_rid = rid;
 
   if (gt_pci_bar(dev, r, start))
     alignment = max(alignment, size);
 
-  if (r->r_type == RT_MEMORY) {
+  if (type == RT_MEMORY) {
     /* XXX: Perhaps, the rman_alloc_resource should take this into account */
     size = roundup(size, PAGESIZE);
   }
 
   r->r_res = rman_reserve_resource(rman, start, end, size, alignment, flags);
+  if (r->r_res == NULL)
+    goto bad;
 
-  if (r->r_type != RT_IRQ) {
+  if (type != RT_IRQ) {
     r->r_bus_tag = generic_bus_space;
     r->r_bus_handle = bh + resource_start(r);
   }
+
+  if (flags & RF_ACTIVE) {
+    if (bus_activate_resource(dev, r)) {
+      rman_release_resource(r->r_res);
+      goto bad;
+    }
+  }
+
+  return r;
+
+bad:
+  kfree(M_DEV, r);
+  return NULL;
 }
 
 static void gt_pci_release_resource(device_t *dev, resource_t *r) {
   bus_deactivate_resource(dev, r);
   rman_release_resource(r->r_res);
+  kfree(M_DEV, r);
 }
 
 static int gt_pci_activate_resource(device_t *dev, resource_t *r) {

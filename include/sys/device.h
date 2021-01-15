@@ -83,13 +83,10 @@ int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);
 
-/*! \brief Assign a resource to a device.
- *
- * This function is mainly called by bus drivers but can also be
- * used by other device drivers to gain new resources from parent bus. */
-resource_t *device_add_resource(device_t *dev, res_type_t type, int rid,
-                                rman_addr_t start, rman_addr_t end, size_t size,
-                                res_flags_t flags);
+/*! \brief Add a resource entry to resource list. */
+void device_add_resource(device_t *dev, res_type_t type, int rid,
+                         rman_addr_t start, rman_addr_t end, size_t size,
+                         res_flags_t flags);
 
 #define device_add_memory(dev, rid, start, size)                               \
   device_add_resource((dev), RT_MEMORY, (rid), (start), (start) + (size)-1,    \
@@ -101,6 +98,9 @@ resource_t *device_add_resource(device_t *dev, res_type_t type, int rid,
 
 #define device_add_irq(dev, rid, irq)                                          \
   device_add_resource((dev), RT_IRQ, (rid), (irq), (irq), 1, 0)
+
+/*! \brief Reomve a resource entry from the device's resource list. */
+void device_remove_resource(device_t *dev, resource_t *r);
 
 /*! \brief Take a resource which is assigned to device by parent bus. */
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,

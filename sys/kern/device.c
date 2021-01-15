@@ -59,27 +59,18 @@ static resource_t *resource_list_find(device_t *dev, res_type_t type, int rid) {
   return NULL;
 }
 
-resource_t *device_add_resource(device_t *dev, res_type_t type, int rid,
-                                rman_addr_t start, rman_addr_t end, size_t size,
-                                res_flags_t flags) {
+void device_add_resource(device_t *dev, res_type_t type, int rid,
+                         rman_addr_t start, rman_addr_t end, size_t size,
+                         res_flags_t flags) {
   assert(!resource_list_find(dev, rid, type));
-
-  resource_t *r = kmalloc(M_DEV, sizeof(resource_t), M_WAITOK);
-  r->r_type = type;
-  r->r_rid = rid;
-
-  /* Bus dependent resource allocation. */
-  bus_alloc_resource(dev, r, start, end, size, flags);
-  assert(r->r_res);
-
-  if (flags & RF_ACTIVE)
-    if (bus_activate_resource(dev, r)) {
-      rman_release_resource(r->r_res);
-      return NULL;
-    }
-
+  resource_t *r = bus_alloc_resource(dev, type, rid, start, end, size, flags);
   SLIST_INSERT_HEAD(&dev->resources, r, r_link);
-  return r;
+}
+
+void device_remove_resource(device_t *dev, resource_t *r) {
+  assert(resource_list_find(dev, r->r_rid, r->r_type));
+  SLIST_REMOVE(&dev->resources, r, resource, r_link);
+  bus_release_resource(dev, r);
 }
 
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,

@@ -60,33 +60,53 @@ static void rootdev_intr_teardown(device_t *dev, resource_t *irq) {
    * intr_teardown method? probably not... maybe in detach method? */
 }
 
-static void rootdev_alloc_resource(device_t *dev, resource_t *r,
-                                   rman_addr_t start, rman_addr_t end,
-                                   size_t size, res_flags_t flags) {
+static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
+                                          int rid, rman_addr_t start,
+                                          rman_addr_t end, size_t size,
+                                          res_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
   size_t alignment = 0;
   rman_t *rman = NULL;
 
-  if (r->r_type == RT_MEMORY) {
+  if (type == RT_MEMORY) {
     alignment = PAGESIZE;
     rman = &rd->mem;
-  } else if (r->r_type == RT_IRQ) {
+  } else if (type == RT_IRQ) {
     rman = &rd->irq;
   } else {
     panic("Resource type not handled!");
   }
 
+  resource_t *r = kmalloc(M_DEV, sizeof(resource_t), M_WAITOK);
+  r->r_type = type;
+  r->r_rid = rid;
   r->r_res = rman_reserve_resource(rman, start, end, size, alignment, flags);
+  if (r->r_res == NULL)
+    goto bad;
 
-  if (r->r_type == RT_MEMORY) {
+  if (type == RT_MEMORY) {
     r->r_bus_tag = generic_bus_space;
     r->r_bus_handle = resource_start(r);
   }
+
+  if (flags & RF_ACTIVE) {
+    if (bus_activate_resource(dev, r)) {
+      rman_release_resource(r->r_res);
+      goto bad;
+    }
+  }
+
+  return r;
+
+bad:
+  kfree(M_DEV, r);
+  return NULL;
 }
 
 static void rootdev_release_resource(device_t *dev, resource_t *r) {
   bus_deactivate_resource(dev, r);
   rman_release_resource(r->r_res);
+  kfree(M_DEV, r);
 }
 
 static int rootdev_activate_resource(device_t *dev, resource_t *r) {
