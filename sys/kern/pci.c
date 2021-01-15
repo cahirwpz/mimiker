@@ -1,3 +1,5 @@
+#define KL_LOG KL_DEV
+#include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/device.h>
@@ -53,6 +55,36 @@ static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
   uint32_t old = pci_read_config_4(pcid, PCIR_BAR(bar));
   /* XXX: we don't handle 64-bit memory space bars. */
 
+  if (old == 0 || old == 1) {
+    if (((pci_device_t *)(pcid->instance))->class_code == 1) {
+      klog("%d ------------", old);
+      if (bar == 0) {
+        *addr = 0x1f0;
+        pci_write_config_4(pcid, PCIR_BAR(bar), old);
+        pci_write_config_2(pcid, PCIR_COMMAND, cmd);
+        return -8;
+      }
+      if (bar == 1) {
+        *addr = 0x3f6;
+        pci_write_config_4(pcid, PCIR_BAR(bar), old);
+        pci_write_config_2(pcid, PCIR_COMMAND, cmd);
+        return -1;
+      }
+      if (bar == 2) {
+        *addr = 0x170;
+        pci_write_config_4(pcid, PCIR_BAR(bar), old);
+        pci_write_config_2(pcid, PCIR_COMMAND, cmd);
+        return -8;
+      }
+      if (bar == 3) {
+        *addr = 0x376;
+        pci_write_config_4(pcid, PCIR_BAR(bar), old);
+        pci_write_config_2(pcid, PCIR_COMMAND, cmd);
+        return -1;
+      }
+    }
+  }
+
   /* If we write 0xFFFFFFFF to a BAR register and then read
    * it back, we'll get a bar size indicator. */
   pci_write_config_4(pcid, PCIR_BAR(bar), -1);
@@ -104,6 +136,7 @@ void pci_bus_enumerate(device_t *pcib) {
       pcid->addr = PCIA(0, d, f);
       pcid->device_id = pci_read_config_2(dev, PCIR_DEVICEID);
       pcid->vendor_id = pci_read_config_2(dev, PCIR_VENDORID);
+      /*(tstach)TODO: read subclass code too */
       pcid->class_code = pci_read_config_1(dev, PCIR_CLASSCODE);
       pcid->pin = pci_read_config_1(dev, PCIR_IRQPIN);
       pcid->irq = pci_read_config_1(dev, PCIR_IRQLINE);
@@ -114,12 +147,16 @@ void pci_bus_enumerate(device_t *pcib) {
         uint32_t addr;
         uint32_t size = pci_bar_size(dev, i, &addr);
 
+        klog("%d", size);
+
         if (size == 0 || addr == size)
           continue;
 
         unsigned type, flags = 0;
 
-        if (addr & PCI_BAR_IO) {
+        if (addr == 0x1f0 || addr == 0x3f6 || addr == 0x170 || addr == 0x376) {
+          type = RT_IOPORTS;
+        } else if (addr & PCI_BAR_IO) {
           type = RT_IOPORTS;
           size &= ~PCI_BAR_IO_MASK;
         } else {
@@ -135,6 +172,9 @@ void pci_bus_enumerate(device_t *pcib) {
 
         /* skip ISA I/O ports range */
         rman_addr_t start = (type == RT_IOPORTS) ? (IO_ISAEND + 1) : 0;
+
+        if (addr == 0x1f0 || addr == 0x3f6 || addr == 0x170 || addr == 0x376)
+          start = 0;
 
         device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size, flags);
       }

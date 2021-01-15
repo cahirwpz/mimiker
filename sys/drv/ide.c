@@ -10,10 +10,36 @@
 #include <sys/devclass.h>
 #include <dev/atareg.h>
 #include <dev/pciidereg.h>
+#include <dev/idereg.h>
+
+typedef struct IDEChannelRegisters {
+  unsigned short base;  // I/O Base.
+  unsigned short ctrl;  // Control Base
+  unsigned short bmide; // Bus Master IDE
+  unsigned char nIEN;   // nIEN (No Interrupt);
+} IDEChannelRegisters_t;
+
+typedef struct ide_device {
+  unsigned char Reserved;      // 0 (Empty) or 1 (This Drive really exists).
+  unsigned char Channel;       // 0 (Primary Channel) or 1 (Secondary Channel).
+  unsigned char Drive;         // 0 (Master Drive) or 1 (Slave Drive).
+  unsigned short Type;         // 0: ATA, 1:ATAPI.
+  unsigned short Signature;    // Drive Signature
+  unsigned short Capabilities; // Features.
+  unsigned int CommandSets;    // Command Sets Supported.
+  unsigned int Size;           // Size in Sectors.
+  unsigned char Model[41];     // Model in string.
+} ide_device_t;
 
 typedef struct ide_state {
+  resource_t *io_primary;
+  resource_t *io_primary_control;
+  resource_t *io_secondary;
+  resource_t *io_secondary_control;
   resource_t *regs;
   resource_t *irq_res;
+  ide_device_t ide_devices[4];
+  IDEChannelRegisters_t channels[2];
 } ide_state_t;
 
 #define inb(addr) bus_read_1(ide->regs, (addr))
@@ -35,6 +61,42 @@ controls DMA on the primary and secondary channel respectively.
 #define STATUS_DRQ 0x08
 #define STATUS_DF 0x20
 #define STATUS_ERR 0x01
+
+unsigned char ide_buf[2048] = {0};
+unsigned static char ide_irq_invoked = 0;
+unsigned static char atapi_packet[12] = {0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+void ide_write(unsigned char channel, unsigned char reg, unsigned char data) {
+  if (reg > 0x07 && reg < 0x0C)
+    ide_write(channel, ATA_REG_CONTROL, 0x80 | channels[channel].nIEN);
+  if (reg < 0x08)
+    outb(channels[channel].base + reg - 0x00, data);
+  else if (reg < 0x0C)
+    outb(channels[channel].base + reg - 0x06, data);
+  else if (reg < 0x0E)
+    outb(channels[channel].ctrl + reg - 0x0A, data);
+  else if (reg < 0x16)
+    outb(channels[channel].bmide + reg - 0x0E, data);
+  if (reg > 0x07 && reg < 0x0C)
+    ide_write(channel, ATA_REG_CONTROL, channels[channel].nIEN);
+}
+
+unsigned char ide_read(unsigned char channel, unsigned char reg) {
+  unsigned char result;
+  if (reg > 0x07 && reg < 0x0C)
+    ide_write(channel, ATA_REG_CONTROL, 0x80 | channels[channel].nIEN);
+  if (reg < 0x08)
+    result = inb(channels[channel].base + reg - 0x00);
+  else if (reg < 0x0C)
+    result = inb(channels[channel].base + reg - 0x06);
+  else if (reg < 0x0E)
+    result = inb(channels[channel].ctrl + reg - 0x0A);
+  else if (reg < 0x16)
+    result = inb(channels[channel].bmide + reg - 0x0E);
+  if (reg > 0x07 && reg < 0x0C)
+    ide_write(channel, ATA_REG_CONTROL, channels[channel].nIEN);
+  return result;
+}
 
 static void ATA_wait_BSY(ide_state_t *ide) // Wait for bsy to be 0
 {                                          /*
@@ -138,6 +200,18 @@ void read_sectors(ide_state_t *ide) {
 
 static int ide_attach(device_t *dev) {
   ide_state_t *ide = dev->state;
+
+  ide->io_primary = device_take_ioports(dev, 0, RF_ACTIVE);
+  assert(ide->io_primary != NULL);
+
+  ide->io_primary_control = device_take_ioports(dev, 1, RF_ACTIVE);
+  assert(ide->io_primary_control != NULL);
+
+  ide->io_secondary = device_take_ioports(dev, 2, RF_ACTIVE);
+  assert(ide->io_secondary != NULL);
+
+  ide->io_secondary_control = device_take_ioports(dev, 3, RF_ACTIVE);
+  assert(ide->io_secondary_control != NULL);
 
   ide->regs = device_take_ioports(dev, 4, RF_ACTIVE);
   assert(ide->regs != NULL);
