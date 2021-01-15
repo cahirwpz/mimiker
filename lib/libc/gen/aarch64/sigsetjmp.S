@@ -6,18 +6,18 @@
 ENTRY(sigsetjmp)
         cmp     x1, xzr
         bne     1f
-        str     x1, [x0, _OFFSETOF_SC_FLAGS]
+        str     x1, [x0, UC_FLAGS]
         b       _setjmp
 
 1:      mov     x1, _UC_SIGMASK
-        str     x1, [x0, _OFFSETOF_SC_FLAGS]
+        str     x1, [x0, UC_FLAGS]
         b       setjmp
         ret
 END(sigsetjmp)
 
 /* void siglongjmp(sigjmp_buf env, int val) */
 ENTRY(siglongjmp)
-        ldr     x2, [x0, _OFFSETOF_SC_FLAGS]
+        ldr     x2, [x0, UC_FLAGS]
         and     x2, x2, _UC_SIGMASK
         cmp     x2, _UC_SIGMASK
         beq     1f
