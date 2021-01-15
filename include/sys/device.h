@@ -99,9 +99,6 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
 #define device_add_irq(dev, rid, irq)                                          \
   device_add_resource((dev), RT_IRQ, (rid), (irq), (irq), 1, 0)
 
-/*! \brief Reomve a resource entry from the device's resource list. */
-void device_remove_resource(device_t *dev, resource_t *r);
-
 /*! \brief Take a resource which is assigned to device by parent bus. */
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
                                  res_flags_t flags);

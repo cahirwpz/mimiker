@@ -67,12 +67,6 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
   SLIST_INSERT_HEAD(&dev->resources, r, r_link);
 }
 
-void device_remove_resource(device_t *dev, resource_t *r) {
-  assert(resource_list_find(dev, r->r_rid, r->r_type));
-  SLIST_REMOVE(&dev->resources, r, resource, r_link);
-  bus_release_resource(dev, r);
-}
-
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
                                  res_flags_t flags) {
   resource_t *r = resource_list_find(dev, type, rid);
