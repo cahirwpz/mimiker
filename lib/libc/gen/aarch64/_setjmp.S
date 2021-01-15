@@ -1,5 +1,4 @@
 #include <aarch64/asm.h>
-#include <sys/ucontext.h>
 #include <sys/syscall.h>
 
 #include "aarch64/assym.h"
@@ -7,16 +6,11 @@
 ENTRY(_setjmp)
         /* Copy saved registers */
         str     x19, [x0, UC_REGS_X19]
-        str     x20, [x0, UC_REGS_X20]
-        str     x21, [x0, UC_REGS_X21]
-        str     x22, [x0, UC_REGS_X22]
-        str     x23, [x0, UC_REGS_X23]
-        str     x24, [x0, UC_REGS_X24]
-        str     x25, [x0, UC_REGS_X25]
-        str     x26, [x0, UC_REGS_X26]
-        str     x27, [x0, UC_REGS_X27]
-        str     x28, [x0, UC_REGS_X28]
-        str     x29, [x0, UC_REGS_X29]
+        stp     x20, x21, [x0, UC_REGS_X20]
+        stp     x22, x23, [x0, UC_REGS_X22]
+        stp     x24, x24, [x0, UC_REGS_X24]
+        stp     x26, x27, [x0, UC_REGS_X26]
+        stp     x28, x29, [x0, UC_REGS_X28]
         str     lr, [x0, UC_REGS_LR]
 
         /* sp register is special :( */
@@ -59,23 +53,19 @@ ENTRY(_longjmp)
         ldr     x19, [x0, UC_REGS_SP]
         mov     sp, x19
         ldr     x19, [x0, UC_REGS_X19]
-        ldr     x20, [x0, UC_REGS_X20]
-        ldr     x21, [x0, UC_REGS_X21]
-        ldr     x22, [x0, UC_REGS_X22]
-        ldr     x23, [x0, UC_REGS_X23]
-        ldr     x24, [x0, UC_REGS_X24]
-        ldr     x25, [x0, UC_REGS_X25]
-        ldr     x26, [x0, UC_REGS_X26]
-        ldr     x27, [x0, UC_REGS_X27]
-        ldr     x28, [x0, UC_REGS_X28]
-        ldr     x29, [x0, UC_REGS_X29]
+        ldp     x20, x21, [x0, UC_REGS_X20]
+        ldp     x22, x23, [x0, UC_REGS_X22]
+        ldp     x24, x25, [x0, UC_REGS_X24]
+        ldp     x26, x27, [x0, UC_REGS_X26]
+        ldp     x28, x29, [x0, UC_REGS_X28]
         ldr     lr, [x0, UC_REGS_LR]
 
         /* FPU status */
         ldr     w2, [x0, UC_FPREGS_FPCR]
-        msr     fpcr, x1
+        /* msr ignores upper 32 bits for fpcr & fpsr */
+        msr     fpcr, x2
         ldr     w2, [x0, UC_FPREGS_FPSR]
-        mrs     x2, fpsr
+        msr     fpsr, x2
 
         ldp     q0, q1, [x0, UC_FPREGS_Q0]
         ldp     q2, q3, [x0, UC_FPREGS_Q2]

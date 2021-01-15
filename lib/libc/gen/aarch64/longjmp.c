@@ -50,7 +50,6 @@ void longjmp(jmp_buf env, int val) {
   if (sc_uc->uc_flags & _UC_FPU) {
     memcpy(&uc.uc_mcontext.__fregs, &sc_uc->uc_mcontext.__fregs,
            sizeof(__fregset_t));
-    /* XXX sc_fp_control */
     uc.uc_flags |= _UC_FPU;
   }
 

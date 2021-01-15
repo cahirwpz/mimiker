@@ -92,7 +92,6 @@ void longjmp(jmp_buf env, int val) {
     memcpy(&_FPREG(&uc, 20), &_FPREG(sc_uc, 20),
            (32 - 20) * sizeof(fpregister_t));
     _FPCSR(&uc) = _FPCSR(sc_uc);
-    /* XXX sc_fp_control */
     uc.uc_flags |= _UC_FPU;
   }
 
