@@ -230,7 +230,7 @@ static void user_trap_handler(ctx_t *ctx) {
         sig_trap(ctx, SIGILL);
       } else {
         /* Enable FPU for interrupted context. */
-        thread_self()->td_pflags |= TDP_FPUSED;
+        thread_self()->td_pflags |= TDP_FPCTXVALID;
         _REG(ctx, SR) |= SR_CU1;
       }
       break;

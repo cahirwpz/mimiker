@@ -347,17 +347,14 @@ SNESTED(user_exc_enter, MCONTEXT_SIZE, ra)
         .cfi_rel_offset t1, CTX_PC
         PCPU_TO_FRAME(BADVADDR)
 
-        # If FPU is enabled save FPU registers.
+        # Invalidate current FPU context.
         LOAD_PCPU(t0)
         lw      t0, PCPU_CURTHREAD(t0)
-        lw      t0, TD_PFLAGS(t0)
-        and     t0, t0, TDP_FPUSED
-        beqz    t0, skip_fpu_save
-        nop
+        lw      t1, TD_PFLAGS(t0)
+        nor     t2, zero, TDP_FPCTXSAVED
+        and     t1, t1, t2
+        sw      t1, TD_PFLAGS(t0)
 
-        SAVE_FPU_CTX()
-
-skip_fpu_save:
         # Load kernel global pointer.
         la      gp, _gp
 
@@ -403,7 +400,7 @@ user_exc_leave:
         LOAD_PCPU(t0)
         lw      t0, PCPU_CURTHREAD(t0)
         lw      t0, TD_PFLAGS(t0)
-        and     t0, t0, TDP_FPUSED
+        and     t0, t0, TDP_FPCTXSAVED
         beqz    t0, skip_fpu_restore
         nop
 
