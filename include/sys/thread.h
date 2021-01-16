@@ -69,7 +69,8 @@ typedef enum {
 #define TDF_SLPTIMED 0x00000080 /* sleep with timeout */
 
 typedef enum {
-  TDP_OLDSIGMASK = 0x01 /* Pass td_oldsigmask as return mask to send_sig(). */
+  TDP_OLDSIGMASK = 0x01, /* Pass td_oldsigmask as return mask to send_sig(). */
+  TDP_FPUSED = 0x02      /* The FPU is used by this thread. */
 } tdp_flags_t;
 
 /*! \brief Thread structure

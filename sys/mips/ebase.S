@@ -348,9 +348,11 @@ SNESTED(user_exc_enter, MCONTEXT_SIZE, ra)
         PCPU_TO_FRAME(BADVADDR)
 
         # If FPU is enabled save FPU registers.
-        mfc0    t0, C0_STATUS
-        ext     t1, t0, SR_CU1_SHIFT, 1
-        beqz    t1, skip_fpu_save
+        LOAD_PCPU(t0)
+        lw      t0, PCPU_CURTHREAD(t0)
+        lw      t0, TD_PFLAGS(t0)
+        and     t0, t0, TDP_FPUSED
+        beqz    t0, skip_fpu_save
         nop
 
         SAVE_FPU_CTX()
@@ -398,8 +400,11 @@ user_exc_leave:
         sw      t0, PCPU_SR(s0)
 
         # If user has FPU disabled, don't restore its registers.
-        ext     t1, t0, SR_CU1_SHIFT, 1
-        beqz    t1, skip_fpu_restore
+        LOAD_PCPU(t0)
+        lw      t0, PCPU_CURTHREAD(t0)
+        lw      t0, TD_PFLAGS(t0)
+        and     t0, t0, TDP_FPUSED
+        beqz    t0, skip_fpu_restore
         nop
 
         # Enable FPU and load FPU context

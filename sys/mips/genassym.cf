@@ -6,6 +6,7 @@ include <mips/mcontext.h>
 
 define TDF_NEEDSWITCH TDF_NEEDSWITCH
 define TDF_NEEDSIGCHK TDF_NEEDSIGCHK
+define TDP_FPUSED TDP_FPUSED
 
 define TD_PROC offsetof(thread_t, td_proc)
 define TD_UCTX offsetof(thread_t, td_uctx)
@@ -13,6 +14,7 @@ define TD_KFRAME offsetof(thread_t, td_kframe)
 define TD_KCTX offsetof(thread_t, td_kctx)
 define TD_KSTACK offsetof(thread_t, td_kstack)
 define TD_FLAGS offsetof(thread_t, td_flags)
+define TD_PFLAGS offsetof(thread_t, td_pflags)
 define TD_ONFAULT offsetof(thread_t, td_onfault)
 define TD_IDNEST offsetof(thread_t, td_idnest)
 define TD_LOCK offsetof(thread_t, td_lock)
