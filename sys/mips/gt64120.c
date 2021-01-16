@@ -336,13 +336,10 @@ static int gt_pci_attach(device_t *pcib) {
    */
   device_t *dev;
 
-  dev = device_add_child(pcib, 4);
+  dev = device_add_child(pcib, 0);
   dev->bus = DEV_BUS_PCI;
   dev->devclass = &DEVCLASS(isa);
-  /* We are actually passing IO-ports along with interrupts as one resource.
-   * ISA's alloc procedre will take care of creating individual IRQ resources
-   * from this memory block. */
-  device_add_ioports(dev, 0, IO_ISABEGIN, IO_ISAEND + 1);
+  device_add_ioports(dev, IO_ICUSIZE, IO_ISABEGIN, IO_ISAEND + 1);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
 

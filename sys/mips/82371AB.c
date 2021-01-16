@@ -27,8 +27,10 @@
 /* DEVCLASS_DECLARE(isa); */
 
 typedef struct intel_isa_state {
+  resource_t *irq;
   resource_t *io;
   rman_t io_rman;
+  rman_t irq_rman;
   intr_event_t *intr_event[ICU_LEN];
 } intel_isa_state_t;
 
@@ -38,23 +40,32 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
                                             res_flags_t flags) {
   rman_t *rman = NULL;
   intel_isa_state_t *isa = dev->parent->state;
+  bus_space_handle_t bh = 0;
 
-  if (type == RT_IRQ) {
-    assert(dev->bus == DEV_BUS_ISA);
-    assert(start < IO_ICUSIZE);
-    rman = &isa->io_rman;
-  } else if (type == RT_IOPORTS) {
+  if (type == RT_IOPORTS) {
     assert(start >= IO_ICUSIZE);
     rman = &isa->io_rman;
-  } else if (type == RT_MEMORY) {
-    panic("ISA resource cannot be `RT_MEMORY`");
+    bh = isa->io->r_bus_handle;
   } else {
-    panic("Unknown ISA resource type: %d", type);
+    /* We don't know how to allocate this resource, but maybe someone above us
+     * does. In current context this is necessary to allocate interrupts,
+     * which aren't managed by this driver. */
+    if (dev->parent)
+      return bus_alloc_resource(dev->parent, type, rid, start, end, size,
+                                flags);
+    else
+      panic("Can't allocate resource, no dispatch available!");
   }
 
-  resource_t *r = rman_reserve_resource(rman, start, end, size, size, flags);
+  resource_t *r = rman_reserve_resource(rman, start, end, size, 0, flags);
   if (r == NULL)
     return NULL;
+  r->r_rid = rid;
+
+  if (type != RT_IRQ) {
+    r->r_bus_tag = generic_bus_space;
+    r->r_bus_handle = bh + r->r_start;
+  }
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, type, r)) {
@@ -80,14 +91,13 @@ static void intel_isa_release_resource(device_t *dev, res_type_t type,
 }
 
 static int intel_isa_probe(device_t *d) {
-  return d->unit == 4;
+  return d->unit == 0;
 }
 
 static int intel_isa_attach(device_t *isab) {
   intel_isa_state_t *isa = isab->state;
-  isa->io = device_take_ioports(isab, 0, RF_ACTIVE);
+  isa->io = device_take_ioports(isab, IO_ICUSIZE, RF_ACTIVE);
   rman_init_from_resource(&isa->io_rman, "ISA IO ports", isa->io);
-  rman_manage_region(&isa->io_rman, 0, IO_ISAEND);
   /* isab->devclass = &DEVCLASS(isa); */
 
   /* -------------------------------------------------------------
@@ -99,25 +109,25 @@ static int intel_isa_attach(device_t *isab) {
   dev = device_add_child(isab, 0);
   dev->bus = DEV_BUS_ISA; /* XXX: ISA device workaround */
   device_add_ioports(dev, 0, IO_KBD, IO_KBDSIZE);
-  device_add_irq(dev, 0, ISA_IRQ_BASE + 1);
+  device_add_irq(dev, 0, 1);
 
   /* ns16550 uart device */
   dev = device_add_child(isab, 1);
   dev->bus = DEV_BUS_ISA; /* XXX: ISA device workaround */
   device_add_ioports(dev, 0, IO_COM1, IO_COMSIZE);
-  device_add_irq(dev, 0, ISA_IRQ_BASE + 4);
+  device_add_irq(dev, 0, 4);
 
   /* rtc device */
   dev = device_add_child(isab, 2);
   dev->bus = DEV_BUS_ISA; /* XXX: ISA device workaround */
   device_add_ioports(dev, 0, IO_RTC, IO_RTCSIZE);
-  device_add_irq(dev, 0, ISA_IRQ_BASE + 8);
+  device_add_irq(dev, 0, 8);
 
   /* i8254 timer device */
   dev = device_add_child(isab, 3);
   dev->bus = DEV_BUS_ISA; /* XXX: ISA device workaround */
   device_add_ioports(dev, 0, IO_TIMER1, IO_TMRSIZE);
-  device_add_irq(dev, 0, ISA_IRQ_BASE + 0);
+  device_add_irq(dev, 0, 0);
 
   return bus_generic_probe(isab);
 }
