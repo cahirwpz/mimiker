@@ -1,6 +1,29 @@
 /* GT64120 PCI bus driver
  *
- * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file. */
+ * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file.
+ *
+ * How do we handle `r_start` and `r_bus_handle` of assigned resources?
+ *
+ * - Interrupts:
+ *     - `r_bus_handle` is always equal to NULL.
+ *     - `r_start` is an interrupt number.
+ *
+ * - Memory:
+ *     - `gt_pci_alloc_resource` sets `r_bus_handle` to a physical
+ *       address of a resource, while `gt_pci_activate_resource`
+ *       upgrades it to a virtual address of the mapped resource.
+ *     - `r_start` is an absolute address of a resource.
+ *
+ *  - IO ports:
+ *     - All IO ports managed by the PCI bus driver are mapped in the
+ *       `gt_pci_attach` function, therefore `gt_pci_alloc_resource`
+ *       sets `r_bus_handle` to a virtual address of a resource.
+ *     - `r_start` is an offset in PCI IO space.
+ *
+ *   Memory BARs must contain absolute addresses, while IO BARs require
+ *   relative addresses. The above scheme allows us to unify updating of a
+ *   BAR register by using the `r_start` of a resource.
+ */
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
 #include <sys/mimiker.h>
@@ -65,7 +88,7 @@ typedef struct gt_pci_state {
   uint16_t elcr;
 } gt_pci_state_t;
 
-pci_bus_driver_t gt_pci_bus;
+static driver_t gt_pci_bus;
 
 /* Access configuration space through memory mapped GT-64120 registers. Take
  * care of the fact that MIPS processor cannot handle unaligned accesses. */
@@ -131,6 +154,11 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   bus_write_4(pcicfg, GT_PCI0_CFG_DATA, data.dword);
 }
 
+static void gt_pci_enable_busmaster(device_t *dev) {
+  uint16_t cmd = pci_read_config_2(dev, PCIR_COMMAND);
+  pci_write_config_2(dev, PCIR_COMMAND, cmd | PCIM_CMD_BUSMASTEREN);
+}
+
 static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
   /* Enable the cascade IRQ (2) if 8-15 is enabled. */
   if ((gtpci->imask & 0xff00) != 0xff00)
@@ -187,7 +215,7 @@ static const char *gt_pci_intr_name[ICU_LEN] = {
 static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
                               ih_service_t *service, void *arg,
                               const char *name) {
-  assert(dev->parent->driver == &gt_pci_bus.driver);
+  assert(dev->parent->driver == &gt_pci_bus);
   gt_pci_state_t *gtpci = dev->parent->state;
   int irq = r->r_start;
   assert(irq < ICU_LEN);
@@ -201,7 +229,7 @@ static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
 }
 
 static void gt_pci_intr_teardown(device_t *pcib, resource_t *irq) {
-  assert(pcib->parent->driver == &gt_pci_bus.driver);
+  assert(pcib->parent->driver == &gt_pci_bus);
 
   intr_event_remove_handler(irq->r_handler);
 }
@@ -321,7 +349,10 @@ static int gt_pci_attach(device_t *pcib) {
   return bus_generic_probe(pcib);
 }
 
-static bool gt_pci_bar(device_t *dev, int rid) {
+static bool gt_pci_bar(device_t *dev, res_type_t type, int rid,
+                       rman_addr_t start) {
+  if ((type == RT_IOPORTS && start <= IO_ISAEND) || type == RT_IRQ)
+    return false;
   pci_device_t *pcid = pci_device_of(dev);
   return rid < PCI_BAR_MAX && pcid->bar[rid].size != 0;
 }
@@ -352,9 +383,12 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     panic("Unknown PCI device type: %d", type);
   }
 
-  if ((type == RT_IOPORTS && start > IO_ISAEND) || type == RT_MEMORY) {
-    if (gt_pci_bar(dev, rid))
-      alignment = max(alignment, size);
+  if (gt_pci_bar(dev, type, rid, start))
+    alignment = max(alignment, size);
+
+  if (type == RT_MEMORY) {
+    /* XXX: Perhaps, the rman_alloc_resource should take this into account */
+    size = roundup(size, PAGESIZE);
   }
 
   resource_t *r =
@@ -387,24 +421,21 @@ static void gt_pci_release_resource(device_t *dev, res_type_t type,
 static int gt_pci_activate_resource(device_t *dev, res_type_t type,
                                     resource_t *r) {
   if (type == RT_MEMORY || type == RT_IOPORTS) {
-    uint16_t command = pci_read_config(dev, PCIR_COMMAND, 2);
+    uint16_t command = pci_read_config_2(dev, PCIR_COMMAND);
     if (type == RT_MEMORY)
       command |= PCIM_CMD_MEMEN;
     else if (type == RT_IOPORTS)
       command |= PCIM_CMD_PORTEN;
-    pci_write_config(dev, PCIR_COMMAND, 2, command);
+    pci_write_config_2(dev, PCIR_COMMAND, command);
   }
 
   int rid = r->r_rid;
-  if (type == RT_MEMORY) {
-    /* Is this a PCI bar? */
-    if (gt_pci_bar(dev, rid)) {
-      /* Write BAR address to PCI device register. */
-      pci_write_config(dev, PCIR_BAR(rid), 4, r->r_bus_handle);
-    }
-    return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
+  if (gt_pci_bar(dev, type, rid, r->r_start))
+    pci_write_config_4(dev, PCIR_BAR(rid), r->r_start);
+
+  if (type == RT_MEMORY)
+    return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
                          &r->r_bus_handle);
-  }
 
   return 0;
 }
@@ -419,27 +450,31 @@ static int gt_pci_probe(device_t *d) {
   return d->unit == 1;
 }
 
-/* clang-format off */
-pci_bus_driver_t gt_pci_bus = {
-  .driver = {
-    .desc = "GT-64120 PCI bus driver",
-    .size = sizeof(gt_pci_state_t),
-    .attach = gt_pci_attach,
-    .probe = gt_pci_probe,
-  },
-  .bus = {
-    .intr_setup = gt_pci_intr_setup,
-    .intr_teardown = gt_pci_intr_teardown,
-    .alloc_resource = gt_pci_alloc_resource,
-    .release_resource = gt_pci_release_resource,
-    .activate_resource = gt_pci_activate_resource,
-    .deactivate_resource = gt_pci_deactivate_resource,
-  },
-  .pci_bus = {
-    .read_config = gt_pci_read_config,
-    .write_config = gt_pci_write_config,
-  }
+static bus_methods_t gt_pci_bus_if = {
+  .intr_setup = gt_pci_intr_setup,
+  .intr_teardown = gt_pci_intr_teardown,
+  .alloc_resource = gt_pci_alloc_resource,
+  .release_resource = gt_pci_release_resource,
+  .activate_resource = gt_pci_activate_resource,
+  .deactivate_resource = gt_pci_deactivate_resource,
 };
-/* clang-format on */
+
+static pci_bus_methods_t gt_pci_pci_bus_if = {
+  .read_config = gt_pci_read_config,
+  .write_config = gt_pci_write_config,
+  .enable_busmaster = gt_pci_enable_busmaster,
+};
+
+static driver_t gt_pci_bus = {
+  .desc = "GT-64120 PCI bus driver",
+  .size = sizeof(gt_pci_state_t),
+  .attach = gt_pci_attach,
+  .probe = gt_pci_probe,
+  .interfaces =
+    {
+      [DIF_BUS] = &gt_pci_bus_if,
+      [DIF_PCI_BUS] = &gt_pci_pci_bus_if,
+    },
+};
 
 DEVCLASS_ENTRY(root, gt_pci_bus);

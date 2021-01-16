@@ -176,8 +176,15 @@
 /* pseudo-errors returned inside kernel to modify return to process */
 #define EJUSTRETURN 256  /* don't modify regs, just return to userspace with */
                          /* current uctx (used by sigreturn and execve) */
-#define ERESTART 257     /* restart syscall */
 #define EPASSTHROUGH 258 /* ioctl not handled by this layer */
+
+/* These errors indicate when the current syscall should be restarted after
+ * being interrupted by a signal. Their semantics are the same as in Linux. */
+
+/* Restart iff no signal was caught or caught signal has SA_RESTART set */
+#define ERESTARTSYS 259
+/* Restart iff no signal was caught */
+#define ERESTARTNOHAND 260
 #endif
 
 #endif /* !_SYS_ERRNO_H_ */

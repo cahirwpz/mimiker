@@ -2,7 +2,7 @@ include <stddef.h>
 include <sys/thread.h>
 include <sys/pcpu.h>
 include <sys/proc.h>
-include <aarch64/context.h>
+include <aarch64/mcontext.h>
 
 define TD_PROC offsetof(thread_t, td_proc)
 define TD_KCTX offsetof(thread_t, td_kctx)
