@@ -24,8 +24,6 @@
 
 #define ISA_IRQ_BASE (0)
 
-bus_driver_t intel_isa_bus;
-
 /* DEVCLASS_DECLARE(isa); */
 
 typedef struct intel_isa_state {
@@ -124,21 +122,24 @@ static int intel_isa_attach(device_t *isab) {
   return bus_generic_probe(isab);
 }
 
+bus_methods_t intel_isa_bus_bus_if = {
+  .intr_setup = NULL,    /* To be dispatched */
+  .intr_teardown = NULL, /* To be dispatched */
+  .alloc_resource = intel_isa_alloc_resource,
+  .activate_resource = intel_isa_activate_resource,
+  .release_resource = intel_isa_release_resource
+};
+
 /* clang-format off */
-bus_driver_t intel_isa_bus = {
-  .driver = {
-    .desc = "Intel 82371AB PIIX4 PCI to ISA bridge driver",
-    .size = sizeof(intel_isa_state_t),
-    .attach = intel_isa_attach,
-    .probe = intel_isa_probe,
-  },
-  .bus = {
-    .intr_setup = NULL,    /* To be dispatched */
-    .intr_teardown = NULL, /* To be dispatched */
-    .alloc_resource = intel_isa_alloc_resource,
-    .activate_resource = intel_isa_activate_resource,
-    .release_resource = intel_isa_release_resource,
-  }
+driver_t intel_isa_bus = {
+  .desc = "Intel 82371AB PIIX4 PCI to ISA bridge driver",
+  .size = sizeof(intel_isa_state_t),
+  .attach = intel_isa_attach,
+  .probe = intel_isa_probe,
+  .interfaces =
+    {
+      [DIF_BUS] = &intel_isa_bus_bus_if,
+    },
 };
 
 DEVCLASS_ENTRY(pci, intel_isa_bus);
