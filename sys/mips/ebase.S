@@ -11,6 +11,8 @@
         .set	noreorder
         # Forbid the assembler from using $at register.
         .set	noat
+        # Enable FPU instructions use since we need to save & restore FP context
+        .set    hardfloat
 
 #define SAVE_REG_CFI(reg, offset, base)                                        \
         sw reg, (CTX_##offset)(base);                                          \
@@ -345,15 +347,14 @@ SNESTED(user_exc_enter, MCONTEXT_SIZE, ra)
         .cfi_rel_offset t1, CTX_PC
         PCPU_TO_FRAME(BADVADDR)
 
-        # If FPU is enabled save FPU registers.
-        mfc0    t0, C0_STATUS
-        ext     t1, t0, SR_CU1_SHIFT, 1
-        beqz    t1, skip_fpu_save
-        nop
+        # Invalidate current FPU context.
+        LOAD_PCPU(t0)
+        lw      t0, PCPU_CURTHREAD(t0)
+        lw      t1, TD_PFLAGS(t0)
+        nor     t2, zero, TDP_FPCTXSAVED
+        and     t1, t1, t2
+        sw      t1, TD_PFLAGS(t0)
 
-        SAVE_FPU_CTX()
-
-skip_fpu_save:
         # Load kernel global pointer.
         la      gp, _gp
 
@@ -396,8 +397,11 @@ user_exc_leave:
         sw      t0, PCPU_SR(s0)
 
         # If user has FPU disabled, don't restore its registers.
-        ext     t1, t0, SR_CU1_SHIFT, 1
-        beqz    t1, skip_fpu_restore
+        LOAD_PCPU(t0)
+        lw      t0, PCPU_CURTHREAD(t0)
+        lw      t0, TD_PFLAGS(t0)
+        and     t0, t0, TDP_FPCTXSAVED
+        beqz    t0, skip_fpu_restore
         nop
 
         # Enable FPU and load FPU context
