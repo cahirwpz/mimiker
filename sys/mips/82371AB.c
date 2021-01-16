@@ -24,11 +24,8 @@
 #define ISA_IRQ_BASE (0)
 
 typedef struct intel_isa_state {
-  resource_t *irq;
   resource_t *io;
   rman_t io_rman;
-  rman_t irq_rman;
-  intr_event_t *intr_event[IO_ICUSIZE];
 } intel_isa_state_t;
 
 static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
