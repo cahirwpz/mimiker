@@ -106,6 +106,34 @@
 .endif
 .endm
 
+/* 
+ * WARNING!
+ * xtmp & wtmp MUST BE the same register - fpcr and fpsr are 32-bit registers
+ * but msr requires 64-bit register as argument.
+ */
+.macro  load_fpu_ctx src xtmp wtmp
+        ldp     q0,  q1,  [\src, FPU_CTX_Q0]
+        ldp     q2,  q3,  [\src, FPU_CTX_Q2]
+        ldp     q4,  q5,  [\src, FPU_CTX_Q4]
+        ldp     q6,  q7,  [\src, FPU_CTX_Q6]
+        ldp     q8,  q9,  [\src, FPU_CTX_Q8]
+        ldp     q10, q11, [\src, FPU_CTX_Q10]
+        ldp     q12, q13, [\src, FPU_CTX_Q12]
+        ldp     q14, q15, [\src, FPU_CTX_Q14]
+        ldp     q16, q17, [\src, FPU_CTX_Q16]
+        ldp     q18, q19, [\src, FPU_CTX_Q18]
+        ldp     q20, q21, [\src, FPU_CTX_Q20]
+        ldp     q22, q23, [\src, FPU_CTX_Q22]
+        ldp     q24, q25, [\src, FPU_CTX_Q24]
+        ldp     q26, q27, [\src, FPU_CTX_Q26]
+        ldp     q28, q29, [\src, FPU_CTX_Q28]
+        ldp     q30, q31, [\src, FPU_CTX_Q30]
+        ldr     \wtmp, [\src, FPU_CTX_FPCR]
+        msr     fpcr, \xtmp
+        ldr     \wtmp, [\src, FPU_CTX_FPSR]
+        msr     fpsr, \xtmp
+.endm
+
         .global kern_exc_leave
         .global user_exc_leave
 
@@ -132,8 +160,41 @@ ENTRY(handle_user_trap)
         .cfi_signal_frame
         save_ctx 0
         mov     x0, sp
+
+        /* invalidate FPU context */
+        /* thread_t::tdp_flags is a volatile unsigned - use 32-bit */
+        mrs     x1, tpidr_el1
+        ldr     x1, [x1, #PCPU_CURTHREAD]
+        ldr     w2, [x1, #TD_PFLAGS]
+        and     w2, w2, ~TDP_FPCTXSAVED
+        str     w2, [x1, #TD_PFLAGS]
+
         bl      user_trap_handler
 user_exc_leave:
+        /* load thread_t::tdp_flags */
+        mrs     x1, tpidr_el1
+        ldr     x1, [x1, #PCPU_CURTHREAD]
+        ldr     w3, [x1, #TD_PFLAGS]
+
+        and     w2, w3, #TDP_FPCTXVALID
+        cmp     w2, wzr
+        beq     .skip_fpu_restore
+
+        /* enable FPU */
+        mrs     x2, cpacr_el1
+        and     x2, x2, ~CPACR_FPEN_MASK
+        orr     x2, x2, CPACR_FPEN_TRAP_NONE
+        msr     cpacr_el1, x2
+
+        and     w2, w3, #TDP_FPCTXSAVED
+        cmp     w2, wzr
+        beq     .skip_fpu_restore
+
+        /* restore FPU context */
+        ldr     x1, [x1, #TD_UCTX]
+        load_fpu_ctx x1, x2, w2 /* 2nd and 3rd argument must be the same */
+
+.skip_fpu_restore:
         load_ctx 0
         ERET
 END(handle_user_trap)

@@ -19,6 +19,34 @@
         stp      x8,  x9, [sp, #CTX_X8]
 .endm
 
+/* 
+ * WARNING!
+ * xtmp & wtmp MUST BE the same register - fpcr and fpsr are 32-bit registers
+ * but mrs requires 64-bit register as argument.
+ */
+.macro  save_fpu_ctx src xtmp wtmp
+        stp     q0,  q1,  [\src, FPU_CTX_Q0]
+        stp     q2,  q3,  [\src, FPU_CTX_Q2]
+        stp     q4,  q5,  [\src, FPU_CTX_Q4]
+        stp     q6,  q7,  [\src, FPU_CTX_Q6]
+        stp     q8,  q9,  [\src, FPU_CTX_Q8]
+        stp     q10, q11, [\src, FPU_CTX_Q10]
+        stp     q12, q13, [\src, FPU_CTX_Q12]
+        stp     q14, q15, [\src, FPU_CTX_Q14]
+        stp     q16, q17, [\src, FPU_CTX_Q16]
+        stp     q18, q19, [\src, FPU_CTX_Q18]
+        stp     q20, q21, [\src, FPU_CTX_Q20]
+        stp     q22, q23, [\src, FPU_CTX_Q22]
+        stp     q24, q25, [\src, FPU_CTX_Q24]
+        stp     q26, q27, [\src, FPU_CTX_Q26]
+        stp     q28, q29, [\src, FPU_CTX_Q28]
+        stp     q30, q31, [\src, FPU_CTX_Q30]
+        mrs     \xtmp, fpcr
+        str     \wtmp, [\src, FPU_CTX_FPCR]
+        mrs     \xtmp, fpsr
+        str     \wtmp, [\src, FPU_CTX_FPSR]
+.endm
+
 .macro  LOAD_CTX
         ldp      x8,  x9, [sp, #CTX_X8]
         ldp     x10, x11, [sp, #CTX_X10]
@@ -47,6 +75,31 @@ ENTRY(ctx_switch)
 
         # save context of @from thread
 .ctx_save:
+        ldr     w3, [x0, #TD_PFLAGS]
+        and     w2, w3, #TDP_FPCTXVALID
+        cmp     w2, wzr
+        beq     .skip_fpu_save
+
+        orr     w3, w3, #TDP_FPCTXSAVED
+        str     w3, [x0, #TD_PFLAGS]
+
+        /* enable FPU and save context */
+        /* thread_t::tdp_flags is a volatile unsigned - use 32-bit */
+        mrs     x2, cpacr_el1
+        and     x2, x2, ~CPACR_FPEN_MASK
+        orr     x2, x2, CPACR_FPEN_TRAP_NONE
+        msr     cpacr_el1, x2
+
+        ldr     x2, [x0, #TD_UCTX]
+        save_fpu_ctx x2, x3, w3
+
+        /* disable FPU */
+        mrs     x2, cpacr_el1
+        and     x2, x2, ~CPACR_FPEN_MASK
+        msr     cpacr_el1, x2
+
+
+.skip_fpu_save:
         sub     sp, sp, #CTX_SIZE
         SAVE_CTX
         mov     x2, sp
