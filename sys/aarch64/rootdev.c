@@ -301,8 +301,6 @@ static bus_driver_t rootdev_driver = {
       .release_resource = rootdev_release_resource,
       .activate_resource = rootdev_activate_resource,
       .deactivate_resource = rootdev_deactivate_resource,
-      .mask_irq = NULL,
-      .unmask_irq = NULL
     },
 };
 

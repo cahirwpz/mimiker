@@ -4,9 +4,6 @@
 #include <sys/cdefs.h>
 #include <sys/device.h>
 #include <sys/bus.h>
-#include <sys/isa.h>
-
-const char *gt_pci_intr_name[ICU_LEN];
 
 typedef struct {
   uint16_t id;

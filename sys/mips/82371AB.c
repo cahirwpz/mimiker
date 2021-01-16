@@ -85,46 +85,6 @@ static int intel_isa_probe(device_t *d) {
   return d->unit == 4;
 }
 
-static void intel_isa_mask_irq(intr_event_t *ie) {
-  device_t *dev = ie->ie_source;
-  assert(dev->parent != NULL);
-  device_t *isadev = dev->parent;
-  assert(isadev->driver == (driver_t *)&intel_isa_bus);
-  assert(isadev->parent != NULL);
-  bus_mask_irq(isadev->parent, ie);
-}
-
-static void intel_isa_unmask_irq(intr_event_t *ie) {
-  device_t *dev = ie->ie_source;
-  assert(dev->parent != NULL);
-  device_t *isadev = dev->parent;
-  assert(isadev->driver == (driver_t *)&intel_isa_bus);
-  assert(isadev->parent != NULL);
-  bus_unmask_irq(isadev->parent, ie);
-}
-
-static void intel_isa_intr_setup(device_t *dev, resource_t *r,
-                                 ih_filter_t *filter, ih_service_t *service,
-                                 void *arg, const char *name) {
-  assert(dev->parent->driver == &intel_isa_bus.driver);
-  intel_isa_state_t *isa = dev->parent->state;
-  int irq = r->r_start;
-  assert(irq < ISA_IRQ_BASE + ICU_LEN && irq >= ISA_IRQ_BASE);
-
-  if (isa->intr_event[irq] == NULL)
-    isa->intr_event[irq] =
-      intr_event_create(isa, irq, intel_isa_mask_irq, intel_isa_unmask_irq,
-                        gt_pci_intr_name[irq]);
-
-  r->r_handler =
-    intr_event_add_handler(isa->intr_event[irq], filter, service, arg, name);
-}
-
-static void intel_isa_intr_teardown(device_t *isab, resource_t *irq) {
-  assert(isab->parent->driver == &intel_isa_bus.driver);
-  intr_event_remove_handler(irq->r_handler);
-}
-
 static int intel_isa_attach(device_t *isab) {
   intel_isa_state_t *isa = isab->state;
   isa->io = device_take_ioports(isab, 0, RF_ACTIVE);
@@ -173,8 +133,8 @@ bus_driver_t intel_isa_bus = {
     .probe = intel_isa_probe,
   },
   .bus = {
-    .intr_setup = intel_isa_intr_setup,
-    .intr_teardown = intel_isa_intr_teardown,
+    .intr_setup = NULL,    /* To be dispatched */
+    .intr_teardown = NULL, /* To be dispatched */
     .alloc_resource = intel_isa_alloc_resource,
     .activate_resource = intel_isa_activate_resource,
     .release_resource = intel_isa_release_resource,
