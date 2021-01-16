@@ -2,7 +2,7 @@
 #include <sys/mimiker.h>
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
-#include <sys/isa.h>
+#include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/timer.h>

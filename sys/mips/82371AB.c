@@ -1,7 +1,6 @@
 /* 82371AB PCI-ISA bridge driver */
 
 #define KL_LOG KL_DEV
-#include <sys/isa.h>
 #include <sys/device.h>
 #include <sys/rman.h>
 #include <sys/bus.h>
@@ -24,20 +23,20 @@
 
 #define ISA_IRQ_BASE (0)
 
-/* DEVCLASS_DECLARE(isa); */
-
 typedef struct intel_isa_state {
   resource_t *irq;
   resource_t *io;
   rman_t io_rman;
   rman_t irq_rman;
-  intr_event_t *intr_event[ICU_LEN];
+  intr_event_t *intr_event[IO_ICUSIZE];
 } intel_isa_state_t;
 
 static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
                                             int rid, rman_addr_t start,
                                             rman_addr_t end, size_t size,
                                             res_flags_t flags) {
+  assert(dev->bus == DEV_BUS_ISA);
+
   rman_t *rman = NULL;
   intel_isa_state_t *isa = dev->parent->state;
   bus_space_handle_t bh = 0;
@@ -98,7 +97,6 @@ static int intel_isa_attach(device_t *isab) {
   intel_isa_state_t *isa = isab->state;
   isa->io = device_take_ioports(isab, IO_ICUSIZE, RF_ACTIVE);
   rman_init_from_resource(&isa->io_rman, "ISA IO ports", isa->io);
-  /* isab->devclass = &DEVCLASS(isa); */
 
   /* -------------------------------------------------------------
    * Create child devices of ISA bus.
@@ -107,25 +105,25 @@ static int intel_isa_attach(device_t *isab) {
 
   /* atkbdc keyboard device */
   dev = device_add_child(isab, 0);
-  dev->bus = DEV_BUS_ISA; /* XXX: ISA device workaround */
+  dev->bus = DEV_BUS_ISA;
   device_add_ioports(dev, 0, IO_KBD, IO_KBDSIZE);
   device_add_irq(dev, 0, 1);
 
   /* ns16550 uart device */
   dev = device_add_child(isab, 1);
-  dev->bus = DEV_BUS_ISA; /* XXX: ISA device workaround */
+  dev->bus = DEV_BUS_ISA;
   device_add_ioports(dev, 0, IO_COM1, IO_COMSIZE);
   device_add_irq(dev, 0, 4);
 
   /* rtc device */
   dev = device_add_child(isab, 2);
-  dev->bus = DEV_BUS_ISA; /* XXX: ISA device workaround */
+  dev->bus = DEV_BUS_ISA;
   device_add_ioports(dev, 0, IO_RTC, IO_RTCSIZE);
   device_add_irq(dev, 0, 8);
 
   /* i8254 timer device */
   dev = device_add_child(isab, 3);
-  dev->bus = DEV_BUS_ISA; /* XXX: ISA device workaround */
+  dev->bus = DEV_BUS_ISA;
   device_add_ioports(dev, 0, IO_TIMER1, IO_TMRSIZE);
   device_add_irq(dev, 0, 0);
 
@@ -133,12 +131,11 @@ static int intel_isa_attach(device_t *isab) {
 }
 
 bus_methods_t intel_isa_bus_bus_if = {
-  .intr_setup = NULL,    /* To be dispatched */
-  .intr_teardown = NULL, /* To be dispatched */
+  .intr_setup = NULL,    /* Dispatched */
+  .intr_teardown = NULL, /* Dispatched */
   .alloc_resource = intel_isa_alloc_resource,
   .activate_resource = intel_isa_activate_resource,
-  .release_resource = intel_isa_release_resource
-};
+  .release_resource = intel_isa_release_resource};
 
 /* clang-format off */
 driver_t intel_isa_bus = {

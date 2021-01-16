@@ -331,11 +331,9 @@ static int gt_pci_attach(device_t *pcib) {
 
   pci_bus_enumerate(pcib);
 
-  /*
-   * Create child devices of ISA bus.
-   */
   device_t *dev;
 
+  /* ISA Bridge */
   dev = device_add_child(pcib, 0);
   dev->bus = DEV_BUS_PCI;
   dev->devclass = &DEVCLASS(isa);
@@ -358,9 +356,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
                                          int rid, rman_addr_t start,
                                          rman_addr_t end, size_t size,
                                          res_flags_t flags) {
-  /* Currently all devices are logicaly attached to PCI bus,
-   * because we don't have PCI-ISA bridge implemented. */
-  assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
+  assert(dev->bus == DEV_BUS_PCI);
 
   device_t *pcib = dev->parent;
   gt_pci_state_t *gtpci = pcib->state;

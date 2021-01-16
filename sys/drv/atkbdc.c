@@ -7,7 +7,7 @@
 #include <sys/condvar.h>
 #include <sys/malloc.h>
 #include <sys/ringbuf.h>
-#include <sys/isa.h>
+#include <sys/bus.h>
 #include <dev/isareg.h>
 #include <dev/atkbdcreg.h>
 #include <sys/interrupt.h>

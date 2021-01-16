@@ -6,7 +6,7 @@
 #include <sys/klog.h>
 #include <sys/condvar.h>
 #include <sys/ringbuf.h>
-#include <sys/isa.h>
+#include <sys/bus.h>
 #include <sys/termios.h>
 #include <sys/ttycom.h>
 #include <dev/isareg.h>
