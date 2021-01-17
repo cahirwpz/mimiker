@@ -14,43 +14,65 @@ typedef struct pit_state {
   spin_t lock;
   resource_t *irq_res;
   timer_t timer;
-  uint64_t period_frac;        /* period as a fraction of a second */
-  uint16_t period_cntr;        /* period as PIT counter value */
-  volatile uint16_t last_cntr; /* last seen counter value */
-  volatile bool overflow;      /* counter overflow detected? */
-  bintime_t time;              /* last time measured by the timer */
+  uint16_t period_cntr;      /* period as PIT counter value */
+  uint16_t cntr16_prev_read; /* last read counter value */
+  timercntr_t cntr64;        /* counter value since timer initialization */
+  volatile bintime_t time;   /* last time measured by the timer */
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
 #define outb(addr, val) bus_write_1(pit->regs, (addr), (val))
 
-static void pit_set_frequency(pit_state_t *pit, uint16_t period) {
-  assert(spin_owned(&pit->lock));
-
+static void pit_set_frequency(pit_state_t *pit) {
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_16BIT | TIMER_RATEGEN);
-  outb(TIMER_CNTR0, period & 0xff);
-  outb(TIMER_CNTR0, period >> 8);
-  pit->period_cntr = period;
+  outb(TIMER_CNTR0, pit->period_cntr & 0xff);
+  outb(TIMER_CNTR0, pit->period_cntr >> 8);
 }
 
-static uint16_t pit_get_counter(pit_state_t *pit) {
-  assert(spin_owned(&pit->lock));
-
+static uint16_t pit_get_counter16(pit_state_t *pit) {
+  uint16_t count = 0;
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
-  uint16_t value = 0;
-  value |= inb(TIMER_CNTR0);
-  value |= inb(TIMER_CNTR0) << 8;
-  return pit->period_cntr - value;
+  count |= inb(TIMER_CNTR0);
+  count |= inb(TIMER_CNTR0) << 8;
+  return count;
+}
+
+static uint64_t pit_get_counter64(pit_state_t *pit) {
+  uint16_t cntr16_now = pit_get_counter16(pit);
+  /* PIT counter counts from n to 1 and when we get to 1 an interrupt
+     is send and the counter starts from the beginning (n = pit->period_cntr).
+     We do not guarantee that we will not miss the whole period (n ticks) */
+  uint16_t ticks = pit->cntr16_prev_read - cntr16_now;
+  if (pit->cntr16_prev_read < cntr16_now)
+    ticks += pit->period_cntr;
+
+  /* We want to keep the last read counter value to detect possible future
+   * overflows of our counter */
+  pit->cntr16_prev_read = cntr16_now;
+
+  uint32_t oldlow = pit->cntr64.lo;
+  pit->cntr64.lo += ticks;
+  if (oldlow > oldlow + ticks)
+    pit->cntr64.hi++;
+
+  return pit->cntr64.val;
+}
+
+static void pit_update_time(pit_state_t *pit) {
+  uint64_t count = pit_get_counter64(pit);
+  uint32_t freq = pit->timer.tm_frequency;
+  uint32_t sec = count / freq;
+  uint32_t frac = count % freq;
+  bintime_t bt = bintime_mul(HZ2BT(freq), frac);
+  bt.sec += sec;
+  WITH_SPIN_LOCK (&pit->lock) { pit->time = bt; }
 }
 
 static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
-  WITH_SPIN_LOCK (&pit->lock) {
-    bintime_add_frac(&pit->time, pit->period_frac);
-    pit->overflow = false;
-    pit->last_cntr = pit_get_counter(pit);
-  }
+  /* XXX: It's still possible for a tick to be lost. */
+  pit_update_time(pit);
   tm_trigger(&pit->timer);
   return IF_FILTERED;
 }
@@ -67,13 +89,17 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
 
-  pit->time = binuptime();
-  pit->period_frac = period.frac;
-  uint16_t counter = bintime_mul(period, TIMER_FREQ).sec;
-  WITH_SPIN_LOCK (&pit->lock) {
-    pit_set_frequency(pit, counter);
-    pit->last_cntr = pit_get_counter(pit);
-  }
+  uint32_t counter = bintime_mul(period, TIMER_FREQ).sec;
+  /* Maximal counter value which we can store in pit timer */
+  assert(counter <= 0xFFFF);
+
+  pit->time = BINTIME(0);
+  pit->cntr64.val = 0;
+  pit->cntr16_prev_read = 0;
+  pit->period_cntr = counter;
+
+  pit_set_frequency(pit);
+
   bus_intr_setup(dev, pit->irq_res, pit_intr, NULL, pit, "i8254 timer");
   return 0;
 }
@@ -88,21 +114,8 @@ static int timer_pit_stop(timer_t *tm) {
 static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  uint16_t cntr = 0;
   bintime_t bt;
-  WITH_SPIN_LOCK (&pit->lock) {
-    uint16_t last_cntr = pit->last_cntr;
-    bool overflow = pit->overflow;
-    bt = pit->time;
-    cntr = pit_get_counter(pit);
-    pit->last_cntr = cntr;
-    if (cntr < last_cntr || overflow) {
-      cntr += pit->period_cntr;
-      pit->overflow = true;
-    }
-  }
-  bintime_t offset = bintime_mul(tm->tm_min_period, cntr);
-  bintime_add_frac(&bt, offset.frac);
+  WITH_SPIN_LOCK (&pit->lock) { bt = pit->time; }
   return bt;
 }
 

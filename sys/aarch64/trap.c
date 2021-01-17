@@ -21,7 +21,8 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
 static void syscall_handler(register_t code, ctx_t *ctx,
                             syscall_result_t *result) {
   register_t args[SYS_MAXSYSARGS];
-  const int nregs = 8;
+  /* On AArch64 we have more free registers than SYS_MAXSYSARGS */
+  const size_t nregs = min(SYS_MAXSYSARGS, FUNC_MAXREGARGS);
 
   memcpy(args, &_REG(ctx, X0), nregs * sizeof(register_t));
 
