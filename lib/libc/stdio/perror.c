@@ -1,11 +1,8 @@
-/*	$NetBSD: signal.h,v 1.30 2016/01/24 16:00:29 christos Exp $	*/
+/*	$NetBSD: perror.c,v 1.24 2006/01/26 11:13:42 kleink Exp $	*/
 
 /*
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Ralph Campbell.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,51 +27,31 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)signal.h	8.1 (Berkeley) 6/10/93
  */
 
-#ifndef _MIPS_SIGNAL_H_
-#define _MIPS_SIGNAL_H_
-
-#include <machine/cdefs.h> /* for API selection */
-
-#ifndef __ASSEMBLER__
+#include <sys/cdefs.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+#include "extern.h"
 
 /*
- * Machine-dependent signal definitions
+ * Since perror() is not allowed to change the contents of strerror()'s
+ * static buffer, both functions supply their own buffers to strerror_r().
  */
 
-typedef int sig_atomic_t;
+void perror(const char *s) {
+  const char *separator;
+  char buf[NL_TEXTMAX];
 
-/*
- * Information pushed on stack when a signal is delivered.
- * This is used by the kernel to restore state following
- * execution of the signal handler.  It is also made available
- * to the handler to allow it to restore state properly if
- * a non-standard exit is performed.
- */
-#if defined(_LIBC) || defined(_KERNEL)
-struct sigcontext {
-  int sc_onstack;   /* sigstack state to restore */
-  sigset_t sc_mask; /* signal mask to restore */
-  int sc_pc;        /* pc at time of signal */
-  int sc_regs[32];  /* processor regs 0 to 31 */
-  int sc_mullo;
-  int sc_mulhi;      /* mullo and mulhi registers... */
-  int sc_fpused;     /* fp has been used */
-  int sc_fpregs[33]; /* fp regs 0 to 31 and csr */
-  int sc_fpc_eir;    /* floating point exception instruction reg */
-};
-#endif /* _LIBC || _KERNEL */
+  if (s == NULL)
+    s = "";
+  if (*s == '\0')
+    separator = "";
+  else
+    separator = ": ";
 
-#if defined(_KERNEL)
-/* Start and end address of signal trampoline that gets copied onto
- * the user's stack. */
-extern char sigcode[];
-extern char esigcode[];
-#endif /* !_KERNEL */
-
-#endif /* !_ASSEMBLY_ */
-
-#endif /* !_MIPS_SIGNAL_H_ */
+  (void)strerror_r(errno, buf, sizeof(buf));
+  (void)fprintf(stderr, "%s%s%s\n", s, separator, buf);
+}

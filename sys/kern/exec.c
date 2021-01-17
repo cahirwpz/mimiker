@@ -226,20 +226,20 @@ fail:
   return error;
 }
 
-static int open_executable(const char *path, vnode_t **vn_p) {
+static int open_executable(const char *path, vnode_t **vn_p, cred_t *cred) {
   vnode_t *vn = *vn_p;
   int error;
 
   klog("Loading program '%s'", path);
 
   /* Translate program name to vnode. */
-  if ((error = vfs_namelookup(path, &vn)))
+  if ((error = vfs_namelookup(path, &vn, cred)))
     return error;
 
   /* It must be a regular executable file with non-zero size. */
   if (vn->v_type != V_REG)
     return EACCES;
-  if ((error = VOP_ACCESS(vn, VEXEC)))
+  if ((error = VOP_ACCESS(vn, VEXEC, cred)))
     return error;
 
   /* TODO Some checks are missing:
@@ -282,9 +282,12 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
   *stack_top_p = USER_STACK_TOP;
 
   vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *stack_seg =
-    vm_segment_alloc(stack_obj, USER_STACK_TOP - USER_STACK_SIZE,
-                     USER_STACK_TOP, VM_PROT_READ | VM_PROT_WRITE);
+  /* FTTB stack has to be executable since kernel copies sigcode onto stack
+   * when context is set to signal handler code. This code is run when user
+   * returns from signal handler. */
+  vm_segment_t *stack_seg = vm_segment_alloc(
+    stack_obj, USER_STACK_TOP - USER_STACK_SIZE, USER_STACK_TOP,
+    VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC, VM_SEG_PRIVATE);
   int error = vm_map_insert(p->p_uspace, stack_seg, VM_FIXED);
   assert(error == 0);
 
@@ -336,7 +339,7 @@ static int _do_execve(exec_args_t *args) {
   for (;;) {
     prog = args->interp ? args->interp : args->path;
 
-    if ((error = open_executable(prog, &vn))) {
+    if ((error = open_executable(prog, &vn, &p->p_cred))) {
       klog("No file found: '%s'!", prog);
       return error;
     }
@@ -383,7 +386,7 @@ static int _do_execve(exec_args_t *args) {
   fdtab_onexec(p->p_fdtable);
 
   /* Set up user context. */
-  user_ctx_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
+  mcontext_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
 
   WITH_PROC_LOCK(p) {
     sig_onexec(p);

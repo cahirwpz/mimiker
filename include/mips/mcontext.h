@@ -77,8 +77,6 @@
 #define _REG_SR 35
 #define _REG_BADVADDR 36
 
-#ifndef __ASSEMBLER__
-
 /* Make sure this is signed; we need pointers to be sign-extended. */
 typedef long __greg_t;
 
@@ -110,7 +108,15 @@ typedef struct mcontext {
   __greg_t _mc_tlsbase;
 } mcontext_t;
 
-#endif /* !__ASSEMBLER__ */
+#if defined(_MACHDEP) && defined(_KERNEL)
+
+typedef struct ctx {
+  __gregset_t __gregs;
+} ctx_t;
+
+#define _REG(ctx, n) ((ctx)->__gregs[_REG_##n])
+
+#endif /* !_MACHDEP && !_KERNEL */
 
 #define _UC_SETSTACK 0x00010000
 #define _UC_CLRSTACK 0x00020000

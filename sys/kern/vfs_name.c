@@ -7,6 +7,7 @@
 #include <sys/vfs.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/cred.h>
 
 /* Path name component flags.
  * Used by VFS name resolver to represent its' internal state. */
@@ -100,6 +101,13 @@ end:
   return error;
 }
 
+static int can_lookup(vnode_t *vn, cred_t *cred) {
+  if (vn->v_type != V_DIR)
+    return ENOTDIR;
+
+  return VOP_ACCESS(vn, VEXEC, cred);
+}
+
 /* Call VOP_LOOKUP for a single lookup.
  * searchdir vnode is locked on entry and remains locked on return. */
 static int vnr_lookup_once(vnrstate_t *vs, vnode_t **searchdir_p,
@@ -107,10 +115,14 @@ static int vnr_lookup_once(vnrstate_t *vs, vnode_t **searchdir_p,
   componentname_t *cn = &vs->vs_cn;
   vnode_t *searchdir = *searchdir_p;
   vnode_t *foundvn;
+  cred_t *cred = vs->vs_cred;
   int error;
 
   if (componentname_equal(cn, ".."))
     vfs_maybe_ascend(&searchdir);
+
+  if ((error = can_lookup(searchdir, cred)))
+    return error;
 
   if ((error = VOP_LOOKUP(searchdir, cn, &foundvn))) {
     /*
@@ -305,12 +317,13 @@ static int do_nameresolve(vnrstate_t *vs) {
   return 0;
 }
 
-int vnrstate_init(vnrstate_t *vs, vnrop_t op, uint32_t flags,
-                  const char *path) {
+int vnrstate_init(vnrstate_t *vs, vnrop_t op, uint32_t flags, const char *path,
+                  cred_t *cred) {
   vs->vs_atdir = NULL;
   vs->vs_op = op;
   vs->vs_flags = flags;
   vs->vs_path = path;
+  vs->vs_cred = cred;
   vs->vs_pathbuf = NULL;
   if (strlen(path) >= MAXPATHLEN)
     return ENAMETOOLONG;
@@ -335,11 +348,11 @@ int vfs_nameresolve(vnrstate_t *vs) {
   return do_nameresolve(vs);
 }
 
-int vfs_namelookup(const char *path, vnode_t **vp) {
+int vfs_namelookup(const char *path, vnode_t **vp, cred_t *cred) {
   vnrstate_t vs;
   int error;
 
-  if ((error = vnrstate_init(&vs, VNR_LOOKUP, VNR_FOLLOW, path)))
+  if ((error = vnrstate_init(&vs, VNR_LOOKUP, VNR_FOLLOW, path, cred)))
     return error;
 
   error = vfs_nameresolve(&vs);
