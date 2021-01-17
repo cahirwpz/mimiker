@@ -186,6 +186,18 @@ void __tsan_write_range(void *ptr, size_t size) {
   kcsan_check((uintptr_t)ptr, size, false);
 }
 
+#define DEFINE_KCSAN_VOLATILE_READ_WRITE(size)                                          \
+  void __tsan_volatile_read##size(void *ptr) {                                          \
+  }                                                                            \
+  void __tsan_volatile_write##size(void *ptr) {                                         \
+  }
+  
+DEFINE_KCSAN_VOLATILE_READ_WRITE(1);
+DEFINE_KCSAN_VOLATILE_READ_WRITE(2);
+DEFINE_KCSAN_VOLATILE_READ_WRITE(4);
+DEFINE_KCSAN_VOLATILE_READ_WRITE(8);
+DEFINE_KCSAN_VOLATILE_READ_WRITE(16);
+
 void __tsan_func_entry(void *call_pc) {
 }
 void __tsan_func_exit(void) {
@@ -193,58 +205,26 @@ void __tsan_func_exit(void) {
 void __tsan_init(void) {
 }
 
-typedef char __tsan_atomic8;
-typedef short __tsan_atomic16;
-typedef int __tsan_atomic32;
-typedef long __tsan_atomic64;
+#define DEFINE_KCSAN_ATOMIC_OP(size, op) \
+  uint##size##_t __tsan_atomic##size##_##op(volatile uint##size##_t *a, uint##size##_t v, int mo) { \
+    return atomic_##op##_explicit(a, v, mo); \
+  }
 
-typedef enum {
-  __tsan_memory_order_relaxed,
-  __tsan_memory_order_consume,
-  __tsan_memory_order_acquire,
-  __tsan_memory_order_release,
-  __tsan_memory_order_acq_rel,
-  __tsan_memory_order_seq_cst
-} __tsan_memory_order;
+#define DEFINE_KCSAN_ATOMIC_OPS(size) \
+  DEFINE_KCSAN_ATOMIC_OP(size, exchange) \
+  DEFINE_KCSAN_ATOMIC_OP(size, fetch_add) \
+  DEFINE_KCSAN_ATOMIC_OP(size, fetch_sub) \
+  DEFINE_KCSAN_ATOMIC_OP(size, fetch_or) \
+  uint##size##_t __tsan_atomic##size##_load(const uint##size##_t *a, int mo) { \
+    return atomic_load_explicit(a, mo); \
+  } \
+  void __tsan_atomic##size##_store(volatile uint##size##_t *a, volatile uint##size##_t v, int mo) { \
+    atomic_store_explicit(a, v, mo); \
+  } \
+  int __tsan_atomic##size##_compare_exchange_strong(volatile uint##size##_t *a, uint##size##_t *c, uint##size##_t v, int mo, int fail_mo) { \
+    return atomic_compare_exchange_strong_explicit(a, c, v, mo, fail_mo); \
+  }
 
-__tsan_atomic32 __tsan_atomic32_load(const __tsan_atomic32 *a,
-                                     __tsan_memory_order mo) {
-  return atomic_load_explicit(a, mo);
-}
-
-void __tsan_atomic32_store(volatile __tsan_atomic32 *a,
-                           volatile __tsan_atomic32 v, __tsan_memory_order mo) {
-  atomic_store_explicit(a, v, mo);
-}
-
-__tsan_atomic32 __tsan_atomic32_exchange(volatile __tsan_atomic32 *a,
-                                         __tsan_atomic32 v,
-                                         __tsan_memory_order mo) {
-  return atomic_exchange_explicit(a, v, mo);
-}
-
-__tsan_atomic32 __tsan_atomic32_fetch_add(volatile __tsan_atomic32 *a,
-                                          __tsan_atomic32 v,
-                                          __tsan_memory_order mo) {
-  return atomic_fetch_add_explicit(a, v, mo);
-}
-
-__tsan_atomic32 __tsan_atomic32_fetch_sub(volatile __tsan_atomic32 *a,
-                                          __tsan_atomic32 v,
-                                          __tsan_memory_order mo) {
-  return atomic_fetch_sub_explicit(a, v, mo);
-}
-
-__tsan_atomic32 __tsan_atomic32_fetch_or(volatile __tsan_atomic32 *a,
-                                         __tsan_atomic32 v,
-                                         __tsan_memory_order mo) {
-  return atomic_fetch_or_explicit(a, v, mo);
-}
-
-int __tsan_atomic32_compare_exchange_strong(volatile __tsan_atomic32 *a,
-                                            __tsan_atomic32 *c,
-                                            __tsan_atomic32 v,
-                                            __tsan_memory_order mo,
-                                            __tsan_memory_order fail_mo) {
-  return atomic_compare_exchange_strong_explicit(a, c, v, mo, fail_mo);
-}
+DEFINE_KCSAN_ATOMIC_OPS(8);
+DEFINE_KCSAN_ATOMIC_OPS(16);
+DEFINE_KCSAN_ATOMIC_OPS(32);
