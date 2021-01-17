@@ -1,11 +1,13 @@
-/*	$NetBSD: sigsetjmp.S,v 1.9 2009/12/14 01:07:42 matt Exp $	*/
-
 /*-
- * Copyright (c) 1991, 1993, 1995,
- *	The Regents of the University of California.  All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
  *
- * This code is derived from software contributed to Berkeley by
- * Havard Eidnes.
+ * Copyright (c) 1982, 1986, 1990, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
+ * All or some portions of this file are derived from material licensed
+ * to the University of California by American Telephone and Telegraph
+ * Co. or Unix System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,43 +32,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- */
-
-#include <sys/syscall.h>
-#include <mips/asm.h>
-
-#include "mips/assym.h"
-#include "mips/SYS.h"
-
-/*
- * C library -- sigsetjmp, siglongjmp
  *
- *	siglongjmp(a,v)
- * will generate a "return(v)" from
- * the last call to
- *	sigsetjmp(a, savemask)
- * by restoring registers from the stack,
- * and dependent on savemask restores the
- * signal mask.
+ *	@(#)filio.h	8.1 (Berkeley) 3/28/94
+ * $FreeBSD$
  */
 
-LEAF(sigsetjmp)
-	PIC_PROLOGUE(sigsetjmp)
-	bnez	a1, 1f			# do saving of signal mask?
-	REG_S	a1, UC_FLAGS(a0)	# savemask is 0
-	PIC_TAILCALL(_setjmp)		# doesn't save signal mask
+#ifndef _SYS_FILIO_H_
+#define _SYS_FILIO_H_
 
-1:	li	a1, _UC_SIGMASK
-	REG_S	a1, UC_FLAGS(a0)	# valid user context sigmask
-	PIC_TAILCALL(setjmp)		# saves signal mask
-END(sigsetjmp)
+#include <sys/ioccom.h>
 
-LEAF(siglongjmp)
-	PIC_PROLOGUE(siglongjmp)
-	REG_L	t0, UC_FLAGS(a0)	# get "savemask"
-	and	t0, t0, _UC_SIGMASK
-	beq	t0, _UC_SIGMASK, 1f	# restore signal mask?
-	PIC_TAILCALL(_longjmp)		# doesn't restore signal mask
+/* Generic file-descriptor ioctl's. */
+#define FIONREAD _IOR('f', 127, int) /* get # bytes to read */
 
-1:	PIC_TAILCALL(longjmp)		# restores signal mask
-END(siglongjmp)
+#endif /* !_SYS_FILIO_H_ */
