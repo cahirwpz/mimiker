@@ -3,6 +3,7 @@
 
 #include <machine/bus_defs.h>
 #include <sys/device.h>
+#include <sys/devclass.h>
 #include <sys/interrupt.h>
 
 typedef struct bus_methods bus_methods_t;
@@ -201,9 +202,12 @@ static inline void bus_release_resource(device_t *dev, res_type_t type,
   BUS_METHODS(dev->parent).release_resource(dev, type, r);
 }
 
-/* System-wide current pass number. */
-extern pass_num_t current_pass;
-
 int bus_generic_probe(device_t *bus);
+
+/* Devclass for rootdev driver. Used exclusively by `init_devices`. */
+DEVCLASS_DECLARE(init);
+
+/*! \brief Called during kernel initialization. */
+void init_devices(pass_num_t pass);
 
 #endif /* !_SYS_BUS_H_ */

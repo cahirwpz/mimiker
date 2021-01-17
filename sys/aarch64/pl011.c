@@ -232,9 +232,9 @@ static int pl011_attach(device_t *dev) {
 static driver_t pl011_driver = {
   .desc = "PL011 UART driver",
   .size = sizeof(pl011_state_t),
+  .pass = SECOND_PASS,
   .attach = pl011_attach,
   .probe = pl011_probe,
-  .pass = SECOND_PASS,
 };
 
 DEVCLASS_ENTRY(root, pl011_driver);

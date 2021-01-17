@@ -6,6 +6,7 @@
 #include <sys/pool.h>
 #include <sys/malloc.h>
 #include <sys/device.h>
+#include <sys/bus.h>
 #include <sys/kenv.h>
 #include <sys/sched.h>
 #include <sys/interrupt.h>

@@ -245,9 +245,9 @@ static int ns16550_probe(device_t *dev) {
 static driver_t ns16550_driver = {
   .desc = "NS16550 UART driver",
   .size = sizeof(ns16550_state_t),
+  .pass = SECOND_PASS,
   .attach = ns16550_attach,
   .probe = ns16550_probe,
-  .pass = SECOND_PASS,
 };
 
 DEVCLASS_ENTRY(pci, ns16550_driver);

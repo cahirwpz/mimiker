@@ -126,9 +126,9 @@ static int rtc_probe(device_t *dev) {
 static driver_t rtc_driver = {
   .desc = "MC146818 RTC driver",
   .size = sizeof(rtc_state_t),
+  .pass = FIRST_PASS,
   .attach = rtc_attach,
   .probe = rtc_probe,
-  .pass = FIRST_PASS,
 };
 
 DEVCLASS_ENTRY(pci, rtc_driver);

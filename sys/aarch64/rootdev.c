@@ -302,29 +302,16 @@ static bus_methods_t rootdev_bus_if = {
 };
 
 static driver_t rootdev_driver = {
-  .size = sizeof(rootdev_t),
   .desc = "RPI3 platform root bus driver",
+  .size = sizeof(rootdev_t),
+  .pass = FIRST_PASS,
   .probe = rootdev_probe,
   .attach = rootdev_attach,
   .interfaces =
     {
       [DIF_BUS] = &rootdev_bus_if,
     },
-  .pass = FIRST_PASS,
 };
 
 DEVCLASS_CREATE(root);
-
-void init_devices(pass_num_t pass) {
-  static device_t *rootdev;
-  current_pass = pass;
-  if (pass == FIRST_PASS) {
-    rootdev = device_alloc(0);
-    rootdev->devclass = &DEVCLASS(root);
-    rootdev->driver = &rootdev_driver;
-    device_probe(rootdev);
-    device_attach(rootdev);
-  } else {
-    bus_generic_probe(rootdev);
-  }
-}
+DEVCLASS_ENTRY(init, rootdev_driver);

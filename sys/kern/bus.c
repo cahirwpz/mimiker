@@ -114,7 +114,8 @@ void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r) {
   rman_deactivate_resource(r);
 }
 
-pass_num_t current_pass;
+/* System-wide current pass number. */
+static pass_num_t current_pass;
 
 int bus_generic_probe(device_t *bus) {
   devclass_t *dc = bus->devclass;
@@ -151,4 +152,23 @@ int bus_generic_probe(device_t *bus) {
     }
   }
   return 0;
+}
+
+DEVCLASS_DECLARE(root);
+DEVCLASS_CREATE(init);
+
+void init_devices(pass_num_t pass) {
+  static device_t *rootdev;
+  current_pass = pass;
+  if (rootdev == NULL) {
+    device_t *primeval = device_alloc(0);
+    primeval->devclass = &DEVCLASS(init);
+    rootdev = device_alloc(0);
+    rootdev->devclass = &DEVCLASS(root);
+    TAILQ_INSERT_TAIL(&primeval->children, rootdev, link);
+    bus_generic_probe(primeval);
+    device_free(primeval);
+  } else {
+    bus_generic_probe(rootdev);
+  }
 }

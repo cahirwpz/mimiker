@@ -32,7 +32,17 @@ typedef enum {
 /* During boot, the device tree is scanned multiple times.
  * Each scan, drivers may be attached to devices. Each driver is assigned
  * a pass number. Drivers may only probe and attach to devices if their
- * pass numer is equal to the current pass number. */
+ * pass numer is equal to the current pass number.
+ * Pass description:
+ * - FIRST_PASS: involves basic drivers which doesn't require substantial
+ *   kernel environment to probe and attach to a device.
+ *   During this pass the main goal is to initialize busses,
+ *   basic timers and the console.
+ * - SECOND_PASS: during this pass, drivers are provided with the following
+ *   kernel support: working timers, working scheduler, callout subsystem,
+ *   and the console.
+ * In case of adding a new pass, please add a coresponding description in
+ * this comment. */
 typedef enum {
   FIRST_PASS,
   SECOND_PASS,
@@ -41,11 +51,11 @@ typedef enum {
 struct driver {
   const char *desc;            /* short driver description */
   size_t size;                 /* device->state object size */
+  pass_num_t pass;             /* device tree pass number */
   d_probe_t probe;             /* probe for specific device(s) */
   d_attach_t attach;           /* attach device to system */
   d_detach_t detach;           /* detach device from system */
   void *interfaces[DIF_COUNT]; /* pointers to device methods structures */
-  pass_num_t pass;             /* device tree pass number */
 };
 
 typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
@@ -71,10 +81,8 @@ static inline bool device_bus(device_t *dev) {
   return dev->devclass != NULL;
 }
 
-/*! \brief Called during kernel initialization. */
-void init_devices(pass_num_t pass);
-
 device_t *device_alloc(int unit);
+void device_free(device_t *dev);
 device_t *device_add_child(device_t *parent, int unit);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);

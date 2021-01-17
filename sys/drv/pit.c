@@ -139,9 +139,9 @@ static int pit_probe(device_t *dev) {
 static driver_t pit_driver = {
   .desc = "i8254 PIT driver",
   .size = sizeof(pit_state_t),
+  .pass = FIRST_PASS,
   .attach = pit_attach,
   .probe = pit_probe,
-  .pass = FIRST_PASS,
 };
 
 DEVCLASS_ENTRY(pci, pit_driver);

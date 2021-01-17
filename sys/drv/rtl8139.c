@@ -50,9 +50,9 @@ static int rtl8139_attach(device_t *dev) {
 static driver_t rtl8139_driver = {
   .desc = "RTL8139 driver",
   .size = sizeof(rtl8139_state_t),
+  .pass = SECOND_PASS,
   .probe = rtl8139_probe,
   .attach = rtl8139_attach,
-  .pass = SECOND_PASS,
 };
 
 DEVCLASS_ENTRY(pci, rtl8139_driver);
