@@ -161,36 +161,27 @@ void vm_segment_destroy(vm_map_t *map, vm_segment_t *seg) {
   vm_segment_free(seg);
 }
 
-/* there are few cases:
- * 1) we want to free the whole segment
- * 2) we want to free the beginning of the segment and leave the end
- * without changes
- * 3) we want to free the end of the segment and leave the beginning
- * without changes
- * 4) we want to free the middle of the segment, so we want to split it to
- * the new two segments with the hole between them */
 void vm_segment_destroy_range(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
                               vaddr_t end) {
   assert(mtx_owned(&map->mtx));
 
-  /* case 1) */
   if (seg->start == start && seg->end == end) {
     vm_segment_destroy(map, seg);
-  } else if (seg->start == start) { /* case 2) */
-    assert(end < seg->end);
-    size_t length = end - seg->start;
-    vm_object_remove_range(seg->object, 0, length);
-    /* TODO there's no reference to pmap in page, so we have to do it here */
-    pmap_remove(map->pmap, seg->start, end);
+    return;
+  }
+
+  size_t length = end - start;
+  vm_object_remove_range(seg->object, start - seg->start, length);
+  pmap_remove(map->pmap, start, end);
+
+  if (seg->start == start) {
     seg->start = end;
-  } else if (seg->end == end) { /* case 3) */
-    assert(start > seg->start);
-    vm_segment_resize(map, seg, start);
-  } else { /* case 4) */
-    assert(start > seg->start && end < seg->end);
+  } else if (seg->end == end) {
+    seg->end = start;
+  } else { /* a hole inside the segment */
     vm_object_t *obj = vm_object_clone(seg->object);
-    vm_segment_resize(map, seg, start);
     vm_object_remove_range(obj, 0, end - seg->start);
+    vm_object_remove_range(seg->object, end - seg->start, seg->end - end);
     vm_segment_t *new_seg =
       vm_segment_alloc(obj, end, seg->end, seg->prot, seg->flags);
     vm_map_insert_after(map, new_seg, seg);
