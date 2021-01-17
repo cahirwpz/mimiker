@@ -18,6 +18,7 @@ BINDIR ?= $(shell echo $(DIR) | cut -f 1 -d / | tr . /)
 
 BUILD-FILES += $(PROGRAM).uelf
 INSTALL-FILES += $(SYSROOT)/$(BINDIR)/$(PROGRAM)
+BINMODE ?= 0755
 
 all: build
 
@@ -32,7 +33,7 @@ $(PROGRAM).uelf: $(OBJECTS)
 
 $(SYSROOT)/$(BINDIR)/$(PROGRAM): $(PROGRAM).uelf
 	@echo "[INSTALL] $(DIR)$< -> /$(BINDIR)/$(PROGRAM)"
-	$(INSTALL) -D $(PROGRAM).uelf $(SYSROOT)/$(BINDIR)/$(PROGRAM)
+	$(INSTALL) -D $(PROGRAM).uelf --mode=$(BINMODE) $(SYSROOT)/$(BINDIR)/$(PROGRAM)
 	@echo "[OBJCOPY] $(SYSROOT)/$(BINDIR)/$(PROGRAM) -> " \
 		"$(SYSROOT)/$(BINDIR)/$(PROGRAM).dbg"
 	$(OBJCOPY) --only-keep-debug $(SYSROOT)/$(BINDIR)/$(PROGRAM) \
