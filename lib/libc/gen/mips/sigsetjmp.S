@@ -33,9 +33,7 @@
  */
 
 #include <sys/syscall.h>
-#include <mips/regnum.h>
 #include <mips/asm.h>
-#include <machine/setjmp.h>
 
 #include "mips/assym.h"
 #include "mips/SYS.h"
@@ -54,18 +52,21 @@
 
 LEAF(sigsetjmp)
 	PIC_PROLOGUE(sigsetjmp)
-	REG_S	a1, _JBLEN*SZREG(a0)		# save "savemask"
-	bne	a1, 0x0, 1f			# do saving of signal mask?
-	PIC_TAILCALL(_setjmp)
+	bnez	a1, 1f			# do saving of signal mask?
+	REG_S	a1, UC_FLAGS(a0)	# savemask is 0
+	PIC_TAILCALL(_setjmp)		# doesn't save signal mask
 
-1:	PIC_TAILCALL(setjmp)
+1:	li	a1, _UC_SIGMASK
+	REG_S	a1, UC_FLAGS(a0)	# valid user context sigmask
+	PIC_TAILCALL(setjmp)		# saves signal mask
 END(sigsetjmp)
 
 LEAF(siglongjmp)
 	PIC_PROLOGUE(siglongjmp)
-	REG_L	t0, _JBLEN*SZREG(a0)		# get "savemask"
-	bne	t0, 0x0, 1f			# restore signal mask?
-	PIC_TAILCALL(_longjmp)
+	REG_L	t0, UC_FLAGS(a0)	# get "savemask"
+	and	t0, t0, _UC_SIGMASK
+	beq	t0, _UC_SIGMASK, 1f	# restore signal mask?
+	PIC_TAILCALL(_longjmp)		# doesn't restore signal mask
 
-1:	PIC_TAILCALL(longjmp)
+1:	PIC_TAILCALL(longjmp)		# restores signal mask
 END(siglongjmp)

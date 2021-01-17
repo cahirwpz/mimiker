@@ -3,7 +3,7 @@
 #include <sys/sysent.h>
 #include <sys/mimiker.h>
 #include <sys/errno.h>
-#include <sys/mman.h>
+#include <sys/vm.h>
 #include <sys/vfs.h>
 #include <sys/uio.h>
 #include <sys/file.h>
@@ -156,10 +156,10 @@ static int sys_sigaction(proc_t *p, sigaction_args_t *args, register_t *res) {
   return error;
 }
 
-/* TODO: handle sigcontext argument */
 static int sys_sigreturn(proc_t *p, sigreturn_args_t *args, register_t *res) {
-  klog("sigreturn()");
-  return do_sigreturn();
+  ucontext_t *ucp = SCARG(args, sigctx_p);
+  klog("sigreturn(%p)", ucp);
+  return do_sigreturn(ucp);
 }
 
 static int sys_mmap(proc_t *p, mmap_args_t *args, register_t *res) {
@@ -349,7 +349,7 @@ static int sys_mount(proc_t *p, mount_args_t *args, register_t *res) {
 
   klog("mount(\"%s\", \"%s\")", path, type);
 
-  error = do_mount(type, path);
+  error = do_mount(p, type, path);
 end:
   kfree(M_TEMP, type);
   kfree(M_TEMP, path);
@@ -389,7 +389,7 @@ static int sys_dup2(proc_t *p, dup2_args_t *args, register_t *res) {
 }
 
 static int sys_fcntl(proc_t *p, fcntl_args_t *args, register_t *res) {
-  int error, value;
+  int error, value = 0;
   klog("fcntl(%d, %d, %ld)", SCARG(args, fd), SCARG(args, cmd),
        (long)SCARG(args, arg));
   error = do_fcntl(p, SCARG(args, fd), SCARG(args, cmd), (long)SCARG(args, arg),

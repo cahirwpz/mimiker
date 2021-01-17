@@ -31,13 +31,11 @@ static int dev_cons_read(vnode_t *t, uio_t *uio, int ioflag) {
   return uiomove_frombuf(buffer, curr, uio);
 }
 
-static vnodeops_t dev_cons_vnodeops = {.v_open = vnode_open_generic,
-                                       .v_read = dev_cons_read,
+static vnodeops_t dev_cons_vnodeops = {.v_read = dev_cons_read,
                                        .v_write = dev_cons_write};
 
 static void init_dev_cons(void) {
-  vnodeops_init(&dev_cons_vnodeops);
-  devfs_makedev(NULL, "cons", &dev_cons_vnodeops, NULL);
+  devfs_makedev(NULL, "cons", &dev_cons_vnodeops, NULL, NULL);
 }
 
 SET_ENTRY(devfs_init, init_dev_cons);

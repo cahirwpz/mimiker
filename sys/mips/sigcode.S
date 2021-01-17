@@ -2,16 +2,17 @@
 #include <mips/regdef.h>
 #include <sys/syscall.h>
 
+#include "assym.h"
+
         .set noreorder
 
 LEAF_NOPROFILE(sigcode)
-        li v0, SYS_sigreturn
+        addi    a0, sp, 4               # address of ucontext_t to restore
+        li      v0, SYS_sigreturn
         syscall
         # just in case sigreturn fails
-        j 0     # TODO: replace with "break 0" when SIGTRAP is implemented
+        break   0
 
 # esigcode is used just to compute size of this code.
 EXPORT(esigcode)
 END(sigcode)
-
-# vim: sw=8 ts=8 et

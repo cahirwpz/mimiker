@@ -41,6 +41,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(signal_mask);
   CHECKRUN_TEST(signal_mask_nonmaskable);
   CHECKRUN_TEST(signal_sigsuspend);
+  CHECKRUN_TEST(signal_sigsuspend_stop);
   CHECKRUN_TEST(signal_handler_mask);
   CHECKRUN_TEST(fork_wait);
   CHECKRUN_TEST(fork_signal);
@@ -98,6 +99,9 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(get_set_uid);
   CHECKRUN_TEST(get_set_gid);
   CHECKRUN_TEST(get_set_groups);
+
+  CHECKRUN_TEST(sharing_memory_simple);
+  CHECKRUN_TEST(sharing_memory_child_and_grandchild);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;

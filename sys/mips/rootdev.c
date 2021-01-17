@@ -2,12 +2,13 @@
 #include <sys/klog.h>
 #include <mips/malta.h>
 #include <mips/mips.h>
-#include <mips/context.h>
+#include <mips/m32c0.h>
 #include <mips/interrupt.h>
 #include <sys/bus.h>
 #include <sys/exception.h>
 #include <sys/interrupt.h>
 #include <sys/devclass.h>
+#include <mips/mcontext.h>
 
 typedef struct rootdev {
   rman_t mem, irq;
@@ -106,7 +107,7 @@ static void rootdev_release_resource(device_t *dev, res_type_t type,
 static int rootdev_activate_resource(device_t *dev, res_type_t type,
                                      resource_t *r) {
   if (type == RT_MEMORY)
-    return bus_space_map(r->r_bus_tag, r->r_bus_handle, resource_size(r),
+    return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
                          &r->r_bus_handle);
 
   return 0;
@@ -172,20 +173,25 @@ static int rootdev_attach(device_t *bus) {
   return bus_generic_probe(bus);
 }
 
-static bus_driver_t rootdev_driver = {
-  .driver =
+static bus_methods_t rootdev_bus_if = {
+  .intr_setup = rootdev_intr_setup,
+  .intr_teardown = rootdev_intr_teardown,
+  .alloc_resource = rootdev_alloc_resource,
+  .release_resource = rootdev_release_resource,
+  .activate_resource = rootdev_activate_resource,
+  .deactivate_resource = rootdev_deactivate_resource,
+};
+
+static driver_t rootdev_driver = {
+  .size = sizeof(rootdev_t),
+  .desc = "MIPS platform root bus driver",
+  .probe = rootdev_probe,
+  .attach = rootdev_attach,
+  .interfaces =
     {
-      .size = sizeof(rootdev_t),
-      .desc = "MIPS platform root bus driver",
-      .probe = rootdev_probe,
-      .attach = rootdev_attach,
+      [DIF_BUS] = &rootdev_bus_if,
     },
-  .bus = {.intr_setup = rootdev_intr_setup,
-          .intr_teardown = rootdev_intr_teardown,
-          .alloc_resource = rootdev_alloc_resource,
-          .release_resource = rootdev_release_resource,
-          .activate_resource = rootdev_activate_resource,
-          .deactivate_resource = rootdev_deactivate_resource}};
+};
 
 DEVCLASS_CREATE(root);
 

@@ -52,7 +52,7 @@ static void process_atags(atag_tag_t *atags, char **tokens, kstack_t *stk) {
 void *board_stack(atag_tag_t *atags) {
   kstack_t *stk = &thread0.td_kstack;
 
-  thread0.td_uctx = kstack_alloc_s(stk, user_ctx_t);
+  thread0.td_uctx = kstack_alloc_s(stk, mcontext_t);
 
   int ntokens = count_atags(atags);
   char **kenvp = kstack_alloc(stk, (ntokens + 2) * sizeof(char *));
