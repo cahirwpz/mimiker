@@ -40,7 +40,7 @@ typedef enum {
  *   basic timers and the console.
  * - SECOND_PASS: during this pass, drivers are provided with the following
  *   kernel support: working timers, working scheduler, callout subsystem,
- *   and the console.
+ *   devfs and the console.
  * In case of adding a new pass, please add a coresponding description in
  * this comment. */
 typedef enum {
