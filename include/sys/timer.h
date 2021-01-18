@@ -4,6 +4,18 @@
 #include <sys/queue.h>
 #include <sys/time.h>
 
+#ifdef _KERNEL
+
+/* Used to maintain full 64-bit time counters for 16/32-bit counters. */
+typedef union {
+  /* assume little endian order */
+  struct {
+    uint32_t lo;
+    uint32_t hi;
+  };
+  uint64_t val;
+} timercntr_t;
+
 typedef struct timer timer_t;
 typedef TAILQ_HEAD(timer_head, timer) timer_list_t;
 
@@ -70,5 +82,7 @@ void tm_trigger(timer_t *tm);
 
 /*! \brief Select timer used as a main time source (for binuptime, etc.) */
 void tm_select(timer_t *tm);
+
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_TIMER_H_ */
