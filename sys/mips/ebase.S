@@ -396,7 +396,7 @@ user_exc_leave:
         ori     t0, SR_EXL
         sw      t0, PCPU_SR(s0)
 
-        # If user has FPU disabled, don't restore its registers.
+        # If user FPU context is not saved, don't restore its registers.
         LOAD_PCPU(t0)
         lw      t0, PCPU_CURTHREAD(t0)
         lw      t0, TD_PFLAGS(t0)
