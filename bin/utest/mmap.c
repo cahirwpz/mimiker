@@ -100,7 +100,6 @@ int test_mmap(void) {
 static volatile int sigsegv_handled = 0;
 static jmp_buf return_to;
 static void sigsegv_handler(int signo) {
-  printf("sigsegv handled!\n");
   sigsegv_handled++;
   siglongjmp(return_to, 5);
 }
@@ -117,12 +116,15 @@ int test_mmap_readonly(void) {
 
   sigsegv_handled = 0;
 
+  printf("Value of sigsegv_handled %d (before if)\n", sigsegv_handled);
   if (sigsetjmp(return_to, 1) == 0) {
+    printf("Value of sigsegv_handled %d (inside if)\n", sigsegv_handled);
     printf("Try to write to readonly memory\n");
     /* Try to write to readonly memory. It should raise SIGSEGV */
     *(char *)addr = '9';
   }
 
+  printf("Value of sigsegv_handled %d\n", sigsegv_handled);
   assert(sigsegv_handled == 1);
   assert(*(char *)addr == 0);
 
