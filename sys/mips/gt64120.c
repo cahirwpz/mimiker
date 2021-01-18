@@ -480,6 +480,7 @@ static pci_bus_methods_t gt_pci_pci_bus_if = {
 static driver_t gt_pci_bus = {
   .desc = "GT-64120 PCI bus driver",
   .size = sizeof(gt_pci_state_t),
+  .pass = FIRST_PASS,
   .attach = gt_pci_attach,
   .probe = gt_pci_probe,
   .interfaces =
