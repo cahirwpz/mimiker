@@ -3,7 +3,6 @@
 
 #include <machine/bus_defs.h>
 #include <sys/device.h>
-#include <sys/devclass.h>
 #include <sys/interrupt.h>
 
 typedef struct bus_methods bus_methods_t;
