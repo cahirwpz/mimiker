@@ -69,16 +69,12 @@ void ide_write(unsigned char channel, unsigned char reg, unsigned char data) {
     ide_write(channel, ATA_REG_CONTROL, 0x80 | channels[channel].nIEN);
   if (reg < 0x08)
     bus_write_1(channels[channel].base, reg - 0x00, data);
-  // outb(channels[channel].base + reg - 0x00, data);
   else if (reg < 0x0C)
     bus_write_1(channels[channel].base, reg - 0x06, data);
-  // outb(channels[channel].base + reg - 0x06, data);
   else if (reg < 0x0E)
     bus_write_1(channels[channel].ctrl, reg - 0x0A, data);
-  // outb(channels[channel].ctrl + reg - 0x0A, data);
   else if (reg < 0x16)
     bus_write_1(channels[channel].bmide, reg + channel * 0x08 - 0x0E, data);
-  // outb(channels[channel].bmide + reg - 0x0E, data);
   if (reg > 0x07 && reg < 0x0C)
     ide_write(channel, ATA_REG_CONTROL, channels[channel].nIEN);
 }
@@ -90,16 +86,12 @@ unsigned char ide_read(unsigned char channel, unsigned char reg) {
     ide_write(channel, ATA_REG_CONTROL, 0x80 | channels[channel].nIEN);
   if (reg < 0x08)
     result = bus_read_1(channels[channel].base, reg - 0x00);
-  // result = inb(channels[channel].base + reg - 0x00);
   else if (reg < 0x0C)
     result = bus_read_1(channels[channel].base, reg - 0x06);
-  // result = inb(channels[channel].base + reg - 0x06);
   else if (reg < 0x0E)
     result = bus_read_1(channels[channel].ctrl, reg - 0x0A);
-  // result = inb(channels[channel].ctrl + reg - 0x0A);
   else if (reg < 0x16)
     result = bus_read_1(channels[channel].bmide, reg - 0x0E);
-  // result = inb(channels[channel].bmide + reg - 0x0E);
   if (reg > 0x07 && reg < 0x0C)
     ide_write(channel, ATA_REG_CONTROL, channels[channel].nIEN);
   return result;
@@ -112,122 +104,20 @@ unsigned short ide_read2(unsigned char channel, unsigned char reg) {
     ide_write(channel, ATA_REG_CONTROL, 0x80 | channels[channel].nIEN);
   if (reg < 0x08)
     result = bus_read_2(channels[channel].base, reg - 0x00);
-  // result = inb(channels[channel].base + reg - 0x00);
   else if (reg < 0x0C)
     result = bus_read_2(channels[channel].base, reg - 0x06);
-  // result = inb(channels[channel].base + reg - 0x06);
   else if (reg < 0x0E)
     result = bus_read_2(channels[channel].ctrl, reg - 0x0A);
-  // result = inb(channels[channel].ctrl + reg - 0x0A);
   else if (reg < 0x16)
     result = bus_read_2(channels[channel].bmide, reg - 0x0E);
-  // result = inb(channels[channel].bmide + reg - 0x0E);
   if (reg > 0x07 && reg < 0x0C)
     ide_write(channel, ATA_REG_CONTROL, channels[channel].nIEN);
   return result;
 }
 
-static void ATA_wait_BSY(ide_state_t *ide) // Wait for bsy to be 0
-{                                          /*
-                                           for (int i = 0; i < 1000000; i++)
-                                             ;
-                                           return;*/
-
-  while (inb(IDEDMA_CTL) & 0x01)
-    ;
-}
-static void ATA_wait_DRQ(ide_state_t *ide) // Wait fot drq to be 1
-{
-  return;
-  while (!(inb(7) & STATUS_RDY))
-    ;
-}
-void read_sectors(ide_state_t *ide) {
-
-  // reg cheat sheet https://www.bswd.com/idems100.pdf
-
-  unsigned short a[256];
-  for (int i = 0; i < 256; i++)
-    a[i] = 2;
-
-  struct idedma_table prd[1];
-
-  prd[0].base_addr = (uint32_t)a;
-
-  prd[0].byte_count = 1;
-
-  outb(IDEDMA_CMD, 0);
-
-  out4b(IDEDMA_TBL, (uint32_t)prd & IDEDMA_TBL_MASK);
-
-  outb(IDEDMA_CTL, IDEDMA_CTL_INTR);
-
-  outb(IDEDMA_CTL, IDEDMA_CTL_ERR);
-
-  for (int i = 0; i < 8; i++)
-    klog("%d  %d\n", i, inb(i));
-
-  // outb(IDEDMA_CTL, IDEDMA_CTL_DRV_DMA(0));
-
-  outb(IDEDMA_CTL, IDEDMA_CTL_DRV_DMA(0));
-
-  for (int i = 0; i < 8; i++)
-    klog("%d  %d\n", i, inb(i));
-
-  outb(IDEDMA_CMD, IDEDMA_CMD_START);
-
-  klog("---------------------------");
-
-  for (int i = 0; i < 8; i++)
-    klog("%d  %d\n", i, inb(i));
-
-  /*
-  volatile int i_ = 0;
-  for (; i_ < 250000000; i_++)
-    ;
-    */
-
-  klog("---------------------------");
-
-  for (int i = 0; i < 8; i++)
-    klog("%d  %d\n", i, inb(i));
-
-  klog("%d\n", a[0]);
-
-  // panic();
-
-  // outb(0xc, (uint32_t)prd);
-
-  // outb(0x8, 0);
-  // outb(0xa, 6);
-
-  // outb(0x8, 1);
-
-  ATA_wait_BSY(ide);
-  /*
-  for (int i = 0; i < 16; i++)
-    klog("%d  %d\n", i, inb(i));
-  outb(5, 1);
-  outb(2, 1);
-  outb(3, 0);
-  outb(4, 0);
-  outb(5, 0);
-  outb(7, 0x20); // Send the read command
-  */
-
-  uint16_t *target = (uint16_t *)a;
-
-  ATA_wait_DRQ(ide);
-  // for (int i = 0; i < 256; i++)
-  //  target[i] = inb(0);
-
-  klog("%d\n", target[0]);
-
-  while (true)
-    ;
-}
-
-static void sleep(int n) {
+/* TODO: Maybe change this to something else?
+ * It should wait an order of n milliseconds */
+static void active_wait(int n) {
   for (volatile int i = 0; i < 1000000 * n; i++)
     continue;
 }
@@ -259,72 +149,49 @@ static int ide_attach(device_t *dev) {
   channels[1].ctrl = ide->io_secondary_control;
   channels[1].bmide = ide->regs;
   channels[1].nIEN = 0;
-  // ide->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
 
-  // read_sectors(ide);
-
-  int count;
-
-label:
+  int count = 0;
 
   ide_write(ATA_PRIMARY, ATA_REG_CONTROL, 2);
   ide_write(ATA_SECONDARY, ATA_REG_CONTROL, 2);
 
-  count = 0;
-
   ide_write(0, ATA_REG_CONTROL, 0);
   ide_write(1, ATA_REG_CONTROL, 0);
-
-  unsigned int status_register = ide_read(0, ATA_REG_STATUS);
-
-  unsigned int control_register = ide_read(0, ATA_REG_CONTROL);
-
-  unsigned int error_register = ide_read(0, ATA_REG_ERROR);
-
-  unsigned int hddevsel_register = ide_read(0, ATA_REG_HDDEVSEL);
-
-  klog("status %x   control %x   error %x   hddevsel %x", status_register,
-       control_register, error_register, hddevsel_register);
 
   for (int i = 0; i < 2; i++)
     for (int j = 0; j < 2; j++) {
 
       unsigned char err = 0, status;
-      ide_devices[count].Reserved = 0; // Assuming that no drive here.
 
-      // (I) Select Drive:
-      ide_write(i, ATA_REG_HDDEVSEL, 0xA0 | (j << 4)); // Select Drive.
-      sleep(1); // Wait 1ms for drive select to work.
+      /* Select the j-th drive */
+      ide_write(i, ATA_REG_HDDEVSEL, 0xA0 | (j << 4));
+      active_wait(1);
 
-      // (II) Send ATA Identify Command:
+      /* Send the IDENTIFY command */
       ide_write(i, ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
-      sleep(1); // This function should be implemented in your OS. which waits
-                // for 1 ms. it is based on System Timer Device Driver.
+      active_wait(1);
 
-      // (III) Polling:
+      /* Check if there is a device */
       if (ide_read(i, ATA_REG_STATUS) == 0) {
         klog("Didn't find any device on channel %d", i);
         continue; // If Status = 0, No Device.
       }
-      int iters = 0;
+
+      /* XXX: We should probably limit the number of iterations here and do a
+       * software reset (or even give up after a few resets) if the loop takes
+       * too long */
       while (1) {
-        iters++;
-        if (iters > 10000000) {
-          ide_write(0, ATA_REG_CONTROL, 0x04);
-          ide_write(1, ATA_REG_CONTROL, 0x04);
-          sleep(1);
-          ide_write(0, ATA_REG_CONTROL, 0);
-          ide_write(1, ATA_REG_CONTROL, 0);
-          klog("Waited for reset");
-          goto label;
-        }
         status = ide_read(i, ATA_REG_STATUS);
+
+        /* Device is not an ata device, it might be atapi */
         if ((status & ATA_SR_ERR)) {
           err = 1;
           break;
-        } // If Err, Device is not ATA.
+        }
+
+        /* Device is an ata device */
         if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ))
-          break; // Everything is right.
+          break;
       }
 
       short identification_space[2048] = {0};
@@ -333,28 +200,20 @@ label:
         klog("Didn't find any device on channel %d at drive %d", i, j);
       } else {
         ide_write(i, ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
-        sleep(1); // This function should be implemented in your OS. which waits
-                  // for 1 ms. it is based on System Timer Device Driver.
+
+        active_wait(1);
+
         klog("Found a device on channel %d , drive %d", i, j);
         for (int k = 0; k < 128; k++) {
           identification_space[k] = ide_read2(i, ATA_REG_DATA);
         }
         char *ptr = (char *)identification_space;
-        /*for (int k = 0; k < 256; k++) {
-          ptr[k] = ide_read2(i, ATA_REG_DATA);
-          if ((ptr[k] >= 'A' && ptr[k] <= 'Z') ||
-              (ptr[k] >= 'a' && ptr[k] <= 'z') ||
-              (ptr[k] >= '0' && ptr[k] <= '9'))
-            klog("%c", ptr[k]);
-        }*/
 
         for (int k = 0; k < 40; k += 2) {
           ide_devices[count].Model[k] = ptr[ATA_IDENT_MODEL + k + 1];
           ide_devices[count].Model[k + 1] = ptr[ATA_IDENT_MODEL + k];
         }
-        ide_devices[count].Model[40] = 0; // Terminate String.
-        // for (int k = 0; k < 40; k++)
-        //  klog("%x %c", model[k], model[k]);
+        ide_devices[count].Model[40] = 0;
         klog("Model %s", ide_devices[count].Model);
       }
 
