@@ -121,9 +121,12 @@ unsigned char const char_type[] = {
 #define TTYSUP_IFLAG_CHANGE (INLCR | IGNCR | ICRNL | IMAXBEL)
 #define TTYSUP_OFLAG_CHANGE (OPOST | ONLCR | OCRNL | ONOCR | ONLRET)
 #define TTYSUP_LFLAG_CHANGE                                                    \
-  (ECHOKE | ECHOE | ECHOK | ECHO | ECHONL | ECHOCTL | ICANON | TOSTOP)
+  (ECHOKE | ECHOE | ECHOK | ECHO | ECHONL | ECHOCTL | ICANON | ISIG | TOSTOP | \
+   NOFLSH)
 
 static bool tty_output(tty_t *tty, uint8_t c);
+static void tty_discard_input(tty_t *tty);
+static void tty_discard_output(tty_t *tty);
 
 static inline bool tty_is_break(tty_t *tty, uint8_t c) {
   return (c == '\n' || ((c == tty->t_cc[VEOF] || c == tty->t_cc[VEOL]) &&
@@ -478,6 +481,32 @@ bool tty_input(tty_t *tty, uint8_t c) {
     c = '\r';
   }
 
+  if (lflag & ISIG) {
+    signo_t signal = 0;
+    /* Signal processing. */
+    if (CCEQ(cc[VINTR], c)) {
+      signal = SIGINT;
+    } else if (CCEQ(cc[VQUIT], c)) {
+      signal = SIGQUIT;
+    } else if (CCEQ(cc[VSUSP], c)) {
+      signal = SIGTSTP;
+    }
+
+    if (signal) {
+      if (!(lflag & NOFLSH)) {
+        tty_discard_input(tty);
+        tty_discard_output(tty);
+      }
+      tty_echo(tty, c);
+      pgrp_t *pg = tty->t_pgrp;
+      if (pg)
+        WITH_MTX_LOCK (&pg->pg_lock)
+          sig_pgkill(pg, &DEF_KSI_RAW(signal));
+      tty_notify_out(tty);
+      return true;
+    }
+  }
+
   if (lflag & ICANON) {
     /* Canonical mode character processing takes place here. */
     if (CCEQ(cc[VERASE], c)) {
@@ -634,6 +663,12 @@ static void tty_discard_input(tty_t *tty) {
   ringbuf_reset(&tty->t_inq);
   tty->t_line.ln_count = 0;
   tty_check_in_lowat(tty);
+}
+
+static void tty_discard_output(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  ringbuf_reset(&tty->t_outq);
+  cv_broadcast(&tty->t_outcv);
 }
 
 /*
