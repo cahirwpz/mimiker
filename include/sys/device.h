@@ -46,6 +46,7 @@ typedef enum {
 typedef enum {
   FIRST_PASS,
   SECOND_PASS,
+  PASS_COUNT /* this must be the last item */
 } drv_pass_t;
 
 struct driver {

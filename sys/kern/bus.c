@@ -155,6 +155,7 @@ int bus_generic_probe(device_t *bus) {
 DEVCLASS_DECLARE(root);
 
 void init_devices(void) {
+  assert(current_pass < PASS_COUNT);
   extern driver_t rootdev_driver;
   static device_t *rootdev;
   if (rootdev == NULL) {
