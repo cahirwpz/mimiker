@@ -98,8 +98,15 @@ typedef struct pci_device {
 #define PCI_BUS_METHODS(dev)                                                   \
   (*(pci_bus_methods_t *)(dev)->driver->interfaces[DIF_PCI_BUS])
 
+/* As for now this actually returns a child of the bus, see a comment
+ * above `device_method_provider` in include/sys/device.c */
+#define PCI_BUS_METHOD_IMPLEMENTATOR(dev, method)                              \
+  (device_method_provider((dev), DIF_PCI_BUS,                                  \
+                          offsetof(struct pci_bus_methods, method)))
+
 static inline uint32_t pci_read_config(device_t *dev, unsigned reg,
                                        unsigned size) {
+  device_t *idev = PCI_BUS_METHOD_IMPLEMENTATOR(dev, read_config);
   return PCI_BUS_METHODS(dev->parent).read_config(dev, reg, size);
 }
 
@@ -109,6 +116,7 @@ static inline uint32_t pci_read_config(device_t *dev, unsigned reg,
 
 static inline void pci_write_config(device_t *dev, unsigned reg, unsigned size,
                                     uint32_t value) {
+  device_t *idev = PCI_BUS_METHOD_IMPLEMENTATOR(dev, write_config);
   PCI_BUS_METHODS(dev->parent).write_config(dev, reg, size, value);
 }
 
@@ -117,6 +125,7 @@ static inline void pci_write_config(device_t *dev, unsigned reg, unsigned size,
 #define pci_write_config_4(d, r, v) pci_write_config((d), (r), 4, (v))
 
 static inline void pci_enable_busmaster(device_t *dev) {
+  device_t *idev = PCI_BUS_METHOD_IMPLEMENTATOR(dev, enable_busmaster);
   PCI_BUS_METHODS(dev->parent).enable_busmaster(dev);
 }
 
