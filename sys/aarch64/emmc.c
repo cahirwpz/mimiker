@@ -5,11 +5,11 @@
 #include <sys/types.h>
 #include <aarch64/gpio.h>
 #include <sys/device.h>
-#include <bus.h>
+#include <sys/bus.h>
 
 #define GPPUD ((volatile uint32_t *)(MMIO_BASE + 0x00200094))
 
-/* #define EMMC_ARG2 ((volatile uint32_t *)(MMIO_BASE + 0x00300000))
+#define EMMC_ARG2 ((volatile uint32_t *)(MMIO_BASE + 0x00300000))
 #define EMMC_BLKSIZECNT ((volatile uint32_t *)(MMIO_BASE + 0x00300004))
 #define EMMC_ARG1 ((volatile uint32_t *)(MMIO_BASE + 0x00300008))
 #define EMMC_CMDTM ((volatile uint32_t *)(MMIO_BASE + 0x0030000C))
@@ -25,9 +25,9 @@
 #define EMMC_INT_MASK ((volatile uint32_t *)(MMIO_BASE + 0x00300034))
 #define EMMC_INT_EN ((volatile uint32_t *)(MMIO_BASE + 0x00300038))
 #define EMMC_CONTROL2 ((volatile uint32_t *)(MMIO_BASE + 0x0030003C))
-#define EMMC_SLOTISR_VER ((volatile uint32_t *)(MMIO_BASE + 0x003000FC)) */
+#define EMMC_SLOTISR_VER ((volatile uint32_t *)(MMIO_BASE + 0x003000FC))
 
-#define EMMC_STATUS 24
+//#define EMMC_STATUS 24
 
 // command flags
 #define CMD_NEED_APP    0x80000000
@@ -107,7 +107,7 @@
 #define SD_TIMEOUT -1
 #define SD_ERROR -2
 
-memdev_driver_t emmc_driver;
+driver_t emmc_driver;
 
 typedef struct emmc_state {
     resource_t *gpio_mem;
@@ -141,7 +141,7 @@ static void delay(int64_t count) {
  */
 int sd_status(uint32_t mask) {
   int32_t cnt = 500000;
-  while (*EMMC_STATUS & mask) && !(*EMMC_INTERRUPT & INT_ERROR_MASK) && cnt--)
+  while ((*EMMC_STATUS & mask) && !(*EMMC_INTERRUPT & INT_ERROR_MASK) && cnt--)
     delay(150); /* Random value lol */
   return (cnt <= 0 || (*EMMC_INTERRUPT & INT_ERROR_MASK)) ? SD_ERROR : SD_OK;
 }
@@ -597,9 +597,8 @@ static int emmc_init(device_t *dev) {
 /*----------------------------------------------------------------------------*/
 
 static int emmc_probe(device_t *dev) {
-  /* unimplemented! */
-  panic("EMMC probe is not implemented");
-  return 0;
+  /* return 0; */
+  return dev->unit == 3;
 }
 
 static int emmc_attach(device_t *dev) {
@@ -619,16 +618,17 @@ static int emmc_detach(device_t *dev) {
 }
 */
 
-memdev_driver_t emmc_driver = {
-  .driver = {
-    .desc = "EMMC memory card driver",
-    .size = sizeof(emmc_state_t),
-    .probe = emmc_probe,
-    .attach = emmc_attach,
-    /* .detach = emmc_detach */
-  },
-  .memdev = {
-    .read_block = emmc_read_block,
-    .write_block = sd_writeblock
-  }
+blockdev_methods_t emmc_block_if = {
+
+};
+
+driver_t emmc_driver = {
+  .desc = "EMMC memory card driver",
+  .size = sizeof(emmc_state_t),
+  .probe = emmc_probe,
+  .attach = emmc_attach,
+  .interfaces =
+    {
+      [DIF_BLOCK_MEM] = &emmc_block_if,
+    },
 };
