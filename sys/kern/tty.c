@@ -157,7 +157,7 @@ static void tty_init_termios(struct termios *tio) {
 }
 
 tty_t *tty_alloc(void) {
-  tty_t *tty = kmalloc(M_DEV, sizeof(tty_t), M_WAITOK);
+  tty_t *tty = kmalloc(M_DEV, sizeof(tty_t), M_WAITOK | M_ZERO);
   mtx_init(&tty->t_lock, 0);
   ringbuf_init(&tty->t_inq, kmalloc(M_DEV, TTY_QUEUE_SIZE, M_WAITOK),
                TTY_QUEUE_SIZE);
@@ -170,13 +170,6 @@ tty_t *tty_alloc(void) {
   tty->t_line.ln_size = LINEBUF_SIZE;
   tty->t_line.ln_count = 0;
   tty_init_termios(&tty->t_termios);
-  tty->t_ops = (ttyops_t){0};
-  tty->t_data = NULL;
-  tty->t_column = 0;
-  tty->t_rocol = tty->t_rocount = 0;
-  tty->t_vnode = NULL;
-  tty->t_flags = 0;
-  tty->t_opencount = 0;
   return tty;
 }
 
@@ -936,6 +929,20 @@ static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
   return 0;
 }
 
+static int tty_set_winsize(tty_t *tty, struct winsize *sz) {
+  SCOPED_MTX_LOCK(&tty->t_lock);
+  if (memcmp(&tty->t_winsize, sz, sizeof(struct winsize)) == 0)
+    return 0;
+  tty->t_winsize = *sz;
+  /* Send SIGWINCH to the foreground process group. */
+  pgrp_t *pgrp = tty->t_pgrp;
+  if (pgrp) {
+    SCOPED_MTX_LOCK(&pgrp->pg_lock);
+    sig_pgkill(pgrp, &DEF_KSI_RAW(SIGWINCH));
+  }
+  return 0;
+}
+
 static int tty_ioctl(file_t *f, u_long cmd, void *data) {
   tty_t *tty = f->f_data;
 
@@ -955,6 +962,13 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
       return tty_get_fg_pgrp(tty, data);
     case TIOCSPGRP:
       return tty_set_fg_pgrp(tty, *(pgid_t *)data);
+    case TIOCGWINSZ: {
+      SCOPED_MTX_LOCK(&tty->t_lock);
+      *(struct winsize *)data = tty->t_winsize;
+      return 0;
+    }
+    case TIOCSWINSZ:
+      return tty_set_winsize(tty, data);
     case 0:
       return EPASSTHROUGH;
     default: {
