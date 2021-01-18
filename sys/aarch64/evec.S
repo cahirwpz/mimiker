@@ -160,23 +160,15 @@ ENTRY(handle_user_trap)
         .cfi_signal_frame
         save_ctx 0
         mov     x0, sp
-
-        /* invalidate FPU context */
-        /* thread_t::tdp_flags is a volatile unsigned - use 32-bit */
-        mrs     x1, tpidr_el1
-        ldr     x1, [x1, #PCPU_CURTHREAD]
-        ldr     w2, [x1, #TD_PFLAGS]
-        and     w2, w2, ~TDP_FPCTXSAVED
-        str     w2, [x1, #TD_PFLAGS]
-
         bl      user_trap_handler
 user_exc_leave:
         /* load thread_t::tdp_flags */
+        /* thread_t::tdp_flags is a volatile unsigned - use 32-bit */
         mrs     x1, tpidr_el1
         ldr     x1, [x1, #PCPU_CURTHREAD]
         ldr     w3, [x1, #TD_PFLAGS]
 
-        and     w2, w3, #TDP_FPCTXVALID
+        and     w2, w3, #TDP_FPCTXUSED
         cmp     w2, wzr
         beq     .skip_fpu_restore
 
@@ -189,6 +181,10 @@ user_exc_leave:
         and     w2, w3, #TDP_FPCTXSAVED
         cmp     w2, wzr
         beq     .skip_fpu_restore
+
+        /* clear TDP_FPCTXSAVED flag */
+        and     w2, w3, ~TDP_FPCTXSAVED
+        str     w2, [x1, #TD_PFLAGS]
 
         /* restore FPU context */
         ldr     x1, [x1, #TD_UCTX]

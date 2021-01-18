@@ -76,7 +76,7 @@ ENTRY(ctx_switch)
         # save context of @from thread
 .ctx_save:
         ldr     w3, [x0, #TD_PFLAGS]
-        and     w2, w3, #TDP_FPCTXVALID
+        and     w2, w3, #TDP_FPCTXUSED
         cmp     w2, wzr
         beq     .skip_fpu_save
 
