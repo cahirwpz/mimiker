@@ -51,8 +51,8 @@ CONFIG = {
                 'options': [
                     '-drive', 'if=none,id=stick,file=./udrive.img',
                     '-device', 'usb-storage,drive=stick',
-                    #'-device', 'usb-mouse',
-                    #'-device', 'usb-kbd',
+                    # '-device', 'usb-mouse',
+                    # '-device', 'usb-kbd',
                     '-device', 'VGA',
                     '-device', 'rtl8139',
                     '-machine', 'malta',
