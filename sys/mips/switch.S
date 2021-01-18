@@ -118,7 +118,7 @@ ctx_save:
         sw      sp, TD_KCTX(a0)
 
         lw      t2, TD_PFLAGS(a0)
-        and     t2, TDP_FPCTXVALID
+        and     t2, TDP_FPCTXUSED
         beqz    t2, skip_fpu_save
         nop
 

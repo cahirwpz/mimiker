@@ -71,7 +71,7 @@ typedef enum {
 typedef enum {
   TDP_OLDSIGMASK = 0x01, /* Pass td_oldsigmask as return mask to send_sig(). */
   TDP_FPCTXSAVED = 0x02, /* The FPU context was saved by `ctx_switch`. */
-  TDP_FPCTXVALID = 0x04  /* The FPU context is valid and should be saved &
+  TDP_FPCTXUSED = 0x04   /* The FPU context is used and should be saved &
                             restored on demand. */
 } tdp_flags_t;
 
