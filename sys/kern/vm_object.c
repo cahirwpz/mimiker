@@ -83,11 +83,11 @@ void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
 }
 
 void vm_object_free(vm_object_t *obj) {
-  WITH_MTX_LOCK (&obj->mtx) {
-    if (!refcnt_release(&obj->ref_counter)) {
-      return;
-    }
+  if (!refcnt_release(&obj->ref_counter)) {
+    return;
+  }
 
+  WITH_MTX_LOCK (&obj->mtx) {
     vm_page_t *pg, *next;
     TAILQ_FOREACH_SAFE (pg, &obj->list, obj.list, next)
       vm_object_remove_page_nolock(obj, pg);
