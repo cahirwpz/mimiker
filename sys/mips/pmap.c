@@ -311,14 +311,10 @@ static bool pmap_extract_nolock(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
 bool pmap_extract_and_hold(pmap_t *pmap, vaddr_t va, paddr_t *pap,
                            vm_prot_t prot) {
   assert(pap != NULL);
-  paddr_t old = *pap;
 
   SCOPED_MTX_LOCK(&pmap->mtx);
 
-  bool result = pmap_extract_nolock(pmap, va, pap);
-
-  if (!result) {
-    *pap = old;
+  if (!pmap_extract_nolock(pmap, va, pap)) {
     return false;
   }
 
@@ -326,7 +322,6 @@ bool pmap_extract_and_hold(pmap_t *pmap, vaddr_t va, paddr_t *pap,
 
   if ((prot & VM_PROT_READ && !(pte & PTE_READ)) ||
       (prot & VM_PROT_WRITE && !(pte & PTE_WRITE))) {
-    *pap = old;
     return false;
   }
 
