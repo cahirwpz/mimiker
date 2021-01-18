@@ -340,7 +340,6 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
     vm_segment_t *it;
     TAILQ_FOREACH (it, &map->entries, link) {
-      vm_seg_flags_t flags = it->flags;
       vm_object_t *obj;
       vm_segment_t *seg;
       vm_object_t *backing;
@@ -354,7 +353,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         /* check if this object didn't copy any page, if so,
          * then we don't have to create another element in vm_objects chain,
          * we can just use existing one */
-        if ((it->flags & VM_SEG_NEED_COPY) != 0 && it->object->npages == 0) {
+        if ((it->flags & VM_SEG_COW) != 0 && it->object->npages == 0) {
           obj = vm_object_alloc(VM_SHADOW);
           backing = it->object->backing_object;
           obj->backing_object = backing;
@@ -371,8 +370,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
 
         refcnt_acquire(&backing->ref_counter);
 
-        flags |= VM_SEG_NEED_COPY;
-        it->flags |= VM_SEG_NEED_COPY;
+        it->flags |= VM_SEG_COW;
       }
 
       seg = vm_segment_alloc(obj, it->start, it->end, it->prot, it->flags);
@@ -424,7 +422,7 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   frame = vm_object_find_page(obj, offset);
 
   WITH_MTX_LOCK (&obj->mtx) {
-    if (frame == NULL && (seg->flags & VM_SEG_NEED_COPY) &&
+    if (frame == NULL && (seg->flags & VM_SEG_COW) &&
         fault_type == VM_PROT_READ && seg->prot == VM_PROT_READ) {
       vm_object_t *it = obj->backing_object;
 
