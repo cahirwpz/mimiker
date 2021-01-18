@@ -52,8 +52,6 @@ int test_nanosleep(void) {
   rqt.tv_nsec = 1000;
   assert_fail(nanosleep(NULL, NULL), EFAULT);
   assert_fail(nanosleep(NULL, &rmt), EFAULT);
-  assert_fail(nanosleep(0, NULL), EFAULT);
-  assert_fail(nanosleep(0, &rmt), EFAULT);
 
   /* Check if sleept at least requested time */;
   for (int g = 0; g < 20; g++) {
