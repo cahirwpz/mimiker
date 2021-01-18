@@ -54,30 +54,32 @@ static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
 
   uint32_t old = pci_read_config_4(pcid, PCIR_BAR(bar));
   /* XXX: we don't handle 64-bit memory space bars. */
+  klog("BAR %d   old %x", bar, old);
 
   if (old == 0 || old == 1) {
     if (((pci_device_t *)(pcid->instance))->class_code == 1) {
+      klog("BAR %d   old %x", bar, old);
       if (bar == 0) {
         *addr = 0x1f0;
-        pci_write_config_4(pcid, PCIR_BAR(bar), old);
+        // pci_write_config_4(pcid, PCIR_BAR(bar), old);
         pci_write_config_2(pcid, PCIR_COMMAND, cmd);
-        return -8;
+        return -1;
       }
       if (bar == 1) {
         *addr = 0x3f6;
-        pci_write_config_4(pcid, PCIR_BAR(bar), old);
+        // pci_write_config_4(pcid, PCIR_BAR(bar), old);
         pci_write_config_2(pcid, PCIR_COMMAND, cmd);
         return -1;
       }
       if (bar == 2) {
         *addr = 0x170;
-        pci_write_config_4(pcid, PCIR_BAR(bar), old);
+        // pci_write_config_4(pcid, PCIR_BAR(bar), old);
         pci_write_config_2(pcid, PCIR_COMMAND, cmd);
         return -8;
       }
       if (bar == 3) {
         *addr = 0x376;
-        pci_write_config_4(pcid, PCIR_BAR(bar), old);
+        // pci_write_config_4(pcid, PCIR_BAR(bar), old);
         pci_write_config_2(pcid, PCIR_COMMAND, cmd);
         return -1;
       }
@@ -171,7 +173,7 @@ void pci_bus_enumerate(device_t *pcib) {
         rman_addr_t start = (type == RT_IOPORTS) ? (IO_ISAEND + 1) : 0;
 
         if (addr == 0x1f0 || addr == 0x3f6 || addr == 0x170 || addr == 0x376)
-          start = 0;
+          start = addr;
 
         device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size, flags);
       }
