@@ -118,7 +118,7 @@ void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r) {
 }
 
 /* System-wide current pass number. */
-static pass_num_t current_pass;
+static drv_pass_t current_pass;
 
 int bus_generic_probe(device_t *bus) {
   devclass_t *dc = bus->devclass;
@@ -126,10 +126,16 @@ int bus_generic_probe(device_t *bus) {
     return 0;
   device_t *dev;
   TAILQ_FOREACH (dev, &bus->children, link) {
+    if (dev->driver) {
+      if (device_bus(dev))
+        bus_generic_probe(dev);
+      continue;
+    }
+
     driver_t **drv_p;
     DEVCLASS_FOREACH(drv_p, dc) {
       driver_t *driver = *drv_p;
-      if (driver->pass != current_pass)
+      if (driver->pass > current_pass)
         continue;
       dev->driver = driver;
       if (device_probe(dev)) {
@@ -142,36 +148,23 @@ int bus_generic_probe(device_t *bus) {
       }
       dev->driver = NULL;
     }
-    if (device_bus(dev)) {
-      /*
-       * Bus attach function calls `bus_generic_probe`, but if
-       * the current pass number is different than the bus's pass number
-       * or the bus doesn't have a driver attached, then the attach function
-       * hasn't been called and we need to call `bus_generic_probe` directly.
-       */
-      driver_t *driver = dev->driver;
-      if (!driver || driver->pass != current_pass)
-        bus_generic_probe(dev);
-    }
   }
   return 0;
 }
 
 DEVCLASS_DECLARE(root);
-DEVCLASS_CREATE(init);
 
-void init_devices(pass_num_t pass) {
+void init_devices(void) {
+  extern driver_t rootdev_driver;
   static device_t *rootdev;
-  current_pass = pass;
   if (rootdev == NULL) {
-    device_t *primeval = device_alloc(0);
-    primeval->devclass = &DEVCLASS(init);
     rootdev = device_alloc(0);
     rootdev->devclass = &DEVCLASS(root);
-    TAILQ_INSERT_TAIL(&primeval->children, rootdev, link);
-    bus_generic_probe(primeval);
-    device_free(primeval);
+    rootdev->driver = (driver_t *)&rootdev_driver;
+    device_probe(rootdev);
+    device_attach(rootdev);
   } else {
     bus_generic_probe(rootdev);
   }
+  current_pass++;
 }

@@ -301,7 +301,7 @@ static bus_methods_t rootdev_bus_if = {
   .deactivate_resource = rootdev_deactivate_resource,
 };
 
-static driver_t rootdev_driver = {
+driver_t rootdev_driver = {
   .desc = "RPI3 platform root bus driver",
   .size = sizeof(rootdev_t),
   .pass = FIRST_PASS,
@@ -314,4 +314,3 @@ static driver_t rootdev_driver = {
 };
 
 DEVCLASS_CREATE(root);
-DEVCLASS_ENTRY(init, rootdev_driver);

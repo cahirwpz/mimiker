@@ -213,10 +213,10 @@ static inline void bus_release_resource(device_t *dev, res_type_t type,
 
 int bus_generic_probe(device_t *bus);
 
-/* Devclass for rootdev driver. Used exclusively by `init_devices`. */
-DEVCLASS_DECLARE(init);
-
-/*! \brief Called during kernel initialization. */
-void init_devices(pass_num_t pass);
+/*! \brief Initializes devices and attaches drivers.
+ *
+ * Can be called multiple times. Each time it bumps up `current_pass` counter
+ * and goes deeper into device hierarchy. */
+void init_devices(void);
 
 #endif /* !_SYS_BUS_H_ */

@@ -29,29 +29,29 @@ typedef enum {
   DIF_COUNT /* this must be the last item */
 } drv_if_t;
 
-/* During boot, the device tree is scanned multiple times.
- * Each scan, drivers may be attached to devices. Each driver is assigned
- * a pass number. Drivers may only probe and attach to devices if their
- * pass numer is equal to the current pass number.
+/* During kernel initialization the device tree is scanned multiple times.
+ * Each scan we can detect new devices and attach drivers to existing or new
+ * devices. Each driver is assigned a pass number. A driver may only probe and
+ * attach to a device if driver's pass number is not greater than
+ * `current_pass` counter.
  * Pass description:
- * - FIRST_PASS: involves basic drivers which doesn't require substantial
- *   kernel environment to probe and attach to a device.
- *   During this pass the main goal is to initialize busses,
- *   basic timers and the console.
- * - SECOND_PASS: during this pass, drivers are provided with the following
- *   kernel support: working timers, working scheduler, callout subsystem,
- *   devfs and the console.
- * In case of adding a new pass, please add a coresponding description in
- * this comment. */
+ * - FIRST_PASS: devoted for drivers that require the most basic kernel APIs
+ *   to be in working state (i.e. memory allocation, resource management,
+ *   interrupt management). The main goal of this pass is to initialize enough
+ *   drivers to clock subsystem (and thus scheduler & callouts) and console.
+ * - SECOND_PASS: during this pass following kernel APIs are available:
+ *   callouts, kernel threads, devfs.
+ * If extra pass is needed, please add a coresponding description here and
+ * explain what kernel APIs are required. */
 typedef enum {
   FIRST_PASS,
   SECOND_PASS,
-} pass_num_t;
+} drv_pass_t;
 
 struct driver {
   const char *desc;            /* short driver description */
   size_t size;                 /* device->state object size */
-  pass_num_t pass;             /* device tree pass number */
+  drv_pass_t pass;             /* device tree pass number */
   d_probe_t probe;             /* probe for specific device(s) */
   d_attach_t attach;           /* attach device to system */
   d_detach_t detach;           /* detach device from system */
@@ -82,7 +82,6 @@ static inline bool device_bus(device_t *dev) {
 }
 
 device_t *device_alloc(int unit);
-void device_free(device_t *dev);
 device_t *device_add_child(device_t *parent, int unit);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);

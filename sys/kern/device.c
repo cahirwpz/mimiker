@@ -22,12 +22,6 @@ device_t *device_alloc(int unit) {
   return dev;
 }
 
-void device_free(device_t *dev) {
-  if (dev->state)
-    kfree(M_DEV, dev->state);
-  kfree(M_DEV, dev);
-}
-
 device_t *device_add_child(device_t *parent, int unit) {
   device_t *child = device_alloc(unit);
   child->parent = parent;
