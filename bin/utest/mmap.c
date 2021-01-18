@@ -117,7 +117,7 @@ int test_mmap_readonly(void) {
 
   sigsegv_handled = 0;
 
-  if (sigsetjmp(return_to, 1) != 0) {
+  if (sigsetjmp(return_to, 1) == 0) {
     printf("Try to write to readonly memory\n");
     /* Try to write to readonly memory. It should raise SIGSEGV */
     *(char *)addr = '9';
