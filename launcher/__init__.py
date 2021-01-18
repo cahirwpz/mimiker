@@ -49,12 +49,16 @@ CONFIG = {
             'malta': {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
+                    '-drive', 'if=none,id=stick,file=./udrive.img',
+                    '-device', 'usb-storage,drive=stick',
+                    #'-device', 'usb-mouse',
+                    #'-device', 'usb-kbd',
                     '-device', 'VGA',
                     '-device', 'rtl8139',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
                 'uarts': [
-                    dict(name='/dev/tty1', port=uart_port(0), raw=True),
+                    dict(name='/dev/tty1', port=uart_port(0)),
                     dict(name='/dev/tty2', port=uart_port(1)),
                     dict(name='/dev/cons', port=uart_port(2))
                 ]

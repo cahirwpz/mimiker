@@ -22,6 +22,7 @@ typedef enum {
   KL_THREAD,  /* kernel threads management */
   KL_INTR,    /* interrupts management and handling */
   KL_DEV,     /* device management */
+  KL_USB,     /* usb subsystem */
   KL_VFS,     /* vfs operations tracing */
   KL_VNODE,   /* vnode operations tracing */
   KL_PROC,    /* user process management */

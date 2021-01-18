@@ -39,6 +39,12 @@ setup:
 test: sys-build initrd.cpio
 	./run_tests.py --board $(BOARD)
 
-PHONY-TARGETS += setup test
+# USB drive size in GB.
+SIZE = 512
+
+udrive-img:
+	qemu-img create udrive.img $(SIZE)G
+
+PHONY-TARGETS += setup test print
 
 include $(TOPDIR)/build/common.mk

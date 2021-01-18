@@ -105,6 +105,8 @@ void pci_bus_enumerate(device_t *pcib) {
       pcid->device_id = pci_read_config_2(dev, PCIR_DEVICEID);
       pcid->vendor_id = pci_read_config_2(dev, PCIR_VENDORID);
       pcid->class_code = pci_read_config_1(dev, PCIR_CLASSCODE);
+      pcid->subclass_code = pci_read_config(dev, PCIR_SUBCLASSCODE, 1);
+      pcid->progif = pci_read_config(dev, PCIR_PROGIF, 1);
       pcid->pin = pci_read_config_1(dev, PCIR_IRQPIN);
       pcid->irq = pci_read_config_1(dev, PCIR_IRQLINE);
 
