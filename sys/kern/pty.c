@@ -17,6 +17,10 @@
 
 #define MAX_PTYS 16
 
+/* Must be greater than or equal to the length of the path to any slave device.
+ * Right now slave devices are at /dev/pts/<number>, so this should suffice. */
+#define PTY_PATH_MAX_LEN 15
+
 static devfs_node_t *pts_dir;
 
 typedef struct {
@@ -140,7 +144,7 @@ static int pty_ioctl(file_t *f, u_long cmd, void *data) {
   switch (cmd) {
     case TIOCPTSNAME: {
       char *user_buf = *(char **)data;
-      char tmp_buf[16];
+      char tmp_buf[PTY_PATH_MAX_LEN + 1];
       int error;
       pty_t *pty = tty->t_data;
 
