@@ -52,17 +52,7 @@
  */
 
 #include <sys/types.h>
-#if !defined(_KERNEL) && !defined(_STANDALONE)
-#include <limits.h>
-#else
 #include <machine/limits.h>
-#endif
-
-#if defined(__ARM_EABI__) && !defined(lint)
-#define	ARM_EABI_ALIAS(alias,sym)	__strong_alias(alias,sym);
-#else
-#define	ARM_EABI_ALIAS(alias,sym)	/* nothing */
-#endif
 
 /*
  * Depending on the desired operation, we view a `long long' (aka quad_t) in
@@ -103,17 +93,7 @@ union uu {
 #define	LHALF(x)	((u_int)(x) & (((int)1 << (u_int)HALF_BITS) - 1))
 #define	LHUP(x)		((u_int)(x) << (u_int)HALF_BITS)
 
-/*
- * XXX
- * Compensate for gcc 1 vs gcc 2.  Gcc 1 defines ?sh?di3's second argument
- * as u_quad_t, while gcc 2 correctly uses int.  Unfortunately, we still use
- * both compilers.
- */
-#if __GNUC_PREREQ__(2, 0) || defined(lint)
-typedef unsigned int	qshift_t;
-#else
 typedef u_quad_t	qshift_t;
-#endif
 
 __BEGIN_DECLS
 quad_t __adddi3(quad_t, quad_t);
