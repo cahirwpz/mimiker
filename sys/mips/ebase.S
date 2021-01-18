@@ -347,14 +347,6 @@ SNESTED(user_exc_enter, MCONTEXT_SIZE, ra)
         .cfi_rel_offset t1, CTX_PC
         PCPU_TO_FRAME(BADVADDR)
 
-        # Invalidate current FPU context.
-        LOAD_PCPU(t0)
-        lw      t0, PCPU_CURTHREAD(t0)
-        lw      t1, TD_PFLAGS(t0)
-        nor     t2, zero, TDP_FPCTXSAVED
-        and     t1, t1, t2
-        sw      t1, TD_PFLAGS(t0)
-
         # Load kernel global pointer.
         la      gp, _gp
 
@@ -399,10 +391,16 @@ user_exc_leave:
         # If user FPU context is not saved, don't restore its registers.
         LOAD_PCPU(t0)
         lw      t0, PCPU_CURTHREAD(t0)
-        lw      t0, TD_PFLAGS(t0)
-        and     t0, t0, TDP_FPCTXSAVED
-        beqz    t0, skip_fpu_restore
+        lw      t1, TD_PFLAGS(t0)
+        and     t1, t1, TDP_FPCTXSAVED
+        beqz    t1, skip_fpu_restore
         nop
+
+        # Clear TD_FPCTXSAVED flag.
+        lw      t1, TD_PFLAGS(t0)
+        nor     t2, zero, TDP_FPCTXSAVED
+        and     t1, t1, t2
+        sw      t1, TD_PFLAGS(t0)
 
         # Enable FPU and load FPU context
         STATUS_SET(SR_CU1)
