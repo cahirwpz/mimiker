@@ -8,7 +8,6 @@
 #include <sys/timer.h>
 #include <sys/spinlock.h>
 #include <sys/devclass.h>
-#include <dev/atareg.h>
 #include <dev/pciidereg.h>
 #include <dev/idereg.h>
 

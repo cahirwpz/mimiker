@@ -54,11 +54,9 @@ static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
 
   uint32_t old = pci_read_config_4(pcid, PCIR_BAR(bar));
   /* XXX: we don't handle 64-bit memory space bars. */
-  klog("BAR %d   old %x", bar, old);
 
   if (old == 0 || old == 1) {
     if (((pci_device_t *)(pcid->instance))->class_code == 1) {
-      klog("BAR %d   old %x", bar, old);
       if (bar == 0) {
         *addr = 0x1f0;
         // pci_write_config_4(pcid, PCIR_BAR(bar), old);
