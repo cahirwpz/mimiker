@@ -11,106 +11,81 @@
 #include <dev/pciidereg.h>
 #include <dev/idereg.h>
 
+/* TODO: In ide_device there will be metadata about hard drives,
+ * for now we only keep the name of the model */
+typedef struct ide_device {
+  unsigned char model[41];
+} ide_device_t;
+
+typedef struct ide_channel_resources {
+  resource_t *base;
+  resource_t *ctrl;
+  resource_t *bmide;
+  unsigned char nIEN;
+} ide_channel_resources_t;
+
 typedef struct ide_state {
-  resource_t *io_primary;
-  resource_t *io_primary_control;
-  resource_t *io_secondary;
-  resource_t *io_secondary_control;
-  resource_t *regs;
-  resource_t *irq_res;
+  ide_channel_resources_t ide_channels[2];
+  ide_device_t ide_devices[4];
 } ide_state_t;
 
-struct ide_device {
-  unsigned char Reserved;      // 0 (Empty) or 1 (This Drive really exists).
-  unsigned char Channel;       // 0 (Primary Channel) or 1 (Secondary Channel).
-  unsigned char Drive;         // 0 (Master Drive) or 1 (Slave Drive).
-  unsigned short Type;         // 0: ATA, 1:ATAPI.
-  unsigned short Signature;    // Drive Signature
-  unsigned short Capabilities; // Features.
-  unsigned int CommandSets;    // Command Sets Supported.
-  unsigned int Size;           // Size in Sectors.
-  unsigned char Model[41];     // Model in string.
-} ide_devices[4];
-
-#define inb(addr) bus_read_1(ide->regs, (addr))
-#define outb(addr, val) bus_write_1(ide->regs, (addr), (val))
-#define out4b(addr, val) bus_write_4(ide->regs, (addr), (val))
-
-/*
-BAR0: Base address of primary channel (I/O space), if it is 0x0 or 0x1, the port
-is 0x1F0. BAR1: Base address of primary channel control port (I/O space), if it
-is 0x0 or 0x1, the port is 0x3F6. BAR2: Base address of secondary channel (I/O
-space), if it is 0x0 or 0x1, the port is 0x170. BAR3: Base address of secondary
-channel control port, if it is 0x0 or 0x1, the port is 0x376. BAR4: Bus Master
-IDE; refers to the base of I/O range consisting of 16 ports. Each 8 ports
-controls DMA on the primary and secondary channel respectively.
-*/
-
-#define STATUS_BSY 0x80
-#define STATUS_RDY 0x40
-#define STATUS_DRQ 0x08
-#define STATUS_DF 0x20
-#define STATUS_ERR 0x01
-
-unsigned char ide_buf[2048] = {0};
-unsigned char ide_irq_invoked = 0;
-unsigned char atapi_packet[12] = {0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-struct IDEChannelRegisters {
-  resource_t *base;   // I/O Base.
-  resource_t *ctrl;   // Control Base
-  resource_t *bmide;  // Bus Master IDE
-  unsigned char nIEN; // nIEN (No Interrupt);
-} channels[2];
-
-void ide_write(unsigned char channel, unsigned char reg, unsigned char data) {
+static void ide_write(ide_state_t *ide, unsigned char channel,
+                      unsigned char reg, unsigned char data) {
   if (reg > 0x07 && reg < 0x0C)
-    ide_write(channel, ATA_REG_CONTROL, 0x80 | channels[channel].nIEN);
+    ide_write(ide, channel, ATA_REG_CONTROL,
+              0x80 | ide->ide_channels[channel].nIEN);
   if (reg < 0x08)
-    bus_write_1(channels[channel].base, reg - 0x00, data);
+    bus_write_1(ide->ide_channels[channel].base, reg - 0x00, data);
   else if (reg < 0x0C)
-    bus_write_1(channels[channel].base, reg - 0x06, data);
+    bus_write_1(ide->ide_channels[channel].base, reg - 0x06, data);
   else if (reg < 0x0E)
-    bus_write_1(channels[channel].ctrl, reg - 0x0A, data);
+    bus_write_1(ide->ide_channels[channel].ctrl, reg - 0x0A, data);
   else if (reg < 0x16)
-    bus_write_1(channels[channel].bmide, reg + channel * 0x08 - 0x0E, data);
+    bus_write_1(ide->ide_channels[channel].bmide, reg + channel * 0x08 - 0x0E,
+                data);
   if (reg > 0x07 && reg < 0x0C)
-    ide_write(channel, ATA_REG_CONTROL, channels[channel].nIEN);
+    ide_write(ide, channel, ATA_REG_CONTROL, ide->ide_channels[channel].nIEN);
 }
 
-unsigned char ide_read(unsigned char channel, unsigned char reg) {
+static unsigned char ide_read(ide_state_t *ide, unsigned char channel,
+                              unsigned char reg) {
   unsigned char result;
   result = 0xde;
   if (reg > 0x07 && reg < 0x0C)
-    ide_write(channel, ATA_REG_CONTROL, 0x80 | channels[channel].nIEN);
+    ide_write(ide, channel, ATA_REG_CONTROL,
+              0x80 | ide->ide_channels[channel].nIEN);
   if (reg < 0x08)
-    result = bus_read_1(channels[channel].base, reg - 0x00);
+    result = bus_read_1(ide->ide_channels[channel].base, reg - 0x00);
   else if (reg < 0x0C)
-    result = bus_read_1(channels[channel].base, reg - 0x06);
+    result = bus_read_1(ide->ide_channels[channel].base, reg - 0x06);
   else if (reg < 0x0E)
-    result = bus_read_1(channels[channel].ctrl, reg - 0x0A);
+    result = bus_read_1(ide->ide_channels[channel].ctrl, reg - 0x0A);
   else if (reg < 0x16)
-    result = bus_read_1(channels[channel].bmide, reg - 0x0E);
+    result =
+      bus_read_1(ide->ide_channels[channel].bmide, reg + channel * 0x08 - 0x0E);
   if (reg > 0x07 && reg < 0x0C)
-    ide_write(channel, ATA_REG_CONTROL, channels[channel].nIEN);
+    ide_write(ide, channel, ATA_REG_CONTROL, ide->ide_channels[channel].nIEN);
   return result;
 }
 
-unsigned short ide_read2(unsigned char channel, unsigned char reg) {
+static unsigned short ide_read2(ide_state_t *ide, unsigned char channel,
+                                unsigned char reg) {
   unsigned short result;
   result = 0xde;
   if (reg > 0x07 && reg < 0x0C)
-    ide_write(channel, ATA_REG_CONTROL, 0x80 | channels[channel].nIEN);
+    ide_write(ide, channel, ATA_REG_CONTROL,
+              0x80 | ide->ide_channels[channel].nIEN);
   if (reg < 0x08)
-    result = bus_read_2(channels[channel].base, reg - 0x00);
+    result = bus_read_2(ide->ide_channels[channel].base, reg - 0x00);
   else if (reg < 0x0C)
-    result = bus_read_2(channels[channel].base, reg - 0x06);
+    result = bus_read_2(ide->ide_channels[channel].base, reg - 0x06);
   else if (reg < 0x0E)
-    result = bus_read_2(channels[channel].ctrl, reg - 0x0A);
+    result = bus_read_2(ide->ide_channels[channel].ctrl, reg - 0x0A);
   else if (reg < 0x16)
-    result = bus_read_2(channels[channel].bmide, reg - 0x0E);
+    result =
+      bus_read_2(ide->ide_channels[channel].bmide, reg + channel * 0x08 - 0x0E);
   if (reg > 0x07 && reg < 0x0C)
-    ide_write(channel, ATA_REG_CONTROL, channels[channel].nIEN);
+    ide_write(ide, channel, ATA_REG_CONTROL, ide->ide_channels[channel].nIEN);
   return result;
 }
 
@@ -124,55 +99,54 @@ static void active_wait(int n) {
 static int ide_attach(device_t *dev) {
   ide_state_t *ide = dev->state;
 
-  ide->io_primary = device_take_ioports(dev, 0, RF_ACTIVE);
-  assert(ide->io_primary != NULL);
+  ide->ide_channels[0].base = device_take_ioports(dev, 0, RF_ACTIVE);
+  assert(ide->ide_channels[0].base != NULL);
 
-  ide->io_primary_control = device_take_ioports(dev, 1, RF_ACTIVE);
-  assert(ide->io_primary_control != NULL);
+  ide->ide_channels[0].ctrl = device_take_ioports(dev, 1, RF_ACTIVE);
+  assert(ide->ide_channels[0].ctrl != NULL);
 
-  ide->io_secondary = device_take_ioports(dev, 2, RF_ACTIVE);
-  assert(ide->io_secondary != NULL);
+  ide->ide_channels[0].bmide = device_take_ioports(dev, 4, RF_ACTIVE);
+  assert(ide->ide_channels[0].bmide != NULL);
 
-  ide->io_secondary_control = device_take_ioports(dev, 3, RF_ACTIVE);
-  assert(ide->io_secondary_control != NULL);
+  ide->ide_channels[0].nIEN = ATA_DISABLE_INTS;
 
-  ide->regs = device_take_ioports(dev, 4, RF_ACTIVE);
-  assert(ide->regs != NULL);
+  ide->ide_channels[1].base = device_take_ioports(dev, 2, RF_ACTIVE);
+  assert(ide->ide_channels[1].base != NULL);
 
-  channels[0].base = ide->io_primary;
-  channels[0].ctrl = ide->io_primary_control;
-  channels[0].bmide = ide->regs;
-  channels[0].nIEN = 0;
+  ide->ide_channels[1].ctrl = device_take_ioports(dev, 3, RF_ACTIVE);
+  assert(ide->ide_channels[1].ctrl != NULL);
 
-  channels[1].base = ide->io_secondary;
-  channels[1].ctrl = ide->io_secondary_control;
-  channels[1].bmide = ide->regs;
-  channels[1].nIEN = 0;
+  /* bmide for both channels is the same resource,
+   * at least for now, might change it later for visibility */
+  ide->ide_channels[1].bmide = ide->ide_channels[0].bmide;
+
+  ide->ide_channels[1].nIEN = ATA_DISABLE_INTS;
 
   int count = 0;
 
-  ide_write(ATA_PRIMARY, ATA_REG_CONTROL, 2);
-  ide_write(ATA_SECONDARY, ATA_REG_CONTROL, 2);
+  /* We have to zero the control registers first just in case */
+  ide_write(ide, ATA_PRIMARY, ATA_REG_CONTROL, 0);
+  ide_write(ide, ATA_SECONDARY, ATA_REG_CONTROL, 0);
 
-  ide_write(0, ATA_REG_CONTROL, 0);
-  ide_write(1, ATA_REG_CONTROL, 0);
+  ide_write(ide, ATA_PRIMARY, ATA_REG_CONTROL, ATA_DISABLE_INTS);
+  ide_write(ide, ATA_SECONDARY, ATA_REG_CONTROL, ATA_DISABLE_INTS);
 
-  for (int i = 0; i < 2; i++)
-    for (int j = 0; j < 2; j++) {
+  for (int channel = 0; channel < 2; channel++)
+    for (int drive = 0; drive < 2; drive++) {
 
       unsigned char err = 0, status;
 
       /* Select the j-th drive */
-      ide_write(i, ATA_REG_HDDEVSEL, 0xA0 | (j << 4));
+      ide_write(ide, channel, ATA_REG_HDDEVSEL, 0xA0 | (drive << 4));
       active_wait(1);
 
       /* Send the IDENTIFY command */
-      ide_write(i, ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
+      ide_write(ide, channel, ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
       active_wait(1);
 
       /* Check if there is a device */
-      if (ide_read(i, ATA_REG_STATUS) == 0) {
-        klog("Didn't find any device on channel %d", i);
+      if (ide_read(ide, channel, ATA_REG_STATUS) == 0) {
+        klog("Didn't find any device on channel %d", channel);
         continue; // If Status = 0, No Device.
       }
 
@@ -180,7 +154,7 @@ static int ide_attach(device_t *dev) {
        * software reset (or even give up after a few resets) if the loop takes
        * too long */
       while (1) {
-        status = ide_read(i, ATA_REG_STATUS);
+        status = ide_read(ide, channel, ATA_REG_STATUS);
 
         /* Device is not an ata device, it might be atapi */
         if ((status & ATA_SR_ERR)) {
@@ -196,24 +170,26 @@ static int ide_attach(device_t *dev) {
       short identification_space[2048] = {0};
 
       if (err) {
-        klog("Didn't find any device on channel %d at drive %d", i, j);
+        klog("Didn't find any device on channel %d at drive %d", channel,
+             drive);
       } else {
-        ide_write(i, ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
+        ide_write(ide, channel, ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
 
         active_wait(1);
 
-        klog("Found a device on channel %d , drive %d", i, j);
+        klog("Found a device on channel %d , drive %d", channel, drive);
         for (int k = 0; k < 128; k++) {
-          identification_space[k] = ide_read2(i, ATA_REG_DATA);
+          identification_space[k] = ide_read2(ide, channel, ATA_REG_DATA);
         }
         char *ptr = (char *)identification_space;
 
+        /* big-endian little-endian conversion */
         for (int k = 0; k < 40; k += 2) {
-          ide_devices[count].Model[k] = ptr[ATA_IDENT_MODEL + k + 1];
-          ide_devices[count].Model[k + 1] = ptr[ATA_IDENT_MODEL + k];
+          ide->ide_devices[count].model[k] = ptr[ATA_IDENT_MODEL + k + 1];
+          ide->ide_devices[count].model[k + 1] = ptr[ATA_IDENT_MODEL + k];
         }
-        ide_devices[count].Model[40] = 0;
-        klog("Model %s", ide_devices[count].Model);
+        ide->ide_devices[count].model[40] = 0;
+        klog("Model %s", ide->ide_devices[count].model);
       }
 
       count++;
