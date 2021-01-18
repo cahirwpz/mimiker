@@ -511,27 +511,25 @@ pmap_t *pmap_new(void) {
 void pmap_delete(pmap_t *pmap) {
   assert(pmap != pmap_kernel());
 
-  WITH_MTX_LOCK (&pmap->mtx) {
-    while (!TAILQ_EMPTY(&pmap->pv_list)) {
-      pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
-      vm_page_t *pg;
-      paddr_t pa;
-      pmap_extract_nolock(pmap, pv->va, &pa);
-      pg = vm_page_find(pa);
-      WITH_MTX_LOCK (pv_list_lock)
-        TAILQ_REMOVE(&pg->pv_list, pv, page_link);
-      TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
-      pool_free(P_PV, pv);
-    }
-
-    while (!TAILQ_EMPTY(&pmap->pte_pages)) {
-      vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
-      TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
-      vm_page_free(pg);
-    }
-
-    free_asid(pmap->asid);
+  while (!TAILQ_EMPTY(&pmap->pv_list)) {
+    pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
+    vm_page_t *pg;
+    paddr_t pa;
+    pmap_extract_nolock(pmap, pv->va, &pa);
+    pg = vm_page_find(pa);
+    WITH_MTX_LOCK (pv_list_lock)
+      TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+    TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+    pool_free(P_PV, pv);
   }
+
+  while (!TAILQ_EMPTY(&pmap->pte_pages)) {
+    vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
+    TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
+    vm_page_free(pg);
+  }
+
+  free_asid(pmap->asid);
   pool_free(P_PMAP, pmap);
 }
 
