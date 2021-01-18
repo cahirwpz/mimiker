@@ -180,7 +180,7 @@ void vm_segment_destroy_range(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
     seg->end = start;
   } else { /* a hole inside the segment */
     vm_object_t *obj = vm_object_clone(seg->object);
-    vm_object_remove_range(obj, 0, end - seg->start);
+    vm_object_remove_range(obj, 0, start - seg->start);
     vm_object_remove_range(seg->object, end - seg->start, seg->end - end);
     vm_segment_t *new_seg =
       vm_segment_alloc(obj, end, seg->end, seg->prot, seg->flags);
