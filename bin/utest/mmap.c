@@ -102,7 +102,7 @@ static jmp_buf return_to;
 static void sigsegv_handler(int signo) {
   printf("sigsegv handled!\n");
   sigsegv_handled++;
-  longjmp(return_to, 5);
+  siglongjmp(return_to, 5);
 }
 int test_mmap_readonly(void) {
   size_t pgsz = getpagesize();
@@ -117,7 +117,7 @@ int test_mmap_readonly(void) {
 
   sigsegv_handled = 0;
 
-  if (setjmp(return_to) == 0) {
+  if (sigsetjmp(return_to, 1) != 0) {
     printf("Try to write to readonly memory\n");
     /* Try to write to readonly memory. It should raise SIGSEGV */
     *(char *)addr = '9';
