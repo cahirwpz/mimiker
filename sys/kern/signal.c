@@ -518,3 +518,22 @@ __noreturn void sig_exit(thread_t *td, signo_t sig) {
        sig_name[sig]);
   proc_exit(MAKE_STATUS_SIG_TERM(sig));
 }
+
+int do_sigreturn(ucontext_t *ucp) {
+  thread_t *td = thread_self();
+  mcontext_t *uctx = td->td_uctx;
+  int error = 0;
+
+  ucontext_t uc;
+  if ((error = copyin_s(ucp, uc)))
+    return error;
+
+  /* Restore user context. */
+  mcontext_copy(uctx, &uc.uc_mcontext);
+
+  WITH_MTX_LOCK (&td->td_proc->p_lock)
+    error = do_sigprocmask(SIG_SETMASK, &uc.uc_sigmask, NULL);
+  assert(error == 0);
+
+  return EJUSTRETURN;
+}
