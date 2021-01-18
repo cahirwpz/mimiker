@@ -107,7 +107,7 @@ typedef struct pci_device {
 static inline uint32_t pci_read_config(device_t *dev, unsigned reg,
                                        unsigned size) {
   device_t *idev = PCI_BUS_METHOD_IMPLEMENTATOR(dev, read_config);
-  return PCI_BUS_METHODS(dev->parent).read_config(dev, reg, size);
+  return PCI_BUS_METHODS(idev->parent).read_config(idev, reg, size);
 }
 
 #define pci_read_config_1(d, r) pci_read_config((d), (r), 1)
@@ -117,7 +117,7 @@ static inline uint32_t pci_read_config(device_t *dev, unsigned reg,
 static inline void pci_write_config(device_t *dev, unsigned reg, unsigned size,
                                     uint32_t value) {
   device_t *idev = PCI_BUS_METHOD_IMPLEMENTATOR(dev, write_config);
-  PCI_BUS_METHODS(dev->parent).write_config(dev, reg, size, value);
+  PCI_BUS_METHODS(idev->parent).write_config(idev, reg, size, value);
 }
 
 #define pci_write_config_1(d, r, v) pci_write_config((d), (r), 1, (v))
@@ -126,7 +126,7 @@ static inline void pci_write_config(device_t *dev, unsigned reg, unsigned size,
 
 static inline void pci_enable_busmaster(device_t *dev) {
   device_t *idev = PCI_BUS_METHOD_IMPLEMENTATOR(dev, enable_busmaster);
-  PCI_BUS_METHODS(dev->parent).enable_busmaster(dev);
+  PCI_BUS_METHODS(idev->parent).enable_busmaster(idev);
 }
 
 void pci_bus_enumerate(device_t *pcib);
