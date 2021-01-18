@@ -175,6 +175,8 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp);
 int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                        timespec_t *rmtp);
 
+void mdelay(useconds_t ms);
+
 #else /* _KERNEL */
 
 int nanosleep(timespec_t *rqtp, timespec_t *rmtp);

@@ -1,5 +1,7 @@
 #include <sys/errno.h>
 #include <sys/time.h>
+#include <sys/libkern.h>
+#include <sys/callout.h>
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp) {
   bintime_t bin;
@@ -47,4 +49,15 @@ time_t tm2sec(tm_t *t) {
   return (time_t)(t->tm_year - 70) * year_scale_s +
          (t->tm_mday - 1) * day_scale_s + t->tm_hour * hour_scale_s +
          t->tm_min * min_scale_s + t->tm_sec + res;
+}
+
+static void mdelay_timeout(__unused void *arg) {
+  /* Nothing to do here. */
+}
+
+void mdelay(useconds_t ms) {
+  callout_t handle;
+  bzero(&handle, sizeof(callout_t));
+  callout_setup_relative(&handle, ms, mdelay_timeout, NULL);
+  callout_drain(&handle);
 }
