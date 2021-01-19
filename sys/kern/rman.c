@@ -17,6 +17,14 @@
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
+struct range {
+  rman_t *rman;            /* manager of this range */
+  rman_addr_t start;       /* first physical address of the range */
+  rman_addr_t end;         /* last (inclusive) physical address */
+  rman_flags_t flags;      /* or'ed RF_* values */
+  TAILQ_ENTRY(range) link; /* link on range manager list */
+};
+
 static KMALLOC_DEFINE(M_RMAN, "rman ranges");
 
 static void rman_release_range(range_t *r);
@@ -195,11 +203,23 @@ resource_t *rman_reserve_resource(rman_t *rm, res_type_t type, int rid,
   if (!range)
     return NULL;
 
-  resource_t *r = kmalloc(M_DEV, sizeof(resource_t), M_WAITOK);
+  resource_t *r = kmalloc(M_RMAN, sizeof(resource_t), M_WAITOK);
   r->r_range = range;
   r->r_type = type;
   r->r_rid = rid;
   return r;
+}
+
+bus_size_t resource_size(resource_t *r) {
+  return r->r_range->end - r->r_range->start + 1;
+}
+
+rman_addr_t resource_start(resource_t *r) {
+  return r->r_range->start;
+}
+
+bool resource_active(resource_t *r) {
+  return r->r_range->flags & RF_ACTIVE;
 }
 
 void resource_activate(resource_t *res) {
@@ -215,5 +235,5 @@ void resource_deactivate(resource_t *res) {
 /*! \brief Removes a range from its range manager and releases memory. */
 void resource_release(resource_t *r) {
   rman_release_range(r->r_range);
-  kfree(M_DEV, r);
+  kfree(M_RMAN, r);
 }

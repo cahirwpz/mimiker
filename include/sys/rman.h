@@ -26,14 +26,6 @@ typedef enum {
   RF_PREFETCHABLE = 4,
 } rman_flags_t;
 
-struct range {
-  rman_t *rman;            /* manager of this range */
-  rman_addr_t start;       /* first physical address of the range */
-  rman_addr_t end;         /* last (inclusive) physical address */
-  rman_flags_t flags;      /* or'ed RF_* values */
-  TAILQ_ENTRY(range) link; /* link on range manager list */
-};
-
 struct rman {
   mtx_t rm_lock;          /* protects all fields of range manager */
   const char *rm_name;    /* description of the range manager */
@@ -67,19 +59,13 @@ struct resource {
 #define RESOURCE_DECLARE(name) extern resource_t name[1]
 
 /*! \brief Calculate resource size. */
-static inline bus_size_t resource_size(resource_t *r) {
-  return r->r_range->end - r->r_range->start + 1;
-}
+bus_size_t resource_size(resource_t *r);
 
 /*! \brief Return resource start address within the rman range. */
-static inline rman_addr_t resource_start(resource_t *r) {
-  return r->r_range->start;
-}
+rman_addr_t resource_start(resource_t *r);
 
 /*! \brief Check whether a resource is active. */
-static inline bool resource_active(resource_t *r) {
-  return r->r_range->flags & RF_ACTIVE;
-}
+bool resource_active(resource_t *r);
 
 /* !\brief Reserve a resource with a range from given rman.
  *
