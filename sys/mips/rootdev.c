@@ -63,7 +63,7 @@ static void rootdev_intr_teardown(device_t *dev, resource_t *irq) {
 static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
                                           int rid, rman_addr_t start,
                                           rman_addr_t end, size_t size,
-                                          res_flags_t flags) {
+                                          rman_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
   size_t alignment = 0;
   rman_t *rman = NULL;
@@ -80,8 +80,8 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   resource_t *r = kmalloc(M_DEV, sizeof(resource_t), M_WAITOK);
   r->r_type = type;
   r->r_rid = rid;
-  r->r_res = rman_reserve_resource(rman, start, end, size, alignment, flags);
-  if (r->r_res == NULL)
+  r->r_range = rman_reserve_range(rman, start, end, size, alignment, flags);
+  if (r->r_range == NULL)
     goto bad;
 
   if (type == RT_MEMORY) {
@@ -91,7 +91,7 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, r)) {
-      rman_release_resource(r->r_res);
+      rman_release_range(r->r_range);
       goto bad;
     }
   }
@@ -105,7 +105,7 @@ bad:
 
 static void rootdev_release_resource(device_t *dev, resource_t *r) {
   bus_deactivate_resource(dev, r);
-  rman_release_resource(r->r_res);
+  rman_release_range(r->r_range);
   kfree(M_DEV, r);
 }
 

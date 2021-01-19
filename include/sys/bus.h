@@ -139,7 +139,7 @@ struct bus_methods {
   void (*intr_teardown)(device_t *dev, resource_t *irq);
   resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
                                 rman_addr_t start, rman_addr_t end, size_t size,
-                                res_flags_t flags);
+                                rman_flags_t flags);
   void (*release_resource)(device_t *dev, resource_t *r);
   int (*activate_resource)(device_t *dev, resource_t *r);
   void (*deactivate_resource)(device_t *dev, resource_t *r);
@@ -180,7 +180,7 @@ static inline void bus_intr_teardown(device_t *dev, resource_t *irq) {
 static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
                                              int rid, rman_addr_t start,
                                              rman_addr_t end, size_t size,
-                                             res_flags_t flags) {
+                                             rman_flags_t flags) {
   device_t *idev = BUS_METHOD_PROVIDER(dev, alloc_resource);
   return BUS_METHODS(idev->parent)
     .alloc_resource(idev, type, rid, start, end, size, flags);

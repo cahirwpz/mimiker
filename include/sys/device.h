@@ -17,21 +17,38 @@ typedef enum { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
 
 struct resource {
   SLIST_ENTRY(resource) r_link;
-  rman_resource_t *r_res; /* the corresponding rman resource */
-  /* data dependent on resource type */
+  range_t *r_range;  /* resource range expressed by (start, end) pair */
+  res_type_t r_type; /* type, one of RT_* */
+  int r_rid;         /* unique identifier */
+  /* data specific to given resource type */
   union {
-    /* interrupts */
+    /* interrupt resources */
     intr_handler_t *r_handler;
 
-    /* memoty and IO ports */
+    /* memory and I/O port resources */
     struct {
       bus_space_tag_t r_bus_tag;       /* bus space methods */
       bus_space_handle_t r_bus_handle; /* bus space base address */
     };
   };
-  res_type_t r_type; /* resource type */
-  int r_rid;         /* resource identifier */
 };
+
+/*! \brief Calculate resource size. */
+static inline bus_size_t resource_size(resource_t *r) {
+  return r->r_range->end - r->r_range->start + 1;
+}
+
+/*! \brief Return resource start address within the rman range. */
+static inline rman_addr_t resource_start(resource_t *r) {
+  return r->r_range->start;
+}
+
+/*! \brief Check whether a resource is active. */
+static inline bool resource_active(resource_t *r) {
+  return r->r_range->flags & RF_ACTIVE;
+}
+
+#define RESOURCE_DECLARE(name) extern resource_t name[1]
 
 /* Driver that returns the highest value from its probe action
  * will be selected for attach action. */
@@ -109,7 +126,7 @@ int device_detach(device_t *dev);
 /*! \brief Add a resource entry to resource list. */
 void device_add_resource(device_t *dev, res_type_t type, int rid,
                          rman_addr_t start, rman_addr_t end, size_t size,
-                         res_flags_t flags);
+                         rman_flags_t flags);
 
 #define device_add_memory(dev, rid, start, size)                               \
   device_add_resource((dev), RT_MEMORY, (rid), (start), (start) + (size)-1,    \
@@ -124,7 +141,7 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
 
 /*! \brief Take a resource which is assigned to device by parent bus. */
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
-                                 res_flags_t flags);
+                                 rman_flags_t flags);
 
 #define device_take_memory(dev, rid, flags)                                    \
   device_take_resource((dev), RT_MEMORY, (rid), (flags))

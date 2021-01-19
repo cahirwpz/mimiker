@@ -96,7 +96,7 @@ typedef struct pci_device {
 
 /* As for now this actually returns a child of the bus, see a comment
  * above `device_method_provider` in include/sys/device.c */
-#define PCI_BUS_METHOD_PROVIDER(dev, method)                              \
+#define PCI_BUS_METHOD_PROVIDER(dev, method)                                   \
   (device_method_provider((dev), DIF_PCI_BUS,                                  \
                           offsetof(struct pci_bus_methods, method)))
 

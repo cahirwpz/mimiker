@@ -373,7 +373,7 @@ static bool gt_pci_bar(device_t *dev, resource_t *r, rman_addr_t start) {
 static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
                                          int rid, rman_addr_t start,
                                          rman_addr_t end, size_t size,
-                                         res_flags_t flags) {
+                                         rman_flags_t flags) {
   /* Currently all devices are logicaly attached to PCI bus,
    * because we don't have PCI-ISA bridge implemented. */
   assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
@@ -408,8 +408,8 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     size = roundup(size, PAGESIZE);
   }
 
-  r->r_res = rman_reserve_resource(rman, start, end, size, alignment, flags);
-  if (r->r_res == NULL)
+  r->r_range = rman_reserve_range(rman, start, end, size, alignment, flags);
+  if (r->r_range == NULL)
     goto bad;
 
   if (type != RT_IRQ) {
@@ -419,7 +419,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, r)) {
-      rman_release_resource(r->r_res);
+      rman_release_range(r->r_range);
       goto bad;
     }
   }
@@ -433,7 +433,7 @@ bad:
 
 static void gt_pci_release_resource(device_t *dev, resource_t *r) {
   bus_deactivate_resource(dev, r);
-  rman_release_resource(r->r_res);
+  rman_release_range(r->r_range);
   kfree(M_DEV, r);
 }
 

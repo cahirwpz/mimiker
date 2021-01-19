@@ -61,7 +61,7 @@ static resource_t *resource_list_find(device_t *dev, res_type_t type, int rid) {
 
 void device_add_resource(device_t *dev, res_type_t type, int rid,
                          rman_addr_t start, rman_addr_t end, size_t size,
-                         res_flags_t flags) {
+                         rman_flags_t flags) {
   assert(!resource_list_find(dev, rid, type));
   resource_t *r = bus_alloc_resource(dev, type, rid, start, end, size, flags);
   assert(r);
@@ -69,7 +69,7 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
 }
 
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
-                                 res_flags_t flags) {
+                                 rman_flags_t flags) {
   resource_t *r = resource_list_find(dev, type, rid);
   if (!r)
     return NULL;
