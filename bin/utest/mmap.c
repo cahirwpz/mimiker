@@ -51,7 +51,7 @@ static void mmap_bad(void) {
   assert(errno == EINVAL);
 }
 
-static void munmap_bad(void) {
+static void munmap_good(void) {
   void *addr;
   int result;
 
@@ -67,11 +67,10 @@ static void munmap_bad(void) {
   /* more pages */
   addr = mmap_anon_prw(NULL, 0x5000);
 
-  /* munmap pieces of segments is unsupported */
-  munmap(addr, 0x2000);
-  assert(errno == ENOTSUP);
+  result = munmap(addr, 0x2000);
+  assert(result == 0);
 
-  result = munmap(addr, 0x5000);
+  result = munmap(addr + 0x2000, 0x3000);
   assert(result == 0);
 }
 
@@ -90,6 +89,6 @@ int test_mmap(void) {
   mmap_no_hint();
   mmap_with_hint();
   mmap_bad();
-  munmap_bad();
+  munmap_good();
   return 0;
 }
