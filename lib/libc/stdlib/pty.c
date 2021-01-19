@@ -41,10 +41,22 @@ __RCSID("$NetBSD: pty.c,v 1.4 2014/01/08 02:17:30 christos Exp $");
 #include <sys/ttycom.h>
 #include <sys/ioctl.h>
 
+/*
+ * XXX: This is a stub.
+ * This function is meant to set the ownership of the slave device to the
+ * calling process. FreeBSD sets the slave device ownership at creation time, so
+ * their grantpt() is essentialy a no-op.
+ * TODO: Set slave device ownership at creation time (FreeBSD-style)
+ * or here, using an ioctl() (NetBSD-style)
+ */
 int grantpt(int fildes) {
   return 0;
 }
 
+/*
+ * This is NOT a stub. The slave device is available from the moment it is
+ * created, so unlockpt() is a no-op in our case.
+ */
 int unlockpt(int fildes) {
   return 0;
 }

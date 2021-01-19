@@ -40,8 +40,6 @@
 #include <sys/bus.h>
 #include <sys/devclass.h>
 
-#define ICU_LEN 16 /* number of ISA IRQs */
-
 #define PCI0_CFG_REG_SHIFT 2
 #define PCI0_CFG_FUNCT_SHIFT 8
 #define PCI0_CFG_DEV_SHIFT 11
@@ -82,7 +80,7 @@ typedef struct gt_pci_state {
   rman_t pci_mem_rman;
   rman_t irq_rman;
 
-  intr_event_t *intr_event[ICU_LEN];
+  intr_event_t *intr_event[IO_ICUSIZE];
 
   uint16_t imask;
   uint16_t elcr;
@@ -192,7 +190,7 @@ static void gt_pci_unmask_irq(intr_event_t *ie) {
 }
 
 /* clang-format off */
-static const char *gt_pci_intr_name[ICU_LEN] = {
+static const char *gt_pci_intr_name[IO_ICUSIZE] = {
   [0] = "timer",
   [1] = "kbd",        /* kbd controller (keyboard) */
   [2] = "pic-slave",  /* PIC cascade */
@@ -218,7 +216,7 @@ static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
   assert(dev->parent->driver == &gt_pci_bus);
   gt_pci_state_t *gtpci = dev->parent->state;
   int irq = r->r_start;
-  assert(irq < ICU_LEN);
+  assert(irq < IO_ICUSIZE);
 
   if (gtpci->intr_event[irq] == NULL)
     gtpci->intr_event[irq] = intr_event_create(
@@ -308,7 +306,7 @@ static int gt_pci_attach(device_t *pcib) {
                           gtpci->pci_mem);
 
   rman_init(&gtpci->irq_rman, "GT64120 PCI & ISA interrupts");
-  rman_manage_region(&gtpci->irq_rman, 0, ICU_LEN);
+  rman_manage_region(&gtpci->irq_rman, 0, IO_ICUSIZE);
 
   /* All interrupts default to "masked off" and edge-triggered. */
   gtpci->imask = 0xffff;
@@ -482,6 +480,7 @@ static pci_bus_methods_t gt_pci_pci_bus_if = {
 static driver_t gt_pci_bus = {
   .desc = "GT-64120 PCI bus driver",
   .size = sizeof(gt_pci_state_t),
+  .pass = FIRST_PASS,
   .attach = gt_pci_attach,
   .probe = gt_pci_probe,
   .interfaces =
