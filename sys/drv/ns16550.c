@@ -242,13 +242,12 @@ static int ns16550_probe(device_t *dev) {
   return dev->unit == 1; /* XXX: unit 1 assigned by gt_pci */
 }
 
-/* clang-format off */
 static driver_t ns16550_driver = {
   .desc = "NS16550 UART driver",
   .size = sizeof(ns16550_state_t),
+  .pass = SECOND_PASS,
   .attach = ns16550_attach,
   .probe = ns16550_probe,
 };
-/* clang-format on */
 
 DEVCLASS_ENTRY(pci, ns16550_driver);
