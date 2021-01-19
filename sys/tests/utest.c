@@ -148,6 +148,7 @@ UTEST_ADD_SIMPLE(session_basic);
 UTEST_ADD_SIMPLE(session_login_name);
 
 UTEST_ADD_SIMPLE(gettimeofday);
+UTEST_ADD_SIMPLE(nanosleep);
 
 UTEST_ADD_SIMPLE(get_set_uid);
 UTEST_ADD_SIMPLE(get_set_gid);
