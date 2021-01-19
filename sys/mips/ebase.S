@@ -11,6 +11,8 @@
         .set	noreorder
         # Forbid the assembler from using $at register.
         .set	noat
+        # Enable FPU instructions use since we need to save & restore FP context
+        .set    hardfloat
 
 #define SAVE_REG_CFI(reg, offset, base)                                        \
         sw reg, (CTX_##offset)(base);                                          \

@@ -121,9 +121,12 @@ unsigned char const char_type[] = {
 #define TTYSUP_IFLAG_CHANGE (INLCR | IGNCR | ICRNL | IMAXBEL)
 #define TTYSUP_OFLAG_CHANGE (OPOST | ONLCR | OCRNL | ONOCR | ONLRET)
 #define TTYSUP_LFLAG_CHANGE                                                    \
-  (ECHOKE | ECHOE | ECHOK | ECHO | ECHONL | ECHOCTL | ICANON | TOSTOP)
+  (ECHOKE | ECHOE | ECHOK | ECHO | ECHONL | ECHOCTL | ICANON | ISIG | TOSTOP | \
+   NOFLSH)
 
 static bool tty_output(tty_t *tty, uint8_t c);
+static void tty_discard_input(tty_t *tty);
+static void tty_discard_output(tty_t *tty);
 
 static inline bool tty_is_break(tty_t *tty, uint8_t c) {
   return (c == '\n' || ((c == tty->t_cc[VEOF] || c == tty->t_cc[VEOL]) &&
@@ -157,7 +160,7 @@ static void tty_init_termios(struct termios *tio) {
 }
 
 tty_t *tty_alloc(void) {
-  tty_t *tty = kmalloc(M_DEV, sizeof(tty_t), M_WAITOK);
+  tty_t *tty = kmalloc(M_DEV, sizeof(tty_t), M_WAITOK | M_ZERO);
   mtx_init(&tty->t_lock, 0);
   ringbuf_init(&tty->t_inq, kmalloc(M_DEV, TTY_QUEUE_SIZE, M_WAITOK),
                TTY_QUEUE_SIZE);
@@ -170,13 +173,6 @@ tty_t *tty_alloc(void) {
   tty->t_line.ln_size = LINEBUF_SIZE;
   tty->t_line.ln_count = 0;
   tty_init_termios(&tty->t_termios);
-  tty->t_ops = (ttyops_t){0};
-  tty->t_data = NULL;
-  tty->t_column = 0;
-  tty->t_rocol = tty->t_rocount = 0;
-  tty->t_vnode = NULL;
-  tty->t_flags = 0;
-  tty->t_opencount = 0;
   return tty;
 }
 
@@ -485,6 +481,32 @@ bool tty_input(tty_t *tty, uint8_t c) {
     c = '\r';
   }
 
+  if (lflag & ISIG) {
+    signo_t signal = 0;
+    /* Signal processing. */
+    if (CCEQ(cc[VINTR], c)) {
+      signal = SIGINT;
+    } else if (CCEQ(cc[VQUIT], c)) {
+      signal = SIGQUIT;
+    } else if (CCEQ(cc[VSUSP], c)) {
+      signal = SIGTSTP;
+    }
+
+    if (signal) {
+      if (!(lflag & NOFLSH)) {
+        tty_discard_input(tty);
+        tty_discard_output(tty);
+      }
+      tty_echo(tty, c);
+      pgrp_t *pg = tty->t_pgrp;
+      if (pg)
+        WITH_MTX_LOCK (&pg->pg_lock)
+          sig_pgkill(pg, &DEF_KSI_RAW(signal));
+      tty_notify_out(tty);
+      return true;
+    }
+  }
+
   if (lflag & ICANON) {
     /* Canonical mode character processing takes place here. */
     if (CCEQ(cc[VERASE], c)) {
@@ -641,6 +663,12 @@ static void tty_discard_input(tty_t *tty) {
   ringbuf_reset(&tty->t_inq);
   tty->t_line.ln_count = 0;
   tty_check_in_lowat(tty);
+}
+
+static void tty_discard_output(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  ringbuf_reset(&tty->t_outq);
+  cv_broadcast(&tty->t_outcv);
 }
 
 /*
@@ -936,6 +964,20 @@ static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
   return 0;
 }
 
+static int tty_set_winsize(tty_t *tty, struct winsize *sz) {
+  SCOPED_MTX_LOCK(&tty->t_lock);
+  if (memcmp(&tty->t_winsize, sz, sizeof(struct winsize)) == 0)
+    return 0;
+  tty->t_winsize = *sz;
+  /* Send SIGWINCH to the foreground process group. */
+  pgrp_t *pgrp = tty->t_pgrp;
+  if (pgrp) {
+    SCOPED_MTX_LOCK(&pgrp->pg_lock);
+    sig_pgkill(pgrp, &DEF_KSI_RAW(SIGWINCH));
+  }
+  return 0;
+}
+
 int tty_ioctl(file_t *f, u_long cmd, void *data) {
   tty_t *tty = f->f_data;
 
@@ -955,6 +997,13 @@ int tty_ioctl(file_t *f, u_long cmd, void *data) {
       return tty_get_fg_pgrp(tty, data);
     case TIOCSPGRP:
       return tty_set_fg_pgrp(tty, *(pgid_t *)data);
+    case TIOCGWINSZ: {
+      SCOPED_MTX_LOCK(&tty->t_lock);
+      *(struct winsize *)data = tty->t_winsize;
+      return 0;
+    }
+    case TIOCSWINSZ:
+      return tty_set_winsize(tty, data);
     case 0:
       return EPASSTHROUGH;
     default: {
