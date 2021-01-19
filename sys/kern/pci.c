@@ -130,13 +130,6 @@ void pci_bus_enumerate(device_t *pcib) {
         }
 
         size = -size;
-        /* PCI specification 3.0, chapter 6.2.5.1.
-         * Devices are free to consume more address space than required,
-         * but decoding down to a 4 KB space for memory is suggested for
-         * devices that need less than that amount. */
-        if (type == RT_MEMORY)
-          size = roundup(size, PAGESIZE);
-
         pcid->bar[i] = (pci_bar_t){
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
 

@@ -50,48 +50,43 @@ int device_detach(device_t *dev) {
   return res;
 }
 
-static resource_list_entry_t *resource_list_find(device_t *dev, res_type_t type,
-                                                 int rid) {
-  resource_list_entry_t *rle;
-  SLIST_FOREACH(rle, &dev->resources, link) {
-    if (rle->type == type && rle->rid == rid)
-      return rle;
+static resource_t *resource_list_find(device_t *dev, res_type_t type, int rid) {
+  resource_t *r;
+  SLIST_FOREACH(r, &dev->resources, r_link) {
+    if (r->r_type == type && r->r_rid == rid)
+      return r;
   }
   return NULL;
 }
 
 void device_add_resource(device_t *dev, res_type_t type, int rid,
                          rman_addr_t start, rman_addr_t end, size_t size,
-                         res_flags_t flags) {
+                         rman_flags_t flags) {
   assert(!resource_list_find(dev, rid, type));
-
-  resource_list_entry_t *rle =
-    kmalloc(M_DEV, sizeof(resource_list_entry_t), M_WAITOK);
-  rle->type = type;
-  rle->rid = rid;
-  /* Allocate the actual resource from the parent bus. */
-  rle->res = bus_alloc_resource(dev, type, rid, start, end, size, flags);
-  assert(rle->res);
-  SLIST_INSERT_HEAD(&dev->resources, rle, link);
+  resource_t *r = bus_alloc_resource(dev, type, rid, start, end, size, flags);
+  assert(r);
+  SLIST_INSERT_HEAD(&dev->resources, r, r_link);
 }
 
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
-                                 res_flags_t flags) {
-  resource_list_entry_t *rle = resource_list_find(dev, type, rid);
-  if (!rle)
+                                 rman_flags_t flags) {
+  resource_t *r = resource_list_find(dev, type, rid);
+  if (!r)
     return NULL;
 
   if (flags & RF_ACTIVE)
-    bus_activate_resource(dev, rle->type, rle->res);
+    bus_activate_resource(dev, r);
 
-  return rle->res;
+  return r;
 }
 
-resource_list_entry_t *resource_rle(resource_t *res, device_t *dev) {
-  resource_list_entry_t *rle;
-  SLIST_FOREACH(rle, &dev->resources, link) {
-    if (rle->res == res)
-      break;
+device_t *device_method_provider(device_t *dev, drv_if_t iface,
+                                 ptrdiff_t method_offset) {
+  for (; dev->parent; dev = dev->parent) {
+    void *interface = dev->parent->driver->interfaces[iface];
+    if (interface && *(void **)(interface + method_offset))
+      return dev;
   }
-  return rle;
+
+  panic("Device has no parent!");
 }
