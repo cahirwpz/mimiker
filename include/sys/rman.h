@@ -50,8 +50,7 @@ struct rman {
 range_t *rman_reserve_range(rman_t *rm, rman_addr_t start, rman_addr_t end,
                             size_t count, size_t alignment, rman_flags_t flags);
 
-/*! \brief Removes a range from its range manager and releases memory. */
-void rman_release_range(range_t *r);
+void resource_release(resource_t *r);
 
 /*! \brief Marks range as ready to be used with bus_space interface. */
 void rman_activate_range(range_t *r);

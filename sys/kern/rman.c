@@ -19,6 +19,8 @@
 
 static KMALLOC_DEFINE(M_RMAN, "rman ranges");
 
+static void rman_release_range(range_t *r);
+
 void rman_init(rman_t *rm, const char *name) {
   rm->rm_name = name;
   mtx_init(&rm->rm_lock, 0);
@@ -158,7 +160,8 @@ void rman_deactivate_range(range_t *r) {
   WITH_MTX_LOCK (&r->rman->rm_lock) { r->flags &= ~RF_ACTIVE; }
 }
 
-void rman_release_range(range_t *r) {
+/*! \brief Removes a range from its range manager and releases memory. */
+static void rman_release_range(range_t *r) {
   rman_t *rm = r->rman;
 
   SCOPED_MTX_LOCK(&rm->rm_lock);
@@ -190,4 +193,10 @@ void rman_release_range(range_t *r) {
 
   /* Merging is done... we simply mark the region as free. */
   r->flags = 0;
+}
+
+/*! \brief Removes a range from its range manager and releases memory. */
+void resource_release(resource_t *r) {
+  rman_release_range(r->r_range);
+  kfree(M_DEV, r);
 }

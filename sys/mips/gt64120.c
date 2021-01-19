@@ -421,8 +421,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, r)) {
-      rman_release_range(r->r_range);
-      kfree(M_DEV, r);
+      resource_release(r);
       return NULL;
     }
   }
@@ -432,8 +431,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
 
 static void gt_pci_release_resource(device_t *dev, resource_t *r) {
   bus_deactivate_resource(dev, r);
-  rman_release_range(r->r_range);
-  kfree(M_DEV, r);
+  resource_release(r);
 }
 
 static int gt_pci_activate_resource(device_t *dev, resource_t *r) {
