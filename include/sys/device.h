@@ -47,9 +47,30 @@ typedef enum {
   DIF_COUNT /* this must be the last item */
 } drv_if_t;
 
+/* During kernel initialization the device tree is scanned multiple times.
+ * Each scan we can detect new devices and attach drivers to existing or new
+ * devices. Each driver is assigned a pass number. A driver may only probe and
+ * attach to a device if driver's pass number is not greater than
+ * `current_pass` counter.
+ * Pass description:
+ * - FIRST_PASS: devoted for drivers that require the most basic kernel APIs
+ *   to be in working state (i.e. memory allocation, resource management,
+ *   interrupt management). The main goal of this pass is to initialize enough
+ *   drivers to clock subsystem (and thus scheduler & callouts) and console.
+ * - SECOND_PASS: during this pass following kernel APIs are available:
+ *   callouts, kernel threads, devfs.
+ * If extra pass is needed, please add a coresponding description here and
+ * explain what kernel APIs are required. */
+typedef enum {
+  FIRST_PASS,
+  SECOND_PASS,
+  PASS_COUNT /* this must be the last item */
+} drv_pass_t;
+
 struct driver {
   const char *desc;            /* short driver description */
   size_t size;                 /* device->state object size */
+  drv_pass_t pass;             /* device tree pass number */
   d_probe_t probe;             /* probe for specific device(s) */
   d_attach_t attach;           /* attach device to system */
   d_detach_t detach;           /* detach device from system */
@@ -74,8 +95,10 @@ struct device {
   resource_list_t resources; /* used by driver, assigned by parent bus */
 };
 
-/*! \brief Called during kernel initialization. */
-void init_devices(void);
+/*! \brief Check whether a device is a bus or a regular device. */
+static inline bool device_bus(device_t *dev) {
+  return dev->devclass != NULL;
+}
 
 device_t *device_alloc(int unit);
 device_t *device_add_child(device_t *parent, int unit);
@@ -114,5 +137,17 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
 
 /* A universal memory pool to be used by all drivers. */
 KMALLOC_DECLARE(M_DEV);
+
+/* Finds a device that implements a method for given interface */
+/* As for now this actually returns a child of the bus, not the bus itself.
+ * This is consistent with the current method semantics. Hopefully the
+ * signatures will change in a future PR to be more suited for dispatching.
+ * Currently the information about the caller is lost as the `dev` argument is
+ * not guarenteed to be the caller, it's just a child of the bus. It just so
+ * happens that the current scenarios in which we'll need the dispatching
+ * don't require to know anything about the caller. Again, this will hopefully
+ * change thanks to future extension of method semantics. */
+device_t *device_method_provider(device_t *dev, drv_if_t iface,
+                                 ptrdiff_t method_offset);
 
 #endif /* !_SYS_DEVICE_H_ */

@@ -21,6 +21,7 @@
 #include <sys/signal.h>
 #include <sys/devfs.h>
 #include <sys/file.h>
+#include <sys/filio.h>
 
 /* START OF FreeBSD CODE */
 
@@ -120,9 +121,12 @@ unsigned char const char_type[] = {
 #define TTYSUP_IFLAG_CHANGE (INLCR | IGNCR | ICRNL | IMAXBEL)
 #define TTYSUP_OFLAG_CHANGE (OPOST | ONLCR | OCRNL | ONOCR | ONLRET)
 #define TTYSUP_LFLAG_CHANGE                                                    \
-  (ECHOKE | ECHOE | ECHOK | ECHO | ECHONL | ECHOCTL | ICANON | TOSTOP)
+  (ECHOKE | ECHOE | ECHOK | ECHO | ECHONL | ECHOCTL | ICANON | ISIG | TOSTOP | \
+   NOFLSH)
 
 static bool tty_output(tty_t *tty, uint8_t c);
+static void tty_discard_input(tty_t *tty);
+static void tty_discard_output(tty_t *tty);
 
 static inline bool tty_is_break(tty_t *tty, uint8_t c) {
   return (c == '\n' || ((c == tty->t_cc[VEOF] || c == tty->t_cc[VEOL]) &&
@@ -156,7 +160,7 @@ static void tty_init_termios(struct termios *tio) {
 }
 
 tty_t *tty_alloc(void) {
-  tty_t *tty = kmalloc(M_DEV, sizeof(tty_t), M_WAITOK);
+  tty_t *tty = kmalloc(M_DEV, sizeof(tty_t), M_WAITOK | M_ZERO);
   mtx_init(&tty->t_lock, 0);
   ringbuf_init(&tty->t_inq, kmalloc(M_DEV, TTY_QUEUE_SIZE, M_WAITOK),
                TTY_QUEUE_SIZE);
@@ -169,13 +173,6 @@ tty_t *tty_alloc(void) {
   tty->t_line.ln_size = LINEBUF_SIZE;
   tty->t_line.ln_count = 0;
   tty_init_termios(&tty->t_termios);
-  tty->t_ops = (ttyops_t){0};
-  tty->t_data = NULL;
-  tty->t_column = 0;
-  tty->t_rocol = tty->t_rocount = 0;
-  tty->t_vnode = NULL;
-  tty->t_flags = 0;
-  tty->t_opencount = 0;
   return tty;
 }
 
@@ -203,6 +200,10 @@ static int tty_wait(tty_t *tty, condvar_t *cv) {
 
   if (tty_detached(tty))
     return ENXIO;
+
+  /* Did we receive a signal while sleeping? */
+  if (error == EINTR)
+    return ERESTARTSYS;
 
   return error;
 }
@@ -411,58 +412,50 @@ static void tty_wakeup(tty_t *tty) {
 }
 
 /*
- * Wait for our process group to become the foreground process group.
- * Heavily based on FreeBSD's implementation of this routine.
+ * Check whether we're allowed to continue with an operation.
+ * Heavily based on FreeBSD's tty_wait_background().
  */
-static int tty_wait_background(tty_t *tty, int sig) {
+static int tty_check_background(tty_t *tty, int sig) {
   thread_t *td = thread_self();
   proc_t *p = td->td_proc;
   pgrp_t *pg;
-  int error;
 
   assert(sig == SIGTTIN || sig == SIGTTOU);
   assert(mtx_owned(&tty->t_lock));
 
-  while (true) {
-  tryagain:
-    WITH_PROC_LOCK(p) {
-      /*
-       * The process should only sleep, when:
-       * - This terminal is the controlling terminal
-       * - Its process group is not the foreground process
-       *   group
-       * - The signal to send to the process isn't masked
-       * - Its process group is not orphaned
-       */
-      if (!tty_is_ctty(tty, p) || p->p_pgrp == tty->t_pgrp)
-        return 0;
+tryagain:
+  WITH_PROC_LOCK(p) {
+    /*
+     * The current process group should only get the signal, when:
+     * - This terminal is the controlling terminal
+     * - The process group is not the foreground process group
+     * - The signal to send to the process isn't masked
+     * - Its process group is not orphaned
+     */
+    if (!tty_is_ctty(tty, p) || p->p_pgrp == tty->t_pgrp)
+      return 0;
 
-      if (p->p_sigactions[sig].sa_handler == SIG_IGN ||
-          __sigismember(&td->td_sigmask, sig))
-        return (sig == SIGTTOU ? 0 : EIO);
+    if (p->p_sigactions[sig].sa_handler == SIG_IGN ||
+        __sigismember(&td->td_sigmask, sig))
+      return (sig == SIGTTOU ? 0 : EIO);
 
-      pg = p->p_pgrp;
-    }
-
-    WITH_MTX_LOCK (&pg->pg_lock) {
-      /* Our process group might have changed: check. */
-      if (p->p_pgrp != pg)
-        goto tryagain;
-
-      /* Unlocked read of pg_jobc: not a big deal. */
-      if (pg->pg_jobc == 0)
-        return EIO;
-
-      /*
-       * Send the signal and sleep until we're in the foreground
-       * process group.
-       */
-      sig_pgkill(pg, &DEF_KSI_RAW(sig));
-    }
-
-    if ((error = tty_wait(tty, &tty->t_background_cv)))
-      return error;
+    pg = p->p_pgrp;
   }
+
+  WITH_MTX_LOCK (&pg->pg_lock) {
+    /* Our process group might have changed: check. */
+    if (p->p_pgrp != pg)
+      goto tryagain;
+
+    /* Unlocked read of pg_jobc: not a big deal. */
+    if (pg->pg_jobc == 0)
+      return EIO;
+
+    sig_pgkill(pg, &DEF_KSI_RAW(sig));
+  }
+
+  /* Handle the signal at userspace boundary. */
+  return ERESTARTSYS;
 }
 
 static void tty_in_hiwat(tty_t *tty) {
@@ -486,6 +479,32 @@ bool tty_input(tty_t *tty, uint8_t c) {
       c = '\n';
   } else if (c == '\n' && (iflag & INLCR)) {
     c = '\r';
+  }
+
+  if (lflag & ISIG) {
+    signo_t signal = 0;
+    /* Signal processing. */
+    if (CCEQ(cc[VINTR], c)) {
+      signal = SIGINT;
+    } else if (CCEQ(cc[VQUIT], c)) {
+      signal = SIGQUIT;
+    } else if (CCEQ(cc[VSUSP], c)) {
+      signal = SIGTSTP;
+    }
+
+    if (signal) {
+      if (!(lflag & NOFLSH)) {
+        tty_discard_input(tty);
+        tty_discard_output(tty);
+      }
+      tty_echo(tty, c);
+      pgrp_t *pg = tty->t_pgrp;
+      if (pg)
+        WITH_MTX_LOCK (&pg->pg_lock)
+          sig_pgkill(pg, &DEF_KSI_RAW(signal));
+      tty_notify_out(tty);
+      return true;
+    }
   }
 
   if (lflag & ICANON) {
@@ -583,7 +602,7 @@ static int tty_do_read(file_t *f, uio_t *uio) {
       return ENXIO;
 
     while (true) {
-      if ((error = tty_wait_background(tty, SIGTTIN)))
+      if ((error = tty_check_background(tty, SIGTTIN)))
         return error;
 
       if (tty->t_inq.count > 0)
@@ -644,6 +663,12 @@ static void tty_discard_input(tty_t *tty) {
   ringbuf_reset(&tty->t_inq);
   tty->t_line.ln_count = 0;
   tty_check_in_lowat(tty);
+}
+
+static void tty_discard_output(tty_t *tty) {
+  assert(mtx_owned(&tty->t_lock));
+  ringbuf_reset(&tty->t_outq);
+  cv_broadcast(&tty->t_outcv);
 }
 
 /*
@@ -778,7 +803,7 @@ static int tty_write(file_t *f, uio_t *uio) {
 
     if (tty->t_lflag & TOSTOP) {
       /* Wait until we're the foreground process group. */
-      if ((error = tty_wait_background(tty, SIGTTOU)))
+      if ((error = tty_check_background(tty, SIGTTOU)))
         return error;
     }
 
@@ -934,8 +959,21 @@ static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
       if (tty->t_session != p->p_pgrp->pg_session)
         return ENOTTY;
       tty->t_pgrp = pg;
-      cv_broadcast(&tty->t_background_cv);
     }
+  }
+  return 0;
+}
+
+static int tty_set_winsize(tty_t *tty, struct winsize *sz) {
+  SCOPED_MTX_LOCK(&tty->t_lock);
+  if (memcmp(&tty->t_winsize, sz, sizeof(struct winsize)) == 0)
+    return 0;
+  tty->t_winsize = *sz;
+  /* Send SIGWINCH to the foreground process group. */
+  pgrp_t *pgrp = tty->t_pgrp;
+  if (pgrp) {
+    SCOPED_MTX_LOCK(&pgrp->pg_lock);
+    sig_pgkill(pgrp, &DEF_KSI_RAW(SIGWINCH));
   }
   return 0;
 }
@@ -944,6 +982,11 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
   tty_t *tty = f->f_data;
 
   switch (cmd) {
+    case FIONREAD: {
+      SCOPED_MTX_LOCK(&tty->t_lock);
+      *(int *)data = tty->t_inq.count;
+      return 0;
+    }
     case TIOCGETA:
       return tty_get_termios(tty, (struct termios *)data);
     case TIOCSETA:  /* Set termios immediately */
@@ -954,6 +997,13 @@ static int tty_ioctl(file_t *f, u_long cmd, void *data) {
       return tty_get_fg_pgrp(tty, data);
     case TIOCSPGRP:
       return tty_set_fg_pgrp(tty, *(pgid_t *)data);
+    case TIOCGWINSZ: {
+      SCOPED_MTX_LOCK(&tty->t_lock);
+      *(struct winsize *)data = tty->t_winsize;
+      return 0;
+    }
+    case TIOCSWINSZ:
+      return tty_set_winsize(tty, data);
     case 0:
       return EPASSTHROUGH;
     default: {
@@ -1002,7 +1052,6 @@ void tty_detach_driver(tty_t *tty) {
   cv_broadcast(&tty->t_incv);
   cv_broadcast(&tty->t_outcv);
   cv_broadcast(&tty->t_serialize_cv);
-  cv_broadcast(&tty->t_background_cv);
 
   /* We can't free the tty structure yet, as there may still be existing
    * references to the vnode. We free it in tty_vn_reclaim, once all references

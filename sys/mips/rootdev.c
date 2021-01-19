@@ -185,9 +185,10 @@ static bus_methods_t rootdev_bus_if = {
   .deactivate_resource = rootdev_deactivate_resource,
 };
 
-static driver_t rootdev_driver = {
-  .size = sizeof(rootdev_t),
+driver_t rootdev_driver = {
   .desc = "MIPS platform root bus driver",
+  .size = sizeof(rootdev_t),
+  .pass = FIRST_PASS,
   .probe = rootdev_probe,
   .attach = rootdev_attach,
   .interfaces =
@@ -197,11 +198,3 @@ static driver_t rootdev_driver = {
 };
 
 DEVCLASS_CREATE(root);
-
-void init_devices(void) {
-  device_t *rootdev = device_alloc(0);
-  rootdev->devclass = &DEVCLASS(root);
-  rootdev->driver = (driver_t *)&rootdev_driver;
-  (void)device_probe(rootdev);
-  device_attach(rootdev);
-}

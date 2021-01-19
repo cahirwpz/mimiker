@@ -9,8 +9,6 @@
 #include <sys/pmap.h>
 #include <sys/interrupt.h>
 
-DEVCLASS_CREATE(root);
-
 /*
  * located at BCM2836_ARM_LOCAL_BASE
  * 32 local interrupts -- one per CPU but now we only support 1 CPU
@@ -196,6 +194,10 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
                       &rd->intr_event[BCM2835_INT_BASICBASE]);
 }
 
+static int rootdev_probe(device_t *bus) {
+  return 1;
+}
+
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
@@ -302,9 +304,11 @@ static bus_methods_t rootdev_bus_if = {
   .deactivate_resource = rootdev_deactivate_resource,
 };
 
-static driver_t rootdev_driver = {
-  .size = sizeof(rootdev_t),
+driver_t rootdev_driver = {
   .desc = "RPI3 platform root bus driver",
+  .size = sizeof(rootdev_t),
+  .pass = FIRST_PASS,
+  .probe = rootdev_probe,
   .attach = rootdev_attach,
   .interfaces =
     {
@@ -312,15 +316,4 @@ static driver_t rootdev_driver = {
     },
 };
 
-static device_t rootdev = (device_t){
-  .children = TAILQ_HEAD_INITIALIZER(rootdev.children),
-  .driver = (driver_t *)&rootdev_driver,
-  .state = &(rootdev_t){},
-  .devclass = &DEVCLASS(root),
-};
-
-DEVCLASS_ENTRY(root, rootdev);
-
-void init_devices(void) {
-  device_attach(&rootdev);
-}
+DEVCLASS_CREATE(root);

@@ -1,12 +1,10 @@
-/*	$NetBSD: regdef.h,v 1.13 2015/06/07 06:07:49 matt Exp $	*/
-
-/*
+/*-
+ * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
- * Ralph Campbell. This file is derived from the MIPS RISC
- * Architecture book by Gerry Kane.
+ * Keith Muller of the University of California, San Diego.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,61 +30,41 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)regdef.h	8.1 (Berkeley) 6/10/93
+ *      @(#)cache.h	8.1 (Berkeley) 5/31/93
  */
-
-#ifndef _MIPS_REGDEF_H
-#define _MIPS_REGDEF_H
-
-#define zero $0 /* always zero */
-#define AT $at  /* assembler temporary */
-#define v0 $2   /* return value */
-#define v1 $3
-#define a0 $4 /* argument registers */
-#define a1 $5
-#define a2 $6
-#define a3 $7
-#define t0 $8 /* temp registers (not saved across subroutine calls) */
-#define t1 $9
-#define t2 $10
-#define t3 $11
-#define t4 $12
-#define t5 $13
-#define t6 $14
-#define t7 $15
-#define s0 $16 /* saved across subroutine calls (callee saved) */
-#define s1 $17
-#define s2 $18
-#define s3 $19
-#define s4 $20
-#define s5 $21
-#define s6 $22
-#define s7 $23
-#define t8 $24 /* two more temporary registers */
-#define t9 $25
-#define k0 $26 /* kernel temporary */
-#define k1 $27
-#define gp $28 /* global pointer */
-#define sp $29 /* stack pointer */
-#define s8 $30 /* one more callee saved */
-#define ra $31 /* return address */
-
-#define fp s8 /* frame pointer */
 
 /*
- * These are temp registers whose names can be used in either the old
- * or new ABI, although they map to different physical registers.  In
- * the old ABI, they map to t4-t7, and in the new ABI, they map to a4-a7.
+ * Constants and data structures used to implement group and password file
+ * caches. Traditional passwd/group cache routines perform quite poorly with
+ * archives. The chances of hitting a valid lookup with an archive is quite a
+ * bit worse than with files already resident on the file system. These misses
+ * create a MAJOR performance cost. To address this problem, these routines
+ * cache both hits and misses.
  *
- * Because they overlap with the last 4 arg regs in the new ABI, ta0-ta3
- * should be used only when we need more than t0-t3.
+ * NOTE:  name lengths must be as large as those stored in ANY PROTOCOL and
+ * as stored in the passwd and group files. CACHE SIZES MUST BE PRIME
  */
-#define ta0 $12
-#define ta1 $13
-#define ta2 $14
-#define ta3 $15
+#define UNMLEN		32	/* >= user name found in any protocol */
+#define GNMLEN		32	/* >= group name found in any protocol */
+#define UID_SZ		317	/* size of uid to user_name cache */
+#define UNM_SZ		317	/* size of user_name to uid cache */
+#define GID_SZ		251	/* size of gid to group_name cache */
+#define GNM_SZ		251	/* size of group_name to gid cache */
+#define VALID		1	/* entry and name are valid */
+#define INVALID		2	/* entry valid, name NOT valid */
 
-/* FPU coprocessor registers. */
-#define fcsr $31
+/*
+ * Node structures used in the user, group, uid, and gid caches.
+ */
 
-#endif /* !_MIPS_REGDEF_H */
+typedef struct uidc {
+	int valid;		/* is this a valid or a miss entry */
+	char name[UNMLEN];	/* uid name */
+	uid_t uid;		/* cached uid */
+} UIDC;
+
+typedef struct gidc {
+	int valid;		/* is this a valid or a miss entry */
+	char name[GNMLEN];	/* gid name */
+	gid_t gid;		/* cached gid */
+} GIDC;

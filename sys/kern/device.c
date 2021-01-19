@@ -79,3 +79,14 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
 
   return r;
 }
+
+device_t *device_method_provider(device_t *dev, drv_if_t iface,
+                                 ptrdiff_t method_offset) {
+  for (; dev->parent; dev = dev->parent) {
+    void *interface = dev->parent->driver->interfaces[iface];
+    if (interface && *(void **)(interface + method_offset))
+      return dev;
+  }
+
+  panic("Device has no parent!");
+}

@@ -1,11 +1,12 @@
-/*	$NetBSD: sigsetjmp.S,v 1.9 2009/12/14 01:07:42 matt Exp $	*/
+/*	$NetBSD: umoddi3.c,v 1.2 2009/03/15 22:31:12 cegger Exp $	*/
 
 /*-
- * Copyright (c) 1991, 1993, 1995,
+ * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
- * This code is derived from software contributed to Berkeley by
- * Havard Eidnes.
+ * This software was developed by the Computer Systems Engineering group
+ * at Lawrence Berkeley Laboratory under DARPA contract BG 91-66 and
+ * contributed to Berkeley.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,41 +33,16 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/syscall.h>
-#include <mips/asm.h>
+#include <sys/cdefs.h>
 
-#include "mips/assym.h"
-#include "mips/SYS.h"
+#include "quad.h"
 
 /*
- * C library -- sigsetjmp, siglongjmp
- *
- *	siglongjmp(a,v)
- * will generate a "return(v)" from
- * the last call to
- *	sigsetjmp(a, savemask)
- * by restoring registers from the stack,
- * and dependent on savemask restores the
- * signal mask.
+ * Return remainder after dividing two unsigned quads.
  */
+u_quad_t __umoddi3(u_quad_t a, u_quad_t b) {
+  u_quad_t r;
 
-LEAF(sigsetjmp)
-	PIC_PROLOGUE(sigsetjmp)
-	bnez	a1, 1f			# do saving of signal mask?
-	REG_S	a1, UC_FLAGS(a0)	# savemask is 0
-	PIC_TAILCALL(_setjmp)		# doesn't save signal mask
-
-1:	li	a1, _UC_SIGMASK
-	REG_S	a1, UC_FLAGS(a0)	# valid user context sigmask
-	PIC_TAILCALL(setjmp)		# saves signal mask
-END(sigsetjmp)
-
-LEAF(siglongjmp)
-	PIC_PROLOGUE(siglongjmp)
-	REG_L	t0, UC_FLAGS(a0)	# get "savemask"
-	and	t0, t0, _UC_SIGMASK
-	beq	t0, _UC_SIGMASK, 1f	# restore signal mask?
-	PIC_TAILCALL(_longjmp)		# doesn't restore signal mask
-
-1:	PIC_TAILCALL(longjmp)		# restores signal mask
-END(siglongjmp)
+  (void)__qdivrem(a, b, &r);
+  return (r);
+}
