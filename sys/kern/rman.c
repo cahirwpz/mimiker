@@ -152,14 +152,6 @@ static range_t *rman_reserve_range(rman_t *rm, rman_addr_t start,
   return NULL;
 }
 
-void rman_activate_range(range_t *r) {
-  WITH_MTX_LOCK (&r->rman->rm_lock) { r->flags |= RF_ACTIVE; }
-}
-
-void rman_deactivate_range(range_t *r) {
-  WITH_MTX_LOCK (&r->rman->rm_lock) { r->flags &= ~RF_ACTIVE; }
-}
-
 /*! \brief Removes a range from its range manager and releases memory. */
 static void rman_release_range(range_t *r) {
   rman_t *rm = r->rman;
@@ -195,7 +187,6 @@ static void rman_release_range(range_t *r) {
   r->flags = 0;
 }
 
-
 resource_t *rman_reserve_resource(rman_t *rm, res_type_t type, int rid,
                                   rman_addr_t start, rman_addr_t end,
                                   size_t size, size_t alignment,
@@ -209,6 +200,16 @@ resource_t *rman_reserve_resource(rman_t *rm, res_type_t type, int rid,
   r->r_type = type;
   r->r_rid = rid;
   return r;
+}
+
+void resource_activate(resource_t *res) {
+  range_t *r = res->r_range;
+  WITH_MTX_LOCK (&r->rman->rm_lock) { r->flags |= RF_ACTIVE; }
+}
+
+void resource_deactivate(resource_t *res) {
+  range_t *r = res->r_range;
+  WITH_MTX_LOCK (&r->rman->rm_lock) { r->flags &= ~RF_ACTIVE; }
 }
 
 /*! \brief Removes a range from its range manager and releases memory. */

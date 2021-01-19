@@ -9,47 +9,8 @@
 typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;
-typedef struct resource resource_t;
-typedef struct intr_handler intr_handler_t;
 typedef TAILQ_HEAD(, device) device_list_t;
 typedef SLIST_HEAD(, resource) resource_list_t;
-
-typedef enum res_type { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
-
-struct resource {
-  SLIST_ENTRY(resource) r_link;
-  range_t *r_range;  /* resource range expressed by (start, end) pair */
-  res_type_t r_type; /* type, one of RT_* */
-  int r_rid;         /* unique identifier */
-  /* data specific to given resource type */
-  union {
-    /* interrupt resources */
-    intr_handler_t *r_handler;
-
-    /* memory and I/O port resources */
-    struct {
-      bus_space_tag_t r_bus_tag;       /* bus space methods */
-      bus_space_handle_t r_bus_handle; /* bus space base address */
-    };
-  };
-};
-
-/*! \brief Calculate resource size. */
-static inline bus_size_t resource_size(resource_t *r) {
-  return r->r_range->end - r->r_range->start + 1;
-}
-
-/*! \brief Return resource start address within the rman range. */
-static inline rman_addr_t resource_start(resource_t *r) {
-  return r->r_range->start;
-}
-
-/*! \brief Check whether a resource is active. */
-static inline bool resource_active(resource_t *r) {
-  return r->r_range->flags & RF_ACTIVE;
-}
-
-#define RESOURCE_DECLARE(name) extern resource_t name[1]
 
 /* Driver that returns the highest value from its probe action
  * will be selected for attach action. */
