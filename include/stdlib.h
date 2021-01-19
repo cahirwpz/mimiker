@@ -143,6 +143,8 @@ int mergesort(void *, size_t, size_t, int (*)(const void *, const void *));
 
 char *getbsize(int *, long *);
 
+void mi_vector_hash(const void *__restrict, size_t, uint32_t, uint32_t[3]);
+
 #define HN_DECIMAL 0x01
 #define HN_NOSPACE 0x02
 #define HN_B 0x04
