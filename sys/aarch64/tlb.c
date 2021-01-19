@@ -6,13 +6,13 @@
 #define __dsb(x) __asm__ volatile("DSB " x)
 #define __isb() __asm__ volatile("ISB")
 
-void tlb_invalidate(pte_t pte, asid_t asid) {
+void tlb_invalidate(vaddr_t va, asid_t asid) {
   __dsb("ishst");
 
   if (asid > 0) {
-    __tlbi("vae1is", ASID_TO_PTE(asid) | (pte >> PAGE_SHIFT));
+    __tlbi("vae1is", ASID_TO_PTE(asid) | (va >> PAGE_SHIFT));
   } else {
-    __tlbi("vaae1is", pte >> PAGE_SHIFT);
+    __tlbi("vaae1is", va >> PAGE_SHIFT);
   }
 
   __dsb("ish");
