@@ -252,14 +252,10 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
     panic("Resource type not handled!");
   }
 
-  range_t *range = rman_reserve_range(rman, start, end, size, alignment, flags);
-  if (!range)
+  resource_t *r =
+    rman_reserve_resource(rman, type, rid, start, end, size, alignment, flags);
+  if (!r)
     return NULL;
-
-  resource_t *r = kmalloc(M_DEV, sizeof(resource_t), M_WAITOK);
-  r->r_type = type;
-  r->r_rid = rid;
-  r->r_range = range;
 
   if (type == RT_MEMORY) {
     r->r_bus_tag = rootdev_bus_space;

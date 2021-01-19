@@ -405,14 +405,10 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     size = roundup(size, PAGESIZE);
   }
 
-  range_t *range = rman_reserve_range(rman, start, end, size, alignment, flags);
-  if (!range)
+  resource_t *r =
+    rman_reserve_resource(rman, type, rid, start, end, size, alignment, flags);
+  if (!r)
     return NULL;
-
-  resource_t *r = kmalloc(M_DEV, sizeof(resource_t), M_WAITOK);
-  r->r_range = range;
-  r->r_type = type;
-  r->r_rid = rid;
 
   if (type != RT_IRQ) {
     r->r_bus_tag = generic_bus_space;

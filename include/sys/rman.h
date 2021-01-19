@@ -10,6 +10,7 @@
 #define RMAN_SIZE_MAX UINTPTR_MAX
 
 typedef uintptr_t rman_addr_t;
+typedef enum res_type res_type_t;
 typedef struct rman rman_t;
 typedef struct resource resource_t;
 typedef struct range range_t;
@@ -39,16 +40,18 @@ struct rman {
   range_list_t rm_ranges; /* ranges managed by this range manager */
 };
 
-/* !\brief Reserve an rman range within given rman.
+/* !\brief Reserve a resource with a range from given rman.
  *
  * Looks up a region of size `count` between `start` and `end` address.
  * Assigned starting address will be aligned to `alignment` which must be
- * power of 2.
+ * power of 2. Initializes resource `type` and `rid`.
  *
  * \returns NULL if could not allocate a range
  */
-range_t *rman_reserve_range(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                            size_t count, size_t alignment, rman_flags_t flags);
+resource_t *rman_reserve_resource(rman_t *rm, res_type_t, int rid,
+                                  rman_addr_t start, rman_addr_t end,
+                                  size_t count, size_t alignment,
+                                  rman_flags_t flags);
 
 void resource_release(resource_t *r);
 

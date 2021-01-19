@@ -14,7 +14,7 @@ typedef struct intr_handler intr_handler_t;
 typedef TAILQ_HEAD(, device) device_list_t;
 typedef SLIST_HEAD(, resource) resource_list_t;
 
-typedef enum { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
+typedef enum res_type { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
 
 struct resource {
   SLIST_ENTRY(resource) r_link;

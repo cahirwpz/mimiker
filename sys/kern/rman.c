@@ -100,9 +100,9 @@ void rman_fini(rman_t *rm) {
   /* TODO: destroy the `rm_lock` after implementing `mtx_destroy`. */
 }
 
-range_t *rman_reserve_range(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                            size_t count, size_t alignment,
-                            rman_flags_t flags) {
+static range_t *rman_reserve_range(rman_t *rm, rman_addr_t start,
+                                   rman_addr_t end, size_t count,
+                                   size_t alignment, rman_flags_t flags) {
   assert(start + count - 1 <= end);
   assert(count > 0);
 
@@ -193,6 +193,22 @@ static void rman_release_range(range_t *r) {
 
   /* Merging is done... we simply mark the region as free. */
   r->flags = 0;
+}
+
+
+resource_t *rman_reserve_resource(rman_t *rm, res_type_t type, int rid,
+                                  rman_addr_t start, rman_addr_t end,
+                                  size_t size, size_t alignment,
+                                  rman_flags_t flags) {
+  range_t *range = rman_reserve_range(rm, start, end, size, alignment, flags);
+  if (!range)
+    return NULL;
+
+  resource_t *r = kmalloc(M_DEV, sizeof(resource_t), M_WAITOK);
+  r->r_range = range;
+  r->r_type = type;
+  r->r_rid = rid;
+  return r;
 }
 
 /*! \brief Removes a range from its range manager and releases memory. */
