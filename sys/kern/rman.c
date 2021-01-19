@@ -17,7 +17,17 @@
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
+struct range {
+  rman_t *rman;            /* manager of this range */
+  rman_addr_t start;       /* first physical address of the range */
+  rman_addr_t end;         /* last (inclusive) physical address */
+  rman_flags_t flags;      /* or'ed RF_* values */
+  TAILQ_ENTRY(range) link; /* link on range manager list */
+};
+
 static KMALLOC_DEFINE(M_RMAN, "rman ranges");
+
+static void rman_release_range(range_t *r);
 
 void rman_init(rman_t *rm, const char *name) {
   rm->rm_name = name;
@@ -98,9 +108,9 @@ void rman_fini(rman_t *rm) {
   /* TODO: destroy the `rm_lock` after implementing `mtx_destroy`. */
 }
 
-range_t *rman_reserve_range(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                            size_t count, size_t alignment,
-                            rman_flags_t flags) {
+static range_t *rman_reserve_range(rman_t *rm, rman_addr_t start,
+                                   rman_addr_t end, size_t count,
+                                   size_t alignment, rman_flags_t flags) {
   assert(start + count - 1 <= end);
   assert(count > 0);
 
@@ -150,15 +160,8 @@ range_t *rman_reserve_range(rman_t *rm, rman_addr_t start, rman_addr_t end,
   return NULL;
 }
 
-void rman_activate_range(range_t *r) {
-  WITH_MTX_LOCK (&r->rman->rm_lock) { r->flags |= RF_ACTIVE; }
-}
-
-void rman_deactivate_range(range_t *r) {
-  WITH_MTX_LOCK (&r->rman->rm_lock) { r->flags &= ~RF_ACTIVE; }
-}
-
-void rman_release_range(range_t *r) {
+/*! \brief Removes a range from its range manager and releases memory. */
+static void rman_release_range(range_t *r) {
   rman_t *rm = r->rman;
 
   SCOPED_MTX_LOCK(&rm->rm_lock);
@@ -190,4 +193,47 @@ void rman_release_range(range_t *r) {
 
   /* Merging is done... we simply mark the region as free. */
   r->flags = 0;
+}
+
+resource_t *rman_reserve_resource(rman_t *rm, res_type_t type, int rid,
+                                  rman_addr_t start, rman_addr_t end,
+                                  size_t size, size_t alignment,
+                                  rman_flags_t flags) {
+  range_t *range = rman_reserve_range(rm, start, end, size, alignment, flags);
+  if (!range)
+    return NULL;
+
+  resource_t *r = kmalloc(M_RMAN, sizeof(resource_t), M_WAITOK);
+  r->r_range = range;
+  r->r_type = type;
+  r->r_rid = rid;
+  return r;
+}
+
+bus_size_t resource_size(resource_t *r) {
+  return r->r_range->end - r->r_range->start + 1;
+}
+
+rman_addr_t resource_start(resource_t *r) {
+  return r->r_range->start;
+}
+
+bool resource_active(resource_t *r) {
+  return r->r_range->flags & RF_ACTIVE;
+}
+
+void resource_activate(resource_t *res) {
+  range_t *r = res->r_range;
+  WITH_MTX_LOCK (&r->rman->rm_lock) { r->flags |= RF_ACTIVE; }
+}
+
+void resource_deactivate(resource_t *res) {
+  range_t *r = res->r_range;
+  WITH_MTX_LOCK (&r->rman->rm_lock) { r->flags &= ~RF_ACTIVE; }
+}
+
+/*! \brief Removes a range from its range manager and releases memory. */
+void resource_release(resource_t *r) {
+  rman_release_range(r->r_range);
+  kfree(M_RMAN, r);
 }

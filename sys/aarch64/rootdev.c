@@ -252,12 +252,10 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
     panic("Resource type not handled!");
   }
 
-  resource_t *r = kmalloc(M_DEV, sizeof(resource_t), M_WAITOK);
-  r->r_type = type;
-  r->r_rid = rid;
-  r->r_range = rman_reserve_range(rman, start, end, size, alignment, flags);
-  if (r->r_range == NULL)
-    goto bad;
+  resource_t *r =
+    rman_reserve_resource(rman, type, rid, start, end, size, alignment, flags);
+  if (!r)
+    return NULL;
 
   if (type == RT_MEMORY) {
     r->r_bus_tag = rootdev_bus_space;
@@ -266,22 +264,17 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, r)) {
-      rman_release_range(r->r_range);
-      goto bad;
+      resource_release(r);
+      return NULL;
     }
   }
 
   return r;
-
-bad:
-  kfree(M_DEV, r);
-  return NULL;
 }
 
 static void rootdev_release_resource(device_t *dev, resource_t *r) {
   bus_deactivate_resource(dev, r);
-  rman_release_range(r->r_range);
-  kfree(M_DEV, r);
+  resource_release(r);
 }
 
 static int rootdev_activate_resource(device_t *dev, resource_t *r) {
