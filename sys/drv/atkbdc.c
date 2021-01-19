@@ -174,6 +174,7 @@ static int atkbdc_attach(device_t *dev) {
 static driver_t atkbdc_driver = {
   .desc = "AT keyboard controller driver",
   .size = sizeof(atkbdc_state_t),
+  .pass = SECOND_PASS,
   .probe = atkbdc_probe,
   .attach = atkbdc_attach,
 };
