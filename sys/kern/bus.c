@@ -103,7 +103,7 @@ int bus_activate_resource(device_t *dev, resource_t *r) {
     return 0;
 
   device_t *idev = BUS_METHOD_PROVIDER(dev, activate_resource);
-  int error = BUS_METHODS(idev->parent).activate_resource(idev, type, r);
+  int error = BUS_METHODS(idev->parent).activate_resource(idev, r);
   if (error == 0)
     rman_activate_resource(r->r_res);
   return error;
@@ -112,7 +112,7 @@ int bus_activate_resource(device_t *dev, resource_t *r) {
 void bus_deactivate_resource(device_t *dev, resource_t *r) {
   if (resource_active(r)) {
     device_t *idev = BUS_METHOD_PROVIDER(dev, deactivate_resource);
-    BUS_METHODS(idev->parent).deactivate_resource(idev, type, r);
+    BUS_METHODS(idev->parent).deactivate_resource(idev, r);
   }
   rman_deactivate_resource(r->r_res);
 }
