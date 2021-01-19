@@ -9,6 +9,7 @@
 typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;
+typedef struct resource resource_t;
 typedef struct intr_handler intr_handler_t;
 typedef TAILQ_HEAD(, device) device_list_t;
 typedef SLIST_HEAD(, resource) resource_list_t;

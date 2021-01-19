@@ -26,11 +26,11 @@ typedef enum {
 } rman_flags_t;
 
 struct range {
-  rman_t *rman;            /* resource manager of this resource */
-  rman_addr_t start;       /* first physical address of the resource */
+  rman_t *rman;            /* manager of this range */
+  rman_addr_t start;       /* first physical address of the range */
   rman_addr_t end;         /* last (inclusive) physical address */
   rman_flags_t flags;      /* or'ed RF_* values */
-  TAILQ_ENTRY(range) link; /* link on resource manager list */
+  TAILQ_ENTRY(range) link; /* link on range manager list */
 };
 
 struct rman {
@@ -68,7 +68,7 @@ void rman_init_from_resource(rman_t *rm, const char *name, resource_t *r);
 /* !\brief Adds a new region to be managed by a range manager. */
 void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size);
 
-/* !\brief Destroy range manager and free its memory resources. */
+/* !\brief Destroy range manager. */
 void rman_fini(rman_t *rm);
 
 #endif /* !_SYS_RMAN_H_ */

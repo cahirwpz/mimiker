@@ -17,7 +17,7 @@
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
-static KMALLOC_DEFINE(M_RES, "rman ranges");
+static KMALLOC_DEFINE(M_RMAN, "rman ranges");
 
 void rman_init(rman_t *rm, const char *name) {
   rm->rm_name = name;
@@ -25,9 +25,9 @@ void rman_init(rman_t *rm, const char *name) {
   TAILQ_INIT(&rm->rm_ranges);
 }
 
-static range_t *resource_alloc(rman_t *rm, rman_addr_t start, rman_addr_t end,
-                               rman_flags_t flags) {
-  range_t *r = kmalloc(M_RES, sizeof(range_t), M_ZERO);
+static range_t *range_alloc(rman_t *rm, rman_addr_t start, rman_addr_t end,
+                            rman_flags_t flags) {
+  range_t *r = kmalloc(M_RMAN, sizeof(range_t), M_ZERO);
   r->rman = rm;
   r->start = start;
   r->end = end;
@@ -49,7 +49,7 @@ static int r_canmerge(range_t *r, range_t *next) {
 
 void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
   rman_addr_t end = start + size - 1;
-  range_t *reg = resource_alloc(rm, start, end, RF_RESERVED);
+  range_t *reg = range_alloc(rm, start, end, RF_RESERVED);
 
   WITH_MTX_LOCK (&rm->rm_lock) {
     range_t *first = TAILQ_FIRST(&rm->rm_ranges);
@@ -90,9 +90,9 @@ void rman_fini(rman_t *rm) {
 
   while (!TAILQ_EMPTY(&rm->rm_ranges)) {
     range_t *r = TAILQ_FIRST(&rm->rm_ranges);
-    assert(!r_reserved(r)); /* can't free resource that's in use */
+    assert(!r_reserved(r)); /* can't free range that's in use */
     TAILQ_REMOVE(&rm->rm_ranges, r, link);
-    kfree(M_RES, r);
+    kfree(M_RMAN, r);
   }
 
   /* TODO: destroy the `rm_lock` after implementing `mtx_destroy`. */
@@ -126,21 +126,21 @@ range_t *rman_reserve_range(rman_t *rm, rman_addr_t start, rman_addr_t end,
     if (new_end > end)
       break;
 
-    /* Truncate the resource from both sides. This may create up to two new
-     * resource before and after the chosen one. */
+    /* Truncate the range from both sides. This may create up to two new range
+     * before and after the chosen one. */
     if (r->start < new_start) {
-      range_t *prev = resource_alloc(rm, r->start, new_start - 1, r->flags);
+      range_t *prev = range_alloc(rm, r->start, new_start - 1, r->flags);
       TAILQ_INSERT_BEFORE(r, prev, link);
       r->start = new_start;
     }
 
     if (r->end > new_end) {
-      range_t *next = resource_alloc(rm, new_end + 1, r->end, r->flags);
+      range_t *next = range_alloc(rm, new_end + 1, r->end, r->flags);
       TAILQ_INSERT_AFTER(&rm->rm_ranges, r, next, link);
       r->end = new_end;
     }
 
-    /* Finally... we're left with resource we were exactly looking for.
+    /* Finally... we're left with range we were exactly looking for.
      * Just mark is as reserved and add extra flags like RF_PREFETCHABLE. */
     r->flags |= RF_RESERVED;
     r->flags |= flags & ~RF_ACTIVE;
@@ -167,16 +167,16 @@ void rman_release_range(range_t *r) {
   assert(r_reserved(r));
 
   /*
-   * Look at the adjacent resources in the list and see if our resource
-   * can be merged with any of them. If either of the resources is reserved
-   * or is not adjacent then they cannot be merged with our resource.
+   * Look at the adjacent range in the list and see if our range can be merged
+   * with any of them. If either of the ranges is reserved or is not adjacent
+   * then they cannot be merged with our range.
    */
   range_t *prev = TAILQ_PREV(r, range_list, link);
   if (prev && r_canmerge(prev, r)) {
     /* Merge previous region with ours. */
     prev->end = r->end;
     TAILQ_REMOVE(&rm->rm_ranges, r, link);
-    kfree(M_RES, r);
+    kfree(M_RMAN, r);
     r = prev;
   }
 
@@ -185,7 +185,7 @@ void rman_release_range(range_t *r) {
     /* Merge next region with ours. */
     r->end = next->end;
     TAILQ_REMOVE(&rm->rm_ranges, next, link);
-    kfree(M_RES, next);
+    kfree(M_RMAN, next);
   }
 
   /* Merging is done... we simply mark the region as free. */
