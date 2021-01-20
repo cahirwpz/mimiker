@@ -70,7 +70,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--debug', action='store_true',
                         help='Start debugging session with selected debugger.')
     parser.add_argument('-n', '--network', action='store_true',
-                        help='Run qemu with network configuration enabled.')
+                        help='Append qemu network configuration (if any).')
     parser.add_argument('-t', '--test-run', action='store_true',
                         help='Test-run mode: simulator output goes to stdout.')
     parser.add_argument('-g', '--graphics', action='store_true',

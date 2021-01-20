@@ -53,6 +53,11 @@ CONFIG = {
                     '-device', 'VGA',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
+                'network_options' : [
+                    '-device', 'rtl8139,netdev=net0',
+                    '-netdev', 'user,id=net0,hostfwd=tcp::10022-:22',
+                    '-object', 'filter-dump,id=net0,netdev=net0,file=rtl.pcap'
+                ],
                 'uarts': [
                     dict(name='/dev/tty1', port=uart_port(0), raw=True),
                     dict(name='/dev/tty2', port=uart_port(1)),
@@ -65,6 +70,7 @@ CONFIG = {
                     '-machine', 'raspi3',
                     '-smp', '4',
                     '-cpu', 'cortex-a53'],
+                'network_options' : [],
                 'uarts': [
                     dict(name='/dev/cons', port=uart_port(0))
                 ]
@@ -226,11 +232,7 @@ class QEMU(Launchable):
         if not getvar('config.graphics'):
             self.options += ['-display', 'none']
         if getvar('config.network'):
-            self.options += [
-                '-device', 'rtl8139,netdev=net0',
-                '-netdev', 'user,id=net0,hostfwd=tcp::10022-:22',
-                '-object', 'filter-dump,id=net0,netdev=net0,file=rtl8139.pcap'
-            ]
+            self.options += getopts('qemu.network_options')
 
 
 class GDB(Launchable):
