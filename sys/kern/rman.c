@@ -14,7 +14,6 @@
 
 #include <sys/mimiker.h>
 #include <sys/device.h>
-#include <sys/refcnt.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
@@ -23,7 +22,7 @@ struct range {
   rman_addr_t start;       /* first physical address of the range */
   rman_addr_t end;         /* last (inclusive) physical address */
   rman_flags_t flags;      /* or'ed RF_* values */
-  refcnt_t refcnt;         /* number of sharers */
+  int refcnt;              /* number of sharers */
   TAILQ_ENTRY(range) link; /* link on range manager list */
 };
 
@@ -59,14 +58,17 @@ static int r_shareable(range_t *r) {
   return r->flags & RF_SHAREABLE;
 }
 
+static size_t r_size(range_t *r) {
+  return r->end - r->start + 1;
+}
+
 static int r_canmerge(range_t *r, range_t *next) {
   return (r->end + 1 == next->start) && !r_reserved(next);
 }
 
 static int r_canshare(range_t *r, rman_addr_t start, size_t count,
                       rman_flags_t flags) {
-  size_t rsize = r->end - r->start + 1;
-  return r_shareable(r) && (flags & RF_SHAREABLE) && rsize == count &&
+  return r_shareable(r) && (flags & RF_SHAREABLE) && r_size(r) == count &&
          r->start >= start;
 }
 
@@ -136,7 +138,7 @@ static range_t *rman_reserve_range(rman_t *rm, rman_addr_t start,
   TAILQ_FOREACH (r, &rm->rm_ranges, link) {
     if (r_reserved(r)) {
       if (r_canshare(r, start, count, flags)) {
-        refcnt_acquire(&r->refcnt);
+        r->refcnt++;
         return r;
       }
       continue;
@@ -186,7 +188,7 @@ static void rman_release_range(range_t *r) {
   assert(!r_active(r));
   assert(r_reserved(r));
 
-  if (r_shareable(r) && !refcnt_release(&r->refcnt))
+  if (r_shareable(r) && --r->refcnt)
     return;
 
   /*
@@ -231,7 +233,7 @@ resource_t *rman_reserve_resource(rman_t *rm, res_type_t type, int rid,
 }
 
 bus_size_t resource_size(resource_t *r) {
-  return r->r_range->end - r->r_range->start + 1;
+  return r_size(r->r_range);
 }
 
 rman_addr_t resource_start(resource_t *r) {
