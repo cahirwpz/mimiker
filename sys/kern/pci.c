@@ -149,8 +149,10 @@ void pci_bus_enumerate(device_t *pcib) {
         device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size, flags);
 
         int irq = pci_route_interrupt(dev);
-        if (irq != -1)
+        if (irq != -1) {
           device_add_irq(dev, 0, irq);
+          pci_write_config_1(dev, PCIR_IRQLINE, irq);
+	}
       }
     }
   }
