@@ -53,7 +53,7 @@ CONFIG = {
                     '-device', 'VGA',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
-                'network_options' : [
+                'network_options': [
                     '-device', 'rtl8139,netdev=net0',
                     '-netdev', 'user,id=net0,hostfwd=tcp::10022-:22',
                     '-object', 'filter-dump,id=net0,netdev=net0,file=rtl.pcap'
@@ -70,7 +70,7 @@ CONFIG = {
                     '-machine', 'raspi3',
                     '-smp', '4',
                     '-cpu', 'cortex-a53'],
-                'network_options' : [],
+                'network_options': [],
                 'uarts': [
                     dict(name='/dev/cons', port=uart_port(0))
                 ]
