@@ -24,7 +24,7 @@ struct range {
   rman_addr_t end;         /* last (inclusive) physical address */
   rman_flags_t flags;      /* or'ed RF_* values */
   int refcnt;              /* number of sharers */
-  refcnt_t active_cnt;     /* number of activations performed on the range */
+  int active_cnt;     /* number of activations performed on the range */
   TAILQ_ENTRY(range) link; /* link on range manager list */
 };
 
@@ -260,8 +260,10 @@ void resource_activate(resource_t *res) {
 
 void resource_deactivate(resource_t *res) {
   range_t *r = res->r_range;
-  if (refcnt_release(&r->active_cnt))
-    WITH_MTX_LOCK (&r->rman->rm_lock) { r->flags &= ~RF_ACTIVE; }
+  WITH_MTX_LOCK (&r->rman->rm_lock) { 
+    if (--r->active_cnt == 0)
+      r->flags &= ~RF_ACTIVE; 
+  }
 }
 
 /*! \brief Removes a range from its range manager and releases memory. */
