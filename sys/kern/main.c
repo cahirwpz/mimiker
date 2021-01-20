@@ -6,6 +6,7 @@
 #include <sys/pool.h>
 #include <sys/malloc.h>
 #include <sys/device.h>
+#include <sys/bus.h>
 #include <sys/kenv.h>
 #include <sys/sched.h>
 #include <sys/interrupt.h>
@@ -36,6 +37,9 @@ static void mount_fs(void) {
 static __noreturn void start_init(__unused void *arg) {
   proc_t *p = proc_self();
   int error;
+
+  /* [SECOND_PASS] Init devices that need extra kernel API to be functional. */
+  init_devices();
 
   assert(p->p_pid == 1);
   error = session_enter(p);
@@ -90,17 +94,15 @@ __noreturn void kernel_init(void) {
   init_callout();
   preempt_enable();
 
-  /* Init VFS. */
-  init_vfs();
+  /* [FIRST_PASS] Initialize first timer and console devices. */
+  init_devices();
 
+  init_vfs();
   init_proc();
   init_proc0();
 
   /* Mount filesystems (including devfs). */
   mount_fs();
-
-  /* First (FTTB also last) stage of device init. */
-  init_devices();
 
   /* Some clocks has been found during device init process,
    * so it's high time to start system clock. */
