@@ -410,7 +410,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     r->r_bus_handle = bh + resource_start(r);
   }
 
-  if (flags & RF_ACTIVE) {
+  if (type == RT_IOPORTS || flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, r)) {
       resource_release(r);
       return NULL;
@@ -447,7 +447,7 @@ static int gt_pci_activate_resource(device_t *dev, resource_t *r) {
 }
 
 static void gt_pci_deactivate_resource(device_t *dev, resource_t *r) {
-  /* TODO: unmap mapped resources. */
+  /* TODO: unmap mapped memory. */
 }
 
 static int gt_pci_probe(device_t *d) {
