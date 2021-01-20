@@ -24,7 +24,7 @@ struct range {
   rman_addr_t end;         /* last (inclusive) physical address */
   rman_flags_t flags;      /* or'ed RF_* values */
   int refcnt;              /* number of sharers */
-  int active_cnt;     /* number of activations performed on the range */
+  int active_cnt;          /* number of activations performed on the range */
   TAILQ_ENTRY(range) link; /* link on range manager list */
 };
 
@@ -195,6 +195,7 @@ static int rman_release_range(range_t *r) {
     return 1;
 
   assert(!r_active(r));
+  assert(!r->active_cnt);
 
   /*
    * Look at the adjacent range in the list and see if our range can be merged
@@ -254,15 +255,15 @@ void resource_activate(resource_t *res) {
   range_t *r = res->r_range;
   WITH_MTX_LOCK (&r->rman->rm_lock) {
     r->flags |= RF_ACTIVE;
-    refcnt_acquire(&r->active_cnt);
+    r->active_cnt++;
   }
 }
 
 void resource_deactivate(resource_t *res) {
   range_t *r = res->r_range;
-  WITH_MTX_LOCK (&r->rman->rm_lock) { 
+  WITH_MTX_LOCK (&r->rman->rm_lock) {
     if (--r->active_cnt == 0)
-      r->flags &= ~RF_ACTIVE; 
+      r->flags &= ~RF_ACTIVE;
   }
 }
 
