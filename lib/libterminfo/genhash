@@ -35,6 +35,8 @@
 set -e
 
 TERMH=${1:-term.h}
+STRUCT_NAME=_ti_gperf_key
+STRUCT_DECL="struct $STRUCT_NAME { const char *name; size_t idx; };"
 
 genent()
 {
@@ -49,13 +51,16 @@ genent()
 	echo
 	echo "static const char _ti_${name}ids[][${len}] = {"
 	sed -e "1,/enum TI${NAME}/d" -e '/};/,$d' \
-            -e 's/.*TICODE_\([^,]*\).*/	"\1",/' $TERMH
+      -e 's/.*TICODE_\([^,]*\).*/	"\1",/' $TERMH
+
 	echo "};"
 	echo
 	sed -e "1,/enum TI${NAME}/d" -e '/};/,$d' \
 	    -e 's/.*TICODE_\([^,]*\).*/\1/' $TERMH | \
+      awk "BEGIN {print \"$STRUCT_DECL\n%%\"} {print \$0 \", \" NR-1}" | \
 	    gperf --compare-strncmp --hash-function-name=_ti_${name}hash \
-            --lookup-function-name=__unused_${name} --enum
+            --lookup-function-name=_ti_${name}lookup --enum \
+            --struct-type --omit-struct-type --initializer-suffix=", 0"
 
 	cat <<EOF
 
@@ -71,13 +76,10 @@ _ti_${name}id(ssize_t idx)
 ssize_t
 _ti_${name}index(const char *key)
 {
-	uint32_t idx;
+  struct $STRUCT_NAME *p;
 
-	idx = _ti_${name}hash((const char *)key, strlen(key));
-	if (idx >= __arraycount(_ti_${name}ids) ||
-	    strcmp(key, _ti_${name}ids[idx]) != 0)
-		return -1;
-	return idx;
+  p = _ti_${name}lookup(key, strlen(key));
+  return (p ? (ssize_t)p->idx : -1);
 }
 EOF
 }
@@ -91,6 +93,9 @@ cat <<EOF
 #include <string.h>
 #include <term_private.h>
 #include <term.h>
+
+$STRUCT_DECL
+
 EOF
 
 genent flag FLAG
