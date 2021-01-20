@@ -18,5 +18,5 @@ termcap_hash.c: genthash termcap_map.c
 		@echo "Generating termcap hash"
 		CC="$(CC)" sh $^ > $@
 
-CLEAN-FILES += termcap_hash.c
+CLEAN-FILES += termcap_hash.c hash.c
 
