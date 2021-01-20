@@ -98,42 +98,74 @@ bus_space_t *generic_bus_space = &(bus_space_t){
 };
 /* clang-format on */
 
-int bus_activate_resource(device_t *dev, res_type_t type, resource_t *r) {
-  if (r->r_flags & RF_ACTIVE)
+int bus_activate_resource(device_t *dev, resource_t *r) {
+  if (resource_active(r))
     return 0;
 
-  int error = BUS_METHODS(dev->parent).activate_resource(dev, type, r);
+  device_t *idev = BUS_METHOD_PROVIDER(dev, activate_resource);
+  int error = BUS_METHODS(idev->parent).activate_resource(idev, r);
   if (error == 0)
-    rman_activate_resource(r);
+    resource_activate(r);
   return error;
 }
 
-void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r) {
-  if (r->r_flags & RF_ACTIVE)
-    BUS_METHODS(dev->parent).deactivate_resource(dev, type, r);
-  rman_deactivate_resource(r);
+void bus_deactivate_resource(device_t *dev, resource_t *r) {
+  if (resource_active(r)) {
+    device_t *idev = BUS_METHOD_PROVIDER(dev, deactivate_resource);
+    BUS_METHODS(idev->parent).deactivate_resource(idev, r);
+  }
+  resource_deactivate(r);
 }
 
+/* System-wide current pass number. */
+static drv_pass_t current_pass;
+
 int bus_generic_probe(device_t *bus) {
-  int error = 0;
   devclass_t *dc = bus->devclass;
   if (!dc)
-    return error;
+    return 0;
   device_t *dev;
   TAILQ_FOREACH (dev, &bus->children, link) {
+    if (dev->driver) {
+      if (device_bus(dev))
+        bus_generic_probe(dev);
+      continue;
+    }
+
     driver_t **drv_p;
     DEVCLASS_FOREACH(drv_p, dc) {
-      dev->driver = *drv_p;
+      driver_t *driver = *drv_p;
+      if (driver->pass > current_pass)
+        continue;
+      dev->driver = driver;
       if (device_probe(dev)) {
-        klog("%s detected!", dev->driver->desc);
+        klog("%s detected!", driver->desc);
         /* device_attach returns error ! */
         if (!device_attach(dev)) {
-          klog("%s attached to %p!", dev->driver->desc, dev);
+          klog("%s attached to %p!", driver->desc, dev);
           break;
         }
       }
       dev->driver = NULL;
     }
   }
-  return error;
+  return 0;
+}
+
+DEVCLASS_DECLARE(root);
+
+void init_devices(void) {
+  assert(current_pass < PASS_COUNT);
+  extern driver_t rootdev_driver;
+  static device_t *rootdev;
+  if (rootdev == NULL) {
+    rootdev = device_alloc(0);
+    rootdev->devclass = &DEVCLASS(root);
+    rootdev->driver = (driver_t *)&rootdev_driver;
+    device_probe(rootdev);
+    device_attach(rootdev);
+  } else {
+    bus_generic_probe(rootdev);
+  }
+  current_pass++;
 }

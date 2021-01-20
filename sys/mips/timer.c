@@ -7,23 +7,13 @@
 #include <sys/devclass.h>
 #include <sys/device.h>
 #include <sys/interrupt.h>
-#include <sys/time.h>
 #include <sys/timer.h>
-
-typedef union {
-  /* assumes little endian order */
-  struct {
-    uint32_t lo;
-    uint32_t hi;
-  };
-  uint64_t val;
-} counter_t;
 
 typedef struct mips_timer_state {
   uint32_t period_cntr;       /* number of counter ticks in a period */
   uint32_t last_count_lo;     /* used to detect counter overflow */
-  volatile counter_t count;   /* last written value of counter reg. (64 bits) */
-  volatile counter_t compare; /* last read value of compare reg. (64 bits) */
+  volatile timercntr_t count; /* last written value of counter reg. (64 bits) */
+  volatile timercntr_t compare; /* last read value of compare reg. (64 bits) */
   timer_t timer;
   resource_t *irq_res;
 } mips_timer_state_t;
@@ -63,7 +53,7 @@ static intr_filter_t mips_timer_intr(void *data) {
   device_t *dev = data;
   mips_timer_state_t *state = dev->state;
   /* TODO(cahir): can we tell scheduler that clock ticked more than once? */
-  set_next_tick(state);
+  (void)set_next_tick(state);
   tm_trigger(&state->timer);
   return IF_FILTERED;
 }
@@ -134,6 +124,7 @@ static int mips_timer_attach(device_t *dev) {
 static driver_t cpu_mips_timer = {
   .desc = "MIPS CPU timer driver",
   .size = sizeof(mips_timer_state_t),
+  .pass = FIRST_PASS,
   .probe = mips_timer_probe,
   .attach = mips_timer_attach,
 };
