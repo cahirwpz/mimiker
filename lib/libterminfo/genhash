@@ -55,7 +55,7 @@ genent()
 	sed -e "1,/enum TI${NAME}/d" -e '/};/,$d' \
 	    -e 's/.*TICODE_\([^,]*\).*/\1/' $TERMH | \
 	    gperf --compare-strncmp --hash-function-name=_ti_${name}hash \
-            --lookup-function-name=__unused_${name} | $CC -E -P -
+            --lookup-function-name=__unused_${name} --enum
 
 	cat <<EOF
 

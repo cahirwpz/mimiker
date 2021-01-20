@@ -12,11 +12,11 @@ include $(TOPDIR)/build/build.lib.mk
 # Generate our string and hash tables
 hash.c: genhash $(TOPDIR)/include/term.h
 		@echo "Generating terminfo hash"
-		CC="$(CC)" sh $^ > $@
+		sh $^ > $@
 
 termcap_hash.c: genthash termcap_map.c
 		@echo "Generating termcap hash"
-		CC="$(CC)" sh $^ > $@
+		sh $^ > $@
 
 CLEAN-FILES += termcap_hash.c hash.c
 
