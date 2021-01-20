@@ -40,37 +40,36 @@ STRUCT_DECL="struct $STRUCT_NAME { const char *name; size_t idx; };"
 
 genent()
 {
-	local name=$1 NAME=$2 len=
+  local name=$1 NAME=$2 len=
 
-	# Calculate the maximum word length plus terminator
-	len=$(sed -e "1,/enum TI${NAME}/d" -e '/};/,$d' \
+  # Calculate the maximum word length plus terminator
+  len=$(sed -e "1,/enum TI${NAME}/d" -e '/};/,$d' \
             -e 's/.*TICODE_\([^,]*\).*/\1X/' $TERMH | \
-	    awk \
-	    'BEGIN {L=0} {if (length($1)>L) L=length($1)} END {print L}')
+            awk 'BEGIN {L=0} {if (length($1)>L) L=length($1)} END {print L}')
 
-	echo
-	echo "static const char _ti_${name}ids[][${len}] = {"
-	sed -e "1,/enum TI${NAME}/d" -e '/};/,$d' \
-      -e 's/.*TICODE_\([^,]*\).*/	"\1",/' $TERMH
+  echo
+  echo "static const char _ti_${name}ids[][${len}] = {"
+  sed -e "1,/enum TI${NAME}/d" -e '/};/,$d' \
+      -e 's/.*TICODE_\([^,]*\).*/  "\1",/' $TERMH
 
-	echo "};"
-	echo
-	sed -e "1,/enum TI${NAME}/d" -e '/};/,$d' \
-	    -e 's/.*TICODE_\([^,]*\).*/\1/' $TERMH | \
+  echo "};"
+  echo
+  sed -e "1,/enum TI${NAME}/d" -e '/};/,$d' \
+      -e 's/.*TICODE_\([^,]*\).*/\1/' $TERMH | \
       awk "BEGIN {print \"$STRUCT_DECL\n%%\"} {print \$0 \", \" NR-1}" | \
-	    gperf --compare-strncmp --hash-function-name=_ti_${name}hash \
+      gperf --compare-strncmp --hash-function-name=_ti_${name}hash \
             --lookup-function-name=_ti_${name}lookup --enum \
             --struct-type --omit-struct-type --initializer-suffix=", 0"
 
-	cat <<EOF
+  cat <<EOF
 
 const char *
 _ti_${name}id(ssize_t idx)
 {
 
-	if ((size_t)idx >= __arraycount(_ti_${name}ids))
-		return NULL;
-	return _ti_${name}ids[idx];
+  if ((size_t)idx >= __arraycount(_ti_${name}ids))
+    return NULL;
+  return _ti_${name}ids[idx];
 }
 
 ssize_t
