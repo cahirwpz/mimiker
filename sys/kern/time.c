@@ -163,8 +163,7 @@ static systime_t tv2hz(const timeval_t *tv) {
   return ts2hz(&ts);
 }
 
-static void kitimer_get(proc_t *p, kitimer_t *timer,
-                            struct itimerval *tval) {
+static void kitimer_get(proc_t *p, kitimer_t *timer, struct itimerval *tval) {
   assert(mtx_owned(&p->p_lock));
 
   if (p->p_flags & PF_ITIMER_ACTIVE) {
@@ -222,18 +221,8 @@ static void kitimer_timeout(void *arg) {
 
   sig_kill(p, &DEF_KSI_RAW(SIGALRM));
 
-  kitimer_t *timer = &p->p_itimer;
-  systime_t interval = timer->kit_interval;
-  callout_t *callout = &timer->kit_callout;
-  /* To avoid timer drift (the callout might run later than it was supposed to),
-   * Set the next callout relative to the intended time of this callout, not
-   * relative to the actual time it ran.*/
-  if (interval) {
-    systime_t intended = callout->c_time;
-    callout_setup(callout, intended + interval, kitimer_timeout, p);
-  } else {
+  if (p->p_itimer.kit_callout.c_interval == 0)
     p->p_flags &= ~PF_ITIMER_ACTIVE;
-  }
 }
 
 /* The timer must have been stopped prior to calling this function. */
@@ -245,7 +234,8 @@ static void kitimer_setup(proc_t *p, kitimer_t *timer, systime_t next,
   if (next) {
     timer->kit_interval = interval;
     p->p_flags |= PF_ITIMER_ACTIVE;
-    callout_setup_relative(&timer->kit_callout, next, kitimer_timeout, p);
+    callout_setup_relative_periodic(&timer->kit_callout, next, interval,
+                                    kitimer_timeout, p);
   }
 }
 
