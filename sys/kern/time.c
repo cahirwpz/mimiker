@@ -163,7 +163,7 @@ static systime_t tv2hz(const timeval_t *tv) {
   return ts2hz(&ts);
 }
 
-static void kitimer_convert(proc_t *p, kitimer_t *timer,
+static void kitimer_get(proc_t *p, kitimer_t *timer,
                             struct itimerval *tval) {
   assert(mtx_owned(&p->p_lock));
 
@@ -184,7 +184,7 @@ int do_getitimer(proc_t *p, int which, struct itimerval *tval) {
 
   SCOPED_MTX_LOCK(&p->p_lock);
 
-  kitimer_convert(p, &p->p_itimer, tval);
+  kitimer_get(p, &p->p_itimer, tval);
 
   return 0;
 }
@@ -272,7 +272,7 @@ int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
 
   if (oval) {
     /* Store old timer value. */
-    kitimer_convert(p, timer, oval);
+    kitimer_get(p, timer, oval);
   }
 
   kitimer_stop(p, timer);
