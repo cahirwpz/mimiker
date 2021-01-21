@@ -40,7 +40,7 @@ void	 sigint(int);
 void	 sleepexit(int);
 const	 char *stypeof(const char *);
 void	 timedout(int);
-#ifdef SOCKETS
+#ifdef NOT_IMPLEMENTED
 void	 decode_ss(const char *);
 void	 update_db(int, int, int);
 #else

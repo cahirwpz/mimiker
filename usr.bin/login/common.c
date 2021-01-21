@@ -38,7 +38,7 @@
 #include <stdlib.h>
 #include <syslog.h>
 #include <fcntl.h>
-#ifdef TTYENT
+#ifdef NOT_IMPLEMENTED
 #include <ttyent.h>
 #endif
 #include <setjmp.h>
@@ -75,7 +75,7 @@ static void	 dolastlogx(int);
  */
 u_int	timeout = 300;
 
-#ifdef SOCKETS
+#ifdef NOT_IMPLEMENTED
 void	 decode_ss(const char *);
 #endif
 struct	passwd *pwd;
@@ -83,7 +83,7 @@ int	failures, have_ss;
 char	term[64], *envinit[1], *hostname, *tty, *nested;
 const char *username;
 struct timeval now;
-#ifdef SOCKETS
+#ifdef NOT_IMPLEMENTED
 struct sockaddr_storage ss;
 #endif
 
@@ -128,7 +128,7 @@ getloginname(void)
 int
 rootterm(char *ttyn)
 {
-#ifdef TTYENT
+#ifdef NOT_IMPLEMENTED
 	struct ttyent *t;
 
 	return ((t = getttynam(ttyn)) && t->ty_status & TTY_SECURE);
@@ -172,7 +172,7 @@ timedout(int signo)
 	exit(EXIT_FAILURE);
 }
 
-#ifdef SOCKETS
+#ifdef NOT_IMPLEMENTED
 void
 update_db(int quietlog, int rootlogin, int fflag)
 {
@@ -243,7 +243,7 @@ update_db(int quietlog, int rootlogin, int fflag)
 	dolastlog(quietlog);
 #endif
 }
-#endif /* !SOCKETS */
+#endif /* !NOT_IMPLEMENTED */
 
 #ifdef SUPPORT_UTMPX
 static void
@@ -379,7 +379,7 @@ badlogin(const char *name)
 const char *
 stypeof(const char *ttyid)
 {
-#ifdef TTYENT
+#ifdef NOT_IMPLEMENTED
 	struct ttyent *t;
 
 	return (ttyid && (t = getttynam(ttyid)) ? t->ty_type : NULL);
@@ -395,7 +395,7 @@ sleepexit(int eval)
 	exit(eval);
 }
 
-#ifdef SOCKETS
+#ifdef NOT_IMPLEMENTED
 void
 decode_ss(const char *arg)
 {

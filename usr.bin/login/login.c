@@ -56,7 +56,9 @@
 #include <string.h>
 #include <syslog.h>
 #include <time.h>
-//#include <ttyent.h>
+#ifdef NOT_IMPLEMENTED
+#include <ttyent.h>
+#endif
 #include <tzfile.h>
 #include <unistd.h>
 #include <sysexits.h>
@@ -125,7 +127,9 @@ int
 main(int argc, char *argv[])
 {
 	struct group *gr;
-	//struct stat st;
+#ifdef NOT_IMPLEMENTED
+	struct stat st;
+#endif
 	int ask, ch, cnt, fflag, hflag, pflag, sflag, quietlog, rootlogin, rval;
 	uid_t uid, saved_uid;
 	gid_t saved_gid, saved_gids[NGROUPS_MAX];
@@ -136,7 +140,9 @@ main(int argc, char *argv[])
 	char *p, *ttyn;
 	const char *pwprompt;
 	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
-	//char localhost[MAXHOSTNAMELEN + 1];
+#ifdef NOT_IMPLEMENTED
+	char localhost[MAXHOSTNAMELEN + 1];
+#endif
 	int need_chpass, require_chpass;
 	int login_retries = DEFAULT_RETRIES, 
 	    login_backoff = DEFAULT_BACKOFF;
@@ -166,7 +172,9 @@ main(int argc, char *argv[])
 	(void)signal(SIGINT, SIG_IGN);
 	(void)setpriority(PRIO_PROCESS, 0, 0);
 
-	//openlog("login", 0, LOG_AUTH);
+#ifdef NOT_IMPLEMENTED
+	openlog("login", 0, LOG_AUTH);
+#endif
 
 	/*
 	 * -p is used by getty to tell login not to destroy the environment
@@ -177,14 +185,18 @@ main(int argc, char *argv[])
 	 *    server address.
 	 * -s is used to force use of S/Key or equivalent.
 	 */
-//	if (gethostname(localhost, sizeof(localhost)) < 0) {
-//		syslog(LOG_ERR, "couldn't get local hostname: %m");
-//		strcpy(hostname, "amnesiac");
-//	}
+#ifdef NOT_IMPLEMENTED
+	if (gethostname(localhost, sizeof(localhost)) < 0) {
+		syslog(LOG_ERR, "couldn't get local hostname: %m");
+		strcpy(hostname, "amnesiac");
+	}
+	#endif
 #ifdef notdef
 	domain = strchr(localhost, '.');
 #endif
-	//localhost[sizeof(localhost) - 1] = '\0';
+#ifdef NOT_IMPLEMENTED
+	localhost[sizeof(localhost) - 1] = '\0';
+#endif
 
 	fflag = hflag = pflag = sflag = 0;
 	have_ss = 0;
@@ -235,7 +247,9 @@ main(int argc, char *argv[])
 			break;
 		}
 
-	//setproctitle(NULL);
+#ifdef NOT_IMPLEMENTED
+	setproctitle(NULL);
+#endif
 	argc -= optind;
 	argv += optind;
 
@@ -549,7 +563,7 @@ main(int argc, char *argv[])
 	(void)chown(ttyn, pwd->pw_uid,
 	    (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid);
 
-#ifdef TTYACTION
+#ifdef NOT_IMPLEMENTED
 	if (ttyaction(ttyn, "login", pwd->pw_name))
 		(void)printf("Warning: ttyaction failed.\n");
 #endif
@@ -596,7 +610,7 @@ main(int argc, char *argv[])
 	if ((shell = login_getcapstr(lc, "shell", NULL, NULL)) != NULL) {
 		if ((shell = strdup(shell)) == NULL) {
 			syslog(LOG_ERR, "Cannot alloc mem");
-			exit(EXIT_FAILURE);
+			sleepexit(EXIT_FAILURE);
 		}
 		pwd->pw_shell = shell;
 	}
@@ -651,7 +665,9 @@ main(int argc, char *argv[])
 			motd(fname);
 		else
 #endif
-			//(void)printf("%s", copyrightstr);
+#ifdef NOT_IMPLEMENTED
+			(void)printf("%s", copyrightstr);
+#endif
 
 #ifdef LOGIN_CAP
 		fname = login_getcapstr(lc, "welcome", NULL, NULL);
@@ -660,7 +676,7 @@ main(int argc, char *argv[])
 			fname = _PATH_MOTDFILE;
 		motd(fname);
 
-#ifdef MAIL
+#ifdef NOT_IMPLEMENTED
 		(void)snprintf(tbuf,
 		    sizeof(tbuf), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
 		if (stat(tbuf, &st) == 0 && st.st_size != 0)
@@ -695,14 +711,14 @@ main(int argc, char *argv[])
 			switch (fork()) {
 			case -1:
 				warn("fork");
-				exit(EXIT_FAILURE);
+				sleepexit(EXIT_FAILURE);
 			case 0:
 				execl(_PATH_BINPASSWD, "passwd", NULL);
 				_exit(EXIT_FAILURE);
 			default:
 				if (wait(&status) == -1 ||
 				    WEXITSTATUS(status))
-					exit(EXIT_FAILURE);
+					sleepexit(EXIT_FAILURE);
 			}
 		}
 	}
