@@ -10,9 +10,10 @@ typedef void (*timeout_t)(void *);
 
 typedef struct callout {
   TAILQ_ENTRY(callout) c_link;
-  systime_t c_time; /* absolute time of the event */
-  timeout_t c_func; /* function to call */
-  void *c_arg;      /* function argument */
+  systime_t c_time;     /* absolute time of the event */
+  systime_t c_interval; /* interval for periodic callouts, 0 for non-periodic */
+  timeout_t c_func;     /* function to call */
+  void *c_arg;          /* function argument */
   uint32_t c_flags;
   unsigned c_index; /* index of bucket this callout is assigned to */
 } callout_t;
