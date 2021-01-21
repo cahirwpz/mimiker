@@ -712,6 +712,7 @@ main(int argc, char *argv[])
 			case -1:
 				warn("fork");
 				sleepexit(EXIT_FAILURE);
+        break;
 			case 0:
 				execl(_PATH_BINPASSWD, "passwd", NULL);
 				_exit(EXIT_FAILURE);
