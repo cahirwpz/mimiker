@@ -44,6 +44,9 @@ static inline callout_list_t *ci_list(int i) {
 
 static callout_list_t delegated;
 
+static void _callout_setup(callout_t *handle, systime_t time,
+                           systime_t interval, timeout_t fn, void *arg);
+
 static void callout_thread(void *arg) {
   while (true) {
     callout_t *elem;
@@ -67,8 +70,8 @@ static void callout_thread(void *arg) {
       callout_clear_active(elem);
       if (elem->c_interval) {
         /* Periodic callout: reschedule. */
-        _callout_setup(elem, elem->c_time + elem->c_interval, elem->c_func,
-                       elem->c_arg);
+        _callout_setup(elem, elem->c_time + elem->c_interval, elem->c_interval,
+                       elem->c_func, elem->c_arg);
       } else {
         /* Wake threads that wait for execution of this callout in
          * callout_drain. */
