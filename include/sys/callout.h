@@ -50,8 +50,9 @@ void callout_setup_periodic(callout_t *handle, systime_t time,
  * The function will be called every @interval ticks,
  * starting at <current time> + @time.
  */
-void callout_setup_periodic(callout_t *handle, systime_t time,
-                            systime_t interval, timeout_t fn, void *arg);
+void callout_setup_relative_periodic(callout_t *handle, systime_t time,
+                                     systime_t interval, timeout_t fn,
+                                     void *arg);
 /*
  * Cancel a callout if it is currently pending.
  *
