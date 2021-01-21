@@ -124,8 +124,8 @@ int bus_activate_resource(device_t *dev, resource_t *r) {
 }
 
 void bus_deactivate_resource(device_t *dev, resource_t *r) {
-  assert(resource_active(r));
   if (r->r_type != RT_IRQ) {
+    assert(resource_active(r));
     device_t *idev = BUS_METHOD_PROVIDER(dev, deactivate_resource);
     BUS_METHODS(idev->parent).deactivate_resource(idev, r);
     resource_deactivate(r);
