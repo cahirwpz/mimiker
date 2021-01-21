@@ -237,6 +237,18 @@ int do_getdents(proc_t *p, int fd, uio_t *uio) {
   return error;
 }
 
+static int vfs_check_remove(vnode_t *dvp, vnode_t *vp, cred_t *cred) {
+  vattr_t dva;
+  accmode_t diracc = VWRITE;
+  int error;
+  VOP_GETATTR(dvp, &dva);
+
+  if (dva.va_mode & S_ISTXT)
+    if ((error = VOP_ACCESS(vp, VADMIN, cred)))
+      diracc |= VADMIN;
+
+  return VOP_ACCESS(dvp, diracc, cred);
+}
 int do_unlinkat(proc_t *p, int fd, char *path, int flag) {
   vnrstate_t vs;
   int error;
@@ -254,12 +266,12 @@ int do_unlinkat(proc_t *p, int fd, char *path, int flag) {
   else if (vs.vs_vp->v_type == V_DIR) {
     if (!(flag & AT_REMOVEDIR))
       error = EPERM;
-    else if (!(error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred)))
+    else if (!(error = vfs_check_remove(vs.vs_dvp, vs.vs_vp, &p->p_cred)))
       error = VOP_RMDIR(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
   } else {
     if (flag & AT_REMOVEDIR)
       error = ENOTDIR;
-    else if (!(error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred)))
+    else if (!(error = vfs_check_remove(vs.vs_dvp, vs.vs_vp, &p->p_cred)))
       error = VOP_REMOVE(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
   }
 
