@@ -965,7 +965,7 @@ static int tmpfs_mount(mount_t *mp) {
   /* Allocate the root node. */
   vattr_t va;
   vattr_null(&va);
-  va.va_mode = S_IFDIR | ACCESSPERMS;
+  va.va_mode = S_IFDIR | ACCESSPERMS | S_ISTXT;
   va.va_uid = 0;
   va.va_gid = 0;
   tmpfs_node_t *root = tmpfs_new_node(tfm, &va, V_DIR);
