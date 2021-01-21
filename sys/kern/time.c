@@ -215,8 +215,10 @@ static void kitimer_timeout(void *arg) {
 
   assert(p->p_flags & PF_ITIMER_ACTIVE);
 
-  if (!proc_is_alive(p))
+  if (!proc_is_alive(p)) {
+    p->p_flags &= ~PF_ITIMER_ACTIVE;
     return;
+  }
 
   sig_kill(p, &DEF_KSI_RAW(SIGALRM));
 
