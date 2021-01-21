@@ -30,14 +30,6 @@
  */
 
 #include <sys/cdefs.h>
-#if defined(LIBC_SCCS) && !defined(lint)
-#if 0
-static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: execlp.c,v 1.13 2014/09/26 19:28:03 christos Exp $");
-#endif
-#endif /* LIBC_SCCS and not lint */
-
 #include <stdarg.h>
 #include <stdlib.h>
 #include <unistd.h>

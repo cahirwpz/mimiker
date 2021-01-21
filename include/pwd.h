@@ -71,9 +71,8 @@
 #define _PATH_MASTERPASSWD "/etc/master.passwd"
 #define _PASSWORD_LEN 128
 #define _PASSWORD_WARNDAYS 14
-#define _PASSWORD_CHGNOW                                                       \
-  -1 /* special day to force password                                          \
-      * change at next login */
+/* special day to force password change at next login */
+#define _PASSWORD_CHGNOW -1
 
 struct passwd {
   const char *pw_name;   /* user name */
