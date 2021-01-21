@@ -39,10 +39,26 @@ void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
                             void *arg);
 
 /*
+ * Add a callout to the queue.
+ * The function will be called every @interval ticks, starting at @time.
+ */
+void callout_setup_periodic(callout_t *handle, systime_t time,
+                            systime_t interval, timeout_t fn, void *arg);
+
+/*
+ * Add a callout to the queue.
+ * The function will be called every @interval ticks,
+ * starting at <current time> + @time.
+ */
+void callout_setup_periodic(callout_t *handle, systime_t time,
+                            systime_t interval, timeout_t fn, void *arg);
+/*
  * Cancel a callout if it is currently pending.
  *
  * \return True if the callout was pending and has been stopped, false if the
  * callout has already been delegated to callout thread or executed.
+ * A periodic callout will no longer be periodic after calling this function
+ * on it.
  *
  * \warning It's not safe to deallocate callout memory after it has been
  * stopped. You should use \a callout_drain if you need that.
