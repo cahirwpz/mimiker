@@ -377,7 +377,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
                                          rman_flags_t flags) {
   /* Currently all devices are logicaly attached to PCI bus,
    * because we don't have PCI-ISA bridge implemented. */
-  assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
+  assert(dev->bus == DEV_BUS_PCI);
 
   device_t *pcib = dev->parent;
   gt_pci_state_t *gtpci = pcib->state;
