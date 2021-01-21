@@ -22,6 +22,11 @@ void tlb_invalidate(vaddr_t va, asid_t asid) {
   if (asid > 0) {
     __tlbi("vae1is", ASID_TO_PTE(asid) | (va >> PAGE_SHIFT));
   } else {
+    /*
+     * We don't know why but NetBSD, FreeBSD and Linux use vaae1is for kernel.
+     * Using vae1is for kernel still works for us but we don't want to leave
+     * potential bug in that part of code.
+     */
     __tlbi("vaae1is", va >> PAGE_SHIFT);
   }
 
