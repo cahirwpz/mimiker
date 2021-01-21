@@ -79,6 +79,8 @@ static int sys_fchown(proc_t *, fchown_args_t *, register_t *);
 static int sys_fchownat(proc_t *, fchownat_args_t *, register_t *);
 static int sys_getlogin(proc_t *, getlogin_args_t *, register_t *);
 static int sys_setlogin(proc_t *, setlogin_args_t *, register_t *);
+static int sys_getitimer(proc_t *, getitimer_args_t *, register_t *);
+static int sys_setitimer(proc_t *, setitimer_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { .nargs = 1, .call = (syscall_t *)sys_syscall },
@@ -155,5 +157,7 @@ struct sysent sysent[] = {
   [SYS_fchownat] = { .nargs = 5, .call = (syscall_t *)sys_fchownat },
   [SYS_getlogin] = { .nargs = 2, .call = (syscall_t *)sys_getlogin },
   [SYS_setlogin] = { .nargs = 1, .call = (syscall_t *)sys_setlogin },
+  [SYS_getitimer] = { .nargs = 2, .call = (syscall_t *)sys_getitimer },
+  [SYS_setitimer] = { .nargs = 3, .call = (syscall_t *)sys_setitimer },
 };
 

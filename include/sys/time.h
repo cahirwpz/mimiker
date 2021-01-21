@@ -163,6 +163,23 @@ struct itimerval {
 
 #ifdef _KERNEL
 
+#include <sys/callout.h>
+
+typedef struct proc proc_t;
+
+/* Kernel interval timer.
+ * Its active status is stored in the containing process's p_flags. */
+typedef struct {
+  systime_t kit_interval;
+  callout_t kit_callout;
+} kitimer_t;
+
+/* Stop the interval timer associated with a process.
+ * After this function returns, it's safe to free the timer structure.
+ * Must be called with p->p_lock held.
+ * NOTE: This function may release and re-acquire p->p_lock. */
+void kitimer_stop(proc_t *p, kitimer_t *timer);
+
 /* Time measured from the start of system. */
 bintime_t binuptime(void);
 
@@ -177,6 +194,11 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp);
 
 int do_clock_nanosleep(clockid_t clk, int flags, timespec_t *rqtp,
                        timespec_t *rmtp);
+
+int do_getitimer(proc_t *p, int which, struct itimerval *tval);
+
+int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
+                 struct itimerval *oval);
 
 #else /* _KERNEL */
 

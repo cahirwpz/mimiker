@@ -1093,3 +1093,35 @@ static int sys_setlogin(proc_t *p, setlogin_args_t *args, register_t *res) {
 
   return do_setlogin(login_tmp);
 }
+
+static int sys_getitimer(proc_t *p, getitimer_args_t *args, register_t *res) {
+  int which = SCARG(args, which);
+  struct itimerval *u_tval = SCARG(args, val);
+  int error;
+
+  struct itimerval tval;
+
+  if ((error = do_getitimer(p, which, &tval)))
+    return error;
+
+  return copyout_s(tval, u_tval);
+}
+
+static int sys_setitimer(proc_t *p, setitimer_args_t *args, register_t *res) {
+  int which = SCARG(args, which);
+  struct itimerval *u_tval = SCARG(args, val);
+  struct itimerval *u_oval = SCARG(args, oval);
+  int error;
+
+  struct itimerval tval, oval;
+  if ((error = copyin_s(u_tval, tval)))
+    return error;
+
+  if ((error = do_setitimer(p, which, &tval, u_oval ? &oval : NULL)))
+    return error;
+
+  if (u_oval)
+    error = copyout_s(oval, u_oval);
+
+  return error;
+}
