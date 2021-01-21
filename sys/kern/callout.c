@@ -62,9 +62,19 @@ static void callout_thread(void *arg) {
 
     /* Execute callout's function. */
     elem->c_func(elem->c_arg);
-    callout_clear_active(elem);
-    /* Wake threads that wait for execution of this callout in callout_drain. */
-    sleepq_broadcast(elem);
+
+    WITH_SPIN_LOCK (&ci.lock) {
+      callout_clear_active(elem);
+      if (elem->c_interval) {
+        /* Periodic callout: reschedule. */
+        _callout_setup(elem, elem->c_time + elem->c_interval, elem->c_func,
+                       elem->c_arg);
+      } else {
+        /* Wake threads that wait for execution of this callout in
+         * callout_drain. */
+        sleepq_broadcast(elem);
+      }
+    }
   }
 }
 
@@ -83,8 +93,8 @@ void init_callout(void) {
   sched_add(td);
 }
 
-static void _callout_setup(callout_t *handle, systime_t time, timeout_t fn,
-                           void *arg) {
+static void _callout_setup(callout_t *handle, systime_t time,
+                           systime_t interval, timeout_t fn, void *arg) {
   assert(spin_owned(&ci.lock));
   assert(!callout_is_pending(handle));
   assert(!callout_is_active(handle));
@@ -93,6 +103,7 @@ static void _callout_setup(callout_t *handle, systime_t time, timeout_t fn,
 
   bzero(handle, sizeof(callout_t));
   handle->c_time = time;
+  handle->c_interval = interval;
   handle->c_func = fn;
   handle->c_arg = arg;
   handle->c_index = index;
@@ -105,7 +116,7 @@ static void _callout_setup(callout_t *handle, systime_t time, timeout_t fn,
 void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
   SCOPED_SPIN_LOCK(&ci.lock);
 
-  _callout_setup(handle, time, fn, arg);
+  _callout_setup(handle, time, 0, fn, arg);
 }
 
 void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
@@ -113,13 +124,31 @@ void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
   SCOPED_SPIN_LOCK(&ci.lock);
 
   systime_t now = getsystime();
-  _callout_setup(handle, now + time, fn, arg);
+  _callout_setup(handle, now + time, 0, fn, arg);
+}
+
+void callout_setup_periodic(callout_t *handle, systime_t time,
+                            systime_t interval, timeout_t fn, void *arg) {
+  SCOPED_SPIN_LOCK(&ci.lock);
+
+  _callout_setup(handle, time, interval, fn, arg);
+}
+
+void callout_setup_relative_periodic(callout_t *handle, systime_t time,
+                                     systime_t interval, timeout_t fn,
+                                     void *arg) {
+  SCOPED_SPIN_LOCK(&ci.lock);
+
+  systime_t now = getsystime();
+  _callout_setup(handle, now + time, interval, fn, arg);
 }
 
 bool callout_stop(callout_t *handle) {
   SCOPED_SPIN_LOCK(&ci.lock);
 
   klog("Remove callout {%p} at %ld.", handle, handle->c_time);
+
+  handle->c_interval = 0;
 
   if (callout_is_pending(handle)) {
     callout_clear_pending(handle);
@@ -131,8 +160,8 @@ bool callout_stop(callout_t *handle) {
 }
 
 /*
- * Process all timeouted callouts from queues between last position and current
- * position and delegate them to callout thread.
+ * Process all timeouted callouts from queues between last position and
+ * current position and delegate them to callout thread.
  */
 void callout_process(systime_t time) {
   unsigned int last_bucket;
