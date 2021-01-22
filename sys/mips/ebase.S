@@ -392,14 +392,14 @@ user_exc_leave:
         LOAD_PCPU(t0)
         lw      t0, PCPU_CURTHREAD(t0)
         lw      t1, TD_PFLAGS(t0)
-        and     t1, t1, TDP_FPCTXSAVED
-        beqz    t1, skip_fpu_restore
+        and     t2, t1, TDP_FPCTXSAVED
+        beqz    t2, skip_fpu_restore
         nop
 
         # Clear TD_FPCTXSAVED flag.
-        lw      t1, TD_PFLAGS(t0)
-        nor     t2, zero, TDP_FPCTXSAVED
-        and     t1, t1, t2
+        # We know that t2 == TDP_FPCTXSAVED and that the flag is set so we can
+        # just xor t2 with td_pflags.
+        xor     t1, t1, t2
         sw      t1, TD_PFLAGS(t0)
 
         # Enable FPU and load FPU context
