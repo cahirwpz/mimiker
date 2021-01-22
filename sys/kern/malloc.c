@@ -388,7 +388,7 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
 
   /* Create redzone after the buffer. */
   kasan_mark(ptr, size, req_size - USEDBLK_SZ, KASAN_CODE_KMALLOC_OVERFLOW);
-  if (flags == M_ZERO)
+  if (flags & M_ZERO)
     bzero(ptr, size);
   return ptr;
 }
