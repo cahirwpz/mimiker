@@ -26,6 +26,7 @@ int execlp(const char *, const char *, ...);
 int execv(const char *, char *const *);
 int execve(const char *, char *const *, char *const *);
 int execvp(const char *, char *const *);
+int execvpe(const char *, char *const *, char *const *);
 pid_t fork(void);
 long fpathconf(int, int);
 char *getcwd(char *, size_t);
@@ -59,7 +60,7 @@ unsigned int sleep(unsigned int);
 long sysconf(int);
 pid_t tcgetpgrp(int);
 int tcsetpgrp(int, pid_t);
-const char *ttyname(int);
+char *ttyname(int);
 int unlink(const char *);
 ssize_t write(int, const void *, size_t);
 
