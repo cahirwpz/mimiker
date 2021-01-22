@@ -140,7 +140,7 @@ void user_trap_handler(mcontext_t *uctx) {
       break;
 
     case EXCP_FP_SIMD:
-      thread_self()->td_pflags |= TDP_FPCTXUSED;
+      thread_self()->td_pflags |= TDP_FPUINUSE;
       break;
 
     default:

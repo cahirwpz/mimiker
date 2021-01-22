@@ -76,11 +76,12 @@ ENTRY(ctx_switch)
         # save context of @from thread
 .ctx_save:
         ldr     w3, [x0, #TD_PFLAGS]
-        and     w2, w3, #TDP_FPCTXUSED
-        cmp     w2, wzr
-        beq     .skip_fpu_save
+        and     w2, w3, #TDP_FPUINUSE|TDP_FPUCTXSAVED
+        mov     w4, #TDP_FPUINUSE
+        cmp     w2, w4
+        bne     .skip_fpu_save
 
-        orr     w3, w3, #TDP_FPCTXSAVED
+        orr     w3, w3, #TDP_FPUCTXSAVED
         str     w3, [x0, #TD_PFLAGS]
 
         /* enable FPU and save context */

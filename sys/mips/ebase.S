@@ -22,8 +22,6 @@
 
 #define LOAD_REG(reg, offset, base) lw reg, (CTX_##offset)(base)
 
-#define SAVE_FPU_REG(reg, offset, base) swc1 reg, (FPU_CTX_##offset)(base)
-
 #define LOAD_FPU_REG(reg, offset, base) lwc1 reg, (FPU_CTX_##offset)(base)
 
 #define SAVE_CPU_CTX(reg)                                                      \
@@ -97,41 +95,6 @@
         LOAD_REG(v0, V0, sp);                                                  \
         LOAD_REG(AT, AT, sp);                                                  \
         LOAD_REG(sp, SP, sp)
-
-#define SAVE_FPU_CTX()                                                         \
-        SAVE_FPU_REG($f0, F0, sp);                                             \
-        SAVE_FPU_REG($f1, F1, sp);                                             \
-        SAVE_FPU_REG($f2, F2, sp);                                             \
-        SAVE_FPU_REG($f3, F3, sp);                                             \
-        SAVE_FPU_REG($f4, F4, sp);                                             \
-        SAVE_FPU_REG($f5, F5, sp);                                             \
-        SAVE_FPU_REG($f6, F6, sp);                                             \
-        SAVE_FPU_REG($f7, F7, sp);                                             \
-        SAVE_FPU_REG($f8, F8, sp);                                             \
-        SAVE_FPU_REG($f9, F9, sp);                                             \
-        SAVE_FPU_REG($f10, F10, sp);                                           \
-        SAVE_FPU_REG($f11, F11, sp);                                           \
-        SAVE_FPU_REG($f12, F12, sp);                                           \
-        SAVE_FPU_REG($f13, F13, sp);                                           \
-        SAVE_FPU_REG($f14, F14, sp);                                           \
-        SAVE_FPU_REG($f15, F15, sp);                                           \
-        SAVE_FPU_REG($f16, F16, sp);                                           \
-        SAVE_FPU_REG($f17, F17, sp);                                           \
-        SAVE_FPU_REG($f18, F18, sp);                                           \
-        SAVE_FPU_REG($f19, F19, sp);                                           \
-        SAVE_FPU_REG($f20, F20, sp);                                           \
-        SAVE_FPU_REG($f21, F21, sp);                                           \
-        SAVE_FPU_REG($f22, F22, sp);                                           \
-        SAVE_FPU_REG($f23, F23, sp);                                           \
-        SAVE_FPU_REG($f24, F24, sp);                                           \
-        SAVE_FPU_REG($f25, F25, sp);                                           \
-        SAVE_FPU_REG($f26, F26, sp);                                           \
-        SAVE_FPU_REG($f27, F27, sp);                                           \
-        SAVE_FPU_REG($f28, F28, sp);                                           \
-        SAVE_FPU_REG($f29, F29, sp);                                           \
-        SAVE_FPU_REG($f30, F30, sp);                                           \
-        SAVE_FPU_REG($f31, F31, sp);                                           \
-        SAVE_FPU_REG($31, FSR, sp)
 
 #define LOAD_FPU_CTX()                                                         \
         LOAD_FPU_REG($f0, F0, sp);                                             \
@@ -298,7 +261,7 @@ END(irq)
 
 # [$k0] must be set to value of C0_STATUS
 exc_enter:
-        mfc0    k0, C0_STATUS           
+        mfc0    k0, C0_STATUS
         andi    k0, SR_KSU_MASK         # Did exception occur in kernel mode?
         beqz    k0, kern_exc_enter
         nop
@@ -371,9 +334,9 @@ user_exc_leave:
         # Set current stack pointer to user exception frame.
         # This is crucial on first entry to user-space for this thread.
         LOAD_PCPU_KSEG0(s0)
-        lw      t0, PCPU_CURTHREAD(s0)
-        lw      sp, TD_UCTX(t0)
-        
+        lw      s1, PCPU_CURTHREAD(s0)
+        lw      sp, TD_UCTX(s1)
+
         # Update kernel stack pointer to be used on kernel reentry.
         sw      sp, PCPU_KSP(s0)
 
@@ -389,18 +352,14 @@ user_exc_leave:
         sw      t0, PCPU_SR(s0)
 
         # If user FPU context is not saved, don't restore its registers.
-        LOAD_PCPU(t0)
-        lw      t0, PCPU_CURTHREAD(t0)
-        lw      t1, TD_PFLAGS(t0)
-        and     t1, t1, TDP_FPCTXSAVED
+        lw      t0, TD_PFLAGS(s1)
+        and     t1, t0, TDP_FPUCTXSAVED
         beqz    t1, skip_fpu_restore
         nop
 
-        # Clear TD_FPCTXSAVED flag.
-        lw      t1, TD_PFLAGS(t0)
-        nor     t2, zero, TDP_FPCTXSAVED
-        and     t1, t1, t2
-        sw      t1, TD_PFLAGS(t0)
+        # Clear TD_FPUCTXSAVED flag.
+        xori    t0, t0, TDP_FPUCTXSAVED
+        sw      t0, TD_PFLAGS(s1)
 
         # Enable FPU and load FPU context
         STATUS_SET(SR_CU1)

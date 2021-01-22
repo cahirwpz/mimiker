@@ -168,7 +168,7 @@ user_exc_leave:
         ldr     x1, [x1, #PCPU_CURTHREAD]
         ldr     w3, [x1, #TD_PFLAGS]
 
-        and     w2, w3, #TDP_FPCTXUSED
+        and     w2, w3, #TDP_FPUINUSE
         cmp     w2, wzr
         beq     .skip_fpu_restore
 
@@ -178,12 +178,12 @@ user_exc_leave:
         orr     x2, x2, CPACR_FPEN_TRAP_NONE
         msr     cpacr_el1, x2
 
-        and     w2, w3, #TDP_FPCTXSAVED
+        and     w2, w3, #TDP_FPUCTXSAVED
         cmp     w2, wzr
         beq     .skip_fpu_restore
 
-        /* clear TDP_FPCTXSAVED flag */
-        and     w2, w3, ~TDP_FPCTXSAVED
+        /* clear TDP_FPUCTXSAVED flag */
+        and     w2, w3, ~TDP_FPUCTXSAVED
         str     w2, [x1, #TD_PFLAGS]
 
         /* restore FPU context */
