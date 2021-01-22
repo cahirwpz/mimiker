@@ -10,6 +10,7 @@
 #include <sys/cred.h>
 #include <sys/syslimits.h>
 #include <sys/uio.h>
+#include <sys/time.h>
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
@@ -71,6 +72,7 @@ typedef enum {
   /* Cleared when continued or reported by wait4. */
   PF_STATE_CHANGED = 0x1,       /* Set when stopped or continued */
   PF_CHILD_STATE_CHANGED = 0x2, /* Child state changed, recheck children */
+  PF_ITIMER_ACTIVE = 0x4,       /* Per-process interval timer active */
 } proc_flags_t;
 
 /*! \brief Process structure
@@ -112,6 +114,7 @@ struct proc {
   volatile proc_flags_t p_flags;  /* (@) PF_* flags */
   vnode_t *p_cwd;                 /* ($) current working directory */
   mode_t p_cmask;                 /* ($) mask for file creation */
+  kitimer_t p_itimer;             /* (@) interval timer state  */
   /* program segments */
   vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
   vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */

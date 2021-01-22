@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/queue.h>
-#include <sys/time.h>
 
 typedef void (*timeout_t)(void *);
 

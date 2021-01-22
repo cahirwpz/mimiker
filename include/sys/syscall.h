@@ -79,6 +79,8 @@
 #define SYS_fchownat 71
 #define SYS_getlogin 72
 #define SYS_setlogin 73
-#define SYS_MAXSYSCALL 74
+#define SYS_getitimer 74
+#define SYS_setitimer 75
+#define SYS_MAXSYSCALL 76
 
 #define SYS_MAXSYSARGS 6

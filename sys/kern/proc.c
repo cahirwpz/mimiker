@@ -565,6 +565,10 @@ __noreturn void proc_exit(int exitstatus) {
   /* Clean up process resources. */
   klog("Freeing process PID(%d) {%p} resources", p->p_pid, p);
 
+  /* Stop per-process interval timer.
+   * NOTE: this function may release and re-acquire p->p_lock. */
+  kitimer_stop(p, &p->p_itimer);
+
   /* Detach main thread from the process. */
   p->p_thread = NULL;
   td->td_proc = NULL;
