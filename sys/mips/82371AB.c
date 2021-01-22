@@ -31,7 +31,7 @@ typedef struct intel_isa_state {
 static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
                                             int rid, rman_addr_t start,
                                             rman_addr_t end, size_t size,
-                                            res_flags_t flags) {
+                                            rman_flags_t flags) {
   assert(dev->bus == DEV_BUS_ISA);
 
   rman_t *rman = NULL;
@@ -53,19 +53,21 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
       panic("Can't allocate resource, no dispatch available!");
   }
 
-  resource_t *r = rman_reserve_resource(rman, start, end, size, 0, flags);
+  resource_t *r =
+    rman_reserve_resource(rman, type, rid, start, end, size, 0, flags);
+  
   if (r == NULL)
     return NULL;
   r->r_rid = rid;
 
   if (type != RT_IRQ) {
     r->r_bus_tag = generic_bus_space;
-    r->r_bus_handle = bh + r->r_start;
+    r->r_bus_handle = bh + resource_start(r);
   }
 
   if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, type, r)) {
-      rman_release_resource(r);
+    if (bus_activate_resource(dev, r)) {
+      resource_release(r);
       return NULL;
     }
   }
@@ -73,17 +75,17 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
   return r;
 }
 
-static int intel_isa_activate_resource(device_t *dev, res_type_t type,
-                                       resource_t *r) {
-  assert(type != RT_MEMORY);
-  /* ISA resources don't require any activation procedures. */
+static int intel_isa_activate_resource(device_t *dev, resource_t *r) {
   return 0;
 }
 
-static void intel_isa_release_resource(device_t *dev, res_type_t type,
-                                       resource_t *r) {
-  assert(type != RT_MEMORY);
-  rman_release_resource(r);
+static void intel_isa_deactivate_resource(device_t *dev, resource_t *r) {
+  return;
+}
+
+static void intel_isa_release_resource(device_t *dev, resource_t *r) {
+  /* No need to deactivate resource, because deactivation is a NOP anyway */
+  resource_release(r);
 }
 
 static int intel_isa_probe(device_t *d) {
@@ -132,6 +134,7 @@ bus_methods_t intel_isa_bus_bus_if = {
   .intr_teardown = NULL, /* Dispatched */
   .alloc_resource = intel_isa_alloc_resource,
   .activate_resource = intel_isa_activate_resource,
+  .deactivate_resource = intel_isa_deactivate_resource,
   .release_resource = intel_isa_release_resource};
 
 /* clang-format off */
@@ -140,6 +143,7 @@ driver_t intel_isa_bus = {
   .size = sizeof(intel_isa_state_t),
   .attach = intel_isa_attach,
   .probe = intel_isa_probe,
+  .pass = FIRST_PASS,
   .interfaces =
     {
       [DIF_BUS] = &intel_isa_bus_bus_if,

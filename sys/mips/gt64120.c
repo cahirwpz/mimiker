@@ -355,7 +355,7 @@ static bool gt_pci_bar(device_t *dev, res_type_t type, int rid,
 static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
                                          int rid, rman_addr_t start,
                                          rman_addr_t end, size_t size,
-                                         res_flags_t flags) {
+                                         rman_flags_t flags) {
   assert(dev->bus == DEV_BUS_PCI);
 
   device_t *pcib = dev->parent;
