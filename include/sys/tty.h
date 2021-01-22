@@ -71,11 +71,12 @@ typedef struct tty {
   condvar_t t_serialize_cv;  /* CV used to serialize write() calls */
   ttyops_t t_ops;            /* Serial device operations */
   struct termios t_termios;
-  pgrp_t *t_pgrp;       /* Foreground process group */
-  session_t *t_session; /* Session controlled by this tty */
-  vnode_t *t_vnode;     /* Device vnode */
-  uint32_t t_opencount; /* Incremented on open(), decremented on close(). */
-  void *t_data;         /* Serial device driver's private data */
+  struct winsize t_winsize; /* Terminal window size */
+  pgrp_t *t_pgrp;           /* Foreground process group */
+  session_t *t_session;     /* Session controlled by this tty */
+  vnode_t *t_vnode;         /* Device vnode */
+  uint32_t t_opencount;     /* Incremented on open(), decremented on close(). */
+  void *t_data;             /* Serial device driver's private data */
 } tty_t;
 
 /*
