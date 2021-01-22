@@ -123,7 +123,8 @@ static inline void pci_write_config(device_t *dev, unsigned reg, unsigned size,
 #define pci_write_config_4(d, r, v) pci_write_config((d), (r), 4, (v))
 
 static inline int pci_route_interrupt(device_t *dev) {
-  return PCI_BUS_METHODS(dev->parent).route_interrupt(dev);
+  device_t *idev = PCI_BUS_METHOD_PROVIDER(dev, route_interrupt);
+  return PCI_BUS_METHODS(idev->parent).route_interrupt(idev);
 }
 
 static inline void pci_enable_busmaster(device_t *dev) {

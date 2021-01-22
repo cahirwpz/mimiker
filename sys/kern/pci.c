@@ -152,7 +152,7 @@ void pci_bus_enumerate(device_t *pcib) {
         if (irq != -1) {
           device_add_irq(dev, 0, irq);
           pci_write_config_1(dev, PCIR_IRQLINE, irq);
-	}
+        }
       }
     }
   }
