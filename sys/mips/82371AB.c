@@ -55,7 +55,7 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
 
   resource_t *r =
     rman_reserve_resource(rman, type, rid, start, end, size, 0, flags);
-  
+
   if (r == NULL)
     return NULL;
   r->r_rid = rid;
