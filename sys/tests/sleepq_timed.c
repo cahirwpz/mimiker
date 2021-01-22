@@ -22,9 +22,9 @@ static int wchan;
 #define THREADS 6
 #define SLEEP_TICKS 4
 
-static volatile int timed_received;
-static volatile int signaled_received;
-static volatile int signaled_sent;
+static volatile atomic_int timed_received;
+static volatile atomic_int signaled_received;
+static volatile atomic_int signaled_sent;
 
 static thread_t *waiters[THREADS];
 static thread_t *waker;
@@ -36,10 +36,10 @@ static void waiter_routine(void *_arg) {
   systime_t diff = after_sleep - before_sleep;
 
   if (status == ETIMEDOUT) {
-    timed_received++;
+    atomic_fetch_add(&timed_received, 1);
     assert(diff >= SLEEP_TICKS);
   } else if (status == 0) {
-    signaled_received++;
+    atomic_fetch_add(&signaled_received, 1);
   } else {
     panic("Got unexpected wakeup status: %d!", status);
   }
@@ -50,7 +50,7 @@ static void waker_routine(void *_arg) {
   for (int i = 0; i < THREADS / 2; i++) {
     bool status = sleepq_signal(&wchan);
     if (status)
-      signaled_sent++;
+      atomic_fetch_add(&signaled_sent, 1);
   }
 }
 
