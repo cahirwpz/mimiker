@@ -5,6 +5,14 @@
 #include <unistd.h>
 #include <assert.h>
 
+#ifdef __mips__
+#define TOO_MUCH 0x80000000
+#endif
+
+#ifdef __aarch64__
+#define TOO_MUCH 0x4000000000000000L
+#endif
+
 static void *sbrk_orig = NULL;
 
 /* Note that sbrk returns old brk value */
@@ -51,7 +59,7 @@ static void sbrk_bad(void) {
   assert(b1 == (char *)b0);
 
   /* Attempt to move sbrk to far */
-  sbrk(0x80000000);
+  sbrk(TOO_MUCH);
   assert(errno == ENOMEM);
   char *b2 = sbrk(0);
   assert(b2 == b1);

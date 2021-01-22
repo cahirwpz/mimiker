@@ -177,7 +177,7 @@ static int pl011_attach(device_t *dev) {
   resource_t *r = device_take_memory(dev, 0, 0);
 
   /* (pj) BCM2835_UART0_SIZE is much smaller than PAGESIZE */
-  bus_space_map(r->r_bus_tag, r->r_start, PAGESIZE, &r->r_bus_handle);
+  bus_space_map(r->r_bus_tag, resource_start(r), PAGESIZE, &r->r_bus_handle);
 
   assert(r != NULL);
 

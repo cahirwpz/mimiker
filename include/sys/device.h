@@ -9,11 +9,8 @@
 typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;
-typedef struct bus_space bus_space_t;
 typedef TAILQ_HEAD(, device) device_list_t;
-typedef SLIST_HEAD(, resource_list_entry) resource_list_t;
-
-typedef enum { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
+typedef SLIST_HEAD(, resource) resource_list_t;
 
 /* Driver that returns the highest value from its probe action
  * will be selected for attach action. */
@@ -91,7 +88,7 @@ int device_detach(device_t *dev);
 /*! \brief Add a resource entry to resource list. */
 void device_add_resource(device_t *dev, res_type_t type, int rid,
                          rman_addr_t start, rman_addr_t end, size_t size,
-                         res_flags_t flags);
+                         rman_flags_t flags);
 
 #define device_add_memory(dev, rid, start, size)                               \
   device_add_resource((dev), RT_MEMORY, (rid), (start), (start) + (size)-1,    \
@@ -102,11 +99,11 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
                       (size), 0)
 
 #define device_add_irq(dev, rid, irq)                                          \
-  device_add_resource((dev), RT_IRQ, (rid), (irq), (irq), 1, 0)
+  device_add_resource((dev), RT_IRQ, (rid), (irq), (irq), 1, RF_SHAREABLE)
 
 /*! \brief Take a resource which is assigned to device by parent bus. */
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
-                                 res_flags_t flags);
+                                 rman_flags_t flags);
 
 #define device_take_memory(dev, rid, flags)                                    \
   device_take_resource((dev), RT_MEMORY, (rid), (flags))
