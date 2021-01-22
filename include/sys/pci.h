@@ -35,19 +35,19 @@ extern const char *pci_class_code[];
 
 #define PCI_BAR_MAX 6
 
-#define PCIR_DEVICEID 0x00
-#define PCIR_VENDORID 0x02
-#define PCIR_STATUS 0x04
-#define PCIR_COMMAND 0x06
+#define PCIR_VENDORID 0x00
+#define PCIR_DEVICEID 0x02
+#define PCIR_COMMAND 0x04
+#define PCIR_STATUS 0x06
 #define PCIM_CMD_PORTEN 0x0001
 #define PCIM_CMD_MEMEN 0x0002
 #define PCIM_CMD_BUSMASTEREN 0x0004
-#define PCIR_CLASSCODE 0x08
-#define PCIR_HEADERTYPE 0x0d
+#define PCIR_CLASSCODE 0x0b
+#define PCIR_HEADERTYPE 0x0e
 #define PCIH_HDR_MF 0x80
 #define PCIH_HDR_TYPE 0x7f
-#define PCIR_IRQPIN 0x3e
-#define PCIR_IRQLINE 0x3f
+#define PCIR_IRQLINE 0x3c
+#define PCIR_IRQPIN 0x3d
 #define PCIR_BAR(i) (0x10 + (i)*4)
 
 typedef struct pci_addr {
@@ -96,13 +96,13 @@ typedef struct pci_device {
 
 /* As for now this actually returns a child of the bus, see a comment
  * above `device_method_provider` in include/sys/device.c */
-#define PCI_BUS_METHOD_IMPLEMENTATOR(dev, method)                              \
+#define PCI_BUS_METHOD_PROVIDER(dev, method)                                   \
   (device_method_provider((dev), DIF_PCI_BUS,                                  \
                           offsetof(struct pci_bus_methods, method)))
 
 static inline uint32_t pci_read_config(device_t *dev, unsigned reg,
                                        unsigned size) {
-  device_t *idev = PCI_BUS_METHOD_IMPLEMENTATOR(dev, read_config);
+  device_t *idev = PCI_BUS_METHOD_PROVIDER(dev, read_config);
   return PCI_BUS_METHODS(idev->parent).read_config(idev, reg, size);
 }
 
@@ -112,7 +112,7 @@ static inline uint32_t pci_read_config(device_t *dev, unsigned reg,
 
 static inline void pci_write_config(device_t *dev, unsigned reg, unsigned size,
                                     uint32_t value) {
-  device_t *idev = PCI_BUS_METHOD_IMPLEMENTATOR(dev, write_config);
+  device_t *idev = PCI_BUS_METHOD_PROVIDER(dev, write_config);
   PCI_BUS_METHODS(idev->parent).write_config(idev, reg, size, value);
 }
 
@@ -121,7 +121,7 @@ static inline void pci_write_config(device_t *dev, unsigned reg, unsigned size,
 #define pci_write_config_4(d, r, v) pci_write_config((d), (r), 4, (v))
 
 static inline void pci_enable_busmaster(device_t *dev) {
-  device_t *idev = PCI_BUS_METHOD_IMPLEMENTATOR(dev, enable_busmaster);
+  device_t *idev = PCI_BUS_METHOD_PROVIDER(dev, enable_busmaster);
   PCI_BUS_METHODS(idev->parent).enable_busmaster(idev);
 }
 

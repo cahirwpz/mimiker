@@ -2,27 +2,29 @@
  *
  * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file.
  *
- * How do we handle `r_start` and `r_bus_handle` of assigned resources?
+ * How do we handle `resource_start(r)` and `r_bus_handle`
+ * of assigned resources?
  *
  * - Interrupts:
- *     - `r_bus_handle` is always equal to NULL.
- *     - `r_start` is an interrupt number.
+ *     In this case, the `r_handler` field is used rather than
+ *     `r_bus_handle` and `r_bus_tag`, and `start` identifies an
+ *     interrupt number.
  *
  * - Memory:
  *     - `gt_pci_alloc_resource` sets `r_bus_handle` to a physical
  *       address of a resource, while `gt_pci_activate_resource`
  *       upgrades it to a virtual address of the mapped resource.
- *     - `r_start` is an absolute address of a resource.
+ *     - `start` is an absolute address of a resource.
  *
  *  - IO ports:
  *     - All IO ports managed by the PCI bus driver are mapped in the
  *       `gt_pci_attach` function, therefore `gt_pci_alloc_resource`
  *       sets `r_bus_handle` to a virtual address of a resource.
- *     - `r_start` is an offset in PCI IO space.
+ *     - `start` is an offset in the PCI IO space.
  *
  *   Memory BARs must contain absolute addresses, while IO BARs require
  *   relative addresses. The above scheme allows us to unify updating of a
- *   BAR register by using the `r_start` of a resource.
+ *   BAR register by using the `start` of a resource.
  */
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
@@ -89,14 +91,13 @@ typedef struct gt_pci_state {
 static driver_t gt_pci_bus;
 
 /* Access configuration space through memory mapped GT-64120 registers. Take
- * care of the fact that MIPS processor cannot handle unaligned accesses. */
+ * care of the fact that MIPS processor cannot handle unaligned accesses.
+ * Note that Galileo controller's registers are little endian. */
 static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
   pci_device_t *pcid = pci_device_of(dev);
   gt_pci_state_t *gtpci = dev->parent->state;
   resource_t *pcicfg = gtpci->corectrl;
-
-  if (!pcid) /* XXX: ISA device workaround */
-    return -1;
+  assert(pcid);
 
   if (pcid->addr.bus > 0)
     return -1;
@@ -108,9 +109,9 @@ static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
   reg &= 3;
   switch (size) {
     case 1:
-      return data.byte[3 - reg];
+      return data.byte[reg];
     case 2:
-      return data.word[1 - (reg >> 1)];
+      return data.word[reg >> 1];
     case 4:
       return data.dword;
     default:
@@ -123,9 +124,7 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   pci_device_t *pcid = pci_device_of(dev);
   gt_pci_state_t *gtpci = dev->parent->state;
   resource_t *pcicfg = gtpci->corectrl;
-
-  if (!pcid) /* XXX: ISA device workaround */
-    return;
+  assert(pcid);
 
   if (pcid->addr.bus > 0)
     return;
@@ -137,10 +136,10 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   reg &= 3;
   switch (size) {
     case 1:
-      data.byte[3 - reg] = value;
+      data.byte[reg] = value;
       break;
     case 2:
-      data.word[1 - (reg >> 1)] = value;
+      data.word[reg >> 1] = value;
       break;
     case 4:
       data.dword = value;
@@ -215,7 +214,7 @@ static void gt_pci_intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
                               const char *name) {
   assert(dev->parent->driver == &gt_pci_bus);
   gt_pci_state_t *gtpci = dev->parent->state;
-  int irq = r->r_start;
+  int irq = resource_start(r);
   assert(irq < IO_ICUSIZE);
 
   if (gtpci->intr_event[irq] == NULL)
@@ -372,7 +371,7 @@ static bool gt_pci_bar(device_t *dev, res_type_t type, int rid,
 static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
                                          int rid, rman_addr_t start,
                                          rman_addr_t end, size_t size,
-                                         res_flags_t flags) {
+                                         rman_flags_t flags) {
   /* Currently all devices are logicaly attached to PCI bus,
    * because we don't have PCI-ISA bridge implemented. */
   assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
@@ -398,25 +397,19 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   if (gt_pci_bar(dev, type, rid, start))
     alignment = max(alignment, size);
 
-  if (type == RT_MEMORY) {
-    /* XXX: Perhaps, the rman_alloc_resource should take this into account */
-    size = roundup(size, PAGESIZE);
-  }
-
   resource_t *r =
-    rman_reserve_resource(rman, start, end, size, alignment, flags);
-  if (r == NULL)
+    rman_reserve_resource(rman, type, rid, start, end, size, alignment, flags);
+  if (!r)
     return NULL;
-  r->r_rid = rid;
 
   if (type != RT_IRQ) {
     r->r_bus_tag = generic_bus_space;
-    r->r_bus_handle = bh + r->r_start;
+    r->r_bus_handle = bh + resource_start(r);
   }
 
-  if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, type, r)) {
-      rman_release_resource(r);
+  if (type == RT_IOPORTS || flags & RF_ACTIVE) {
+    if (bus_activate_resource(dev, r)) {
+      resource_release(r);
       return NULL;
     }
   }
@@ -424,37 +417,36 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   return r;
 }
 
-static void gt_pci_release_resource(device_t *dev, res_type_t type,
-                                    resource_t *r) {
-  bus_deactivate_resource(dev, type, r);
-  rman_release_resource(r);
+static void gt_pci_release_resource(device_t *dev, resource_t *r) {
+  bus_deactivate_resource(dev, r);
+  resource_release(r);
 }
 
-static int gt_pci_activate_resource(device_t *dev, res_type_t type,
-                                    resource_t *r) {
-  if (type == RT_MEMORY || type == RT_IOPORTS) {
+static int gt_pci_activate_resource(device_t *dev, resource_t *r) {
+  rman_addr_t start = resource_start(r);
+
+  if (r->r_type == RT_MEMORY ||
+      (r->r_type == RT_IOPORTS && start > IO_ISAEND)) {
     uint16_t command = pci_read_config_2(dev, PCIR_COMMAND);
-    if (type == RT_MEMORY)
+    if (r->r_type == RT_MEMORY)
       command |= PCIM_CMD_MEMEN;
-    else if (type == RT_IOPORTS)
+    else if (r->r_type == RT_IOPORTS)
       command |= PCIM_CMD_PORTEN;
     pci_write_config_2(dev, PCIR_COMMAND, command);
   }
 
-  int rid = r->r_rid;
-  if (gt_pci_bar(dev, type, rid, r->r_start))
-    pci_write_config_4(dev, PCIR_BAR(rid), r->r_start);
+  if (gt_pci_bar(dev, r->r_type, r->r_rid, start))
+    pci_write_config_4(dev, PCIR_BAR(r->r_rid), start);
 
-  if (type == RT_MEMORY)
-    return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
+  if (r->r_type == RT_MEMORY)
+    return bus_space_map(r->r_bus_tag, start, resource_size(r),
                          &r->r_bus_handle);
 
   return 0;
 }
 
-static void gt_pci_deactivate_resource(device_t *dev, res_type_t type,
-                                       resource_t *r) {
-  /* TODO: unmap mapped resources. */
+static void gt_pci_deactivate_resource(device_t *dev, resource_t *r) {
+  /* TODO: unmap mapped memory. */
 }
 
 static int gt_pci_probe(device_t *d) {
