@@ -108,7 +108,6 @@ int test_mmap_readonly(void) {
   signal(SIGSEGV, sigsegv_handler);
   void *addr = mmap(NULL, pgsz * 8, PROT_READ, MAP_ANON | MAP_PRIVATE, -1, 0);
   assert(addr != MAP_FAILED);
-  printf("mmap returned pointer: %p\n", addr);
 
   /* Ensure mapped area is cleared. */
   assert(*(char *)(addr + 100) == 0);
@@ -116,15 +115,10 @@ int test_mmap_readonly(void) {
 
   sigsegv_handled = 0;
 
-  printf("Value of sigsegv_handled %d (before if)\n", sigsegv_handled);
   if (sigsetjmp(return_to, 1) == 0) {
-    printf("Value of sigsegv_handled %d (inside if)\n", sigsegv_handled);
-    printf("Try to write to readonly memory\n");
-    /* Try to write to readonly memory. It should raise SIGSEGV */
     *(char *)addr = '9';
   }
 
-  printf("Value of sigsegv_handled %d\n", sigsegv_handled);
   assert(sigsegv_handled == 1);
   assert(*(char *)addr == 0);
 
