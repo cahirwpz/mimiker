@@ -15,6 +15,19 @@
 #define PDP_ENDIAN _PDP_ENDIAN
 #define BYTE_ORDER _BYTE_ORDER
 
+/*
+ * Define the order of 32-bit words in 64-bit words.
+ */
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+#define _QUAD_HIGHWORD 1
+#define _QUAD_LOWWORD 0
+#endif
+
+#if _BYTE_ORDER == _BIG_ENDIAN
+#define _QUAD_HIGHWORD 0
+#define _QUAD_LOWWORD 1
+#endif
+
 #ifndef __ASSEMBLER__
 
 #include <sys/types.h>
