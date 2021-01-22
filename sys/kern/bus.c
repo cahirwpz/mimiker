@@ -80,7 +80,6 @@ void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
     *dst++ = *src++;
 }
 
-/* clang-format off */
 bus_space_t *generic_bus_space = &(bus_space_t){
   .bs_map = generic_bs_map,
   .bs_read_1 = generic_bs_read_1,
@@ -96,10 +95,25 @@ bus_space_t *generic_bus_space = &(bus_space_t){
   .bs_write_region_2 = generic_bs_write_region_2,
   .bs_write_region_4 = generic_bs_write_region_4,
 };
-/* clang-format on */
+
+void bus_intr_setup(device_t *dev, resource_t *irq, ih_filter_t *filter,
+                    ih_service_t *service, void *arg, const char *name) {
+  device_t *idev = BUS_METHOD_PROVIDER(dev, intr_setup);
+  BUS_METHODS(idev->parent).intr_setup(idev, irq, filter, service, arg, name);
+  if (irq->r_handler)
+    resource_activate(irq);
+}
+
+void bus_intr_teardown(device_t *dev, resource_t *irq) {
+  assert(resource_active(irq));
+  device_t *idev = BUS_METHOD_PROVIDER(dev, intr_teardown);
+  BUS_METHODS(idev->parent).intr_teardown(idev, irq);
+  irq->r_handler = NULL;
+  resource_deactivate(irq);
+}
 
 int bus_activate_resource(device_t *dev, resource_t *r) {
-  if (resource_active(r))
+  if (resource_active(r) || r->r_type == RT_IRQ)
     return 0;
 
   device_t *idev = BUS_METHOD_PROVIDER(dev, activate_resource);
@@ -110,11 +124,12 @@ int bus_activate_resource(device_t *dev, resource_t *r) {
 }
 
 void bus_deactivate_resource(device_t *dev, resource_t *r) {
-  if (resource_active(r)) {
+  if (r->r_type != RT_IRQ) {
+    assert(resource_active(r));
     device_t *idev = BUS_METHOD_PROVIDER(dev, deactivate_resource);
     BUS_METHODS(idev->parent).deactivate_resource(idev, r);
+    resource_deactivate(r);
   }
-  resource_deactivate(r);
 }
 
 /* System-wide current pass number. */

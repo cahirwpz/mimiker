@@ -7,7 +7,7 @@
 
 #include <aarch64/pte.h>
 
-void tlb_invalidate(pte_t pte, asid_t asid);
+void tlb_invalidate(vaddr_t va, asid_t asid);
 void tlb_invalidate_asid(asid_t asid);
 
 #endif /* !_AARCH64_TLB_H_ */

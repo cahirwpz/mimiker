@@ -35,19 +35,19 @@ extern const char *pci_class_code[];
 
 #define PCI_BAR_MAX 6
 
-#define PCIR_DEVICEID 0x00
-#define PCIR_VENDORID 0x02
-#define PCIR_STATUS 0x04
-#define PCIR_COMMAND 0x06
+#define PCIR_VENDORID 0x00
+#define PCIR_DEVICEID 0x02
+#define PCIR_COMMAND 0x04
+#define PCIR_STATUS 0x06
 #define PCIM_CMD_PORTEN 0x0001
 #define PCIM_CMD_MEMEN 0x0002
 #define PCIM_CMD_BUSMASTEREN 0x0004
-#define PCIR_CLASSCODE 0x08
-#define PCIR_HEADERTYPE 0x0d
+#define PCIR_CLASSCODE 0x0b
+#define PCIR_HEADERTYPE 0x0e
 #define PCIH_HDR_MF 0x80
 #define PCIH_HDR_TYPE 0x7f
-#define PCIR_IRQPIN 0x3e
-#define PCIR_IRQLINE 0x3f
+#define PCIR_IRQLINE 0x3c
+#define PCIR_IRQPIN 0x3d
 #define PCIR_BAR(i) (0x10 + (i)*4)
 
 typedef struct pci_addr {
