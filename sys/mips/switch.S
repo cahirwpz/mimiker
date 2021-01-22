@@ -131,7 +131,6 @@ ctx_save:
         STATUS_CLEAR(SR_CU1)
 
 skip_fpu_save:
-
         move    s1, a1                  # save @from thread pointer
 
 ctx_resume:
