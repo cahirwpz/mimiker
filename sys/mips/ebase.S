@@ -353,14 +353,12 @@ user_exc_leave:
 
         # If user FPU context is not saved, don't restore its registers.
         lw      t0, TD_PFLAGS(s1)
-        and     t1, t0, TDP_FPCTXSAVED
+        and     t1, t0, TDP_FPUCTXSAVED
         beqz    t1, skip_fpu_restore
         nop
 
-        # Clear TD_FPCTXSAVED flag.
-        # We know that t1 == TDP_FPCTXSAVED and that the flag is set so we can
-        # just xor t1 with td_pflags.
-        xor     t0, t0, t1
+        # Clear TD_FPUCTXSAVED flag.
+        xori    t0, t0, TDP_FPUCTXSAVED
         sw      t0, TD_PFLAGS(s1)
 
         # Enable FPU and load FPU context

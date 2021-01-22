@@ -117,14 +117,20 @@ ctx_save:
         SAVE_CTX(t0)
         sw      sp, TD_KCTX(a0)
 
+        /* save FPU context only
+         * if it needs saving and has not already been saved */
         lw      t2, TD_PFLAGS(a0)
-        and     t2, TDP_FPCTXUSED
-        beqz    t2, skip_fpu_save
+        and     t2, TDP_FPUINUSE|TDP_FPUCTXSAVED
+        li      t3, TDP_FPUINUSE
+        beq     t2, t3, skip_fpu_save
         nop
 
+        # mark FPU context as saved
         lw      t2, TD_PFLAGS(a0)
-        or      t2, TDP_FPCTXSAVED
+        or      t2, TDP_FPUCTXSAVED
         sw      t2, TD_PFLAGS(a0)
+
+        # ... and finally save it (temporarily enabling FPU)
         STATUS_SET(SR_CU1)
         lw      t2, TD_UCTX(a0)
         SAVE_FPU_CTX(t2)
