@@ -9,7 +9,7 @@ typedef int(*writeblock_t)(device_t *, uint32_t, const uint8_t *, uint32_t);
 
 typedef struct blockdev_methods {
   readblock_t read;
-  writeblock_t INT_WRITE_RDY;
+  writeblock_t write;
 } blockdev_methods_t;
 
 

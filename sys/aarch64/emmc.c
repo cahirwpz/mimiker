@@ -1,11 +1,15 @@
 #include <sys/memdev.h>
 #include <sys/mimiker.h>
 #include <sys/resource.h>
+#include <sys/devclass.h>
 #include <sys/klog.h>
 #include <sys/types.h>
 #include <aarch64/gpio.h>
 #include <sys/device.h>
 #include <sys/bus.h>
+#include <sys/time.h>
+#include <sys/libkern.h>
+#include <sys/callout.h>
 
 #define GPPUD ((volatile uint32_t *)(MMIO_BASE + 0x00200094))
 
@@ -136,13 +140,29 @@ static void delay(int64_t count) {
                    : [count] "+r"(count));
 }
 
+/* Stolen from MichalBlk's mdelay fork.
+ * This should be a built-in kernel feature adn it's here only as a placeholder
+ * for driver prototyping purposes. */
+/* [--------------------------------------------------------------------------*/
+static void sleep_ms_timeout(__unused void *arg) {
+  /* Nothing to do here. */
+}
+
+static void sleep_ms(useconds_t ms) {
+  callout_t handle;
+  bzero(&handle, sizeof(callout_t));
+  callout_setup_relative(&handle, ms, sleep_ms_timeout, NULL);
+  callout_drain(&handle);
+}
+/*--------------------------------------------------------------------------] */
+
 /**
  * Wait for data or command ready
  */
 int sd_status(uint32_t mask) {
   int32_t cnt = 500000;
   while ((*EMMC_STATUS & mask) && !(*EMMC_INTERRUPT & INT_ERROR_MASK) && cnt--)
-    delay(150); /* Random value lol */
+    delay(3);
   return (cnt <= 0 || (*EMMC_INTERRUPT & INT_ERROR_MASK)) ? SD_ERROR : SD_OK;
 }
 
@@ -153,7 +173,7 @@ static int32_t sd_int(uint32_t mask) {
   uint32_t r, m = mask | INT_ERROR_MASK;
   int32_t cnt = 1000000;
   while (!(*EMMC_INTERRUPT & m) && cnt--)
-    delay(150);                                       /* ! */
+    delay(3);
   r = *EMMC_INTERRUPT;
   if (cnt <= 0 || (r & INT_CMD_TIMEOUT) || (r & INT_DATA_TIMEOUT)) {
     *EMMC_INTERRUPT = r;
@@ -199,9 +219,9 @@ int32_t emmc_cmd(emmc_state_t *state, uint32_t code, uint32_t arg) {
   *EMMC_ARG1 = arg;
   *EMMC_CMDTM = code;
   if (code == CMD_SEND_OP_COND)
-    delay(1500);                                    /* ! */
+    sleep_ms(1);
   else if (code == CMD_SEND_IF_COND || code == CMD_APP_CMD)
-    delay(150);                                    /* ! */
+    delay(300);                                    /* ! */
   
   if ((r = sd_int(INT_CMD_DONE))) {
     klog("ERROR: failed to send EMMC command\n");
@@ -318,7 +338,7 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
  * Write a block to the sd card
  * returns 0 on error
  */
-int sd_writeblock(device_t *dev, uint32_t lba, const uint8_t *buffer,
+int emmc_write_block(device_t *dev, uint32_t lba, const uint8_t *buffer,
                   uint32_t num) {
   assert(dev->driver == (driver_t *)&emmc_driver);
   emmc_state_t *state = (emmc_state_t *)dev->state;
@@ -376,14 +396,14 @@ int32_t sd_clk(emmc_state_t *state, uint32_t f) {
   uint32_t d, c = 41666666 / f, x, s = 32, h = 0;
   int32_t cnt = 100000;
   while ((*EMMC_STATUS & (SR_CMD_INHIBIT | SR_DAT_INHIBIT)) && cnt--)
-    delay(150);                               /* ! */
+    delay(3);                               /* ! */
   if (cnt <= 0) {
     klog("ERROR: timeout waiting for inhibit flag\n");
     return SD_ERROR;
   }
 
   *EMMC_CONTROL1 &= ~C1_CLK_EN;
-  delay(150);                               /* ! */
+  delay(30);                               /* ! */
   x = c - 1;
   if (!x)
     s = 0;
@@ -426,12 +446,12 @@ int32_t sd_clk(emmc_state_t *state, uint32_t f) {
     h = (d & 0x300) >> 2;
   d = (((d & 0x0ff) << 8) | h);
   *EMMC_CONTROL1 = (*EMMC_CONTROL1 & 0xffff003f) | d;
-  delay(150);                                 /* ! */
+  delay(30);                                 /* ! */
   *EMMC_CONTROL1 |= C1_CLK_EN;
-  delay(150);                                 /* ! */
+  delay(30);                                 /* ! */
   cnt = 10000;
   while (!(*EMMC_CONTROL1 & C1_CLK_STABLE) && cnt--)
-    delay(150);                               /* ! */
+    delay(30);                               /* ! */
   if (cnt <= 0) {
     klog("ERROR: failed to get stable clock\n");
     return SD_ERROR;
@@ -496,7 +516,7 @@ static int emmc_init(device_t *dev) {
   *EMMC_CONTROL1 |= C1_SRST_HC;
   cnt = 10000;
   do {
-    delay(150);                               /* ! */
+    delay(30);                               /* ! */
   } while ((*EMMC_CONTROL1 & C1_SRST_HC) && cnt--);
   if (cnt <= 0) {
     klog("ERROR: failed to reset EMMC\n");
@@ -504,7 +524,7 @@ static int emmc_init(device_t *dev) {
   }
   klog("EMMC: reset OK\n");
   *EMMC_CONTROL1 |= C1_CLK_INTLEN | C1_TOUNIT_MAX;
-  delay(150);                               /* ! */;
+  delay(30);                               /* ! */;
   // Set clock to setup frequency.
   if ((r = sd_clk(state, 400000)))
     return r;
@@ -572,7 +592,7 @@ static int emmc_init(device_t *dev) {
     if (*EMMC_STATUS & SR_READ_AVAILABLE)
       state->sd_scr[r++] = *EMMC_DATA;
     else
-      delay(150);                               /* ! */
+      delay(3);                               /* ! */
   }
   if (r != 2)
     return SD_TIMEOUT;
@@ -601,6 +621,16 @@ static int emmc_probe(device_t *dev) {
   return dev->unit == 3;
 }
 
+
+static unsigned char TestBlock[512];
+
+static int test_read(device_t *dev) {
+  int read_res = emmc_read_block(dev, 0, TestBlock, 512);
+  if (read_res == 0)
+    klog("eMMC test read failed!");
+  return read_res;
+}
+
 static int emmc_attach(device_t *dev) {
   assert(dev->driver == (driver_t *)&emmc_driver);
   emmc_state_t *state = (emmc_state_t *)dev->state;
@@ -610,6 +640,7 @@ static int emmc_attach(device_t *dev) {
   state->gpio_mem = device_take_memory(dev, 0, RF_ACTIVE);
   state->emmc_mem = device_take_memory(dev, 1, RF_ACTIVE);
   emmc_init(dev);
+  (void)test_read(dev);
   return 0;
 }
 
@@ -619,7 +650,8 @@ static int emmc_detach(device_t *dev) {
 */
 
 blockdev_methods_t emmc_block_if = {
-
+  .read = NULL,
+  .write = NULL,
 };
 
 driver_t emmc_driver = {
@@ -627,8 +659,11 @@ driver_t emmc_driver = {
   .size = sizeof(emmc_state_t),
   .probe = emmc_probe,
   .attach = emmc_attach,
+  .pass = SECOND_PASS,
   .interfaces =
     {
       [DIF_BLOCK_MEM] = &emmc_block_if,
     },
 };
+
+DEVCLASS_ENTRY(root, emmc_driver);
