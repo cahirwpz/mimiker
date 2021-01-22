@@ -99,7 +99,7 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
                       (size), 0)
 
 #define device_add_irq(dev, rid, irq)                                          \
-  device_add_resource((dev), RT_IRQ, (rid), (irq), (irq), 1, 0)
+  device_add_resource((dev), RT_IRQ, (rid), (irq), (irq), 1, RF_SHAREABLE)
 
 /*! \brief Take a resource which is assigned to device by parent bus. */
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
