@@ -22,9 +22,12 @@ static int wchan;
 #define THREADS 6
 #define SLEEP_TICKS 4
 
+/* Waiter threads that are signaled run one after another,
+ * so there's no race on signaled_received. However, the threads that time out
+ * may run concurrently, so we need to atomically increment timed_received. */
 static volatile atomic_int timed_received;
-static volatile atomic_int signaled_received;
-static volatile atomic_int signaled_sent;
+static volatile int signaled_received;
+static volatile int signaled_sent;
 
 static thread_t *waiters[THREADS];
 static thread_t *waker;
@@ -39,7 +42,7 @@ static void waiter_routine(void *_arg) {
     atomic_fetch_add(&timed_received, 1);
     assert(diff >= SLEEP_TICKS);
   } else if (status == 0) {
-    atomic_fetch_add(&signaled_received, 1);
+    signaled_received++;
   } else {
     panic("Got unexpected wakeup status: %d!", status);
   }
@@ -50,7 +53,7 @@ static void waker_routine(void *_arg) {
   for (int i = 0; i < THREADS / 2; i++) {
     bool status = sleepq_signal(&wchan);
     if (status)
-      atomic_fetch_add(&signaled_sent, 1);
+      signaled_sent++;
   }
 }
 
