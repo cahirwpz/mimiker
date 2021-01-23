@@ -65,11 +65,16 @@ static int vfs_create(proc_t *p, int fdat, char *pathname, int *flags, int mode,
     goto fail;
 
   if (vs.vs_vp == NULL) {
-    vattr_t va;
+    if ((error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred))) {
+      vnode_put(vs.vs_dvp);
+      goto fail;
+    }
+    vattr_t va, dva;
+    VOP_GETATTR(vs.vs_dvp, &dva);
     vattr_null(&va);
     va.va_mode = S_IFREG | (mode & ALLPERMS);
-    va.va_uid = p->p_cred.cr_ruid;
-    va.va_gid = p->p_cred.cr_rgid;
+    va.va_uid = p->p_cred.cr_euid;
+    va.va_gid = dva.va_mode & S_ISGID ? dva.va_gid : p->p_cred.cr_egid;
     error = VOP_CREATE(vs.vs_dvp, &vs.vs_lastcn, &va, &vs.vs_vp);
     vnode_put(vs.vs_dvp);
   } else {
@@ -249,12 +254,12 @@ int do_unlinkat(proc_t *p, int fd, char *path, int flag) {
   else if (vs.vs_vp->v_type == V_DIR) {
     if (!(flag & AT_REMOVEDIR))
       error = EPERM;
-    else
+    else if (!(error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred)))
       error = VOP_RMDIR(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
   } else {
     if (flag & AT_REMOVEDIR)
       error = ENOTDIR;
-    else
+    else if (!(error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred)))
       error = VOP_REMOVE(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
   }
 
@@ -267,7 +272,7 @@ fail:
 
 int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
   vnrstate_t vs;
-  vattr_t va;
+  vattr_t va, dva;
   int error;
 
   if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, path, &p->p_cred)))
@@ -282,13 +287,25 @@ int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
     goto fail;
   }
 
+  if ((error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred))) {
+    vnode_put(vs.vs_dvp);
+    goto fail;
+  }
+
+  VOP_GETATTR(vs.vs_dvp, &dva);
   memset(&va, 0, sizeof(vattr_t));
   /* We discard all bits but permission bits, since it is
    * implementation-defined.
    * https://pubs.opengroup.org/onlinepubs/9699919799/functions/mkdir.html */
   va.va_mode = S_IFDIR | ((mode & ACCESSPERMS) & ~p->p_cmask);
-  va.va_uid = p->p_cred.cr_ruid;
-  va.va_gid = p->p_cred.cr_rgid;
+  va.va_uid = p->p_cred.cr_euid;
+  if (dva.va_mode & S_ISGID) {
+    /* We propagate set-group-id down */
+    va.va_mode |= S_ISGID;
+    va.va_gid = dva.va_gid;
+  } else {
+    va.va_gid = p->p_cred.cr_egid;
+  }
 
   error = VOP_MKDIR(vs.vs_dvp, &vs.vs_lastcn, &va, &vs.vs_vp);
   if (!error)

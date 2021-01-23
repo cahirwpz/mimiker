@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = doom
+SUBDIR = doom atto
 
 all: build
 

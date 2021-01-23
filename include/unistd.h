@@ -26,6 +26,7 @@ int execlp(const char *, const char *, ...);
 int execv(const char *, char *const *);
 int execve(const char *, char *const *, char *const *);
 int execvp(const char *, char *const *);
+int execvpe(const char *, char *const *, char *const *);
 pid_t fork(void);
 long fpathconf(int, int);
 char *getcwd(char *, size_t);
@@ -59,7 +60,7 @@ unsigned int sleep(unsigned int);
 long sysconf(int);
 pid_t tcgetpgrp(int);
 int tcsetpgrp(int, pid_t);
-const char *ttyname(int);
+char *ttyname(int);
 int unlink(const char *);
 ssize_t write(int, const void *, size_t);
 
@@ -164,6 +165,20 @@ void *setmode(const char *mode_str);
 void setusershell(void);
 mode_t getmode(const void *set, mode_t mode);
 void strmode(mode_t, char *);
+char *getpassfd(const char *, char *, size_t, int *, int, int);
+#define GETPASS_NEED_TTY 0x001    /* Fail if we cannot set tty */
+#define GETPASS_FAIL_EOF 0x002    /* Fail on EOF */
+#define GETPASS_BUF_LIMIT 0x004   /* beep on buffer limit */
+#define GETPASS_NO_SIGNAL 0x008   /* don't make ttychars send signals */
+#define GETPASS_NO_BEEP 0x010     /* don't beep */
+#define GETPASS_ECHO 0x020        /* echo characters as they are typed */
+#define GETPASS_ECHO_STAR 0x040   /* echo '*' for each character */
+#define GETPASS_7BIT 0x080        /* mask the high bit each char */
+#define GETPASS_FORCE_LOWER 0x100 /* lowercase each char */
+#define GETPASS_FORCE_UPPER 0x200 /* uppercase each char */
+#define GETPASS_ECHO_NL 0x400     /* echo a newline if successful */
+
+char *getpass_r(const char *, char *, size_t);
 
 __END_DECLS
 

@@ -214,11 +214,11 @@ static pte_t make_pte(paddr_t pa, vm_prot_t prot, unsigned flags) {
   return pte | ATTR_IDX(ATTR_NORMAL_MEM_WB);
 }
 
-static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte) {
+static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte, vaddr_t va) {
   if (pmap != pmap_kernel())
     pte |= ATTR_AP(ATTR_AP_USER);
   *ptep = pte;
-  tlb_invalidate(pte, pmap->asid);
+  tlb_invalidate(va, pmap->asid);
 }
 
 /*
@@ -288,7 +288,7 @@ void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     pte_t *ptep = pmap_ensure_pte(pmap, va);
-    pmap_write_pte(pmap, ptep, pte);
+    pmap_write_pte(pmap, ptep, pte, va);
   }
 }
 
@@ -305,7 +305,7 @@ void pmap_kremove(vaddr_t va, size_t size) {
     for (size_t off = 0; off < size; off += PAGESIZE) {
       pte_t *ptep = pmap_lookup_pte(pmap, va);
       assert(ptep != NULL);
-      pmap_write_pte(pmap, ptep, 0);
+      pmap_write_pte(pmap, ptep, 0, va);
     }
   }
 }
@@ -357,7 +357,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
     else
       pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
     pte_t *ptep = pmap_ensure_pte(pmap, va);
-    pmap_write_pte(pmap, ptep, pte);
+    pmap_write_pte(pmap, ptep, pte, va);
   }
 }
 
@@ -378,7 +378,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
       vm_page_t *pg = vm_page_find(pa);
       WITH_MTX_LOCK (pv_list_lock)
         pv_remove(pmap, va, pg);
-      pmap_write_pte(pmap, ptep, 0);
+      pmap_write_pte(pmap, ptep, 0, va);
     }
   }
 }
@@ -396,7 +396,7 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
       if (ptep == NULL)
         continue;
       pte_t pte = vm_prot_map[prot] | (*ptep & (~ATTR_AP_MASK & ~ATTR_XN));
-      pmap_write_pte(pmap, ptep, pte);
+      pmap_write_pte(pmap, ptep, pte, va);
     }
   }
 }
@@ -417,7 +417,7 @@ void pmap_page_remove(vm_page_t *pg) {
     TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
     pte_t *ptep = pmap_lookup_pte(pmap, va);
     assert(ptep != NULL);
-    pmap_write_pte(pmap, ptep, 0);
+    pmap_write_pte(pmap, ptep, 0, va);
     pool_free(P_PV, pv);
   }
 }
@@ -443,7 +443,7 @@ static void pmap_modify_flags(vm_page_t *pg, pte_t set, pte_t clr) {
       pte |= set;
       pte &= ~clr;
       *ptep = pte;
-      tlb_invalidate(pte, pmap->asid);
+      tlb_invalidate(va, pmap->asid);
     }
   }
 }
