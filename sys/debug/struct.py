@@ -20,8 +20,11 @@ class ProgramCounter():
             return 'null'
         line = gdb.execute('info line *0x%x' % self.pc, to_string=True)
         m = re.match(r'Line (\d+) of "(.*)"', line)
-        lnum, path = m.groups()
-        return '%s:%s' % (relpath(path), lnum)
+        if m:
+            lnum, path = m.groups()
+            return '%s:%s' % (relpath(path), lnum)
+        else:
+            return '0x%x' % self.pc
 
 
 class GdbStructBase():

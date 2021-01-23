@@ -212,6 +212,7 @@ static int stdvga_attach(device_t *dev) {
 static driver_t stdvga = {
   .desc = "Bochs VGA driver",
   .size = sizeof(stdvga_state_t),
+  .pass = SECOND_PASS,
   .probe = stdvga_probe,
   .attach = stdvga_attach,
 };

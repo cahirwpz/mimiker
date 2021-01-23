@@ -10,6 +10,14 @@
 #include <sys/ktest.h>
 #include <sys/sched.h>
 
+#ifdef __mips__
+#define TOO_MUCH 0x40000000
+#endif
+
+#ifdef __aarch64__
+#define TOO_MUCH 0x800000000000L
+#endif
+
 static int paging_on_demand_and_memory_protection_demo(void) {
   /* This test mustn't be preempted since PCPU's user-space vm_map will not be
    * restored while switching back. */
@@ -142,7 +150,7 @@ static int findspace_demo(void) {
   assert(n == 0 && t == addr4);
 
   t = 0;
-  n = vm_map_findspace(umap, &t, 0x40000000);
+  n = vm_map_findspace(umap, &t, TOO_MUCH);
   assert(n == ENOMEM);
 
   vm_map_delete(umap);
