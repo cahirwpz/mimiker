@@ -3,7 +3,7 @@ version: 2.1
 defaults: &defaults
   working_directory: ~/mimiker
   docker:
-    - image: cahirwpz/mimiker-circleci:1.7.2
+    - image: cahirwpz/mimiker-circleci:1.7.3
 
 jobs:
   verify_formatting:

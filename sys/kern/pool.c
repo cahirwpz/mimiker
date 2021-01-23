@@ -6,6 +6,7 @@
 #include <sys/mutex.h>
 #include <sys/linker_set.h>
 #include <sys/sched.h>
+#include <sys/malloc.h>
 #include <sys/pool.h>
 #include <sys/kmem.h>
 #include <sys/vm.h>
@@ -51,6 +52,7 @@ typedef struct pool {
 
 static TAILQ_HEAD(, pool) pool_list = TAILQ_HEAD_INITIALIZER(pool_list);
 static mtx_t *pool_list_lock = &MTX_INITIALIZER(0);
+static KMALLOC_DEFINE(M_POOL, "pool allocators");
 
 typedef struct slab {
   LIST_ENTRY(slab) ph_link; /* pool slab list */
@@ -61,10 +63,6 @@ typedef struct slab {
   void *ph_items;           /* ptr to array of items after bitmap */
   bitstr_t ph_bitmap[0];
 } slab_t;
-
-/* Pool of pool_t objects. */
-static pool_t P_POOL[1];
-static alignas(PAGESIZE) uint8_t P_POOL_BOOTPAGE[PAGESIZE * 2];
 
 static void *slab_item_at(slab_t *slab, unsigned i) {
   return slab->ph_items + i * slab->ph_itemsize;
@@ -136,7 +134,6 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
 
     if (!(slab = LIST_FIRST(&pool->pp_part_slabs))) {
       if (!(slab = LIST_FIRST(&pool->pp_empty_slabs))) {
-        assert(pool != P_POOL); /* Master pool must use only static memory! */
         slab = kmem_alloc(PAGESIZE, flags);
         assert(slab != NULL);
         add_slab(pool, slab, PAGESIZE);
@@ -276,8 +273,6 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
 }
 
 void init_pool(void) {
-  pool_init(P_POOL, "master pool", sizeof(pool_t), NULL, NULL);
-  pool_add_page(P_POOL, P_POOL_BOOTPAGE, sizeof(P_POOL_BOOTPAGE));
   INVOKE_CTORS(pool_ctor_table);
 }
 
@@ -288,7 +283,7 @@ void pool_add_page(pool_t *pool, void *page, size_t size) {
 }
 
 pool_t *pool_create(const char *desc, size_t size) {
-  pool_t *pool = pool_alloc(P_POOL, M_ZERO);
+  pool_t *pool = kmalloc(M_POOL, sizeof(pool_t), M_ZERO | M_NOWAIT);
   pool_init(pool, desc, size, NULL, NULL);
   return pool;
 }
@@ -300,5 +295,5 @@ void pool_destroy(pool_t *pool) {
     /* Lock needed as the quarantine may call _pool_free! */
     kasan_quar_releaseall(&pool->pp_quarantine);
   pool_dtor(pool);
-  pool_free(P_POOL, pool);
+  kfree(M_POOL, pool);
 }
