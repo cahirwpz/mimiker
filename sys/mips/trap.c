@@ -142,32 +142,19 @@ static void tlb_exception_handler(ctx_t *ctx) {
     goto fault;
   }
 
-  paddr_t pa;
-  if (pmap_extract(pmap, vaddr, &pa)) {
-    vm_page_t *pg = vm_page_find(pa);
-
-    /* Kernel non-pageable memory? */
-    if (TAILQ_EMPTY(&pg->pv_list))
-      goto fault;
-
-    if (code == EXC_TLBL) {
-      pmap_set_referenced(pg);
-    } else if (code == EXC_TLBS || code == EXC_MOD) {
-      pmap_set_referenced(pg);
-      pmap_set_modified(pg);
-    } else {
-      kernel_oops(ctx);
-    }
-
+  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
+  int error = pmap_emulate_bits(pmap, vaddr, access);
+  if (error == 0)
     return;
-  }
+
+  if (error == EACCES)
+    goto fault;
 
   vm_map_t *vmap = vm_map_lookup(vaddr);
   if (!vmap) {
     klog("No virtual address space defined for %08lx!", vaddr);
     goto fault;
   }
-  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
   if (vm_page_fault(vmap, vaddr, access) == 0)
     return;
 
