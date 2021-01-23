@@ -95,6 +95,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(getcwd);
 
   CHECKRUN_TEST(gettimeofday);
+  CHECKRUN_TEST(nanosleep);
 
   CHECKRUN_TEST(get_set_uid);
   CHECKRUN_TEST(get_set_gid);

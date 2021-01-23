@@ -20,7 +20,7 @@ static void syscall_handler(ctx_t *ctx, syscall_result_t *result) {
   /* TODO Eventually we should have a platform-independent syscall handler. */
   register_t args[SYS_MAXSYSARGS];
   register_t code = _REG(ctx, V0);
-  const int nregs = 4;
+  const size_t nregs = min(SYS_MAXSYSARGS, FUNC_MAXREGARGS);
   int error = 0;
 
   /*
@@ -230,6 +230,7 @@ static void user_trap_handler(ctx_t *ctx) {
         sig_trap(ctx, SIGILL);
       } else {
         /* Enable FPU for interrupted context. */
+        thread_self()->td_pflags |= TDP_FPUINUSE;
         _REG(ctx, SR) |= SR_CU1;
       }
       break;
