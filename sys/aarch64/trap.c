@@ -69,21 +69,12 @@ static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
     access |= VM_PROT_WRITE;
   }
 
-  paddr_t pa;
-  if (pmap_extract(pmap, vaddr, &pa)) {
-    vm_page_t *pg = vm_page_find(pa);
-
-    if (access & (VM_PROT_READ | VM_PROT_EXEC)) {
-      pmap_set_referenced(pg);
-    } else if (access & VM_PROT_WRITE) {
-      pmap_set_referenced(pg);
-      pmap_set_modified(pg);
-    } else {
-      kernel_oops(ctx);
-    }
-
+  int error = pmap_emulate_bits(pmap, vaddr, access);
+  if (error == 0)
     return;
-  }
+
+  if (error == EACCES)
+    goto fault;
 
   vm_map_t *vmap = vm_map_lookup(vaddr);
   if (!vmap) {

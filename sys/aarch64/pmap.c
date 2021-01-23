@@ -13,6 +13,7 @@
 #include <sys/sched.h>
 #include <sys/vm_physmem.h>
 #include <bitstring.h>
+#include <sys/errno.h>
 
 typedef struct pmap {
   mtx_t mtx;                      /* protects all fields in this structure */
@@ -42,13 +43,15 @@ static const pte_t pte_default = L3_PAGE | ATTR_AF | ATTR_SH(ATTR_SH_IS);
 static const pte_t vm_prot_map[] = {
   [VM_PROT_NONE] = ATTR_XN | pte_default,
   [VM_PROT_READ] = ATTR_AP(ATTR_AP_RO) | ATTR_XN | pte_default,
-  [VM_PROT_WRITE] = ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default,
-  [VM_PROT_READ | VM_PROT_WRITE] = ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default,
+  [VM_PROT_WRITE] = ATTR_SW_RW | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default,
+  [VM_PROT_READ | VM_PROT_WRITE] =
+    ATTR_SW_RW | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default,
   [VM_PROT_EXEC] = pte_default,
   [VM_PROT_READ | VM_PROT_EXEC] = ATTR_AP(ATTR_AP_RO) | pte_default,
-  [VM_PROT_WRITE | VM_PROT_EXEC] = ATTR_AP(ATTR_AP_RW) | pte_default,
+  [VM_PROT_WRITE | VM_PROT_EXEC] =
+    ATTR_SW_RW | ATTR_AP(ATTR_AP_RW) | pte_default,
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] =
-    ATTR_AP(ATTR_AP_RW) | pte_default,
+    ATTR_SW_RW | ATTR_AP(ATTR_AP_RW) | pte_default,
 };
 
 static pmap_t kernel_pmap;
@@ -478,6 +481,37 @@ void pmap_set_referenced(vm_page_t *pg) {
 void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
   pmap_modify_flags(pg, ATTR_DBM, 0);
+}
+
+int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
+  vm_page_t *pg;
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    paddr_t pa;
+
+    if (!pmap_extract_nolock(pmap, va, &pa))
+      return EFAULT;
+
+    pte_t *pte = pmap_lookup_pte(pmap, va);
+    if (pte == NULL)
+      return EFAULT;
+
+    if ((prot & VM_PROT_WRITE) && !(*pte & ATTR_SW_RW))
+      return EACCES;
+
+    pg = vm_page_find(pa);
+  }
+
+  WITH_MTX_LOCK (pv_list_lock) {
+    if (TAILQ_EMPTY(&pg->pv_list))
+      return EACCES;
+  }
+
+  pmap_set_referenced(pg);
+  if (prot & VM_PROT_WRITE)
+    pmap_set_modified(pg);
+
+  return 0;
 }
 
 /*
