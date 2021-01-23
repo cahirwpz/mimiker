@@ -139,10 +139,10 @@ struct bus_methods {
   void (*intr_teardown)(device_t *dev, resource_t *irq);
   resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
                                 rman_addr_t start, rman_addr_t end, size_t size,
-                                res_flags_t flags);
-  void (*release_resource)(device_t *dev, res_type_t type, resource_t *r);
-  int (*activate_resource)(device_t *dev, res_type_t type, resource_t *r);
-  void (*deactivate_resource)(device_t *dev, res_type_t type, resource_t *r);
+                                rman_flags_t flags);
+  void (*release_resource)(device_t *dev, resource_t *r);
+  int (*activate_resource)(device_t *dev, resource_t *r);
+  void (*deactivate_resource)(device_t *dev, resource_t *r);
 };
 
 #define BUS_METHODS(dev) (*(bus_methods_t *)(dev)->driver->interfaces[DIF_BUS])
@@ -152,17 +152,10 @@ struct bus_methods {
 #define BUS_METHOD_PROVIDER(dev, method)                                       \
   (device_method_provider((dev), DIF_BUS, offsetof(struct bus_methods, method)))
 
-static inline void bus_intr_setup(device_t *dev, resource_t *irq,
-                                  ih_filter_t *filter, ih_service_t *service,
-                                  void *arg, const char *name) {
-  device_t *idev = BUS_METHOD_PROVIDER(dev, intr_setup);
-  BUS_METHODS(idev->parent).intr_setup(idev, irq, filter, service, arg, name);
-}
+void bus_intr_setup(device_t *dev, resource_t *irq, ih_filter_t *filter,
+                    ih_service_t *service, void *arg, const char *name);
 
-static inline void bus_intr_teardown(device_t *dev, resource_t *irq) {
-  device_t *idev = BUS_METHOD_PROVIDER(dev, intr_teardown);
-  BUS_METHODS(idev->parent).intr_teardown(idev, irq);
-}
+void bus_intr_teardown(device_t *dev, resource_t *irq);
 
 /*! \brief Allocates a resource of type \a type and size \a size between
  * \a start and \a end for a device \a dev.
@@ -180,7 +173,7 @@ static inline void bus_intr_teardown(device_t *dev, resource_t *irq) {
 static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
                                              int rid, rman_addr_t start,
                                              rman_addr_t end, size_t size,
-                                             res_flags_t flags) {
+                                             rman_flags_t flags) {
   device_t *idev = BUS_METHOD_PROVIDER(dev, alloc_resource);
   return BUS_METHODS(idev->parent)
     .alloc_resource(idev, type, rid, start, end, size, flags);
@@ -193,7 +186,7 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
  * It performs common tasks like: check if resource has been already activated,
  * mark resource as activated if the method returned success.
  */
-int bus_activate_resource(device_t *dev, res_type_t type, resource_t *r);
+int bus_activate_resource(device_t *dev, resource_t *r);
 
 /*! \brief Deactivates resource on device behalf.
  *
@@ -202,14 +195,19 @@ int bus_activate_resource(device_t *dev, res_type_t type, resource_t *r);
  * It performs common tasks like: check if resource has been already deactivated
  * and mark resource as dactivated.
  */
-void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r);
+void bus_deactivate_resource(device_t *dev, resource_t *r);
 
-static inline void bus_release_resource(device_t *dev, res_type_t type,
-                                        resource_t *r) {
+static inline void bus_release_resource(device_t *dev, resource_t *r) {
   device_t *idev = BUS_METHOD_PROVIDER(dev, release_resource);
-  BUS_METHODS(idev->parent).release_resource(idev, type, r);
+  BUS_METHODS(idev->parent).release_resource(idev, r);
 }
 
 int bus_generic_probe(device_t *bus);
+
+/*! \brief Initializes devices and attaches drivers.
+ *
+ * Can be called multiple times. Each time it bumps up `current_pass` counter
+ * and goes deeper into device hierarchy. */
+void init_devices(void);
 
 #endif /* !_SYS_BUS_H_ */

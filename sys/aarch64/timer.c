@@ -93,6 +93,7 @@ static int arm_timer_attach(device_t *dev) {
 static driver_t arm_timer = {
   .desc = "ARM CPU timer driver",
   .size = sizeof(arm_timer_state_t),
+  .pass = FIRST_PASS,
   .probe = arm_timer_probe,
   .attach = arm_timer_attach,
 };
