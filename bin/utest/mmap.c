@@ -102,3 +102,14 @@ int test_mmap(void) {
   munmap_good();
   return 0;
 }
+
+int test_mmap_emulation(void) {
+  size_t size = 4096;
+  uint8_t *addr = mmap(0, 2 * size, PROT_READ, MAP_ANON | MAP_PRIVATE, -1, 0);
+  /* set referenced */
+  volatile uint8_t x = addr[size];
+  /* set modified */
+  addr[size] = x + 42;
+  munmap(addr, 2 * size);
+  return 1;
+}
