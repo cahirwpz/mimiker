@@ -12,6 +12,7 @@
 #include <sys/sched.h>
 #include <sys/vm_physmem.h>
 #include <bitstring.h>
+#include <sys/errno.h>
 
 typedef struct pmap {
   mtx_t mtx;                      /* protects all fields in this structure */
@@ -33,12 +34,12 @@ static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 
 static const pte_t vm_prot_map[] = {
   [VM_PROT_NONE] = 0,
-  [VM_PROT_READ] = PTE_VALID | PTE_NO_EXEC,
-  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_NO_READ | PTE_NO_EXEC,
-  [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_NO_EXEC,
-  [VM_PROT_EXEC] = PTE_VALID | PTE_NO_READ,
-  [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID,
-  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY | PTE_NO_READ,
+  [VM_PROT_READ] = PTE_VALID | PTE_SW_NO_EXEC | PTE_SW_RO,
+  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_SW_NO_READ | PTE_SW_NO_EXEC,
+  [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_SW_NO_EXEC,
+  [VM_PROT_EXEC] = PTE_VALID | PTE_SW_NO_READ | PTE_SW_RO,
+  [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID | PTE_SW_RO,
+  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY | PTE_SW_NO_READ,
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
 };
 
@@ -319,7 +320,8 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   bool kern_mapping = (pmap == pmap_kernel());
 
   /* Mark user pages as non-referenced & non-modified. */
-  pte_t mask = kern_mapping ? (PTE_VALID | PTE_DIRTY) : 0;
+  pte_t mask =
+    kern_mapping ? (PTE_VALID | PTE_DIRTY | PTE_SW_FLAGS) : PTE_SW_FLAGS;
   pte_t pte = (vm_prot_map[prot] & mask) | empty_pte(pmap);
 
   WITH_MTX_LOCK (&pmap->mtx) {
@@ -448,6 +450,35 @@ void pmap_set_referenced(vm_page_t *pg) {
 void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
   pmap_modify_flags(pg, PTE_DIRTY, 0);
+}
+
+int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
+  vm_page_t *pg;
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    paddr_t pa;
+
+    if (!pmap_extract_nolock(pmap, va, &pa))
+      return EFAULT;
+
+    pg = vm_page_find(pa);
+    pte_t pte = pmap_pte_read(pmap, va);
+
+    if ((prot & VM_PROT_WRITE) && (pte & PTE_SW_RO))
+      return EACCES;
+  }
+
+  WITH_MTX_LOCK (pv_list_lock) {
+    /* Kernel non-pageable memory? */
+    if (TAILQ_EMPTY(&pg->pv_list))
+      return EACCES;
+  }
+
+  pmap_set_referenced(pg);
+  if (prot & VM_PROT_WRITE)
+    pmap_set_modified(pg);
+
+  return 0;
 }
 
 /*

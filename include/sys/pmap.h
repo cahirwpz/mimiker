@@ -59,6 +59,8 @@ bool pmap_is_referenced(vm_page_t *pg);
 void pmap_set_referenced(vm_page_t *pg);
 void pmap_set_modified(vm_page_t *pg);
 
+int pmap_emulate_bits(pmap_t *pmap, vaddr_t vaddr, vm_prot_t prot);
+
 void pmap_activate(pmap_t *pmap);
 
 pmap_t *pmap_lookup(vaddr_t va);
