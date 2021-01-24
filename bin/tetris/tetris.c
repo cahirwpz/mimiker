@@ -178,7 +178,7 @@ main(int argc, char *argv[])
 	if (argc)
 		usage();
 
-	fallrate = 1000000 / level;
+	fallrate = 2000000 / level;
 
 	for (i = 0; i <= (NUMKEYS-1); i++) {
 		for (j = i+1; j <= (NUMKEYS-1); j++) {
