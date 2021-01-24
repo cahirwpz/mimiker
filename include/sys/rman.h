@@ -24,6 +24,7 @@ typedef enum {
    * range contains locations with read side-effects or locations in which the
    * device does not tolerate write merging. */
   RF_PREFETCHABLE = 4,
+  RF_SHAREABLE = 8, /* (for interrupts) range permits sharing */
 } rman_flags_t;
 
 struct rman {

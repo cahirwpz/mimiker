@@ -122,12 +122,15 @@ class Kthread(SimpleCommand, AutoCompleteMixin):
         if not thread:
             return
         print(thread.dump())
+        # Don't switch context if this is the current thread.
+        not_current = Thread.from_current().td_tid != thread.td_tid
+        if not_current:
+            ctx = Context.current()
+            Context.load(Context.from_kctx(thread.td_kctx))
         print('\n>>> backtrace for %s' % thread)
-        ctx = Context()
-        ctx.save()
-        Context.load(thread.td_kctx)
         gdb.execute('backtrace')
-        ctx.restore()
+        if not_current:
+            Context.load(ctx)
 
     def __call__(self, arg):
         if arg:

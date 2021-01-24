@@ -1,3 +1,4 @@
+#include <sys/cdefs.h>
 #include <sys/filedesc.h>
 #include <sys/mutex.h>
 #include <sys/ringbuf.h>
@@ -42,6 +43,7 @@ static pty_t *pty_alloc(void) {
 }
 
 static void pty_free(pty_t *pty) {
+  assert(pty->pt_number >= 0);
   pty->pt_number = -1;
 }
 
@@ -77,13 +79,15 @@ static int pty_read(file_t *f, uio_t *uio) {
 }
 
 static int pty_putc_sleep(tty_t *tty, pty_t *pty, uint8_t c) {
-  while (!tty_input(tty, c)) {
-    if (cv_wait_intr(&pty->pt_outcv, &tty->t_lock))
-      return ERESTARTSYS;
+  while (true) {
     if (!tty_opened(tty))
       return ENOTTY;
+    if (tty_input(tty, c))
+      return 0;
+    if (cv_wait_intr(&pty->pt_outcv, &tty->t_lock))
+      return ERESTARTSYS;
   }
-  return 0;
+  __unreachable();
 }
 
 static int pty_write(file_t *f, uio_t *uio) {
