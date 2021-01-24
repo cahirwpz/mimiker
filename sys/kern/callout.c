@@ -215,6 +215,8 @@ void callout_process(systime_t time) {
 }
 
 bool callout_drain(callout_t *handle) {
+  /* Disallow draining periodic callouts that haven't been stopped. */
+  assert(handle->c_interval == 0);
   WITH_INTR_DISABLED {
     if (callout_is_pending(handle) || callout_is_active(handle)) {
       sleepq_wait(handle, NULL);

@@ -191,7 +191,6 @@ int do_getitimer(proc_t *p, int which, struct itimerval *tval) {
 void kitimer_stop(proc_t *p, kitimer_t *timer) {
   assert(mtx_owned(&p->p_lock));
 
-again:
   if (p->p_flags & PF_ITIMER_ACTIVE) {
     /* The callout is pending or active.
      * If it has already been delegated to the callout thread we must
@@ -201,7 +200,9 @@ again:
       mtx_unlock(&p->p_lock);
       callout_drain(&timer->kit_callout);
       mtx_lock(&p->p_lock);
-      goto again;
+      /* The callout should have cleared the flag. */
+      assert(!(p->p_flags & PF_ITIMER_ACTIVE));
+      return;
     }
     p->p_flags &= ~PF_ITIMER_ACTIVE;
   }
@@ -251,7 +252,8 @@ int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
     return EINVAL;
 
   systime_t next = tv2hz(&itval->it_value);
-  systime_t interval = tv2hz(&itval->it_interval);
+  systime_t interval =
+    tv2hz(&itval->it_interval) - 1; /* ts2hz increments its result by 1 */
 
   if (next == UINT_MAX || interval == UINT_MAX)
     return EINVAL;
