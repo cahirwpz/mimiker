@@ -372,15 +372,17 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
       vm_segment_t *seg;
       vm_object_t *backing;
 
-      WITH_MTX_LOCK (&it->object->mtx) {
-        if (it->flags & VM_SEG_SHARED) {
-          refcnt_acquire(&it->object->ref_counter);
-          obj = it->object;
-        } else {
+      if (it->flags & VM_SEG_SHARED) {
+        refcnt_acquire(&it->object->ref_counter);
+        obj = it->object;
+      } else {
+        WITH_MTX_LOCK (&it->object->mtx) {
           if ((it->flags & VM_SEG_NEED_COPY) != 0 && it->object->npages == 0) {
             obj = vm_object_alloc(VM_SHADOW);
             backing = it->object->backing_object;
             obj->backing_object = backing;
+            WITH_MTX_LOCK (&obj->backing_object->mtx)
+              vm_object_increase_pages_references(backing);
           } else {
             backing = it->object;
             obj = vm_object_alloc(VM_SHADOW);
@@ -391,10 +393,10 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
              * that refers also to pages which previously had VM_PROT_EXEC set
              */
             vm_object_set_prot(backing, VM_PROT_READ);
+            vm_object_increase_pages_references(backing);
           }
 
           refcnt_acquire(&backing->ref_counter);
-          vm_object_increase_pages_references(backing);
 
           it->flags |= VM_SEG_NEED_COPY;
         }
