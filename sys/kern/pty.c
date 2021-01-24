@@ -77,6 +77,9 @@ static int pty_read(file_t *f, uio_t *uio) {
   return error;
 }
 
+/* Write at single character to the master side of a pseudoterminal,
+ * i.e. to the input queue of the slave tty.
+ * If the input queue is full, sleep only if the slave tty has users. */
 static int pty_putc_sleep(tty_t *tty, pty_t *pty, uint8_t c) {
   while (!tty_input(tty, c)) {
     if (!tty_opened(tty))
