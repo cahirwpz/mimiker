@@ -51,7 +51,6 @@ static vm_page_t *shadow_pager_fault(vm_object_t *obj, off_t offset) {
           refcnt_acquire(&it->backing_object->ref_counter);
         }
         /* TODO: removing VM_SEG_NEEDS_COPY flag is missing */
-
         vm_object_free(it);
       }
     }

@@ -127,7 +127,6 @@ vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
 }
 
 static void vm_segment_free(vm_segment_t *seg) {
-  /* we assume no other segment points to this object */
   if (seg->object)
     vm_object_free(seg->object);
   pool_free(P_VMSEG, seg);
@@ -369,35 +368,36 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
     vm_segment_t *it;
     TAILQ_FOREACH (it, &map->entries, link) {
-      vm_seg_flags_t flags = it->flags;
       vm_object_t *obj;
       vm_segment_t *seg;
       vm_object_t *backing;
 
-      if (it->flags & VM_SEG_SHARED) {
-        refcnt_acquire(&it->object->ref_counter);
-        obj = it->object;
-      } else {
-        if ((it->flags & VM_SEG_NEED_COPY) != 0 && it->object->npages == 0) {
-          obj = vm_object_alloc(VM_SHADOW);
-          backing = it->object->backing_object;
-          obj->backing_object = backing;
+      WITH_MTX_LOCK (&it->object->mtx) {
+        if (it->flags & VM_SEG_SHARED) {
+          refcnt_acquire(&it->object->ref_counter);
+          obj = it->object;
         } else {
-          backing = it->object;
-          obj = vm_object_alloc(VM_SHADOW);
-          obj->backing_object = backing;
-          it->object = vm_object_alloc(VM_SHADOW);
-          it->object->backing_object = backing;
-          /* all pages in backing object are now read-only,
-           * that refers also to pages which previously had VM_PROT_EXEC set */
-          vm_object_set_prot(backing, VM_PROT_READ);
+          if ((it->flags & VM_SEG_NEED_COPY) != 0 && it->object->npages == 0) {
+            obj = vm_object_alloc(VM_SHADOW);
+            backing = it->object->backing_object;
+            obj->backing_object = backing;
+          } else {
+            backing = it->object;
+            obj = vm_object_alloc(VM_SHADOW);
+            obj->backing_object = backing;
+            it->object = vm_object_alloc(VM_SHADOW);
+            it->object->backing_object = backing;
+            /* all pages in backing object are now read-only,
+             * that refers also to pages which previously had VM_PROT_EXEC set
+             */
+            vm_object_set_prot(backing, VM_PROT_READ);
+          }
+
+          refcnt_acquire(&backing->ref_counter);
+          vm_object_increase_pages_references(backing);
+
+          it->flags |= VM_SEG_NEED_COPY;
         }
-
-        refcnt_acquire(&backing->ref_counter);
-        vm_object_increase_pages_references(backing);
-
-        flags |= VM_SEG_NEED_COPY;
-        it->flags |= VM_SEG_NEED_COPY;
       }
 
       seg = vm_segment_alloc(obj, it->start, it->end, it->prot, it->flags);

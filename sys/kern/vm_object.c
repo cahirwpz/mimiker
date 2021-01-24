@@ -38,22 +38,22 @@ void vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *pg) {
   pg->offset = offset;
   refcnt_acquire(&pg->ref_counter);
 
-  SCOPED_MTX_LOCK(&obj->mtx);
-
-  vm_page_t *it;
-  TAILQ_FOREACH (it, &obj->list, obj.list) {
-    if (it->offset > pg->offset) {
-      TAILQ_INSERT_BEFORE(it, pg, obj.list);
-      obj->npages++;
-      return;
+  WITH_MTX_LOCK (&obj->mtx) {
+    vm_page_t *it;
+    TAILQ_FOREACH (it, &obj->list, obj.list) {
+      if (it->offset > pg->offset) {
+        TAILQ_INSERT_BEFORE(it, pg, obj.list);
+        obj->npages++;
+        return;
+      }
+      /* there must be no page at the offset! */
+      assert(it->offset != pg->offset);
     }
-    /* there must be no page at the offset! */
-    assert(it->offset != pg->offset);
-  }
 
-  /* offset of page is greater than the offset of any other page */
-  TAILQ_INSERT_TAIL(&obj->list, pg, obj.list);
-  obj->npages++;
+    /* offset of page is greater than the offset of any other page */
+    TAILQ_INSERT_TAIL(&obj->list, pg, obj.list);
+    obj->npages++;
+  }
 }
 
 static void vm_object_remove_page_nolock(vm_object_t *obj, vm_page_t *page) {
@@ -127,19 +127,20 @@ void vm_map_object_dump(vm_object_t *obj) {
 }
 
 void vm_object_set_prot(vm_object_t *obj, vm_prot_t prot) {
-  SCOPED_MTX_LOCK(&obj->mtx);
+  assert(mtx_owned(&obj->mtx));
 
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) { pmap_set_page_prot(pg, prot); }
 }
 
 void vm_object_increase_pages_references(vm_object_t *obj) {
-  SCOPED_MTX_LOCK(&obj->mtx);
+  assert(mtx_owned(&obj->mtx));
 
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) { refcnt_acquire(&pg->ref_counter); }
 
   if (obj->backing_object) {
-    vm_object_increase_pages_references(obj->backing_object);
+    WITH_MTX_LOCK (&obj->backing_object->mtx)
+      vm_object_increase_pages_references(obj->backing_object);
   }
 }
