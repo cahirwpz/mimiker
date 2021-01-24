@@ -252,7 +252,8 @@ int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
     return EINVAL;
 
   systime_t next = tv2hz(&itval->it_value);
-  systime_t interval = tv2hz(&itval->it_interval);
+  systime_t interval =
+    tv2hz(&itval->it_interval) - 1; /* ts2hz increments its result by 1 */
 
   if (next == UINT_MAX || interval == UINT_MAX)
     return EINVAL;
