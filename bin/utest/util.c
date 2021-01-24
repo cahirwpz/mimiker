@@ -23,7 +23,7 @@ void signal_setup(int signo) {
   assert(sigprocmask(SIG_BLOCK, &mask, NULL) == 0);
 }
 
-void wait_for_signal(int signo, sigset_t *oldmask) {
+void wait_for_signal(int signo) {
   sigset_t mask;
   __sigfillset(&mask);
   sigdelset(&mask, signo);
