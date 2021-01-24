@@ -104,5 +104,6 @@ int test_pty_simple(void);
 
 int test_tty_canon(void);
 int test_tty_echo(void);
+int test_tty_signals(void);
 
 #endif /* __UTEST_H__ */

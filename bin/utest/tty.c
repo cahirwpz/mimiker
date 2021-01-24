@@ -129,3 +129,78 @@ int test_tty_echo(void) {
 
   return 0;
 }
+
+int test_tty_signals(void) {
+  signal_setup(SIGUSR1);
+  int master_fd, slave_fd;
+  open_pty(&master_fd, &slave_fd);
+
+  /* Set raw mode and ISIG flag. */
+  struct termios t;
+  assert(tcgetattr(slave_fd, &t) == 0);
+  cfmakeraw(&t);
+  t.c_lflag |= ISIG;
+  assert(tcsetattr(slave_fd, TCSANOW, &t) == 0);
+
+  pid_t ppid = getpid();
+  pid_t cpid = fork();
+  if (cpid == 0) {
+    signal_setup(SIGINT);
+    signal_setup(SIGQUIT);
+    signal_setup(SIGTSTP);
+
+    cpid = getpid();
+    /* The child creates a new session and opens the slave tty, so that it
+     * becomes the controlling terminal for its session, and the child is in the
+     * foreground process group. */
+    assert(setsid() == cpid);
+    assert(close(slave_fd) == 0);
+    assert((slave_fd = open(ptsname(master_fd), 0)) >= 0);
+    assert(close(master_fd) == 0);
+    /* We should be in the foreground process group now. */
+    assert(tcgetpgrp(slave_fd) == cpid);
+
+    /* We're ready to take the signals now. */
+    kill(ppid, SIGUSR1);
+    wait_for_signal(SIGINT);
+
+    /* Check if the "foo" was discarded. */
+    char c;
+    assert(read(slave_fd, &c, 1) == 1);
+    assert(c == 'x');
+
+    kill(ppid, SIGUSR1);
+    wait_for_signal(SIGQUIT);
+
+    kill(ppid, SIGUSR1);
+    wait_for_signal(SIGTSTP);
+
+    return 0;
+  }
+
+  assert(write(master_fd, "foo", 3) == 3);
+
+  /* Wait until the child is ready. */
+  wait_for_signal(SIGUSR1);
+  unsigned char vintr = t.c_cc[VINTR];
+  assert(vintr != _POSIX_VDISABLE);
+  assert(write(master_fd, &vintr, 1) == 1);
+
+  /* The "foo" should be discarded in response to receiving VINTR,
+   * so the child should only be able to read the following "x". */
+  assert(write(master_fd, &(char){'x'}, 1) == 1);
+
+  wait_for_signal(SIGUSR1);
+  unsigned char vquit = t.c_cc[VQUIT];
+  assert(vquit != _POSIX_VDISABLE);
+  assert(write(master_fd, &vquit, 1) == 1);
+
+  wait_for_signal(SIGUSR1);
+  unsigned char vsusp = t.c_cc[VSUSP];
+  assert(vsusp != _POSIX_VDISABLE);
+  assert(write(master_fd, &vsusp, 1) == 1);
+
+  wait_for_child_exit(cpid, 0);
+
+  return 0;
+}
