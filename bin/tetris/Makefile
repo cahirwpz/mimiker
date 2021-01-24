@@ -7,3 +7,5 @@ FORMAT-EXCLUDE = $(SOURCES)
 LDLIBS = -lterminfo
 
 include $(TOPDIR)/build/build.prog.mk
+
+CPPFLAGS += -UDEBUG
