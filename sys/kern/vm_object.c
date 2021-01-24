@@ -106,13 +106,14 @@ void vm_object_free(vm_object_t *obj) {
 vm_object_t *vm_object_clone(vm_object_t *obj) {
   vm_object_t *new_obj = vm_object_alloc(VM_DUMMY);
   new_obj->pager = obj->pager;
-  SCOPED_MTX_LOCK(&obj->mtx);
 
-  vm_page_t *pg;
-  TAILQ_FOREACH (pg, &obj->list, obj.list) {
-    vm_page_t *new_pg = vm_page_alloc(1);
-    pmap_copy_page(pg, new_pg);
-    vm_object_add_page(new_obj, pg->offset, new_pg);
+  WITH_MTX_LOCK (&obj->mtx) {
+    vm_page_t *pg;
+    TAILQ_FOREACH (pg, &obj->list, obj.list) {
+      vm_page_t *new_pg = vm_page_alloc(1);
+      pmap_copy_page(pg, new_pg);
+      vm_object_add_page(new_obj, pg->offset, new_pg);
+    }
   }
 
   return new_obj;
