@@ -76,10 +76,10 @@ static __noreturn void start_init(__unused void *arg) {
 __noreturn void kernel_init(void) {
   init_pmap();
   init_vm_page();
+  init_kmalloc();
   init_pool();
   init_vmem();
   init_kmem();
-  init_kmalloc();
   init_vm_map();
 
   init_cons();
