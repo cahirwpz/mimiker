@@ -152,17 +152,10 @@ struct bus_methods {
 #define BUS_METHOD_PROVIDER(dev, method)                                       \
   (device_method_provider((dev), DIF_BUS, offsetof(struct bus_methods, method)))
 
-static inline void bus_intr_setup(device_t *dev, resource_t *irq,
-                                  ih_filter_t *filter, ih_service_t *service,
-                                  void *arg, const char *name) {
-  device_t *idev = BUS_METHOD_PROVIDER(dev, intr_setup);
-  BUS_METHODS(idev->parent).intr_setup(idev, irq, filter, service, arg, name);
-}
+void bus_intr_setup(device_t *dev, resource_t *irq, ih_filter_t *filter,
+                    ih_service_t *service, void *arg, const char *name);
 
-static inline void bus_intr_teardown(device_t *dev, resource_t *irq) {
-  device_t *idev = BUS_METHOD_PROVIDER(dev, intr_teardown);
-  BUS_METHODS(idev->parent).intr_teardown(idev, irq);
-}
+void bus_intr_teardown(device_t *dev, resource_t *irq);
 
 /*! \brief Allocates a resource of type \a type and size \a size between
  * \a start and \a end for a device \a dev.

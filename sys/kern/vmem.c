@@ -3,6 +3,7 @@
 #include <sys/vmem.h>
 #include <sys/queue.h>
 #include <sys/pool.h>
+#include <sys/malloc.h>
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/errno.h>
@@ -73,9 +74,8 @@ typedef struct bt {
   bt_type_t bt_type;    /* (a) type of segment represented by bt */
 } bt_t;
 
-static POOL_DEFINE(P_VMEM, "vmem", sizeof(vmem_t));
+static KMALLOC_DEFINE(M_VMEM, "vmem");
 static POOL_DEFINE(P_BT, "vmem boundary tag", sizeof(bt_t));
-static alignas(PAGESIZE) uint8_t P_VMEM_BOOTPAGE[2 * PAGESIZE];
 /* Note: in the future, the amount of static memory for boundary tags should
  * be reduced by more clever tag allocation technique that always keeps some
  * number of free tags. For more information, please see bt_alloc and bt_refill
@@ -83,7 +83,6 @@ static alignas(PAGESIZE) uint8_t P_VMEM_BOOTPAGE[2 * PAGESIZE];
 static alignas(PAGESIZE) uint8_t P_BT_BOOTPAGE[PAGESIZE];
 
 void init_vmem(void) {
-  pool_add_page(P_VMEM, P_VMEM_BOOTPAGE, sizeof(P_VMEM_BOOTPAGE));
   pool_add_page(P_BT, P_BT_BOOTPAGE, sizeof(P_BT_BOOTPAGE));
 }
 
@@ -206,7 +205,7 @@ static void vmem_check_sanity(vmem_t *vm) {
 #endif
 
 vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
-  vmem_t *vm = pool_alloc(P_VMEM, M_ZERO);
+  vmem_t *vm = kmalloc(M_VMEM, sizeof(vmem_t), M_NOWAIT | M_ZERO);
   assert(vm != NULL);
 
   vm->vm_quantum = quantum;
@@ -424,5 +423,5 @@ void vmem_destroy(vmem_t *vm) {
   bt_t *next;
   TAILQ_FOREACH_SAFE (bt, &vm->vm_seglist, bt_seglink, next)
     pool_free(P_BT, bt);
-  pool_free(P_VMEM, vm);
+  kfree(M_VMEM, vm);
 }

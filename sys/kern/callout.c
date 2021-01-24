@@ -44,8 +44,14 @@ static inline callout_list_t *ci_list(int i) {
 
 static callout_list_t delegated;
 
-static void _callout_setup(callout_t *handle, systime_t time,
-                           systime_t interval, timeout_t fn, void *arg);
+static void _callout_schedule(callout_t *handle) {
+  assert(spin_owned(&ci.lock));
+
+  callout_set_pending(handle);
+
+  klog("Add callout {%p} with wakeup at %ld.", handle, handle->c_time);
+  TAILQ_INSERT_TAIL(ci_list(handle->c_index), handle, c_link);
+}
 
 static void callout_thread(void *arg) {
   while (true) {
@@ -70,8 +76,8 @@ static void callout_thread(void *arg) {
       callout_clear_active(elem);
       if (elem->c_interval) {
         /* Periodic callout: reschedule. */
-        _callout_setup(elem, elem->c_time + elem->c_interval, elem->c_interval,
-                       elem->c_func, elem->c_arg);
+        elem->c_time += elem->c_interval;
+        _callout_schedule(elem);
       } else {
         /* Wake threads that wait for execution of this callout in
          * callout_drain. */
@@ -110,10 +116,8 @@ static void _callout_setup(callout_t *handle, systime_t time,
   handle->c_func = fn;
   handle->c_arg = arg;
   handle->c_index = index;
-  callout_set_pending(handle);
 
-  klog("Add callout {%p} with wakeup at %ld.", handle, handle->c_time);
-  TAILQ_INSERT_TAIL(ci_list(index), handle, c_link);
+  _callout_schedule(handle);
 }
 
 void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
@@ -211,6 +215,8 @@ void callout_process(systime_t time) {
 }
 
 bool callout_drain(callout_t *handle) {
+  /* Disallow draining periodic callouts that haven't been stopped. */
+  assert(handle->c_interval == 0);
   WITH_INTR_DISABLED {
     if (callout_is_pending(handle) || callout_is_active(handle)) {
       sleepq_wait(handle, NULL);
