@@ -1,4 +1,3 @@
-#include <sys/cdefs.h>
 #include <sys/filedesc.h>
 #include <sys/mutex.h>
 #include <sys/ringbuf.h>
@@ -78,16 +77,17 @@ static int pty_read(file_t *f, uio_t *uio) {
   return error;
 }
 
+/* Write at single character to the master side of a pseudoterminal,
+ * i.e. to the input queue of the slave tty.
+ * If the input queue is full, sleep only if the slave tty has users. */
 static int pty_putc_sleep(tty_t *tty, pty_t *pty, uint8_t c) {
-  while (true) {
+  while (!tty_input(tty, c)) {
     if (!tty_opened(tty))
-      return ENOTTY;
-    if (tty_input(tty, c))
-      return 0;
+      return EIO;
     if (cv_wait_intr(&pty->pt_outcv, &tty->t_lock))
       return ERESTARTSYS;
   }
-  __unreachable();
+  return 0;
 }
 
 static int pty_write(file_t *f, uio_t *uio) {
@@ -107,8 +107,8 @@ static int pty_write(file_t *f, uio_t *uio) {
     if ((error = uiomove(&c, 1, uio)))
       break;
     if ((error = pty_putc_sleep(tty, pty, c))) {
-      if (error == ENOTTY)
-        error = 0;
+      /* Undo the last uiomove(). */
+      uio->uio_resid++;
       break;
     }
   }
