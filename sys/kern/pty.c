@@ -43,6 +43,7 @@ static pty_t *pty_alloc(void) {
 }
 
 static void pty_free(pty_t *pty) {
+  assert(pty->pt_number >= 0);
   pty->pt_number = -1;
 }
 
