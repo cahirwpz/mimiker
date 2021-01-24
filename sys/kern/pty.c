@@ -83,7 +83,7 @@ static int pty_read(file_t *f, uio_t *uio) {
 static int pty_putc_sleep(tty_t *tty, pty_t *pty, uint8_t c) {
   while (!tty_input(tty, c)) {
     if (!tty_opened(tty))
-      return ENOTTY;
+      return EIO;
     if (cv_wait_intr(&pty->pt_outcv, &tty->t_lock))
       return ERESTARTSYS;
   }
@@ -107,8 +107,8 @@ static int pty_write(file_t *f, uio_t *uio) {
     if ((error = uiomove(&c, 1, uio)))
       break;
     if ((error = pty_putc_sleep(tty, pty, c))) {
-      if (error == ENOTTY)
-        error = 0;
+      /* Undo the last uiomove(). */
+      uio->uio_resid++;
       break;
     }
   }
