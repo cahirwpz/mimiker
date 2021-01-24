@@ -98,7 +98,7 @@ int test_tty_echo(void) {
   /* Non-control characters should be echoed. */
   assert(write(master_fd, "hello", 5) == 5);
   char buf[8];
-  assert(read(master_fd, buf, 5) == 5);
+  assert(read(master_fd, buf, sizeof(buf)) == 5);
   assert(strncmp(buf, "hello", 5) == 0);
 
   /* Control characters should be echoed verbatim unless
@@ -106,7 +106,7 @@ int test_tty_echo(void) {
 #define CTRL(x) (x & 037)
   assert(write(master_fd, &(char){CTRL('c')}, 1) == 1);
   assert(write(master_fd, "hello", 5) == 5);
-  assert(read(master_fd, buf, 6) == 6);
+  assert(read(master_fd, buf, sizeof(buf)) == 6);
   assert(buf[0] == CTRL('c'));
   assert(strncmp(buf + 1, "hello", 5) == 0);
 
@@ -115,7 +115,7 @@ int test_tty_echo(void) {
 
   assert(write(master_fd, &(char){CTRL('c')}, 1) == 1);
   assert(write(master_fd, "hello", 5) == 5);
-  assert(read(master_fd, buf, 7) == 7);
+  assert(read(master_fd, buf, sizeof(buf)) == 7);
   assert(strncmp(buf, "^Chello", 7) == 0);
 
   /* Turn off ECHO, but turn on ECHONL. Only newlines should be echoed. */
@@ -124,7 +124,7 @@ int test_tty_echo(void) {
   assert(tcsetattr(slave_fd, TCSANOW, &t) == 0);
 
   assert(write(master_fd, "hello\n", 6) == 6);
-  assert(read(master_fd, buf, 1) == 1);
+  assert(read(master_fd, buf, sizeof(buf)) == 1);
   assert(buf[0] == '\n');
 
   return 0;
