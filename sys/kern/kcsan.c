@@ -1,5 +1,6 @@
 #include <sys/mimiker.h>
 #include <sys/vm.h>
+#include <sys/thread.h>
 #include <machine/interrupt.h>
 
 #define WATCHPOINT_READ_BIT (1 << 31)
@@ -13,12 +14,16 @@
 #define SKIP_COUNT 500
 #define WATCHPOINT_DELAY 10000
 
+#define MAX_ENCODABLE_SIZE 8
+
 static atomic_int watchpoints[WATCHPOINT_NUM];
 
 static atomic_int kcsan_setup_watchpoint_counter;
 
 /* How many accesses should be skipped before we setup a watchpoint. */
 static atomic_int skip_counter = SKIP_COUNT;
+
+int kcsan_ready;
 
 static inline int encode_watchpoint(uintptr_t addr, size_t size, bool is_read) {
   return (is_read ? WATCHPOINT_READ_BIT : 0) | (size << WATCHPOINT_SIZE_SHIFT) |
@@ -152,7 +157,10 @@ static inline void setup_watchpoint(uintptr_t addr, size_t size, bool is_read) {
 }
 
 static void kcsan_check(uintptr_t addr, size_t size, bool is_read) {
-  if (cpu_intr_disabled())
+  if (!kcsan_ready || cpu_intr_disabled() || preempt_disabled() || size > MAX_ENCODABLE_SIZE)
+    return;
+
+  if (addr < KERNEL_SPACE_BEGIN)
     return;
 
   atomic_int *watchpoint = find_watchpoint(addr, size, is_read);

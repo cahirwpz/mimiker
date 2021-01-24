@@ -25,6 +25,10 @@
 #include <sys/pmap.h>
 #include <sys/console.h>
 
+#if KCSAN
+extern int kcsan_ready;
+#endif
+
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
 static void mount_fs(void) {
@@ -109,6 +113,10 @@ __noreturn void kernel_init(void) {
   init_clock();
 
   klog("Kernel initialized!");
+
+#if KCSAN
+  kcsan_ready = 1;
+#endif
 
   pid_t init_pid;
   do_fork(start_init, NULL, &init_pid);
