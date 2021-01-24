@@ -89,7 +89,10 @@ struct cdbr *cdbr_open(const char *path, int flags) {
     return NULL;
   }
 
+#pragma GCC diagnostic ignored "-Wtype-limits"
+#pragma GCC diagnostic push
   if (sb.st_size >= SSIZE_MAX) {
+#pragma GCC diagnostic pop
     close(fd);
     SET_ERRNO(EINVAL);
     return NULL;
