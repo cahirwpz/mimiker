@@ -23,7 +23,8 @@ typedef struct componentname componentname_t;
  * vnodeops should not modify attributes set to VNOVAL. */
 #define VNOVAL (-1)
 
-/* vnode access modes */
+/* vnode access modes
+ * VADMIN - owner of file (root has VADMIN to all files) */
 typedef enum { VEXEC = 1, VWRITE = 2, VREAD = 4, VADMIN = 8 } accmode_t;
 
 typedef enum { V_NONE, V_REG, V_DIR, V_DEV, V_LNK } vnodetype_t;
