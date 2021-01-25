@@ -396,7 +396,7 @@ void pmap_protect_nolock(pmap_t *pmap, vaddr_t start, vaddr_t end,
     if (ptep == NULL)
       continue;
     pte_t pte = vm_prot_map[prot] | (*ptep & (~ATTR_AP_MASK & ~ATTR_XN));
-    pmap_write_pte(pmap, ptep, pte);
+    pmap_write_pte(pmap, ptep, pte, va);
   }
 }
 
