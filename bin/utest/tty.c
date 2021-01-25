@@ -178,7 +178,9 @@ int test_tty_signals(void) {
     return 0;
   }
 
+  /* Write "foo" into the input and output queues of the slave tty. */
   assert(write(master_fd, "foo", 3) == 3);
+  assert(write(slave_fd, "foo", 3) == 3);
 
   /* Wait until the child is ready. */
   wait_for_signal(SIGUSR1);
@@ -186,9 +188,17 @@ int test_tty_signals(void) {
   assert(vintr != _POSIX_VDISABLE);
   assert(write(master_fd, &vintr, 1) == 1);
 
-  /* The "foo" should be discarded in response to receiving VINTR,
-   * so the child should only be able to read the following "x". */
+  /* The "foo" should be discarded from both the input and output queue
+   * in response to receiving VINTR, so the child should only be able to
+   * read the following "x". */
   assert(write(master_fd, &(char){'x'}, 1) == 1);
+
+  /* We should read "x" from the master side, since the "foo" written to
+   * slave_fd was discarded. */
+  assert(write(slave_fd, &(char){'x'}, 1) == 1);
+  char c;
+  assert(read(master_fd, &c, 1) == 1);
+  assert(c == 'x');
 
   wait_for_signal(SIGUSR1);
   unsigned char vquit = t.c_cc[VQUIT];
