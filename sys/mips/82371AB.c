@@ -44,7 +44,6 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
 
   if (r == NULL)
     return NULL;
-  r->r_rid = rid;
 
   /* We shouldn't do that for IRQs, but rn we'll never end up here when
    * allocating a resouce */
