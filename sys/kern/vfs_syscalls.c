@@ -242,7 +242,7 @@ static int vfs_check_remove(vnode_t *dvp, vnode_t *vp, cred_t *cred) {
   accmode_t diracc = VWRITE;
   int error;
   if ((error = VOP_GETATTR(dvp, &dva)))
-      return error;
+    return error;
 
   if (dva.va_mode & S_ISTXT)
     if ((error = VOP_ACCESS(vp, VADMIN, cred)))
