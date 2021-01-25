@@ -18,9 +18,11 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
   panic();
 }
 
-static void syscall_handler(register_t code, ctx_t *ctx) {
+static void syscall_handler(register_t code, ctx_t *ctx,
+                            syscall_result_t *result) {
   register_t args[SYS_MAXSYSARGS];
-  const int nregs = 8;
+  /* On AArch64 we have more free registers than SYS_MAXSYSARGS */
+  const size_t nregs = min(SYS_MAXSYSARGS, FUNC_MAXREGARGS);
 
   memcpy(args, &_REG(ctx, X0), nregs * sizeof(register_t));
 
@@ -41,8 +43,8 @@ static void syscall_handler(register_t code, ctx_t *ctx) {
 
   int error = se->call(td->td_proc, (void *)args, &retval);
 
-  if (error != EJUSTRETURN)
-    mcontext_set_retval((mcontext_t *)ctx, error ? -1 : retval, error);
+  result->retval = error ? -1 : retval;
+  result->error = error;
 }
 
 static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
@@ -109,12 +111,14 @@ void user_trap_handler(mcontext_t *uctx) {
   ctx_t *ctx = (ctx_t *)uctx;
   register_t esr = READ_SPECIALREG(esr_el1);
   register_t far = READ_SPECIALREG(far_el1);
+  syscall_result_t result;
+  register_t exc_code = ESR_ELx_EXCEPTION(esr);
 
   cpu_intr_enable();
 
   assert(!intr_disabled() && !preempt_disabled());
 
-  switch (ESR_ELx_EXCEPTION(esr)) {
+  switch (exc_code) {
     case EXCP_INSN_ABORT_L:
     case EXCP_INSN_ABORT:
     case EXCP_DATA_ABORT_L:
@@ -123,7 +127,7 @@ void user_trap_handler(mcontext_t *uctx) {
       break;
 
     case EXCP_SVC64:
-      syscall_handler(ESR_ELx_SYSCALL(esr), ctx);
+      syscall_handler(ESR_ELx_SYSCALL(esr), ctx, &result);
       break;
 
     case EXCP_SP_ALIGN:
@@ -143,7 +147,7 @@ void user_trap_handler(mcontext_t *uctx) {
   on_exc_leave();
 
   /* If we're about to return to user mode then check pending signals, etc. */
-  on_user_exc_leave();
+  on_user_exc_leave(uctx, exc_code == EXCP_SVC64 ? &result : NULL);
 }
 
 void kern_trap_handler(ctx_t *ctx) {

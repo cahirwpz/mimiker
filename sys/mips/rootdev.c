@@ -42,7 +42,7 @@ static void rootdev_intr_setup(device_t *dev, resource_t *r,
                                ih_filter_t *filter, ih_service_t *service,
                                void *arg, const char *name) {
   rootdev_t *rd = dev->parent->state;
-  int irq = r->r_start;
+  int irq = resource_start(r);
   assert(irq < MIPS_NIRQ);
 
   if (rd->intr_event[irq] == NULL)
@@ -63,7 +63,7 @@ static void rootdev_intr_teardown(device_t *dev, resource_t *irq) {
 static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
                                           int rid, rman_addr_t start,
                                           rman_addr_t end, size_t size,
-                                          res_flags_t flags) {
+                                          rman_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
   size_t alignment = 0;
   rman_t *rman = NULL;
@@ -78,19 +78,18 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   }
 
   resource_t *r =
-    rman_reserve_resource(rman, start, end, size, alignment, flags);
-  if (r == NULL)
+    rman_reserve_resource(rman, type, rid, start, end, size, alignment, flags);
+  if (!r)
     return NULL;
-  r->r_rid = rid;
 
   if (type == RT_MEMORY) {
     r->r_bus_tag = generic_bus_space;
-    r->r_bus_handle = r->r_start;
+    r->r_bus_handle = resource_start(r);
   }
 
   if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, type, r)) {
-      rman_release_resource(r);
+    if (bus_activate_resource(dev, r)) {
+      resource_release(r);
       return NULL;
     }
   }
@@ -98,23 +97,20 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   return r;
 }
 
-static void rootdev_release_resource(device_t *dev, res_type_t type,
-                                     resource_t *r) {
-  bus_deactivate_resource(dev, type, r);
-  rman_release_resource(r);
+static void rootdev_release_resource(device_t *dev, resource_t *r) {
+  bus_deactivate_resource(dev, r);
+  resource_release(r);
 }
 
-static int rootdev_activate_resource(device_t *dev, res_type_t type,
-                                     resource_t *r) {
-  if (type == RT_MEMORY)
-    return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
+static int rootdev_activate_resource(device_t *dev, resource_t *r) {
+  if (r->r_type == RT_MEMORY)
+    return bus_space_map(r->r_bus_tag, resource_start(r), resource_size(r),
                          &r->r_bus_handle);
 
   return 0;
 }
 
-static void rootdev_deactivate_resource(device_t *dev, res_type_t type,
-                                        resource_t *r) {
+static void rootdev_deactivate_resource(device_t *dev, resource_t *r) {
   /* TODO: unmap mapped resources. */
 }
 
@@ -173,27 +169,25 @@ static int rootdev_attach(device_t *bus) {
   return bus_generic_probe(bus);
 }
 
-static bus_driver_t rootdev_driver = {
-  .driver =
+static bus_methods_t rootdev_bus_if = {
+  .intr_setup = rootdev_intr_setup,
+  .intr_teardown = rootdev_intr_teardown,
+  .alloc_resource = rootdev_alloc_resource,
+  .release_resource = rootdev_release_resource,
+  .activate_resource = rootdev_activate_resource,
+  .deactivate_resource = rootdev_deactivate_resource,
+};
+
+driver_t rootdev_driver = {
+  .desc = "MIPS platform root bus driver",
+  .size = sizeof(rootdev_t),
+  .pass = FIRST_PASS,
+  .probe = rootdev_probe,
+  .attach = rootdev_attach,
+  .interfaces =
     {
-      .size = sizeof(rootdev_t),
-      .desc = "MIPS platform root bus driver",
-      .probe = rootdev_probe,
-      .attach = rootdev_attach,
+      [DIF_BUS] = &rootdev_bus_if,
     },
-  .bus = {.intr_setup = rootdev_intr_setup,
-          .intr_teardown = rootdev_intr_teardown,
-          .alloc_resource = rootdev_alloc_resource,
-          .release_resource = rootdev_release_resource,
-          .activate_resource = rootdev_activate_resource,
-          .deactivate_resource = rootdev_deactivate_resource}};
+};
 
 DEVCLASS_CREATE(root);
-
-void init_devices(void) {
-  device_t *rootdev = device_alloc(0);
-  rootdev->devclass = &DEVCLASS(root);
-  rootdev->driver = (driver_t *)&rootdev_driver;
-  (void)device_probe(rootdev);
-  device_attach(rootdev);
-}

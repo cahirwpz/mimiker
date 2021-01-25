@@ -58,7 +58,7 @@ static uint32_t pl011_getc(pl011_state_t *state) {
 }
 
 static int pl011_read(vnode_t *v, uio_t *uio, int ioflags) {
-  pl011_state_t *state = v->v_data;
+  pl011_state_t *state = devfs_node_data(v);
 
   /* This device does not support offsets. */
   uio->uio_offset = 0;
@@ -74,7 +74,7 @@ static int pl011_read(vnode_t *v, uio_t *uio, int ioflags) {
 }
 
 static int pl011_write(vnode_t *v, uio_t *uio, int ioflags) {
-  pl011_state_t *state = v->v_data;
+  pl011_state_t *state = devfs_node_data(v);
 
   /* This device does not support offsets. */
   uio->uio_offset = 0;
@@ -124,7 +124,6 @@ static int pl011_getattr(vnode_t *v, vattr_t *va) {
 
 /* clang-format off */
 static vnodeops_t dev_uart_ops = {
-  .v_open = vnode_open_generic,
   .v_write = pl011_write,
   .v_read = pl011_read,
   .v_close = pl011_close,
@@ -178,7 +177,7 @@ static int pl011_attach(device_t *dev) {
   resource_t *r = device_take_memory(dev, 0, 0);
 
   /* (pj) BCM2835_UART0_SIZE is much smaller than PAGESIZE */
-  bus_space_map(r->r_bus_tag, r->r_start, PAGESIZE, &r->r_bus_handle);
+  bus_space_map(r->r_bus_tag, resource_start(r), PAGESIZE, &r->r_bus_handle);
 
   assert(r != NULL);
 
@@ -230,13 +229,12 @@ static int pl011_attach(device_t *dev) {
   return 0;
 }
 
-/* clang-format off */
 static driver_t pl011_driver = {
   .desc = "PL011 UART driver",
   .size = sizeof(pl011_state_t),
+  .pass = SECOND_PASS,
   .attach = pl011_attach,
   .probe = pl011_probe,
 };
-/* clang-format on */
 
 DEVCLASS_ENTRY(root, pl011_driver);
