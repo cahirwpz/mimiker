@@ -40,8 +40,7 @@ void pmap_delete(pmap_t *pmap);
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
                 unsigned flags);
 bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap);
-bool pmap_extract_and_hold(pmap_t *pmap, vaddr_t va, paddr_t *pap,
-                           vm_prot_t prot);
+int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot);
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end);
 
 void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags);

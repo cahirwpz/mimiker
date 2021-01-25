@@ -12,6 +12,7 @@
 #include <sys/sched.h>
 #include <sys/vm_physmem.h>
 #include <bitstring.h>
+#include <errno.h>
 
 typedef struct pmap {
   mtx_t mtx;                      /* protects all fields in this structure */
@@ -308,24 +309,39 @@ static bool pmap_extract_nolock(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   return true;
 }
 
-bool pmap_extract_and_hold(pmap_t *pmap, vaddr_t va, paddr_t *pap,
-                           vm_prot_t prot) {
-  assert(pap != NULL);
+int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
+  paddr_t pa;
+  WITH_MTX_LOCK (&pmap->mtx) {
+    if (!pmap_extract_nolock(pmap, va, &pa)) {
+      return EINVAL;
+    }
 
-  SCOPED_MTX_LOCK(&pmap->mtx);
+    pte_t pte = pmap_pte_read(pmap, va);
 
-  if (!pmap_extract_nolock(pmap, va, pap)) {
-    return false;
+    if ((prot & VM_PROT_READ && !(pte & PTE_READ)) ||
+        (prot & VM_PROT_WRITE && !(pte & PTE_WRITE))) {
+      return EACCES;
+    }
   }
 
-  pte_t pte = pmap_pte_read(pmap, va);
+  vm_page_t *pg = vm_page_find(pa);
 
-  if ((prot & VM_PROT_READ && !(pte & PTE_READ)) ||
-      (prot & VM_PROT_WRITE && !(pte & PTE_WRITE))) {
-    return false;
+  if (pg == NULL)
+    return EINVAL;
+
+  WITH_MTX_LOCK (pv_list_lock) {
+    /* Kernel non-pageable memory? */
+    if (TAILQ_EMPTY(&pg->pv_list))
+      return EACCES;
   }
 
-  return true;
+  pmap_set_referenced(pg);
+
+  if (prot & VM_PROT_WRITE) {
+    pmap_set_modified(pg);
+  }
+
+  return 0;
 }
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
