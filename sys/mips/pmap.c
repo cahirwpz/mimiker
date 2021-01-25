@@ -33,14 +33,16 @@ static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 
 static const pte_t vm_prot_map[] = {
-  [VM_PROT_NONE] = 0,
-  [VM_PROT_READ] = PTE_VALID | PTE_SW_NO_EXEC | PTE_SW_RO,
-  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_SW_NO_READ | PTE_SW_NO_EXEC,
-  [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_SW_NO_EXEC,
-  [VM_PROT_EXEC] = PTE_VALID | PTE_SW_NO_READ | PTE_SW_RO,
-  [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID | PTE_SW_RO,
-  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY | PTE_SW_NO_READ,
-  [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY,
+  [VM_PROT_NONE] = PTE_SW_NO_EXEC,
+  [VM_PROT_READ] = PTE_VALID | PTE_SW_NO_EXEC | PTE_SW_MANAGED,
+  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_SW_NO_EXEC | PTE_SW_WRITE,
+  [VM_PROT_READ | VM_PROT_WRITE] =
+    PTE_VALID | PTE_DIRTY | PTE_SW_NO_EXEC | PTE_SW_MANAGED | PTE_SW_WRITE,
+  [VM_PROT_EXEC] = PTE_VALID,
+  [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID | PTE_SW_MANAGED,
+  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY | PTE_SW_WRITE,
+  [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] =
+    PTE_VALID | PTE_DIRTY | PTE_SW_WRITE | PTE_SW_MANAGED,
 };
 
 static pmap_t kernel_pmap;
@@ -464,7 +466,11 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
     pg = vm_page_find(pa);
     pte_t pte = pmap_pte_read(pmap, va);
 
-    if ((prot & VM_PROT_WRITE) && (pte & PTE_SW_RO))
+    if ((prot & VM_PROT_WRITE) && !(pte & PTE_SW_WRITE))
+      return EACCES;
+    if ((prot & VM_PROT_READ) && !(pte & PTE_SW_MANAGED))
+      return EACCES;
+    if ((prot & VM_PROT_EXEC) && (pte & PTE_SW_NO_EXEC))
       return EACCES;
   }
 

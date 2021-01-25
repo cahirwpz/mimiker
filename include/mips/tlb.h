@@ -31,10 +31,10 @@ typedef struct {
 
 /* Flags managed in software */
 #define PTE_SW_SHIFT 29
-#define PTE_SW_RO (0x01 << PTE_SW_SHIFT)
+#define PTE_SW_WRITE (0x01 << PTE_SW_SHIFT)
 #define PTE_SW_NO_EXEC (0x02 << PTE_SW_SHIFT)
-#define PTE_SW_NO_READ (0x04 << PTE_SW_SHIFT)
-#define PTE_SW_FLAGS (PTE_SW_RO | PTE_SW_NO_EXEC | PTE_SW_NO_READ)
+#define PTE_SW_MANAGED (0x04 << PTE_SW_SHIFT)
+#define PTE_SW_FLAGS (PTE_SW_WRITE | PTE_SW_NO_EXEC | PTE_SW_MANAGED)
 
 #define PTE_PFN_MASK 0x03ffffc0
 #define PTE_PFN_SHIFT 6
@@ -51,8 +51,8 @@ typedef struct {
 #define PTE_DIRTY 0x00000004 /* page is writable when set */
 #define PTE_VALID 0x00000002 /* page can be accessed when set */
 #define PTE_GLOBAL 0x00000001
-#define PTE_KERNEL_READONLY (PTE_VALID | PTE_GLOBAL | PTE_SW_RO)
-#define PTE_KERNEL (PTE_VALID | PTE_DIRTY | PTE_GLOBAL)
+#define PTE_KERNEL_READONLY (PTE_VALID | PTE_GLOBAL | PTE_SW_MANAGED)
+#define PTE_KERNEL (PTE_VALID | PTE_DIRTY | PTE_GLOBAL | PTE_SW_MANAGED)
 #define PTE_PROT_MASK (PTE_DIRTY | PTE_VALID | PTE_SW_FLAGS)
 
 #define PTE_PFN(addr) (((addr) >> PTE_PFN_SHIFT) & PTE_PFN_MASK)
