@@ -34,6 +34,9 @@ static POOL_DEFINE(P_VMSEG, "vm_segment", sizeof(vm_segment_t));
 
 static vm_map_t *kspace = &(vm_map_t){};
 
+static int vm_map_insert_nolock(vm_map_t *map, vm_segment_t *seg,
+                                vm_flags_t flags);
+
 void vm_map_activate(vm_map_t *map) {
   SCOPED_NO_PREEMPTION();
 
@@ -200,15 +203,128 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VMMAP, map);
 }
 
-static void vm_segment_protect(vm_segment_t *seg, vaddr_t start, vaddr_t end,
-                               vm_prot_t prot) {
-  assert(seg != NULL);
-  assert(seg->object != NULL);
+static bool vm_segment_split(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
+                             vaddr_t end) {
+  if (seg->start == start && seg->end == end)
+    return true;
 
-  vm_object_protect(seg->object, start, end, prot);
+  vm_object_t *obj = vm_object_alloc(seg->object->pager - &pagers[0]);
+
+  if (obj == NULL) {
+    return false;
+  }
+
+  vm_segment_t *new_seg =
+    vm_segment_alloc(obj, start, end, seg->prot, seg->flags);
+
+  if (new_seg == NULL) {
+    return false;
+  }
+
+  vaddr_t old_start = seg->start;
+  off_t max_offset;
+  off_t offset_base = 0;
+  off_t wanted_offset;
+
+  vm_flags_t flags = VM_FIXED;
+  flags |= (new_seg->flags & VM_SEG_PRIVATE) ? VM_PRIVATE : VM_SHARED;
+
+  if (seg->start == start && seg->end > end) {
+    max_offset = (off_t)(end - seg->start);
+    wanted_offset = (off_t)(start - seg->start);
+    seg->start = end;
+  } else if (seg->start < start && seg->end == end) {
+    wanted_offset = (off_t)(start - seg->start);
+    offset_base = (off_t)(seg->start - start);
+    max_offset = (off_t)seg->end;
+    seg->end = start;
+  } else { /* seg->start < start && seg->end > end */
+    vm_object_t *obj_before = vm_object_alloc(seg->object->pager - &pagers[0]);
+    max_offset = (off_t)(end - seg->start);
+    offset_base = (off_t)(seg->start - start);
+    wanted_offset = (off_t)(start - seg->start);
+
+    WITH_MTX_LOCK (&seg->object->mtx) {
+      vm_page_t *pg, *next;
+      TAILQ_FOREACH_SAFE (pg, &seg->object->list, obj.list, next) {
+        if (pg->offset >= wanted_offset)
+          break;
+
+        if (pg->offset < wanted_offset) {
+          TAILQ_REMOVE(&seg->object->list, pg, obj.list);
+          seg->object->npages--;
+          vm_object_add_page(obj_before, pg->offset, pg);
+        }
+      }
+    }
+
+    vm_segment_t *new_seg_before =
+      vm_segment_alloc(obj_before, seg->start, start, seg->prot, seg->flags);
+
+    if (new_seg_before == NULL) {
+      /* TODO: handling errors, restoring pages etc. */
+    }
+
+    seg->start = end;
+
+    int error = vm_map_insert_nolock(map, new_seg_before, flags);
+
+    if (error) {
+      /* TODO: handling errors */
+    }
+  }
+
+  WITH_MTX_LOCK (&seg->object->mtx) {
+    vm_page_t *pg, *next;
+    TAILQ_FOREACH_SAFE (pg, &seg->object->list, obj.list, next) {
+      if (pg->offset >= max_offset)
+        break;
+
+      if (pg->offset >= wanted_offset) {
+        TAILQ_REMOVE(&seg->object->list, pg, obj.list);
+        seg->object->npages--;
+        vm_object_add_page(obj, offset_base + pg->offset, pg);
+      }
+    }
+  }
+
+  int error = vm_map_insert_nolock(map, new_seg, flags);
+
+  if (error) {
+    /* TODO: handling errors */
+  }
+
+  /* fix offsets in pages in seg->object */
+  WITH_MTX_LOCK (&seg->object->mtx) {
+    vm_page_t *pg;
+    TAILQ_FOREACH (pg, &seg->object->list, obj.list) {
+      pg->offset = old_start + pg->offset - seg->start;
+    }
+  }
+
+  return true;
 }
 
-/* TODO: not implemented */
+static void vm_segment_protect(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
+                               vaddr_t end, vm_prot_t prot) {
+  assert(seg != NULL);
+  assert(seg->object != NULL);
+  assert(seg->start >= start && seg->end >= end);
+
+  if (seg->start == start && seg->end == end) {
+    vm_object_protect(seg->object, start, end, prot);
+  } else { /* musimy podzielić nasz segment na maksymalnie 3 nowe */
+    vm_segment_split(map, seg, start, end);
+
+    seg = vm_map_find_segment(map, start);
+
+    assert(seg != NULL);
+
+    seg->prot = prot;
+    vm_object_protect(seg->object, start, end, prot);
+  }
+}
+
 void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   assert(map != NULL);
 
@@ -218,7 +334,8 @@ void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
     while (addr < end) {
       vm_segment_t *seg = vm_map_find_segment(map, addr);
       assert(seg != NULL);
-      vm_segment_protect(seg, max(addr, seg->start), min(end, seg->end), prot);
+      vm_segment_protect(map, seg, max(addr, seg->start), min(end, seg->end),
+                         prot);
       addr = seg->end;
     }
   }
@@ -279,8 +396,8 @@ int vm_map_findspace(vm_map_t *map, vaddr_t *start_p, size_t length) {
   return vm_map_findspace_nolock(map, start_p, length, NULL);
 }
 
-int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
-  SCOPED_MTX_LOCK(&map->mtx);
+static int vm_map_insert_nolock(vm_map_t *map, vm_segment_t *seg,
+                                vm_flags_t flags) {
   vm_segment_t *after;
   vaddr_t start = seg->start;
   size_t length = seg->end - seg->start;
@@ -302,6 +419,11 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
 
   vm_map_insert_after(map, after, seg);
   return 0;
+}
+
+int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
+  SCOPED_MTX_LOCK(&map->mtx);
+  return vm_map_insert_nolock(map, seg, flags);
 }
 
 int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
