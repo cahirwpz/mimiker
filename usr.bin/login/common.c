@@ -104,7 +104,7 @@ getloginname(void)
 
 	for (;;) {
 		(void)printf("login: ");
-    fflush(stdout);
+    //fflush(stdout);
 		for (p = nbuf; (ch = getchar()) != '\n'; ) {
 			if (ch == EOF) {
 				badlogin(username);
