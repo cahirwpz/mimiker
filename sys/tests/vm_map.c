@@ -9,6 +9,7 @@
 #include <sys/thread.h>
 #include <sys/ktest.h>
 #include <sys/sched.h>
+#include <machine/vm_param.h>
 
 #ifdef __mips__
 #define TOO_MUCH 0x40000000
@@ -223,10 +224,10 @@ static int vm_map_fixed_bad(void) {
   vm_map_t *umap = vm_map_new();
   vm_map_activate(umap);
 
-  const vaddr_t addr0 = 0x10000000;
-  const vaddr_t addr1 = 0x10006000;
-  const vaddr_t addr2 = 0x10007000;
-  const vaddr_t addr3 = 0x10010000;
+  const vaddr_t addr0 = USER_SPACE_BEGIN + PAGESIZE;
+  const vaddr_t addr1 = USER_SPACE_BEGIN + 6 * PAGESIZE;
+  const vaddr_t addr2 = USER_SPACE_BEGIN + 7 * PAGESIZE;
+  const vaddr_t addr3 = USER_SPACE_BEGIN + 16 * PAGESIZE;
 
   vm_segment_t *seg;
   vaddr_t t;
@@ -249,7 +250,7 @@ static int vm_map_fixed_bad(void) {
   assert(n == 0 && t == addr3);
 
   t = addr1;
-  seg = vm_segment_alloc(NULL, addr3, addr3 + 0x90000000, VM_PROT_NONE,
+  seg = vm_segment_alloc(NULL, addr3, addr3 + USER_SPACE_END, VM_PROT_NONE,
                          VM_SEG_PRIVATE);
   n = vm_map_insert(umap, seg, VM_FIXED);
   assert(n == ENOMEM);
