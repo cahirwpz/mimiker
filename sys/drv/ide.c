@@ -47,6 +47,24 @@ static void ide_write(ide_state_t *ide, unsigned char channel,
     ide_write(ide, channel, ATA_REG_CONTROL, ide->ide_channels[channel].nIEN);
 }
 
+static void ide_write2(ide_state_t *ide, unsigned char channel,
+                       unsigned char reg, unsigned char data) {
+  if (reg > 0x07 && reg < 0x0C)
+    ide_write(ide, channel, ATA_REG_CONTROL,
+              0x80 | ide->ide_channels[channel].nIEN);
+  if (reg < 0x08)
+    bus_write_2(ide->ide_channels[channel].base, reg - 0x00, data);
+  else if (reg < 0x0C)
+    bus_write_2(ide->ide_channels[channel].base, reg - 0x06, data);
+  else if (reg < 0x0E)
+    bus_write_2(ide->ide_channels[channel].ctrl, reg - 0x0A, data);
+  else if (reg < 0x16)
+    bus_write_2(ide->ide_channels[channel].bmide, reg + channel * 0x08 - 0x0E,
+                data);
+  if (reg > 0x07 && reg < 0x0C)
+    ide_write(ide, channel, ATA_REG_CONTROL, ide->ide_channels[channel].nIEN);
+}
+
 static unsigned char ide_read(ide_state_t *ide, unsigned char channel,
                               unsigned char reg) {
   unsigned char result;
@@ -94,6 +112,65 @@ static unsigned short ide_read2(ide_state_t *ide, unsigned char channel,
 static void active_wait(int n) {
   for (volatile int i = 0; i < 1000000 * n; i++)
     continue;
+}
+
+void ide_hdd_access(ide_state_t *ide, unsigned char channel, uint16_t *target,
+                    uint32_t lba, int bytes, int action) {
+
+  int sector, cylinder;
+  uint8_t sector_count;
+  uint8_t head;
+  uint8_t lba_bytes[3];
+
+  sector_count = (bytes + (512 - 1)) / 512;
+  sector = (lba % 63) + 1;
+  cylinder = (lba + 1 - sector) / (16 * 63);
+  lba_bytes[0] = sector;
+  lba_bytes[1] = (cylinder >> 0) & 0xFF;
+  lba_bytes[2] = (cylinder >> 8) & 0xFF;
+  head = (lba + 1 - sector) % (16 * 63) / (63);
+
+  /*TODO: There should probably be some error checking here */
+  while (ide_read(ide, channel, ATA_REG_STATUS) & ATA_SR_BSY)
+    ;
+
+  ide_write(ide, channel, ATA_REG_HDDEVSEL, 0xA0 | head);
+  ide_write(ide, channel, ATA_REG_SECCOUNT0, sector_count);
+  ide_write(ide, channel, ATA_REG_LBA0, lba_bytes[0]);
+  ide_write(ide, channel, ATA_REG_LBA1, lba_bytes[1]);
+  ide_write(ide, channel, ATA_REG_LBA2, lba_bytes[2]);
+
+  if (action == ATA_READ) {
+    ide_write(ide, channel, ATA_REG_COMMAND, ATA_CMD_READ_PIO);
+
+    for (int j = 0; j < sector_count; j++) {
+
+      while (ide_read(ide, channel, ATA_REG_STATUS) & ATA_SR_BSY)
+        ;
+
+      while (!(ide_read(ide, channel, ATA_REG_STATUS) & ATA_SR_DRDY))
+        ;
+
+      for (int i = 0; i < 256; i++)
+        target[i] = ide_read2(ide, channel, ATA_REG_DATA);
+      target += 256;
+    }
+  } else {
+    ide_write(ide, channel, ATA_REG_COMMAND, ATA_CMD_WRITE_PIO);
+
+    for (int j = 0; j < sector_count; j++) {
+
+      while (ide_read(ide, channel, ATA_REG_STATUS) & ATA_SR_BSY)
+        ;
+
+      while (!(ide_read(ide, channel, ATA_REG_STATUS) & ATA_SR_DRDY))
+        ;
+
+      for (int i = 0; i < 256; i++)
+        ide_write2(ide, channel, ATA_REG_DATA, target[i]);
+      target += 256;
+    }
+  }
 }
 
 static int ide_attach(device_t *dev) {
@@ -194,6 +271,12 @@ static int ide_attach(device_t *dev) {
 
       count++;
     }
+
+  uint16_t testarr[512] = {0xa, 0xb, 0xc, 0xd, 0};
+
+  ide_hdd_access(ide, 0, testarr, 0, 256, ATA_READ);
+  for (int i = 0; i < 128; i++)
+    klog("%x", testarr[i]);
 
   return 0;
 }

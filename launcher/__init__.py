@@ -43,6 +43,7 @@ CONFIG = {
             '-icount', 'shift=3,sleep=on',
             '-kernel', '{kernel}',
             '-initrd', '{initrd}',
+            '-drive','media=disk,if=ide,index=0,file=/home/tstach/fork/mimiker/testdrive.img,id=hd,format=raw',
             '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
             '-serial', 'none'],
         'board': {
