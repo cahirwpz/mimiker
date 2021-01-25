@@ -6,12 +6,12 @@ from .cmd import SimpleCommand
 from .struct import GdbStructMeta
 
 class RawArc(Structure):
-  _fields_ = [('raw_frompc', c_ulong), ('raw_selfpc', c_ulong), ('raw_count', c_long)]
+  _fields_ = [('raw_frompc', c_uint), ('raw_selfpc', c_uint), ('raw_count', c_int)]
 class ToStruct(Structure):
-  _fields_ = [('selfpc', c_ulong), ('count', c_long), ('link', c_ushort), ('pad', c_ushort)]
+  _fields_ = [('selfpc', c_uint), ('count', c_int), ('link', c_ushort), ('pad', c_ushort)]
 
 class GmonHeader(Structure):
-  _fields_ = [('lpc', c_ulong), ('hpc', c_ulong), ('ncnt', c_int), ('version', c_int), ('profrate', c_int), ('spare', c_int * 3)]
+  _fields_ = [('lpc', c_uint), ('hpc', c_uint), ('ncnt', c_int), ('version', c_int), ('profrate', c_int), ('spare', c_int * 3)]
 
 class GmonParam(metaclass=GdbStructMeta):
   __ctype__ = 'struct gmonparam'
@@ -26,8 +26,11 @@ class GmonParam(metaclass=GdbStructMeta):
     gmonhdr.hpc = self.highpc
     sizeofgmonhdr = 32
     gmonhdr.ncnt = c_int(self.kcountsize + sizeofgmonhdr)
-    GMONVERSION =	0x00051879
+    GMONVERSION =	333945
     gmonhdr.version = GMONVERSION
+    gmonhdr.spare[0] = 0
+    gmonhdr.spare[1] = 0
+    gmonhdr.spare[2] = 0
     # We do not have timer for profiling yet
     gmonhdr.profrate = 0
     ofile = "gmon.out"
@@ -53,7 +56,6 @@ class GmonParam(metaclass=GdbStructMeta):
       while toindex != 0:
         print(f"toindex {toindex}")
         rawarc.raw_frompc = frompc
-        to = gdb.parse_and_eval(f'_gmonparam.tos[{toindex}]')
         rawarc.raw_selfpc =  gdb.parse_and_eval(f'_gmonparam.tos[{toindex}].selfpc')
         rawarc.raw_count =  gdb.parse_and_eval(f'_gmonparam.tos[{toindex}].count')
         ofile = "gmon.out"
