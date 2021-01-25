@@ -1,6 +1,7 @@
 /* 82371AB PCI-ISA bridge driver */
 
 #define KL_LOG KL_DEV
+#include <sys/mimiker.h>
 #include <sys/device.h>
 #include <sys/rman.h>
 #include <sys/bus.h>
@@ -11,17 +12,6 @@
 #include <dev/isareg.h>
 #include <sys/libkern.h>
 #include <sys/devclass.h>
-
-#define IO_ISASIZE 1024
-
-#define ICU_ADDR(x) ((x) + 0)
-#define ICU_DATA(x) ((x) + 1)
-#define ICU1_ADDR ICU_ADDR(IO_ICU1)
-#define ICU1_DATA ICU_DATA(IO_ICU1)
-#define ICU2_ADDR ICU_ADDR(IO_ICU2)
-#define ICU2_DATA ICU_DATA(IO_ICU2)
-
-#define ISA_IRQ_BASE (0)
 
 typedef struct intel_isa_state {
   resource_t *io;
@@ -46,11 +36,7 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
     /* We don't know how to allocate this resource, but maybe someone above us
      * does. In current context this is necessary to allocate interrupts,
      * which aren't managed by this driver. */
-    if (dev->parent)
-      return bus_alloc_resource(dev->parent, type, rid, start, end, size,
-                                flags);
-    else
-      panic("Can't allocate resource, no dispatch available!");
+    return bus_alloc_resource(dev->parent, type, rid, start, end, size, flags);
   }
 
   resource_t *r =
@@ -60,10 +46,10 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
     return NULL;
   r->r_rid = rid;
 
-  if (type != RT_IRQ) {
-    r->r_bus_tag = generic_bus_space;
-    r->r_bus_handle = bh + resource_start(r);
-  }
+  /* We shouldn't do that for IRQs, but rn we'll never end up here when
+   * allocating a resouce */
+  r->r_bus_tag = generic_bus_space;
+  r->r_bus_handle = bh + resource_start(r);
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, r)) {
@@ -76,16 +62,26 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
 }
 
 static int intel_isa_activate_resource(device_t *dev, resource_t *r) {
+  if (r->r_type != RT_IOPORTS)
+    return bus_activate_resource(dev->parent, r);
+  /* There are no resource activation procedures for ISA ioports  */
   return 0;
 }
 
 static void intel_isa_deactivate_resource(device_t *dev, resource_t *r) {
+  if (r->r_type != RT_IOPORTS)
+    return bus_deactivate_resource(dev->parent, r);
   return;
 }
 
 static void intel_isa_release_resource(device_t *dev, resource_t *r) {
-  /* No need to deactivate resource, because deactivation is a NOP anyway */
-  resource_release(r);
+  if (r->r_type != RT_IOPORTS) {
+    /* Dispatch release for inderectly allocated resources */
+    bus_deactivate_resource(dev->parent, r);
+  } else {
+    /* No need to deactivate resource, because deactivation is a NOP anyway */
+    resource_release(r);
+  }
 }
 
 static int intel_isa_probe(device_t *d) {
@@ -94,7 +90,7 @@ static int intel_isa_probe(device_t *d) {
 
 static int intel_isa_attach(device_t *isab) {
   intel_isa_state_t *isa = isab->state;
-  isa->io = device_take_ioports(isab, IO_ICUSIZE, RF_ACTIVE);
+  isa->io = device_take_ioports(isab, 0, RF_ACTIVE);
   rman_init_from_resource(&isa->io_rman, "ISA IO ports", isa->io);
 
   /* -------------------------------------------------------------
@@ -135,9 +131,9 @@ bus_methods_t intel_isa_bus_bus_if = {
   .alloc_resource = intel_isa_alloc_resource,
   .activate_resource = intel_isa_activate_resource,
   .deactivate_resource = intel_isa_deactivate_resource,
-  .release_resource = intel_isa_release_resource};
+  .release_resource = intel_isa_release_resource,
+};
 
-/* clang-format off */
 driver_t intel_isa_bus = {
   .desc = "Intel 82371AB PIIX4 PCI to ISA bridge driver",
   .size = sizeof(intel_isa_state_t),

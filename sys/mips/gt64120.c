@@ -334,7 +334,7 @@ static int gt_pci_attach(device_t *pcib) {
   dev = device_add_child(pcib, 0);
   dev->bus = DEV_BUS_PCI;
   dev->devclass = &DEVCLASS(isa);
-  device_add_ioports(dev, IO_ICUSIZE, IO_ISABEGIN, IO_ISAEND + 1);
+  device_add_ioports(dev, 0, IO_ISABEGIN, IO_ISAEND + 1);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
 
