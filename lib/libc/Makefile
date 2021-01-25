@@ -8,10 +8,12 @@ CPPFLAGS = -I$(CURDIR) \
 	   -I$(CURDIR)/gdtoa \
 	   -I$(CURDIR)/gen \
 	   -I$(CURDIR)/locale \
+	   -I$(CURDIR)/quad \
 	   -I$(CURDIR)/stdlib \
 	   -D_LIBC -DNO_FENV_H
 
-SUBLIBS = citrus gdtoa gen locale misc regex stdio stdlib string sys termios time
+SUBLIBS = citrus gdtoa gen locale misc regex quad \
+	  stdio stdlib string sys termios time
 
 SOURCES = $(foreach dir, $(SUBLIBS), \
             $(wildcard $(dir)/*.[cS]) $(wildcard $(dir)/$(ARCH)/*.[cS]))

@@ -93,6 +93,7 @@ int test_session_basic(void);
 int test_session_login_name(void);
 
 int test_gettimeofday(void);
+int test_nanosleep(void);
 
 int test_get_set_uid(void);
 int test_get_set_gid(void);
