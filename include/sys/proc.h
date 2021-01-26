@@ -13,6 +13,7 @@
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
+typedef struct cred cred_t;
 typedef struct pgrp pgrp_t;
 typedef struct fdtab fdtab_t;
 typedef struct vnode vnode_t;
