@@ -14,6 +14,7 @@
 
 #include <sys/mimiker.h>
 #include <sys/device.h>
+#include <sys/refcnt.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
@@ -22,12 +23,14 @@ struct range {
   rman_addr_t start;       /* first physical address of the range */
   rman_addr_t end;         /* last (inclusive) physical address */
   rman_flags_t flags;      /* or'ed RF_* values */
+  int refcnt;              /* number of sharers */
+  int active_cnt;          /* number of activations performed on the range */
   TAILQ_ENTRY(range) link; /* link on range manager list */
 };
 
 static KMALLOC_DEFINE(M_RMAN, "rman ranges");
 
-static void rman_release_range(range_t *r);
+static int rman_release_range(range_t *r);
 
 void rman_init(rman_t *rm, const char *name) {
   rm->rm_name = name;
@@ -53,8 +56,22 @@ static int r_reserved(range_t *r) {
   return r->flags & RF_RESERVED;
 }
 
+static int r_shareable(range_t *r) {
+  return r->flags & RF_SHAREABLE;
+}
+
+static size_t r_size(range_t *r) {
+  return r->end - r->start + 1;
+}
+
 static int r_canmerge(range_t *r, range_t *next) {
   return (r->end + 1 == next->start) && !r_reserved(next);
+}
+
+static int r_canshare(range_t *r, rman_addr_t start, size_t count,
+                      rman_flags_t flags) {
+  return r_shareable(r) && (flags & RF_SHAREABLE) && r_size(r) == count &&
+         r->start >= start;
 }
 
 void rman_manage_region(rman_t *rm, rman_addr_t start, size_t size) {
@@ -121,9 +138,13 @@ static range_t *rman_reserve_range(rman_t *rm, rman_addr_t start,
 
   range_t *r;
   TAILQ_FOREACH (r, &rm->rm_ranges, link) {
-    /* Skip reserved regions. */
-    if (r_reserved(r))
+    if (r_reserved(r)) {
+      if (r_canshare(r, start, count, flags)) {
+        r->refcnt++;
+        return r;
+      }
       continue;
+    }
 
     rman_addr_t new_start = roundup(max(r->start, start), alignment);
     rman_addr_t new_end = new_start + count - 1;
@@ -160,14 +181,21 @@ static range_t *rman_reserve_range(rman_t *rm, rman_addr_t start,
   return NULL;
 }
 
-/*! \brief Removes a range from its range manager and releases memory. */
-static void rman_release_range(range_t *r) {
+/*! \brief Removes a range from its range manager and releases memory.
+ *
+ * \returns 0 if the range structure must be released. */
+static int rman_release_range(range_t *r) {
   rman_t *rm = r->rman;
 
   SCOPED_MTX_LOCK(&rm->rm_lock);
 
-  assert(!r_active(r));
   assert(r_reserved(r));
+
+  if (r_shareable(r) && --r->refcnt)
+    return 1;
+
+  assert(!r_active(r));
+  assert(!r->active_cnt);
 
   /*
    * Look at the adjacent range in the list and see if our range can be merged
@@ -193,6 +221,7 @@ static void rman_release_range(range_t *r) {
 
   /* Merging is done... we simply mark the region as free. */
   r->flags = 0;
+  return 0;
 }
 
 resource_t *rman_reserve_resource(rman_t *rm, res_type_t type, int rid,
@@ -211,7 +240,7 @@ resource_t *rman_reserve_resource(rman_t *rm, res_type_t type, int rid,
 }
 
 bus_size_t resource_size(resource_t *r) {
-  return r->r_range->end - r->r_range->start + 1;
+  return r_size(r->r_range);
 }
 
 rman_addr_t resource_start(resource_t *r) {
@@ -224,16 +253,22 @@ bool resource_active(resource_t *r) {
 
 void resource_activate(resource_t *res) {
   range_t *r = res->r_range;
-  WITH_MTX_LOCK (&r->rman->rm_lock) { r->flags |= RF_ACTIVE; }
+  WITH_MTX_LOCK (&r->rman->rm_lock) {
+    r->flags |= RF_ACTIVE;
+    r->active_cnt++;
+  }
 }
 
 void resource_deactivate(resource_t *res) {
   range_t *r = res->r_range;
-  WITH_MTX_LOCK (&r->rman->rm_lock) { r->flags &= ~RF_ACTIVE; }
+  WITH_MTX_LOCK (&r->rman->rm_lock) {
+    if (--r->active_cnt == 0)
+      r->flags &= ~RF_ACTIVE;
+  }
 }
 
 /*! \brief Removes a range from its range manager and releases memory. */
 void resource_release(resource_t *r) {
-  rman_release_range(r->r_range);
-  kfree(M_RMAN, r);
+  if (!rman_release_range(r->r_range))
+    kfree(M_RMAN, r);
 }
