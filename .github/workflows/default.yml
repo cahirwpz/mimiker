@@ -11,6 +11,14 @@ jobs:
       - uses: actions/checkout@v2
       - run: ./verify-format.sh
 
+  verify_pycodestyle:
+    name: verify pycodestyle
+    runs-on: self-hosted
+    container: cahirwpz/mimiker-circleci:1.7.3
+    steps:
+      - uses: actions/checkout@v2
+      - run: ./verify-pycodestyle.sh
+
   build_mips_gcc:
     name: build mips gcc
     runs-on: self-hosted
