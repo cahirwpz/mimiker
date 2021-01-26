@@ -9,7 +9,11 @@ jobs:
     container: cahirwpz/mimiker-circleci:1.7.3
     steps:
       - uses: actions/checkout@v2
-      - run: make
+      - run: make -j $(nproc)
       - uses: actions/upload-artifact@v2
         with:
-          name: sys/mimiker.elf
+          name: kernel+ramdisk
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.elf.map
+            initrd.cpio
