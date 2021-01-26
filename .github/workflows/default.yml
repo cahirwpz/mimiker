@@ -1,6 +1,6 @@
 name: Mimiker
 
-on: [push, pull_request]
+on: [push]
 
 jobs:
   build_mips_gcc:
