@@ -1,0 +1,15 @@
+name: Mimiker
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build
+    runs-on: self-hosted
+    container: cahirwpz/mimiker-circleci:1.7.3
+    steps:
+      - uses: actions/checkout@v2
+      - run: make
+      - uses: actions/upload-artifact@v2
+        with:
+          name: sys/mimiker.elf
