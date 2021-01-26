@@ -3,16 +3,31 @@ name: Mimiker
 on: [push, pull_request]
 
 jobs:
-  build:
-    name: Build
+  build_mips_gcc:
+    name: build mips gcc
     runs-on: self-hosted
     container: cahirwpz/mimiker-circleci:1.7.3
     steps:
       - uses: actions/checkout@v2
-      - run: make -j $(nproc)
+      - run: make -j $(nproc) KASAN=1
       - uses: actions/upload-artifact@v2
         with:
-          name: kernel+ramdisk
+          name: mips gcc kernel+ramdisk
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.elf.map
+            initrd.cpio
+
+  build_mips_clang:
+    name: build mips clang
+    runs-on: self-hosted
+    container: cahirwpz/mimiker-circleci:1.7.3
+    steps:
+      - uses: actions/checkout@v2
+      - run: make -j $(nproc) CLANG=1
+      - uses: actions/upload-artifact@v2
+        with:
+          name: mips clang kernel+ramdisk
           path: |
             sys/mimiker.elf
             sys/mimiker.elf.map
