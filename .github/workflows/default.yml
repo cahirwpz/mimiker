@@ -20,7 +20,7 @@ jobs:
       - run: ./verify-pycodestyle.sh
 
   build_mips_gcc:
-    name: Build MIPS - gcc with KASAN
+    name: Build MIPS - GCC with KASAN
     runs-on: self-hosted
     container: cahirwpz/mimiker-circleci:1.7.3
     steps:
@@ -64,3 +64,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: make -j $(nproc) BOARD=rpi3 CLANG=1
+
+  kernel_tests_mips_clang:
+    name: Tests MIPS - Clang
+    runs-on: self-hosted
+    container: cahirwpz/mimiker-circleci:1.7.3
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: mips clang kernel+ramdisk
+      - run: ./run_tests.py --board malta --thorough --non-interactiv
