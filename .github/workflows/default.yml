@@ -23,9 +23,10 @@ jobs:
     name: Build MIPS - GCC with KASAN
     runs-on: self-hosted
     container: cahirwpz/mimiker-circleci:1.7.3
+    needs: [verify_formatting, verify_pycodestyle]
     steps:
       - uses: actions/checkout@v2
-      - run: make -j $(nproc) BOARD=malta KASAN=1
+      - run: make BOARD=malta KASAN=1
       - uses: actions/upload-artifact@v2
         with:
           name: "mips gcc kernel+ramdisk"
@@ -38,9 +39,10 @@ jobs:
     name: Build MIPS - Clang
     runs-on: self-hosted
     container: cahirwpz/mimiker-circleci:1.7.3
+    needs: [verify_formatting, verify_pycodestyle]
     steps:
       - uses: actions/checkout@v2
-      - run: make -j $(nproc) BOARD=malta CLANG=1
+      - run: make BOARD=malta CLANG=1
       - uses: actions/upload-artifact@v2
         with:
           name: "mips clang kernel+ramdisk"
@@ -53,22 +55,25 @@ jobs:
     name: Build AArch64 - GCC
     runs-on: self-hosted
     container: cahirwpz/mimiker-circleci:1.7.3
+    needs: [verify_formatting, verify_pycodestyle]
     steps:
       - uses: actions/checkout@v2
-      - run: make -j $(nproc) BOARD=rpi3
+      - run: make BOARD=rpi3
 
   build_aarch64_clang:
     name: Build AArch64 - Clang
     runs-on: self-hosted
     container: cahirwpz/mimiker-circleci:1.7.3
+    needs: [verify_formatting, verify_pycodestyle]
     steps:
       - uses: actions/checkout@v2
-      - run: make -j $(nproc) BOARD=rpi3 CLANG=1
+      - run: make BOARD=rpi3 CLANG=1
 
   kernel_tests_mips_gcc:
     name: Tests MIPS - GCC with KASAN
     runs-on: self-hosted
     container: cahirwpz/mimiker-circleci:1.7.3
+    needs: build_mips_gcc
     steps:
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v2
@@ -80,6 +85,7 @@ jobs:
     name: Tests MIPS - Clang
     runs-on: self-hosted
     container: cahirwpz/mimiker-circleci:1.7.3
+    needs: build_mips_clang
     steps:
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v2
