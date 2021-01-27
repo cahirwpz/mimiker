@@ -6,7 +6,7 @@ import signal
 import sys
 import random
 import os
-from launcher import gdb_port, getvar, setboard
+from launcher import RandomPort, getvar, setboard
 
 
 N_SIMPLE = 10
@@ -36,11 +36,11 @@ def gdb_inspect(interactive):
     gdb_cmd = getvar('gdb.binary')
     if interactive:
         gdb_opts = ['-iex=set auto-load safe-path {}/'.format(os.getcwd()),
-                    '-ex=target remote localhost:%d' % gdb_port(),
+                    '-ex=target remote localhost:%d' % RandomPort(),
                     '--silent', getvar('config.kernel')]
     else:
         # Note: These options are different than .gdbinit.
-        gdb_opts = ['-ex=target remote localhost:%d' % gdb_port(),
+        gdb_opts = ['-ex=target remote localhost:%d' % RandomPort(),
                     '-ex=python import os, sys',
                     '-ex=python sys.path.append(os.getcwd() + "/sys")',
                     '-ex=python import debug',

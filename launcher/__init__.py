@@ -1,5 +1,7 @@
+import atexit
 import itertools
 import os
+import random
 import shlex
 import shutil
 import signal
@@ -8,14 +10,32 @@ import time
 import os
 
 
-# Best effort to minimize conflict between two users.
-def gdb_port():
-    return 24000 + os.getpid() % 16384
+MIN_PORT = 24000
+MAX_PORT = 32000
 
 
-def uart_port(num):
-    assert num >= 0 and num < 9
-    return gdb_port() + 1 + num
+def RandomPort():
+    portlock = None
+    ports = list(range(MIN_PORT, MAX_PORT))
+    while not portlock and ports:
+        port = random.choice(ports)
+        ports.remove(port)
+        portlock = f'/tmp/launch-port-{port}.lock'
+        try:
+            fd = os.open(portlock, os.O_CREAT | os.O_EXCL | os.O_CLOEXEC)
+            os.close(fd)
+
+            def unlock():
+                try:
+                    os.remove(portlock)
+                except OSError:
+                    pass
+
+            atexit.register(unlock)
+            return port
+        except OSError:
+            portlock = None
+    raise RuntimeError('Run out of TCP port locks!')
 
 
 CONFIG = {
@@ -41,7 +61,7 @@ CONFIG = {
             '-icount', 'shift=3,sleep=on',
             '-kernel', '{kernel}',
             '-initrd', '{initrd}',
-            '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
+            '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(RandomPort()),
             '-serial', 'none'],
         'board': {
             'malta': {
@@ -52,9 +72,9 @@ CONFIG = {
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
                 'uarts': [
-                    dict(name='/dev/tty1', port=uart_port(0), raw=True),
-                    dict(name='/dev/tty2', port=uart_port(1)),
-                    dict(name='/dev/cons', port=uart_port(2))
+                    dict(name='/dev/tty1', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty2', port=RandomPort()),
+                    dict(name='/dev/cons', port=RandomPort())
                 ]
             },
             'rpi3': {
@@ -64,7 +84,7 @@ CONFIG = {
                     '-smp', '4',
                     '-cpu', 'cortex-a53'],
                 'uarts': [
-                    dict(name='/dev/cons', port=uart_port(0))
+                    dict(name='/dev/cons', port=RandomPort())
                 ]
             }
         }
@@ -75,7 +95,7 @@ CONFIG = {
             '-ex=set confirm no',
             '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
             '-ex=set tcp connect-timeout 30',
-            '-ex=target remote localhost:{}'.format(gdb_port()),
+            '-ex=target remote localhost:{}'.format(RandomPort()),
             '--silent',
         ],
         'extra-options': [],
@@ -262,4 +282,4 @@ class SOCAT(Launchable):
 
 Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
 __all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'Debuggers',
-           'gdb_port', 'uart_port', 'getvar', 'setvar', 'setboard']
+           'RandomPort', 'getvar', 'setvar', 'setboard']
