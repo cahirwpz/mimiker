@@ -70,7 +70,11 @@ static int vfs_create(proc_t *p, int fdat, char *pathname, int *flags, int mode,
       goto fail;
     }
     vattr_t va, dva;
-    VOP_GETATTR(vs.vs_dvp, &dva);
+    if ((error = VOP_GETATTR(vs.vs_dvp, &dva))) {
+      vnode_put(vs.vs_dvp);
+      goto fail;
+    }
+
     vattr_null(&va);
     va.va_mode = S_IFREG | (mode & ALLPERMS);
     va.va_uid = p->p_cred.cr_euid;
@@ -305,7 +309,11 @@ int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
     goto fail;
   }
 
-  VOP_GETATTR(vs.vs_dvp, &dva);
+  if ((error = VOP_GETATTR(vs.vs_dvp, &dva))) {
+    vnode_put(vs.vs_dvp);
+    goto fail;
+  }
+
   memset(&va, 0, sizeof(vattr_t));
   /* We discard all bits but permission bits, since it is
    * implementation-defined.
