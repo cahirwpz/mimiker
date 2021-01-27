@@ -485,8 +485,8 @@ int do_fchdir(proc_t *p, int fd) {
   vnode_t *v = f->f_vnode;
   if (v->v_type == V_DIR) {
     vnode_hold(v);
-    p->p_cwd = v;
     vnode_drop(p->p_cwd);
+    p->p_cwd = v;
   } else {
     error = ENOTDIR;
   }
