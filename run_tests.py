@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import functools
 import pexpect
 import signal
 import sys
@@ -15,9 +14,6 @@ N_THOROUGH = 100
 TIMEOUT = 40
 RETRIES_MAX = 5
 REPEAT = 5
-
-# Flushes on every operation even if not run on a terminal.
-print = functools.partial(print, flush=True)
 
 
 # Tries to decode binary output as ASCII, as hard as it can.

@@ -72,7 +72,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: "mips gcc kernel+ramdisk"
-      - run: ./run_tests.py --board malta --thorough --non-interactive
+      - run: unbuffer ./run_tests.py --board malta --thorough --non-interactive
 
   kernel_tests_mips_clang:
     name: Tests MIPS - Clang
@@ -83,4 +83,4 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: "mips clang kernel+ramdisk"
-      - run: ./run_tests.py --board malta --thorough --non-interactive
+      - run: unbuffer ./run_tests.py --board malta --thorough --non-interactive
