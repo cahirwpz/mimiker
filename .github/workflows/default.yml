@@ -1,6 +1,12 @@
 name: Mimiker
 
-on: [push]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   verify_c_style:
