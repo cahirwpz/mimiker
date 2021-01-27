@@ -7,12 +7,10 @@ import subprocess
 import time
 import os
 
-FIRST_UID = 1000
 
-
-# Reserve 10 ports for each user starting from 24000
+# Best effort to minimize conflict between two users.
 def gdb_port():
-    return 24000 + (os.getuid() - FIRST_UID) * 10
+    return 24000 + os.getpid() % 16384
 
 
 def uart_port(num):
