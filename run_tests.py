@@ -9,8 +9,7 @@ import os
 from launcher import gdb_port, getvar, setboard
 
 
-N_SIMPLE = 5
-N_THOROUGH = 100
+N_SIMPLE = 10
 TIMEOUT = 40
 RETRIES_MAX = 5
 REPEAT = 5
@@ -119,11 +118,8 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Automatically performs kernel tests.')
-    parser.add_argument('--thorough', action='store_true',
-                        help='Generate much more test seeds.'
-                        'Testing will take much more time.')
-    parser.add_argument('--infinite', action='store_true',
-                        help='Keep testing until some error is found.')
+    parser.add_argument('--times', type=int, default=N_SIMPLE,
+                        help='Run tests given number of times.')
     parser.add_argument('--non-interactive', action='store_true',
                         help='Do not run gdb session if tests fail.')
     parser.add_argument('--board', default='malta', choices=['malta', 'rpi3'],
@@ -132,21 +128,10 @@ if __name__ == '__main__':
 
     setboard(args.board)
 
-    n = N_SIMPLE
-    if args.thorough:
-        n = N_THOROUGH
-
     interactive = not args.non_interactive
 
-    # Run tests in alphabetic order
-    test_seed(0, interactive)
-    # Run infinitely many tests, until some problem is found.
-    if args.infinite:
-        while True:
-            seed = random.randint(0, 2**32)
-            test_seed(seed, interactive, REPEAT)
     # Run tests using n random seeds
-    for i in range(0, n):
+    for i in range(0, args.times):
         seed = random.randint(0, 2**32)
         test_seed(seed, interactive, REPEAT)
 
