@@ -6,7 +6,6 @@ jobs:
   verify_formatting:
     name: Verify formatting
     runs-on: self-hosted
-    container: cahirwpz/mimiker-circleci:1.7.3
     steps:
       - uses: actions/checkout@v2
       - run: ./verify-format.sh
@@ -14,7 +13,6 @@ jobs:
   verify_pycodestyle:
     name: Verify pycodestyle
     runs-on: self-hosted
-    container: cahirwpz/mimiker-circleci:1.7.3
     steps:
       - uses: actions/checkout@v2
       - run: ./verify-pycodestyle.sh
@@ -22,7 +20,6 @@ jobs:
   build_mips_gcc:
     name: Build MIPS - GCC with KASAN
     runs-on: self-hosted
-    container: cahirwpz/mimiker-circleci:1.7.3
     needs: [verify_formatting, verify_pycodestyle]
     steps:
       - uses: actions/checkout@v2
@@ -38,7 +35,6 @@ jobs:
   build_mips_clang:
     name: Build MIPS - Clang
     runs-on: self-hosted
-    container: cahirwpz/mimiker-circleci:1.7.3
     needs: [verify_formatting, verify_pycodestyle]
     steps:
       - uses: actions/checkout@v2
@@ -54,7 +50,6 @@ jobs:
   build_aarch64_gcc:
     name: Build AArch64 - GCC
     runs-on: self-hosted
-    container: cahirwpz/mimiker-circleci:1.7.3
     needs: [verify_formatting, verify_pycodestyle]
     steps:
       - uses: actions/checkout@v2
@@ -63,7 +58,6 @@ jobs:
   build_aarch64_clang:
     name: Build AArch64 - Clang
     runs-on: self-hosted
-    container: cahirwpz/mimiker-circleci:1.7.3
     needs: [verify_formatting, verify_pycodestyle]
     steps:
       - uses: actions/checkout@v2
@@ -72,7 +66,6 @@ jobs:
   kernel_tests_mips_gcc:
     name: Tests MIPS - GCC with KASAN
     runs-on: self-hosted
-    container: cahirwpz/mimiker-circleci:1.7.3
     needs: build_mips_gcc
     steps:
       - uses: actions/checkout@v2
@@ -84,7 +77,6 @@ jobs:
   kernel_tests_mips_clang:
     name: Tests MIPS - Clang
     runs-on: self-hosted
-    container: cahirwpz/mimiker-circleci:1.7.3
     needs: build_mips_clang
     steps:
       - uses: actions/checkout@v2
