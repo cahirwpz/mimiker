@@ -68,8 +68,8 @@ CONFIG = {
             'malta': {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
-                    #'-drive', 'if=none,id=stick,file=./udrive.img',
-                    #'-device', 'usb-storage,drive=stick',
+                    # '-drive', 'if=none,id=stick,file=./udrive.img',
+                    # '-device', 'usb-storage,drive=stick',
                     # '-device', 'usb-mouse',
                     # '-device', 'usb-kbd',
                     '-device', 'VGA',
