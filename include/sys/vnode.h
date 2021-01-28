@@ -112,9 +112,9 @@ typedef struct vattr {
   uid_t va_uid;             /* owner user id */
   gid_t va_gid;             /* owner group id */
   size_t va_size;           /* file size in bytes */
-  struct timespec va_atime; /* time of last access */
-  struct timespec va_mtime; /* time of last data modification */
-  struct timespec va_ctime; /* time of last file status change */
+  timespec_t va_atime; /* time of last access */
+  timespec_t va_mtime; /* time of last data modification */
+  timespec_t va_ctime; /* time of last file status change */
 } vattr_t;
 
 void vattr_null(vattr_t *va);
