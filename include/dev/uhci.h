@@ -4,6 +4,8 @@
 #ifndef _UHCI_H_
 #define _UHCI_H_
 
+#include <sys/spinlock.h>
+
 #define UHCI_FRAMELIST_COUNT 1024 /* units */
 
 /* Structures alignment (bytes) */

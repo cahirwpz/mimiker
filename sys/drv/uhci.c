@@ -7,6 +7,7 @@
 #include <sys/kmem.h>
 #include <sys/pmap.h>
 #include <sys/vm_physmem.h>
+#include <sys/spinlock.h>
 #include <sys/time.h>
 #include <dev/usb.h>
 #include <dev/usbhc.h>
@@ -21,6 +22,7 @@
 typedef struct uhci_state {
   uhci_qh_t *queues[UHCI_NQUEUES]; /* schedule queues */
   void *pool;                      /* one page for physical buffers */
+  spin_t lock;                     /* UHCI pool guard */
   uint32_t *frames;                /* UHCI frame list */
   resource_t *regs;                /* host controller registers */
   resource_t *irq;                 /* host controller interrupt */
@@ -321,9 +323,13 @@ static void uhci_init_pool(uhci_state_t *uhci) {
   void *buf = uhci->pool;
   for (int i = 0; i < UHCI_BUF_NUM; i++, buf += UHCI_BUF_SIZE)
     buf_mark_free(buf);
+
+  spin_init(&uhci->lock, 0);
 }
 
 static void *uhci_alloc_pool(uhci_state_t *uhci) {
+  SCOPED_SPIN_LOCK(&uhci->lock);
+
   void *buf = uhci->pool;
 
   /* First fit. */
@@ -337,6 +343,7 @@ static void *uhci_alloc_pool(uhci_state_t *uhci) {
 }
 
 static void uhci_free_pool(uhci_state_t *uhci, void *buf) {
+  SCOPED_SPIN_LOCK(&uhci->lock);
   void *block = buf_block(buf);
   assert(!buf_free(block));
   buf_mark_free(block);
