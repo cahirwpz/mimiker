@@ -9,11 +9,8 @@
 typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;
-typedef struct bus_space bus_space_t;
 typedef TAILQ_HEAD(, device) device_list_t;
-typedef SLIST_HEAD(, resource_list_entry) resource_list_t;
-
-typedef enum { RT_IOPORTS, RT_MEMORY, RT_IRQ } res_type_t;
+typedef SLIST_HEAD(, resource) resource_list_t;
 
 /* Driver that returns the highest value from its probe action
  * will be selected for attach action. */
@@ -29,9 +26,30 @@ typedef enum {
   DIF_COUNT /* this must be the last item */
 } drv_if_t;
 
+/* During kernel initialization the device tree is scanned multiple times.
+ * Each scan we can detect new devices and attach drivers to existing or new
+ * devices. Each driver is assigned a pass number. A driver may only probe and
+ * attach to a device if driver's pass number is not greater than
+ * `current_pass` counter.
+ * Pass description:
+ * - FIRST_PASS: devoted for drivers that require the most basic kernel APIs
+ *   to be in working state (i.e. memory allocation, resource management,
+ *   interrupt management). The main goal of this pass is to initialize enough
+ *   drivers to clock subsystem (and thus scheduler & callouts) and console.
+ * - SECOND_PASS: during this pass following kernel APIs are available:
+ *   callouts, kernel threads, devfs.
+ * If extra pass is needed, please add a coresponding description here and
+ * explain what kernel APIs are required. */
+typedef enum {
+  FIRST_PASS,
+  SECOND_PASS,
+  PASS_COUNT /* this must be the last item */
+} drv_pass_t;
+
 struct driver {
   const char *desc;            /* short driver description */
   size_t size;                 /* device->state object size */
+  drv_pass_t pass;             /* device tree pass number */
   d_probe_t probe;             /* probe for specific device(s) */
   d_attach_t attach;           /* attach device to system */
   d_detach_t detach;           /* detach device from system */
@@ -56,8 +74,10 @@ struct device {
   resource_list_t resources; /* used by driver, assigned by parent bus */
 };
 
-/*! \brief Called during kernel initialization. */
-void init_devices(void);
+/*! \brief Check whether a device is a bus or a regular device. */
+static inline bool device_bus(device_t *dev) {
+  return dev->devclass != NULL;
+}
 
 device_t *device_alloc(int unit);
 device_t *device_add_child(device_t *parent, int unit);
@@ -68,7 +88,7 @@ int device_detach(device_t *dev);
 /*! \brief Add a resource entry to resource list. */
 void device_add_resource(device_t *dev, res_type_t type, int rid,
                          rman_addr_t start, rman_addr_t end, size_t size,
-                         res_flags_t flags);
+                         rman_flags_t flags);
 
 #define device_add_memory(dev, rid, start, size)                               \
   device_add_resource((dev), RT_MEMORY, (rid), (start), (start) + (size)-1,    \
@@ -79,11 +99,11 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
                       (size), 0)
 
 #define device_add_irq(dev, rid, irq)                                          \
-  device_add_resource((dev), RT_IRQ, (rid), (irq), (irq), 1, 0)
+  device_add_resource((dev), RT_IRQ, (rid), (irq), (irq), 1, RF_SHAREABLE)
 
 /*! \brief Take a resource which is assigned to device by parent bus. */
 resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
-                                 res_flags_t flags);
+                                 rman_flags_t flags);
 
 #define device_take_memory(dev, rid, flags)                                    \
   device_take_resource((dev), RT_MEMORY, (rid), (flags))
