@@ -36,6 +36,10 @@
 
 #define _C_LABEL(x) x
 
+#define EXPORT(x)                                                              \
+  .globl _C_LABEL(x);                                                          \
+  _C_LABEL(x) :
+
 #define _SENTRY(x)                                                             \
   .align 2;                                                                    \
   .type x, @function;                                                          \

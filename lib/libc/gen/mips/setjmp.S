@@ -33,7 +33,6 @@
  */
 
 #include <sys/syscall.h>
-#include <sys/ucontext.h>
 #include <mips/asm.h>
 
 #include "mips/assym.h"
@@ -45,7 +44,7 @@
  * restoring registers from the stack, and a struct ucontext, see <signal.h>
  */
 
-#define SETJMP_FRAME_SIZE	(CALLFRAME_SIZ + STACK_T_SIZE)
+#define SETJMP_FRAME_SIZE	(CALLFRAME_SIZ + STACK_SIZ)
 
 NON_LEAF(setjmp, SETJMP_FRAME_SIZE, ra)
 	.mask	0x80010000, (CALLFRAME_RA - CALLFRAME_SIZ)
@@ -57,62 +56,32 @@ NON_LEAF(setjmp, SETJMP_FRAME_SIZE, ra)
 	REG_S		s0, CALLFRAME_S0(sp)		# save S0
 	move		s0, a0				# save sigcontext
 
-	/* Get the signal mask. */
-	PTR_ADDU	a2, a0, _OFFSETOF_SC_MASK	# &sc.sc_mask
-	move		a1, zero
+	/* Get the signal mask (the value of `how` doesn't matter). */
+	PTR_ADDU	a2, a0, UC_MASK         # old mask
+	move		a1, zero                # new mask (NULL)
 	jal		_C_LABEL(sigprocmask)	# get current signal mask
 
 	/* Get the signal stack. */
-	move		a0, zero
+	move		a0, zero                        # new stack (NULL)
 	PTR_ADDU	a1, sp, CALLFRAME_SIZ		# pointer to stack_t
 	jal		_C_LABEL(sigaltstack)
 
-	INT_L		a0, _OFFSETOF_SC_FLAGS(s0)
-
-	INT_L		v1, CALLFRAME_SIZ+_OFFSETOF_STACK_T_FLAGS(sp)
-							# get old ss_onstack
+	INT_L		v1, CALLFRAME_SIZ+SS_FLAGS(sp)	# get old ss_onstack
 	and		v1, v1, SS_ONSTACK		# extract onstack flag
-	or		v1, v1, a0
+        beqz            v1, 1f
+	
+        INT_L		a0, UC_FLAGS(s0)
+        or              v1, a0, _UC_STACK
+	INT_S		v1, UC_FLAGS(s0)
 
-	move		a0, s0				# restore jmpbuf
-	INT_S		v1, _OFFSETOF_SC_FLAGS(a0)
+1:	move		a0, s0			# restore jmpbuf
+	REG_L		s0, CALLFRAME_S0(sp)	# restore S0
+	REG_L		ra, CALLFRAME_RA(sp)	# restore RA
+	blt		v0, zero, 2f		# check for sigaltstack() error
 
-	REG_L		s0, CALLFRAME_S0(sp)		# restore S0
-	REG_L		ra, CALLFRAME_RA(sp)		# restore RA
-	blt		v0, zero, botch		# check for sigaltstack() error
-	nop
-	/*
-	 * We know we won't need this routine's GP anymore.
-	 */
+	/* We know we won't need this routine's GP anymore. */
 	PTR_ADDU	sp, sp, SETJMP_FRAME_SIZE	# pop stack frame
+	j		_C_LABEL(_setjmp)
 
-
-	REG_PROLOGUE
-	REG_S	ra, _OFFSETOF_SC_PC(a0)		# sc_pc = return address
-	REG_S	s0, _OFFSETOF_SC_REGS_S0(a0)
-	REG_S	s1, _OFFSETOF_SC_REGS_S1(a0)
-	REG_S	s2, _OFFSETOF_SC_REGS_S2(a0)
-	REG_S	s3, _OFFSETOF_SC_REGS_S3(a0)
-	REG_S	s4, _OFFSETOF_SC_REGS_S4(a0)
-	REG_S	s5, _OFFSETOF_SC_REGS_S5(a0)
-	REG_S	s6, _OFFSETOF_SC_REGS_S6(a0)
-	REG_S	s7, _OFFSETOF_SC_REGS_S7(a0)
-	REG_S	gp, _OFFSETOF_SC_REGS_GP(a0)
-	REG_S	sp, _OFFSETOF_SC_REGS_SP(a0)
-	REG_S	s8, _OFFSETOF_SC_REGS_S8(a0)
-	INT_L	v0, _OFFSETOF_SC_FLAGS(a0)
-	or	v0, _UC_FPU
-	INT_S	v0, _OFFSETOF_SC_FLAGS(a0)	# sc_fpused = 1
-	cfc1	v0, $31
-	INT_S	v0, _OFFSETOF_SC_FPREGS_FCSR(a0)
-	FP_S	$f20, _OFFSETOF_SC_FPREGS_F20(a0)
-	FP_S	$f22, _OFFSETOF_SC_FPREGS_F22(a0)
-	FP_S	$f21, _OFFSETOF_SC_FPREGS_F21(a0)
-	FP_S	$f23, _OFFSETOF_SC_FPREGS_F23(a0)
-	REG_EPILOGUE
-	move	v0, zero
-	j	ra
-
-botch:
-	jal	_C_LABEL(abort)
+2:	jal		_C_LABEL(abort)
 END(setjmp)
