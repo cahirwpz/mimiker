@@ -334,11 +334,7 @@ static void *realloc(void *old_ptr, size_t size) {
 
 /* --=[ kernel API ]=------------------------------------------------------- */
 
-static void arena_add(void) {
-  arena_t *ar = kmem_alloc(ARENA_SIZE, M_WAITOK);
-  if (ar == NULL)
-    panic("memory exhausted!");
-
+static void arena_init(arena_t *ar) {
   size_t sz = rounddown(ARENA_SIZE - sizeof(arena_t), ALIGNMENT);
 
   /* Poison everything but arena header. */
@@ -353,6 +349,13 @@ static void arena_add(void) {
 
   TAILQ_INSERT_TAIL(&arena_list, ar, link);
   klog("%s: add arena %08x - %08x", __func__, ar->start, ar->end);
+}
+
+static void arena_add(void) {
+  arena_t *ar = kmem_alloc(ARENA_SIZE, M_WAITOK);
+  if (ar == NULL)
+    panic("memory exhausted!");
+  arena_init(ar);
 }
 
 void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
@@ -385,7 +388,7 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, unsigned flags) {
 
   /* Create redzone after the buffer. */
   kasan_mark(ptr, size, req_size - USEDBLK_SZ, KASAN_CODE_KMALLOC_OVERFLOW);
-  if (flags == M_ZERO)
+  if (flags & M_ZERO)
     bzero(ptr, size);
   return ptr;
 }
@@ -486,6 +489,8 @@ void kmcheck(void) {
   assert(dangling == 0);
 }
 
+static alignas(PAGESIZE) uint8_t BOOT_ARENA[ARENA_SIZE];
+
 void init_kmalloc(void) {
   TAILQ_INIT(&arena_list);
   mtx_init(&arena_lock, 0);
@@ -495,6 +500,7 @@ void init_kmalloc(void) {
     head->next = head;
     head->prev = head;
   }
+  arena_init((arena_t *)BOOT_ARENA);
 }
 
 KMALLOC_DEFINE(M_TEMP, "temporaries");
