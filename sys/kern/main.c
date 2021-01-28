@@ -34,7 +34,6 @@ static void mount_fs(void) {
   do_mount(p, "devfs", "/dev");
   do_mount(p, "tmpfs", "/tmp");
   do_fchmodat(p, AT_FDCWD, "/tmp", ACCESSPERMS | S_ISTXT, 0);
-
 }
 
 static __noreturn void start_init(__unused void *arg) {
