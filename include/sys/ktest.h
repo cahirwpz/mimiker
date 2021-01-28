@@ -10,7 +10,7 @@
 #include <sys/malloc.h>
 #include <stdbool.h>
 
-#define KTEST_NAME_MAX 40
+#define KTEST_NAME_MAX 50
 
 #define KTEST_SUCCESS 0
 #define KTEST_FAILURE 1
