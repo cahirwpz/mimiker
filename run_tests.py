@@ -6,11 +6,10 @@ import signal
 import sys
 import random
 import os
-from launcher import gdb_port, getvar, setboard
+from launcher import RandomPort, getvar, setvar, setboard
 
 
-N_SIMPLE = 5
-N_THOROUGH = 100
+N_SIMPLE = 10
 TIMEOUT = 40
 RETRIES_MAX = 5
 REPEAT = 5
@@ -35,13 +34,14 @@ def send_command(gdb, cmd):
 # Tries to start gdb in order to investigate kernel state on deadlock or crash.
 def gdb_inspect(interactive):
     gdb_cmd = getvar('gdb.binary')
+    gdb_port = getvar('config.gdbport')
     if interactive:
         gdb_opts = ['-iex=set auto-load safe-path {}/'.format(os.getcwd()),
-                    '-ex=target remote localhost:%d' % gdb_port(),
+                    '-ex=target remote localhost:%u' % gdb_port,
                     '--silent', getvar('config.kernel')]
     else:
         # Note: These options are different than .gdbinit.
-        gdb_opts = ['-ex=target remote localhost:%d' % gdb_port(),
+        gdb_opts = ['-ex=target remote localhost:%u' % gdb_port,
                     '-ex=python import os, sys',
                     '-ex=python sys.path.append(os.getcwd() + "/sys")',
                     '-ex=python import debug',
@@ -72,6 +72,7 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
     print("Testing seed %u..." % seed)
     child = pexpect.spawn('./launch',
                           ['--board', getvar('board'),
+                           '--port', str(getvar('config.gdbport')),
                            '-t', 'test=all', 'klog-quiet=1',
                            'seed=%u' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
@@ -116,14 +117,19 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
             sys.exit(1)
 
 
+def sigterm_handler(_signo, _stack_frame):
+    sys.exit(1)
+
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGTERM, sigterm_handler)
+    signal.signal(signal.SIGINT, sigterm_handler)
+    signal.signal(signal.SIGHUP, sigterm_handler)
+
     parser = argparse.ArgumentParser(
         description='Automatically performs kernel tests.')
-    parser.add_argument('--thorough', action='store_true',
-                        help='Generate much more test seeds.'
-                        'Testing will take much more time.')
-    parser.add_argument('--infinite', action='store_true',
-                        help='Keep testing until some error is found.')
+    parser.add_argument('--times', type=int, default=N_SIMPLE,
+                        help='Run tests given number of times.')
     parser.add_argument('--non-interactive', action='store_true',
                         help='Do not run gdb session if tests fail.')
     parser.add_argument('--board', default='malta', choices=['malta', 'rpi3'],
@@ -131,22 +137,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     setboard(args.board)
-
-    n = N_SIMPLE
-    if args.thorough:
-        n = N_THOROUGH
+    setvar('config.gdbport', RandomPort())
 
     interactive = not args.non_interactive
 
-    # Run tests in alphabetic order
-    test_seed(0, interactive)
-    # Run infinitely many tests, until some problem is found.
-    if args.infinite:
-        while True:
-            seed = random.randint(0, 2**32)
-            test_seed(seed, interactive, REPEAT)
     # Run tests using n random seeds
-    for i in range(0, n):
+    for i in range(0, args.times):
         seed = random.randint(0, 2**32)
         test_seed(seed, interactive, REPEAT)
 
