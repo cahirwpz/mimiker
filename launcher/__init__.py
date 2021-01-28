@@ -42,6 +42,7 @@ CONFIG = {
     'board': 'malta',
     'config': {
         'debug': False,
+        'gdbport': None,
         'graphics': False,
         'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
@@ -61,7 +62,7 @@ CONFIG = {
             '-icount', 'shift=3,sleep=on',
             '-kernel', '{kernel}',
             '-initrd', '{initrd}',
-            '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(RandomPort()),
+            '-gdb', 'tcp:127.0.0.1:{gdbport},server,wait',
             '-serial', 'none'],
         'board': {
             'malta': {
@@ -95,7 +96,7 @@ CONFIG = {
             '-ex=set confirm no',
             '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
             '-ex=set tcp connect-timeout 30',
-            '-ex=target remote localhost:{}'.format(RandomPort()),
+            '-ex=target remote localhost:{gdbport}',
             '--silent',
         ],
         'extra-options': [],
