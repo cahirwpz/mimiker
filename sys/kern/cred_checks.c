@@ -121,3 +121,10 @@ int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode) {
 check:
   return (mode & granted) == mode ? 0 : EACCES;
 }
+
+int cred_can_chtimes(vnode_t *vn, uid_t f_owner, cred_t *cred) {
+  if (f_owner == cred->cr_euid)
+    return 0;
+
+  return VOP_ACCESS(vn, VWRITE, cred);
+}

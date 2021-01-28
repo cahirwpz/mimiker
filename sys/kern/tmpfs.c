@@ -86,12 +86,16 @@ typedef struct tmpfs_node {
   vnodetype_t tfn_type; /* node type */
 
   /* Node attributes (as in vattr) */
-  mode_t tfn_mode;   /* node protection mode */
-  nlink_t tfn_links; /* number of file hard links */
-  ino_t tfn_ino;     /* node identifier */
-  size_t tfn_size;   /* file size in bytes */
-  uid_t tfn_uid;     /* owner of file */
-  gid_t tfn_gid;     /* group of file */
+  mode_t tfn_mode;      /* node protection mode */
+  nlink_t tfn_links;    /* number of file hard links */
+  ino_t tfn_ino;        /* node identifier */
+  size_t tfn_size;      /* file size in bytes */
+  uid_t tfn_uid;        /* owner of file */
+  gid_t tfn_gid;        /* group of file */
+  timespec_t tfn_atime; /* time of last access */
+  timespec_t tfn_mtime; /* time of last data modification */
+  timespec_t tfn_ctime; /* time of last file status change */
+  mtx_t tfn_timelock;
 
   size_t tfn_nblocks;                 /* number of blocks used by this file */
   blkptr_t tfn_direct[DIRECT_BLK_NO]; /* blocks containing the data */
@@ -110,6 +114,12 @@ typedef struct tmpfs_node {
     } tfn_lnk;
   };
 } tmpfs_node_t;
+
+enum tmpfs_time_type {
+  TMPFS_UPDATE_ATIME = 1,
+  TMPFS_UPDATE_MTIME = 2,
+  TMPFS_UPDATE_CTIME = 4
+};
 
 typedef STAILQ_HEAD(, mem_arena) mem_arena_list_t;
 
@@ -299,6 +309,9 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de);
 
 static blkptr_t *tmpfs_get_blk(tmpfs_node_t *v, size_t blkno);
 static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize);
+static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
+                         cred_t *cred);
+static void tmpfs_update_time(tmpfs_node_t *v, enum tmpfs_time_type type);
 
 /* tmpfs readdir operations */
 
@@ -368,6 +381,8 @@ static int tmpfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
 }
 
 static int tmpfs_vop_readdir(vnode_t *dv, uio_t *uio) {
+  tmpfs_node_t *node = TMPFS_NODE_OF(dv);
+  tmpfs_update_time(node, TMPFS_UPDATE_ATIME);
   return readdir_generic(dv, uio, &tmpfs_readdir_ops);
 }
 
@@ -400,6 +415,7 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
          (remaining = MIN(node->tfn_size - uio->uio_offset, uio->uio_resid))) {
     error = tmpfs_uiomove(node, uio, remaining);
   }
+  tmpfs_update_time(node, TMPFS_UPDATE_ATIME);
 
   return error;
 }
@@ -424,6 +440,7 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio, int ioflag) {
   while (!error && uio->uio_resid > 0) {
     error = tmpfs_uiomove(node, uio, uio->uio_resid);
   }
+  tmpfs_update_time(node, TMPFS_UPDATE_MTIME | TMPFS_UPDATE_CTIME);
 
   return error;
 }
@@ -438,6 +455,13 @@ static int tmpfs_vop_getattr(vnode_t *v, vattr_t *va) {
   va->va_uid = node->tfn_uid;
   va->va_gid = node->tfn_gid;
   va->va_size = node->tfn_size;
+
+  mtx_lock(&node->tfn_timelock);
+  va->va_atime = node->tfn_atime;
+  va->va_mtime = node->tfn_mtime;
+  va->va_ctime = node->tfn_ctime;
+  mtx_unlock(&node->tfn_timelock);
+
   return 0;
 }
 
@@ -446,6 +470,7 @@ static int tmpfs_chmod(tmpfs_node_t *node, mode_t mode, cred_t *cred) {
     return EPERM;
 
   node->tfn_mode = (node->tfn_mode & ~ALLPERMS) | (mode & ALLPERMS);
+  tmpfs_update_time(node, TMPFS_UPDATE_CTIME);
   return 0;
 }
 
@@ -462,10 +487,12 @@ static int tmpfs_chown(tmpfs_node_t *node, uid_t uid, gid_t gid, cred_t *cred) {
     node->tfn_gid = gid;
     node->tfn_mode &= ~S_ISGID; /* clear set-group-ID */
   }
+  tmpfs_update_time(node, TMPFS_UPDATE_CTIME);
   return 0;
 }
 
 static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va, cred_t *cred) {
+  int error;
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
 
@@ -473,13 +500,19 @@ static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va, cred_t *cred) {
     tmpfs_resize(tfm, node, va->va_size);
 
   if (va->va_mode != (mode_t)VNOVAL) {
-    int error;
     if ((error = tmpfs_chmod(node, va->va_mode, cred)))
       return error;
   }
 
-  if (va->va_uid != (uid_t)VNOVAL || va->va_gid != (gid_t)VNOVAL)
-    return tmpfs_chown(node, va->va_uid, va->va_gid, cred);
+  if (va->va_uid != (uid_t)VNOVAL || va->va_gid != (gid_t)VNOVAL) {
+    if ((error = tmpfs_chown(node, va->va_uid, va->va_gid, cred)))
+      return error;
+  }
+
+  if (va->va_atime.tv_sec != VNOVAL || va->va_mtime.tv_sec != VNOVAL) {
+    if ((error = tmpfs_chtimes(node, &va->va_atime, &va->va_mtime, cred)))
+      return error;
+  }
 
   return 0;
 }
@@ -535,10 +568,14 @@ static int tmpfs_vop_reclaim(vnode_t *v) {
 }
 
 static int tmpfs_vop_readlink(vnode_t *v, uio_t *uio) {
-  assert(v->v_type == V_LNK);
+  int error;
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
-  return uiomove_frombuf(node->tfn_lnk.link,
-                         MIN((size_t)node->tfn_size, uio->uio_resid), uio);
+  assert(v->v_type == V_LNK);
+
+  error = uiomove_frombuf(node->tfn_lnk.link,
+                          MIN((size_t)node->tfn_size, uio->uio_resid), uio);
+  tmpfs_update_time(node, TMPFS_UPDATE_ATIME);
+  return error;
 }
 
 static int tmpfs_vop_symlink(vnode_t *dv, componentname_t *cn, vattr_t *va,
@@ -625,6 +662,11 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
   node->tfn_size = 0;
   node->tfn_nblocks = 0;
 
+  node->tfn_atime = nanotime();
+  node->tfn_ctime = node->tfn_atime;
+  node->tfn_mtime = node->tfn_atime;
+  node->tfn_timelock = MTX_INITIALIZER(0);
+
   mtx_lock(&tfm->tfm_lock);
   node->tfn_ino = tfm->tfm_next_ino++;
   mtx_unlock(&tfm->tfm_lock);
@@ -695,6 +737,9 @@ static void tmpfs_dir_attach(tmpfs_node_t *dnode, tmpfs_dirent_t *de,
     node->tfn_dir.parent = dnode;
     dnode->tfn_links++;
   }
+
+  tmpfs_update_time(dnode, TMPFS_UPDATE_MTIME | TMPFS_UPDATE_CTIME);
+  tmpfs_update_time(node, TMPFS_UPDATE_CTIME);
 }
 
 /*
@@ -784,6 +829,8 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de) {
   de->tfd_node = NULL;
   TAILQ_REMOVE(&dv->tfn_dir.dirents, de, tfd_entries);
   TAILQ_INSERT_TAIL(&dv->tfn_dir.fdirents, de, tfd_entries);
+
+  tmpfs_update_time(dv, TMPFS_UPDATE_MTIME | TMPFS_UPDATE_CTIME);
 }
 
 static int tmpfs_alloc_block(tmpfs_mount_t *tfm, tmpfs_node_t *v,
@@ -945,7 +992,36 @@ static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize) {
   }
 
   v->tfn_size = newsize;
+  tmpfs_update_time(v, TMPFS_UPDATE_CTIME | TMPFS_UPDATE_MTIME);
   return 0;
+}
+
+static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
+                         cred_t *cred) {
+  int err;
+  if ((err = cred_can_chtimes(v->tfn_vnode, v->tfn_uid, cred)))
+    return err;
+
+  mtx_lock(&v->tfn_timelock);
+  if (atime->tv_sec != VNOVAL)
+    v->tfn_atime = *atime;
+  if (mtime->tv_sec != VNOVAL)
+    v->tfn_mtime = *mtime;
+  mtx_unlock(&v->tfn_timelock);
+  return 0;
+}
+
+static void tmpfs_update_time(tmpfs_node_t *v, enum tmpfs_time_type type) {
+  timespec_t nowtm = nanotime();
+
+  mtx_lock(&v->tfn_timelock);
+  if (type & TMPFS_UPDATE_ATIME)
+    v->tfn_atime = nowtm;
+  if (type & TMPFS_UPDATE_MTIME)
+    v->tfn_mtime = nowtm;
+  if (type & TMPFS_UPDATE_CTIME)
+    v->tfn_ctime = nowtm;
+  mtx_unlock(&v->tfn_timelock);
 }
 
 /* tmpfs vfs operations */

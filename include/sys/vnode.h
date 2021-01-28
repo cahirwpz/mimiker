@@ -9,6 +9,7 @@
 #include <sys/condvar.h>
 #include <sys/file.h>
 #include <sys/cred.h>
+#include <sys/time.h>
 
 /* Forward declarations */
 typedef struct vnode vnode_t;
@@ -105,12 +106,15 @@ static inline bool is_mountpoint(vnode_t *v) {
 }
 
 typedef struct vattr {
-  mode_t va_mode;   /* files access mode and type */
-  nlink_t va_nlink; /* number of references to file */
-  ino_t va_ino;     /* file id */
-  uid_t va_uid;     /* owner user id */
-  gid_t va_gid;     /* owner group id */
-  size_t va_size;   /* file size in bytes */
+  mode_t va_mode;           /* files access mode and type */
+  nlink_t va_nlink;         /* number of references to file */
+  ino_t va_ino;             /* file id */
+  uid_t va_uid;             /* owner user id */
+  gid_t va_gid;             /* owner group id */
+  size_t va_size;           /* file size in bytes */
+  struct timespec va_atime; /* time of last access */
+  struct timespec va_mtime; /* time of last data modification */
+  struct timespec va_ctime; /* time of last file status change */
 } vattr_t;
 
 void vattr_null(vattr_t *va);
