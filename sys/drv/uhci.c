@@ -203,6 +203,7 @@ static inline void qh_chain(uhci_qh_t *qh1, uhci_qh_t *qh2) {
 
 static inline void qh_halt(uhci_qh_t *qh) {
   qh->qh_e_next |= UHCI_PTR_T;
+  /* (MichalBlk) we should buisy wait 1 ms at this point. */
 }
 
 static inline void qh_unhalt(uhci_qh_t *qh) {
@@ -382,7 +383,7 @@ static inline bool td_last(uhci_td_t *td) {
   return td->td_next & UHCI_PTR_T;
 }
 
-static int qh_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
+static void qh_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
   assert(spin_owned(&mq->qh_lock));
 
   usb_buf_t *usbb = qh->qh_usbb;
@@ -404,7 +405,7 @@ static int qh_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
       td_activate(td);
   } else if (!error) {
     /* Return if this queue didn't cause the interrupt. */
-    return 1;
+    return;
   }
 
   void *data = NULL;
@@ -426,16 +427,17 @@ static int qh_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
   } else {
     qh_add_td(qh, first);
   }
-
-  return 0;
 }
 
 static intr_filter_t uhci_isr(void *data) {
   uhci_state_t *uhci = data;
-  intr_filter_t res = IF_STRAY;
+  uint16_t intrmask = UHCI_STS_USBINT | UHCI_STS_USBEI;
 
-  /* Clear the interrupt flag. */
-  wclrw(UHCI_STS, UHCI_STS_USBINT);
+  if (!chkw(UHCI_STS, intrmask))
+    return IF_STRAY;
+
+  /* Clear the interrupt flags. */
+  wclrw(UHCI_STS, intrmask);
 
   for (int i = 0; i < UHCI_NQUEUES; i++) {
     uhci_qh_t *mq = uhci->queues[i];
@@ -443,16 +445,14 @@ static intr_filter_t uhci_isr(void *data) {
 
     WITH_SPIN_LOCK (&mq->qh_lock) {
       uhci_qh_t *qh, *next;
-      TAILQ_FOREACH_SAFE (qh, &mq->qh_list, qh_link, next) {
-        if (!qh_process(uhci, mq, qh))
-          res = IF_FILTERED;
-      }
+      TAILQ_FOREACH_SAFE (qh, &mq->qh_list, qh_link, next)
+        qh_process(uhci, mq, qh);
       if (!TAILQ_EMPTY(&mq->qh_list))
         qh_unhalt(mq);
     }
   }
 
-  return res;
+  return IF_FILTERED;
 }
 
 /* Obtain the size of structures involved to compose a request. */
