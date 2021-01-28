@@ -64,11 +64,13 @@ typedef uint32_t (*pci_read_config_t)(device_t *device, unsigned reg,
                                       unsigned size);
 typedef void (*pci_write_config_t)(device_t *device, unsigned reg,
                                    unsigned size, uint32_t value);
+typedef int (*pci_route_interrupt_t)(device_t *device);
 typedef void (*pci_enable_busmaster_t)(device_t *device);
 
 typedef struct pci_bus_methods {
   pci_read_config_t read_config;
   pci_write_config_t write_config;
+  pci_route_interrupt_t route_interrupt;
   pci_enable_busmaster_t enable_busmaster;
 } pci_bus_methods_t;
 
@@ -119,6 +121,11 @@ static inline void pci_write_config(device_t *dev, unsigned reg, unsigned size,
 #define pci_write_config_1(d, r, v) pci_write_config((d), (r), 1, (v))
 #define pci_write_config_2(d, r, v) pci_write_config((d), (r), 2, (v))
 #define pci_write_config_4(d, r, v) pci_write_config((d), (r), 4, (v))
+
+static inline int pci_route_interrupt(device_t *dev) {
+  device_t *idev = PCI_BUS_METHOD_PROVIDER(dev, route_interrupt);
+  return PCI_BUS_METHODS(idev->parent).route_interrupt(idev);
+}
 
 static inline void pci_enable_busmaster(device_t *dev) {
   device_t *idev = PCI_BUS_METHOD_PROVIDER(dev, enable_busmaster);
