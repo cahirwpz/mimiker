@@ -171,7 +171,8 @@ static void ns16550_tty_thread(void *arg) {
       if (work & TTY_THREAD_RXRDY) {
         /* Move characters from rx_buf into the tty's input queue. */
         while (ns16550_getb_lock(ns16550, &byte))
-          tty_input(tty, byte);
+          if (!tty_input(tty, byte))
+            klog("dropped character %hhx", byte);
       }
       if (work & TTY_THREAD_TXRDY) {
         ns16550_fill_txbuf(ns16550, tty);
@@ -232,7 +233,7 @@ static int ns16550_attach(device_t *dev) {
   out(ns16550->regs, IER, IER_ERXRDY | IER_ETXRDY);
 
   /* Prepare /dev/uart interface. */
-  devfs_makedev(NULL, "uart", &tty_vnodeops, ns16550->tty, &tty->t_vnode);
+  tty_makedev(NULL, "uart", tty);
 
   return 0;
 }
@@ -241,14 +242,13 @@ static int ns16550_probe(device_t *dev) {
   return dev->unit == 1; /* XXX: unit 1 assigned by gt_pci */
 }
 
-/* clang-format off */
 static driver_t ns16550_driver = {
   .desc = "NS16550 UART driver",
   .size = sizeof(ns16550_state_t),
+  .pass = SECOND_PASS,
   .attach = ns16550_attach,
   .probe = ns16550_probe,
 };
-/* clang-format on */
 
 DEVCLASS_ENTRY(pci, ns16550_driver);
 DEVCLASS_ENTRY(cbus, ns16550_driver);

@@ -1,3 +1,4 @@
+#include <sys/context.h>
 #include <sys/libkern.h>
 #include <sys/mimiker.h>
 #include <sys/thread.h>
@@ -41,6 +42,10 @@ void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
   _REG(ctx, X1) = error;
 }
 
+void mcontext_restart_syscall(mcontext_t *ctx) {
+  _REG(ctx, PC) -= 4; /* TODO subtract 2 if in thumb mode */
+}
+
 bool user_mode_p(ctx_t *ctx) {
   return (_REG(ctx, SPSR) & PSR_M_MASK) == PSR_M_EL0t;
 }
@@ -55,6 +60,15 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
   /* 32 FP registers + FPCR + FPSR */
   if (uc->uc_flags & _UC_FPU)
     memcpy(&to->__fregs, &from->__fregs, sizeof(__fregset_t));
+
+  /*
+   * We call do_setcontext only from sys_setcontext.
+   *
+   * User-space non-local jumps assume that lr contains return address for
+   * setcontext syscall, but exception handler copies return address from elr
+   * register.
+   */
+  _REG(to, ELR) = _REG(to, LR);
 
   return EJUSTRETURN;
 }

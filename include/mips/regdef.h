@@ -86,4 +86,7 @@
 #define ta2 $14
 #define ta3 $15
 
+/* FPU coprocessor registers. */
+#define fcsr $31
+
 #endif /* !_MIPS_REGDEF_H */

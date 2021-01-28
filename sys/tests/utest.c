@@ -87,6 +87,7 @@ UTEST_ADD_SIMPLE(signal_cont_masked);
 UTEST_ADD_SIMPLE(signal_mask);
 UTEST_ADD_SIMPLE(signal_mask_nonmaskable);
 UTEST_ADD_SIMPLE(signal_sigsuspend);
+UTEST_ADD_SIMPLE(signal_sigsuspend_stop);
 UTEST_ADD_SIMPLE(signal_handler_mask);
 
 UTEST_ADD_SIMPLE(fork_wait);
@@ -147,6 +148,7 @@ UTEST_ADD_SIMPLE(session_basic);
 UTEST_ADD_SIMPLE(session_login_name);
 
 UTEST_ADD_SIMPLE(gettimeofday);
+UTEST_ADD_SIMPLE(nanosleep);
 
 UTEST_ADD_SIMPLE(get_set_uid);
 UTEST_ADD_SIMPLE(get_set_gid);
