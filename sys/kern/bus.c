@@ -80,7 +80,6 @@ void generic_bs_write_region_4(bus_space_handle_t handle, bus_size_t offset,
     *dst++ = *src++;
 }
 
-/* clang-format off */
 bus_space_t *generic_bus_space = &(bus_space_t){
   .bs_map = generic_bs_map,
   .bs_read_1 = generic_bs_read_1,
@@ -96,29 +95,45 @@ bus_space_t *generic_bus_space = &(bus_space_t){
   .bs_write_region_2 = generic_bs_write_region_2,
   .bs_write_region_4 = generic_bs_write_region_4,
 };
-/* clang-format on */
 
-int bus_activate_resource(device_t *dev, res_type_t type, resource_t *r) {
-  if (r->r_flags & RF_ACTIVE)
+void bus_intr_setup(device_t *dev, resource_t *irq, ih_filter_t *filter,
+                    ih_service_t *service, void *arg, const char *name) {
+  device_t *idev = BUS_METHOD_PROVIDER(dev, intr_setup);
+  BUS_METHODS(idev->parent).intr_setup(idev, irq, filter, service, arg, name);
+  if (irq->r_handler)
+    resource_activate(irq);
+}
+
+void bus_intr_teardown(device_t *dev, resource_t *irq) {
+  assert(resource_active(irq));
+  device_t *idev = BUS_METHOD_PROVIDER(dev, intr_teardown);
+  BUS_METHODS(idev->parent).intr_teardown(idev, irq);
+  irq->r_handler = NULL;
+  resource_deactivate(irq);
+}
+
+int bus_activate_resource(device_t *dev, resource_t *r) {
+  if (resource_active(r) || r->r_type == RT_IRQ)
     return 0;
 
   device_t *idev = BUS_METHOD_PROVIDER(dev, activate_resource);
-  int error = BUS_METHODS(idev->parent).activate_resource(idev, type, r);
+  int error = BUS_METHODS(idev->parent).activate_resource(idev, r);
   if (error == 0)
-    rman_activate_resource(r);
+    resource_activate(r);
   return error;
 }
 
-void bus_deactivate_resource(device_t *dev, res_type_t type, resource_t *r) {
-  if (r->r_flags & RF_ACTIVE) {
+void bus_deactivate_resource(device_t *dev, resource_t *r) {
+  if (r->r_type != RT_IRQ) {
+    assert(resource_active(r));
     device_t *idev = BUS_METHOD_PROVIDER(dev, deactivate_resource);
-    BUS_METHODS(idev->parent).deactivate_resource(idev, type, r);
+    BUS_METHODS(idev->parent).deactivate_resource(idev, r);
+    resource_deactivate(r);
   }
-  rman_deactivate_resource(r);
 }
 
 /* System-wide current pass number. */
-static pass_num_t current_pass;
+static drv_pass_t current_pass;
 
 int bus_generic_probe(device_t *bus) {
   devclass_t *dc = bus->devclass;
@@ -126,10 +141,16 @@ int bus_generic_probe(device_t *bus) {
     return 0;
   device_t *dev;
   TAILQ_FOREACH (dev, &bus->children, link) {
+    if (dev->driver) {
+      if (device_bus(dev))
+        bus_generic_probe(dev);
+      continue;
+    }
+
     driver_t **drv_p;
     DEVCLASS_FOREACH(drv_p, dc) {
       driver_t *driver = *drv_p;
-      if (driver->pass != current_pass)
+      if (driver->pass > current_pass)
         continue;
       dev->driver = driver;
       if (device_probe(dev)) {
@@ -142,36 +163,24 @@ int bus_generic_probe(device_t *bus) {
       }
       dev->driver = NULL;
     }
-    if (device_bus(dev)) {
-      /*
-       * Bus attach function calls `bus_generic_probe`, but if
-       * the current pass number is different than the bus's pass number
-       * or the bus doesn't have a driver attached, then the attach function
-       * hasn't been called and we need to call `bus_generic_probe` directly.
-       */
-      driver_t *driver = dev->driver;
-      if (!driver || driver->pass != current_pass)
-        bus_generic_probe(dev);
-    }
   }
   return 0;
 }
 
 DEVCLASS_DECLARE(root);
-DEVCLASS_CREATE(init);
 
-void init_devices(pass_num_t pass) {
+void init_devices(void) {
+  assert(current_pass < PASS_COUNT);
+  extern driver_t rootdev_driver;
   static device_t *rootdev;
-  current_pass = pass;
   if (rootdev == NULL) {
-    device_t *primeval = device_alloc(0);
-    primeval->devclass = &DEVCLASS(init);
     rootdev = device_alloc(0);
     rootdev->devclass = &DEVCLASS(root);
-    TAILQ_INSERT_TAIL(&primeval->children, rootdev, link);
-    bus_generic_probe(primeval);
-    device_free(primeval);
+    rootdev->driver = (driver_t *)&rootdev_driver;
+    device_probe(rootdev);
+    device_attach(rootdev);
   } else {
     bus_generic_probe(rootdev);
   }
+  current_pass++;
 }

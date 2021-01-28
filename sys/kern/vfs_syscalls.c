@@ -69,11 +69,16 @@ static int vfs_create(proc_t *p, int fdat, char *pathname, int *flags, int mode,
       vnode_put(vs.vs_dvp);
       goto fail;
     }
-    vattr_t va;
+    vattr_t va, dva;
+    if ((error = VOP_GETATTR(vs.vs_dvp, &dva))) {
+      vnode_put(vs.vs_dvp);
+      goto fail;
+    }
+
     vattr_null(&va);
     va.va_mode = S_IFREG | (mode & ALLPERMS);
-    va.va_uid = p->p_cred.cr_ruid;
-    va.va_gid = p->p_cred.cr_rgid;
+    va.va_uid = p->p_cred.cr_euid;
+    va.va_gid = dva.va_mode & S_ISGID ? dva.va_gid : p->p_cred.cr_egid;
     error = VOP_CREATE(vs.vs_dvp, &vs.vs_lastcn, &va, &vs.vs_vp);
     vnode_put(vs.vs_dvp);
   } else {
@@ -271,7 +276,7 @@ fail:
 
 int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
   vnrstate_t vs;
-  vattr_t va;
+  vattr_t va, dva;
   int error;
 
   if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, path, &p->p_cred)))
@@ -291,13 +296,24 @@ int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
     goto fail;
   }
 
+  if ((error = VOP_GETATTR(vs.vs_dvp, &dva))) {
+    vnode_put(vs.vs_dvp);
+    goto fail;
+  }
+
   memset(&va, 0, sizeof(vattr_t));
   /* We discard all bits but permission bits, since it is
    * implementation-defined.
    * https://pubs.opengroup.org/onlinepubs/9699919799/functions/mkdir.html */
   va.va_mode = S_IFDIR | ((mode & ACCESSPERMS) & ~p->p_cmask);
-  va.va_uid = p->p_cred.cr_ruid;
-  va.va_gid = p->p_cred.cr_rgid;
+  va.va_uid = p->p_cred.cr_euid;
+  if (dva.va_mode & S_ISGID) {
+    /* We propagate set-group-id down */
+    va.va_mode |= S_ISGID;
+    va.va_gid = dva.va_gid;
+  } else {
+    va.va_gid = p->p_cred.cr_egid;
+  }
 
   error = VOP_MKDIR(vs.vs_dvp, &vs.vs_lastcn, &va, &vs.vs_vp);
   if (!error)

@@ -49,7 +49,7 @@ int do_fstat(proc_t *p, int fd, stat_t *sb) {
   file_t *f;
   int error;
 
-  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
+  if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
   error = FOP_STAT(f, sb);
   file_drop(f);
