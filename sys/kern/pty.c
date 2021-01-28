@@ -3,7 +3,6 @@
 #include <sys/ringbuf.h>
 #include <sys/ttycom.h>
 #include <stdatomic.h>
-#include <stdio.h>
 #include <sys/condvar.h>
 #include <sys/mimiker.h>
 #include <sys/file.h>
