@@ -24,20 +24,19 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
                                             rman_flags_t flags) {
   assert(dev->bus == DEV_BUS_ISA);
 
-  rman_t *rman = NULL;
-  intel_isa_state_t *isa = dev->parent->state;
-  bus_space_handle_t bh = 0;
-
-  if (type == RT_IOPORTS) {
-    assert(start >= IO_ICUSIZE);
-    rman = &isa->io_rman;
-    bh = isa->io->r_bus_handle;
-  } else {
+  if (type != RT_IOPORTS) {
     /* We don't know how to allocate this resource, but maybe someone above us
      * does. In current context this is necessary to allocate interrupts,
      * which aren't managed by this driver. */
     return bus_alloc_resource(dev->parent, type, rid, start, end, size, flags);
   }
+
+  assert(start >= IO_ICUSIZE);
+
+  rman_t *rman = NULL;
+  intel_isa_state_t *isa = dev->parent->state;
+  rman = &isa->io_rman;
+  bus_space_handle_t bh = isa->io->r_bus_handle;
 
   resource_t *r =
     rman_reserve_resource(rman, type, rid, start, end, size, 0, flags);
@@ -46,41 +45,31 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
     return NULL;
 
   /* We shouldn't do that for IRQs, but rn we'll never end up here when
-   * allocating a resouce */
+   * allocating them, because they get dispatched. */
   r->r_bus_tag = generic_bus_space;
   r->r_bus_handle = bh + resource_start(r);
 
-  if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, r)) {
-      resource_release(r);
-      return NULL;
-    }
+  /* IOPorts are always active */
+  if (bus_activate_resource(dev, r)) {
+    resource_release(r);
+    return NULL;
   }
 
   return r;
 }
 
 static int intel_isa_activate_resource(device_t *dev, resource_t *r) {
-  if (r->r_type != RT_IOPORTS)
-    return bus_activate_resource(dev->parent, r);
-  /* There are no resource activation procedures for ISA ioports  */
+  /* Neither IRQs in general or IOports on ISA require activation */
   return 0;
 }
 
 static void intel_isa_deactivate_resource(device_t *dev, resource_t *r) {
-  if (r->r_type != RT_IOPORTS)
-    return bus_deactivate_resource(dev->parent, r);
-  return;
+  /* Neither IRQs in general or IOports on ISA require deactivation */
 }
 
 static void intel_isa_release_resource(device_t *dev, resource_t *r) {
-  if (r->r_type != RT_IOPORTS) {
-    /* Dispatch release for inderectly allocated resources */
-    bus_deactivate_resource(dev->parent, r);
-  } else {
-    /* No need to deactivate resource, because deactivation is a NOP anyway */
-    resource_release(r);
-  }
+  bus_deactivate_resource(dev, r);
+  resource_release(r);
 }
 
 static int intel_isa_probe(device_t *d) {
@@ -124,7 +113,7 @@ static int intel_isa_attach(device_t *isab) {
   return bus_generic_probe(isab);
 }
 
-bus_methods_t intel_isa_bus_bus_if = {
+static bus_methods_t intel_isa_bus_bus_if = {
   .intr_setup = NULL,    /* Dispatched */
   .intr_teardown = NULL, /* Dispatched */
   .alloc_resource = intel_isa_alloc_resource,
@@ -133,7 +122,7 @@ bus_methods_t intel_isa_bus_bus_if = {
   .release_resource = intel_isa_release_resource,
 };
 
-driver_t intel_isa_bus = {
+static driver_t intel_isa_bus = {
   .desc = "Intel 82371AB PIIX4 PCI to ISA bridge driver",
   .size = sizeof(intel_isa_state_t),
   .attach = intel_isa_attach,
