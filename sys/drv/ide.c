@@ -286,15 +286,6 @@ static int ide_attach(device_t *dev) {
       }
     }
 
-  uint16_t testarr[512] = {0xa, 0xb, 0xc, 0xd, 0};
-
-  ide_hdd_access(ide, 0, testarr, 0, 512, ATA_WRITE);
-  for (int i = 0; i < 128; i++)
-    klog("%x", testarr[i]);
-
-  ide_hdd_access(ide, 0, (uint16_t *)ide->ide_devices[0].identification_space,
-                 0, 2048, ATA_WRITE);
-
   return 0;
 }
 
