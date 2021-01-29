@@ -4,6 +4,10 @@
 
 #include "assym.h"
 
+.macro  load_pcpu dst
+        mrs     \dst, tpidr_el1
+.endm
+
 .macro  SAVE_CTX
         str     lr, [sp, #CTX_PC]
         stp     x28, x29, [sp, #CTX_X28]
@@ -111,7 +115,7 @@ ENTRY(ctx_switch)
         mov     sp, x2
 
         # update curthread pointer to reference @to thread
-        mrs     x2, tpidr_el1
+        load_pcpu x2
         str     x1, [x2, #PCPU_CURTHREAD]
 
         # switch user space if necessary

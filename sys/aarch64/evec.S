@@ -4,6 +4,10 @@
 
 /* Heavily inspired by FreeBSD sys/arm64/arm64/exceptions.S */
 
+.macro  load_pcpu dst
+        mrs     \dst, tpidr_el1
+.endm
+
 .macro  save_ctx el
         sub     sp, sp, #CTX_SIZE
         .cfi_def_cfa_offset 0
@@ -63,13 +67,13 @@
         stp      lr, x18, [sp, #CTX_LR]
         .cfi_rel_offset lr, CTX_LR
         .cfi_rel_offset sp, CTX_SP
-        mrs     x18, tpidr_el1
+        load_pcpu x18
 .endm
 
 .macro  load_ctx el
         msr     daifset, #2
 .if \el == 0
-        mrs     x18, tpidr_el1
+        load_pcpu x18
         ldr     x18, [x18, #PCPU_CURTHREAD]
         ldr     x18, [x18, #TD_UCTX]
         mov     sp,  x18
@@ -102,7 +106,7 @@
 .else
         ldr     x29, [sp, #CTX_FP]
         mov     sp, x18
-        mrs     x18, tpidr_el1
+        load_pcpu x18
 .endif
 .endm
 
@@ -143,7 +147,7 @@ ENTRY(handle_kern_trap)
         bl      kern_trap_handler
 kern_exc_leave:
         load_ctx 1
-        ERET
+        eret
 END(handle_kern_trap)
 
 ENTRY(handle_kern_intr)
@@ -152,7 +156,7 @@ ENTRY(handle_kern_intr)
         mov     x0, sp
         bl      intr_root_handler
         load_ctx 1
-        ERET
+        eret
 END(handle_kern_intr)
 
 ENTRY(handle_user_trap)
@@ -163,7 +167,7 @@ ENTRY(handle_user_trap)
 user_exc_leave:
         /* load thread_t::tdp_flags */
         /* thread_t::tdp_flags is a volatile unsigned - use 32-bit */
-        mrs     x1, tpidr_el1
+        load_pcpu x1
         ldr     x1, [x1, #PCPU_CURTHREAD]
         ldr     w3, [x1, #TD_PFLAGS]
 
@@ -191,7 +195,7 @@ user_exc_leave:
 
 .skip_fpu_restore:
         load_ctx 0
-        ERET
+        eret
 END(handle_user_trap)
 
 ENTRY(handle_user_intr)
@@ -200,7 +204,7 @@ ENTRY(handle_user_intr)
         mov     x0, sp
         bl      intr_root_handler
         load_ctx 0
-        ERET
+        eret
 END(handle_user_intr)
 
 .macro  VECKERN name
