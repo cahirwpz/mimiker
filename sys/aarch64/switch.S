@@ -21,10 +21,9 @@
 
 /* 
  * WARNING!
- * xtmp & wtmp MUST BE the same register - fpcr and fpsr are 32-bit registers
- * but mrs requires 64-bit register as argument.
+ * tmp is a register number.
  */
-.macro  save_fpu_ctx src xtmp wtmp
+.macro  save_fpu_ctx src tmp
         stp     q0,  q1,  [\src, FPU_CTX_Q0]
         stp     q2,  q3,  [\src, FPU_CTX_Q2]
         stp     q4,  q5,  [\src, FPU_CTX_Q4]
@@ -41,10 +40,10 @@
         stp     q26, q27, [\src, FPU_CTX_Q26]
         stp     q28, q29, [\src, FPU_CTX_Q28]
         stp     q30, q31, [\src, FPU_CTX_Q30]
-        mrs     \xtmp, fpcr
-        str     \wtmp, [\src, FPU_CTX_FPCR]
-        mrs     \xtmp, fpsr
-        str     \wtmp, [\src, FPU_CTX_FPSR]
+        mrs     x\tmp, fpcr
+        str     w\tmp, [\src, FPU_CTX_FPCR]
+        mrs     x\tmp, fpsr
+        str     w\tmp, [\src, FPU_CTX_FPSR]
 .endm
 
 .macro  LOAD_CTX
@@ -92,7 +91,7 @@ ENTRY(ctx_switch)
         msr     cpacr_el1, x2
 
         ldr     x2, [x0, #TD_UCTX]
-        save_fpu_ctx x2, x3, w3
+        save_fpu_ctx x2, 3
 
         /* disable FPU */
         mrs     x2, cpacr_el1

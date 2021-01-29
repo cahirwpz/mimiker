@@ -108,10 +108,9 @@
 
 /* 
  * WARNING!
- * xtmp & wtmp MUST BE the same register - fpcr and fpsr are 32-bit registers
- * but msr requires 64-bit register as argument.
+ * tmp is a register number.
  */
-.macro  load_fpu_ctx src xtmp wtmp
+.macro  load_fpu_ctx src tmp
         ldp     q0,  q1,  [\src, FPU_CTX_Q0]
         ldp     q2,  q3,  [\src, FPU_CTX_Q2]
         ldp     q4,  q5,  [\src, FPU_CTX_Q4]
@@ -128,10 +127,10 @@
         ldp     q26, q27, [\src, FPU_CTX_Q26]
         ldp     q28, q29, [\src, FPU_CTX_Q28]
         ldp     q30, q31, [\src, FPU_CTX_Q30]
-        ldr     \wtmp, [\src, FPU_CTX_FPCR]
-        msr     fpcr, \xtmp
-        ldr     \wtmp, [\src, FPU_CTX_FPSR]
-        msr     fpsr, \xtmp
+        ldr     w\tmp, [\src, FPU_CTX_FPCR]
+        msr     fpcr, x\tmp
+        ldr     w\tmp, [\src, FPU_CTX_FPSR]
+        msr     fpsr, x\tmp
 .endm
 
         .global kern_exc_leave
@@ -188,7 +187,7 @@ user_exc_leave:
 
         /* restore FPU context */
         ldr     x1, [x1, #TD_UCTX]
-        load_fpu_ctx x1, x2, w2 /* 2nd and 3rd argument must be the same */
+        load_fpu_ctx x1, 2
 
 .skip_fpu_restore:
         load_ctx 0
