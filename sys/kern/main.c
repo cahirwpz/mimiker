@@ -62,15 +62,17 @@ static __noreturn void start_init(__unused void *arg) {
     kern_execve(init, kenv_get_init(), (char *[]){NULL});
 
   char *test = kenv_get("test");
-  if (test)
+  if (test) {
     ktest_main(test);
-
-  /* This is a message to the user,
-   * so I intentionally use kprintf instead of log. */
-  kprintf("============\n");
-  kprintf("Use init=PROGRAM to start a user-space init program or test=TEST "
-          "to run a kernel test.\n");
-  kprintf("============\n");
+    kprintf("Test run finished!\n");
+  } else {
+    /* This is a message to the user,
+     * so I intentionally use kprintf instead of log. */
+    kprintf("============\n");
+    kprintf("Use init=PROGRAM to start a user-space init program or test=TEST "
+            "to run a kernel test.\n");
+    kprintf("============\n");
+  }
 
   panic("Nothing to run!");
 }

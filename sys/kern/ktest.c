@@ -242,7 +242,7 @@ static void run_specified_tests(const char *test) {
   }
 }
 
-__noreturn void ktest_main(const char *test) {
+void ktest_main(const char *test) {
   /* Start by gathering command-line arguments. */
   const char *seed_str = kenv_get("seed");
   const char *repeat_str = kenv_get("repeat");
@@ -255,5 +255,4 @@ __noreturn void ktest_main(const char *test) {
   } else {
     run_specified_tests(test);
   }
-  panic("Test run finished!");
 }

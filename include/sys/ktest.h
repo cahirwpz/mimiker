@@ -35,7 +35,7 @@ typedef struct {
   uint32_t randint_max;
 } test_entry_t;
 
-__noreturn void ktest_main(const char *test);
+void ktest_main(const char *test);
 
 #define KTEST_ADD(name, func, flags)                                           \
   test_entry_t name##_test = {#name, func, flags, 0};                          \

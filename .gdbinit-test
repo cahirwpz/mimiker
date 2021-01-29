@@ -1,0 +1,16 @@
+# some generic settings
+set output-radix 0x10
+set pagination off
+set confirm off
+set verbose off
+
+# make extra commands available
+python import os, sys
+python sys.path.append(os.path.join(os.getcwd(), 'sys'))
+python import debug
+
+# launch kernel tests and wait for ktest_main to finish
+break panic_fail
+tbreak ktest_main
+continue
+finish

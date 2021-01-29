@@ -101,10 +101,8 @@ CONFIG = {
         ],
         'extra-options': [],
         'post-options': [
-            '-ex=set confirm yes',
             '-ex=source .gdbinit',
             '-ex=continue',
-            '{elf}'
         ],
         'board': {
             'malta': {
@@ -247,27 +245,12 @@ class QEMU(Launchable):
 
 
 class GDB(Launchable):
-    def __init__(self, name=None, cmd=None):
-        super().__init__(name or 'gdb', cmd or getvar('gdb.binary'))
-        # gdbtui & cgdb output is garbled if there is no delay
-        self.cmd = 'sleep 0.25 && ' + self.cmd
+    def __init__(self):
+        super().__init__('gdb', getvar('gdb.binary'))
 
-        if self.name == 'gdb':
-            self.options += ['-ex=set prompt \033[35;1m(gdb) \033[0m']
         self.options += getopts(
                 'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
-
-
-class GDBTUI(GDB):
-    def __init__(self):
-        super().__init__('gdbtui')
-        self.options = ['-tui']
-
-
-class CGDB(GDB):
-    def __init__(self):
-        super().__init__('cgdb', 'cgdb')
-        self.options = ['-d', getvar('gdb.binary')]
+        self.options.append(getvar('config.elf'))
 
 
 class SOCAT(Launchable):
@@ -281,6 +264,5 @@ class SOCAT(Launchable):
         self.options = [stdio_opt, f'tcp:localhost:{tcp_port},retry,forever']
 
 
-Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
-__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'Debuggers',
-           'RandomPort', 'getvar', 'setvar', 'setboard']
+__all__ = ['Launchable', 'QEMU', 'GDB', 'SOCAT', 'RandomPort',
+           'getvar', 'setvar', 'setboard']
