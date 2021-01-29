@@ -5,7 +5,7 @@
 #include <sys/klog.h>
 #include <sys/time.h>
 #include <sys/bus.h>
-#include <dev/hid.h>
+#include <dev/usbhid.h>
 #include <dev/usb.h>
 #include <dev/usbhc.h>
 #include <dev/umass.h>
@@ -537,8 +537,8 @@ static void usb_print_dev(usb_device_t *usbd, usb_config_descriptor_t *cd,
 static usb_endpoint_descriptor_t *
 usb_endp_dsc_addr(usb_interface_descriptor_t *id) {
   if (id->bInterfaceClass == UICLASS_HID) {
-    usb_hid_dsc_t *hd = (usb_hid_dsc_t *)(id + 1);
-    return (void *)hd + hd->len;
+    usb_hid_descriptor_t *hd = (usb_hid_descriptor_t *)(id + 1);
+    return (void *)hd + hd->bLength;
   }
   return (usb_endpoint_descriptor_t *)(id + 1);
 }
