@@ -1,3 +1,6 @@
+/*
+ * Based on FreeBSD `usb.h`.
+ */
 #ifndef _USB_H_
 #define _USB_H_
 
@@ -5,28 +8,26 @@
 #include <sys/condvar.h>
 #include <sys/spinlock.h>
 
-struct usb_dev_req {
-  uint8_t type;
-  uint8_t req;
-  uint16_t val;
-  uint16_t idx;
-  uint16_t len;
-} __packed;
-
-typedef struct usb_dev_req usb_dev_req_t;
+typedef struct usb_device_request {
+  uint8_t bmRequestType;
+  uint8_t bRequest;
+  uint16_t wValue;
+  uint16_t wIndex;
+  uint16_t wLength;
+} __packed usb_device_request_t;
 
 #define UT_WRITE 0x00
 #define UT_READ 0x80
 #define UT_STANDARD 0x00
 #define UT_CLASS 0x20
-#define UT_VENDOR 0x40
 #define UT_DEVICE 0x00
 #define UT_INTERFACE 0x01
 #define UT_ENDPOINT 0x02
-#define UT_OTHER 0x03
 
+#define UT_READ_DEVICE (UT_READ | UT_STANDARD | UT_DEVICE)
 #define UT_READ_INTERFACE (UT_READ | UT_STANDARD | UT_INTERFACE)
 #define UT_READ_ENDPOINT (UT_READ | UT_STANDARD | UT_ENDPOINT)
+#define UT_WRITE_DEVICE (UT_WRITE | UT_STANDARD | UT_DEVICE)
 #define UT_WRITE_ENDPOINT (UT_WRITE | UT_STANDARD | UT_ENDPOINT)
 #define UT_READ_CLASS_INTERFACE (UT_READ | UT_CLASS | UT_INTERFACE)
 #define UT_READ_CLASS_ENDPOINT (UT_READ | UT_CLASS | UT_ENDPOINT)
@@ -49,74 +50,66 @@ typedef struct usb_dev_req usb_dev_req_t;
 
 #define UV_MAKE(d, i) ((d) << 8 | (i))
 
-struct usb_dev_dsc {
-  uint8_t len;
-  uint8_t type;
-  uint16_t usb_release;
-  uint8_t dev_class;
-  uint8_t dev_subclass;
-  uint8_t dev_protocol;
-  uint8_t max_pkt_size;
-  uint16_t vendor_id;
-  uint16_t product_id;
-  uint16_t dev_release;
-  uint8_t manufacturer_idx;
-  uint8_t product_idx;
-  uint8_t serialnum_idx;
-  uint8_t nconfigurations;
-} __packed;
+typedef struct usb_device_descriptor {
+  uint8_t bLength;
+  uint8_t bDescriptorType;
+  uint16_t bcdUSB;
+  uint8_t bDeviceClass;
+  uint8_t bDeviceSubClass;
+  uint8_t bDeviceProtocol;
+  uint8_t bMaxPacketSize;
+  /* The fields below are not part of the initial descriptor. */
+  uint16_t idVendor;
+  uint16_t idProduct;
+  uint16_t bcdDevice;
+  uint8_t iManufacturer;
+  uint8_t iProduct;
+  uint8_t iSerialNumber;
+  uint8_t bNumConfigurations;
+} __packed usb_device_descriptor_t;
 
-typedef struct usb_dev_dsc usb_dev_dsc_t;
+#define US_DATASIZE 126
 
-#define SDSC_DATASIZE 126
+typedef struct usb_string_descriptor {
+  uint8_t bLength;
+  uint8_t bDescriptorType;
+  uint16_t bString[US_DATASIZE];
+  uint8_t bUnused;
+} __packed usb_string_descriptor_t;
 
-struct usb_str_dsc {
-  uint8_t len;
-  uint8_t type;
-  uint16_t string[SDSC_DATASIZE];
-  uint8_t unused;
-} __packed;
+typedef struct usb_string_lang {
+  uint8_t bLength;
+  uint8_t bDescriptorType;
+  uint8_t bData[US_DATASIZE];
+} __packed usb_string_lang_t;
 
-typedef struct usb_str_dsc usb_str_dsc_t;
+#define US_ENG_LID 0x0409
+#define US_ENG_STR "English (United States)"
 
-struct usb_str_lang {
-  uint8_t len;
-  uint8_t type;
-  uint16_t data[SDSC_DATASIZE];
-} __packed;
+typedef struct usb_config_descriptor {
+  uint8_t bLength;
+  uint8_t bDescriptorType;
+  uint16_t wTotalLength;
+  uint8_t bNumInterface;
+  uint8_t bConfigurationValue;
+  uint8_t iConfiguration;
+  uint8_t bmAttributes;
+  uint8_t bMaxPower; /* max current in 2 mA units */
+} __packed usb_config_descriptor_t;
 
-typedef struct usb_str_lang usb_str_lang_t;
+typedef struct usb_interface_descriptor {
+  uint8_t bLength;
+  uint8_t bDescriptorType;
+  uint8_t bInterfaceNumber;
+  uint8_t bAlternateSetting;
+  uint8_t bNumEndpoints;
+  uint8_t bInterfaceClass;
+  uint8_t bInterfaceSubClass;
+  uint8_t bInterfaceProtocol;
+  uint8_t iInterface;
+} __packed usb_interface_descriptor_t;
 
-#define USENG_LID 0x0409
-#define USENG_STR "English (United States)"
-
-struct usb_config_dsc {
-  uint8_t len;
-  uint8_t type;
-  uint16_t total_len;
-  uint8_t ninterfaces;
-  uint8_t config_val;
-  uint8_t config_idx;
-  uint8_t attributes;
-  uint8_t max_power; /* max current in 2 mA units */
-} __packed;
-
-typedef struct usb_config_dsc usb_config_dsc_t;
-
-struct usb_interface_dsc {
-  uint8_t len;
-  uint8_t type;
-  uint8_t inum;
-  uint8_t alt_setting;
-  uint8_t nendpoints;
-  uint8_t iclass;
-  uint8_t isubclass;
-  uint8_t iprotocol;
-  uint8_t iidx;
-} __packed;
-
-typedef struct usb_interface_dsc usb_interface_dsc_t;
-
+/* Interface class codes */
 #define UICLASS_HID 0x03
 #define UISUBCLASS_BOOT 1
 #define UIPROTO_BOOT_KEYBOARD 1
@@ -126,16 +119,20 @@ typedef struct usb_interface_dsc usb_interface_dsc_t;
 #define UISUBCLASS_SCSI 6
 #define UIPROTO_MASS_BBB 80
 
-struct usb_endp_dsc {
-  uint8_t len;
-  uint8_t type;
-  uint8_t addr;
-  uint8_t attributes;
-  uint16_t max_pkt_size;
-  uint8_t interval;
-} __packed;
+typedef struct usb_endpoint_descriptor {
+  uint8_t bLength;
+  uint8_t bDescriptorType;
+  uint8_t bEndpointAddress;
+  uint8_t bmAttributes;
+  uint16_t wMaxPacketSize;
+  uint8_t bInterval;
+} __packed usb_endpoint_descriptor_t;
 
-typedef struct usb_endp_dsc usb_endp_dsc_t;
+#define UE_ADDR 0x0f
+#define UE_DIR_IN 0x80  /* IN-token endpoint */
+#define UE_DIR_OUT 0x00 /* OUT-token endpoint */
+#define UE_GET_DIR(a) ((a)&0x80)
+#define UE_GET_ADDR(a) ((a)&UE_ADDR)
 
 #define UE_TRANSFER_TYPE(at) ((at)&0x03)
 
@@ -144,16 +141,13 @@ typedef struct usb_endp_dsc usb_endp_dsc_t;
 #define UE_BULK 0x02
 #define UE_INTERRUPT 0x03
 
-#define UE_ADDR(ad) ((ad)&0x0f)
-#define UE_DIR(ad) ((ad)&0x80)
-
 typedef struct usb_device {
-  usb_dev_dsc_t dd;
-  usb_endp_dsc_t *endps; /* endpoints supplied by interface `inum` */
-  uint8_t nendps;        /* numer of endpoints */
-  uint8_t addr;          /* device address */
-  uint8_t inum;          /* interface number */
-  uint8_t port;          /* roothub port number */
+  usb_device_descriptor_t dd;
+  usb_endpoint_descriptor_t *endps; /* endpoints supplied by interface `inum` */
+  uint8_t nendps;                   /* numer of endpoints */
+  uint8_t addr;                     /* device address */
+  uint8_t inum;                     /* interface number */
+  uint8_t port;                     /* roothub port number */
 } usb_device_t;
 
 typedef enum {
@@ -179,12 +173,12 @@ static inline usb_device_t *usb_device_of(device_t *device) {
 
 static inline int usb_endp_type(usb_device_t *usbd, uint8_t idx) {
   assert(idx < usbd->nendps);
-  return UE_TRANSFER_TYPE(usbd->endps[idx].attributes);
+  return UE_TRANSFER_TYPE(usbd->endps[idx].bmAttributes);
 }
 
 static inline int usb_endp_dir(usb_device_t *usbd, uint8_t idx) {
   assert(idx < usbd->nendps);
-  return UE_DIR(usbd->endps[idx].addr);
+  return UE_GET_DIR(usbd->endps[idx].bEndpointAddress);
 }
 
 uint16_t usb_max_pkt_size(usb_device_t *usbd, usb_buf_t *usbb);

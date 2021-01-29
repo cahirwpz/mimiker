@@ -24,11 +24,12 @@ typedef struct hidm_state {
 
 static int hidm_probe(device_t *dev) {
   usb_device_t *usbd = usb_device_of(dev);
-  usb_dev_dsc_t *dd = &usbd->dd;
+  usb_device_descriptor_t *dd = &usbd->dd;
 
   /* We're looking for a HID mouse with the boot interface. */
-  if (dd->dev_class != UICLASS_HID || dd->dev_subclass != UISUBCLASS_BOOT ||
-      dd->dev_protocol != UIPROTO_MOUSE)
+  if (dd->bDeviceClass != UICLASS_HID ||
+      dd->bDeviceSubClass != UISUBCLASS_BOOT ||
+      dd->bDeviceProtocol != UIPROTO_MOUSE)
     return 0;
 
   /* Check if supplied endpoint is an input interrupt endpoint. */

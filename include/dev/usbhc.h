@@ -1,11 +1,13 @@
 #ifndef _USBHC_H_
 #define _USBHC_H_
 
+#include <dev/usb.h>
+
 typedef uint8_t (*number_of_ports_t)(void *);
 typedef bool (*device_present_t)(void *, uint8_t);
 typedef void (*reset_port_t)(void *, uint8_t);
 typedef void (*transfer_t)(void *, usb_device_t *, usb_buf_t *,
-                           usb_dev_req_t *);
+                           usb_device_request_t *);
 
 typedef struct usbhc_space {
   void *hc;
@@ -40,7 +42,7 @@ static inline void usbhc_reset_port(uint8_t port) {
 }
 
 static inline void usbhc_transfer(usb_device_t *usbd, usb_buf_t *usbb,
-                                  usb_dev_req_t *req) {
+                                  usb_device_request_t *req) {
   USBHC_SPACE_CALL(transfer, usbd, usbb, req);
 }
 

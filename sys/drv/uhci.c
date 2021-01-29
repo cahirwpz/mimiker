@@ -360,7 +360,8 @@ static void td_init(uhci_td_t *td, uint32_t ls, uint32_t ioc, uint32_t token,
 }
 
 #define td_setup(td, ls, e, d, dt)                                             \
-  td_init((td), (ls), 0, UHCI_TD_SETUP(sizeof(usb_dev_req_t), (e), (d)), (dt))
+  td_init((td), (ls), 0,                                                       \
+          UHCI_TD_SETUP(sizeof(usb_device_request_t), (e), (d)), (dt))
 
 #define td_token(ln, e, d, tg, tp)                                             \
   (((tp)&TF_INPUT) ? UHCI_TD_IN((ln), (e), (d), (tg))                          \
@@ -420,7 +421,7 @@ static void qh_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
 
   if (!error) {
     int control = usbb->flags & TF_CONTROL;
-    data = (void *)(td + 1) + (control ? sizeof(usb_dev_req_t) : 0);
+    data = (void *)(td + 1) + (control ? sizeof(usb_device_request_t) : 0);
   } else {
     int stalled = error & UHCI_TD_STALLED;
     int other = error & ~UHCI_TD_STALLED;
@@ -470,7 +471,7 @@ static size_t uhci_req_size(uint16_t mps, usb_buf_t *usbb) {
 }
 
 static void uhci_transfer(uhci_state_t *uhci, usb_device_t *usbd,
-                          usb_buf_t *usbb, usb_dev_req_t *req) {
+                          usb_buf_t *usbb, usb_device_request_t *req) {
   uint16_t req_len = usbb->req_len;
   uint16_t mps = usb_max_pkt_size(usbd, usbb);
   size_t offset = uhci_req_size(mps, usbb);
@@ -491,8 +492,8 @@ static void uhci_transfer(uhci_state_t *uhci, usb_device_t *usbd,
 
   if (usbb->flags & TF_CONTROL) {
     /* Copyin the request. */
-    usb_dev_req_t *r = dt;
-    memcpy(r, req, sizeof(usb_dev_req_t));
+    usb_device_request_t *r = dt;
+    memcpy(r, req, sizeof(usb_device_request_t));
 
     /* Data starts immediately after the request. */
     dt = r + 1;

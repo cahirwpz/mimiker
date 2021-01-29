@@ -18,12 +18,13 @@ typedef struct umass_state {
 
 static int umass_probe(device_t *dev) {
   usb_device_t *usbd = usb_device_of(dev);
-  usb_dev_dsc_t *dd = &usbd->dd;
+  usb_device_descriptor_t *dd = &usbd->dd;
 
   /* We look for a mass storage device using SCSI command set
    * and bulk-only command specification for transfering data. */
-  if (dd->dev_class != UICLASS_MASS || dd->dev_subclass != UISUBCLASS_SCSI ||
-      dd->dev_protocol != UIPROTO_MASS_BBB)
+  if (dd->bDeviceClass != UICLASS_MASS ||
+      dd->bDeviceSubClass != UISUBCLASS_SCSI ||
+      dd->bDeviceProtocol != UIPROTO_MASS_BBB)
     return 0;
 
   /* We need two bulk endpoints: IN and OUT. */
