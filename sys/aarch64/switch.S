@@ -4,6 +4,10 @@
 
 #include "assym.h"
 
+.macro  load_pcpu dst
+        mrs     \dst, tpidr_el1
+.endm
+
 .macro  SAVE_CTX
         str     lr, [sp, #CTX_PC]
         stp     x28, x29, [sp, #CTX_X28]
@@ -17,6 +21,33 @@
         stp     x12, x13, [sp, #CTX_X12]
         stp     x10, x11, [sp, #CTX_X10]
         stp      x8,  x9, [sp, #CTX_X8]
+.endm
+
+/* 
+ * WARNING!
+ * tmp is a register number.
+ */
+.macro  save_fpu_ctx src tmp
+        stp     q0,  q1,  [\src, FPU_CTX_Q0]
+        stp     q2,  q3,  [\src, FPU_CTX_Q2]
+        stp     q4,  q5,  [\src, FPU_CTX_Q4]
+        stp     q6,  q7,  [\src, FPU_CTX_Q6]
+        stp     q8,  q9,  [\src, FPU_CTX_Q8]
+        stp     q10, q11, [\src, FPU_CTX_Q10]
+        stp     q12, q13, [\src, FPU_CTX_Q12]
+        stp     q14, q15, [\src, FPU_CTX_Q14]
+        stp     q16, q17, [\src, FPU_CTX_Q16]
+        stp     q18, q19, [\src, FPU_CTX_Q18]
+        stp     q20, q21, [\src, FPU_CTX_Q20]
+        stp     q22, q23, [\src, FPU_CTX_Q22]
+        stp     q24, q25, [\src, FPU_CTX_Q24]
+        stp     q26, q27, [\src, FPU_CTX_Q26]
+        stp     q28, q29, [\src, FPU_CTX_Q28]
+        stp     q30, q31, [\src, FPU_CTX_Q30]
+        mrs     x\tmp, fpcr
+        str     w\tmp, [\src, FPU_CTX_FPCR]
+        mrs     x\tmp, fpsr
+        str     w\tmp, [\src, FPU_CTX_FPSR]
 .endm
 
 .macro  LOAD_CTX
@@ -47,6 +78,32 @@ ENTRY(ctx_switch)
 
         # save context of @from thread
 .ctx_save:
+        ldr     w3, [x0, #TD_PFLAGS]
+        and     w2, w3, #TDP_FPUINUSE|TDP_FPUCTXSAVED
+        mov     w4, #TDP_FPUINUSE
+        cmp     w2, w4
+        bne     .skip_fpu_save
+
+        orr     w3, w3, #TDP_FPUCTXSAVED
+        str     w3, [x0, #TD_PFLAGS]
+
+        /* enable FPU and save context */
+        /* thread_t::tdp_flags is a volatile unsigned - use 32-bit */
+        mrs     x2, cpacr_el1
+        and     x2, x2, ~CPACR_FPEN_MASK
+        orr     x2, x2, CPACR_FPEN_TRAP_NONE
+        msr     cpacr_el1, x2
+
+        ldr     x2, [x0, #TD_UCTX]
+        save_fpu_ctx x2, 3
+
+        /* disable FPU */
+        mrs     x2, cpacr_el1
+        and     x2, x2, ~CPACR_FPEN_MASK
+        msr     cpacr_el1, x2
+
+
+.skip_fpu_save:
         sub     sp, sp, #CTX_SIZE
         SAVE_CTX
         mov     x2, sp
@@ -58,7 +115,7 @@ ENTRY(ctx_switch)
         mov     sp, x2
 
         # update curthread pointer to reference @to thread
-        mrs     x2, tpidr_el1
+        load_pcpu x2
         str     x1, [x2, #PCPU_CURTHREAD]
 
         # switch user space if necessary
