@@ -535,9 +535,6 @@ static usbhc_space_t uhci_space;
 static int uhci_attach(device_t *dev) {
   uhci_state_t *uhci = dev->state;
 
-  /* (MichalBlk) fix it after merging the GT interrupt routing. */
-  device_add_irq(dev, 0, 11);
-
   uhci->regs = device_take_ioports(dev, 4, RF_ACTIVE);
   uhci->irq = device_take_irq(dev, 0, RF_ACTIVE);
   assert(uhci->regs);
