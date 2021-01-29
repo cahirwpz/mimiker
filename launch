@@ -96,14 +96,6 @@ if __name__ == '__main__':
     if not os.path.isfile(getvar('config.kernel')):
         raise SystemExit('%s: file does not exist!' % getvar('config.kernel'))
 
-    kernel_args = {}
-    for arg in args.args:
-        try:
-            key, val = arg.split('=', 1)
-            kernel_args[key] = val
-        except ValueError:
-            pass
-
     # Create simulator launcher
     if args.test_run:
         setvar('qemu.uarts', [])
@@ -112,6 +104,14 @@ if __name__ == '__main__':
 
     # Create debugger launcher
     if args.debug:
+        kernel_args = {}
+        for arg in args.args:
+            try:
+                key, val = arg.split('=', 1)
+                kernel_args[key] = val
+            except ValueError:
+                pass
+
         if 'test' in kernel_args:
             host_path = "sysroot/bin/utest.dbg"
         elif 'init' in kernel_args:
