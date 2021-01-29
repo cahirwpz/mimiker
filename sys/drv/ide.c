@@ -11,8 +11,6 @@
 #include <dev/pciidereg.h>
 #include <dev/idereg.h>
 
-/* TODO: In ide_device there will be metadata about hard drives,
- * for now we only keep the name of the model */
 typedef struct ide_device {
   uint8_t identification_space[4096];
   uint8_t model[41];
@@ -126,8 +124,9 @@ static void ide_wait_ready(ide_state_t *ide, unsigned char channel) {
     ;
 }
 
-static void ide_hdd_access(ide_state_t *ide, uint8_t drive, uint16_t *buffer,
-                           uint32_t logical_address, int nbytes, int action) {
+static void __unused ide_hdd_access(ide_state_t *ide, uint8_t drive,
+                                    uint16_t *buffer, uint32_t logical_address,
+                                    int nbytes, int action) {
 
   int cylinder;
 
