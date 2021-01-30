@@ -14,6 +14,8 @@
 #define RTL8139_VENDOR_ID 0x10ec
 #define RTL8139_DEVICE_ID 0x8139
 
+#define RX_BUF_SIZE (2 * PAGESIZE)
+
 typedef struct rtl8139_state {
   resource_t *regs;
   resource_t *irq_res;
@@ -41,7 +43,7 @@ static intr_filter_t rtl8139_intr(void *data) {
   rtl8139_state_t *state = data;
   // TODO: add enqueue routines
   bus_write_2(state->regs, RL_ISR, RL_ISR_RX_OK);
-  return IF_FILTERED;
+  return IF_STRAY;
 }
 
 static int set_mem_contig_address(rtl8139_state_t *state) {
@@ -67,11 +69,6 @@ int rtl8139_attach(device_t *dev) {
   pci_enable_busmaster(dev);
   state->regs = device_take_memory(dev, 1, RF_ACTIVE);
 
-  /*
-   * XXX: there is no irq routing in mimiker
-   *      so in this case we need to add irq manually
-   */
-  device_add_irq(dev, 0, 10);
   state->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
   if (!state->regs || !state->irq_res) {
     klog("rtl8139 failed to init resources");
@@ -80,7 +77,7 @@ int rtl8139_attach(device_t *dev) {
   bus_intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
 
   // TODO: mark this memory as PMAP_NOCACHE
-  state->rx_buf = (vaddr_t)kmem_alloc(2 * PAGESIZE, M_ZERO);
+  state->rx_buf = (vaddr_t)kmem_alloc(RX_BUF_SIZE, M_ZERO);
   if (set_mem_contig_address(state)) {
     klog("failed to alloc contig memory");
     return ENXIO;
@@ -94,11 +91,7 @@ int rtl8139_attach(device_t *dev) {
 
   /* set-up address for dma */
   bus_write_4(state->regs, RL_RXADDR, state->paddr);
-  /* we want to receive all packets - promiscious mode */
-  /* 0xf - accept broadcast, multicast, physical match, all other packets
-   * (promisc) */
-  /* 0x80 - wrap bit */
-  bus_write_4(state->regs, RL_RXCFG, 0x8f);
+  bus_write_4(state->regs, RL_RXCFG, RL_RXCFG_CONFIG);
   bus_write_1(state->regs, RL_COMMAND, RL_CMD_RX_ENB | RL_CMD_TX_ENB);
   // IMR - mask rx enable
   bus_write_2(state->regs, RL_IMR, RL_ISR_RX_OK);
