@@ -162,7 +162,8 @@ static int rtl8139_write(vnode_t *v, uio_t *uio, int ioflag) {
   return 0;
 }
 
-static vnodeops_t rtl8139_vnodeops = {.v_read = rtl8139_read, .v_write = rtl8139_write};
+static vnodeops_t rtl8139_vnodeops = {.v_read = rtl8139_read,
+                                      .v_write = rtl8139_write};
 
 int rtl8139_attach(device_t *dev) {
   rtl8139_state_t *state = dev->state;
