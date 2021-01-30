@@ -1,3 +1,4 @@
+#include <sys/context.h>
 #include <sys/libkern.h>
 #include <sys/errno.h>
 #include <sys/thread.h>
@@ -49,6 +50,10 @@ void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
   _REG(ctx, V0) = (register_t)value;
   _REG(ctx, V1) = (register_t)error;
   _REG(ctx, EPC) += 4;
+}
+
+void mcontext_restart_syscall(mcontext_t *ctx) {
+  /* Nothing needs to be done. */
 }
 
 bool user_mode_p(ctx_t *ctx) {

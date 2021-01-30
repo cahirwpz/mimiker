@@ -36,6 +36,7 @@ typedef enum {
 static const sigprop_t sig_properties[NSIG] = {
   [SIGHUP] = SA_KILL,
   [SIGINT] = SA_KILL,
+  [SIGQUIT] = SA_KILL,
   [SIGILL] = SA_KILL,
   [SIGABRT] = SA_KILL,
   [SIGFPE] = SA_KILL,
@@ -43,10 +44,12 @@ static const sigprop_t sig_properties[NSIG] = {
   [SIGKILL] = SA_KILL | SA_CANTMASK,
   [SIGTERM] = SA_KILL,
   [SIGSTOP] = SA_STOP | SA_CANTMASK,
+  [SIGTSTP] = SA_STOP | SA_TTYSTOP,
   [SIGCONT] = SA_CONT,
   [SIGCHLD] = SA_IGNORE,
   [SIGTTIN] = SA_STOP | SA_TTYSTOP,
   [SIGTTOU] = SA_STOP | SA_TTYSTOP,
+  [SIGWINCH] = SA_IGNORE,
   [SIGUSR1] = SA_KILL,
   [SIGUSR2] = SA_KILL,
   [SIGBUS] = SA_KILL,
@@ -57,6 +60,7 @@ static const sigset_t cantmask = {__sigmask(SIGKILL) | __sigmask(SIGSTOP)};
 static const char *sig_name[NSIG] = {
   [SIGHUP] = "SIGHUP",
   [SIGINT] = "SIGINT",
+  [SIGQUIT] = "SIGQUIT",
   [SIGILL] = "SIGILL",
   [SIGABRT] = "SIGABRT",
   [SIGFPE] = "SIGFPE",
@@ -64,10 +68,12 @@ static const char *sig_name[NSIG] = {
   [SIGKILL] = "SIGKILL",
   [SIGTERM] = "SIGTERM",
   [SIGSTOP] = "SIGSTOP",
+  [SIGTSTP] = "SIGTSTP",
   [SIGCONT] = "SIGCONT",
   [SIGCHLD] = "SIGCHLD",
   [SIGTTIN] = "SIGTTIN",
   [SIGTTOU] = "SIGTTOU",
+  [SIGWINCH] = "SIGWINCH",
   [SIGUSR1] = "SIGUSR1",
   [SIGUSR2] = "SIGUSR2",
   [SIGBUS] = "SIGBUS",
@@ -173,32 +179,18 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   thread_t *td = thread_self();
   assert(td->td_proc == p);
 
-  assert((td->td_pflags & TDP_OLDSIGMASK) == 0);
   td->td_oldsigmask = td->td_sigmask;
   td->td_pflags |= TDP_OLDSIGMASK;
 
   WITH_PROC_LOCK(p) {
     do_sigprocmask(SIG_SETMASK, mask, NULL);
-
-    /*
-     * We want the sleep to be interrupted only if there's an actual signal
-     * to be handled, but _sleepq_wait() returns immediately if TDF_NEEDSIGCHK
-     * is set (without checking whether there's an actual pending signal),
-     * so we clear the flag here if there are no real pending signals.
-     */
-    WITH_SPIN_LOCK (td->td_lock) {
-      if (sig_pending(td))
-        td->td_flags |= TDF_NEEDSIGCHK;
-      else
-        td->td_flags &= ~TDF_NEEDSIGCHK;
-    }
   }
 
   int error;
   error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
   assert(error == EINTR);
 
-  return EINTR;
+  return ERESTARTNOHAND;
 }
 
 static ksiginfo_t *ksiginfo_copy(const ksiginfo_t *src) {
@@ -445,27 +437,50 @@ void sig_onexec(proc_t *p) {
   }
 }
 
+static bool sig_should_stop(sigaction_t *sigactions, signo_t sig) {
+  return (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_STOP);
+}
+
+static bool sig_should_kill(sigaction_t *sigactions, signo_t sig) {
+  return (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_KILL);
+}
+
 int sig_check(thread_t *td, ksiginfo_t *out) {
   proc_t *p = td->td_proc;
+  signo_t sig;
 
   assert(p != NULL);
   assert(mtx_owned(&p->p_lock));
 
-  signo_t sig = sig_pending(td);
-  if (sig == 0) {
-    /* No pending signals, signal checking done. */
-    WITH_SPIN_LOCK (td->td_lock)
-      td->td_flags &= ~TDF_NEEDSIGCHK;
-    return 0;
+  while ((sig = sig_pending(td))) {
+    sigpend_get(&td->td_sigpend, sig, out);
+
+    /* We should never get a pending signal that's ignored,
+     * since we discard such signals in do_sigaction(). */
+    assert(!sig_ignored(p->p_sigactions, sig));
+
+    if (sig_should_stop(p->p_sigactions, sig)) {
+      /* Theoretically, we should hold all_proc_mtx since sig_ignore_ttystop()
+       * reads pg_jobc, but the race here is harmless. */
+      if (!sig_ignore_ttystop(p, sig))
+        proc_stop(sig);
+      continue;
+    }
+
+    if (sig_should_kill(p->p_sigactions, sig)) {
+      /* Terminate this thread as result of a signal. */
+      sig_exit(td, sig);
+      __unreachable();
+    }
+
+    /* If we reached here, then the signal has to be posted. */
+    return sig;
   }
-  sigpend_get(&td->td_sigpend, sig, out);
 
-  /* We should never get a pending signal that's ignored,
-   * since we discard such signals in do_sigaction(). */
-  assert(!sig_ignored(p->p_sigactions, sig));
-
-  /* If we reached here, then the signal has to be posted. */
-  return sig;
+  /* No pending signals, signal checking done. */
+  WITH_SPIN_LOCK (td->td_lock)
+    td->td_flags &= ~TDF_NEEDSIGCHK;
+  return 0;
 }
 
 void sig_post(ksiginfo_t *ksi) {
@@ -481,42 +496,6 @@ void sig_post(ksiginfo_t *ksi) {
   sig_t handler = sa->sa_handler;
 
   assert(handler != SIG_IGN);
-
-  /* Theoretically, we should hold all_proc_mtx since sig_ignore_ttystop()
-   * reads pg_jobc, but the race here is harmless. */
-  if (sig_ignore_ttystop(p, sig))
-    return;
-
-  if (handler == SIG_DFL && defact(sig) == SA_KILL) {
-    /* Terminate this thread as result of a signal. */
-    sig_exit(td, sig);
-    __unreachable();
-  }
-
-  if (sa->sa_handler == SIG_DFL && defact(sig) == SA_STOP) {
-    klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
-    p->p_stopsig = sig;
-    p->p_state = PS_STOPPED;
-    p->p_flags |= PF_STATE_CHANGED;
-    WITH_PROC_LOCK(p->p_parent) {
-      proc_wakeup_parent(p->p_parent);
-      sig_child(p, CLD_STOPPED);
-    }
-    WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
-    proc_unlock(p);
-    /* We're holding no locks here, so our process can be continued before we
-     * actually stop the thread. This is why we need the TDF_STOPPING flag. */
-    spin_lock(td->td_lock);
-    if (td->td_flags & TDF_STOPPING) {
-      td->td_flags &= ~TDF_STOPPING;
-      td->td_state = TDS_STOPPED;
-      sched_switch(); /* Releases td_lock. */
-    } else {
-      spin_unlock(td->td_lock);
-    }
-    proc_lock(p);
-    return;
-  }
 
   klog("Post signal %s (handler %p) to thread %lu in process PID(%d)",
        sig_name[sig], handler, td->td_tid, p->p_pid);
@@ -544,4 +523,23 @@ __noreturn void sig_exit(thread_t *td, signo_t sig) {
   klog("PID(%d) terminated due to signal %s ", td->td_proc->p_pid,
        sig_name[sig]);
   proc_exit(MAKE_STATUS_SIG_TERM(sig));
+}
+
+int do_sigreturn(ucontext_t *ucp) {
+  thread_t *td = thread_self();
+  mcontext_t *uctx = td->td_uctx;
+  int error = 0;
+
+  ucontext_t uc;
+  if ((error = copyin_s(ucp, uc)))
+    return error;
+
+  /* Restore user context. */
+  mcontext_copy(uctx, &uc.uc_mcontext);
+
+  WITH_MTX_LOCK (&td->td_proc->p_lock)
+    error = do_sigprocmask(SIG_SETMASK, &uc.uc_sigmask, NULL);
+  assert(error == 0);
+
+  return EJUSTRETURN;
 }

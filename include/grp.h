@@ -66,6 +66,7 @@ void setgrfile(const char *);
 int setgroupent(int);
 int getgrent_r(struct group *, char *, size_t, struct group **);
 const char *group_from_gid(gid_t, int);
+int gid_from_group(const char *, gid_t *);
 __END_DECLS
 
 #endif /* !_GRP_H_ */

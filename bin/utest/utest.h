@@ -33,6 +33,7 @@ int test_signal_cont_masked(void);
 int test_signal_mask(void);
 int test_signal_mask_nonmaskable(void);
 int test_signal_sigsuspend(void);
+int test_signal_sigsuspend_stop(void);
 int test_signal_handler_mask(void);
 
 int test_fork_wait(void);
@@ -90,6 +91,7 @@ int test_session_basic(void);
 int test_session_login_name(void);
 
 int test_gettimeofday(void);
+int test_nanosleep(void);
 
 int test_get_set_uid(void);
 int test_get_set_gid(void);
