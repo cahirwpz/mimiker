@@ -41,6 +41,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(signal_mask);
   CHECKRUN_TEST(signal_mask_nonmaskable);
   CHECKRUN_TEST(signal_sigsuspend);
+  CHECKRUN_TEST(signal_sigsuspend_stop);
   CHECKRUN_TEST(signal_handler_mask);
   CHECKRUN_TEST(fork_wait);
   CHECKRUN_TEST(fork_signal);
@@ -94,6 +95,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(getcwd);
 
   CHECKRUN_TEST(gettimeofday);
+  CHECKRUN_TEST(nanosleep);
 
   CHECKRUN_TEST(get_set_uid);
   CHECKRUN_TEST(get_set_gid);

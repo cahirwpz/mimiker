@@ -158,6 +158,9 @@ struct itimerval {
   struct timeval it_value;    /* current value */
 };
 
+#define TIMER_RELTIME 0 /* relative timer */
+#define TIMER_ABSTIME 1 /* absolute timer */
+
 #ifdef _KERNEL
 
 /* Time measured from the start of system. */
@@ -172,12 +175,12 @@ systime_t getsystime(void);
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp);
 
-int do_clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
+int do_clock_nanosleep(clockid_t clk, int flags, timespec_t *rqtp,
                        timespec_t *rmtp);
 
 #else /* _KERNEL */
 
-int nanosleep(timespec_t *rqtp, timespec_t *rmtp);
+int nanosleep(const timespec_t *rqtp, timespec_t *rmtp);
 
 int adjtime(const struct timeval *, struct timeval *);
 int gettimeofday(struct timeval *__restrict, void *__restrict);

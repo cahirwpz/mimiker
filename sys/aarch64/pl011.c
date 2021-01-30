@@ -177,7 +177,7 @@ static int pl011_attach(device_t *dev) {
   resource_t *r = device_take_memory(dev, 0, 0);
 
   /* (pj) BCM2835_UART0_SIZE is much smaller than PAGESIZE */
-  bus_space_map(r->r_bus_tag, r->r_start, PAGESIZE, &r->r_bus_handle);
+  bus_space_map(r->r_bus_tag, resource_start(r), PAGESIZE, &r->r_bus_handle);
 
   assert(r != NULL);
 
@@ -229,13 +229,12 @@ static int pl011_attach(device_t *dev) {
   return 0;
 }
 
-/* clang-format off */
 static driver_t pl011_driver = {
   .desc = "PL011 UART driver",
   .size = sizeof(pl011_state_t),
+  .pass = SECOND_PASS,
   .attach = pl011_attach,
   .probe = pl011_probe,
 };
-/* clang-format on */
 
 DEVCLASS_ENTRY(root, pl011_driver);
