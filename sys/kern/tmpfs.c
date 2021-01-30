@@ -1008,6 +1008,9 @@ static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
   if (mtime->tv_sec != VNOVAL)
     v->tfn_mtime = *mtime;
   mtx_unlock(&v->tfn_timelock);
+
+  tmpfs_update_time(v, TMPFS_UPDATE_CTIME);
+
   return 0;
 }
 
