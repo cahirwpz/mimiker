@@ -30,7 +30,9 @@
 
 #ifndef __ASSEMBLER__
 
-#include <sys/types.h>
+#include <sys/cdefs.h>
+#include <stddef.h>
+#include <stdint.h>
 
 /*
  * Macros to convert to a specific endianness.
