@@ -132,7 +132,7 @@ static int pty_close(file_t *f) {
 }
 
 static int pty_seek(file_t *f, off_t offset, int whence, off_t *newoffp) {
-  return 0;
+  return ESPIPE;
 }
 
 static int pty_stat(file_t *f, stat_t *sb) {
