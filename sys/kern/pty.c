@@ -1,3 +1,4 @@
+#include <sys/vnode.h>
 #include <sys/filedesc.h>
 #include <sys/mutex.h>
 #include <sys/ringbuf.h>
@@ -136,8 +137,15 @@ static int pty_seek(file_t *f, off_t offset, int whence, off_t *newoffp) {
 }
 
 static int pty_stat(file_t *f, stat_t *sb) {
-  memset(sb, 0, sizeof(stat_t));
-  sb->st_mode = S_IFCHR;
+  /* Delegate to the slave tty.
+   * We can't call default_vnstat() because we don't have a file_t pointing to
+   * the slave tty, so we need to copy a bit of code from default_vnstat(). */
+  tty_t *tty = f->f_data;
+  vattr_t va;
+  int error;
+  if ((error = VOP_GETATTR(tty->t_vnode, &va)))
+    return error;
+  vattr_convert(&va, sb);
   return 0;
 }
 
