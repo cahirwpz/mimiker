@@ -6,6 +6,16 @@
 #include <assert.h>
 #include <sys/mman.h>
 
+#ifdef __mips__
+#define BAD_ADDR_SPAN 0x7fff0000
+#define BAD_ADDR_SPAN_LEN 0x20000
+#endif
+
+#ifdef __aarch64__
+#define BAD_ADDR_SPAN 0x00007fffffff0000L
+#define BAD_ADDR_SPAN_LEN 0xfffe800000002000
+#endif
+
 #define mmap_anon_prw(addr, length)                                            \
   mmap((addr), (length), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0)
 
@@ -38,7 +48,7 @@ static void mmap_with_hint(void) {
 static void mmap_bad(void) {
   void *addr;
   /* Address range spans user and kernel space. */
-  addr = mmap_anon_prw((void *)0x7fff0000, 0x20000);
+  addr = mmap_anon_prw((void *)BAD_ADDR_SPAN, BAD_ADDR_SPAN_LEN);
   assert(addr == MAP_FAILED);
   assert(errno == EINVAL);
   /* Address lies in low memory, that cannot be mapped. */
@@ -51,7 +61,7 @@ static void mmap_bad(void) {
   assert(errno == EINVAL);
 }
 
-static void munmap_bad(void) {
+static void munmap_good(void) {
   void *addr;
   int result;
 
@@ -67,11 +77,10 @@ static void munmap_bad(void) {
   /* more pages */
   addr = mmap_anon_prw(NULL, 0x5000);
 
-  /* munmap pieces of segments is unsupported */
-  munmap(addr, 0x2000);
-  assert(errno == ENOTSUP);
+  result = munmap(addr, 0x2000);
+  assert(result == 0);
 
-  result = munmap(addr, 0x5000);
+  result = munmap(addr + 0x2000, 0x3000);
   assert(result == 0);
 }
 
@@ -90,6 +99,6 @@ int test_mmap(void) {
   mmap_no_hint();
   mmap_with_hint();
   mmap_bad();
-  munmap_bad();
+  munmap_good();
   return 0;
 }

@@ -38,7 +38,7 @@ CP      = cp
 CPIO    = cpio --format=crc
 CSCOPE  = cscope -b
 CTAGS   = ctags
-FORMAT  = clang-format-7 -style=file 
+FORMAT  = clang-format -style=file 
 INSTALL = install -D
 LN	= ln
 RM      = rm -f

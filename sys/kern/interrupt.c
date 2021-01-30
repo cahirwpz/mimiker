@@ -178,7 +178,7 @@ void intr_root_handler(ctx_t *ctx) {
 
   on_exc_leave();
   if (user_mode_p(ctx))
-    on_user_exc_leave();
+    on_user_exc_leave((mcontext_t *)ctx, NULL);
 }
 
 void intr_event_run_handlers(intr_event_t *ie) {
