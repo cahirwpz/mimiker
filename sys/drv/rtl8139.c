@@ -17,7 +17,7 @@
 #define RTL8139_DEVICE_ID 0x8139
 
 #define TX_BUF_NUM 4
-/* to be honest, the max size of tx buffer is 1792 - but now we alloc whole page
+/* the max size of tx buffer is 1792 - but now we alloc whole page
  */
 #define TX_BUF_SIZE PAGESIZE
 #define RX_BUF_SIZE (2 * PAGESIZE)
@@ -63,18 +63,6 @@ static int rtl_reset(rtl8139_state_t *state) {
   return 1;
 }
 
-static void send_dummy_ack(rtl8139_state_t *state) {
-  const uint32_t dummy_msg_size = 4 * sizeof(uint32_t);
-  const uint32_t dummy_msg[] = {0xFECAFECA, 0xFECAFECA, 0xFECAFECA, 0xFECAFECA};
-  int idx = state->tx_cur;
-
-  memcpy((uint32_t *)state->tx_buf[idx], dummy_msg, dummy_msg_size);
-  bus_write_4(state->regs, RL_TXSTAT[idx], dummy_msg_size);
-  state->tx_cur++;
-  if (state->tx_cur > 3)
-    state->tx_cur = 0;
-}
-
 static void do_receive(rtl8139_state_t *state) {
   /* the device insert their own header which contains size and status of packet
    */
@@ -90,7 +78,6 @@ static void do_receive(rtl8139_state_t *state) {
   TAILQ_INSERT_TAIL(&state->rx_queue, skb, queue);
 
   state->rx_offset += size + /* rtl8139 header */ 4;
-  send_dummy_ack(state);
 }
 
 static void do_transceive(rtl8139_state_t *state) {
@@ -156,7 +143,26 @@ static int rtl8139_read(vnode_t *v, uio_t *uio, int ioflag) {
     return uiomove_frombuf(NULL, 0, uio);
 }
 
-static vnodeops_t rtl8139_vnodeops = {.v_read = rtl8139_read};
+static int rtl8139_write(vnode_t *v, uio_t *uio, int ioflag) {
+  rtl8139_state_t *state = devfs_node_data(v);
+  int idx = state->tx_cur;
+  int error;
+  size_t cnt = uio->uio_iov->iov_len;
+  uio->uio_offset = 0; /* This file does not support offsets. */
+
+  error = uiomove_frombuf((uint32_t *)state->tx_buf[idx], cnt, uio);
+  if (error)
+    return error;
+
+  bus_write_4(state->regs, RL_TXSTAT[idx], cnt);
+
+  state->tx_cur++;
+  if (state->tx_cur > 3)
+    state->tx_cur = 0;
+  return 0;
+}
+
+static vnodeops_t rtl8139_vnodeops = {.v_read = rtl8139_read, .v_write = rtl8139_write};
 
 int rtl8139_attach(device_t *dev) {
   rtl8139_state_t *state = dev->state;
