@@ -29,8 +29,8 @@
  */
 #define RL_CFG1_PWRON 0x00 /* power on */
 
-/* we want to receive all packets - promiscious mode */
-/* 0xf - accept broadcast, multicast, physical match, all other packets
+/* we want to receive all packets - promiscious mode
+ * 0xf - accept broadcast, multicast, physical match, all other packets
  * (promisc) */
 /* 0x80 - wrap bit */
 #define RL_RXCFG_CONFIG 0x8f
