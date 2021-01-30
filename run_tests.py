@@ -76,12 +76,12 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
                            '-t', 'test=all', 'klog-quiet=1',
                            'seed=%u' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
-        ['[TEST PASSED]', '[TEST FAILED]', '[PANIC]', pexpect.EOF,
-         pexpect.TIMEOUT], timeout=TIMEOUT)
+        ['kprintf("Test run finished!\\n");', 'panic_fail(void)', pexpect.EOF, pexpect.TIMEOUT],
+        timeout=TIMEOUT)
     if index == 0:
         child.terminate(True)
         return
-    elif index in [1, 2]:
+    elif index == 1:
         print("Test failure reported!\n")
         message = safe_decode(child.before)
         message += safe_decode(child.buffer)
@@ -93,7 +93,7 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
         print(message)
         gdb_inspect(interactive)
         sys.exit(1)
-    elif index == 3:
+    elif index == 2:
         message = safe_decode(child.before)
         message += safe_decode(child.buffer)
         print(message)
@@ -101,7 +101,7 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
               "a problem with the testing framework or QEMU. "
               "Retrying (%d)..." % (retry + 1))
         test_seed(seed, interactive, repeat, retry + 1)
-    elif index == 4:
+    elif index == 3:
         print("Timeout reached!\n")
         message = safe_decode(child.buffer)
         print(message)
