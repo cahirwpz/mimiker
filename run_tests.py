@@ -6,7 +6,7 @@ import signal
 import sys
 import random
 import os
-from launcher import RandomPort, getvar, setboard
+from launcher import RandomPort, getvar, setvar, setboard
 
 
 N_SIMPLE = 10
@@ -34,13 +34,14 @@ def send_command(gdb, cmd):
 # Tries to start gdb in order to investigate kernel state on deadlock or crash.
 def gdb_inspect(interactive):
     gdb_cmd = getvar('gdb.binary')
+    gdb_port = getvar('config.gdbport')
     if interactive:
         gdb_opts = ['-iex=set auto-load safe-path {}/'.format(os.getcwd()),
-                    '-ex=target remote localhost:%d' % RandomPort(),
+                    '-ex=target remote localhost:%u' % gdb_port,
                     '--silent', getvar('config.kernel')]
     else:
         # Note: These options are different than .gdbinit.
-        gdb_opts = ['-ex=target remote localhost:%d' % RandomPort(),
+        gdb_opts = ['-ex=target remote localhost:%u' % gdb_port,
                     '-ex=python import os, sys',
                     '-ex=python sys.path.append(os.getcwd() + "/sys")',
                     '-ex=python import debug',
@@ -71,6 +72,7 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
     print("Testing seed %u..." % seed)
     child = pexpect.spawn('./launch',
                           ['--board', getvar('board'),
+                           '--port', str(getvar('config.gdbport')),
                            '-t', 'test=all', 'klog-quiet=1',
                            'seed=%u' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
@@ -115,7 +117,15 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
             sys.exit(1)
 
 
+def sigterm_handler(_signo, _stack_frame):
+    sys.exit(1)
+
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGTERM, sigterm_handler)
+    signal.signal(signal.SIGINT, sigterm_handler)
+    signal.signal(signal.SIGHUP, sigterm_handler)
+
     parser = argparse.ArgumentParser(
         description='Automatically performs kernel tests.')
     parser.add_argument('--times', type=int, default=N_SIMPLE,
@@ -127,6 +137,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     setboard(args.board)
+    setvar('config.gdbport', RandomPort())
 
     interactive = not args.non_interactive
 
