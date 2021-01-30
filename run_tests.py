@@ -76,7 +76,8 @@ def test_seed(seed, interactive=True, repeat=1, retry=0):
                            '-t', 'test=all', 'klog-quiet=1',
                            'seed=%u' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact(
-        ['kprintf("Test run finished!\\n");', 'panic_fail(void)', pexpect.EOF, pexpect.TIMEOUT],
+        ['kprintf("Test run finished!\\n");', 'panic_fail(void)', pexpect.EOF,
+            pexpect.TIMEOUT],
         timeout=TIMEOUT)
     if index == 0:
         child.terminate(True)
