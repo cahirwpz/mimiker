@@ -136,11 +136,12 @@ static bool uhci_device_present(uhci_state_t *uhci, uint8_t pn) {
   return chkw(UHCI_PORTSC(pn), UHCI_PORTSC_CCS);
 }
 
+/* (MichalBlk) this procedure can be used to root hub port only. */
 static void uhci_reset_port(uhci_state_t *uhci, uint8_t pn) {
   setw(UHCI_PORTSC(pn), UHCI_PORTSC_PR);
-  mdelay(50);
+  mdelay(USB_PORT_ROOT_RESET_DELAY_SPEC);
   clrw(UHCI_PORTSC(pn), UHCI_PORTSC_PR);
-  mdelay(10);
+  mdelay(USB_PORT_RESET_RECOVERY_SPEC);
 
   /* Only enable the port if some device is attached. */
   if (!uhci_device_present(uhci, pn))
@@ -175,13 +176,12 @@ static uint8_t uhci_number_of_ports(uhci_state_t *uhci) {
 }
 
 /* Obtain the physical address corresponding to a specified virtual address. */
-static uint32_t uhci_paddr(void *vaddr) {
+static uhci_physaddr_t uhci_get_physaddr(void *vaddr) {
   paddr_t paddr = 0;
   pmap_kextract((vaddr_t)vaddr, &paddr);
   assert(paddr);
-  /* UHCI only uses 32-bit addresses. */
-  assert(paddr == (uint32_t)paddr);
-  return (uint32_t)paddr;
+  assert(paddr == (uhci_physaddr_t)paddr);
+  return (uhci_physaddr_t)paddr;
 }
 
 static void qh_init(uhci_qh_t *qh) {
@@ -191,15 +191,15 @@ static void qh_init(uhci_qh_t *qh) {
 }
 
 static inline void qh_add_td(uhci_qh_t *qh, uhci_td_t *td) {
-  qh->qh_e_next = uhci_paddr(td) | UHCI_PTR_TD;
+  qh->qh_e_next = uhci_get_physaddr(td) | UHCI_PTR_TD;
 }
 
 static inline void qh_add_qh(uhci_qh_t *qh1, uhci_qh_t *qh2) {
-  qh1->qh_e_next = uhci_paddr(qh2) | UHCI_PTR_QH;
+  qh1->qh_e_next = uhci_get_physaddr(qh2) | UHCI_PTR_QH;
 }
 
 static inline void qh_chain(uhci_qh_t *qh1, uhci_qh_t *qh2) {
-  qh1->qh_h_next = uhci_paddr(qh2) | UHCI_PTR_QH;
+  qh1->qh_h_next = uhci_get_physaddr(qh2) | UHCI_PTR_QH;
 }
 
 static inline void qh_halt(uhci_qh_t *qh) {
@@ -288,11 +288,11 @@ static void uhci_init_frames(uhci_state_t *uhci) {
   for (int i = 0; i < UHCI_FRAMELIST_COUNT; i++) {
     int maxpow2 = ffs(i + 1);
     int qn = min(maxpow2, UHCI_NQUEUES) - 1;
-    uhci->frames[i] = uhci_paddr(uhci->queues[qn]) | UHCI_PTR_QH;
+    uhci->frames[i] = uhci_get_physaddr(uhci->queues[qn]) | UHCI_PTR_QH;
   }
 
   /* Set frame list base address. */
-  outd(UHCI_FLBASEADDR, uhci_paddr(uhci->frames));
+  outd(UHCI_FLBASEADDR, uhci_get_physaddr(uhci->frames));
 }
 
 static inline bool buf_free(void *buf) {
@@ -352,10 +352,10 @@ static void td_init(uhci_td_t *td, uint32_t ls, uint32_t ioc, uint32_t token,
                     void *data) {
   bzero(td, sizeof(uhci_td_t));
   td->td_next =
-    (ioc ? UHCI_PTR_T : uhci_paddr(td + 1) | UHCI_PTR_VF | UHCI_PTR_TD);
+    (ioc ? UHCI_PTR_T : uhci_get_physaddr(td + 1) | UHCI_PTR_VF | UHCI_PTR_TD);
   td->td_status = UHCI_TD_SET_ERRCNT(3) | ioc | ls | UHCI_TD_ACTIVE;
   td->td_token = token;
-  td->td_buffer = (data ? uhci_paddr(data) : 0);
+  td->td_buffer = (data ? uhci_get_physaddr(data) : 0);
 }
 
 #define td_setup(td, ls, e, d, dt)                                             \
@@ -544,9 +544,8 @@ static int uhci_attach(device_t *dev) {
 
   /* Perform the global reset of the UHCI controller. */
   setw(UHCI_CMD, UHCI_CMD_GRESET);
-  mdelay(50);
+  mdelay(10);
   setw(UHCI_CMD, 0x0000);
-  mdelay(100);
 
   /* After global reset, all registers are set to their
    * default values. */

@@ -8,6 +8,14 @@
 #include <sys/condvar.h>
 #include <sys/spinlock.h>
 
+/* Definition of some hardcoded USB constants. */
+
+#define USB_MAX_IPACKET 8 /* initial USB packet size */
+
+/* These are the values from the USB specification. */
+#define USB_PORT_ROOT_RESET_DELAY_SPEC 50 /* ms */
+#define USB_PORT_RESET_RECOVERY_SPEC 10   /* ms */
+
 typedef struct usb_device_request {
   uint8_t bmRequestType;
   uint8_t bRequest;
