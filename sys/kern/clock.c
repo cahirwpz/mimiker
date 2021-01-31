@@ -14,6 +14,7 @@ systime_t getsystime(void) {
   return now;
 }
 
+#if KPROF
 static void statclock(void) {
   gmonparam_t *g = &_gmonparam;
   thread_t *td = thread_self();
@@ -33,13 +34,15 @@ static void statclock(void) {
     }
   }
 }
+#else
+static void statclock(void) {
+}
+#endif
 
 static void clock_cb(timer_t *tm, void *arg) {
   bintime_t bin = binuptime();
   now = bt2st(&bin);
-#ifdef KPROF
   statclock();
-#endif
   callout_process(now);
   sched_clock();
 }

@@ -24,7 +24,7 @@
 #include <sys/vm_physmem.h>
 #include <sys/pmap.h>
 #include <sys/console.h>
-#ifdef KPROF
+#if KPROF
 #include <sys/prof.h>
 #endif
 #include <sys/stat.h>
@@ -113,7 +113,7 @@ __noreturn void kernel_init(void) {
    * so it's high time to start system clock. */
   init_clock();
 
-#ifdef KPROF
+#if KPROF
   init_prof();
 #endif
 
