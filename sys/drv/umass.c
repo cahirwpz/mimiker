@@ -70,7 +70,7 @@ static int umass_send_cbw(device_t *dev, usb_buf_t *usbb) {
   if (umass_send(dev, usbb) && usbb->flags & TF_STALLED) {
     if (umass_reset(dev))
       return 1;
-    usb_reset_complete_buf(usbb);
+    usb_reset_bulk_buf(usbb);
     error = umass_send(dev, usbb);
   }
 
@@ -99,7 +99,7 @@ static int umass_transfer(device_t *dev, void *data, size_t size, int direction,
   };
   memcpy(cbw.CBWCDB, cmd, cmd_len);
 
-  usb_buf_t *usbb = usb_alloc_complete_buf(&cbw, sizeof(umass_bbb_cbw_t), TF_BULK);
+  usb_buf_t *usbb = usb_alloc_bulk_buf(&cbw, sizeof(umass_bbb_cbw_t), TF_BULK);
   int error = 0;
 
   /* Send Command Block Wrapper. */
@@ -107,12 +107,12 @@ static int umass_transfer(device_t *dev, void *data, size_t size, int direction,
     goto bad;
 
   /* Transfer the actual data. */
-  usb_reuse_complete_buf(usbb, data, size, direction | TF_BULK);
+  usb_reuse_bulk_buf(usbb, data, size, direction | TF_BULK);
   error = umass_send(dev, usbb);
 
   /* Receive a Command Status Block. */
   umass_bbb_csw_t csb;
-  usb_reuse_complete_buf(usbb, &csb, sizeof(umass_bbb_csw_t), TF_INPUT | TF_BULK);
+  usb_reuse_bulk_buf(usbb, &csb, sizeof(umass_bbb_csw_t), TF_INPUT | TF_BULK);
   if ((error |= umass_send(dev, usbb)))
     goto bad;
 

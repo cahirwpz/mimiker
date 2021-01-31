@@ -164,7 +164,7 @@ typedef struct usb_buf {
   condvar_t cv;
   spin_t lock;
   transfer_flags_t flags;
-  uint16_t req_len;
+  uint16_t transfer_size;
 } usb_buf_t;
 
 static inline usb_device_t *usb_device_of(device_t *device) {
@@ -187,28 +187,32 @@ uint8_t usb_status_type(usb_buf_t *usbb);
 uint8_t usb_interval(usb_device_t *usbd, usb_buf_t *usbb);
 void usb_process(usb_buf_t *usbb, void *data, transfer_flags_t flags);
 usb_buf_t *usb_alloc_buf(void *data, size_t size, transfer_flags_t flags,
-                         uint16_t req_len);
+                         uint16_t transfer_size);
 
-#define usb_alloc_complete_buf(data, size, flags)                              \
+#define usb_alloc_buf_from_struct(sp, flags, ts)                               \
+  usb_alloc_buf((sp), sizeof(*(sp)), (flags), (ts))
+
+#define usb_alloc_empty_buf(flags) usb_alloc_buf(NULL, 0, (flags), 0)
+
+#define usb_alloc_bulk_buf(data, size, flags)                                  \
   usb_alloc_buf((data), (size), (flags), (size))
 
 void usb_free_buf(usb_buf_t *usbb);
 void usb_reuse_buf(usb_buf_t *usbb, void *data, size_t size,
-                   transfer_flags_t flags, uint16_t req_len);
+                   transfer_flags_t flags, uint16_t transfer_size);
 
-#define usb_reuse_complete_buf(usbb, data, size, flags)                        \
+#define usb_reuse_bulk_buf(usbb, data, size, flags)                            \
   usb_reuse_buf((usbb), (data), (size), (flags), (size))
 
-void usb_reset_buf(usb_buf_t *usbb, uint16_t req_len);
+void usb_reset_buf(usb_buf_t *usbb, uint16_t transfer_size);
 
-#define usb_reset_complete_buf(usbb) usb_reset_buf((usbb), (usbb)->req_len)
+#define usb_reset_bulk_buf(usbb) usb_reset_buf((usbb), (usbb)->buf.size)
 
 void usb_wait(usb_buf_t *usbb);
 bool usb_transfer_error(usb_buf_t *usbb);
 int usb_unhalt_endp(usb_device_t *usbd, uint8_t idx);
 int usb_set_idle(usb_device_t *usbd);
 int usb_set_boot_protocol(usb_device_t *usbd);
-int usb_get_report(usb_device_t *usbd, void *buf, size_t size);
 int usb_bbb_get_max_lun(usb_device_t *usbd, uint8_t *maxlun);
 int usb_bbb_reset(usb_device_t *usbd);
 void usb_interrupt_transfer(usb_device_t *usbd, usb_buf_t *usbb);

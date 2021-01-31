@@ -47,7 +47,7 @@ uint8_t usb_endp_addr(usb_device_t *usbd, usb_buf_t *usbb) {
 
 uint8_t usb_status_type(usb_buf_t *usbb) {
   assert(usbb->flags & TF_CONTROL);
-  return (!(usbb->flags & TF_INPUT) || !usbb->req_len ? TF_INPUT : 0);
+  return (!(usbb->flags & TF_INPUT) || !usbb->transfer_size ? TF_INPUT : 0);
 }
 
 uint8_t usb_interval(usb_device_t *usbd, usb_buf_t *usbb) {
@@ -57,15 +57,15 @@ uint8_t usb_interval(usb_device_t *usbd, usb_buf_t *usbb) {
   return ep->bInterval;
 }
 
-void usb_process(usb_buf_t *usbb, void *data, transfer_flags_t flags) {
+void usb_process(usb_buf_t *usbb, void *data, transfer_flags_t err_flags) {
   WITH_SPIN_LOCK (&usbb->lock) {
-    if (!flags) {
+    if (!err_flags) {
       if (usbb->flags & TF_INPUT)
-        ringbuf_putnb(&usbb->buf, data, usbb->req_len);
+        ringbuf_putnb(&usbb->buf, data, usbb->transfer_size);
       else
-        usbb->buf.count = usbb->buf.size;
+        usbb->buf.count = max(usbb->transfer_size, 1);
     } else {
-      usbb->flags |= flags;
+      usbb->flags |= err_flags;
     }
     cv_signal(&usbb->cv);
   }
@@ -87,42 +87,37 @@ static void usb_free_dev(usb_device_t *usbd) {
 }
 
 usb_buf_t *usb_alloc_buf(void *data, size_t size, transfer_flags_t flags,
-                         uint16_t req_len) {
+                         uint16_t transfer_size) {
   usb_buf_t *usbb = kmalloc(M_DEV, sizeof(usb_buf_t), M_WAITOK);
 
   ringbuf_init(&usbb->buf, data, size);
   cv_init(&usbb->cv, "USB buffer ready");
   spin_init(&usbb->lock, 0);
   usbb->flags = flags;
-  usbb->req_len = req_len;
+  usbb->transfer_size = transfer_size;
 
   return usbb;
 }
-
-#define usb_alloc_buf_from_struct(sp, flags, req_len)                          \
-  usb_alloc_buf((sp), sizeof(*(sp)), (flags), (req_len))
-
-#define usb_alloc_empty_buf(flags) usb_alloc_buf(NULL, 1, (flags), 0)
 
 void usb_free_buf(usb_buf_t *usbb) {
   kfree(M_DEV, usbb);
 }
 
 void usb_reuse_buf(usb_buf_t *usbb, void *data, size_t size,
-                   transfer_flags_t flags, uint16_t req_len) {
+                   transfer_flags_t flags, uint16_t transfer_size) {
   ringbuf_init(&usbb->buf, data, size);
   usbb->flags = flags;
-  usbb->req_len = req_len;
+  usbb->transfer_size = transfer_size;
 }
 
-void usb_reset_buf(usb_buf_t *usbb, uint16_t req_len) {
-  ringbuf_reset(&usbb->buf);
+void usb_clean_error(usb_buf_t *usbb) {
   usbb->flags &= ~(TF_STALLED | TF_ERROR);
-  usbb->req_len = req_len;
 }
 
-static inline uint16_t usb_wait_length(usb_buf_t *usbb) {
-  return ((!(usbb->flags & TF_INPUT) && !usbb->req_len) ? 1 : usbb->req_len);
+void usb_reset_buf(usb_buf_t *usbb, uint16_t transfer_size) {
+  ringbuf_reset(&usbb->buf);
+  usb_clean_error(usbb);
+  usbb->transfer_size = transfer_size;
 }
 
 bool usb_transfer_error(usb_buf_t *usbb) {
@@ -133,8 +128,8 @@ void usb_wait(usb_buf_t *usbb) {
   assert(spin_owned(&usbb->lock));
 
   ringbuf_t *rb = &usbb->buf;
-  uint16_t wait_len = usb_wait_length(usbb);
-  while (!usb_transfer_error(usbb) && rb->count < wait_len)
+  uint16_t wait_size = max(usbb->transfer_size, 1);
+  while (!usb_transfer_error(usbb) && rb->count < wait_size)
     cv_wait(&usbb->cv, &usbb->lock);
 }
 
@@ -145,9 +140,9 @@ static int usb_control_transfer(usb_device_t *usbd, usb_buf_t *usbb,
   usbhc_transfer(usbd, usbb, req);
 
   WITH_SPIN_LOCK (&usbb->lock) { usb_wait(usbb); }
-  /* In control transfers, we consider a STALL condition to be an error
-   * thereby, we assume that each standard request performed
-   * is suported by a device. */
+  /* In case of control transfers, we consider a STALL condition
+   * to be an error, thereby we assume that each standard request
+   * performed is suported by device. */
   if (usb_transfer_error(usbb))
     return 1;
   return 0;
@@ -173,21 +168,6 @@ int usb_set_boot_protocol(usb_device_t *usbd) {
     .wIndex = usbd->inum,
   };
   usb_buf_t *usbb = usb_alloc_empty_buf(TF_CONTROL);
-  int error = usb_control_transfer(usbd, usbb, &req);
-
-  usb_free_buf(usbb);
-  return error;
-}
-
-int usb_get_report(usb_device_t *usbd, void *buf, size_t size) {
-  usb_device_request_t req = (usb_device_request_t){
-    .bmRequestType = UT_READ_CLASS_INTERFACE,
-    .bRequest = UR_GET_REPORT,
-    .wValue = UV_MAKE(1, 0),
-    .wIndex = usbd->inum,
-    .wLength = size,
-  };
-  usb_buf_t *usbb = usb_alloc_complete_buf(buf, size, TF_INPUT | TF_CONTROL);
   int error = usb_control_transfer(usbd, usbb, &req);
 
   usb_free_buf(usbb);
@@ -265,7 +245,7 @@ int usb_poll(usb_device_t *usbd, usb_buf_t *usbb, uint8_t idx, void *buf,
 
       if (usbb->flags & TF_STALLED && !(usbb->flags & TF_ERROR)) {
         usb_unhalt_endp(usbd, idx);
-        usbb->flags &= ~(TF_ERROR | TF_STALLED);
+        usb_clean_error(usbb);
         usb_interrupt_transfer(usbd, usbb);
       } else {
         return 1;
@@ -315,7 +295,7 @@ static int usb_get_dev_dsc(usb_device_t *usbd, usb_device_descriptor_t *dd) {
 
   /* Get the whole descriptor. */
   req.wLength = dd->bLength;
-  usb_reset_buf(usbb, req.wLength);
+  usb_reset_buf(usbb, dd->bLength);
   error = usb_control_transfer(usbd, usbb, &req);
 
 end:

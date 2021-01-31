@@ -127,8 +127,8 @@ static bool uhci_detect_port(uhci_state_t *uhci, uint8_t pn) {
 /* Check initial values of a specified UHCI port. */
 static bool uhci_check_port(uhci_state_t *uhci, uint8_t pn) {
   return !chkw(UHCI_PORTSC(pn), UHCI_PORTSC_SUSP | UHCI_PORTSC_PR |
-                                UHCI_PORTSC_RD | UHCI_PORTSC_LS |
-                                UHCI_PORTSC_POEDC | UHCI_PORTSC_PE);
+                                  UHCI_PORTSC_RD | UHCI_PORTSC_LS |
+                                  UHCI_PORTSC_POEDC | UHCI_PORTSC_PE);
 }
 
 /* Check whether a device is attached to a specified UHCI port. */
@@ -466,12 +466,13 @@ static intr_filter_t uhci_isr(void *data) {
 static size_t uhci_req_size(uint16_t mps, usb_buf_t *usbb) {
   int cntr_size = (usbb->flags & TF_CONTROL ? 2 : 0); /* setup + status */
   return sizeof(uhci_qh_t) +
-         ((roundup(usbb->req_len, mps) / mps + cntr_size) * sizeof(uhci_td_t));
+         ((roundup(usbb->transfer_size, mps) / mps + cntr_size) *
+          sizeof(uhci_td_t));
 }
 
 static void uhci_transfer(uhci_state_t *uhci, usb_device_t *usbd,
                           usb_buf_t *usbb, usb_device_request_t *req) {
-  uint16_t req_len = usbb->req_len;
+  uint16_t transfer_size = usbb->transfer_size;
   uint16_t mps = usb_max_pkt_size(usbd, usbb);
   size_t offset = uhci_req_size(mps, usbb);
   uint8_t endp = usb_endp_addr(usbd, usbb);
@@ -504,11 +505,11 @@ static void uhci_transfer(uhci_state_t *uhci, usb_device_t *usbd,
 
   /* Copyin provided data. */
   if (!(usbb->flags & TF_INPUT))
-    memcpy(dt, usbb->buf.data, req_len);
+    memcpy(dt, usbb->buf.data, transfer_size);
 
   /* Prepare DATA packets. */
-  for (uint16_t nbytes = 0; nbytes != req_len; cnt++) {
-    uint16_t psize = min(req_len - nbytes, mps);
+  for (uint16_t nbytes = 0; nbytes != transfer_size; cnt++) {
+    uint16_t psize = min(transfer_size - nbytes, mps);
     td_data(&td[cnt], ls, psize, endp, usbd->addr, cnt & 1, dt, usbb->flags);
     nbytes += psize;
     dt += psize;
