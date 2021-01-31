@@ -109,8 +109,6 @@ __noreturn void kernel_init(void) {
    * so it's high time to start system clock. */
   init_clock();
 
-  init_proc();
-  init_proc0();
   init_prof();
 
   klog("Kernel initialized!");
