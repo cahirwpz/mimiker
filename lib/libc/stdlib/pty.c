@@ -30,10 +30,6 @@
  */
 
 #include <sys/cdefs.h>
-#if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: pty.c,v 1.4 2014/01/08 02:17:30 christos Exp $");
-#endif /* LIBC_SCCS and not lint */
-
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>

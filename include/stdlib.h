@@ -36,6 +36,7 @@
 
 #include <sys/types.h>
 #include <_locale.h>
+#include <sys/bswap.h>
 
 typedef struct {
   int quot; /* quotient */
@@ -159,10 +160,6 @@ char *getbsize(int *, long *);
 
 int humanize_number(char *, size_t, int64_t, const char *, int, int);
 int dehumanize_number(const char *, int64_t *);
-
-uint16_t bswap16(uint16_t);
-uint32_t bswap32(uint32_t);
-uint64_t bswap64(uint64_t);
 
 __END_DECLS
 

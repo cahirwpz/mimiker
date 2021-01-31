@@ -1,4 +1,4 @@
-root::0:0::0:0:root:/root:/bin/ksh
-admin::1000:1000::0:0:admin:/:/bin/ksh
-user::1001:1001::0:0:user:/:/bin/ksh
+root:root:0:0::0:0:root:/root:/bin/ksh
+admin:admin:1000:1000::0:0:admin:/:/bin/ksh
+user:user:1001:1001::0:0:user:/:/bin/ksh
 
