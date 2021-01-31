@@ -978,7 +978,7 @@ static int tty_set_winsize(tty_t *tty, struct winsize *sz) {
   return 0;
 }
 
-static int tty_ioctl(file_t *f, u_long cmd, void *data) {
+int tty_ioctl(file_t *f, u_long cmd, void *data) {
   tty_t *tty = f->f_data;
 
   switch (cmd) {
@@ -1076,10 +1076,7 @@ static fileops_t tty_fileops = {
   .fo_ioctl = tty_ioctl,
 };
 
-/* If the process is a session leader, the session has no associated terminal,
- * and the terminal has no associated session, make this terminal
- * the controlling terminal for the session. */
-static void maybe_assoc_ctty(proc_t *p, tty_t *tty) {
+void maybe_assoc_ctty(proc_t *p, tty_t *tty) {
   assert(mtx_owned(all_proc_mtx));
   assert(mtx_owned(&tty->t_lock));
 
@@ -1107,7 +1104,8 @@ static int _tty_vn_open(vnode_t *v, int mode, file_t *fp) {
     if ((error = vnode_open_generic(v, mode, fp)) != 0)
       return error;
 
-    maybe_assoc_ctty(p, tty);
+    if (!(mode & O_NOCTTY))
+      maybe_assoc_ctty(p, tty);
 
     tty->t_opencount++;
 
