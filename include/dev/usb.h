@@ -209,8 +209,8 @@ int usb_unhalt_endp(usb_device_t *usbd, uint8_t idx);
 int usb_set_idle(usb_device_t *usbd);
 int usb_set_boot_protocol(usb_device_t *usbd);
 int usb_get_report(usb_device_t *usbd, void *buf, size_t size);
-int usb_get_max_lun(usb_device_t *usbd, uint8_t *maxlun);
-int usb_bulk_only_reset(usb_device_t *usbd);
+int usb_bbb_get_max_lun(usb_device_t *usbd, uint8_t *maxlun);
+int usb_bbb_reset(usb_device_t *usbd);
 void usb_interrupt_transfer(usb_device_t *usbd, usb_buf_t *usbb);
 int usb_poll(usb_device_t *usbd, usb_buf_t *usbb, uint8_t idx, void *buf,
              size_t size);

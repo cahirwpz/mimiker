@@ -1,5 +1,5 @@
 /*
- * Based on FreeBSD: sys/dev/usb/controller/uhci.h
+ * Based on FreeBSD `uhci.h`.
  */
 #ifndef _UHCI_H_
 #define _UHCI_H_
@@ -11,6 +11,8 @@
 /* Structures alignment (bytes) */
 #define UHCI_TD_ALIGN 16
 #define UHCI_QH_ALIGN 16
+
+typedef uint32_t uhci_physaddr_t;
 
 #define UHCI_PTR_T 0x00000001
 #define UHCI_PTR_TD 0x00000000

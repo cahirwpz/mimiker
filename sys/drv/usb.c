@@ -194,10 +194,10 @@ int usb_get_report(usb_device_t *usbd, void *buf, size_t size) {
   return error;
 }
 
-int usb_get_max_lun(usb_device_t *usbd, uint8_t *maxlun) {
+int usb_bbb_get_max_lun(usb_device_t *usbd, uint8_t *maxlun) {
   usb_device_request_t req = (usb_device_request_t){
     .bmRequestType = UT_READ_CLASS_INTERFACE,
-    .bRequest = UR_GET_MAX_LUN,
+    .bRequest = UR_BBB_GET_MAX_LUN,
     .wIndex = usbd->inum,
     .wLength = 1,
   };
@@ -218,10 +218,10 @@ bad:
   return error;
 }
 
-int usb_bulk_only_reset(usb_device_t *usbd) {
+int usb_bbb_reset(usb_device_t *usbd) {
   usb_device_request_t req = (usb_device_request_t){
     .bmRequestType = UT_WRITE_CLASS_INTERFACE,
-    .bRequest = UR_BULK_ONLY_RESET,
+    .bRequest = UR_BBB_RESET,
     .wIndex = usbd->inum,
   };
   usb_buf_t *usbb = usb_alloc_empty_buf(TF_CONTROL);

@@ -127,9 +127,8 @@ static bool uhci_detect_port(uhci_state_t *uhci, uint8_t pn) {
 /* Check initial values of a specified UHCI port. */
 static bool uhci_check_port(uhci_state_t *uhci, uint8_t pn) {
   return !chkw(UHCI_PORTSC(pn), UHCI_PORTSC_SUSP | UHCI_PORTSC_PR |
-                                  UHCI_PORTSC_RD | UHCI_PORTSC_DM |
-                                  UHCI_PORTSC_DP | UHCI_PORTSC_PEC |
-                                  UHCI_PORTSC_PE);
+                                UHCI_PORTSC_RD | UHCI_PORTSC_LS |
+                                UHCI_PORTSC_POEDC | UHCI_PORTSC_PE);
 }
 
 /* Check whether a device is attached to a specified UHCI port. */
@@ -148,7 +147,7 @@ static void uhci_reset_port(uhci_state_t *uhci, uint8_t pn) {
     return;
 
   /* Clear status chenge indicators. */
-  wclrw(UHCI_PORTSC(pn), UHCI_PORTSC_PEC | UHCI_PORTSC_CSC);
+  wclrw(UHCI_PORTSC(pn), UHCI_PORTSC_POEDC | UHCI_PORTSC_CSC);
 
   /* Enable the port. */
   while (!chkw(UHCI_PORTSC(pn), UHCI_PORTSC_PE))

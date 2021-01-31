@@ -3,34 +3,34 @@
 
 /* Bulk-Only features */
 
-#define UR_BULK_ONLY_RESET 0xff /* Bulk-Only reset */
-#define UR_GET_MAX_LUN 0xfe     /* Get maximum lun */
+#define UR_BBB_RESET 0xff       /* Bulk-Only reset */
+#define UR_BBB_GET_MAX_LUN 0xfe /* Get maximum lun */
 
 /* Command Block Wrapper */
+#define CBWCDBLENGTH 16
+
 typedef struct {
-  uint32_t signature;
-  uint32_t tag;
-  uint32_t data_len;
-  uint8_t flags;
-  uint8_t lun;
-  uint8_t cmd_len;
-  uint8_t cmd[16];
-} __packed umass_cbw_t;
+  uint32_t dCBWSignature;
+  uint32_t dCBWTag;
+  uint32_t dCBWDataTransferLength;
+  uint8_t bCBWFlags;
+  uint8_t bCBWLUN;
+  uint8_t bCDBLength;
+  uint8_t CBWCDB[CBWCDBLENGTH];
+} __packed umass_bbb_cbw_t;
 
 #define CBWSIGNATURE 0x43425355
 
 #define CBWFLAGS_OUT 0x00
 #define CBWFLAGS_IN 0x80
 
-#define CBWCDBLENGTH 16
-
 /* Command Status Wrapper */
 typedef struct {
-  uint32_t signature;
-  uint32_t tag;
-  uint32_t data_residue;
-  uint8_t status;
-} __packed umass_csw_t;
+  uint32_t dCSWSignature;
+  uint32_t dCSWTag;
+  uint32_t dCSWDataResidue;
+  uint8_t bCSWStatus;
+} __packed umass_bbb_csw_t;
 
 #define CSWSIGNATURE 0x53425355
 

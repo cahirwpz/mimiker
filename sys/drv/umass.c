@@ -45,7 +45,7 @@ static inline uint8_t cbw_flags(int direction) {
 static int umass_reset(device_t *dev) {
   usb_device_t *usbd = usb_device_of(dev);
 
-  if (usb_bulk_only_reset(usbd))
+  if (usb_bbb_reset(usbd))
     return 1;
   if (usb_unhalt_endp(usbd, 0))
     return 1;
@@ -89,17 +89,17 @@ static int umass_transfer(device_t *dev, void *data, size_t size, int direction,
   uint32_t tag = umass->tag++;
   uint8_t flags = cbw_flags(direction);
 
-  umass_cbw_t cbw = (umass_cbw_t){
-    .signature = CBWSIGNATURE,
-    .tag = tag,
-    .data_len = size,
-    .flags = flags,
-    .lun = lun,
-    .cmd_len = cmd_len,
+  umass_bbb_cbw_t cbw = (umass_bbb_cbw_t){
+    .dCBWSignature = CBWSIGNATURE,
+    .dCBWTag = tag,
+    .dCBWDataTransferLength = size,
+    .bCBWFlags = flags,
+    .bCBWLUN = lun,
+    .bCDBLength = cmd_len,
   };
-  memcpy(cbw.cmd, cmd, cmd_len);
+  memcpy(cbw.CBWCDB, cmd, cmd_len);
 
-  usb_buf_t *usbb = usb_alloc_complete_buf(&cbw, sizeof(umass_cbw_t), TF_BULK);
+  usb_buf_t *usbb = usb_alloc_complete_buf(&cbw, sizeof(umass_bbb_cbw_t), TF_BULK);
   int error = 0;
 
   /* Send Command Block Wrapper. */
@@ -111,13 +111,13 @@ static int umass_transfer(device_t *dev, void *data, size_t size, int direction,
   error = umass_send(dev, usbb);
 
   /* Receive a Command Status Block. */
-  umass_csw_t csb;
-  usb_reuse_complete_buf(usbb, &csb, sizeof(umass_csw_t), TF_INPUT | TF_BULK);
+  umass_bbb_csw_t csb;
+  usb_reuse_complete_buf(usbb, &csb, sizeof(umass_bbb_csw_t), TF_INPUT | TF_BULK);
   if ((error |= umass_send(dev, usbb)))
     goto bad;
 
-  error |= (csb.signature != CSWSIGNATURE || csb.tag != tag ||
-            csb.status & CSWSTATUS_FAILED);
+  error |= (csb.dCSWSignature != CSWSIGNATURE || csb.dCSWTag != tag ||
+            csb.bCSWStatus & CSWSTATUS_FAILED);
 
 bad:
   usb_free_buf(usbb);
@@ -307,7 +307,7 @@ static int umass_attach(device_t *dev) {
   usb_device_t *usbd = usb_device_of(dev);
 
   uint8_t maxlun;
-  if (usb_get_max_lun(usbd, &maxlun))
+  if (usb_bbb_get_max_lun(usbd, &maxlun))
     return 1;
   umass->nluns = (maxlun == 0xff ? 1 : maxlun + 1);
 
