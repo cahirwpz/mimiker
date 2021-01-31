@@ -181,14 +181,15 @@ class Launchable():
         self.process = subprocess.Popen([self.cmd] + self.options,
                                         start_new_session=False)
 
-    # Returns true iff the process terminated
+    # Returns exit code iff the process terminated
     def wait(self, timeout=None):
         if self.process is None:
             return False
         # Throws exception on timeout
         self.process.wait(timeout)
+        rc = self.process.returncode
         self.process = None
-        return True
+        return rc
 
     def stop(self):
         if self.process is not None:

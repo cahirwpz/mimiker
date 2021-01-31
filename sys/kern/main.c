@@ -64,7 +64,6 @@ static __noreturn void start_init(__unused void *arg) {
   char *test = kenv_get("test");
   if (test) {
     ktest_main(test);
-    kprintf("Test run finished!\n");
   } else {
     /* This is a message to the user,
      * so I intentionally use kprintf instead of log. */

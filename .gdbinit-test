@@ -11,6 +11,20 @@ python import debug
 
 # launch kernel tests and wait for ktest_main to finish
 break panic_fail
-tbreak ktest_main
-continue
-finish
+commands
+info registers
+cpu tlb
+backtrace full
+kthread
+klog
+kill
+quit 1
+end
+
+break ktest_end
+commands
+kill
+quit 0
+end
+
+cont

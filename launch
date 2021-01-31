@@ -16,8 +16,9 @@ TMUX_CONF = './.tmux.conf'
 def TestRun(sim, dbg):
     sim.run()
     dbg.run()
-    dbg.wait()
+    rc = dbg.wait()
     sim.stop()
+    sys.exit(rc)
 
 
 def DevelRun(sim, dbg):
