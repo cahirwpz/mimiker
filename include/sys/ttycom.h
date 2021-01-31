@@ -71,6 +71,7 @@ typedef char linedn_t[TTLINEDNAMELEN];
 #define TIOCSETAF _IOW('t', 22, struct termios) /* drn out, fls in, set */
 #define TIOCGWINSZ _IOR('t', 104, struct winsize) /* get window size */
 #define TIOCSWINSZ _IOW('t', 103, struct winsize) /* set window size */
+#define TIOCPTSNAME _IOW('t', 105, char *)        /* get slave device path */
 #define TIOCSTART _IO('t', 110)                   /* start output, like ^Q */
 #define TIOCSTOP _IO('t', 111)                    /* stop output, like ^S */
 #define TIOCGPGRP _IOR('t', 119, int)             /* get pgrp of tty */

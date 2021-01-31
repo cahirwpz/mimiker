@@ -79,6 +79,7 @@ static int sys_fchown(proc_t *, fchown_args_t *, register_t *);
 static int sys_fchownat(proc_t *, fchownat_args_t *, register_t *);
 static int sys_getlogin(proc_t *, getlogin_args_t *, register_t *);
 static int sys_setlogin(proc_t *, setlogin_args_t *, register_t *);
+static int sys_posix_openpt(proc_t *, posix_openpt_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { .nargs = 1, .call = (syscall_t *)sys_syscall },
@@ -155,5 +156,6 @@ struct sysent sysent[] = {
   [SYS_fchownat] = { .nargs = 5, .call = (syscall_t *)sys_fchownat },
   [SYS_getlogin] = { .nargs = 2, .call = (syscall_t *)sys_getlogin },
   [SYS_setlogin] = { .nargs = 1, .call = (syscall_t *)sys_setlogin },
+  [SYS_posix_openpt] = { .nargs = 1, .call = (syscall_t *)sys_posix_openpt },
 };
 
