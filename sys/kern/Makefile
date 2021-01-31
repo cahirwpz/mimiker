@@ -45,6 +45,7 @@ SOURCES = \
 	pool.c \
 	proc.c \
 	prof.c \
+	pty.c \
 	ringbuf.c \
 	rman.c \
 	runq.c \

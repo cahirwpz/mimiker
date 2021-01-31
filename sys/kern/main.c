@@ -25,6 +25,7 @@
 #include <sys/pmap.h>
 #include <sys/console.h>
 #include <sys/prof.h>
+#include <sys/stat.h>
 
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
@@ -33,6 +34,7 @@ static void mount_fs(void) {
   do_mount(p, "initrd", "/");
   do_mount(p, "devfs", "/dev");
   do_mount(p, "tmpfs", "/tmp");
+  do_fchmodat(p, AT_FDCWD, "/tmp", ACCESSPERMS | S_ISTXT, 0);
 }
 
 static __noreturn void start_init(__unused void *arg) {

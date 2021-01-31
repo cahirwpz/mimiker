@@ -65,5 +65,14 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
   if (uc->uc_flags & _UC_FPU)
     memcpy(&to->__fregs, &from->__fregs, sizeof(__fregset_t));
 
+  /*
+   * We call do_setcontext only from sys_setcontext.
+   *
+   * User-space non-local jumps assume that lr contains return address for
+   * setcontext syscall, but exception handler copies return address from elr
+   * register.
+   */
+  _REG(to, ELR) = _REG(to, LR);
+
   return EJUSTRETURN;
 }
