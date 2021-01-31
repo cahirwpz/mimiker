@@ -18,14 +18,14 @@ static void statclock(void) {
   gmonparam_t *g = &_gmonparam;
   thread_t *td = thread_self();
   klog("Got thread - ctx %d.", td->td_kframe);
-  if(td->td_kframe == NULL)
+  if (td->td_kframe == NULL)
     return;
   uintptr_t pc = ctx_get_pc(td->td_kframe), instr;
   klog("Got pc register.");
-  if(g->state == GMON_PROF_ON && pc >= g->lowpc) {
+  if (g->state == GMON_PROF_ON && pc >= g->lowpc) {
     klog("Gmon working.");
     instr = pc - g->lowpc;
-    if(instr < g->textsize) {
+    if (instr < g->textsize) {
       klog("Gmon collecting stats.");
       instr /= HISTFRACTION * sizeof(*g->kcount);
       g->kcount[instr]++;
@@ -37,7 +37,9 @@ static void statclock(void) {
 static void clock_cb(timer_t *tm, void *arg) {
   bintime_t bin = binuptime();
   now = bt2st(&bin);
+#ifdef KPROF
   statclock();
+#endif
   callout_process(now);
   sched_clock();
 }

@@ -28,7 +28,6 @@ OBJECTS += $(BOARD)_dtb.o
 
 CLEAN-FILES += assym.h *-devhint.c
 
-CFLAGS   += -fno-builtin -nostdinc -nostdlib -ffreestanding
 CPPFLAGS += -D_MACHDEP
 
 include $(TOPDIR)/build/build.kern.mk
@@ -36,3 +35,4 @@ include $(TOPDIR)/build/build.kern.mk
 $(SOURCES): assym.h
 
 boot.o : CFLAGS_KASAN =
+boot.o : CFLAGS_KPROF =
