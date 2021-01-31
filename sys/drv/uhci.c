@@ -583,14 +583,11 @@ static int uhci_attach(device_t *dev) {
   /* Start the controller. */
   outw(UHCI_CMD, UHCI_CMD_RS);
 
-  /* Register the UHCI host controller space. */
-  USBHC_SPACE_REGISTER(uhci_space);
-  USBHC_SPACE_SET_STATE(uhci);
-
   dev->devclass = &DEVCLASS(usbhc);
+  USBHC_SPACE_SET_STATE(&uhci_space, uhci);
 
   /* Detect and configure attached devices. */
-  usb_enumerate(dev);
+  usb_enumerate(dev, &uhci_space);
 
   return bus_generic_probe(dev);
 }

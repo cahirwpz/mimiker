@@ -149,9 +149,12 @@ typedef struct usb_endpoint_descriptor {
 #define UE_BULK 0x02
 #define UE_INTERRUPT 0x03
 
+typedef struct usbhc_space usbhc_space_t;
+
 typedef struct usb_device {
   usb_device_descriptor_t dd;
   usb_endpoint_descriptor_t *endps; /* endpoints supplied by interface `inum` */
+  usbhc_space_t *uhs;               /* host controller space used */
   uint8_t nendps;                   /* numer of endpoints */
   uint8_t addr;                     /* device address */
   uint8_t inum;                     /* interface number */
@@ -227,6 +230,6 @@ void usb_interrupt_transfer(usb_device_t *usbd, usb_buf_t *usbb);
 int usb_poll(usb_device_t *usbd, usb_buf_t *usbb, uint8_t idx, void *buf,
              size_t size);
 void usb_bulk_transfer(usb_device_t *usbd, usb_buf_t *usbb);
-void usb_enumerate(device_t *dev);
+void usb_enumerate(device_t *dev, usbhc_space_t *uhs);
 
 #endif /* _USB_H_ */

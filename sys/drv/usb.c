@@ -10,8 +10,6 @@
 #include <dev/usbhc.h>
 #include <dev/umass.h>
 
-USBHC_SPACE_DEFINE;
-
 static uint8_t usb_max_addr = 1;
 
 static usb_endpoint_descriptor_t *usb_endp(usb_device_t *usbd,
@@ -72,10 +70,10 @@ void usb_process(usb_buf_t *usbb, void *data, transfer_flags_t err_flags) {
 }
 
 /* Alloc a device attached to port `prot`. */
-static usb_device_t *usb_alloc_dev(uint8_t port) {
+static usb_device_t *usb_alloc_dev(uint8_t port, usbhc_space_t *uhs) {
   usb_device_t *usbd = kmalloc(M_DEV, sizeof(usb_device_t), M_ZERO);
-  /* Minimal possible packet size is 8. */
-  usbd->dd.bMaxPacketSize = 8;
+  usbd->uhs = uhs;
+  usbd->dd.bMaxPacketSize = USB_MAX_IPACKET;
   usbd->port = port;
   return usbd;
 }
@@ -284,9 +282,10 @@ static int usb_get_dev_dsc(usb_device_t *usbd, usb_device_descriptor_t *dd) {
     .bmRequestType = UT_READ_DEVICE,
     .bRequest = UR_GET_DESCRIPTOR,
     .wValue = UV_MAKE(UDESC_DEVICE, 0),
-    .wLength = 8,
+    .wLength = USB_MAX_IPACKET,
   };
-  usb_buf_t *usbb = usb_alloc_buf_from_struct(dd, TF_INPUT | TF_CONTROL, 8);
+  usb_buf_t *usbb =
+    usb_alloc_buf_from_struct(dd, TF_INPUT | TF_CONTROL, USB_MAX_IPACKET);
   int error = 0;
 
   /* Read the first 8 bytes. */
@@ -561,7 +560,7 @@ static int usb_identify(usb_device_t *usbd) {
   if (usb_get_dev_dsc(usbd, &usbd->dd))
     return 1;
 
-  usbhc_reset_port(usbd->port);
+  usbhc_reset_port(usbd->uhs, usbd->port);
 
   if (usb_set_addr(usbd))
     return 1;
@@ -569,17 +568,17 @@ static int usb_identify(usb_device_t *usbd) {
   return 0;
 }
 
-void usb_enumerate(device_t *dev) {
-  uint8_t nports = usbhc_number_of_ports();
+void usb_enumerate(device_t *dev, usbhc_space_t *uhs) {
+  uint8_t nports = usbhc_number_of_ports(uhs);
 
   for (uint8_t pn = 0; pn < nports; pn++) {
-    if (!usbhc_device_present(pn)) {
+    if (!usbhc_device_present(uhs, pn)) {
       klog("no device attached to port %hhu", pn);
       continue;
     }
     klog("device attached to port %hhu", pn);
 
-    usb_device_t *usbd = usb_alloc_dev(pn);
+    usb_device_t *usbd = usb_alloc_dev(pn, uhs);
     if (usb_identify(usbd)) {
       klog("failed to identify the device at port %hhu", pn);
       goto bad;
