@@ -40,16 +40,18 @@ class GmonParam(metaclass=GdbStructMeta):
         gmonhdr.spare[0] = 0
         gmonhdr.spare[1] = 0
         gmonhdr.spare[2] = 0
-        # We do not have timer for profiling yet
-        gmonhdr.profrate = 0
-
+        gmonhdr.profrate = 1000
         ofile = "gmon.out"
         with open(ofile, "wb") as of:
             of.write(gmonhdr)
 
-    # Not supported yet
     def writetickbuffer(self):
-        pass
+        for i in range(self.kcountsize):
+            kcount = gdb.parse_and_eval('_gmonparam.kcount[' + str(i) + ']')
+            print(i)
+            ofile = "gmon.out"
+            with open(ofile, "ab") as of:
+                of.write(c_ushort(kcount))
 
     def writearcinfo(self):
         rawarc = RawArc()
