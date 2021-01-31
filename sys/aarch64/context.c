@@ -26,6 +26,10 @@ void ctx_set_retval(ctx_t *ctx, long value) {
   _REG(ctx, X0) = value;
 }
 
+register_t ctx_get_pc(ctx_t *ctx) {
+  return _REG(ctx, PC);
+}
+
 void mcontext_copy(mcontext_t *to, mcontext_t *from) {
   memcpy(to, from, sizeof(mcontext_t));
 }
