@@ -152,6 +152,7 @@ void init_clock(void);
 /* Initial range of virtual addresses used by kernel image. */
 extern char __kernel_start[];
 extern char __kernel_end[];
+extern char __etext[];
 
 #ifdef _MACHDEP
 /* Symbols defined by linker and used during kernel boot phase. */

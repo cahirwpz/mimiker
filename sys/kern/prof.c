@@ -19,8 +19,9 @@ void init_prof(void) {
                        HISTFRACTION * sizeof(HISTFRACTION));
   /* TODO: Get the compiled kernel space end (kernel text end) */
   p->highpc =
-    roundup((unsigned long)__kernel_end, HISTFRACTION * sizeof(HISTFRACTION));
+    roundup((unsigned long)__etext, HISTFRACTION * sizeof(HISTFRACTION));
   p->textsize = p->highpc - p->lowpc;
+  p->kcountsize = p->textsize / HISTFRACTION;
   p->hashfraction = HASHFRACTION;
   p->fromssize = p->textsize / HASHFRACTION;
   p->tolimit = (p->textsize * ARCDENSITY) / 100;
@@ -30,7 +31,8 @@ void init_prof(void) {
     p->tolimit = MAXARCS;
   p->tossize = p->tolimit * sizeof(tostruct_t);
 
-  int aligned_size = align(p->tossize + p->fromssize, PAGESIZE);
+  int size = p->kcountsize + p->tossize + p->fromssize;
+  int aligned_size = align(size, PAGESIZE);
   profptr = kmem_alloc(aligned_size, M_NOWAIT | M_ZERO);
   if (profptr == NULL) {
     kprintf("Not enough memory for profiling!\n");
@@ -38,6 +40,8 @@ void init_prof(void) {
   }
   p->tos = (tostruct_t *)profptr;
   profptr += p->tossize;
+  p->kcount = (u_short *)profptr;
+  profptr += p->kcountsize;
   p->froms = (u_short *)profptr;
   p->state = GMON_PROF_ON;
 }
@@ -59,7 +63,7 @@ _MCOUNT_DECL(void *from, void *self) {
   /* TODO: Handle SMP */
 
   /* Checking if frompc is in range of kernel space
-     - signal catchers get called from the stack*/
+     - signal catchers get called from the stack */
   frompc -= p->lowpc;
   if (frompc > p->textsize)
     goto done;
