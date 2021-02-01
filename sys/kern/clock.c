@@ -17,19 +17,14 @@ systime_t getsystime(void) {
 static void statclock(void) {
   gmonparam_t *g = &_gmonparam;
   thread_t *td = thread_self();
-  klog("Got thread - ctx %d.", td->td_kframe);
   if (td->td_kframe == NULL)
     return;
   uintptr_t pc = ctx_get_pc(td->td_kframe), instr;
-  klog("Got pc register.");
   if (g->state == GMON_PROF_ON && pc >= g->lowpc) {
-    klog("Gmon working.");
     instr = pc - g->lowpc;
     if (instr < g->textsize) {
-      klog("Gmon collecting stats.");
       instr /= HISTFRACTION * sizeof(*g->kcount);
       g->kcount[instr]++;
-      klog("Gmon updated instr %d kcountsize %d.", instr, g->kcountsize);
     }
   }
 }
