@@ -23,6 +23,7 @@
 #include <sys/thread.h>
 #include <sys/cred.h>
 #include <sys/statvfs.h>
+#include <sys/pty.h>
 
 #include "sysent.h"
 
@@ -1092,4 +1093,14 @@ static int sys_setlogin(proc_t *p, setlogin_args_t *args, register_t *res) {
     return (error == ENAMETOOLONG ? EINVAL : error);
 
   return do_setlogin(login_tmp);
+}
+
+static int sys_posix_openpt(proc_t *p, posix_openpt_args_t *args,
+                            register_t *res) {
+
+  int flags = SCARG(args, flags);
+
+  klog("posix_openpt(0x%x)", flags);
+
+  return do_posix_openpt(p, flags, res);
 }
