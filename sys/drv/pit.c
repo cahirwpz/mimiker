@@ -29,10 +29,10 @@ static void pit_set_frequency(pit_state_t *pit) {
 }
 
 /* Returns value in range [0, pit->period_ticks) */
-static uint32_t pit_get_counter(pit_state_t *pit) {
+static uint16_t pit_get_counter(pit_state_t *pit) {
   assert(intr_disabled());
 
-  uint32_t cntr = 0;
+  uint16_t cntr = 0;
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
   cntr |= inb(TIMER_CNTR0);
   cntr |= inb(TIMER_CNTR0) << 8;
@@ -124,6 +124,16 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
     pit_get_ticks(pit);
     ticks = pit->last_irq_ticks + pit->prev_ticks;
     sec = pit->last_irq_sec;
+    
+    /* XXX: This is a temporary check, it's going to be removed before this PR
+     * gets merged with master. */
+    {
+      static uint32_t last_ticks = 0;
+      static uint32_t last_sec = 0;
+      assert(last_sec < sec || (last_sec == sec && last_ticks < ticks));
+      last_ticks = ticks;
+      last_sec = sec;
+    }
   }
 
   bintime_t bt = bintime_mul(HZ2BT(TIMER_FREQ), ticks);
