@@ -242,6 +242,12 @@ static void run_specified_tests(const char *test) {
   }
 }
 
+static __noreturn void ktest_end(void) {
+  intr_disable();
+  for (;;)
+    continue;
+}
+
 __noreturn void ktest_main(const char *test) {
   /* Start by gathering command-line arguments. */
   const char *seed_str = kenv_get("seed");
@@ -255,5 +261,6 @@ __noreturn void ktest_main(const char *test) {
   } else {
     run_specified_tests(test);
   }
-  panic("Test run finished!");
+  kprintf("Test run finished!\n");
+  ktest_end();
 }
