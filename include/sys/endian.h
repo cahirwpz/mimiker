@@ -30,7 +30,9 @@
 
 #ifndef __ASSEMBLER__
 
-#include <sys/types.h>
+#include <sys/cdefs.h>
+#include <stddef.h>
+#include <stdint.h>
 
 /*
  * Macros to convert to a specific endianness.
@@ -83,6 +85,40 @@
 #define LE16TOH(x) HTOLE16(x)
 #define LE32TOH(x) HTOLE32(x)
 #define LE64TOH(x) HTOLE64(x)
+
+/*
+ * Routines to encode/decode big- and little-endian multi-octet values
+ * to/from an octet stream (From NetBSD).
+ */
+#define __GEN_ENDIAN_ENC(bits, endian)                                         \
+  static __inline void __unused endian##bits##enc(void *dst,                   \
+                                                  uint##bits##_t u) {          \
+    u = hto##endian##bits(u);                                                  \
+    __builtin_memcpy(dst, &u, sizeof(u));                                      \
+  }
+
+__GEN_ENDIAN_ENC(16, be)
+__GEN_ENDIAN_ENC(32, be)
+__GEN_ENDIAN_ENC(64, be)
+__GEN_ENDIAN_ENC(16, le)
+__GEN_ENDIAN_ENC(32, le)
+__GEN_ENDIAN_ENC(64, le)
+#undef __GEN_ENDIAN_ENC
+
+#define __GEN_ENDIAN_DEC(bits, endian)                                         \
+  static __inline uint##bits##_t __unused endian##bits##dec(const void *buf) { \
+    uint##bits##_t u;                                                          \
+    __builtin_memcpy(&u, buf, sizeof(u));                                      \
+    return endian##bits##toh(u);                                               \
+  }
+
+__GEN_ENDIAN_DEC(16, be)
+__GEN_ENDIAN_DEC(32, be)
+__GEN_ENDIAN_DEC(64, be)
+__GEN_ENDIAN_DEC(16, le)
+__GEN_ENDIAN_DEC(32, le)
+__GEN_ENDIAN_DEC(64, le)
+#undef __GEN_ENDIAN_DEC
 
 #endif /* __ASSEMBLER__ */
 
