@@ -124,7 +124,7 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
     pit_get_ticks(pit);
     ticks = pit->last_irq_ticks + pit->prev_ticks;
     sec = pit->last_irq_sec;
-    
+
     /* XXX: This is a temporary check, it's going to be removed before this PR
      * gets merged with master. */
     {
