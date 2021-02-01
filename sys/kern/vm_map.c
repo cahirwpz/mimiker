@@ -221,7 +221,6 @@ static bool vm_segment_split(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
     return false;
   }
 
-  vaddr_t old_start = seg->start;
   off_t max_offset;
   off_t offset_base = 0;
   off_t wanted_offset;
@@ -263,6 +262,7 @@ static bool vm_segment_split(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
 
     if (new_seg_before == NULL) {
       /* TODO: handling errors, restoring pages etc. */
+      return false;
     }
 
     seg->start = end;
@@ -271,6 +271,7 @@ static bool vm_segment_split(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
 
     if (error) {
       /* TODO: handling errors */
+      return false;
     }
   }
 
@@ -292,14 +293,7 @@ static bool vm_segment_split(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
 
   if (error) {
     /* TODO: handling errors */
-  }
-
-  /* fix offsets in pages in seg->object */
-  WITH_MTX_LOCK (&seg->object->mtx) {
-    vm_page_t *pg;
-    TAILQ_FOREACH (pg, &seg->object->list, obj.list) {
-      pg->offset = old_start + pg->offset - seg->start;
-    }
+    return false;
   }
 
   return true;
