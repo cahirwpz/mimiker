@@ -24,9 +24,7 @@
 #include <sys/vm_physmem.h>
 #include <sys/pmap.h>
 #include <sys/console.h>
-#if KPROF
 #include <sys/prof.h>
-#endif
 #include <sys/stat.h>
 
 /* This function mounts some initial filesystems. Normally this would be done by
@@ -113,9 +111,7 @@ __noreturn void kernel_init(void) {
    * so it's high time to start system clock. */
   init_clock();
 
-#if KPROF
   init_prof();
-#endif
 
   klog("Kernel initialized!");
 

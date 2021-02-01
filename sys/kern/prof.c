@@ -11,6 +11,8 @@
 gmonparam_t _gmonparam = {.state = GMON_PROF_OFF};
 void __cyg_profile_func_exit(void *this_fn, void *call_site) {
 }
+
+#if KPROF
 void init_prof(void) {
   void *profptr;
   gmonparam_t *p = &_gmonparam;
@@ -45,6 +47,10 @@ void init_prof(void) {
   p->froms = (u_short *)profptr;
   p->state = GMON_PROF_ON;
 }
+#else
+void init_prof(void) {
+}
+#endif
 
 _MCOUNT_DECL(void *from, void *self) {
   u_long frompc = (u_long)from, selfpc = (u_long)self;
