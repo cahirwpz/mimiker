@@ -73,8 +73,6 @@ if __name__ == '__main__':
                         help='Test-run mode: simulator output goes to stdout.')
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
-    parser.add_argument('-p', '--port', metavar='PORT', type=int,
-                        help='Run gdbserver on specified localhost port.')
     parser.add_argument('-b', '--board', default='malta',
                         choices=['malta', 'rpi3'], help='Emulated board.')
     args = parser.parse_args()
@@ -82,16 +80,10 @@ if __name__ == '__main__':
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
     os.environ['MIMIKER_REPO'] = os.path.dirname(os.path.realpath(sys.argv[0]))
 
-    if args.port:
-        port = int(args.port)
-    else:
-        port = RandomPort()
-
     setboard(args.board)
     setvar('config.debug', args.debug)
     setvar('config.graphics', args.graphics)
     setvar('config.args', args.args)
-    setvar('config.gdbport', port)
 
     # Check if the kernel file is available
     if not os.path.isfile(getvar('config.kernel')):

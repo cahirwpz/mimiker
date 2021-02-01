@@ -42,7 +42,7 @@ CONFIG = {
     'board': 'malta',
     'config': {
         'debug': False,
-        'gdbport': None,
+        'gdbport': RandomPort(),
         'graphics': False,
         'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
@@ -265,5 +265,5 @@ class SOCAT(Launchable):
         self.options = [stdio_opt, f'tcp:localhost:{tcp_port},retry,forever']
 
 
-__all__ = ['Launchable', 'QEMU', 'GDB', 'SOCAT', 'RandomPort',
+__all__ = ['Launchable', 'QEMU', 'GDB', 'SOCAT',
            'getvar', 'setvar', 'setboard']
