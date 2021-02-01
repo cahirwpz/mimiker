@@ -23,7 +23,6 @@ endif
 ifeq ($(KERNEL), 1)
 KPROF ?= 0
 ifeq ($(KPROF), 1)
-  # Added to files that are sanitized
   CFLAGS_KPROF = -finstrument-functions -finstrument-functions-exclude-file-list=sys/mips,sys/kern/prof.c,lib,include/sys -finstrument-functions-exclude-function-list=intr_disable,intr_enable,thread_self,intr_root_handler
 endif
 # Added to all files
