@@ -196,8 +196,6 @@ static void ns16550_notify_out(tty_t *tty) {
 }
 
 static int ns16550_attach(device_t *dev) {
-  assert(dev->parent->bus == DEV_BUS_PCI);
-
   ns16550_state_t *ns16550 = dev->state;
 
   ringbuf_init(&ns16550->rx_buf, kmalloc(M_DEV, UART_BUFSIZE, M_ZERO),
