@@ -115,11 +115,11 @@ typedef struct tmpfs_node {
   };
 } tmpfs_node_t;
 
-enum tmpfs_time_type {
+typedef enum {
   TMPFS_UPDATE_ATIME = 1,
   TMPFS_UPDATE_MTIME = 2,
   TMPFS_UPDATE_CTIME = 4
-};
+} tmpfs_time_type_t;
 
 typedef STAILQ_HEAD(, mem_arena) mem_arena_list_t;
 
@@ -311,7 +311,7 @@ static blkptr_t *tmpfs_get_blk(tmpfs_node_t *v, size_t blkno);
 static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize);
 static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
                          cred_t *cred);
-static void tmpfs_update_time(tmpfs_node_t *v, enum tmpfs_time_type type);
+static void tmpfs_update_time(tmpfs_node_t *v, tmpfs_time_type_t type);
 
 /* tmpfs readdir operations */
 
@@ -999,7 +999,7 @@ static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize) {
 static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
                          cred_t *cred) {
   int err;
-  if ((err = cred_can_chtimes(v->tfn_vnode, v->tfn_uid, cred)))
+  if ((err = cred_can_utime(v->tfn_vnode, v->tfn_uid, cred)))
     return err;
 
   mtx_lock(&v->tfn_timelock);
@@ -1014,7 +1014,7 @@ static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
   return 0;
 }
 
-static void tmpfs_update_time(tmpfs_node_t *v, enum tmpfs_time_type type) {
+static void tmpfs_update_time(tmpfs_node_t *v, tmpfs_time_type_t type) {
   timespec_t nowtm = nanotime();
 
   mtx_lock(&v->tfn_timelock);
