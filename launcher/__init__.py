@@ -59,7 +59,9 @@ CONFIG = {
     'qemu': {
         'options': [
             '-nodefaults',
-            '-icount', 'shift=3,sleep=on',
+            # Configure record/replay function for deterministic replay,
+            # refer to https://github.com/qemu/qemu/blob/master/docs/replay.txt
+            # '-icount', 'shift=3,sleep=on,rr=record,rrfile=replay.bin',
             '-kernel', '{kernel}',
             '-initrd', '{initrd}',
             '-gdb', 'tcp:127.0.0.1:{gdbport},server,wait',
