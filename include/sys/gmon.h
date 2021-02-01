@@ -113,7 +113,7 @@ extern gmonparam_t _gmonparam;
 /*
  * Possible states of profiling.
  */
-typedef enum{
+typedef enum {
   GMON_PROF_ON = 0,
   GMON_PROF_BUSY = 1,
   GMON_PROF_ERROR = 2,
