@@ -142,6 +142,7 @@ static int pit_attach(device_t *dev) {
   pit->timer = (timer_t){
     .tm_name = "i8254",
     .tm_flags = TMF_PERIODIC,
+    .tm_quality = 100,
     .tm_frequency = TIMER_FREQ,
     .tm_min_period = HZ2BT(TIMER_FREQ),
     .tm_max_period = bintime_mul(HZ2BT(TIMER_FREQ), 65536),
