@@ -8,6 +8,7 @@ from .struct import GdbStructMeta
 
 PROGRES_BAR_SIZE = 20
 
+
 def nextBar(nomin, denom, bar):
     return int(nomin * bar / denom) < int((nomin + 1) * bar / denom)
 
