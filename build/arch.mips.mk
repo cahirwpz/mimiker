@@ -19,3 +19,10 @@ CFLAGS += -DKASAN=$(KASAN)
 GCC_ABIFLAGS += -msoft-float
 CLANG_ABIFLAGS += -msoft-float
 endif
+
+ifeq ($(KERNEL), 1)
+KPROF ?= 0
+
+# Added to all files
+CFLAGS += -DKPROF=$(KPROF)
+endif
