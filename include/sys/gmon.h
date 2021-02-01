@@ -37,7 +37,7 @@
 /*
  * histogram counters are unsigned shorts (according to the kernel).
  */
-#define HISTCOUNTER unsigned short
+typedef unsigned short HISTCOUNTER;
 /*
  * fraction of text space to allocate for histogram counters here, 1/2
  */
@@ -82,20 +82,18 @@
 #define MINARCS 50
 #define MAXARCS ((1 << (unsigned int)(8 * sizeof(HISTCOUNTER))) - 2)
 
-typedef struct tostruct tostruct_t;
-struct tostruct {
+typedef struct tostruct {
   u_long selfpc;
   long count;
   u_short link;
   u_short pad;
-};
+} tostruct_t;
 
 /*
  * The profiling data structures are housed in this structure.
  */
 
-typedef struct gmonparam gmonparam_t;
-struct gmonparam {
+typedef struct gmonparam {
   int state;
   u_short *kcount;
   u_long kcountsize;
@@ -108,15 +106,18 @@ struct gmonparam {
   u_long highpc;
   u_long textsize;
   u_long hashfraction;
-};
+} gmonparam_t;
+
 extern gmonparam_t _gmonparam;
 
 /*
  * Possible states of profiling.
  */
-#define GMON_PROF_ON 0
-#define GMON_PROF_BUSY 1
-#define GMON_PROF_ERROR 2
-#define GMON_PROF_OFF 3
+typedef enum{
+  GMON_PROF_ON = 0,
+  GMON_PROF_BUSY = 1,
+  GMON_PROF_ERROR = 2,
+  GMON_PROF_OFF = 3,
+} gmon_flags_t;
 
 #endif /* !_SYS_GMON_H_ */
