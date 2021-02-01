@@ -243,6 +243,7 @@ static void run_specified_tests(const char *test) {
 }
 
 static __noreturn void ktest_end(void) {
+  intr_disable();
   for (;;)
     continue;
 }
