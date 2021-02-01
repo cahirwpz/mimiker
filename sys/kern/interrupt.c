@@ -169,16 +169,20 @@ void intr_root_claim(intr_root_filter_t filter, device_t *dev, void *arg) {
 void intr_root_handler(ctx_t *ctx) {
   assert(cpu_intr_disabled());
 
-  intr_disable();
+  thread_t *td = thread_self();
+  td->td_idnest++;
   PCPU_SET(no_switch, true);
   if (ir_filter != NULL)
     ir_filter(ctx, ir_dev, ir_arg);
   PCPU_SET(no_switch, false);
-  intr_enable();
 
   on_exc_leave();
-  if (user_mode_p(ctx))
+  if (user_mode_p(ctx)) {
+    intr_enable();
     on_user_exc_leave((mcontext_t *)ctx, NULL);
+  } else {
+    td->td_idnest--;
+  }
 }
 
 void intr_event_run_handlers(intr_event_t *ie) {
