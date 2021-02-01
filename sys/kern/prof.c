@@ -1,6 +1,7 @@
 #include <sys/param.h>
 #include <sys/prof.h>
 #include <sys/interrupt.h>
+#include <sys/klog.h>
 #include <sys/kmem.h>
 #include <sys/gmon.h>
 #include <sys/param.h>
@@ -23,6 +24,7 @@ void init_prof(void) {
   p->kcountsize = p->textsize / HISTFRACTION;
   p->hashfraction = HASHFRACTION;
   p->fromssize = p->textsize / HASHFRACTION;
+  
   p->tolimit = (p->textsize * ARCDENSITY) / 100;
   if (p->tolimit < MINARCS)
     p->tolimit = MINARCS;
@@ -34,7 +36,7 @@ void init_prof(void) {
   int aligned_size = align(size, PAGESIZE);
   profptr = kmem_alloc(aligned_size, M_NOWAIT | M_ZERO);
   if (profptr == NULL) {
-    kprintf("Not enough memory for profiling!\n");
+    klog("Not enough memory for profiling!\n");
     return;
   }
   p->tos = (tostruct_t *)profptr;
