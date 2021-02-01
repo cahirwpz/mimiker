@@ -25,6 +25,7 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
   assert(dev->bus == DEV_BUS_ISA);
 
   if (type != RT_IOPORTS) {
+    assert(type == RT_IRQ);
     device_t *idev = BUS_METHOD_PROVIDER(dev->parent, alloc_resource);
     return BUS_METHODS(idev->parent)
       .alloc_resource(idev, type, rid, start, end, size, flags);
@@ -57,16 +58,19 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
 }
 
 static int intel_isa_activate_resource(device_t *dev, resource_t *r) {
+  assert(r->r_type == RT_IOPORTS || r->r_type == RT_IRQ);
   /* Neither IRQs in general or IOports on ISA require activation */
   return 0;
 }
 
 static void intel_isa_deactivate_resource(device_t *dev, resource_t *r) {
+  assert(r->r_type == RT_IOPORTS || r->r_type == RT_IRQ);
   /* Neither IRQs in general or IOports on ISA require deactivation */
 }
 
 static void intel_isa_release_resource(device_t *dev, resource_t *r) {
   if (r->r_type != RT_IOPORTS) {
+    assert(r->r_type == RT_IRQ);
     device_t *idev = BUS_METHOD_PROVIDER(dev->parent, release_resource);
     BUS_METHODS(idev->parent).release_resource(idev, r);
     return;
