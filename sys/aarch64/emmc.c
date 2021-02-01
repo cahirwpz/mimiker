@@ -177,10 +177,10 @@ static int emmc_intr_wait(device_t * dev, uint32_t mask) {
   WITH_SPIN_LOCK(&state->slock) {
     state->intr_mask = mask;
     state->intr_response = (uint32_t)(-1);
-    while (state->intr_response == (uint32_t)(-1)); {
+    while (state->intr_response == (uint32_t)(-1)) {
       state->intr_response = (uint32_t)(-1);
       cv_wait(&state->cv_response, &state->slock);
-    };
+    }
     resp = state->intr_response;
   }
   return resp;
@@ -194,8 +194,9 @@ int emmc_status(device_t *dev, uint32_t mask) {
   resource_t *emmc = state->emmc;
   int32_t cnt = 500000;
   do {
-    emmc_intr_wait(dev, mask);
-  } while ((b_in(emmc, EMMC_STATUS) & mask) && cnt--);
+    sleep_ms(1);
+  } while ((b_in(emmc, EMMC_STATUS) & mask) && 
+           !(b_in(emmc, EMMC_INTERRUPT) & INT_ERROR_MASK) && cnt--);
   return
     (cnt <= 0 ||
       (b_in(emmc, EMMC_INTERRUPT) & INT_ERROR_MASK)) ? SD_ERROR : SD_OK;
@@ -209,27 +210,19 @@ static intr_filter_t emmc_intr_filter(void *data) {
   resource_t *emmc = state->emmc;
 
   uint32_t r, m = state->intr_mask | INT_ERROR_MASK;
-
-  /* Unexpected interrupt. */
-  if (!(b_in(emmc, EMMC_INTERRUPT) & m))
-    return IF_STRAY;
   
   r = b_in(emmc, EMMC_INTERRUPT);
   if ((r & INT_CMD_TIMEOUT) || (r & INT_DATA_TIMEOUT)) {
-    b_out(emmc, EMMC_INTERRUPT, r);
-    cv_signal(&state->cv_response);
     state->intr_response = SD_TIMEOUT;
-    return IF_FILTERED;
   } else if (r & INT_ERROR_MASK) {
-    b_out(emmc, EMMC_INTERRUPT, r);
-    cv_signal(&state->cv_response);
     state->intr_response = SD_ERROR;
-    return IF_FILTERED;
   } else {
     state->intr_response = 0;
   }
-  b_out(emmc, EMMC_INTERRUPT, state->intr_mask);
-  cv_signal(&state->cv_response);
+  b_out(emmc, EMMC_INTERRUPT, r);
+  if (r & m) {
+    cv_signal(&state->cv_response);
+  }
   return IF_FILTERED;
 }
 
@@ -266,16 +259,16 @@ int32_t emmc_cmd(device_t *dev, uint32_t code, uint32_t arg) {
     state->sd_err = SD_TIMEOUT;
     return 0;
   }
-  // klog("EMMC: Sending command %p, arg %p\n", code, arg);
-  b_out(emmc, EMMC_INTERRUPT, b_in(emmc, EMMC_INTERRUPT));
+  klog("EMMC: Sending command %p, arg %p\n", code, arg);
+  //b_out(emmc, EMMC_INTERRUPT, b_in(emmc, EMMC_INTERRUPT));
   b_out(emmc, EMMC_ARG1, arg);
   b_out(emmc, EMMC_CMDTM, code);
   if (code == CMD_SEND_OP_COND)
-    sleep_ms(1);
+    delay(300);
+/*     sleep_ms(1000); */
   else if (code == CMD_SEND_IF_COND || code == CMD_APP_CMD)
     delay(300);                                    /* ! */
   
-  state->intr_mask = INT_CMD_DONE;
   if ((r = emmc_intr_wait(dev, INT_CMD_DONE))) {
     klog("ERROR: failed to send EMMC command\n");
     state->sd_err = r;
@@ -524,15 +517,10 @@ int32_t sd_clk(device_t *dev, uint32_t f) {
 #define GPHEN0     0x0064
 #define GPHEN1     0x0068
 
-/**
- * initialize EMMC to read SDHC card
- */
-static int emmc_init(device_t *dev) {
-  assert(dev->driver == (driver_t *)&emmc_driver);
+static void emmc_gpio_init(device_t *dev) {
   emmc_state_t *state = (emmc_state_t *)dev->state;
-  resource_t *emmc = state->emmc;
   resource_t *gpio = state->gpio;
-  int64_t r, cnt, ccs = 0;
+  int64_t r = 0;
   // GPIO_CD
   r = b_in(gpio, GPFSEL4);
   r &= ~(7 << (7 * 3));
@@ -568,6 +556,16 @@ static int emmc_init(device_t *dev) {
   delay(150);                               /* ! */
   b_out(gpio, GPPUD, 0);
   b_out(gpio, GPPUDCLK1, 0);
+}
+
+/**
+ * initialize EMMC to read SDHC card
+ */
+static int emmc_init(device_t *dev) {
+  assert(dev->driver == (driver_t *)&emmc_driver);
+  emmc_state_t *state = (emmc_state_t *)dev->state;
+  resource_t *emmc = state->emmc;
+  int64_t r, cnt, ccs = 0;
 
   state->sd_hv =
     (b_in(emmc, EMMC_SLOTISR_VER) & HOST_SPEC_NUM) >> HOST_SPEC_NUM_SHIFT;
@@ -675,11 +673,6 @@ static int emmc_init(device_t *dev) {
   return SD_OK;
 }
 
-#undef b_in
-#undef b_out
-#undef b_set
-#undef b_clr
-
 /*----------------------------------------------------------------------------*/
 
 static int emmc_probe(device_t *dev) {
@@ -705,11 +698,15 @@ static int emmc_attach(device_t *dev) {
 
   state->gpio = device_take_memory(dev, 0, RF_ACTIVE);
   state->emmc = device_take_memory(dev, 1, RF_ACTIVE);
-  state->irq = device_take_irq(dev, 2, RF_ACTIVE);
 
   spin_init(&state->slock, 0);
   cv_init(&state->cv_response, "SD card response conditional variable");
 
+  
+  b_out(state->emmc, EMMC_INTERRUPT, 0xff);
+  emmc_gpio_init(dev);
+
+  state->irq = device_take_irq(dev, 2, RF_ACTIVE);
   bus_intr_setup(dev, state->irq, emmc_intr_filter, NULL, state,
                  "e.MMMC interrupt");
 
@@ -723,6 +720,11 @@ static int emmc_attach(device_t *dev) {
 
   return 0;
 }
+
+#undef b_in
+#undef b_out
+#undef b_set
+#undef b_clr
 
 /*
 static int emmc_detach(device_t *dev) {
