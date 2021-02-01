@@ -15,11 +15,14 @@ systime_t getsystime(void) {
 
 #if KPROF
 static void statclock(void) {
+  uintptr_t pc, instr;
   gmonparam_t *g = &_gmonparam;
   thread_t *td = thread_self();
+
   if (td->td_kframe == NULL)
     return;
-  uintptr_t pc = ctx_get_pc(td->td_kframe), instr;
+
+  pc = ctx_get_pc(td->td_kframe);
   if (g->state == GMON_PROF_ON && pc >= g->lowpc) {
     instr = pc - g->lowpc;
     if (instr < g->textsize) {
