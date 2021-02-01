@@ -15,7 +15,6 @@ int test_sharing_memory_simple(void) {
   size_t pgsz = getpagesize();
   char *map =
     mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
-
   assert(map != (char *)MAP_FAILED);
 
   pid_t pid = fork();
@@ -38,7 +37,6 @@ int test_sharing_memory_child_and_grandchild(void) {
   size_t pgsz = getpagesize();
   char *map =
     mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
-
   assert(map != (char *)MAP_FAILED);
 
   pid_t pid = fork();
@@ -73,7 +71,6 @@ int test_anon_private_simple(void) {
   size_t pgsz = getpagesize();
   char *map =
     mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
-
   assert(map != (char *)MAP_FAILED);
 
   strcpy(map, "Hello, World!");
