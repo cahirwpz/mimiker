@@ -99,7 +99,7 @@ class Kgmon(SimpleCommand):
     def __call__(self, args):
         gmonparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
         gmonparam.writeheader()
-        print("\nKGMON: Tick buffer")
+        print("KGMON: Tick buffer")
         gmonparam.writetickbuffer()
         print("\nKGMON: Arc info")
         gmonparam.writearcinfo()
