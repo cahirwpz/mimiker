@@ -5,13 +5,11 @@ import pexpect
 import signal
 import sys
 import random
-import os
-from launcher import RandomPort, getvar, setvar, setboard
+from launcher import getvar, setboard
 
 
 N_SIMPLE = 10
 TIMEOUT = 40
-RETRIES_MAX = 5
 REPEAT = 5
 
 
@@ -21,16 +19,10 @@ def safe_decode(data):
     return s.replace('\r', '')
 
 
-def test_seed(seed, repeat=1, retry=0):
-    if retry == RETRIES_MAX:
-        print("Maximum retries reached, still not output received. "
-              "Test inconclusive.")
-        sys.exit(1)
-
+def test_seed(seed, repeat=1):
     print("Testing seed %u..." % seed)
     child = pexpect.spawn('./launch',
                           ['--board', getvar('board'),
-                           '--port', str(getvar('config.gdbport')),
                            '-t', 'test=all', 'klog-quiet=1',
                            'seed=%u' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact([pexpect.EOF, pexpect.TIMEOUT], timeout=TIMEOUT)
@@ -54,14 +46,9 @@ def test_seed(seed, repeat=1, retry=0):
         message = safe_decode(child.buffer)
         child.terminate(True)
         print(message)
-        if len(message) < 100:
-            print("It looks like kernel did not even start within the time "
-                  "limit. Retrying (%d)..." % (retry + 1))
-            test_seed(seed, repeat, retry + 1)
-        else:
-            print("No test result reported within timeout. Unable to verify "
-                  "test success. Seed was: %u, repeat: %d" % (seed, repeat))
-            sys.exit(1)
+        print("No test result reported within timeout. Unable to verify "
+              "test success. Seed was: %u, repeat: %d" % (seed, repeat))
+        sys.exit(1)
 
 
 def sigterm_handler(_signo, _stack_frame):
@@ -82,7 +69,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     setboard(args.board)
-    setvar('config.gdbport', RandomPort())
 
     # Run tests using n random seeds
     for i in range(0, args.times):
