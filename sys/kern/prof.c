@@ -8,10 +8,10 @@
 #include <sys/types.h>
 #include <sys/mimiker.h>
 #include <machine/vm_param.h>
+#include <sys/types.h>
 
 gmonparam_t _gmonparam = {.state = GMON_PROF_OFF};
 
-#if KPROF
 void init_prof(void) {
   void *profptr;
   gmonparam_t *p = &_gmonparam;
@@ -46,7 +46,3 @@ void init_prof(void) {
   p->froms = (u_short *)profptr;
   p->state = GMON_PROF_ON;
 }
-#else
-void init_prof(void) {
-}
-#endif

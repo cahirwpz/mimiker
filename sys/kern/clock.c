@@ -29,8 +29,7 @@ static void statclock(void) {
   }
 }
 #else
-static void statclock(void) {
-}
+#define statclock() __nothing
 #endif
 
 static void clock_cb(timer_t *tm, void *arg) {
