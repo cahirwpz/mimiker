@@ -44,6 +44,7 @@ SOURCES = \
 	pipe.c \
 	pool.c \
 	proc.c \
+	prof.c \
 	pty.c \
 	ringbuf.c \
 	rman.c \
@@ -83,16 +84,6 @@ else
 # Clean dependencies without having to pass `KASAN=1` to `make clean`.
 CLEAN-FILES += .kasan.D .kasan_quar.D
 endif
-
-ifeq ($(KPROF), 1)
-SOURCES += prof.c
-
-kprof.o : CFLAGS_KPROF = 
-else
-# Clean dependencies without having to pass `KPROF=1` to `make clean`.
-CLEAN-FILES += .prof.D 
-endif
-
 
 FORMAT-EXCLUDE = sysent.h
 
