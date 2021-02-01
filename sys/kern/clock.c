@@ -9,6 +9,7 @@
 
 static systime_t now = 0;
 static timer_t *clock = NULL;
+
 systime_t getsystime(void) {
   return now;
 }
@@ -42,6 +43,7 @@ static void clock_cb(timer_t *tm, void *arg) {
   callout_process(now);
   sched_clock();
 }
+
 void init_clock(void) {
   clock = tm_reserve(NULL, TMF_PERIODIC);
   if (clock == NULL)
