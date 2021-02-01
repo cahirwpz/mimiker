@@ -119,4 +119,4 @@ extern gmonparam_t _gmonparam;
 #define GMON_PROF_ERROR 2
 #define GMON_PROF_OFF 3
 
-#endif /* !_SYS_GMON_H_ */ 
+#endif /* !_SYS_GMON_H_ */
