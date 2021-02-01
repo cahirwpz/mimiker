@@ -375,3 +375,7 @@ typedef struct {
 typedef struct {
   SYSCALLARG(char *) name;
 } setlogin_args_t;
+
+typedef struct {
+  SYSCALLARG(int) flags;
+} posix_openpt_args_t;
