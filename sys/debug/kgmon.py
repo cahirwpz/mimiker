@@ -7,7 +7,7 @@ from .cmd import SimpleCommand
 from .struct import GdbStructMeta
 
 PROGRES_BAR_SIZE = 20
-
+OFILE = "gmon.out"
 
 def nextBar(nomin, denom, bar):
     return int(nomin * bar / denom) < int((nomin + 1) * bar / denom)
@@ -48,8 +48,7 @@ class GmonParam(metaclass=GdbStructMeta):
         gmonhdr.spare[1] = 0
         gmonhdr.spare[2] = 0
         gmonhdr.profrate = 1000
-        ofile = "gmon.out"
-        with open(ofile, "wb") as of:
+        with open(OFILE, "wb") as of:
             of.write(gmonhdr)
 
     def writetickbuffer(self):
@@ -59,8 +58,7 @@ class GmonParam(metaclass=GdbStructMeta):
                 print("X", end='')
                 sys.stdout.flush()
             kcount = gdb.parse_and_eval('_gmonparam.kcount[' + str(i) + ']')
-            ofile = "gmon.out"
-            with open(ofile, "ab") as of:
+            with open(OFILE, "ab") as of:
                 of.write(c_ushort(kcount))
 
     def writearcinfo(self):
@@ -84,8 +82,7 @@ class GmonParam(metaclass=GdbStructMeta):
                 rawarc.raw_frompc = frompc
                 rawarc.raw_selfpc = gdb.parse_and_eval(prefix + 'selfpc')
                 rawarc.raw_count = gdb.parse_and_eval(prefix + 'count')
-                ofile = "gmon.out"
-                with open(ofile, "ab") as of:
+                with open(OFILE, "ab") as of:
                     of.write(rawarc)
                 toindex = gdb.parse_and_eval(prefix + 'link')
 
