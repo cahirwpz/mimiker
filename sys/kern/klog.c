@@ -51,7 +51,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
                  const char *format, uintptr_t arg1, uintptr_t arg2,
                  uintptr_t arg3, uintptr_t arg4, uintptr_t arg5,
                  uintptr_t arg6) {
-  if (!(KL_MASK(origin) & klog.mask))
+  if (!(KL_MASK(origin) & atomic_load(&klog.mask)))
     return;
 
   klog_entry_t *entry;
@@ -111,13 +111,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
 }
 
 unsigned klog_setmask(unsigned newmask) {
-  unsigned oldmask;
-
-  WITH_SPIN_LOCK (&klog_lock) {
-    oldmask = klog.mask;
-    klog.mask = newmask;
-  }
-  return oldmask;
+  return atomic_exchange(&klog.mask, newmask);
 }
 
 void klog_dump(void) {

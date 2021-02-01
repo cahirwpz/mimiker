@@ -80,7 +80,7 @@ int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode) {
   accmode_t granted = 0;
 
   if (cred->cr_euid == 0) {
-    granted |= VREAD | VWRITE;
+    granted |= VREAD | VWRITE | VADMIN;
     /* root has exec permission when:
      *   - file is directory
      *   - at least one exec bit is se
@@ -92,6 +92,7 @@ int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode) {
   }
 
   if (cred->cr_euid == va->va_uid) {
+    granted |= VADMIN;
     if (va->va_mode & S_IRUSR)
       granted |= VREAD;
     if (va->va_mode & S_IWUSR)
