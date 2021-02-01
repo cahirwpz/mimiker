@@ -377,6 +377,10 @@ typedef struct {
 } setlogin_args_t;
 
 typedef struct {
+  SYSCALLARG(int) flags;
+} posix_openpt_args_t;
+
+typedef struct {
   SYSCALLARG(int) fd;
   SYSCALLARG(const struct timespec *) times;
 } futimens_args_t;

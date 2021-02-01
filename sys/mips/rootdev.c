@@ -153,7 +153,6 @@ static int rootdev_attach(device_t *bus) {
 
   /* Create GT PCI device and assign resources to it. */
   dev = device_add_child(bus, 1);
-  dev->bus = DEV_BUS_PCI;
   dev->devclass = &DEVCLASS(pci);
   /* PCI I/O memory. */
   device_add_memory(dev, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_SIZE);

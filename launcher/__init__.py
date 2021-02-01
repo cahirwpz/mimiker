@@ -42,7 +42,7 @@ CONFIG = {
     'board': 'malta',
     'config': {
         'debug': False,
-        'gdbport': None,
+        'gdbport': RandomPort(),
         'graphics': False,
         'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
@@ -59,7 +59,9 @@ CONFIG = {
     'qemu': {
         'options': [
             '-nodefaults',
-            '-icount', 'shift=3,sleep=on',
+            # Configure record/replay function for deterministic replay,
+            # refer to https://github.com/qemu/qemu/blob/master/docs/replay.txt
+            # '-icount', 'shift=3,sleep=on,rr=record,rrfile=replay.bin',
             '-kernel', '{kernel}',
             '-initrd', '{initrd}',
             '-gdb', 'tcp:127.0.0.1:{gdbport},server,wait',
@@ -101,10 +103,8 @@ CONFIG = {
         ],
         'extra-options': [],
         'post-options': [
-            '-ex=set confirm yes',
             '-ex=source .gdbinit',
             '-ex=continue',
-            '{elf}'
         ],
         'board': {
             'malta': {
@@ -183,14 +183,15 @@ class Launchable():
         self.process = subprocess.Popen([self.cmd] + self.options,
                                         start_new_session=False)
 
-    # Returns true iff the process terminated
+    # Returns exit code iff the process terminated
     def wait(self, timeout=None):
         if self.process is None:
             return False
         # Throws exception on timeout
         self.process.wait(timeout)
+        rc = self.process.returncode
         self.process = None
-        return True
+        return rc
 
     def stop(self):
         if self.process is not None:
@@ -247,27 +248,12 @@ class QEMU(Launchable):
 
 
 class GDB(Launchable):
-    def __init__(self, name=None, cmd=None):
-        super().__init__(name or 'gdb', cmd or getvar('gdb.binary'))
-        # gdbtui & cgdb output is garbled if there is no delay
-        self.cmd = 'sleep 0.25 && ' + self.cmd
+    def __init__(self):
+        super().__init__('gdb', getvar('gdb.binary'))
 
-        if self.name == 'gdb':
-            self.options += ['-ex=set prompt \033[35;1m(gdb) \033[0m']
         self.options += getopts(
                 'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
-
-
-class GDBTUI(GDB):
-    def __init__(self):
-        super().__init__('gdbtui')
-        self.options = ['-tui']
-
-
-class CGDB(GDB):
-    def __init__(self):
-        super().__init__('cgdb', 'cgdb')
-        self.options = ['-d', getvar('gdb.binary')]
+        self.options.append(getvar('config.elf'))
 
 
 class SOCAT(Launchable):
@@ -281,6 +267,5 @@ class SOCAT(Launchable):
         self.options = [stdio_opt, f'tcp:localhost:{tcp_port},retry,forever']
 
 
-Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
-__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'Debuggers',
-           'RandomPort', 'getvar', 'setvar', 'setboard']
+__all__ = ['Launchable', 'QEMU', 'GDB', 'SOCAT',
+           'getvar', 'setvar', 'setboard']
