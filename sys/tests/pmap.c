@@ -115,7 +115,11 @@ static int test_pmap_page_copy(void) {
   return KTEST_SUCCESS;
 }
 
+#ifdef __mips__
 KTEST_ADD(pmap_kenter, test_pmap_kenter, 0);
+#else
+KTEST_ADD(pmap_kenter, test_pmap_kenter, KTEST_FLAG_BROKEN);
+#endif
 KTEST_ADD(pmap_kextract, test_pmap_kextract, 0);
 KTEST_ADD(pmap_page_copy, test_pmap_page_copy, 0);
 
@@ -205,4 +209,8 @@ static int test_rmbits(void) {
 }
 
 KTEST_ADD(pmap_user, test_user_pmap, 0);
+#ifdef __mips__
 KTEST_ADD(pmap_rmbits, test_rmbits, 0);
+#else
+KTEST_ADD(pmap_rmbits, test_rmbits, KTEST_FLAG_BROKEN);
+#endif
