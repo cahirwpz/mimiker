@@ -34,8 +34,6 @@
 #ifndef _SYS_GMON_H_
 #define _SYS_GMON_H_
 
-#include <machine/profile.h>
-
 /*
  * histogram counters are unsigned shorts (according to the kernel).
  */
