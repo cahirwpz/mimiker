@@ -32,9 +32,8 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
 
   assert(start >= IO_ICUSIZE);
 
-  rman_t *rman = NULL;
   intel_isa_state_t *isa = dev->parent->state;
-  rman = &isa->io_rman;
+  rman_t *rman = &isa->io_rman;
   bus_space_handle_t bh = isa->io->r_bus_handle;
 
   resource_t *r =
