@@ -2,9 +2,9 @@
 #define _SYS_TYPES_H_
 
 #include <sys/cdefs.h>
+#include <endian.h>
 #include <stdint.h> /* uint*_t, int*_t */
 #include <stddef.h> /* offsetof, NULL, ptrdiff_t, size_t, etc. */
-#include <endian.h>
 #include <machine/types.h>
 
 #define NBBY 8 /* number of bits per byte */

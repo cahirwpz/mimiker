@@ -89,7 +89,14 @@ struct cdbr *cdbr_open(const char *path, int flags) {
     return NULL;
   }
 
+#ifdef __clang__
+#pragma GCC diagnostic ignored "-Wtautological-constant-out-of-range-compare"
+#else
+#pragma GCC diagnostic ignored "-Wtype-limits"
+#endif
+#pragma GCC diagnostic push
   if (sb.st_size >= SSIZE_MAX) {
+#pragma GCC diagnostic pop
     close(fd);
     SET_ERRNO(EINVAL);
     return NULL;
