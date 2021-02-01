@@ -4,7 +4,6 @@
 #include <dev/isareg.h>
 #include <sys/pci.h>
 #include <sys/interrupt.h>
-#include <sys/klog.h>
 #include <sys/timer.h>
 #include <sys/devclass.h>
 
@@ -12,9 +11,12 @@ typedef struct pit_state {
   resource_t *regs;
   resource_t *irq_res;
   timer_t timer;
-  uint16_t period_cntr;      /* period as PIT counter value */
-  uint16_t cntr16_prev_read; /* last read counter value */
-  timercntr_t cntr64;        /* counter value since timer initialization */
+  uint16_t period_ticks; /* number of PIT ticks in full period */
+  uint32_t prev_ticks;   /* number of ticks since last interrupt */
+  uint32_t prev_period;  /* number of periods (in ticks) since last interrupt */
+  /* time of last interrupt counted from timer start */
+  uint32_t last_irq_ticks; /* [0, TIMER_FREQ) fractional part of a second */
+  uint32_t last_irq_sec;   /* seconds */
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
@@ -22,45 +24,57 @@ typedef struct pit_state {
 
 static void pit_set_frequency(pit_state_t *pit) {
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_16BIT | TIMER_RATEGEN);
-  outb(TIMER_CNTR0, pit->period_cntr & 0xff);
-  outb(TIMER_CNTR0, pit->period_cntr >> 8);
+  outb(TIMER_CNTR0, pit->period_ticks & 0xff);
+  outb(TIMER_CNTR0, pit->period_ticks >> 8);
 }
 
-static uint16_t pit_get_counter16(pit_state_t *pit) {
-  uint16_t count = 0;
+/* Returns value in range [0, pit->period_ticks) */
+static uint32_t pit_get_counter(pit_state_t *pit) {
+  assert(intr_disabled());
+
+  uint32_t cntr = 0;
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
-  count |= inb(TIMER_CNTR0);
-  count |= inb(TIMER_CNTR0) << 8;
-  return count;
+  cntr |= inb(TIMER_CNTR0);
+  cntr |= inb(TIMER_CNTR0) << 8;
+  /* PIT counter counts from `period_ticks` to 1 and when it reaches 1
+   * an interrupt is triggered and the counter starts from the beginning. */
+  return pit->period_ticks - cntr;
 }
 
-static uint64_t pit_get_counter64(pit_state_t *pit) {
-  SCOPED_INTR_DISABLED();
-  uint16_t cntr16_now = pit_get_counter16(pit);
-  /* PIT counter counts from n to 1 and when we get to 1 an interrupt
-     is send and the counter starts from the beginning (n = pit->period_cntr).
-     We do not guarantee that we will not miss the whole period (n ticks) */
-  uint16_t ticks = pit->cntr16_prev_read - cntr16_now;
-  if (pit->cntr16_prev_read < cntr16_now)
-    ticks += pit->period_cntr;
+/* We will not lose counter overflows if the time (in ticks) between
+ * consecutive calls to this procedure is less or equal to `period_ticks`. */
+static void pit_get_ticks(pit_state_t *pit) {
+  uint32_t now = pit_get_counter(pit);
 
-  /* We want to keep the last read counter value to detect possible future
-   * overflows of our counter */
-  pit->cntr16_prev_read = cntr16_now;
+  /* Counter overflow detection. */
+  if (pit->prev_ticks > now + pit->prev_period)
+    pit->prev_period += pit->period_ticks;
 
-  uint32_t oldlow = pit->cntr64.lo;
-  pit->cntr64.lo += ticks;
-  if (oldlow > oldlow + ticks)
-    pit->cntr64.hi++;
+  now += pit->prev_period;
 
-  return pit->cntr64.val;
+  assert(pit->prev_ticks <= now);
+
+  pit->prev_ticks = now;
 }
 
 static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
   /* XXX: It's still possible for a tick to be lost. */
-  (void)pit_get_counter64(pit);
+  pit_get_ticks(pit);
+
+  /* Update the time of last interrupt. */
+  pit->last_irq_ticks += pit->prev_period;
+  pit->prev_ticks -= pit->prev_period;
+  pit->prev_period = 0;
+
+  if (pit->last_irq_ticks >= TIMER_FREQ) {
+    pit->last_irq_ticks -= TIMER_FREQ;
+    pit->last_irq_sec++;
+
+    assert(pit->last_irq_ticks < TIMER_FREQ);
+  }
+
   tm_trigger(&pit->timer);
   return IF_FILTERED;
 }
@@ -77,13 +91,15 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
 
-  uint32_t counter = bintime_mul(period, TIMER_FREQ).sec;
+  uint32_t period_ticks = bintime_mul(period, TIMER_FREQ).sec;
   /* Maximal counter value which we can store in pit timer */
-  assert(counter <= 0xFFFF);
+  assert(period_ticks <= 0xFFFF);
 
-  pit->cntr64.val = 0;
-  pit->cntr16_prev_read = 0;
-  pit->period_cntr = counter;
+  pit->prev_ticks = 0;
+  pit->prev_period = 0;
+  pit->last_irq_sec = 0;
+  pit->last_irq_ticks = 0;
+  pit->period_ticks = period_ticks;
 
   pit_set_frequency(pit);
 
@@ -98,14 +114,19 @@ static int timer_pit_stop(timer_t *tm) {
   return 0;
 }
 
+/* gettime is on HOT PATH, so it must do as little as possible! */
 static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  uint64_t count = pit_get_counter64(pit);
-  uint32_t freq = pit->timer.tm_frequency;
-  uint32_t sec = count / freq;
-  uint32_t frac = count % freq;
-  bintime_t bt = bintime_mul(HZ2BT(freq), frac);
+  uint32_t ticks, sec;
+
+  WITH_INTR_DISABLED {
+    pit_get_ticks(pit);
+    ticks = pit->last_irq_ticks + pit->prev_ticks;
+    sec = pit->last_irq_sec;
+  }
+
+  bintime_t bt = bintime_mul(HZ2BT(TIMER_FREQ), ticks);
   bt.sec += sec;
   return bt;
 }
