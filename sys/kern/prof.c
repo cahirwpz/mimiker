@@ -17,7 +17,6 @@ void init_prof(void) {
 
   p->lowpc = rounddown((unsigned long)__kernel_start,
                        HISTFRACTION * sizeof(HISTFRACTION));
-  /* TODO: Get the compiled kernel space end (kernel text end) */
   p->highpc =
     roundup((unsigned long)__etext, HISTFRACTION * sizeof(HISTFRACTION));
   p->textsize = p->highpc - p->lowpc;
