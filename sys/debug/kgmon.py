@@ -1,9 +1,15 @@
 import gdb
+import sys
 
 
 from ctypes import *
 from .cmd import SimpleCommand
 from .struct import GdbStructMeta
+
+PROGRES_BAR_SIZE = 20
+
+def nextBar(nomin, denom, bar):
+    return int(nomin * bar / denom) < int((nomin + 1) * bar / denom)
 
 
 class RawArc(Structure):
@@ -46,9 +52,12 @@ class GmonParam(metaclass=GdbStructMeta):
             of.write(gmonhdr)
 
     def writetickbuffer(self):
-        for i in range(self.kcountsize):
+        kcountsize = self.kcountsize
+        for i in range(kcountsize):
+            if nextBar(i, kcountsize, PROGRES_BAR_SIZE):
+                print("X", end='')
+                sys.stdout.flush()
             kcount = gdb.parse_and_eval('_gmonparam.kcount[' + str(i) + ']')
-            print(i)
             ofile = "gmon.out"
             with open(ofile, "ab") as of:
                 of.write(c_ushort(kcount))
@@ -59,7 +68,9 @@ class GmonParam(metaclass=GdbStructMeta):
         endfrom = self.fromssize / sizeoffroms_p
 
         for fromindex in range(endfrom):
-            print(f"from {fromindex} to {endfrom}")
+            if nextBar(fromindex, endfrom, PROGRES_BAR_SIZE):
+                print("X", end='')
+                sys.stdout.flush()
             froms = gdb.parse_and_eval(f'_gmonparam.froms[{fromindex}]')
             if froms == 0:
                 continue
@@ -79,7 +90,7 @@ class GmonParam(metaclass=GdbStructMeta):
 
 
 class Kgmon(SimpleCommand):
-    """Dump the data to kgmon.out"""
+    """Dump the data to gmon.out"""
 
     def __init__(self):
         super().__init__('kgmon')
@@ -87,7 +98,8 @@ class Kgmon(SimpleCommand):
     def __call__(self, args):
         gmonparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
         gmonparam.writeheader()
+        print("\nKGMON: Tick buffer")
         gmonparam.writetickbuffer()
+        print("\nKGMON: Arc info")
         gmonparam.writearcinfo()
-
-        print('Wywołano kgmon :)')
+        print("\nKGMON: Finished")
