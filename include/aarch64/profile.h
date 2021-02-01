@@ -40,7 +40,7 @@ void __cyg_profile_func_exit(void *this_fn, void *call_site)
  * prologue.
  */
 
-#define MCOUNT_ASM_NAME "__mcount"
+#define MCOUNT_ASM_NAME "_cyg_profile_func_enter"
 
 #define MCOUNT                                                                 \
   __asm(".text");                                                              \
