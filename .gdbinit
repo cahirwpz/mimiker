@@ -11,6 +11,7 @@ python import debug
 
 # favorite set of breakpoints
 break kernel_init
+break ktest_success
 break assert_fail
 break panic_fail
 
