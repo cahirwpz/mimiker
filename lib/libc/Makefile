@@ -12,7 +12,7 @@ CPPFLAGS = -I$(CURDIR) \
 	   -I$(CURDIR)/stdlib \
 	   -D_LIBC -DNO_FENV_H
 
-SUBLIBS = citrus gdtoa gen locale misc regex quad \
+SUBLIBS = cdb citrus gdtoa gen locale misc regex quad \
 	  stdio stdlib string sys termios time
 
 SOURCES = $(foreach dir, $(SUBLIBS), \

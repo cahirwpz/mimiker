@@ -91,4 +91,4 @@ static int test_producer_consumer(void) {
   return KTEST_FAILURE;
 }
 
-KTEST_ADD(producer_consumer, test_producer_consumer, KTEST_FLAG_NORETURN);
+KTEST_ADD(producer_consumer, test_producer_consumer, KTEST_FLAG_BROKEN);
