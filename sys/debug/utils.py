@@ -1,6 +1,5 @@
 import gdb
 import os
-import os.path
 import re
 import shutil
 import texttable
@@ -19,7 +18,7 @@ def global_var(name):
 
 
 def relpath(path):
-    cwd = os.path.dirname(gdb.current_progspace().filename)
+    cwd = os.getcwd() + '/sys'
     if path.startswith(cwd):
         n = len(cwd) + 1
         path = path[n:]
