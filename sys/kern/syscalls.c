@@ -1113,8 +1113,10 @@ static int sys_futimens(proc_t *p, futimens_args_t *args, register_t *res) {
 
   klog("futimens(%d, %x)", fd, u_times);
 
-  if ((error = copyin_s(u_times, times)))
-    return error;
+  if (u_times != NULL) {
+    if ((error = copyin_s(u_times, times)))
+      return error;
+  }
 
   return do_futimens(p, fd, times);
 }
@@ -1134,8 +1136,10 @@ static int sys_utimensat(proc_t *p, utimensat_args_t *args, register_t *res) {
 
   klog("utimensat(%d, \"%s\", %x, %d)", fd, path, u_times, flag);
 
-  if ((error = copyin_s(u_times, times)))
-    goto end;
+  if (u_times != NULL) {
+    if ((error = copyin_s(u_times, times)))
+      goto end;
+  }
 
   error = do_utimensat(p, fd, path, times, flag);
 
