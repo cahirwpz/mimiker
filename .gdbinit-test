@@ -13,9 +13,10 @@ python import debug
 break panic_fail
 commands
 info registers
-cpu tlb
+# cpu tlb # XXX it sometimes hangs
 backtrace full
 kthread
+kproc
 klog
 kill
 quit 1
