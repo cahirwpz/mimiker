@@ -15,7 +15,7 @@ commands
 info registers
 # cpu tlb # XXX it sometimes hangs
 backtrace full
-kthread
+kthread *
 kproc
 klog
 kill
