@@ -69,7 +69,10 @@ typedef enum {
 #define TDF_SLPTIMED 0x00000080 /* sleep with timeout */
 
 typedef enum {
-  TDP_OLDSIGMASK = 0x01 /* Pass td_oldsigmask as return mask to send_sig(). */
+  TDP_OLDSIGMASK = 0x01,  /* Pass td_oldsigmask as return mask to send_sig(). */
+  TDP_FPUCTXSAVED = 0x02, /* FPU context was saved by `ctx_switch`. */
+  TDP_FPUINUSE = 0x04     /* FPU is in use and its context should be saved &
+                              restored on demand. */
 } tdp_flags_t;
 
 /*! \brief Thread structure
@@ -111,7 +114,7 @@ typedef struct thread {
   /* thread context */
   volatile unsigned td_idnest; /*!< (*) interrupt disable nest level */
   volatile unsigned td_pdnest; /*!< (*) preemption disable nest level */
-  user_ctx_t *td_uctx;         /*!< (*) user context (full exc. frame) */
+  mcontext_t *td_uctx;         /*!< (*) user context (full exc. frame) */
   ctx_t *td_kframe;            /*!< (*) kernel context (last trap frame) */
   ctx_t *td_kctx;              /*!< (*) kernel context (switch) */
   intptr_t td_onfault;         /*!< (*) PC for copyin/copyout faults */

@@ -23,6 +23,7 @@
 #include <sys/thread.h>
 #include <sys/cred.h>
 #include <sys/statvfs.h>
+#include <sys/pty.h>
 
 #include "sysent.h"
 
@@ -156,10 +157,10 @@ static int sys_sigaction(proc_t *p, sigaction_args_t *args, register_t *res) {
   return error;
 }
 
-/* TODO: handle ucontext argument */
 static int sys_sigreturn(proc_t *p, sigreturn_args_t *args, register_t *res) {
-  klog("sigreturn()");
-  return do_sigreturn();
+  ucontext_t *ucp = SCARG(args, sigctx_p);
+  klog("sigreturn(%p)", ucp);
+  return do_sigreturn(ucp);
 }
 
 static int sys_mmap(proc_t *p, mmap_args_t *args, register_t *res) {
@@ -349,7 +350,7 @@ static int sys_mount(proc_t *p, mount_args_t *args, register_t *res) {
 
   klog("mount(\"%s\", \"%s\")", path, type);
 
-  error = do_mount(type, path);
+  error = do_mount(p, type, path);
 end:
   kfree(M_TEMP, type);
   kfree(M_TEMP, path);
@@ -389,7 +390,7 @@ static int sys_dup2(proc_t *p, dup2_args_t *args, register_t *res) {
 }
 
 static int sys_fcntl(proc_t *p, fcntl_args_t *args, register_t *res) {
-  int error, value;
+  int error, value = 0;
   klog("fcntl(%d, %d, %ld)", SCARG(args, fd), SCARG(args, cmd),
        (long)SCARG(args, arg));
   error = do_fcntl(p, SCARG(args, fd), SCARG(args, cmd), (long)SCARG(args, arg),
@@ -530,14 +531,25 @@ static int sys_clock_nanosleep(proc_t *p, clock_nanosleep_args_t *args,
                                register_t *res) {
   clockid_t clock_id = SCARG(args, clock_id);
   int flags = SCARG(args, flags);
+  /* u_ - user, rm - remaining, rq - requested, t - time, p - pointer */
   const timespec_t *u_rqtp = SCARG(args, rqtp);
-  timespec_t rqtp;
-  int error;
+  timespec_t *u_rmtp = SCARG(args, rmtp);
+  timespec_t rqtp, rmtp;
+  int error, copy_err;
 
   if ((error = copyin_s(u_rqtp, rqtp)))
     return error;
 
-  return do_clock_nanosleep(clock_id, flags, &rqtp, NULL);
+  error = do_clock_nanosleep(clock_id, flags, &rqtp, u_rmtp ? &rmtp : NULL);
+
+  if (u_rmtp == NULL || (error != 0 && error != EINTR))
+    return error;
+
+  /*  TIMER_ABSTIME - sleep to an absolute deadline */
+  if ((flags & TIMER_ABSTIME) == 0 && (copy_err = copyout_s(rmtp, u_rmtp)))
+    return copy_err;
+
+  return error;
 }
 
 static int sys_sigaltstack(proc_t *p, sigaltstack_args_t *args,
@@ -1081,4 +1093,14 @@ static int sys_setlogin(proc_t *p, setlogin_args_t *args, register_t *res) {
     return (error == ENAMETOOLONG ? EINVAL : error);
 
   return do_setlogin(login_tmp);
+}
+
+static int sys_posix_openpt(proc_t *p, posix_openpt_args_t *args,
+                            register_t *res) {
+
+  int flags = SCARG(args, flags);
+
+  klog("posix_openpt(0x%x)", flags);
+
+  return do_posix_openpt(p, flags, res);
 }

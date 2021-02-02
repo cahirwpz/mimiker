@@ -95,7 +95,7 @@ bool intr_disabled(void);
        __UNIQUE(__loop); __UNIQUE(__loop) = NULL)
 
 int copystr(const void *restrict kfaddr, void *restrict kdaddr, size_t len,
-            size_t *restrict lencopied) __nonnull(1) __nonnull(2);
+            size_t *restrict lencopied) __nonnull(1) __nonnull(2) __no_sanitize;
 int copyinstr(const void *restrict udaddr, void *restrict kaddr, size_t len,
               size_t *restrict lencopied) __nonnull(1) __nonnull(2);
 int copyin(const void *restrict udaddr, void *restrict kaddr, size_t len)

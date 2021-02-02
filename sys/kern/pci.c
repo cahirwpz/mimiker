@@ -5,7 +5,10 @@
 #include <sys/pci.h>
 #include <dev/isareg.h>
 
-/* For reference look at: http://wiki.osdev.org/PCI */
+/* For reference look at:
+ *   http://wiki.osdev.org/PCI
+ *   https://lekensteyn.nl/files/docs/PCI_SPEV_V3_0.pdf
+ */
 
 static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
                                             uint16_t device_id) {
@@ -31,22 +34,39 @@ static const pci_vendor_id *pci_find_vendor(uint16_t vendor_id) {
 }
 
 static bool pci_device_present(device_t *pcid) {
-  return pci_read_config(pcid, PCIR_DEVICEID, 4) != -1U;
+  return pci_read_config_4(pcid, PCIR_DEVICEID) != -1U;
 }
 
 static int pci_device_nfunctions(device_t *pcid) {
+  /* If first function of a device is invalid, then
+   * no more functions are present. */
   if (!pci_device_present(pcid))
     return 0;
-  uint32_t hdrtype = pci_read_config(pcid, PCIR_HEADERTYPE, 1);
+  uint8_t hdrtype = pci_read_config_1(pcid, PCIR_HEADERTYPE);
   return (hdrtype & PCIH_HDR_MF) ? PCI_FUN_MAX_NUM : 1;
 }
 
-static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t addr) {
-  pci_write_config(pcid, PCIR_BAR(bar), 4, -1U);
-  uint32_t res = pci_read_config(pcid, PCIR_BAR(bar), 4);
+static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
+  /* Memory and I/O space accesses must be disabled via the
+   * command register before sizing a Base Address Register. */
+  uint16_t cmd = pci_read_config_2(pcid, PCIR_COMMAND);
+  pci_write_config_2(pcid, PCIR_COMMAND,
+                     cmd & ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN));
+
+  uint32_t old = pci_read_config_4(pcid, PCIR_BAR(bar));
+  /* XXX: we don't handle 64-bit memory space bars. */
+
+  /* If we write 0xFFFFFFFF to a BAR register and then read
+   * it back, we'll get a bar size indicator. */
+  pci_write_config_4(pcid, PCIR_BAR(bar), -1);
+  uint32_t size = pci_read_config_4(pcid, PCIR_BAR(bar));
+
   /* The original value of the BAR should be restored. */
-  pci_write_config(pcid, PCIR_BAR(bar), 4, addr);
-  return res;
+  pci_write_config_4(pcid, PCIR_BAR(bar), old);
+  pci_write_config_2(pcid, PCIR_COMMAND, cmd);
+
+  *addr = old;
+  return size;
 }
 
 DEVCLASS_CREATE(pci);
@@ -85,17 +105,17 @@ void pci_bus_enumerate(device_t *pcib) {
       dev->instance = pcid;
 
       pcid->addr = PCIA(0, d, f);
-      pcid->device_id = pci_read_config(dev, PCIR_DEVICEID, 2);
-      pcid->vendor_id = pci_read_config(dev, PCIR_VENDORID, 2);
-      pcid->class_code = pci_read_config(dev, PCIR_CLASSCODE, 1);
-      pcid->pin = pci_read_config(dev, PCIR_IRQPIN, 1);
-      pcid->irq = pci_read_config(dev, PCIR_IRQLINE, 1);
+      pcid->device_id = pci_read_config_2(dev, PCIR_DEVICEID);
+      pcid->vendor_id = pci_read_config_2(dev, PCIR_VENDORID);
+      pcid->class_code = pci_read_config_1(dev, PCIR_CLASSCODE);
+      pcid->pin = pci_read_config_1(dev, PCIR_IRQPIN);
+      pcid->irq = pci_read_config_1(dev, PCIR_IRQLINE);
 
       /* XXX: we assume here that `dev` is a general PCI device
        * (i.e. header type = 0x00) and therefore has six bars. */
       for (int i = 0; i < PCI_BAR_MAX; i++) {
-        uint32_t addr = pci_read_config(dev, PCIR_BAR(i), 4);
-        uint32_t size = pci_bar_size(dev, i, addr);
+        uint32_t addr;
+        uint32_t size = pci_bar_size(dev, i, &addr);
 
         if (size == 0 || addr == size)
           continue;
@@ -113,6 +133,13 @@ void pci_bus_enumerate(device_t *pcib) {
         }
 
         size = -size;
+        /* PCI specification 3.0, chapter 6.2.5.1 states:
+         * Devices are free to consume more address space than required,
+         * but decoding down to a 4 KB space for memory is suggested for
+         * devices that need less than that amount. */
+        if (type == RT_MEMORY)
+          size = roundup(size, PAGESIZE);
+
         pcid->bar[i] = (pci_bar_t){
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
 
@@ -120,6 +147,13 @@ void pci_bus_enumerate(device_t *pcib) {
         rman_addr_t start = (type == RT_IOPORTS) ? (IO_ISAEND + 1) : 0;
 
         device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size, flags);
+      }
+      if (pcid->pin) {
+        int irq = pci_route_interrupt(dev);
+        assert(irq != -1);
+        device_add_irq(dev, 0, irq);
+        pci_write_config_1(dev, PCIR_IRQLINE, irq);
+        pcid->irq = irq;
       }
     }
   }

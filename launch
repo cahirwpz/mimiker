@@ -4,6 +4,7 @@ import argparse
 import os
 import os.path
 import subprocess
+import signal
 import sys
 
 from launcher import *
@@ -12,22 +13,15 @@ from launcher import *
 TMUX_CONF = './.tmux.conf'
 
 
-def TestRun(sim, uarts):
+def TestRun(sim, dbg):
     sim.run()
-    for uart in uarts:
-        uart.run()
-
-    try:
-        Launchable.wait_any([sim] + uarts)
-    except KeyboardInterrupt:
-        pass
-
-    for uart in reversed(uarts):
-        uart.stop()
+    dbg.run()
+    rc = dbg.wait()
     sim.stop()
+    sys.exit(rc)
 
 
-def DevelRun(sim, dbg, uarts):
+def DevelRun(sim, dbg):
     from libtmux import Server, Session
 
     subprocess.run(['tmux', '-f', TMUX_CONF, '-L', 'mimiker', 'start-server'])
@@ -39,6 +33,9 @@ def DevelRun(sim, dbg, uarts):
 
     session = server.new_session(session_name='mimiker', attach=False,
                                  window_name=':0', window_command='sleep 1')
+
+    uarts = [SOCAT(uart['name'], uart['port'], uart.get('raw', False))
+             for uart in getvar('qemu.uarts')]
 
     try:
         sim.start(session)
@@ -57,18 +54,23 @@ def DevelRun(sim, dbg, uarts):
         sim.stop()
 
 
+def sigterm_handler(_signo, _stack_frame):
+    sys.exit(1)
+
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGTERM, sigterm_handler)
+    signal.signal(signal.SIGINT, sigterm_handler)
+    signal.signal(signal.SIGHUP, sigterm_handler)
+
+    setup_terminal()
+
     parser = argparse.ArgumentParser(
         description='Launch kernel in Malta board simulator.')
     parser.add_argument('args', metavar='ARGS', type=str,
                         nargs=argparse.REMAINDER, help='Kernel arguments.')
-    parser.add_argument('-D', '--debugger', metavar='DEBUGGER', type=str,
-                        choices=Debuggers.keys(), default='gdb',
-                        help=('Run debugging sesion with selected debugger. '
-                              'Available options: %s. Default: %s.' %
-                              (', '.join(sorted(Debuggers.keys())), 'gdb')))
     parser.add_argument('-d', '--debug', action='store_true',
-                        help='Start debugging session with selected debugger.')
+                        help='Start debugging session with gdb.')
     parser.add_argument('-t', '--test-run', action='store_true',
                         help='Test-run mode: simulator output goes to stdout.')
     parser.add_argument('-g', '--graphics', action='store_true',
@@ -89,8 +91,13 @@ if __name__ == '__main__':
     if not os.path.isfile(getvar('config.kernel')):
         raise SystemExit('%s: file does not exist!' % getvar('config.kernel'))
 
+    # Create simulator launcher
+    if args.test_run:
+        setvar('qemu.uarts', [])
+
     sim = QEMU()
 
+    # Create debugger launcher
     if args.debug:
         kernel_args = {}
         for arg in args.args:
@@ -111,14 +118,14 @@ if __name__ == '__main__':
             extra = getvar('gdb.extra-options')
             extra.append(f'-ex=add-symbol-file {host_path} 0x400000')
 
-        dbg = Debuggers[args.debugger]()
+        dbg = GDB()
+    elif args.test_run:
+        setvar('gdb.post-options', ['-ex=source .gdbinit-test'])
+        dbg = GDB()
     else:
         dbg = None
 
-    uarts = [SOCAT(uart['name'], uart['port'], uart.get('raw', False))
-             for uart in getvar('qemu.uarts')]
-
     if args.test_run:
-        TestRun(sim, uarts)
+        TestRun(sim, dbg)
     else:
-        DevelRun(sim, dbg, uarts)
+        DevelRun(sim, dbg)

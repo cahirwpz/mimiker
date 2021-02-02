@@ -23,8 +23,9 @@ typedef struct componentname componentname_t;
  * vnodeops should not modify attributes set to VNOVAL. */
 #define VNOVAL (-1)
 
-/* vnode access modes */
-typedef enum { VEXEC = 1, VWRITE = 2, VREAD = 4 } accmode_t;
+/* vnode access modes
+ * VADMIN - owner of file (root has VADMIN to all files) */
+typedef enum { VEXEC = 1, VWRITE = 2, VREAD = 4, VADMIN = 8 } accmode_t;
 
 typedef enum { V_NONE, V_REG, V_DIR, V_DEV, V_LNK } vnodetype_t;
 
@@ -43,7 +44,7 @@ typedef int vnode_remove_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
 typedef int vnode_mkdir_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
                           vnode_t **vp);
 typedef int vnode_rmdir_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
-typedef int vnode_access_t(vnode_t *v, accmode_t mode);
+typedef int vnode_access_t(vnode_t *v, accmode_t mode, cred_t *cred);
 typedef int vnode_ioctl_t(vnode_t *v, u_long cmd, void *data);
 typedef int vnode_reclaim_t(vnode_t *v);
 typedef int vnode_readlink_t(vnode_t *v, uio_t *uio);
@@ -179,8 +180,8 @@ static inline int VOP_RMDIR(vnode_t *dv, vnode_t *v, componentname_t *cn) {
   return VOP_CALL(rmdir, dv, v, cn);
 }
 
-static inline int VOP_ACCESS(vnode_t *v, mode_t mode) {
-  return VOP_CALL(access, v, mode);
+static inline int VOP_ACCESS(vnode_t *v, mode_t mode, cred_t *cred) {
+  return VOP_CALL(access, v, mode, cred);
 }
 
 static inline int VOP_IOCTL(vnode_t *v, u_long cmd, void *data) {
@@ -231,7 +232,7 @@ bool vnode_is_mounted(vnode_t *v);
 /* Convenience function with default vnode operation implementation. */
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff);
-int vnode_access_generic(vnode_t *v, accmode_t mode);
+int vnode_access_generic(vnode_t *v, accmode_t mode, cred_t *cred);
 
 /* Default fileops implementations for files with v-nodes. */
 int default_vnread(file_t *f, uio_t *uio);

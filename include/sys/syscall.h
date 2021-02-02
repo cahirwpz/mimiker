@@ -79,6 +79,7 @@
 #define SYS_fchownat 71
 #define SYS_getlogin 72
 #define SYS_setlogin 73
-#define SYS_MAXSYSCALL 74
+#define SYS_posix_openpt 74
+#define SYS_MAXSYSCALL 75
 
 #define SYS_MAXSYSARGS 6

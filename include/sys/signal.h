@@ -4,29 +4,30 @@
 #include <sys/sigtypes.h>
 #include <sys/siginfo.h>
 
-#define SIGHUP 1   /* hangup */
-#define SIGINT 2   /* interrupt */
-#define SIGQUIT 3  /* quit */
-#define SIGILL 4   /* illegal instruction (not reset when caught) */
-#define SIGTRAP 5  /* trace trap (not reset when caught) */
-#define SIGABRT 6  /* abort() */
-#define SIGFPE 8   /* floating point exception */
-#define SIGKILL 9  /* kill (cannot be caught or ignored) */
-#define SIGBUS 10  /* bus error */
-#define SIGSEGV 11 /* segmentation violation */
-#define SIGSYS 12  /* bad argument to system call */
-#define SIGPIPE 13 /* write on a pipe with no one to read it */
-#define SIGALRM 14 /* alarm clock */
-#define SIGTERM 15 /* software termination signal from kill */
-#define SIGSTOP 17 /* sendable stop signal not from tty */
-#define SIGTSTP 18 /* stop signal from tty */
-#define SIGCONT 19 /* continue a stopped process */
-#define SIGCHLD 20 /* to parent on child stop or exit */
-#define SIGTTIN 21 /* to readers pgrp upon background tty read */
-#define SIGTTOU 22 /* like TTIN for output if (tp->t_local&LTOSTOP) */
-#define SIGINFO 29 /* information request */
-#define SIGUSR1 30 /* user defined signal 1 */
-#define SIGUSR2 31 /* user defined signal 2 */
+#define SIGHUP 1    /* hangup */
+#define SIGINT 2    /* interrupt */
+#define SIGQUIT 3   /* quit */
+#define SIGILL 4    /* illegal instruction (not reset when caught) */
+#define SIGTRAP 5   /* trace trap (not reset when caught) */
+#define SIGABRT 6   /* abort() */
+#define SIGFPE 8    /* floating point exception */
+#define SIGKILL 9   /* kill (cannot be caught or ignored) */
+#define SIGBUS 10   /* bus error */
+#define SIGSEGV 11  /* segmentation violation */
+#define SIGSYS 12   /* bad argument to system call */
+#define SIGPIPE 13  /* write on a pipe with no one to read it */
+#define SIGALRM 14  /* alarm clock */
+#define SIGTERM 15  /* software termination signal from kill */
+#define SIGSTOP 17  /* sendable stop signal not from tty */
+#define SIGTSTP 18  /* stop signal from tty */
+#define SIGCONT 19  /* continue a stopped process */
+#define SIGCHLD 20  /* to parent on child stop or exit */
+#define SIGTTIN 21  /* to readers pgrp upon background tty read */
+#define SIGTTOU 22  /* like TTIN for output if (tp->t_local&LTOSTOP) */
+#define SIGWINCH 28 /* window size changes */
+#define SIGINFO 29  /* information request */
+#define SIGUSR1 30  /* user defined signal 1 */
+#define SIGUSR2 31  /* user defined signal 2 */
 #define NSIG 32
 
 typedef int sig_atomic_t;
@@ -80,6 +81,7 @@ typedef struct proc proc_t;
 typedef struct pgrp pgrp_t;
 typedef struct thread thread_t;
 typedef struct ctx ctx_t;
+typedef struct __ucontext ucontext_t;
 
 /*! \brief Notify the parent of a change in the child's status.
  *
@@ -105,30 +107,27 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi);
  */
 void sig_pgkill(pgrp_t *pg, ksiginfo_t *ksi);
 
-/*! \brief Determines which signal should posted to current thread.
+/*! \brief Determines which signal should be caught by current thread.
  *
- * A signal that meets one of following criteria should be posted:
- *  - has a handler registered with `sigaction`,
- *  - should cause the process to terminate,
- *  - should interrupt the current system call.
+ * Only signals with registered handlers can be caught.
+ * If this function finds a signal that should stop or kill the current process,
+ * it takes the appropriate action.
  *
  * \sa sig_post
+ * \sa proc_stop
+ * \sa sig_exit
  *
- * \returns signal number which should be posted or 0 if none */
+ * \returns signal number which should be caught or 0 if none */
 int sig_check(thread_t *td, ksiginfo_t *ksi);
 
-/*! \brief Invoke the action triggered by a signal.
+/*! \brief Do the setup necessary to catch a signal.
  *
- * If the default action for a signal is to terminate the process and
- * corresponding signal handler is not set, the process calls `sig_exit`.
- * If the signal's action is to stop the process, this procedure stops
- * the calling thread.
+ * The signal must have a registered handler.
  *
  * \note It's ok to call this procedure multiple times before returning
  * to userspace. The handlers will be called in reverse order of calls
  * to this procedure.
  * \note Must be called with current process's p_mtx acquired!
- * \sa sig_exit
  */
 void sig_post(ksiginfo_t *ksi);
 
@@ -148,10 +147,7 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi);
 /*! \brief Restore original user context after signal handler was invoked.
  *
  * \note This is machine dependent code! */
-int sig_return(void);
-
-/*! \brief Returns whether the signal's current action is to stop a process. */
-bool sig_should_stop(sigaction_t *sigactions, signo_t sig);
+int do_sigreturn(ucontext_t *ucp);
 
 /*! \brief Reset handlers for caught signals on process exec.
  *
@@ -161,7 +157,6 @@ void sig_onexec(proc_t *p);
 /* System calls implementation. */
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset);
-int do_sigreturn(void);
 int do_sigsuspend(proc_t *p, const sigset_t *mask);
 
 #endif /* !_KERNEL */

@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/libkern.h>
 #include <sys/statvfs.h>
+#include <sys/cred.h>
 
 static int vfs_nameresolveat(proc_t *p, int fdat, vnrstate_t *vs) {
   file_t *f;
@@ -33,7 +34,7 @@ static int vfs_namelookupat(proc_t *p, int fdat, uint32_t flags,
   vnrstate_t vs;
   int error;
 
-  if ((error = vnrstate_init(&vs, VNR_LOOKUP, flags, path)))
+  if ((error = vnrstate_init(&vs, VNR_LOOKUP, flags, path, &p->p_cred)))
     return error;
 
   error = vfs_nameresolveat(p, fdat, &vs);
@@ -50,23 +51,34 @@ static int vfs_truncate(vnode_t *v, size_t len, cred_t *cred) {
   return VOP_SETATTR(v, &va, cred);
 }
 
-static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
+/* This function cleans O_CREAT in flags when file is not being created. */
+static int vfs_create(proc_t *p, int fdat, char *pathname, int *flags, int mode,
                       vnode_t **vp) {
   vnrstate_t vs;
   int error;
 
-  if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, pathname)))
+  if ((error =
+         vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, pathname, &p->p_cred)))
     return error;
 
   if ((error = vfs_nameresolveat(p, fdat, &vs)))
     goto fail;
 
   if (vs.vs_vp == NULL) {
-    vattr_t va;
+    if ((error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred))) {
+      vnode_put(vs.vs_dvp);
+      goto fail;
+    }
+    vattr_t va, dva;
+    if ((error = VOP_GETATTR(vs.vs_dvp, &dva))) {
+      vnode_put(vs.vs_dvp);
+      goto fail;
+    }
+
     vattr_null(&va);
     va.va_mode = S_IFREG | (mode & ALLPERMS);
-    va.va_uid = p->p_cred.cr_ruid;
-    va.va_gid = p->p_cred.cr_rgid;
+    va.va_uid = p->p_cred.cr_euid;
+    va.va_gid = dva.va_mode & S_ISGID ? dva.va_gid : p->p_cred.cr_egid;
     error = VOP_CREATE(vs.vs_dvp, &vs.vs_lastcn, &va, &vs.vs_vp);
     vnode_put(vs.vs_dvp);
   } else {
@@ -75,10 +87,11 @@ static int vfs_create(proc_t *p, int fdat, char *pathname, int flags, int mode,
     else
       vnode_put(vs.vs_dvp);
 
-    if (flags & O_EXCL) {
+    if (*flags & O_EXCL) {
       vnode_drop(vs.vs_vp);
       error = EEXIST;
     }
+    *flags &= ~O_CREAT;
   }
   *vp = vs.vs_vp;
 
@@ -87,18 +100,42 @@ fail:
   return error;
 }
 
+static int vfs_check_open(vnode_t *v, int flags, cred_t *cred) {
+  mode_t accmode = 0;
+  switch (flags & O_ACCMODE) {
+    case O_RDONLY:
+      accmode = VREAD;
+      break;
+    case O_WRONLY:
+      accmode = VWRITE;
+      break;
+    case O_RDWR:
+      accmode = VREAD | VWRITE;
+      break;
+  }
+  if (flags & O_TRUNC)
+    accmode |= VWRITE;
+
+  return VOP_ACCESS(v, accmode, cred);
+}
+
 static int vfs_open(proc_t *p, file_t *f, int fdat, char *pathname, int flags,
                     int mode) {
   vnode_t *v;
   int error;
 
   if (flags & O_CREAT) {
-    if ((error = vfs_create(p, fdat, pathname, flags, mode, &v)))
+    /* XXX O_CREAT can be cleaned here */
+    if ((error = vfs_create(p, fdat, pathname, &flags, mode, &v)))
       return error;
   } else {
     if ((error = vfs_namelookupat(p, fdat, VNR_FOLLOW, pathname, &v)))
       return error;
   }
+
+  if (!(flags & O_CREAT))
+    if ((error = vfs_check_open(v, flags, &p->p_cred)))
+      return error;
 
   if (flags & O_TRUNC)
     error = vfs_truncate(v, 0, &p->p_cred);
@@ -177,14 +214,14 @@ int do_fstatat(proc_t *p, int fd, char *path, stat_t *sb, int flag) {
   return error;
 }
 
-int do_mount(const char *fs, const char *path) {
+int do_mount(proc_t *p, const char *fs, const char *path) {
   vfsconf_t *vfs;
   vnode_t *v;
   int error;
 
   if (!(vfs = vfs_get_by_name(fs)))
     return EINVAL;
-  if ((error = vfs_namelookup(path, &v)))
+  if ((error = vfs_namelookup(path, &v, &p->p_cred)))
     return error;
 
   return vfs_domount(vfs, v);
@@ -204,11 +241,24 @@ int do_getdents(proc_t *p, int fd, uio_t *uio) {
   return error;
 }
 
+static int vfs_check_remove(vnode_t *dvp, vnode_t *vp, cred_t *cred) {
+  vattr_t dva;
+  accmode_t diracc = VWRITE;
+  int error;
+  if ((error = VOP_GETATTR(dvp, &dva)))
+    return error;
+
+  if (dva.va_mode & S_ISTXT)
+    if ((error = VOP_ACCESS(vp, VADMIN, cred)))
+      diracc |= VADMIN;
+
+  return VOP_ACCESS(dvp, diracc, cred);
+}
 int do_unlinkat(proc_t *p, int fd, char *path, int flag) {
   vnrstate_t vs;
   int error;
 
-  if ((error = vnrstate_init(&vs, VNR_DELETE, 0, path)))
+  if ((error = vnrstate_init(&vs, VNR_DELETE, 0, path, &p->p_cred)))
     return error;
 
   if ((error = vfs_nameresolveat(p, fd, &vs)))
@@ -221,12 +271,12 @@ int do_unlinkat(proc_t *p, int fd, char *path, int flag) {
   else if (vs.vs_vp->v_type == V_DIR) {
     if (!(flag & AT_REMOVEDIR))
       error = EPERM;
-    else
+    else if (!(error = vfs_check_remove(vs.vs_dvp, vs.vs_vp, &p->p_cred)))
       error = VOP_RMDIR(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
   } else {
     if (flag & AT_REMOVEDIR)
       error = ENOTDIR;
-    else
+    else if (!(error = vfs_check_remove(vs.vs_dvp, vs.vs_vp, &p->p_cred)))
       error = VOP_REMOVE(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
   }
 
@@ -239,10 +289,10 @@ fail:
 
 int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
   vnrstate_t vs;
-  vattr_t va;
+  vattr_t va, dva;
   int error;
 
-  if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, path)))
+  if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, path, &p->p_cred)))
     return error;
 
   if ((error = vfs_nameresolveat(p, fd, &vs)))
@@ -254,13 +304,29 @@ int do_mkdirat(proc_t *p, int fd, char *path, mode_t mode) {
     goto fail;
   }
 
+  if ((error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred))) {
+    vnode_put(vs.vs_dvp);
+    goto fail;
+  }
+
+  if ((error = VOP_GETATTR(vs.vs_dvp, &dva))) {
+    vnode_put(vs.vs_dvp);
+    goto fail;
+  }
+
   memset(&va, 0, sizeof(vattr_t));
   /* We discard all bits but permission bits, since it is
    * implementation-defined.
    * https://pubs.opengroup.org/onlinepubs/9699919799/functions/mkdir.html */
   va.va_mode = S_IFDIR | ((mode & ACCESSPERMS) & ~p->p_cmask);
-  va.va_uid = p->p_cred.cr_ruid;
-  va.va_gid = p->p_cred.cr_rgid;
+  va.va_uid = p->p_cred.cr_euid;
+  if (dva.va_mode & S_ISGID) {
+    /* We propagate set-group-id down */
+    va.va_mode |= S_ISGID;
+    va.va_gid = dva.va_gid;
+  } else {
+    va.va_gid = p->p_cred.cr_egid;
+  }
 
   error = VOP_MKDIR(vs.vs_dvp, &vs.vs_lastcn, &va, &vs.vs_vp);
   if (!error)
@@ -290,7 +356,7 @@ int do_faccessat(proc_t *p, int fd, char *path, int mode, int flags) {
 
   /* TODO handle AT_EACCESS: Use the effective user and group IDs instead of
      the real user and group IDs for checking permission.*/
-  error = VOP_ACCESS(v, mode);
+  error = VOP_ACCESS(v, mode, &p->p_cred);
   vnode_drop(v);
   return error;
 }
@@ -356,12 +422,12 @@ int do_truncate(proc_t *p, char *path, off_t length) {
   int error;
   vnode_t *vn;
 
-  if ((error = vfs_namelookup(path, &vn)))
+  if ((error = vfs_namelookup(path, &vn, &p->p_cred)))
     return error;
   vnode_lock(vn);
   if (vn->v_type == V_DIR)
     error = EISDIR;
-  else if ((error = VOP_ACCESS(vn, VWRITE)))
+  else if (!(error = VOP_ACCESS(vn, VWRITE, &p->p_cred)))
     error = vfs_truncate(vn, length, &p->p_cred);
 
   vnode_put(vn);
@@ -396,7 +462,7 @@ ssize_t do_readlinkat(proc_t *p, int fd, char *path, uio_t *uio) {
 
   if (v->v_type != V_LNK)
     error = EINVAL;
-  else if (!(error = VOP_ACCESS(v, VREAD)))
+  else if (!(error = VOP_ACCESS(v, VREAD, &p->p_cred)))
     error = VOP_READLINK(v, uio);
 
   vnode_drop(v);
@@ -407,7 +473,7 @@ int do_chdir(proc_t *p, const char *path) {
   vnode_t *cwd;
   int error;
 
-  if ((error = vfs_namelookup(path, &cwd)))
+  if ((error = vfs_namelookup(path, &cwd, &p->p_cred)))
     return error;
 
   if (cwd->v_type != V_DIR) {
@@ -431,9 +497,10 @@ int do_fchdir(proc_t *p, int fd) {
 
   vnode_t *v = f->f_vnode;
   if (v->v_type == V_DIR) {
+    vnode_t *old_cwd = p->p_cwd;
     vnode_hold(v);
     p->p_cwd = v;
-    vnode_drop(p->p_cwd);
+    vnode_drop(old_cwd);
   } else {
     error = ENOTDIR;
   }
@@ -447,7 +514,7 @@ int do_symlinkat(proc_t *p, char *target, int newdirfd, char *linkpath) {
   vattr_t va;
   int error;
 
-  if ((error = vnrstate_init(&vs, VNR_CREATE, 0, linkpath)))
+  if ((error = vnrstate_init(&vs, VNR_CREATE, 0, linkpath, &p->p_cred)))
     return error;
 
   if ((error = vfs_nameresolveat(p, newdirfd, &vs)))
@@ -495,7 +562,8 @@ int do_linkat(proc_t *p, int fd, char *path, int linkfd, char *linkpath,
     goto fail1;
   }
 
-  if ((error = vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, linkpath)))
+  if ((error =
+         vnrstate_init(&vs, VNR_CREATE, VNR_FOLLOW, linkpath, &p->p_cred)))
     goto fail1;
 
   if ((error = vfs_nameresolveat(p, linkfd, &vs)))
@@ -602,7 +670,7 @@ int do_statvfs(proc_t *p, char *path, statvfs_t *buf) {
   vnode_t *v;
   int error;
 
-  if ((error = vfs_namelookup(path, &v)))
+  if ((error = vfs_namelookup(path, &v, &p->p_cred)))
     return error;
 
   memset(buf, 0, sizeof(*buf));
