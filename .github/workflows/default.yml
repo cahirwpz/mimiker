@@ -37,7 +37,7 @@ jobs:
             sys/mimiker.elf
             sys/mimiker.elf.map
             bin/*/*.uelf
-            usr/bin/*/*.uelf
+            usr.bin/*/*.uelf
             initrd.cpio
 
   build_mips_clang:
@@ -54,7 +54,7 @@ jobs:
             sys/mimiker.elf
             sys/mimiker.elf.map
             bin/*/*.uelf
-            usr/bin/*/*.uelf
+            usr.bin/*/*.uelf
             initrd.cpio
 
   build_aarch64_gcc:
