@@ -25,8 +25,13 @@ class LogEntry(metaclass=GdbStructMeta):
             # Using gdb printf so we don't need to dereference addresses.
             return gdb.execute(printf, to_string=True)
         except Exception:
-            # Do not format the message, because something went wrong.
-            return printf
+            try:
+                # Invalid string pointer.
+                _printf = printf.replace('%s', '[invalid char*] %p')
+                return gdb.execute(_printf, to_string=True)
+            except Exception:
+                # Do not format the message, because something went wrong.
+                return printf
 
 
 class LogBuffer(metaclass=GdbStructMeta):
