@@ -9,7 +9,8 @@ python import os, sys
 python sys.path.append(os.path.join(os.getcwd(), 'sys'))
 python import debug
 python import os.path
-python print(gdb.current_progspace().filename)
+python print('binary:', gdb.current_progspace().filename)
+python print('cwd:', os.getcwd())
 
 # launch kernel tests and wait for ktest_main to finish
 break panic_fail
