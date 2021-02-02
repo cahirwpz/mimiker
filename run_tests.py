@@ -2,10 +2,10 @@
 
 import argparse
 import pexpect
+import random
 import signal
 import sys
-import random
-from launcher import getvar, setboard
+from launcher import getvar, setboard, setup_terminal
 
 
 N_SIMPLE = 10
@@ -59,6 +59,8 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, sigterm_handler)
     signal.signal(signal.SIGINT, sigterm_handler)
     signal.signal(signal.SIGHUP, sigterm_handler)
+
+    setup_terminal()
 
     parser = argparse.ArgumentParser(
         description='Automatically performs kernel tests.')

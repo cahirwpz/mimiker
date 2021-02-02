@@ -164,6 +164,15 @@ def getopts(*names):
     return [opt.format(**getvar('config')) for opt in opts]
 
 
+def setup_terminal():
+    cols, rows = shutil.get_terminal_size(fallback=(120, 32))
+
+    os.environ['COLUMNS'] = str(cols)
+    os.environ['LINES'] = str(rows)
+
+    subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
+
+
 class Launchable():
     def __init__(self, name, cmd):
         self.name = name
@@ -267,5 +276,5 @@ class SOCAT(Launchable):
         self.options = [stdio_opt, f'tcp:localhost:{tcp_port},retry,forever']
 
 
-__all__ = ['Launchable', 'QEMU', 'GDB', 'SOCAT',
+__all__ = ['Launchable', 'QEMU', 'GDB', 'SOCAT', 'setup_terminal',
            'getvar', 'setvar', 'setboard']
