@@ -165,12 +165,12 @@ def getopts(*names):
 
 
 def setup_terminal():
-    termsize = shutil.get_terminal_size(fallback=(120, 32))
+    cols, rows = shutil.get_terminal_size(fallback=(120, 32))
 
-    os.environ['COLUMNS'] = str(termsize[0])
-    os.environ['LINES'] = str(termsize[1])
+    os.environ['COLUMNS'] = str(cols)
+    os.environ['LINES'] = str(rows)
 
-    os.system('stty cols {} rows {}'.format(*termsize))
+    subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
 
 
 class Launchable():
