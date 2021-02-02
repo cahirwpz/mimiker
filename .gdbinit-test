@@ -9,8 +9,6 @@ python import os, sys
 python sys.path.append(os.path.join(os.getcwd(), 'sys'))
 python import debug
 
-dprintf run_test,"Running tests \"%s\"...\n",t->test_name
-
 # launch kernel tests and wait for ktest_main to finish
 break panic_fail
 commands
