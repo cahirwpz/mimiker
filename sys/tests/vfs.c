@@ -83,7 +83,7 @@ static int test_vfs(void) {
   res = VOP_WRITE(dev_cons, &uio, 0);
   assert(res == 0);
 
-  return KTEST_SUCCESS;
+  return KTEST_FAILURE;
 }
 
 KTEST_ADD(vfs, test_vfs, 0);
