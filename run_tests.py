@@ -22,8 +22,7 @@ def safe_decode(data):
 def test_seed(seed, repeat=1):
     print("Testing seed %u..." % seed)
     child = pexpect.spawn('./launch',
-                          ['--board', getvar('board'),
-                           '-t', 'test=all', 'klog-quiet=1',
+                          ['--board', getvar('board'), '-t', 'test=all',
                            'seed=%u' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact([pexpect.EOF, pexpect.TIMEOUT], timeout=TIMEOUT)
     if index == 0:
