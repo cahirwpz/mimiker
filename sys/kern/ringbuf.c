@@ -52,6 +52,14 @@ bool ringbuf_getb(ringbuf_t *buf, uint8_t *byte_p) {
   return true;
 }
 
+bool ringbuf_getnb(ringbuf_t *buf, uint8_t *data, size_t n) {
+  if (buf->count < n)
+    return false;
+  for (size_t i = 0; i < n; i++)
+    ringbuf_getb(buf, &data[i]);
+  return true;
+}
+
 int ringbuf_read(ringbuf_t *buf, uio_t *uio) {
   assert(uio->uio_op == UIO_READ);
   /* repeat when used space is split into two parts */

@@ -4,20 +4,16 @@
 #include <dev/isareg.h>
 #include <sys/pci.h>
 #include <sys/interrupt.h>
-#include <sys/klog.h>
 #include <sys/timer.h>
-#include <sys/spinlock.h>
 #include <sys/devclass.h>
 
 typedef struct pit_state {
   resource_t *regs;
-  spin_t lock;
   resource_t *irq_res;
   timer_t timer;
   uint16_t period_cntr;      /* period as PIT counter value */
   uint16_t cntr16_prev_read; /* last read counter value */
   timercntr_t cntr64;        /* counter value since timer initialization */
-  volatile bintime_t time;   /* last time measured by the timer */
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
@@ -38,6 +34,7 @@ static uint16_t pit_get_counter16(pit_state_t *pit) {
 }
 
 static uint64_t pit_get_counter64(pit_state_t *pit) {
+  SCOPED_INTR_DISABLED();
   uint16_t cntr16_now = pit_get_counter16(pit);
   /* PIT counter counts from n to 1 and when we get to 1 an interrupt
      is send and the counter starts from the beginning (n = pit->period_cntr).
@@ -58,21 +55,11 @@ static uint64_t pit_get_counter64(pit_state_t *pit) {
   return pit->cntr64.val;
 }
 
-static void pit_update_time(pit_state_t *pit) {
-  uint64_t count = pit_get_counter64(pit);
-  uint32_t freq = pit->timer.tm_frequency;
-  uint32_t sec = count / freq;
-  uint32_t frac = count % freq;
-  bintime_t bt = bintime_mul(HZ2BT(freq), frac);
-  bt.sec += sec;
-  WITH_SPIN_LOCK (&pit->lock) { pit->time = bt; }
-}
-
 static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
   /* XXX: It's still possible for a tick to be lost. */
-  pit_update_time(pit);
+  (void)pit_get_counter64(pit);
   tm_trigger(&pit->timer);
   return IF_FILTERED;
 }
@@ -93,7 +80,6 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   /* Maximal counter value which we can store in pit timer */
   assert(counter <= 0xFFFF);
 
-  pit->time = BINTIME(0);
   pit->cntr64.val = 0;
   pit->cntr16_prev_read = 0;
   pit->period_cntr = counter;
@@ -114,8 +100,12 @@ static int timer_pit_stop(timer_t *tm) {
 static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  bintime_t bt;
-  WITH_SPIN_LOCK (&pit->lock) { bt = pit->time; }
+  uint64_t count = pit_get_counter64(pit);
+  uint32_t freq = pit->timer.tm_frequency;
+  uint32_t sec = count / freq;
+  uint32_t frac = count % freq;
+  bintime_t bt = bintime_mul(HZ2BT(freq), frac);
+  bt.sec += sec;
   return bt;
 }
 
@@ -125,12 +115,12 @@ static int pit_attach(device_t *dev) {
   pit->regs = device_take_ioports(dev, 0, RF_ACTIVE);
   assert(pit->regs != NULL);
 
-  pit->lock = SPIN_INITIALIZER(0);
   pit->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
 
   pit->timer = (timer_t){
     .tm_name = "i8254",
     .tm_flags = TMF_PERIODIC,
+    .tm_quality = 100,
     .tm_frequency = TIMER_FREQ,
     .tm_min_period = HZ2BT(TIMER_FREQ),
     .tm_max_period = bintime_mul(HZ2BT(TIMER_FREQ), 65536),

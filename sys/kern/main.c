@@ -24,6 +24,7 @@
 #include <sys/vm_physmem.h>
 #include <sys/pmap.h>
 #include <sys/console.h>
+#include <sys/stat.h>
 
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
@@ -32,6 +33,7 @@ static void mount_fs(void) {
   do_mount(p, "initrd", "/");
   do_mount(p, "devfs", "/dev");
   do_mount(p, "tmpfs", "/tmp");
+  do_fchmodat(p, AT_FDCWD, "/tmp", ACCESSPERMS | S_ISTXT, 0);
 }
 
 static __noreturn void start_init(__unused void *arg) {
@@ -60,15 +62,16 @@ static __noreturn void start_init(__unused void *arg) {
     kern_execve(init, kenv_get_init(), (char *[]){NULL});
 
   char *test = kenv_get("test");
-  if (test)
+  if (test) {
     ktest_main(test);
-
-  /* This is a message to the user,
-   * so I intentionally use kprintf instead of log. */
-  kprintf("============\n");
-  kprintf("Use init=PROGRAM to start a user-space init program or test=TEST "
-          "to run a kernel test.\n");
-  kprintf("============\n");
+  } else {
+    /* This is a message to the user,
+     * so I intentionally use kprintf instead of log. */
+    kprintf("============\n");
+    kprintf("Use init=PROGRAM to start a user-space init program or test=TEST "
+            "to run a kernel test.\n");
+    kprintf("============\n");
+  }
 
   panic("Nothing to run!");
 }
@@ -76,10 +79,10 @@ static __noreturn void start_init(__unused void *arg) {
 __noreturn void kernel_init(void) {
   init_pmap();
   init_vm_page();
+  init_kmalloc();
   init_pool();
   init_vmem();
   init_kmem();
-  init_kmalloc();
   init_vm_map();
 
   init_cons();

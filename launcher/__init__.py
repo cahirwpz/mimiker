@@ -1,5 +1,7 @@
+import atexit
 import itertools
 import os
+import random
 import shlex
 import shutil
 import signal
@@ -7,23 +9,40 @@ import subprocess
 import time
 import os
 
-FIRST_UID = 1000
+
+MIN_PORT = 24000
+MAX_PORT = 32000
 
 
-# Reserve 10 ports for each user starting from 24000
-def gdb_port():
-    return 24000 + (os.getuid() - FIRST_UID) * 10
+def RandomPort():
+    portlock = None
+    ports = list(range(MIN_PORT, MAX_PORT))
+    while not portlock and ports:
+        port = random.choice(ports)
+        ports.remove(port)
+        portlock = f'/tmp/launch-port-{port}.lock'
+        try:
+            fd = os.open(portlock, os.O_CREAT | os.O_EXCL | os.O_CLOEXEC)
+            os.close(fd)
 
+            def unlock():
+                try:
+                    os.remove(portlock)
+                except OSError:
+                    pass
 
-def uart_port(num):
-    assert num >= 0 and num < 9
-    return gdb_port() + 1 + num
+            atexit.register(unlock)
+            return port
+        except OSError:
+            portlock = None
+    raise RuntimeError('Run out of TCP port locks!')
 
 
 CONFIG = {
     'board': 'malta',
     'config': {
         'debug': False,
+        'gdbport': RandomPort(),
         'graphics': False,
         'network': False,
         'elf': 'sys/mimiker.elf',
@@ -41,10 +60,12 @@ CONFIG = {
     'qemu': {
         'options': [
             '-nodefaults',
-            '-icount', 'shift=3,sleep=on',
+            # Configure record/replay function for deterministic replay,
+            # refer to https://github.com/qemu/qemu/blob/master/docs/replay.txt
+            # '-icount', 'shift=3,sleep=on,rr=record,rrfile=replay.bin',
             '-kernel', '{kernel}',
             '-initrd', '{initrd}',
-            '-gdb', 'tcp:127.0.0.1:{},server,wait'.format(gdb_port()),
+            '-gdb', 'tcp:127.0.0.1:{gdbport},server,wait',
             '-serial', 'none'],
         'board': {
             'malta': {
@@ -59,9 +80,9 @@ CONFIG = {
                     '-object', 'filter-dump,id=net0,netdev=net0,file=rtl.pcap'
                 ],
                 'uarts': [
-                    dict(name='/dev/tty1', port=uart_port(0), raw=True),
-                    dict(name='/dev/tty2', port=uart_port(1)),
-                    dict(name='/dev/cons', port=uart_port(2))
+                    dict(name='/dev/tty1', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty2', port=RandomPort()),
+                    dict(name='/dev/cons', port=RandomPort())
                 ]
             },
             'rpi3': {
@@ -72,7 +93,7 @@ CONFIG = {
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [
-                    dict(name='/dev/cons', port=uart_port(0))
+                    dict(name='/dev/cons', port=RandomPort())
                 ]
             }
         }
@@ -83,15 +104,13 @@ CONFIG = {
             '-ex=set confirm no',
             '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
             '-ex=set tcp connect-timeout 30',
-            '-ex=target remote localhost:{}'.format(gdb_port()),
+            '-ex=target remote localhost:{gdbport}',
             '--silent',
         ],
         'extra-options': [],
         'post-options': [
-            '-ex=set confirm yes',
             '-ex=source .gdbinit',
             '-ex=continue',
-            '{elf}'
         ],
         'board': {
             'malta': {
@@ -151,6 +170,15 @@ def getopts(*names):
     return [opt.format(**getvar('config')) for opt in opts]
 
 
+def setup_terminal():
+    cols, rows = shutil.get_terminal_size(fallback=(120, 32))
+
+    os.environ['COLUMNS'] = str(cols)
+    os.environ['LINES'] = str(rows)
+
+    subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
+
+
 class Launchable():
     def __init__(self, name, cmd):
         self.name = name
@@ -170,14 +198,15 @@ class Launchable():
         self.process = subprocess.Popen([self.cmd] + self.options,
                                         start_new_session=False)
 
-    # Returns true iff the process terminated
+    # Returns exit code iff the process terminated
     def wait(self, timeout=None):
         if self.process is None:
             return False
         # Throws exception on timeout
         self.process.wait(timeout)
+        rc = self.process.returncode
         self.process = None
-        return True
+        return rc
 
     def stop(self):
         if self.process is not None:
@@ -236,27 +265,12 @@ class QEMU(Launchable):
 
 
 class GDB(Launchable):
-    def __init__(self, name=None, cmd=None):
-        super().__init__(name or 'gdb', cmd or getvar('gdb.binary'))
-        # gdbtui & cgdb output is garbled if there is no delay
-        self.cmd = 'sleep 0.25 && ' + self.cmd
+    def __init__(self):
+        super().__init__('gdb', getvar('gdb.binary'))
 
-        if self.name == 'gdb':
-            self.options += ['-ex=set prompt \033[35;1m(gdb) \033[0m']
         self.options += getopts(
                 'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
-
-
-class GDBTUI(GDB):
-    def __init__(self):
-        super().__init__('gdbtui')
-        self.options = ['-tui']
-
-
-class CGDB(GDB):
-    def __init__(self):
-        super().__init__('cgdb', 'cgdb')
-        self.options = ['-d', getvar('gdb.binary')]
+        self.options.append(getvar('config.elf'))
 
 
 class SOCAT(Launchable):
@@ -270,6 +284,5 @@ class SOCAT(Launchable):
         self.options = [stdio_opt, f'tcp:localhost:{tcp_port},retry,forever']
 
 
-Debuggers = {'gdb': GDB, 'gdbtui': GDBTUI, 'cgdb': CGDB}
-__all__ = ['Launchable', 'QEMU', 'GDB', 'CGDB', 'GDBTUI', 'SOCAT', 'Debuggers',
-           'gdb_port', 'uart_port', 'getvar', 'setvar', 'setboard']
+__all__ = ['Launchable', 'QEMU', 'GDB', 'SOCAT', 'setup_terminal',
+           'getvar', 'setvar', 'setboard']

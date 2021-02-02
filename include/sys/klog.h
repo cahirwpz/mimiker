@@ -63,8 +63,7 @@ typedef struct klog_entry {
 
 typedef struct klog {
   klog_entry_t array[KL_SIZE];
-  unsigned mask;
-  bool verbose;
+  atomic_uint mask;
   volatile unsigned first;
   volatile unsigned last;
   bool repeated;

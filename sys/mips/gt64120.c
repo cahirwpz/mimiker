@@ -91,14 +91,13 @@ typedef struct gt_pci_state {
 static driver_t gt_pci_bus;
 
 /* Access configuration space through memory mapped GT-64120 registers. Take
- * care of the fact that MIPS processor cannot handle unaligned accesses. */
+ * care of the fact that MIPS processor cannot handle unaligned accesses.
+ * Note that Galileo controller's registers are little endian. */
 static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
   pci_device_t *pcid = pci_device_of(dev);
   gt_pci_state_t *gtpci = dev->parent->state;
   resource_t *pcicfg = gtpci->corectrl;
-
-  if (!pcid) /* XXX: ISA device workaround */
-    return -1;
+  assert(pcid);
 
   if (pcid->addr.bus > 0)
     return -1;
@@ -110,9 +109,9 @@ static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
   reg &= 3;
   switch (size) {
     case 1:
-      return data.byte[3 - reg];
+      return data.byte[reg];
     case 2:
-      return data.word[1 - (reg >> 1)];
+      return data.word[reg >> 1];
     case 4:
       return data.dword;
     default:
@@ -125,9 +124,7 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   pci_device_t *pcid = pci_device_of(dev);
   gt_pci_state_t *gtpci = dev->parent->state;
   resource_t *pcicfg = gtpci->corectrl;
-
-  if (!pcid) /* XXX: ISA device workaround */
-    return;
+  assert(pcid);
 
   if (pcid->addr.bus > 0)
     return;
@@ -139,10 +136,10 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   reg &= 3;
   switch (size) {
     case 1:
-      data.byte[3 - reg] = value;
+      data.byte[reg] = value;
       break;
     case 2:
-      data.word[1 - (reg >> 1)] = value;
+      data.word[reg >> 1] = value;
       break;
     case 4:
       data.dword = value;
@@ -152,6 +149,17 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
   }
 
   bus_write_4(pcicfg, GT_PCI0_CFG_DATA, data.dword);
+}
+
+static int gt_pci_route_interrupt(device_t *dev) {
+  pci_device_t *pcid = pci_device_of(dev);
+  int pin = pcid->pin;
+
+  if (pin == 1 || pin == 2)
+    return 10;
+  if (pin == 3 || pin == 4)
+    return 11;
+  return -1;
 }
 
 static void gt_pci_enable_busmaster(device_t *dev) {
@@ -377,7 +385,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
                                          rman_flags_t flags) {
   /* Currently all devices are logicaly attached to PCI bus,
    * because we don't have PCI-ISA bridge implemented. */
-  assert(dev->bus == DEV_BUS_PCI && dev->parent->bus == DEV_BUS_PCI);
+  assert(dev->bus == DEV_BUS_PCI);
 
   device_t *pcib = dev->parent;
   gt_pci_state_t *gtpci = pcib->state;
@@ -410,7 +418,7 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
     r->r_bus_handle = bh + resource_start(r);
   }
 
-  if (flags & RF_ACTIVE) {
+  if (type == RT_IOPORTS || flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, r)) {
       resource_release(r);
       return NULL;
@@ -426,7 +434,10 @@ static void gt_pci_release_resource(device_t *dev, resource_t *r) {
 }
 
 static int gt_pci_activate_resource(device_t *dev, resource_t *r) {
-  if (r->r_type == RT_MEMORY || r->r_type == RT_IOPORTS) {
+  rman_addr_t start = resource_start(r);
+
+  if (r->r_type == RT_MEMORY ||
+      (r->r_type == RT_IOPORTS && start > IO_ISAEND)) {
     uint16_t command = pci_read_config_2(dev, PCIR_COMMAND);
     if (r->r_type == RT_MEMORY)
       command |= PCIM_CMD_MEMEN;
@@ -435,7 +446,6 @@ static int gt_pci_activate_resource(device_t *dev, resource_t *r) {
     pci_write_config_2(dev, PCIR_COMMAND, command);
   }
 
-  rman_addr_t start = resource_start(r);
   if (gt_pci_bar(dev, r->r_type, r->r_rid, start))
     pci_write_config_4(dev, PCIR_BAR(r->r_rid), start);
 
@@ -447,7 +457,7 @@ static int gt_pci_activate_resource(device_t *dev, resource_t *r) {
 }
 
 static void gt_pci_deactivate_resource(device_t *dev, resource_t *r) {
-  /* TODO: unmap mapped resources. */
+  /* TODO: unmap mapped memory. */
 }
 
 static int gt_pci_probe(device_t *d) {
@@ -467,6 +477,7 @@ static bus_methods_t gt_pci_bus_if = {
 static pci_bus_methods_t gt_pci_pci_bus_if = {
   .read_config = gt_pci_read_config,
   .write_config = gt_pci_write_config,
+  .route_interrupt = gt_pci_route_interrupt,
   .enable_busmaster = gt_pci_enable_busmaster,
 };
 
