@@ -21,6 +21,10 @@
 #define callout_set_pending(c) ((c)->c_flags |= CALLOUT_PENDING)
 #define callout_clear_pending(c) ((c)->c_flags &= ~CALLOUT_PENDING)
 
+#define callout_is_stopped(c) ((c)->c_flags & CALLOUT_STOPPED)
+#define callout_set_stopped(c) ((c)->c_flags |= CALLOUT_STOPPED)
+#define callout_clear_stopped(c) ((c)->c_flags &= ~CALLOUT_STOPPED)
+
 /*
   Every event is inside one of CALLOUT_BUCKETS buckets.
   The buckets is a cyclic list, but we implement it as an array,
@@ -53,6 +57,17 @@ static void _callout_schedule(callout_t *handle) {
   TAILQ_INSERT_TAIL(ci_list(handle->c_index), handle, c_link);
 }
 
+bool callout_reschedule(callout_t *c, systime_t time) {
+  SCOPED_SPIN_LOCK(&ci.lock);
+  assert(callout_is_active(c));
+  assert(!callout_is_pending(c));
+  if (callout_is_stopped(c))
+    return false;
+  c->c_time = time;
+  _callout_schedule(c);
+  return true;
+}
+
 static void callout_thread(void *arg) {
   while (true) {
     callout_t *elem;
@@ -74,15 +89,10 @@ static void callout_thread(void *arg) {
 
     WITH_SPIN_LOCK (&ci.lock) {
       callout_clear_active(elem);
-      if (elem->c_interval) {
-        /* Periodic callout: reschedule. */
-        elem->c_time += elem->c_interval;
-        _callout_schedule(elem);
-      } else {
-        /* Wake threads that wait for execution of this callout in
-         * callout_drain. */
+      /* Only notify waiters if the callout isn't already pending
+       * due to a reschedule. */
+      if (!callout_is_pending(elem))
         sleepq_broadcast(elem);
-      }
     }
   }
 }
@@ -102,8 +112,8 @@ void init_callout(void) {
   sched_add(td);
 }
 
-static void _callout_setup(callout_t *handle, systime_t time,
-                           systime_t interval, timeout_t fn, void *arg) {
+static void _callout_setup(callout_t *handle, systime_t time, timeout_t fn,
+                           void *arg) {
   assert(spin_owned(&ci.lock));
   assert(!callout_is_pending(handle));
   assert(!callout_is_active(handle));
@@ -112,7 +122,6 @@ static void _callout_setup(callout_t *handle, systime_t time,
 
   bzero(handle, sizeof(callout_t));
   handle->c_time = time;
-  handle->c_interval = interval;
   handle->c_func = fn;
   handle->c_arg = arg;
   handle->c_index = index;
@@ -123,7 +132,7 @@ static void _callout_setup(callout_t *handle, systime_t time,
 void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
   SCOPED_SPIN_LOCK(&ci.lock);
 
-  _callout_setup(handle, time, 0, fn, arg);
+  _callout_setup(handle, time, fn, arg);
 }
 
 void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
@@ -131,23 +140,7 @@ void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
   SCOPED_SPIN_LOCK(&ci.lock);
 
   systime_t now = getsystime();
-  _callout_setup(handle, now + time, 0, fn, arg);
-}
-
-void callout_setup_periodic(callout_t *handle, systime_t time,
-                            systime_t interval, timeout_t fn, void *arg) {
-  SCOPED_SPIN_LOCK(&ci.lock);
-
-  _callout_setup(handle, time, interval, fn, arg);
-}
-
-void callout_setup_relative_periodic(callout_t *handle, systime_t time,
-                                     systime_t interval, timeout_t fn,
-                                     void *arg) {
-  SCOPED_SPIN_LOCK(&ci.lock);
-
-  systime_t now = getsystime();
-  _callout_setup(handle, now + time, interval, fn, arg);
+  _callout_setup(handle, now + time, fn, arg);
 }
 
 bool callout_stop(callout_t *handle) {
@@ -155,12 +148,16 @@ bool callout_stop(callout_t *handle) {
 
   klog("Remove callout {%p} at %ld.", handle, handle->c_time);
 
-  handle->c_interval = 0;
+  callout_set_stopped(handle);
 
   if (callout_is_pending(handle)) {
     callout_clear_pending(handle);
     TAILQ_REMOVE(ci_list(handle->c_index), handle, c_link);
-    return true;
+    /* A callout may be observed to be both active and pending if it rescheduled
+     * itself but hasn't finished executing yet.
+     * If that's the case, we must make the caller wait for its completion in
+     * callout_drain(). */
+    return !callout_is_active(handle);
   }
 
   return false;
@@ -215,14 +212,10 @@ void callout_process(systime_t time) {
 }
 
 bool callout_drain(callout_t *handle) {
-  /* Disallow draining periodic callouts that haven't been stopped. */
-  assert(handle->c_interval == 0);
-  WITH_INTR_DISABLED {
-    if (callout_is_pending(handle) || callout_is_active(handle)) {
-      sleepq_wait(handle, NULL);
-      return true;
-    }
-  }
-
-  return false;
+  SCOPED_INTR_DISABLED();
+  if (!callout_is_pending(handle) && !callout_is_active(handle))
+    return false;
+  while (callout_is_pending(handle) || callout_is_active(handle))
+    sleepq_wait(handle, NULL);
+  return true;
 }

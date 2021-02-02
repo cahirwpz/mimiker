@@ -10,10 +10,9 @@ typedef void (*timeout_t)(void *);
 
 typedef struct callout {
   TAILQ_ENTRY(callout) c_link;
-  systime_t c_time;     /* absolute time of the event */
-  systime_t c_interval; /* interval for periodic callouts, 0 for non-periodic */
-  timeout_t c_func;     /* function to call */
-  void *c_arg;          /* function argument */
+  systime_t c_time; /* absolute time of the event */
+  timeout_t c_func; /* function to call */
+  void *c_arg;      /* function argument */
   uint32_t c_flags;
   unsigned c_index; /* index of bucket this callout is assigned to */
 } callout_t;
@@ -21,6 +20,7 @@ typedef struct callout {
 /* callout has been delegated to callout thread and will be executed soon */
 #define CALLOUT_ACTIVE 0x0001
 #define CALLOUT_PENDING 0x0002 /* callout is waiting for timeout */
+#define CALLOUT_STOPPED 0x0004 /* disallow rescheduling */
 
 /*! \brief Called during kernel initialization. */
 void init_callout(void);
@@ -38,28 +38,15 @@ void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg);
 void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
                             void *arg);
 
-/*
- * Add a callout to the queue.
- * The function will be called every @interval ticks, starting at @time.
- */
-void callout_setup_periodic(callout_t *handle, systime_t time,
-                            systime_t interval, timeout_t fn, void *arg);
+bool callout_reschedule(callout_t *handle, systime_t time);
 
-/*
- * Add a callout to the queue.
- * The function will be called every @interval ticks,
- * starting at <current time> + @time.
- */
-void callout_setup_relative_periodic(callout_t *handle, systime_t time,
-                                     systime_t interval, timeout_t fn,
-                                     void *arg);
 /*
  * Cancel a callout if it is currently pending.
  *
  * \return True if the callout was pending and has been stopped, false if the
  * callout has already been delegated to callout thread or executed.
- * A periodic callout will no longer be periodic after calling this function
- * on it.
+ * A callout can't be rescheduled using callout_reschedule() after calling this
+ * function on it until it is scheduled again using callout_setup(_relative)().
  *
  * \warning It's not safe to deallocate callout memory after it has been
  * stopped. You should use \a callout_drain if you need that.
