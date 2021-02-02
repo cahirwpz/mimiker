@@ -31,7 +31,7 @@ class LogEntry(metaclass=GdbStructMeta):
 
 class LogBuffer(metaclass=GdbStructMeta):
     __ctype__ = 'struct klog'
-    __cast__ = {'verbose': bool}
+    __cast__ = {'first': int, 'last': int}
 
     @property
     def size(self):
@@ -62,9 +62,9 @@ class Klog(SimpleCommand):
         self.dump_messages(klog)
 
     def dump_info(self, klog):
-        table = TextTable(types='tti', align='rrr')
-        table.header(['Mask', 'Verbose', 'Messages'])
-        table.add_row([hex(klog.mask), klog.verbose, len(klog)])
+        table = TextTable(types='ti', align='rr')
+        table.header(['Mask', 'Messages'])
+        table.add_row([hex(klog.mask), len(klog)])
         print(table)
 
     def dump_messages(self, klog):
