@@ -123,7 +123,7 @@ check:
   return (mode & granted) == mode ? 0 : EACCES;
 }
 
-int cred_can_chtimes(vnode_t *vn, uid_t f_owner, cred_t *cred) {
+int cred_can_utime(vnode_t *vn, uid_t f_owner, cred_t *cred) {
   if (f_owner == cred->cr_euid)
     return 0;
 

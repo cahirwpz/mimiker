@@ -63,6 +63,8 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, sigterm_handler)
     signal.signal(signal.SIGHUP, sigterm_handler)
 
+    setup_terminal()
+
     parser = argparse.ArgumentParser(
         description='Launch kernel in Malta board simulator.')
     parser.add_argument('args', metavar='ARGS', type=str,

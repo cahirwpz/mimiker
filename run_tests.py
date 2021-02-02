@@ -2,10 +2,10 @@
 
 import argparse
 import pexpect
+import random
 import signal
 import sys
-import random
-from launcher import getvar, setboard
+from launcher import getvar, setboard, setup_terminal
 
 
 N_SIMPLE = 10
@@ -22,8 +22,7 @@ def safe_decode(data):
 def test_seed(seed, repeat=1):
     print("Testing seed %u..." % seed)
     child = pexpect.spawn('./launch',
-                          ['--board', getvar('board'),
-                           '-t', 'test=all', 'klog-quiet=1',
+                          ['--board', getvar('board'), '-t', 'test=all',
                            'seed=%u' % seed, 'repeat=%d' % repeat])
     index = child.expect_exact([pexpect.EOF, pexpect.TIMEOUT], timeout=TIMEOUT)
     if index == 0:
@@ -59,6 +58,8 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, sigterm_handler)
     signal.signal(signal.SIGINT, sigterm_handler)
     signal.signal(signal.SIGHUP, sigterm_handler)
+
+    setup_terminal()
 
     parser = argparse.ArgumentParser(
         description='Automatically performs kernel tests.')

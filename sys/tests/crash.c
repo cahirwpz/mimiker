@@ -41,4 +41,4 @@ static int test_crash(void) {
   return KTEST_FAILURE;
 }
 
-KTEST_ADD(crash, test_crash, KTEST_FLAG_NORETURN);
+KTEST_ADD(crash, test_crash, KTEST_FLAG_BROKEN);
