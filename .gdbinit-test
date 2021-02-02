@@ -8,9 +8,8 @@ set verbose off
 python import os, sys
 python sys.path.append(os.path.join(os.getcwd(), 'sys'))
 python import debug
-python import os.path
-python print('binary:', gdb.current_progspace().filename)
-python print('cwd:', os.getcwd())
+
+dprintf run_test,"Running tests \"%s\"...\n",t->test_name
 
 # launch kernel tests and wait for ktest_main to finish
 break panic_fail
@@ -25,7 +24,7 @@ kill
 quit 1
 end
 
-break ktest_end
+break ktest_success
 commands
 kill
 quit 0
