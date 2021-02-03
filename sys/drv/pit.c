@@ -19,6 +19,9 @@ typedef struct pit_state {
   uint32_t last_irq_sec;   /* seconds */
 } pit_state_t;
 
+static uint32_t last_ticks = 0;
+static uint32_t last_sec = 0;
+
 #define inb(addr) bus_read_1(pit->regs, (addr))
 #define outb(addr, val) bus_write_1(pit->regs, (addr), (val))
 
@@ -43,11 +46,11 @@ static uint16_t pit_get_counter(pit_state_t *pit) {
 
 /* We will not lose counter overflows if the time (in ticks) between
  * consecutive calls to this procedure is less or equal to `period_ticks`. */
-static void pit_get_ticks(pit_state_t *pit) {
+static void pit_get_ticks(pit_state_t *pit, bool overflowed) {
   uint32_t now = pit_get_counter(pit);
 
   /* Counter overflow detection. */
-  if (pit->prev_ticks > now + pit->prev_period)
+  if (pit->prev_ticks > now + pit->prev_period || overflowed)
     pit->prev_period += pit->period_ticks;
 
   now += pit->prev_period;
@@ -57,11 +60,19 @@ static void pit_get_ticks(pit_state_t *pit) {
   pit->prev_ticks = now;
 }
 
+/* XXX: This is a temporary check, it's going to be removed before this PR
+ * gets merged with master. */
+static void sanity_check(uint32_t sec, uint32_t ticks) {
+  assert(last_sec < sec || (last_sec == sec && last_ticks < ticks));
+  last_ticks = ticks;
+  last_sec = sec;
+}
+
 static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
   /* XXX: It's still possible for a tick to be lost. */
-  pit_get_ticks(pit);
+  pit_get_ticks(pit, true);
 
   /* Update the time of last interrupt. */
   pit->last_irq_ticks += pit->prev_period;
@@ -74,6 +85,8 @@ static intr_filter_t pit_intr(void *data) {
 
     assert(pit->last_irq_ticks < TIMER_FREQ);
   }
+
+  sanity_check(pit->last_irq_sec, pit->last_irq_ticks + pit->prev_ticks);
 
   tm_trigger(&pit->timer);
   return IF_FILTERED;
@@ -121,19 +134,11 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
   uint32_t ticks, sec;
 
   WITH_INTR_DISABLED {
-    pit_get_ticks(pit);
+    pit_get_ticks(pit, false);
     ticks = pit->last_irq_ticks + pit->prev_ticks;
     sec = pit->last_irq_sec;
 
-    /* XXX: This is a temporary check, it's going to be removed before this PR
-     * gets merged with master. */
-    {
-      static uint32_t last_ticks = 0;
-      static uint32_t last_sec = 0;
-      assert(last_sec < sec || (last_sec == sec && last_ticks < ticks));
-      last_ticks = ticks;
-      last_sec = sec;
-    }
+    sanity_check(sec, ticks);
   }
 
   bintime_t bt = bintime_mul(HZ2BT(TIMER_FREQ), ticks);
