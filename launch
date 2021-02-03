@@ -14,11 +14,10 @@ TMUX_CONF = './.tmux.conf'
 
 
 def TestRun(sim, dbg):
-    sim.run()
+    sim.run(background=True)
     dbg.run()
-    rc = dbg.wait()
-    sim.stop()
-    sys.exit(rc)
+    # No need to wait for QEmu, gdb will terminate it!
+    sys.exit(dbg.wait())
 
 
 def DevelRun(sim, dbg):
@@ -60,7 +59,6 @@ def sigterm_handler(_signo, _stack_frame):
 
 if __name__ == '__main__':
     signal.signal(signal.SIGTERM, sigterm_handler)
-    signal.signal(signal.SIGINT, sigterm_handler)
     signal.signal(signal.SIGHUP, sigterm_handler)
 
     setup_terminal()

@@ -6,8 +6,8 @@ import shlex
 import shutil
 import signal
 import subprocess
+import sys
 import time
-import os
 
 
 MIN_PORT = 24000
@@ -64,7 +64,7 @@ CONFIG = {
             # '-icount', 'shift=3,sleep=on,rr=record,rrfile=replay.bin',
             '-kernel', '{kernel}',
             '-initrd', '{initrd}',
-            '-gdb', 'tcp:127.0.0.1:{gdbport},server,wait',
+            '-S', '-gdb', 'tcp:127.0.0.1:{gdbport},server,wait',
             '-serial', 'none'],
         'board': {
             'malta': {
@@ -170,7 +170,8 @@ def setup_terminal():
     os.environ['COLUMNS'] = str(cols)
     os.environ['LINES'] = str(rows)
 
-    subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
+    if sys.stdin.isatty():
+        subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
 
 
 class Launchable():
@@ -188,16 +189,22 @@ class Launchable():
             attach=False, window_name=self.name, window_shell=cmd)
         self.pid = int(self.window.attached_pane._info['pane_pid'])
 
-    def run(self):
+    def run(self, background=False):
+        preexec_fn = os.setpgrp if background else None
         self.process = subprocess.Popen([self.cmd] + self.options,
-                                        start_new_session=False)
+                                        preexec_fn=preexec_fn)
 
     # Returns exit code iff the process terminated
     def wait(self, timeout=None):
         if self.process is None:
             return False
         # Throws exception on timeout
-        self.process.wait(timeout)
+        while True:
+            try:
+                self.process.wait(timeout)
+                break
+            except KeyboardInterrupt:
+                self.process.send_signal(signal.SIGINT)
         rc = self.process.returncode
         self.process = None
         return rc
@@ -213,7 +220,9 @@ class Launchable():
                     self.process.send_signal(signal.SIGKILL)
             except ProcessLookupError:
                 # Process already quit.
-                pass
+                rc = self.process.returncode
+                if rc != 0:
+                    print('WARNING: %s exited with %d!' % (self.name, rc))
             self.process = None
 
         if self.pid is not None:
