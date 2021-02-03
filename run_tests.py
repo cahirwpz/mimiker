@@ -1,11 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S python3 -u
 
 import argparse
+import os
 import random
+import shutil
 import signal
 import subprocess
 import sys
-from launcher import getvar, setboard, setup_terminal
 
 
 N_SIMPLE = 10
@@ -13,14 +14,23 @@ TIMEOUT = 40
 REPEAT = 5
 
 
-def run_test(seed):
+def setup_terminal():
+    cols, rows = shutil.get_terminal_size(fallback=(120, 32))
+
+    os.environ['COLUMNS'] = str(cols)
+    os.environ['LINES'] = str(rows)
+
+    if sys.stdin.isatty():
+        subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
+
+
+def run_test(seed, board):
     print("Testing seed %u..." % seed)
 
     try:
         launch = subprocess.Popen(
-                ['./launch', '--board', getvar('board'), '--test-run',
-                 '--timeout=%d' % TIMEOUT, 'test=all', 'seed=%u' % seed,
-                 'repeat=%d' % REPEAT])
+                ['./launch', '--board', board, '-t', '--timeout=%d' % TIMEOUT,
+                 'test=all', 'seed=%u' % seed, 'repeat=%d' % REPEAT])
         rc = launch.wait()
         if rc:
             print("Run `launch -d test=all seed=%u repeat=%u` to reproduce "
@@ -42,11 +52,9 @@ if __name__ == '__main__':
                         help='Emulated board.')
     args = parser.parse_args()
 
-    setboard(args.board)
-
     # Run tests using n random seeds
     for _ in range(0, args.times):
-        run_test(random.randint(0, 2**32))
+        run_test(random.randint(0, 2**32), args.board)
 
     print("Tests successful!")
     sys.exit(0)
