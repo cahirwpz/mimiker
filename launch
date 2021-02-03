@@ -3,6 +3,7 @@
 import argparse
 import os
 import os.path
+import pexpect
 import subprocess
 import signal
 import sys
@@ -13,11 +14,36 @@ from launcher import *
 TMUX_CONF = './.tmux.conf'
 
 
-def TestRun(sim, dbg):
-    sim.run(background=True)
-    dbg.run()
-    # No need to wait for QEmu, gdb will terminate it!
-    sys.exit(dbg.wait())
+def TestRun(sim, dbg, timeout):
+    qemu = sim.spawn()
+    gdb = dbg.spawn()
+    gdb.setwinsize(int(os.environ['LINES']), int(os.environ['COLUMNS']))
+
+    try:
+        # No need to wait for QEmu, GDB will terminate it!
+        if gdb.expect([pexpect.EOF, pexpect.TIMEOUT], timeout=timeout) == 0:
+            rc = gdb.wait()
+            if rc:
+                print(gdb.before.decode())
+                print("Test run failed!")
+            sys.exit(rc)
+
+        # Since GDB has timeout'ed, let's interrupt it and gather post-mortem.
+        gdb.sendintr()
+        gdb.expect_exact("(gdb)")
+        gdb.sendline("post-mortem")
+        gdb.expect_exact("(gdb)")
+        print(gdb.before.decode())
+        gdb.sendline("kill")
+        gdb.sendline("quit 2")
+        print("Test run timeout!")
+        sys.exit(gdb.wait())
+
+    except KeyboardInterrupt:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        gdb.terminate()
+        qemu.terminate()
+        sys.exit(3)
 
 
 def DevelRun(sim, dbg):
@@ -53,14 +79,7 @@ def DevelRun(sim, dbg):
         sim.stop()
 
 
-def sigterm_handler(_signo, _stack_frame):
-    sys.exit(1)
-
-
 if __name__ == '__main__':
-    signal.signal(signal.SIGTERM, sigterm_handler)
-    signal.signal(signal.SIGHUP, sigterm_handler)
-
     setup_terminal()
 
     parser = argparse.ArgumentParser(
@@ -71,6 +90,8 @@ if __name__ == '__main__':
                         help='Start debugging session with gdb.')
     parser.add_argument('-t', '--test-run', action='store_true',
                         help='Test-run mode: simulator output goes to stdout.')
+    parser.add_argument('-T', '--timeout', type=int, default=60,
+                        help='Test-run will fail after n seconds.')
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
     parser.add_argument('-b', '--board', default='malta',
@@ -124,6 +145,6 @@ if __name__ == '__main__':
         dbg = None
 
     if args.test_run:
-        TestRun(sim, dbg)
+        TestRun(sim, dbg, args.timeout)
     else:
         DevelRun(sim, dbg)

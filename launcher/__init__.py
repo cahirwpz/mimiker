@@ -1,6 +1,7 @@
 import atexit
 import itertools
 import os
+import pexpect
 import random
 import shlex
 import shutil
@@ -179,7 +180,6 @@ class Launchable():
         self.name = name
         self.cmd = cmd
         self.window = None
-        self.process = None
         self.pid = None
         self.options = []
 
@@ -189,63 +189,20 @@ class Launchable():
             attach=False, window_name=self.name, window_shell=cmd)
         self.pid = int(self.window.attached_pane._info['pane_pid'])
 
-    def run(self, background=False):
-        preexec_fn = os.setpgrp if background else None
-        self.process = subprocess.Popen([self.cmd] + self.options,
-                                        preexec_fn=preexec_fn)
-
-    # Returns exit code iff the process terminated
-    def wait(self, timeout=None):
-        if self.process is None:
-            return False
-        # Throws exception on timeout
-        while True:
-            try:
-                self.process.wait(timeout)
-                break
-            except KeyboardInterrupt:
-                self.process.send_signal(signal.SIGINT)
-        rc = self.process.returncode
-        self.process = None
-        return rc
+    def spawn(self):
+        return pexpect.spawn(self.cmd, self.options)
 
     def stop(self):
-        if self.process is not None:
-            try:
-                # Give it a chance to exit gracefuly.
-                self.process.send_signal(signal.SIGTERM)
-                try:
-                    self.process.wait(0.2)
-                except subprocess.TimeoutExpired:
-                    self.process.send_signal(signal.SIGKILL)
-            except ProcessLookupError:
-                # Process already quit.
-                rc = self.process.returncode
-                if rc != 0:
-                    print('WARNING: %s exited with %d!' % (self.name, rc))
-            self.process = None
+        if self.pid is None:
+            return
 
-        if self.pid is not None:
-            time.sleep(0.2)
-            try:
-                os.kill(self.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                # Process has already quit!
-                pass
-            self.pid = None
-
-    def interrupt(self):
-        if self.process is not None:
-            self.process.send_signal(signal.SIGINT)
-
-    @staticmethod
-    def wait_any(launchables):
-        for l in itertools.cycle(launchables):
-            try:
-                if l.wait(0.2):
-                    break
-            except subprocess.TimeoutExpired:
-                continue
+        time.sleep(0.2)
+        try:
+            os.kill(self.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            # Process has already quit!
+            pass
+        self.pid = None
 
 
 class QEMU(Launchable):

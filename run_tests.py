@@ -18,47 +18,20 @@ def run_test(seed):
 
     try:
         launch = subprocess.Popen(
-                ['./launch', '--board', getvar('board'),
-                 '-t', 'test=all', 'seed=%u' % seed, 'repeat=%d' % REPEAT],
-                stdin=subprocess.PIPE)
-
-        # Wait for launch to finish or timeout.
-        try:
-            rc = launch.wait(timeout=TIMEOUT)
-            if rc:
-                print("Test failure reported!")
-                sys.exit(rc)
-            return
-        except subprocess.TimeoutExpired:
-            print("Timeout reached!")
-
-        # Since launch has timeouted interrupt it and gather post-mortem.
-        launch.send_signal(signal.SIGINT)
-        try:
-            launch.communicate(b"post-mortem\n", timeout=15)
-            launch.communicate(b"kill\n")
-            launch.communicate(b"quit\n")
-        except (subprocess.TimeoutExpired, ValueError):
-            pass
-        launch.terminate()
-
-        print("No test result reported within timeout. Unable to verify "
-              "test success. Seed was: %u, repeat: %d" % (seed, REPEAT))
-        sys.exit(1)
-
+                ['./launch', '--board', getvar('board'), '--test-run',
+                 '--timeout=%d' % TIMEOUT, 'test=all', 'seed=%u' % seed,
+                 'repeat=%d' % REPEAT])
+        rc = launch.wait()
+        if rc:
+            print("Run `launch -d test=all seed=%u repeat=%u` to reproduce "
+                  "the failure." % (seed, REPEAT))
+            sys.exit(rc)
     except KeyboardInterrupt:
-        launch.terminate()
-        sys.exit(1)
-
-
-def sigterm_handler(_signo, _stack_frame):
-    sys.exit(1)
+        launch.send_signal(signal.SIGINT)
+        sys.exit(launch.wait())
 
 
 if __name__ == '__main__':
-    signal.signal(signal.SIGTERM, sigterm_handler)
-    signal.signal(signal.SIGHUP, sigterm_handler)
-
     setup_terminal()
 
     parser = argparse.ArgumentParser(
