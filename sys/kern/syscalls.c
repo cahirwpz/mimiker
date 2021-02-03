@@ -1118,7 +1118,7 @@ static int sys_futimens(proc_t *p, futimens_args_t *args, register_t *res) {
       return error;
   }
 
-  return do_futimens(p, fd, times);
+  return do_futimens(p, fd, u_times == NULL ? NULL : times);
 }
 
 static int sys_utimensat(proc_t *p, utimensat_args_t *args, register_t *res) {
@@ -1141,7 +1141,7 @@ static int sys_utimensat(proc_t *p, utimensat_args_t *args, register_t *res) {
       goto end;
   }
 
-  error = do_utimensat(p, fd, path, times, flag);
+  error = do_utimensat(p, fd, path, u_times == NULL ? NULL : times, flag);
 
 end:
   kfree(M_TEMP, path);
