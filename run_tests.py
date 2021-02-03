@@ -1,11 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S python3 -u
 
 import argparse
-import pexpect
+import os
 import random
+import shutil
 import signal
+import subprocess
 import sys
-from launcher import getvar, setboard, setup_terminal
 
 
 N_SIMPLE = 10
@@ -13,52 +14,34 @@ TIMEOUT = 40
 REPEAT = 5
 
 
-# Tries to decode binary output as ASCII, as hard as it can.
-def safe_decode(data):
-    s = data.decode('unicode_escape', errors='replace')
-    return s.replace('\r', '')
+def setup_terminal():
+    cols, rows = shutil.get_terminal_size(fallback=(120, 32))
+
+    os.environ['COLUMNS'] = str(cols)
+    os.environ['LINES'] = str(rows)
+
+    if sys.stdin.isatty():
+        subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
 
 
-def test_seed(seed, repeat=1):
+def run_test(seed, board):
     print("Testing seed %u..." % seed)
-    child = pexpect.spawn('./launch',
-                          ['--board', getvar('board'), '-t', 'test=all',
-                           'seed=%u' % seed, 'repeat=%d' % repeat])
-    index = child.expect_exact([pexpect.EOF, pexpect.TIMEOUT], timeout=TIMEOUT)
-    if index == 0:
-        child.close()
-        if child.exitstatus == 0:
-            return
-        child.terminate(True)
-        print("Test failure reported!\n")
-        message = safe_decode(child.before)
-        message += safe_decode(child.buffer)
-        try:
-            while len(message) < 20000:
-                message += safe_decode(child.read_nonblocking(timeout=1))
-        except pexpect.exceptions.TIMEOUT:
-            pass
-        print(message)
-        sys.exit(1)
-    elif index == 1:
-        print("Timeout reached!\n")
-        message = safe_decode(child.buffer)
-        child.terminate(True)
-        print(message)
-        print("No test result reported within timeout. Unable to verify "
-              "test success. Seed was: %u, repeat: %d" % (seed, repeat))
-        sys.exit(1)
 
-
-def sigterm_handler(_signo, _stack_frame):
-    sys.exit(1)
+    try:
+        launch = subprocess.Popen(
+                ['./launch', '--board', board, '-t', '--timeout=%d' % TIMEOUT,
+                 'test=all', 'seed=%u' % seed, 'repeat=%d' % REPEAT])
+        rc = launch.wait()
+        if rc:
+            print("Run `launch -d test=all seed=%u repeat=%u` to reproduce "
+                  "the failure." % (seed, REPEAT))
+            sys.exit(rc)
+    except KeyboardInterrupt:
+        launch.send_signal(signal.SIGINT)
+        sys.exit(launch.wait())
 
 
 if __name__ == '__main__':
-    signal.signal(signal.SIGTERM, sigterm_handler)
-    signal.signal(signal.SIGINT, sigterm_handler)
-    signal.signal(signal.SIGHUP, sigterm_handler)
-
     setup_terminal()
 
     parser = argparse.ArgumentParser(
@@ -69,12 +52,9 @@ if __name__ == '__main__':
                         help='Emulated board.')
     args = parser.parse_args()
 
-    setboard(args.board)
-
     # Run tests using n random seeds
-    for i in range(0, args.times):
-        seed = random.randint(0, 2**32)
-        test_seed(seed, REPEAT)
+    for _ in range(0, args.times):
+        run_test(random.randint(0, 2**32), args.board)
 
     print("Tests successful!")
     sys.exit(0)
