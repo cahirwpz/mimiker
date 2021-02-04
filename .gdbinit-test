@@ -26,6 +26,6 @@ quit 0
 end
 
 # launch kernel tests and wait for ktest_main to finish
-break panic_fail
+break panic
 
 continue

@@ -13,7 +13,7 @@ python import debug
 break kernel_init
 break ktest_success
 break assert_fail
-break panic_fail
+break panic
 
 # skip by default some non-interesting stuff
 skip -function tlb_refill -file ebase.S
