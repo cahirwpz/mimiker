@@ -4,7 +4,10 @@ from .utils import cast, relpath
 
 
 def cstr(val):
-    return val.string()
+    try:
+        return val.string()
+    except gdb.MemoryError:
+        return '[invalid pointer 0x%08x]' % cast(val, 'unsigned long')
 
 
 def enum(v):
