@@ -19,9 +19,6 @@ typedef struct pit_state {
   uint32_t last_irq_sec;   /* seconds */
 } pit_state_t;
 
-static uint32_t last_ticks = 0;
-static uint32_t last_sec = 0;
-
 #define inb(addr) bus_read_1(pit->regs, (addr))
 #define outb(addr, val) bus_write_1(pit->regs, (addr), (val))
 
@@ -63,6 +60,8 @@ static void pit_get_ticks(pit_state_t *pit, bool overflowed) {
 /* XXX: This is a temporary check, it's going to be removed before this PR
  * gets merged with master. */
 static void sanity_check(uint32_t sec, uint32_t ticks) {
+  static uint32_t last_ticks = 0;
+  static uint32_t last_sec = 0;
   assert(last_sec < sec || (last_sec == sec && last_ticks < ticks));
   last_ticks = ticks;
   last_sec = sec;
