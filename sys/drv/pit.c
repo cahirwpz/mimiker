@@ -13,8 +13,15 @@ typedef struct pit_state {
   timer_t timer;
   uint16_t period_cntr;      /* period as PIT counter value */
   uint16_t cntr16_prev_read; /* last read counter value */
-  timercntr_t cntr64;        /* counter value since timer initialization */
+  uint32_t sec;              /* seconds since timer initialization */
+  uint32_t cntr32;           /* counter value since timer initialization modulo TIMER_FREQ*/
 } pit_state_t;
+
+/*TODO Have to find a better name and cleane up the mess */
+typedef struct sectick {
+    uint32_t ticks;
+    uint32_t sec;
+} secticks_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
 #define outb(addr, val) bus_write_1(pit->regs, (addr), (val))
@@ -33,13 +40,14 @@ static uint16_t pit_get_counter16(pit_state_t *pit) {
   return count;
 }
 
-static uint64_t pit_get_counter64(pit_state_t *pit) {
+static secticks_t pit_get_counter64(pit_state_t *pit) {
   SCOPED_INTR_DISABLED();
   uint16_t cntr16_now = pit_get_counter16(pit);
   /* PIT counter counts from n to 1 and when we get to 1 an interrupt
      is send and the counter starts from the beginning (n = pit->period_cntr).
      We do not guarantee that we will not miss the whole period (n ticks) */
   uint16_t ticks = pit->cntr16_prev_read - cntr16_now;
+  secticks_t ret;
   if (pit->cntr16_prev_read < cntr16_now)
     ticks += pit->period_cntr;
 
@@ -47,12 +55,16 @@ static uint64_t pit_get_counter64(pit_state_t *pit) {
    * overflows of our counter */
   pit->cntr16_prev_read = cntr16_now;
 
-  uint32_t oldlow = pit->cntr64.lo;
-  pit->cntr64.lo += ticks;
-  if (oldlow > oldlow + ticks)
-    pit->cntr64.hi++;
+  pit->cntr32 += ticks;
+  if(pit->cntr32 >= TIMER_FREQ) {
+    pit->cntr32 -= TIMER_FREQ;
+    pit->sec++;
+  }
+  assert(pit->cntr32 < TIMER_FREQ);
 
-  return pit->cntr64.val;
+  ret.sec = pit->sec;
+  ret.ticks = pit->cntr32;
+  return ret;
 }
 
 static intr_filter_t pit_intr(void *data) {
@@ -80,7 +92,8 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   /* Maximal counter value which we can store in pit timer */
   assert(counter <= 0xFFFF);
 
-  pit->cntr64.val = 0;
+  pit->sec = 0;
+  pit->cntr32 = 0;
   pit->cntr16_prev_read = 0;
   pit->period_cntr = counter;
 
@@ -100,10 +113,10 @@ static int timer_pit_stop(timer_t *tm) {
 static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  uint64_t count = pit_get_counter64(pit);
+  secticks_t time = pit_get_counter64(pit);
   uint32_t freq = pit->timer.tm_frequency;
-  uint32_t sec = count / freq;
-  uint32_t frac = count % freq;
+  uint32_t sec = time.sec;
+  uint32_t frac = time.ticks;
   bintime_t bt = bintime_mul(HZ2BT(freq), frac);
   bt.sec += sec;
   return bt;
