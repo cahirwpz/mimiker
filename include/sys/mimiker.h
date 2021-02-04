@@ -124,7 +124,7 @@ __noreturn void panic(const char *fmt, ...)
   __attribute__((format(printf, 1, 2)));
 
 #ifdef DEBUG
-void assert_fail(const char *expr, const char *file, unsigned int line);
+__noreturn void assert_fail(const char *expr, const char *file, unsigned line);
 
 #define assert(EXPR)                                                           \
   __extension__({                                                              \

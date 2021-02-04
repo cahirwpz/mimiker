@@ -32,7 +32,7 @@ static __noreturn void ktest_failure(void) {
   if (autorun_tests[0])
     klog("Run `launch -d test=all seed=%u repeat=%u` to reproduce the failure.",
          ktest_seed, ktest_repeat);
-  panic("Halting kernel on failed test.");
+  panic("Halting kernel on failed test!");
 }
 
 void ktest_failure_hook(void) {

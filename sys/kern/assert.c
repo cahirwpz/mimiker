@@ -19,8 +19,6 @@ __noreturn void panic(const char *fmt, ...) {
     continue;
 }
 
-void assert_fail(const char *expr, const char *file, unsigned int line) {
-  klog("Assertion \"%s\" at [%s:%d] failed!", expr, file, line);
-  ktest_failure_hook();
-  panic("Assertion failed.");
+__noreturn void assert_fail(const char *expr, const char *file, unsigned line) {
+  panic("Assertion \"%s\" at [%s:%d] failed!", expr, file, line);
 }
