@@ -15,7 +15,6 @@ static int test_timer_monotonic(void) {
     prev = curr;
   }
 
-
   return KTEST_SUCCESS;
 }
 
