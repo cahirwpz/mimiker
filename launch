@@ -330,6 +330,8 @@ if __name__ == '__main__':
                         nargs=argparse.REMAINDER, help='Kernel arguments.')
     parser.add_argument('-d', '--debug', action='store_true',
                         help='Start debugging session with gdb.')
+    parser.add_argument('-n', '--network', action='store_true',
+                        help='Append qemu network configuration (if any).')
     parser.add_argument('-t', '--test-run', action='store_true',
                         help='Test-run mode: simulator output goes to stdout.')
     parser.add_argument('-T', '--timeout', type=int, default=60,
@@ -347,6 +349,7 @@ if __name__ == '__main__':
     setvar('config.debug', args.debug)
     setvar('config.graphics', args.graphics)
     setvar('config.args', args.args)
+    setvar('config.network', args.network)
 
     # Check if the kernel file is available
     if not os.path.isfile(getvar('config.kernel')):
