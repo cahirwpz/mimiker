@@ -120,16 +120,8 @@ int kasan_copyinstr(const void *restrict udaddr, void *restrict kaddr,
 #define copyout_s(_what, udaddr) copyout(&(_what), (udaddr), sizeof(_what))
 
 /* Write a formatted string to default console. */
-int kprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
-
-/* Terminate thread. */
-__noreturn void panic_fail(void);
-
-#define panic(FMT, ...)                                                        \
-  __extension__({                                                              \
-    kprintf("[PANIC] %s: " FMT "\n", __func__, ##__VA_ARGS__);                 \
-    panic_fail();                                                              \
-  })
+__noreturn void panic(const char *fmt, ...)
+  __attribute__((format(printf, 1, 2)));
 
 #ifdef DEBUG
 void assert_fail(const char *expr, const char *file, unsigned int line);

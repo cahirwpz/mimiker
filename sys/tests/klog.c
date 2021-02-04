@@ -151,7 +151,6 @@ static int stress_test(void) {
 }
 
 static int test_klog(void) {
-  kprintf("Testing klog.\n");
   int mask_old = klog.mask;
   klog.mask = KL_MASK(KL_LOG);
 

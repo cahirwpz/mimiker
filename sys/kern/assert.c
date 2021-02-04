@@ -1,20 +1,26 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/ktest.h>
 #include <sys/interrupt.h>
 
-__noreturn void panic_fail(void) {
-  /* We used to terminate the current thread, but that is not a great way of
-     panicking, as other threads will continue executing, and our panic might go
-     unnoticed. */
+/*
+ * We used to terminate the current thread. That's not a great way to panic,
+ * since other threads will continue executing, so our panic might go unnoticed.
+ */
+__noreturn void panic(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vkprintf(fmt, ap);
+  va_end(ap);
+  ktest_failure_hook();
   /* Permanently lock the kernel. */
   intr_disable();
-  while (1)
-    ;
+  for (;;)
+    continue;
 }
 
 void assert_fail(const char *expr, const char *file, unsigned int line) {
-  kprintf("Assertion \"%s\" at [%s:%d] failed!\n", expr, file, line);
+  klog("Assertion \"%s\" at [%s:%d] failed!", expr, file, line);
   ktest_failure_hook();
   panic("Assertion failed.");
 }
