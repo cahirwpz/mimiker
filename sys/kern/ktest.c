@@ -62,9 +62,9 @@ static test_entry_t *find_test(const char *test, size_t len) {
 typedef int (*test_func_t)(unsigned);
 
 static void run_test(test_entry_t *t) {
-  klog("Running test \"%s\".", current_test->test_name);
-
   current_test = t;
+
+  klog("Running test \"%s\".", current_test->test_name);
 
   test_func_t f = (void *)t->test_func;
   int randint = 0;

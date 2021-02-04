@@ -19,18 +19,13 @@ define post-mortem
   klog
 end
 
-# launch kernel tests and wait for ktest_main to finish
-break panic_fail
-commands
-post-mortem
-kill
-quit 1
-end
-
 break ktest_success
 commands
 kill
 quit 0
 end
+
+# launch kernel tests and wait for ktest_main to finish
+break panic_fail
 
 continue

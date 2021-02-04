@@ -237,6 +237,17 @@ class SOCAT(Launchable):
         self.options = [stdio_opt, f'tcp:localhost:{tcp_port},retry,forever']
 
 
+def PostMortem(gdb):
+    gdb.sendline('post-mortem')
+    gdb.expect_exact('(gdb) ')
+    print(gdb.before.decode())
+    if sys.stdin.isatty():
+        print('(gdb) ', end='')
+        gdb.interact()
+    gdb.sendline('kill')
+    gdb.sendline('quit')
+
+
 def TestRun(sim, dbg, timeout):
     qemu = sim.spawn()
     gdb = dbg.spawn()
@@ -244,23 +255,21 @@ def TestRun(sim, dbg, timeout):
 
     try:
         # No need to wait for QEmu, GDB will terminate it!
-        if gdb.expect([pexpect.EOF, pexpect.TIMEOUT], timeout=timeout) == 0:
-            rc = gdb.wait()
-            if rc:
-                print(gdb.before.decode())
-                print("Test run failed!")
-            sys.exit(rc)
+        rc = gdb.expect_exact([pexpect.EOF, '(gdb) ', pexpect.TIMEOUT],
+                              timeout=timeout)
 
-        # Since GDB has timeout'ed, let's interrupt it and gather post-mortem.
-        gdb.sendintr()
-        gdb.expect_exact("(gdb)")
-        gdb.sendline("post-mortem")
-        gdb.expect_exact("(gdb)")
-        print(gdb.before.decode())
-        gdb.sendline("kill")
-        gdb.sendline("quit 2")
-        print("Test run timeout!")
-        sys.exit(gdb.wait())
+        if rc == 1:
+            PostMortem(gdb)
+            print('Test run failed!')
+        elif rc == 2:
+            # Since GDB has timeout'ed,
+            # let's interrupt it and gather post-mortem.
+            gdb.sendintr()
+            gdb.expect_exact('(gdb) ')
+            PostMortem(gdb)
+            print('Test run timeout!')
+
+        sys.exit(rc)
 
     except KeyboardInterrupt:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -293,7 +302,7 @@ def DevelRun(sim, dbg):
             dbg.start(session)
 
         session.kill_window(':0')
-        session.select_window(dbg.name if dbg else '/dev/cons')
+        session.select_window(dbg.name if dbg else '/dev/tty1')
         session.attach_session()
     finally:
         server.kill_server()
@@ -302,7 +311,19 @@ def DevelRun(sim, dbg):
         sim.stop()
 
 
+def setup_terminal():
+    cols, rows = shutil.get_terminal_size(fallback=(132, 43))
+
+    os.environ['COLUMNS'] = str(cols)
+    os.environ['LINES'] = str(rows)
+
+    if sys.stdin.isatty():
+        subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
+
+
 if __name__ == '__main__':
+    setup_terminal()
+
     parser = argparse.ArgumentParser(
         description='Launch kernel in Malta board simulator.')
     parser.add_argument('args', metavar='ARGS', type=str,
