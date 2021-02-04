@@ -302,7 +302,19 @@ def DevelRun(sim, dbg):
         sim.stop()
 
 
+def setup_terminal():
+    cols, rows = shutil.get_terminal_size(fallback=(120, 32))
+
+    os.environ['COLUMNS'] = str(cols)
+    os.environ['LINES'] = str(rows)
+
+    if sys.stdin.isatty():
+        subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
+
+
 if __name__ == '__main__':
+    setup_terminal()
+
     parser = argparse.ArgumentParser(
         description='Launch kernel in Malta board simulator.')
     parser.add_argument('args', metavar='ARGS', type=str,
