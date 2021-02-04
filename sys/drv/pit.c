@@ -14,13 +14,14 @@ typedef struct pit_state {
   uint16_t period_cntr;      /* period as PIT counter value */
   uint16_t cntr16_prev_read; /* last read counter value */
   uint32_t sec;              /* seconds since timer initialization */
-  uint32_t cntr32;           /* counter value since timer initialization modulo TIMER_FREQ*/
+  uint32_t
+    cntr32; /* counter value since timer initialization modulo TIMER_FREQ*/
 } pit_state_t;
 
 /*TODO Have to find a better name and cleane up the mess */
 typedef struct sectick {
-    uint32_t ticks;
-    uint32_t sec;
+  uint32_t ticks;
+  uint32_t sec;
 } secticks_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
@@ -56,7 +57,7 @@ static secticks_t pit_get_counter64(pit_state_t *pit) {
   pit->cntr16_prev_read = cntr16_now;
 
   pit->cntr32 += ticks;
-  if(pit->cntr32 >= TIMER_FREQ) {
+  if (pit->cntr32 >= TIMER_FREQ) {
     pit->cntr32 -= TIMER_FREQ;
     pit->sec++;
   }
