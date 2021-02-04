@@ -12,11 +12,12 @@ typedef struct pit_state {
   resource_t *irq_res;
   timer_t timer;
   uint16_t period_ticks; /* number of PIT ticks in full period */
-  uint32_t prev_ticks;   /* number of ticks since last interrupt */
-  uint32_t prev_period;  /* number of periods (in ticks) since last interrupt */
+  /* values since last interrupt */
+  volatile uint32_t prev_ticks;  /* number of ticks */
+  volatile uint32_t prev_period; /* number of periods (in ticks) */
   /* time of last interrupt counted from timer start */
-  uint32_t last_irq_ticks; /* [0, TIMER_FREQ) fractional part of a second */
-  uint32_t last_irq_sec;   /* seconds */
+  volatile uint32_t last_irq_ticks; /* [0, TIMER_FREQ) ticks within second */
+  volatile uint32_t last_irq_sec;   /* seconds */
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
@@ -62,6 +63,7 @@ static void pit_get_ticks(pit_state_t *pit, bool overflowed) {
 static void sanity_check(uint32_t sec, uint32_t ticks) {
   static uint32_t last_ticks = 0;
   static uint32_t last_sec = 0;
+  assert(intr_disabled());
   assert(last_sec < sec || (last_sec == sec && last_ticks < ticks));
   last_ticks = ticks;
   last_sec = sec;
