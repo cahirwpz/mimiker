@@ -161,6 +161,9 @@ void vattr_convert(vattr_t *va, stat_t *sb) {
   sb->st_gid = va->va_gid;
   sb->st_size = va->va_size;
   sb->st_ino = va->va_ino;
+  sb->st_atim = va->va_atime;
+  sb->st_mtim = va->va_mtime;
+  sb->st_ctim = va->va_ctime;
 }
 
 void vattr_null(vattr_t *va) {
@@ -170,6 +173,8 @@ void vattr_null(vattr_t *va) {
   va->va_uid = VNOVAL;
   va->va_gid = VNOVAL;
   va->va_size = VNOVAL;
+  va->va_atime.tv_sec = va->va_mtime.tv_sec = va->va_ctime.tv_sec = VNOVAL;
+  va->va_atime.tv_nsec = va->va_mtime.tv_nsec = va->va_ctime.tv_nsec = VNOVAL;
 }
 
 /* Default file operations using v-nodes. */

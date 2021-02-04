@@ -173,6 +173,8 @@ bintime_t bintime(void);
  * and is maintained by system clock. */
 systime_t getsystime(void);
 
+timespec_t nanotime(void);
+
 int do_clock_gettime(clockid_t clk, timespec_t *tp);
 
 int do_clock_nanosleep(clockid_t clk, int flags, timespec_t *rqtp,
