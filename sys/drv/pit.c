@@ -13,11 +13,15 @@ typedef struct pit_state {
   timer_t timer;
   uint16_t period_ticks; /* number of PIT ticks in full period */
   /* values since last interrupt */
-  volatile uint32_t prev_ticks;  /* number of ticks */
-  volatile uint32_t prev_period; /* number of periods (in ticks) */
+  uint32_t prev_ticks;  /* number of ticks */
+  uint32_t prev_period; /* number of periods (in ticks) */
   /* time of last interrupt counted from timer start */
-  volatile uint32_t last_irq_ticks; /* [0, TIMER_FREQ) ticks within second */
-  volatile uint32_t last_irq_sec;   /* seconds */
+  uint32_t last_irq_ticks; /* [0, TIMER_FREQ) ticks within second */
+  uint32_t last_irq_sec;   /* seconds */
+  /* for sanity checking */
+  void *last_ret;
+  uint32_t last_ticks;
+  uint32_t last_sec;
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
@@ -60,14 +64,13 @@ static void pit_get_ticks(pit_state_t *pit, bool overflowed) {
 
 /* XXX: This is a temporary check, it's going to be removed before this PR
  * gets merged with master. */
-static void sanity_check(uint32_t sec, uint32_t ticks) {
-  static uint32_t last_ticks = 0;
-  static uint32_t last_sec = 0;
-  assert(intr_disabled());
-  assert(last_sec < sec || (last_sec == sec && last_ticks < ticks));
-  last_ticks = ticks;
-  last_sec = sec;
-}
+#define sanity_check(sec, ticks)                                               \
+  assert(intr_disabled());                                                     \
+  assert(pit->last_sec < sec ||                                                \
+         (pit->last_sec == sec && pit->last_ticks < ticks));                   \
+  pit->last_ticks = ticks;                                                     \
+  pit->last_sec = sec;                                                         \
+  pit->last_ret = __builtin_extract_return_addr(__builtin_return_address(0));
 
 static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
