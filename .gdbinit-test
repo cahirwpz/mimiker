@@ -3,23 +3,20 @@ set output-radix 0x10
 set pagination off
 set confirm off
 set verbose off
+handle SIGINT stop
 
 # make extra commands available
 python import os, sys
 python sys.path.append(os.path.join(os.getcwd(), 'sys'))
 python import debug
 
-# launch kernel tests and wait for ktest_main to finish
-break panic_fail
-commands
-info registers
-# cpu tlb # XXX it sometimes hangs
-backtrace full
-kthread *
-kproc
-klog
-kill
-quit 1
+define post-mortem
+  info registers
+  # cpu tlb # XXX it sometimes hangs
+  backtrace full
+  kthread *
+  kproc
+  klog
 end
 
 break ktest_success
@@ -28,4 +25,7 @@ kill
 quit 0
 end
 
-cont
+# launch kernel tests and wait for ktest_main to finish
+break halt
+
+continue
