@@ -2,6 +2,7 @@
 #include <sys/pmap.h>
 #include <sys/param.h>
 #include <sys/kasan.h>
+#include <sys/klog.h>
 #include <sys/thread.h>
 #include <machine/vm_param.h>
 #include <machine/kasan.h>
@@ -159,11 +160,10 @@ __always_inline static inline void shadow_check(uintptr_t addr, size_t size,
 
   if (__predict_false(!valid)) {
     panic("===========KernelAddressSanitizer===========\n"
-          "ERROR:\n"
           "* invalid access to address %p\n"
           "* %s of size %lu\n"
-          "* redzone code 0x%x (%s)\n"
-          "============================================\n",
+          "* redzone code %02x (%s)\n"
+          "============================================",
           (void *)addr, (read ? "read" : "write"), size, code, code_name(code));
   }
 }
