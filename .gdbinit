@@ -11,9 +11,7 @@ python import debug
 
 # favorite set of breakpoints
 break kernel_init
-break ktest_success
-break assert_fail
-break panic
+break halt
 
 # skip by default some non-interesting stuff
 skip -function tlb_refill -file ebase.S

@@ -152,7 +152,6 @@ void klog_clear(void) {
  * since other threads will continue executing, so our panic might go unnoticed.
  */
 static __noreturn void halt(void) {
-  ktest_log_failure();
   intr_disable();
   for (;;)
     continue;
@@ -163,6 +162,7 @@ __noreturn void klog_panic(klog_origin_t origin, const char *file,
                            uintptr_t arg2, uintptr_t arg3, uintptr_t arg4,
                            uintptr_t arg5, uintptr_t arg6) {
   klog_append(origin, file, line, format, arg1, arg2, arg3, arg4, arg5, arg6);
+  ktest_log_failure();
   halt();
 }
 
@@ -170,5 +170,6 @@ __noreturn void klog_assert(klog_origin_t origin, const char *file,
                             unsigned line, const char *expr) {
   klog_append(origin, file, line, "Assertion \"%s\" failed!", (intptr_t)expr, 0,
               0, 0, 0, 0);
+  ktest_log_failure();
   halt();
 }

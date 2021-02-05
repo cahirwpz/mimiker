@@ -1,4 +1,3 @@
-#define KL_LOG KL_TEST
 #include <sys/klog.h>
 #include <sys/condvar.h>
 #include <sys/mutex.h>
