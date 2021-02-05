@@ -16,7 +16,7 @@ typedef struct pit_state {
   uint16_t prev_ticks16; /* number of ticks */
   /* values since initialization */
   uint32_t ticks; /* number of ticks modulo TIMER_FREQ*/
-  uint32_t sec;          /* seconds */
+  uint32_t sec;   /* seconds */
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
@@ -57,7 +57,8 @@ static void pit_update_time(pit_state_t *pit) {
     pit->ticks -= TIMER_FREQ;
     pit->sec++;
   }
-  assert(last_sec < pit->sec || (last_sec == pit->sec && last_ticks <= pit->ticks)); 
+  assert(last_sec < pit->sec ||
+         (last_sec == pit->sec && last_ticks <= pit->ticks));
   assert(pit->ticks < TIMER_FREQ);
 }
 
