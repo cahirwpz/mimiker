@@ -11,6 +11,7 @@ typedef struct pit_state {
   resource_t *regs;
   resource_t *irq_res;
   timer_t timer;
+  bool overflowed;       /* should we add the counter period */
   uint16_t period_ticks; /* number of PIT ticks in full period */
   /* values since last counter read */
   uint16_t prev_ticks16; /* number of ticks */
@@ -33,9 +34,8 @@ static inline uint16_t pit_get_counter(pit_state_t *pit) {
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
   count |= inb(TIMER_CNTR0);
   count |= inb(TIMER_CNTR0) << 8;
-  /* PIT counter counts from n to 1 and when we get to 1 an interrupt
-    is send and the counter starts from the beginning (n = pit->period_ticks).
-    We do not guarantee that we will not miss the whole period (n ticks) */
+
+  /* PIT counter counts from n to 1, we make it ascending from 0 to n*/
   return pit->period_ticks - count;
 }
 
@@ -45,8 +45,11 @@ static void pit_update_time(pit_state_t *pit) {
   uint32_t last_sec = pit->sec;
   uint16_t now_ticks16 = pit_get_counter(pit);
   uint16_t ticks_passed = now_ticks16 - pit->prev_ticks16;
-  if (pit->prev_ticks16 >= now_ticks16)
+  if (pit->prev_ticks16 >= now_ticks16) {
+    assert(pit->overflowed == true);
+    pit->overflowed = false;
     ticks_passed += pit->period_ticks;
+  }
 
   /* We want to keep the last read counter value to detect possible future
    * overflows of our counter */
@@ -65,9 +68,17 @@ static void pit_update_time(pit_state_t *pit) {
 static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
-  /* XXX: It's still possible for a tick to be lost. */
+  /* XXX: It's still possible for periods to be lost. */
   pit_update_time(pit);
+  if (pit->overflowed) {
+    pit->ticks += pit->overflowed;
+    if (pit->ticks >= TIMER_FREQ) {
+      pit->ticks -= TIMER_FREQ;
+      pit->sec++;
+    }
+  }
   tm_trigger(&pit->timer);
+  pit->overflowed = true;
   return IF_FILTERED;
 }
 
