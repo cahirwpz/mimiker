@@ -15,7 +15,7 @@ typedef struct pit_state {
   /* values since last counter read */
   uint16_t prev_ticks16; /* number of ticks */
   /* values since initialization */
-  uint32_t prev_ticks32; /* number of ticks modulo TIMER_FREQ*/
+  uint32_t ticks; /* number of ticks modulo TIMER_FREQ*/
   uint32_t sec;          /* seconds */
 } pit_state_t;
 
@@ -28,7 +28,7 @@ static inline void pit_set_frequency(pit_state_t *pit) {
   outb(TIMER_CNTR0, pit->period_ticks >> 8);
 }
 
-static inline uint16_t pit_get_counter16(pit_state_t *pit) {
+static inline uint16_t pit_get_counter(pit_state_t *pit) {
   uint16_t count = 0;
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
   count |= inb(TIMER_CNTR0);
@@ -38,7 +38,9 @@ static inline uint16_t pit_get_counter16(pit_state_t *pit) {
 
 static void pit_update_time(pit_state_t *pit) {
   assert(intr_disabled());
-  uint16_t now_ticks16 = pit_get_counter16(pit);
+  uint32_t last_ticks = pit->ticks;
+  uint32_t last_sec = pit->sec;
+  uint16_t now_ticks16 = pit_get_counter(pit);
   /* PIT counter counts from n to 1 and when we get to 1 an interrupt
      is send and the counter starts from the beginning (n = pit->period_ticks).
      We do not guarantee that we will not miss the whole period (n ticks) */
@@ -50,12 +52,13 @@ static void pit_update_time(pit_state_t *pit) {
    * overflows of our counter */
   pit->prev_ticks16 = now_ticks16;
 
-  pit->prev_ticks32 += ticks_passed;
-  if (pit->prev_ticks32 >= TIMER_FREQ) {
-    pit->prev_ticks32 -= TIMER_FREQ;
+  pit->ticks += ticks_passed;
+  if (pit->ticks >= TIMER_FREQ) {
+    pit->ticks -= TIMER_FREQ;
     pit->sec++;
   }
-  assert(pit->prev_ticks32 < TIMER_FREQ);
+  assert(last_sec < pit->sec || (last_sec == pit->sec && last_ticks <= pit->ticks)); 
+  assert(pit->ticks < TIMER_FREQ);
 }
 
 static intr_filter_t pit_intr(void *data) {
@@ -84,7 +87,7 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   assert(counter <= 0xFFFF);
 
   pit->sec = 0;
-  pit->prev_ticks32 = 0;
+  pit->ticks = 0;
   pit->prev_ticks16 = 0;
   pit->period_ticks = counter;
 
@@ -109,7 +112,7 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
   WITH_INTR_DISABLED {
     pit_update_time(pit);
     sec = pit->sec;
-    ticks = pit->prev_ticks32;
+    ticks = pit->ticks;
   }
   bintime_t bt = bintime_mul(HZ2BT(freq), ticks);
   bt.sec += sec;
