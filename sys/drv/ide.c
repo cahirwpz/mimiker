@@ -8,13 +8,20 @@
 #include <sys/timer.h>
 #include <sys/spinlock.h>
 #include <sys/devclass.h>
+#include <sys/malloc.h>
 #include <dev/pciidereg.h>
 #include <dev/idereg.h>
 
+typedef struct ide_chs {
+  int cylinder;
+  int head;
+  int sector;
+} ide_chs_t;
+
 typedef struct ide_device {
-  uint8_t identification_space[4096];
+  uint8_t identification_space[512];
   uint8_t model[41];
-  unsigned int size;
+  uint32_t size;
 } ide_device_t;
 
 typedef struct ide_channel_resources {
@@ -107,8 +114,7 @@ static unsigned short ide_read2(ide_state_t *ide, unsigned char channel,
   return result;
 }
 
-/* TODO: Maybe change this to something else?
- * It should wait an order of n milliseconds */
+/* It should wait an order of n milliseconds */
 static void active_wait(int n) {
   for (volatile int i = 0; i < 1000000 * n; i++)
     continue;
@@ -124,67 +130,107 @@ static void ide_wait_ready(ide_state_t *ide, unsigned char channel) {
     ;
 }
 
-static void __unused ide_hdd_access(ide_state_t *ide, uint8_t drive,
-                                    uint16_t *buffer, uint32_t logical_address,
-                                    int nbytes, int action) {
+static ide_chs_t ide_lba_to_chs(uint32_t logical_address) {
+  ide_chs_t chs;
 
-  int cylinder;
+  chs.sector = (logical_address % 63) + 1;
+  chs.cylinder = (logical_address + 1 - chs.sector) / (16 * 63);
+  chs.head = (logical_address + 1 - chs.sector) % (16 * 63) / (63);
+
+  return chs;
+}
+
+static void ide_drive_access(ide_state_t *ide, uint8_t drive, uint16_t *buffer,
+                             uint32_t logical_address, uint8_t sector_count,
+                             int action) {
+  if (sector_count == 0)
+    return;
 
   uint8_t channel;
-  uint8_t sector;
-  uint8_t sector_count;
-  uint8_t head;
-  uint8_t cylinder_low;
-  uint8_t cylinder_high;
   uint8_t slave;
+  ide_chs_t chs;
 
   channel = drive / 2;
   slave = drive % 2;
-  sector_count = (nbytes + (512 - 1)) / 512;
-  sector = (logical_address % 63) + 1;
-  cylinder = (logical_address + 1 - sector) / (16 * 63);
-  head = (logical_address + 1 - sector) % (16 * 63) / (63);
-  cylinder_low = (cylinder >> 0) & 0xFF;
-  cylinder_high = (cylinder >> 0) & 0xFF;
+  chs = ide_lba_to_chs(logical_address);
 
   ide_wait_busy(ide, channel);
 
-  ide_write(ide, channel, ATA_REG_HDDEVSEL, 0xA0 | (slave << 4) | head);
+  ide_write(ide, channel, ATA_REG_HDDEVSEL, 0xA0 | (slave << 4) | chs.head);
   ide_write(ide, channel, ATA_REG_SECCOUNT0, sector_count);
-  ide_write(ide, channel, ATA_REG_LBA0, sector);
-  ide_write(ide, channel, ATA_REG_LBA1, cylinder_low);
-  ide_write(ide, channel, ATA_REG_LBA2, cylinder_high);
+  ide_write(ide, channel, ATA_REG_LBA0, chs.sector);
+  ide_write(ide, channel, ATA_REG_LBA1, (chs.cylinder >> 0) & 0xFF);
+  ide_write(ide, channel, ATA_REG_LBA2, (chs.cylinder >> 8) & 0xFF);
 
-  if (action == ATA_READ) {
+  if (action == ATA_READ)
     ide_write(ide, channel, ATA_REG_COMMAND, ATA_CMD_READ_PIO);
-
-    for (int j = 0; j < sector_count; j++) {
-
-      ide_wait_busy(ide, channel);
-
-      ide_wait_ready(ide, channel);
-
-      for (int i = 0; i < 256; i++)
-        buffer[i] = ide_read2(ide, channel, ATA_REG_DATA);
-      buffer += 256;
-    }
-  } else {
+  else
     ide_write(ide, channel, ATA_REG_COMMAND, ATA_CMD_WRITE_PIO);
 
-    for (int j = 0; j < sector_count; j++) {
+  for (int i = 0; i < sector_count; i++) {
 
-      ide_wait_busy(ide, channel);
+    ide_wait_busy(ide, channel);
 
-      ide_wait_ready(ide, channel);
+    ide_wait_ready(ide, channel);
 
-      for (int i = 0; i < 256; i++)
-        ide_write2(ide, channel, ATA_REG_DATA, buffer[i]);
-      buffer += 256;
-    }
+    for (int j = 0; j < 256; j++)
+      if (action == ATA_READ)
+        buffer[j] = ide_read2(ide, channel, ATA_REG_DATA);
+      else
+        ide_write2(ide, channel, ATA_REG_DATA, buffer[j]);
+    buffer += 256;
   }
 }
 
-static int ide_attach(device_t *dev) {
+static void __unused ide_drive_read(ide_state_t *ide, uint8_t drive,
+                                    void *buffer, uint32_t logical_address,
+                                    int nbytes) {
+
+  int full_sectors = nbytes / 512;
+  int full_sectors_nbytes = full_sectors * 512;
+  ide_drive_access(ide, drive, buffer, logical_address, full_sectors, ATA_READ);
+
+  int bytes_left = nbytes - full_sectors_nbytes;
+
+  if (bytes_left) {
+    uint8_t *last_sector = kmalloc(M_TEMP, 512, M_ZERO);
+    ide_drive_access(ide, drive, (uint16_t *)last_sector,
+                     logical_address + full_sectors_nbytes, 1, ATA_READ);
+
+    for (int i = 0; i < bytes_left; i++)
+      ((uint8_t *)buffer)[full_sectors_nbytes + i] = last_sector[i];
+
+    kfree(M_TEMP, last_sector);
+  }
+}
+
+static void __unused ide_drive_write(ide_state_t *ide, uint8_t drive,
+                                     void *buffer, uint32_t logical_address,
+                                     int nbytes) {
+
+  int full_sectors = nbytes / 512;
+  int full_sectors_nbytes = full_sectors * 512;
+  ide_drive_access(ide, drive, buffer, logical_address, full_sectors,
+                   ATA_WRITE);
+
+  int bytes_left = nbytes - full_sectors_nbytes;
+
+  if (bytes_left) {
+    uint8_t *last_sector = kmalloc(M_TEMP, 512, M_ZERO);
+    ide_drive_access(ide, drive, (uint16_t *)last_sector,
+                     logical_address + full_sectors_nbytes, 1, ATA_READ);
+
+    for (int i = 0; i < bytes_left; i++)
+      last_sector[i] = ((uint8_t *)buffer)[full_sectors_nbytes + i];
+
+    ide_drive_access(ide, drive, (uint16_t *)last_sector,
+                     logical_address + full_sectors_nbytes, 1, ATA_WRITE);
+
+    kfree(M_TEMP, last_sector);
+  }
+}
+
+static void ide_take_resources(device_t *dev) {
   ide_state_t *ide = dev->state;
 
   ide->ide_channels[0].base = device_take_ioports(dev, 0, RF_ACTIVE);
@@ -208,82 +254,85 @@ static int ide_attach(device_t *dev) {
   ide->ide_channels[1].bmide = ide->ide_channels[0].bmide;
 
   ide->ide_channels[1].nIEN = ATA_DISABLE_INTS;
+}
+
+static void ide_drive_read_size(ide_state_t *ide, int drive) {
+  uint32_t *is = (uint32_t *)ide->ide_devices[drive].identification_space;
+
+  ide->ide_devices[drive].size = 512 * is[ATA_IDENT_MAX_LBA / sizeof(uint32_t)];
+}
+
+static void ide_drive_read_model(ide_state_t *ide, int drive) {
+  uint8_t *is = ide->ide_devices[drive].identification_space;
+  uint8_t *model = ide->ide_devices[drive].model;
+
+  /* big-endian little-endian conversion */
+  for (int i = 0; i < 40; i += 2) {
+    model[i] = is[ATA_IDENT_MODEL + i + 1];
+    model[i + 1] = is[ATA_IDENT_MODEL + i];
+  }
+  model[40] = 0;
+}
+
+static void ide_drive_read_is(ide_state_t *ide, int drive) {
+  ide_drive_read_size(ide, drive);
+  ide_drive_read_model(ide, drive);
+}
+
+static void ide_drive_identify(ide_state_t *ide, int channel, int slave) {
+
+  /* Select the drive */
+  ide_write(ide, channel, ATA_REG_HDDEVSEL, 0xA0 | (slave << 4));
+  active_wait(1);
+
+  ide_write(ide, channel, ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
+  active_wait(1);
+
+  while (1) {
+    uint8_t status = ide_read(ide, channel, ATA_REG_STATUS);
+
+    if ((status & ATA_SR_ERR) || (status == 0))
+      return;
+
+    if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ))
+      break;
+  }
+
+  int drive = channel * 2 + slave;
+  uint16_t *is = (uint16_t *)ide->ide_devices[drive].identification_space;
+
+  for (int i = 0; i < 256; i++) {
+    is[i] = ide_read2(ide, channel, ATA_REG_DATA);
+  }
+
+  ide_drive_read_is(ide, drive);
+
+  if (ide->ide_devices[drive].size) {
+    klog("Found %s of size %d bytes on channel %d , position %d",
+         ide->ide_devices[drive].model, ide->ide_devices[drive].size, channel,
+         slave);
+  }
+}
+
+static int ide_attach(device_t *dev) {
+  ide_state_t *ide = dev->state;
+
+  ide_take_resources(dev);
 
   /* We have to zero the control registers first */
   ide_write(ide, ATA_PRIMARY, ATA_REG_CONTROL, 0);
   ide_write(ide, ATA_SECONDARY, ATA_REG_CONTROL, 0);
 
+  /* For now we don't use interrupts */
   ide_write(ide, ATA_PRIMARY, ATA_REG_CONTROL, ATA_DISABLE_INTS);
   ide_write(ide, ATA_SECONDARY, ATA_REG_CONTROL, ATA_DISABLE_INTS);
 
   for (int channel = 0; channel < 2; channel++)
-    for (int slave = 0; slave < 2; slave++) {
+    for (int slave = 0; slave < 2; slave++)
+      ide_drive_identify(ide, channel, slave);
 
-      int drive = channel * 2 + slave;
-
-      unsigned char err = 0, status;
-
-      /* Select the drive */
-      ide_write(ide, channel, ATA_REG_HDDEVSEL, 0xA0 | (slave << 4));
-      active_wait(1);
-
-      ide_write(ide, channel, ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
-      active_wait(1);
-
-      /* Check if there is a device */
-      if (ide_read(ide, channel, ATA_REG_STATUS) == 0) {
-        klog("Didn't find any device on channel %d", channel);
-        continue;
-      }
-
-      /* XXX: We should probably limit the number of iterations here and do a
-       * software reset (or even give up after a few resets) if the loop takes
-       * too long */
-      while (1) {
-        status = ide_read(ide, channel, ATA_REG_STATUS);
-
-        /* Device is not an ata device, it might be atapi */
-        if ((status & ATA_SR_ERR)) {
-          err = 1;
-          break;
-        }
-
-        /* Device is an ata device */
-        if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ))
-          break;
-      }
-
-      uint8_t *is = ide->ide_devices[drive].identification_space;
-
-      for (int i = 0; i < 2048; i++) {
-        is[i] = 0;
-      }
-
-      if (err) {
-        klog("Didn't find any device on channel %d at position %d", channel,
-             slave);
-      } else {
-        ide_write(ide, channel, ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
-
-        active_wait(1);
-
-        klog("Found a device on channel %d , position %d", channel, slave);
-        for (int i = 0; i < 128; i++) {
-          *((short *)(is) + i) = ide_read2(ide, channel, ATA_REG_DATA);
-        }
-        ide->ide_devices[drive].size =
-          512 * *((unsigned int *)(is + ATA_IDENT_MAX_LBA));
-
-        /* big-endian little-endian conversion */
-        for (int i = 0; i < 40; i += 2) {
-          ide->ide_devices[drive].model[i] = is[ATA_IDENT_MODEL + i + 1];
-          ide->ide_devices[drive].model[i + 1] = is[ATA_IDENT_MODEL + i];
-        }
-        ide->ide_devices[drive].model[40] = 0;
-        klog("Model %s of size %u bytes", ide->ide_devices[drive].model,
-             ide->ide_devices[drive].size);
-      }
-    }
+  ide_drive_write(ide, 0, (uint16_t *)ide->ide_devices[0].identification_space,
+                  0, 160);
 
   return 0;
 }
