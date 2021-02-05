@@ -18,9 +18,6 @@ static test_entry_t *autorun_tests[KTEST_MAX_NO] = {NULL};
 /* Memory pool used by tests. */
 KMALLOC_DEFINE(M_TEST, "test framework");
 
-/* This flag is set to 1 when a kernel test is in progress, and 0 otherwise. */
-static volatile bool ktest_test_running_flag = false;
-
 /* The initial seed, as set from command-line. */
 static unsigned ktest_seed = 0;
 static unsigned ktest_repeat = 1; /* Number of repetitions of each test. */
