@@ -26,26 +26,23 @@ static unsigned ktest_seed = 0;
 static unsigned ktest_repeat = 1; /* Number of repetitions of each test. */
 static unsigned seed = 0;         /* Current seed */
 
-static __noreturn void ktest_failure(void) {
-  assert(current_test != NULL);
+void ktest_log_failure(void) {
+  if (!ktest_test_running_flag)
+    return;
+
   klog("Test \"%s\" failed !!!", current_test->test_name);
   if (autorun_tests[0])
     klog("Run `launch -d test=all seed=%u repeat=%u` to reproduce the failure.",
          ktest_seed, ktest_repeat);
-  panic("Halting kernel on failed test!");
 }
 
-void ktest_failure_hook(void) {
-  if (ktest_test_running_flag)
-    ktest_failure();
+static __noreturn void ktest_failure(void) {
+  ktest_log_failure();
+  panic("Test run failed!");
 }
 
 static __noreturn void ktest_success(void) {
-  klog("Test run finished!\n");
-
-  intr_disable();
-  for (;;)
-    continue;
+  panic("Test run finished!");
 }
 
 static test_entry_t *find_test(const char *test, size_t len) {

@@ -5,7 +5,6 @@
 #include <sys/thread.h>
 #include <sys/klog.h>
 #include <sys/ktest.h>
-#include <sys/sched.h>
 #include <sys/interrupt.h>
 
 #define KL_SIZE 1024
@@ -147,25 +146,29 @@ void klog_clear(void) {
 }
 
 /*
+ * @brief Permanently lock the kernel.
+ *
  * We used to terminate the current thread. That's not a great way to panic,
  * since other threads will continue executing, so our panic might go unnoticed.
  */
-__noreturn void panic(const char *fmt, ...) {
-  /* Disable preemption and print the message. */
-  preempt_disable();
-
-  va_list ap;
-  va_start(ap, fmt);
-  vkprintf(fmt, ap);
-  va_end(ap);
-  ktest_failure_hook();
-
-  /* Permanently lock the kernel. */
+static __noreturn void halt(void) {
+  ktest_log_failure();
   intr_disable();
   for (;;)
     continue;
 }
 
-__noreturn void assert_fail(const char *expr, const char *file, unsigned line) {
-  panic("Assertion \"%s\" at [%s:%d] failed!", expr, file, line);
+__noreturn void klog_panic(klog_origin_t origin, const char *file,
+                           unsigned line, const char *format, uintptr_t arg1,
+                           uintptr_t arg2, uintptr_t arg3, uintptr_t arg4,
+                           uintptr_t arg5, uintptr_t arg6) {
+  klog_append(origin, file, line, format, arg1, arg2, arg3, arg4, arg5, arg6);
+  halt();
+}
+
+__noreturn void klog_assert(klog_origin_t origin, const char *file,
+                            unsigned line, const char *expr) {
+  klog_append(origin, file, line, "Assertion \"%s\" failed!", (intptr_t)expr, 0,
+              0, 0, 0, 0);
+  halt();
 }

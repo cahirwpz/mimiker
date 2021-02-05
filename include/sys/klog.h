@@ -47,9 +47,18 @@ typedef enum {
 void init_klog(void);
 
 void klog_append(klog_origin_t origin, const char *file, unsigned line,
-                 const char *format, uintptr_t arg1, uintptr_t arg2,
-                 uintptr_t arg3, uintptr_t arg4, uintptr_t arg5,
-                 uintptr_t arg6);
+                 const char *fmt, uintptr_t arg1, uintptr_t arg2,
+                 uintptr_t arg3, uintptr_t arg4, uintptr_t arg5, uintptr_t arg6)
+  __attribute__((format(printf, 4, 0)));
+
+__noreturn void klog_panic(klog_origin_t origin, const char *file,
+                           unsigned line, const char *fmt, uintptr_t arg1,
+                           uintptr_t arg2, uintptr_t arg3, uintptr_t arg4,
+                           uintptr_t arg5, uintptr_t arg6)
+  __attribute__((format(printf, 4, 0)));
+
+__noreturn void klog_assert(klog_origin_t origin, const char *file,
+                            unsigned line, const char *expr);
 
 unsigned klog_setmask(unsigned newmask);
 
@@ -59,36 +68,30 @@ void klog_dump(void);
 /* Delete all logs. */
 void klog_clear(void);
 
-#define _klog(format, p1, p2, p3, p4, p5, p6, ...)                             \
+#define _klog(fmt, p1, p2, p3, p4, p5, p6, ...)                                \
   ({                                                                           \
-    klog_append(KL_LOG, __FILE__, __LINE__, format, (intptr_t)(p1),            \
+    klog_append(KL_LOG, __FILE__, __LINE__, (fmt), (intptr_t)(p1),             \
                 (intptr_t)(p2), (intptr_t)(p3), (intptr_t)(p4),                \
                 (intptr_t)(p5), (intptr_t)(p6));                               \
   })
 
-#define _klogo(o, format, p1, p2, p3, p4, p5, p6, ...)                         \
-  ({                                                                           \
-    klog_append((o), __FILE__, __LINE__, format, (intptr_t)(p1),               \
-                (intptr_t)(p2), (intptr_t)(p3), (intptr_t)(p4),                \
-                (intptr_t)(p5), (intptr_t)(p6));                               \
-  })
-
-/* Regular `klog` with message origin extracted from KL_LOG. */
+/* Log a message with origin extracted from KL_LOG. */
 #define klog(...) _klog(__VA_ARGS__, 0, 0, 0, 0, 0, 0)
 
-/* Version with manually passed message origin. */
-#define klogo(o, ...) _klogo((o), __VA_ARGS__, 0, 0, 0, 0, 0, 0)
+#define _panic(fmt, p1, p2, p3, p4, p5, p6, ...)                               \
+  ({                                                                           \
+    klog_panic(KL_LOG, __FILE__, __LINE__, (fmt), (intptr_t)(p1),              \
+               (intptr_t)(p2), (intptr_t)(p3), (intptr_t)(p4), (intptr_t)(p5), \
+               (intptr_t)(p6));                                                \
+  })
 
-/* Write a formatted string to default console. */
-__noreturn void panic(const char *fmt, ...)
-  __attribute__((format(printf, 1, 2)));
-
-__noreturn void assert_fail(const char *expr, const char *file, unsigned line);
+/* Log a message with origin extracted from KL_LOG and halt OS. */
+#define panic(...) _panic(__VA_ARGS__, 0, 0, 0, 0, 0, 0)
 
 #define assert(EXPR)                                                           \
-  __extension__({                                                              \
+  ({                                                                           \
     if (!(EXPR))                                                               \
-      assert_fail(__STRING(EXPR), __FILE__, __LINE__);                         \
+      klog_assert(KL_LOG, __FILE__, __LINE__, __STRING(EXPR));                 \
   })
 
 #endif /* !_SYS_KLOG_H_ */
