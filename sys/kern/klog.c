@@ -4,11 +4,30 @@
 #include <sys/time.h>
 #include <sys/libkern.h>
 #include <sys/thread.h>
-#define _KLOG_PRIVATE
 #include <sys/klog.h>
 
-klog_t klog;
+#define KL_SIZE 1024
 
+typedef struct klog_entry {
+  bintime_t kl_timestamp;
+  tid_t kl_tid;
+  unsigned kl_line;
+  const char *kl_file;
+  klog_origin_t kl_origin;
+  const char *kl_format;
+  uintptr_t kl_params[6];
+} klog_entry_t;
+
+typedef struct klog {
+  klog_entry_t array[KL_SIZE];
+  atomic_uint mask;
+  volatile unsigned first;
+  volatile unsigned last;
+  bool repeated;
+  int prev;
+} klog_t;
+
+static klog_t klog;
 static spin_t klog_lock = SPIN_INITIALIZER(LK_RECURSIVE);
 
 static const char *subsystems[] = {

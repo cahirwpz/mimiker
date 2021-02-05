@@ -8,7 +8,6 @@ SOURCES = \
 	crash.c \
 	devfs.c \
 	fdt.c \
-	klog.c \
 	kmem.c \
 	linker_set.c \
 	mutex.c \

@@ -44,35 +44,6 @@ typedef enum {
 #define KL_LOG KL_UNDEF
 #endif
 
-#ifdef _KLOG_PRIVATE
-#undef _KLOG_PRIVATE
-
-#include <sys/time.h>
-
-#define KL_SIZE 1024
-
-typedef struct klog_entry {
-  bintime_t kl_timestamp;
-  tid_t kl_tid;
-  unsigned kl_line;
-  const char *kl_file;
-  klog_origin_t kl_origin;
-  const char *kl_format;
-  uintptr_t kl_params[6];
-} klog_entry_t;
-
-typedef struct klog {
-  klog_entry_t array[KL_SIZE];
-  atomic_uint mask;
-  volatile unsigned first;
-  volatile unsigned last;
-  bool repeated;
-  int prev;
-} klog_t;
-
-extern klog_t klog;
-#endif
-
 /*! \brief Called during kernel initialization. */
 void init_klog(void);
 
@@ -90,19 +61,23 @@ void klog_dump(void);
 void klog_clear(void);
 
 #define _klog(format, p1, p2, p3, p4, p5, p6, ...)                             \
-  do {                                                                         \
+  ({                                                                           \
     klog_append(KL_LOG, __FILE__, __LINE__, format, (intptr_t)(p1),            \
                 (intptr_t)(p2), (intptr_t)(p3), (intptr_t)(p4),                \
                 (intptr_t)(p5), (intptr_t)(p6));                               \
-  } while (0)
-#define klog(...) _klog(__VA_ARGS__, 0, 0, 0, 0, 0, 0)
+  })
 
-#define _klog_(o, format, p1, p2, p3, p4, p5, p6, ...)                         \
-  do {                                                                         \
+#define _klogo(o, format, p1, p2, p3, p4, p5, p6, ...)                         \
+  ({                                                                           \
     klog_append((o), __FILE__, __LINE__, format, (intptr_t)(p1),               \
                 (intptr_t)(p2), (intptr_t)(p3), (intptr_t)(p4),                \
                 (intptr_t)(p5), (intptr_t)(p6));                               \
-  } while (0)
-#define klog_(o, ...) _klog_((o), __VA_ARGS__, 0, 0, 0, 0, 0, 0)
+  })
+
+/* Regular `klog` with message origin extracted from KL_LOG. */
+#define klog(...) _klog(__VA_ARGS__, 0, 0, 0, 0, 0, 0)
+
+/* Version with manually passed message origin. */
+#define klogo(o, ...) _klogo((o), __VA_ARGS__, 0, 0, 0, 0, 0, 0)
 
 #endif /* !_SYS_KLOG_H_ */
