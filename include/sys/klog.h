@@ -6,7 +6,7 @@
 /* Kernel log message origin. */
 typedef enum {
   KL_UNDEF,   /* undefined subsystems */
-  KL_RUNQ,    /* scheduler's run queue */
+  KL_DEBUG,   /* debug messages */
   KL_SLEEPQ,  /* sleep queues */
   KL_CALLOUT, /* callout */
   KL_SIGNAL,  /* signal processing */
@@ -22,8 +22,7 @@ typedef enum {
   KL_THREAD,  /* kernel threads management */
   KL_INTR,    /* interrupts management and handling */
   KL_DEV,     /* device management */
-  KL_VFS,     /* vfs operations tracing */
-  KL_VNODE,   /* vnode operations tracing */
+  KL_VFS,     /* vfs & vnode operations tracing */
   KL_PROC,    /* user process management */
   KL_SYSCALL, /* syscall processing */
   KL_USER,    /* user program */
@@ -79,5 +78,17 @@ void klog_clear(void);
 
 /* Version with manually passed message origin. */
 #define klogo(o, ...) _klogo((o), __VA_ARGS__, 0, 0, 0, 0, 0, 0)
+
+/* Write a formatted string to default console. */
+__noreturn void panic(const char *fmt, ...)
+  __attribute__((format(printf, 1, 2)));
+
+__noreturn void assert_fail(const char *expr, const char *file, unsigned line);
+
+#define assert(EXPR)                                                           \
+  __extension__({                                                              \
+    if (!(EXPR))                                                               \
+      assert_fail(__STRING(EXPR), __FILE__, __LINE__);                         \
+  })
 
 #endif /* !_SYS_KLOG_H_ */

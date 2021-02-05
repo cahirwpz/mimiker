@@ -1,10 +1,12 @@
-#include <sys/mimiker.h>
 #include <sys/mutex.h>
 #include <sys/kenv.h>
 #include <sys/time.h>
 #include <sys/libkern.h>
 #include <sys/thread.h>
 #include <sys/klog.h>
+#include <sys/ktest.h>
+#include <sys/sched.h>
+#include <sys/interrupt.h>
 
 #define KL_SIZE 1024
 
@@ -31,15 +33,15 @@ static klog_t klog;
 static spin_t klog_lock = SPIN_INITIALIZER(LK_RECURSIVE);
 
 static const char *subsystems[] = {
-  [KL_RUNQ] = "runq",   [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout",
-  [KL_INIT] = "init",   [KL_PMAP] = "pmap",       [KL_VM] = "vm",
-  [KL_KMEM] = "kmem",   [KL_VMEM] = "vmem",       [KL_LOCK] = "lock",
-  [KL_SCHED] = "sched", [KL_THREAD] = "thread",   [KL_INTR] = "intr",
-  [KL_DEV] = "dev",     [KL_VFS] = "vfs",         [KL_VNODE] = "vnode",
-  [KL_PROC] = "proc",   [KL_SYSCALL] = "syscall", [KL_USER] = "user",
-  [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_FILESYS] = "filesys",
-  [KL_TIME] = "time",   [KL_FILE] = "file",       [KL_TTY] = "tty",
-  [KL_UNDEF] = "???"};
+  [KL_DEBUG] = "debug",     [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout",
+  [KL_INIT] = "init",       [KL_PMAP] = "pmap",       [KL_VM] = "vm",
+  [KL_KMEM] = "kmem",       [KL_VMEM] = "vmem",       [KL_LOCK] = "lock",
+  [KL_SCHED] = "sched",     [KL_THREAD] = "thread",   [KL_INTR] = "intr",
+  [KL_DEV] = "dev",         [KL_VFS] = "vfs",         [KL_PROC] = "proc",
+  [KL_SYSCALL] = "syscall", [KL_USER] = "user",       [KL_TEST] = "test",
+  [KL_SIGNAL] = "signal",   [KL_FILESYS] = "filesys", [KL_TIME] = "time",
+  [KL_FILE] = "file",       [KL_TTY] = "tty",         [KL_UNDEF] = "???",
+};
 
 void init_klog(void) {
   const char *mask = kenv_get("klog-mask");
@@ -142,4 +144,28 @@ void klog_dump(void) {
 void klog_clear(void) {
   klog.first = 0;
   klog.last = 0;
+}
+
+/*
+ * We used to terminate the current thread. That's not a great way to panic,
+ * since other threads will continue executing, so our panic might go unnoticed.
+ */
+__noreturn void panic(const char *fmt, ...) {
+  /* Disable preemption and print the message. */
+  preempt_disable();
+
+  va_list ap;
+  va_start(ap, fmt);
+  vkprintf(fmt, ap);
+  va_end(ap);
+  ktest_failure_hook();
+
+  /* Permanently lock the kernel. */
+  intr_disable();
+  for (;;)
+    continue;
+}
+
+__noreturn void assert_fail(const char *expr, const char *file, unsigned line) {
+  panic("Assertion \"%s\" at [%s:%d] failed!", expr, file, line);
 }
