@@ -1,26 +1,46 @@
-#include <sys/mimiker.h>
 #include <sys/mutex.h>
 #include <sys/kenv.h>
 #include <sys/time.h>
 #include <sys/libkern.h>
 #include <sys/thread.h>
-#define _KLOG_PRIVATE
 #include <sys/klog.h>
+#include <sys/ktest.h>
+#include <sys/interrupt.h>
 
-klog_t klog;
+#define KL_SIZE 1024
 
+typedef struct klog_entry {
+  bintime_t kl_timestamp;
+  tid_t kl_tid;
+  unsigned kl_line;
+  const char *kl_file;
+  klog_origin_t kl_origin;
+  const char *kl_format;
+  uintptr_t kl_params[6];
+} klog_entry_t;
+
+typedef struct klog {
+  klog_entry_t array[KL_SIZE];
+  atomic_uint mask;
+  volatile unsigned first;
+  volatile unsigned last;
+  bool repeated;
+  int prev;
+} klog_t;
+
+static klog_t klog;
 static spin_t klog_lock = SPIN_INITIALIZER(LK_RECURSIVE);
 
 static const char *subsystems[] = {
-  [KL_RUNQ] = "runq",   [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout",
-  [KL_INIT] = "init",   [KL_PMAP] = "pmap",       [KL_VM] = "vm",
-  [KL_KMEM] = "kmem",   [KL_VMEM] = "vmem",       [KL_LOCK] = "lock",
-  [KL_SCHED] = "sched", [KL_THREAD] = "thread",   [KL_INTR] = "intr",
-  [KL_DEV] = "dev",     [KL_VFS] = "vfs",         [KL_VNODE] = "vnode",
-  [KL_PROC] = "proc",   [KL_SYSCALL] = "syscall", [KL_USER] = "user",
-  [KL_TEST] = "test",   [KL_SIGNAL] = "signal",   [KL_FILESYS] = "filesys",
-  [KL_TIME] = "time",   [KL_FILE] = "file",       [KL_TTY] = "tty",
-  [KL_UNDEF] = "???"};
+  [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout", [KL_INIT] = "init",
+  [KL_PMAP] = "pmap",       [KL_VM] = "vm",           [KL_KMEM] = "kmem",
+  [KL_VMEM] = "vmem",       [KL_LOCK] = "lock",       [KL_SCHED] = "sched",
+  [KL_THREAD] = "thread",   [KL_INTR] = "intr",       [KL_DEV] = "dev",
+  [KL_VFS] = "vfs",         [KL_PROC] = "proc",       [KL_SYSCALL] = "syscall",
+  [KL_USER] = "user",       [KL_TEST] = "test",       [KL_SIGNAL] = "signal",
+  [KL_FILESYS] = "filesys", [KL_TIME] = "time",       [KL_FILE] = "file",
+  [KL_TTY] = "tty",         [KL_UNDEF] = "???",
+};
 
 void init_klog(void) {
   const char *mask = kenv_get("klog-mask");
@@ -123,4 +143,33 @@ void klog_dump(void) {
 void klog_clear(void) {
   klog.first = 0;
   klog.last = 0;
+}
+
+/*
+ * @brief Permanently lock the kernel.
+ *
+ * We used to terminate the current thread. That's not a great way to panic,
+ * since other threads will continue executing, so our panic might go unnoticed.
+ */
+static __noreturn void halt(void) {
+  intr_disable();
+  for (;;)
+    continue;
+}
+
+__noreturn void klog_panic(klog_origin_t origin, const char *file,
+                           unsigned line, const char *format, uintptr_t arg1,
+                           uintptr_t arg2, uintptr_t arg3, uintptr_t arg4,
+                           uintptr_t arg5, uintptr_t arg6) {
+  klog_append(origin, file, line, format, arg1, arg2, arg3, arg4, arg5, arg6);
+  ktest_log_failure();
+  halt();
+}
+
+__noreturn void klog_assert(klog_origin_t origin, const char *file,
+                            unsigned line, const char *expr) {
+  klog_append(origin, file, line, "Assertion \"%s\" failed!", (intptr_t)expr, 0,
+              0, 0, 0, 0);
+  ktest_log_failure();
+  halt();
 }
