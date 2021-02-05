@@ -6,7 +6,6 @@
 /* Kernel log message origin. */
 typedef enum {
   KL_UNDEF,   /* undefined subsystems */
-  KL_DEBUG,   /* debug messages */
   KL_SLEEPQ,  /* sleep queues */
   KL_CALLOUT, /* callout */
   KL_SIGNAL,  /* signal processing */
