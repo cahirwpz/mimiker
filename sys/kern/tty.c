@@ -395,8 +395,8 @@ static void tty_erase(tty_t *tty, uint8_t c) {
           tty_output(tty, '\b');
         break;
       default:
-        klog("tty_erase: don't know how to erase character 0x%hhx (class %hh), "
-             "ignoring.",
+        klog("tty_erase: "
+             "don't know how to erase character 0x%hhx (class %hhd), ignoring.",
              c, CCLASS(c));
         break;
     }

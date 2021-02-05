@@ -10,7 +10,6 @@
 #include <sys/thread.h>
 #include <sys/vm_map.h>
 #include <sys/vm_physmem.h>
-#include <sys/ktest.h>
 
 static inline unsigned exc_code(ctx_t *ctx) {
   return (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
@@ -95,8 +94,7 @@ static const char *const exceptions[32] = {
 static __noreturn void kernel_oops(ctx_t *ctx) {
   unsigned code = exc_code(ctx);
 
-  kprintf("KERNEL PANIC!!! \n");
-  kprintf("%s at $%08lx!\n", exceptions[code], _REG(ctx, EPC));
+  klog("%s at $%08lx!", exceptions[code], _REG(ctx, EPC));
   switch (code) {
     case EXC_ADEL:
     case EXC_ADES:
@@ -104,27 +102,25 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
     case EXC_DBE:
     case EXC_TLBL:
     case EXC_TLBS:
-      kprintf("Caused by reference to $%08lx!\n", _REG(ctx, BADVADDR));
+      klog("Caused by reference to $%08lx!", _REG(ctx, BADVADDR));
       break;
     case EXC_RI:
-      kprintf("Reserved instruction exception in kernel mode!\n");
+      klog("Reserved instruction exception in kernel mode!");
       break;
     case EXC_CPU:
-      kprintf("Coprocessor unusable exception in kernel mode!\n");
+      klog("Coprocessor unusable exception in kernel mode!");
       break;
     case EXC_FPE:
     case EXC_MSAFPE:
     case EXC_OVF:
-      kprintf("Floating point exception or integer overflow in kernel mode!\n");
+      klog("Floating point exception or integer overflow in kernel mode!");
       break;
     default:
       break;
   }
-  kprintf(
-    "HINT: Type 'info line *0x%08lx' into gdb to find faulty code line.\n",
-    _REG(ctx, EPC));
-  ktest_failure_hook();
-  panic();
+  klog("HINT: Type 'info line *0x%08lx' into gdb to find faulty code line.",
+       _REG(ctx, EPC));
+  panic("KERNEL PANIC!!!");
 }
 
 static void tlb_exception_handler(ctx_t *ctx) {
@@ -279,11 +275,8 @@ void mips_exc_handler(ctx_t *ctx) {
      * Hopefully sizeof(ctx_t) bytes of unallocated stack space will be enough
      * to display error message. */
     register_t sp = mips32_get_sp();
-    if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t)) {
-      kprintf("Kernel stack overflow caught at $%08lx!\n", _REG(ctx, EPC));
-      ktest_failure_hook();
-      panic();
-    }
+    if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t))
+      panic("Kernel stack overflow caught at $%08lx!", _REG(ctx, EPC));
   }
 
   if (exc_code(ctx)) {
