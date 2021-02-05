@@ -46,6 +46,7 @@ static void pit_update_time(pit_state_t *pit) {
   uint16_t now_ticks16 = pit_get_counter(pit);
   uint16_t ticks_passed = now_ticks16 - pit->prev_ticks16;
   if (pit->prev_ticks16 >= now_ticks16) {
+    /* Overflow can happen just one time in a period */
     assert(pit->overflowed == true);
     pit->overflowed = false;
     ticks_passed += pit->period_ticks;
