@@ -33,7 +33,7 @@ static inline uint16_t pit_get_counter(pit_state_t *pit) {
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
   count |= inb(TIMER_CNTR0);
   count |= inb(TIMER_CNTR0) << 8;
-  return count;
+  return pit->period_ticks - count;
 }
 
 static void pit_update_time(pit_state_t *pit) {
@@ -44,8 +44,8 @@ static void pit_update_time(pit_state_t *pit) {
   /* PIT counter counts from n to 1 and when we get to 1 an interrupt
      is send and the counter starts from the beginning (n = pit->period_ticks).
      We do not guarantee that we will not miss the whole period (n ticks) */
-  uint16_t ticks_passed = pit->prev_ticks16 - now_ticks16;
-  if (pit->prev_ticks16 < now_ticks16)
+  uint16_t ticks_passed = now_ticks16 - pit->prev_ticks16;
+  if (pit->prev_ticks16 >= now_ticks16)
     ticks_passed += pit->period_ticks;
 
   /* We want to keep the last read counter value to detect possible future
@@ -58,7 +58,7 @@ static void pit_update_time(pit_state_t *pit) {
     pit->sec++;
   }
   assert(last_sec < pit->sec ||
-         (last_sec == pit->sec && last_ticks <= pit->ticks));
+         (last_sec == pit->sec && last_ticks < pit->ticks));
   assert(pit->ticks < TIMER_FREQ);
 }
 
