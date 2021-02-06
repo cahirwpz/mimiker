@@ -12,7 +12,7 @@ static KMALLOC_DEFINE(M_INTR, "interrupt events & handlers");
 
 typedef TAILQ_HEAD(, intr_event) ie_list_t;
 
-static mtx_t all_ievents_mtx = MTX_INITIALIZER(0);
+static mtx_t all_ievents_mtx = MTX_INITIALIZER(all_ievents_mtx, 0);
 static ie_list_t all_ievents_list = TAILQ_HEAD_INITIALIZER(all_ievents_list);
 
 /*

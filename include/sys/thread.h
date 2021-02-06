@@ -14,6 +14,7 @@
 #include <sys/sigtypes.h>
 #include <sys/kstack.h>
 #include <sys/spinlock.h>
+#include <sys/lockdep.h>
 
 /*! \file thread.h */
 
@@ -141,6 +142,9 @@ typedef struct thread {
   sigpend_t td_sigpend;   /*!< (p) Pending signals for this thread. */
   sigset_t td_sigmask;    /*!< (p) Signal mask */
   sigset_t td_oldsigmask; /*!< (*) Signal mask from before sigsuspend() */
+
+  int td_lock_depth;
+  held_lock_t td_held_locks[MAX_LOCK_DEPTH];
 } thread_t;
 
 thread_t *thread_self(void);

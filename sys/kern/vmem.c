@@ -25,7 +25,7 @@ typedef LIST_HEAD(vmem_freelist, bt) vmem_freelist_t;
 typedef LIST_HEAD(vmem_hashlist, bt) vmem_hashlist_t;
 
 /* List of all vmem instances and a guarding mutex */
-static mtx_t vmem_list_lock = MTX_INITIALIZER(0);
+static mtx_t vmem_list_lock = MTX_INITIALIZER(vmem_list_lock, 0);
 static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
 
 /*! \brief vmem structure

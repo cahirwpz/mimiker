@@ -665,7 +665,7 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
   node->tfn_atime = nanotime();
   node->tfn_ctime = node->tfn_atime;
   node->tfn_mtime = node->tfn_atime;
-  node->tfn_timelock = MTX_INITIALIZER(0);
+  mtx_init(&node->tfn_timelock, 0);
 
   mtx_lock(&tfm->tfm_lock);
   node->tfn_ino = tfm->tfm_next_ino++;
@@ -1033,7 +1033,7 @@ static int tmpfs_mount(mount_t *mp) {
   /* Allocate the tmpfs mount structure and fill it. */
   tmpfs_mount_t *tfm = &tmpfs;
 
-  tfm->tfm_lock = MTX_INITIALIZER(LK_RECURSIVE);
+  mtx_init(&tfm->tfm_lock, LK_RECURSIVE);
   tfm->tfm_next_ino = 2;
   mp->mnt_data = tfm;
 

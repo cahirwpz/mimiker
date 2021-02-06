@@ -48,7 +48,7 @@ static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
 
 /* this lock is used to protect the vm_page::pv_list field */
-static mtx_t *pv_list_lock = &MTX_INITIALIZER(0);
+static mtx_t *pv_list_lock = &MTX_INITIALIZER(pv_list_lock, 0);
 
 #define PDE_OF(pmap, vaddr) ((pmap)->pde[PDE_INDEX(vaddr)])
 #define PT_BASE(pde) ((pte_t *)(((pde) >> PTE_PFN_SHIFT) << PTE_INDEX_SHIFT))

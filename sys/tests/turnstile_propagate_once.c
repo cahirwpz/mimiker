@@ -12,7 +12,7 @@
  * High priority task (td2) tries to acquire mutex and blocks, but firstly lends
  * its priority to low priority task (td0) that owns the mutex. */
 
-static mtx_t *mtx = &MTX_INITIALIZER(0);
+static mtx_t *mtx = &MTX_INITIALIZER(mtx, 0);
 static thread_t *td[T];
 static volatile bool high_prio_mtx_acquired;
 static prio_t LOW, MED, HIGH;

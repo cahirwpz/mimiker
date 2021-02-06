@@ -27,7 +27,7 @@ typedef struct vm_physseg {
 static TAILQ_HEAD(, vm_physseg) seglist = TAILQ_HEAD_INITIALIZER(seglist);
 static vm_pagelist_t freelist[PM_NQUEUES];
 static size_t pagecount[PM_NQUEUES];
-static mtx_t *physmem_lock = &MTX_INITIALIZER(LK_RECURSIVE);
+static mtx_t *physmem_lock = &MTX_INITIALIZER(physmem_lock, LK_RECURSIVE);
 
 void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);

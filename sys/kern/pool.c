@@ -51,7 +51,7 @@ typedef struct pool {
 } pool_t;
 
 static TAILQ_HEAD(, pool) pool_list = TAILQ_HEAD_INITIALIZER(pool_list);
-static mtx_t *pool_list_lock = &MTX_INITIALIZER(0);
+static mtx_t *pool_list_lock = &MTX_INITIALIZER(pool_list_lock, 0);
 static KMALLOC_DEFINE(M_POOL, "pool allocators");
 
 typedef struct slab {

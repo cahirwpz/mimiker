@@ -38,7 +38,7 @@ static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
 static POOL_DEFINE(P_SESSION, "session", sizeof(session_t));
 
-mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
+mtx_t *all_proc_mtx = &MTX_INITIALIZER(all_proc_mtx, 0);
 
 /* all_proc_mtx protects following data: */
 static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
@@ -68,7 +68,7 @@ static session_t session0 = {
 };
 
 static pgrp_t pgrp0 = {
-  .pg_lock = MTX_INITIALIZER(0),
+  .pg_lock = MTX_INITIALIZER(pgrp0lock, 0),
   .pg_members = TAILQ_HEAD_INITIALIZER(pgrp0.pg_members),
   .pg_session = &session0,
   .pg_jobc = 0,
@@ -76,7 +76,7 @@ static pgrp_t pgrp0 = {
 };
 
 proc_t proc0 = {
-  .p_lock = MTX_INITIALIZER(0),
+  .p_lock = MTX_INITIALIZER(proc0lock, 0),
   .p_thread = &thread0,
   .p_pid = 0,
   .p_pgrp = &pgrp0,

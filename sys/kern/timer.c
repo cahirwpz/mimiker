@@ -6,7 +6,7 @@
 #include <sys/mutex.h>
 #include <sys/errno.h>
 
-static mtx_t timers_mtx = MTX_INITIALIZER(0);
+static mtx_t timers_mtx = MTX_INITIALIZER(timers_mtx, 0);
 static timer_list_t timers = TAILQ_HEAD_INITIALIZER(timers);
 static timer_t *time_source = NULL;
 static bintime_t boottime = BINTIME(0);
