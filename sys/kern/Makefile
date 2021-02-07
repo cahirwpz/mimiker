@@ -3,7 +3,6 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
-	assert.c \
 	bus.c \
 	callout.c \
 	clock.c \

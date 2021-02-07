@@ -80,6 +80,8 @@
 #define SYS_getlogin 72
 #define SYS_setlogin 73
 #define SYS_posix_openpt 74
-#define SYS_MAXSYSCALL 75
+#define SYS_futimens 75
+#define SYS_utimensat 76
+#define SYS_MAXSYSCALL 77
 
 #define SYS_MAXSYSARGS 6

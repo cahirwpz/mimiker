@@ -1104,3 +1104,46 @@ static int sys_posix_openpt(proc_t *p, posix_openpt_args_t *args,
 
   return do_posix_openpt(p, flags, res);
 }
+
+static int sys_futimens(proc_t *p, futimens_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const timespec_t *u_times = SCARG(args, times);
+  timespec_t times[2];
+  int error;
+
+  klog("futimens(%d, %x)", fd, u_times);
+
+  if (u_times != NULL) {
+    if ((error = copyin_s(u_times, times)))
+      return error;
+  }
+
+  return do_futimens(p, fd, u_times == NULL ? NULL : times);
+}
+
+static int sys_utimensat(proc_t *p, utimensat_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  const timespec_t *u_times = SCARG(args, times);
+  int flag = SCARG(args, flag);
+  timespec_t times[2];
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("utimensat(%d, \"%s\", %x, %d)", fd, path, u_times, flag);
+
+  if (u_times != NULL) {
+    if ((error = copyin_s(u_times, times)))
+      goto end;
+  }
+
+  error = do_utimensat(p, fd, path, u_times == NULL ? NULL : times, flag);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
