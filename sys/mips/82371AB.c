@@ -3,7 +3,6 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
 #include <sys/mimiker.h>
-#include <mips/malta.h>
 #include <sys/device.h>
 #include <sys/rman.h>
 #include <sys/bus.h>
