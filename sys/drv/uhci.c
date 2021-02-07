@@ -162,7 +162,6 @@ static uint8_t uhci_init_ports(uhci_state_t *uhci) {
   for (; uhci_detect_port(uhci, pn); pn++) {
     if (!uhci_check_port(uhci, pn))
       return 0;
-    uhci_reset_port(uhci, pn);
   }
 
   uhci->nports = pn;

@@ -572,6 +572,8 @@ void usb_enumerate(device_t *dev, usbhc_space_t *uhs) {
   uint8_t nports = usbhc_number_of_ports(uhs);
 
   for (uint8_t pn = 0; pn < nports; pn++) {
+    usbhc_reset_port(uhs, pn);
+
     if (!usbhc_device_present(uhs, pn)) {
       klog("no device attached to port %hhu", pn);
       continue;

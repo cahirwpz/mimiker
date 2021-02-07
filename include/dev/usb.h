@@ -76,7 +76,7 @@ typedef struct usb_device_descriptor {
   uint8_t bNumConfigurations;
 } __packed usb_device_descriptor_t;
 
-#define US_DATASIZE 126
+#define US_DATASIZE 63
 
 typedef struct usb_string_descriptor {
   uint8_t bLength;
@@ -88,7 +88,7 @@ typedef struct usb_string_descriptor {
 typedef struct usb_string_lang {
   uint8_t bLength;
   uint8_t bDescriptorType;
-  uint8_t bData[US_DATASIZE];
+  uint16_t bData[US_DATASIZE];
 } __packed usb_string_lang_t;
 
 #define US_ENG_LID 0x0409
