@@ -46,7 +46,7 @@ __noreturn void ktest_main(const char *test);
 
 /* This function is called both by run_test, as well as ktest_assert.
  * It displays some troubleshooting info about the failing test. */
-void ktest_failure_hook(void);
+void ktest_log_failure(void);
 
 /*! \brief Attempt to load word from memory without crashing the kernel. */
 bool try_load_word(unsigned *ptr, unsigned *val_p);
