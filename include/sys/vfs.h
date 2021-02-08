@@ -12,6 +12,7 @@ typedef struct statvfs statvfs_t;
 typedef struct timeval timeval_t;
 typedef struct file file_t;
 typedef struct cred cred_t;
+typedef struct timespec timespec_t;
 
 /*! \brief Called during kernel initialization. */
 void init_vfs(void);
@@ -100,6 +101,8 @@ int do_fchmod(proc_t *p, int fd, mode_t mode);
 int do_fchmodat(proc_t *p, int fd, char *path, mode_t mode, int flag);
 int do_fchown(proc_t *p, int fd, uid_t uid, gid_t gid);
 int do_fchownat(proc_t *p, int fd, char *path, uid_t uid, gid_t gid, int flag);
+int do_futimens(proc_t *p, int fd, timespec_t *times);
+int do_utimensat(proc_t *p, int fd, char *path, timespec_t *times, int flag);
 
 /* Mount a new instance of the filesystem named fs at the requested path. */
 int do_mount(proc_t *p, const char *fs, const char *path);
