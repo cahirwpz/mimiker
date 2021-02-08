@@ -39,10 +39,10 @@
 //#define EMMC_STATUS 24
 
 // command flags
-#define CMD_NEED_APP    0x80000000
-#define CMD_RSPNS_48    0x00020000
-#define CMD_ERRORS_MASK 0xfff9c004
-#define CMD_RCA_MASK    0xffff0000
+#define CMD_APP_SPECIFIC    0x80000000
+#define CMD_RSPNS_48        0x00020000
+#define CMD_ERRORS_MASK     0xfff9c004
+#define CMD_RCA_MASK        0xffff0000
 
 // COMMANDs
 #define CMD_GO_IDLE       0x00000000
@@ -59,9 +59,9 @@
 #define CMD_WRITE_MULTI   0x19220022
 
 #define CMD_APP_CMD        0x37000000
-#define CMD_SET_BUS_WIDTH (0x06020000 | CMD_NEED_APP)
-#define CMD_SEND_OP_COND  (0x29020000 | CMD_NEED_APP)
-#define CMD_SEND_SCR      (0x33220010 | CMD_NEED_APP)
+#define CMD_SET_BUS_WIDTH (0x06020000 | CMD_APP_SPECIFIC)
+#define CMD_SEND_OP_COND  (0x29020000 | CMD_APP_SPECIFIC)
+#define CMD_SEND_SCR      (0x33220010 | CMD_APP_SPECIFIC)
 
 // STATUS register settings
 #define SR_READ_AVAILABLE 0x00000800
@@ -260,16 +260,16 @@ uint32_t emmc_cmd(device_t *dev, uint32_t code, uint32_t arg,
 
   uint32_t r = 0;
   state->sd_err = SD_OK;
-  if (code & CMD_NEED_APP) {
-    /* Possible SO? */
+  /* Application-specific commands require CMD55 to be sent beforehand */
+  if (code & CMD_APP_SPECIFIC) {
     r = emmc_cmd(dev, CMD_APP_CMD | (state->sd_rca ? CMD_RSPNS_48 : 0),
-                 state->sd_rca, mask, clear);
+                 state->sd_rca, 0, 0);
     if (state->sd_rca && !r) {
       klog("ERROR: failed to send SD APP command\n");
       state->sd_err = SD_ERROR;
       return 0;
     }
-    code &= ~CMD_NEED_APP;
+    code &= ~CMD_APP_SPECIFIC;
   }
   if (emmc_status(dev, SR_CMD_INHIBIT)) {
     klog("ERROR: EMMC busy\n");
@@ -653,17 +653,7 @@ static int emmc_init(device_t *dev) {
   if (emmc_status(dev, SR_DAT_INHIBIT))
     return SD_TIMEOUT;
   b_out(emmc, EMMC_BLKSIZECNT, (1 << 16) | 8);
-  /* We need to mask INT_READ_RDY because CMD_SEND_SCR is a NEED_APP command
-   * and it it doesn't need to wait for INT_READ_RDY, however it executes
-   * a command that causes this interrupt. So in order to prevent looping on
-   * this interrupt, we just defer the wait to be manually performed after
-   * exiting emmc_cmd. */
-  b_clr(emmc, EMMC_INT_MASK, INT_READ_RDY);
-  emmc_cmd(dev, CMD_SEND_SCR, 0, 0, 0);
-  WITH_SPIN_LOCK(&state->slock) {
-    b_set(emmc, EMMC_INT_MASK, INT_READ_RDY);
-    emmc_intr_wait(dev, INT_READ_RDY, 0);
-  }
+  emmc_cmd(dev, CMD_SEND_SCR, 0, INT_READ_RDY, 0);
   if (state->sd_err)
     return state->sd_err;
 
