@@ -100,4 +100,10 @@ int test_get_set_groups(void);
 int test_sharing_memory_simple(void);
 int test_sharing_memory_child_and_grandchild(void);
 
+int test_pty_simple(void);
+
+int test_tty_canon(void);
+int test_tty_echo(void);
+int test_tty_signals(void);
+
 #endif /* __UTEST_H__ */
