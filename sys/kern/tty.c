@@ -171,7 +171,6 @@ tty_t *tty_alloc(void) {
   cv_init(&tty->t_serialize_cv, "t_serialize_cv");
   tty->t_line.ln_buf = kmalloc(M_DEV, LINEBUF_SIZE, M_WAITOK);
   tty->t_line.ln_size = LINEBUF_SIZE;
-  tty->t_line.ln_count = 0;
   tty_init_termios(&tty->t_termios);
   return tty;
 }
@@ -572,6 +571,7 @@ bool tty_input(tty_t *tty, uint8_t c) {
       return false;
     }
 
+    tty_echo(tty, c);
     ringbuf_putb(&tty->t_inq, c);
     tty_wakeup(tty);
     return true;
