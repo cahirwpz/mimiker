@@ -2,7 +2,6 @@
 #define _UTIL_H_
 
 #include <sys/types.h>
-#include <sys/termios.h>
 
 __BEGIN_DECLS
 struct termios;
