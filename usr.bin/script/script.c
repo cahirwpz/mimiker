@@ -325,17 +325,20 @@ done(void)
 static void
 record(FILE *fp, char *buf, size_t cc, int direction)
 {
+  struct iovec iov[2];
 	struct stamp stamp;
 	struct timeval tv;
-  int fd = fileno(fp);
 
 	(void)gettimeofday(&tv, NULL);
 	stamp.scr_len = cc;
 	stamp.scr_sec = tv.tv_sec;
 	stamp.scr_usec = tv.tv_usec;
 	stamp.scr_direction = direction;
-	if (write(fd, &stamp, sizeof(stamp)) != sizeof(stamp) ||
-      write(fd, buf, cc) != (int)cc)
+  iov[0].iov_len = sizeof(stamp);
+  iov[0].iov_base = &stamp;
+  iov[1].iov_len = cc;
+  iov[1].iov_base = buf;
+  if (writev(fileno(fp), &iov[0], 2) == -1)
 		err(EXIT_FAILURE, "writev");
 }
 
