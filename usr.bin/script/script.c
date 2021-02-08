@@ -157,9 +157,8 @@ main(int argc, char *argv[])
 		isterm = 1;
 	}
 
-  if (!quiet)
-    (void)printf("Script started, output file is %s\n", fname);
-
+	if (!quiet)
+		(void)printf("Script started, output file is %s\n", fname);
 
 	if (isterm) {
 		rtt = tt;
@@ -280,7 +279,7 @@ doshell(const char *command)
 	if (command == NULL) {
 		shell = getenv("SHELL");
 		if (shell == NULL)
-			shell = _PATH_KSHELL;
+			shell = _PATH_KSHELL; /* XXX: change to BSHELL when sh is available */
 		execl(shell, shell, "-i", NULL);
 		warn("execl `%s'", shell);
 	} else {
@@ -325,7 +324,7 @@ done(void)
 static void
 record(FILE *fp, char *buf, size_t cc, int direction)
 {
-  struct iovec iov[2];
+	struct iovec iov[2];
 	struct stamp stamp;
 	struct timeval tv;
 
@@ -334,11 +333,11 @@ record(FILE *fp, char *buf, size_t cc, int direction)
 	stamp.scr_sec = tv.tv_sec;
 	stamp.scr_usec = tv.tv_usec;
 	stamp.scr_direction = direction;
-  iov[0].iov_len = sizeof(stamp);
-  iov[0].iov_base = &stamp;
-  iov[1].iov_len = cc;
-  iov[1].iov_base = buf;
-  if (writev(fileno(fp), &iov[0], 2) == -1)
+	iov[0].iov_len = sizeof(stamp);
+	iov[0].iov_base = &stamp;
+	iov[1].iov_len = cc;
+	iov[1].iov_base = buf;
+	if (writev(fileno(fp), &iov[0], 2) == -1)
 		err(EXIT_FAILURE, "writev");
 }
 
