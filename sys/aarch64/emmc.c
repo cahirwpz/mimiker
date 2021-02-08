@@ -1,3 +1,5 @@
+#define KL_LOG KL_DEV
+
 #include <sys/memdev.h>
 #include <sys/mimiker.h>
 #include <sys/resource.h>
@@ -348,7 +350,7 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
   assert(dev->driver == (driver_t *)&emmc_driver);
   emmc_state_t *state = (emmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
-  uint32_t c = 0, d;
+  uint32_t c = 0, d = 0;
   if (num < 1)
     num = 1;
   if (lba != state->last_lba)
@@ -367,8 +369,10 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
         return 0;
     }
     b_out(emmc, EMMC_BLKSIZECNT, (num << 16) | 512);
-    emmc_cmd(dev, num == 1 ? CMD_READ_SINGLE : CMD_READ_MULTI, lba,
-             INT_DATA_DONE, 0);
+    if (num > 1)
+      emmc_cmd(dev, CMD_READ_MULTI, lba, INT_READ_RDY, 0);
+    else
+      emmc_cmd(dev,CMD_READ_SINGLE, lba, INT_READ_RDY, 0);
     if (state->sd_err)
       return 0;
   } else {
@@ -377,12 +381,19 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
   while (c < num) {
     if (!(state->sd_scr[0] & SCR_SUPP_CCS)) {
       emmc_cmd(dev, CMD_READ_SINGLE, (lba + c) * 512,
-               INT_DATA_DONE | INT_READ_RDY, 0);
+               INT_DATA_DONE, 0);
       if (state->sd_err)
         return 0;
     }
-    for (d = 0; d < 128; d++)
-      buf[d] = b_in(emmc, EMMC_DATA);
+    uint32_t cnt = 10000;
+    while (d < 64 && cnt) {
+      if (b_in(emmc, EMMC_STATUS) & SR_READ_AVAILABLE)
+        buf[d++] = b_in(emmc, EMMC_DATA);
+      else
+        cnt--;
+    }
+    if (!cnt)
+      return SD_TIMEOUT;
     c++;
     buf += 128;
   }
@@ -698,10 +709,11 @@ static int emmc_probe(device_t *dev) {
 
 static int test_read(device_t *dev) {
   unsigned char *testblock = kmalloc(M_DEV, 512, 0);
-  int read_res = emmc_read_block(dev, 0, testblock, 512);
+  int read_res = emmc_read_block(dev, 0, testblock, 1);
   if (read_res == 0)
-    klog("eMMC test read failed!");
+    klog("e.MMC test read failed!");
   kfree(M_DEV, testblock);
+  klog("e.MMC test read success!");
   return read_res;
 }
 
