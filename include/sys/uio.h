@@ -1,14 +1,21 @@
 #ifndef _SYS_UIO_H_
 #define _SYS_UIO_H_
 
-#include <sys/vm.h>
-
-typedef struct vm_map vm_map_t;
+#include <sys/types.h>
 
 typedef struct iovec {
   void *iov_base; /* Base address. */
   size_t iov_len; /* Length. */
 } iovec_t;
+
+ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
+ssize_t readv(int fd, const struct iovec *iov, int iovcnt);
+
+#ifdef _KERNEL
+
+#include <sys/vm.h>
+
+typedef struct vm_map vm_map_t;
 
 typedef enum { UIO_READ, UIO_WRITE } uio_op_t;
 
@@ -36,5 +43,7 @@ typedef struct uio {
 
 int uiomove(void *buf, size_t n, uio_t *uio);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
+
+#endif /* _KERNEL */
 
 #endif /* !_SYS_UIO_H_ */
