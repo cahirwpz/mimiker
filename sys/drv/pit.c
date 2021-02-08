@@ -70,7 +70,7 @@ static intr_filter_t pit_intr(void *data) {
   /* XXX: It's still possible for periods to be lost. */
   pit_update_time(pit);
   if (pit->overflowed) {
-    pit->ticks += pit->overflowed;
+    pit->ticks += pit->period_ticks;
     if (pit->ticks >= TIMER_FREQ) {
       pit->ticks -= TIMER_FREQ;
       pit->sec++;
