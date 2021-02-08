@@ -136,9 +136,10 @@ void pci_bus_enumerate(device_t *pcib) {
       dev->instance = pcid;
 
       pcid->addr = PCIA(0, d, f);
-      pcid->device_id = pci_read_config_2(dev, PCIR_DEVICEID);
       pcid->vendor_id = pci_read_config_2(dev, PCIR_VENDORID);
-      /*(tstach)TODO: read subclass code too */
+      pcid->device_id = pci_read_config_2(dev, PCIR_DEVICEID);
+      pcid->progif = pci_read_config_1(dev, PCIR_PROGIF);
+      pcid->subclass_code = pci_read_config_1(dev, PCIR_SUBCLASSCODE);
       pcid->class_code = pci_read_config_1(dev, PCIR_CLASSCODE);
       pcid->pin = pci_read_config_1(dev, PCIR_IRQPIN);
       pcid->irq = pci_read_config_1(dev, PCIR_IRQLINE);
