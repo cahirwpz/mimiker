@@ -141,6 +141,8 @@ int posix_openpt(int flags);
 /*
  * Implementation-defined extensions
  */
+int ptsname_r(int fildes, char *buf, size_t buflen);
+
 #define alloca(size) __builtin_alloca(size)
 
 int mergesort(void *, size_t, size_t, int (*)(const void *, const void *));
