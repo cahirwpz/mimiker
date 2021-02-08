@@ -155,7 +155,7 @@ static void uhci_reset_port(uhci_state_t *uhci, uint8_t pn) {
     setw(UHCI_PORTSC(pn), UHCI_PORTSC_PE);
 }
 
-/* Obtain the number of roothub ports and reset each of them. */
+/* Obtain the number of roothub ports. */
 static uint8_t uhci_init_ports(uhci_state_t *uhci) {
   uint8_t pn = 0;
 
