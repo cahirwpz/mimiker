@@ -1,4 +1,3 @@
-#define KL_LOG KL_DEV
 #include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
