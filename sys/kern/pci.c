@@ -48,16 +48,11 @@ static int pci_device_nfunctions(device_t *pcid) {
   return (hdrtype & PCIH_HDR_MF) ? PCI_FUN_MAX_NUM : 1;
 }
 
-static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
-  /* Memory and I/O space accesses must be disabled via the
-   * command register before sizing a Base Address Register. */
-  uint16_t cmd = pci_read_config_2(pcid, PCIR_COMMAND);
-  pci_write_config_2(pcid, PCIR_COMMAND,
-                     cmd & ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN));
+#define PCI_ADDR_IDE(a)                                                        \
+  ((a) == 0x1f0 || (a) == 0x3f6 || (a) == 0x170 || (a) == 0x376)
 
-  uint32_t old = pci_read_config_4(pcid, PCIR_BAR(bar));
-  /* XXX: we don't handle 64-bit memory space bars. */
-
+static uint32_t pci_bar_ide(device_t *pcid, int bar, uint32_t *addr,
+                            uint16_t cmd, uint32_t old) {
   if (old == 0 || old == 1) {
     if (((pci_device_t *)(pcid->instance))->class_code == 1) {
       if (bar == 0) {
@@ -86,11 +81,28 @@ static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
       }
     }
   }
+  return 0;
+}
+
+static uint32_t pci_bar_size(device_t *pcid, int bar, uint32_t *addr) {
+  /* Memory and I/O space accesses must be disabled via the
+   * command register before sizing a Base Address Register. */
+  uint16_t cmd = pci_read_config_2(pcid, PCIR_COMMAND);
+  pci_write_config_2(pcid, PCIR_COMMAND,
+                     cmd & ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN));
+
+  uint32_t old = pci_read_config_4(pcid, PCIR_BAR(bar));
+  /* XXX: we don't handle 64-bit memory space bars. */
+
+  uint32_t size = pci_bar_ide(pcid, bar, addr, cmd, old);
+
+  if (size)
+    return size;
 
   /* If we write 0xFFFFFFFF to a BAR register and then read
    * it back, we'll get a bar size indicator. */
   pci_write_config_4(pcid, PCIR_BAR(bar), -1);
-  uint32_t size = pci_read_config_4(pcid, PCIR_BAR(bar));
+  size = pci_read_config_4(pcid, PCIR_BAR(bar));
 
   /* The original value of the BAR should be restored. */
   pci_write_config_4(pcid, PCIR_BAR(bar), old);
@@ -138,8 +150,8 @@ void pci_bus_enumerate(device_t *pcib) {
       pcid->addr = PCIA(0, d, f);
       pcid->vendor_id = pci_read_config_2(dev, PCIR_VENDORID);
       pcid->device_id = pci_read_config_2(dev, PCIR_DEVICEID);
-      pcid->progif = pci_read_config_1(dev, PCIR_PROGIF);
-      pcid->subclass_code = pci_read_config_1(dev, PCIR_SUBCLASSCODE);
+      pcid->progif = pci_read_config(dev, PCIR_PROGIF, 1);
+      pcid->subclass_code = pci_read_config(dev, PCIR_SUBCLASSCODE, 1);
       pcid->class_code = pci_read_config_1(dev, PCIR_CLASSCODE);
       pcid->pin = pci_read_config_1(dev, PCIR_IRQPIN);
       pcid->irq = pci_read_config_1(dev, PCIR_IRQLINE);
@@ -155,7 +167,7 @@ void pci_bus_enumerate(device_t *pcib) {
 
         unsigned type, flags = 0;
 
-        if (addr == 0x1f0 || addr == 0x3f6 || addr == 0x170 || addr == 0x376) {
+        if (PCI_ADDR_IDE(addr)) {
           type = RT_IOPORTS;
         } else if (addr & PCI_BAR_IO) {
           type = RT_IOPORTS;
@@ -181,7 +193,7 @@ void pci_bus_enumerate(device_t *pcib) {
         /* skip ISA I/O ports range */
         rman_addr_t start = (type == RT_IOPORTS) ? (IO_ISAEND + 1) : 0;
 
-        if (addr == 0x1f0 || addr == 0x3f6 || addr == 0x170 || addr == 0x376)
+        if (PCI_ADDR_IDE(addr))
           start = addr;
 
         device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size, flags);
