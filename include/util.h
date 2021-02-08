@@ -2,9 +2,11 @@
 #define _UTIL_H_
 
 #include <sys/types.h>
-#include <sys/termios.h>
 
 __BEGIN_DECLS
+struct termios;
+struct winsize;
+
 char *strpct(char *, size_t, uintmax_t, uintmax_t, size_t);
 char *strspct(char *, size_t, intmax_t, intmax_t, size_t);
 time_t parsedate(const char *, const time_t *, const int *);
