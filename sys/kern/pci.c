@@ -56,25 +56,21 @@ static uint32_t pci_bar_ide(device_t *pcid, int bar, uint32_t *addr,
     if (((pci_device_t *)(pcid->instance))->class_code == 1) {
       if (bar == 0) {
         *addr = 0x1f0;
-        // pci_write_config_4(pcid, PCIR_BAR(bar), old);
         pci_write_config_2(pcid, PCIR_COMMAND, cmd);
         return -1;
       }
       if (bar == 1) {
         *addr = 0x3f6;
-        // pci_write_config_4(pcid, PCIR_BAR(bar), old);
         pci_write_config_2(pcid, PCIR_COMMAND, cmd);
         return -1;
       }
       if (bar == 2) {
         *addr = 0x170;
-        // pci_write_config_4(pcid, PCIR_BAR(bar), old);
         pci_write_config_2(pcid, PCIR_COMMAND, cmd);
         return -8;
       }
       if (bar == 3) {
         *addr = 0x376;
-        // pci_write_config_4(pcid, PCIR_BAR(bar), old);
         pci_write_config_2(pcid, PCIR_COMMAND, cmd);
         return -1;
       }
