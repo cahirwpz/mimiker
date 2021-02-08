@@ -157,10 +157,8 @@ main(int argc, char *argv[])
 		isterm = 1;
 	}
 
-  if (!quiet){
+  if (!quiet)
     (void)printf("Script started, output file is %s\n", fname);
-    fflush(stdout);
-  }
 
 
 	if (isterm) {
