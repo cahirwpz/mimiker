@@ -254,6 +254,10 @@ static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
   va->va_uid = cn->c_uid;
   va->va_gid = cn->c_gid;
   va->va_size = cn->c_size;
+
+  va->va_atime = (timespec_t){.tv_sec = cn->c_mtime, .tv_nsec = 0};
+  va->va_mtime = va->va_atime;
+  va->va_ctime = va->va_atime;
   return 0;
 }
 
