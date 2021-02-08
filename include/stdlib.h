@@ -36,7 +36,6 @@
 
 #include <sys/types.h>
 #include <_locale.h>
-#include <sys/bswap.h>
 
 typedef struct {
   int quot; /* quotient */
