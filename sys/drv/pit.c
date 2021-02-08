@@ -77,6 +77,8 @@ static intr_filter_t pit_intr(void *data) {
     }
   }
   tm_trigger(&pit->timer);
+  /* It is set here to let us know in the next interrupt if we already
+   * considered the overflow */
   pit->overflowed = true;
   return IF_FILTERED;
 }
