@@ -42,6 +42,8 @@ extern const char *pci_class_code[];
 #define PCIM_CMD_PORTEN 0x0001
 #define PCIM_CMD_MEMEN 0x0002
 #define PCIM_CMD_BUSMASTEREN 0x0004
+#define PCIR_PROGIF 0x09
+#define PCIR_SUBCLASSCODE 0x0a
 #define PCIR_CLASSCODE 0x0b
 #define PCIR_HEADERTYPE 0x0e
 #define PCIH_HDR_MF 0x80
@@ -88,6 +90,8 @@ typedef struct pci_device {
   uint16_t device_id;
   uint16_t vendor_id;
   uint8_t class_code;
+  uint8_t subclass_code;
+  uint8_t progif;
   uint8_t pin, irq;
 
   pci_bar_t bar[PCI_BAR_MAX];

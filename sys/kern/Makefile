@@ -3,7 +3,6 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
-	assert.c \
 	bus.c \
 	callout.c \
 	clock.c \
@@ -44,6 +43,7 @@ SOURCES = \
 	pipe.c \
 	pool.c \
 	proc.c \
+	pty.c \
 	ringbuf.c \
 	rman.c \
 	runq.c \
