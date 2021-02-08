@@ -7,7 +7,7 @@
 #include <sys/condvar.h>
 #include <sys/malloc.h>
 #include <sys/ringbuf.h>
-#include <sys/pci.h>
+#include <sys/bus.h>
 #include <dev/isareg.h>
 #include <dev/atkbdcreg.h>
 #include <sys/interrupt.h>
@@ -179,4 +179,4 @@ static driver_t atkbdc_driver = {
   .attach = atkbdc_attach,
 };
 
-DEVCLASS_ENTRY(pci, atkbdc_driver);
+DEVCLASS_ENTRY(isa, atkbdc_driver);

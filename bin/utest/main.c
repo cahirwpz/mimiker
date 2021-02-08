@@ -104,6 +104,11 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(sharing_memory_simple);
   CHECKRUN_TEST(sharing_memory_child_and_grandchild);
 
+  CHECKRUN_TEST(pty_simple);
+
+  CHECKRUN_TEST(tty_canon);
+  CHECKRUN_TEST(tty_echo);
+  CHECKRUN_TEST(tty_signals);
   printf("No user test \"%s\" available.\n", test_name);
   return 1;
 }

@@ -1,3 +1,4 @@
+#include <sys/klog.h>
 #include <sys/rman.h>
 #include <sys/bus.h>
 #include <aarch64/bcm2835reg.h>
