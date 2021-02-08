@@ -35,7 +35,6 @@
 #include <dev/piixreg.h>
 #include <dev/isareg.h>
 #include <dev/gt64120reg.h>
-#include <dev/idereg.h>
 #include <sys/interrupt.h>
 #include <sys/pci.h>
 #include <sys/spinlock.h>

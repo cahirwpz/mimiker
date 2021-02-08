@@ -302,9 +302,6 @@ static int ide_attach(device_t *dev) {
     for (int slave = 0; slave < 2; slave++)
       ide_drive_identify(ide, channel, slave);
 
-  ide_drive_write(ide, 0, (uint16_t *)ide->ide_devices[0].identification_space,
-                  0, 160);
-
   return 0;
 }
 
