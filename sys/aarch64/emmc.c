@@ -659,11 +659,15 @@ static int emmc_init(device_t *dev) {
 
   r = 0;
   cnt = 100000;
-  while (r < 2 && cnt) {
-    if (b_in(emmc, EMMC_STATUS) & SR_READ_AVAILABLE)
-      state->sd_scr[r++] = b_in(emmc, EMMC_DATA);
-    else
-      delay(3);                               /* ! */
+  WITH_SPIN_LOCK(&state->slock) {
+    while (r < 2 && cnt) {
+      if (b_in(emmc, EMMC_STATUS) & SR_READ_AVAILABLE)
+        state->sd_scr[r++] = b_in(emmc, EMMC_DATA);
+      else
+        cnt--;
+    }
+    if (emmc_intr_wait(dev, INT_DATA_DONE, 0))
+      return state->sd_err;
   }
   if (r != 2)
     return SD_TIMEOUT;
@@ -727,6 +731,8 @@ static int emmc_attach(device_t *dev) {
     klog("e.MMC initialzation failed with code %d.", init_res);
     return -1;
   }
+
+  klog("e.MMC communication initialized successfully!");
   
   (void)test_read(dev);
 
