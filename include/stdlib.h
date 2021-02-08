@@ -141,11 +141,15 @@ int posix_openpt(int flags);
 /*
  * Implementation-defined extensions
  */
+int ptsname_r(int fildes, char *buf, size_t buflen);
+
 #define alloca(size) __builtin_alloca(size)
 
 int mergesort(void *, size_t, size_t, int (*)(const void *, const void *));
 
 char *getbsize(int *, long *);
+
+void mi_vector_hash(const void *__restrict, size_t, uint32_t, uint32_t[3]);
 
 #define HN_DECIMAL 0x01
 #define HN_NOSPACE 0x02

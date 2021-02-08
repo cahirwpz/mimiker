@@ -1,10 +1,9 @@
 /* Programmable Interval Timer (PIT) driver for Intel 8253 */
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
-#include <sys/pci.h>
+#include <sys/bus.h>
 #include <sys/interrupt.h>
-#include <sys/klog.h>
 #include <sys/timer.h>
 #include <sys/devclass.h>
 
@@ -121,6 +120,7 @@ static int pit_attach(device_t *dev) {
   pit->timer = (timer_t){
     .tm_name = "i8254",
     .tm_flags = TMF_PERIODIC,
+    .tm_quality = 100,
     .tm_frequency = TIMER_FREQ,
     .tm_min_period = HZ2BT(TIMER_FREQ),
     .tm_max_period = bintime_mul(HZ2BT(TIMER_FREQ), 65536),
@@ -147,4 +147,4 @@ static driver_t pit_driver = {
   .probe = pit_probe,
 };
 
-DEVCLASS_ENTRY(pci, pit_driver);
+DEVCLASS_ENTRY(isa, pit_driver);
