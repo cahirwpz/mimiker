@@ -43,6 +43,7 @@ typedef struct timer {
   TAILQ_ENTRY(timer) tm_link; /*!< entry on list of all timers */
   const char *tm_name;        /*!< name of the timer */
   unsigned tm_flags;          /*!< TMF_* flags */
+  unsigned tm_quality;        /*!< how dependable the timer is */
   uint32_t tm_frequency;      /*!< base frequency of the timer */
   bintime_t tm_min_period;    /*!< valid only for TMF_PERIODIC */
   bintime_t tm_max_period;    /*!< same as above */
