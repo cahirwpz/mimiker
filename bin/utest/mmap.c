@@ -5,6 +5,7 @@
 #include <string.h>
 #include <assert.h>
 #include <sys/mman.h>
+#include <stdint.h>
 #include <signal.h>
 #include <setjmp.h>
 #include <unistd.h>
@@ -19,8 +20,11 @@
 #define BAD_ADDR_SPAN_LEN 0xfffe800000002000
 #endif
 
+#define mmap_anon_priv(addr, length, prot)                                     \
+  mmap((addr), (length), (prot), MAP_ANON | MAP_PRIVATE, -1, 0)
+
 #define mmap_anon_prw(addr, length)                                            \
-  mmap((addr), (length), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0)
+  mmap_anon_priv((addr), (length), PROT_READ | PROT_WRITE)
 
 static void mmap_no_hint(void) {
   void *addr = mmap_anon_prw(NULL, 12345);
@@ -110,26 +114,59 @@ static volatile int sigsegv_handled = 0;
 static jmp_buf return_to;
 static void sigsegv_handler(int signo) {
   sigsegv_handled++;
-  siglongjmp(return_to, 5);
+  siglongjmp(return_to, 1);
 }
-int test_mmap_readonly(void) {
-  size_t pgsz = getpagesize();
-  signal(SIGSEGV, sigsegv_handler);
-  void *addr = mmap(NULL, pgsz * 8, PROT_READ, MAP_ANON | MAP_PRIVATE, -1, 0);
-  assert(addr != MAP_FAILED);
 
-  /* Ensure mapped area is cleared. */
-  assert(*(char *)(addr + 100) == 0);
-  assert(*(char *)(addr + 1000) == 0);
+#define NPAGES 8
+
+int test_mmap_prot_none(void) {
+  signal(SIGSEGV, sigsegv_handler);
+
+  size_t pgsz = getpagesize();
+  size_t size = pgsz * NPAGES;
+  volatile void *addr = mmap_anon_priv(NULL, size, PROT_NONE);
+  assert(addr != MAP_FAILED);
 
   sigsegv_handled = 0;
 
-  if (sigsetjmp(return_to, 1) == 0) {
-    *(char *)addr = '9';
+  for (int i = 0; i < NPAGES; i++) {
+    volatile uint8_t *ptr = addr + i * pgsz;
+    if (sigsetjmp(return_to, 1) == 0) {
+      assert(*ptr == 0);
+    }
   }
 
-  assert(sigsegv_handled == 1);
-  assert(*(char *)addr == 0);
+  assert(sigsegv_handled == NPAGES);
+
+  /* restore original behavior */
+  signal(SIGSEGV, SIG_DFL);
+
+  return 0;
+}
+
+int test_mmap_prot_read(void) {
+  signal(SIGSEGV, sigsegv_handler);
+
+  size_t pgsz = getpagesize();
+  size_t size = pgsz * NPAGES;
+  volatile void *addr = mmap_anon_priv(NULL, size, PROT_READ);
+  assert(addr != MAP_FAILED);
+
+  /* Ensure mapped area is cleared. */
+  for (size_t i = 0; i < size / sizeof(uint32_t); i++)
+    assert(((uint32_t *)addr)[i] == 0);
+
+  sigsegv_handled = 0;
+
+  for (int i = 0; i < NPAGES; i++) {
+    volatile uint8_t *ptr = addr + i * pgsz;
+    if (sigsetjmp(return_to, 1) == 0) {
+      *ptr = 42;
+    }
+    assert(*ptr == 0);
+  }
+
+  assert(sigsegv_handled == NPAGES);
 
   /* restore original behavior */
   signal(SIGSEGV, SIG_DFL);
