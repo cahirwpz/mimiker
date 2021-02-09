@@ -102,26 +102,24 @@ class Kthread(SimpleCommand, AutoCompleteMixin):
             print("Can't find thread with tid=%d!" % tid)
         return found
 
-    def dump_all(self):
-        print('(*) current thread marker')
-        threads = Thread.list_all()
+    def dump_all(self, backtrace=False):
         cur_td = Thread.from_current()
         table = TextTable(types='ittit', align='rrrrl')
         table.header(['Id', 'Name', 'State', 'Priority', 'Waiting Point'])
-        for td in threads:
+        for td in Thread.list_all():
             marker = '(*) ' if cur_td.td_tid == td.td_tid else ''
             table.add_row(['{}{}'.format(marker, td.td_tid), td.td_name,
                            td.td_state, td.td_prio, td.td_waitpt])
+        print('(*) current thread marker')
         print(table)
 
-    def dump_one(self, found):
-        try:
-            thread = self.find_by_tid(int(found))
-        except ValueError:
-            thread = self.find_by_name(found)
-        if not thread:
-            return
-        print(thread.dump())
+        if backtrace:
+            for td in Thread.list_all():
+                state = str(td.td_state)
+                if state not in ['TDS_INACTIVE', 'TDS_RUNNING', 'TDS_DEAD']:
+                    self.dump_backtrace(td)
+
+    def dump_backtrace(self, thread):
         # Don't switch context if this is the current thread.
         not_current = Thread.from_current().td_tid != thread.td_tid
         if not_current:
@@ -132,12 +130,22 @@ class Kthread(SimpleCommand, AutoCompleteMixin):
         if not_current:
             Context.load(ctx)
 
+    def dump_one(self, found):
+        try:
+            thread = self.find_by_tid(int(found))
+        except ValueError:
+            thread = self.find_by_name(found)
+        if not thread:
+            return
+        print(thread.dump())
+        self.dump_backtrace(thread)
+
     def __call__(self, arg):
-        if arg:
+        if arg and arg != '*':
             self.dump_one(arg)
         else:
             # give simplified view of all threads in the system
-            self.dump_all()
+            self.dump_all(arg == '*')
 
     def options(self):
         threads = Thread.list_all()

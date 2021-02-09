@@ -1,4 +1,3 @@
-#define KL_LOG KL_TEST
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/libkern.h>

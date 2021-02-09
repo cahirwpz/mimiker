@@ -69,6 +69,7 @@ typedef char linedn_t[TTLINEDNAMELEN];
 #define TIOCSETA _IOW('t', 20, struct termios)  /* set termios struct */
 #define TIOCSETAW _IOW('t', 21, struct termios) /* drain output, set */
 #define TIOCSETAF _IOW('t', 22, struct termios) /* drn out, fls in, set */
+#define TIOCSCTTY _IO('t', 97)                  /* become controlling tty */
 #define TIOCGWINSZ _IOR('t', 104, struct winsize) /* get window size */
 #define TIOCSWINSZ _IOW('t', 103, struct winsize) /* set window size */
 #define TIOCPTSNAME _IOW('t', 105, char *)        /* get slave device path */
