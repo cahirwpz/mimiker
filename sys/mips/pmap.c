@@ -485,7 +485,7 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
   WITH_MTX_LOCK (pv_list_lock) {
     /* Kernel non-pageable memory? */
     if (TAILQ_EMPTY(&pg->pv_list))
-      return EFAULT;
+      return EINVAL;
   }
 
   pmap_set_referenced(pg);

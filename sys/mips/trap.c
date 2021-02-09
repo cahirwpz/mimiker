@@ -143,7 +143,7 @@ static void tlb_exception_handler(ctx_t *ctx) {
   if (error == 0)
     return;
 
-  if (error == EACCES)
+  if (error == EACCES || error == EINVAL)
     goto fault;
 
   vm_map_t *vmap = vm_map_lookup(vaddr);

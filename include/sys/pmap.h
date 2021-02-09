@@ -65,8 +65,9 @@ void pmap_set_modified(vm_page_t *pg);
  *
  * Returns:
  *  - 0: if the access should be permitted
- *  - EFAULT: if `va` is not mapped or refers to kernel non-pageable memory
+ *  - EFAULT: if `va` is not mapped by current pmap
  *  - EACCESS: if `va` mapping has been found to have insufficient permissions
+ *  - EINVAL: if `va` refers to kernel non-pageable memory
  */
 int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot);
 
