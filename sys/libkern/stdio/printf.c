@@ -119,13 +119,18 @@ kprint_func(int ch, void *arg)
 }
 
 int
+vkprintf(const char *fmt, va_list ap) {
+	return kvprintf(fmt, &kprint_func, NULL, 10, ap);
+}
+
+int
 kprintf(const char *fmt, ...)
 {
 	int retval;
 	va_list ap;
 
 	va_start(ap, fmt);
-	retval = kvprintf(fmt, &kprint_func, NULL, 10, ap);
+	retval = vkprintf(fmt, ap);
 	va_end(ap);
 
 	return retval;

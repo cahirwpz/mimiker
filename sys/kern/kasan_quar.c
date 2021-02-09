@@ -1,5 +1,5 @@
+#include <sys/klog.h>
 #include <sys/kasan.h>
-#include <sys/mimiker.h>
 
 static void release_oldest_item(quar_t *q) {
   assert(q->q_buf.count > 0);

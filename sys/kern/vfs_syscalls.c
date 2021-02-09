@@ -241,6 +241,19 @@ int do_getdents(proc_t *p, int fd, uio_t *uio) {
   return error;
 }
 
+static int vfs_check_remove(vnode_t *dvp, vnode_t *vp, cred_t *cred) {
+  vattr_t dva;
+  accmode_t diracc = VWRITE;
+  int error;
+  if ((error = VOP_GETATTR(dvp, &dva)))
+    return error;
+
+  if (dva.va_mode & S_ISTXT)
+    if ((error = VOP_ACCESS(vp, VADMIN, cred)))
+      diracc |= VADMIN;
+
+  return VOP_ACCESS(dvp, diracc, cred);
+}
 int do_unlinkat(proc_t *p, int fd, char *path, int flag) {
   vnrstate_t vs;
   int error;
@@ -258,12 +271,12 @@ int do_unlinkat(proc_t *p, int fd, char *path, int flag) {
   else if (vs.vs_vp->v_type == V_DIR) {
     if (!(flag & AT_REMOVEDIR))
       error = EPERM;
-    else if (!(error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred)))
+    else if (!(error = vfs_check_remove(vs.vs_dvp, vs.vs_vp, &p->p_cred)))
       error = VOP_RMDIR(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
   } else {
     if (flag & AT_REMOVEDIR)
       error = ENOTDIR;
-    else if (!(error = VOP_ACCESS(vs.vs_dvp, VWRITE, &p->p_cred)))
+    else if (!(error = vfs_check_remove(vs.vs_dvp, vs.vs_vp, &p->p_cred)))
       error = VOP_REMOVE(vs.vs_dvp, vs.vs_vp, &vs.vs_lastcn);
   }
 
@@ -484,9 +497,10 @@ int do_fchdir(proc_t *p, int fd) {
 
   vnode_t *v = f->f_vnode;
   if (v->v_type == V_DIR) {
+    vnode_t *old_cwd = p->p_cwd;
     vnode_hold(v);
     p->p_cwd = v;
-    vnode_drop(p->p_cwd);
+    vnode_drop(old_cwd);
   } else {
     error = ENOTDIR;
   }
@@ -676,5 +690,50 @@ int do_fstatvfs(proc_t *p, int fd, statvfs_t *buf) {
   error = VFS_STATVFS(f->f_vnode->v_mount, buf);
   file_drop(f);
 
+  return error;
+}
+
+static int vfs_utimens(vnode_t *v, timespec_t times[2], cred_t *cred) {
+  vattr_t va;
+  vattr_null(&va);
+
+  if (times == NULL) {
+    va.va_atime = va.va_mtime = nanotime();
+  } else {
+    va.va_atime = times[0];
+    va.va_mtime = times[1];
+  }
+
+  return VOP_SETATTR(v, &va, cred);
+}
+
+int do_futimens(proc_t *p, int fd, timespec_t times[2]) {
+  int error;
+  file_t *f;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
+    return error;
+
+  vnode_t *vn = f->f_vnode;
+  vnode_lock(vn);
+  error = vfs_utimens(vn, times, &p->p_cred);
+  vnode_unlock(vn);
+  file_drop(f);
+  return error;
+}
+
+int do_utimensat(proc_t *p, int fd, char *path, timespec_t times[2], int flag) {
+  int error;
+  uint32_t vnrflags = 0;
+
+  if (!(flag & AT_SYMLINK_NOFOLLOW))
+    vnrflags |= VNR_FOLLOW;
+
+  vnode_t *v;
+  if ((error = vfs_namelookupat(p, fd, vnrflags, path, &v)))
+    return error;
+  vnode_lock(v);
+  error = vfs_utimens(v, times, &p->p_cred);
+  vnode_put(v);
   return error;
 }

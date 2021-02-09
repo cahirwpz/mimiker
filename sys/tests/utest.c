@@ -1,4 +1,3 @@
-#define KL_LOG KL_TEST
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/exec.h>
@@ -157,3 +156,9 @@ UTEST_ADD_SIMPLE(get_set_groups);
 
 UTEST_ADD_SIMPLE(sharing_memory_simple);
 UTEST_ADD_SIMPLE(sharing_memory_child_and_grandchild);
+
+UTEST_ADD_SIMPLE(pty_simple);
+
+UTEST_ADD_SIMPLE(tty_canon);
+UTEST_ADD_SIMPLE(tty_echo);
+UTEST_ADD_SIMPLE(tty_signals);
