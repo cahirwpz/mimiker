@@ -6,7 +6,7 @@
 #include <sys/klog.h>
 #include <sys/condvar.h>
 #include <sys/ringbuf.h>
-#include <sys/pci.h>
+#include <sys/bus.h>
 #include <sys/termios.h>
 #include <sys/ttycom.h>
 #include <dev/isareg.h>
@@ -196,8 +196,6 @@ static void ns16550_notify_out(tty_t *tty) {
 }
 
 static int ns16550_attach(device_t *dev) {
-  assert(dev->parent->bus == DEV_BUS_PCI);
-
   ns16550_state_t *ns16550 = dev->state;
 
   ringbuf_init(&ns16550->rx_buf, kmalloc(M_DEV, UART_BUFSIZE, M_ZERO),
@@ -250,4 +248,4 @@ static driver_t ns16550_driver = {
   .probe = ns16550_probe,
 };
 
-DEVCLASS_ENTRY(pci, ns16550_driver);
+DEVCLASS_ENTRY(isa, ns16550_driver);

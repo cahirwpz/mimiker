@@ -10,7 +10,8 @@ void utest_child_exited(int exitcode);
 int test_mmap(void);
 int test_munmap_sigsegv(void);
 int test_mprotect(void);
-int test_mmap_permissions(void);
+int test_mmap_prot_none(void);
+int test_mmap_prot_read(void);
 int test_sbrk(void);
 int test_sbrk_sigsegv(void);
 int test_misbehave(void);
@@ -101,5 +102,11 @@ int test_get_set_groups(void);
 
 int test_sharing_memory_simple(void);
 int test_sharing_memory_child_and_grandchild(void);
+
+int test_pty_simple(void);
+
+int test_tty_canon(void);
+int test_tty_echo(void);
+int test_tty_signals(void);
 
 #endif /* __UTEST_H__ */
