@@ -27,10 +27,15 @@ typedef struct {
 #define BADVPN2_MASK 0x007ffff0
 #define BADVPN2_SHIFT 9
 
+/* Flags managed in software */
+#define PTE_SW_SHIFT 29
+#define PTE_SW_READ (1 << PTE_SW_SHIFT)
+#define PTE_SW_WRITE (2 << PTE_SW_SHIFT)
+#define PTE_SW_NOEXEC (4 << PTE_SW_SHIFT)
+#define PTE_SW_FLAGS (PTE_SW_READ | PTE_SW_WRITE | PTE_SW_NOEXEC)
+
 /* MIPS® Architecture For Programmers Volume III, section 9.6 */
-#define PTE_NO_READ 0x80000000
-#define PTE_NO_EXEC 0x40000000
-#define PTE_PFN_MASK 0x03ffffc0
+#define PTE_PFN_MASK 0x03ffffc0 /* only 20 bits for 32-bit physaddr ! */
 #define PTE_PFN_SHIFT 6
 #define PTE_CACHE_MASK 0x00000038
 #define PTE_CACHE_SHIFT 3
@@ -45,9 +50,10 @@ typedef struct {
 #define PTE_DIRTY 0x00000004 /* page is writable when set */
 #define PTE_VALID 0x00000002 /* page can be accessed when set */
 #define PTE_GLOBAL 0x00000001
-#define PTE_KERNEL_READONLY (PTE_VALID | PTE_GLOBAL)
-#define PTE_KERNEL (PTE_VALID | PTE_DIRTY | PTE_GLOBAL)
-#define PTE_PROT_MASK (PTE_NO_READ | PTE_NO_EXEC | PTE_DIRTY | PTE_VALID)
+#define PTE_KERNEL_READONLY (PTE_GLOBAL | PTE_VALID | PTE_SW_READ)
+#define PTE_KERNEL                                                             \
+  (PTE_GLOBAL | PTE_VALID | PTE_DIRTY | PTE_SW_READ | PTE_SW_WRITE)
+#define PTE_PROT_MASK (PTE_VALID | PTE_DIRTY | PTE_SW_FLAGS)
 
 #define PTE_PFN(addr) (((addr) >> PTE_PFN_SHIFT) & PTE_PFN_MASK)
 #define PTE_CACHE(cache) (((cache) << PTE_CACHE_SHIFT) & PTE_CACHE_MASK)
