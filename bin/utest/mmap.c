@@ -129,7 +129,7 @@ int test_mprotect(void) {
 
   sigsegv_handled = 0;
 
-  if (setjmp(return_to) == 0) {
+  if (sigsetjmp(return_to, 1) == 0) {
     /* Try to write to readonly memory. It should raise SIGSEGV */
     *(char *)addr = '9';
   }
