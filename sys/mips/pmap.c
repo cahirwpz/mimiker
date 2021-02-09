@@ -33,15 +33,16 @@ static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 
 static const pte_t vm_prot_map[] = {
-  [VM_PROT_NONE] = 0,
-  [VM_PROT_READ] = PTE_VALID | PTE_READ,
-  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_WRITE,
-  [VM_PROT_READ | VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_READ | PTE_WRITE,
+  [VM_PROT_NONE] = PTE_SW_NOEXEC,
+  [VM_PROT_READ] = PTE_VALID | PTE_SW_READ | PTE_SW_NOEXEC,
+  [VM_PROT_WRITE] = PTE_VALID | PTE_DIRTY | PTE_SW_WRITE | PTE_SW_NOEXEC,
+  [VM_PROT_READ | VM_PROT_WRITE] =
+    PTE_VALID | PTE_DIRTY | PTE_SW_READ | PTE_SW_WRITE | PTE_SW_NOEXEC,
   [VM_PROT_EXEC] = PTE_VALID,
-  [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID | PTE_READ,
-  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY | PTE_WRITE,
+  [VM_PROT_READ | VM_PROT_EXEC] = PTE_VALID | PTE_SW_READ,
+  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_VALID | PTE_DIRTY | PTE_SW_WRITE,
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] =
-    PTE_VALID | PTE_DIRTY | PTE_READ | PTE_WRITE,
+    PTE_VALID | PTE_DIRTY | PTE_SW_READ | PTE_SW_WRITE,
 };
 
 static pmap_t kernel_pmap;
@@ -323,8 +324,9 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   bool kern_mapping = (pmap == pmap_kernel());
 
   /* Mark user pages as non-referenced & non-modified. */
-  pte_t mask = kern_mapping ? 0 : (PTE_VALID | PTE_DIRTY);
-  pte_t pte = (vm_prot_map[prot] & ~mask) | empty_pte(pmap);
+  pte_t mask =
+    kern_mapping ? (PTE_VALID | PTE_DIRTY | PTE_SW_FLAGS) : PTE_SW_FLAGS;
+  pte_t pte = (vm_prot_map[prot] & mask) | empty_pte(pmap);
 
   WITH_MTX_LOCK (pv_list_lock) {
     WITH_MTX_LOCK (&pmap->mtx) {
@@ -467,10 +469,13 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
 
     pte_t pte = pmap_pte_read(pmap, va);
 
-    if ((prot & VM_PROT_READ) && !(pte & PTE_READ))
+    if ((prot & VM_PROT_READ) && !(pte & PTE_SW_READ))
       return EACCES;
 
-    if ((prot & VM_PROT_WRITE) && !(pte & PTE_WRITE))
+    if ((prot & VM_PROT_WRITE) && !(pte & PTE_SW_WRITE))
+      return EACCES;
+
+    if ((prot & VM_PROT_EXEC) && (pte & PTE_SW_NOEXEC))
       return EACCES;
   }
 
