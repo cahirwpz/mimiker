@@ -311,41 +311,6 @@ static bool pmap_extract_nolock(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   return true;
 }
 
-int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
-  paddr_t pa;
-  WITH_MTX_LOCK (&pmap->mtx) {
-    if (!pmap_extract_nolock(pmap, va, &pa)) {
-      return EINVAL;
-    }
-
-    pte_t pte = pmap_pte_read(pmap, va);
-
-    if ((prot & VM_PROT_READ && !(pte & PTE_READ)) ||
-        (prot & VM_PROT_WRITE && !(pte & PTE_WRITE))) {
-      return EACCES;
-    }
-  }
-
-  vm_page_t *pg = vm_page_find(pa);
-
-  if (pg == NULL)
-    return EINVAL;
-
-  WITH_MTX_LOCK (pv_list_lock) {
-    /* Kernel non-pageable memory? */
-    if (TAILQ_EMPTY(&pg->pv_list))
-      return EACCES;
-  }
-
-  pmap_set_referenced(pg);
-
-  if (prot & VM_PROT_WRITE) {
-    pmap_set_modified(pg);
-  }
-
-  return 0;
-}
-
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
                 unsigned flags) {
   paddr_t pa = pg->paddr;
@@ -491,6 +456,47 @@ void pmap_set_referenced(vm_page_t *pg) {
 void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
   pmap_modify_flags(pg, PTE_DIRTY, 0);
+}
+
+/*
+ * For address `va` (must not cross two pages) check if access with `prot`
+ * permission would succeed and emulate referenced & modified bits.
+ *
+ * Returns:
+ *  - 0: if the access should be permitted
+ *  - EFAULT: if `va` is not mapped or refers to kernel non-pageable memory
+ *  - EACCESS: if `va` mapping has been found to have insufficient permissions
+ */
+int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
+  paddr_t pa;
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    if (!pmap_extract_nolock(pmap, va, &pa))
+      return EFAULT;
+
+    pte_t pte = pmap_pte_read(pmap, va);
+
+    if ((prot & VM_PROT_READ) && !(pte & PTE_READ))
+      return EACCES;
+
+    if ((prot & VM_PROT_WRITE) && !(pte & PTE_WRITE))
+      return EACCES;
+  }
+
+  vm_page_t *pg = vm_page_find(pa);
+  assert(pg != NULL);
+
+  WITH_MTX_LOCK (pv_list_lock) {
+    /* Kernel non-pageable memory? */
+    if (TAILQ_EMPTY(&pg->pv_list))
+      return EFAULT;
+  }
+
+  pmap_set_referenced(pg);
+  if (prot & VM_PROT_WRITE)
+    pmap_set_modified(pg);
+
+  return 0;
 }
 
 /*

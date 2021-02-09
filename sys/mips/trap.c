@@ -142,6 +142,7 @@ static void tlb_exception_handler(ctx_t *ctx) {
   int error = pmap_emulate_bits(pmap, vaddr, access);
   if (error == 0)
     return;
+
   if (error == EACCES)
     goto fault;
 
