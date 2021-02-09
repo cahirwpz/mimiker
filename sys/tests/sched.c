@@ -1,4 +1,5 @@
 #include <sys/libkern.h>
+#include <sys/klog.h>
 #include <sys/time.h>
 #include <sys/thread.h>
 #include <sys/sched.h>
@@ -10,8 +11,8 @@
 static void demo_thread_1(void) {
   while (true) {
     bintime_t start = binuptime();
-    kprintf("[%8zu] Running '%s' thread.\n", (size_t)bt2st(start),
-            thread_self()->td_name);
+    klog("[%8zu] Running '%s' thread.", (size_t)bt2st(start),
+         thread_self()->td_name);
     bintime_t now = binuptime();
     while (bt2st(now) < bt2st(start) + 20)
       now = binuptime();
@@ -19,7 +20,7 @@ static void demo_thread_1(void) {
 }
 
 static void demo_thread_2(void) {
-  kprintf("Running '%s' thread. Let's yield!\n", thread_self()->td_name);
+  klog("Running '%s' thread. Let's yield!", thread_self()->td_name);
   sched_yield();
   demo_thread_1();
 }
@@ -49,10 +50,10 @@ static struct {
 
 static void test_thread(void *p) {
   int *ptr = p;
-  kprintf("ptr: %p\n", ptr);
+  klog("ptr: %p", ptr);
   while (1) {
     *ptr = *ptr + 1;
-    kprintf("thread: %s, val: %d\n", thread_self()->td_name, *ptr);
+    klog("thread: %s, val: %d", thread_self()->td_name, *ptr);
     sched_yield();
   }
 }

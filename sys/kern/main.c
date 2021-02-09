@@ -24,6 +24,7 @@
 #include <sys/vm_physmem.h>
 #include <sys/pmap.h>
 #include <sys/console.h>
+#include <sys/stat.h>
 
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
@@ -32,6 +33,7 @@ static void mount_fs(void) {
   do_mount(p, "initrd", "/");
   do_mount(p, "devfs", "/dev");
   do_mount(p, "tmpfs", "/tmp");
+  do_fchmodat(p, AT_FDCWD, "/tmp", ACCESSPERMS | S_ISTXT, 0);
 }
 
 static __noreturn void start_init(__unused void *arg) {
@@ -63,14 +65,8 @@ static __noreturn void start_init(__unused void *arg) {
   if (test)
     ktest_main(test);
 
-  /* This is a message to the user,
-   * so I intentionally use kprintf instead of log. */
-  kprintf("============\n");
-  kprintf("Use init=PROGRAM to start a user-space init program or test=TEST "
-          "to run a kernel test.\n");
-  kprintf("============\n");
-
-  panic("Nothing to run!");
+  panic("Use init=PROGRAM to start a user-space program "
+        "or test=TESTLIST to run tests.");
 }
 
 __noreturn void kernel_init(void) {

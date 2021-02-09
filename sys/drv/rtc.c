@@ -2,7 +2,7 @@
 #include <sys/mimiker.h>
 #include <dev/mc146818reg.h>
 #include <dev/isareg.h>
-#include <sys/pci.h>
+#include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/errno.h>
@@ -131,4 +131,4 @@ static driver_t rtc_driver = {
   .probe = rtc_probe,
 };
 
-DEVCLASS_ENTRY(pci, rtc_driver);
+DEVCLASS_ENTRY(isa, rtc_driver);
