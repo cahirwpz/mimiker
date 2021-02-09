@@ -165,11 +165,9 @@ int test_killpg_same_group(void) {
   if (pid_a == 0) {
     setpgid(0, 0);
     pid_t pgid_a = getpgid(0);
-    assert(pgid_a == getpid());
 
     pid_t pid_b = fork();
     if (pid_b == 0) {
-      assert(pgid_a == getppid());
       assert(!killpg(pgid_a, SIGUSR1));
 
       /* Process b should receive signal from process b. */
@@ -203,16 +201,13 @@ int test_killpg_other_group(void) {
   if (pid_a == 0) {
     setpgid(0, 0);
     pid_t pgid_a = getpgid(0);
-    assert(pgid_a == getpid());
 
     pid_t pid_b = fork();
     if (pid_b == 0) {
-      assert(pgid_a == getppid());
       pid_t pid_c = fork();
       if (pid_c == 0) {
 
         setpgid(0, 0);
-        assert(pgid_a == getpgid(getppid()));
         assert(!killpg(pgid_a, SIGUSR1));
 
         /* Process c should not receive signal from process c. */
