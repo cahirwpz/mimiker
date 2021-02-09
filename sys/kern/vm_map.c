@@ -307,7 +307,7 @@ static void vm_segment_protect(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
 
   if (seg->start == start && seg->end == end) {
     vm_object_protect(seg->object, start, end, prot);
-  } else { /* we have to split our segment to at most 3 new */ 
+  } else { /* we have to split our segment to at most 3 new */
     vm_segment_split(map, seg, start, end);
 
     seg = vm_map_find_segment(map, start);

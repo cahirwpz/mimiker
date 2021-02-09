@@ -150,13 +150,13 @@ int test_mprotect(void) {
     assert(*(char *)(addr + pgsz + 1) == 0);
     assert(sigsegv_handled == 2);
   }
-  
-    /* restore original behavior */
+
+  /* restore original behavior */
   signal(SIGSEGV, SIG_DFL);
 
   return 0;
 }
-  
+
 #define NPAGES 8
 
 int test_mmap_prot_none(void) {
