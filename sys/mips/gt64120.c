@@ -295,6 +295,8 @@ static intr_filter_t gt_pci_intr(void *data) {
   return IF_FILTERED;
 }
 
+DEVCLASS_DECLARE(isa);
+
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
 
@@ -337,34 +339,13 @@ static int gt_pci_attach(device_t *pcib) {
 
   pci_bus_enumerate(pcib);
 
-  /*
-   * Create child devices of ISA bus.
-   */
   device_t *dev;
 
-  /* atkbdc keyboard device */
+  /* ISA Bridge */
   dev = device_add_child(pcib, 0);
-  dev->bus = DEV_BUS_PCI; /* XXX: ISA device workaround */
-  device_add_ioports(dev, 0, IO_KBD, IO_KBDSIZE);
-  device_add_irq(dev, 0, 1);
-
-  /* ns16550 uart device */
-  dev = device_add_child(pcib, 1);
-  dev->bus = DEV_BUS_PCI; /* XXX: ISA device workaround */
-  device_add_ioports(dev, 0, IO_COM1, IO_COMSIZE);
-  device_add_irq(dev, 0, 4);
-
-  /* rtc device */
-  dev = device_add_child(pcib, 2);
-  dev->bus = DEV_BUS_PCI; /* XXX: ISA device workaround */
-  device_add_ioports(dev, 0, IO_RTC, IO_RTCSIZE);
-  device_add_irq(dev, 0, 8);
-
-  /* i8254 timer device */
-  dev = device_add_child(pcib, 3);
-  dev->bus = DEV_BUS_PCI; /* XXX: ISA device workaround */
-  device_add_ioports(dev, 0, IO_TIMER1, IO_TMRSIZE);
-  device_add_irq(dev, 0, 0);
+  dev->bus = DEV_BUS_PCI;
+  dev->devclass = &DEVCLASS(isa);
+  device_add_ioports(dev, 0, IO_ISABEGIN, IO_ISAEND + 1);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
 
@@ -383,8 +364,6 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
                                          int rid, rman_addr_t start,
                                          rman_addr_t end, size_t size,
                                          rman_flags_t flags) {
-  /* Currently all devices are logicaly attached to PCI bus,
-   * because we don't have PCI-ISA bridge implemented. */
   assert(dev->bus == DEV_BUS_PCI);
 
   device_t *pcib = dev->parent;

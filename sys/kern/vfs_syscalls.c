@@ -692,3 +692,48 @@ int do_fstatvfs(proc_t *p, int fd, statvfs_t *buf) {
 
   return error;
 }
+
+static int vfs_utimens(vnode_t *v, timespec_t times[2], cred_t *cred) {
+  vattr_t va;
+  vattr_null(&va);
+
+  if (times == NULL) {
+    va.va_atime = va.va_mtime = nanotime();
+  } else {
+    va.va_atime = times[0];
+    va.va_mtime = times[1];
+  }
+
+  return VOP_SETATTR(v, &va, cred);
+}
+
+int do_futimens(proc_t *p, int fd, timespec_t times[2]) {
+  int error;
+  file_t *f;
+
+  if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
+    return error;
+
+  vnode_t *vn = f->f_vnode;
+  vnode_lock(vn);
+  error = vfs_utimens(vn, times, &p->p_cred);
+  vnode_unlock(vn);
+  file_drop(f);
+  return error;
+}
+
+int do_utimensat(proc_t *p, int fd, char *path, timespec_t times[2], int flag) {
+  int error;
+  uint32_t vnrflags = 0;
+
+  if (!(flag & AT_SYMLINK_NOFOLLOW))
+    vnrflags |= VNR_FOLLOW;
+
+  vnode_t *v;
+  if ((error = vfs_namelookupat(p, fd, vnrflags, path, &v)))
+    return error;
+  vnode_lock(v);
+  error = vfs_utimens(v, times, &p->p_cred);
+  vnode_put(v);
+  return error;
+}
