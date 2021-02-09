@@ -14,8 +14,7 @@
 #include <aarch64/pmap.h>
 
 static __noreturn void kernel_oops(ctx_t *ctx) {
-  kprintf("KERNEL PANIC!!! \n");
-  panic();
+  panic("KERNEL PANIC!!!");
 }
 
 static void syscall_handler(register_t code, ctx_t *ctx,

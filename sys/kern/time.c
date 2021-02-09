@@ -135,3 +135,10 @@ time_t tm2sec(tm_t *t) {
          (t->tm_mday - 1) * day_scale_s + t->tm_hour * hour_scale_s +
          t->tm_min * min_scale_s + t->tm_sec + res;
 }
+
+timespec_t nanotime(void) {
+  timespec_t tp;
+  bintime_t bt = bintime();
+  bt2ts(&bt, &tp);
+  return tp;
+}
