@@ -167,18 +167,35 @@ void intr_root_claim(intr_root_filter_t filter, device_t *dev, void *arg) {
 }
 
 void intr_root_handler(ctx_t *ctx) {
-  assert(cpu_intr_disabled());
+  thread_t *td = thread_self();
 
-  intr_disable();
+  assert(cpu_intr_disabled());
+  assert(td->td_idnest == 0);
+
+  /* Increment interrupt disable nesting counter in order to prevent filter
+   * routines to accidentaly enable interrupts. */
+  td->td_idnest++;
+
+  /* Explicitely disallow switching out to another thread. */
   PCPU_SET(no_switch, true);
   if (ir_filter != NULL)
     ir_filter(ctx, ir_dev, ir_arg);
   PCPU_SET(no_switch, false);
-  intr_enable();
 
+  /* If filter routine requested a context switch it's now time to handle it. */
   on_exc_leave();
-  if (user_mode_p(ctx))
+
+  /* To avoid `intr_root_handler` nesting while in kernel mode,
+   * we have to complete this routine without interrupts enabled.
+   * If we came from user mode, then we need to configure the context
+   * to perform signal processing, which can be interrupted and that's ok. */
+  if (user_mode_p(ctx)) {
+    intr_enable();
     on_user_exc_leave((mcontext_t *)ctx, NULL);
+    return;
+  }
+
+  td->td_idnest--;
 }
 
 void intr_event_run_handlers(intr_event_t *ie) {
