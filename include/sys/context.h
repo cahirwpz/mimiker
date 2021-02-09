@@ -22,6 +22,9 @@ void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg);
 /*! \brief Sets a value that will be returned by ctx_switch. */
 void ctx_set_retval(ctx_t *ctx, long value);
 
+/*! \brief Gets program counter from context. */
+register_t ctx_get_pc(ctx_t *ctx);
+
 /*! \brief Copy user exception ctx. */
 void mcontext_copy(mcontext_t *to, mcontext_t *from);
 
