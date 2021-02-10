@@ -61,9 +61,8 @@ static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
   }
 
   vm_prot_t access = VM_PROT_READ;
-
   if (exception == EXCP_INSN_ABORT || exception == EXCP_INSN_ABORT_L) {
-    access = VM_PROT_EXEC;
+    access |= VM_PROT_EXEC;
   } else if (esr & ISS_DATA_WnR) {
     access |= VM_PROT_WRITE;
   }
@@ -72,7 +71,7 @@ static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
   if (error == 0)
     return;
 
-  if (error == EACCES)
+  if (error == EACCES || error == EINVAL)
     goto fault;
 
   vm_map_t *vmap = vm_map_lookup(vaddr);
