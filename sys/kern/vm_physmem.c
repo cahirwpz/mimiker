@@ -2,6 +2,7 @@
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
+#include <sys/errno.h>
 #include <sys/mutex.h>
 #include <sys/pmap.h>
 #include <sys/vm_physmem.h>
@@ -171,12 +172,13 @@ static vm_page_t *pm_find_buddy(vm_physseg_t *seg, vm_page_t *pg) {
   return buddy;
 }
 
-static void pm_split_page(vm_page_t *page) {
-  assert(page->size > 1);
-  assert(!TAILQ_EMPTY(FREELIST(page)));
+static void pm_split_page(size_t i) {
+  assert(!TAILQ_EMPTY(&freelist[i]));
+
+  vm_page_t *page = TAILQ_FIRST(&freelist[i]);
 
   /* It works, because every page is a member of pages! */
-  unsigned size = page->size / 2;
+  size_t size = page->size / 2;
   vm_page_t *buddy = page + size;
 
   assert(!(buddy->flags & PG_ALLOCATED));
@@ -194,33 +196,86 @@ static void pm_split_page(vm_page_t *page) {
   buddy->flags |= PG_MANAGED;
 }
 
-vm_page_t *vm_page_alloc(size_t npages) {
-  assert((npages > 0) && powerof2(npages));
-
-  SCOPED_MTX_LOCK(physmem_lock);
-
-  size_t n = log2(npages);
-  size_t i = n;
-
-  /* Lowest non-empty queue of size higher or equal to log2(npages). */
-  while (i < PM_NQUEUES && TAILQ_EMPTY(&freelist[i]))
-    i++;
-
-  if (i >= PM_NQUEUES)
-    return NULL;
-
-  for (; i > n; i--)
-    pm_split_page(TAILQ_FIRST(&freelist[i]));
-
+static vm_page_t *pm_take_page(size_t i) {
   vm_page_t *page = TAILQ_FIRST(&freelist[i]);
+  assert(page != NULL);
   klog("%s: allocated %lx of size %ld", __func__, page->paddr, page->size);
   TAILQ_REMOVE(&freelist[i], page, freeq);
   pagecount[i]--;
   page->flags &= ~PG_MANAGED;
   for (unsigned j = 0; j < page->size; j++)
     page[j].flags |= PG_ALLOCATED;
-
   return page;
+}
+
+vm_page_t *vm_page_alloc(size_t npages) {
+  assert((npages > 0) && powerof2(npages));
+
+  SCOPED_MTX_LOCK(physmem_lock);
+
+  size_t n = log2(npages);
+  size_t fl = n;
+
+  /* Lowest non-empty queue of size higher or equal to log2(npages). */
+  while (fl < PM_NQUEUES && TAILQ_EMPTY(&freelist[fl]))
+    fl++;
+
+  if (fl >= PM_NQUEUES)
+    return NULL;
+
+  for (; fl > n; fl--)
+    pm_split_page(fl);
+
+  return pm_take_page(fl);
+}
+
+int vm_pagelist_alloc(size_t n, vm_pagelist_t *pglist) {
+  TAILQ_INIT(pglist);
+
+  SCOPED_MTX_LOCK(physmem_lock);
+
+  /* Check if the request can be satisfied at all. */
+  size_t sums[PM_NQUEUES + 1];
+  size_t sum = 0;
+  int fl;
+  for (fl = 0; fl < (int)PM_NQUEUES; fl++) {
+    sum += pagecount[fl] << fl;
+    sums[fl] = sum;
+    if (sum >= n)
+      break;
+  }
+
+  if (sum < n)
+    return ENOMEM;
+
+  /* `fl` is the highest free list number we need to visit to collect enough
+   * pages to satisfy the request. We scan the lists in descending order and
+   * greedily take what we can. We may be forced to split pages since greedy
+   * choice may not be optimal. */
+  while (n > 0) {
+    size_t prev_sum = fl > 0 ? sums[fl - 1] : 0;
+
+    /* Remaining part of the request can be satisfied with smaller pages? */
+    if (prev_sum >= n) {
+      fl--;
+      continue;
+    }
+
+    size_t pgsz = 1 << fl;
+
+    /* Page is too large to satisfy remaining part of the request? */
+    if (n < pgsz) {
+      pm_split_page(fl);
+      sums[--fl] += pgsz;
+      continue;
+    }
+
+    vm_page_t *pg = pm_take_page(fl);
+    TAILQ_INSERT_TAIL(pglist, pg, pageq);
+    n -= pgsz;
+  }
+
+  return 0;
 }
 
 static void pm_free_from_seg(vm_physseg_t *seg, vm_page_t *page) {
