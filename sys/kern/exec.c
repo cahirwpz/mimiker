@@ -16,6 +16,8 @@
 #include <sys/vnode.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/signal.h>
+#include <sys/stat.h>
 
 typedef int (*copy_ptr_t)(exec_args_t *args, char *const *ptr_p);
 typedef int (*copy_str_t)(exec_args_t *args, const char *str, size_t *copied_p);
@@ -224,20 +226,20 @@ fail:
   return error;
 }
 
-static int open_executable(const char *path, vnode_t **vn_p) {
+static int open_executable(const char *path, vnode_t **vn_p, cred_t *cred) {
   vnode_t *vn = *vn_p;
   int error;
 
   klog("Loading program '%s'", path);
 
   /* Translate program name to vnode. */
-  if ((error = vfs_namelookup(path, &vn)))
+  if ((error = vfs_namelookup(path, &vn, cred)))
     return error;
 
   /* It must be a regular executable file with non-zero size. */
   if (vn->v_type != V_REG)
     return EACCES;
-  if ((error = VOP_ACCESS(vn, VEXEC)))
+  if ((error = VOP_ACCESS(vn, VEXEC, cred)))
     return error;
 
   /* TODO Some checks are missing:
@@ -280,9 +282,12 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
   *stack_top_p = USER_STACK_TOP;
 
   vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *stack_seg =
-    vm_segment_alloc(stack_obj, USER_STACK_TOP - USER_STACK_SIZE,
-                     USER_STACK_TOP, VM_PROT_READ | VM_PROT_WRITE);
+  /* FTTB stack has to be executable since kernel copies sigcode onto stack
+   * when context is set to signal handler code. This code is run when user
+   * returns from signal handler. */
+  vm_segment_t *stack_seg = vm_segment_alloc(
+    stack_obj, USER_STACK_TOP - USER_STACK_SIZE, USER_STACK_TOP,
+    VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC, VM_SEG_PRIVATE);
   int error = vm_map_insert(p->p_uspace, stack_seg, VM_FIXED);
   assert(error == 0);
 
@@ -302,6 +307,22 @@ static void destroy_vmspace(exec_vmspace_t *saved) {
   vm_map_delete(saved->uspace);
 }
 
+static bool check_setid(vnode_t *vn, uid_t *uid, gid_t *gid) {
+  vattr_t attr;
+  *uid = *gid = -1;
+
+  if (VOP_GETATTR(vn, &attr))
+    return false;
+
+  if (attr.va_mode & S_ISUID)
+    *uid = attr.va_uid;
+
+  if (attr.va_mode & S_ISGID)
+    *gid = attr.va_gid;
+
+  return (*uid != (uid_t)-1) || (*gid != (gid_t)-1);
+}
+
 /* XXX We assume process may only have a single thread. But if there were more
  * than one thread in the process that called exec, all other threads must be
  * forcefully terminated. */
@@ -318,7 +339,7 @@ static int _do_execve(exec_args_t *args) {
   for (;;) {
     prog = args->interp ? args->interp : args->path;
 
-    if ((error = open_executable(prog, &vn))) {
+    if ((error = open_executable(prog, &vn, &p->p_cred))) {
       klog("No file found: '%s'!", prog);
       return error;
     }
@@ -338,6 +359,12 @@ static int _do_execve(exec_args_t *args) {
     klog("Interpreter for '%s' is '%s'", prog, args->interp);
     use_interpreter = true;
   }
+
+  uid_t uid;
+  gid_t gid;
+  /* XXX: This solution is prone to TOCTTOU. File (content or owners) may be
+   * changed between check of identity and load of content. */
+  bool setid = check_setid(vn, &uid, &gid);
 
   Elf_Ehdr eh;
   if ((error = exec_elf_inspect(vn, &eh)))
@@ -359,7 +386,14 @@ static int _do_execve(exec_args_t *args) {
   fdtab_onexec(p->p_fdtable);
 
   /* Set up user context. */
-  user_ctx_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
+  mcontext_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
+
+  WITH_PROC_LOCK(p) {
+    sig_onexec(p);
+    /* Set new credentials if needed */
+    if (setid)
+      cred_exec_setid(p, uid, gid);
+  }
 
   /* At this point we are certain that exec succeeds.  We can safely destroy the
    * previous vm_map, and permanently assign this one to the current process. */

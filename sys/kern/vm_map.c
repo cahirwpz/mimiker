@@ -17,6 +17,7 @@ struct vm_segment {
   TAILQ_ENTRY(vm_segment) link;
   vm_object_t *object;
   vm_prot_t prot;
+  vm_seg_flags_t flags;
   vaddr_t start;
   vaddr_t end;
 };
@@ -113,7 +114,7 @@ vm_map_t *vm_map_new(void) {
 }
 
 vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
-                               vm_prot_t prot) {
+                               vm_prot_t prot, vm_seg_flags_t flags) {
   assert(page_aligned_p(start) && page_aligned_p(end));
 
   vm_segment_t *seg = pool_alloc(P_VMSEG, M_ZERO);
@@ -121,6 +122,7 @@ vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
   seg->start = start;
   seg->end = end;
   seg->prot = prot;
+  seg->flags = flags;
   return seg;
 }
 
@@ -157,6 +159,35 @@ void vm_segment_destroy(vm_map_t *map, vm_segment_t *seg) {
   TAILQ_REMOVE(&map->entries, seg, link);
   map->nentries--;
   vm_segment_free(seg);
+}
+
+void vm_segment_destroy_range(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
+                              vaddr_t end) {
+  assert(mtx_owned(&map->mtx));
+  assert(start >= vm_map_start(map) && end <= vm_map_end(map));
+
+  if (seg->start == start && seg->end == end) {
+    vm_segment_destroy(map, seg);
+    return;
+  }
+
+  size_t length = end - start;
+  vm_object_remove_range(seg->object, start - seg->start, length);
+  pmap_remove(map->pmap, start, end);
+
+  if (seg->start == start) {
+    seg->start = end;
+  } else if (seg->end == end) {
+    seg->end = start;
+  } else { /* a hole inside the segment */
+    vm_object_t *obj = vm_object_clone(seg->object);
+    vm_object_remove_range(obj, 0, start - seg->start);
+    vm_object_remove_range(seg->object, end - seg->start, seg->end - end);
+    vm_segment_t *new_seg =
+      vm_segment_alloc(obj, end, seg->end, seg->prot, seg->flags);
+    seg->end = start;
+    vm_map_insert_after(map, new_seg, seg);
+  }
 }
 
 void vm_map_delete(vm_map_t *map) {
@@ -233,13 +264,22 @@ int vm_map_insert(vm_map_t *map, vm_segment_t *seg, vm_flags_t flags) {
   vm_segment_t *after;
   vaddr_t start = seg->start;
   size_t length = seg->end - seg->start;
+  vm_seg_flags_t seg_flags = 0;
+
   int error = vm_map_findspace_nolock(map, &start, length, &after);
   if (error)
     return error;
   if ((flags & VM_FIXED) && (start != seg->start))
     return ENOMEM;
+
+  assert((flags & (VM_SHARED | VM_PRIVATE)) != (VM_SHARED | VM_PRIVATE));
+
+  seg_flags |= (flags & VM_SHARED) ? VM_SEG_SHARED : VM_SEG_PRIVATE;
+
   seg->start = start;
   seg->end = start + length;
+  seg->flags = seg_flags;
+
   vm_map_insert_after(map, after, seg);
   return 0;
 }
@@ -263,7 +303,8 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
 
   /* Create object with a pager that supplies cleared pages on page fault. */
   vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *seg = vm_segment_alloc(obj, addr, addr + length, prot);
+  vm_segment_t *seg =
+    vm_segment_alloc(obj, addr, addr + length, prot, VM_SEG_SHARED);
 
   /* Given the hint try to insert the segment at given position or after it. */
   if (vm_map_insert(map, seg, flags)) {
@@ -328,8 +369,18 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
     vm_segment_t *it;
     TAILQ_FOREACH (it, &map->entries, link) {
-      vm_object_t *obj = vm_object_clone(it->object);
-      vm_segment_t *seg = vm_segment_alloc(obj, it->start, it->end, it->prot);
+      vm_object_t *obj;
+      vm_segment_t *seg;
+
+      if (it->flags & VM_SEG_SHARED) {
+        refcnt_acquire(&it->object->ref_counter);
+        obj = it->object;
+      } else {
+        /* vm_object_clone will clone the data from the vm_object_t
+         * and will return the new object with ref_counter equal to one */
+        obj = vm_object_clone(it->object);
+      }
+      seg = vm_segment_alloc(obj, it->start, it->end, it->prot, it->flags);
       TAILQ_INSERT_TAIL(&new_map->entries, seg, link);
       new_map->nentries++;
     }

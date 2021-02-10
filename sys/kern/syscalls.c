@@ -3,7 +3,7 @@
 #include <sys/sysent.h>
 #include <sys/mimiker.h>
 #include <sys/errno.h>
-#include <sys/mman.h>
+#include <sys/vm.h>
 #include <sys/vfs.h>
 #include <sys/uio.h>
 #include <sys/file.h>
@@ -23,26 +23,27 @@
 #include <sys/thread.h>
 #include <sys/cred.h>
 #include <sys/statvfs.h>
+#include <sys/pty.h>
 
 #include "sysent.h"
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
 int sys_syscall(proc_t *p, syscall_args_t *args, register_t *res) {
-  klog("unimplemented system call %ld", args->number);
+  klog("unimplemented system call %ld", SCARG(args, number));
   return ENOSYS;
 };
 
 static int sys_sbrk(proc_t *p, sbrk_args_t *args, register_t *res) {
-  klog("sbrk(%d)", args->increment);
+  klog("sbrk(%d)", SCARG(args, increment));
 
-  return sbrk_resize(p, args->increment, (vaddr_t *)res);
+  return sbrk_resize(p, SCARG(args, increment), (vaddr_t *)res);
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/exit.html */
 static int sys_exit(proc_t *p, exit_args_t *args, register_t *res) {
-  klog("exit(%d)", args->rval);
+  klog("exit(%d)", SCARG(args, rval));
   proc_lock(p);
-  proc_exit(MAKE_STATUS_EXIT(args->rval));
+  proc_exit(MAKE_STATUS_EXIT(SCARG(args, rval)));
   __unreachable();
 }
 
@@ -82,8 +83,8 @@ static int sys_getppid(proc_t *p, void *args, register_t *res) {
  *
  * https://pubs.opengroup.org/onlinepubs/9699919799/functions/setpgid.html */
 static int sys_setpgid(proc_t *p, setpgid_args_t *args, register_t *res) {
-  pid_t pid = args->pid;
-  pgid_t pgid = args->pgid;
+  pid_t pid = SCARG(args, pid);
+  pgid_t pgid = SCARG(args, pgid);
 
   klog("setpgid(%d, %d)", pid, pgid);
 
@@ -95,12 +96,7 @@ static int sys_setpgid(proc_t *p, setpgid_args_t *args, register_t *res) {
   if (pgid == 0)
     pgid = pid;
 
-  /* TODO Allow process to call setpgid on its children.
-   * TODO Make setpgid accepts pgid equal to ID of any existing process group */
-  if (pid != p->p_pid || pgid != p->p_pid)
-    return ENOTSUP;
-
-  return pgrp_enter(p, pgid);
+  return pgrp_enter(p, pid, pgid);
 }
 
 /* Gets process group ID of the process with ID specified by pid.
@@ -108,7 +104,7 @@ static int sys_setpgid(proc_t *p, setpgid_args_t *args, register_t *res) {
  *
  * https://pubs.opengroup.org/onlinepubs/9699919799/functions/getpgid.html */
 static int sys_getpgid(proc_t *p, getpgid_args_t *args, register_t *res) {
-  pid_t pid = args->pid;
+  pid_t pid = SCARG(args, pid);
   pgid_t pgid;
 
   if (pid < 0)
@@ -124,24 +120,24 @@ static int sys_getpgid(proc_t *p, getpgid_args_t *args, register_t *res) {
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/kill.html */
 static int sys_kill(proc_t *p, kill_args_t *args, register_t *res) {
-  klog("kill(%lu, %d)", args->pid, args->sig);
-  return proc_sendsig(args->pid, args->sig);
+  klog("kill(%lu, %d)", SCARG(args, pid), SCARG(args, sig));
+  return proc_sendsig(SCARG(args, pid), SCARG(args, sig));
 }
 
 /* Set and get the file mode creation mask.
  *
  * https://pubs.opengroup.org/onlinepubs/9699919799/functions/umask.html */
 static int sys_umask(proc_t *p, umask_args_t *args, register_t *res) {
-  mode_t newmask = args->newmask;
-  klog("umask(%x)", args->newmask);
+  mode_t newmask = SCARG(args, newmask);
+  klog("umask(%x)", SCARG(args, newmask));
   return do_umask(p, newmask, (int *)res);
 }
 
 /* https://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html */
 static int sys_sigaction(proc_t *p, sigaction_args_t *args, register_t *res) {
-  int signo = args->signum;
-  const void *u_newact = args->nsa;
-  void *u_oldact = args->osa;
+  int signo = SCARG(args, signum);
+  const void *u_newact = SCARG(args, nsa);
+  void *u_oldact = SCARG(args, osa);
 
   klog("sigaction(%d, %p, %p)", signo, u_newact, u_oldact);
 
@@ -161,19 +157,19 @@ static int sys_sigaction(proc_t *p, sigaction_args_t *args, register_t *res) {
   return error;
 }
 
-/* TODO: handle sigcontext argument */
 static int sys_sigreturn(proc_t *p, sigreturn_args_t *args, register_t *res) {
-  klog("sigreturn()");
-  return do_sigreturn();
+  ucontext_t *ucp = SCARG(args, sigctx_p);
+  klog("sigreturn(%p)", ucp);
+  return do_sigreturn(ucp);
 }
 
 static int sys_mmap(proc_t *p, mmap_args_t *args, register_t *res) {
-  vaddr_t va = (vaddr_t)args->addr;
-  size_t length = args->len;
-  vm_prot_t prot = args->prot;
-  int flags = args->flags;
+  vaddr_t va = (vaddr_t)SCARG(args, addr);
+  size_t length = SCARG(args, len);
+  vm_prot_t prot = SCARG(args, prot);
+  int flags = SCARG(args, flags);
 
-  klog("mmap(%p, %u, %d, %d)", args->addr, length, prot, flags);
+  klog("mmap(%p, %u, %d, %d)", (void *)va, length, prot, flags);
 
   int error;
   if ((error = do_mmap(&va, length, prot, flags)))
@@ -184,21 +180,22 @@ static int sys_mmap(proc_t *p, mmap_args_t *args, register_t *res) {
 }
 
 static int sys_munmap(proc_t *p, munmap_args_t *args, register_t *res) {
-  klog("munmap(%p, %u)", args->addr, args->len);
-  return do_munmap((vaddr_t)args->addr, args->len);
+  klog("munmap(%p, %u)", SCARG(args, addr), SCARG(args, len));
+  return do_munmap((vaddr_t)SCARG(args, addr), SCARG(args, len));
 }
 
 /* TODO: implement it !!! */
 static int sys_mprotect(proc_t *p, mprotect_args_t *args, register_t *res) {
-  klog("mprotect(%p, %u, %u)", args->addr, args->len, args->prot);
+  klog("mprotect(%p, %u, %u)", SCARG(args, addr), SCARG(args, len),
+       SCARG(args, prot));
   return ENOTSUP;
 }
 
 static int sys_openat(proc_t *p, openat_args_t *args, register_t *res) {
-  int fdat = args->fd;
-  const char *u_path = args->path;
-  int flags = args->flags;
-  mode_t mode = args->mode;
+  int fdat = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  int flags = SCARG(args, flags);
+  mode_t mode = SCARG(args, mode);
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t n = 0;
@@ -221,15 +218,15 @@ end:
 }
 
 static int sys_close(proc_t *p, close_args_t *args, register_t *res) {
-  klog("close(%d)", args->fd);
+  klog("close(%d)", SCARG(args, fd));
 
-  return do_close(p, args->fd);
+  return do_close(p, SCARG(args, fd));
 }
 
 static int sys_read(proc_t *p, read_args_t *args, register_t *res) {
-  int fd = args->fd;
-  void *u_buf = args->buf;
-  size_t nbyte = args->nbyte;
+  int fd = SCARG(args, fd);
+  void *u_buf = SCARG(args, buf);
+  size_t nbyte = SCARG(args, nbyte);
   int error;
 
   klog("read(%d, %p, %u)", fd, u_buf, nbyte);
@@ -243,9 +240,9 @@ static int sys_read(proc_t *p, read_args_t *args, register_t *res) {
 }
 
 static int sys_write(proc_t *p, write_args_t *args, register_t *res) {
-  int fd = args->fd;
-  const char *u_buf = args->buf;
-  size_t nbyte = args->nbyte;
+  int fd = SCARG(args, fd);
+  const char *u_buf = SCARG(args, buf);
+  size_t nbyte = SCARG(args, nbyte);
   int error;
 
   klog("write(%d, %p, %u)", fd, u_buf, nbyte);
@@ -262,8 +259,10 @@ static int sys_lseek(proc_t *p, lseek_args_t *args, register_t *res) {
   off_t newoff;
   int error;
 
-  klog("lseek(%d, %ld, %d)", args->fd, args->offset, args->whence);
-  if ((error = do_lseek(p, args->fd, args->offset, args->whence, &newoff)))
+  klog("lseek(%d, %ld, %d)", SCARG(args, fd), SCARG(args, offset),
+       SCARG(args, whence));
+  if ((error = do_lseek(p, SCARG(args, fd), SCARG(args, offset),
+                        SCARG(args, whence), &newoff)))
     return error;
 
   *res = newoff;
@@ -271,8 +270,8 @@ static int sys_lseek(proc_t *p, lseek_args_t *args, register_t *res) {
 }
 
 static int sys_fstat(proc_t *p, fstat_args_t *args, register_t *res) {
-  int fd = args->fd;
-  stat_t *u_sb = args->sb;
+  int fd = SCARG(args, fd);
+  stat_t *u_sb = SCARG(args, sb);
   stat_t sb;
   int error;
 
@@ -284,7 +283,7 @@ static int sys_fstat(proc_t *p, fstat_args_t *args, register_t *res) {
 }
 
 static int sys_chdir(proc_t *p, chdir_args_t *args, register_t *res) {
-  const char *u_path = args->path;
+  const char *u_path = SCARG(args, path);
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t len = 0;
   int error = 0;
@@ -300,13 +299,13 @@ end:
 }
 
 static int sys_fchdir(proc_t *p, fchdir_args_t *args, register_t *res) {
-  klog("fchdir(%d)", args->fd);
-  return do_fchdir(p, args->fd);
+  klog("fchdir(%d)", SCARG(args, fd));
+  return do_fchdir(p, SCARG(args, fd));
 }
 
 static int sys_getcwd(proc_t *p, getcwd_args_t *args, register_t *res) {
-  char *u_buf = args->buf;
-  size_t len = args->len;
+  char *u_buf = SCARG(args, buf);
+  size_t len = SCARG(args, len);
   int error;
 
   if (len == 0)
@@ -333,8 +332,8 @@ end:
 }
 
 static int sys_mount(proc_t *p, mount_args_t *args, register_t *res) {
-  const char *u_type = args->type;
-  const char *u_path = args->path;
+  const char *u_type = SCARG(args, type);
+  const char *u_path = SCARG(args, path);
 
   char *type = kmalloc(M_TEMP, PATH_MAX, 0);
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
@@ -351,7 +350,7 @@ static int sys_mount(proc_t *p, mount_args_t *args, register_t *res) {
 
   klog("mount(\"%s\", \"%s\")", path, type);
 
-  error = do_mount(type, path);
+  error = do_mount(p, type, path);
 end:
   kfree(M_TEMP, type);
   kfree(M_TEMP, path);
@@ -359,9 +358,9 @@ end:
 }
 
 static int sys_getdents(proc_t *p, getdents_args_t *args, register_t *res) {
-  int fd = args->fd;
-  void *u_buf = args->buf;
-  size_t len = args->len;
+  int fd = SCARG(args, fd);
+  void *u_buf = SCARG(args, buf);
+  size_t len = SCARG(args, len);
   int error;
 
   klog("getdents(%d, %p, %u)", fd, u_buf, len);
@@ -376,33 +375,35 @@ static int sys_getdents(proc_t *p, getdents_args_t *args, register_t *res) {
 
 static int sys_dup(proc_t *p, dup_args_t *args, register_t *res) {
   int error, fd;
-  klog("dup(%d)", args->fd);
-  error = do_dup(p, args->fd, &fd);
+  klog("dup(%d)", SCARG(args, fd));
+  error = do_dup(p, SCARG(args, fd), &fd);
   *res = fd;
   return error;
 }
 
 static int sys_dup2(proc_t *p, dup2_args_t *args, register_t *res) {
-  klog("dup2(%d, %d)", args->from, args->to);
+  klog("dup2(%d, %d)", SCARG(args, from), SCARG(args, to));
 
-  *res = args->to;
+  *res = SCARG(args, to);
 
-  return do_dup2(p, args->from, args->to);
+  return do_dup2(p, SCARG(args, from), SCARG(args, to));
 }
 
 static int sys_fcntl(proc_t *p, fcntl_args_t *args, register_t *res) {
-  int error, value;
-  klog("fcntl(%d, %d, %ld)", args->fd, args->cmd, (long)args->arg);
-  error = do_fcntl(p, args->fd, args->cmd, (long)args->arg, &value);
+  int error, value = 0;
+  klog("fcntl(%d, %d, %ld)", SCARG(args, fd), SCARG(args, cmd),
+       (long)SCARG(args, arg));
+  error = do_fcntl(p, SCARG(args, fd), SCARG(args, cmd), (long)SCARG(args, arg),
+                   &value);
   *res = value;
   return error;
 }
 
 static int sys_wait4(proc_t *p, wait4_args_t *args, register_t *res) {
-  pid_t pid = args->pid;
-  int *u_status = args->status;
-  int options = args->options;
-  struct rusage *u_rusage = args->rusage;
+  pid_t pid = SCARG(args, pid);
+  int *u_status = SCARG(args, status);
+  int options = SCARG(args, options);
+  struct rusage *u_rusage = SCARG(args, rusage);
   int status = 0;
   int error;
 
@@ -424,8 +425,8 @@ static int sys_wait4(proc_t *p, wait4_args_t *args, register_t *res) {
 }
 
 static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
-  int *u_fdp = args->fdp;
-  int flags = args->flags;
+  int *u_fdp = SCARG(args, fdp);
+  int flags = SCARG(args, flags);
   int fds[2];
   int error;
 
@@ -441,9 +442,9 @@ static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
 }
 
 static int sys_unlinkat(proc_t *p, unlinkat_args_t *args, register_t *res) {
-  int fd = args->fd;
-  const char *u_path = args->path;
-  int flag = args->flag;
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  int flag = SCARG(args, flag);
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t n = 0;
@@ -463,9 +464,9 @@ end:
 }
 
 static int sys_mkdirat(proc_t *p, mkdirat_args_t *args, register_t *res) {
-  int fd = args->fd;
-  const char *u_path = args->path;
-  mode_t mode = args->mode;
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  mode_t mode = SCARG(args, mode);
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   size_t n = 0;
@@ -484,19 +485,19 @@ end:
 }
 
 static int sys_execve(proc_t *p, execve_args_t *args, register_t *res) {
-  const char *u_path = args->path;
-  char *const *u_argp = args->argp;
-  char *const *u_envp = args->envp;
+  const char *u_path = SCARG(args, path);
+  char *const *u_argp = SCARG(args, argp);
+  char *const *u_envp = SCARG(args, envp);
 
   /* do_execve handles copying data from user-space */
   return do_execve(u_path, u_argp, u_envp);
 }
 
 static int sys_faccessat(proc_t *p, faccessat_args_t *args, register_t *res) {
-  int fd = args->fd;
-  const char *u_path = args->path;
-  mode_t mode = args->mode;
-  int flags = args->flags;
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  mode_t mode = SCARG(args, mode);
+  int flags = SCARG(args, flags);
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   int error;
@@ -515,8 +516,8 @@ end:
 
 static int sys_clock_gettime(proc_t *p, clock_gettime_args_t *args,
                              register_t *res) {
-  clockid_t clock_id = args->clock_id;
-  timespec_t *u_ts = args->tsp;
+  clockid_t clock_id = SCARG(args, clock_id);
+  timespec_t *u_ts = SCARG(args, tsp);
   timespec_t ts;
   int error;
 
@@ -528,22 +529,33 @@ static int sys_clock_gettime(proc_t *p, clock_gettime_args_t *args,
 
 static int sys_clock_nanosleep(proc_t *p, clock_nanosleep_args_t *args,
                                register_t *res) {
-  clockid_t clock_id = args->clock_id;
-  int flags = args->flags;
-  const timespec_t *u_rqtp = args->rqtp;
-  timespec_t rqtp;
-  int error;
+  clockid_t clock_id = SCARG(args, clock_id);
+  int flags = SCARG(args, flags);
+  /* u_ - user, rm - remaining, rq - requested, t - time, p - pointer */
+  const timespec_t *u_rqtp = SCARG(args, rqtp);
+  timespec_t *u_rmtp = SCARG(args, rmtp);
+  timespec_t rqtp, rmtp;
+  int error, copy_err;
 
   if ((error = copyin_s(u_rqtp, rqtp)))
     return error;
 
-  return do_clock_nanosleep(clock_id, flags, &rqtp, NULL);
+  error = do_clock_nanosleep(clock_id, flags, &rqtp, u_rmtp ? &rmtp : NULL);
+
+  if (u_rmtp == NULL || (error != 0 && error != EINTR))
+    return error;
+
+  /*  TIMER_ABSTIME - sleep to an absolute deadline */
+  if ((flags & TIMER_ABSTIME) == 0 && (copy_err = copyout_s(rmtp, u_rmtp)))
+    return copy_err;
+
+  return error;
 }
 
 static int sys_sigaltstack(proc_t *p, sigaltstack_args_t *args,
                            register_t *res) {
-  const stack_t *ss = args->ss;
-  stack_t *old_ss = args->old_ss;
+  const stack_t *ss = SCARG(args, ss);
+  stack_t *old_ss = SCARG(args, old_ss);
   int error;
 
   klog("sigaltstack(%p, %p)", ss, old_ss);
@@ -565,9 +577,9 @@ static int sys_sigaltstack(proc_t *p, sigaltstack_args_t *args,
 
 static int sys_sigprocmask(proc_t *p, sigprocmask_args_t *args,
                            register_t *res) {
-  int how = args->how;
-  const sigset_t *u_set = args->set;
-  sigset_t *u_oset = args->oset;
+  int how = SCARG(args, how);
+  const sigset_t *u_set = SCARG(args, set);
+  sigset_t *u_oset = SCARG(args, oset);
   sigset_t set, oset;
   int error;
 
@@ -590,7 +602,7 @@ static int sys_sigprocmask(proc_t *p, sigprocmask_args_t *args,
 }
 
 static int sys_sigsuspend(proc_t *p, sigsuspend_args_t *args, register_t *res) {
-  const sigset_t *umask = args->sigmask;
+  const sigset_t *umask = SCARG(args, sigmask);
   sigset_t mask;
   int error;
 
@@ -603,7 +615,7 @@ static int sys_sigsuspend(proc_t *p, sigsuspend_args_t *args, register_t *res) {
 }
 
 static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
-  const ucontext_t *ucp = args->ucp;
+  const ucontext_t *ucp = SCARG(args, ucp);
   klog("setcontext(%p)", ucp);
 
   ucontext_t uc;
@@ -613,9 +625,9 @@ static int sys_setcontext(proc_t *p, setcontext_args_t *args, register_t *res) {
 }
 
 static int sys_ioctl(proc_t *p, ioctl_args_t *args, register_t *res) {
-  int fd = args->fd;
-  u_long cmd = args->cmd;
-  void *u_data = args->data;
+  int fd = SCARG(args, fd);
+  u_long cmd = SCARG(args, cmd);
+  void *u_data = SCARG(args, data);
   int error;
 
   klog("ioctl(%d, %lx, %p)", fd, cmd, u_data);
@@ -646,9 +658,9 @@ fail:
 }
 
 static int sys_getresuid(proc_t *p, getresuid_args_t *args, register_t *res) {
-  uid_t *usr_ruid = args->ruid;
-  uid_t *usr_euid = args->euid;
-  uid_t *usr_suid = args->suid;
+  uid_t *usr_ruid = SCARG(args, ruid);
+  uid_t *usr_euid = SCARG(args, euid);
+  uid_t *usr_suid = SCARG(args, suid);
 
   klog("getresuid()");
 
@@ -663,9 +675,9 @@ static int sys_getresuid(proc_t *p, getresuid_args_t *args, register_t *res) {
 }
 
 static int sys_getresgid(proc_t *p, getresgid_args_t *args, register_t *res) {
-  gid_t *usr_rgid = args->rgid;
-  gid_t *usr_egid = args->egid;
-  gid_t *usr_sgid = args->sgid;
+  gid_t *usr_rgid = SCARG(args, rgid);
+  gid_t *usr_egid = SCARG(args, egid);
+  gid_t *usr_sgid = SCARG(args, sgid);
 
   klog("getresgid()");
 
@@ -680,21 +692,21 @@ static int sys_getresgid(proc_t *p, getresgid_args_t *args, register_t *res) {
 }
 
 static int sys_setresuid(proc_t *p, setresuid_args_t *args, register_t *res) {
-  uid_t ruid = args->ruid;
-  uid_t euid = args->euid;
-  uid_t suid = args->suid;
+  uid_t ruid = SCARG(args, ruid);
+  uid_t euid = SCARG(args, euid);
+  uid_t suid = SCARG(args, suid);
 
-  klog("setresuid(%d, %d, %d)", args->ruid, args->euid, args->suid);
+  klog("setresuid(%d, %d, %d)", ruid, euid, suid);
 
   return do_setresuid(p, ruid, euid, suid);
 }
 
 static int sys_setresgid(proc_t *p, setresgid_args_t *args, register_t *res) {
-  gid_t rgid = args->rgid;
-  gid_t egid = args->egid;
-  gid_t sgid = args->sgid;
+  gid_t rgid = SCARG(args, rgid);
+  gid_t egid = SCARG(args, egid);
+  gid_t sgid = SCARG(args, sgid);
 
-  klog("setresgid(%d, %d, %d)", args->rgid, args->egid, args->sgid);
+  klog("setresgid(%d, %d, %d)", rgid, egid, sgid);
 
   return do_setresgid(p, rgid, egid, sgid);
 }
@@ -707,8 +719,8 @@ static int sys_issetugid(proc_t *p, void *args, register_t *res) {
 }
 
 static int sys_truncate(proc_t *p, truncate_args_t *args, register_t *res) {
-  const char *u_path = args->path;
-  off_t length = args->length;
+  const char *u_path = SCARG(args, path);
+  off_t length = SCARG(args, length);
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
   int error;
@@ -726,17 +738,17 @@ end:
 }
 
 static int sys_ftruncate(proc_t *p, ftruncate_args_t *args, register_t *res) {
-  int fd = args->fd;
-  off_t length = args->length;
+  int fd = SCARG(args, fd);
+  off_t length = SCARG(args, length);
   klog("ftruncate(%d, %d)", fd, length);
   return do_ftruncate(p, fd, length);
 }
 
 static int sys_fstatat(proc_t *p, fstatat_args_t *args, register_t *res) {
-  int fd = args->fd;
-  const char *u_path = args->path;
-  stat_t *u_sb = args->sb;
-  int flag = args->flag;
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  stat_t *u_sb = SCARG(args, sb);
+  int flag = SCARG(args, flag);
   stat_t sb;
   int error;
 
@@ -756,10 +768,10 @@ end:
 }
 
 static int sys_readlinkat(proc_t *p, readlinkat_args_t *args, register_t *res) {
-  int fd = args->fd;
-  const char *u_path = args->path;
-  char *u_buf = args->buf;
-  size_t bufsiz = args->bufsiz;
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  char *u_buf = SCARG(args, buf);
+  size_t bufsiz = SCARG(args, bufsiz);
   int error;
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
@@ -779,9 +791,9 @@ end:
 }
 
 static int sys_symlinkat(proc_t *p, symlinkat_args_t *args, register_t *res) {
-  const char *u_target = args->target;
-  int newdirfd = args->newdirfd;
-  const char *u_linkpath = args->linkpath;
+  const char *u_target = SCARG(args, target);
+  int newdirfd = SCARG(args, newdirfd);
+  const char *u_linkpath = SCARG(args, linkpath);
   int error;
 
   char *target = kmalloc(M_TEMP, PATH_MAX, 0);
@@ -803,11 +815,11 @@ end:
 }
 
 static int sys_linkat(proc_t *p, linkat_args_t *args, register_t *res) {
-  int fd1 = args->fd1;
-  const char *u_name1 = args->name1;
-  int fd2 = args->fd2;
-  const char *u_name2 = args->name2;
-  int flags = args->flags;
+  int fd1 = SCARG(args, fd1);
+  const char *u_name1 = SCARG(args, name1);
+  int fd2 = SCARG(args, fd2);
+  const char *u_name2 = SCARG(args, name2);
+  int flags = SCARG(args, flags);
   int error;
 
   char *name1 = kmalloc(M_TEMP, PATH_MAX, 0);
@@ -829,8 +841,8 @@ end:
 }
 
 static int sys_fchmod(proc_t *p, fchmod_args_t *args, register_t *res) {
-  int fd = args->fd;
-  mode_t mode = args->mode;
+  int fd = SCARG(args, fd);
+  mode_t mode = SCARG(args, mode);
 
   klog("fchmod(%d, %d)", fd, mode);
 
@@ -838,10 +850,10 @@ static int sys_fchmod(proc_t *p, fchmod_args_t *args, register_t *res) {
 }
 
 static int sys_fchmodat(proc_t *p, fchmodat_args_t *args, register_t *res) {
-  int fd = args->fd;
-  const char *u_path = args->path;
-  mode_t mode = args->mode;
-  int flag = args->flag;
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  mode_t mode = SCARG(args, mode);
+  int flag = SCARG(args, flag);
   int error;
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
@@ -858,6 +870,38 @@ end:
   return error;
 }
 
+static int sys_fchown(proc_t *p, fchown_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  uid_t uid = SCARG(args, uid);
+  gid_t gid = SCARG(args, gid);
+
+  klog("fchown(%d, %d)", uid, gid);
+
+  return do_fchown(p, fd, uid, gid);
+}
+
+static int sys_fchownat(proc_t *p, fchownat_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  uid_t uid = SCARG(args, uid);
+  gid_t gid = SCARG(args, gid);
+  int flag = SCARG(args, flag);
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("fchownat(%d, \"%s\", %d, %d)", fd, path, uid, uid);
+
+  error = do_fchownat(p, fd, path, uid, gid, flag);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
 static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
   klog("sched_yield()");
   thread_yield();
@@ -866,8 +910,8 @@ static int sys_sched_yield(proc_t *p, void *args, register_t *res) {
 
 static int sys_statvfs(proc_t *p, statvfs_args_t *args, register_t *res) {
   int error;
-  const char *u_path = args->path;
-  statvfs_t *u_buf = args->buf;
+  const char *u_path = SCARG(args, path);
+  statvfs_t *u_buf = SCARG(args, buf);
   statvfs_t buf;
 
   char *path = kmalloc(M_TEMP, PATH_MAX, 0);
@@ -887,8 +931,8 @@ end:
 
 static int sys_fstatvfs(proc_t *p, fstatvfs_args_t *args, register_t *res) {
   int error;
-  int fd = args->fd;
-  statvfs_t *u_buf = args->buf;
+  int fd = SCARG(args, fd);
+  statvfs_t *u_buf = SCARG(args, buf);
   statvfs_t buf;
 
   klog("fstatvfs(%d, %p)", fd, u_buf);
@@ -900,8 +944,8 @@ static int sys_fstatvfs(proc_t *p, fstatvfs_args_t *args, register_t *res) {
 }
 
 static int sys_getgroups(proc_t *p, getgroups_args_t *args, register_t *res) {
-  int ngroups = args->ngroups;
-  gid_t *ugidset = args->gidset;
+  int ngroups = SCARG(args, ngroups);
+  gid_t *ugidset = SCARG(args, gidset);
   int pngroups = p->p_cred.cr_ngroups;
 
   klog("getgroups(%d, %p)", ngroups, ugidset);
@@ -921,8 +965,8 @@ static int sys_getgroups(proc_t *p, getgroups_args_t *args, register_t *res) {
 
 static int sys_setgroups(proc_t *p, setgroups_args_t *args, register_t *res) {
   int error = 0;
-  int ungroups = args->ngroups;
-  const gid_t *ugidset = args->gidset;
+  int ungroups = SCARG(args, ngroups);
+  const gid_t *ugidset = SCARG(args, gidset);
 
   klog("setgroups(%d, %p)", ungroups, ugidset);
 
@@ -956,7 +1000,7 @@ static int sys_setsid(proc_t *p, void *args, register_t *res) {
 }
 
 static int sys_getsid(proc_t *p, getsid_args_t *args, register_t *res) {
-  pid_t pid = args->pid;
+  pid_t pid = SCARG(args, pid);
   sid_t sid;
   int error;
 
@@ -971,5 +1015,135 @@ static int sys_getsid(proc_t *p, getsid_args_t *args, register_t *res) {
   if (!(error = proc_getsid(pid, &sid)))
     *res = sid;
 
+  return error;
+}
+
+static int sys_getpriority(proc_t *p, getpriority_args_t *args,
+                           register_t *res) {
+  /* TODO(fzdob): this is only simple stub to avoid erasing these syscall from
+   * userspace programs */
+  (void)args;
+  *res = 0;
+  return 0;
+}
+
+static int sys_setpriority(proc_t *p, setpriority_args_t *args,
+                           register_t *res) {
+  /* TODO(fzdob): this is only simple stub to avoid erasing these syscall from
+   * userspace programs */
+  (void)args;
+  *res = 0;
+  return 0;
+}
+
+static int sys_setuid(proc_t *p, setuid_args_t *args, register_t *res) {
+  uid_t uid = SCARG(args, uid);
+  return do_setuid(p, uid);
+}
+
+static int sys_seteuid(proc_t *p, seteuid_args_t *args, register_t *res) {
+  uid_t euid = SCARG(args, euid);
+  return do_seteuid(p, euid);
+}
+
+static int sys_setreuid(proc_t *p, setreuid_args_t *args, register_t *res) {
+  uid_t ruid = SCARG(args, ruid);
+  uid_t euid = SCARG(args, euid);
+  return do_setreuid(p, ruid, euid);
+}
+
+static int sys_setgid(proc_t *p, setgid_args_t *args, register_t *res) {
+  gid_t gid = SCARG(args, gid);
+  return do_setgid(p, gid);
+}
+
+static int sys_setegid(proc_t *p, setegid_args_t *args, register_t *res) {
+  gid_t egid = SCARG(args, egid);
+  return do_setegid(p, egid);
+}
+
+static int sys_setregid(proc_t *p, setregid_args_t *args, register_t *res) {
+  gid_t rgid = SCARG(args, rgid);
+  gid_t egid = SCARG(args, egid);
+  return do_setregid(p, rgid, egid);
+}
+
+static int sys_getlogin(proc_t *p, getlogin_args_t *args, register_t *res) {
+  char *namebuf = SCARG(args, namebuf);
+  size_t buflen = SCARG(args, buflen);
+  char login_tmp[LOGIN_NAME_MAX];
+
+  klog("getlogin(%p, %zu)", namebuf, buflen);
+
+  WITH_MTX_LOCK (all_proc_mtx)
+    memcpy(login_tmp, p->p_pgrp->pg_session->s_login, sizeof(login_tmp));
+
+  return copyout(login_tmp, namebuf, MIN(buflen, sizeof(login_tmp)));
+}
+
+static int sys_setlogin(proc_t *p, setlogin_args_t *args, register_t *res) {
+  char *name = SCARG(args, name);
+  char login_tmp[LOGIN_NAME_MAX];
+  int error;
+
+  klog("setlogin(%p)", name);
+
+  error = copyinstr(name, login_tmp, sizeof(login_tmp), NULL);
+  if (error)
+    return (error == ENAMETOOLONG ? EINVAL : error);
+
+  return do_setlogin(login_tmp);
+}
+
+static int sys_posix_openpt(proc_t *p, posix_openpt_args_t *args,
+                            register_t *res) {
+
+  int flags = SCARG(args, flags);
+
+  klog("posix_openpt(0x%x)", flags);
+
+  return do_posix_openpt(p, flags, res);
+}
+
+static int sys_futimens(proc_t *p, futimens_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const timespec_t *u_times = SCARG(args, times);
+  timespec_t times[2];
+  int error;
+
+  klog("futimens(%d, %x)", fd, u_times);
+
+  if (u_times != NULL) {
+    if ((error = copyin_s(u_times, times)))
+      return error;
+  }
+
+  return do_futimens(p, fd, u_times == NULL ? NULL : times);
+}
+
+static int sys_utimensat(proc_t *p, utimensat_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  const timespec_t *u_times = SCARG(args, times);
+  int flag = SCARG(args, flag);
+  timespec_t times[2];
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("utimensat(%d, \"%s\", %x, %d)", fd, path, u_times, flag);
+
+  if (u_times != NULL) {
+    if ((error = copyin_s(u_times, times)))
+      goto end;
+  }
+
+  error = do_utimensat(p, fd, path, u_times == NULL ? NULL : times, flag);
+
+end:
+  kfree(M_TEMP, path);
   return error;
 }

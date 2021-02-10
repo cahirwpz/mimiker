@@ -3,6 +3,7 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
+	82371AB.c \
 	boot.c \
 	cbus.c \
 	context.c \
@@ -22,8 +23,7 @@ SOURCES = \
 	timer.c \
 	tlb.c \
 	trap.c \
-	uart_cbus.c \
-	ucontext.c
+	uart_cbus.c
 
 OBJECTS += $(BOARD)_dtb.o
 

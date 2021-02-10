@@ -5,6 +5,9 @@
 #include <sys/ucontext.h>
 #include <sys/sigtypes.h>
 
+#define SCARG(p, x) ((p)->x.arg)
+#define SYSCALLARG(x) union { register_t _pad; x arg; }
+
 0   { int sys_syscall(int number); }
 1   { void sys_exit(int rval); }
 2   { int sys_fork(void); }
@@ -26,7 +29,7 @@
 17  { int sys_dup2(int from, int to); }
 18  { int sys_sigaction(int signum, const struct sigaction *nsa, \
                         struct sigaction *osa); }
-19  { int sys_sigreturn(struct sigcontext *sigctx_p); }
+19  { int sys_sigreturn(ucontext_t *sigctx_p); }
 20  { int sys_wait4(pid_t pid, int *status, int options, struct rusage *rusage); }
 21  { int sys_mkdirat(int fd, const char *path, mode_t mode); }
 22  { int sys_symlinkat(const char *target, int newdirfd, const char *linkpath); }
@@ -72,5 +75,20 @@
 59  { int sys_setgroups(int ngroups, const gid_t *gidset); }
 60  { pid_t sys_setsid(void); }
 61  { pid_t sys_getsid(pid_t pid); }
+62  { int sys_getpriority(int which, id_t who); }
+63  { int sys_setpriority(int which, id_t who, int prio); }
+64  { int sys_setuid(uid_t uid); }
+65  { int sys_seteuid(uid_t euid); }
+66  { int sys_setreuid(uid_t ruid, uid_t euid); }
+67  { int sys_setgid(gid_t gid); }
+68  { int sys_setegid(gid_t egid); }
+69  { int sys_setregid(gid_t rgid, gid_t egid); }
+70  { int sys_fchown(int fd, uid_t uid, gid_t gid); }
+71  { int sys_fchownat(int fd, const char *path, uid_t uid, gid_t gid, int flag); }
+72  { int sys_getlogin(char *namebuf, size_t buflen); }
+73  { int sys_setlogin(char *name); }
+74  { int sys_posix_openpt(int flags); }
+75  { int sys_futimens(int fd, const struct timespec *times); }
+76  { int sys_utimensat(int fd, const char *path, const struct timespec *times, int flag); }
 
 ; vim: ts=4 sw=4 sts=4 et

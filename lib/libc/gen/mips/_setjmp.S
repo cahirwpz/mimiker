@@ -33,9 +33,7 @@
  */
 
 #include <machine/cdefs.h>
-#include <mips/regnum.h>
 #include <mips/asm.h>
-#include <machine/setjmp.h>
 
 #include "mips/assym.h"
 #include "mips/SYS.h"
@@ -53,26 +51,28 @@
 
 LEAF(_setjmp)
 	REG_PROLOGUE
-	REG_LI	v0, 0xACEDBADE			# sigcontext magic number
-	REG_S	ra, _OFFSETOF_SC_PC(a0)		# sc_pc = return address
-	REG_S	v0, _OFFSETOF_SC_REGS(a0)	#   saved in sc_regs[0]
-	REG_S	s0, _OFFSETOF_SC_REGS_S0(a0)
-	REG_S	s1, _OFFSETOF_SC_REGS_S1(a0)
-	REG_S	s2, _OFFSETOF_SC_REGS_S2(a0)
-	REG_S	s3, _OFFSETOF_SC_REGS_S3(a0)
-	REG_S	s4, _OFFSETOF_SC_REGS_S4(a0)
-	REG_S	s5, _OFFSETOF_SC_REGS_S5(a0)
-	REG_S	s6, _OFFSETOF_SC_REGS_S6(a0)
-	REG_S	s7, _OFFSETOF_SC_REGS_S7(a0)
-	REG_S	sp, _OFFSETOF_SC_REGS_SP(a0)
-	REG_S	s8, _OFFSETOF_SC_REGS_S8(a0)
+	REG_S	ra, UC_GREGS_PC(a0)	# return address
+	REG_S	s0, UC_GREGS_S0(a0)
+	REG_S	s1, UC_GREGS_S1(a0)
+	REG_S	s2, UC_GREGS_S2(a0)
+	REG_S	s3, UC_GREGS_S3(a0)
+	REG_S	s4, UC_GREGS_S4(a0)
+	REG_S	s5, UC_GREGS_S5(a0)
+	REG_S	s6, UC_GREGS_S6(a0)
+	REG_S	s7, UC_GREGS_S7(a0)
+	REG_S	gp, UC_GREGS_GP(a0)
+	REG_S	sp, UC_GREGS_SP(a0)
+	REG_S	s8, UC_GREGS_S8(a0)
 	/* In O32, FP registers F20 .. F23 are callee-saved. */
-	cfc1	v0, $31				# too bad cant check if FP used
-	FP_S	$f22, _OFFSETOF_SC_FPREGS_F22(a0)
-	FP_S	$f20, _OFFSETOF_SC_FPREGS_F20(a0)
-	FP_S	$f21, _OFFSETOF_SC_FPREGS_F21(a0)
-	FP_S	$f23, _OFFSETOF_SC_FPREGS_F23(a0)
-	INT_S	v0, _OFFSETOF_SC_FPREGS_FCSR(a0)
+	INT_L	v0, UC_FLAGS(a0)
+	or	v0, (_UC_FPU|_UC_CPU)
+	INT_S	v0, UC_FLAGS(a0)
+	cfc1	v0, fcsr
+	INT_S	v0, UC_FPREGS_FCSR(a0)
+	FP_S	$f20, UC_FPREGS_F20(a0)
+	FP_S	$f21, UC_FPREGS_F21(a0)
+	FP_S	$f22, UC_FPREGS_F22(a0)
+	FP_S	$f23, UC_FPREGS_F23(a0)
 	REG_EPILOGUE
 
 	j	ra
@@ -85,43 +85,29 @@ LEAF(_longjmp)
 	SAVE_GP(CALLFRAME_GP)
 
 	REG_PROLOGUE
-	REG_L		v0, _OFFSETOF_SC_REGS(a0)	# get magic number
-	REG_L		ra, _OFFSETOF_SC_PC(a0)
-	REG_LI		t0, 0xACEDBADE
-	bne		v0, t0, botch		# jump if error
+	REG_L		ra, UC_GREGS_PC(a0)
 	PTR_ADDU	sp, sp, CALLFRAME_SIZ	# does not matter, sanity
-	REG_S		a1, _OFFSETOF_SC_REGS_V0(a0)	# save return value
-	REG_L		s0, _OFFSETOF_SC_REGS_S0(a0)
-	REG_L		s1, _OFFSETOF_SC_REGS_S1(a0)
-	REG_L		s2, _OFFSETOF_SC_REGS_S2(a0)
-	REG_L		s3, _OFFSETOF_SC_REGS_S3(a0)
-	REG_L		s4, _OFFSETOF_SC_REGS_S4(a0)
-	REG_L		s5, _OFFSETOF_SC_REGS_S5(a0)
-	REG_L		s6, _OFFSETOF_SC_REGS_S6(a0)
-	REG_L		s7, _OFFSETOF_SC_REGS_S7(a0)
+	REG_S		a1, UC_GREGS_V0(a0)	# save return value
+	REG_L		s0, UC_GREGS_S0(a0)
+	REG_L		s1, UC_GREGS_S1(a0)
+	REG_L		s2, UC_GREGS_S2(a0)
+	REG_L		s3, UC_GREGS_S3(a0)
+	REG_L		s4, UC_GREGS_S4(a0)
+	REG_L		s5, UC_GREGS_S5(a0)
+	REG_L		s6, UC_GREGS_S6(a0)
+	REG_L		s7, UC_GREGS_S7(a0)
 	# get fpu status
-	INT_L		v0, _OFFSETOF_SC_FPREGS_FCSR(a0)
-	REG_L		sp, _OFFSETOF_SC_REGS_SP(a0)
-	REG_L		s8, _OFFSETOF_SC_REGS_S8(a0)
-	ctc1		v0, $31
+	INT_L		v0, UC_FPREGS_FCSR(a0)
+	REG_L		sp, UC_GREGS_SP(a0)
+	REG_L		s8, UC_GREGS_S8(a0)
+	ctc1		v0, fcsr
 	/* In O32, FP registers F20 .. F23 are callee-saved. */
-	FP_L	$f22, _OFFSETOF_SC_FPREGS_F22(a0)
-	FP_L	$f20, _OFFSETOF_SC_FPREGS_F20(a0)
-	FP_L	$f21, _OFFSETOF_SC_FPREGS_F21(a0)
-	FP_L	$f23, _OFFSETOF_SC_FPREGS_F23(a0)
+	FP_L		$f22, UC_FPREGS_F22(a0)
+	FP_L		$f20, UC_FPREGS_F20(a0)
+	FP_L		$f21, UC_FPREGS_F21(a0)
+	FP_L		$f23, UC_FPREGS_F23(a0)
 
 	REG_EPILOGUE
 	j	ra
-	 move	v0, a1			# get return value in 1st arg
-
-botch:
-	/*
-	 * We know we aren't returning so we don't care about restoring
-	 * our caller's GP.
-	 */
-	jal	_C_LABEL(longjmperror)
-	 nop
-	
-	PIC_TAILCALL(abort)
-	 nop
+	 move	v0, a1	# get return value in 1st arg
 END(_longjmp)

@@ -80,7 +80,7 @@ int test_vfs_trunc(void) {
   void *rdbuf = malloc(8196);
   fill_random(wrbuf, 4096);
 
-  assert_open_ok(0, TESTDIR "/file", 0, O_RDWR | O_CREAT);
+  assert_open_ok(0, TESTDIR "/file", S_IWUSR | S_IRUSR, O_RDWR | O_CREAT);
 
   assert_write_ok(0, wrbuf, 4096);
   ftruncate(3, 2048);
@@ -143,6 +143,10 @@ int test_vfs_dir(void) {
   assert_fail(rmdir(TESTDIR "/test4/subdir4"), ENOENT);
 
   assert_fail(mkdir(TESTDIR "/test3/subdir1", 0), ENOENT);
+
+  assert_fail(mkdir("/", 0), EEXIST);
+  assert_fail(rmdir("/tmp"), EBUSY);
+
   return 0;
 }
 
@@ -307,7 +311,7 @@ int test_vfs_link(void) {
   fill_random(wrbuf, 64);
 
   /* Create file and fill it with random data */
-  assert_open_ok(0, TESTDIR "/file", 0, O_RDWR | O_CREAT);
+  assert_open_ok(0, TESTDIR "/file", S_IWUSR | S_IRUSR, O_RDWR | O_CREAT);
   assert_ok(stat(TESTDIR "/file", &sb));
   assert(sb.st_nlink == 1);
 

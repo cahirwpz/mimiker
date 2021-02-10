@@ -1,56 +1,65 @@
-/* Programable Interval Timer (PIT) driver for Intel 8253 */
-#include <sys/mimiker.h>
+/* Programmable Interval Timer (PIT) driver for Intel 8253 */
+#include <sys/klog.h>
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
-#include <sys/pci.h>
+#include <sys/bus.h>
 #include <sys/interrupt.h>
-#include <sys/klog.h>
 #include <sys/timer.h>
-#include <sys/spinlock.h>
 #include <sys/devclass.h>
 
 typedef struct pit_state {
   resource_t *regs;
-  spin_t lock;
-  intr_handler_t intr_handler;
+  resource_t *irq_res;
   timer_t timer;
-  uint64_t period_frac;        /* period as a fraction of a second */
-  uint16_t period_cntr;        /* period as PIT counter value */
-  volatile uint16_t last_cntr; /* last seen counter value */
-  volatile bool overflow;      /* counter overflow detected? */
-  bintime_t time;              /* last time measured by the timer */
+  uint16_t period_cntr;      /* period as PIT counter value */
+  uint16_t cntr16_prev_read; /* last read counter value */
+  timercntr_t cntr64;        /* counter value since timer initialization */
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
 #define outb(addr, val) bus_write_1(pit->regs, (addr), (val))
 
-static void pit_set_frequency(pit_state_t *pit, uint16_t period) {
-  assert(spin_owned(&pit->lock));
-
+static void pit_set_frequency(pit_state_t *pit) {
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_16BIT | TIMER_RATEGEN);
-  outb(TIMER_CNTR0, period & 0xff);
-  outb(TIMER_CNTR0, period >> 8);
-  pit->period_cntr = period;
+  outb(TIMER_CNTR0, pit->period_cntr & 0xff);
+  outb(TIMER_CNTR0, pit->period_cntr >> 8);
 }
 
-static uint16_t pit_get_counter(pit_state_t *pit) {
-  assert(spin_owned(&pit->lock));
-
+static uint16_t pit_get_counter16(pit_state_t *pit) {
+  uint16_t count = 0;
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
-  uint16_t value = 0;
-  value |= inb(TIMER_CNTR0);
-  value |= inb(TIMER_CNTR0) << 8;
-  return pit->period_cntr - value;
+  count |= inb(TIMER_CNTR0);
+  count |= inb(TIMER_CNTR0) << 8;
+  return count;
+}
+
+static uint64_t pit_get_counter64(pit_state_t *pit) {
+  SCOPED_INTR_DISABLED();
+  uint16_t cntr16_now = pit_get_counter16(pit);
+  /* PIT counter counts from n to 1 and when we get to 1 an interrupt
+     is send and the counter starts from the beginning (n = pit->period_cntr).
+     We do not guarantee that we will not miss the whole period (n ticks) */
+  uint16_t ticks = pit->cntr16_prev_read - cntr16_now;
+  if (pit->cntr16_prev_read < cntr16_now)
+    ticks += pit->period_cntr;
+
+  /* We want to keep the last read counter value to detect possible future
+   * overflows of our counter */
+  pit->cntr16_prev_read = cntr16_now;
+
+  uint32_t oldlow = pit->cntr64.lo;
+  pit->cntr64.lo += ticks;
+  if (oldlow > oldlow + ticks)
+    pit->cntr64.hi++;
+
+  return pit->cntr64.val;
 }
 
 static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
-  WITH_SPIN_LOCK (&pit->lock) {
-    bintime_add_frac(&pit->time, pit->period_frac);
-    pit->overflow = false;
-    pit->last_cntr = pit_get_counter(pit);
-  }
+  /* XXX: It's still possible for a tick to be lost. */
+  (void)pit_get_counter64(pit);
   tm_trigger(&pit->timer);
   return IF_FILTERED;
 }
@@ -67,62 +76,51 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
 
-  pit->time = binuptime();
-  pit->period_frac = period.frac;
-  uint16_t counter = bintime_mul(period, TIMER_FREQ).sec;
-  WITH_SPIN_LOCK (&pit->lock) {
-    pit_set_frequency(pit, counter);
-    pit->last_cntr = pit_get_counter(pit);
-  }
-  bus_intr_setup(dev, 0, &pit->intr_handler);
+  uint32_t counter = bintime_mul(period, TIMER_FREQ).sec;
+  /* Maximal counter value which we can store in pit timer */
+  assert(counter <= 0xFFFF);
+
+  pit->cntr64.val = 0;
+  pit->cntr16_prev_read = 0;
+  pit->period_cntr = counter;
+
+  pit_set_frequency(pit);
+
+  bus_intr_setup(dev, pit->irq_res, pit_intr, NULL, pit, "i8254 timer");
   return 0;
 }
 
 static int timer_pit_stop(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-
-  bus_intr_teardown(dev, &pit->intr_handler);
+  bus_intr_teardown(dev, pit->irq_res);
   return 0;
 }
 
 static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  uint16_t cntr = 0;
-  bintime_t bt;
-  WITH_SPIN_LOCK (&pit->lock) {
-    uint16_t last_cntr = pit->last_cntr;
-    bool overflow = pit->overflow;
-    bt = pit->time;
-    cntr = pit_get_counter(pit);
-    pit->last_cntr = cntr;
-    if (cntr < last_cntr || overflow) {
-      cntr += pit->period_cntr;
-      pit->overflow = true;
-    }
-  }
-  bintime_t offset = bintime_mul(tm->tm_min_period, cntr);
-  bintime_add_frac(&bt, offset.frac);
+  uint64_t count = pit_get_counter64(pit);
+  uint32_t freq = pit->timer.tm_frequency;
+  uint32_t sec = count / freq;
+  uint32_t frac = count % freq;
+  bintime_t bt = bintime_mul(HZ2BT(freq), frac);
+  bt.sec += sec;
   return bt;
 }
 
 static int pit_attach(device_t *dev) {
-  assert(dev->parent->bus == DEV_BUS_PCI);
-
   pit_state_t *pit = dev->state;
 
-  pit->regs =
-    bus_alloc_resource(dev, RT_ISA, 0, IO_TIMER1, IO_TIMER1 + IO_TMRSIZE - 1,
-                       IO_TMRSIZE, RF_ACTIVE);
+  pit->regs = device_take_ioports(dev, 0, RF_ACTIVE);
   assert(pit->regs != NULL);
 
-  pit->lock = SPIN_INITIALIZER(0);
-  pit->intr_handler = INTR_HANDLER_INIT(pit_intr, NULL, pit, "i8254 timer", 0);
+  pit->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
 
   pit->timer = (timer_t){
     .tm_name = "i8254",
     .tm_flags = TMF_PERIODIC,
+    .tm_quality = 100,
     .tm_frequency = TIMER_FREQ,
     .tm_min_period = HZ2BT(TIMER_FREQ),
     .tm_max_period = bintime_mul(HZ2BT(TIMER_FREQ), 65536),
@@ -137,11 +135,16 @@ static int pit_attach(device_t *dev) {
   return 0;
 }
 
+static int pit_probe(device_t *dev) {
+  return dev->unit == 3; /* XXX: unit 3 assigned by gt_pci */
+}
+
 static driver_t pit_driver = {
   .desc = "i8254 PIT driver",
   .size = sizeof(pit_state_t),
+  .pass = FIRST_PASS,
   .attach = pit_attach,
-  .identify = bus_generic_identify,
+  .probe = pit_probe,
 };
 
-DEVCLASS_ENTRY(pci, pit_driver);
+DEVCLASS_ENTRY(isa, pit_driver);

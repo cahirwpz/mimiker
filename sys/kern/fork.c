@@ -1,3 +1,5 @@
+#include <sys/mutex.h>
+#include <sys/queue.h>
 #include <sys/thread.h>
 #include <sys/filedesc.h>
 #include <sys/sched.h>
@@ -8,6 +10,8 @@
 #include <sys/vnode.h>
 #include <sys/sbrk.h>
 #include <sys/cred.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
 
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   thread_t *td = thread_self();
@@ -36,8 +40,8 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
      as they will be prepared by sched_add. */
 
   /* Copy user context.. */
-  user_ctx_copy(newtd->td_uctx, td->td_uctx);
-  user_ctx_set_retval(newtd->td_uctx, 0, 0);
+  mcontext_copy(newtd->td_uctx, td->td_uctx);
+  mcontext_set_retval(newtd->td_uctx, 0, 0);
 
   /* New thread does not need the exception frame just yet. */
   newtd->td_kframe = NULL;
@@ -48,13 +52,18 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
 
   newtd->td_prio = td->td_prio;
 
+  newtd->td_sigmask = td->td_sigmask;
+
   /* Now, prepare a new process. */
   proc_t *child = proc_create(newtd, parent);
-  error = pgrp_enter(child, parent->p_pgrp->pg_id);
-  assert(error == 0);
 
-  /* Clone credentials. */
-  cred_fork(child, parent);
+  /* Clone credentials.
+   * We have to do it with parent::p_lock held.
+   * We don't need to hold child::p_lock because child is not visible yet.
+   */
+  WITH_PROC_LOCK(parent) {
+    cred_fork(child, parent);
+  }
 
   /* Clone the entire process memory space. */
   child->p_uspace = vm_map_clone(parent->p_uspace);
@@ -77,7 +86,18 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   memcpy(child->p_sigactions, parent->p_sigactions,
          sizeof(child->p_sigactions));
 
-  proc_add(child);
+  /* Link the child process into all the structures
+   * by which it can be reached from the outside at once. */
+  WITH_MTX_LOCK (all_proc_mtx) {
+    /* Enter child into parent's process group.
+     * No jobc adjustments are necessary, since the new child has no children
+     * of its own, and it's in the same process group as the parent. */
+    WITH_MTX_LOCK (&parent->p_pgrp->pg_lock) {
+      child->p_pgrp = parent->p_pgrp;
+      TAILQ_INSERT_HEAD(&parent->p_pgrp->pg_members, child, p_pglist);
+    }
+    proc_add(child);
+  }
 
   *cldpidp = child->p_pid;
 

@@ -2,7 +2,7 @@
 #include <sys/mimiker.h>
 #include <dev/mc146818reg.h>
 #include <dev/isareg.h>
-#include <sys/pci.h>
+#include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/errno.h>
@@ -23,7 +23,7 @@ typedef struct rtc_state {
   resource_t *regs;
   char asctime[RTC_ASCTIME_SIZE];
   unsigned counter; /* TODO Should that be part of intr_handler_t ? */
-  intr_handler_t intr_handler;
+  resource_t *irq_res;
 } rtc_state_t;
 
 /*
@@ -76,7 +76,7 @@ static intr_filter_t rtc_intr(void *data) {
 }
 
 static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
-  rtc_state_t *rtc = v->v_data;
+  rtc_state_t *rtc = devfs_node_data(v);
   tm_t t;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
@@ -90,23 +90,16 @@ static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
   return uiomove_frombuf(rtc->asctime, count, uio);
 }
 
-static vnodeops_t rtc_time_vnodeops = {.v_open = vnode_open_generic,
-                                       .v_read = rtc_time_read};
+static vnodeops_t rtc_time_vnodeops = {.v_read = rtc_time_read};
 
 static int rtc_attach(device_t *dev) {
-  assert(dev->parent->bus == DEV_BUS_PCI);
-
-  vnodeops_init(&rtc_time_vnodeops);
-
   rtc_state_t *rtc = dev->state;
 
-  rtc->regs = bus_alloc_resource(
-    dev, RT_ISA, 0, IO_RTC, IO_RTC + IO_RTCSIZE - 1, IO_RTCSIZE, RF_ACTIVE);
+  rtc->regs = device_take_ioports(dev, 0, RF_ACTIVE);
   assert(rtc->regs != NULL);
 
-  rtc->intr_handler =
-    INTR_HANDLER_INIT(rtc_intr, NULL, rtc, "RTC periodic timer", 0);
-  bus_intr_setup(dev, 8, &rtc->intr_handler);
+  rtc->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
+  bus_intr_setup(dev, rtc->irq_res, rtc_intr, NULL, rtc, "RTC periodic timer");
 
   /* Configure how the time is presented through registers. */
   rtc_setb(rtc->regs, MC_REGB, MC_REGB_BINARY | MC_REGB_24HR);
@@ -116,7 +109,7 @@ static int rtc_attach(device_t *dev) {
   rtc_setb(rtc->regs, MC_REGB, MC_REGB_PIE);
 
   /* Prepare /dev/rtc interface. */
-  devfs_makedev(NULL, "rtc", &rtc_time_vnodeops, rtc);
+  devfs_makedev(NULL, "rtc", &rtc_time_vnodeops, rtc, NULL);
 
   tm_t t;
 
@@ -126,11 +119,16 @@ static int rtc_attach(device_t *dev) {
   return 0;
 }
 
+static int rtc_probe(device_t *dev) {
+  return dev->unit == 2; /* XXX: unit 2 assigned by gt_pci */
+}
+
 static driver_t rtc_driver = {
   .desc = "MC146818 RTC driver",
   .size = sizeof(rtc_state_t),
+  .pass = SECOND_PASS,
   .attach = rtc_attach,
-  .identify = bus_generic_identify,
+  .probe = rtc_probe,
 };
 
-DEVCLASS_ENTRY(pci, rtc_driver);
+DEVCLASS_ENTRY(isa, rtc_driver);

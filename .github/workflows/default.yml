@@ -1,0 +1,96 @@
+name: Mimiker
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  verify_c_style:
+    name: Verify C code style
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - run: ./verify-format.sh
+
+  verify_py_style:
+    name: Verify Python code style
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - run: ./verify-pycodestyle.sh
+
+  build_mips_gcc:
+    name: Build MIPS (GCC + KASAN)
+    runs-on: self-hosted
+    needs: [verify_c_style, verify_py_style]
+    steps:
+      - uses: actions/checkout@v2
+      - run: make BOARD=malta KASAN=1
+      - uses: actions/upload-artifact@v2
+        with:
+          name: "mips gcc kernel+ramdisk"
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            initrd.cpio
+
+  build_mips_clang:
+    name: Build MIPS (Clang)
+    runs-on: self-hosted
+    needs: [verify_c_style, verify_py_style]
+    steps:
+      - uses: actions/checkout@v2
+      - run: make BOARD=malta CLANG=1
+      - uses: actions/upload-artifact@v2
+        with:
+          name: "mips clang kernel+ramdisk"
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            initrd.cpio
+
+  build_aarch64_gcc:
+    name: Build AArch64 (GCC)
+    runs-on: self-hosted
+    needs: [verify_c_style, verify_py_style]
+    steps:
+      - uses: actions/checkout@v2
+      - run: make BOARD=rpi3
+
+  build_aarch64_clang:
+    name: Build AArch64 (Clang)
+    runs-on: self-hosted
+    needs: [verify_c_style, verify_py_style]
+    steps:
+      - uses: actions/checkout@v2
+      - run: make BOARD=rpi3 CLANG=1
+
+  kernel_tests_mips_gcc:
+    name: Tests MIPS (GCC + KASAN)
+    runs-on: self-hosted
+    needs: build_mips_gcc
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: "mips gcc kernel+ramdisk"
+      - run: ./run_tests.py --board malta --times=50
+
+  kernel_tests_mips_clang:
+    name: Tests MIPS (Clang)
+    runs-on: self-hosted
+    needs: build_mips_clang
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: "mips clang kernel+ramdisk"
+      - run: ./run_tests.py --board malta --times=100

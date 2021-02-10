@@ -3,7 +3,6 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
-	assert.c \
 	bus.c \
 	callout.c \
 	clock.c \
@@ -11,6 +10,7 @@ SOURCES = \
 	condvar.c \
 	console.c \
 	cred.c \
+	cred_checks.c \
 	cred_syscalls.c \
 	devclass.c \
 	device.c \
@@ -29,6 +29,7 @@ SOURCES = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
+	isa.c \
 	kenv.c \
 	klog.c \
 	kmem.c \
@@ -43,6 +44,7 @@ SOURCES = \
 	pipe.c \
 	pool.c \
 	proc.c \
+	pty.c \
 	ringbuf.c \
 	rman.c \
 	runq.c \
@@ -59,6 +61,7 @@ SOURCES = \
 	time.c \
 	timer.c \
 	tmpfs.c \
+	tty.c \
 	uio.c \
 	ustack.c \
 	vfs.c \

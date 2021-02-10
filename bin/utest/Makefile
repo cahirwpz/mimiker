@@ -13,15 +13,19 @@ SOURCES = \
 	misbehave.c \
 	mmap.c \
 	pgrp.c \
+	pty.c \
 	sbrk.c \
 	signal.c \
 	stat.c \
 	setjmp.c \
 	sigaction.c \
 	time.c \
+	tty.c \
 	utest.c \
+	util.c \
 	vfs.c \
-	wait.c
+	wait.c \
+	vm_map.c
 
 PROGRAM = utest
 

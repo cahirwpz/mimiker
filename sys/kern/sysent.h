@@ -67,6 +67,21 @@ static int sys_getgroups(proc_t *, getgroups_args_t *, register_t *);
 static int sys_setgroups(proc_t *, setgroups_args_t *, register_t *);
 static int sys_setsid(proc_t *, void *, register_t *);
 static int sys_getsid(proc_t *, getsid_args_t *, register_t *);
+static int sys_getpriority(proc_t *, getpriority_args_t *, register_t *);
+static int sys_setpriority(proc_t *, setpriority_args_t *, register_t *);
+static int sys_setuid(proc_t *, setuid_args_t *, register_t *);
+static int sys_seteuid(proc_t *, seteuid_args_t *, register_t *);
+static int sys_setreuid(proc_t *, setreuid_args_t *, register_t *);
+static int sys_setgid(proc_t *, setgid_args_t *, register_t *);
+static int sys_setegid(proc_t *, setegid_args_t *, register_t *);
+static int sys_setregid(proc_t *, setregid_args_t *, register_t *);
+static int sys_fchown(proc_t *, fchown_args_t *, register_t *);
+static int sys_fchownat(proc_t *, fchownat_args_t *, register_t *);
+static int sys_getlogin(proc_t *, getlogin_args_t *, register_t *);
+static int sys_setlogin(proc_t *, setlogin_args_t *, register_t *);
+static int sys_posix_openpt(proc_t *, posix_openpt_args_t *, register_t *);
+static int sys_futimens(proc_t *, futimens_args_t *, register_t *);
+static int sys_utimensat(proc_t *, utimensat_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { .nargs = 1, .call = (syscall_t *)sys_syscall },
@@ -131,5 +146,20 @@ struct sysent sysent[] = {
   [SYS_setgroups] = { .nargs = 2, .call = (syscall_t *)sys_setgroups },
   [SYS_setsid] = { .nargs = 0, .call = (syscall_t *)sys_setsid },
   [SYS_getsid] = { .nargs = 1, .call = (syscall_t *)sys_getsid },
+  [SYS_getpriority] = { .nargs = 2, .call = (syscall_t *)sys_getpriority },
+  [SYS_setpriority] = { .nargs = 3, .call = (syscall_t *)sys_setpriority },
+  [SYS_setuid] = { .nargs = 1, .call = (syscall_t *)sys_setuid },
+  [SYS_seteuid] = { .nargs = 1, .call = (syscall_t *)sys_seteuid },
+  [SYS_setreuid] = { .nargs = 2, .call = (syscall_t *)sys_setreuid },
+  [SYS_setgid] = { .nargs = 1, .call = (syscall_t *)sys_setgid },
+  [SYS_setegid] = { .nargs = 1, .call = (syscall_t *)sys_setegid },
+  [SYS_setregid] = { .nargs = 2, .call = (syscall_t *)sys_setregid },
+  [SYS_fchown] = { .nargs = 3, .call = (syscall_t *)sys_fchown },
+  [SYS_fchownat] = { .nargs = 5, .call = (syscall_t *)sys_fchownat },
+  [SYS_getlogin] = { .nargs = 2, .call = (syscall_t *)sys_getlogin },
+  [SYS_setlogin] = { .nargs = 1, .call = (syscall_t *)sys_setlogin },
+  [SYS_posix_openpt] = { .nargs = 1, .call = (syscall_t *)sys_posix_openpt },
+  [SYS_futimens] = { .nargs = 2, .call = (syscall_t *)sys_futimens },
+  [SYS_utimensat] = { .nargs = 4, .call = (syscall_t *)sys_utimensat },
 };
 

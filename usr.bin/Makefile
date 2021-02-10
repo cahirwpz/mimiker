@@ -2,7 +2,25 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = cmp col cut env find grep head id join mkfifo stat seq tail tr uniq wc
+SUBDIR = \
+	 cmp \
+	 col \
+	 cut \
+	 env \
+	 find \
+	 grep \
+	 head \
+	 id \
+	 join \
+	 login \
+	 mkfifo \
+	 stat \
+	 seq \
+	 tail \
+	 tr \
+	 uniq \
+	 wc \
+	 su
 
 all: build
 
