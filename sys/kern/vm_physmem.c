@@ -172,10 +172,9 @@ static vm_page_t *pm_find_buddy(vm_physseg_t *seg, vm_page_t *pg) {
   return buddy;
 }
 
-static void pm_split_page(size_t i) {
-  assert(!TAILQ_EMPTY(&freelist[i]));
-
-  vm_page_t *page = TAILQ_FIRST(&freelist[i]);
+static void pm_split_page(size_t fl) {
+  vm_page_t *page = TAILQ_FIRST(&freelist[fl]);
+  assert(page != NULL);
 
   /* It works, because every page is a member of pages! */
   size_t size = page->size / 2;
@@ -183,16 +182,16 @@ static void pm_split_page(size_t i) {
 
   assert(!(buddy->flags & PG_ALLOCATED));
 
-  TAILQ_REMOVE(FREELIST(page), page, freeq);
-  PAGECOUNT(page)--;
+  TAILQ_REMOVE(&freelist[fl], page, freeq);
+  pagecount[fl]--;
 
   page->size = size;
   buddy->size = size;
+  fl--;
 
-  TAILQ_INSERT_HEAD(FREELIST(page), page, freeq);
-  PAGECOUNT(page)++;
-  TAILQ_INSERT_HEAD(FREELIST(buddy), buddy, freeq);
-  PAGECOUNT(buddy)++;
+  TAILQ_INSERT_HEAD(&freelist[fl], page, freeq);
+  TAILQ_INSERT_HEAD(&freelist[fl], buddy, freeq);
+  pagecount[fl] += 2;
   buddy->flags |= PG_MANAGED;
 }
 
