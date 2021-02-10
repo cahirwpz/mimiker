@@ -195,12 +195,12 @@ static void pm_split_page(size_t fl) {
   buddy->flags |= PG_MANAGED;
 }
 
-static vm_page_t *pm_take_page(size_t i) {
-  vm_page_t *page = TAILQ_FIRST(&freelist[i]);
+static vm_page_t *pm_take_page(size_t fl) {
+  vm_page_t *page = TAILQ_FIRST(&freelist[fl]);
   assert(page != NULL);
   klog("%s: allocated %lx of size %ld", __func__, page->paddr, page->size);
-  TAILQ_REMOVE(&freelist[i], page, freeq);
-  pagecount[i]--;
+  TAILQ_REMOVE(&freelist[fl], page, freeq);
+  pagecount[fl]--;
   page->flags &= ~PG_MANAGED;
   for (unsigned j = 0; j < page->size; j++)
     page[j].flags |= PG_ALLOCATED;
