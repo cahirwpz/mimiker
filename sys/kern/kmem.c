@@ -44,19 +44,20 @@ void kva_map(vaddr_t ptr, size_t size, kmem_flags_t flags) {
   kasan_mark_valid((void *)ptr, size);
 
   size_t npages = size / PAGESIZE;
+
+  vm_pagelist_t pglist;
+  int error = vm_pagelist_alloc(npages, &pglist);
+  if (error)
+    kick_swapper();
+
   vaddr_t va = ptr;
 
-  while (npages > 0) {
-    size_t pagecnt = 1L << log2(npages);
-    vm_page_t *pg = vm_page_alloc(pagecnt);
-    if (pg == NULL)
-      kick_swapper();
+  vm_page_t *pg;
+  TAILQ_FOREACH (pg, &pglist, pageq) {
     paddr_t pa = pg->paddr;
-    for (size_t i = 0; i < pagecnt; i++)
-      pmap_kenter(va + PAGESIZE * i, pa + PAGESIZE * i,
-                  VM_PROT_READ | VM_PROT_WRITE, 0);
-    npages -= pagecnt;
-    va += pagecnt * PAGESIZE;
+    size_t n = pg->size;
+    for (size_t i = 0; i < n; i++, va += PAGESIZE, pa += PAGESIZE)
+      pmap_kenter(va, pa, VM_PROT_READ | VM_PROT_WRITE, 0);
   }
 
   if (flags & M_ZERO)
