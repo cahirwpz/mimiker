@@ -2,6 +2,7 @@
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
+#include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/pmap.h>
 #include <sys/vmem.h>
@@ -37,6 +38,11 @@ void kva_free(vaddr_t ptr, size_t size) {
   vmem_free(kvspace, ptr, size);
 }
 
+static void kva_map_page(vaddr_t va, paddr_t pa, size_t n, unsigned flags) {
+  for (size_t i = 0; i < n; i++, va += PAGESIZE, pa += PAGESIZE)
+    pmap_kenter(va, pa, VM_PROT_READ | VM_PROT_WRITE, flags);
+}
+
 void kva_map(vaddr_t ptr, size_t size, kmem_flags_t flags) {
   assert(page_aligned_p(size));
 
@@ -51,13 +57,10 @@ void kva_map(vaddr_t ptr, size_t size, kmem_flags_t flags) {
     kick_swapper();
 
   vaddr_t va = ptr;
-
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &pglist, pageq) {
-    paddr_t pa = pg->paddr;
-    size_t n = pg->size;
-    for (size_t i = 0; i < n; i++, va += PAGESIZE, pa += PAGESIZE)
-      pmap_kenter(va, pa, VM_PROT_READ | VM_PROT_WRITE, 0);
+    kva_map_page(va, pg->paddr, pg->size, 0);
+    va += pg->size * PAGESIZE;
   }
 
   if (flags & M_ZERO)
@@ -99,6 +102,30 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
   kva_map(start, size, flags);
 
   return (void *)start;
+}
+
+int kmem_alloc_contig(size_t size, vaddr_t *vap, paddr_t *pap) {
+  assert(page_aligned_p(size) && powerof2(size));
+
+  vaddr_t va;
+  if (vmem_alloc(kvspace, size, &va, M_NOGROW))
+    kick_swapper();
+
+  size_t n = size / PAGESIZE;
+  vm_page_t *pg = vm_page_alloc(n);
+  if (!pg) {
+    vmem_free(kvspace, *vap, size);
+    return ENOMEM;
+  }
+
+  /* Mark the entire block as valid */
+  kasan_mark_valid((void *)va, size);
+
+  kva_map_page(va, pg->paddr, pg->size, PMAP_NOCACHE);
+
+  *vap = va;
+  *pap = pg->paddr;
+  return 0;
 }
 
 void kmem_free(void *ptr, size_t size) {
