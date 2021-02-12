@@ -542,6 +542,6 @@ void pmap_set_page_prot(vm_page_t *pg, vm_prot_t prot) {
   SCOPED_MTX_LOCK(pv_list_lock);
   pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
-    pmap_protect(pv->pmap, pv->va, pv->va + PAGESIZE, prot);
+    pmap_protect(pv->pmap, pv->va, pv->va + pg->size * PAGESIZE, prot);
   }
 }
