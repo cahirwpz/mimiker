@@ -6,6 +6,7 @@
 #include <sys/errno.h>
 #include <sys/libkern.h>
 #include <sys/devfs.h>
+#include <sys/pmap.h>
 #include <sys/devclass.h>
 #include <dev/rtl8139_reg.h>
 #include <sys/kmem.h>
@@ -58,7 +59,9 @@ static int rtl8139_attach(device_t *dev) {
   }
   bus_intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
 
-  if (kmem_alloc_contig(RX_BUF_SIZE, &state->rx_buf, &state->rx_buf_physaddr)) {
+  state->rx_buf =
+    kmem_alloc_contig(&state->rx_buf_physaddr, RX_BUF_SIZE, PMAP_NOCACHE);
+  if (!state->rx_buf) {
     klog("Failed to alloc memory for the receive buffer!");
     return ENXIO;
   }
