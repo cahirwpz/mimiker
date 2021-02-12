@@ -5,30 +5,46 @@
 
 typedef struct vm_page vm_page_t;
 
-/*! \brief Called during kernel initialization. */
+/* Initializes kernel virtual address space allocator & manager. */
 void init_kmem(void);
 
-void *kmem_alloc(size_t size, kmem_flags_t flags) __warn_unused;
+/*
+ * Kernel page-sized memory allocator.
+ */
 
-/*! \brief Map consecutive physical pages with given pmap flags. */
-vaddr_t kmem_map(paddr_t pa, size_t size, unsigned flags) __warn_unused;
+void *kmem_alloc(size_t size, kmem_flags_t flags) __warn_unused;
 void kmem_free(void *ptr, size_t size);
 
-/* Allocates contiguous physical memory of `size` pages (in bytes) aligned to at
- * least `PAGESIZE` boundary. The memory will be mapped under address stored
- * under `vap`. First physical address of the region will be stored under `pap`.
- * Memory will be mapped read-write with PMAP_NOCACHE flag.
+/* Allocates contiguous physical memory of `size` bytes aligned to at least
+ * `PAGESIZE` boundary. First physical address of the region will be stored
+ * under `pap`. Memory will be mapped read-write with `flags` passed to
+ * `pmap_kenter`.
  *
- * Returns ENOMEM if could not find enough contiguous physical memory to
- * satisfy the request. */
-int kmem_alloc_contig(size_t size, vaddr_t *vap, paddr_t *pap);
+ * Returns kernel virtual address where the memory is mapped.
+ */
+vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size,
+                          unsigned flags) __warn_unused;
 
-/* Kernel virtual address space allocator. */
+/* Map contiguous physical memory of `size` bytes starting from `pa` address.
+ * Memory will be mapped read-write with `flags` passed to `pmap_kenter`.
+ *
+ * Returns kernel virtual address where the memory is mapped. */
+vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) __warn_unused;
+
+/*
+ * Kernel virtual address space allocator.
+ */
+
+/* Allocates a range of kernel virtual address space of `size` pages (in bytes)
+ * and returns virtual address or NULL. */
 vaddr_t kva_alloc(size_t size);
-void kva_free(vaddr_t ptr, size_t size);
+void kva_free(vaddr_t va, size_t size);
 vm_page_t *kva_find_page(vaddr_t ptr);
 
-void kva_map(vaddr_t ptr, size_t size, kmem_flags_t flags);
-void kva_unmap(vaddr_t ptr, size_t size);
+/*
+ * Allocates and deallocates memory in kernel virtual address space.
+ */
+void kva_map(vaddr_t va, size_t size, kmem_flags_t flags);
+void kva_unmap(vaddr_t va, size_t size);
 
 #endif /* !_SYS_KMEM_H_ */

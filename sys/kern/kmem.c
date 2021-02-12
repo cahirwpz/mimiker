@@ -5,6 +5,7 @@
 #include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/pmap.h>
+#include <sys/kmem.h>
 #include <sys/vmem.h>
 #include <sys/vm.h>
 #include <sys/vm_physmem.h>
@@ -104,28 +105,25 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
   return (void *)start;
 }
 
-int kmem_alloc_contig(size_t size, vaddr_t *vap, paddr_t *pap) {
+vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size, unsigned flags) {
   assert(page_aligned_p(size) && powerof2(size));
+
+  size_t n = size / PAGESIZE;
+  vm_page_t *pg = vm_page_alloc(n);
+  if (!pg)
+    return 0;
 
   vaddr_t va;
   if (vmem_alloc(kvspace, size, &va, M_NOGROW))
     kick_swapper();
 
-  size_t n = size / PAGESIZE;
-  vm_page_t *pg = vm_page_alloc(n);
-  if (!pg) {
-    vmem_free(kvspace, *vap, size);
-    return ENOMEM;
-  }
-
   /* Mark the entire block as valid */
   kasan_mark_valid((void *)va, size);
 
-  kva_map_page(va, pg->paddr, pg->size, PMAP_NOCACHE);
+  kva_map_page(va, pg->paddr, pg->size, flags);
 
-  *vap = va;
   *pap = pg->paddr;
-  return 0;
+  return va;
 }
 
 void kmem_free(void *ptr, size_t size) {
@@ -134,7 +132,7 @@ void kmem_free(void *ptr, size_t size) {
   vmem_free(kvspace, (vmem_addr_t)ptr, size);
 }
 
-vaddr_t kmem_map(paddr_t pa, size_t size, unsigned flags) {
+vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) {
   assert(page_aligned_p(pa) && page_aligned_p(size));
 
   vmem_addr_t start;
