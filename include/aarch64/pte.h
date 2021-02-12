@@ -46,9 +46,10 @@ typedef uint64_t pde_t;
 #define ATTR_MASK_L UINT64_C(0x0000000000000fff)
 #define ATTR_MASK (ATTR_MASK_H | ATTR_MASK_L)
 /* Bits 58:55 are reserved for software */
-#define ATTR_SW_READ (1UL << 57)
-#define ATTR_SW_WRITE (1UL << 56)
-#define ATTR_SW_NOEXEC (1UL << 55)
+#define ATTR_SW_SHIFT 55
+#define ATTR_SW_READ (1UL << ATTR_SW_SHIFT)
+#define ATTR_SW_WRITE (2UL << ATTR_SW_SHIFT)
+#define ATTR_SW_NOEXEC (4UL << ATTR_SW_SHIFT)
 #define ATTR_SW_FLAGS (ATTR_SW_READ | ATTR_SW_WRITE | ATTR_SW_NOEXEC)
 #define ATTR_UXN (1UL << 54)
 #define ATTR_PXN (1UL << 53)

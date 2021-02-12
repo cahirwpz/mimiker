@@ -354,8 +354,8 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   bool kern_mapping = (pmap == pmap_kernel());
 
   /* Mark user pages as non-referenced & non-modified. */
-  pte_t mask = kern_mapping ? ~0UL : ~(ATTR_AF | ATTR_DBM);
-  pte_t pte = make_pte(pa, vm_prot_map[prot] & mask, flags);
+  pte_t mask = kern_mapping ? 0UL : (ATTR_AF | ATTR_DBM);
+  pte_t pte = make_pte(pa, vm_prot_map[prot] & ~mask, flags);
 
   WITH_MTX_LOCK (pv_list_lock) {
     WITH_MTX_LOCK (&pmap->mtx) {
@@ -501,15 +501,15 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
     if (!pmap_extract_nolock(pmap, va, &pa))
       return EFAULT;
 
-    pte_t *ptep = pmap_lookup_pte(pmap, va);
+    pte_t pte = *pmap_lookup_pte(pmap, va);
 
-    if ((prot & VM_PROT_READ) && !(*ptep & ATTR_SW_READ))
+    if ((prot & VM_PROT_READ) && !(pte & ATTR_SW_READ))
       return EACCES;
 
-    if ((prot & VM_PROT_WRITE) && !(*ptep & ATTR_SW_WRITE))
+    if ((prot & VM_PROT_WRITE) && !(pte & ATTR_SW_WRITE))
       return EACCES;
 
-    if ((prot & VM_PROT_EXEC) && (*ptep & ATTR_SW_NOEXEC))
+    if ((prot & VM_PROT_EXEC) && (pte & ATTR_SW_NOEXEC))
       return EACCES;
   }
 
