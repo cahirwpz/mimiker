@@ -59,7 +59,7 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
   mcontext_t *to = td->td_uctx;
 
   if (uc->uc_flags & _UC_CPU)
-    memcpy(&to->__gregs, &from->__gregs, sizeof(__gregset_t));
+    memcpy(&to->__gregs, &from->__gregs, sizeof(register_t) * (_REG_ELR + 1));
 
   /* 32 FP registers + FPCR + FPSR */
   if (uc->uc_flags & _UC_FPU)
