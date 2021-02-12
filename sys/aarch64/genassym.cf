@@ -5,6 +5,8 @@ include <sys/proc.h>
 include <aarch64/mcontext.h>
 include <aarch64/armreg.h>
 
+define DAIF_I_MASKED DAIF_I_MASKED
+
 define TD_PROC offsetof(thread_t, td_proc)
 define TD_KCTX offsetof(thread_t, td_kctx)
 define TD_UCTX offsetof(thread_t, td_uctx)

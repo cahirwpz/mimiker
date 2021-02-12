@@ -165,6 +165,9 @@ ENTRY(handle_user_trap)
         mov     x0, sp
         bl      user_trap_handler
 user_exc_leave:
+        /* disable interrupts */
+        msr     daifset, (DAIF_I_MASKED >> 6)
+
         /* load thread_t::tdp_flags */
         /* thread_t::tdp_flags is a volatile unsigned - use 32-bit */
         load_pcpu x1
