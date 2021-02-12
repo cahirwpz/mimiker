@@ -43,7 +43,7 @@ static const pte_t pte_default =
 static const pte_t pte_noexec = ATTR_XN | ATTR_SW_NOEXEC;
 
 static const pte_t vm_prot_map[] = {
-  [VM_PROT_NONE] = ATTR_XN | pte_noexec | pte_default,
+  [VM_PROT_NONE] = L3_PAGE | ATTR_SH(ATTR_SH_IS) | pte_noexec,
   [VM_PROT_READ] =
     ATTR_AP(ATTR_AP_RO) | ATTR_SW_READ | pte_noexec | pte_default,
   [VM_PROT_WRITE] =
