@@ -107,21 +107,19 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
 vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size, unsigned flags) {
   assert(page_aligned_p(size) && powerof2(size));
 
+  size_t n = size / PAGESIZE;
+  vm_page_t *pg = vm_page_alloc(n);
+  if (!pg)
+    return 0;
+
   vaddr_t va;
   if (vmem_alloc(kvspace, size, &va, M_NOGROW))
     kick_swapper();
 
-  size_t n = size / PAGESIZE;
-  vm_page_t *pg = vm_page_alloc(n);
-  if (!pg) {
-    vmem_free(kvspace, va, size);
-    return 0;
-  }
-
   /* Mark the entire block as valid */
   kasan_mark_valid((void *)va, size);
 
-  kva_map_page(va, pg->paddr, pg->size, PMAP_NOCACHE);
+  kva_map_page(va, pg->paddr, pg->size, flags);
 
   *pap = pg->paddr;
   return va;
