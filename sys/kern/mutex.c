@@ -1,4 +1,4 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/mutex.h>
 #include <sys/turnstile.h>
 #include <sys/sched.h>

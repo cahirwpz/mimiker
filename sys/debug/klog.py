@@ -16,7 +16,7 @@ class LogEntry(metaclass=GdbStructMeta):
         return '{}:{}'.format(relpath(self.kl_file), self.kl_line)
 
     def format_msg(self):
-        msg = self.kl_format.replace('"', '\\"')
+        msg = self.kl_format.replace('"', '\\"').replace('\n', '\\n')
         # If there is % escaped it is not parameter.
         nparams = msg.count('%') - 2 * msg.count('%%')
         params = [str(self.kl_params[i]) for i in range(nparams)]

@@ -15,7 +15,7 @@ REPEAT = 5
 
 
 def setup_terminal():
-    cols, rows = shutil.get_terminal_size(fallback=(120, 32))
+    cols, rows = shutil.get_terminal_size(fallback=(132, 43))
 
     os.environ['COLUMNS'] = str(cols)
     os.environ['LINES'] = str(rows)

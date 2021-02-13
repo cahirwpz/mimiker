@@ -14,8 +14,7 @@
 #include <aarch64/pmap.h>
 
 static __noreturn void kernel_oops(ctx_t *ctx) {
-  kprintf("KERNEL PANIC!!! \n");
-  panic();
+  panic("KERNEL PANIC!!!");
 }
 
 static void syscall_handler(register_t code, ctx_t *ctx,
@@ -62,28 +61,18 @@ static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
   }
 
   vm_prot_t access = VM_PROT_READ;
-
   if (exception == EXCP_INSN_ABORT || exception == EXCP_INSN_ABORT_L) {
-    access = VM_PROT_EXEC;
+    access |= VM_PROT_EXEC;
   } else if (esr & ISS_DATA_WnR) {
     access |= VM_PROT_WRITE;
   }
 
-  paddr_t pa;
-  if (pmap_extract(pmap, vaddr, &pa)) {
-    vm_page_t *pg = vm_page_find(pa);
-
-    if (access & (VM_PROT_READ | VM_PROT_EXEC)) {
-      pmap_set_referenced(pg);
-    } else if (access & VM_PROT_WRITE) {
-      pmap_set_referenced(pg);
-      pmap_set_modified(pg);
-    } else {
-      kernel_oops(ctx);
-    }
-
+  int error = pmap_emulate_bits(pmap, vaddr, access);
+  if (error == 0)
     return;
-  }
+
+  if (error == EACCES || error == EINVAL)
+    goto fault;
 
   vm_map_t *vmap = vm_map_lookup(vaddr);
   if (!vmap) {
