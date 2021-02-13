@@ -66,7 +66,6 @@ static int rtl8139_attach(device_t *dev) {
   }
   bus_intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
 
-
   /* TODO: introduce ring buffer */
 
   if (rtl_reset(state)) {
