@@ -62,6 +62,8 @@ static int utest_generic(const char *name, int status_success) {
 
 UTEST_ADD_SIMPLE(mmap);
 UTEST_ADD_SIGNAL(munmap_sigsegv, SIGSEGV);
+UTEST_ADD_SIMPLE(mmap_prot_none);
+UTEST_ADD_SIMPLE(mmap_prot_read);
 UTEST_ADD_SIMPLE(sbrk);
 UTEST_ADD_SIGNAL(sbrk_sigsegv, SIGSEGV);
 UTEST_ADD_SIMPLE(misbehave);
@@ -75,6 +77,8 @@ UTEST_ADD_SIMPLE(fd_bad_desc);
 UTEST_ADD_SIMPLE(fd_open_path);
 UTEST_ADD_SIMPLE(fd_dup);
 UTEST_ADD_SIMPLE(fd_pipe);
+UTEST_ADD_SIMPLE(fd_readv);
+UTEST_ADD_SIMPLE(fd_writev);
 UTEST_ADD_SIMPLE(fd_all);
 
 UTEST_ADD_SIMPLE(signal_basic);

@@ -1147,3 +1147,43 @@ end:
   kfree(M_TEMP, path);
   return error;
 }
+
+static int sys_readv(proc_t *p, readv_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const iovec_t *u_iov = SCARG(args, iov);
+  int iovcnt = SCARG(args, iovcnt);
+  int error;
+  uio_t uio;
+
+  if ((error = uio_init_from_user_iovec(&uio, UIO_READ, u_iov, iovcnt)))
+    return error;
+
+  iovec_t *k_iov = uio.uio_iov;
+  size_t nbyte = uio.uio_resid;
+  error = do_read(p, fd, &uio);
+  *res = nbyte - uio.uio_resid;
+
+  kfree(M_TEMP, k_iov);
+
+  return error;
+}
+
+static int sys_writev(proc_t *p, writev_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const iovec_t *u_iov = SCARG(args, iov);
+  int iovcnt = SCARG(args, iovcnt);
+  int error;
+  uio_t uio;
+
+  if ((error = uio_init_from_user_iovec(&uio, UIO_WRITE, u_iov, iovcnt)))
+    return error;
+
+  iovec_t *k_iov = uio.uio_iov;
+  size_t nbyte = uio.uio_resid;
+  error = do_write(p, fd, &uio);
+  *res = nbyte - uio.uio_resid;
+
+  kfree(M_TEMP, k_iov);
+
+  return error;
+}
