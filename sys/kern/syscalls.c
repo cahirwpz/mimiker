@@ -489,12 +489,6 @@ static int sys_execve(proc_t *p, execve_args_t *args, register_t *res) {
   char *const *u_argp = SCARG(args, argp);
   char *const *u_envp = SCARG(args, envp);
 
-  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
-
-  copyinstr(u_path, path, PATH_MAX, NULL);
-
-  klog("execve(\"%s\")", path);
-
   /* do_execve handles copying data from user-space */
   return do_execve(u_path, u_argp, u_envp);
 }

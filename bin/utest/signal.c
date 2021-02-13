@@ -200,7 +200,7 @@ int test_signal_mask(void) {
   kill(pid, SIGUSR1);
 
   /* Yield a couple times to make sure that the child sends us the signal. */
-  for (int i = 0; i < 10; i++)
+  for (int i = 0; i < 5; i++)
     sched_yield();
 
   assert(!sigcont_handled);
