@@ -2,8 +2,10 @@
 #define _SYS_FILE_H_
 
 #include <sys/cdefs.h>
-#include <sys/mutex.h>
 #include <sys/fcntl.h>
+
+#ifdef _KERNEL
+#include <sys/mutex.h>
 #include <sys/refcnt.h>
 
 typedef struct file file_t;
@@ -31,6 +33,7 @@ typedef struct {
 typedef enum {
   FT_VNODE = 1, /* regular file */
   FT_PIPE = 2,  /* pipe */
+  FT_PTY = 3,   /* master side of a pseudoterminal */
 } filetype_t;
 
 #define FF_READ 0x0001
@@ -94,5 +97,7 @@ int do_dup2(proc_t *p, int oldfd, int newfd);
 int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp);
 int do_ioctl(proc_t *p, int fd, u_long cmd, void *data);
 int do_umask(proc_t *p, int newmask, int *oldmaskp);
+
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_FILE_H_ */

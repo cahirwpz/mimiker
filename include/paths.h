@@ -10,5 +10,6 @@
 #define _PATH_SHELLS "/etc/shells"
 #define _PATH_TTY "/dev/tty"
 #define _PATH_URANDOM "/dev/urandom"
+#define _PATH_NOLOGIN "/etc/nologin"
 
 #endif /* !_PATHS_H_ */

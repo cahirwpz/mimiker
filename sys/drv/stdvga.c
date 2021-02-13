@@ -1,8 +1,8 @@
 /* Standard VGA driver */
+#include <sys/klog.h>
 #include <sys/pci.h>
 #include <sys/vga.h>
 #include <sys/libkern.h>
-#include <sys/mimiker.h>
 #include <sys/malloc.h>
 #include <sys/kmem.h>
 #include <sys/errno.h>
@@ -212,6 +212,7 @@ static int stdvga_attach(device_t *dev) {
 static driver_t stdvga = {
   .desc = "Bochs VGA driver",
   .size = sizeof(stdvga_state_t),
+  .pass = SECOND_PASS,
   .probe = stdvga_probe,
   .attach = stdvga_attach,
 };

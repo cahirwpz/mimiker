@@ -16,6 +16,8 @@ ifeq ($(KASAN), 1)
 endif
 # Added to all files
 CFLAGS += -DKASAN=$(KASAN)
+GCC_ABIFLAGS += -msoft-float
+CLANG_ABIFLAGS += -msoft-float
 endif
 
 ifeq ($(KERNEL), 1)

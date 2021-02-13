@@ -144,6 +144,7 @@ int fchmodat(int, const char *, mode_t, int);
 int utimens(const char *, const struct timespec *);
 int lutimens(const char *, const struct timespec *);
 int futimens(int, const struct timespec *);
+int utimensat(int, const char *, const struct timespec *, int);
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_STAT_H_ */

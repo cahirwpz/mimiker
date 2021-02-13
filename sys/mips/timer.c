@@ -106,6 +106,7 @@ static int mips_timer_attach(device_t *dev) {
   state->timer = (timer_t){
     .tm_name = "mips-cpu-timer",
     .tm_flags = TMF_PERIODIC,
+    .tm_quality = 0,
     .tm_frequency = CPU_FREQ,
     .tm_min_period = BINTIME(1 / (double)CPU_FREQ),
     .tm_max_period = BINTIME(((1LL << 32) - 1) / (double)CPU_FREQ),
@@ -124,6 +125,7 @@ static int mips_timer_attach(device_t *dev) {
 static driver_t cpu_mips_timer = {
   .desc = "MIPS CPU timer driver",
   .size = sizeof(mips_timer_state_t),
+  .pass = FIRST_PASS,
   .probe = mips_timer_probe,
   .attach = mips_timer_attach,
 };
