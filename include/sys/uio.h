@@ -36,5 +36,12 @@ typedef struct uio {
 
 int uiomove(void *buf, size_t n, uio_t *uio);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
+/* NOTE: after successful return, the caller is responsible for freeing
+ * uio->uio_iov! */
+int uio_init_from_user_iovec(uio_t *uio, uio_op_t op, const struct iovec *u_iov,
+                             int iovcnt);
+
+ssize_t readv(int fd, const struct iovec *iov, int iovcnt);
+ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
 
 #endif /* !_SYS_UIO_H_ */
