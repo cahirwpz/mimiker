@@ -61,7 +61,8 @@ static void delay(int count) {
   }
 }
 
-static inline atomic_int *find_watchpoint(uintptr_t addr, size_t size, bool is_read) {
+static inline atomic_int *find_watchpoint(uintptr_t addr, size_t size,
+                                          bool is_read) {
   uintptr_t other_addr;
   size_t other_size;
   bool other_is_read;
@@ -86,7 +87,8 @@ static inline atomic_int *find_watchpoint(uintptr_t addr, size_t size, bool is_r
   return NULL;
 }
 
-static inline atomic_int *insert_watchpoint(uintptr_t addr, size_t size, bool is_read) {
+static inline atomic_int *insert_watchpoint(uintptr_t addr, size_t size,
+                                            bool is_read) {
   int slot = watchpoint_slot(addr);
   atomic_int *watchpoint_p = &watchpoints[slot];
 
@@ -98,12 +100,12 @@ static inline atomic_int *insert_watchpoint(uintptr_t addr, size_t size, bool is
 }
 
 static inline void setup_watchpoint(uintptr_t addr, size_t size, bool is_read) {
-  	union {
-      uint8_t b1;
-      uint16_t b2;
-      uint32_t b4;
-      uint64_t b8;
-	} value = {};
+  union {
+    uint8_t b1;
+    uint16_t b2;
+    uint32_t b4;
+    uint64_t b8;
+  } value = {};
 
   /* Reset the counter. */
   atomic_store(&skip_counter, SKIP_COUNT);
@@ -132,7 +134,7 @@ static inline void setup_watchpoint(uintptr_t addr, size_t size, bool is_read) {
   }
 
   delay(WATCHPOINT_DELAY);
-  
+
   switch (size) {
     case 1:
       value.b1 ^= *((uint8_t *)addr);
@@ -158,7 +160,8 @@ static inline void setup_watchpoint(uintptr_t addr, size_t size, bool is_read) {
 }
 
 static void kcsan_check(uintptr_t addr, size_t size, bool is_read) {
-  if (!kcsan_ready || cpu_intr_disabled() || preempt_disabled() || size > MAX_ENCODABLE_SIZE)
+  if (!kcsan_ready || cpu_intr_disabled() || preempt_disabled() ||
+      size > MAX_ENCODABLE_SIZE)
     return;
 
   if (addr < KERNEL_SPACE_BEGIN)
@@ -195,12 +198,12 @@ void __tsan_write_range(void *ptr, size_t size) {
   kcsan_check((uintptr_t)ptr, size, false);
 }
 
-#define DEFINE_KCSAN_VOLATILE_READ_WRITE(size)                                          \
-  void __tsan_volatile_read##size(void *ptr) {                                          \
+#define DEFINE_KCSAN_VOLATILE_READ_WRITE(size)                                 \
+  void __tsan_volatile_read##size(void *ptr) {                                 \
   }                                                                            \
-  void __tsan_volatile_write##size(void *ptr) {                                         \
+  void __tsan_volatile_write##size(void *ptr) {                                \
   }
-  
+
 DEFINE_KCSAN_VOLATILE_READ_WRITE(1);
 DEFINE_KCSAN_VOLATILE_READ_WRITE(2);
 DEFINE_KCSAN_VOLATILE_READ_WRITE(4);
@@ -214,24 +217,28 @@ void __tsan_func_exit(void) {
 void __tsan_init(void) {
 }
 
-#define DEFINE_KCSAN_ATOMIC_OP(size, op) \
-  uint##size##_t __tsan_atomic##size##_##op(volatile uint##size##_t *a, uint##size##_t v, int mo) { \
-    return atomic_##op##_explicit(a, v, mo); \
+#define DEFINE_KCSAN_ATOMIC_OP(size, op)                                       \
+  uint##size##_t __tsan_atomic##size##_##op(volatile uint##size##_t *a,        \
+                                            uint##size##_t v, int mo) {        \
+    return atomic_##op##_explicit(a, v, mo);                                   \
   }
 
-#define DEFINE_KCSAN_ATOMIC_OPS(size) \
-  DEFINE_KCSAN_ATOMIC_OP(size, exchange) \
-  DEFINE_KCSAN_ATOMIC_OP(size, fetch_add) \
-  DEFINE_KCSAN_ATOMIC_OP(size, fetch_sub) \
-  DEFINE_KCSAN_ATOMIC_OP(size, fetch_or) \
+#define DEFINE_KCSAN_ATOMIC_OPS(size)                                          \
+  DEFINE_KCSAN_ATOMIC_OP(size, exchange)                                       \
+  DEFINE_KCSAN_ATOMIC_OP(size, fetch_add)                                      \
+  DEFINE_KCSAN_ATOMIC_OP(size, fetch_sub)                                      \
+  DEFINE_KCSAN_ATOMIC_OP(size, fetch_or)                                       \
   uint##size##_t __tsan_atomic##size##_load(const uint##size##_t *a, int mo) { \
-    return atomic_load_explicit(a, mo); \
-  } \
-  void __tsan_atomic##size##_store(volatile uint##size##_t *a, volatile uint##size##_t v, int mo) { \
-    atomic_store_explicit(a, v, mo); \
-  } \
-  int __tsan_atomic##size##_compare_exchange_strong(volatile uint##size##_t *a, uint##size##_t *c, uint##size##_t v, int mo, int fail_mo) { \
-    return atomic_compare_exchange_strong_explicit(a, c, v, mo, fail_mo); \
+    return atomic_load_explicit(a, mo);                                        \
+  }                                                                            \
+  void __tsan_atomic##size##_store(volatile uint##size##_t *a,                 \
+                                   volatile uint##size##_t v, int mo) {        \
+    atomic_store_explicit(a, v, mo);                                           \
+  }                                                                            \
+  int __tsan_atomic##size##_compare_exchange_strong(                           \
+    volatile uint##size##_t *a, uint##size##_t *c, uint##size##_t v, int mo,   \
+    int fail_mo) {                                                             \
+    return atomic_compare_exchange_strong_explicit(a, c, v, mo, fail_mo);      \
   }
 
 DEFINE_KCSAN_ATOMIC_OPS(8);
