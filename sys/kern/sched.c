@@ -218,7 +218,7 @@ void sched_maybe_preempt(void) {
   }
 }
 
-bool preempt_disabled(void) {
+__no_sanitize bool preempt_disabled(void) {
   thread_t *td = thread_self();
   return td->td_pdnest > 0;
 }

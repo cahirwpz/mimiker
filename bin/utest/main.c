@@ -1,6 +1,7 @@
 #include "utest.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 int main(int argc, char **argv) {
@@ -11,9 +12,18 @@ int main(int argc, char **argv) {
   char *test_name = argv[1];
   printf("Starting user test \"%s\".\n", test_name);
 
+  int testnum = atoi(argv[1]);
+  int cnt = 0;
+#define CHECKRUN_TEST(name)                                                    \
+  if (cnt++ == testnum)                                           \
+    return test_##name();
+
+
+/*
 #define CHECKRUN_TEST(name)                                                    \
   if (strcmp(test_name, #name) == 0)                                           \
     return test_##name();
+*/
 
   /* Linker set in userspace would be quite difficult to set up, and it feels
      like an overkill to me. */
@@ -59,7 +69,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(exc_integer_overflow);
   CHECKRUN_TEST(exc_unaligned_access);
   CHECKRUN_TEST(exc_sigsys);
-  CHECKRUN_TEST(syscall_in_bds);
+  //CHECKRUN_TEST(syscall_in_bds);
 #endif /* !__mips__ */
   CHECKRUN_TEST(setjmp);
   CHECKRUN_TEST(sigaction_with_setjmp);
@@ -88,10 +98,10 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(session_login_name);
 
 #ifdef __mips__
-  CHECKRUN_TEST(fpu_fcsr);
-  CHECKRUN_TEST(fpu_gpr_preservation);
-  CHECKRUN_TEST(fpu_cpy_ctx_on_fork);
-  CHECKRUN_TEST(fpu_ctx_signals);
+  //CHECKRUN_TEST(fpu_fcsr);
+  //CHECKRUN_TEST(fpu_gpr_preservation);
+  //CHECKRUN_TEST(fpu_cpy_ctx_on_fork);
+  //CHECKRUN_TEST(fpu_ctx_signals);
 #endif /* !__mips__ */
 
   CHECKRUN_TEST(getcwd);
