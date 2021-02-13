@@ -48,6 +48,7 @@ static intr_filter_t rtl8139_intr(void *data) {
 
 static int rtl8139_attach(device_t *dev) {
   rtl8139_state_t *state = dev->state;
+  int err = 0;
 
   pci_enable_busmaster(dev);
 
@@ -63,14 +64,15 @@ static int rtl8139_attach(device_t *dev) {
     kmem_alloc_contig(&state->rx_buf_physaddr, RX_BUF_SIZE, PMAP_NOCACHE);
   if (!state->rx_buf) {
     klog("Failed to alloc memory for the receive buffer!");
-    return ENXIO;
+    return ENOMEM;
   }
 
   /* TODO: introduce ring buffer */
 
   if (rtl_reset(state)) {
     klog("Failed to reset device!");
-    return ENXIO;
+    err = ENXIO;
+    goto error;
   }
 
   /* set-up address for DMA */
@@ -81,6 +83,11 @@ static int rtl8139_attach(device_t *dev) {
   bus_write_2(state->regs, RL_IMR, RL_ISR_RX_OK);
 
   return 0;
+error:
+  if (state->rx_buf)
+    free(state->rx_buf);
+
+  return err;
 }
 
 static driver_t rtl8139_driver = {
