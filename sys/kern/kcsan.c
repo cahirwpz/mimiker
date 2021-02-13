@@ -19,7 +19,9 @@
 
 static atomic_int watchpoints[WATCHPOINT_NUM];
 
-static atomic_int kcsan_setup_watchpoint_counter;
+/* Stats */
+static atomic_int kcsan_slot_taken_count;
+static atomic_int kcsan_set_watchpoint_count;
 
 /* How many accesses should be skipped before we setup a watchpoint. */
 static atomic_int skip_counter = SKIP_COUNT;
@@ -105,29 +107,31 @@ static inline void setup_watchpoint(uintptr_t addr, size_t size, bool is_read) {
     uint16_t b2;
     uint32_t b4;
     uint64_t b8;
-  } value = {};
+  } prev_val = {}, new_val = {};
 
   /* Reset the counter. */
   atomic_store(&skip_counter, SKIP_COUNT);
 
   atomic_int *watchpoint_p = insert_watchpoint(addr, size, is_read);
-  if (watchpoint_p == NULL)
+  if (watchpoint_p == NULL) {
+    atomic_fetch_add(&kcsan_slot_taken_count, 1);
     return;
+  }
 
-  atomic_fetch_add(&kcsan_setup_watchpoint_counter, 1);
+  atomic_fetch_add(&kcsan_set_watchpoint_count, 1);
 
   switch (size) {
     case 1:
-      value.b1 = *((uint8_t *)addr);
+      prev_val.b1 = *((uint8_t *)addr);
       break;
     case 2:
-      value.b2 = *((uint16_t *)addr);
+      prev_val.b2 = *((uint16_t *)addr);
       break;
     case 4:
-      value.b4 = *((uint32_t *)addr);
+      prev_val.b4 = *((uint32_t *)addr);
       break;
     case 8:
-      value.b8 = *((uint64_t *)addr);
+      prev_val.b8 = *((uint64_t *)addr);
       break;
     default:
       break;
@@ -137,23 +141,30 @@ static inline void setup_watchpoint(uintptr_t addr, size_t size, bool is_read) {
 
   switch (size) {
     case 1:
-      value.b1 ^= *((uint8_t *)addr);
+      new_val.b1 = *((uint8_t *)addr);
       break;
     case 2:
-      value.b2 ^= *((uint16_t *)addr);
+      new_val.b2 = *((uint16_t *)addr);
       break;
     case 4:
-      value.b4 ^= *((uint32_t *)addr);
+      new_val.b4 = *((uint32_t *)addr);
       break;
     case 8:
-      value.b8 ^= *((uint64_t *)addr);
+      new_val.b8 = *((uint64_t *)addr);
       break;
     default:
       break;
   }
 
-  if (value.b8 != 0) {
-    panic("The value of the variable has changed!");
+  if (prev_val.b8 != new_val.b8) {
+    panic("===========KernelConcurrencySanitizer===========\n"
+          "* value of the watched variable %p has changed\n"
+          "* %s of size %lu\n"
+          "* previous value %x\n"
+          "* current value %x\n"
+          "============================================",
+          (void *)addr, (is_read ? "read" : "write"), size, prev_val.b8,
+          new_val.b8);
   }
 
   atomic_store(watchpoint_p, WATCHPOINT_INVALID);
@@ -172,7 +183,12 @@ static void kcsan_check(uintptr_t addr, size_t size, bool is_read) {
     if (should_watch())
       setup_watchpoint(addr, size, is_read);
   } else {
-    panic("Found data race");
+    panic("===========KernelConcurrencySanitizer===========\n"
+          "* found data race on the variable %p\n"
+          "* %s of size %lu\n"
+          "* you can find the second thread using gdb\n"
+          "============================================",
+          (void *)addr, (is_read ? "read" : "write"), size);
   }
 }
 
