@@ -48,7 +48,6 @@ static intr_filter_t rtl8139_intr(void *data) {
 
 static int rtl8139_attach(device_t *dev) {
   rtl8139_state_t *state = dev->state;
-  int err = 0;
 
   pci_enable_busmaster(dev);
 
