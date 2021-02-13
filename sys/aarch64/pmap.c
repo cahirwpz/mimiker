@@ -38,25 +38,20 @@ static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 #define DMAP_BASE 0xffffff8000000000 /* last 512GB */
 #define PHYS_TO_DMAP(x) ((intptr_t)(x) + DMAP_BASE)
 
-static const pte_t pte_default =
-  L3_PAGE | ATTR_DBM | ATTR_AF | ATTR_SH(ATTR_SH_IS);
+static const pte_t pte_default = L3_PAGE | ATTR_DBM | ATTR_AF | ATTR_SH_IS;
 static const pte_t pte_noexec = ATTR_XN | ATTR_SW_NOEXEC;
 
 static const pte_t vm_prot_map[] = {
-  [VM_PROT_NONE] = L3_PAGE | ATTR_SH(ATTR_SH_IS) | pte_noexec,
-  [VM_PROT_READ] =
-    ATTR_AP(ATTR_AP_RO) | ATTR_SW_READ | pte_noexec | pte_default,
-  [VM_PROT_WRITE] =
-    ATTR_AP(ATTR_AP_RW) | ATTR_SW_WRITE | pte_noexec | pte_default,
-  [VM_PROT_READ | VM_PROT_WRITE] = ATTR_AP(ATTR_AP_RW) | ATTR_SW_READ |
-                                   ATTR_SW_WRITE | pte_noexec | pte_default,
+  [VM_PROT_NONE] = L3_PAGE | ATTR_SH_IS | pte_noexec,
+  [VM_PROT_READ] = ATTR_AP_RO | ATTR_SW_READ | pte_noexec | pte_default,
+  [VM_PROT_WRITE] = ATTR_AP_RW | ATTR_SW_WRITE | pte_noexec | pte_default,
+  [VM_PROT_READ | VM_PROT_WRITE] =
+    ATTR_AP_RW | ATTR_SW_READ | ATTR_SW_WRITE | pte_noexec | pte_default,
   [VM_PROT_EXEC] = pte_default,
-  [VM_PROT_READ | VM_PROT_EXEC] =
-    ATTR_AP(ATTR_AP_RO) | ATTR_SW_READ | pte_default,
-  [VM_PROT_WRITE | VM_PROT_EXEC] =
-    ATTR_AP(ATTR_AP_RW) | ATTR_SW_WRITE | pte_default,
+  [VM_PROT_READ | VM_PROT_EXEC] = ATTR_AP_RO | ATTR_SW_READ | pte_default,
+  [VM_PROT_WRITE | VM_PROT_EXEC] = ATTR_AP_RW | ATTR_SW_WRITE | pte_default,
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] =
-    ATTR_AP(ATTR_AP_RW) | ATTR_SW_READ | ATTR_SW_WRITE | pte_default,
+    ATTR_AP_RW | ATTR_SW_READ | ATTR_SW_WRITE | pte_default,
 };
 
 static pmap_t kernel_pmap;
@@ -226,7 +221,7 @@ static pte_t make_pte(paddr_t pa, pte_t prot, unsigned flags) {
 
 static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte, vaddr_t va) {
   if (pmap != pmap_kernel())
-    pte |= ATTR_AP(ATTR_AP_USER);
+    pte |= ATTR_AP_USER;
   *ptep = pte;
   tlb_invalidate(va, pmap->asid);
 }
@@ -472,7 +467,7 @@ bool pmap_clear_referenced(vm_page_t *pg) {
 bool pmap_clear_modified(vm_page_t *pg) {
   bool prev = pmap_is_modified(pg);
   pg->flags &= ~PG_MODIFIED;
-  pmap_modify_flags(pg, ATTR_AP(ATTR_AP_RO), ATTR_DBM);
+  pmap_modify_flags(pg, ATTR_AP_RO, ATTR_DBM);
   return prev;
 }
 
@@ -491,7 +486,7 @@ void pmap_set_referenced(vm_page_t *pg) {
 
 void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
-  pmap_modify_flags(pg, ATTR_DBM, ATTR_AP(ATTR_AP_RO));
+  pmap_modify_flags(pg, ATTR_DBM, ATTR_AP_RO);
 }
 
 int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {

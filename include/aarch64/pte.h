@@ -58,17 +58,14 @@ typedef uint64_t pde_t;
 #define ATTR_DBM (1UL << 51)
 #define ATTR_nG (1 << 11)
 #define ATTR_AF (1 << 10)
-#define ATTR_SH(x) ((x) << 8)
-#define ATTR_SH_MASK ATTR_SH(3)
-#define ATTR_SH_NS 0 /* Non-shareable */
-#define ATTR_SH_OS 2 /* Outer-shareable */
-#define ATTR_SH_IS 3 /* Inner-shareable */
-#define ATTR_AP_RW_BIT (1 << 7)
-#define ATTR_AP(x) ((x) << 6)
-#define ATTR_AP_MASK ATTR_AP(3)
-#define ATTR_AP_RW (0 << 1)
-#define ATTR_AP_RO (1 << 1)
-#define ATTR_AP_USER (1 << 0)
+#define ATTR_SH_MASK (3 << 8)
+#define ATTR_SH_NS (0 << 8) /* Non-shareable */
+#define ATTR_SH_OS (2 << 8) /* Outer-shareable */
+#define ATTR_SH_IS (3 << 8) /* Inner-shareable */
+#define ATTR_AP_MASK (3 << 6)
+#define ATTR_AP_RW (0 << 6)
+#define ATTR_AP_RO (2 << 6)
+#define ATTR_AP_USER (1 << 6)
 #define ATTR_NS (1 << 5)
 #define ATTR_IDX(x) ((x) << 2)
 #define ATTR_IDX_MASK (7 << 2)
@@ -78,10 +75,9 @@ typedef uint64_t pde_t;
 #define ATTR_NORMAL_MEM_WB 2
 #define ATTR_NORMAL_MEM_WT 3
 
-#define ATTR_S2_S2AP(x) ((x) << 6)
-#define ATTR_S2_S2AP_MASK 3
-#define ATTR_S2_S2AP_READ 1
-#define ATTR_S2_S2AP_WRITE 2
+#define ATTR_S2_S2AP_MASK (3 << 6)
+#define ATTR_S2_S2AP_READ (1 << 6)
+#define ATTR_S2_S2AP_WRITE (2 << 6)
 
 /* Level 0 table, 512GiB per entry */
 #define L0_SHIFT 39
