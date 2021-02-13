@@ -1,5 +1,4 @@
 #include <aarch64/asm.h>
-#include <aarch64/armreg.h>
 #include <aarch64/pcpu.h>
 
 #include "assym.h"
