@@ -166,7 +166,7 @@ ENTRY(handle_user_trap)
         bl      user_trap_handler
 user_exc_leave:
         /* disable interrupts */
-        msr     daifset, (DAIF_I_MASKED >> 6)
+        msr     daifset, #DAIF_I
 
         /* load thread_t::tdp_flags */
         /* thread_t::tdp_flags is a volatile unsigned - use 32-bit */
