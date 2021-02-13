@@ -2,6 +2,7 @@
 #include <sys/spinlock.h>
 #include <sys/thread.h>
 #include <sys/mimiker.h>
+#include <sys/klog.h>
 
 typedef TAILQ_HEAD(, lock_class) lock_class_list_t;
 
