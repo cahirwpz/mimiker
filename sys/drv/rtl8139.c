@@ -85,7 +85,7 @@ static int rtl8139_attach(device_t *dev) {
   return 0;
 error:
   if (state->rx_buf)
-    free(state->rx_buf);
+    kmem_free(state->rx_buf);
 
   return err;
 }
