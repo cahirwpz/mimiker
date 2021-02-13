@@ -2,6 +2,7 @@
 #include <sys/vm.h>
 #include <sys/thread.h>
 #include <machine/interrupt.h>
+#include <sys/klog.h>
 
 #define WATCHPOINT_READ_BIT (1 << 31)
 #define WATCHPOINT_SIZE_SHIFT 28
