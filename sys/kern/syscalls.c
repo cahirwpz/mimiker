@@ -1161,7 +1161,7 @@ static int sys_readv(proc_t *p, readv_args_t *args, register_t *res) {
   const size_t iov_size = sizeof(iovec_t) * iovcnt;
   iovec_t *k_iov = kmalloc(M_TEMP, iov_size, 0);
 
-  if ((error = copyin(u_iov, k_iov, iov_size)) || 
+  if ((error = copyin(u_iov, k_iov, iov_size)) ||
       (error = iovec_length(k_iov, iovcnt, &len)))
     goto end;
 
