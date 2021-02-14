@@ -56,10 +56,6 @@ typedef struct uio {
 int uiomove(void *buf, size_t n, uio_t *uio);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
 int iovec_length(const iovec_t *iov, int iovcnt, size_t *lengthp);
-/*
- * NOTE: after successful return, the caller is responsible for freeing *iovp!
- */
-int iovec_copyin(const iovec_t *u_iov, int iovcnt, iovec_t **iovp);
 
 #endif /* _KERNEL */
 

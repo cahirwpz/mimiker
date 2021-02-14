@@ -100,17 +100,3 @@ int iovec_length(const iovec_t *iov, int iovcnt, size_t *lengthp) {
   *lengthp = len;
   return 0;
 }
-
-int iovec_copyin(const iovec_t *u_iov, int iovcnt, iovec_t **iovp) {
-  int error;
-  if (iovcnt <= 0 || iovcnt > IOV_MAX)
-    return EINVAL;
-  const size_t iov_size = sizeof(iovec_t) * iovcnt;
-  iovec_t *k_iov = kmalloc(M_TEMP, iov_size, 0);
-  if ((error = copyin(u_iov, k_iov, iov_size))) {
-    kfree(M_TEMP, k_iov);
-    return error;
-  }
-  *iovp = k_iov;
-  return 0;
-}
