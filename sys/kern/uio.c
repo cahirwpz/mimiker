@@ -114,16 +114,3 @@ int iovec_copyin(const iovec_t *u_iov, int iovcnt, iovec_t **iovp) {
   *iovp = k_iov;
   return 0;
 }
-
-int uio_init_from_user_iovec(uio_t *uio, uio_op_t op, const struct iovec *u_iov,
-                             int iovcnt) {
-  int error;
-  iovec_t *k_iov;
-  size_t len;
-  if ((error = iovec_copyin(u_iov, iovcnt, &k_iov)))
-    return error;
-  if ((error = iovec_length(k_iov, iovcnt, &len)))
-    return error;
-  *uio = UIO_VECTOR_USER(op, k_iov, iovcnt, len);
-  return 0;
-}
