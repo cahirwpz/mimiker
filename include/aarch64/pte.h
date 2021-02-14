@@ -55,11 +55,9 @@ typedef uint64_t pde_t;
 #define ATTR_PXN (1UL << 53)
 #define ATTR_XN (ATTR_PXN | ATTR_UXN)
 #define ATTR_CONTIGUOUS (1UL << 52)
-/* Dirty bit. */
-#define ATTR_DBM (1UL << 51)
+#define ATTR_DBM (1UL << 51) /* Dirty Bit Modifer = 0: MMU faults of write */
 #define ATTR_nG (1 << 11)
-/* Access to page without AF bit triggers an MMU fault. */
-#define ATTR_AF (1 << 10)
+#define ATTR_AF (1 << 10) /* Access Flag = 0: MMU faults on any access */
 #define ATTR_SH_MASK (3 << 8)
 #define ATTR_SH_NS (0 << 8) /* Non-shareable */
 #define ATTR_SH_OS (2 << 8) /* Outer-shareable */
