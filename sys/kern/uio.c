@@ -89,32 +89,38 @@ int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio) {
   return uiomove((char *)buf + offset, buflen - offset, uio);
 }
 
-int uio_init_from_user_iovec(uio_t *uio, uio_op_t op, const struct iovec *u_iov,
-                             int iovcnt) {
+int iovec_length(const iovec_t *iov, int iovcnt, size_t *lengthp) {
+  size_t len = 0;
+  for (int i = 0; i < iovcnt; i++) {
+    len += iov[i].iov_len;
+    /* Ensure that the total data size fits in ssize_t. */
+    if (len > SSIZE_MAX || iov[i].iov_len > SSIZE_MAX)
+      return EINVAL;
+  }
+  *lengthp = len;
+  return 0;
+}
+
+int iovec_copyin(const iovec_t *u_iov, int iovcnt, iovec_t **iovp) {
   int error;
   if (iovcnt <= 0 || iovcnt > IOV_MAX)
     return EINVAL;
   const size_t iov_size = sizeof(iovec_t) * iovcnt;
   iovec_t *k_iov = kmalloc(M_TEMP, iov_size, 0);
   if ((error = copyin(u_iov, k_iov, iov_size)))
-    goto err_free;
-  size_t len = 0;
-  for (int i = 0; i < iovcnt; i++) {
-    len += k_iov[i].iov_len;
-    /* Ensure that the total data size fits in ssize_t. */
-    if (len > SSIZE_MAX || k_iov[i].iov_len > SSIZE_MAX) {
-      error = EINVAL;
-      goto err_free;
-    }
-  }
-  uio->uio_iov = k_iov;
-  uio->uio_iovcnt = iovcnt;
-  uio->uio_offset = 0;
-  uio->uio_resid = len;
-  uio->uio_op = op;
-  uio->uio_vmspace = vm_map_user();
-  return 0;
-err_free:
-  kfree(M_TEMP, k_iov);
+    kfree(M_TEMP, k_iov);
   return error;
+}
+
+int uio_init_from_user_iovec(uio_t *uio, uio_op_t op, const struct iovec *u_iov,
+                             int iovcnt) {
+  int error;
+  iovec_t *k_iov;
+  size_t len;
+  if ((error = iovec_copyin(u_iov, iovcnt, &k_iov)))
+    return error;
+  if ((error = iovec_length(k_iov, iovcnt, &len)))
+    return error;
+  *uio = UIO_VECTOR_USER(op, k_iov, iovcnt, len);
+  return 0;
 }

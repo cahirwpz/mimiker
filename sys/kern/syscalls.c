@@ -1152,16 +1152,18 @@ static int sys_readv(proc_t *p, readv_args_t *args, register_t *res) {
   int fd = SCARG(args, fd);
   const iovec_t *u_iov = SCARG(args, iov);
   int iovcnt = SCARG(args, iovcnt);
+  iovec_t *k_iov;
+  size_t len;
   int error;
-  uio_t uio;
 
-  if ((error = uio_init_from_user_iovec(&uio, UIO_READ, u_iov, iovcnt)))
+  if ((error = iovec_copyin(u_iov, iovcnt, &k_iov)))
+    return error;
+  if ((error = iovec_length(k_iov, iovcnt, &len)))
     return error;
 
-  iovec_t *k_iov = uio.uio_iov;
-  size_t nbyte = uio.uio_resid;
+  uio_t uio = UIO_VECTOR_USER(UIO_READ, k_iov, iovcnt, len);
   error = do_read(p, fd, &uio);
-  *res = nbyte - uio.uio_resid;
+  *res = len - uio.uio_resid;
 
   kfree(M_TEMP, k_iov);
 
@@ -1172,16 +1174,18 @@ static int sys_writev(proc_t *p, writev_args_t *args, register_t *res) {
   int fd = SCARG(args, fd);
   const iovec_t *u_iov = SCARG(args, iov);
   int iovcnt = SCARG(args, iovcnt);
+  iovec_t *k_iov;
+  size_t len;
   int error;
-  uio_t uio;
 
-  if ((error = uio_init_from_user_iovec(&uio, UIO_WRITE, u_iov, iovcnt)))
+  if ((error = iovec_copyin(u_iov, iovcnt, &k_iov)))
+    return error;
+  if ((error = iovec_length(k_iov, iovcnt, &len)))
     return error;
 
-  iovec_t *k_iov = uio.uio_iov;
-  size_t nbyte = uio.uio_resid;
+  uio_t uio = UIO_VECTOR_USER(UIO_WRITE, k_iov, iovcnt, len);
   error = do_write(p, fd, &uio);
-  *res = nbyte - uio.uio_resid;
+  *res = len - uio.uio_resid;
 
   kfree(M_TEMP, k_iov);
 
