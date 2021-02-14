@@ -14,6 +14,8 @@ SUBDIR = \
 	 join \
 	 login \
 	 mkfifo \
+	 nohup \
+	 resize \
 	 script \
 	 sed \
 	 seq \
