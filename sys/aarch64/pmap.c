@@ -496,25 +496,26 @@ void pmap_set_modified(vm_page_t *pg) {
 
 int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
   paddr_t pa;
+  vm_page_t *pg = NULL;
+  pte_t pte = 0;
 
   WITH_MTX_LOCK (&pmap->mtx) {
     if (!pmap_extract_nolock(pmap, va, &pa))
       return EFAULT;
 
-    pte_t pte = *pmap_lookup_pte(pmap, va);
-
-    if ((prot & VM_PROT_READ) && !(pte & ATTR_SW_READ))
-      return EACCES;
-
-    if ((prot & VM_PROT_WRITE) && !(pte & ATTR_SW_WRITE))
-      return EACCES;
-
-    if ((prot & VM_PROT_EXEC) && (pte & ATTR_SW_NOEXEC))
-      return EACCES;
+    pte = *pmap_lookup_pte(pmap, va);
   }
-
-  vm_page_t *pg = vm_page_find(pa);
+  pg = vm_page_find(pa);
   assert(pg != NULL);
+
+  if ((prot & VM_PROT_READ) && !(pte & ATTR_SW_READ))
+    return EACCES;
+
+  if ((prot & VM_PROT_WRITE) && !(pte & ATTR_SW_WRITE))
+    return EACCES;
+
+  if ((prot & VM_PROT_EXEC) && (pte & ATTR_SW_NOEXEC))
+    return EACCES;
 
   WITH_MTX_LOCK (pv_list_lock) {
     /* Kernel non-pageable memory? */

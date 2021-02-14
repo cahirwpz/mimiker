@@ -12,6 +12,7 @@
 #include <sys/sched.h>
 #include <sys/pcpu.h>
 #include <machine/vm_param.h>
+#include <sys/sbrk.h>
 
 struct vm_segment {
   TAILQ_ENTRY(vm_segment) link;
@@ -392,12 +393,17 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
           obj->backing_object = backing;
           it->object = vm_object_alloc(VM_SHADOW);
           it->object->backing_object = backing;
+          /* we set a backing object twice, so we have to acquire
+           * backing->shadow_counter twice too */
+          refcnt_acquire(&backing->shadow_counter);
           /* all pages in backing object are now read-only,
-           * that refers also to pages which previously had VM_PROT_EXEC set */
+           * that refers also to pages which previously had VM_PROT_EXEC set
+           */
           vm_object_set_prot(backing, VM_PROT_READ);
         }
 
         refcnt_acquire(&backing->ref_counter);
+        refcnt_acquire(&backing->shadow_counter);
 
         it->flags |= VM_SEG_COW;
       }
