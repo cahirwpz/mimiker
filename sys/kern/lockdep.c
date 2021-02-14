@@ -9,7 +9,7 @@ typedef TAILQ_HEAD(, lock_class) lock_class_list_t;
 static spin_t main_lock = SPIN_INITIALIZER(0);
 
 #define CLASSHASH_SIZE 64
-#define CLASSHASH(key) ((unsigned int)(key) % CLASSHASH_SIZE)
+#define CLASSHASH(key) ((uintptr_t)(key) % CLASSHASH_SIZE)
 #define CLASS_HASH_CHAIN(key) (&lock_hashtbl[CLASSHASH(key)])
 
 static lock_class_list_t lock_hashtbl[CLASSHASH_SIZE];
