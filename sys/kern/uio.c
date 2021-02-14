@@ -107,9 +107,12 @@ int iovec_copyin(const iovec_t *u_iov, int iovcnt, iovec_t **iovp) {
     return EINVAL;
   const size_t iov_size = sizeof(iovec_t) * iovcnt;
   iovec_t *k_iov = kmalloc(M_TEMP, iov_size, 0);
-  if ((error = copyin(u_iov, k_iov, iov_size)))
+  if ((error = copyin(u_iov, k_iov, iov_size))) {
     kfree(M_TEMP, k_iov);
-  return error;
+    return error;
+  }
+  *iovp = k_iov;
+  return 0;
 }
 
 int uio_init_from_user_iovec(uio_t *uio, uio_op_t op, const struct iovec *u_iov,
