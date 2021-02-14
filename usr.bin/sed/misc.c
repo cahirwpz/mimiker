@@ -55,7 +55,7 @@ xmalloc(size_t size)
 	void *p;
 
 	if ((p = malloc(size)) == NULL)
-		err(1, "malloc(%zu)", size);
+		err(1, "malloc(%lu)", size);
 	return p;
 }
 
@@ -69,7 +69,7 @@ xrealloc(void *p, size_t size)
 		return (xmalloc(size));
 
 	if ((p = realloc(p, size)) == NULL)
-		err(1, "realloc(%zu)", size);
+		err(1, "realloc(%lu)", size);
 	return p;
 }
 
@@ -82,7 +82,7 @@ xcalloc(size_t c, size_t n)
 	void *p;
 
 	if ((p = calloc(c, n)) == NULL)
-		err(1, "calloc(%zu, %zu)", c, n);
+		err(1, "calloc(%lu, %lu)", c, n);
 	return p;
 }
 /*

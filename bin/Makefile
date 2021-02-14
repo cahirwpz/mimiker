@@ -20,6 +20,7 @@ SUBDIR = cat \
 	 rm \
 	 rmdir \
 	 sandbox \
+	 sleep \
 	 stty \
 	 test_kbd \
 	 test_rtc \
