@@ -26,7 +26,7 @@ DSTPATH = $(DIR)$@
 
 %.o: %.S
 	@echo "[AS] $(SRCPATH) -> $(DSTPATH)"
-	$(AS) $(ASFLAGS) $(CPPFLAGS) $(WFLAGS) -c -o $@ $(realpath $<)
+	$(AS) $(ASFLAGS) $(CPPFLAGS) -c -o $@ $(realpath $<)
 
 %.c: %.y
 	@echo "[YACC] $(SCRPATH) -> $(DSTPATH)"
