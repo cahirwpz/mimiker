@@ -59,6 +59,15 @@ static int test_uiomove(void) {
   res = strcmp(buffer2, "Example ====string ========with data ");
   assert(res == 0);
 
+  /* Roll back and redo the read and check that the result is the same. */
+  memset(buffer2, '=', sizeof(buffer2));
+  uio_rollback(&uio, 8 + 7 + 10);
+  res = uiomove((char *)text, strlen(text), &uio);
+  assert(res == 0);
+  buffer2[37] = 0; /* Manually null-terminate */
+  res = strcmp(buffer2, "Example ====string ========with data ");
+  assert(res == 0);
+
   return KTEST_SUCCESS;
 }
 
