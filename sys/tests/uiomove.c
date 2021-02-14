@@ -27,6 +27,7 @@ static int test_uiomove(void) {
   iov[1].iov_len = 5;
   iov[2].iov_base = (char *)text + 44;
   iov[2].iov_len = 12;
+  uio.uio_iov_off = 0;
   uio.uio_iovcnt = 3;
   uio.uio_iov = &iov[0];
   uio.uio_offset = 5;
@@ -46,6 +47,7 @@ static int test_uiomove(void) {
   iov[1].iov_len = 7;
   iov[2].iov_base = buffer2 + 27;
   iov[2].iov_len = 10;
+  uio.uio_iov_off = 0;
   uio.uio_iovcnt = 3;
   uio.uio_iov = &iov[0];
   uio.uio_offset = 0;
