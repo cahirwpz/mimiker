@@ -17,6 +17,7 @@ typedef struct uio {
   int uio_iovcnt;        /* length of scatter/gather list */
   off_t uio_offset;      /* offset in target object */
   size_t uio_resid;      /* remaining bytes to process */
+  size_t uio_iov_off;    /* offset in current iovec segment */
   uio_op_t uio_op;       /* operation */
   vm_map_t *uio_vmspace; /* destination address space */
 } uio_t;
@@ -25,7 +26,7 @@ typedef struct uio {
   (uio_t) {                                                                    \
     .uio_iov = (iovec_t[1]){(iovec_t){__UNCONST(buf), (buflen)}},              \
     .uio_iovcnt = 1, .uio_offset = (offset), .uio_resid = (buflen),            \
-    .uio_op = (op), .uio_vmspace = (vm_map)                                    \
+    .uio_iov_off = 0, .uio_op = (op), .uio_vmspace = (vm_map)                  \
   }
 
 #define UIO_SINGLE_KERNEL(op, offset, buf, buflen)                             \
