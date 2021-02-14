@@ -122,11 +122,15 @@
 #define CTR_ILINE_VAL(reg) ((reg)&CTR_ILINE_MASK)
 #define CTR_ILINE_SIZE(reg) (4 << (CTR_ILINE_VAL(reg) >> CTR_ILINE_SHIFT))
 
-/* DAIF - Interrupt Mask Bits */
-#define DAIF_D_MASKED (1 << 9)
-#define DAIF_A_MASKED (1 << 8)
-#define DAIF_I_MASKED (1 << 7)
-#define DAIF_F_MASKED (1 << 6)
+/*
+ * DAIF - Interrupt Mask Bits
+ * Use that flags only for daifset, daifclr registers.
+ * For read-only daif register use PSR_*.
+ */
+#define DAIF_D (1 << 3)
+#define DAIF_A (1 << 2)
+#define DAIF_I (1 << 1)
+#define DAIF_F (1 << 0)
 
 /* DCZID_EL0 - Data Cache Zero ID register */
 #define DCZID_DZP (1 << 4) /* DC ZVA prohibited if non-0 */

@@ -22,6 +22,9 @@ void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg);
 /*! \brief Sets a value that will be returned by ctx_switch. */
 void ctx_set_retval(ctx_t *ctx, long value);
 
+/*! \brief Gets program counter from context. */
+register_t ctx_get_pc(ctx_t *ctx);
+
 /*! \brief Copy user exception ctx. */
 void mcontext_copy(mcontext_t *to, mcontext_t *from);
 
@@ -32,6 +35,11 @@ void mcontext_init(mcontext_t *ctx, void *pc, void *sp);
  *
  * Useful for returning values from syscalls. */
 void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error);
+
+/*! \brief Set up the user context to restart a syscall.
+ *
+ * `ctx` is assumed to be exactly the same as it was on syscall entry. */
+void mcontext_restart_syscall(mcontext_t *ctx);
 
 /* This function stores the current context to @from, and resumes the
  * context stored in @to. It does not return immediatelly, it returns

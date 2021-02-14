@@ -11,6 +11,8 @@ typedef struct stat stat_t;
 typedef struct statvfs statvfs_t;
 typedef struct timeval timeval_t;
 typedef struct file file_t;
+typedef struct cred cred_t;
+typedef struct timespec timespec_t;
 
 /*! \brief Called during kernel initialization. */
 void init_vfs(void);
@@ -48,6 +50,7 @@ typedef struct {
   vnrop_t vs_op;     /* vnr operation type */
   uint32_t vs_flags; /* flags to vfs name resolver */
   const char *vs_path;
+  cred_t *vs_cred; /* credentials of process calling name resolver */
 
   /*
    * Results returned from name resolver.
@@ -98,15 +101,18 @@ int do_fchmod(proc_t *p, int fd, mode_t mode);
 int do_fchmodat(proc_t *p, int fd, char *path, mode_t mode, int flag);
 int do_fchown(proc_t *p, int fd, uid_t uid, gid_t gid);
 int do_fchownat(proc_t *p, int fd, char *path, uid_t uid, gid_t gid, int flag);
+int do_futimens(proc_t *p, int fd, timespec_t *times);
+int do_utimensat(proc_t *p, int fd, char *path, timespec_t *times, int flag);
 
 /* Mount a new instance of the filesystem named fs at the requested path. */
-int do_mount(const char *fs, const char *path);
+int do_mount(proc_t *p, const char *fs, const char *path);
 int do_getdents(proc_t *p, int fd, uio_t *uio);
 int do_statvfs(proc_t *p, char *path, statvfs_t *buf);
 int do_fstatvfs(proc_t *p, int fd, statvfs_t *buf);
 
 /* Initialize & destroy structures required to perform name resolution. */
-int vnrstate_init(vnrstate_t *vs, vnrop_t op, uint32_t flags, const char *path);
+int vnrstate_init(vnrstate_t *vs, vnrop_t op, uint32_t flags, const char *path,
+                  cred_t *cred);
 void vnrstate_destroy(vnrstate_t *vs);
 
 /* Perform name resolution with specified operation. */
@@ -114,7 +120,7 @@ int vfs_nameresolve(vnrstate_t *vs);
 
 /* Finds the vnode corresponding to the given path.
  * Increases use count on returned vnode. */
-int vfs_namelookup(const char *path, vnode_t **vp);
+int vfs_namelookup(const char *path, vnode_t **vp, cred_t *cred);
 
 /* Uncovers mountpoint if node is mounted.
  * Given vnode should be locked. The returned vnode is also locked. */

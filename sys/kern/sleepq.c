@@ -99,6 +99,18 @@ static sleepq_t *sq_lookup(sleepq_chain_t *sc, void *wchan) {
   return NULL;
 }
 
+/* XXX For gdb use only !!! */
+static __used sleepq_t *sleepq_lookup(void *wchan) {
+  sleepq_chain_t *sc = SC_LOOKUP(wchan);
+  sleepq_t *sq;
+  TAILQ_FOREACH (sq, &sc->sc_queues, sq_entry) {
+    if (sq->sq_wchan == wchan)
+      return sq;
+  }
+
+  return NULL;
+}
+
 static void sq_enter(thread_t *td, sleepq_chain_t *sc, void *wchan,
                      const void *waitpt) {
   assert(sc_owned(sc));

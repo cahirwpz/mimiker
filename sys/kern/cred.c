@@ -1,7 +1,12 @@
+#include <sys/klog.h>
 #include <sys/cred.h>
 #include <sys/proc.h>
 #include <sys/libkern.h>
 #include <sys/mutex.h>
+
+cred_t *cred_self(void) {
+  return &proc_self()->p_cred;
+}
 
 void cred_fork(proc_t *to, proc_t *from) {
   assert(mtx_owned(&from->p_lock));

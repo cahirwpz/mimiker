@@ -4,6 +4,10 @@
 
 /* Heavily inspired by FreeBSD sys/arm64/arm64/exceptions.S */
 
+.macro  load_pcpu dst
+        mrs     \dst, tpidr_el1
+.endm
+
 .macro  save_ctx el
         sub     sp, sp, #CTX_SIZE
         .cfi_def_cfa_offset 0
@@ -63,13 +67,13 @@
         stp      lr, x18, [sp, #CTX_LR]
         .cfi_rel_offset lr, CTX_LR
         .cfi_rel_offset sp, CTX_SP
-        mrs     x18, tpidr_el1
+        load_pcpu x18
 .endm
 
 .macro  load_ctx el
         msr     daifset, #2
 .if \el == 0
-        mrs     x18, tpidr_el1
+        load_pcpu x18
         ldr     x18, [x18, #PCPU_CURTHREAD]
         ldr     x18, [x18, #TD_UCTX]
         mov     sp,  x18
@@ -102,8 +106,35 @@
 .else
         ldr     x29, [sp, #CTX_FP]
         mov     sp, x18
-        mrs     x18, tpidr_el1
+        load_pcpu x18
 .endif
+.endm
+
+/* 
+ * WARNING!
+ * tmp is a register number.
+ */
+.macro  load_fpu_ctx src tmp
+        ldp     q0,  q1,  [\src, FPU_CTX_Q0]
+        ldp     q2,  q3,  [\src, FPU_CTX_Q2]
+        ldp     q4,  q5,  [\src, FPU_CTX_Q4]
+        ldp     q6,  q7,  [\src, FPU_CTX_Q6]
+        ldp     q8,  q9,  [\src, FPU_CTX_Q8]
+        ldp     q10, q11, [\src, FPU_CTX_Q10]
+        ldp     q12, q13, [\src, FPU_CTX_Q12]
+        ldp     q14, q15, [\src, FPU_CTX_Q14]
+        ldp     q16, q17, [\src, FPU_CTX_Q16]
+        ldp     q18, q19, [\src, FPU_CTX_Q18]
+        ldp     q20, q21, [\src, FPU_CTX_Q20]
+        ldp     q22, q23, [\src, FPU_CTX_Q22]
+        ldp     q24, q25, [\src, FPU_CTX_Q24]
+        ldp     q26, q27, [\src, FPU_CTX_Q26]
+        ldp     q28, q29, [\src, FPU_CTX_Q28]
+        ldp     q30, q31, [\src, FPU_CTX_Q30]
+        ldr     w\tmp, [\src, FPU_CTX_FPCR]
+        msr     fpcr, x\tmp
+        ldr     w\tmp, [\src, FPU_CTX_FPSR]
+        msr     fpsr, x\tmp
 .endm
 
         .global kern_exc_leave
@@ -116,7 +147,7 @@ ENTRY(handle_kern_trap)
         bl      kern_trap_handler
 kern_exc_leave:
         load_ctx 1
-        ERET
+        eret
 END(handle_kern_trap)
 
 ENTRY(handle_kern_intr)
@@ -125,7 +156,7 @@ ENTRY(handle_kern_intr)
         mov     x0, sp
         bl      intr_root_handler
         load_ctx 1
-        ERET
+        eret
 END(handle_kern_intr)
 
 ENTRY(handle_user_trap)
@@ -134,8 +165,40 @@ ENTRY(handle_user_trap)
         mov     x0, sp
         bl      user_trap_handler
 user_exc_leave:
+        /* disable interrupts */
+        msr     daifset, #DAIF_I
+
+        /* load thread_t::tdp_flags */
+        /* thread_t::tdp_flags is a volatile unsigned - use 32-bit */
+        load_pcpu x1
+        ldr     x1, [x1, #PCPU_CURTHREAD]
+        ldr     w3, [x1, #TD_PFLAGS]
+
+        and     w2, w3, #TDP_FPUINUSE
+        cmp     w2, wzr
+        beq     .skip_fpu_restore
+
+        /* enable FPU */
+        mrs     x2, cpacr_el1
+        and     x2, x2, ~CPACR_FPEN_MASK
+        orr     x2, x2, CPACR_FPEN_TRAP_NONE
+        msr     cpacr_el1, x2
+
+        and     w2, w3, #TDP_FPUCTXSAVED
+        cmp     w2, wzr
+        beq     .skip_fpu_restore
+
+        /* clear TDP_FPUCTXSAVED flag */
+        and     w2, w3, ~TDP_FPUCTXSAVED
+        str     w2, [x1, #TD_PFLAGS]
+
+        /* restore FPU context */
+        ldr     x1, [x1, #TD_UCTX]
+        load_fpu_ctx x1, 2
+
+.skip_fpu_restore:
         load_ctx 0
-        ERET
+        eret
 END(handle_user_trap)
 
 ENTRY(handle_user_intr)
@@ -144,7 +207,7 @@ ENTRY(handle_user_intr)
         mov     x0, sp
         bl      intr_root_handler
         load_ctx 0
-        ERET
+        eret
 END(handle_user_intr)
 
 .macro  VECKERN name

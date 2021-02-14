@@ -14,13 +14,14 @@
 #include <aarch64/pmap.h>
 
 static __noreturn void kernel_oops(ctx_t *ctx) {
-  kprintf("KERNEL PANIC!!! \n");
-  panic();
+  panic("KERNEL PANIC!!!");
 }
 
-static void syscall_handler(register_t code, ctx_t *ctx) {
+static void syscall_handler(register_t code, ctx_t *ctx,
+                            syscall_result_t *result) {
   register_t args[SYS_MAXSYSARGS];
-  const int nregs = 8;
+  /* On AArch64 we have more free registers than SYS_MAXSYSARGS */
+  const size_t nregs = min(SYS_MAXSYSARGS, FUNC_MAXREGARGS);
 
   memcpy(args, &_REG(ctx, X0), nregs * sizeof(register_t));
 
@@ -41,8 +42,8 @@ static void syscall_handler(register_t code, ctx_t *ctx) {
 
   int error = se->call(td->td_proc, (void *)args, &retval);
 
-  if (error != EJUSTRETURN)
-    mcontext_set_retval((mcontext_t *)ctx, error ? -1 : retval, error);
+  result->retval = error ? -1 : retval;
+  result->error = error;
 }
 
 static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
@@ -60,28 +61,18 @@ static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
   }
 
   vm_prot_t access = VM_PROT_READ;
-
   if (exception == EXCP_INSN_ABORT || exception == EXCP_INSN_ABORT_L) {
-    access = VM_PROT_EXEC;
+    access |= VM_PROT_EXEC;
   } else if (esr & ISS_DATA_WnR) {
     access |= VM_PROT_WRITE;
   }
 
-  paddr_t pa;
-  if (pmap_extract(pmap, vaddr, &pa)) {
-    vm_page_t *pg = vm_page_find(pa);
-
-    if (access & (VM_PROT_READ | VM_PROT_EXEC)) {
-      pmap_set_referenced(pg);
-    } else if (access & VM_PROT_WRITE) {
-      pmap_set_referenced(pg);
-      pmap_set_modified(pg);
-    } else {
-      kernel_oops(ctx);
-    }
-
+  int error = pmap_emulate_bits(pmap, vaddr, access);
+  if (error == 0)
     return;
-  }
+
+  if (error == EACCES || error == EINVAL)
+    goto fault;
 
   vm_map_t *vmap = vm_map_lookup(vaddr);
   if (!vmap) {
@@ -109,12 +100,14 @@ void user_trap_handler(mcontext_t *uctx) {
   ctx_t *ctx = (ctx_t *)uctx;
   register_t esr = READ_SPECIALREG(esr_el1);
   register_t far = READ_SPECIALREG(far_el1);
+  syscall_result_t result;
+  register_t exc_code = ESR_ELx_EXCEPTION(esr);
 
   cpu_intr_enable();
 
   assert(!intr_disabled() && !preempt_disabled());
 
-  switch (ESR_ELx_EXCEPTION(esr)) {
+  switch (exc_code) {
     case EXCP_INSN_ABORT_L:
     case EXCP_INSN_ABORT:
     case EXCP_DATA_ABORT_L:
@@ -123,7 +116,7 @@ void user_trap_handler(mcontext_t *uctx) {
       break;
 
     case EXCP_SVC64:
-      syscall_handler(ESR_ELx_SYSCALL(esr), ctx);
+      syscall_handler(ESR_ELx_SYSCALL(esr), ctx, &result);
       break;
 
     case EXCP_SP_ALIGN:
@@ -135,6 +128,10 @@ void user_trap_handler(mcontext_t *uctx) {
       sig_trap(ctx, SIGILL);
       break;
 
+    case EXCP_FP_SIMD:
+      thread_self()->td_pflags |= TDP_FPUINUSE;
+      break;
+
     default:
       kernel_oops(ctx);
   }
@@ -143,7 +140,7 @@ void user_trap_handler(mcontext_t *uctx) {
   on_exc_leave();
 
   /* If we're about to return to user mode then check pending signals, etc. */
-  on_user_exc_leave();
+  on_user_exc_leave(uctx, exc_code == EXCP_SVC64 ? &result : NULL);
 }
 
 void kern_trap_handler(ctx_t *ctx) {
@@ -151,7 +148,7 @@ void kern_trap_handler(ctx_t *ctx) {
   register_t far = READ_SPECIALREG(far_el1);
 
   /* If interrupts were enabled before we trapped, then turn them on here. */
-  if ((_REG(ctx, SPSR) & DAIF_I_MASKED) == 0)
+  if ((_REG(ctx, SPSR) & PSR_I) == 0)
     cpu_intr_enable();
 
   switch (ESR_ELx_EXCEPTION(esr)) {

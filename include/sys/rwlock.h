@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <sys/cdefs.h>
+#include <sys/mimiker.h>
 
 typedef enum { RW_READER, RW_WRITER } rwo_t;
 

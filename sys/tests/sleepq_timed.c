@@ -1,4 +1,4 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/sleepq.h>
 #include <sys/ktest.h>
 #include <sys/time.h>
@@ -22,7 +22,10 @@ static int wchan;
 #define THREADS 6
 #define SLEEP_TICKS 4
 
-static volatile int timed_received;
+/* Waiter threads that are signaled run one after another,
+ * so there's no race on signaled_received. However, the threads that time out
+ * may run concurrently, so we need to atomically increment timed_received. */
+static volatile atomic_int timed_received;
 static volatile int signaled_received;
 static volatile int signaled_sent;
 
@@ -36,7 +39,7 @@ static void waiter_routine(void *_arg) {
   systime_t diff = after_sleep - before_sleep;
 
   if (status == ETIMEDOUT) {
-    timed_received++;
+    atomic_fetch_add(&timed_received, 1);
     assert(diff >= SLEEP_TICKS);
   } else if (status == 0) {
     signaled_received++;
