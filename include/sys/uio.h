@@ -41,6 +41,18 @@ typedef struct uio {
 #define UIO_SINGLE_USER(op, offset, buf, buflen)                               \
   UIO_SINGLE(op, vm_map_user(), offset, buf, buflen)
 
+#define UIO_VECTOR(op, vm_map, iov, iovcnt, len)                               \
+  (uio_t) {                                                                    \
+    .uio_iov = (iov), .uio_iovcnt = (iovcnt), .uio_offset = 0,                 \
+    .uio_resid = (len), .uio_op = (op), .uio_vmspace = (vm_map)                \
+  }
+
+#define UIO_VECTOR_KERNEL(op, iov, iovcnt, len)                                \
+  UIO_VECTOR(op, vm_map_kernel(), iov, iovcnt, len)
+
+#define UIO_VECTOR_USER(op, iov, iovcnt, len)                                  \
+  UIO_VECTOR(op, vm_map_user(), iov, iovcnt, len)
+
 int uiomove(void *buf, size_t n, uio_t *uio);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
 /* NOTE: after successful return, the caller is responsible for freeing
