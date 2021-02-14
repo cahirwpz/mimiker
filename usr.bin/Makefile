@@ -14,13 +14,14 @@ SUBDIR = \
 	 join \
 	 login \
 	 mkfifo \
-	 stat \
+   script \
 	 seq \
-	 tail \
+	 stat \
+	 su \
+   tail \
 	 tr \
 	 uniq \
-	 wc \
-	 su
+	 wc
 
 all: build
 

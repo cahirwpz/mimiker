@@ -77,6 +77,8 @@ UTEST_ADD_SIMPLE(fd_bad_desc);
 UTEST_ADD_SIMPLE(fd_open_path);
 UTEST_ADD_SIMPLE(fd_dup);
 UTEST_ADD_SIMPLE(fd_pipe);
+UTEST_ADD_SIMPLE(fd_readv);
+UTEST_ADD_SIMPLE(fd_writev);
 UTEST_ADD_SIMPLE(fd_all);
 
 UTEST_ADD_SIMPLE(signal_basic);

@@ -7,7 +7,7 @@
 
 int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p) {
-  *handle_p = kmem_map(addr, size, PMAP_NOCACHE);
+  *handle_p = kmem_map_contig(addr, size, PMAP_NOCACHE);
   return 0;
 }
 

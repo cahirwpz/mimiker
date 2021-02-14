@@ -61,6 +61,7 @@ define SS_ONSTACK       SS_ONSTACK
 define _UC_SIGMASK      _UC_SIGMASK
 define _UC_CPU          _UC_CPU
 define _UC_FPU          _UC_FPU
+define _UC_STACK        _UC_STACK
 
 define UC_FPREGS_Q0 offsetof(ucontext_t, uc_mcontext.__fregs.__qregs[0])
 define UC_FPREGS_Q1 offsetof(ucontext_t, uc_mcontext.__fregs.__qregs[1])
