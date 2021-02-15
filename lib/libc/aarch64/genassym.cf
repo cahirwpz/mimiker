@@ -2,8 +2,10 @@ include <sys/types.h>
 include <ucontext.h>
 include <signal.h>
 include <aarch64/abi.h>
+include <aarch64/armreg.h>
 
 define CALLFRAME_SIZ        CALLFRAME_SIZ
+define PSR_NZCV             PSR_NZCV
 define UCONTEXT_SIZE		sizeof(ucontext_t)
 
 define UC_REGS_X0 offsetof(ucontext_t, uc_mcontext.__gregs[_REG_X0])

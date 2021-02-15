@@ -58,8 +58,18 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
   mcontext_t *from = &uc->uc_mcontext;
   mcontext_t *to = td->td_uctx;
 
-  if (uc->uc_flags & _UC_CPU)
-    memcpy(&to->__gregs, &from->__gregs, sizeof(register_t) * (_REG_ELR + 1));
+  if (uc->uc_flags & _UC_CPU) {
+    register_t spsr = _REG(from, SPSR);
+    /* Validate CPU context. */
+    if (spsr & ~PSR_NZCV)
+      return EINVAL;
+
+    /* Allow only NZCV bits modification. */
+    spsr = (_REG(from, SPSR) & ~PSR_NZCV) | (_REG(to, SPSR) & PSR_NZCV);
+    _REG(from, SPSR) = spsr;
+
+    memcpy(&to->__gregs, &from->__gregs, sizeof(__gregset_t));
+  }
 
   /* 32 FP registers + FPCR + FPSR */
   if (uc->uc_flags & _UC_FPU)
