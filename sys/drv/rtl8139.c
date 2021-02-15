@@ -41,8 +41,14 @@ static int rtl_reset(rtl8139_state_t *state) {
 
 static intr_filter_t rtl8139_intr(void *data) {
   rtl8139_state_t *state = data;
-  /* TODO: add enqueue routines */
-  bus_write_2(state->regs, RL_ISR, RL_ISR_RX_OK);
+  uint16_t status = bus_read_2(state->regs, RL_ISR);
+
+  if (status & RL_ISR_RX_OK) {
+    bus_write_2(state->regs, RL_ISR, RL_ISR_RX_OK);
+    /* TODO: add enqueue routines */
+    return IF_FILTERED;
+  }
+
   return IF_STRAY;
 }
 
