@@ -391,3 +391,15 @@ typedef struct {
   SYSCALLARG(const struct timespec *) times;
   SYSCALLARG(int) flag;
 } utimensat_args_t;
+
+typedef struct {
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const struct iovec *) iov;
+  SYSCALLARG(int) iovcnt;
+} readv_args_t;
+
+typedef struct {
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const struct iovec *) iov;
+  SYSCALLARG(int) iovcnt;
+} writev_args_t;
