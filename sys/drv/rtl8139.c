@@ -36,7 +36,7 @@ static int rtl_reset(rtl8139_state_t *state) {
       return 0;
   }
 
-  return 1;
+  return EAGAIN;
 }
 
 static intr_filter_t rtl8139_intr(void *data) {
@@ -60,6 +60,12 @@ static int rtl8139_attach(device_t *dev) {
     goto error;
   }
 
+  if (rtl_reset(state)) {
+    klog("Failed to reset device!");
+    err = ENXIO;
+    goto error;
+  }
+
   state->regs = device_take_memory(dev, 1, RF_ACTIVE);
   state->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
   if (!state->regs || !state->irq_res) {
@@ -70,12 +76,6 @@ static int rtl8139_attach(device_t *dev) {
   bus_intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
 
   /* TODO: introduce ring buffer */
-
-  if (rtl_reset(state)) {
-    klog("Failed to reset device!");
-    err = ENXIO;
-    goto error;
-  }
 
   /* set-up address for DMA */
   bus_write_4(state->regs, RL_RXADDR, state->rx_buf_physaddr);
