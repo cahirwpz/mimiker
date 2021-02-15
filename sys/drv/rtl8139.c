@@ -96,9 +96,6 @@ static int rtl8139_attach(device_t *dev) {
 
   return 0;
 error:
-  if (state->irq_res)
-    bus_intr_teardown(dev, state->irq_res);
-
   if (state->rx_buf)
     kmem_free((void *)state->rx_buf, RX_BUF_SIZE);
 
