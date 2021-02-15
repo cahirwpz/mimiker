@@ -738,6 +738,7 @@
 #define PSR_C 0x20000000
 #define PSR_Z 0x40000000
 #define PSR_N 0x80000000
+#define PSR_NZCV (PSR_N | PSR_Z | PSR_C | PSR_V)
 #define PSR_FLAGS 0xf0000000
 
 /* TCR_EL1 - Translation Control Register */
