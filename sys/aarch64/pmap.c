@@ -38,22 +38,24 @@ static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 #define DMAP_BASE 0xffffff8000000000 /* last 512GB */
 #define PHYS_TO_DMAP(x) ((intptr_t)(x) + DMAP_BASE)
 
-static const pte_t pte_common = L3_PAGE | ATTR_AF | ATTR_SH_IS;
+static const pte_t pte_common = L3_PAGE | ATTR_SH_IS;
 static const pte_t pte_noexec = ATTR_XN | ATTR_SW_NOEXEC;
 
 static const pte_t vm_prot_map[] = {
-  [VM_PROT_NONE] = L3_PAGE | ATTR_SH_IS | pte_noexec,
-  [VM_PROT_READ] = ATTR_AP_RO | ATTR_SW_READ | pte_noexec | pte_common,
+  [VM_PROT_NONE] = pte_noexec | pte_common,
+  [VM_PROT_READ] =
+    ATTR_AP_RO | ATTR_SW_READ | ATTR_AF | pte_noexec | pte_common,
   [VM_PROT_WRITE] =
-    ATTR_AP_RW | ATTR_SW_WRITE | ATTR_DBM | pte_noexec | pte_common,
+    ATTR_AP_RW | ATTR_SW_WRITE | ATTR_DBM | ATTR_AF | pte_noexec | pte_common,
   [VM_PROT_READ | VM_PROT_WRITE] = ATTR_AP_RW | ATTR_SW_READ | ATTR_SW_WRITE |
-                                   ATTR_DBM | pte_noexec | pte_common,
-  [VM_PROT_EXEC] = pte_common,
-  [VM_PROT_READ | VM_PROT_EXEC] = ATTR_AP_RO | ATTR_SW_READ | pte_common,
+                                   ATTR_DBM | ATTR_AF | pte_noexec | pte_common,
+  [VM_PROT_EXEC] = ATTR_AF | pte_common,
+  [VM_PROT_READ | VM_PROT_EXEC] =
+    ATTR_AP_RO | ATTR_SW_READ | ATTR_AF | pte_common,
   [VM_PROT_WRITE | VM_PROT_EXEC] =
-    ATTR_AP_RW | ATTR_SW_WRITE | ATTR_DBM | pte_common,
+    ATTR_AP_RW | ATTR_SW_WRITE | ATTR_DBM | ATTR_AF | pte_common,
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] =
-    ATTR_AP_RW | ATTR_SW_READ | ATTR_SW_WRITE | ATTR_DBM | pte_common,
+    ATTR_AP_RW | ATTR_SW_READ | ATTR_SW_WRITE | ATTR_DBM | ATTR_AF | pte_common,
 };
 
 static pmap_t kernel_pmap;
