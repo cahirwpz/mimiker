@@ -52,14 +52,6 @@ static int rtl8139_attach(device_t *dev) {
 
   pci_enable_busmaster(dev);
 
-  state->regs = device_take_memory(dev, 1, RF_ACTIVE);
-  state->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
-  if (!state->regs || !state->irq_res) {
-    klog("Failed to init resources!");
-    return ENXIO;
-  }
-  bus_intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
-
   state->rx_buf =
     kmem_alloc_contig(&state->rx_buf_physaddr, RX_BUF_SIZE, PMAP_NOCACHE);
   if (!state->rx_buf) {
@@ -67,6 +59,15 @@ static int rtl8139_attach(device_t *dev) {
     err = ENOMEM;
     goto error;
   }
+
+  state->regs = device_take_memory(dev, 1, RF_ACTIVE);
+  state->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
+  if (!state->regs || !state->irq_res) {
+    klog("Failed to init resources!");
+    err = ENXIO;
+    goto error;
+  }
+  bus_intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
 
   /* TODO: introduce ring buffer */
 
@@ -85,10 +86,11 @@ static int rtl8139_attach(device_t *dev) {
 
   return 0;
 error:
+  if (state->irq_res)
+    bus_intr_teardown(dev, state->irq_res);
+
   if (state->rx_buf)
     kmem_free((void *)state->rx_buf, RX_BUF_SIZE);
-
-  bus_intr_teardown(dev, state->irq_res);
 
   return err;
 }
