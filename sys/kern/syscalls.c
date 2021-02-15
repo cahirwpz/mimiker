@@ -1149,3 +1149,55 @@ end:
   kfree(M_TEMP, path);
   return error;
 }
+
+static int sys_readv(proc_t *p, readv_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const iovec_t *u_iov = SCARG(args, iov);
+  int iovcnt = SCARG(args, iovcnt);
+  size_t len;
+  int error;
+
+  if (iovcnt <= 0 || iovcnt > IOV_MAX)
+    return EINVAL;
+
+  const size_t iov_size = sizeof(iovec_t) * iovcnt;
+  iovec_t *k_iov = kmalloc(M_TEMP, iov_size, 0);
+
+  if ((error = copyin(u_iov, k_iov, iov_size)) ||
+      (error = iovec_length(k_iov, iovcnt, &len)))
+    goto end;
+
+  uio_t uio = UIO_VECTOR_USER(UIO_READ, k_iov, iovcnt, len);
+  error = do_read(p, fd, &uio);
+  *res = len - uio.uio_resid;
+
+end:
+  kfree(M_TEMP, k_iov);
+  return error;
+}
+
+static int sys_writev(proc_t *p, writev_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const iovec_t *u_iov = SCARG(args, iov);
+  int iovcnt = SCARG(args, iovcnt);
+  size_t len;
+  int error;
+
+  if (iovcnt <= 0 || iovcnt > IOV_MAX)
+    return EINVAL;
+
+  const size_t iov_size = sizeof(iovec_t) * iovcnt;
+  iovec_t *k_iov = kmalloc(M_TEMP, iov_size, 0);
+
+  if ((error = copyin(u_iov, k_iov, iov_size)) ||
+      (error = iovec_length(k_iov, iovcnt, &len)))
+    goto end;
+
+  uio_t uio = UIO_VECTOR_USER(UIO_WRITE, k_iov, iovcnt, len);
+  error = do_write(p, fd, &uio);
+  *res = len - uio.uio_resid;
+
+end:
+  kfree(M_TEMP, k_iov);
+  return error;
+}

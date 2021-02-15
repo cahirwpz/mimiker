@@ -13,7 +13,7 @@
  */
 static void delay(int64_t count) {
   __asm__ volatile("1: subs %[count], %[count], #1; bne 1b"
-                   : [count] "+r"(count));
+                   : [ count ] "+r"(count));
 }
 
 void bcm2835_gpio_function_select(resource_t *r, unsigned pin,

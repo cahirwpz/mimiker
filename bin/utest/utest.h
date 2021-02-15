@@ -25,6 +25,8 @@ int test_fd_bad_desc(void);
 int test_fd_open_path(void);
 int test_fd_dup(void);
 int test_fd_pipe(void);
+int test_fd_readv(void);
+int test_fd_writev(void);
 int test_fd_all(void);
 
 int test_signal_basic(void);
