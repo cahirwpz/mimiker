@@ -65,7 +65,7 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
       return EINVAL;
 
     /* Allow only NZCV bits modification. */
-    spsr = (_REG(from, SPSR) & ~PSR_NZCV) | (_REG(to, SPSR) & PSR_NZCV);
+    spsr = (_REG(from, SPSR) & PSR_NZCV) | (_REG(to, SPSR) & ~PSR_NZCV);
     _REG(from, SPSR) = spsr;
 
     memcpy(&to->__gregs, &from->__gregs, sizeof(__gregset_t));
