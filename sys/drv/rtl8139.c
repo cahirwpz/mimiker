@@ -63,25 +63,25 @@ static int rtl8139_attach(device_t *dev) {
   if (!state->rx_buf) {
     klog("Failed to alloc memory for the receive buffer!");
     err = ENOMEM;
-    goto error;
+    goto fail;
   }
   state->regs = device_take_memory(dev, 1, RF_ACTIVE);
   if (!state->regs) {
     klog("Failed to init regs resource!");
     err = ENXIO;
-    goto error;
+    goto fail;
   }
 
   if ((err = rtl_reset(state))) {
     klog("Failed to reset device!");
-    goto error;
+    goto fail;
   }
 
   state->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
   if (!state->irq_res) {
     klog("Failed to init irq resources!");
     err = ENXIO;
-    goto error;
+    goto fail;
   }
   bus_intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
 
@@ -95,7 +95,7 @@ static int rtl8139_attach(device_t *dev) {
   bus_write_2(state->regs, RL_IMR, RL_ISR_RX_OK);
 
   return 0;
-error:
+fail:
   if (state->rx_buf)
     kmem_free((void *)state->rx_buf, RX_BUF_SIZE);
 
