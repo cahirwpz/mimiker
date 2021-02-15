@@ -65,6 +65,12 @@ static int rtl8139_attach(device_t *dev) {
     err = ENOMEM;
     goto error;
   }
+  state->regs = device_take_memory(dev, 1, RF_ACTIVE);
+  if (!state->regs) {
+    klog("Failed to init regs resource!");
+    err = ENXIO;
+    goto error;
+  }
 
   if (rtl_reset(state)) {
     klog("Failed to reset device!");
@@ -72,10 +78,9 @@ static int rtl8139_attach(device_t *dev) {
     goto error;
   }
 
-  state->regs = device_take_memory(dev, 1, RF_ACTIVE);
   state->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
-  if (!state->regs || !state->irq_res) {
-    klog("Failed to init resources!");
+  if (!state->irq_res) {
+    klog("Failed to init irq resources!");
     err = ENXIO;
     goto error;
   }
