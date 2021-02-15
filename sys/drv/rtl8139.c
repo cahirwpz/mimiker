@@ -72,9 +72,8 @@ static int rtl8139_attach(device_t *dev) {
     goto error;
   }
 
-  if (rtl_reset(state)) {
+  if ((err = rtl_reset(state))) {
     klog("Failed to reset device!");
-    err = ENXIO;
     goto error;
   }
 
