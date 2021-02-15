@@ -64,7 +64,8 @@ static int rtl8139_attach(device_t *dev) {
     kmem_alloc_contig(&state->rx_buf_physaddr, RX_BUF_SIZE, PMAP_NOCACHE);
   if (!state->rx_buf) {
     klog("Failed to alloc memory for the receive buffer!");
-    return ENOMEM;
+    err = ENOMEM;
+    goto error;
   }
 
   /* TODO: introduce ring buffer */
@@ -86,6 +87,8 @@ static int rtl8139_attach(device_t *dev) {
 error:
   if (state->rx_buf)
     kmem_free((void *)state->rx_buf, RX_BUF_SIZE);
+
+  bus_intr_teardown(dev, state->irq_res);
 
   return err;
 }
