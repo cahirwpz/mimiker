@@ -19,18 +19,22 @@ static KMALLOC_DEFINE(M_SIGNAL, "signal");
  * Non-mutually-exclusive properties can be bitwise-ORed together.
  * \note Properties that have set bits in common with #SA_DEFACT_MASK
  * are mutually exclusive and denote the default action of the signal. */
-/* clang-format off */
 typedef enum {
+  SA_CATCH = 0x0, /* Used only in sig_kill() */
   SA_IGNORE = 0x1,
   SA_KILL = 0x2,
-  SA_CONT = 0x3, /* Continue a stopped process */
-  SA_STOP = 0x4, /* Stop a process */
+  SA_STOP = 0x3, /* Stop a process */
+  SA_CONT = 0x4, /* Continue a stopped process */
   SA_CANTMASK = 0x8,
-  SA_TTYSTOP = 0x10,             /* Stop signal sent by TTY subsystem */
+  SA_TTYSTOP = 0x10, /* Stop signal sent by TTY subsystem */
 } sigprop_t;
 
 /*!\brief Mask used to extract the default action from a sigprop_t. */
-#define SA_DEFACT_MASK 0x7
+#define SA_DEFACT_MASK 0x3
+
+static const sigset_t cantmask = {__sigmask(SIGKILL) | __sigmask(SIGSTOP)};
+static const sigset_t stopmask = {__sigmask(SIGSTOP) | __sigmask(SIGTSTP) |
+                                  __sigmask(SIGTTOU) | __sigmask(SIGTTIN)};
 
 /* clang-format off */
 static const sigprop_t sig_properties[NSIG] = {
@@ -41,11 +45,11 @@ static const sigprop_t sig_properties[NSIG] = {
   [SIGABRT] = SA_KILL,
   [SIGFPE] = SA_KILL,
   [SIGSEGV] = SA_KILL,
-  [SIGKILL] = SA_KILL | SA_CANTMASK,
+  [SIGKILL] = SA_KILL | SA_CANTMASK | SA_CONT,
   [SIGTERM] = SA_KILL,
   [SIGSTOP] = SA_STOP | SA_CANTMASK,
   [SIGTSTP] = SA_STOP | SA_TTYSTOP,
-  [SIGCONT] = SA_CONT,
+  [SIGCONT] = SA_IGNORE | SA_CONT,
   [SIGCHLD] = SA_IGNORE,
   [SIGTTIN] = SA_STOP | SA_TTYSTOP,
   [SIGTTOU] = SA_STOP | SA_TTYSTOP,
@@ -54,8 +58,6 @@ static const sigprop_t sig_properties[NSIG] = {
   [SIGUSR2] = SA_KILL,
   [SIGBUS] = SA_KILL,
 };
-
-static const sigset_t cantmask = {__sigmask(SIGKILL) | __sigmask(SIGSTOP)};
 
 static const char *sig_name[NSIG] = {
   [SIGHUP] = "SIGHUP",
@@ -90,8 +92,7 @@ static sigprop_t defact(signo_t sig) {
 
 static inline bool sig_ignored(sigaction_t *sigactions, signo_t sig) {
   return (sigactions[sig].sa_handler == SIG_IGN ||
-          (sigactions[sig].sa_handler == SIG_DFL &&
-           (defact(sig) == SA_IGNORE || sig == SIGCONT)));
+          (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_IGNORE));
 }
 
 /* Members of an orphaned process group should ignore
@@ -210,6 +211,13 @@ static void ksiginfo_free(ksiginfo_t *ksi) {
   kfree(M_SIGNAL, ksi);
 }
 
+static void ksiginfo_unqueue(ksiginfo_t *ksi, sigpend_t *sp) {
+  TAILQ_REMOVE(&sp->sp_info, ksi, ksi_list);
+  assert(ksi->ksi_flags & KSI_FROMPOOL);
+  assert(ksi->ksi_flags & KSI_QUEUED);
+  ksi->ksi_flags &= ~KSI_QUEUED;
+}
+
 void sigpend_init(sigpend_t *sp) {
   assert(sp != NULL);
   TAILQ_INIT(&sp->sp_info);
@@ -250,15 +258,24 @@ static void sigpend_get(sigpend_t *sp, signo_t sig, ksiginfo_t *out) {
     return;
   }
 
-  TAILQ_REMOVE(&sp->sp_info, ksi, ksi_list);
-  assert(ksi->ksi_flags & KSI_FROMPOOL);
-  assert(ksi->ksi_flags & KSI_QUEUED);
-  ksi->ksi_flags &= ~KSI_QUEUED;
+  ksiginfo_unqueue(ksi, sp);
   if (out) {
     memcpy(out, ksi, sizeof(ksiginfo_t));
     out->ksi_flags &= ~KSI_FROMPOOL;
   }
   ksiginfo_free(ksi);
+}
+
+static void sigpend_delete_set(sigpend_t *sp, const sigset_t *set) {
+  __sigminusset(set, &sp->sp_set);
+
+  ksiginfo_t *ksi;
+  TAILQ_FOREACH (ksi, &sp->sp_info, ksi_list) {
+    if (__sigismember(set, ksi->ksi_signo)) {
+      ksiginfo_unqueue(ksi, sp);
+      ksiginfo_free(ksi);
+    }
+  }
 }
 
 static void sigpend_put(sigpend_t *sp, ksiginfo_t *ksi) {
@@ -329,70 +346,59 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
     return;
 
   thread_t *td = p->p_thread;
-
   sig_t handler = p->p_sigactions[sig].sa_handler;
-  bool continued = sig == SIGCONT || sig == SIGKILL;
+  sigprop_t prop = sig_properties[sig];
+  sigprop_t action;
 
-  /* If the signal is ignored, don't even bother posting it,
-   * unless it's waking up a stopped process. */
-  if (p->p_state == PS_STOPPED && continued) {
-    p->p_state = PS_NORMAL;
-    p->p_flags |= PF_STATE_CHANGED;
-    WITH_PROC_LOCK(p->p_parent) {
-      proc_wakeup_parent(p->p_parent);
-    }
-  } else if (handler == SIG_IGN ||
-             (defact(sig) == SA_IGNORE && handler == SIG_DFL)) {
+  if (handler == SIG_DFL)
+    action = prop & SA_DEFACT_MASK;
+  else if (handler == SIG_IGN)
+    action = SA_IGNORE;
+  else
+    action = SA_CATCH;
+
+  if (action == SA_IGNORE && !(prop & SA_CONT))
     return;
-  }
 
   /* Theoretically, we should hold all_proc_mtx since sig_ignore_ttystop()
    * reads pg_jobc, but the race here is harmless. */
   if (sig_ignore_ttystop(p, sig))
     return;
 
-  /* If stopping or continuing,
+  /* If sending a stop or continue signal,
    * remove pending signals with the opposite effect. */
-  if (defact(sig) == SA_STOP)
+  if ((prop & SA_DEFACT_MASK) == SA_STOP) {
     sigpend_get(&td->td_sigpend, SIGCONT, NULL);
-
-  ksiginfo_t *kp = ksiginfo_copy(ksi);
-
-  if (sig == SIGCONT) {
-    /* XXX there should be a better way to do this. */
-    sigpend_get(&td->td_sigpend, SIGSTOP, NULL);
-    sigpend_get(&td->td_sigpend, SIGTTIN, NULL);
-    sigpend_get(&td->td_sigpend, SIGTTOU, NULL);
-
-    /* In case of SIGCONT, make it pending only if the process catches it. */
-    if (handler != SIG_IGN && handler != SIG_DFL)
-      sigpend_put(&td->td_sigpend, kp);
-    else
-      ksiginfo_free(kp);
-  } else {
-    /* Every other signal is marked as pending. */
-    sigpend_put(&td->td_sigpend, kp);
+  } else if (prop & SA_CONT) {
+    sigpend_delete_set(&td->td_sigpend, &stopmask);
+    if (p->p_state == PS_STOPPED) {
+      p->p_state = PS_NORMAL;
+      p->p_flags |= PF_STATE_CHANGED;
+      WITH_PROC_LOCK(p->p_parent) {
+        proc_wakeup_parent(p->p_parent);
+      }
+      WITH_SPIN_LOCK (td->td_lock) { thread_continue(td); }
+    }
+    if (action == SA_IGNORE)
+      return;
   }
 
-  /* Don't wake up the target thread if it blocks the signal being sent.
-   * Exception: SIGCONT wakes up stopped threads even if it's blocked. */
-  if (__sigismember(&td->td_sigmask, sig)) {
-    if (continued)
-      WITH_SPIN_LOCK (td->td_lock)
-        thread_continue(td);
-  } else {
-    WITH_SPIN_LOCK (td->td_lock) {
-      td->td_flags |= TDF_NEEDSIGCHK;
-      /* If the thread is sleeping interruptibly (!), wake it up, so that it
-       * continues execution and the signal gets delivered soon. */
-      if (td_is_interruptible(td)) {
-        /* XXX Maybe TDF_NEEDSIGCHK should be protected by a different lock? */
-        spin_unlock(td->td_lock);
-        sleepq_abort(td); /* Locks & unlocks td_lock */
-        spin_lock(td->td_lock);
-      } else if (continued) {
-        thread_continue(td);
-      }
+  /* Only signals with action != SA_IGNORE reach this point. */
+  sigpend_put(&td->td_sigpend, ksiginfo_copy(ksi));
+
+  /* Don't wake up the target thread if it blocks the signal being sent. */
+  if (__sigismember(&td->td_sigmask, sig))
+    return;
+
+  WITH_SPIN_LOCK (td->td_lock) {
+    td->td_flags |= TDF_NEEDSIGCHK;
+    /* If the thread is sleeping interruptibly (!), wake it up, so that it
+     * continues execution and the signal gets delivered soon. */
+    if (td_is_interruptible(td)) {
+      /* XXX Maybe TDF_NEEDSIGCHK should be protected by a different lock? */
+      spin_unlock(td->td_lock);
+      sleepq_abort(td); /* Locks & unlocks td_lock */
+      spin_lock(td->td_lock);
     }
   }
 }
@@ -432,7 +438,7 @@ void sig_onexec(proc_t *p) {
     sigact->sa_handler = SIG_DFL;
     sigact->sa_flags = 0;
     __sigemptyset(&sigact->sa_mask);
-    if (defact(sig) == SA_IGNORE || defact(sig) == SA_CONT)
+    if (defact(sig) == SA_IGNORE)
       sigpend_get(&td->td_sigpend, sig, NULL);
   }
 }
