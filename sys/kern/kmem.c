@@ -79,8 +79,9 @@ void kva_unmap(vaddr_t va, size_t size) {
 
   kasan_mark_invalid((void *)va, size, KASAN_CODE_KMEM_FREED);
 
+  size_t end = va + size;
   size_t pgsz;
-  for (; va < va + size; va += pgsz) {
+  for (; va < end; va += pgsz) {
     vm_page_t *pg = kva_find_page(va);
     assert(pg != NULL);
     pgsz = pg->size * PAGESIZE;
