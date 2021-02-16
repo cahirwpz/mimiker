@@ -56,7 +56,7 @@ class GdbStructMeta(type):
                     return lambda x: x._obj[fname]
 
                 # use cast function if available
-                def __caster(x):
+                def _caster(x):
                     val = x._obj[fname]
                     try:
                         return caster(val)
