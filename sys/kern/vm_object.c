@@ -17,7 +17,7 @@ vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   return obj;
 }
 
-vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset) {
+vm_page_t *vm_object_find_page(vm_object_t *obj, vm_offset_t offset) {
   SCOPED_MTX_LOCK(&obj->mtx);
 
   vm_page_t *pg;
@@ -29,7 +29,7 @@ vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset) {
   return NULL;
 }
 
-void vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *pg) {
+void vm_object_add_page(vm_object_t *obj, vm_offset_t offset, vm_page_t *pg) {
   assert(page_aligned_p(pg->offset));
   /* For simplicity of implementation let's insert pages of size 1 only */
   assert(pg->size == 1);
@@ -55,15 +55,16 @@ void vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *pg) {
   }
 }
 
-static void vmo_remove_pages_nolock(vm_object_t *obj, off_t off, size_t len) {
+static void vmo_remove_pages_nolock(vm_object_t *obj, vm_offset_t offset,
+                                    size_t length) {
   assert(mtx_owned(&obj->mtx));
-  assert(page_aligned_p(off) && page_aligned_p(len));
+  assert(page_aligned_p(offset) && page_aligned_p(length));
 
   vm_page_t *pg, *next;
   TAILQ_FOREACH_SAFE (pg, &obj->list, obj.list, next) {
-    if (pg->offset >= (off_t)(off + len))
+    if (pg->offset >= offset + length)
       break;
-    if (pg->offset < off)
+    if (pg->offset < offset)
       continue;
 
     pg->offset = 0;
@@ -74,7 +75,7 @@ static void vmo_remove_pages_nolock(vm_object_t *obj, off_t off, size_t len) {
   }
 }
 
-void vm_object_remove_pages(vm_object_t *obj, off_t off, size_t len) {
+void vm_object_remove_pages(vm_object_t *obj, vm_offset_t off, size_t len) {
   SCOPED_MTX_LOCK(&obj->mtx);
   vmo_remove_pages_nolock(obj, off, len);
 }
