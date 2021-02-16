@@ -55,8 +55,8 @@ void vm_object_add_page(vm_object_t *obj, vm_offset_t offset, vm_page_t *pg) {
   }
 }
 
-static void vmo_remove_pages_nolock(vm_object_t *obj, vm_offset_t offset,
-                                    size_t length) {
+static void vm_object_remove_pages_nolock(vm_object_t *obj, vm_offset_t offset,
+                                          size_t length) {
   assert(mtx_owned(&obj->mtx));
   assert(page_aligned_p(offset) && page_aligned_p(length));
 
@@ -77,7 +77,7 @@ static void vmo_remove_pages_nolock(vm_object_t *obj, vm_offset_t offset,
 
 void vm_object_remove_pages(vm_object_t *obj, vm_offset_t off, size_t len) {
   SCOPED_MTX_LOCK(&obj->mtx);
-  vmo_remove_pages_nolock(obj, off, len);
+  vm_object_remove_pages_nolock(obj, off, len);
 }
 
 void vm_object_free(vm_object_t *obj) {
