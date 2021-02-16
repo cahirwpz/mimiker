@@ -80,11 +80,14 @@ void vm_object_remove_pages(vm_object_t *obj, vm_offset_t off, size_t len) {
   vm_object_remove_pages_nolock(obj, off, len);
 }
 
+#define vm_object_remove_all_pages(obj)                                        \
+  vm_object_remove_pages((obj), 0, -PAGESIZE)
+
 void vm_object_free(vm_object_t *obj) {
   if (!refcnt_release(&obj->ref_counter))
     return;
 
-  vm_object_remove_pages(obj, 0, -PAGESIZE);
+  vm_object_remove_all_pages(obj);
   pool_free(P_VMOBJ, obj);
 }
 
