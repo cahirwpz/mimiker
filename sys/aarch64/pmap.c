@@ -38,6 +38,28 @@ static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 #define DMAP_BASE 0xffffff8000000000 /* last 512GB */
 #define PHYS_TO_DMAP(x) ((intptr_t)(x) + DMAP_BASE)
 
+/*
+ * This table describes which access bits need to be set in page table entry
+ * for successful memory translation by MMU. Other configurations causes memory
+ * fault - see aarch64/trap.c.
+ *
+ * +--------------+----+------+----+----+
+ * |    access    | AF | USER | RO | XN |
+ * +==============+====+======+====+====+
+ * | user read    | 1  | 1    | *  | *  |
+ * +--------------+----+------+----+----+
+ * | user write   | 1  | 1    | 0  | *  |
+ * +--------------+----+------+----+----+
+ * | user exec    | 1  | 1    | *  | 0  |
+ * +--------------+----+------+----+----+
+ * | kernel read  | 1  | *    | *  | *  |
+ * +--------------+----+------+----+----+
+ * | kernel write | 1  | *    | 0  | *  |
+ * +--------------+----+------+----+----+
+ * | kernel exec  | 1  | *    | *  | 0  |
+ * +--------------+----+------+----+----+
+ */
+
 static const pte_t pte_common = L3_PAGE | ATTR_SH_IS;
 static const pte_t pte_noexec = ATTR_XN | ATTR_SW_NOEXEC;
 
