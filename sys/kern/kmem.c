@@ -74,21 +74,19 @@ vm_page_t *kva_find_page(vaddr_t ptr) {
   return NULL;
 }
 
-void kva_unmap(vaddr_t ptr, size_t size) {
-  assert(page_aligned_p(ptr) && page_aligned_p(size));
+void kva_unmap(vaddr_t va, size_t size) {
+  assert(page_aligned_p(va) && page_aligned_p(size));
 
-  kasan_mark_invalid((void *)ptr, size, KASAN_CODE_KMEM_FREED);
+  kasan_mark_invalid((void *)va, size, KASAN_CODE_KMEM_FREED);
 
-  vaddr_t va = (vaddr_t)ptr;
-  vaddr_t end = va + size;
-  while (va < end) {
+  size_t pgsz;
+  for (; va < va + size; va += pgsz) {
     vm_page_t *pg = kva_find_page(va);
     assert(pg != NULL);
-    va += pg->size * PAGESIZE;
+    pgsz = pg->size * PAGESIZE;
+    pmap_kremove(va, pgsz);
     vm_page_free(pg);
   }
-
-  pmap_kremove((vaddr_t)ptr, size);
 }
 
 void *kmem_alloc(size_t size, kmem_flags_t flags) {

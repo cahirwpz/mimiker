@@ -172,7 +172,7 @@ void vm_segment_destroy_range(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
   }
 
   size_t length = end - start;
-  vm_object_remove_range(seg->object, start - seg->start, length);
+  vm_object_remove_pages(seg->object, start - seg->start, length);
   pmap_remove(map->pmap, start, end);
 
   if (seg->start == start) {
@@ -181,8 +181,8 @@ void vm_segment_destroy_range(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
     seg->end = start;
   } else { /* a hole inside the segment */
     vm_object_t *obj = vm_object_clone(seg->object);
-    vm_object_remove_range(obj, 0, start - seg->start);
-    vm_object_remove_range(seg->object, end - seg->start, seg->end - end);
+    vm_object_remove_pages(obj, 0, start - seg->start);
+    vm_object_remove_pages(seg->object, end - seg->start, seg->end - end);
     vm_segment_t *new_seg =
       vm_segment_alloc(obj, end, seg->end, seg->prot, seg->flags);
     seg->end = start;
@@ -331,7 +331,7 @@ int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
     /* Shrinking entry */
     off_t offset = new_end - seg->start;
     size_t length = seg->end - new_end;
-    vm_object_remove_range(seg->object, offset, length);
+    vm_object_remove_pages(seg->object, offset, length);
     /* TODO there's no reference to pmap in page, so we have to do it here */
     pmap_remove(map->pmap, new_end, seg->end);
   }

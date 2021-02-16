@@ -293,7 +293,6 @@ static void pm_free_from_seg(vm_physseg_t *seg, vm_page_t *page) {
   PAGECOUNT(page)++;
   page->flags |= PG_MANAGED;
   for (unsigned i = 0; i < page->size; i++) {
-    pmap_page_remove(&page[i]);
     page[i].flags &= ~PG_ALLOCATED;
     page[i].flags &= ~(PG_REFERENCED | PG_MODIFIED);
   }
