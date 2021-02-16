@@ -107,9 +107,7 @@ UTEST_ADD_SIMPLE(fstat);
 
 UTEST_ADD_SIMPLE(setjmp);
 
-#ifdef __mips__
 UTEST_ADD_SIMPLE(sigaction_with_setjmp);
-#endif
 UTEST_ADD_SIMPLE(sigaction_handler_returns);
 
 UTEST_ADD_SIMPLE(vfs_dir);
