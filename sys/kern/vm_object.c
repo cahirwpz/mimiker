@@ -83,7 +83,7 @@ void vm_object_free(vm_object_t *obj) {
   if (!refcnt_release(&obj->ref_counter))
     return;
 
-  vm_object_remove_pages(obj, 0, ~0);
+  vm_object_remove_pages(obj, 0, -PAGESIZE);
   pool_free(P_VMOBJ, obj);
 }
 
