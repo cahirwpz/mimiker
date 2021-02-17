@@ -81,7 +81,7 @@ void vm_object_remove_pages(vm_object_t *obj, vm_offset_t off, size_t len) {
 }
 
 #define vm_object_remove_all_pages(obj)                                        \
-  vm_object_remove_pages((obj), 0, -PAGESIZE)
+  vm_object_remove_pages((obj), 0, (size_t)(-PAGESIZE))
 
 void vm_object_free(vm_object_t *obj) {
   if (!refcnt_release(&obj->ref_counter))
