@@ -133,6 +133,11 @@ void user_trap_handler(mcontext_t *uctx) {
       thread_self()->td_pflags |= TDP_FPUINUSE;
       break;
 
+    case EXCP_BRKPT_EL0:
+    case EXCP_BRK:
+      sig_trap(ctx, SIGTRAP);
+      break;
+
     default:
       kernel_oops(ctx);
   }

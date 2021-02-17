@@ -68,6 +68,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(exc_unknown_instruction);
   CHECKRUN_TEST(exc_msr_instruction);
   CHECKRUN_TEST(exc_mrs_instruction);
+  CHECKRUN_TEST(exc_brk);
 #endif /* !__aarch64__ */
 
   CHECKRUN_TEST(setjmp);

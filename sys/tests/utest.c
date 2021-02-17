@@ -144,6 +144,8 @@ UTEST_ADD_SIMPLE(exc_sigsys);
 UTEST_ADD_SIGNAL(exc_unknown_instruction, SIGILL);
 UTEST_ADD_SIGNAL(exc_msr_instruction, SIGILL);
 UTEST_ADD_SIGNAL(exc_mrs_instruction, SIGILL);
+
+UTEST_ADD_SIMPLE(exc_brk);
 #endif
 
 UTEST_ADD_SIMPLE(getcwd);
