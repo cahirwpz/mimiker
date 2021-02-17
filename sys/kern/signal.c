@@ -31,7 +31,7 @@ typedef enum {
 
 /*!\brief Mask used to extract the default action from a sigprop_t. */
 #define SA_DEFACT_MASK 0x3
-#define prop_defact(prop) ((prop) & SA_DEFACT_MASK)
+#define prop_defact(prop) ((prop)&SA_DEFACT_MASK)
 
 static const sigset_t cantmask = {__sigmask(SIGKILL) | __sigmask(SIGSTOP)};
 static const sigset_t stopmask = {__sigmask(SIGSTOP) | __sigmask(SIGTSTP) |
