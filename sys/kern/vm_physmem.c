@@ -322,7 +322,10 @@ void vm_pagelist_free(vm_pagelist_t *pglist) {
   SCOPED_MTX_LOCK(physmem_lock);
 
   vm_page_t *pg, *pg_next;
-  TAILQ_FOREACH_SAFE (pg, pglist, pageq, pg_next) { vm_page_free_nolock(pg); }
+  TAILQ_FOREACH_SAFE (pg, pglist, pageq, pg_next) {
+    TAILQ_REMOVE(pglist, pg, pageq);
+    vm_page_free_nolock(pg);
+  }
 }
 
 vm_page_t *vm_page_find(paddr_t pa) {
