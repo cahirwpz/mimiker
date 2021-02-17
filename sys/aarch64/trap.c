@@ -124,6 +124,7 @@ void user_trap_handler(mcontext_t *uctx) {
       sig_trap(ctx, SIGBUS);
       break;
 
+    case EXCP_UNKNOWN:
     case EXCP_MSR: /* privileged instruction */
       sig_trap(ctx, SIGILL);
       break;
