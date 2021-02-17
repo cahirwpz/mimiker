@@ -68,3 +68,6 @@ sysroot
 
 # Tmux user override config
 .tmux.conf.local
+
+# pcap files
+*.pcap

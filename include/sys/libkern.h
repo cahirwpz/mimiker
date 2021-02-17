@@ -84,6 +84,7 @@ size_t kasan_strlen(const char *str);
 
 /* Write a formatted string to default console. */
 int kprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+int vkprintf(const char *fmt, va_list ap);
 
 /* Write a character string and a trailing newline to default console. */
 int kputs(const char *s);
