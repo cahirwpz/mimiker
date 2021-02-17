@@ -20,7 +20,6 @@ static KMALLOC_DEFINE(M_SIGNAL, "signal");
  * \note Properties that have set bits in common with #SA_DEFACT_MASK
  * are mutually exclusive and denote the default action of the signal. */
 typedef enum {
-  SA_CATCH = 0x0, /* Used only in sig_kill() */
   SA_IGNORE = 0x1,
   SA_KILL = 0x2,
   SA_STOP = 0x3, /* Stop a process */
@@ -347,18 +346,10 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
     return;
 
   thread_t *td = p->p_thread;
-  sig_t handler = p->p_sigactions[sig].sa_handler;
   sigprop_t prop = sig_properties[sig];
-  sigprop_t action;
+  bool ignored = sig_ignored(p->p_sigactions, sig);
 
-  if (handler == SIG_DFL)
-    action = prop_defact(prop);
-  else if (handler == SIG_IGN)
-    action = SA_IGNORE;
-  else
-    action = SA_CATCH;
-
-  if (action == SA_IGNORE && !(prop & SA_CONT))
+  if (ignored && !(prop & SA_CONT))
     return;
 
   /* Theoretically, we should hold all_proc_mtx since sig_ignore_ttystop()
@@ -380,11 +371,11 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
       }
       WITH_SPIN_LOCK (td->td_lock) { thread_continue(td); }
     }
-    if (action == SA_IGNORE)
+    if (ignored)
       return;
   }
 
-  /* Only signals with action != SA_IGNORE reach this point. */
+  /* At this point we know the signal isn't ignored, so make it pending. */
   sigpend_put(&td->td_sigpend, ksiginfo_copy(ksi));
 
   /* Don't wake up the target thread if it blocks the signal being sent. */
