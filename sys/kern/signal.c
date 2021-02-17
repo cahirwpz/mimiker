@@ -31,6 +31,7 @@ typedef enum {
 
 /*!\brief Mask used to extract the default action from a sigprop_t. */
 #define SA_DEFACT_MASK 0x3
+#define prop_defact(prop) ((prop) & SA_DEFACT_MASK)
 
 static const sigset_t cantmask = {__sigmask(SIGKILL) | __sigmask(SIGSTOP)};
 static const sigset_t stopmask = {__sigmask(SIGSTOP) | __sigmask(SIGTSTP) |
@@ -87,7 +88,7 @@ static void sigpend_get(sigpend_t *sp, signo_t sig, ksiginfo_t *out);
 /* Default action for a signal. */
 static sigprop_t defact(signo_t sig) {
   assert(sig <= NSIG);
-  return sig_properties[sig] & SA_DEFACT_MASK;
+  return prop_defact(sig_properties[sig]);
 }
 
 static inline bool sig_ignored(sigaction_t *sigactions, signo_t sig) {
@@ -351,7 +352,7 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
   sigprop_t action;
 
   if (handler == SIG_DFL)
-    action = prop & SA_DEFACT_MASK;
+    action = prop_defact(prop);
   else if (handler == SIG_IGN)
     action = SA_IGNORE;
   else
@@ -367,7 +368,7 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
 
   /* If sending a stop or continue signal,
    * remove pending signals with the opposite effect. */
-  if ((prop & SA_DEFACT_MASK) == SA_STOP) {
+  if (prop_defact(prop) == SA_STOP) {
     sigpend_get(&td->td_sigpend, SIGCONT, NULL);
   } else if (prop & SA_CONT) {
     sigpend_delete_set(&td->td_sigpend, &stopmask);
