@@ -74,6 +74,7 @@ bool ringbuf_movenb(ringbuf_t *src, ringbuf_t *dst, size_t n) {
     return false;
   for (size_t i = 0; i < n; i++)
     ringbuf_moveb(src, dst);
+  return true;
 }
 
 int ringbuf_read(ringbuf_t *buf, uio_t *uio) {
