@@ -61,3 +61,23 @@ int test_syscall_in_bds(void) {
 }
 
 #endif /* !__mips__ */
+
+#ifdef __aarch64__
+
+int test_exc_unknown_instruction(void) {
+  asm volatile(".long 0x00110011");
+  return 0;
+}
+
+int test_exc_msr_instruction(void) {
+  asm volatile("msr spsr_el1, %0" ::"r"(1));
+  return 0;
+}
+
+int test_exc_mrs_instruction(void) {
+  long x;
+  asm volatile("mrs %0, spsr_el1" : "=r"(x));
+  return 0;
+}
+
+#endif /* !__aarch64__ */

@@ -62,6 +62,11 @@ int test_exc_reserved_instruction(void);
 int test_exc_integer_overflow(void);
 int test_exc_sigsys(void);
 int test_exc_unaligned_access(void);
+
+int test_exc_unknown_instruction(void);
+int test_exc_msr_instruction(void);
+int test_exc_mrs_instruction(void);
+
 int test_syscall_in_bds(void);
 
 int test_setjmp(void);
