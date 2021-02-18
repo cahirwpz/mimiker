@@ -810,6 +810,7 @@ void proc_stop(signo_t sig) {
   proc_t *p = td->td_proc;
 
   assert(mtx_owned(&p->p_lock));
+  assert(p->p_state == PS_NORMAL);
 
   klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
   p->p_stopsig = sig;
@@ -833,4 +834,20 @@ void proc_stop(signo_t sig) {
   }
   proc_lock(p);
   return;
+}
+
+void proc_continue(proc_t *p) {
+  thread_t *td = p->p_thread;
+
+  assert(mtx_owned(&p->p_lock));
+  assert(p->p_state == PS_STOPPED);
+
+  klog("Continuing thread %lu in process PID(%d)", td->td_tid, p->p_pid);
+
+  p->p_state = PS_NORMAL;
+  p->p_flags |= PF_STATE_CHANGED;
+  WITH_PROC_LOCK(p->p_parent) {
+    proc_wakeup_parent(p->p_parent);
+  }
+  WITH_SPIN_LOCK (td->td_lock) { thread_continue(td); }
 }

@@ -365,14 +365,8 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
     sigpend_get(&td->td_sigpend, SIGCONT, NULL);
   } else if (sigprop_cont(sig)) {
     sigpend_delete_set(&td->td_sigpend, &stopmask);
-    if (p->p_state == PS_STOPPED) {
-      p->p_state = PS_NORMAL;
-      p->p_flags |= PF_STATE_CHANGED;
-      WITH_PROC_LOCK(p->p_parent) {
-        proc_wakeup_parent(p->p_parent);
-      }
-      WITH_SPIN_LOCK (td->td_lock) { thread_continue(td); }
-    }
+    if (p->p_state == PS_STOPPED)
+      proc_continue(p);
     if (ignored)
       return;
   }
