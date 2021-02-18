@@ -61,28 +61,18 @@ static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
   }
 
   vm_prot_t access = VM_PROT_READ;
-
   if (exception == EXCP_INSN_ABORT || exception == EXCP_INSN_ABORT_L) {
-    access = VM_PROT_EXEC;
+    access |= VM_PROT_EXEC;
   } else if (esr & ISS_DATA_WnR) {
     access |= VM_PROT_WRITE;
   }
 
-  paddr_t pa;
-  if (pmap_extract(pmap, vaddr, &pa)) {
-    vm_page_t *pg = vm_page_find(pa);
-
-    if (access & (VM_PROT_READ | VM_PROT_EXEC)) {
-      pmap_set_referenced(pg);
-    } else if (access & VM_PROT_WRITE) {
-      pmap_set_referenced(pg);
-      pmap_set_modified(pg);
-    } else {
-      kernel_oops(ctx);
-    }
-
+  int error = pmap_emulate_bits(pmap, vaddr, access);
+  if (error == 0)
     return;
-  }
+
+  if (error == EACCES || error == EINVAL)
+    goto fault;
 
   vm_map_t *vmap = vm_map_lookup(vaddr);
   if (!vmap) {
@@ -158,7 +148,7 @@ void kern_trap_handler(ctx_t *ctx) {
   register_t far = READ_SPECIALREG(far_el1);
 
   /* If interrupts were enabled before we trapped, then turn them on here. */
-  if ((_REG(ctx, SPSR) & DAIF_I_MASKED) == 0)
+  if ((_REG(ctx, SPSR) & PSR_I) == 0)
     cpu_intr_enable();
 
   switch (ESR_ELx_EXCEPTION(esr)) {

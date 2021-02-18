@@ -90,5 +90,7 @@
 74  { int sys_posix_openpt(int flags); }
 75  { int sys_futimens(int fd, const struct timespec *times); }
 76  { int sys_utimensat(int fd, const char *path, const struct timespec *times, int flag); }
+77  { ssize_t sys_readv(int fd, const struct iovec *iov, int iovcnt); }
+78  { ssize_t sys_writev(int fd, const struct iovec *iov, int iovcnt); }
 
 ; vim: ts=4 sw=4 sts=4 et

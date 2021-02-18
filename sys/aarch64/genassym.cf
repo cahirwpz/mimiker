@@ -5,6 +5,9 @@ include <sys/proc.h>
 include <aarch64/mcontext.h>
 include <aarch64/armreg.h>
 
+define PSR_I PSR_I
+define DAIF_I DAIF_I
+
 define TD_PROC offsetof(thread_t, td_proc)
 define TD_KCTX offsetof(thread_t, td_kctx)
 define TD_UCTX offsetof(thread_t, td_uctx)
