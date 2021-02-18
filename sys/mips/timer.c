@@ -10,8 +10,9 @@
 #include <sys/timer.h>
 
 typedef struct mips_timer_state {
-  uint32_t sec;               /* seconds passed after timer initialization */
-  uint32_t cntr_mod_period;   /* counter since initialization modulo timer frequency */
+  uint32_t sec; /* seconds passed after timer initialization */
+  uint32_t
+    cntr_mod_period; /* counter since initialization modulo timer frequency */
   uint32_t period_cntr;       /* number of counter ticks in a period */
   uint32_t last_count_lo;     /* used to detect counter overflow */
   volatile timercntr_t count; /* last written value of counter reg. (64 bits) */
@@ -38,11 +39,12 @@ static uint64_t read_count(mips_timer_state_t *state) {
   } else {
     state->cntr_mod_period += state->count.lo - state->last_count_lo;
   }
-  /* While cause our timer starts earlier then we start using it */
-  while (state->cntr_mod_period >= state->timer.tm_frequency) {
+
+  if (state->cntr_mod_period >= state->timer.tm_frequency) {
     state->cntr_mod_period -= state->timer.tm_frequency;
     state->sec++;
   }
+  assert(state->cntr_mod_period < state->timer.tm_frequency);
 
   state->last_count_lo = state->count.lo;
   return state->count.val;
