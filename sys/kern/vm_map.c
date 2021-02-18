@@ -153,12 +153,18 @@ static void vm_map_insert_after(vm_map_t *map, vm_segment_t *after,
   map->nentries++;
 }
 
-void vm_segment_destroy(vm_map_t *map, vm_segment_t *seg) {
+static void vm_segment_destroy_unmapped(vm_map_t *map, vm_segment_t *seg) {
   assert(mtx_owned(&map->mtx));
 
   TAILQ_REMOVE(&map->entries, seg, link);
   map->nentries--;
   vm_segment_free(seg);
+}
+
+void vm_segment_destroy(vm_map_t *map, vm_segment_t *seg) {
+  assert(mtx_owned(&map->mtx));
+  pmap_remove(map->pmap, seg->start, seg->end);
+  vm_segment_destroy_unmapped(map, seg);
 }
 
 void vm_segment_destroy_range(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
@@ -168,7 +174,7 @@ void vm_segment_destroy_range(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
 
   pmap_remove(map->pmap, start, end);
   if (seg->start == start && seg->end == end) {
-    vm_segment_destroy(map, seg);
+    vm_segment_destroy_unmapped(map, seg);
     return;
   }
 
@@ -195,7 +201,7 @@ void vm_map_delete(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
     vm_segment_t *seg, *next;
     TAILQ_FOREACH_SAFE (seg, &map->entries, link, next)
-      vm_segment_destroy(map, seg);
+      vm_segment_destroy_unmapped(map, seg);
   }
   pool_free(P_VMMAP, map);
 }
@@ -339,7 +345,7 @@ int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
   seg->end = new_end;
 
   if (seg->start == seg->end)
-    vm_segment_destroy(map, seg);
+    vm_segment_destroy_unmapped(map, seg);
 
   return 0;
 }
