@@ -18,34 +18,28 @@ static test_entry_t *autorun_tests[KTEST_MAX_NO] = {NULL};
 /* Memory pool used by tests. */
 KMALLOC_DEFINE(M_TEST, "test framework");
 
-/* This flag is set to 1 when a kernel test is in progress, and 0 otherwise. */
-static volatile bool ktest_test_running_flag = false;
-
 /* The initial seed, as set from command-line. */
 static unsigned ktest_seed = 0;
 static unsigned ktest_repeat = 1; /* Number of repetitions of each test. */
 static unsigned seed = 0;         /* Current seed */
 
-static __noreturn void ktest_failure(void) {
-  assert(current_test != NULL);
-  klog("Test \"%s\" failed !!!", current_test->test_name);
+void ktest_log_failure(void) {
+  if (current_test == NULL)
+    return;
+
+  klog("Test \"%s\" failed!", current_test->test_name);
   if (autorun_tests[0])
-    klog("Run `launch -d test=all seed=%u repeat=%u` to reproduce the failure.",
-         ktest_seed, ktest_repeat);
-  panic("Halting kernel on failed test.");
+    klog("Run `launch -d test=all seed=%u repeat=%u` to reproduce.", ktest_seed,
+         ktest_repeat);
 }
 
-void ktest_failure_hook(void) {
-  if (ktest_test_running_flag)
-    ktest_failure();
+static __noreturn void ktest_failure(void) {
+  ktest_log_failure();
+  panic("Test run failed!");
 }
 
 static __noreturn void ktest_success(void) {
-  klog("Test run finished!\n");
-
-  intr_disable();
-  for (;;)
-    continue;
+  panic("Test run finished!");
 }
 
 static test_entry_t *find_test(const char *test, size_t len) {
@@ -66,7 +60,7 @@ static void run_test(test_entry_t *t) {
 
   klog("Running test \"%s\".", current_test->test_name);
 
-  test_func_t f = (void *)t->test_func;
+  test_func_t test_fn = (void *)t->test_func;
   int randint = 0;
   if (t->flags & KTEST_FLAG_RANDINT) {
     /* NOTE: Numbers generated here will be the same on each run, since test are
@@ -76,12 +70,10 @@ static void run_test(test_entry_t *t) {
     randint = rand_r(&seed) % t->randint_max;
   }
 
-  ktest_test_running_flag = true;
-  int result = f(randint);
-  ktest_test_running_flag = false;
-
-  if (result == KTEST_FAILURE)
+  if (test_fn(randint) == KTEST_FAILURE)
     ktest_failure();
+
+  current_test = NULL;
 }
 
 static inline int test_is_autorunnable(test_entry_t *t) {

@@ -1,4 +1,4 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/ringbuf.h>
 #include <sys/uio.h>
 

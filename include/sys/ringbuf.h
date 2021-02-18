@@ -2,6 +2,7 @@
 #define _SYS_RINGBUF_H_
 
 #include <sys/cdefs.h>
+#include <stdbool.h>
 
 typedef struct uio uio_t;
 

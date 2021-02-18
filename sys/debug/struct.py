@@ -4,7 +4,10 @@ from .utils import cast, relpath
 
 
 def cstr(val):
-    return val.string()
+    try:
+        return val.string()
+    except gdb.MemoryError:
+        return '[bad-ptr 0x%x]' % val.address
 
 
 def enum(v):
@@ -51,8 +54,15 @@ class GdbStructMeta(type):
             def mkgetter(fname, caster):
                 if caster is None:
                     return lambda x: x._obj[fname]
+
                 # use cast function if available
-                return lambda x: caster(x._obj[fname])
+                def _caster(x):
+                    val = x._obj[fname]
+                    try:
+                        return caster(val)
+                    except gdb.MemoryError:
+                        return '[bad-ptr: 0x%x]' % val.address
+                return _caster
             caster = None
             if '__cast__' in dct:
                 caster = dct['__cast__'].get(f.name, None)
