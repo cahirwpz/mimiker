@@ -95,6 +95,25 @@ bool ringbuf_movenb(ringbuf_t *src, ringbuf_t *dst, size_t n) {
   return true;
 }
 
+bool ringbuf_restoreb(ringbuf_t *buf) {
+  if (buf->count == buf->size)
+    return false;
+  if (buf->tail == 0)
+    buf->tail = buf->size - 1;
+  else
+    buf->tail--;
+  buf->count++;
+  return true;
+}
+
+bool ringbuf_restorenb(ringbuf_t *buf, size_t n) {
+  if (buf->count + n > buf->size)
+    return false;
+  for (size_t i = 0; i < n; i++)
+    ringbuf_restoreb(buf);
+  return true;
+}
+
 int ringbuf_read(ringbuf_t *buf, uio_t *uio) {
   assert(uio->uio_op == UIO_READ);
   /* repeat when used space is split into two parts */

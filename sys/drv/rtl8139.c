@@ -51,9 +51,11 @@ static int rtl_reset(rtl8139_state_t *state) {
 static void do_receive(rtl8139_state_t *state) {
   /* the device insert their own header which contains size and status of packet
    */
-  rtl8139_packet_t *pkt =
-    (rtl8139_packet_t *)(state->rx_buf.data + state->rx_buf.head);
-  size_t real_len = pkt->len + RL_PKTHDR_SIZE;
+  ringbuf_produce(&state->rx_buf, RL_PKTHDR_SIZE);
+  rtl8139_packet_t pkt;
+  ringbuf_getnb(&state->rx_buf, (uint8_t *)&pkt, RL_PKTHDR_SIZE);
+  ringbuf_restorenb(&state->rx_buf, RL_PKTHDR_SIZE);
+  size_t real_len = pkt.len + RL_PKTHDR_SIZE;
   ringbuf_produce(&state->rx_buf, real_len);
   /* TODO: SPINLOCK? */
   if (!ringbuf_movenb(&state->rx_buf, &state->dev_rx_buf, real_len)) {
@@ -78,7 +80,6 @@ static intr_filter_t rtl8139_intr(void *data) {
 
 static int rtl8139_read(vnode_t *v, uio_t *uio, int ioflag) {
   rtl8139_state_t *state = devfs_node_data(v);
-  /* temporary workaround to stop fread */
   uio->uio_offset = 0;
 
   /* TODO: WITH_SPIN/MUTEX_LOCK ? */
@@ -91,8 +92,8 @@ static int rtl8139_read(vnode_t *v, uio_t *uio, int ioflag) {
     } else {
       /* cannot read part of packet - just consume it because the size of buffer
        should be at least of mtu size.
-       in such cases (packet is larger than mtu) in linux packet is silently
-       dropped */
+       in such cases (packet is larger than mtu) linux silently
+       drops that packets */
       ringbuf_consume(&state->dev_rx_buf, pkt.len);
       return 0;
     }
