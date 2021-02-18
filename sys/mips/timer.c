@@ -10,10 +10,9 @@
 #include <sys/timer.h>
 
 typedef struct mips_timer_state {
-  uint32_t sec; /* seconds passed after timer initialization */
-  uint32_t
-    cntr_mod_period; /* counter since initialization modulo timer frequency */
-  uint32_t period_cntr;       /* number of counter ticks in a period */
+  uint32_t sec;         /* seconds passed after timer initialization */
+  uint32_t cntr_modulo; /* counter since initialization modulo its frequency */
+  uint32_t period_cntr; /* number of counter ticks in a period */
   uint32_t last_count_lo;     /* used to detect counter overflow */
   volatile timercntr_t count; /* last written value of counter reg. (64 bits) */
   volatile timercntr_t compare; /* last read value of compare reg. (64 bits) */
@@ -33,18 +32,18 @@ static uint64_t read_count(mips_timer_state_t *state) {
 
   /* detect hardware counter overflow */
   if (state->count.lo < state->last_count_lo) {
-    state->cntr_mod_period +=
+    state->cntr_modulo +=
       ((uint32_t)(-1) - state->last_count_lo) + state->count.lo;
     state->count.hi++;
   } else {
-    state->cntr_mod_period += state->count.lo - state->last_count_lo;
+    state->cntr_modulo += state->count.lo - state->last_count_lo;
   }
 
-  if (state->cntr_mod_period >= state->timer.tm_frequency) {
-    state->cntr_mod_period -= state->timer.tm_frequency;
+  if (state->cntr_modulo >= state->timer.tm_frequency) {
+    state->cntr_modulo -= state->timer.tm_frequency;
     state->sec++;
   }
-  assert(state->cntr_mod_period < state->timer.tm_frequency);
+  assert(state->cntr_modulo < state->timer.tm_frequency);
 
   state->last_count_lo = state->count.lo;
   return state->count.val;
@@ -82,7 +81,7 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
   device_t *dev = tm->tm_priv;
   mips_timer_state_t *state = dev->state;
   state->sec = 0;
-  state->cntr_mod_period = 0;
+  state->cntr_modulo = 0;
   state->period_cntr = bintime_mul(period, tm->tm_frequency).sec;
   state->compare.val = read_count(state);
   set_next_tick(state);
@@ -105,7 +104,7 @@ static bintime_t mips_timer_gettime(timer_t *tm) {
   WITH_INTR_DISABLED {
     read_count(state);
     sec = state->sec;
-    ticks = state->cntr_mod_period;
+    ticks = state->cntr_modulo;
   }
   bintime_t bt = bintime_mul(HZ2BT(tm->tm_frequency), ticks);
   bt.sec += sec;
