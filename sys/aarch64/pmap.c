@@ -38,25 +38,46 @@ static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 #define DMAP_BASE 0xffffff8000000000 /* last 512GB */
 #define PHYS_TO_DMAP(x) ((intptr_t)(x) + DMAP_BASE)
 
-static const pte_t pte_default =
-  L3_PAGE | ATTR_DBM | ATTR_AF | ATTR_SH(ATTR_SH_IS);
+/*
+ * This table describes which access bits need to be set in page table entry
+ * for successful memory translation by MMU. Other configurations causes memory
+ * fault - see aarch64/trap.c.
+ *
+ * +--------------+----+------+----+----+
+ * |    access    | AF | USER | RO | XN |
+ * +==============+====+======+====+====+
+ * | user read    | 1  | 1    | *  | *  |
+ * +--------------+----+------+----+----+
+ * | user write   | 1  | 1    | 0  | *  |
+ * +--------------+----+------+----+----+
+ * | user exec    | 1  | 1    | *  | 0  |
+ * +--------------+----+------+----+----+
+ * | kernel read  | 1  | *    | *  | *  |
+ * +--------------+----+------+----+----+
+ * | kernel write | 1  | *    | 0  | *  |
+ * +--------------+----+------+----+----+
+ * | kernel exec  | 1  | *    | *  | 0  |
+ * +--------------+----+------+----+----+
+ */
+
+static const pte_t pte_common = L3_PAGE | ATTR_SH_IS;
 static const pte_t pte_noexec = ATTR_XN | ATTR_SW_NOEXEC;
 
 static const pte_t vm_prot_map[] = {
-  [VM_PROT_NONE] = ATTR_XN | pte_noexec | pte_default,
+  [VM_PROT_NONE] = pte_noexec | pte_common,
   [VM_PROT_READ] =
-    ATTR_AP(ATTR_AP_RO) | ATTR_SW_READ | pte_noexec | pte_default,
+    ATTR_AP_RO | ATTR_SW_READ | ATTR_AF | pte_noexec | pte_common,
   [VM_PROT_WRITE] =
-    ATTR_AP(ATTR_AP_RW) | ATTR_SW_WRITE | pte_noexec | pte_default,
-  [VM_PROT_READ | VM_PROT_WRITE] = ATTR_AP(ATTR_AP_RW) | ATTR_SW_READ |
-                                   ATTR_SW_WRITE | pte_noexec | pte_default,
-  [VM_PROT_EXEC] = pte_default,
+    ATTR_AP_RW | ATTR_SW_WRITE | ATTR_AF | pte_noexec | pte_common,
+  [VM_PROT_READ | VM_PROT_WRITE] = ATTR_AP_RW | ATTR_SW_READ | ATTR_SW_WRITE |
+                                   ATTR_AF | pte_noexec | pte_common,
+  [VM_PROT_EXEC] = ATTR_AF | pte_common,
   [VM_PROT_READ | VM_PROT_EXEC] =
-    ATTR_AP(ATTR_AP_RO) | ATTR_SW_READ | pte_default,
+    ATTR_AP_RO | ATTR_SW_READ | ATTR_AF | pte_common,
   [VM_PROT_WRITE | VM_PROT_EXEC] =
-    ATTR_AP(ATTR_AP_RW) | ATTR_SW_WRITE | pte_default,
+    ATTR_AP_RW | ATTR_SW_WRITE | ATTR_AF | pte_common,
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] =
-    ATTR_AP(ATTR_AP_RW) | ATTR_SW_READ | ATTR_SW_WRITE | pte_default,
+    ATTR_AP_RW | ATTR_SW_READ | ATTR_SW_WRITE | ATTR_AF | pte_common,
 };
 
 static pmap_t kernel_pmap;
@@ -226,7 +247,7 @@ static pte_t make_pte(paddr_t pa, pte_t prot, unsigned flags) {
 
 static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte, vaddr_t va) {
   if (pmap != pmap_kernel())
-    pte |= ATTR_AP(ATTR_AP_USER);
+    pte |= ATTR_AP_USER;
   *ptep = pte;
   tlb_invalidate(va, pmap->asid);
 }
@@ -354,7 +375,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   bool kern_mapping = (pmap == pmap_kernel());
 
   /* Mark user pages as non-referenced & non-modified. */
-  pte_t mask = kern_mapping ? 0UL : (ATTR_AF | ATTR_DBM);
+  pte_t mask = kern_mapping ? 0UL : (ATTR_AF);
   pte_t pte = make_pte(pa, vm_prot_map[prot] & ~mask, flags);
 
   WITH_MTX_LOCK (pv_list_lock) {
@@ -476,7 +497,7 @@ bool pmap_clear_referenced(vm_page_t *pg) {
 bool pmap_clear_modified(vm_page_t *pg) {
   bool prev = pmap_is_modified(pg);
   pg->flags &= ~PG_MODIFIED;
-  pmap_modify_flags(pg, ATTR_AP(ATTR_AP_RO), ATTR_DBM);
+  pmap_modify_flags(pg, ATTR_AP_RO, 0);
   return prev;
 }
 
@@ -495,7 +516,7 @@ void pmap_set_referenced(vm_page_t *pg) {
 
 void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
-  pmap_modify_flags(pg, ATTR_DBM, ATTR_AP(ATTR_AP_RO));
+  pmap_modify_flags(pg, 0, ATTR_AP_RO);
 }
 
 int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
