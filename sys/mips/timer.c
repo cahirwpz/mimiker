@@ -32,10 +32,10 @@ static uint64_t read_count(mips_timer_state_t *state) {
 
   /* detect hardware counter overflow */
   if (state->count.lo < state->last_count_lo) {
-    state->cntr_mod_period += ((uint32_t)(-1) - state->last_count_lo) + state->count.lo;
+    state->cntr_mod_period +=
+      ((uint32_t)(-1) - state->last_count_lo) + state->count.lo;
     state->count.hi++;
-  }
-  else {
+  } else {
     state->cntr_mod_period += state->count.lo - state->last_count_lo;
   }
   /* While cause our timer starts earlier then we start using it */
