@@ -14,23 +14,18 @@
 
 static KMALLOC_DEFINE(M_SIGNAL, "signal");
 
-/*!\brief Signal properties.
- *
- * Non-mutually-exclusive properties can be bitwise-ORed together.
- * \note Properties that have set bits in common with #SA_DEFACT_MASK
- * are mutually exclusive and denote the default action of the signal. */
+/*!\brief Signal properties. */
 typedef enum {
+  /* Default action for a signal, choose only one. */
   SA_IGNORE = 0x1,
   SA_KILL = 0x2,
-  SA_STOP = 0x3, /* Stop a process */
-  SA_CONT = 0x4, /* Continue a stopped process */
-  SA_CANTMASK = 0x8,
-  SA_TTYSTOP = 0x10, /* Stop signal sent by TTY subsystem */
-} sigprop_t;
+  SA_STOP = 0x4, /* Stop a process */
 
-/*!\brief Mask used to extract the default action from a sigprop_t. */
-#define SA_DEFACT_MASK 0x3
-#define prop_defact(prop) ((prop)&SA_DEFACT_MASK)
+  /* Extra flags, can be ORed together. */
+  SA_CONT = 0x8, /* Continue a stopped process */
+  SA_CANTMASK = 0x10,
+  SA_TTYSTOP = 0x20, /* Stop signal sent by TTY subsystem */
+} sigprop_t;
 
 static const sigset_t cantmask = {__sigmask(SIGKILL) | __sigmask(SIGSTOP)};
 static const sigset_t stopmask = {__sigmask(SIGSTOP) | __sigmask(SIGTSTP) |
@@ -85,21 +80,29 @@ static const char *sig_name[NSIG] = {
 static void sigpend_get(sigpend_t *sp, signo_t sig, ksiginfo_t *out);
 
 /* Default action for a signal. */
-static sigprop_t defact(signo_t sig) {
-  assert(sig <= NSIG);
-  return prop_defact(sig_properties[sig]);
-}
+#define defact_ignore(sig) (sig_properties[(sig)] & SA_IGNORE)
+#define defact_stop(sig) (sig_properties[(sig)] & SA_STOP)
+#define defact_kill(sig) (sig_properties[(sig)] & SA_KILL)
+
+/* Chosen action for a signal. */
+#define act_ignore(sigactions, sig) (sigactions[(sig)].sa_handler == SIG_IGN)
+#define act_default(sigactions, sig) (sigactions[(sig)].sa_handler == SIG_DFL)
+
+/* Check signal properties flags. */
+#define sigprop_cont(sig) (sig_properties[(sig)] & SA_CONT)
+#define sigprop_cantmask(sig) (sig_properties[(sig)] & SA_CANTMASK)
+#define sigprop_ttystop(sig) (sig_properties[(sig)] & SA_TTYSTOP)
 
 static inline bool sig_ignored(sigaction_t *sigactions, signo_t sig) {
-  return (sigactions[sig].sa_handler == SIG_IGN ||
-          (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_IGNORE));
+  return (act_ignore(sigactions, sig) ||
+          (act_default(sigactions, sig) && defact_ignore(sig)));
 }
 
 /* Members of an orphaned process group should ignore
  * TTY stop signals with a default handler. */
 static inline bool sig_ignore_ttystop(proc_t *p, signo_t sig) {
-  return ((sig_properties[sig] & SA_TTYSTOP) && (p->p_pgrp->pg_jobc == 0) &&
-          (p->p_sigactions[sig].sa_handler == SIG_DFL));
+  return (sigprop_ttystop(sig) && (p->p_pgrp->pg_jobc == 0) &&
+          act_default(p->p_sigactions, sig));
 }
 
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
@@ -109,7 +112,7 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact) {
   if (sig >= NSIG)
     return EINVAL;
 
-  if (sig_properties[sig] & SA_CANTMASK)
+  if (sigprop_cantmask(sig))
     return EINVAL;
 
   WITH_PROC_LOCK(p) {
@@ -346,10 +349,9 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
     return;
 
   thread_t *td = p->p_thread;
-  sigprop_t prop = sig_properties[sig];
   bool ignored = sig_ignored(p->p_sigactions, sig);
 
-  if (ignored && !(prop & SA_CONT))
+  if (ignored && !sigprop_cont(sig))
     return;
 
   /* Theoretically, we should hold all_proc_mtx since sig_ignore_ttystop()
@@ -359,9 +361,9 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
 
   /* If sending a stop or continue signal,
    * remove pending signals with the opposite effect. */
-  if (prop_defact(prop) == SA_STOP) {
+  if (defact_stop(sig)) {
     sigpend_get(&td->td_sigpend, SIGCONT, NULL);
-  } else if (prop & SA_CONT) {
+  } else if (sigprop_cont(sig)) {
     sigpend_delete_set(&td->td_sigpend, &stopmask);
     if (p->p_state == PS_STOPPED) {
       p->p_state = PS_NORMAL;
@@ -430,17 +432,17 @@ void sig_onexec(proc_t *p) {
     sigact->sa_handler = SIG_DFL;
     sigact->sa_flags = 0;
     __sigemptyset(&sigact->sa_mask);
-    if (defact(sig) == SA_IGNORE)
+    if (defact_ignore(sig))
       sigpend_get(&td->td_sigpend, sig, NULL);
   }
 }
 
 static bool sig_should_stop(sigaction_t *sigactions, signo_t sig) {
-  return (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_STOP);
+  return (act_default(sigactions, sig) && defact_stop(sig));
 }
 
 static bool sig_should_kill(sigaction_t *sigactions, signo_t sig) {
-  return (sigactions[sig].sa_handler == SIG_DFL && defact(sig) == SA_KILL);
+  return (act_default(sigactions, sig) && defact_kill(sig));
 }
 
 int sig_check(thread_t *td, ksiginfo_t *out) {
