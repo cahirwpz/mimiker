@@ -72,7 +72,7 @@ int test_exc_unknown_instruction(void) {
 }
 
 int test_exc_msr_instruction(void) {
-  asm volatile("msr spsr_el1, %0" ::"r"(1));
+  asm volatile("msr spsr_el1, %0" ::"r"(1ULL));
   return 0;
 }
 
