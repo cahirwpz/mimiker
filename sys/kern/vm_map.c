@@ -246,10 +246,10 @@ static bool vm_segment_split(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
     WITH_MTX_LOCK (&seg->object->mtx) {
       vm_page_t *pg, *next;
       TAILQ_FOREACH_SAFE (pg, &seg->object->list, obj.list, next) {
-        if (pg->offset >= wanted_offset)
+        if ((off_t)pg->offset >= wanted_offset)
           break;
 
-        if (pg->offset < wanted_offset) {
+        if ((off_t)pg->offset < wanted_offset) {
           TAILQ_REMOVE(&seg->object->list, pg, obj.list);
           seg->object->npages--;
           vm_object_add_page(obj_before, pg->offset, pg);
@@ -278,10 +278,10 @@ static bool vm_segment_split(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
   WITH_MTX_LOCK (&seg->object->mtx) {
     vm_page_t *pg, *next;
     TAILQ_FOREACH_SAFE (pg, &seg->object->list, obj.list, next) {
-      if (pg->offset >= max_offset)
+      if ((off_t)pg->offset >= max_offset)
         break;
 
-      if (pg->offset >= wanted_offset) {
+      if ((off_t)pg->offset >= wanted_offset) {
         TAILQ_REMOVE(&seg->object->list, pg, obj.list);
         seg->object->npages--;
         vm_object_add_page(obj, offset_base + pg->offset, pg);
