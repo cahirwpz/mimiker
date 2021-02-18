@@ -79,16 +79,19 @@ void kva_unmap(vaddr_t ptr, size_t size) {
 
   kasan_mark_invalid((void *)ptr, size, KASAN_CODE_KMEM_FREED);
 
-  vaddr_t va = (vaddr_t)ptr;
-  vaddr_t end = va + size;
-  while (va < end) {
+  vm_pagelist_t pglist;
+  TAILQ_INIT(&pglist);
+
+  vaddr_t va = ptr;
+  while (va < ptr + size) {
     vm_page_t *pg = kva_find_page(va);
     assert(pg != NULL);
     va += pg->size * PAGESIZE;
-    vm_page_free(pg);
+    TAILQ_INSERT_TAIL(&pglist, pg, pageq);
   }
 
-  pmap_kremove((vaddr_t)ptr, size);
+  pmap_kremove(ptr, size);
+  vm_pagelist_free(&pglist);
 }
 
 void *kmem_alloc(size_t size, kmem_flags_t flags) {
