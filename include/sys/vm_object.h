@@ -21,7 +21,8 @@ typedef struct vm_object {
   vm_pager_t *pager;    /* Pager type and page fault function for object */
   refcnt_t ref_counter; /* (a) How many objects refer to this object? */
   vm_object_t *backing_object; /* (@) Pointer to backing object */
-  refcnt_t shadow_counter;     /* (a) For how many objects this is a shadow? */
+  refcnt_t
+    shadow_counter; /* (a) For how many objects this is a backing object? */
 } vm_object_t;
 
 vm_object_t *vm_object_alloc(vm_pgr_type_t type);
