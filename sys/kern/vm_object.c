@@ -17,7 +17,7 @@ vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   return obj;
 }
 
-vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset) {
+vm_page_t *vm_object_find_page(vm_object_t *obj, vm_offset_t offset) {
   SCOPED_MTX_LOCK(&obj->mtx);
 
   vm_page_t *pg;
@@ -29,7 +29,7 @@ vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset) {
   return NULL;
 }
 
-void vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *pg) {
+void vm_object_add_page(vm_object_t *obj, vm_offset_t offset, vm_page_t *pg) {
   assert(page_aligned_p(pg->offset));
   /* For simplicity of implementation let's insert pages of size 1 only */
   assert(pg->size == 1);
@@ -55,42 +55,42 @@ void vm_object_add_page(vm_object_t *obj, off_t offset, vm_page_t *pg) {
   obj->npages++;
 }
 
-static void vm_object_remove_page_nolock(vm_object_t *obj, vm_page_t *page) {
-  page->offset = 0;
-  page->object = NULL;
-
-  TAILQ_REMOVE(&obj->list, page, obj.list);
-  vm_page_free(page);
-  obj->npages--;
-}
-
-void vm_object_remove_page(vm_object_t *obj, vm_page_t *page) {
-  SCOPED_MTX_LOCK(&obj->mtx);
-  vm_object_remove_page_nolock(obj, page);
-}
-
-void vm_object_remove_range(vm_object_t *object, off_t offset, size_t length) {
-  SCOPED_MTX_LOCK(&object->mtx);
+static void vm_object_remove_pages_nolock(vm_object_t *obj, vm_offset_t offset,
+                                          size_t length) {
+  assert(mtx_owned(&obj->mtx));
+  assert(page_aligned_p(offset) && page_aligned_p(length));
 
   vm_page_t *pg, *next;
-  TAILQ_FOREACH_SAFE (pg, &object->list, obj.list, next) {
-    if (pg->offset >= (off_t)(offset + length))
+  TAILQ_FOREACH_SAFE (pg, &obj->list, obj.list, next) {
+    if (pg->offset >= offset + length)
       break;
-    if (pg->offset >= offset)
-      vm_object_remove_page_nolock(object, pg);
+    if (pg->offset < offset)
+      continue;
+
+    pg->offset = 0;
+    pg->object = NULL;
+    TAILQ_REMOVE(&obj->list, pg, obj.list);
+    vm_page_free(pg);
+    obj->npages--;
   }
 }
+
+void vm_object_remove_pages(vm_object_t *obj, vm_offset_t off, size_t len) {
+  SCOPED_MTX_LOCK(&obj->mtx);
+  vm_object_remove_pages_nolock(obj, off, len);
+}
+
+#define vm_object_remove_all_pages(obj)                                        \
+  vm_object_remove_pages((obj), 0, (size_t)(-PAGESIZE))
 
 void vm_object_free(vm_object_t *obj) {
   if (!refcnt_release(&obj->ref_counter)) {
     return;
   }
 
+  vm_object_remove_all_pages(obj);
+  
   WITH_MTX_LOCK (&obj->mtx) {
-    vm_page_t *pg, *next;
-    TAILQ_FOREACH_SAFE (pg, &obj->list, obj.list, next)
-      vm_object_remove_page_nolock(obj, pg);
-
     if (obj->backing_object) {
       refcnt_release(&obj->backing_object->shadow_counter);
       vm_object_free(obj->backing_object);
