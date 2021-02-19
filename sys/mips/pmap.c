@@ -463,8 +463,8 @@ void pmap_set_modified(vm_page_t *pg) {
 
 int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
   paddr_t pa;
-  vm_page_t *pg = NULL;
-  pte_t pte = 0;
+  vm_page_t *pg;
+  pte_t pte;
 
   WITH_MTX_LOCK (&pmap->mtx) {
     if (!pmap_extract_nolock(pmap, va, &pa))
