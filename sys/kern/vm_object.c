@@ -89,7 +89,7 @@ void vm_object_free(vm_object_t *obj) {
   }
 
   vm_object_remove_all_pages(obj);
-  
+
   WITH_MTX_LOCK (&obj->mtx) {
     if (obj->backing_object) {
       refcnt_release(&obj->backing_object->shadow_counter);
