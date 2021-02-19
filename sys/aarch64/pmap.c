@@ -530,7 +530,7 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
   pg = vm_page_find(pa);
   assert(pg != NULL);
 
-  if (vm_object_is_backing(pg->object))
+  if (pg->object && vm_object_is_backing(pg->object))
     return EFAULT;
 
   if ((prot & VM_PROT_READ) && !(pte & ATTR_SW_READ))
