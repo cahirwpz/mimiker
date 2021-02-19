@@ -4,10 +4,6 @@
 #ifndef _DEV_USB_H_
 #define _DEV_USB_H_
 
-#include <sys/ringbuf.h>
-#include <sys/condvar.h>
-#include <sys/spinlock.h>
-
 /* Definition of some hardcoded USB constants. */
 
 #define USB_MAX_IPACKET 8 /* initial USB packet size */
@@ -76,7 +72,7 @@ typedef struct usb_device_descriptor {
   uint8_t bNumConfigurations;
 } __packed usb_device_descriptor_t;
 
-#define US_DATASIZE 126
+#define US_DATASIZE 63
 
 typedef struct usb_string_descriptor {
   uint8_t bLength;
@@ -88,7 +84,7 @@ typedef struct usb_string_descriptor {
 typedef struct usb_string_lang {
   uint8_t bLength;
   uint8_t bDescriptorType;
-  uint8_t bData[US_DATASIZE];
+  uint16_t bData[US_DATASIZE];
 } __packed usb_string_lang_t;
 
 #define US_ENG_LID 0x0409
@@ -149,4 +145,4 @@ typedef struct usb_endpoint_descriptor {
 #define UE_BULK 0x02
 #define UE_INTERRUPT 0x03
 
-#endif /*_DEV_USB_H_ */
+#endif /* _DEV_USB_H_ */

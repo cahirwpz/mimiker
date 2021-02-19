@@ -4,8 +4,6 @@
 #ifndef _DEV_UHCI_H_
 #define _DEV_UHCI_H_
 
-#include <sys/spinlock.h>
-
 #define UHCI_FRAMELIST_COUNT 1024 /* units */
 
 /* Structures alignment (bytes) */
@@ -18,11 +16,9 @@ typedef uint32_t uhci_physaddr_t;
 #define UHCI_PTR_TD 0x00000000
 #define UHCI_PTR_QH 0x00000002
 #define UHCI_PTR_VF 0x00000004
-#define UHCI_PTR_MASK 0x00000007
 
 typedef struct uhci_td uhci_td_t;
 typedef struct uhci_qh uhci_qh_t;
-typedef TAILQ_HEAD(qh_list, uhci_qh) uhci_qh_list_t;
 
 struct uhci_td {
   volatile uint32_t td_next;
