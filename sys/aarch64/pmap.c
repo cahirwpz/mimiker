@@ -14,6 +14,7 @@
 #include <sys/vm_physmem.h>
 #include <bitstring.h>
 #include <sys/errno.h>
+#include <sys/vm_object.h>
 
 typedef struct pmap {
   mtx_t mtx;                      /* protects all fields in this structure */
@@ -507,6 +508,9 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
   }
   pg = vm_page_find(pa);
   assert(pg != NULL);
+
+  if (vm_object_is_backing(pg->object))
+    return EFAULT;
 
   if ((prot & VM_PROT_READ) && !(pte & ATTR_SW_READ))
     return EACCES;
