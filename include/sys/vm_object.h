@@ -33,5 +33,9 @@ vm_page_t *vm_object_find_page(vm_object_t *obj, off_t offset);
 vm_object_t *vm_object_clone(vm_object_t *obj);
 void vm_map_object_dump(vm_object_t *obj);
 void vm_object_set_prot(vm_object_t *obj, vm_prot_t prot);
-bool vm_object_is_backing(vm_object_t *obj);
+
+static inline bool vm_object_is_backing(vm_object_t *obj) {
+  assert(obj == NULL);
+  return obj->shadow_counter != 0;
+}
 #endif /* !_SYS_VM_OBJECT_H_ */

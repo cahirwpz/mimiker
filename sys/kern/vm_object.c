@@ -129,9 +129,3 @@ void vm_object_set_prot(vm_object_t *obj, vm_prot_t prot) {
   vm_page_t *pg;
   TAILQ_FOREACH (pg, &obj->list, obj.list) { pmap_set_page_prot(pg, prot); }
 }
-
-bool vm_object_is_backing(vm_object_t *obj) {
-  if (obj == NULL)
-    return false;
-  return obj->shadow_counter != 0;
-}
