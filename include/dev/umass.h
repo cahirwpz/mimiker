@@ -1,8 +1,8 @@
 /*
- * Based on definitions contained in FreeBSD `umass.c`.
+ * Based on definitions contained in FreeBSD `sys/dev/usb/storage/umass.c`.
  */
-#ifndef _UMASS_H_
-#define _UMASS_H_
+#ifndef _DEV_UMASS_H_
+#define _DEV_UMASS_H_
 
 /* Bulk-Only features */
 
@@ -40,4 +40,4 @@ typedef struct {
 #define CSWSTATUS_GOOD 0x0
 #define CSWSTATUS_FAILED 0x1
 
-#endif /* _UMASS_H_ */
+#endif /* _DEV_UMASS_H_ */

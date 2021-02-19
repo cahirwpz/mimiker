@@ -1,8 +1,8 @@
 /*
- * Based on FreeBSD `uhcireg.h`.
+ * Based on FreeBSD `sys/dev/usb/controller/uhcireg.h`.
  */
-#ifndef _UHCIREG_H_
-#define _UHCIREG_H_
+#ifndef _DEV_UHCIREG_H_
+#define _DEV_UHCIREG_H_
 
 /* PCI config registers  */
 #define PCI_USB_CLASSCODE 0x0c
@@ -59,4 +59,4 @@
 #define URWMASK(x)                                                             \
   ((x) & (UHCI_PORTSC_SUSP | UHCI_PORTSC_PR | UHCI_PORTSC_RD | UHCI_PORTSC_PE))
 
-#endif /* _UHCIREG_H_ */
+#endif /* _DEV_UHCIREG_H_ */

@@ -1,8 +1,8 @@
 /*
- * Based on FreeBSD `usb.h`.
+ * Based on FreeBSD `sys/dev/usb/usb.h`.
  */
-#ifndef _USB_H_
-#define _USB_H_
+#ifndef _DEV_USB_H_
+#define _DEV_USB_H_
 
 #include <sys/ringbuf.h>
 #include <sys/condvar.h>
@@ -149,4 +149,4 @@ typedef struct usb_endpoint_descriptor {
 #define UE_BULK 0x02
 #define UE_INTERRUPT 0x03
 
-#endif /*_USB_H_ */
+#endif /*_DEV_USB_H_ */
