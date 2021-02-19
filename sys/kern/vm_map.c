@@ -396,10 +396,11 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
           /* we set a backing object twice, so we have to acquire
            * backing->shadow_counter twice too */
           refcnt_acquire(&backing->shadow_counter);
-          /* all pages in backing object are now read-only,
-           * that refers also to pages which previously had VM_PROT_EXEC set
+          /* check if we can set all pages as read-only and if so, do it
+           * (that refers also to pages which previously had VM_PROT_EXEC set)
            */
-          vm_object_set_prot(backing, VM_PROT_READ);
+          if (it->prot & VM_PROT_READ)
+            vm_object_set_prot(backing, VM_PROT_READ);
         }
 
         refcnt_acquire(&backing->ref_counter);
