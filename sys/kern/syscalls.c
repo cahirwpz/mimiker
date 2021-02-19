@@ -1199,3 +1199,17 @@ end:
   kfree(M_TEMP, k_iov);
   return error;
 }
+
+static int sys_sigpending(proc_t *p, sigpending_args_t *args, register_t *res) {
+  sigset_t *u_set = SCARG(args, set);
+  int error;
+
+  klog("sigpending(%p)", u_set);
+
+  sigset_t k_set;
+
+  if ((error = do_sigpending(p, &k_set)))
+    return error;
+
+  return copyout_s(k_set, u_set);
+}
