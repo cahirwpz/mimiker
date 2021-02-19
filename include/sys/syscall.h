@@ -84,6 +84,7 @@
 #define SYS_utimensat 76
 #define SYS_readv 77
 #define SYS_writev 78
-#define SYS_MAXSYSCALL 79
+#define SYS_sigpending 79
+#define SYS_MAXSYSCALL 80
 
 #define SYS_MAXSYSARGS 6
