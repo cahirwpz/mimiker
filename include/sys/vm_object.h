@@ -35,7 +35,7 @@ void vm_map_object_dump(vm_object_t *obj);
 void vm_object_set_prot(vm_object_t *obj, vm_prot_t prot);
 
 static inline bool vm_object_is_backing(vm_object_t *obj) {
-  assert(obj == NULL);
+  assert(obj != NULL);
   return obj->shadow_counter != 0;
 }
 #endif /* !_SYS_VM_OBJECT_H_ */
