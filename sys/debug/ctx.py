@@ -7,10 +7,10 @@ from .utils import TextTable
 class Context():
     names = {
         'mips': ['at', 'v0', 'v1', 'a0', 'a1', 'a2', 'a3',
-                't0', 't1', 't2', 't3', 't4', 't5', 't6', 't7',
-                's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7',
-                't8', 't9', 'k0', 'k1', 'gp', 'sp', 's8', 'ra',
-                'lo', 'hi', 'cause', 'pc', 'sr', 'bad'],
+                 't0', 't1', 't2', 't3', 't4', 't5', 't6', 't7',
+                 's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7',
+                 't8', 't9', 'k0', 'k1', 'gp', 'sp', 's8', 'ra',
+                 'lo', 'hi', 'cause', 'pc', 'sr', 'bad'],
         'aarch64': ['x0', 'x1', 'x2', 'x3', 'x4', 'x5', 'x6', 'x7',
                     'x8', 'x9', 'x10', 'x11', 'x12', 'x13', 'x14', 'x15',
                     'x16', 'x17', 'x18', 'x19', 'x20', 'x21', 'x22', 'x23',
@@ -18,10 +18,11 @@ class Context():
     }
 
     def __init__(self):
-        if gdb.selected_frame().architecture().name() == 'mips:isa32r2':
+        arch_name = gdb.selected_frame().architecture().name()
+        if arch_name.startswith('mips'):
             self.arch = 'mips'
             self.reg_size = 32
-        if gdb.selected_frame().architecture().name() == 'aarch64':
+        if arch_name.startswith('aarch64'):
             self.arch = 'aarch64'
             self.reg_size = 64
         self.regs = OrderedDict()
@@ -55,12 +56,13 @@ class Context():
             c.regs[name] = int(val.cast(gdb.lookup_type('__greg_t')))
         return c
 
+    def as_hex(self, name):
+        val = self.ctx[name]
+        if self.reg_size == 32:
+            return '0x%08x' % (val & 0xffffffff)
+        return '0x%16x' % (val & 0xffffffffffffffff)
+
     def dump(self):
         table = TextTable(align='rl')
-        if self.reg_size == 32:
-            table.add_rows([[name, '0x%08x' % (val & 0xffffffff)]
-                            for name, val in self.regs.items()])
-        elif self.reg_size == 64:
-            table.add_rows([[name, '0x%16x' % (val & 0xffffffffffffffff)]
-                            for name, val in self.regs.items()])
+        table.add_rows([[name, self.as_hex(name)] for name in self.regs])
         print(table)
