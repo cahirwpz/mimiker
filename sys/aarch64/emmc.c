@@ -52,7 +52,9 @@
 #define CMD_SEND_REL_ADDR 0x03020000
 #define CMD_CARD_SELECT   0x07030000
 #define CMD_SEND_IF_COND  0x08020000
-#define CMD_STOP_TRANS    0x0C030000
+//#define CMD_STOP_TRANS    0x0C030000
+/* Turns out the broadcom module has rwo ways of handling responses */
+#define CMD_STOP_TRANS    0x0C020000
 #define CMD_READ_SINGLE   0x11220010
 #define CMD_READ_MULTI    0x12220032
 #define CMD_SET_BLOCKCNT  0x17020000
@@ -114,9 +116,11 @@
 #define ACMD41_CMD_CCS      0x40000000
 #define ACMD41_ARG_HC       0x51ff8000
 
-#define SD_OK 0
-#define SD_TIMEOUT -1
-#define SD_ERROR -2
+#define SD_OK                 0
+#define SD_TIMEOUT            1  /* eMMC device timed out */
+#define SD_ERROR              2
+#define SD_NO_RESPONSE        4  /* eMMC controller is not responding */
+#define SD_UNEXPECTED_INTR    8
 
 driver_t emmc_driver;
 
@@ -177,19 +181,24 @@ static void sleep_ms(useconds_t ms) {
  * \param dev eMMC device
  * \param mask expected interrupts
  * \param clear additional interrupt bits to be cleared
- * \return 0 on success, SD_ERROR on error, SD_TIMEOUT on timeout
+ * \return 0 on success, SD_ERROR on error, SD_TIMEOUT on eMMC device timeout, 
+ * SD_NO_RESPONSE on eMMC controller timeout.
  */
 static int32_t emmc_intr_wait(device_t * dev, uint32_t mask, uint32_t clear) {
   emmc_state_t *state = (emmc_state_t *)dev->state;
   uint32_t resp = 0;
     state->intr_mask = mask;
     state->intr_clear = clear | mask;
-    state->intr_response = (uint32_t)(-4);
-    while (state->intr_response == (uint32_t)(-4)) {
-      state->intr_response = (uint32_t)(-4);
-      cv_wait(&state->cv_response, &state->slock);
+    state->intr_response = (uint32_t)(SD_NO_RESPONSE);
+    while (state->intr_response == (uint32_t)SD_NO_RESPONSE) {
+      state->intr_response = (uint32_t)(SD_NO_RESPONSE);
+      if (cv_wait_timed(&state->cv_response, &state->slock, 10000))
+        break; /* eMMC controller did not respond */
     }
     resp = state->intr_response;
+    if (resp & SD_UNEXPECTED_INTR)
+      panic("Received an unexpected interrupt from eMMC controller! "
+            "Expected at most %x", state->intr_clear);
     state->intr_clear = 0x00000000;
   return (int32_t)resp;
 }
@@ -229,8 +238,10 @@ static intr_filter_t emmc_intr_filter(void *data) {
     } else {
       resp = 0;
     }
+    if (r & ~c)
+      resp |= SD_UNEXPECTED_INTR;
     /* Interrupts need to be cleared manually */
-    b_out(emmc, EMMC_INTERRUPT, c);
+    b_out(emmc, EMMC_INTERRUPT, r);
     /* Wake up the thread if all expected interrupts have been received */
     if ((r & m) == m) {
       state->intr_response = resp;
@@ -350,7 +361,7 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
   assert(dev->driver == (driver_t *)&emmc_driver);
   emmc_state_t *state = (emmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
-  uint32_t c = 0, d = 0;
+  uint32_t d = 0;
   if (num < 1)
     num = 1;
   if (lba != state->last_lba)
@@ -363,6 +374,8 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
   }
   uint32_t *buf = (uint32_t *)buffer;
   if (state->sd_scr[0] & SCR_SUPP_CCS) {
+    /* Multiple block transfers either be terminated after a set amount of
+     * block is transferred, or by sending CMD_STOP_TRANS command */
     if (num > 1 && (state->sd_scr[0] & SCR_SUPP_SET_BLKCNT)) {
       emmc_cmd(dev, CMD_SET_BLOCKCNT, num, 0, 0);
       if (state->sd_err)
@@ -372,16 +385,15 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
     if (num > 1)
       emmc_cmd(dev, CMD_READ_MULTI, lba, INT_READ_RDY, 0);
     else
-      emmc_cmd(dev,CMD_READ_SINGLE, lba, INT_READ_RDY, 0);
+      emmc_cmd(dev, CMD_READ_SINGLE, lba, INT_READ_RDY, 0);
     if (state->sd_err)
       return 0;
   } else {
     b_out(emmc, EMMC_BLKSIZECNT, (1 << 16) | 512);
   }
-  while (c < num) {
+  for (uint32_t c = 0; c < num; c++) {
     if (!(state->sd_scr[0] & SCR_SUPP_CCS)) {
-      emmc_cmd(dev, CMD_READ_SINGLE, (lba + c) * 512,
-               INT_DATA_DONE, 0);
+      emmc_cmd(dev, CMD_READ_SINGLE, (lba + c) * 512, INT_DATA_DONE, 0);
       if (state->sd_err)
         return 0;
     }
@@ -394,13 +406,12 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
     }
     if (!cnt)
       return SD_TIMEOUT;
-    c++;
     buf += 128;
   }
   if (num > 1 && !(state->sd_scr[0] & SCR_SUPP_SET_BLKCNT) &&
       (state->sd_scr[0] & SCR_SUPP_CCS))
-    emmc_cmd(dev, CMD_STOP_TRANS, 0, INT_DATA_DONE, 0);
-  return state->sd_err != SD_OK || c != num ? 0 : num * 512;
+    emmc_cmd(dev, CMD_STOP_TRANS, 0, 0, 0);
+  return state->sd_err != SD_OK ? 0 : num * 512;
 }
 
 /**
@@ -426,7 +437,7 @@ int emmc_write_block(device_t *dev, uint32_t lba, const uint8_t *buffer,
   }
   if (state->sd_scr[0] & SCR_SUPP_CCS) {
     if (num > 1 && (state->sd_scr[0] & SCR_SUPP_SET_BLKCNT)) {
-      emmc_cmd(dev, CMD_SET_BLOCKCNT, num, INT_DATA_DONE, 0);
+      emmc_cmd(dev, CMD_SET_BLOCKCNT, num, 0, 0);
       if (state->sd_err)
         return 0;
     }
@@ -708,14 +719,28 @@ static int emmc_probe(device_t *dev) {
 }
 
 static int test_read(device_t *dev) {
-  unsigned char *testblock = kmalloc(M_DEV, 512, 0);
-  int read_res = emmc_read_block(dev, 0, testblock, 1);
+  unsigned char *testblock = kmalloc(M_DEV, 1024, 0);
+  int read_res = emmc_read_block(dev, 0, testblock, 2);
   if (read_res == 0)
     klog("e.MMC test read failed!");
+  else
+    klog("e.MMC test read success!");
   kfree(M_DEV, testblock);
-  klog("e.MMC test read success!");
   return read_res;
 }
+
+/* static char testwr[] = "Kremowka";
+static int test_write(device_t *dev) {
+  char *testblock = kmalloc(M_DEV, 512, M_ZERO);
+  strncpy(testblock, testwr, sizeof(testwr));
+  int write_res = emmc_write_block(dev, 0, (uint8_t *)testblock, 1);
+  if (write_res == 0)
+    klog("e.MMC write test failed!");
+  else
+    klog("e.MMC write test success!");
+  kfree(M_DEV, testblock);
+  return write_res;
+} */
 
 static int emmc_attach(device_t *dev) {
   assert(dev->driver == (driver_t *)&emmc_driver);
@@ -746,6 +771,7 @@ static int emmc_attach(device_t *dev) {
 
   klog("e.MMC communication initialized successfully!");
   
+  //(void)test_write(dev);
   (void)test_read(dev);
 
   return 0;
