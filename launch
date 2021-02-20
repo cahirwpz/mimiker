@@ -99,7 +99,7 @@ CONFIG = {
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [
-                    dict(name='/dev/cons', port=RandomPort())
+                    dict(name='/dev/cons', port=RandomPort(), raw=True)
                 ]
             }
         }
