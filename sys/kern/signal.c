@@ -197,6 +197,16 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   return ERESTARTNOHAND;
 }
 
+int do_sigpending(proc_t *p, sigset_t *set) {
+  SCOPED_MTX_LOCK(&p->p_lock);
+  thread_t *td = p->p_thread;
+
+  *set = td->td_sigpend.sp_set;
+  /* Only blocked pending signals are reported. */
+  __sigandset(&td->td_sigmask, set);
+  return 0;
+}
+
 static ksiginfo_t *ksiginfo_copy(const ksiginfo_t *src) {
   ksiginfo_t *kp = kmalloc(M_SIGNAL, sizeof(ksiginfo_t), M_NOWAIT);
   assert(kp != NULL);
