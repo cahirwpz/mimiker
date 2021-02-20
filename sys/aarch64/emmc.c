@@ -419,7 +419,7 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
  * returns 0 on error
  */
 int emmc_write_block(device_t *dev, uint32_t lba, const uint8_t *buffer,
-                  uint32_t num) {
+                     uint32_t num) {
   assert(dev->driver == (driver_t *)&emmc_driver);
   emmc_state_t *state = (emmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
@@ -443,7 +443,7 @@ int emmc_write_block(device_t *dev, uint32_t lba, const uint8_t *buffer,
     }
     b_out(emmc, EMMC_BLKSIZECNT, (num << 16) | 512);
     emmc_cmd(dev, num == 1 ? CMD_WRITE_SINGLE : CMD_WRITE_MULTI, lba,
-             INT_DATA_DONE, 0);
+             INT_WRITE_RDY, 0);
     if (state->sd_err)
       return 0;
   } else {
@@ -453,16 +453,16 @@ int emmc_write_block(device_t *dev, uint32_t lba, const uint8_t *buffer,
     if (!(state->sd_scr[0] & SCR_SUPP_CCS)) {
       emmc_cmd(dev, CMD_WRITE_SINGLE, (lba + c) * 512,
                INT_WRITE_RDY, 0);
+    }
+    if (state->sd_err)
+      return 0;
+    WITH_SPIN_LOCK(&state->slock) {
+      for (d = 0; d < 128; d++)
+        b_out(emmc, EMMC_DATA, buf[d]);
+      if (!emmc_intr_wait(dev, INT_DATA_DONE, 0))
+        return 1;
       if (state->sd_err)
         return 0;
-      WITH_SPIN_LOCK(&state->slock) {
-        for (d = 0; d < 128; d++)
-          b_out(emmc, EMMC_DATA, buf[d]);
-        if (!emmc_intr_wait(dev, INT_DATA_DONE, 0))
-          return 1;
-        if (state->sd_err)
-          return 0;
-      }
     }
     c++;
     buf += 128;
@@ -718,6 +718,8 @@ static int emmc_probe(device_t *dev) {
   return dev->unit == 3;
 }
 
+static char testbuf[] = "Kremowka";
+
 static int test_read(device_t *dev) {
   unsigned char *testblock = kmalloc(M_DEV, 1024, 0);
   int read_res = emmc_read_block(dev, 0, testblock, 2);
@@ -729,10 +731,9 @@ static int test_read(device_t *dev) {
   return read_res;
 }
 
-/* static char testwr[] = "Kremowka";
 static int test_write(device_t *dev) {
   char *testblock = kmalloc(M_DEV, 512, M_ZERO);
-  strncpy(testblock, testwr, sizeof(testwr));
+  strncpy(testblock, testbuf, sizeof(testbuf));
   int write_res = emmc_write_block(dev, 0, (uint8_t *)testblock, 1);
   if (write_res == 0)
     klog("e.MMC write test failed!");
@@ -740,7 +741,7 @@ static int test_write(device_t *dev) {
     klog("e.MMC write test success!");
   kfree(M_DEV, testblock);
   return write_res;
-} */
+}
 
 static int emmc_attach(device_t *dev) {
   assert(dev->driver == (driver_t *)&emmc_driver);
@@ -771,7 +772,7 @@ static int emmc_attach(device_t *dev) {
 
   klog("e.MMC communication initialized successfully!");
   
-  //(void)test_write(dev);
+  (void)test_write(dev);
   (void)test_read(dev);
 
   return 0;
