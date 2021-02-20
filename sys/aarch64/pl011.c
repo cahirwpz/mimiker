@@ -11,6 +11,8 @@
 #include <sys/ttycom.h>
 #include <sys/interrupt.h>
 #include <sys/ringbuf.h>
+#include <sys/tty.h>
+#include <sys/sched.h>
 #include <aarch64/bcm2835reg.h>
 #include <aarch64/bcm2835_gpioreg.h>
 #include <aarch64/plcomreg.h>
@@ -19,15 +21,32 @@
 #define UART0_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE)
 #define UART_BUFSIZE 128
 
+static inline void set4(resource_t *r, int o, uint32_t v) {
+  bus_write_4(r, o, bus_read_4(r, o) | v);
+}
+
+static inline void clr4(resource_t *r, int o, uint32_t v) {
+  set4(r, o, bus_read_4(r, o) & ~v);
+}
+
 typedef struct pl011_state {
   spin_t lock;
-  condvar_t rx_nonempty;
   ringbuf_t rx_buf;
-  condvar_t tx_nonfull;
   ringbuf_t tx_buf;
   resource_t *regs;
   resource_t *irq;
+  tty_t *tty;
+  condvar_t tty_thread_cv;
+  uint8_t tty_thread_flags;
 } pl011_state_t;
+
+/* tty->t_outq -> tx_buf */
+#define TTY_THREAD_TXRDY 0x1
+/* rx_buf -> tty->t_inq */
+#define TTY_THREAD_RXRDY 0x2
+#define TTY_THREAD_WORK_MASK (TTY_THREAD_TXRDY | TTY_THREAD_RXRDY)
+/* If cleared, don't wake up worker thread from pl011_intr. */
+#define TTY_THREAD_OUTQ_NONEMPTY 0x4
 
 /* Return true if we can write. */
 static bool pl011_wready(pl011_state_t *state) {
@@ -57,103 +76,130 @@ static uint32_t pl011_getc(pl011_state_t *state) {
   return bus_read_4(r, PL01XCOM_DR);
 }
 
-static int pl011_read(vnode_t *v, uio_t *uio, int ioflags) {
-  pl011_state_t *state = devfs_node_data(v);
-
-  /* This device does not support offsets. */
-  uio->uio_offset = 0;
-
-  uint8_t byte;
-  WITH_SPIN_LOCK (&state->lock) {
-    /* For simplicity, copy to the user space one byte at a time. */
-    while (!ringbuf_getb(&state->rx_buf, &byte))
-      cv_wait(&state->rx_nonempty, &state->lock);
-  }
-
-  return uiomove_frombuf(&byte, 1, uio);
-}
-
-static int pl011_write(vnode_t *v, uio_t *uio, int ioflags) {
-  pl011_state_t *state = devfs_node_data(v);
-
-  /* This device does not support offsets. */
-  uio->uio_offset = 0;
-
-  while (uio->uio_resid > 0) {
-    uint8_t byte;
-    int error;
-    /* For simplicity, copy from the user space one byte at a time. */
-    if ((error = uiomove(&byte, 1, uio)))
-      return error;
-    WITH_SPIN_LOCK (&state->lock) {
-      if (pl011_wready(state)) {
-        pl011_putc(state, byte);
-      } else {
-        while (!ringbuf_putb(&state->tx_buf, byte))
-          cv_wait(&state->tx_nonfull, &state->lock);
-      }
-    }
-  }
-
-  return 0;
-}
-
-static int pl011_close(vnode_t *v, file_t *fp) {
-  /* TODO release resources */
-  return 0;
-}
-
-static int pl011_ioctl(vnode_t *v, u_long cmd, void *data) {
-  if (cmd) {
-    unsigned len = IOCPARM_LEN(cmd);
-    memset(data, 0, len);
-    return 0;
-  }
-
-  return EPASSTHROUGH;
-}
-
-static int pl011_getattr(vnode_t *v, vattr_t *va) {
-  memset(va, 0, sizeof(vattr_t));
-  va->va_mode = S_IFCHR;
-  va->va_nlink = 1;
-  va->va_ino = 0;
-  va->va_size = 0;
-  return 0;
-}
-
-/* clang-format off */
-static vnodeops_t dev_uart_ops = {
-  .v_write = pl011_write,
-  .v_read = pl011_read,
-  .v_close = pl011_close,
-  .v_ioctl = pl011_ioctl,
-  .v_getattr = pl011_getattr
-};
-/* clang-format on */
-
 static intr_filter_t pl011_intr(void *data /* device_t* */) {
-  pl011_state_t *state = ((device_t *)data)->state;
+  pl011_state_t *pl011 = ((device_t *)data)->state;
   intr_filter_t res = IF_STRAY;
 
-  WITH_SPIN_LOCK (&state->lock) {
-    if (pl011_rready(state)) {
-      ringbuf_putb(&state->rx_buf, pl011_getc(state));
-      cv_signal(&state->rx_nonempty);
+  WITH_SPIN_LOCK (&pl011->lock) {
+    if (pl011_rready(pl011)) {
+      ringbuf_putb(&pl011->rx_buf, pl011_getc(pl011));
+      pl011->tty_thread_flags |= TTY_THREAD_RXRDY;
+      cv_signal(&pl011->tty_thread_cv);
       res = IF_FILTERED;
     }
 
-    if (pl011_wready(state)) {
+    if (pl011_wready(pl011)) {
       uint8_t byte;
-      if (ringbuf_getb(&state->tx_buf, &byte)) {
-        pl011_putc(state, byte);
-        cv_signal(&state->tx_nonfull);
+      while (pl011_wready(pl011) && ringbuf_getb(&pl011->tx_buf, &byte)) {
+        pl011_putc(pl011, byte);
+      }
+      if (ringbuf_empty(&pl011->tx_buf)) {
+        /* If we're out of characters and there are characters
+         * in the tty's output queue, signal the tty thread to refill. */
+        if (pl011->tty_thread_flags & TTY_THREAD_OUTQ_NONEMPTY) {
+          pl011->tty_thread_flags |= TTY_THREAD_TXRDY;
+          cv_signal(&pl011->tty_thread_cv);
+        }
+        /* Disable TXRDY interrupts - the tty thread will re-enable them
+         * after filling tx_buf. */
+        clr4(pl011->regs, PL011COM_CR, PL011_CR_TXE);
       }
       res = IF_FILTERED;
     }
   }
 
   return res;
+}
+
+/*
+ * If tx_buf is empty, we can try to write characters directly from tty->t_outq.
+ * This routine attempts to do just that.
+ * Must be called with both tty->t_lock and pl011->lock held.
+ */
+static void pl011_try_bypass_txbuf(pl011_state_t *pl011, tty_t *tty) {
+  uint8_t byte;
+
+  if (!ringbuf_empty(&pl011->tx_buf))
+    return;
+
+  while (pl011_wready(pl011) && ringbuf_getb(&tty->t_outq, &byte)) {
+    pl011_putc(pl011, byte);
+  }
+}
+
+static void pl011_set_tty_outq_nonempty_flag(pl011_state_t *pl011, tty_t *tty) {
+  if (ringbuf_empty(&tty->t_outq))
+    pl011->tty_thread_flags &= ~TTY_THREAD_OUTQ_NONEMPTY;
+  else
+    pl011->tty_thread_flags |= TTY_THREAD_OUTQ_NONEMPTY;
+}
+
+/*
+ * Move characters from tty->t_outq to pl011->tx_buf.
+ * Must by called with tty->t_lock held.
+ */
+static void pl011_fill_txbuf(pl011_state_t *pl011, tty_t *tty) {
+  uint8_t byte;
+
+  while (true) {
+    SCOPED_SPIN_LOCK(&pl011->lock);
+    pl011_try_bypass_txbuf(pl011, tty);
+    if (ringbuf_full(&pl011->tx_buf) || !ringbuf_getb(&tty->t_outq, &byte)) {
+      pl011_set_tty_outq_nonempty_flag(pl011, tty);
+      break;
+    }
+    if (!ringbuf_empty(&pl011->tx_buf))
+      set4(pl011->regs, PL011COM_CR, PL011_CR_TXE);
+    pl011_set_tty_outq_nonempty_flag(pl011, tty);
+    ringbuf_putb(&pl011->tx_buf, byte);
+  }
+  tty_getc_done(tty);
+}
+
+static bool pl011_getb_lock(pl011_state_t *pl011, uint8_t *byte_p) {
+  SCOPED_SPIN_LOCK(&pl011->lock);
+  return ringbuf_getb(&pl011->rx_buf, byte_p);
+}
+
+/* TODO: revisit after per-intr_event ithreads are implemented. */
+static void pl011_tty_thread(void *arg) {
+  pl011_state_t *pl011 = (pl011_state_t *)arg;
+  tty_t *tty = pl011->tty;
+  uint8_t work, byte;
+
+  while (true) {
+    WITH_SPIN_LOCK (&pl011->lock) {
+      /* Sleep until there's work for us to do. */
+      while ((work = pl011->tty_thread_flags & TTY_THREAD_WORK_MASK) == 0)
+        cv_wait(&pl011->tty_thread_cv, &pl011->lock);
+      pl011->tty_thread_flags &= ~TTY_THREAD_WORK_MASK;
+    }
+    WITH_MTX_LOCK (&tty->t_lock) {
+      if (work & TTY_THREAD_RXRDY) {
+        /* Move characters from rx_buf into the tty's input queue. */
+        while (pl011_getb_lock(pl011, &byte))
+          if (!tty_input(tty, byte))
+            klog("dropped character %hhx", byte);
+      }
+      if (work & TTY_THREAD_TXRDY) {
+        pl011_fill_txbuf(pl011, tty);
+      }
+    }
+  }
+}
+
+/*
+ * New characters have appeared in the tty's output queue.
+ * Fill the UART's tx_buf and enable TXRDY interrupts.
+ * Called with `tty->t_lock` held.
+ */
+static void pl011_notify_out(tty_t *tty) {
+  pl011_state_t *pl011 = tty->t_data;
+
+  if (ringbuf_empty(&tty->t_outq))
+    return;
+
+  pl011_fill_txbuf(pl011, tty);
 }
 
 static int pl011_probe(device_t *dev) {
@@ -171,8 +217,18 @@ static int pl011_attach(device_t *dev) {
                UART_BUFSIZE);
 
   spin_init(&state->lock, 0);
-  cv_init(&state->rx_nonempty, "UART receive buffer not empty");
-  cv_init(&state->tx_nonfull, "UART transmit buffer not full");
+
+  tty_t *tty = tty_alloc();
+  tty->t_termios.c_ispeed = 115200;
+  tty->t_termios.c_ospeed = 115200;
+  tty->t_ops.t_notify_out = pl011_notify_out;
+  tty->t_data = state;
+  state->tty = tty;
+
+  cv_init(&state->tty_thread_cv, "PL011 TTY thread notification");
+  thread_t *tty_thread = thread_create("pl011-tty-worker", pl011_tty_thread,
+                                       state, prio_ithread(PRIO_ITHRD_QTY - 1));
+  sched_add(tty_thread);
 
   resource_t *r = device_take_memory(dev, 0, 0);
 
@@ -224,7 +280,7 @@ static int pl011_attach(device_t *dev) {
   bus_intr_setup(dev, state->irq, pl011_intr, NULL, dev, "PL011 UART");
 
   /* Prepare /dev/uart interface. */
-  devfs_makedev(NULL, "uart", &dev_uart_ops, state, NULL);
+  tty_makedev(NULL, "uart", tty);
 
   return 0;
 }
