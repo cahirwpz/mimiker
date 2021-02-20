@@ -26,7 +26,7 @@ static inline void set4(resource_t *r, int o, uint32_t v) {
 }
 
 static inline void clr4(resource_t *r, int o, uint32_t v) {
-  set4(r, o, bus_read_4(r, o) & ~v);
+  bus_write_4(r, o, bus_read_4(r, o) & ~v);
 }
 
 typedef struct pl011_state {
@@ -145,11 +145,11 @@ static void pl011_fill_txbuf(pl011_state_t *pl011, tty_t *tty) {
     SCOPED_SPIN_LOCK(&pl011->lock);
     pl011_try_bypass_txbuf(pl011, tty);
     if (ringbuf_full(&pl011->tx_buf) || !ringbuf_getb(&tty->t_outq, &byte)) {
+      if (!ringbuf_empty(&pl011->tx_buf))
+        set4(pl011->regs, PL011COM_CR, PL011_CR_TXE);
       pl011_set_tty_outq_nonempty_flag(pl011, tty);
       break;
     }
-    if (!ringbuf_empty(&pl011->tx_buf))
-      set4(pl011->regs, PL011COM_CR, PL011_CR_TXE);
     pl011_set_tty_outq_nonempty_flag(pl011, tty);
     ringbuf_putb(&pl011->tx_buf, byte);
   }
