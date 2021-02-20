@@ -403,3 +403,7 @@ typedef struct {
   SYSCALLARG(const struct iovec *) iov;
   SYSCALLARG(int) iovcnt;
 } writev_args_t;
+
+typedef struct {
+  SYSCALLARG(sigset_t *) set;
+} sigpending_args_t;
