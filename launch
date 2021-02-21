@@ -75,7 +75,7 @@ CONFIG = {
             '-serial', 'none'],
         'board': {
             'malta': {
-                'binary': 'qemu-mimiker-mipsel-5.2.0',
+                'binary': 'qemu-mimiker-mipsel',
                 'options': [
                     '-device', 'VGA',
                     '-machine', 'malta',
@@ -92,7 +92,7 @@ CONFIG = {
                 ]
             },
             'rpi3': {
-                'binary': 'qemu-mimiker-aarch64-5.2.0',
+                'binary': 'qemu-mimiker-aarch64',
                 'options': [
                     '-machine', 'raspi3',
                     '-smp', '4',
