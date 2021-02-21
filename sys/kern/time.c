@@ -257,7 +257,7 @@ static void kitimer_setup(proc_t *p, kitimer_t *timer,
     timer->kit_next = abs;
     timer->kit_interval = itval->it_interval;
     callout_setup(&timer->kit_callout, tv2hz(&timer->kit_next) - 1,
-                           kitimer_timeout, p);
+                  kitimer_timeout, p);
   } else {
     timerclear(&timer->kit_next);
     timerclear(&timer->kit_interval);
