@@ -157,10 +157,9 @@ bool callout_stop(callout_t *handle) {
      * itself but hasn't finished executing yet.
      * If that's the case, we must make the caller wait for its completion in
      * callout_drain(). */
-    return !callout_is_active(handle);
   }
 
-  return false;
+  return !callout_is_active(handle);
 }
 
 /*
