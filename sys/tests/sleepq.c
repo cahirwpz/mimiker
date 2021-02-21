@@ -52,4 +52,4 @@ static int test_sleepq_sync(void) {
   return KTEST_SUCCESS;
 }
 
-KTEST_ADD(sleepq_sync, test_sleepq_sync, 0);
+KTEST_ADD(sleepq_sync, test_sleepq_sync, KTEST_FLAG_BROKEN);
