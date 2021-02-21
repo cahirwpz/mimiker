@@ -1,3 +1,4 @@
+#include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/device.h>
@@ -105,8 +106,10 @@ void pci_bus_enumerate(device_t *pcib) {
       dev->instance = pcid;
 
       pcid->addr = PCIA(0, d, f);
-      pcid->device_id = pci_read_config_2(dev, PCIR_DEVICEID);
       pcid->vendor_id = pci_read_config_2(dev, PCIR_VENDORID);
+      pcid->device_id = pci_read_config_2(dev, PCIR_DEVICEID);
+      pcid->progif = pci_read_config(dev, PCIR_PROGIF, 1);
+      pcid->subclass_code = pci_read_config(dev, PCIR_SUBCLASSCODE, 1);
       pcid->class_code = pci_read_config_1(dev, PCIR_CLASSCODE);
       pcid->pin = pci_read_config_1(dev, PCIR_IRQPIN);
       pcid->irq = pci_read_config_1(dev, PCIR_IRQLINE);
@@ -147,12 +150,13 @@ void pci_bus_enumerate(device_t *pcib) {
         rman_addr_t start = (type == RT_IOPORTS) ? (IO_ISAEND + 1) : 0;
 
         device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size, flags);
-
+      }
+      if (pcid->pin) {
         int irq = pci_route_interrupt(dev);
-        if (irq != -1) {
-          device_add_irq(dev, 0, irq);
-          pci_write_config_1(dev, PCIR_IRQLINE, irq);
-        }
+        assert(irq != -1);
+        device_add_irq(dev, 0, irq);
+        pci_write_config_1(dev, PCIR_IRQLINE, irq);
+        pcid->irq = irq;
       }
     }
   }

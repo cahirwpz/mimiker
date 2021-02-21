@@ -10,6 +10,7 @@
 void longjmp(jmp_buf env, int val) {
   ucontext_t *sc_uc = (void *)env;
   ucontext_t uc;
+  memset(&uc, 0, sizeof(ucontext_t));
 
   /* Ensure non-zero SP */
   if (_REG(sc_uc, SP) == 0)
@@ -43,9 +44,11 @@ void longjmp(jmp_buf env, int val) {
   _REG(&uc, X28) = _REG(sc_uc, X28);
   _REG(&uc, X29) = _REG(sc_uc, X29);
 
-  _REG(&uc, SP) = _REG(&uc, SP);
-  _REG(&uc, LR) = _REG(&uc, LR);
-  _REG(&uc, PC) = _REG(&uc, PC);
+  _REG(&uc, SP) = _REG(sc_uc, SP);
+  _REG(&uc, LR) = _REG(sc_uc, LR);
+  _REG(&uc, PC) = _REG(sc_uc, PC);
+  _REG(&uc, SPSR) = _REG(sc_uc, SPSR);
+  _REG(&uc, TPIDR) = _REG(sc_uc, TPIDR);
 
   if (sc_uc->uc_flags & _UC_FPU) {
     memcpy(&uc.uc_mcontext.__fregs, &sc_uc->uc_mcontext.__fregs,

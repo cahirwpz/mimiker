@@ -70,6 +70,7 @@ static int arm_timer_attach(device_t *dev) {
   state->timer = (timer_t){
     .tm_name = "arm-cpu-timer",
     .tm_flags = TMF_PERIODIC,
+    .tm_quality = 0,
     .tm_start = arm_timer_start,
     .tm_stop = arm_timer_stop,
     .tm_gettime = arm_timer_gettime,

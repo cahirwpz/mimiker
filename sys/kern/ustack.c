@@ -1,4 +1,4 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>

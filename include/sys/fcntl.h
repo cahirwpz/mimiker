@@ -46,6 +46,7 @@
 #define O_DIRECT 0x00008000    /* direct I/O hint */
 #define O_DSYNC 0x00010000     /* write: I/O data completion */
 #define O_RSYNC 0x00020000     /* read: I/O completion as for write */
+#define O_NOCTTY 0x00040000    /* don't assign controlling terminal */
 
 /* Constants used for fcntl(2) */
 

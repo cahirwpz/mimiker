@@ -14,7 +14,6 @@
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
-typedef struct cred cred_t;
 typedef struct pgrp pgrp_t;
 typedef struct fdtab fdtab_t;
 typedef struct vnode vnode_t;
@@ -72,7 +71,6 @@ typedef enum {
   /* Cleared when continued or reported by wait4. */
   PF_STATE_CHANGED = 0x1,       /* Set when stopped or continued */
   PF_CHILD_STATE_CHANGED = 0x2, /* Child state changed, recheck children */
-  PF_ITIMER_ACTIVE = 0x4,       /* Per-process interval timer active */
 } proc_flags_t;
 
 /*! \brief Process structure
