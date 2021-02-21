@@ -16,6 +16,13 @@ void _vm_physseg_plug(paddr_t start, paddr_t end, bool used);
 /* Allocates contiguous big page that consists of n machine pages. */
 vm_page_t *vm_page_alloc(size_t n);
 
+/* Allocates `n` pages in various sizes and puts them on `pglist`. Always
+ * initializes `pglist`. Returns ENOMEM if the request cannot be satisfied. */
+int vm_pagelist_alloc(size_t n, vm_pagelist_t *pglist);
+
+/* Releases all pages on `pglist`. */
+void vm_pagelist_free(vm_pagelist_t *pglist);
+
 /* Returns vm_page associated with frame of given address. */
 vm_page_t *vm_page_find(paddr_t pa);
 

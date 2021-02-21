@@ -158,6 +158,7 @@ void sig_onexec(proc_t *p);
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset);
 int do_sigsuspend(proc_t *p, const sigset_t *mask);
+int do_sigpending(proc_t *p, sigset_t *set);
 
 #endif /* !_KERNEL */
 

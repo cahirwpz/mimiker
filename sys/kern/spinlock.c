@@ -1,4 +1,4 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/spinlock.h>
 #include <sys/interrupt.h>
 #include <sys/sched.h>

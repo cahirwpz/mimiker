@@ -1,7 +1,7 @@
 #ifndef _SYS_REFCNT_H_
 #define _SYS_REFCNT_H_
 
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 
 typedef atomic_uint refcnt_t;
 

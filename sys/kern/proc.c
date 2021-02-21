@@ -137,7 +137,7 @@ static pid_t pid_alloc(void) {
 
 /* Session management helper functions */
 static session_t *session_create(proc_t *leader) {
-  session_t *s = pool_alloc(P_SESSION, 0);
+  session_t *s = pool_alloc(P_SESSION, M_ZERO);
   s->s_sid = leader->p_pid;
   s->s_leader = leader;
   s->s_count = 1;

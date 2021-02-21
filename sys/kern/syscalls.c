@@ -23,6 +23,7 @@
 #include <sys/thread.h>
 #include <sys/cred.h>
 #include <sys/statvfs.h>
+#include <sys/pty.h>
 
 #include "sysent.h"
 
@@ -1092,6 +1093,125 @@ static int sys_setlogin(proc_t *p, setlogin_args_t *args, register_t *res) {
     return (error == ENAMETOOLONG ? EINVAL : error);
 
   return do_setlogin(login_tmp);
+}
+
+static int sys_posix_openpt(proc_t *p, posix_openpt_args_t *args,
+                            register_t *res) {
+
+  int flags = SCARG(args, flags);
+
+  klog("posix_openpt(0x%x)", flags);
+
+  return do_posix_openpt(p, flags, res);
+}
+
+static int sys_futimens(proc_t *p, futimens_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const timespec_t *u_times = SCARG(args, times);
+  timespec_t times[2];
+  int error;
+
+  klog("futimens(%d, %x)", fd, u_times);
+
+  if (u_times != NULL) {
+    if ((error = copyin_s(u_times, times)))
+      return error;
+  }
+
+  return do_futimens(p, fd, u_times == NULL ? NULL : times);
+}
+
+static int sys_utimensat(proc_t *p, utimensat_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  const timespec_t *u_times = SCARG(args, times);
+  int flag = SCARG(args, flag);
+  timespec_t times[2];
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("utimensat(%d, \"%s\", %x, %d)", fd, path, u_times, flag);
+
+  if (u_times != NULL) {
+    if ((error = copyin_s(u_times, times)))
+      goto end;
+  }
+
+  error = do_utimensat(p, fd, path, u_times == NULL ? NULL : times, flag);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
+static int sys_readv(proc_t *p, readv_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const iovec_t *u_iov = SCARG(args, iov);
+  int iovcnt = SCARG(args, iovcnt);
+  size_t len;
+  int error;
+
+  if (iovcnt <= 0 || iovcnt > IOV_MAX)
+    return EINVAL;
+
+  const size_t iov_size = sizeof(iovec_t) * iovcnt;
+  iovec_t *k_iov = kmalloc(M_TEMP, iov_size, 0);
+
+  if ((error = copyin(u_iov, k_iov, iov_size)) ||
+      (error = iovec_length(k_iov, iovcnt, &len)))
+    goto end;
+
+  uio_t uio = UIO_VECTOR_USER(UIO_READ, k_iov, iovcnt, len);
+  error = do_read(p, fd, &uio);
+  *res = len - uio.uio_resid;
+
+end:
+  kfree(M_TEMP, k_iov);
+  return error;
+}
+
+static int sys_writev(proc_t *p, writev_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const iovec_t *u_iov = SCARG(args, iov);
+  int iovcnt = SCARG(args, iovcnt);
+  size_t len;
+  int error;
+
+  if (iovcnt <= 0 || iovcnt > IOV_MAX)
+    return EINVAL;
+
+  const size_t iov_size = sizeof(iovec_t) * iovcnt;
+  iovec_t *k_iov = kmalloc(M_TEMP, iov_size, 0);
+
+  if ((error = copyin(u_iov, k_iov, iov_size)) ||
+      (error = iovec_length(k_iov, iovcnt, &len)))
+    goto end;
+
+  uio_t uio = UIO_VECTOR_USER(UIO_WRITE, k_iov, iovcnt, len);
+  error = do_write(p, fd, &uio);
+  *res = len - uio.uio_resid;
+
+end:
+  kfree(M_TEMP, k_iov);
+  return error;
+}
+
+static int sys_sigpending(proc_t *p, sigpending_args_t *args, register_t *res) {
+  sigset_t *u_set = SCARG(args, set);
+  int error;
+
+  klog("sigpending(%p)", u_set);
+
+  sigset_t k_set;
+
+  if ((error = do_sigpending(p, &k_set)))
+    return error;
+
+  return copyout_s(k_set, u_set);
 }
 
 static int sys_getitimer(proc_t *p, getitimer_args_t *args, register_t *res) {

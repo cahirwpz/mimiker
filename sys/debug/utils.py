@@ -18,11 +18,7 @@ def global_var(name):
 
 
 def relpath(path):
-    cwd = os.getcwd() + '/sys'
-    if path.startswith(cwd):
-        n = len(cwd) + 1
-        path = path[n:]
-    return path
+    return path.rsplit('sys/')[-1]
 
 
 # calculates address of ret instruction within function body (MIPS specific)

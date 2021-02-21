@@ -60,6 +60,11 @@ static inline void bt2ts(bintime_t *bt, timespec_t *ts) {
   ts->tv_nsec = (1000000000ULL * (uint32_t)(bt->frac >> 32)) >> 32;
 }
 
+static inline void bt2tv(bintime_t *bt, timeval_t *tv) {
+  tv->tv_sec = bt->sec;
+  tv->tv_usec = (1000000ULL * (uint32_t)(bt->frac >> 32)) >> 32;
+}
+
 /* Operations on timevals. */
 #define timerclear(tvp) (tvp)->tv_sec = (tvp)->tv_usec = 0L
 #define timerisset(tvp) ((tvp)->tv_sec || (tvp)->tv_usec)
@@ -84,6 +89,11 @@ static inline void bt2ts(bintime_t *bt, timespec_t *ts) {
       (vvp)->tv_usec += 1000000;                                               \
     }                                                                          \
   }
+
+static inline void tv2ts(const timeval_t *tv, timespec_t *ts) {
+  ts->tv_sec = tv->tv_sec;
+  ts->tv_nsec = tv->tv_usec * 1000;
+}
 
 /* Operations on bintime. */
 #define bintime_cmp(a, b, cmp)                                                 \
@@ -167,18 +177,19 @@ struct itimerval {
 
 typedef struct proc proc_t;
 
-/* Kernel interval timer.
- * Its active status is stored in the containing process's p_flags. */
+/* Kernel interval timer. */
 typedef struct {
-  systime_t kit_interval;
+  timeval_t kit_next; /* absolute time of next tick */
+  timeval_t kit_interval;
   callout_t kit_callout;
 } kitimer_t;
 
 /* Stop the interval timer associated with a process.
  * After this function returns, it's safe to free the timer structure.
  * Must be called with p->p_lock held.
- * NOTE: This function may release and re-acquire p->p_lock. */
-void kitimer_stop(proc_t *p, kitimer_t *timer);
+ * NOTE: This function may release and re-acquire p->p_lock.
+ * It returns true if it released the lock. */
+bool kitimer_stop(proc_t *p, kitimer_t *timer);
 
 /* Time measured from the start of system. */
 bintime_t binuptime(void);
@@ -189,6 +200,8 @@ bintime_t bintime(void);
 /* System time is measured in ticks (1[ms] by default),
  * and is maintained by system clock. */
 systime_t getsystime(void);
+
+timespec_t nanotime(void);
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp);
 

@@ -133,10 +133,16 @@ size_t wcstombs_l(char *__restrict, const wchar_t *__restrict, size_t,
  * Extensions made by POSIX relative to C.
  */
 char *realpath(const char *__restrict, char *__restrict);
+int grantpt(int);
+int unlockpt(int);
+char *ptsname(int);
+int posix_openpt(int flags);
 
 /*
  * Implementation-defined extensions
  */
+int ptsname_r(int fildes, char *buf, size_t buflen);
+
 #define alloca(size) __builtin_alloca(size)
 
 int mergesort(void *, size_t, size_t, int (*)(const void *, const void *));

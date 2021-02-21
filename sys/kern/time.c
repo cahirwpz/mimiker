@@ -5,6 +5,7 @@
 #include <sys/time.h>
 #include <sys/callout.h>
 #include <sys/proc.h>
+#include <sys/klog.h>
 #include <limits.h>
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp) {
@@ -151,28 +152,38 @@ time_t tm2sec(tm_t *t) {
          t->tm_min * min_scale_s + t->tm_sec + res;
 }
 
-static void hz2tv(systime_t hz, timeval_t *tv) {
-  const uint32_t us_per_sec = 1000000;
-  const uint32_t us_per_tick = us_per_sec / CLK_TCK;
-  tv->tv_sec = hz / CLK_TCK;
-  tv->tv_usec = (hz - (tv->tv_sec * CLK_TCK)) * us_per_tick;
+timespec_t nanotime(void) {
+  timespec_t tp;
+  bintime_t bt = bintime();
+  bt2ts(&bt, &tp);
+  return tp;
 }
 
 static systime_t tv2hz(const timeval_t *tv) {
-  timespec_t ts = {.tv_sec = tv->tv_sec, .tv_nsec = (long)tv->tv_usec * 1000};
+  timespec_t ts;
+  tv2ts(tv, &ts);
   return ts2hz(&ts);
+}
+
+static timeval_t tv_now(void) {
+  timeval_t now;
+  bintime_t btnow = binuptime();
+  bt2tv(&btnow, &now);
+  return now;
 }
 
 static void kitimer_get(proc_t *p, kitimer_t *timer, struct itimerval *tval) {
   assert(mtx_owned(&p->p_lock));
 
-  if (p->p_flags & PF_ITIMER_ACTIVE) {
-    /* it_value is the time until next timer tick. */
-    hz2tv(p->p_itimer.kit_callout.c_time - getsystime(), &tval->it_value);
-    hz2tv(p->p_itimer.kit_interval, &tval->it_interval);
-  } else {
-    *tval = (struct itimerval){0};
-  }
+  timeval_t now = tv_now();
+
+  kitimer_t *it = &p->p_itimer;
+  if (timercmp(&it->kit_next, &now, <=))
+    timerclear(&tval->it_value);
+  else
+    timersub(&it->kit_next, &now, &tval->it_value);
+
+  tval->it_interval = it->kit_interval;
 }
 
 int do_getitimer(proc_t *p, int which, struct itimerval *tval) {
@@ -188,24 +199,21 @@ int do_getitimer(proc_t *p, int which, struct itimerval *tval) {
   return 0;
 }
 
-void kitimer_stop(proc_t *p, kitimer_t *timer) {
+bool kitimer_stop(proc_t *p, kitimer_t *timer) {
   assert(mtx_owned(&p->p_lock));
 
-  if (p->p_flags & PF_ITIMER_ACTIVE) {
-    /* The callout is pending or active.
-     * If it has already been delegated to the callout thread we must
-     * go to sleep waiting for its completion, so we release the mutex
-     * before sleeping in callout_drain(). */
-    if (!callout_stop(&timer->kit_callout)) {
-      mtx_unlock(&p->p_lock);
-      callout_drain(&timer->kit_callout);
-      mtx_lock(&p->p_lock);
-      /* The callout should have cleared the flag. */
-      assert(!(p->p_flags & PF_ITIMER_ACTIVE));
-      return;
-    }
-    p->p_flags &= ~PF_ITIMER_ACTIVE;
+  /* The callout is pending or active.
+   * If it has already been delegated to the callout thread we must
+   * go to sleep waiting for its completion, so we release the mutex
+   * before sleeping in callout_drain(). */
+  if (!callout_stop(&timer->kit_callout)) {
+    mtx_unlock(&p->p_lock);
+    callout_drain(&timer->kit_callout);
+    mtx_lock(&p->p_lock);
+    return false;
   }
+
+  return true;
 }
 
 static void kitimer_timeout(void *arg) {
@@ -213,30 +221,46 @@ static void kitimer_timeout(void *arg) {
 
   SCOPED_MTX_LOCK(&p->p_lock);
 
-  assert(p->p_flags & PF_ITIMER_ACTIVE);
-
-  if (!proc_is_alive(p)) {
-    p->p_flags &= ~PF_ITIMER_ACTIVE;
+  if (!proc_is_alive(p))
     return;
-  }
 
   sig_kill(p, &DEF_KSI_RAW(SIGALRM));
 
-  if (p->p_itimer.kit_callout.c_interval == 0)
-    p->p_flags &= ~PF_ITIMER_ACTIVE;
+  kitimer_t *it = &p->p_itimer;
+
+  if (!timerisset(&it->kit_interval)) {
+    timerclear(&it->kit_next);
+    return;
+  }
+
+  timeval_t next = it->kit_next;
+  timeradd(&next, &it->kit_interval, &next);
+  timeval_t now = tv_now();
+  /* Skip missed ticks. */
+  while (timercmp(&next, &now, <=))
+    timeradd(&next, &it->kit_interval, &next);
+  it->kit_next = next;
+
+  callout_reschedule(&it->kit_callout, tv2hz(&next) - 1);
 }
 
 /* The timer must have been stopped prior to calling this function. */
-static void kitimer_setup(proc_t *p, kitimer_t *timer, systime_t next,
-                          systime_t interval) {
+static void kitimer_setup(proc_t *p, kitimer_t *timer,
+                          const struct itimerval *itval) {
   assert(mtx_owned(&p->p_lock));
-  assert(!(p->p_flags & PF_ITIMER_ACTIVE));
+  const timeval_t *value = &itval->it_value;
 
-  if (next) {
-    timer->kit_interval = interval;
-    p->p_flags |= PF_ITIMER_ACTIVE;
-    callout_setup_relative_periodic(&timer->kit_callout, next, interval,
-                                    kitimer_timeout, p);
+  if (timerisset(value)) {
+    /* Convert next to absolute time.  */
+    timeval_t abs = tv_now();
+    timeradd(value, &abs, &abs);
+    timer->kit_next = abs;
+    timer->kit_interval = itval->it_interval;
+    callout_setup_relative(&timer->kit_callout, tv2hz(&timer->kit_next) - 1,
+                           kitimer_timeout, p);
+  } else {
+    timerclear(&timer->kit_next);
+    timerclear(&timer->kit_interval);
   }
 }
 
@@ -251,25 +275,23 @@ int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
       !timeval_is_canonical(&itval->it_interval))
     return EINVAL;
 
-  systime_t next = tv2hz(&itval->it_value);
-  systime_t interval = tv2hz(&itval->it_interval);
-  if (interval)
-    interval--; /* ts2hz increments its result by 1 */
-
-  if (next == UINT_MAX || interval == UINT_MAX)
+  if (tv2hz(&itval->it_value) == UINT_MAX ||
+      tv2hz(&itval->it_interval) == UINT_MAX)
     return EINVAL;
 
   SCOPED_MTX_LOCK(&p->p_lock);
-
   kitimer_t *timer = &p->p_itimer;
+
+  /* We need to successfully stop the timer without dropping p_lock.  */
+  while (!kitimer_stop(p, timer))
+    ;
 
   if (oval) {
     /* Store old timer value. */
     kitimer_get(p, timer, oval);
   }
 
-  kitimer_stop(p, timer);
-  kitimer_setup(p, timer, next, interval);
+  kitimer_setup(p, timer, itval);
 
   return 0;
 }
