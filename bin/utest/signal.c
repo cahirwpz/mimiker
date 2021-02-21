@@ -199,9 +199,12 @@ int test_signal_mask(void) {
   sigcont_handled = 0;
   kill(pid, SIGUSR1);
 
-  /* Yield a couple times to make sure that the child sends us the signal. */
-  for (int i = 0; i < 3; i++)
+  /* Wait until we get a signal from the child. */
+  sigset_t set;
+  do {
     sched_yield();
+    sigpending(&set);
+  } while (!__sigismember(&set, SIGCONT));
 
   assert(!sigcont_handled);
 
@@ -266,6 +269,70 @@ int test_signal_sigsuspend(void) {
 
   int status;
   printf("Waiting for child...\n");
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
+
+/* ======= signal_sigsuspend_stop ======= */
+int test_signal_sigsuspend_stop(void) {
+  pid_t ppid = getpid();
+  signal(SIGUSR1, sigusr1_handler);
+  sigset_t set, old;
+  __sigemptyset(&set);
+  __sigaddset(&set, SIGUSR1);
+  assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
+  pid_t cpid = fork();
+  if (cpid == 0) {
+    sigsuspend(&old);
+    assert(sigusr1_handled);
+    kill(ppid, SIGUSR1);
+    return 0;
+  }
+  /* Wait for the child to call sigsuspend().
+   * Right now there's no 100% effective way to do this. */
+  for (int i = 0; i < 3; i++)
+    sched_yield();
+
+  /* Stop the child. */
+  kill(cpid, SIGSTOP);
+  int status;
+  assert(waitpid(cpid, &status, WUNTRACED) == cpid);
+  assert(WIFSTOPPED(status));
+
+  /* Continue the child. This should not interrupt the child's sigsuspend(). */
+  kill(cpid, SIGCONT);
+  /* Give the child a chance to run if it has been resumed
+   * (which it shouldn't). */
+  for (int i = 0; i < 3; i++)
+    sched_yield();
+
+  assert(!sigusr1_handled);
+
+  /* Stop the child again. */
+  kill(cpid, SIGSTOP);
+  assert(waitpid(cpid, &status, WUNTRACED) == cpid);
+  assert(WIFSTOPPED(status));
+
+  /* Send SIGUSR1 to the child. Since it's stopped, it should not interrupt
+   * the sigsuspend() yet. */
+  kill(cpid, SIGUSR1);
+  /* Give the child a chance to run if it has been resumed
+   * (which it shouldn't). */
+  for (int i = 0; i < 3; i++)
+    sched_yield();
+
+  assert(!sigusr1_handled);
+
+  /* Continue the child. Now the SIGUSR1 we sent earlier should interrupt
+   * the sigsuspend() call. */
+  kill(cpid, SIGCONT);
+
+  /* Wait for the child to send us SIGUSR1. */
+  sigsuspend(&old);
+
+  /* Reap the child. */
   wait(&status);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == 0);

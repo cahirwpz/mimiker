@@ -7,7 +7,7 @@
 #include <sys/condvar.h>
 #include <sys/malloc.h>
 #include <sys/ringbuf.h>
-#include <sys/pci.h>
+#include <sys/bus.h>
 #include <dev/isareg.h>
 #include <dev/atkbdcreg.h>
 #include <sys/interrupt.h>
@@ -174,8 +174,9 @@ static int atkbdc_attach(device_t *dev) {
 static driver_t atkbdc_driver = {
   .desc = "AT keyboard controller driver",
   .size = sizeof(atkbdc_state_t),
+  .pass = SECOND_PASS,
   .probe = atkbdc_probe,
   .attach = atkbdc_attach,
 };
 
-DEVCLASS_ENTRY(pci, atkbdc_driver);
+DEVCLASS_ENTRY(isa, atkbdc_driver);

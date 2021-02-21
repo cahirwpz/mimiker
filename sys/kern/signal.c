@@ -36,6 +36,7 @@ typedef enum {
 static const sigprop_t sig_properties[NSIG] = {
   [SIGHUP] = SA_KILL,
   [SIGINT] = SA_KILL,
+  [SIGQUIT] = SA_KILL,
   [SIGILL] = SA_KILL,
   [SIGABRT] = SA_KILL,
   [SIGFPE] = SA_KILL,
@@ -43,10 +44,12 @@ static const sigprop_t sig_properties[NSIG] = {
   [SIGKILL] = SA_KILL | SA_CANTMASK,
   [SIGTERM] = SA_KILL,
   [SIGSTOP] = SA_STOP | SA_CANTMASK,
+  [SIGTSTP] = SA_STOP | SA_TTYSTOP,
   [SIGCONT] = SA_CONT,
   [SIGCHLD] = SA_IGNORE,
   [SIGTTIN] = SA_STOP | SA_TTYSTOP,
   [SIGTTOU] = SA_STOP | SA_TTYSTOP,
+  [SIGWINCH] = SA_IGNORE,
   [SIGUSR1] = SA_KILL,
   [SIGUSR2] = SA_KILL,
   [SIGBUS] = SA_KILL,
@@ -57,6 +60,7 @@ static const sigset_t cantmask = {__sigmask(SIGKILL) | __sigmask(SIGSTOP)};
 static const char *sig_name[NSIG] = {
   [SIGHUP] = "SIGHUP",
   [SIGINT] = "SIGINT",
+  [SIGQUIT] = "SIGQUIT",
   [SIGILL] = "SIGILL",
   [SIGABRT] = "SIGABRT",
   [SIGFPE] = "SIGFPE",
@@ -64,10 +68,12 @@ static const char *sig_name[NSIG] = {
   [SIGKILL] = "SIGKILL",
   [SIGTERM] = "SIGTERM",
   [SIGSTOP] = "SIGSTOP",
+  [SIGTSTP] = "SIGTSTP",
   [SIGCONT] = "SIGCONT",
   [SIGCHLD] = "SIGCHLD",
   [SIGTTIN] = "SIGTTIN",
   [SIGTTOU] = "SIGTTOU",
+  [SIGWINCH] = "SIGWINCH",
   [SIGUSR1] = "SIGUSR1",
   [SIGUSR2] = "SIGUSR2",
   [SIGBUS] = "SIGBUS",
@@ -173,32 +179,28 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   thread_t *td = thread_self();
   assert(td->td_proc == p);
 
-  assert((td->td_pflags & TDP_OLDSIGMASK) == 0);
   td->td_oldsigmask = td->td_sigmask;
   td->td_pflags |= TDP_OLDSIGMASK;
 
   WITH_PROC_LOCK(p) {
     do_sigprocmask(SIG_SETMASK, mask, NULL);
-
-    /*
-     * We want the sleep to be interrupted only if there's an actual signal
-     * to be handled, but _sleepq_wait() returns immediately if TDF_NEEDSIGCHK
-     * is set (without checking whether there's an actual pending signal),
-     * so we clear the flag here if there are no real pending signals.
-     */
-    WITH_SPIN_LOCK (td->td_lock) {
-      if (sig_pending(td))
-        td->td_flags |= TDF_NEEDSIGCHK;
-      else
-        td->td_flags &= ~TDF_NEEDSIGCHK;
-    }
   }
 
   int error;
   error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
   assert(error == EINTR);
 
-  return EINTR;
+  return ERESTARTNOHAND;
+}
+
+int do_sigpending(proc_t *p, sigset_t *set) {
+  SCOPED_MTX_LOCK(&p->p_lock);
+  thread_t *td = p->p_thread;
+
+  *set = td->td_sigpend.sp_set;
+  /* Only blocked pending signals are reported. */
+  __sigandset(&td->td_sigmask, set);
+  return 0;
 }
 
 static ksiginfo_t *ksiginfo_copy(const ksiginfo_t *src) {
@@ -531,4 +533,23 @@ __noreturn void sig_exit(thread_t *td, signo_t sig) {
   klog("PID(%d) terminated due to signal %s ", td->td_proc->p_pid,
        sig_name[sig]);
   proc_exit(MAKE_STATUS_SIG_TERM(sig));
+}
+
+int do_sigreturn(ucontext_t *ucp) {
+  thread_t *td = thread_self();
+  mcontext_t *uctx = td->td_uctx;
+  int error = 0;
+
+  ucontext_t uc;
+  if ((error = copyin_s(ucp, uc)))
+    return error;
+
+  /* Restore user context. */
+  mcontext_copy(uctx, &uc.uc_mcontext);
+
+  WITH_MTX_LOCK (&td->td_proc->p_lock)
+    error = do_sigprocmask(SIG_SETMASK, &uc.uc_sigmask, NULL);
+  assert(error == 0);
+
+  return EJUSTRETURN;
 }

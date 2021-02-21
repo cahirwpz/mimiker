@@ -10,7 +10,6 @@
 #include <sys/thread.h>
 #include <sys/vm_map.h>
 #include <sys/vm_physmem.h>
-#include <sys/ktest.h>
 
 static inline unsigned exc_code(ctx_t *ctx) {
   return (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
@@ -20,7 +19,7 @@ static void syscall_handler(ctx_t *ctx, syscall_result_t *result) {
   /* TODO Eventually we should have a platform-independent syscall handler. */
   register_t args[SYS_MAXSYSARGS];
   register_t code = _REG(ctx, V0);
-  const int nregs = 4;
+  const size_t nregs = min(SYS_MAXSYSARGS, FUNC_MAXREGARGS);
   int error = 0;
 
   /*
@@ -95,8 +94,7 @@ static const char *const exceptions[32] = {
 static __noreturn void kernel_oops(ctx_t *ctx) {
   unsigned code = exc_code(ctx);
 
-  kprintf("KERNEL PANIC!!! \n");
-  kprintf("%s at $%08lx!\n", exceptions[code], _REG(ctx, EPC));
+  klog("%s at $%08lx!", exceptions[code], _REG(ctx, EPC));
   switch (code) {
     case EXC_ADEL:
     case EXC_ADES:
@@ -104,27 +102,25 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
     case EXC_DBE:
     case EXC_TLBL:
     case EXC_TLBS:
-      kprintf("Caused by reference to $%08lx!\n", _REG(ctx, BADVADDR));
+      klog("Caused by reference to $%08lx!", _REG(ctx, BADVADDR));
       break;
     case EXC_RI:
-      kprintf("Reserved instruction exception in kernel mode!\n");
+      klog("Reserved instruction exception in kernel mode!");
       break;
     case EXC_CPU:
-      kprintf("Coprocessor unusable exception in kernel mode!\n");
+      klog("Coprocessor unusable exception in kernel mode!");
       break;
     case EXC_FPE:
     case EXC_MSAFPE:
     case EXC_OVF:
-      kprintf("Floating point exception or integer overflow in kernel mode!\n");
+      klog("Floating point exception or integer overflow in kernel mode!");
       break;
     default:
       break;
   }
-  kprintf(
-    "HINT: Type 'info line *0x%08lx' into gdb to find faulty code line.\n",
-    _REG(ctx, EPC));
-  ktest_failure_hook();
-  panic();
+  klog("HINT: Type 'info line *0x%08lx' into gdb to find faulty code line.",
+       _REG(ctx, EPC));
+  panic("KERNEL PANIC!!!");
 }
 
 static void tlb_exception_handler(ctx_t *ctx) {
@@ -142,32 +138,20 @@ static void tlb_exception_handler(ctx_t *ctx) {
     goto fault;
   }
 
-  paddr_t pa;
-  if (pmap_extract(pmap, vaddr, &pa)) {
-    vm_page_t *pg = vm_page_find(pa);
-
-    /* Kernel non-pageable memory? */
-    if (TAILQ_EMPTY(&pg->pv_list))
-      goto fault;
-
-    if (code == EXC_TLBL) {
-      pmap_set_referenced(pg);
-    } else if (code == EXC_TLBS || code == EXC_MOD) {
-      pmap_set_referenced(pg);
-      pmap_set_modified(pg);
-    } else {
-      kernel_oops(ctx);
-    }
-
+  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
+  int error = pmap_emulate_bits(pmap, vaddr, access);
+  if (error == 0)
     return;
-  }
+
+  if (error == EACCES || error == EINVAL)
+    goto fault;
 
   vm_map_t *vmap = vm_map_lookup(vaddr);
   if (!vmap) {
     klog("No virtual address space defined for %08lx!", vaddr);
     goto fault;
   }
-  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
+
   if (vm_page_fault(vmap, vaddr, access) == 0)
     return;
 
@@ -230,6 +214,7 @@ static void user_trap_handler(ctx_t *ctx) {
         sig_trap(ctx, SIGILL);
       } else {
         /* Enable FPU for interrupted context. */
+        thread_self()->td_pflags |= TDP_FPUINUSE;
         _REG(ctx, SR) |= SR_CU1;
       }
       break;
@@ -278,11 +263,8 @@ void mips_exc_handler(ctx_t *ctx) {
      * Hopefully sizeof(ctx_t) bytes of unallocated stack space will be enough
      * to display error message. */
     register_t sp = mips32_get_sp();
-    if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t)) {
-      kprintf("Kernel stack overflow caught at $%08lx!\n", _REG(ctx, EPC));
-      ktest_failure_hook();
-      panic();
-    }
+    if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t))
+      panic("Kernel stack overflow caught at $%08lx!", _REG(ctx, EPC));
   }
 
   if (exc_code(ctx)) {

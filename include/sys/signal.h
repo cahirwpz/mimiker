@@ -4,29 +4,30 @@
 #include <sys/sigtypes.h>
 #include <sys/siginfo.h>
 
-#define SIGHUP 1   /* hangup */
-#define SIGINT 2   /* interrupt */
-#define SIGQUIT 3  /* quit */
-#define SIGILL 4   /* illegal instruction (not reset when caught) */
-#define SIGTRAP 5  /* trace trap (not reset when caught) */
-#define SIGABRT 6  /* abort() */
-#define SIGFPE 8   /* floating point exception */
-#define SIGKILL 9  /* kill (cannot be caught or ignored) */
-#define SIGBUS 10  /* bus error */
-#define SIGSEGV 11 /* segmentation violation */
-#define SIGSYS 12  /* bad argument to system call */
-#define SIGPIPE 13 /* write on a pipe with no one to read it */
-#define SIGALRM 14 /* alarm clock */
-#define SIGTERM 15 /* software termination signal from kill */
-#define SIGSTOP 17 /* sendable stop signal not from tty */
-#define SIGTSTP 18 /* stop signal from tty */
-#define SIGCONT 19 /* continue a stopped process */
-#define SIGCHLD 20 /* to parent on child stop or exit */
-#define SIGTTIN 21 /* to readers pgrp upon background tty read */
-#define SIGTTOU 22 /* like TTIN for output if (tp->t_local&LTOSTOP) */
-#define SIGINFO 29 /* information request */
-#define SIGUSR1 30 /* user defined signal 1 */
-#define SIGUSR2 31 /* user defined signal 2 */
+#define SIGHUP 1    /* hangup */
+#define SIGINT 2    /* interrupt */
+#define SIGQUIT 3   /* quit */
+#define SIGILL 4    /* illegal instruction (not reset when caught) */
+#define SIGTRAP 5   /* trace trap (not reset when caught) */
+#define SIGABRT 6   /* abort() */
+#define SIGFPE 8    /* floating point exception */
+#define SIGKILL 9   /* kill (cannot be caught or ignored) */
+#define SIGBUS 10   /* bus error */
+#define SIGSEGV 11  /* segmentation violation */
+#define SIGSYS 12   /* bad argument to system call */
+#define SIGPIPE 13  /* write on a pipe with no one to read it */
+#define SIGALRM 14  /* alarm clock */
+#define SIGTERM 15  /* software termination signal from kill */
+#define SIGSTOP 17  /* sendable stop signal not from tty */
+#define SIGTSTP 18  /* stop signal from tty */
+#define SIGCONT 19  /* continue a stopped process */
+#define SIGCHLD 20  /* to parent on child stop or exit */
+#define SIGTTIN 21  /* to readers pgrp upon background tty read */
+#define SIGTTOU 22  /* like TTIN for output if (tp->t_local&LTOSTOP) */
+#define SIGWINCH 28 /* window size changes */
+#define SIGINFO 29  /* information request */
+#define SIGUSR1 30  /* user defined signal 1 */
+#define SIGUSR2 31  /* user defined signal 2 */
 #define NSIG 32
 
 typedef int sig_atomic_t;
@@ -157,6 +158,7 @@ void sig_onexec(proc_t *p);
 int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset);
 int do_sigsuspend(proc_t *p, const sigset_t *mask);
+int do_sigpending(proc_t *p, sigset_t *set);
 
 #endif /* !_KERNEL */
 

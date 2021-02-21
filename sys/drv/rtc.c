@@ -2,7 +2,7 @@
 #include <sys/mimiker.h>
 #include <dev/mc146818reg.h>
 #include <dev/isareg.h>
-#include <sys/pci.h>
+#include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/errno.h>
@@ -123,13 +123,12 @@ static int rtc_probe(device_t *dev) {
   return dev->unit == 2; /* XXX: unit 2 assigned by gt_pci */
 }
 
-/* clang-format off */
 static driver_t rtc_driver = {
   .desc = "MC146818 RTC driver",
   .size = sizeof(rtc_state_t),
+  .pass = SECOND_PASS,
   .attach = rtc_attach,
-  .probe = rtc_probe
+  .probe = rtc_probe,
 };
-/* clang-format on */
 
-DEVCLASS_ENTRY(pci, rtc_driver);
+DEVCLASS_ENTRY(isa, rtc_driver);

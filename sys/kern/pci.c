@@ -1,3 +1,4 @@
+#include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/device.h>
@@ -5,7 +6,10 @@
 #include <sys/pci.h>
 #include <dev/isareg.h>
 
-/* For reference look at: http://wiki.osdev.org/PCI */
+/* For reference look at:
+ *   http://wiki.osdev.org/PCI
+ *   https://lekensteyn.nl/files/docs/PCI_SPEV_V3_0.pdf
+ */
 
 static const pci_device_id *pci_find_device(const pci_vendor_id *vendor,
                                             uint16_t device_id) {
@@ -102,8 +106,10 @@ void pci_bus_enumerate(device_t *pcib) {
       dev->instance = pcid;
 
       pcid->addr = PCIA(0, d, f);
-      pcid->device_id = pci_read_config_2(dev, PCIR_DEVICEID);
       pcid->vendor_id = pci_read_config_2(dev, PCIR_VENDORID);
+      pcid->device_id = pci_read_config_2(dev, PCIR_DEVICEID);
+      pcid->progif = pci_read_config(dev, PCIR_PROGIF, 1);
+      pcid->subclass_code = pci_read_config(dev, PCIR_SUBCLASSCODE, 1);
       pcid->class_code = pci_read_config_1(dev, PCIR_CLASSCODE);
       pcid->pin = pci_read_config_1(dev, PCIR_IRQPIN);
       pcid->irq = pci_read_config_1(dev, PCIR_IRQLINE);
@@ -130,6 +136,13 @@ void pci_bus_enumerate(device_t *pcib) {
         }
 
         size = -size;
+        /* PCI specification 3.0, chapter 6.2.5.1 states:
+         * Devices are free to consume more address space than required,
+         * but decoding down to a 4 KB space for memory is suggested for
+         * devices that need less than that amount. */
+        if (type == RT_MEMORY)
+          size = roundup(size, PAGESIZE);
+
         pcid->bar[i] = (pci_bar_t){
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
 
@@ -137,6 +150,13 @@ void pci_bus_enumerate(device_t *pcib) {
         rman_addr_t start = (type == RT_IOPORTS) ? (IO_ISAEND + 1) : 0;
 
         device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size, flags);
+      }
+      if (pcid->pin) {
+        int irq = pci_route_interrupt(dev);
+        assert(irq != -1);
+        device_add_irq(dev, 0, irq);
+        pci_write_config_1(dev, PCIR_IRQLINE, irq);
+        pcid->irq = irq;
       }
     }
   }

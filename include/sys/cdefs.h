@@ -25,7 +25,7 @@
 #else
 #define __BEGIN_DECLS
 #define __END_DECLS
-#define __static_cast(x, y) (x) y
+#define __static_cast(x, y) ((x)(y))
 #endif
 #endif
 
@@ -73,6 +73,8 @@
 #define __long_call
 #endif
 #define __transparent_union __attribute__((__transparent_union__))
+#define __no_sanitize                                                          \
+  __attribute__((no_sanitize("address", "thread", "undefined")))
 
 /* Clang introduces support for the fallthrough attribute in C2x. */
 #ifdef __clang__

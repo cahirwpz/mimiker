@@ -161,13 +161,42 @@ void vm_segment_destroy(vm_map_t *map, vm_segment_t *seg) {
   vm_segment_free(seg);
 }
 
+void vm_segment_destroy_range(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
+                              vaddr_t end) {
+  assert(mtx_owned(&map->mtx));
+  assert(start >= vm_map_start(map) && end <= vm_map_end(map));
+
+  pmap_remove(map->pmap, start, end);
+  if (seg->start == start && seg->end == end) {
+    vm_segment_destroy(map, seg);
+    return;
+  }
+
+  size_t length = end - start;
+  vm_object_remove_pages(seg->object, start - seg->start, length);
+
+  if (seg->start == start) {
+    seg->start = end;
+  } else if (seg->end == end) {
+    seg->end = start;
+  } else { /* a hole inside the segment */
+    vm_object_t *obj = vm_object_clone(seg->object);
+    vm_object_remove_pages(obj, 0, start - seg->start);
+    vm_object_remove_pages(seg->object, end - seg->start, seg->end - end);
+    vm_segment_t *new_seg =
+      vm_segment_alloc(obj, end, seg->end, seg->prot, seg->flags);
+    seg->end = start;
+    vm_map_insert_after(map, new_seg, seg);
+  }
+}
+
 void vm_map_delete(vm_map_t *map) {
+  pmap_delete(map->pmap);
   WITH_MTX_LOCK (&map->mtx) {
     vm_segment_t *seg, *next;
     TAILQ_FOREACH_SAFE (seg, &map->entries, link, next)
       vm_segment_destroy(map, seg);
   }
-  pmap_delete(map->pmap);
   pool_free(P_VMMAP, map);
 }
 
@@ -302,9 +331,9 @@ int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
     /* Shrinking entry */
     off_t offset = new_end - seg->start;
     size_t length = seg->end - new_end;
-    vm_object_remove_range(seg->object, offset, length);
-    /* TODO there's no reference to pmap in page, so we have to do it here */
     pmap_remove(map->pmap, new_end, seg->end);
+    vm_object_remove_pages(seg->object, offset, length);
+    /* TODO there's no reference to pmap in page, so we have to do it here */
   }
 
   seg->end = new_end;

@@ -1,7 +1,9 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/uio.h>
 #include <sys/libkern.h>
 #include <sys/vm_map.h>
+#include <sys/malloc.h>
+#include <sys/errno.h>
 
 static int copyin_vmspace(vm_map_t *vm, const void *restrict udaddr,
                           void *restrict kaddr, size_t len) {
@@ -85,4 +87,16 @@ int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio) {
   assert(uio->uio_offset >= 0);
 
   return uiomove((char *)buf + offset, buflen - offset, uio);
+}
+
+int iovec_length(const iovec_t *iov, int iovcnt, size_t *lengthp) {
+  size_t len = 0;
+  for (int i = 0; i < iovcnt; i++) {
+    len += iov[i].iov_len;
+    /* Ensure that the total data size fits in ssize_t. */
+    if (len > SSIZE_MAX || iov[i].iov_len > SSIZE_MAX)
+      return EINVAL;
+  }
+  *lengthp = len;
+  return 0;
 }

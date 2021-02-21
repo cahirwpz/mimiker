@@ -7,7 +7,8 @@
 #include <sys/syslimits.h>
 #include <sys/inttypes.h>
 
-#define NGROUPS NGROUPS_MAX /* max number groups */
+#define NGROUPS NGROUPS_MAX             /* max number groups */
+#define MAXLOGNAME (LOGIN_NAME_MAX - 1) /* max login name length */
 
 /* Macros for min/max. */
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
