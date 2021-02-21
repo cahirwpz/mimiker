@@ -37,7 +37,14 @@ void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg);
  */
 void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
                             void *arg);
-
+/*
+ * Reschedule a running callout.
+ * This function is intended to be called from the callout's function.
+ * It can be used to implement e.g. periodic timers.
+ * `time` is an absolute time, same as in callout_setup().
+ * Returns true on success, false if the rescheduling failed due to the callout
+ * being stopped.
+ */
 bool callout_reschedule(callout_t *handle, systime_t time);
 
 /*
