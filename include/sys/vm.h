@@ -41,6 +41,7 @@ typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
 typedef struct pv_entry pv_entry_t;
 typedef struct vm_object vm_object_t;
 typedef struct slab slab_t;
+typedef uintptr_t vm_offset_t;
 
 /* Field marking and corresponding locks:
  * (@) pv_list_lock (in pmap.c)
@@ -58,7 +59,7 @@ struct vm_page {
   };
   TAILQ_HEAD(, pv_entry) pv_list; /* (@) where this page is mapped? */
   vm_object_t *object;            /* (O) object owning that page */
-  off_t offset;                   /* (O) offset to page in vm_object */
+  vm_offset_t offset;             /* (O) offset to page in vm_object */
   paddr_t paddr;                  /* (P) physical address of page */
   pg_flags_t flags;               /* (P) page flags (used by physmem as well) */
   uint32_t size;                  /* (P) size of page in PAGESIZE units */

@@ -1,9 +1,9 @@
 Allow GDB to perform address translation without modyfing TLB.
-Index: qemu-mimiker/qemu-4.1.0/target/mips/helper.c
+Index: qemu-mimiker/qemu-5.2.0/target/mips/helper.c
 ===================================================================
---- qemu-mimiker.orig/qemu-4.1.0/target/mips/helper.c
-+++ qemu-mimiker/qemu-4.1.0/target/mips/helper.c
-@@ -523,16 +523,47 @@ static void raise_mmu_exception(CPUMIPSS
+--- qemu-mimiker.orig/qemu-5.2.0/target/mips/helper.c
++++ qemu-mimiker/qemu-5.2.0/target/mips/helper.c
+@@ -537,16 +537,47 @@ static void raise_mmu_exception(CPUMIPSS
      env->error_code = error_code;
  }
  

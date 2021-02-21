@@ -16,7 +16,7 @@ class LogEntry(metaclass=GdbStructMeta):
         return '{}:{}'.format(relpath(self.kl_file), self.kl_line)
 
     def format_msg(self):
-        msg = self.kl_format.replace('"', '\\"')
+        msg = self.kl_format.replace('"', '\\"').replace('\n', '\\n')
         # If there is % escaped it is not parameter.
         nparams = msg.count('%') - 2 * msg.count('%%')
         params = [str(self.kl_params[i]) for i in range(nparams)]
@@ -25,13 +25,20 @@ class LogEntry(metaclass=GdbStructMeta):
             # Using gdb printf so we don't need to dereference addresses.
             return gdb.execute(printf, to_string=True)
         except Exception:
+            pass
+
+        # Invalid string pointer.
+        printf_nostr = printf.replace('%s', '[invalid pointer %p]')
+        try:
+            return gdb.execute(printf_nostr, to_string=True)
+        except Exception:
             # Do not format the message, because something went wrong.
             return printf
 
 
 class LogBuffer(metaclass=GdbStructMeta):
     __ctype__ = 'struct klog'
-    __cast__ = {'verbose': bool}
+    __cast__ = {'first': int, 'last': int}
 
     @property
     def size(self):
@@ -62,9 +69,9 @@ class Klog(SimpleCommand):
         self.dump_messages(klog)
 
     def dump_info(self, klog):
-        table = TextTable(types='tti', align='rrr')
-        table.header(['Mask', 'Verbose', 'Messages'])
-        table.add_row([hex(klog.mask), klog.verbose, len(klog)])
+        table = TextTable(types='ti', align='rr')
+        table.header(['Mask', 'Messages'])
+        table.add_row([hex(klog.mask), len(klog)])
         print(table)
 
     def dump_messages(self, klog):
