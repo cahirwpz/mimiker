@@ -1,3 +1,9 @@
+qemu-mimiker (5.2.0+mimiker1) unstable; urgency=medium
+
+  * Bump up version.
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Mon, 21 Dec 2020 19:29:38 +0100
+
 qemu-mimiker (4.1.0+mimiker2) unstable; urgency=medium
 
   * Debugger can access all memory, even if CPU is in user mode.
