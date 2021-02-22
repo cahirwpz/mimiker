@@ -69,7 +69,7 @@ CONFIG = {
             # Configure record/replay function for deterministic replay,
             # refer to https://github.com/qemu/qemu/blob/master/docs/replay.txt
             # '-icount', 'shift=3,sleep=on,rr=record,rrfile=replay.bin',
-            '-icount', 'shift=3,align=off,sleep=on'
+            '-icount', 'shift=3,align=off,sleep=on',
             '-rtc', 'clock=vm',
             '-kernel', '{kernel}',
             '-initrd', '{initrd}',
