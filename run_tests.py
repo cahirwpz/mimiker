@@ -10,7 +10,7 @@ import sys
 
 
 N_SIMPLE = 10
-TIMEOUT = 40
+DEFAULT_TIMEOUT = 40
 REPEAT = 5
 
 
@@ -24,12 +24,12 @@ def setup_terminal():
         subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
 
 
-def run_test(seed, board):
+def run_test(seed, board, timeout):
     print("Testing seed %u..." % seed)
 
     try:
         launch = subprocess.Popen(
-                ['./launch', '--board', board, '-t', '--timeout=%d' % TIMEOUT,
+                ['./launch', '--board', board, '-t', '--timeout=%d' % timeout,
                  'test=all', 'seed=%u' % seed, 'repeat=%d' % REPEAT])
         rc = launch.wait()
         if rc:
@@ -50,11 +50,13 @@ if __name__ == '__main__':
                         help='Run tests given number of times.')
     parser.add_argument('--board', default='malta', choices=['malta', 'rpi3'],
                         help='Emulated board.')
+    parser.add_argument('-T', '--timeout', type=int, default=DEFAULT_TIMEOUT,
+                        help='Test-run will fail after n seconds.')
     args = parser.parse_args()
 
     # Run tests using n random seeds
     for _ in range(0, args.times):
-        run_test(random.randint(0, 2**32), args.board)
+        run_test(random.randint(0, 2**32), args.board, args.timeout)
 
     print("Tests successful!")
     sys.exit(0)
