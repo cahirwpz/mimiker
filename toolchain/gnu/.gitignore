@@ -1,0 +1,12 @@
+binutils
+gcc
+gdb
+isl
+gmp
+mpfr
+mpc
+host
+local
+cloog
+*.tar.gz
+*.tar.xz

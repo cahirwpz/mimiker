@@ -1,5 +1,3 @@
-mipsel-mimiker-elf
-aarch64-mimiker-elf
 openocd-mimiker/debian/openocd-mimiker
 tmp
 files
