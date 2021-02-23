@@ -62,6 +62,7 @@ SOURCES = \
 	timer.c \
 	tmpfs.c \
 	tty.c \
+	uart.c \
 	uio.c \
 	ustack.c \
 	vfs.c \

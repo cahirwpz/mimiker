@@ -12,7 +12,7 @@
 #include <sys/interrupt.h>
 #include <sys/ringbuf.h>
 #include <sys/tty.h>
-#include <sys/sched.h>
+#include <sys/uart.h>
 #include <aarch64/bcm2835reg.h>
 #include <aarch64/bcm2835_gpioreg.h>
 #include <aarch64/plcomreg.h>
@@ -30,176 +30,38 @@ static inline void clr4(resource_t *r, int o, uint32_t v) {
 }
 
 typedef struct pl011_state {
-  spin_t lock;
-  ringbuf_t rx_buf;
-  ringbuf_t tx_buf;
   resource_t *regs;
   resource_t *irq;
-  tty_t *tty;
-  condvar_t tty_thread_cv;
-  uint8_t tty_thread_flags;
 } pl011_state_t;
 
-/* tty->t_outq -> tx_buf */
-#define TTY_THREAD_TXRDY 0x1
-/* rx_buf -> tty->t_inq */
-#define TTY_THREAD_RXRDY 0x2
-#define TTY_THREAD_WORK_MASK (TTY_THREAD_TXRDY | TTY_THREAD_RXRDY)
-/* If cleared, don't wake up worker thread from pl011_intr. */
-#define TTY_THREAD_OUTQ_NONEMPTY 0x4
-
-/* Return true if we can write. */
-static bool pl011_wready(pl011_state_t *state) {
-  resource_t *r = state->regs;
-  uint32_t reg = bus_read_4(r, PL01XCOM_FR);
-  return (reg & PL01X_FR_TXFF) == 0;
+static bool pl011_rx_ready(void *state) {
+  pl011_state_t *pl011 = state;
+  return (bus_read_4(pl011->regs, PL01XCOM_FR) & PL01X_FR_RXFE) == 0;
 }
 
-static void pl011_putc(pl011_state_t *state, uint32_t c) {
-  assert(pl011_wready(state));
-
-  resource_t *r = state->regs;
-  bus_write_4(r, PL01XCOM_DR, c);
+static uint8_t pl011_getc(void *state) {
+  pl011_state_t *pl011 = state;
+  return bus_read_4(pl011->regs, PL01XCOM_DR);
 }
 
-/* Return true if we can read. */
-static bool pl011_rready(pl011_state_t *state) {
-  resource_t *r = state->regs;
-  uint32_t reg = bus_read_4(r, PL01XCOM_FR);
-  return (reg & PL01X_FR_RXFE) == 0;
+static void pl011_putc(void *state, uint8_t c) {
+  pl011_state_t *pl011 = state;
+  bus_write_4(pl011->regs, PL01XCOM_DR, c);
 }
 
-static uint32_t pl011_getc(pl011_state_t *state) {
-  assert(pl011_rready(state));
-
-  resource_t *r = state->regs;
-  return bus_read_4(r, PL01XCOM_DR);
+static bool pl011_tx_ready(void *state) {
+  pl011_state_t *pl011 = state;
+  return (bus_read_4(pl011->regs, PL01XCOM_FR) & PL01X_FR_TXFF) == 0;
 }
 
-static intr_filter_t pl011_intr(void *data /* device_t* */) {
-  pl011_state_t *pl011 = ((device_t *)data)->state;
-  intr_filter_t res = IF_STRAY;
-
-  WITH_SPIN_LOCK (&pl011->lock) {
-    if (pl011_rready(pl011)) {
-      ringbuf_putb(&pl011->rx_buf, pl011_getc(pl011));
-      pl011->tty_thread_flags |= TTY_THREAD_RXRDY;
-      cv_signal(&pl011->tty_thread_cv);
-      res = IF_FILTERED;
-    }
-
-    if (pl011_wready(pl011)) {
-      uint8_t byte;
-      while (pl011_wready(pl011) && ringbuf_getb(&pl011->tx_buf, &byte)) {
-        pl011_putc(pl011, byte);
-      }
-      if (ringbuf_empty(&pl011->tx_buf)) {
-        /* If we're out of characters and there are characters
-         * in the tty's output queue, signal the tty thread to refill. */
-        if (pl011->tty_thread_flags & TTY_THREAD_OUTQ_NONEMPTY) {
-          pl011->tty_thread_flags |= TTY_THREAD_TXRDY;
-          cv_signal(&pl011->tty_thread_cv);
-        }
-        /* Disable TXRDY interrupts - the tty thread will re-enable them
-         * after filling tx_buf. */
-        clr4(pl011->regs, PL011COM_CR, PL011_CR_TXE);
-      }
-      res = IF_FILTERED;
-    }
-  }
-
-  return res;
+static void pl011_tx_enable(void *state) {
+  pl011_state_t *pl011 = state;
+  set4(pl011->regs, PL011COM_CR, PL011_CR_TXE);
 }
 
-/*
- * If tx_buf is empty, we can try to write characters directly from tty->t_outq.
- * This routine attempts to do just that.
- * Must be called with both tty->t_lock and pl011->lock held.
- */
-static void pl011_try_bypass_txbuf(pl011_state_t *pl011, tty_t *tty) {
-  uint8_t byte;
-
-  if (!ringbuf_empty(&pl011->tx_buf))
-    return;
-
-  while (pl011_wready(pl011) && ringbuf_getb(&tty->t_outq, &byte)) {
-    pl011_putc(pl011, byte);
-  }
-}
-
-static void pl011_set_tty_outq_nonempty_flag(pl011_state_t *pl011, tty_t *tty) {
-  if (ringbuf_empty(&tty->t_outq))
-    pl011->tty_thread_flags &= ~TTY_THREAD_OUTQ_NONEMPTY;
-  else
-    pl011->tty_thread_flags |= TTY_THREAD_OUTQ_NONEMPTY;
-}
-
-/*
- * Move characters from tty->t_outq to pl011->tx_buf.
- * Must by called with tty->t_lock held.
- */
-static void pl011_fill_txbuf(pl011_state_t *pl011, tty_t *tty) {
-  uint8_t byte;
-
-  while (true) {
-    SCOPED_SPIN_LOCK(&pl011->lock);
-    pl011_try_bypass_txbuf(pl011, tty);
-    if (ringbuf_full(&pl011->tx_buf) || !ringbuf_getb(&tty->t_outq, &byte)) {
-      if (!ringbuf_empty(&pl011->tx_buf))
-        set4(pl011->regs, PL011COM_CR, PL011_CR_TXE);
-      pl011_set_tty_outq_nonempty_flag(pl011, tty);
-      break;
-    }
-    pl011_set_tty_outq_nonempty_flag(pl011, tty);
-    ringbuf_putb(&pl011->tx_buf, byte);
-  }
-  tty_getc_done(tty);
-}
-
-static bool pl011_getb_lock(pl011_state_t *pl011, uint8_t *byte_p) {
-  SCOPED_SPIN_LOCK(&pl011->lock);
-  return ringbuf_getb(&pl011->rx_buf, byte_p);
-}
-
-/* TODO: revisit after per-intr_event ithreads are implemented. */
-static void pl011_tty_thread(void *arg) {
-  pl011_state_t *pl011 = (pl011_state_t *)arg;
-  tty_t *tty = pl011->tty;
-  uint8_t work, byte;
-
-  while (true) {
-    WITH_SPIN_LOCK (&pl011->lock) {
-      /* Sleep until there's work for us to do. */
-      while ((work = pl011->tty_thread_flags & TTY_THREAD_WORK_MASK) == 0)
-        cv_wait(&pl011->tty_thread_cv, &pl011->lock);
-      pl011->tty_thread_flags &= ~TTY_THREAD_WORK_MASK;
-    }
-    WITH_MTX_LOCK (&tty->t_lock) {
-      if (work & TTY_THREAD_RXRDY) {
-        /* Move characters from rx_buf into the tty's input queue. */
-        while (pl011_getb_lock(pl011, &byte))
-          if (!tty_input(tty, byte))
-            klog("dropped character %hhx", byte);
-      }
-      if (work & TTY_THREAD_TXRDY) {
-        pl011_fill_txbuf(pl011, tty);
-      }
-    }
-  }
-}
-
-/*
- * New characters have appeared in the tty's output queue.
- * Fill the UART's tx_buf and enable TXRDY interrupts.
- * Called with `tty->t_lock` held.
- */
-static void pl011_notify_out(tty_t *tty) {
-  pl011_state_t *pl011 = tty->t_data;
-
-  if (ringbuf_empty(&tty->t_outq))
-    return;
-
-  pl011_fill_txbuf(pl011, tty);
+static void pl011_tx_disable(void *state) {
+  pl011_state_t *pl011 = state;
+  clr4(pl011->regs, PL011COM_CR, PL011_CR_TXE);
 }
 
 static int pl011_probe(device_t *dev) {
@@ -209,26 +71,14 @@ static int pl011_probe(device_t *dev) {
 }
 
 static int pl011_attach(device_t *dev) {
-  pl011_state_t *state = dev->state;
-
-  ringbuf_init(&state->rx_buf, kmalloc(M_DEV, UART_BUFSIZE, M_ZERO),
-               UART_BUFSIZE);
-  ringbuf_init(&state->tx_buf, kmalloc(M_DEV, UART_BUFSIZE, M_ZERO),
-               UART_BUFSIZE);
-
-  spin_init(&state->lock, 0);
+  pl011_state_t *pl011 = kmalloc(M_DEV, sizeof(pl011_state_t), M_ZERO);
 
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
   tty->t_termios.c_ospeed = 115200;
-  tty->t_ops.t_notify_out = pl011_notify_out;
-  tty->t_data = state;
-  state->tty = tty;
+  tty->t_ops.t_notify_out = uart_notify_out;
 
-  cv_init(&state->tty_thread_cv, "PL011 TTY thread notification");
-  thread_t *tty_thread = thread_create("pl011-tty-worker", pl011_tty_thread,
-                                       state, prio_ithread(PRIO_ITHRD_QTY - 1));
-  sched_add(tty_thread);
+  uart_init(dev, "pl011", UART_BUFSIZE, pl011, tty);
 
   resource_t *r = device_take_memory(dev, 0, 0);
 
@@ -237,7 +87,7 @@ static int pl011_attach(device_t *dev) {
 
   assert(r != NULL);
 
-  state->regs = r;
+  pl011->regs = r;
 
   /* Disable UART0. */
   bus_write_4(r, PL011COM_CR, 0);
@@ -276,8 +126,8 @@ static int pl011_attach(device_t *dev) {
   /* Enable interrupt. */
   bus_write_4(r, PL011COM_IMSC, PL011_INT_RX);
 
-  state->irq = device_take_irq(dev, 0, RF_ACTIVE);
-  bus_intr_setup(dev, state->irq, pl011_intr, NULL, dev, "PL011 UART");
+  pl011->irq = device_take_irq(dev, 0, RF_ACTIVE);
+  bus_intr_setup(dev, pl011->irq, uart_intr, NULL, dev, "PL011 UART");
 
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);
@@ -285,12 +135,25 @@ static int pl011_attach(device_t *dev) {
   return 0;
 }
 
+static uart_methods_t pl011_methods = {
+  .getc = pl011_getc,
+  .rx_ready = pl011_rx_ready,
+  .putc = pl011_putc,
+  .tx_ready = pl011_tx_ready,
+  .tx_enable = pl011_tx_enable,
+  .tx_disable = pl011_tx_disable,
+};
+
 static driver_t pl011_driver = {
   .desc = "PL011 UART driver",
-  .size = sizeof(pl011_state_t),
+  .size = sizeof(uart_state_t),
   .pass = SECOND_PASS,
   .attach = pl011_attach,
   .probe = pl011_probe,
+  .interfaces =
+    {
+      [DIF_UART] = &pl011_methods,
+    },
 };
 
 DEVCLASS_ENTRY(root, pl011_driver);
