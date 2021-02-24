@@ -192,8 +192,8 @@ class Launchable():
             attach=False, window_name=self.name, window_shell=cmd)
         self.pid = int(self.window.attached_pane._info['pane_pid'])
 
-    def spawn(self):
-        return pexpect.spawn(self.cmd, self.options)
+    def spawn(self, dimensions=None):
+        return pexpect.spawn(self.cmd, self.options, dimensions=dimensions)
 
     def stop(self):
         if self.pid is None:
@@ -260,8 +260,7 @@ def PostMortem(gdb):
 
 def TestRun(sim, dbg, timeout):
     qemu = sim.spawn()
-    gdb = dbg.spawn()
-    gdb.setwinsize(int(os.environ['LINES']), int(os.environ['COLUMNS']))
+    gdb = dbg.spawn(dimensions=(int(os.environ['LINES']), int(os.environ['COLUMNS'])))
 
     try:
         # No need to wait for QEmu, GDB will terminate it!
