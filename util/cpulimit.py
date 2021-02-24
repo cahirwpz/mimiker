@@ -13,7 +13,7 @@ def runCommand(cmd, timeout):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description=('Launch a program with CPU limit, and send SIGINT ' +
+        description=('Launch a program with CPU limit, and send SIGUSR1 ' +
                      'to specified process once the limit is reached.'))
     parser.add_argument('cmd', metavar='CMD', type=str, nargs='+', help='Command to execute')
     parser.add_argument('-p', '--pid', type=int, help='PID of process to send SIGINT to')
@@ -36,7 +36,7 @@ if __name__ == "__main__":
             ev = debugger.waitSignals(signal.SIGXCPU.value)
             if not sigxcpu_handled:
                 sigxcpu_handled = True
-                os.kill(args.pid, signal.SIGINT)
+                os.kill(args.pid, signal.SIGUSR1)
             ev.process.cont()
         except NewProcessEvent as ev:
             processes.add(ev.process.pid)
