@@ -6,18 +6,23 @@ import os
 import argparse
 import signal
 
+
 def runCommand(cmd, timeout):
     dir = os.path.dirname(os.path.realpath(__file__))
     cmd = [os.path.join(dir, 'cpulimit_exec.sh'), str(timeout)] + cmd
     return createChild(cmd, False)
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=('Launch a program with CPU limit, and send SIGUSR1 ' +
                      'to specified process once the limit is reached.'))
-    parser.add_argument('cmd', metavar='CMD', type=str, nargs='+', help='Command to execute')
-    parser.add_argument('-p', '--pid', type=int, help='PID of process to send SIGINT to')
-    parser.add_argument('-t', '--timeout', type=int, help='CPU time limit (in seconds)')
+    parser.add_argument('cmd', metavar='CMD', type=str, nargs='+',
+                        help='Command to execute')
+    parser.add_argument('-p', '--pid', type=int,
+                        help='PID of process to send SIGINT to')
+    parser.add_argument('-t', '--timeout', type=int,
+                        help='CPU time limit (in seconds)')
 
     args = parser.parse_args()
     sigxcpu_handled = False
@@ -25,7 +30,7 @@ if __name__ == "__main__":
     debugger = PtraceDebugger()
     debugger.traceFork()
     debugger.traceClone()
-    debugger.options |= (1 << 20) # PTRACE_O_EXITKILL
+    debugger.options |= (1 << 20)  # PTRACE_O_EXITKILL
     process = debugger.addProcess(runCommand(args.cmd, args.timeout), True)
     processes = set([process.pid])
     process.cont()

@@ -235,11 +235,13 @@ class GDB(Launchable):
                 'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
         self.options.append(getvar('config.elf'))
 
+
 class CPULimit(Launchable):
     def __init__(self, launchable, timeout):
         super().__init__(launchable.name, './util/cpulimit.py')
         self.options = ['-t', str(timeout), '-p', str(os.getpid()), '--',
                         launchable.cmd] + launchable.options
+
 
 class SOCAT(Launchable):
     def __init__(self, name, tcp_port, raw=False):
@@ -262,17 +264,21 @@ def PostMortem(gdb):
     gdb.sendline('kill')
     gdb.sendline('quit')
 
+
 class TimeoutException(Exception):
     def __init__(self):
         Exception.__init__(self)
 
+
 def sigusr1_handler(_signo, _frame):
     raise TimeoutException()
+
 
 def TestRun(sim, dbg, timeout):
     signal.signal(signal.SIGUSR1, sigusr1_handler)
     qemu = CPULimit(sim, timeout).spawn()
-    gdb = dbg.spawn(dimensions=(int(os.environ['LINES']), int(os.environ['COLUMNS'])))
+    gdb = dbg.spawn(dimensions=(int(os.environ['LINES']),
+                                int(os.environ['COLUMNS'])))
 
     try:
         # No need to wait for QEmu, GDB will terminate it!
