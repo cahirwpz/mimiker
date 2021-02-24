@@ -36,6 +36,42 @@ typedef struct uart_state {
   void *u_state;
 } uart_state_t;
 
+static inline uint8_t uart_getc(device_t *dev) {
+  uart_methods_t *methods = uart_methods(dev);
+  uart_state_t *uart = dev->state;
+  return methods->getc(uart->u_state);
+}
+
+static inline bool uart_rx_ready(device_t *dev) {
+  uart_methods_t *methods = uart_methods(dev);
+  uart_state_t *uart = dev->state;
+  return methods->rx_ready(uart->u_state);
+}
+
+static inline void uart_putc(device_t *dev, uint8_t byte) {
+  uart_methods_t *methods = uart_methods(dev);
+  uart_state_t *uart = dev->state;
+  methods->putc(uart->u_state, byte);
+}
+
+static inline bool uart_tx_ready(device_t *dev) {
+  uart_methods_t *methods = uart_methods(dev);
+  uart_state_t *uart = dev->state;
+  return methods->tx_ready(uart->u_state);
+}
+
+static inline void uart_tx_enable(device_t *dev) {
+  uart_methods_t *methods = uart_methods(dev);
+  uart_state_t *uart = dev->state;
+  methods->tx_enable(uart->u_state);
+}
+
+static inline void uart_tx_disable(device_t *dev) {
+  uart_methods_t *methods = uart_methods(dev);
+  uart_state_t *uart = dev->state;
+  methods->tx_disable(uart->u_state);
+}
+
 bool uart_getb_lock(uart_state_t *uart, uint8_t *byte_p);
 void uart_fill_txbuf(device_t *dev);
 

@@ -28,15 +28,14 @@ bool uart_getb_lock(uart_state_t *uart, uint8_t *byte_p) {
  */
 static void uart_try_bypass_txbuf(device_t *dev) {
   uart_state_t *uart = dev->state;
-  uart_methods_t *methods = uart_methods(dev);
   tty_t *tty = uart->u_tty;
   uint8_t byte;
 
   if (!ringbuf_empty(&uart->u_tx_buf))
     return;
 
-  while (methods->tx_ready(uart->u_state) && ringbuf_getb(&tty->t_outq, &byte))
-    methods->putc(uart->u_state, byte);
+  while (uart_tx_ready(dev) && ringbuf_getb(&tty->t_outq, &byte))
+    uart_putc(dev, byte);
 }
 
 /*
@@ -45,7 +44,6 @@ static void uart_try_bypass_txbuf(device_t *dev) {
  */
 void uart_fill_txbuf(device_t *dev) {
   uart_state_t *uart = dev->state;
-  uart_methods_t *methods = uart_methods(dev);
   tty_t *tty = uart->u_tty;
   uint8_t byte;
 
@@ -55,7 +53,7 @@ void uart_fill_txbuf(device_t *dev) {
     if (ringbuf_full(&uart->u_tx_buf) || !ringbuf_getb(&tty->t_outq, &byte)) {
       /* Enable TXRDY interrupts if there are characters in tx_buf. */
       if (!ringbuf_empty(&uart->u_tx_buf))
-        methods->tx_enable(uart->u_state);
+        uart_tx_enable(dev);
       tty_set_outq_nonempty_flag(&uart->u_ttd, tty);
       break;
     }
@@ -68,23 +66,21 @@ void uart_fill_txbuf(device_t *dev) {
 intr_filter_t uart_intr(void *data /* device_t* */) {
   device_t *dev = data;
   uart_state_t *uart = dev->state;
-  uart_methods_t *methods = uart_methods(dev);
   tty_thread_t *ttd = &uart->u_ttd;
   intr_filter_t res = IF_STRAY;
 
   WITH_SPIN_LOCK (&uart->u_lock) {
-    if (methods->rx_ready(uart->u_state)) {
-      (void)ringbuf_putb(&uart->u_rx_buf, methods->getc(uart->u_state));
+    if (uart_rx_ready(dev)) {
+      (void)ringbuf_putb(&uart->u_rx_buf, uart_getc(dev));
       ttd->ttd_flags |= TTY_THREAD_RXRDY;
       cv_signal(&ttd->ttd_cv);
       res = IF_FILTERED;
     }
 
-    if (methods->tx_ready(uart->u_state)) {
+    if (uart_tx_ready(dev)) {
       uint8_t byte;
-      while (methods->tx_ready(uart->u_state) &&
-             ringbuf_getb(&uart->u_tx_buf, &byte))
-        methods->putc(dev, byte);
+      while (uart_tx_ready(dev) && ringbuf_getb(&uart->u_tx_buf, &byte))
+        uart_putc(dev, byte);
       if (ringbuf_empty(&uart->u_tx_buf)) {
         /* If we're out of characters and there are characters
          * in the tty's output queue, signal the tty thread to refill. */
@@ -94,7 +90,7 @@ intr_filter_t uart_intr(void *data /* device_t* */) {
         }
         /* Disable TXRDY interrupts - the tty thread will re-enable them
          * after filling tx_buf. */
-        methods->tx_disable(uart->u_state);
+        uart_tx_disable(dev);
       }
       res = IF_FILTERED;
     }
