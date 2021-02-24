@@ -50,7 +50,7 @@
 #define CMD_GO_IDLE       0x00000000
 #define CMD_ALL_SEND_CID  0x02010000
 #define CMD_SEND_REL_ADDR 0x03020000
-#define CMD_CARD_SELECT   0x07030000
+#define CMD_CARD_SELECT   0x07020000
 #define CMD_SEND_IF_COND  0x08020000
 //#define CMD_STOP_TRANS    0x0C030000
 /* Turns out the broadcom module has rwo ways of handling responses */
@@ -68,10 +68,11 @@
 #define CMD_SEND_SCR      (0x33220010 | CMD_APP_SPECIFIC)
 
 // STATUS register settings
-#define SR_READ_AVAILABLE 0x00000800
-#define SR_DAT_INHIBIT    0x00000002
-#define SR_CMD_INHIBIT    0x00000001
-#define SR_APP_CMD        0x00000020
+#define SR_READ_AVAILABLE  0x00000800
+#define SR_WRITE_AVAILABLE 0x00000400
+#define SR_DAT_INHIBIT     0x00000002
+#define SR_CMD_INHIBIT     0x00000001
+#define SR_APP_CMD         0x00000020
 
 // INTERRUPT register settings
 #define INT_DATA_TIMEOUT 0x00100000
@@ -209,7 +210,7 @@ static int32_t emmc_intr_wait(device_t * dev, uint32_t mask, uint32_t clear) {
 int emmc_status(device_t *dev, uint32_t mask) {
   emmc_state_t *state = (emmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
-  int32_t cnt = 500000;
+  int32_t cnt = 10000;
   do {
     sleep_ms(1);
   } while ((b_in(emmc, EMMC_STATUS) & mask) && cnt--);
@@ -361,17 +362,16 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
   assert(dev->driver == (driver_t *)&emmc_driver);
   emmc_state_t *state = (emmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
-  uint32_t d = 0;
   if (num < 1)
     num = 1;
   if (lba != state->last_lba)
     klog("sd_readblock lba %p, num %p\n", lba, num);
   state->last_lba = lba;
 
-  if (emmc_status(dev, SR_DAT_INHIBIT)) {
+/*   if (emmc_status(dev, SR_DAT_INHIBIT)) {
     state->sd_err = SD_TIMEOUT;
     return 0;
-  }
+  } */
   uint32_t *buf = (uint32_t *)buffer;
   if (state->sd_scr[0] & SCR_SUPP_CCS) {
     /* Multiple block transfers either be terminated after a set amount of
@@ -398,14 +398,30 @@ int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
         return 0;
     }
     uint32_t cnt = 10000;
-    while (d < 64 && cnt) {
-      if (b_in(emmc, EMMC_STATUS) & SR_READ_AVAILABLE)
-        buf[d++] = b_in(emmc, EMMC_DATA);
-      else
+    uint32_t d = 0;
+    while (d < 128 && cnt) {
+      if (b_in(emmc, EMMC_STATUS) & SR_READ_AVAILABLE) {
+        if (d == 127 && c == num - 1)
+          spin_lock(&state->slock);
+        volatile uint32_t cintr = b_in(emmc, EMMC_INTERRUPT);
+        if (cintr == 0 || cintr != 0)
+          buf[d++] = b_in(emmc, EMMC_DATA);
+        if (d == 128 && c == num - 1) {
+          if (cnt && emmc_intr_wait(dev, INT_DATA_DONE, 0)) {
+            spin_unlock(&state->slock);
+            state->sd_err = SD_TIMEOUT;
+            return 0;
+          }
+          spin_unlock(&state->slock);
+        }
+      } else {
         cnt--;
+      }
     }
     if (!cnt)
-      return SD_TIMEOUT;
+      state->sd_err = SD_TIMEOUT;
+    if (state->sd_err)
+      return 0;
     buf += 128;
   }
   if (num > 1 && !(state->sd_scr[0] & SCR_SUPP_SET_BLKCNT) &&
@@ -428,7 +444,6 @@ int emmc_write_block(device_t *dev, uint32_t lba, const uint8_t *buffer,
     return 0;
   uint32_t *buf = (uint32_t *)buffer;
   uint32_t c = 0;
-  int32_t d;
   if (num < 1)
     return 0;
   if (emmc_status(dev, SR_DAT_INHIBIT)) {
@@ -457,8 +472,14 @@ int emmc_write_block(device_t *dev, uint32_t lba, const uint8_t *buffer,
     if (state->sd_err)
       return 0;
     WITH_SPIN_LOCK(&state->slock) {
-      for (d = 0; d < 128; d++)
-        b_out(emmc, EMMC_DATA, buf[d]);
+      uint32_t cnt = 10000;
+      int32_t d = 0;
+      while (d < 128 && cnt) {
+        if (b_in(emmc, EMMC_STATUS) & SR_WRITE_AVAILABLE)
+          b_out(emmc, EMMC_DATA, buf[d++]);
+        else
+          cnt--;
+      }
       if (!emmc_intr_wait(dev, INT_DATA_DONE, 0))
         return 1;
       if (state->sd_err)
@@ -669,7 +690,7 @@ static int emmc_init(device_t *dev) {
   if ((r = sd_clk(dev, 25000000)))
     return r;
 
-  emmc_cmd(dev, CMD_CARD_SELECT, state->sd_rca, INT_DATA_DONE, 0);
+  emmc_cmd(dev, CMD_CARD_SELECT, state->sd_rca, 0, 0);
   if (state->sd_err)
     return state->sd_err;
   if (emmc_status(dev, SR_DAT_INHIBIT))
@@ -718,11 +739,58 @@ static int emmc_probe(device_t *dev) {
   return dev->unit == 3;
 }
 
-static char testbuf[] = "Kremowka";
+static char testbuf[] =
+  "Man is a rope stretched between the animal and the Superman--a rope over an "
+  "abyss.\n\nA dangerous crossing, a dangerous wayfaring, a dangerous "
+  "looking-back, a dangerous trembling and halting.\n\nWhat is great in man is "
+  "that he is a bridge and not a goal: what is lovable in man is that he is an "
+  "OVER-GOING and a DOWN-GOING.\n\nI love those that know not how to live "
+  "except as down-goers, for they are the over-goers.\n\nI love the great "
+  "despisers, because they are the great adorers, and arrows of longing for "
+  "the other shore.\n\nI love those who do not first seek a reason beyond the "
+  "stars for going down and being sacrifices, but sacrifice themselves to the "
+  "earth, that the earth of the Superman may hereafter arrive.\n\nI love him "
+  "who lives in order to know, and seeks to know in order that the Superman "
+  "may hereafter live. Thus seeks he his own down-going.\n\nI love him who "
+  "labors and invents, that he may build the house for the Superman, and "
+  "prepare for him earth, animal, and plant: for thus seeks he his own "
+  "down-going.\n\nI love him who loves his virtue: for virtue is the will to "
+  "down-going, and an arrow of longing.\n\nI love him who reserves no share of "
+  "spirit for himself, but wants to be wholly the spirit of his virtue: thus "
+  "walks he as spirit over the bridge.\n\nI love him who makes his virtue his "
+  "inclination and destiny: thus, for the sake of his virtue, he is willing to "
+  "live on, or live no more.\n\nI love him who desires not too many virtues. "
+  "One virtue is more of a virtue than two, because it is more of a knot for "
+  "one's destiny to cling to.\n\nI love him whose soul is lavish, who wants no "
+  "thanks and does not give back: for he always bestows, and desires not to "
+  "keep for himself.\n\nI love him who is ashamed when the dice fall in his "
+  "favor, and who then asks: \"Am I a dishonest player?\"--for he is willing "
+  "to succumb.\n\nI love him who scatters golden words in advance of his "
+  "deeds, and always does more than he promises: for he seeks his own "
+  "down-going.\n\nI love him who justifies the future ones, and redeems the "
+  "past ones: for he is willing to succumb through the present ones.\n\nI love "
+  "him who chastens his God, because he loves his God: for he must succumb "
+  "through the wrath of his God.\n\nI love him whose soul is deep even in the "
+  "wounding, and may succumb through a small matter: thus goes he willingly "
+  "over the bridge.\n\nI love him whose soul is so overfull that he forgets "
+  "himself, and all things that are in him: thus all things become his "
+  "down-going.\n\nI love him who is of a free spirit and a free heart: thus is "
+  "his head only the bowels of his heart; his heart, however, causes his "
+  "down-going.\n\nI love all who are like heavy drops falling one by one out "
+  "of the dark cloud that lowers over man: they herald the coming of the "
+  "lightning, and succumb as heralds.\n\nLo, I am a herald of the lightning, "
+  "and a heavy drop out of the cloud: the lightning, however, is the "
+  "SUPERMAN.\n";
 
 static int test_read(device_t *dev) {
-  unsigned char *testblock = kmalloc(M_DEV, 1024, 0);
-  int read_res = emmc_read_block(dev, 0, testblock, 2);
+  unsigned char *testblock = kmalloc(M_DEV, 512 * 6, M_ZERO);
+  /* int read_res = -1;
+  for (int i = 0; i < 6; i++) {
+    read_res = emmc_read_block(dev, i, testblock + i * 512, 1);
+    if (!read_res)
+      break;
+  } */
+  int32_t read_res = emmc_read_block(dev, 0, testblock, 6);
   if (read_res == 0)
     klog("e.MMC test read failed!");
   else
@@ -732,11 +800,17 @@ static int test_read(device_t *dev) {
 }
 
 static int test_write(device_t *dev) {
-  char *testblock = kmalloc(M_DEV, 512, M_ZERO);
+  emmc_state_t *state = (emmc_state_t *)dev->state;
+  char *testblock = kmalloc(M_DEV, 512 * 6, M_ZERO);
   strncpy(testblock, testbuf, sizeof(testbuf));
-  int write_res = emmc_write_block(dev, 0, (uint8_t *)testblock, 1);
+  int write_res = -1;
+  for (int i = 0; i < 6; i++) {
+    write_res = emmc_write_block(dev, i, (uint8_t *)testblock + i * 512, 1);
+    if (!write_res)
+      break;
+  }
   if (write_res == 0)
-    klog("e.MMC write test failed!");
+    klog("e.MMC write test failed! Error: %d", state->sd_err);
   else
     klog("e.MMC write test success!");
   kfree(M_DEV, testblock);
