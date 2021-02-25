@@ -282,7 +282,7 @@ def TestRun(sim, dbg, timeout):
 
     try:
         # No need to wait for QEmu, GDB will terminate it!
-        rc = gdb.expect_exact([pexpect.EOF, '(gdb) '])
+        rc = gdb.expect_exact([pexpect.EOF, '(gdb) '], timeout=None)
 
         if rc == 1:
             PostMortem(gdb)
