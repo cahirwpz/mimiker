@@ -22,8 +22,6 @@
 #include <sys/devfs.h>
 #include <sys/file.h>
 #include <sys/filio.h>
-#include <sys/uart.h>
-#include <sys/sched.h>
 
 /* START OF FreeBSD CODE */
 
@@ -1147,50 +1145,6 @@ static vnodeops_t tty_vnodeops = {
 
 int tty_makedev(devfs_node_t *parent, const char *name, tty_t *tty) {
   return devfs_makedev(parent, name, &tty_vnodeops, tty, &tty->t_vnode);
-}
-
-void tty_set_outq_nonempty_flag(tty_thread_t *ttd, tty_t *tty) {
-  if (ringbuf_empty(&tty->t_outq))
-    ttd->ttd_flags &= ~TTY_THREAD_OUTQ_NONEMPTY;
-  else
-    ttd->ttd_flags |= TTY_THREAD_OUTQ_NONEMPTY;
-}
-
-/* TODO: revisit after per-intr_event ithreads are implemented. */
-static void tty_thread(void *arg) {
-  device_t *dev = arg;
-  uart_state_t *uart = dev->state;
-  tty_t *tty = uart->u_tty;
-  tty_thread_t *ttd = &uart->u_ttd;
-  uint8_t work, byte;
-
-  while (true) {
-    WITH_SPIN_LOCK (&uart->u_lock) {
-      /* Sleep until there's work for us to do. */
-      while ((work = ttd->ttd_flags & TTY_THREAD_WORK_MASK) == 0)
-        cv_wait(&ttd->ttd_cv, &uart->u_lock);
-      ttd->ttd_flags &= ~TTY_THREAD_WORK_MASK;
-    }
-    WITH_MTX_LOCK (&tty->t_lock) {
-      if (work & TTY_THREAD_RXRDY) {
-        /* Move characters from rx_buf into the tty's input queue. */
-        while (uart_getb_lock(uart, &byte))
-          if (!tty_input(tty, byte))
-            klog("dropped character %hhx", byte);
-      }
-      if (work & TTY_THREAD_TXRDY)
-        uart_fill_txbuf(dev);
-    }
-  }
-}
-
-void tty_thread_create(const char *name, device_t *dev) {
-  uart_state_t *uart = dev->state;
-  tty_thread_t *ttd = &uart->u_ttd;
-  cv_init(&ttd->ttd_cv, "TTY thread notification");
-  ttd->ttd_thread =
-    thread_create(name, tty_thread, dev, prio_ithread(PRIO_ITHRD_QTY - 1));
-  sched_add(ttd->ttd_thread);
 }
 
 /* Controlling terminal pseudo-device (/dev/tty) */

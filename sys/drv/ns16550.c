@@ -15,6 +15,7 @@
 #include <sys/devclass.h>
 #include <sys/tty.h>
 #include <sys/uart.h>
+#include <sys/uart_tty.h>
 
 #define UART_BUFSIZE 128
 
@@ -81,7 +82,7 @@ static int ns16550_attach(device_t *dev) {
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
   tty->t_termios.c_ospeed = 115200;
-  tty->t_ops.t_notify_out = uart_notify_out;
+  tty->t_ops.t_notify_out = uart_tty_notify_out;
 
   uart_init(dev, "ns16550", UART_BUFSIZE, ns16550, tty);
 

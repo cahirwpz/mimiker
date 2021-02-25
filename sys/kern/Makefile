@@ -63,6 +63,7 @@ SOURCES = \
 	tmpfs.c \
 	tty.c \
 	uart.c \
+	uart_tty.c \
 	uio.c \
 	ustack.c \
 	vfs.c \

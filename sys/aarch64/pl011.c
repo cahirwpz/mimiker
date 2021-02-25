@@ -13,6 +13,7 @@
 #include <sys/ringbuf.h>
 #include <sys/tty.h>
 #include <sys/uart.h>
+#include <sys/uart_tty.h>
 #include <aarch64/bcm2835reg.h>
 #include <aarch64/bcm2835_gpioreg.h>
 #include <aarch64/plcomreg.h>
@@ -76,7 +77,7 @@ static int pl011_attach(device_t *dev) {
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
   tty->t_termios.c_ospeed = 115200;
-  tty->t_ops.t_notify_out = uart_notify_out;
+  tty->t_ops.t_notify_out = uart_tty_notify_out;
 
   uart_init(dev, "pl011", UART_BUFSIZE, pl011, tty);
 

@@ -126,17 +126,6 @@ typedef struct tty {
 #define t_oflag t_termios.c_oflag
 #define t_ospeed t_termios.c_ospeed
 
-#define TTY_THREAD_TXRDY 0x1
-#define TTY_THREAD_RXRDY 0x2
-#define TTY_THREAD_WORK_MASK (TTY_THREAD_TXRDY | TTY_THREAD_RXRDY)
-#define TTY_THREAD_OUTQ_NONEMPTY 0x4
-
-typedef struct tty_thread {
-  thread_t *ttd_thread;
-  condvar_t ttd_cv;
-  uint8_t ttd_flags;
-} tty_thread_t;
-
 /*
  * Allocate and initialize a new `tty` structure.
  */
@@ -208,9 +197,5 @@ static inline bool tty_detached(tty_t *tty) {
 static inline bool tty_opened(tty_t *tty) {
   return (tty->t_opencount > 0);
 }
-
-void tty_set_outq_nonempty_flag(tty_thread_t *ttd, tty_t *tty);
-
-void tty_thread_create(const char *name, device_t *dev);
 
 #endif /* !_SYS_TTY_H_ */

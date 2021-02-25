@@ -5,6 +5,7 @@
 #include <sys/device.h>
 #include <sys/interrupt.h>
 #include <sys/tty.h>
+#include <sys/uart_tty.h>
 
 typedef uint8_t (*uart_getc_t)(void *state);
 typedef bool (*uart_rx_ready_t)(void *state);
@@ -31,7 +32,6 @@ typedef struct uart_state {
   spin_t u_lock;
   ringbuf_t u_rx_buf;
   ringbuf_t u_tx_buf;
-  tty_t *u_tty;
   tty_thread_t u_ttd;
   void *u_state;
 } uart_state_t;
@@ -72,13 +72,8 @@ static inline void uart_tx_disable(device_t *dev) {
   methods->tx_disable(uart->u_state);
 }
 
-bool uart_getb_lock(uart_state_t *uart, uint8_t *byte_p);
-void uart_fill_txbuf(device_t *dev);
-
 void uart_init(device_t *dev, const char *name, size_t buf_size, void *state,
                tty_t *tty);
-
-void uart_notify_out(tty_t *tty);
 
 intr_filter_t uart_intr(void *data /* device_t* */);
 
