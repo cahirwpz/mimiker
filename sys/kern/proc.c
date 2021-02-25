@@ -209,7 +209,7 @@ static void pgrp_maybe_orphan(pgrp_t *pg) {
     proc_lock(p);
     if (p->p_state == PS_STOPPED) {
       proc_unlock(p);
-      TAILQ_FOREACH(p, &pg->pg_members, p_pglist) {
+      TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
         SCOPED_MTX_LOCK(&p->p_lock);
         sig_kill(p, &DEF_KSI_RAW(SIGHUP));
         sig_kill(p, &DEF_KSI_RAW(SIGCONT));
