@@ -202,10 +202,6 @@ int do_getitimer(proc_t *p, int which, struct itimerval *tval) {
 bool kitimer_stop(proc_t *p, kitimer_t *timer) {
   assert(mtx_owned(&p->p_lock));
 
-  /* The callout is pending or active.
-   * If it has already been delegated to the callout thread we must
-   * go to sleep waiting for its completion, so we release the mutex
-   * before sleeping in callout_drain(). */
   if (!callout_stop(&timer->kit_callout)) {
     mtx_unlock(&p->p_lock);
     callout_drain(&timer->kit_callout);
