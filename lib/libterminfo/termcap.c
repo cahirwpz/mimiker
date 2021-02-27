@@ -82,7 +82,7 @@ int tgetflag(const char *id2) {
   if (cur_term == NULL)
     return 0;
 
-  ind = _t_flaghash((const char *)id, strlen(id));
+  ind = _t_flaghash(id, strlen(id));
   if (ind < __arraycount(_ti_cap_flagids)) {
     if (strcmp(id, _ti_cap_flagids[ind].id) == 0)
       return cur_term->flags[_ti_cap_flagids[ind].ti];
@@ -105,7 +105,7 @@ int tgetnum(const char *id2) {
   if (cur_term == NULL)
     return -1;
 
-  ind = _t_numhash((const char *)id, strlen(id));
+  ind = _t_numhash(id, strlen(id));
   if (ind < __arraycount(_ti_cap_numids)) {
     te = &_ti_cap_numids[ind];
     if (strcmp(id, te->id) == 0) {
@@ -136,7 +136,7 @@ char *tgetstr(const char *id2, char **area) {
     return NULL;
 
   str = NULL;
-  ind = _t_strhash((const char *)id, strlen(id));
+  ind = _t_strhash(id, strlen(id));
   if (ind < __arraycount(_ti_cap_strids)) {
     if (strcmp(id, _ti_cap_strids[ind].id) == 0) {
       str = cur_term->strs[_ti_cap_strids[ind].ti];
@@ -175,7 +175,7 @@ char *tgoto(const char *cm, int destcol, int destline) {
 static const char *flagname(const char *key) {
   uint32_t idx;
 
-  idx = _t_flaghash((const char *)key, strlen(key));
+  idx = _t_flaghash(key, strlen(key));
   if (idx < __arraycount(_ti_cap_flagids) &&
       strcmp(key, _ti_cap_flagids[idx].id) == 0)
     return _ti_flagid(_ti_cap_flagids[idx].ti);
@@ -185,7 +185,7 @@ static const char *flagname(const char *key) {
 static const char *numname(const char *key) {
   uint32_t idx;
 
-  idx = _t_numhash((const char *)key, strlen(key));
+  idx = _t_numhash(key, strlen(key));
   if (idx < __arraycount(_ti_cap_numids) &&
       strcmp(key, _ti_cap_numids[idx].id) == 0)
     return _ti_numid(_ti_cap_numids[idx].ti);
@@ -195,7 +195,7 @@ static const char *numname(const char *key) {
 static const char *strname(const char *key) {
   uint32_t idx;
 
-  idx = _t_strhash((const char *)key, strlen(key));
+  idx = _t_strhash(key, strlen(key));
   if (idx < __arraycount(_ti_cap_strids) &&
       strcmp(key, _ti_cap_strids[idx].id) == 0)
     return _ti_strid(_ti_cap_strids[idx].ti);
