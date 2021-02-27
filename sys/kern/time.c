@@ -244,6 +244,10 @@ static void kitimer_timeout(void *arg) {
   callout_reschedule(&it->kit_callout, tv2hz(&next) - 1);
 }
 
+void kitimer_init(proc_t *p) {
+  callout_setup(&p->p_itimer.kit_callout, kitimer_timeout, p);
+}
+
 /* The timer must have been stopped prior to calling this function. */
 static void kitimer_setup(proc_t *p, kitimer_t *timer,
                           const struct itimerval *itval) {

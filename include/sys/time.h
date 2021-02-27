@@ -184,6 +184,9 @@ typedef struct {
   callout_t kit_callout;
 } kitimer_t;
 
+/* Initialize a process's interval timer structure. */
+void kitimer_init(proc_t *p);
+
 /* Stop the interval timer associated with a process.
  * After this function returns, it's safe to free the timer structure.
  * Must be called with p->p_lock held.
