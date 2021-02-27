@@ -164,16 +164,16 @@ static void delay(int64_t count) {
  * This should be a built-in kernel feature adn it's here only as a placeholder
  * for driver prototyping purposes. */
 /* [--------------------------------------------------------------------------*/
-static void sleep_ms_timeout(__unused void *arg) {
+//static void sleep_ms_timeout(__unused void *arg) {
   /* Nothing to do here. */
-}
+//}
 
-static void sleep_ms(useconds_t ms) {
+/* static void sleep_ms(useconds_t ms) {
   callout_t handle;
   bzero(&handle, sizeof(callout_t));
   callout_setup_relative(&handle, ms, sleep_ms_timeout, NULL);
   callout_drain(&handle);
-}
+} */
 /*--------------------------------------------------------------------------] */
 
 /**
@@ -212,7 +212,7 @@ int emmc_status(device_t *dev, uint32_t mask) {
   resource_t *emmc = state->emmc;
   int32_t cnt = 10000;
   do {
-    sleep_ms(1);
+    //sleep_ms(1);
   } while ((b_in(emmc, EMMC_STATUS) & mask) && cnt--);
   return cnt <= 0;
 }
