@@ -1219,6 +1219,8 @@ static int sys_getitimer(proc_t *p, getitimer_args_t *args, register_t *res) {
   struct itimerval *u_tval = SCARG(args, val);
   int error;
 
+  klog("getitimer(%p)", u_tval);
+
   struct itimerval tval;
 
   if ((error = do_getitimer(p, which, &tval)))
@@ -1232,6 +1234,8 @@ static int sys_setitimer(proc_t *p, setitimer_args_t *args, register_t *res) {
   struct itimerval *u_tval = SCARG(args, val);
   struct itimerval *u_oval = SCARG(args, oval);
   int error;
+
+  klog("setitimer(%p, %p)", u_tval, u_oval);
 
   struct itimerval tval, oval;
   if ((error = copyin_s(u_tval, tval)))
