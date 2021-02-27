@@ -116,6 +116,7 @@ static void _callout_schedule(callout_t *co, systime_t tm) {
 void callout_schedule_abs(callout_t *co, systime_t tm) {
   SCOPED_SPIN_LOCK(&ci.lock);
   assert(!callout_is_active(co));
+  callout_clear_stopped(co);
 
   _callout_schedule(co, tm);
 }
@@ -123,6 +124,7 @@ void callout_schedule_abs(callout_t *co, systime_t tm) {
 void callout_schedule(callout_t *co, systime_t tm) {
   SCOPED_SPIN_LOCK(&ci.lock);
   assert(!callout_is_active(co));
+  callout_clear_stopped(co);
 
   _callout_schedule(co, getsystime() + tm);
 }
