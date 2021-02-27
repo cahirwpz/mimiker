@@ -202,10 +202,6 @@ int do_getitimer(proc_t *p, int which, struct itimerval *tval) {
 bool kitimer_stop(proc_t *p, kitimer_t *timer) {
   assert(mtx_owned(&p->p_lock));
 
-  /* The callout is pending or active.
-   * If it has already been delegated to the callout thread we must
-   * go to sleep waiting for its completion, so we release the mutex
-   * before sleeping in callout_drain(). */
   if (!callout_stop(&timer->kit_callout)) {
     mtx_unlock(&p->p_lock);
     callout_drain(&timer->kit_callout);
@@ -244,6 +240,10 @@ static void kitimer_timeout(void *arg) {
   callout_reschedule(&it->kit_callout, tv2hz(&next) - 1);
 }
 
+void kitimer_init(proc_t *p) {
+  callout_setup(&p->p_itimer.kit_callout, kitimer_timeout, p);
+}
+
 /* The timer must have been stopped prior to calling this function. */
 static void kitimer_setup(proc_t *p, kitimer_t *timer,
                           const struct itimerval *itval) {
@@ -256,8 +256,7 @@ static void kitimer_setup(proc_t *p, kitimer_t *timer,
     timeradd(value, &abs, &abs);
     timer->kit_next = abs;
     timer->kit_interval = itval->it_interval;
-    callout_setup(&timer->kit_callout, tv2hz(&timer->kit_next) - 1,
-                  kitimer_timeout, p);
+    callout_schedule(&timer->kit_callout, tv2hz(&timer->kit_next) - 1);
   } else {
     timerclear(&timer->kit_next);
     timerclear(&timer->kit_interval);

@@ -179,10 +179,13 @@ typedef struct proc proc_t;
 
 /* Kernel interval timer. */
 typedef struct {
-  timeval_t kit_next; /* absolute time of next tick */
-  timeval_t kit_interval;
+  timeval_t kit_next;     /* absolute time of next tick, 0 means inactive */
+  timeval_t kit_interval; /* time between ticks, 0 means non-periodic */
   callout_t kit_callout;
 } kitimer_t;
+
+/* Initialize a process's interval timer structure. */
+void kitimer_init(proc_t *p);
 
 /* Stop the interval timer associated with a process.
  * After this function returns, it's safe to free the timer structure.

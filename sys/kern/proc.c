@@ -19,6 +19,7 @@
 #include <sys/vm_map.h>
 #include <sys/mutex.h>
 #include <sys/tty.h>
+#include <sys/time.h>
 #include <bitstring.h>
 
 /* Allocate PIDs from a reasonable range, can be changed as needed. */
@@ -450,6 +451,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
     p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, PATH_MAX);
 
   TAILQ_INIT(CHILDREN(p));
+  kitimer_init(p);
 
   WITH_SPIN_LOCK (td->td_lock)
     td->td_proc = p;
