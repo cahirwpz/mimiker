@@ -94,7 +94,6 @@ static int read_one(char *c) {
  * Return 0 => no input, 1 => can read() from stdin
  */
 int rwait(struct timeval *tvp) {
-  /* struct timeval starttv, endtv; */
 #define NILTZ ((struct timezone *)0)
 
   if (have_char)
@@ -104,9 +103,6 @@ int rwait(struct timeval *tvp) {
   if (tvp && TV_POS(tvp)) {
     it.it_value = *tvp;
     it.it_interval = (struct timeval){0};
-    /* (void)gettimeofday(&starttv, NILTZ); */
-    /* endtv = *tvp; */
-    /* timeout = tvp->tv_sec * 1000 + tvp->tv_usec / 1000; */
     setitimer(ITIMER_REAL, &it, NULL);
   }
 
@@ -146,9 +142,6 @@ again:
     setitimer(ITIMER_REAL, &zero_it, &it);
     *tvp = it.it_value;
     sigalrm_handled = 0;
-    /* (void)gettimeofday(&endtv, NILTZ); */
-    /* TV_SUB(&endtv, &starttv); */
-    /* TV_SUB(tvp, &endtv); /\* adjust *tvp by elapsed time *\/ */
   }
   return (1);
 }
