@@ -130,7 +130,8 @@ static const char *basename(const char *path) {
 }
 
 static void read_cpio_archive(void) {
-  void *tape = (void *)kmem_map(ramdisk_get_start(), ramdisk_get_size(), 0);
+  void *tape =
+    (void *)kmem_map_contig(ramdisk_get_start(), ramdisk_get_size(), 0);
 
   while (true) {
     cpio_node_t *node = cpio_node_alloc();

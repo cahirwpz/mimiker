@@ -309,9 +309,10 @@ int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
     return EINTR;
   }
 
-  if (timeout > 0)
-    callout_setup_relative(&td->td_slpcallout, timeout, (timeout_t)sq_timeout,
-                           td);
+  if (timeout > 0) {
+    callout_setup(&td->td_slpcallout, (timeout_t)sq_timeout, td);
+    callout_schedule(&td->td_slpcallout, timeout);
+  }
 
   td->td_flags |= (timeout > 0) ? TDF_SLPTIMED : TDF_SLPINTR;
   sq_enter(td, sc, wchan, waitpt);

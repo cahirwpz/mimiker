@@ -212,11 +212,12 @@ static int rootdev_attach(device_t *bus) {
   rman_manage_region(&rd->irq_rm, 0, NIRQ);
 
   /* Map BCM2836 shared processor only once. */
-  rootdev_local_handle =
-    kmem_map(BCM2836_ARM_LOCAL_BASE, BCM2836_ARM_LOCAL_SIZE, PMAP_NOCACHE);
+  rootdev_local_handle = kmem_map_contig(BCM2836_ARM_LOCAL_BASE,
+                                         BCM2836_ARM_LOCAL_SIZE, PMAP_NOCACHE);
 
-  rootdev_arm_base = kmem_map(BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
-                              BCM2835_ARM_SIZE, PMAP_NOCACHE);
+  rootdev_arm_base =
+    kmem_map_contig(BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
+                    BCM2835_ARM_SIZE, PMAP_NOCACHE);
 
   intr_root_claim(rootdev_intr_handler, bus, NULL);
 

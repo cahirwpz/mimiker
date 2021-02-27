@@ -41,4 +41,19 @@ test: sys-build initrd.cpio
 
 PHONY-TARGETS += setup test
 
+IMGVER = 1.7.3
+
+docker-build:
+	docker build . -t cahirwpz/mimiker-circleci:latest
+
+docker-tag:
+	docker image tag cahirwpz/mimiker-circleci:latest \
+		         cahirwpz/mimiker-circleci:$(IMGVER)
+
+docker-push:
+	docker push cahirwpz/mimiker-circleci:latest
+	docker push cahirwpz/mimiker-circleci:$(IMGVER)
+
+PHONY-TARGETS += docker-build docker-tag docker-push
+
 include $(TOPDIR)/build/common.mk
