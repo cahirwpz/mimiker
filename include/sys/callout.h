@@ -56,7 +56,7 @@ bool callout_reschedule(callout_t *co, systime_t tm);
  * \return True if the callout was pending and has been stopped, false if the
  * callout has already been delegated to callout thread or executed.
  * A callout can't be rescheduled using callout_reschedule() after calling this
- * function on it until it is scheduled again using callout_setup(_relative)().
+ * function on it until it is scheduled again using callout_schedule*().
  *
  * \warning It's not safe to deallocate callout memory after it has been
  * stopped. You should use \a callout_drain if you need that.
