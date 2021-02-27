@@ -196,7 +196,8 @@ static pgrp_t *pgrp_create(pgid_t pgid) {
   return pg;
 }
 
-/* Send SIGHUP and SIGCONT to all stopped processes in the group. */
+/* If the process group becomes orphaned and has at least one stopped process,
+ * send SIGHUP followed by SIGCONT to every process in the group. */
 static void pgrp_maybe_orphan(pgrp_t *pg) {
   assert(mtx_owned(all_proc_mtx));
 
@@ -206,12 +207,17 @@ static void pgrp_maybe_orphan(pgrp_t *pg) {
 
   proc_t *p;
   TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
-    WITH_MTX_LOCK (&p->p_lock) {
-      if (p->p_state == PS_STOPPED) {
+    proc_lock(p);
+    if (p->p_state == PS_STOPPED) {
+      proc_unlock(p);
+      TAILQ_FOREACH (p, &pg->pg_members, p_pglist) {
+        SCOPED_MTX_LOCK(&p->p_lock);
         sig_kill(p, &DEF_KSI_RAW(SIGHUP));
         sig_kill(p, &DEF_KSI_RAW(SIGCONT));
       }
+      return;
     }
+    proc_unlock(p);
   }
 }
 
@@ -816,6 +822,7 @@ void proc_stop(signo_t sig) {
   proc_t *p = td->td_proc;
 
   assert(mtx_owned(&p->p_lock));
+  assert(p->p_state == PS_NORMAL);
 
   klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
   p->p_stopsig = sig;
@@ -839,4 +846,20 @@ void proc_stop(signo_t sig) {
   }
   proc_lock(p);
   return;
+}
+
+void proc_continue(proc_t *p) {
+  thread_t *td = p->p_thread;
+
+  assert(mtx_owned(&p->p_lock));
+  assert(p->p_state == PS_STOPPED);
+
+  klog("Continuing thread %lu in process PID(%d)", td->td_tid, p->p_pid);
+
+  p->p_state = PS_NORMAL;
+  p->p_flags |= PF_STATE_CHANGED;
+  WITH_PROC_LOCK(p->p_parent) {
+    proc_wakeup_parent(p->p_parent);
+  }
+  WITH_SPIN_LOCK (td->td_lock) { thread_continue(td); }
 }
