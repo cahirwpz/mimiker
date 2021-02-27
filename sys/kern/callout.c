@@ -48,26 +48,6 @@ static inline callout_list_t *ci_list(int i) {
 
 static callout_list_t delegated;
 
-static void _callout_schedule(callout_t *handle) {
-  assert(spin_owned(&ci.lock));
-
-  callout_set_pending(handle);
-
-  klog("Add callout {%p} with wakeup at %ld.", handle, handle->c_time);
-  TAILQ_INSERT_TAIL(ci_list(handle->c_index), handle, c_link);
-}
-
-bool callout_reschedule(callout_t *c, systime_t time) {
-  SCOPED_SPIN_LOCK(&ci.lock);
-  assert(callout_is_active(c));
-  assert(!callout_is_pending(c));
-  if (callout_is_stopped(c))
-    return false;
-  c->c_time = time;
-  _callout_schedule(c);
-  return true;
-}
-
 static void callout_thread(void *arg) {
   while (true) {
     callout_t *elem;
@@ -112,35 +92,48 @@ void init_callout(void) {
   sched_add(td);
 }
 
-static void _callout_setup(callout_t *handle, systime_t time, timeout_t fn,
-                           void *arg) {
+void callout_setup(callout_t *co, timeout_t fn, void *arg) {
+  bzero(co, sizeof(callout_t));
+  co->c_func = fn;
+  co->c_arg = arg;
+}
+
+static void _callout_schedule(callout_t *co, systime_t tm) {
   assert(spin_owned(&ci.lock));
-  assert(!callout_is_pending(handle));
-  assert(!callout_is_active(handle));
+  assert(!callout_is_pending(co));
 
-  int index = time % CALLOUT_BUCKETS;
+  callout_set_pending(co);
 
-  bzero(handle, sizeof(callout_t));
-  handle->c_time = time;
-  handle->c_func = fn;
-  handle->c_arg = arg;
-  handle->c_index = index;
+  int idx = tm % CALLOUT_BUCKETS;
 
-  _callout_schedule(handle);
+  co->c_time = tm;
+  co->c_index = idx;
+
+  klog("Add callout {%p} with wakeup at %ld.", co, tm);
+  TAILQ_INSERT_TAIL(ci_list(idx), co, c_link);
 }
 
-void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
+void callout_schedule_abs(callout_t *co, systime_t tm) {
   SCOPED_SPIN_LOCK(&ci.lock);
+  assert(!callout_is_active(co));
 
-  _callout_setup(handle, time, fn, arg);
+  _callout_schedule(co, tm);
 }
 
-void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
-                            void *arg) {
+void callout_schedule(callout_t *co, systime_t tm) {
   SCOPED_SPIN_LOCK(&ci.lock);
+  assert(!callout_is_active(co));
 
-  systime_t now = getsystime();
-  _callout_setup(handle, now + time, fn, arg);
+  _callout_schedule(co, getsystime() + tm);
+}
+
+bool callout_reschedule(callout_t *c, systime_t tm) {
+  SCOPED_SPIN_LOCK(&ci.lock);
+  assert(callout_is_active(c));
+  if (callout_is_stopped(c))
+    return false;
+  _callout_schedule(c, tm);
+  return true;
 }
 
 bool callout_stop(callout_t *handle) {
