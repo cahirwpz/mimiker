@@ -189,6 +189,11 @@ void proc_wakeup_parent(proc_t *parent);
  * Must be called with the current process's p_lock held. */
 void proc_stop(signo_t sig);
 
+/*! \brief Continue a stopped process.
+ *
+ * Must be called with p::p_lock held. */
+void proc_continue(proc_t *p);
+
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp);
 
 /*! \brief Set login name associated with current session. */
