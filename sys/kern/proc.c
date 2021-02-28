@@ -41,8 +41,8 @@ static POOL_DEFINE(P_SESSION, "session", sizeof(session_t));
 mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 
 /* all_proc_mtx protects following data: */
-static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
-static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
+proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
+proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
 static proc_t *proc_find_raw(pid_t pid);
