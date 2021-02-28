@@ -1,0 +1,3 @@
+#!/bin/ksh
+echo "euid   pid    ppid    pgrp   session  state    td_name  elfpath"
+cat /dev/procstat
