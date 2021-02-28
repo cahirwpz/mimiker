@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = cat chmod date echo kill ksh ln ls lua mandelbrot mish mkdir pwd \
+SUBDIR = cat chmod chown date echo kill ksh ln ls mandelbrot mkdir pwd \
 	 rm rmdir sandbox stty test_kbd test_hidkbd test_hidm test_umass \
 	 test_rtc utest
 

@@ -1,4 +1,4 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/callout.h>
 #include <sys/ktest.h>
@@ -15,12 +15,12 @@ static int test_callout_simple(void) {
   const int N = 100;
 
   callout_t callout;
-  bzero(&callout, sizeof(callout_t));
+  callout_setup(&callout, callout_increment, NULL);
 
   counter = 0;
 
   for (int i = 0; i < N; i++) {
-    callout_setup_relative(&callout, 1, callout_increment, NULL);
+    callout_schedule(&callout, 1);
     callout_drain(&callout);
   }
 
@@ -45,13 +45,13 @@ static void callout_ordered(void *arg) {
 
 static int test_callout_order(void) {
   callout_t callouts[ORDER_N];
-  bzero(callouts, sizeof(callout_t) * ORDER_N);
+  for (int i = 0; i < ORDER_N; i++)
+    callout_setup(&callouts[i], callout_ordered, (void *)(intptr_t)order[i]);
   current = 0;
 
   systime_t now = getsystime();
   for (int i = 0; i < ORDER_N; i++)
-    callout_setup(&callouts[i], now + 5 + order[i] * 5, callout_ordered,
-                  (void *)(intptr_t)order[i]);
+    callout_schedule_abs(&callouts[i], now + 5 + order[i] * 5);
 
   /* Wait for all callouts. */
   for (int i = 0; i < ORDER_N; i++)
@@ -68,13 +68,13 @@ static void callout_bad(void *arg) {
 static callout_t callout;
 
 static int test_callout_stop(void) {
-  bzero(&callout, sizeof(callout_t));
+  callout_setup(&callout, callout_bad, NULL);
 
   /* XXX This is a temporary solution to make sure that the callout
    * isn't migrated to the `delegated` queue.
    * Ideally, disabling preemption should be enough. */
   WITH_INTR_DISABLED {
-    callout_setup_relative(&callout, 2, callout_bad, NULL);
+    callout_schedule(&callout, 2);
     /* Remove callout, hope that callout_bad won't be called! */
     callout_stop(&callout);
     /* We don't drain this callout so its memory can still be in use after we
@@ -90,9 +90,9 @@ static void callout_to_stop(void *arg) {
 
 static int test_callout_drain(void) {
   callout_t callout;
-  bzero(&callout, sizeof(callout_t));
+  callout_setup(&callout, callout_to_stop, NULL);
 
-  callout_setup_relative(&callout, 10, callout_to_stop, NULL);
+  callout_schedule(&callout, 10);
   callout_stop(&callout);
   bool drained = callout_drain(&callout);
 

@@ -1,4 +1,4 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/pmap.h>
 #include <sys/vm.h>
 #include <sys/vm_physmem.h>

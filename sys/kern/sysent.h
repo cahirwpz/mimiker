@@ -80,6 +80,11 @@ static int sys_fchownat(proc_t *, fchownat_args_t *, register_t *);
 static int sys_getlogin(proc_t *, getlogin_args_t *, register_t *);
 static int sys_setlogin(proc_t *, setlogin_args_t *, register_t *);
 static int sys_posix_openpt(proc_t *, posix_openpt_args_t *, register_t *);
+static int sys_futimens(proc_t *, futimens_args_t *, register_t *);
+static int sys_utimensat(proc_t *, utimensat_args_t *, register_t *);
+static int sys_readv(proc_t *, readv_args_t *, register_t *);
+static int sys_writev(proc_t *, writev_args_t *, register_t *);
+static int sys_sigpending(proc_t *, sigpending_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { .nargs = 1, .call = (syscall_t *)sys_syscall },
@@ -157,5 +162,10 @@ struct sysent sysent[] = {
   [SYS_getlogin] = { .nargs = 2, .call = (syscall_t *)sys_getlogin },
   [SYS_setlogin] = { .nargs = 1, .call = (syscall_t *)sys_setlogin },
   [SYS_posix_openpt] = { .nargs = 1, .call = (syscall_t *)sys_posix_openpt },
+  [SYS_futimens] = { .nargs = 2, .call = (syscall_t *)sys_futimens },
+  [SYS_utimensat] = { .nargs = 4, .call = (syscall_t *)sys_utimensat },
+  [SYS_readv] = { .nargs = 3, .call = (syscall_t *)sys_readv },
+  [SYS_writev] = { .nargs = 3, .call = (syscall_t *)sys_writev },
+  [SYS_sigpending] = { .nargs = 1, .call = (syscall_t *)sys_sigpending },
 };
 

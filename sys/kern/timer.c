@@ -73,21 +73,24 @@ int tm_deregister(timer_t *tm) {
 }
 
 timer_t *tm_reserve(const char *name, unsigned flags) {
-  timer_t *tm = NULL;
+  timer_t *found = NULL;
 
   WITH_MTX_LOCK (&timers_mtx) {
+    timer_t *tm;
     TAILQ_FOREACH (tm, &timers, tm_link) {
       if (is_reserved(tm))
         continue;
       if (name && strcmp(tm->tm_name, name))
         continue;
-      if (tm->tm_flags & flags)
-        break;
+      if (!(tm->tm_flags & flags))
+        continue;
+      if (!found || found->tm_quality < tm->tm_quality)
+        found = tm;
     }
-    if (tm)
-      tm->tm_flags |= TMF_RESERVED;
+    if (found)
+      found->tm_flags |= TMF_RESERVED;
   }
-  return tm;
+  return found;
 }
 
 int tm_release(timer_t *tm) {

@@ -138,13 +138,20 @@ time_t tm2sec(tm_t *t) {
          t->tm_min * min_scale_s + t->tm_sec + res;
 }
 
+timespec_t nanotime(void) {
+  timespec_t tp;
+  bintime_t bt = bintime();
+  bt2ts(&bt, &tp);
+  return tp;
+}
+
 static void mdelay_timeout(__unused void *arg) {
   /* Nothing to do here. */
 }
 
 void mdelay(useconds_t ms) {
-  callout_t handle;
-  bzero(&handle, sizeof(callout_t));
-  callout_setup_relative(&handle, ms, mdelay_timeout, NULL);
-  callout_drain(&handle);
+  callout_t callout;
+  callout_setup(&callout, mdelay_timeout, NULL);
+  callout_schedule(&callout, ms);
+  callout_drain(&callout);
 }

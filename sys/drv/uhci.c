@@ -258,9 +258,8 @@ static void qh_remove(uhci_qh_t *mq, uhci_qh_t *qh) {
 /* Allocate continuous physical memory for stable UHCI usage. */
 static void *uhci_alloc_pmem(size_t size) {
   size_t rsize = roundup(size, PAGESIZE);
-  vm_page_t *pages = vm_page_alloc(rsize);
-  assert(pages);
-  void *va = (void *)kmem_map(pages->paddr, rsize, PMAP_NOCACHE);
+  paddr_t pa;
+  void *va = (void *)kmem_alloc_contig(&pa, rsize, PMAP_NOCACHE);
   assert(va);
   return va;
 }
