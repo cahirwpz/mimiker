@@ -19,7 +19,9 @@
  * 0       1       0       1       1       R       init    /bin/ksh
  */
 
-/* maximum size of output string of proc info */
+/* maximum size of output string of proc info
+ * name + path + state (1 character)+ spaces (10 characters) +
+ *  + 5 * max length of uint32 (10 characters)*/
 #define MAX_P_STRING (TD_NAME_MAX + PATH_MAX + 5 * 10 + 1 + 10)
 
 /* maximum amount of processes that procstat can handle */
