@@ -42,7 +42,7 @@ typedef struct proc_info {
   sid_t sid;
   proc_state_t state;
   char td_name[TD_NAME_MAX];
-  char elfpath[PATH_MAX];
+  char *elfpath;
 } proc_info_t;
 
 typedef struct pstat {
@@ -78,14 +78,12 @@ static void fill_proc_info(proc_t *p, proc_info_t *pi) {
   pi->pgrp = p->p_pgrp->pg_id;
   pi->sid = p->p_pgrp->pg_session->s_sid;
   pi->state = p->p_state;
+  pi->elfpath = kstrndup(M_TEMP, p->p_elfpath, PATH_MAX);
   strncpy(pi->td_name, p->p_thread->td_name, TD_NAME_MAX);
-  strncpy(pi->elfpath, p->p_elfpath, PATH_MAX);
 
-  /* check if strings were copied properly */
+  /* check if string was copied properly */
   if (pi->td_name[TD_NAME_MAX - 1] != '\0')
     pi->td_name[TD_NAME_MAX - 1] = '\0';
-  if (pi->elfpath[PATH_MAX - 1] != '\0')
-    pi->elfpath[PATH_MAX - 1] = '\0';
 }
 
 /* buf must be at least MAX_P_STRING long
