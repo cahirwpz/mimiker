@@ -599,8 +599,9 @@ putscores(int sd)
 {
 #ifdef ALLOW_SCORE_UPDATES
 	struct highscore_header header;
-	struct highscore_ondisk buf[MAXHISCORES] = {0};
+	struct highscore_ondisk buf[MAXHISCORES];
 	int i;
+  memset(buf, 0, sizeof(buf));
 
 	if (sd == -1) {
 		return;
