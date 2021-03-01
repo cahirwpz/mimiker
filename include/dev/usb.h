@@ -1,8 +1,8 @@
 /*
- * Based on FreeBSD `usb.h`.
+ * Based on FreeBSD `sys/dev/usb/usb.h`.
  */
-#ifndef _USB_H_
-#define _USB_H_
+#ifndef _DEV_USB_H_
+#define _DEV_USB_H_
 
 #include <sys/ringbuf.h>
 #include <sys/condvar.h>
@@ -232,4 +232,4 @@ int usb_poll(usb_device_t *usbd, usb_buf_t *usbb, uint8_t idx, void *buf,
 void usb_bulk_transfer(usb_device_t *usbd, usb_buf_t *usbb);
 void usb_enumerate(device_t *dev, usbhc_space_t *uhs);
 
-#endif /* _USB_H_ */
+#endif /* _DEV_USB_H_ */

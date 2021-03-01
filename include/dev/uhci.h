@@ -1,8 +1,8 @@
 /*
- * Based on FreeBSD `uhci.h`.
+ * Based on FreeBSD `sys/dev/usb/controller/uhci.h`.
  */
-#ifndef _UHCI_H_
-#define _UHCI_H_
+#ifndef _DEV_UHCI_H_
+#define _DEV_UHCI_H_
 
 #include <sys/spinlock.h>
 
@@ -96,4 +96,4 @@ struct uhci_qh {
   };
 } __aligned(UHCI_QH_ALIGN);
 
-#endif /* _UHCI_H_ */
+#endif /* _DEV_UHCI_H_ */

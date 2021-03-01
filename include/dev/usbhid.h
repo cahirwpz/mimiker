@@ -1,8 +1,8 @@
 /*
- * Based on FreeBSD `usbhid.h`.
+ * Based on FreeBSD `sys/dev/usb/usbhid.h`.
  */
-#ifndef _HID_H_
-#define _HID_H_
+#ifndef _DEV_HID_H_
+#define _DEV_HID_H_
 
 #define UDESC_REPORT 0x01
 #define UR_GET_REPORT 0x01
@@ -21,4 +21,4 @@ typedef struct usb_hid_descriptor {
   } descrs[1];
 } __packed usb_hid_descriptor_t;
 
-#endif /* _HID_H_ */
+#endif /* _DEV_HID_H_ */

@@ -1,5 +1,8 @@
-#ifndef _SCSI_H_
-#define _SCSI_H_
+/*
+ * Based on FreeBSD `sys/cam/scsi/scsi_all.h`.
+ */
+#ifndef _DEV_SCSI_H_
+#define _DEV_SCSI_H_
 
 /* Opcodes. */
 #define REQUEST_SENSE 0x03
@@ -27,14 +30,14 @@ typedef struct {
 typedef struct scsi_read_capacity {
   uint8_t opcode; /* READ_CAPACITY */
   uint8_t byte2;
-  uint8_t addr[4];
+  uint32_t addr;
   uint8_t unused[2];
   uint8_t pmi;
   uint8_t control;
 } __packed scsi_read_capacity_t;
 
 typedef struct scsi_rw_10 {
-  uint8_t opcode;
+  uint8_t opcode; /* READ_10/WRITE_10 */
   uint8_t byte2;
   uint32_t addr;
   uint8_t reserved;
@@ -92,4 +95,4 @@ typedef struct scsi_read_capacity_data {
 
 #define REQUEST_TIMEOUT 4
 
-#endif /* _SCSI_H_ */
+#endif /* _DEV_SCSI_H_ */
