@@ -86,7 +86,7 @@ endif
 
 ifeq ($(KPROF), 1)
 SOURCES += prof.c
-# Clean dependencies without having to pass `KASAN=1` to `make clean`.
+else
 CLEAN-FILES += .prof.D
 endif
 

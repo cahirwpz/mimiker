@@ -12,7 +12,7 @@
 
 gmonparam_t _gmonparam = {.state = GMON_PROF_OFF};
 
-/* Before read the macros description provided in gmon.h */
+/* The macros description are provided in gmon.h */
 void init_prof(void) {
   void *profptr;
   gmonparam_t *p = &_gmonparam;
