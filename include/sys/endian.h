@@ -35,6 +35,13 @@
 #include <stdint.h>
 
 /*
+ * General byte order swapping functions.
+ */
+#define bswap16(x) __builtin_bswap16(x)
+#define bswap32(x) __builtin_bswap32(x)
+#define bswap64(x) __builtin_bswap64(x)
+
+/*
  * Macros to convert to a specific endianness.
  */
 

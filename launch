@@ -69,6 +69,8 @@ CONFIG = {
             # Configure record/replay function for deterministic replay,
             # refer to https://github.com/qemu/qemu/blob/master/docs/replay.txt
             # '-icount', 'shift=3,sleep=on,rr=record,rrfile=replay.bin',
+            '-icount', 'shift=3,align=off,sleep=on',
+            '-rtc', 'clock=vm',
             '-kernel', '{kernel}',
             '-initrd', '{initrd}',
             '-S', '-gdb', 'tcp:127.0.0.1:{gdbport},server,wait',
@@ -99,7 +101,7 @@ CONFIG = {
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [
-                    dict(name='/dev/cons', port=RandomPort())
+                    dict(name='/dev/cons', port=RandomPort(), raw=True)
                 ]
             }
         }
