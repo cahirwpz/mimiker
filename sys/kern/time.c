@@ -1,7 +1,11 @@
+#include <sys/mutex.h>
+#include <sys/signal.h>
 #include <sys/errno.h>
 #include <sys/sleepq.h>
 #include <sys/time.h>
+#include <sys/callout.h>
 #include <sys/proc.h>
+#include <sys/klog.h>
 #include <limits.h>
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp) {
@@ -168,11 +172,125 @@ static timeval_t tv_now(void) {
   return now;
 }
 
+static void kitimer_get(proc_t *p, kitimer_t *timer, struct itimerval *tval) {
+  assert(mtx_owned(&p->p_lock));
+
+  timeval_t now = tv_now();
+
+  kitimer_t *it = &p->p_itimer;
+  if (timercmp(&it->kit_next, &now, <=))
+    timerclear(&tval->it_value);
+  else
+    timersub(&it->kit_next, &now, &tval->it_value);
+
+  tval->it_interval = it->kit_interval;
+}
+
 int do_getitimer(proc_t *p, int which, struct itimerval *tval) {
-  return ENOTSUP;
+  if (which == ITIMER_PROF || which == ITIMER_VIRTUAL)
+    return ENOTSUP;
+  else if (which != ITIMER_REAL)
+    return EINVAL;
+
+  SCOPED_MTX_LOCK(&p->p_lock);
+
+  kitimer_get(p, &p->p_itimer, tval);
+
+  return 0;
+}
+
+bool kitimer_stop(proc_t *p, kitimer_t *timer) {
+  assert(mtx_owned(&p->p_lock));
+
+  if (!callout_stop(&timer->kit_callout)) {
+    mtx_unlock(&p->p_lock);
+    callout_drain(&timer->kit_callout);
+    mtx_lock(&p->p_lock);
+    return false;
+  }
+
+  return true;
+}
+
+static void kitimer_timeout(void *arg) {
+  proc_t *p = arg;
+
+  SCOPED_MTX_LOCK(&p->p_lock);
+
+  if (!proc_is_alive(p))
+    return;
+
+  sig_kill(p, &DEF_KSI_RAW(SIGALRM));
+
+  kitimer_t *it = &p->p_itimer;
+
+  if (!timerisset(&it->kit_interval)) {
+    timerclear(&it->kit_next);
+    return;
+  }
+
+  timeval_t next = it->kit_next;
+  timeradd(&next, &it->kit_interval, &next);
+  timeval_t now = tv_now();
+  /* Skip missed ticks. */
+  while (timercmp(&next, &now, <=))
+    timeradd(&next, &it->kit_interval, &next);
+  it->kit_next = next;
+
+  callout_reschedule(&it->kit_callout, tv2hz(&next) - 1);
+}
+
+void kitimer_init(proc_t *p) {
+  callout_setup(&p->p_itimer.kit_callout, kitimer_timeout, p);
+}
+
+/* The timer must have been stopped prior to calling this function. */
+static void kitimer_setup(proc_t *p, kitimer_t *timer,
+                          const struct itimerval *itval) {
+  assert(mtx_owned(&p->p_lock));
+  const timeval_t *value = &itval->it_value;
+
+  if (timerisset(value)) {
+    /* Convert next to absolute time.  */
+    timeval_t abs = tv_now();
+    timeradd(value, &abs, &abs);
+    timer->kit_next = abs;
+    timer->kit_interval = itval->it_interval;
+    callout_schedule_abs(&timer->kit_callout, tv2hz(&timer->kit_next) - 1);
+  } else {
+    timerclear(&timer->kit_next);
+    timerclear(&timer->kit_interval);
+  }
 }
 
 int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
                  struct itimerval *oval) {
-  return ENOTSUP;
+  if (which == ITIMER_PROF || which == ITIMER_VIRTUAL)
+    return ENOTSUP;
+  else if (which != ITIMER_REAL)
+    return EINVAL;
+
+  if (!timeval_is_canonical(&itval->it_value) ||
+      !timeval_is_canonical(&itval->it_interval))
+    return EINVAL;
+
+  if (tv2hz(&itval->it_value) == UINT_MAX ||
+      tv2hz(&itval->it_interval) == UINT_MAX)
+    return EINVAL;
+
+  SCOPED_MTX_LOCK(&p->p_lock);
+  kitimer_t *timer = &p->p_itimer;
+
+  /* We need to successfully stop the timer without dropping p_lock.  */
+  while (!kitimer_stop(p, timer))
+    ;
+
+  if (oval) {
+    /* Store old timer value. */
+    kitimer_get(p, timer, oval);
+  }
+
+  kitimer_setup(p, timer, itval);
+
+  return 0;
 }
