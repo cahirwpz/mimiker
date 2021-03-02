@@ -56,7 +56,6 @@ typedef struct pstat {
   proc_info_t ps[];
 } pstat_t;
 
-
 static int instances = 0;
 static mtx_t instances_mtx;
 
@@ -91,15 +90,15 @@ static void fill_proc_info(proc_t *p, proc_info_t *pi) {
  * returns length of written string
  */
 static int sprint_proc(char *buf, proc_info_t *pi) {
-  int r = snprintf(buf, MAX_P_STRING, "%d\t%d\t%d\t%d\t%d\t%c\t%s\n",
-                   pi->uid, pi->pid, pi->ppid, pi->pgrp, pi->sid,
-                   state[pi->state], pi->elfpath);
+  int r = snprintf(buf, MAX_P_STRING, "%d\t%d\t%d\t%d\t%d\t%c\t%s\n", pi->uid,
+                   pi->pid, pi->ppid, pi->pgrp, pi->sid, state[pi->state],
+                   pi->elfpath);
 
   return MIN(r, MAX_P_STRING);
 }
 
 static int dev_procstat_open(vnode_t *v, int mode, file_t *fp) {
-  WITH_MTX_LOCK(&instances_mtx) {
+  WITH_MTX_LOCK (&instances_mtx) {
     if (instances >= MAX_PROCSTAT)
       return EMFILE;
     instances++;
@@ -178,7 +177,7 @@ static int dev_procstat_close(vnode_t *v, file_t *fp) {
   }
   kfree(M_TEMP, ps);
 
-  WITH_MTX_LOCK(&instances_mtx) {
+  WITH_MTX_LOCK (&instances_mtx) {
     instances--;
     assert(instances >= 0);
   }
