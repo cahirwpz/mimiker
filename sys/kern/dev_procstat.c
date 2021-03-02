@@ -15,14 +15,14 @@
  * During read calls to /dev/procstat this info can be read.
  *
  * Example:
- * euid   pid    ppid    pgrp   session  state    td_name  elfpath
- * 0       1       0       1       1       R       init    /bin/ksh
+ * euid   pid    ppid    pgrp   session  state    elfpath
+ * 0       1       0       1       1       R      /bin/ksh
  */
 
 /* maximum size of output string of proc info
  * name + path + state (1 character)+ spaces (10 characters) +
  *  + 5 * max length of uint32 (10 characters)*/
-#define MAX_P_STRING (TD_NAME_MAX + PATH_MAX + 5 * 10 + 1 + 10)
+#define MAX_P_STRING (PATH_MAX + 5 * 10 + 1 + 10)
 
 /* maximum amount of processes that procstat can handle */
 #define MAX_PROC 40
@@ -41,7 +41,6 @@ typedef struct proc_info {
   pgid_t pgrp;
   sid_t sid;
   proc_state_t state;
-  char td_name[TD_NAME_MAX];
   char *elfpath;
 } proc_info_t;
 
@@ -70,8 +69,8 @@ static vnodeops_t dev_procstat_vnodeops = {
   .v_close = dev_procstat_close,
 };
 
-/* must be called with proc_t::p_lock held */
 static void fill_proc_info(proc_t *p, proc_info_t *pi) {
+  SCOPED_MTX_LOCK(&p->p_lock);
   pi->uid = p->p_cred.cr_euid;
   pi->pid = p->p_pid;
   pi->ppid = p->p_parent->p_pid;
@@ -79,20 +78,15 @@ static void fill_proc_info(proc_t *p, proc_info_t *pi) {
   pi->sid = p->p_pgrp->pg_session->s_sid;
   pi->state = p->p_state;
   pi->elfpath = kstrndup(M_TEMP, p->p_elfpath, PATH_MAX);
-  strncpy(pi->td_name, p->p_thread->td_name, TD_NAME_MAX);
-
-  /* check if string was copied properly */
-  if (pi->td_name[TD_NAME_MAX - 1] != '\0')
-    pi->td_name[TD_NAME_MAX - 1] = '\0';
 }
 
 /* buf must be at least MAX_P_STRING long
  * returns length of written string
  */
 static int sprint_proc(char *buf, proc_info_t *pi) {
-  int r = snprintf(buf, MAX_P_STRING, "%d\t%d\t%d\t%d\t%d\t%c\t%s\t%s\n",
+  int r = snprintf(buf, MAX_P_STRING, "%d\t%d\t%d\t%d\t%d\t%c\t%s\n",
                    pi->uid, pi->pid, pi->ppid, pi->pgrp, pi->sid,
-                   state[pi->state], pi->td_name, pi->elfpath);
+                   state[pi->state], pi->elfpath);
 
   return MIN(r, MAX_P_STRING);
 }
