@@ -8,6 +8,7 @@
 #include <sys/thread.h>
 #include <sys/sched.h>
 #include <sys/interrupt.h>
+#include <sys/time.h>
 
 /* Note: If the difference in time between ticks is greater than the number of
    buckets, some callouts may be called out-of-order! */
@@ -116,6 +117,7 @@ static void _callout_schedule(callout_t *co, systime_t tm) {
 void callout_schedule_abs(callout_t *co, systime_t tm) {
   SCOPED_SPIN_LOCK(&ci.lock);
   assert(!callout_is_active(co));
+  callout_clear_stopped(co);
 
   _callout_schedule(co, tm);
 }
@@ -123,6 +125,7 @@ void callout_schedule_abs(callout_t *co, systime_t tm) {
 void callout_schedule(callout_t *co, systime_t tm) {
   SCOPED_SPIN_LOCK(&ci.lock);
   assert(!callout_is_active(co));
+  callout_clear_stopped(co);
 
   _callout_schedule(co, getsystime() + tm);
 }
@@ -150,10 +153,9 @@ bool callout_stop(callout_t *handle) {
      * itself but hasn't finished executing yet.
      * If that's the case, we must make the caller wait for its completion in
      * callout_drain(). */
-    return !callout_is_active(handle);
   }
 
-  return false;
+  return !callout_is_active(handle);
 }
 
 /*
