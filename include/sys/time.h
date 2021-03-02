@@ -60,6 +60,11 @@ static inline void bt2ts(bintime_t *bt, timespec_t *ts) {
   ts->tv_nsec = (1000000000ULL * (uint32_t)(bt->frac >> 32)) >> 32;
 }
 
+static inline void bt2tv(bintime_t *bt, timeval_t *tv) {
+  tv->tv_sec = bt->sec;
+  tv->tv_usec = (1000000ULL * (uint32_t)(bt->frac >> 32)) >> 32;
+}
+
 /* Operations on timevals. */
 #define timerclear(tvp) (tvp)->tv_sec = (tvp)->tv_usec = 0L
 #define timerisset(tvp) ((tvp)->tv_sec || (tvp)->tv_usec)
@@ -84,6 +89,11 @@ static inline void bt2ts(bintime_t *bt, timespec_t *ts) {
       (vvp)->tv_usec += 1000000;                                               \
     }                                                                          \
   }
+
+static inline void tv2ts(const timeval_t *tv, timespec_t *ts) {
+  ts->tv_sec = tv->tv_sec;
+  ts->tv_nsec = tv->tv_usec * 1000;
+}
 
 /* Operations on bintime. */
 #define bintime_cmp(a, b, cmp)                                                 \

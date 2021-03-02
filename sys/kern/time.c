@@ -20,7 +20,7 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp) {
   return 0;
 }
 
-static systime_t ts2hz(timespec_t *ts) {
+static systime_t ts2hz(const timespec_t *ts) {
   if (ts->tv_sec < 0 || (ts->tv_sec == 0 && ts->tv_nsec == 0))
     return 0;
 
@@ -41,13 +41,24 @@ static systime_t ts2hz(timespec_t *ts) {
   return ticks + nsectck + 1;
 }
 
+static bool timespec_is_canonical(const timespec_t *ts) {
+  if (ts->tv_nsec < 0 || ts->tv_nsec >= 1000000000L || ts->tv_sec < 0)
+    return false;
+  return true;
+}
+
+static bool timeval_is_canonical(const timeval_t *tv) {
+  if (tv->tv_usec < 0 || tv->tv_usec >= 1000000 || tv->tv_sec < 0)
+    return false;
+  return true;
+}
+
 static int ts2timo(clockid_t clock_id, int flags, timespec_t *ts,
                    systime_t *timo, timespec_t *start) {
   int error;
   *timo = 0;
 
-  if (ts->tv_nsec < 0 || ts->tv_nsec >= 1000000000L || ts->tv_sec < 0 ||
-      (flags & ~TIMER_ABSTIME))
+  if (!timespec_is_canonical(ts) || (flags & ~TIMER_ABSTIME))
     return EINVAL;
 
   if ((error = do_clock_gettime(clock_id, start)))
@@ -142,6 +153,19 @@ timespec_t nanotime(void) {
   bintime_t bt = bintime();
   bt2ts(&bt, &tp);
   return tp;
+}
+
+static systime_t tv2hz(const timeval_t *tv) {
+  timespec_t ts;
+  tv2ts(tv, &ts);
+  return ts2hz(&ts);
+}
+
+static timeval_t tv_now(void) {
+  timeval_t now;
+  bintime_t btnow = binuptime();
+  bt2tv(&btnow, &now);
+  return now;
 }
 
 int do_getitimer(proc_t *p, int which, struct itimerval *tval) {
