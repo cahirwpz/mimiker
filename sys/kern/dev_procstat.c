@@ -27,6 +27,9 @@
 /* maximum amount of processes that procstat can handle */
 #define MAX_PROC 40
 
+/* we want to have at most 10 instances of procstat */
+#define MAX_PROCSTAT 10
+
 static char state[4] = {
   [PS_NORMAL] = 'R',
   [PS_STOPPED] = 'S',
@@ -52,6 +55,10 @@ typedef struct pstat {
   char buf[MAX_P_STRING];
   proc_info_t ps[];
 } pstat_t;
+
+
+static int instances = 0;
+static mtx_t instances_mtx;
 
 static int dev_procstat_read(file_t *f, uio_t *uio);
 static int dev_procstat_close(vnode_t *v, file_t *fp);
@@ -92,6 +99,13 @@ static int sprint_proc(char *buf, proc_info_t *pi) {
 }
 
 static int dev_procstat_open(vnode_t *v, int mode, file_t *fp) {
+  WITH_MTX_LOCK(&instances_mtx) {
+    if (instances >= MAX_PROCSTAT)
+      return EMFILE;
+    instances++;
+    assert(instances <= MAX_PROCSTAT);
+  }
+
   int error;
   if ((error = vnode_open_generic(v, mode, fp)))
     return error;
@@ -163,10 +177,16 @@ static int dev_procstat_close(vnode_t *v, file_t *fp) {
     kfree(M_TEMP, ps->ps[i].elfpath);
   }
   kfree(M_TEMP, ps);
+
+  WITH_MTX_LOCK(&instances_mtx) {
+    instances--;
+    assert(instances >= 0);
+  }
   return 0;
 }
 
 static void init_dev_procstat(void) {
+  mtx_init(&instances_mtx, 0);
   devfs_makedev(NULL, "procstat", &dev_procstat_vnodeops, NULL, NULL);
 }
 
