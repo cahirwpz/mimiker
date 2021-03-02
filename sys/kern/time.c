@@ -1,6 +1,7 @@
 #include <sys/errno.h>
 #include <sys/sleepq.h>
 #include <sys/time.h>
+#include <sys/proc.h>
 #include <limits.h>
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp) {
@@ -141,4 +142,13 @@ timespec_t nanotime(void) {
   bintime_t bt = bintime();
   bt2ts(&bt, &tp);
   return tp;
+}
+
+int do_getitimer(proc_t *p, int which, struct itimerval *tval) {
+  return ENOTSUP;
+}
+
+int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
+                 struct itimerval *oval) {
+  return ENOTSUP;
 }

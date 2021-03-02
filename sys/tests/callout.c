@@ -3,6 +3,7 @@
 #include <sys/callout.h>
 #include <sys/ktest.h>
 #include <sys/interrupt.h>
+#include <sys/time.h>
 
 static int counter;
 
