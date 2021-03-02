@@ -164,7 +164,11 @@ static int dev_procstat_read(file_t *f, uio_t *uio) {
 }
 
 static int dev_procstat_close(vnode_t *v, file_t *fp) {
-  kfree(M_TEMP, fp->f_data);
+  pstat_t *ps = fp->f_data;
+  for (int i = 0; i < ps->nproc; ++i) {
+    kfree(M_TEMP, ps->ps[i].elfpath);
+  }
+  kfree(M_TEMP, ps);
   return 0;
 }
 
