@@ -15,8 +15,11 @@ void _mtx_init(mtx_t *m, lk_attr_t attr, const char *name,
   m->m_owner = 0;
   m->m_count = 0;
   m->m_attr = attr | LK_TYPE_BLOCK;
+
+#if LOCKDEP
   m->m_lockmap =
     (lock_class_mapping_t){.key = key, .name = name, .lock_class = NULL};
+#endif
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {

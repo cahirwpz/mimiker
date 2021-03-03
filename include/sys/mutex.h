@@ -22,13 +22,16 @@ typedef struct mtx {
   volatile unsigned m_count; /*!< counter for recursive mutexes */
   atomic_intptr_t m_owner;   /*!< stores address of the owner */
 
+#if LOCKDEP
   lock_class_mapping_t m_lockmap;
+#endif
 } mtx_t;
 
 /* Flags stored in lower 3 bits of m_owner. */
 #define MTX_CONTESTED 1
 #define MTX_FLAGMASK 7
 
+#if LOCKDEP
 #define MTX_INITIALIZER(lockname, recursive)                                   \
   (mtx_t) {                                                                    \
     .m_attr = (recursive) | LK_TYPE_BLOCK, .m_lockmap = {                      \
@@ -37,6 +40,12 @@ typedef struct mtx {
       .lock_class = NULL                                                       \
     }                                                                          \
   }
+#else
+#define MTX_INITIALIZER(lockname, recursive)                                   \
+  (mtx_t) {                                                                    \
+    .m_attr = (recursive) | LK_TYPE_BLOCK                                      \
+  }
+#endif
 
 /*! \brief Initializes mutex.
  *

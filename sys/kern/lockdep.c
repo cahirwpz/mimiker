@@ -1,3 +1,5 @@
+#if LOCKDEP
+
 #include <sys/lockdep.h>
 #include <sys/spinlock.h>
 #include <sys/thread.h>
@@ -57,7 +59,7 @@ static inline lock_class_link_t *bfs_q_dequeue(bfs_queue_t *q) {
 
   if (bfs_q_empty(q))
     return NULL;
-  
+
   elem = q->items[q->head];
   q->head = (q->head + 1) % BFS_QUEUE_SIZE;
   return elem;
@@ -104,12 +106,12 @@ static bool check_path(lock_class_t *src, lock_class_t *target) {
 
   bfs_q_enqueue(queue, TAILQ_FIRST(&src->locked_after));
   bfs_mark_visited(src);
-  
+
   while ((link = bfs_next_link(link)) || (link = bfs_q_dequeue(queue))) {
     if (bfs_is_visited(link->to))
       continue;
     bfs_mark_visited(link->to);
-    
+
     if (link->to == target)
       return 1;
 
@@ -141,7 +143,7 @@ static lock_class_t *alloc_class(void) {
   return &lock_classes[class_cnt++];
 }
 
-static lock_class_t *register_lock_class(lock_class_mapping_t *lock) {
+static lock_class_t *get_or_create_class(lock_class_mapping_t *lock) {
   lock_class_t *class;
 
   /* If the lock doesn't have a key then it is statically allocated. In this
@@ -193,8 +195,17 @@ static void add_prev_link(void) {
   TAILQ_INSERT_HEAD(&(hprev->lock_class->locked_after), link, entry);
 
   if (check_path(link->to, link->from)) {
-    panic("lockdep: cycle");
+    panic("lockdep: cycle between locks %s and %s", link->from->name,
+          link->to->name);
   }
+}
+
+static int is_lock_held(lock_class_t *class) {
+  for (int i = 0; i < thread_self()->td_lock_depth; i++) {
+    if (thread_self()->td_held_locks[i].lock_class == class)
+      return true;
+  }
+  return false;
 }
 
 void lockdep_init(void) {
@@ -212,16 +223,14 @@ void lockdep_acquire(lock_class_mapping_t *lock) {
   if (thread_self()->td_lock_depth >= MAX_LOCK_DEPTH)
     panic("lockdep: max lock depth reached");
 
-  class = lock->lock_class;
-  if (class == NULL)
-    class = register_lock_class(lock);
+  if (!(class = lock->lock_class))
+    class = get_or_create_class(lock);
 
-  hlock = &thread_self()->td_held_locks[thread_self()->td_lock_depth];
-  hlock->lock_class = class;
-
-  thread_self()->td_lock_depth++;
-
-  add_prev_link();
+  if (!is_lock_held(class)) {
+    hlock = &thread_self()->td_held_locks[thread_self()->td_lock_depth++];
+    hlock->lock_class = class;
+    add_prev_link();
+  }
 
   lockdep_unlock();
 }
@@ -237,19 +246,4 @@ void lockdep_release(void) {
   lockdep_unlock();
 }
 
-void lockdep_print_graph(void) {
-  lockdep_lock();
-  lock_class_link_t *link;
-
-  kprintf("%d\n", class_cnt);
-  for (int i = 0; i < class_cnt; i++) {
-    kprintf("%d %s ", i, lock_classes[i].name);
-    TAILQ_FOREACH (link, &(lock_classes[i].locked_after), entry) {
-      int class_idx = link->to - lock_classes;
-      kprintf("%d ", class_idx);
-    }
-    kprintf("\n");
-  }
-
-  lockdep_unlock();
-}
+#endif

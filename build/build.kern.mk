@@ -8,7 +8,7 @@ ifneq ($(KLIB), no)
 BUILD-FILES += $(KLIB)
 endif
 
-LOCKDEP ?= 1
+LOCKDEP ?= 0
 CFLAGS += -DLOCKDEP=$(LOCKDEP)
 
 include $(TOPDIR)/build/flags.kern.mk
