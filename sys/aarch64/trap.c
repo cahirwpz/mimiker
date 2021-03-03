@@ -148,7 +148,7 @@ void kern_trap_handler(ctx_t *ctx) {
   register_t far = READ_SPECIALREG(far_el1);
 
   /* If interrupts were enabled before we trapped, then turn them on here. */
-  if ((_REG(ctx, SPSR) & DAIF_I_MASKED) == 0)
+  if ((_REG(ctx, SPSR) & PSR_I) == 0)
     cpu_intr_enable();
 
   switch (ESR_ELx_EXCEPTION(esr)) {

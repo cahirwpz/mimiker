@@ -293,27 +293,39 @@ static void pm_free_from_seg(vm_physseg_t *seg, vm_page_t *page) {
   PAGECOUNT(page)++;
   page->flags |= PG_MANAGED;
   for (unsigned i = 0; i < page->size; i++) {
-    pmap_page_remove(&page[i]);
+    assert(TAILQ_EMPTY(&page[i].pv_list));
     page[i].flags &= ~PG_ALLOCATED;
     page[i].flags &= ~(PG_REFERENCED | PG_MODIFIED);
   }
 }
 
-void vm_page_free(vm_page_t *page) {
-  vm_physseg_t *seg_it = NULL;
+static void vm_page_free_nolock(vm_page_t *pg) {
+  klog("%s: free %lx of size %ld", __func__, pg->paddr, pg->size);
 
-  SCOPED_MTX_LOCK(physmem_lock);
-
-  klog("%s: free %lx of size %ld", __func__, page->paddr, page->size);
-
-  TAILQ_FOREACH (seg_it, &seglist, seglink) {
-    if (PG_START(page) >= seg_it->start && PG_END(page) <= seg_it->end) {
-      pm_free_from_seg(seg_it, page);
+  vm_physseg_t *seg = NULL;
+  TAILQ_FOREACH (seg, &seglist, seglink) {
+    if (PG_START(pg) >= seg->start && PG_END(pg) <= seg->end) {
+      pm_free_from_seg(seg, pg);
       return;
     }
   }
 
-  panic("page out of range: %p", (void *)page->paddr);
+  panic("page out of range: %p", (void *)pg->paddr);
+}
+
+void vm_page_free(vm_page_t *page) {
+  SCOPED_MTX_LOCK(physmem_lock);
+  vm_page_free_nolock(page);
+}
+
+void vm_pagelist_free(vm_pagelist_t *pglist) {
+  SCOPED_MTX_LOCK(physmem_lock);
+
+  vm_page_t *pg, *pg_next;
+  TAILQ_FOREACH_SAFE (pg, pglist, pageq, pg_next) {
+    TAILQ_REMOVE(pglist, pg, pageq);
+    vm_page_free_nolock(pg);
+  }
 }
 
 vm_page_t *vm_page_find(paddr_t pa) {

@@ -1,5 +1,4 @@
 #include <aarch64/asm.h>
-#include <sys/ucontext.h>
 #include <sys/syscall.h>
 
 #include "aarch64/assym.h"
