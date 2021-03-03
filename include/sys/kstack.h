@@ -29,9 +29,9 @@ static inline void kstack_init(kstack_t *stk) {
   vaddr_t va = kva_alloc(2 * PAGESIZE);
   assert(va);
   vaddr_t base = va + PAGESIZE;
-  // Assume stack grows down.
+  /* Assume stack grows down. */
   kva_map(base, PAGESIZE, 0);
-  // Leave guard page unmapped.
+  /* Leave guard page unmapped. */
   stk->stk_base = (void *)base;
   stk->stk_size = PAGESIZE;
   kstack_reset(stk);
