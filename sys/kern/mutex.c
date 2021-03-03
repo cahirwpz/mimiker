@@ -27,7 +27,9 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
     return;
   }
 
-  lock_acquire(&m->m_lockmap);
+#if LOCKDEP
+  lockdep_acquire(&m->m_lockmap);
+#endif
 
   thread_t *td = thread_self();
 
@@ -67,7 +69,9 @@ void mtx_unlock(mtx_t *m) {
     return;
   }
 
-  lock_release();
+#if LOCKDEP
+  lockdep_release();
+#endif
 
   /* Fast path: if lock is not contested then drop ownership. */
   intptr_t expected = (intptr_t)thread_self();

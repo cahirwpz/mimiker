@@ -21,6 +21,8 @@ typedef struct lock_class {
   lock_class_key_t *key;
   const char *name;
   TAILQ_HEAD(, lock_class_link) locked_after;
+
+  int bfs_visited;
 } lock_class_t;
 
 typedef struct lock_class_mapping {
@@ -33,8 +35,10 @@ typedef struct held_lock {
   lock_class_t *lock_class;
 } held_lock_t;
 
-void lock_acquire(lock_class_mapping_t *lock);
-void lock_release(void);
+void lockdep_init(void);
+
+void lockdep_acquire(lock_class_mapping_t *lock);
+void lockdep_release(void);
 
 void lockdep_print_graph(void);
 

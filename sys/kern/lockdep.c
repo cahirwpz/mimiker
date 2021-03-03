@@ -22,7 +22,46 @@ static int class_cnt = 0;
 static lock_class_link_t lock_links[MAX_LINKS];
 static int link_cnt = 0;
 
-static int lockdep_initialized = 0;
+#define BFS_QUEUE_SIZE 32
+
+typedef struct {
+  lock_class_link_t *items[BFS_QUEUE_SIZE];
+  size_t head, tail;
+} bfs_queue_t;
+
+static bfs_queue_t bfs_queue;
+
+static inline void bfs_q_init(bfs_queue_t *q) {
+  q->head = q->tail = 0;
+}
+
+static inline int bfs_q_empty(bfs_queue_t *q) {
+  return q->head == q->tail;
+}
+
+static inline int bfs_q_full(bfs_queue_t *q) {
+  return ((q->tail + 1) % BFS_QUEUE_SIZE) == q->head;
+}
+
+static inline int bfs_q_enqueue(bfs_queue_t *q, lock_class_link_t *elem) {
+  if (bfs_q_full(q))
+    return 0;
+
+  q->items[q->tail] = elem;
+  q->tail = (q->tail + 1) % BFS_QUEUE_SIZE;
+  return 1;
+}
+
+static inline lock_class_link_t *bfs_q_dequeue(bfs_queue_t *q) {
+  lock_class_link_t *elem;
+
+  if (bfs_q_empty(q))
+    return NULL;
+  
+  elem = q->items[q->head];
+  q->head = (q->head + 1) % BFS_QUEUE_SIZE;
+  return elem;
+}
 
 static inline void lockdep_lock(void) {
   spin_lock(&main_lock);
@@ -32,13 +71,55 @@ static inline void lockdep_unlock(void) {
   spin_unlock(&main_lock);
 }
 
-static void init_structures(void) {
-  if (lockdep_initialized)
-    return;
-  lockdep_initialized = 1;
-  for (int i = 0; i < CLASSHASH_SIZE; i++) {
-    TAILQ_INIT(&lock_hashtbl[i]);
+static void bfs_init(void) {
+  for (int i = 0; i < class_cnt; i++) {
+    lock_classes[i].bfs_visited = 0;
   }
+}
+
+static inline lock_class_link_t *bfs_next_link(lock_class_link_t *link) {
+  if (link == NULL)
+    return NULL;
+  return TAILQ_NEXT(link, entry);
+}
+
+static inline void bfs_mark_visited(lock_class_t *class) {
+  class->bfs_visited = 1;
+}
+
+static inline int bfs_is_visited(lock_class_t *class) {
+  return class->bfs_visited;
+}
+
+/*
+ * Check that the dependency graph starting at <src> can lead to
+ * <target> or not.
+ */
+static bool check_path(lock_class_t *src, lock_class_t *target) {
+  lock_class_link_t *child, *link = NULL;
+  bfs_queue_t *queue = &bfs_queue;
+
+  bfs_q_init(queue);
+  bfs_init();
+
+  bfs_q_enqueue(queue, TAILQ_FIRST(&src->locked_after));
+  bfs_mark_visited(src);
+  
+  while ((link = bfs_next_link(link)) || (link = bfs_q_dequeue(queue))) {
+    if (bfs_is_visited(link->to))
+      continue;
+    bfs_mark_visited(link->to);
+    
+    if (link->to == target)
+      return 1;
+
+    if ((child = TAILQ_FIRST(&link->to->locked_after))) {
+      if (!bfs_q_enqueue(queue, child))
+        panic("lockdep: bfs queue overflow");
+    }
+  }
+
+  return 0;
 }
 
 static lock_class_t *look_up_lock_class(lock_class_mapping_t *lock) {
@@ -63,14 +144,13 @@ static lock_class_t *alloc_class(void) {
 static lock_class_t *register_lock_class(lock_class_mapping_t *lock) {
   lock_class_t *class;
 
-  /* If the lock doesn't have a key then it is statically allocated. In that
+  /* If the lock doesn't have a key then it is statically allocated. In this
    * case use its address as the key. */
   if (lock->key == NULL)
     lock->key = (void *)lock;
 
   class = look_up_lock_class(lock);
   if (!class) {
-    init_structures();
     class = alloc_class();
     class->key = lock->key;
     class->name = lock->name;
@@ -111,9 +191,19 @@ static void add_prev_link(void) {
   link->to = hcur->lock_class;
 
   TAILQ_INSERT_HEAD(&(hprev->lock_class->locked_after), link, entry);
+
+  if (check_path(link->to, link->from)) {
+    panic("lockdep: cycle");
+  }
 }
 
-void lock_acquire(lock_class_mapping_t *lock) {
+void lockdep_init(void) {
+  for (int i = 0; i < CLASSHASH_SIZE; i++) {
+    TAILQ_INIT(&lock_hashtbl[i]);
+  }
+}
+
+void lockdep_acquire(lock_class_mapping_t *lock) {
   lock_class_t *class;
   held_lock_t *hlock;
 
@@ -136,7 +226,7 @@ void lock_acquire(lock_class_mapping_t *lock) {
   lockdep_unlock();
 }
 
-void lock_release(void) {
+void lockdep_release(void) {
   lockdep_lock();
 
   thread_self()->td_lock_depth--;
