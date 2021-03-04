@@ -24,7 +24,8 @@ typedef struct uio {
   int uio_iovcnt;        /* length of scatter/gather list */
   off_t uio_offset;      /* offset in target object */
   size_t uio_resid;      /* remaining bytes to process */
-  size_t uio_iov_off;    /* offset in current iovec segment */
+  size_t uio_len;        /* total bytes (remaining + done) */
+  size_t uio_sum_segs;   /* sum of lengths of fully processed segments */
   uio_op_t uio_op;       /* operation */
   vm_map_t *uio_vmspace; /* destination address space */
 } uio_t;
@@ -33,7 +34,8 @@ typedef struct uio {
   (uio_t) {                                                                    \
     .uio_iov = (iovec_t[1]){(iovec_t){__UNCONST(buf), (buflen)}},              \
     .uio_iovcnt = 1, .uio_offset = (offset), .uio_resid = (buflen),            \
-    .uio_iov_off = 0, .uio_op = (op), .uio_vmspace = (vm_map)                  \
+    .uio_len = (buflen), .uio_sum_segs = 0, .uio_op = (op),                    \
+    .uio_vmspace = (vm_map)                                                    \
   }
 
 #define UIO_SINGLE_KERNEL(op, offset, buf, buflen)                             \
@@ -45,7 +47,8 @@ typedef struct uio {
 #define UIO_VECTOR(op, vm_map, iov, iovcnt, len)                               \
   (uio_t) {                                                                    \
     .uio_iov = (iov), .uio_iovcnt = (iovcnt), .uio_offset = 0,                 \
-    .uio_resid = (len), .uio_op = (op), .uio_vmspace = (vm_map)                \
+    .uio_resid = (len), .uio_len = (len), .uio_sum_segs = 0, .uio_op = (op),   \
+    .uio_vmspace = (vm_map)                                                    \
   }
 
 #define UIO_VECTOR_KERNEL(op, iov, iovcnt, len)                                \
@@ -55,7 +58,7 @@ typedef struct uio {
   UIO_VECTOR(op, vm_map_user(), iov, iovcnt, len)
 
 int uiomove(void *buf, size_t n, uio_t *uio);
-void uio_rollback(uio_t *uio, size_t nbytes);
+int uio_rollback(uio_t *uio, size_t nbytes);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
 int iovec_length(const iovec_t *iov, int iovcnt, size_t *lengthp);
 

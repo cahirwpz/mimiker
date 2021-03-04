@@ -40,13 +40,15 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
 
   char *cbuf = buf;
   int error = 0;
+  /* Offset within iov */
+  size_t iov_off = (uio->uio_len - uio->uio_resid) - uio->uio_sum_segs;
 
   assert(uio->uio_op == UIO_READ || uio->uio_op == UIO_WRITE);
 
   while (n > 0 && uio->uio_resid > 0) {
     /* Take the first io vector */
     iovec_t *iov = uio->uio_iov;
-    size_t cnt = iov->iov_len - uio->uio_iov_off;
+    size_t cnt = iov->iov_len - iov_off;
 
     if (cnt == 0) {
       /* If no data left to move in this vector, proceed to the next io vector,
@@ -55,12 +57,13 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
         break;
       uio->uio_iov++;
       uio->uio_iovcnt--;
-      uio->uio_iov_off = 0;
+      uio->uio_sum_segs += iov->iov_len;
+      iov_off = 0;
       continue;
     }
     if (cnt > n)
       cnt = n;
-    void *base = iov->iov_base + uio->uio_iov_off;
+    void *base = iov->iov_base + iov_off;
     /* Perform copyout/copyin. */
     if (uio->uio_op == UIO_READ)
       error = copyout_vmspace(uio->uio_vmspace, cbuf, base, cnt);
@@ -73,7 +76,7 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
     /* Store progress on current io vector */
     uio->uio_resid -= cnt;
     uio->uio_offset += cnt;
-    uio->uio_iov_off += cnt;
+    iov_off += cnt;
     cbuf += cnt;
     n -= cnt;
   }
@@ -82,18 +85,20 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
   return error;
 }
 
-void uio_rollback(uio_t *uio, size_t nbytes) {
-  /* We assume that the `nbytes` supplied by the caller won't cause us to go
-   * past the beginning of the original uio->uio_iov.  */
+int uio_rollback(uio_t *uio, size_t nbytes) {
+  if (uio->uio_resid + nbytes > uio->uio_len)
+    return EINVAL;
+  size_t iov_off = (uio->uio_len - uio->uio_resid) - uio->uio_sum_segs;
   uio->uio_resid += nbytes;
   uio->uio_offset -= nbytes;
-  while (nbytes > uio->uio_iov_off) {
-    nbytes -= uio->uio_iov_off;
+  while (nbytes > iov_off) {
+    nbytes -= iov_off;
     uio->uio_iov--;
     uio->uio_iovcnt++;
-    uio->uio_iov_off = uio->uio_iov->iov_len;
+    uio->uio_sum_segs -= uio->uio_iov->iov_len;
+    iov_off = uio->uio_iov->iov_len;
   }
-  uio->uio_iov_off -= nbytes;
+  return 0;
 }
 
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio) {
