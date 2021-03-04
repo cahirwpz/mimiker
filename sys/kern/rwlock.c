@@ -1,4 +1,4 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/rwlock.h>
 #include <sys/thread.h>
@@ -105,6 +105,6 @@ void rw_downgrade(rwlock_t *rw) {
 void __rw_assert(rwlock_t *rw, rwa_t what, const char *file, unsigned line) {
   bool ok = (what == RW_UNLOCKED) ? !is_locked(rw) : (rw->state & what);
   if (!ok)
-    kprintf("[%s:%d] rwlock (%p) has invalid state: expected %u, actual %u!\n",
-            file, line, rw, what, rw->state);
+    klog("[%s:%d] rwlock (%p) has invalid state: expected %u, actual %u!", file,
+         line, rw, what, rw->state);
 }
