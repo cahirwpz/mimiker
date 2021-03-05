@@ -146,7 +146,7 @@ typedef struct thread {
 #if LOCKDEP
   /* protected by the lockdep lock */
   int td_lock_depth;
-  held_lock_t td_held_locks[MAX_LOCK_DEPTH];
+  held_lock_t td_held_locks[LOCKDEP_MAX_HELD_LOCKS];
 #endif
 } thread_t;
 

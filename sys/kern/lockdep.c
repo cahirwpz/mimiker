@@ -8,6 +8,21 @@
 
 typedef TAILQ_HEAD(, lock_class) lock_class_list_t;
 
+typedef struct lock_class {
+  TAILQ_ENTRY(lock_class) hash_entry;
+  lock_class_key_t *key;
+  const char *name;
+  TAILQ_HEAD(, lock_class_link) locked_after;
+
+  int bfs_visited;
+} lock_class_t;
+
+/* lock_class_link represents an edge in the graph of lock depedency. */
+typedef struct lock_class_link {
+  TAILQ_ENTRY(lock_class_link) entry;
+  lock_class_t *from, *to;
+} lock_class_link_t;
+
 static spin_t main_lock = SPIN_INITIALIZER(0);
 
 #define CLASSHASH_SIZE 64
@@ -173,12 +188,9 @@ static lock_class_link_t *alloc_link(void) {
 }
 
 static void add_prev_link(void) {
-  int depth = thread_self()->td_lock_depth;
   held_lock_t *hprev, *hcur;
   lock_class_link_t *link;
-
-  if (depth < 2)
-    return;
+  int depth = thread_self()->td_lock_depth;
 
   hcur = &thread_self()->td_held_locks[depth - 1];
   hprev = &thread_self()->td_held_locks[depth - 2];
@@ -200,14 +212,6 @@ static void add_prev_link(void) {
   }
 }
 
-static int is_lock_held(lock_class_t *class) {
-  for (int i = 0; i < thread_self()->td_lock_depth; i++) {
-    if (thread_self()->td_held_locks[i].lock_class == class)
-      return true;
-  }
-  return false;
-}
-
 void lockdep_init(void) {
   for (int i = 0; i < CLASSHASH_SIZE; i++) {
     TAILQ_INIT(&lock_hashtbl[i]);
@@ -220,17 +224,18 @@ void lockdep_acquire(lock_class_mapping_t *lock) {
 
   lockdep_lock();
 
-  if (thread_self()->td_lock_depth >= MAX_LOCK_DEPTH)
+  if (thread_self()->td_lock_depth >= LOCKDEP_MAX_HELD_LOCKS)
     panic("lockdep: max lock depth reached");
 
   if (!(class = lock->lock_class))
     class = get_or_create_class(lock);
 
-  if (!is_lock_held(class)) {
-    hlock = &thread_self()->td_held_locks[thread_self()->td_lock_depth++];
-    hlock->lock_class = class;
+  hlock = &thread_self()->td_held_locks[thread_self()->td_lock_depth++];
+  hlock->lock_class = class;
+
+  int depth = thread_self()->td_lock_depth;
+  if (depth >= 2 && thread_self()->td_held_locks[depth - 2].lock_class != class)
     add_prev_link();
-  }
 
   lockdep_unlock();
 }
