@@ -50,6 +50,7 @@ CONFIG = {
         'debug': False,
         'gdbport': RandomPort(),
         'graphics': False,
+        'network': False,
         'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
         'args': [],
@@ -68,6 +69,8 @@ CONFIG = {
             # Configure record/replay function for deterministic replay,
             # refer to https://github.com/qemu/qemu/blob/master/docs/replay.txt
             # '-icount', 'shift=3,sleep=on,rr=record,rrfile=replay.bin',
+            '-icount', 'shift=3,align=off,sleep=on',
+            '-rtc', 'clock=vm',
             '-kernel', '{kernel}',
             '-initrd', '{initrd}',
             '-S', '-gdb', 'tcp:127.0.0.1:{gdbport},server,wait',
@@ -77,9 +80,13 @@ CONFIG = {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
                     '-device', 'VGA',
-                    '-device', 'rtl8139',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
+                'network_options': [
+                    '-device', 'rtl8139,netdev=net0',
+                    '-netdev', 'user,id=net0,hostfwd=tcp::10022-:22',
+                    '-object', 'filter-dump,id=net0,netdev=net0,file=rtl.pcap'
+                ],
                 'uarts': [
                     dict(name='/dev/tty1', port=RandomPort(), raw=True),
                     dict(name='/dev/tty2', port=RandomPort()),
@@ -92,8 +99,9 @@ CONFIG = {
                     '-machine', 'raspi3',
                     '-smp', '4',
                     '-cpu', 'cortex-a53'],
+                'network_options': [],
                 'uarts': [
-                    dict(name='/dev/cons', port=RandomPort())
+                    dict(name='/dev/cons', port=RandomPort(), raw=True)
                 ]
             }
         }
@@ -215,6 +223,8 @@ class QEMU(Launchable):
             self.options += ['-S']
         if not getvar('config.graphics'):
             self.options += ['-display', 'none']
+        if getvar('config.network'):
+            self.options += getopts('qemu.network_options')
 
 
 class GDB(Launchable):
@@ -330,6 +340,8 @@ if __name__ == '__main__':
                         nargs=argparse.REMAINDER, help='Kernel arguments.')
     parser.add_argument('-d', '--debug', action='store_true',
                         help='Start debugging session with gdb.')
+    parser.add_argument('-n', '--network', action='store_true',
+                        help='Append qemu network configuration (if any).')
     parser.add_argument('-t', '--test-run', action='store_true',
                         help='Test-run mode: simulator output goes to stdout.')
     parser.add_argument('-T', '--timeout', type=int, default=60,
@@ -347,6 +359,7 @@ if __name__ == '__main__':
     setvar('config.debug', args.debug)
     setvar('config.graphics', args.graphics)
     setvar('config.args', args.args)
+    setvar('config.network', args.network)
 
     # Check if the kernel file is available
     if not os.path.isfile(getvar('config.kernel')):

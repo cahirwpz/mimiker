@@ -379,3 +379,42 @@ typedef struct {
 typedef struct {
   SYSCALLARG(int) flags;
 } posix_openpt_args_t;
+
+typedef struct {
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const struct timespec *) times;
+} futimens_args_t;
+
+typedef struct {
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(const struct timespec *) times;
+  SYSCALLARG(int) flag;
+} utimensat_args_t;
+
+typedef struct {
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const struct iovec *) iov;
+  SYSCALLARG(int) iovcnt;
+} readv_args_t;
+
+typedef struct {
+  SYSCALLARG(int) fd;
+  SYSCALLARG(const struct iovec *) iov;
+  SYSCALLARG(int) iovcnt;
+} writev_args_t;
+
+typedef struct {
+  SYSCALLARG(sigset_t *) set;
+} sigpending_args_t;
+
+typedef struct {
+  SYSCALLARG(int) which;
+  SYSCALLARG(struct itimerval *) val;
+} getitimer_args_t;
+
+typedef struct {
+  SYSCALLARG(int) which;
+  SYSCALLARG(struct itimerval *) val;
+  SYSCALLARG(struct itimerval *) oval;
+} setitimer_args_t;

@@ -1,4 +1,3 @@
-#define KL_LOG KL_TEST
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/exec.h>
@@ -63,6 +62,8 @@ static int utest_generic(const char *name, int status_success) {
 
 UTEST_ADD_SIMPLE(mmap);
 UTEST_ADD_SIGNAL(munmap_sigsegv, SIGSEGV);
+UTEST_ADD_SIMPLE(mmap_prot_none);
+UTEST_ADD_SIMPLE(mmap_prot_read);
 UTEST_ADD_SIMPLE(sbrk);
 UTEST_ADD_SIGNAL(sbrk_sigsegv, SIGSEGV);
 UTEST_ADD_SIMPLE(misbehave);
@@ -76,6 +77,8 @@ UTEST_ADD_SIMPLE(fd_bad_desc);
 UTEST_ADD_SIMPLE(fd_open_path);
 UTEST_ADD_SIMPLE(fd_dup);
 UTEST_ADD_SIMPLE(fd_pipe);
+UTEST_ADD_SIMPLE(fd_readv);
+UTEST_ADD_SIMPLE(fd_writev);
 UTEST_ADD_SIMPLE(fd_all);
 
 UTEST_ADD_SIMPLE(signal_basic);
@@ -128,12 +131,15 @@ UTEST_ADD_SIMPLE(fpu_cpy_ctx_on_fork);
 UTEST_ADD_SIMPLE(fpu_ctx_signals);
 #endif
 
+#ifdef __mips__
 UTEST_ADD_SIGNAL(exc_cop_unusable, SIGILL);
 UTEST_ADD_SIGNAL(exc_reserved_instruction, SIGILL);
 UTEST_ADD_SIGNAL(exc_unaligned_access, SIGBUS);
 UTEST_ADD_SIGNAL(exc_integer_overflow, SIGFPE);
 
 UTEST_ADD_SIMPLE(exc_sigsys);
+#endif
+
 UTEST_ADD_SIMPLE(getcwd);
 /* XXX UTEST_ADD_SIMPLE(syscall_in_bds); */
 
@@ -147,7 +153,9 @@ UTEST_ADD_SIMPLE(pgrp_orphan);
 UTEST_ADD_SIMPLE(session_basic);
 UTEST_ADD_SIMPLE(session_login_name);
 
+#ifdef __mips__
 UTEST_ADD_SIMPLE(gettimeofday);
+#endif
 UTEST_ADD_SIMPLE(nanosleep);
 
 UTEST_ADD_SIMPLE(get_set_uid);
@@ -156,3 +164,9 @@ UTEST_ADD_SIMPLE(get_set_groups);
 
 UTEST_ADD_SIMPLE(sharing_memory_simple);
 UTEST_ADD_SIMPLE(sharing_memory_child_and_grandchild);
+
+UTEST_ADD_SIMPLE(pty_simple);
+
+UTEST_ADD_SIMPLE(tty_canon);
+UTEST_ADD_SIMPLE(tty_echo);
+UTEST_ADD_SIMPLE(tty_signals);

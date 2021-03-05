@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-VER := 4.1.0
+VER := 4.2.1
 QEMU := qemu-$(VER)
 ARCHIVE := $(QEMU).tar.xz
 
@@ -45,6 +45,7 @@ configure-stamp: patch-stamp
 		--disable-tpm \
 		--disable-linux-aio \
 	    	--target-list=mipsel-softmmu,aarch64-softmmu
+		# --with-suffix=qemu-mimiker
 	sed -i -e '/qemu_.*dir=/s,/qemu,/qemu-mimiker,' \
 		qemu-build/config-host.mak
 	touch $@

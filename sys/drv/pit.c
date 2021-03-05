@@ -1,8 +1,8 @@
 /* Programmable Interval Timer (PIT) driver for Intel 8253 */
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
-#include <sys/pci.h>
+#include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/timer.h>
 #include <sys/devclass.h>
@@ -170,4 +170,4 @@ static driver_t pit_driver = {
   .probe = pit_probe,
 };
 
-DEVCLASS_ENTRY(pci, pit_driver);
+DEVCLASS_ENTRY(isa, pit_driver);

@@ -41,7 +41,7 @@ class Thread(metaclass=GdbStructMeta):
                 return td
 
     def __repr__(self):
-        return 'thread{%s/%d}' % (self.td_name, self.td_tid)
+        return 'thread{%s/%s}' % (self.td_name, self.td_tid)
 
 
 class ThreadSwitchBP(gdb.Breakpoint):
