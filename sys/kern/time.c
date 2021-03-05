@@ -232,7 +232,8 @@ static void kitimer_timeout(void *arg) {
   timeval_t next = it->kit_next;
   timeradd(&next, &it->kit_interval, &next);
   timeval_t now = microtime();
-  /* Skip missed ticks. */
+  /* Skip missed periods. This will have the effect of compressing multiple
+   * SIGALRM signals into one. */
   while (timercmp(&next, &now, <=))
     timeradd(&next, &it->kit_interval, &next);
   it->kit_next = next;
