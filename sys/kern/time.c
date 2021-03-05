@@ -238,7 +238,9 @@ static void kitimer_timeout(void *arg) {
     timeradd(&next, &it->kit_interval, &next);
   it->kit_next = next;
 
-  callout_reschedule(&it->kit_callout, tv2hz(&next) - 1);
+  /* Undo the `+ 1` done by ts2hz(). */
+  systime_t st = tv2hz(&next) - 1;
+  callout_reschedule(&it->kit_callout, st);
 }
 
 void kitimer_init(proc_t *p) {
@@ -257,7 +259,9 @@ static void kitimer_setup(proc_t *p, kitimer_t *timer,
     timeradd(value, &abs, &abs);
     timer->kit_next = abs;
     timer->kit_interval = itval->it_interval;
-    callout_schedule_abs(&timer->kit_callout, tv2hz(&timer->kit_next) - 1);
+    /* Undo the `+ 1` done by ts2hz(). */
+    systime_t st = tv2hz(&timer->kit_next) - 1;
+    callout_schedule_abs(&timer->kit_callout, st);
   } else {
     timerclear(&timer->kit_next);
     timerclear(&timer->kit_interval);
