@@ -93,5 +93,7 @@
 77  { ssize_t sys_readv(int fd, const struct iovec *iov, int iovcnt); }
 78  { ssize_t sys_writev(int fd, const struct iovec *iov, int iovcnt); }
 79  { int sys_sigpending(sigset_t *set); }
+80  { int sys_getitimer(int which, struct itimerval *val); }
+81  { int sys_setitimer(int which, struct itimerval *val, struct itimerval *oval); }
 
 ; vim: ts=4 sw=4 sts=4 et
