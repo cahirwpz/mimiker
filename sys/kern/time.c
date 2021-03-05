@@ -165,9 +165,9 @@ static systime_t tv2hz(const timeval_t *tv) {
   return ts2hz(&ts);
 }
 
-static timeval_t microtime(void) {
+static timeval_t microuptime(void) {
   timeval_t now;
-  bintime_t btnow = bintime();
+  bintime_t btnow = binuptime();
   bt2tv(&btnow, &now);
   return now;
 }
@@ -175,7 +175,7 @@ static timeval_t microtime(void) {
 static void kitimer_get(proc_t *p, kitimer_t *timer, struct itimerval *tval) {
   assert(mtx_owned(&p->p_lock));
 
-  timeval_t now = microtime();
+  timeval_t now = microuptime();
 
   kitimer_t *it = &p->p_itimer;
   if (timercmp(&it->kit_next, &now, <=))
@@ -231,7 +231,7 @@ static void kitimer_timeout(void *arg) {
 
   timeval_t next = it->kit_next;
   timeradd(&next, &it->kit_interval, &next);
-  timeval_t now = microtime();
+  timeval_t now = microuptime();
   /* Skip missed periods. This will have the effect of compressing multiple
    * SIGALRM signals into one. */
   while (timercmp(&next, &now, <=))
@@ -253,7 +253,7 @@ static void kitimer_setup(proc_t *p, kitimer_t *timer,
 
   if (timerisset(value)) {
     /* Convert next to absolute time.  */
-    timeval_t abs = microtime();
+    timeval_t abs = microuptime();
     timeradd(value, &abs, &abs);
     timer->kit_next = abs;
     timer->kit_interval = itval->it_interval;
