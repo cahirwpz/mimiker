@@ -13,8 +13,8 @@ GMP = gmp-6.1.2
 MPC = mpc-1.1.0
 CLOOG = cloog-0.18.4
 BINUTILS = binutils-2.32
-GCC = gcc-8.3.0
-GDB = gdb-8.3
+GCC = gcc-9.2.0
+GDB = gdb-10.1
 
 HOSTDIR := $(ROOTDIR)/host
 PREFIX ?= $(ROOTDIR)/local
