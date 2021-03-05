@@ -396,7 +396,7 @@ SNESTED(kern_exc_enter, CTX_SIZE, ra)
         # check for kernel stack overflow.
         mfc0 k1, C0_CAUSE
         # Extract exc. code, discarding least significant bit.
-        ext k1, CR_X_SHIFT+1, CR_X_BITS
+        ext k1, k1, CR_X_SHIFT+1, CR_X_BITS
         subu k1, 1
         # k1 is 0 now iff exc. code was 2 or 3.
         bnez k1, skip_overflow_check
