@@ -15,7 +15,7 @@ static void assert_addr_is_in_span(vmem_addr_t addr, vmem_size_t size,
 
 static int test_vmem(void) {
   int quantum = 1 << 12;
-  vmem_t *vm = vmem_create("test vmem", quantum, false);
+  vmem_t *vm = vmem_create("test vmem", quantum, 0);
   assert(vm != NULL);
 
   int rc;

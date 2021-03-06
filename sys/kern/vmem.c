@@ -29,10 +29,6 @@ typedef LIST_HEAD(vmem_hashlist, bt) vmem_hashlist_t;
 static mtx_t vmem_list_lock = MTX_INITIALIZER(0);
 static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
 
-typedef enum {
-  VM_GROW = 0x1, /* allow to use pmap_growkernel */
-} vmem_flags_t;
-
 /*! \brief vmem structure
  *
  * Field markings and the corresponding locks:
@@ -212,7 +208,7 @@ static void vmem_check_sanity(vmem_t *vm) {
 #define vmem_check_sanity(vm) (void)vm
 #endif
 
-vmem_t *vmem_create(const char *name, vmem_size_t quantum, bool grow) {
+vmem_t *vmem_create(const char *name, vmem_size_t quantum, vmem_flags_t flags) {
   vmem_t *vm = kmalloc(M_VMEM, sizeof(vmem_t), M_NOWAIT | M_ZERO);
   assert(vm != NULL);
 
@@ -222,8 +218,7 @@ vmem_t *vmem_create(const char *name, vmem_size_t quantum, bool grow) {
   /* Check that quantum is a power of 2 */
   assert(ORDER2SIZE(vm->vm_quantum_shift) == quantum);
 
-  if (grow)
-    vm->vm_flags = VM_GROW;
+  vm->vm_flags = flags;
 
   mtx_init(&vm->vm_lock, 0);
   strlcpy(vm->vm_name, name, sizeof(vm->vm_name));
