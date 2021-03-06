@@ -179,8 +179,8 @@ typedef struct proc proc_t;
 
 /* Kernel interval timer. */
 typedef struct {
-  timeval_t
-    kit_next; /* absolute time of nearest expiration, 0 means inactive */
+  /* absolute time of nearest expiration, 0 means inactive */
+  timeval_t kit_next;
   timeval_t kit_interval; /* time between expirations, 0 means non-periodic */
   callout_t kit_callout;
 } kitimer_t;
