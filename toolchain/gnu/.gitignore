@@ -5,8 +5,7 @@ isl
 gmp
 mpfr
 mpc
-host
-local
 cloog
-*.tar.gz
-*.tar.xz
+host
+sources
+*-mimiker-elf/debian
