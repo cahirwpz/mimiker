@@ -266,10 +266,8 @@ static int vmem_add_nolock(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
 }
 
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
-  int error;
-  WITH_MTX_LOCK (&vm->vm_lock)
-    error = vmem_add_nolock(vm, addr, size);
-  return error;
+  SCOPED_MTX_LOCK(&vm->vm_lock);
+  return vmem_add_nolock(vm, addr, size);
 }
 
 int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,
