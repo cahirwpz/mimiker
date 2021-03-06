@@ -47,7 +47,7 @@ binutils/.configure: $(SRCDIR)/binutils/.unpack
 
 binutils-build: binutils/.build
 binutils/.build: binutils/.configure
-	cd binutils && $(MAKE)
+	cd binutils && $(MAKE) LDFLAGS=-Wl,--as-needed
 	touch $@
 
 binutils-install: binutils/.install
@@ -97,7 +97,7 @@ gcc/.configure: $(SRCDIR)/gcc/.unpack binutils/.install
 gcc-build: gcc/.build
 gcc/.build: gcc/.configure
 	cd gcc && $(MAKE) all-gcc
-	cd gcc && $(MAKE) all-target-gcc
+	cd gcc && $(MAKE) all-target-libgcc
 	touch $@
 
 gcc-install: gcc/.install
@@ -142,7 +142,7 @@ gdb/.configure: $(SRCDIR)/gdb/.unpack gcc/.install $(LIBRARIES)
 
 gdb-build: gdb/.build
 gdb/.build: gdb/.configure
-	cd gdb && $(MAKE)
+	cd gdb && $(MAKE) LDFLAGS=-Wl,--as-needed
 	touch $@
 
 gdb-install: gdb/.install
