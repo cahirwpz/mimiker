@@ -172,7 +172,7 @@ static timeval_t microuptime(void) {
   return now;
 }
 
-static void kitimer_get(proc_t *p, kitimer_t *timer, struct itimerval *tval) {
+static void kitimer_get(proc_t *p, struct itimerval *tval) {
   assert(mtx_owned(&p->p_lock));
 
   timeval_t now = microuptime();
@@ -194,13 +194,15 @@ int do_getitimer(proc_t *p, int which, struct itimerval *tval) {
 
   SCOPED_MTX_LOCK(&p->p_lock);
 
-  kitimer_get(p, &p->p_itimer, tval);
+  kitimer_get(p, tval);
 
   return 0;
 }
 
-bool kitimer_stop(proc_t *p, kitimer_t *timer) {
+bool kitimer_stop(proc_t *p) {
   assert(mtx_owned(&p->p_lock));
+
+  kitimer_t *timer = &p->p_itimer;
 
   if (!callout_stop(&timer->kit_callout)) {
     mtx_unlock(&p->p_lock);
@@ -248,9 +250,10 @@ void kitimer_init(proc_t *p) {
 }
 
 /* The timer must have been stopped prior to calling this function. */
-static void kitimer_setup(proc_t *p, kitimer_t *timer,
-                          const struct itimerval *itval) {
+static void kitimer_setup(proc_t *p, const struct itimerval *itval) {
   assert(mtx_owned(&p->p_lock));
+
+  kitimer_t *timer = &p->p_itimer;
   const timeval_t *value = &itval->it_value;
 
   if (timerisset(value)) {
@@ -284,18 +287,17 @@ int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
     return EINVAL;
 
   SCOPED_MTX_LOCK(&p->p_lock);
-  kitimer_t *timer = &p->p_itimer;
 
   /* We need to successfully stop the timer without dropping p_lock.  */
-  while (!kitimer_stop(p, timer))
+  while (!kitimer_stop(p))
     ;
 
   if (oval) {
     /* Store old timer value. */
-    kitimer_get(p, timer, oval);
+    kitimer_get(p, oval);
   }
 
-  kitimer_setup(p, timer, itval);
+  kitimer_setup(p, itval);
 
   return 0;
 }

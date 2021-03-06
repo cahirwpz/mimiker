@@ -575,7 +575,7 @@ __noreturn void proc_exit(int exitstatus) {
 
   /* Stop per-process interval timer.
    * NOTE: this function may release and re-acquire p->p_lock. */
-  kitimer_stop(p, &p->p_itimer);
+  kitimer_stop(p);
 
   /* Detach main thread from the process. */
   p->p_thread = NULL;

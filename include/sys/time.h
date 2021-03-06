@@ -193,7 +193,7 @@ void kitimer_init(proc_t *p);
  * Must be called with p->p_lock held.
  * NOTE: This function may release and re-acquire p->p_lock.
  * It returns true if it released the lock. */
-bool kitimer_stop(proc_t *p, kitimer_t *timer);
+bool kitimer_stop(proc_t *p);
 
 /* Time measured from the start of system. */
 bintime_t binuptime(void);
