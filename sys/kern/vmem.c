@@ -9,6 +9,7 @@
 #include <sys/errno.h>
 #include <sys/hash.h>
 #include <sys/mutex.h>
+#include <sys/pmap.h>
 #include <machine/vm_param.h>
 
 #define VMEM_DEBUG 0
@@ -27,6 +28,10 @@ typedef LIST_HEAD(vmem_hashlist, bt) vmem_hashlist_t;
 /* List of all vmem instances and a guarding mutex */
 static mtx_t vmem_list_lock = MTX_INITIALIZER(0);
 static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
+
+typedef enum {
+  VM_GROW = 0x1, /* allow to use pmap_growkernel */
+} vmem_flags_t;
 
 /*! \brief vmem structure
  *
@@ -48,6 +53,7 @@ typedef struct vmem {
   vmem_freelist_t vm_freelist[VMEM_MAXORDER];
   /* (a) hashtable of lists of allocated segments */
   vmem_hashlist_t vm_hashlist[VMEM_MAXHASH];
+  vmem_flags_t vm_flags; /* (!) flags */
 } vmem_t;
 
 typedef enum {
@@ -81,9 +87,11 @@ static POOL_DEFINE(P_BT, "vmem boundary tag", sizeof(bt_t));
  * number of free tags. For more information, please see bt_alloc and bt_refill
  * methods in NetBSD's vmem and M_NOGROW flag in Mimiker. */
 static alignas(PAGESIZE) uint8_t P_BT_BOOTPAGE[PAGESIZE];
+static vaddr_t maxkvaddr;
 
 void init_vmem(void) {
   pool_add_page(P_BT, P_BT_BOOTPAGE, sizeof(P_BT_BOOTPAGE));
+  maxkvaddr = (vaddr_t)vm_kernel_end;
 }
 
 static vmem_freelist_t *bt_freehead(vmem_t *vm, vmem_size_t size) {
@@ -204,7 +212,7 @@ static void vmem_check_sanity(vmem_t *vm) {
 #define vmem_check_sanity(vm) (void)vm
 #endif
 
-vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
+vmem_t *vmem_create(const char *name, vmem_size_t quantum, bool grow) {
   vmem_t *vm = kmalloc(M_VMEM, sizeof(vmem_t), M_NOWAIT | M_ZERO);
   assert(vm != NULL);
 
@@ -213,6 +221,9 @@ vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
   vm->vm_quantum_shift = SIZE2ORDER(quantum);
   /* Check that quantum is a power of 2 */
   assert(ORDER2SIZE(vm->vm_quantum_shift) == quantum);
+
+  if (grow)
+    vm->vm_flags = VM_GROW;
 
   mtx_init(&vm->vm_lock, 0);
   strlcpy(vm->vm_name, name, sizeof(vm->vm_name));
@@ -230,7 +241,7 @@ vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
   return vm;
 }
 
-int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
+static int vmem_add_nolock(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
   bt_t *btspan = pool_alloc(P_BT, M_ZERO);
   bt_t *btfree = pool_alloc(P_BT, M_ZERO);
 
@@ -242,13 +253,11 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
   btfree->bt_start = addr;
   btfree->bt_size = size;
 
-  WITH_MTX_LOCK (&vm->vm_lock) {
-    bt_insseg_tail(vm, btspan);
-    bt_insseg_after(vm, btfree, btspan);
-    bt_insfree(vm, btfree);
-    vm->vm_size += size;
-    vmem_check_sanity(vm);
-  }
+  bt_insseg_tail(vm, btspan);
+  bt_insseg_after(vm, btfree, btspan);
+  bt_insfree(vm, btfree);
+  vm->vm_size += size;
+  vmem_check_sanity(vm);
 
   klog("%s: added [%p-%p] span to '%s'", __func__, addr, addr + size - 1,
        vm->vm_name);
@@ -256,10 +265,18 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
   return 0;
 }
 
+int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
+  int error;
+  WITH_MTX_LOCK (&vm->vm_lock)
+    error = vmem_add_nolock(vm, addr, size);
+  return error;
+}
+
 int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,
                kmem_flags_t flags) {
   size = align(size, vm->vm_quantum);
   assert(size > 0);
+  bool grow_called = false;
 
   /* Allocate new boundary tag before acquiring the vmem lock */
   bt_t *bt, *btnew;
@@ -270,12 +287,25 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,
   WITH_MTX_LOCK (&vm->vm_lock) {
     vmem_check_sanity(vm);
 
+  retry:
     bt = bt_find_freeseg(vm, size);
 
     if (bt == NULL) {
-      pool_free(P_BT, btnew);
       klog("%s: block of %lu bytes not found in '%s'", __func__, size,
            vm->vm_name);
+      if (grow_called || !(vm->vm_flags & VM_GROW))
+        goto fail;
+
+      vaddr_t old = maxkvaddr;
+      maxkvaddr = pmap_growkernel(maxkvaddr + size);
+      klog("%s: increase kernel end %08lx -> %08lx", __func__, old, maxkvaddr);
+      grow_called = true;
+      if (vmem_add_nolock(vm, old, maxkvaddr - old) != 0)
+        goto fail;
+      goto retry;
+
+    fail:
+      pool_free(P_BT, btnew);
       return ENOMEM;
     }
 

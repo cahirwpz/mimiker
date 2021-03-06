@@ -82,6 +82,7 @@ static const pte_t vm_prot_map[] = {
 
 static pmap_t kernel_pmap;
 paddr_t _kernel_pmap_pde;
+static vaddr_t pmap_maxkvaddr;
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
 
@@ -564,6 +565,7 @@ static void pmap_setup(pmap_t *pmap) {
 void init_pmap(void) {
   pmap_setup(&kernel_pmap);
   kernel_pmap.pde = _kernel_pmap_pde;
+  pmap_maxkvaddr = rounddown((vaddr_t)__kernel_end, PAGESIZE);
 }
 
 pmap_t *pmap_new(void) {
@@ -603,11 +605,16 @@ void pmap_delete(pmap_t *pmap) {
   pool_free(P_PMAP, pmap);
 }
 
-static vaddr_t pmap_maxkvaddr;
-
+/*
+ * Increase usable kernel virtual address space to at least maxkvaddr.
+ * Allocate page table (level 1) if needed.
+ */
 vaddr_t pmap_growkernel(vaddr_t maxkvaddr) {
   pmap_t *pmap = pmap_kernel();
   vaddr_t va;
+
+  /* For 8 pages used by kernel we need 1 page for KASAN. */
+  maxkvaddr = roundup(maxkvaddr, 8 * L2_SIZE);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (va = pmap_maxkvaddr; va <= maxkvaddr; va += L2_SIZE)
@@ -615,7 +622,7 @@ vaddr_t pmap_growkernel(vaddr_t maxkvaddr) {
     pmap_maxkvaddr = va;
   }
 
-  /* TODO(pj) here we should do something with KASAN shadow map */
+  /* TODO(pj) add new region into shadow map */
 
-  return va;
+  return pmap_maxkvaddr;
 }

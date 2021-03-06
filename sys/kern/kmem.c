@@ -13,12 +13,10 @@
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
 
 void init_kmem(void) {
-  kvspace = vmem_create("kvspace", PAGESIZE);
+  kvspace = vmem_create("kvspace", PAGESIZE, true);
   if (KERNEL_SPACE_BEGIN < (vaddr_t)__kernel_start)
     vmem_add(kvspace, KERNEL_SPACE_BEGIN,
              (vaddr_t)__kernel_start - KERNEL_SPACE_BEGIN);
-  vmem_add(kvspace, (vaddr_t)vm_kernel_end,
-           KERNEL_SPACE_END - (vaddr_t)vm_kernel_end);
 }
 
 static void kick_swapper(void) {
