@@ -607,7 +607,7 @@ void pmap_delete(pmap_t *pmap) {
 
 /*
  * Increase usable kernel virtual address space to at least maxkvaddr.
- * Allocate page table (level 1) if needed.
+ * Allocate page table (levels 1, 2, 3) if needed.
  */
 vaddr_t pmap_growkernel(vaddr_t maxkvaddr) {
   pmap_t *pmap = pmap_kernel();
