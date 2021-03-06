@@ -163,6 +163,8 @@ struct itimerval {
 
 #ifdef _KERNEL
 
+typedef struct proc proc_t;
+
 /* Time measured from the start of system. */
 bintime_t binuptime(void);
 
@@ -179,6 +181,11 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp);
 
 int do_clock_nanosleep(clockid_t clk, int flags, timespec_t *rqtp,
                        timespec_t *rmtp);
+
+int do_getitimer(proc_t *p, int which, struct itimerval *tval);
+
+int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
+                 struct itimerval *oval);
 
 #else /* _KERNEL */
 

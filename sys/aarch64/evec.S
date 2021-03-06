@@ -84,7 +84,7 @@
 .endif
         ldr     x10, [sp, #CTX_ELR]
         msr     elr_el1, x10
-        ldr     w11, [sp, #CTX_SPSR]
+        ldr     x11, [sp, #CTX_SPSR]
         msr     spsr_el1, x11
         ldp     x0,  x1,  [sp, #CTX_X0]
         ldp     x2,  x3,  [sp, #CTX_X2]

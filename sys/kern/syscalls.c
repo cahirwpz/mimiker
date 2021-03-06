@@ -1199,3 +1199,53 @@ end:
   kfree(M_TEMP, k_iov);
   return error;
 }
+
+static int sys_sigpending(proc_t *p, sigpending_args_t *args, register_t *res) {
+  sigset_t *u_set = SCARG(args, set);
+  int error;
+
+  klog("sigpending(%p)", u_set);
+
+  sigset_t k_set;
+
+  if ((error = do_sigpending(p, &k_set)))
+    return error;
+
+  return copyout_s(k_set, u_set);
+}
+
+static int sys_getitimer(proc_t *p, getitimer_args_t *args, register_t *res) {
+  int which = SCARG(args, which);
+  struct itimerval *u_tval = SCARG(args, val);
+  int error;
+
+  klog("getitimer(%p)", u_tval);
+
+  struct itimerval tval;
+
+  if ((error = do_getitimer(p, which, &tval)))
+    return error;
+
+  return copyout_s(tval, u_tval);
+}
+
+static int sys_setitimer(proc_t *p, setitimer_args_t *args, register_t *res) {
+  int which = SCARG(args, which);
+  struct itimerval *u_tval = SCARG(args, val);
+  struct itimerval *u_oval = SCARG(args, oval);
+  int error;
+
+  klog("setitimer(%p, %p)", u_tval, u_oval);
+
+  struct itimerval tval, oval;
+  if ((error = copyin_s(u_tval, tval)))
+    return error;
+
+  if ((error = do_setitimer(p, which, &tval, u_oval ? &oval : NULL)))
+    return error;
+
+  if (u_oval)
+    error = copyout_s(oval, u_oval);
+
+  return error;
+}
