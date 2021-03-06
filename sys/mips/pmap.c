@@ -510,7 +510,7 @@ static void pmap_setup(pmap_t *pmap) {
 void init_pmap(void) {
   pmap_setup(&kernel_pmap);
   kernel_pmap.pde = _kernel_pmap_pde;
-  pmap_maxkvaddr = rounddown((vaddr_t)__kernel_end, PAGESIZE);
+  pmap_maxkvaddr = roundup((vaddr_t)__kernel_end, PAGESIZE);
 }
 
 pmap_t *pmap_new(void) {
