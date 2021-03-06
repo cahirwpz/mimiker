@@ -1,6 +1,6 @@
 TARGETS = mipsel aarch64
 
-all: build
+all: package
 
 build-lib:
 	$(MAKE) -C lib
@@ -14,7 +14,7 @@ build-$(1): $(1)-mimiker-elf build-lib
 	$(MAKE) -C $(1)-mimiker-elf
 
 $(1)-mimiker-elf_$(VERSION)_amd64.deb: build-$(1)
-	cd $(1)-mimiker-elf && fakeroot ./debian/rules binary
+	$(MAKE) -C $(1)-mimiker-elf package
 
 package-$(1): $(1)-mimiker-elf_$(VERSION)_amd64.deb
 
@@ -28,6 +28,8 @@ endef
 $(foreach dir,$(TARGETS),$(eval $(call emit_target_rules,$(dir))))
 
 build: $(TARGETS:%=build-%)
+
+package: $(TARGETS:%=package-%)
 
 clean: $(TARGETS:%=clean-%) clean-lib
 
