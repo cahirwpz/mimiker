@@ -176,8 +176,8 @@ static void kitimer_get(proc_t *p, struct itimerval *tval) {
   assert(mtx_owned(&p->p_lock));
 
   timeval_t now = microuptime();
-
   kitimer_t *it = &p->p_itimer;
+
   if (timercmp(&it->kit_next, &now, <=))
     timerclear(&tval->it_value);
   else
@@ -202,11 +202,11 @@ int do_getitimer(proc_t *p, int which, struct itimerval *tval) {
 bool kitimer_stop(proc_t *p) {
   assert(mtx_owned(&p->p_lock));
 
-  kitimer_t *timer = &p->p_itimer;
+  kitimer_t *it = &p->p_itimer;
 
-  if (!callout_stop(&timer->kit_callout)) {
+  if (!callout_stop(&it->kit_callout)) {
     mtx_unlock(&p->p_lock);
-    callout_drain(&timer->kit_callout);
+    callout_drain(&it->kit_callout);
     mtx_lock(&p->p_lock);
     return false;
   }
@@ -253,21 +253,21 @@ void kitimer_init(proc_t *p) {
 static void kitimer_setup(proc_t *p, const struct itimerval *itval) {
   assert(mtx_owned(&p->p_lock));
 
-  kitimer_t *timer = &p->p_itimer;
+  kitimer_t *it = &p->p_itimer;
   const timeval_t *value = &itval->it_value;
 
   if (timerisset(value)) {
     /* Convert next to absolute time.  */
     timeval_t abs = microuptime();
     timeradd(value, &abs, &abs);
-    timer->kit_next = abs;
-    timer->kit_interval = itval->it_interval;
+    it->kit_next = abs;
+    it->kit_interval = itval->it_interval;
     /* Undo the `+ 1` done by ts2hz(). */
-    systime_t st = tv2hz(&timer->kit_next) - 1;
-    callout_schedule_abs(&timer->kit_callout, st);
+    systime_t st = tv2hz(&it->kit_next) - 1;
+    callout_schedule_abs(&it->kit_callout, st);
   } else {
-    timerclear(&timer->kit_next);
-    timerclear(&timer->kit_interval);
+    timerclear(&it->kit_next);
+    timerclear(&it->kit_interval);
   }
 }
 
