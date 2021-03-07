@@ -6,21 +6,27 @@
 #include <sys/mimiker.h>
 #include <sys/klog.h>
 
-typedef TAILQ_HEAD(, lock_class) lock_class_list_t;
-
 typedef struct lock_class {
-  TAILQ_ENTRY(lock_class) hash_entry;
+  SIMPLEQ_ENTRY(lock_class) hash_entry;
   lock_class_key_t *key;
   const char *name;
-  TAILQ_HEAD(, lock_class_link) locked_after;
 
-  int bfs_visited;
+  /* A list of lock classes corresponding to locks acquired while holding a lock
+   * belonging to this lock class. */
+  SIMPLEQ_HEAD(, lock_class_link) locked_after;
+
+  /* Used in the graph traversal to decide if the graph node was already
+   * visited. */
+  int bfs_gen_id;
 } lock_class_t;
 
-/* lock_class_link represents an edge in the graph of lock depedency. */
+/*
+ * lock_class_link represents an edge in the graph of lock depedency. An edge
+ * C1-> C2 is created if the lock class C1 acquired while holding the class C2.
+ */
 typedef struct lock_class_link {
-  TAILQ_ENTRY(lock_class_link) entry;
-  lock_class_t *from, *to;
+  SIMPLEQ_ENTRY(lock_class_link) entry;
+  lock_class_t *to;
 } lock_class_link_t;
 
 static spin_t main_lock = SPIN_INITIALIZER(0);
@@ -29,7 +35,7 @@ static spin_t main_lock = SPIN_INITIALIZER(0);
 #define CLASSHASH(key) ((uintptr_t)(key) % CLASSHASH_SIZE)
 #define CLASS_HASH_CHAIN(key) (&lock_hashtbl[CLASSHASH(key)])
 
-static lock_class_list_t lock_hashtbl[CLASSHASH_SIZE];
+static SIMPLEQ_HEAD(, lock_class) lock_hashtbl[CLASSHASH_SIZE];
 
 #define MAX_CLASSES 64
 static lock_class_t lock_classes[MAX_CLASSES];
@@ -46,6 +52,7 @@ typedef struct {
   size_t head, tail;
 } bfs_queue_t;
 
+static int bfs_cur_gen;
 static bfs_queue_t bfs_queue;
 
 static inline void bfs_q_init(bfs_queue_t *q) {
@@ -88,24 +95,18 @@ static inline void lockdep_unlock(void) {
   spin_unlock(&main_lock);
 }
 
-static void bfs_init(void) {
-  for (int i = 0; i < class_cnt; i++) {
-    lock_classes[i].bfs_visited = 0;
-  }
-}
-
 static inline lock_class_link_t *bfs_next_link(lock_class_link_t *link) {
   if (link == NULL)
     return NULL;
-  return TAILQ_NEXT(link, entry);
+  return SIMPLEQ_NEXT(link, entry);
 }
 
 static inline void bfs_mark_visited(lock_class_t *class) {
-  class->bfs_visited = 1;
+  class->bfs_gen_id = bfs_cur_gen;
 }
 
 static inline int bfs_is_visited(lock_class_t *class) {
-  return class->bfs_visited;
+  return class->bfs_gen_id == bfs_cur_gen;
 }
 
 /*
@@ -117,9 +118,9 @@ static bool check_path(lock_class_t *src, lock_class_t *target) {
   bfs_queue_t *queue = &bfs_queue;
 
   bfs_q_init(queue);
-  bfs_init();
+  bfs_cur_gen++;
 
-  bfs_q_enqueue(queue, TAILQ_FIRST(&src->locked_after));
+  bfs_q_enqueue(queue, SIMPLEQ_FIRST(&src->locked_after));
   bfs_mark_visited(src);
 
   while ((link = bfs_next_link(link)) || (link = bfs_q_dequeue(queue))) {
@@ -130,7 +131,7 @@ static bool check_path(lock_class_t *src, lock_class_t *target) {
     if (link->to == target)
       return 1;
 
-    if ((child = TAILQ_FIRST(&link->to->locked_after))) {
+    if ((child = SIMPLEQ_FIRST(&link->to->locked_after))) {
       if (!bfs_q_enqueue(queue, child))
         panic("lockdep: bfs queue overflow");
     }
@@ -143,7 +144,7 @@ static lock_class_t *look_up_lock_class(lock_class_mapping_t *lock) {
   lock_class_key_t *key = lock->key;
   lock_class_t *class;
 
-  TAILQ_FOREACH (class, CLASS_HASH_CHAIN(key), hash_entry) {
+  SIMPLEQ_FOREACH(class, CLASS_HASH_CHAIN(key), hash_entry) {
     if (class->key == key)
       return class;
   }
@@ -153,7 +154,7 @@ static lock_class_t *look_up_lock_class(lock_class_mapping_t *lock) {
 
 static lock_class_t *alloc_class(void) {
   if (class_cnt >= MAX_CLASSES)
-    panic("linkdep: no more classes");
+    panic("lockdep: no more classes");
 
   return &lock_classes[class_cnt++];
 }
@@ -171,18 +172,17 @@ static lock_class_t *get_or_create_class(lock_class_mapping_t *lock) {
     class = alloc_class();
     class->key = lock->key;
     class->name = lock->name;
-    TAILQ_INIT(&class->locked_after);
-    TAILQ_INSERT_HEAD(CLASS_HASH_CHAIN(lock->key), class, hash_entry);
-
-    lock->lock_class = class;
+    SIMPLEQ_INIT(&class->locked_after);
+    SIMPLEQ_INSERT_HEAD(CLASS_HASH_CHAIN(lock->key), class, hash_entry);
   }
+  lock->lock_class = class;
 
   return class;
 }
 
 static lock_class_link_t *alloc_link(void) {
   if (link_cnt >= MAX_LINKS)
-    panic("linkdep: no more links");
+    panic("lockdep: no more links");
 
   return &lock_links[link_cnt++];
 }
@@ -192,29 +192,34 @@ static void add_prev_link(void) {
   lock_class_link_t *link;
   int depth = thread_self()->td_lock_depth;
 
+  if (depth < 2)
+    return;
+
   hcur = &thread_self()->td_held_locks[depth - 1];
   hprev = &thread_self()->td_held_locks[depth - 2];
 
-  TAILQ_FOREACH (link, &(hprev->lock_class->locked_after), entry) {
+  if (hcur->lock_class == hprev->lock_class)
+    return;
+
+  SIMPLEQ_FOREACH(link, &(hprev->lock_class->locked_after), entry) {
     if (hcur->lock_class == link->to)
       return;
   }
 
   link = alloc_link();
-  link->from = hprev->lock_class;
   link->to = hcur->lock_class;
 
-  TAILQ_INSERT_HEAD(&(hprev->lock_class->locked_after), link, entry);
+  SIMPLEQ_INSERT_HEAD(&(hprev->lock_class->locked_after), link, entry);
 
-  if (check_path(link->to, link->from)) {
-    panic("lockdep: cycle between locks %s and %s", link->from->name,
+  if (check_path(link->to, hprev->lock_class)) {
+    panic("lockdep: cycle between locks %s and %s", hprev->lock_class->name,
           link->to->name);
   }
 }
 
 void lockdep_init(void) {
   for (int i = 0; i < CLASSHASH_SIZE; i++) {
-    TAILQ_INIT(&lock_hashtbl[i]);
+    SIMPLEQ_INIT(&lock_hashtbl[i]);
   }
 }
 
@@ -233,9 +238,7 @@ void lockdep_acquire(lock_class_mapping_t *lock) {
   hlock = &thread_self()->td_held_locks[thread_self()->td_lock_depth++];
   hlock->lock_class = class;
 
-  int depth = thread_self()->td_lock_depth;
-  if (depth >= 2 && thread_self()->td_held_locks[depth - 2].lock_class != class)
-    add_prev_link();
+  add_prev_link();
 
   lockdep_unlock();
 }
