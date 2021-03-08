@@ -3,15 +3,11 @@ import sys
 
 
 from ctypes import *
+from struct import unpack
 from .cmd import SimpleCommand
 from .struct import GdbStructMeta
 
-PROGRES_BAR_SIZE = 20
 OFILE = "gmon.out"
-
-
-def nextBar(nomin, denom, bar):
-    return int(nomin * bar / denom) < int((nomin + 1) * bar / denom)
 
 
 class RawArc(Structure):
@@ -37,56 +33,55 @@ class GmonParam(metaclass=GdbStructMeta):
                 'textsize': int, 'hashfraction': int}
 
     def writeheader(self):
-        sizeofgmonhdr = 32
         GMONVERSION = 333945
-
         gmonhdr = GmonHeader()
         gmonhdr.lpc = self.lowpc
         gmonhdr.hpc = self.highpc
-        gmonhdr.ncnt = c_int(self.kcountsize + sizeofgmonhdr)
+        gmonhdr.ncnt = c_int(self.kcountsize + sizeof(GmonHeader))
         gmonhdr.version = GMONVERSION
-        gmonhdr.spare[0] = 0
-        gmonhdr.spare[1] = 0
-        gmonhdr.spare[2] = 0
+        gmonhdr.spare[0] = gmonhdr.spare[1] = gmonhdr.spare[2] = 0
+        # TO DO: read the profrate value
         gmonhdr.profrate = 1000
         with open(OFILE, "wb") as of:
             of.write(gmonhdr)
 
-    def writetickbuffer(self):
+    def writetickbuffer(self, inferior):
         kcountsize = self.kcountsize
-        for i in range(kcountsize):
-            if nextBar(i, kcountsize, PROGRES_BAR_SIZE):
-                print("X", end='')
-                sys.stdout.flush()
-            kcount = gdb.parse_and_eval('_gmonparam.kcount[' + str(i) + ']')
-            with open(OFILE, "ab") as of:
-                of.write(c_ushort(kcount))
+        kcount = gdb.parse_and_eval('_gmonparam.kcount[0]').address
+        memory = inferior.read_memory(kcount, kcountsize * sizeof(c_ushort))
+        array = unpack(kcountsize * 'H', memory)
+        with open(OFILE, "ab") as of:
+            for i in array:
+                of.write(c_ushort(i))
 
-    def writearcinfo(self):
+
+    def writearcinfo(self, inferior):
         rawarc = RawArc()
         sizeoffroms_p = gdb.parse_and_eval('sizeof(*_gmonparam.froms)')
-        endfrom = self.fromssize / sizeoffroms_p
+        endfrom = int(self.fromssize / sizeoffroms_p)
 
-        for fromindex in range(endfrom):
-            if nextBar(fromindex, endfrom, PROGRES_BAR_SIZE):
-                print("X", end='')
-                sys.stdout.flush()
-            froms = gdb.parse_and_eval(f'_gmonparam.froms[{fromindex}]')
-            if froms == 0:
+
+        froms = gdb.parse_and_eval(f'_gmonparam.froms[0]').address
+        memory = inferior.read_memory(froms, endfrom * sizeof(c_ushort))
+        array = unpack(endfrom * 'H', memory)
+
+        for i in array:
+            if i == 0:
                 continue
             frompc = self.lowpc
             frompc += fromindex * self.hashfraction * sizeoffroms_p
             toindex = froms
 
             while toindex != 0:
-                prefix = f'_gmonparam.tos[{toindex}].'
+                tos = gdb.parse_and_eval('_gmonparam.tos[0]').address
+                memory = inferior.read_memory(tos, sizeof(ToStruct))
+                read = unpack('IiHH', memory)
                 rawarc.raw_frompc = frompc
-                rawarc.raw_selfpc = gdb.parse_and_eval(prefix + 'selfpc')
-                rawarc.raw_count = gdb.parse_and_eval(prefix + 'count')
+                rawarc.raw_selfpc = read[0]
+                rawarc.raw_count = read[1]
                 with open(OFILE, "ab") as of:
                     of.write(rawarc)
-                toindex = gdb.parse_and_eval(prefix + 'link')
-
+                toindex = read[2]
 
 class Kgmon(SimpleCommand):
     """Dump the data to gmon.out"""
@@ -95,10 +90,9 @@ class Kgmon(SimpleCommand):
         super().__init__('kgmon')
 
     def __call__(self, args):
+        infer = gdb.inferiors()[0]
         gmonparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
         gmonparam.writeheader()
-        print("KGMON: Tick buffer")
-        gmonparam.writetickbuffer()
-        print("\nKGMON: Arc info")
-        gmonparam.writearcinfo()
-        print("\nKGMON: Finished")
+        gmonparam.writetickbuffer(infer)
+        gmonparam.writearcinfo(infer)
+        print("KGMON: Finished")
