@@ -129,7 +129,7 @@ static bool check_path(lock_class_t *src, lock_class_t *target) {
     bfs_mark_visited(link->to);
 
     if (link->to == target)
-      return 1;
+      return true;
 
     if ((child = SIMPLEQ_FIRST(&link->to->locked_after))) {
       if (!bfs_q_enqueue(queue, child))
