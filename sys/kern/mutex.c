@@ -80,25 +80,3 @@ void mtx_unlock(mtx_t *m) {
       turnstile_broadcast(m);
   }
 }
-
-void mtx_lock_pair(mtx_t *m1, mtx_t *m2) {
-  assert(m1 != m2);
-  if ((uintptr_t)m1 < (uintptr_t)m2) {
-    mtx_lock(m1);
-    mtx_lock(m2);
-  } else {
-    mtx_lock(m2);
-    mtx_lock(m1);
-  }
-}
-
-void mtx_unlock_pair(mtx_t *m1, mtx_t *m2) {
-  assert(m1 != m2);
-  if ((uintptr_t)m1 < (uintptr_t)m2) {
-    mtx_unlock(m2);
-    mtx_unlock(m1);
-  } else {
-    mtx_unlock(m1);
-    mtx_unlock(m2);
-  }
-}
