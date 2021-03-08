@@ -43,7 +43,7 @@ typedef struct ps_entry {
   uid_t uid;
   pgid_t pgrp;
   sid_t sid;
-  proc_state_t state;
+  proc_state_t proc_state;
   char *elfpath;
 } ps_entry_t;
 
@@ -123,12 +123,12 @@ static int dev_procstat_open(vnode_t *v, int mode, file_t *fp) {
         continue; /* we don't want to show proc0 to user */
       if (ps->nproc >= MAX_PROC)
         goto out;
-      ps_entry_fill(p, &ps->ps[ps->nproc++]);
+      ps_entry_fill(&ps->ps[ps->nproc++], p);
     }
     TAILQ_FOREACH (p, &zombie_list, p_zombie) {
       if (ps->nproc >= MAX_PROC)
         goto out;
-      ps_entry_fill(p, &ps->ps[ps->nproc++]);
+      ps_entry_fill(&ps->ps[ps->nproc++], p);
     }
   }
 out:
