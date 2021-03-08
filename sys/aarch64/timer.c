@@ -38,7 +38,11 @@ static int arm_timer_stop(timer_t *tm) {
 
 static bintime_t arm_timer_gettime(timer_t *tm) {
   uint64_t count = READ_SPECIALREG(cntpct_el0);
-  return bintime_mul(tm->tm_min_period, count);
+  bintime_t res = bintime_mul(tm->tm_min_period, (uint32_t) count);
+  bintime_t high_bits = bintime_mul(tm->tm_min_period, (uint32_t) (count >> 32));
+  res.sec += (high_bits.sec << 32) + (high_bits.frac >> 32);
+  res.frac += (high_bits.frac << 32);
+  return res;
 }
 
 static intr_filter_t arm_timer_intr(void *data /* device_t* */) {
