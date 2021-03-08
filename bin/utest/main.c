@@ -63,6 +63,14 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(exc_sigsys);
   CHECKRUN_TEST(syscall_in_bds);
 #endif /* !__mips__ */
+
+#ifdef __aarch64__
+  CHECKRUN_TEST(exc_unknown_instruction);
+  CHECKRUN_TEST(exc_msr_instruction);
+  CHECKRUN_TEST(exc_mrs_instruction);
+  CHECKRUN_TEST(exc_brk);
+#endif /* !__aarch64__ */
+
   CHECKRUN_TEST(setjmp);
   CHECKRUN_TEST(sigaction_with_setjmp);
   CHECKRUN_TEST(sigaction_handler_returns);
