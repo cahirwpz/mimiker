@@ -81,9 +81,9 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
   mips_timer_state_t *state = dev->state;
   state->sec = 0;
   state->cntr_modulo = 0;
+  state->last_count_lo = 0;
   state->period_cntr = bintime_mul(period, tm->tm_frequency).sec;
   state->compare.val = read_count(state);
-  state->last_count_lo = state->count.lo;
 
   set_next_tick(state);
   bus_intr_setup(dev, state->irq_res, mips_timer_intr, NULL, dev,
