@@ -19,6 +19,7 @@
 #include <sys/vm_map.h>
 #include <sys/mutex.h>
 #include <sys/tty.h>
+#include <sys/time.h>
 #include <bitstring.h>
 
 /* Allocate PIDs from a reasonable range, can be changed as needed. */
@@ -459,6 +460,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
     p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, PATH_MAX);
 
   TAILQ_INIT(CHILDREN(p));
+  kitimer_init(p);
 
   WITH_SPIN_LOCK (td->td_lock)
     td->td_proc = p;
@@ -573,6 +575,10 @@ __noreturn void proc_exit(int exitstatus) {
 
   /* Clean up process resources. */
   klog("Freeing process PID(%d) {%p} resources", p->p_pid, p);
+
+  /* Stop per-process interval timer.
+   * NOTE: this function may release and re-acquire p->p_lock. */
+  kitimer_stop(p);
 
   /* Detach main thread from the process. */
   p->p_thread = NULL;
