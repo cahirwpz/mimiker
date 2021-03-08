@@ -54,12 +54,10 @@ class GmonParam(metaclass=GdbStructMeta):
             for i in array:
                 of.write(c_ushort(i))
 
-
     def writearcinfo(self, inferior):
         rawarc = RawArc()
         sizeoffroms_p = gdb.parse_and_eval('sizeof(*_gmonparam.froms)')
         endfrom = int(self.fromssize / sizeoffroms_p)
-
 
         froms = gdb.parse_and_eval(f'_gmonparam.froms[0]').address
         memory = inferior.read_memory(froms, endfrom * sizeof(c_ushort))
@@ -82,6 +80,7 @@ class GmonParam(metaclass=GdbStructMeta):
                 with open(OFILE, "ab") as of:
                     of.write(rawarc)
                 toindex = read[2]
+
 
 class Kgmon(SimpleCommand):
     """Dump the data to gmon.out"""
