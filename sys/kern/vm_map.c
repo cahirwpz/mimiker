@@ -164,7 +164,7 @@ void vm_segment_destroy(vm_map_t *map, vm_segment_t *seg) {
 void vm_segment_destroy_range(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
                               vaddr_t end) {
   assert(mtx_owned(&map->mtx));
-  assert(start >= vm_map_start(map) && end <= vm_map_end(map));
+  assert(seg->start >= vm_map_start(map) && seg->end <= vm_map_end(map));
   assert(start >= seg->start && end <= seg->end);
 
   pmap_remove(map->pmap, start, end);
