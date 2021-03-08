@@ -32,12 +32,10 @@ static uint64_t read_count(mips_timer_state_t *state) {
 
   /* detect hardware counter overflow */
   if (state->count.lo < state->last_count_lo) {
-    state->cntr_modulo +=
-      ((uint32_t)(-1) - state->last_count_lo) + state->count.lo;
+    state->cntr_modulo--;
     state->count.hi++;
-  } else {
-    state->cntr_modulo += state->count.lo - state->last_count_lo;
   }
+  state->cntr_modulo += state->count.lo - state->last_count_lo;
 
   if (state->cntr_modulo >= state->timer.tm_frequency) {
     state->cntr_modulo -= state->timer.tm_frequency;
