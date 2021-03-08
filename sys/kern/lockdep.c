@@ -137,7 +137,7 @@ static bool check_path(lock_class_t *src, lock_class_t *target) {
     }
   }
 
-  return 0;
+  return false;
 }
 
 static lock_class_t *look_up_lock_class(lock_class_mapping_t *lock) {
