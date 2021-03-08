@@ -11,12 +11,14 @@
 #include <sys/kasan.h>
 
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
+static vaddr_t maxkvaddr;
 
 void init_kmem(void) {
   kvspace = vmem_create("kvspace", PAGESIZE);
   if (KERNEL_SPACE_BEGIN < (vaddr_t)__kernel_start)
     vmem_add(kvspace, KERNEL_SPACE_BEGIN,
              (vaddr_t)__kernel_start - KERNEL_SPACE_BEGIN);
+  maxkvaddr = (vaddr_t)vm_kernel_end;
 }
 
 static void kick_swapper(void) {
@@ -26,8 +28,24 @@ static void kick_swapper(void) {
 vaddr_t kva_alloc(size_t size) {
   assert(page_aligned_p(size));
   vmem_addr_t start;
-  if (vmem_alloc(kvspace, size, &start, M_NOGROW))
-    return 0;
+
+  bool restarted = false;
+
+retry:
+  if (vmem_alloc(kvspace, size, &start, M_NOGROW)) {
+    if (restarted)
+      return 0;
+
+    vaddr_t old = maxkvaddr;
+    maxkvaddr = pmap_growkernel(maxkvaddr + size);
+    klog("%s: increase kernel end %08lx -> %08lx", __func__, old, maxkvaddr);
+
+    if (vmem_add(kvspace, old, maxkvaddr - old))
+      return 0;
+
+    restarted = true;
+    goto retry;
+  }
   return start;
 }
 
@@ -96,13 +114,13 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
   assert(page_aligned_p(size));
   assert(!(flags & M_NOGROW));
 
-  vmem_addr_t start;
-  if (vmem_alloc(kvspace, size, &start, M_NOGROW))
+  vaddr_t va = kva_alloc(size);
+  if (va == 0)
     kick_swapper();
 
-  kva_map(start, size, flags);
+  kva_map(va, size, flags);
 
-  return (void *)start;
+  return (void *)va;
 }
 
 vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size, unsigned flags) {
@@ -113,8 +131,8 @@ vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size, unsigned flags) {
   if (!pg)
     return 0;
 
-  vaddr_t va;
-  if (vmem_alloc(kvspace, size, &va, M_NOGROW))
+  vaddr_t va = kva_alloc(size);
+  if (va == 0)
     kick_swapper();
 
   /* Mark the entire block as valid */
@@ -135,18 +153,17 @@ void kmem_free(void *ptr, size_t size) {
 vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) {
   assert(page_aligned_p(pa) && page_aligned_p(size));
 
-  vmem_addr_t start;
-  if (vmem_alloc(kvspace, size, &start, M_NOGROW))
+  vaddr_t va = kva_alloc(size);
+  if (va == 0)
     kick_swapper();
 
   /* Mark the entire block as valid */
-  kasan_mark_valid((void *)start, size);
+  kasan_mark_valid((void *)va, size);
 
-  klog("%s: map %p of size %ld at %p", __func__, pa, size, start);
+  klog("%s: map %p of size %ld at %p", __func__, pa, size, va);
 
   for (size_t offset = 0; offset < size; offset += PAGESIZE)
-    pmap_kenter(start + offset, pa + offset, VM_PROT_READ | VM_PROT_WRITE,
-                flags);
+    pmap_kenter(va + offset, pa + offset, VM_PROT_READ | VM_PROT_WRITE, flags);
 
-  return start;
+  return va;
 }
