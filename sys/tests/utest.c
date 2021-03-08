@@ -140,6 +140,14 @@ UTEST_ADD_SIGNAL(exc_integer_overflow, SIGFPE);
 UTEST_ADD_SIMPLE(exc_sigsys);
 #endif
 
+#ifdef __aarch64__
+UTEST_ADD_SIGNAL(exc_unknown_instruction, SIGILL);
+UTEST_ADD_SIGNAL(exc_msr_instruction, SIGILL);
+UTEST_ADD_SIGNAL(exc_mrs_instruction, SIGILL);
+
+UTEST_ADD_SIMPLE(exc_brk);
+#endif
+
 UTEST_ADD_SIMPLE(getcwd);
 /* XXX UTEST_ADD_SIMPLE(syscall_in_bds); */
 
