@@ -54,6 +54,8 @@ typedef struct session {
  *  (!) read-only access, do not modify!
  *  When two locks are specified (see pg_members), either one suffices
  *  for reading, but both must be held for writing.
+ *  NOTE: You can acquire multiple pg_locks, but only if you're already holding
+ *  all_proc_mtx.
  */
 typedef struct pgrp {
   mtx_t pg_lock;
