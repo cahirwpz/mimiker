@@ -48,6 +48,7 @@ typedef struct ps_entry {
 } ps_entry_t;
 
 typedef struct ps_buf {
+  mtx_t lock;
   int nproc;
   int cur_proc;
   size_t offset; /* offset in buffer of current proc string */
@@ -120,6 +121,7 @@ static int dev_procstat_open(vnode_t *v, int mode, file_t *fp) {
   }
 
   ps->nproc = 0;
+  mtx_init(&ps->lock, 0);
 
   WITH_MTX_LOCK (all_proc_mtx) {
     TAILQ_FOREACH (p, &proc_list, p_all) {
@@ -157,6 +159,8 @@ err:
 static int dev_procstat_read(file_t *f, uio_t *uio) {
   ps_buf_t *ps = f->f_data;
   int error = 0;
+
+  SCOPED_MTX_LOCK(&ps->lock);
 
   if (ps->cur_proc >= ps->nproc)
     return 0;
