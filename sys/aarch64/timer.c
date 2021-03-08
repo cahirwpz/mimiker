@@ -40,8 +40,8 @@ static bintime_t arm_timer_gettime(timer_t *tm) {
   uint64_t count = READ_SPECIALREG(cntpct_el0);
   bintime_t res = bintime_mul(tm->tm_min_period, (uint32_t) count);
   bintime_t high_bits = bintime_mul(tm->tm_min_period, (uint32_t) (count >> 32));
+  bintime_add_frac(&res, (high_bits.frac << 32));
   res.sec += (high_bits.sec << 32) + (high_bits.frac >> 32);
-  res.frac += (high_bits.frac << 32);
   return res;
 }
 
