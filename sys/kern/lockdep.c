@@ -211,7 +211,7 @@ static void add_prev_link(void) {
 
   SIMPLEQ_INSERT_HEAD(&(hprev->lock_class->locked_after), link, entry);
 
-  if (check_path(link->to, hprev->lock_class)) {
+  if (check_path(hcur->lock_class, hprev->lock_class)) {
     panic("lockdep: cycle between locks %s and %s", hprev->lock_class->name,
           link->to->name);
   }
