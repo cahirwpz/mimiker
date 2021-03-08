@@ -104,7 +104,7 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
   uint32_t freq = pit->timer.tm_frequency;
   uint32_t sec = count / freq;
   uint32_t frac = count % freq;
-  bintime_t bt = bintime_mul(HZ2BT(freq), frac);
+  bintime_t bt = bintime_mul(tm->tm_min_period, frac);
   bt.sec += sec;
   return bt;
 }
