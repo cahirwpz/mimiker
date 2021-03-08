@@ -90,6 +90,28 @@ static int test_ringbuf_nontrivial(void) {
   return KTEST_SUCCESS;
 }
 
+static int test_ringbuf_move(void) {
+  ringbuf_t src, dst;
+  char buf0[5], buf1[5];
+  ringbuf_init(&src, buf0, 5);
+  ringbuf_init(&dst, buf1, 5);
+
+  uint8_t testbuf[] = "abcde";
+
+  uio_t uio_src = UIO_SINGLE_KERNEL(UIO_WRITE, 0, testbuf, 5);
+  assert(ringbuf_write(&src, &uio_src) == 0);
+
+  assert(ringbuf_movenb(&src, &dst, 5) == true);
+
+  assert(buf1[0] == 'a');
+  assert(buf1[1] == 'b');
+  assert(buf1[2] == 'c');
+  assert(buf1[3] == 'd');
+  assert(buf1[4] == 'e');
+
+  return KTEST_SUCCESS;
+}
+
 static int test_uio_ringbuf_trivial(void) {
   ringbuf_t rbt;
   char buf[5];
@@ -202,6 +224,7 @@ static int test_uio_ringbuf_cyclic_transfers(void) {
 
 KTEST_ADD(ringbuf_trivial, test_ringbuf_trivial, 0);
 KTEST_ADD(ringbuf_nontrivial, test_ringbuf_nontrivial, 0);
+KTEST_ADD(ringbuf_move, test_ringbuf_move, 0);
 KTEST_ADD(uio_ringbuf_trivial, test_uio_ringbuf_trivial, 0);
 KTEST_ADD(uio_ringbuf_one_transfer, test_uio_ringbuf_one_transfer, 0);
 KTEST_ADD(uio_ringbuf_two_transfers, test_uio_ringbuf_two_transfers, 0);
