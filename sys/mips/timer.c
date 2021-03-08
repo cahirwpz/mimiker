@@ -28,7 +28,7 @@ static bintime_t mips_timer_gettime(timer_t *tm);
 
 static uint64_t read_count(mips_timer_state_t *state) {
   SCOPED_INTR_DISABLED();
-  state->count.lo = mips32_get_c0(C0_COUNT);
+  state->count.lo = mips32_getcount();
 
   /* detect hardware counter overflow */
   if (state->count.lo < state->last_count_lo) {
@@ -75,12 +75,16 @@ static int mips_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
   assert(flags & TMF_PERIODIC);
   assert(!(flags & TMF_ONESHOT));
 
+  mips32_setcount(0);
+
   device_t *dev = tm->tm_priv;
   mips_timer_state_t *state = dev->state;
   state->sec = 0;
   state->cntr_modulo = 0;
   state->period_cntr = bintime_mul(period, tm->tm_frequency).sec;
   state->compare.val = read_count(state);
+  state->last_count_lo = state->count.lo;
+
   set_next_tick(state);
   bus_intr_setup(dev, state->irq_res, mips_timer_intr, NULL, dev,
                  "MIPS CPU timer");
