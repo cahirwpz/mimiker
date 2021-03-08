@@ -22,7 +22,7 @@ typedef struct lock_class {
 
 /*
  * lock_class_link represents an edge in the graph of lock depedency. An edge
- * C1-> C2 is created if the lock class C1 acquired while holding the class C2.
+ * C1-> C2 is created if the lock class C2 acquired while holding the class C1.
  */
 typedef struct lock_class_link {
   SIMPLEQ_ENTRY(lock_class_link) entry;
@@ -32,7 +32,12 @@ typedef struct lock_class_link {
 static spin_t main_lock = SPIN_INITIALIZER(0);
 
 #define CLASSHASH_SIZE 64
-#define CLASSHASH(key) ((uintptr_t)(key) % CLASSHASH_SIZE)
+/* We have to divide the key by the alignment of lock_class_key_t to prevent the
+   periodicity.
+   A key which is a multiple of 4 results in a hash which is also a multiple of
+   that number. So in the end we would only use every 4th bucket. */
+#define CLASSHASH(key)                                                         \
+  (((uintptr_t)(key) / alignof(lock_class_key_t)) % CLASSHASH_SIZE)
 #define CLASS_HASH_CHAIN(key) (&lock_hashtbl[CLASSHASH(key)])
 
 static SIMPLEQ_HEAD(, lock_class) lock_hashtbl[CLASSHASH_SIZE];
