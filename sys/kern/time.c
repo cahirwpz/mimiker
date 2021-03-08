@@ -45,16 +45,12 @@ static systime_t ts2hz(const timespec_t *ts) {
   return ticks + nsectck + 1;
 }
 
-static bool timespec_is_canonical(const timespec_t *ts) {
-  if (ts->tv_nsec < 0 || ts->tv_nsec >= 1000000000L || ts->tv_sec < 0)
-    return false;
-  return true;
+static bool timespec_invalid(const timespec_t *ts) {
+  return ts->tv_nsec < 0 || ts->tv_nsec >= 1000000000L || ts->tv_sec < 0;
 }
 
-static bool timeval_is_canonical(const timeval_t *tv) {
-  if (tv->tv_usec < 0 || tv->tv_usec >= 1000000 || tv->tv_sec < 0)
-    return false;
-  return true;
+static bool timeval_invalid(const timeval_t *tv) {
+  return tv->tv_usec < 0 || tv->tv_usec >= 1000000 || tv->tv_sec < 0;
 }
 
 static int ts2timo(clockid_t clock_id, int flags, timespec_t *ts,
@@ -62,7 +58,7 @@ static int ts2timo(clockid_t clock_id, int flags, timespec_t *ts,
   int error;
   *timo = 0;
 
-  if (!timespec_is_canonical(ts) || (flags & ~TIMER_ABSTIME))
+  if (timespec_invalid(ts) || (flags & ~TIMER_ABSTIME))
     return EINVAL;
 
   if ((error = do_clock_gettime(clock_id, start)))
@@ -204,14 +200,13 @@ bool kitimer_stop(proc_t *p) {
 
   kitimer_t *it = &p->p_itimer;
 
-  if (!callout_stop(&it->kit_callout)) {
-    mtx_unlock(&p->p_lock);
-    callout_drain(&it->kit_callout);
-    mtx_lock(&p->p_lock);
-    return false;
-  }
+  if (callout_stop(&it->kit_callout))
+    return true;
 
-  return true;
+  mtx_unlock(&p->p_lock);
+  callout_drain(&it->kit_callout);
+  mtx_lock(&p->p_lock);
+  return false;
 }
 
 static void kitimer_timeout(void *arg) {
@@ -278,8 +273,7 @@ int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
   else if (which != ITIMER_REAL)
     return EINVAL;
 
-  if (!timeval_is_canonical(&itval->it_value) ||
-      !timeval_is_canonical(&itval->it_interval))
+  if (timeval_invalid(&itval->it_value) || timeval_invalid(&itval->it_interval))
     return EINVAL;
 
   if (tv2hz(&itval->it_value) == UINT_MAX ||
@@ -290,7 +284,7 @@ int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
 
   /* We need to successfully stop the timer without dropping p_lock.  */
   while (!kitimer_stop(p))
-    ;
+    continue;
 
   if (oval) {
     /* Store old timer value. */
