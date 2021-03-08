@@ -1,17 +1,12 @@
 #ifndef _SYS_VMEM_H_
 #define _SYS_VMEM_H_
 
-#include <stdbool.h>
 #include <sys/types.h>
 #include <sys/kmem_flags.h>
 
 typedef uintptr_t vmem_addr_t;
 typedef size_t vmem_size_t;
 typedef struct vmem vmem_t;
-
-typedef enum {
-  VM_GROW = 0x1, /* allow to use pmap_growkernel */
-} vmem_flags_t;
 
 /*
  * The following interface is a simplified version of NetBSD's vmem interface.
@@ -24,7 +19,7 @@ void init_vmem(void);
 
 /*! \brief Create a new vmem arena.
  * You need to specify quantum, the smallest unit of allocation. */
-vmem_t *vmem_create(const char *name, vmem_size_t quantum, vmem_flags_t flags);
+vmem_t *vmem_create(const char *name, vmem_size_t quantum);
 
 /*! \brief Add a new address span to the arena. */
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size);
