@@ -2,6 +2,7 @@
 #define _SYS_LOCKDEP_H_
 
 #include <sys/queue.h>
+#include <sys/types.h>
 
 #define LOCKDEP_MAX_HELD_LOCKS 16
 
