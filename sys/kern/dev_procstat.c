@@ -106,12 +106,10 @@ static int dev_procstat_open(vnode_t *v, int mode, file_t *fp) {
   }
 
   int error;
-  if ((error = vnode_open_generic(v, mode, fp)))
-    return error;
-
   proc_t *p;
-  ps_buf_t *ps =
-    kmalloc(M_TEMP, MAX_PROC * sizeof(ps_entry_t) + sizeof(ps_buf_t), 0);
+  ps_buf_t *ps;
+
+  ps = kmalloc(M_TEMP, MAX_PROC * sizeof(ps_entry_t) + sizeof(ps_buf_t), 0);
   if (ps == NULL)
     return ENOMEM;
 
@@ -131,7 +129,11 @@ static int dev_procstat_open(vnode_t *v, int mode, file_t *fp) {
       ps_entry_fill(&ps->ps[ps->nproc++], p);
     }
   }
+
 out:
+  if ((error = vnode_open_generic(v, mode, fp)))
+    return error;
+
   /* get first proc into buffer */
   ps->psize = ps_entry_tostring(ps->buf, &ps->ps[0]);
   ps->offset = 0;
