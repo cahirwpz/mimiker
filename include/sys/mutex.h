@@ -64,16 +64,6 @@ static inline void mtx_lock(mtx_t *m) {
 /*! \brief Unlocks sleep mutex */
 void mtx_unlock(mtx_t *m);
 
-/*! \brief Locks a pair of distinct mutexes belonging to the same class.
- *
- * The mutex with the lower address is locked first. */
-void mtx_lock_pair(mtx_t *m1, mtx_t *m2);
-
-/*! \brief Unlocks a pair of distinct mutexes belonging to the same class.
- *
- * The mutex with the higher address is unlocked first. */
-void mtx_unlock_pair(mtx_t *m1, mtx_t *m2);
-
 DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
 
 /*! \brief Locks sleep mutex and unlocks it when leaving current scope.
