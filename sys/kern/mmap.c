@@ -74,10 +74,9 @@ int do_munmap(vaddr_t addr, size_t length) {
       if (!seg)
         return EINVAL;
 
-      vaddr_t start = vm_segment_start(seg);
       vaddr_t end = vm_segment_end(seg);
 
-      vm_segment_destroy_range(uspace, seg, max(addr, start),
+      vm_segment_destroy_range(uspace, seg, addr,
                                min(right_boundary, end));
 
       addr = end;
