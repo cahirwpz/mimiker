@@ -310,6 +310,7 @@ static void pgrp_leave(proc_t *p) {
 static int _pgrp_enter(proc_t *p, pgrp_t *target) {
   pgrp_t *old_pgrp = p->p_pgrp;
   assert(old_pgrp);
+  assert(mtx_owned(all_proc_mtx));
 
   if (old_pgrp == target)
     return 0;
@@ -317,15 +318,17 @@ static int _pgrp_enter(proc_t *p, pgrp_t *target) {
   pgrp_jobc_enter(p, target);
   pgrp_jobc_leave(p, old_pgrp);
 
-  mtx_lock_pair(&old_pgrp->pg_lock, &target->pg_lock);
-
-  WITH_PROC_LOCK(p) {
-    TAILQ_REMOVE(&old_pgrp->pg_members, p, p_pglist);
-    TAILQ_INSERT_HEAD(&target->pg_members, p, p_pglist);
-    p->p_pgrp = target;
+  /* Acquiring multiple pgrp locks here is safe because we're holding
+   * all_proc_mtx, see comments about pgrp_t in proc.h. */
+  WITH_MTX_LOCK (&old_pgrp->pg_lock) {
+    WITH_MTX_LOCK (&target->pg_lock) {
+      WITH_PROC_LOCK(p) {
+        TAILQ_REMOVE(&old_pgrp->pg_members, p, p_pglist);
+        TAILQ_INSERT_HEAD(&target->pg_members, p, p_pglist);
+        p->p_pgrp = target;
+      }
+    }
   }
-
-  mtx_unlock_pair(&old_pgrp->pg_lock, &target->pg_lock);
 
   if (TAILQ_EMPTY(&old_pgrp->pg_members)) {
     pgrp_remove(old_pgrp);
