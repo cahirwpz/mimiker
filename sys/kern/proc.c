@@ -579,14 +579,14 @@ __noreturn void proc_exit(int exitstatus) {
    * being deleted. */
   vm_map_t *uspace = p->p_uspace;
   p->p_uspace = NULL;
-  vm_map_delete(uspace);
-
-  fdtab_drop(p->p_fdtable);
 
   /* Record process statistics that will stay maintained in zombie state. */
   p->p_exitstatus = exitstatus;
 
   proc_unlock(p);
+
+  vm_map_delete(uspace);
+  fdtab_drop(p->p_fdtable);
 
   WITH_MTX_LOCK (all_proc_mtx) {
     if (p->p_pid == 1)

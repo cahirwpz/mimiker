@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/queue.h>
-#include <sys/time.h>
 
 typedef void (*timeout_t)(void *);
 
@@ -53,13 +52,14 @@ bool callout_reschedule(callout_t *co, systime_t tm);
 /*
  * Cancel a callout if it is currently pending.
  *
- * \return True if the callout was pending and has been stopped, false if the
- * callout has already been delegated to callout thread or executed.
+ * \return True if the callout is guaranteed not to run in the future, provided
+ * it's not scheduled again. False means the caller must call callout_drain() in
+ * order to guarantee that the callout won't run in the future.
  * A callout can't be rescheduled using callout_reschedule() after calling this
  * function on it until it is scheduled again using callout_schedule*().
  *
- * \warning It's not safe to deallocate callout memory after it has been
- * stopped. You should use \a callout_drain if you need that.
+ * \warning It's not safe to deallocate callout memory after this function
+ * returns False. You need to use callout_drain() in that case.
  */
 bool callout_stop(callout_t *handle);
 
