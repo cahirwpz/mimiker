@@ -75,24 +75,24 @@ static vnodeops_t dev_procstat_vnodeops = {
   .v_close = dev_procstat_close,
 };
 
-static void ps_entry_fill(proc_t *p, ps_entry_t *pi) {
+static void ps_entry_fill(ps_entry_t *pe, proc_t *p) {
   SCOPED_MTX_LOCK(&p->p_lock);
-  pi->uid = p->p_cred.cr_euid;
-  pi->pid = p->p_pid;
-  pi->ppid = p->p_parent->p_pid;
-  pi->pgrp = p->p_pgrp->pg_id;
-  pi->sid = p->p_pgrp->pg_session->s_sid;
-  pi->proc_state = p->p_state;
-  pi->elfpath = kstrndup(M_TEMP, p->p_elfpath, PATH_MAX);
+  pe->uid = p->p_cred.cr_euid;
+  pe->pid = p->p_pid;
+  pe->ppid = p->p_parent->p_pid;
+  pe->pgrp = p->p_pgrp->pg_id;
+  pe->sid = p->p_pgrp->pg_session->s_sid;
+  pe->proc_state = p->p_state;
+  pe->elfpath = kstrndup(M_TEMP, p->p_elfpath, PATH_MAX);
 }
 
 /* buf must be at least MAX_P_STRING long
  * returns length of written string
  */
-static int ps_entry_tostring(char *buf, ps_entry_t *pi) {
-  int r = snprintf(buf, MAX_P_STRING, "%d\t%d\t%d\t%d\t%d\t%c\t%s\n", pi->uid,
-                   pi->pid, pi->ppid, pi->pgrp, pi->sid,
-                   proc_state[pi->proc_state], pi->elfpath);
+static int ps_entry_tostring(char *buf, ps_entry_t *pe) {
+  int r = snprintf(buf, MAX_P_STRING, "%d\t%d\t%d\t%d\t%d\t%c\t%s\n", pe->uid,
+                   pe->pid, pe->ppid, pe->pgrp, pe->sid,
+                   proc_state[pe->proc_state], pe->elfpath);
 
   return MIN(r, MAX_P_STRING);
 }
