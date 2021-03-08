@@ -110,15 +110,15 @@ static int dev_procstat_open(vnode_t *v, int mode, file_t *fp) {
   proc_t *p;
   ps_buf_t *ps;
 
-  if ((error = vnode_open_generic(v, mode, fp)))
-    goto err;
+  if ((error = vnode_open_generic(v, mode, fp))) {
+    WITH_MTX_LOCK (&procstat_lock) {
+      ps_opencnt--;
+      assert(ps_opencnt >= 0);
+    }
+    return error;
+  }
 
   ps = kmalloc(M_TEMP, MAX_PROC * sizeof(ps_entry_t) + sizeof(ps_buf_t), 0);
-  if (ps == NULL) {
-    vnode_drop(v);
-    error = ENOMEM;
-    goto err;
-  }
 
   ps->nproc = 0;
   mtx_init(&ps->lock, 0);
@@ -147,13 +147,6 @@ out:
   fp->f_ops = &dev_procstat_fileops;
   fp->f_data = ps;
   return 0;
-
-err:
-  WITH_MTX_LOCK (&procstat_lock) {
-    ps_opencnt--;
-    assert(ps_opencnt >= 0);
-  }
-  return error;
 }
 
 static int dev_procstat_read(file_t *f, uio_t *uio) {
