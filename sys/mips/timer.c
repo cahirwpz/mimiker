@@ -107,7 +107,7 @@ static bintime_t mips_timer_gettime(timer_t *tm) {
     sec = state->sec;
     ticks = state->cntr_modulo;
   }
-  bintime_t bt = bintime_mul(HZ2BT(tm->tm_frequency), ticks);
+  bintime_t bt = bintime_mul(tm->tm_min_period, ticks);
   bt.sec += sec;
   return bt;
 }
@@ -127,7 +127,7 @@ static int mips_timer_attach(device_t *dev) {
     .tm_flags = TMF_PERIODIC,
     .tm_quality = 200,
     .tm_frequency = CPU_FREQ,
-    .tm_min_period = BINTIME(1 / (double)CPU_FREQ),
+    .tm_min_period = HZ2BT(CPU_FREQ),
     .tm_max_period = BINTIME(((1LL << 32) - 1) / (double)CPU_FREQ),
     .tm_start = mips_timer_start,
     .tm_stop = mips_timer_stop,
