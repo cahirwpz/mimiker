@@ -213,7 +213,7 @@ static void add_prev_link(void) {
 
   if (check_path(hcur->lock_class, hprev->lock_class)) {
     panic("lockdep: cycle between locks %s and %s", hprev->lock_class->name,
-          link->to->name);
+          hcur->lock_class->name);
   }
 }
 
