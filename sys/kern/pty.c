@@ -108,7 +108,8 @@ static int pty_write(file_t *f, uio_t *uio) {
       break;
     if ((error = pty_putc_sleep(tty, pty, c))) {
       /* Undo the last uiomove(). */
-      uio_rollback(uio, 1);
+      int rv = uio_rollback(uio, 1);
+      assert(rv == 0);
       break;
     }
   }

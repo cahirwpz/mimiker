@@ -3,6 +3,7 @@
 #include <sys/libkern.h>
 #include <sys/vm_map.h>
 #include <sys/ktest.h>
+#include <sys/errno.h>
 
 static int test_uiomove(void) {
   int res = 0;
@@ -63,7 +64,10 @@ static int test_uiomove(void) {
 
   /* Roll back and redo the read and check that the result is the same. */
   memset(buffer2, '=', sizeof(buffer2));
-  uio_rollback(&uio, 8 + 7 + 10);
+  /* We shouldn't be able to roll back past the beginning. */
+  assert(uio_rollback(&uio, 8 + 7 + 10 + 1) == EINVAL);
+  assert(uio_rollback(&uio, 8 + 7 + 10) == 0);
+  assert(uio_rollback(&uio, 1) == EINVAL);
   res = uiomove((char *)text, strlen(text), &uio);
   assert(res == 0);
   buffer2[37] = 0; /* Manually null-terminate */
