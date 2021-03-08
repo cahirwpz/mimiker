@@ -7,7 +7,7 @@
 
 typedef struct lock_class lock_class_t;
 
-typedef int lock_class_key_t;
+typedef uintptr_t lock_class_key_t;
 
 /* A struct which is part of every mutex object. */
 typedef struct lock_class_mapping {

@@ -36,6 +36,9 @@ static spin_t main_lock = SPIN_INITIALIZER(0);
    periodicity.
    A key which is a multiple of 4 results in a hash which is also a multiple of
    that number. So in the end we would only use every 4th bucket. */
+static_assert(
+  alignof(lock_class_key_t) == alignof(lock_class_mapping_t),
+  "lock_class_key_t and lock_class_mapping_t must have the same alignment!");
 #define CLASSHASH(key)                                                         \
   (((uintptr_t)(key) / alignof(lock_class_key_t)) % CLASSHASH_SIZE)
 #define CLASS_HASH_CHAIN(key) (&lock_hashtbl[CLASSHASH(key)])
