@@ -9,9 +9,11 @@
 #include <sys/vm.h>
 #include <sys/vm_physmem.h>
 #include <sys/kasan.h>
+#include <sys/mutex.h>
 
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
 static vaddr_t maxkvaddr;
+static mtx_t maxkvaddr_lock = MTX_INITIALIZER(0);
 
 void init_kmem(void) {
   kvspace = vmem_create("kvspace", PAGESIZE);
@@ -36,12 +38,14 @@ retry:
     if (restarted)
       return 0;
 
-    vaddr_t old = maxkvaddr;
-    maxkvaddr = pmap_growkernel(maxkvaddr + size);
-    klog("%s: increase kernel end %08lx -> %08lx", __func__, old, maxkvaddr);
+    WITH_MTX_LOCK (&maxkvaddr_lock) {
+      vaddr_t old = maxkvaddr;
+      maxkvaddr = pmap_growkernel(maxkvaddr + size);
+      klog("%s: increase kernel end %08lx -> %08lx", __func__, old, maxkvaddr);
 
-    if (vmem_add(kvspace, old, maxkvaddr - old))
-      return 0;
+      if (vmem_add(kvspace, old, maxkvaddr - old))
+        return 0;
+    }
 
     restarted = true;
     goto retry;
