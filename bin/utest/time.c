@@ -1,7 +1,10 @@
 #include "utest.h"
+#include "util.h"
 
+#include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <signal.h>
 #include <sys/time.h>
 
 int test_gettimeofday(void) {
@@ -70,5 +73,82 @@ int test_nanosleep(void) {
     timeradd(&time1, &diff, &time1);
     assert(timercmp(&time1, &time2, <=));
   }
+  return 0;
+}
+
+int test_itimer(void) {
+  signal_setup(SIGALRM);
+  struct itimerval it, it2;
+  memset(&it, 0, sizeof(it));
+  memset(&it2, 0, sizeof(it2));
+
+  /* Try non-canonical timevals.  */
+  it.it_value.tv_sec = -1;
+  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  it.it_value.tv_sec = 0;
+  it.it_value.tv_usec = -1;
+  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  it.it_value.tv_usec = 1000000;
+  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  it.it_value.tv_usec = 0;
+  it.it_value.tv_sec = 1;
+  it.it_interval.tv_sec = -1;
+  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  it.it_interval.tv_sec = 0;
+  it.it_interval.tv_usec = -1;
+  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  it.it_interval.tv_usec = 1000000;
+  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+
+  /* No timer should be currently set. */
+  assert(getitimer(ITIMER_REAL, &it2) == 0);
+  assert(!timerisset(&it2.it_value));
+  assert(!timerisset(&it2.it_interval));
+
+  /* Set one-shot timer for 1ms in the future. */
+  timeval_t t, t2;
+  assert(gettimeofday(&t, NULL) == 0);
+  memset(&it, 0, sizeof(it));
+  it.it_value.tv_usec = 1000;
+  assert(setitimer(ITIMER_REAL, &it, NULL) == 0);
+  wait_for_signal(SIGALRM);
+  assert(gettimeofday(&t2, NULL) == 0);
+  timersub(&t2, &t, &t);
+  assert(timercmp(&t, &it.it_value, >=));
+
+  /* No timer should be currently set. */
+  assert(getitimer(ITIMER_REAL, &it2) == 0);
+  assert(!timerisset(&it2.it_value));
+  assert(!timerisset(&it2.it_interval));
+
+  /* Set periodic timer with period of 1ms. */
+  assert(gettimeofday(&t, NULL) == 0);
+  memset(&it, 0, sizeof(it));
+  it.it_value.tv_usec = 1000;
+  it.it_interval.tv_usec = 1000;
+  assert(setitimer(ITIMER_REAL, &it, NULL) == 0);
+  /* The timer is periodic, so we should get multiple signals. */
+  wait_for_signal(SIGALRM);
+  wait_for_signal(SIGALRM);
+  assert(gettimeofday(&t2, NULL) == 0);
+  timersub(&t2, &t, &t);
+  it.it_value.tv_usec = 2000;
+  assert(timercmp(&t, &it.it_value, >=));
+
+  /* The timer is still set, so getitimer() should return non-zero timer. */
+  assert(getitimer(ITIMER_REAL, &it2) == 0);
+  assert(it2.it_interval.tv_sec == 0 &&
+         it2.it_interval.tv_usec == 1000); /* it_value can be zero */
+
+  /* Clear the timer */
+  memset(&it, 0, sizeof(it));
+  assert(setitimer(ITIMER_REAL, &it, &it2) == 0);
+  /* it2 should have the old timer value. */
+  assert(it2.it_interval.tv_sec == 0 && it2.it_interval.tv_usec == 1000);
+
+  /* No timer should be currently set. */
+  assert(getitimer(ITIMER_REAL, &it2) == 0);
+  assert(!timerisset(&it2.it_value));
+  assert(!timerisset(&it2.it_interval));
   return 0;
 }
