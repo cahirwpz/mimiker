@@ -50,17 +50,17 @@ typedef struct bintime {
 /* Returns seconds after EPOCH */
 time_t tm2sec(tm_t *tm);
 
-static inline systime_t bt2st(bintime_t *bt) {
+static inline systime_t bt2st(const bintime_t *bt) {
   return bt->sec * CLK_TCK +
          (((uint64_t)CLK_TCK * (uint32_t)(bt->frac >> 32)) >> 32);
 }
 
-static inline void bt2ts(bintime_t *bt, timespec_t *ts) {
+static inline void bt2ts(const bintime_t *bt, timespec_t *ts) {
   ts->tv_sec = bt->sec;
   ts->tv_nsec = (1000000000ULL * (uint32_t)(bt->frac >> 32)) >> 32;
 }
 
-static inline void bt2tv(bintime_t *bt, timeval_t *tv) {
+static inline void bt2tv(const bintime_t *bt, timeval_t *tv) {
   tv->tv_sec = bt->sec;
   tv->tv_usec = (1000000ULL * (uint32_t)(bt->frac >> 32)) >> 32;
 }
@@ -179,8 +179,9 @@ typedef struct proc proc_t;
 
 /* Kernel interval timer. */
 typedef struct {
-  timeval_t kit_next;     /* absolute time of next tick, 0 means inactive */
-  timeval_t kit_interval; /* time between ticks, 0 means non-periodic */
+  /* absolute time of nearest expiration, 0 means inactive */
+  timeval_t kit_next;
+  timeval_t kit_interval; /* time between expirations, 0 means non-periodic */
   callout_t kit_callout;
 } kitimer_t;
 
@@ -192,7 +193,7 @@ void kitimer_init(proc_t *p);
  * Must be called with p->p_lock held.
  * NOTE: This function may release and re-acquire p->p_lock.
  * It returns true if it released the lock. */
-bool kitimer_stop(proc_t *p, kitimer_t *timer);
+bool kitimer_stop(proc_t *p);
 
 /* Time measured from the start of system. */
 bintime_t binuptime(void);

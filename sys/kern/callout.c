@@ -8,6 +8,7 @@
 #include <sys/thread.h>
 #include <sys/sched.h>
 #include <sys/interrupt.h>
+#include <sys/time.h>
 
 /* Note: If the difference in time between ticks is greater than the number of
    buckets, some callouts may be called out-of-order! */
