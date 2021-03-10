@@ -1078,7 +1078,7 @@ static int sys_getlogin(proc_t *p, getlogin_args_t *args, register_t *res) {
   WITH_MTX_LOCK (all_proc_mtx)
     memcpy(login_tmp, p->p_pgrp->pg_session->s_login, sizeof(login_tmp));
 
-  return copyout(login_tmp, namebuf, MIN(buflen, sizeof(login_tmp)));
+  return copyout(login_tmp, namebuf, min(buflen, sizeof(login_tmp)));
 }
 
 static int sys_setlogin(proc_t *p, setlogin_args_t *args, register_t *res) {
