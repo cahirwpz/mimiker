@@ -108,6 +108,7 @@ int main(int argc, char **argv) {
 
   CHECKRUN_TEST(gettimeofday);
   CHECKRUN_TEST(nanosleep);
+  CHECKRUN_TEST(itimer);
 
   CHECKRUN_TEST(get_set_uid);
   CHECKRUN_TEST(get_set_gid);

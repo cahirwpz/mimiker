@@ -10,6 +10,7 @@
 #include <sys/cred.h>
 #include <sys/syslimits.h>
 #include <sys/uio.h>
+#include <sys/time.h>
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
@@ -22,6 +23,7 @@ typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
 typedef TAILQ_HEAD(, session) session_list_t;
 
 extern mtx_t *all_proc_mtx;
+extern proc_list_t proc_list, zombie_list;
 
 /*! \brief Called during kernel initialization. */
 void init_proc(void);
@@ -113,6 +115,7 @@ struct proc {
   volatile proc_flags_t p_flags;  /* (@) PF_* flags */
   vnode_t *p_cwd;                 /* ($) current working directory */
   mode_t p_cmask;                 /* ($) mask for file creation */
+  kitimer_t p_itimer;             /* (@) interval timer state  */
   /* program segments */
   vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
   vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */
