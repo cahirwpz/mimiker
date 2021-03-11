@@ -30,26 +30,25 @@ static void kick_swapper(void) {
 vaddr_t kva_alloc(size_t size) {
   assert(page_aligned_p(size));
   vmem_addr_t start;
+  vaddr_t old = maxkvaddr;
 
-  bool restarted = false;
-
-retry:
-  if (vmem_alloc(kvspace, size, &start, M_NOGROW)) {
-    if (restarted)
-      return 0;
-
+  while (vmem_alloc(kvspace, size, &start, M_NOGROW)) {
     WITH_MTX_LOCK (&maxkvaddr_lock) {
-      vaddr_t old = maxkvaddr;
+      /* Check if other thread called pmap_growkernel between vmem_alloc and
+       * mtx_lock. */
+      if (maxkvaddr > old) {
+        mtx_unlock(&maxkvaddr_lock);
+        continue;
+      }
+
       maxkvaddr = pmap_growkernel(maxkvaddr + size);
       klog("%s: increase kernel end %08lx -> %08lx", __func__, old, maxkvaddr);
 
       if (vmem_add(kvspace, old, maxkvaddr - old))
         return 0;
     }
-
-    restarted = true;
-    goto retry;
   }
+
   return start;
 }
 
