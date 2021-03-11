@@ -557,6 +557,8 @@ void pmap_delete(pmap_t *pmap) {
  * Allocate page table (level 1) if needed.
  */
 vaddr_t pmap_growkernel(vaddr_t maxkvaddr) {
+  assert(maxkvaddr > pmap_maxkvaddr);
+
   pmap_t *pmap = pmap_kernel();
   vaddr_t va;
 
