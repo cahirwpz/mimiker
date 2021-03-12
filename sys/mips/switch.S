@@ -122,7 +122,7 @@ ctx_save:
         lw      t2, TD_PFLAGS(a0)
         and     t2, TDP_FPUINUSE|TDP_FPUCTXSAVED
         li      t3, TDP_FPUINUSE
-        beq     t2, t3, skip_fpu_save
+        bne     t2, t3, skip_fpu_save
         nop
 
         # mark FPU context as saved
