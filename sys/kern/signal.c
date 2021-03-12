@@ -11,6 +11,7 @@
 #include <sys/sched.h>
 #include <sys/spinlock.h>
 #include <sys/malloc.h>
+#include <sys/ucontext.h>
 
 static KMALLOC_DEFINE(M_SIGNAL, "signal");
 

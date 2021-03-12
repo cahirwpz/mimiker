@@ -258,6 +258,7 @@ END(irq)
         .org    0x500
         .global user_exc_leave
         .global kern_exc_leave
+        .global _switch_to_uctx
 
 # [$k0] must be set to value of C0_STATUS
 exc_enter:
@@ -331,11 +332,10 @@ SNESTED(user_exc_enter, MCONTEXT_SIZE, ra)
 user_exc_leave:
         DISABLE_INT(t1)
 
-        # Set current stack pointer to user exception frame.
-        # This is crucial on first entry to user-space for this thread.
+        # Assume current stack pointer points to user exception frame.
+        # This is true if we came from user_exc_enter or switch_to_userspace().
         LOAD_PCPU_KSEG0(s0)
         lw      s1, PCPU_CURTHREAD(s0)
-        lw      sp, TD_UCTX(s1)
 
         # Update kernel stack pointer to be used on kernel reentry.
         sw      sp, PCPU_KSP(s0)
@@ -379,6 +379,10 @@ skip_fpu_restore:
 user_return:
         eret
 END(user_exc_enter)
+
+_switch_to_uctx:
+        move sp, a0
+        j user_exc_leave
 
 SNESTED(kern_exc_enter, CTX_SIZE, ra)
         # Fetch PCPU address

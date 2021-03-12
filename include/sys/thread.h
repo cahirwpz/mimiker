@@ -5,7 +5,6 @@
 #include <sys/queue.h>
 #include <sys/context.h>
 #include <sys/callout.h>
-#include <sys/exception.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
 #include <sys/priority.h>

@@ -3,6 +3,7 @@
 #include <sys/errno.h>
 #include <sys/interrupt.h>
 #include <sys/context.h>
+#include <sys/exception.h>
 #include <mips/interrupt.h>
 #include <mips/tlb.h>
 #include <sys/pmap.h>

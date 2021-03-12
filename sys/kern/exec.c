@@ -18,6 +18,7 @@
 #include <sys/malloc.h>
 #include <sys/signal.h>
 #include <sys/stat.h>
+#include <sys/exception.h>
 
 typedef int (*copy_ptr_t)(exec_args_t *args, char *const *ptr_p);
 typedef int (*copy_str_t)(exec_args_t *args, const char *str, size_t *copied_p);
@@ -441,5 +442,5 @@ __noreturn void kern_execve(const char *path, char *const *argv,
     panic("Failed to start '%s' program.", path);
 
   exec_args_destroy(&args);
-  user_exc_leave();
+  switch_to_userspace();
 }
