@@ -82,6 +82,8 @@ static const pte_t vm_prot_map[] = {
 
 static pmap_t kernel_pmap;
 paddr_t _kernel_pmap_pde;
+/* pmap_maxkvaddr is used to track the range of virtual kernel addresses for
+ * which page table pages have been allocated */
 static vaddr_t pmap_maxkvaddr;
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
