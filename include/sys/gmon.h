@@ -120,4 +120,10 @@ typedef enum {
   GMON_PROF_OFF = 3,
 } gmon_flags_t;
 
+#if KPROF
+void init_prof(void);
+#else
+#define init_prof() __nothing
+#endif
+
 #endif /* !_SYS_GMON_H_ */

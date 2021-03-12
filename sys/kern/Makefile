@@ -85,9 +85,9 @@ CLEAN-FILES += .kasan.D .kasan_quar.D
 endif
 
 ifeq ($(KPROF), 1)
-SOURCES += prof.c
+SOURCES += gmon.c
 else
-CLEAN-FILES += .prof.D
+CLEAN-FILES += .gmon.D
 endif
 
 FORMAT-EXCLUDE = sysent.h

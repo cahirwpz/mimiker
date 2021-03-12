@@ -1,5 +1,4 @@
 #include <sys/param.h>
-#include <sys/prof.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/kmem.h>

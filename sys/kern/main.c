@@ -25,7 +25,7 @@
 #include <sys/pmap.h>
 #include <sys/console.h>
 #include <sys/stat.h>
-#include <sys/prof.h>
+#include <sys/gmon.h>
 
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
