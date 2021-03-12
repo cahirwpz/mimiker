@@ -120,14 +120,12 @@ ctx_save:
         /* save FPU context only
          * if it needs saving and has not already been saved */
         lw      t2, TD_PFLAGS(a0)
-        and     t2, TDP_FPUINUSE|TDP_FPUCTXSAVED
-        li      t3, TDP_FPUINUSE
-        bne     t2, t3, skip_fpu_save
-        nop
+        and     t3, t2, TDP_FPUINUSE|TDP_FPUCTXSAVED
+        li      t1, TDP_FPUINUSE
+        bne     t1, t3, skip_fpu_save
 
         # mark FPU context as saved
-        lw      t2, TD_PFLAGS(a0)
-        or      t2, TDP_FPUCTXSAVED
+        or      t2, TDP_FPUCTXSAVED # delay slot
         sw      t2, TD_PFLAGS(a0)
 
         # ... and finally save it (temporarily enabling FPU)
