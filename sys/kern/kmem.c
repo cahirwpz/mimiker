@@ -12,7 +12,7 @@
 #include <sys/mutex.h>
 
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
-static vaddr_t maxkvaddr;
+static atomic_vaddr_t maxkvaddr;
 static mtx_t maxkvaddr_lock = MTX_INITIALIZER(0);
 
 void init_kmem(void) {
@@ -30,10 +30,7 @@ static void kick_swapper(void) {
 vaddr_t kva_alloc(size_t size) {
   assert(page_aligned_p(size));
   vmem_addr_t start;
-  vaddr_t old;
-
-  WITH_MTX_LOCK (&maxkvaddr_lock)
-    old = maxkvaddr;
+  vaddr_t old = atomic_load(&maxkvaddr);
 
   while (vmem_alloc(kvspace, size, &start, M_NOGROW)) {
     WITH_MTX_LOCK (&maxkvaddr_lock) {
