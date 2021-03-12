@@ -254,11 +254,16 @@ __boot_text static void enable_mmu(paddr_t pde) {
   WRITE_SPECIALREG(tcr_el1, tcr);
 
   /* --- more magic bits
-   * M -- MMU enable for EL1 and EL0 stage 1 address translation.
-   * I -- SP must be aligned to 16.
-   * C -- Cacheability control, for data accesses.
+   * M   - MMU enable for EL1 and EL0 stage 1 address translation.
+   * I   - Cacheability control.
+   * C   - Cacheability control, for data accesses.
+   * A   - Alignment check.
+   * SA  - SP alignment check - EL1.
+   * SA0 - SP alignment check - EL0.
+   *
    */
-  WRITE_SPECIALREG(sctlr_el1, SCTLR_M | SCTLR_I | SCTLR_C);
+  WRITE_SPECIALREG(sctlr_el1, SCTLR_M | SCTLR_I | SCTLR_C | SCTLR_A | SCTLR_SA |
+                                SCTLR_SA0);
   __isb();
 
   _kernel_pmap_pde = pde;
