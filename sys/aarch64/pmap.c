@@ -612,7 +612,7 @@ void pmap_delete(pmap_t *pmap) {
  * Allocate page table (levels 1, 2, 3) if needed.
  */
 vaddr_t pmap_growkernel(vaddr_t maxkvaddr) {
-  assert(maxkvaddr > pmap_maxkvaddr);
+  assert(maxkvaddr > atomic_load(&pmap_maxkvaddr));
 
   pmap_t *pmap = pmap_kernel();
   vaddr_t va;
@@ -631,5 +631,5 @@ vaddr_t pmap_growkernel(vaddr_t maxkvaddr) {
 
   /* TODO(pj) add new region into shadow map */
 
-  return pmap_maxkvaddr;
+  return atomic_load(&pmap_maxkvaddr);
 }
