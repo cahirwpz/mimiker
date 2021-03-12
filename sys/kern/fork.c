@@ -43,8 +43,6 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   mcontext_copy(newtd->td_uctx, td->td_uctx);
   mcontext_set_retval(newtd->td_uctx, 0, 0);
 
-  /* New thread does not need the exception frame just yet. */
-  newtd->td_kframe = NULL;
   newtd->td_onfault = 0;
 
   newtd->td_wchan = NULL;

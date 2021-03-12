@@ -19,13 +19,15 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
   ctx_t *kctx = kstack_alloc_s(stk, ctx_t);
 
   td->td_uctx = uctx;
-  td->td_kframe = kframe;
   td->td_kctx = kctx;
 
   /* Initialize registers in order to switch to kframe context. */
   ctx_init(kctx, kern_exc_leave, kframe);
 
-  /* This is the context that kern_exc_leave will restore. */
+  /* This is the context that kern_exc_leave will restore.
+   * The thread will start execution at `target`, with the stack pointer
+   * pointing to uctx.  */
   ctx_init(kframe, target, uctx);
+  /* If the `target` function returns, it will return to `thread_exit`. */
   ctx_setup_call(kframe, (register_t)thread_exit, (register_t)arg);
 }

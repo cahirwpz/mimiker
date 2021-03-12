@@ -11,7 +11,6 @@ define TDP_FPUINUSE TDP_FPUINUSE
 
 define TD_PROC offsetof(thread_t, td_proc)
 define TD_UCTX offsetof(thread_t, td_uctx)
-define TD_KFRAME offsetof(thread_t, td_kframe)
 define TD_KCTX offsetof(thread_t, td_kctx)
 define TD_KSTACK offsetof(thread_t, td_kstack)
 define TD_FLAGS offsetof(thread_t, td_flags)

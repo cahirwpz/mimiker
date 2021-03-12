@@ -316,13 +316,6 @@ SNESTED(user_exc_enter, MCONTEXT_SIZE, ra)
         # Turn off FPU
         STATUS_CLEAR(SR_CU1)
 
-        # Fetch thread control block pointer to s0 for later use.
-        LOAD_PCPU(s0)
-        lw      s0, PCPU_CURTHREAD(s0)
-
-        # No exeception frame so set td_kframe to NULL.
-        sw      $0, TD_KFRAME(s0)
-
         # Call C interrupt handler routine.
         la      t0, mips_exc_handler
         jalr    t0
@@ -415,13 +408,6 @@ SNESTED(kern_exc_enter, CTX_SIZE, ra)
 
         # Load kernel global pointer.
         la      gp, _gp
-
-        # Fetch thread control block pointer to s0 for later use.
-        LOAD_PCPU(t0)
-        lw      s0, PCPU_CURTHREAD(t0)
-
-        # Save exception frame pointer into td_kframe.
-        sw      sp, TD_KFRAME(s0)
 
         # Call C interrupt handler routine.
         la      t0, mips_exc_handler
