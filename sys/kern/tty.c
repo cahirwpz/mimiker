@@ -558,7 +558,7 @@ bool tty_input(tty_t *tty, uint8_t c) {
     tty_echo(tty, c);
     if (CCEQ(cc[VEOF], c) && (lflag & ECHO)) {
       /* Place the cursor over the '^' of the ^D. */
-      i = MIN(2, tty->t_column - i);
+      i = min(2UL, tty->t_column - i);
       while (i--)
         tty_output(tty, '\b');
     }
