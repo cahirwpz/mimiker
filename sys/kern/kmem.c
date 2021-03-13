@@ -33,23 +33,24 @@ vaddr_t kva_alloc(size_t size) {
   vaddr_t old = atomic_load(&maxkvaddr);
 
   while (vmem_alloc(kvspace, size, &start, M_NOGROW)) {
-    WITH_MTX_LOCK (&maxkvaddr_lock) {
-      /* Check if other thread called pmap_growkernel between vmem_alloc and
-       * mtx_lock. */
-      if (maxkvaddr > old) {
-        old = maxkvaddr;
-        mtx_unlock(&maxkvaddr_lock);
-        continue;
-      }
-
-      maxkvaddr = pmap_growkernel(maxkvaddr + size);
-      klog("%s: increase kernel end %08lx -> %08lx", __func__, old, maxkvaddr);
-
-      if (vmem_add(kvspace, old, maxkvaddr - old))
-        return 0;
+    mtx_lock(&maxkvaddr_lock);
+    /* Check if other thread called pmap_growkernel between vmem_alloc and
+     * mtx_lock. */
+    if (maxkvaddr > old) {
+      old = maxkvaddr;
+      mtx_unlock(&maxkvaddr_lock);
+      continue;
     }
+
+    maxkvaddr = pmap_growkernel(maxkvaddr + size);
+    klog("%s: increase kernel end %08lx -> %08lx", __func__, old, maxkvaddr);
+
+    int error = vmem_add(kvspace, old, maxkvaddr - old);
+    assert(error == 0);
+    mtx_unlock(&maxkvaddr_lock);
   }
 
+  assert(start != 0);
   return start;
 }
 
@@ -119,9 +120,6 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
   assert(!(flags & M_NOGROW));
 
   vaddr_t va = kva_alloc(size);
-  if (va == 0)
-    kick_swapper();
-
   kva_map(va, size, flags);
 
   return (void *)va;
@@ -136,8 +134,6 @@ vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size, unsigned flags) {
     return 0;
 
   vaddr_t va = kva_alloc(size);
-  if (va == 0)
-    kick_swapper();
 
   /* Mark the entire block as valid */
   kasan_mark_valid((void *)va, size);
@@ -158,8 +154,6 @@ vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) {
   assert(page_aligned_p(pa) && page_aligned_p(size));
 
   vaddr_t va = kva_alloc(size);
-  if (va == 0)
-    kick_swapper();
 
   /* Mark the entire block as valid */
   kasan_mark_valid((void *)va, size);
