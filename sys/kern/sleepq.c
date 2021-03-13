@@ -64,7 +64,7 @@ void init_sleepq(void) {
 
   for (int i = 0; i < SC_TABLESIZE; i++) {
     sleepq_chain_t *sc = &sleepq_chains[i];
-    sc->sc_lock = SPIN_INITIALIZER(0);
+    spin_init(&sc->sc_lock, 0);
     TAILQ_INIT(&sc->sc_queues);
   }
 }
