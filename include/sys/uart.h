@@ -7,12 +7,20 @@
 #include <sys/tty.h>
 #include <sys/uart_tty.h>
 
-typedef uint8_t (*uart_getc_t)(void *state);
-typedef bool (*uart_rx_ready_t)(void *state);
+/* For the following functions state is a uart_state::u_state which usually
+ * contains only resources (memory and irq). */
 
+/* Return single character from uart. */
+typedef uint8_t (*uart_getc_t)(void *state);
+/* Return true iff RX is ready. */
+typedef bool (*uart_rx_ready_t)(void *state);
+/* Put character in uart. */
 typedef void (*uart_putc_t)(void *state, uint8_t byte);
+/* Return true iff TX is ready. */
 typedef bool (*uart_tx_ready_t)(void *state);
+/* Enable TX interrupt. */
 typedef void (*uart_tx_enable_t)(void *state);
+/* Disable TX interrupt. */
 typedef void (*uart_tx_disable_t)(void *state);
 
 typedef struct uart_methods {
@@ -33,7 +41,7 @@ typedef struct uart_state {
   ringbuf_t u_rx_buf;
   ringbuf_t u_tx_buf;
   tty_thread_t u_ttd;
-  void *u_state;
+  void *u_state; /* Private state - mostly memory and irq resources. */
 } uart_state_t;
 
 static inline uint8_t uart_getc(device_t *dev) {
