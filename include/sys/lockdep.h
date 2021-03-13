@@ -21,6 +21,9 @@
  *
  * Lock depedency validator uses pre-allocated global memory for its internal
  * structures.
+ *
+ * To enable, compile the kernel with LOCKDEP=1 flag. If the lock order is
+ * violated the kernel will panic.
  */
 
 #define LOCKDEP_MAX_HELD_LOCKS 16
