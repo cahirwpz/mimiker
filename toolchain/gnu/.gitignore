@@ -1,11 +1,7 @@
 binutils
 gcc
 gdb
-isl
-gmp
-mpfr
-mpc
-cloog
 host
+host-build
 sources
 *-mimiker-elf/debian

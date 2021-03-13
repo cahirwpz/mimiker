@@ -5,4 +5,4 @@ TARGET = aarch64-mimiker-elf
 GCC_EXTRA_CONF = --with-arch=armv8-a \
 		 --with-cpu=cortex-a53
 
-include $(TOPDIR)/build/build-target.mk
+include $(TOPDIR)/target.mk

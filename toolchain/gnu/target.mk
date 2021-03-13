@@ -1,4 +1,4 @@
-include $(TOPDIR)/build/common.mk
+include $(TOPDIR)/common.mk
 
 DESTDIR := $(TOPDIR)/$(TARGET)/debian/tmp
 
@@ -19,16 +19,8 @@ package:
 
 ### GNU Binutils
 
-$(SRCDIR)/$(BINUTILS).tar.xz:
-	$(CURL) -o $@ "https://ftp.gnu.org/gnu/binutils/$(BINUTILS).tar.xz"
-
-binutils-unpack: $(SRCDIR)/binutils/.unpack
-$(SRCDIR)/binutils/.unpack: $(SRCDIR)/$(BINUTILS).tar.xz
-	cd $(SRCDIR) && tar xJf $^ && mv $(BINUTILS) binutils
-	touch $@
-
 binutils-configure: binutils/.configure
-binutils/.configure: $(SRCDIR)/binutils/.unpack
+binutils/.configure:
 	mkdir -p binutils && cd binutils && $(SRCDIR)/binutils/configure \
 		--target=$(TARGET) \
 		--prefix=$(PREFIX) \
@@ -56,22 +48,21 @@ binutils/.install: binutils/.build
 	touch $@
 
 binutils-clean:
-	$(RM) -r binutils $(SRCDIR)/$(BINUTILS).tar.xz $(SRCDIR)/binutils
+	$(RM) -r binutils
 
-.PHONY: binutils-unpack binutils-configure binutils-build binutils-install binutils-clean
+.PHONY: binutils-configure binutils-build binutils-install binutils-clean
 
 ### GNU Compiler Collection
 
-$(SRCDIR)/$(GCC).tar.xz:
-	$(CURL) -o $@ "https://ftp.gnu.org/gnu/gcc/$(GCC)/$(GCC).tar.xz"
-
-gcc-unpack: $(SRCDIR)/gcc/.unpack
-$(SRCDIR)/gcc/.unpack: $(SRCDIR)/$(GCC).tar.xz
-	cd $(SRCDIR) && tar xJf $^ && mv $(GCC) gcc
-	touch $@
+TARGET_TOOLS = AS_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-as \
+		 AR_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-ar \
+		 LD_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-ld \
+		 NM_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-nm \
+		 STRIP_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-strip \
+		 RANLIB_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-ranlib \
 
 gcc-configure: gcc/.configure
-gcc/.configure: $(SRCDIR)/gcc/.unpack binutils/.install
+gcc/.configure: binutils/.install
 	mkdir -p gcc && cd gcc && PATH=$(PREFIX)/bin:$$PATH $(SRCDIR)/gcc/configure \
 		--target=$(TARGET) \
 		--prefix=$(PREFIX) \
@@ -96,33 +87,25 @@ gcc/.configure: $(SRCDIR)/gcc/.unpack binutils/.install
 
 gcc-build: gcc/.build
 gcc/.build: gcc/.configure
-	cd gcc && $(MAKE) all-gcc
-	cd gcc && $(MAKE) all-target-libgcc
+	cd gcc && $(MAKE) all-gcc $(TARGET_TOOLS)
+	cd gcc && $(MAKE) all-target-libgcc $(TARGET_TOOLS)
 	touch $@
 
 gcc-install: gcc/.install
 gcc/.install: gcc/.build
-	cd gcc && $(MAKE) install-gcc DESTDIR=$(DESTDIR)
-	cd gcc && $(MAKE) install-target-libgcc DESTDIR=$(DESTDIR)
+	cd gcc && $(MAKE) install-gcc DESTDIR=$(DESTDIR) $(TARGET_TOOLS)
+	cd gcc && $(MAKE) install-target-libgcc DESTDIR=$(DESTDIR) $(TARGET_TOOLS)
 	touch $@
 
 gcc-clean:
-	$(RM) -r gcc $(SRCDIR)/$(GCC).tar.xz $(SRCDIR)/gcc
+	$(RM) -r gcc
 
-.PHONY: gcc-unpack gcc-configure gcc-build gcc-install gcc-clean
+.PHONY: gcc-configure gcc-build gcc-install gcc-clean
 
 ### GNU Debugger
 
-$(SRCDIR)/$(GDB).tar.xz:
-	$(CURL) -o $@ "https://ftp.gnu.org/gnu/gdb/$(GDB).tar.xz"
-
-gdb-unpack: $(SRCDIR)/gdb/.unpack
-$(SRCDIR)/gdb/.unpack: $(SRCDIR)/$(GDB).tar.xz
-	cd $(SRCDIR) && tar xJf $^ && mv $(GDB) gdb
-	touch $@
-
 gdb-configure: gdb/.configure
-gdb/.configure: $(SRCDIR)/gdb/.unpack gcc/.install $(LIBRARIES)
+gdb/.configure: gcc/.install
 	mkdir -p gdb && cd gdb && PATH=$(PREFIX)/bin:$$PATH $(SRCDIR)/gdb/configure \
 		--target=$(TARGET)\
 		--prefix=$(PREFIX) \
@@ -151,6 +134,6 @@ gdb/.install: gdb/.build
 	touch $@
 
 gdb-clean:
-	$(RM) -r gdb $(SRCDIR)/$(GDB).tar.xz $(SRCDIR)/gdb
+	$(RM) -r gdb
 
-.PHONY: gdb-unpack gdb-configure gdb-build gdb-install gdb-clean
+.PHONY: gdb-configure gdb-build gdb-install gdb-clean
