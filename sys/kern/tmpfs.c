@@ -392,7 +392,7 @@ static int tmpfs_vop_close(vnode_t *v, file_t *fp) {
 
 static int tmpfs_uiomove(tmpfs_node_t *node, uio_t *uio, size_t n) {
   size_t blkoff = BLKOFF(uio->uio_offset);
-  size_t len = MIN(BLOCK_SIZE - blkoff, n);
+  size_t len = min(BLOCK_SIZE - blkoff, n);
   size_t blkno = BLKNO(uio->uio_offset);
   void *blk = *tmpfs_get_blk(node, blkno);
   return uiomove(blk + blkoff, len, uio);
@@ -412,7 +412,7 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
     return 0;
 
   while (!error &&
-         (remaining = MIN(node->tfn_size - uio->uio_offset, uio->uio_resid))) {
+         (remaining = min(node->tfn_size - uio->uio_offset, uio->uio_resid))) {
     error = tmpfs_uiomove(node, uio, remaining);
   }
   tmpfs_update_time(node, TMPFS_UPDATE_ATIME);
@@ -573,7 +573,7 @@ static int tmpfs_vop_readlink(vnode_t *v, uio_t *uio) {
   assert(v->v_type == V_LNK);
 
   error = uiomove_frombuf(node->tfn_lnk.link,
-                          MIN((size_t)node->tfn_size, uio->uio_resid), uio);
+                          min((size_t)node->tfn_size, uio->uio_resid), uio);
   tmpfs_update_time(node, TMPFS_UPDATE_ATIME);
   return error;
 }
