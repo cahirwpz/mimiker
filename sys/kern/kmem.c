@@ -32,6 +32,15 @@ vaddr_t kva_alloc(size_t size) {
   vmem_addr_t start;
   vaddr_t old = atomic_load(&maxkvaddr);
 
+  /*
+   * Let's assume that vmem_alloc failed.
+   * Then we increase active virtual address space for kernel and add new
+   * addresses into kvspace. But there is a time window between vmem_add and
+   * vmem_alloc where other thread can call kva_alloc and steal memory prepared
+   * by us for vmem. In that scenario it's possible that second call to
+   * vmem_alloc fails so we need to repeat pmap_growkernel and restart
+   * vmem_alloc. We do that until success because kva_alloc should never failed.
+   */
   while (vmem_alloc(kvspace, size, &start, M_NOGROW)) {
     mtx_lock(&maxkvaddr_lock);
     /* Check if other thread called pmap_growkernel between vmem_alloc and
