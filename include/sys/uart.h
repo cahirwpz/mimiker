@@ -24,8 +24,9 @@ typedef struct uart_methods {
   uart_tx_disable_t tx_disable;
 } uart_methods_t;
 
-#define UART_METHODS(dev)                                                      \
-  (*(uart_methods_t *)(dev)->driver->interfaces[DIF_UART])
+static inline uart_methods_t *uart_methods(device_t *dev) {
+  return (uart_methods_t *)(dev)->driver->interfaces[DIF_UART];
+}
 
 typedef struct uart_state {
   spin_t u_lock;
@@ -36,39 +37,39 @@ typedef struct uart_state {
 } uart_state_t;
 
 static inline uint8_t uart_getc(device_t *dev) {
-  uart_methods_t methods = UART_METHODS(dev);
+  uart_methods_t *methods = uart_methods(dev);
   uart_state_t *uart = dev->state;
-  return methods.getc(uart->u_state);
+  return methods->getc(uart->u_state);
 }
 
 static inline bool uart_rx_ready(device_t *dev) {
-  uart_methods_t methods = UART_METHODS(dev);
+  uart_methods_t *methods = uart_methods(dev);
   uart_state_t *uart = dev->state;
-  return methods.rx_ready(uart->u_state);
+  return methods->rx_ready(uart->u_state);
 }
 
 static inline void uart_putc(device_t *dev, uint8_t byte) {
-  uart_methods_t methods = UART_METHODS(dev);
+  uart_methods_t *methods = uart_methods(dev);
   uart_state_t *uart = dev->state;
-  methods.putc(uart->u_state, byte);
+  methods->putc(uart->u_state, byte);
 }
 
 static inline bool uart_tx_ready(device_t *dev) {
-  uart_methods_t methods = UART_METHODS(dev);
+  uart_methods_t *methods = uart_methods(dev);
   uart_state_t *uart = dev->state;
-  return methods.tx_ready(uart->u_state);
+  return methods->tx_ready(uart->u_state);
 }
 
 static inline void uart_tx_enable(device_t *dev) {
-  uart_methods_t methods = UART_METHODS(dev);
+  uart_methods_t *methods = uart_methods(dev);
   uart_state_t *uart = dev->state;
-  methods.tx_enable(uart->u_state);
+  methods->tx_enable(uart->u_state);
 }
 
 static inline void uart_tx_disable(device_t *dev) {
-  uart_methods_t methods = UART_METHODS(dev);
+  uart_methods_t *methods = uart_methods(dev);
   uart_state_t *uart = dev->state;
-  methods.tx_disable(uart->u_state);
+  methods->tx_disable(uart->u_state);
 }
 
 void uart_init(device_t *dev, const char *name, size_t buf_size, void *state,
