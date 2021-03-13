@@ -159,7 +159,7 @@ jobs:
       - run: ./run_tests.py --board rpi3 --times=50
 
   kernel_tests_aarch64_gcc_opt:
-    name: Tests AArch64 (GCC)
+    name: Tests AArch64 (GCC optimized)
     runs-on: self-hosted
     needs: build_aarch64_gcc_opt
     steps:
