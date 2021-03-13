@@ -9,16 +9,18 @@
 #include <sys/vm.h>
 #include <sys/vm_physmem.h>
 #include <sys/kasan.h>
+#include <sys/mutex.h>
 
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
+static atomic_vaddr_t maxkvaddr;
+static mtx_t maxkvaddr_lock = MTX_INITIALIZER(0);
 
 void init_kmem(void) {
   kvspace = vmem_create("kvspace", PAGESIZE);
   if (KERNEL_SPACE_BEGIN < (vaddr_t)__kernel_start)
     vmem_add(kvspace, KERNEL_SPACE_BEGIN,
              (vaddr_t)__kernel_start - KERNEL_SPACE_BEGIN);
-  vmem_add(kvspace, (vaddr_t)vm_kernel_end,
-           KERNEL_SPACE_END - (vaddr_t)vm_kernel_end);
+  maxkvaddr = (vaddr_t)vm_kernel_end;
 }
 
 static void kick_swapper(void) {
@@ -28,8 +30,36 @@ static void kick_swapper(void) {
 vaddr_t kva_alloc(size_t size) {
   assert(page_aligned_p(size));
   vmem_addr_t start;
-  if (vmem_alloc(kvspace, size, &start, M_NOGROW))
-    return 0;
+  vaddr_t old = atomic_load(&maxkvaddr);
+
+  /*
+   * Let's assume that vmem_alloc failed.
+   * Then we increase active virtual address space for kernel and add new
+   * addresses into kvspace. But there is a time window between vmem_add and
+   * vmem_alloc where other thread can call kva_alloc and steal memory prepared
+   * by us for vmem. In that scenario it's possible that second call to
+   * vmem_alloc fails so we need to repeat pmap_growkernel and restart
+   * vmem_alloc. We do that until success because kva_alloc should never failed.
+   */
+  while (vmem_alloc(kvspace, size, &start, M_NOGROW)) {
+    mtx_lock(&maxkvaddr_lock);
+    /* Check if other thread called pmap_growkernel between vmem_alloc and
+     * mtx_lock. */
+    if (maxkvaddr > old) {
+      old = maxkvaddr;
+      mtx_unlock(&maxkvaddr_lock);
+      continue;
+    }
+
+    maxkvaddr = pmap_growkernel(maxkvaddr + size);
+    klog("%s: increase kernel end %08lx -> %08lx", __func__, old, maxkvaddr);
+
+    int error = vmem_add(kvspace, old, maxkvaddr - old);
+    assert(error == 0);
+    mtx_unlock(&maxkvaddr_lock);
+  }
+
+  assert(start != 0);
   return start;
 }
 
@@ -98,13 +128,10 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
   assert(page_aligned_p(size));
   assert(!(flags & M_NOGROW));
 
-  vmem_addr_t start;
-  if (vmem_alloc(kvspace, size, &start, M_NOGROW))
-    kick_swapper();
+  vaddr_t va = kva_alloc(size);
+  kva_map(va, size, flags);
 
-  kva_map(start, size, flags);
-
-  return (void *)start;
+  return (void *)va;
 }
 
 vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size, unsigned flags) {
@@ -115,9 +142,7 @@ vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size, unsigned flags) {
   if (!pg)
     return 0;
 
-  vaddr_t va;
-  if (vmem_alloc(kvspace, size, &va, M_NOGROW))
-    kick_swapper();
+  vaddr_t va = kva_alloc(size);
 
   /* Mark the entire block as valid */
   kasan_mark_valid((void *)va, size);
@@ -137,18 +162,15 @@ void kmem_free(void *ptr, size_t size) {
 vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) {
   assert(page_aligned_p(pa) && page_aligned_p(size));
 
-  vmem_addr_t start;
-  if (vmem_alloc(kvspace, size, &start, M_NOGROW))
-    kick_swapper();
+  vaddr_t va = kva_alloc(size);
 
   /* Mark the entire block as valid */
-  kasan_mark_valid((void *)start, size);
+  kasan_mark_valid((void *)va, size);
 
-  klog("%s: map %p of size %ld at %p", __func__, pa, size, start);
+  klog("%s: map %p of size %ld at %p", __func__, pa, size, va);
 
   for (size_t offset = 0; offset < size; offset += PAGESIZE)
-    pmap_kenter(start + offset, pa + offset, VM_PROT_READ | VM_PROT_WRITE,
-                flags);
+    pmap_kenter(va + offset, pa + offset, VM_PROT_READ | VM_PROT_WRITE, flags);
 
-  return start;
+  return va;
 }
