@@ -4,8 +4,10 @@
 #include <sys/kasan.h>
 #include <sys/klog.h>
 #include <sys/thread.h>
+#include <sys/vm_physmem.h>
 #include <machine/vm_param.h>
 #include <machine/kasan.h>
+#include <machine/pmap.h>
 
 /* Part of internal compiler interface */
 #define KASAN_SHADOW_SCALE_SHIFT 3
@@ -35,6 +37,8 @@ struct __asan_global {
   const void *odr_indicator; /* The address of the ODR indicator symbol */
 };
 
+size_t _kasan_shadow_size;
+size_t _kasan_sanitized_size;
 static int kasan_ready;
 
 static const char *code_name(uint8_t code) {
@@ -217,10 +221,30 @@ static void call_ctors(void) {
   }
 }
 
+void kasan_grow(size_t size) {
+  assert(size % SUPERPAGESIZE == 0);
+  size_t num_pde = (size >> KASAN_SHADOW_SCALE_SHIFT) / SUPERPAGESIZE;
+  vaddr_t va = KASAN_MD_SHADOW_START + _kasan_shadow_size;
+
+  for (size_t i = 0; i < num_pde; ++i) {
+    for (size_t j = 0; j < PT_ENTRIES; ++j) {
+      vm_page_t *pg = vm_page_alloc(1);
+      paddr_t pa = pg->paddr;
+      pmap_kenter(va, pa, VM_PROT_READ | VM_PROT_WRITE, 0);
+      va += PAGESIZE;
+      _kasan_shadow_size += PAGESIZE;
+    }
+  }
+
+  kasan_mark_valid(
+    (const void *)(KASAN_MD_SANITIZED_START + _kasan_sanitized_size), size);
+  _kasan_sanitized_size += size;
+}
+
 void init_kasan(void) {
   /* Set entire shadow memory to zero */
   kasan_mark_valid((const void *)KASAN_MD_SANITIZED_START,
-                   KASAN_MD_SANITIZED_SIZE);
+                   _kasan_sanitized_size);
 
   /* KASAN is ready to check for errors! */
   kasan_ready = 1;

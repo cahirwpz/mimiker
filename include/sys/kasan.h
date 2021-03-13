@@ -53,6 +53,9 @@ typedef struct {
  * memory is usable. */
 void init_kasan(void);
 
+/* Increase address space covered by KASAN by size. */
+void kasan_grow(size_t size);
+
 /* Mark bytes as valid (in the shadow memory) */
 void kasan_mark_valid(const void *addr, size_t size);
 
@@ -74,6 +77,7 @@ void kasan_quar_additem(quar_t *q, void *pool, void *ptr);
 void kasan_quar_releaseall(quar_t *q);
 #else /* !KASAN */
 #define init_kasan() __nothing
+#define kasan_grow(size) __nothing
 #define kasan_mark_valid(addr, size) __nothing
 #define kasan_mark_invalid(addr, size, code) __nothing
 #define kasan_mark(addr, size, size_with_redzone, code) __nothing
