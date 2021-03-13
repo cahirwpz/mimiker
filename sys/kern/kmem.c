@@ -13,7 +13,7 @@
 
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
 static atomic_vaddr_t maxkvaddr;
-static mtx_t maxkvaddr_lock = MTX_INITIALIZER(0);
+mtx_t maxkvaddr_lock = MTX_INITIALIZER(0);
 
 void init_kmem(void) {
   kvspace = vmem_create("kvspace", PAGESIZE);
