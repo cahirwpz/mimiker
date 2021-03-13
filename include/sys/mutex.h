@@ -34,11 +34,8 @@ typedef struct mtx {
 #if LOCKDEP
 #define MTX_INITIALIZER(lockname, recursive)                                   \
   (mtx_t) {                                                                    \
-    .m_attr = (recursive) | LK_TYPE_BLOCK, .m_lockmap = {                      \
-      .key = NULL,                                                             \
-      .name = #lockname,                                                       \
-      .lock_class = NULL                                                       \
-    }                                                                          \
+    .m_attr = (recursive) | LK_TYPE_BLOCK,                                     \
+    .m_lockmap = LOCKDEP_MAPPING_INITIALIZER(lockname)                         \
   }
 #else
 #define MTX_INITIALIZER(lockname, recursive)                                   \
@@ -54,10 +51,10 @@ void _mtx_init(mtx_t *m, lk_attr_t attr, const char *name,
                lock_class_key_t *key);
 
 #define mtx_init(lock, attr)                                                   \
-  do {                                                                         \
+  {                                                                            \
     static lock_class_key_t __key;                                             \
     _mtx_init(lock, attr, #lock, &__key);                                      \
-  } while (0);
+  }
 
 /*! \brief Makes mutex unusable for further locking.
  *

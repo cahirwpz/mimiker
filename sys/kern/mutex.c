@@ -73,7 +73,7 @@ void mtx_unlock(mtx_t *m) {
   }
 
 #if LOCKDEP
-  lockdep_release();
+  lockdep_release(&m->m_lockmap);
 #endif
 
   /* Fast path: if lock is not contested then drop ownership. */

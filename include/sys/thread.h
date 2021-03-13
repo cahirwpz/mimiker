@@ -143,10 +143,10 @@ typedef struct thread {
   sigset_t td_sigmask;    /*!< (p) Signal mask */
   sigset_t td_oldsigmask; /*!< (*) Signal mask from before sigsuspend() */
 
+  /* Both fields are protected by the lockdep lock */
 #if LOCKDEP
-  /* protected by the lockdep lock */
-  int td_lock_depth;
-  held_lock_t td_held_locks[LOCKDEP_MAX_HELD_LOCKS];
+  int td_lock_depth; /* The number of locks hold by the thread. */
+  lock_class_t *td_held_locks[LOCKDEP_MAX_HELD_LOCKS];
 #endif
 } thread_t;
 

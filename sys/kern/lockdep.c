@@ -196,32 +196,32 @@ static lock_class_link_t *alloc_link(void) {
 }
 
 static void add_prev_link(void) {
-  held_lock_t *hprev, *hcur;
+  lock_class_t *hprev, *hcur;
   lock_class_link_t *link;
-  int depth = thread_self()->td_lock_depth;
+  thread_t *thread = thread_self();
+  int depth = thread->td_lock_depth;
 
   if (depth < 2)
     return;
 
-  hcur = &thread_self()->td_held_locks[depth - 1];
-  hprev = &thread_self()->td_held_locks[depth - 2];
+  hcur = thread->td_held_locks[depth - 1];
+  hprev = thread->td_held_locks[depth - 2];
 
-  if (hcur->lock_class == hprev->lock_class)
+  if (hcur == hprev)
     return;
 
-  SIMPLEQ_FOREACH(link, &(hprev->lock_class->locked_after), entry) {
-    if (hcur->lock_class == link->to)
+  SIMPLEQ_FOREACH(link, &(hprev->locked_after), entry) {
+    if (hcur == link->to)
       return;
   }
 
   link = alloc_link();
-  link->to = hcur->lock_class;
+  link->to = hcur;
 
-  SIMPLEQ_INSERT_HEAD(&(hprev->lock_class->locked_after), link, entry);
+  SIMPLEQ_INSERT_HEAD(&(hprev->locked_after), link, entry);
 
-  if (check_path(hcur->lock_class, hprev->lock_class)) {
-    panic("lockdep: cycle between locks %s and %s", hprev->lock_class->name,
-          hcur->lock_class->name);
+  if (check_path(hcur, hprev)) {
+    panic("lockdep: cycle between locks %s and %s", hprev->name, hcur->name);
   }
 }
 
@@ -233,30 +233,43 @@ void lockdep_init(void) {
 
 void lockdep_acquire(lock_class_mapping_t *lock) {
   lock_class_t *class;
-  held_lock_t *hlock;
+  thread_t *thread = thread_self();
 
   lockdep_lock();
 
-  if (thread_self()->td_lock_depth >= LOCKDEP_MAX_HELD_LOCKS)
+  if (thread->td_lock_depth >= LOCKDEP_MAX_HELD_LOCKS)
     panic("lockdep: max lock depth reached");
 
   if (!(class = lock->lock_class))
     class = get_or_create_class(lock);
 
-  hlock = &thread_self()->td_held_locks[thread_self()->td_lock_depth++];
-  hlock->lock_class = class;
+  thread->td_held_locks[thread->td_lock_depth++] = class;
 
   add_prev_link();
 
   lockdep_unlock();
 }
 
-void lockdep_release(void) {
+void lockdep_release(lock_class_mapping_t *lock) {
+  bool shift = false;
+  lock_class_t *class;
+  thread_t *thread = thread_self();
   lockdep_lock();
 
-  thread_self()->td_lock_depth--;
+  class = look_up_lock_class(lock);
+  assert(class);
 
-  if (thread_self()->td_lock_depth < 0)
+  /* Delete the class of the released lock and move the rest shift the rest */
+  for (int i = 0; i < thread->td_lock_depth; i++) {
+    if (class == thread->td_held_locks[i])
+      shift = true;
+    else if (shift)
+      thread->td_held_locks[i - 1] = thread->td_held_locks[i];
+  }
+
+  thread->td_lock_depth--;
+
+  if (thread->td_lock_depth < 0)
     panic("lockdep: depth below 0");
 
   lockdep_unlock();
