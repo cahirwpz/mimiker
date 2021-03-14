@@ -102,15 +102,9 @@ __boot_text void *mips_init(void) {
     pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
 
 #if KASAN /* Prepare KASAN shadow mappings */
-  size_t kasan_sanitized_size =
-    roundup(va - MIPS_PHYS_TO_KSEG2(text), SUPERPAGESIZE);
-  /*
-   * TODO(pj): I believe that it's a correct value here... but thread0 stack
-   * shadow check triggers BIG error in that case so let's create bigger shadow
-   * for now.
-   * kasan_sanitized_size >> KASAN_SHADOW_SCALE_SHIFT;
-   */
-  size_t kasan_shadow_size = kasan_sanitized_size;
+  size_t kasan_sanitized_size = roundup(
+    va - MIPS_PHYS_TO_KSEG2(text), SUPERPAGESIZE << KASAN_SHADOW_SCALE_SHIFT);
+  size_t kasan_shadow_size = kasan_sanitized_size >> KASAN_SHADOW_SCALE_SHIFT;
   va = KASAN_MD_SHADOW_START;
   /* Allocate physical memory for shadow area */
   paddr_t pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
