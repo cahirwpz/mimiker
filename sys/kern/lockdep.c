@@ -259,7 +259,7 @@ void lockdep_release(lock_class_mapping_t *lock) {
   class = look_up_lock_class(lock);
   assert(class);
 
-  /* Delete the class of the released lock and move the rest shift the rest */
+  /* Delete the class of the released lock and shift the rest */
   for (int i = 0; i < thread->td_lock_depth; i++) {
     if (class == thread->td_held_locks[i])
       shift = true;
