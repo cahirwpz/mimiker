@@ -221,8 +221,10 @@ static void call_ctors(void) {
   }
 }
 
-void kasan_grow(size_t size) {
+void kasan_grow(vaddr_t maxkvaddr) {
+  size_t size = maxkvaddr - KASAN_MD_SANITIZED_START - _kasan_sanitized_size;
   assert(size % (SUPERPAGESIZE << 3) == 0);
+
   size_t num_pde = (size >> KASAN_SHADOW_SCALE_SHIFT) / SUPERPAGESIZE;
   vaddr_t va = KASAN_MD_SHADOW_START + _kasan_shadow_size;
 

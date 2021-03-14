@@ -565,7 +565,6 @@ vaddr_t pmap_growkernel(vaddr_t maxkvaddr) {
   assert(maxkvaddr > atomic_load(&pmap_maxkvaddr));
 
   pmap_t *pmap = pmap_kernel();
-  size_t size;
   vaddr_t va;
 
   /*
@@ -575,12 +574,12 @@ vaddr_t pmap_growkernel(vaddr_t maxkvaddr) {
   maxkvaddr = roundup(maxkvaddr, 8 * L1_SPACE_SIZE);
 
   WITH_MTX_LOCK (&pmap->mtx) {
-    for (va = pmap_maxkvaddr; va <= maxkvaddr; va += L1_SPACE_SIZE) {
+    for (va = rounddown(pmap_maxkvaddr, 8 * L1_SPACE_SIZE); va < maxkvaddr;
+         va += L1_SPACE_SIZE) {
       if (!is_valid_pde(PDE_OF(pmap, va)))
         pmap_add_pde(pmap, va);
     }
 
-    size = va - pmap_maxkvaddr;
     pmap_maxkvaddr = va;
   }
 
@@ -588,8 +587,7 @@ vaddr_t pmap_growkernel(vaddr_t maxkvaddr) {
    * kasan_grow calls pmap_kenter which acquires pmap->mtx.
    * But we are under maxkvaddr_lock from kmem so it's safe to call kasan_grow.
    */
-  kasan_grow(size);
-  (void)size;
+  kasan_grow(atomic_load(&pmap_maxkvaddr));
 
   return atomic_load(&pmap_maxkvaddr);
 }
