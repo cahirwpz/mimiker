@@ -50,14 +50,19 @@ typedef struct bintime {
 /* Returns seconds after EPOCH */
 time_t tm2sec(tm_t *tm);
 
-static inline systime_t bt2st(bintime_t *bt) {
+static inline systime_t bt2st(const bintime_t *bt) {
   return bt->sec * CLK_TCK +
          (((uint64_t)CLK_TCK * (uint32_t)(bt->frac >> 32)) >> 32);
 }
 
-static inline void bt2ts(bintime_t *bt, timespec_t *ts) {
+static inline void bt2ts(const bintime_t *bt, timespec_t *ts) {
   ts->tv_sec = bt->sec;
   ts->tv_nsec = (1000000000ULL * (uint32_t)(bt->frac >> 32)) >> 32;
+}
+
+static inline void bt2tv(const bintime_t *bt, timeval_t *tv) {
+  tv->tv_sec = bt->sec;
+  tv->tv_usec = (1000000ULL * (uint32_t)(bt->frac >> 32)) >> 32;
 }
 
 /* Operations on timevals. */
@@ -84,6 +89,11 @@ static inline void bt2ts(bintime_t *bt, timespec_t *ts) {
       (vvp)->tv_usec += 1000000;                                               \
     }                                                                          \
   }
+
+static inline void tv2ts(const timeval_t *tv, timespec_t *ts) {
+  ts->tv_sec = tv->tv_sec;
+  ts->tv_nsec = tv->tv_usec * 1000;
+}
 
 /* Operations on bintime. */
 #define bintime_cmp(a, b, cmp)                                                 \
@@ -163,7 +173,27 @@ struct itimerval {
 
 #ifdef _KERNEL
 
+#include <sys/callout.h>
+
 typedef struct proc proc_t;
+
+/* Kernel interval timer. */
+typedef struct {
+  /* absolute time of nearest expiration, 0 means inactive */
+  timeval_t kit_next;
+  timeval_t kit_interval; /* time between expirations, 0 means non-periodic */
+  callout_t kit_callout;
+} kitimer_t;
+
+/* Initialize a process's interval timer structure. */
+void kitimer_init(proc_t *p);
+
+/* Stop the interval timer associated with a process.
+ * After this function returns, it's safe to free the timer structure.
+ * Must be called with p->p_lock held.
+ * NOTE: This function may release and re-acquire p->p_lock.
+ * It returns true if it released the lock. */
+bool kitimer_stop(proc_t *p);
 
 /* Time measured from the start of system. */
 bintime_t binuptime(void);

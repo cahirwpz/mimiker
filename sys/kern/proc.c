@@ -19,6 +19,7 @@
 #include <sys/vm_map.h>
 #include <sys/mutex.h>
 #include <sys/tty.h>
+#include <sys/time.h>
 #include <bitstring.h>
 
 /* Allocate PIDs from a reasonable range, can be changed as needed. */
@@ -41,8 +42,8 @@ static POOL_DEFINE(P_SESSION, "session", sizeof(session_t));
 mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
 
 /* all_proc_mtx protects following data: */
-static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
-static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
+proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
+proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
 static proc_t *proc_find_raw(pid_t pid);
@@ -309,6 +310,7 @@ static void pgrp_leave(proc_t *p) {
 static int _pgrp_enter(proc_t *p, pgrp_t *target) {
   pgrp_t *old_pgrp = p->p_pgrp;
   assert(old_pgrp);
+  assert(mtx_owned(all_proc_mtx));
 
   if (old_pgrp == target)
     return 0;
@@ -316,15 +318,17 @@ static int _pgrp_enter(proc_t *p, pgrp_t *target) {
   pgrp_jobc_enter(p, target);
   pgrp_jobc_leave(p, old_pgrp);
 
-  mtx_lock_pair(&old_pgrp->pg_lock, &target->pg_lock);
-
-  WITH_PROC_LOCK(p) {
-    TAILQ_REMOVE(&old_pgrp->pg_members, p, p_pglist);
-    TAILQ_INSERT_HEAD(&target->pg_members, p, p_pglist);
-    p->p_pgrp = target;
+  /* Acquiring multiple pgrp locks here is safe because we're holding
+   * all_proc_mtx, see comments about pgrp_t in proc.h. */
+  WITH_MTX_LOCK (&old_pgrp->pg_lock) {
+    WITH_MTX_LOCK (&target->pg_lock) {
+      WITH_PROC_LOCK(p) {
+        TAILQ_REMOVE(&old_pgrp->pg_members, p, p_pglist);
+        TAILQ_INSERT_HEAD(&target->pg_members, p, p_pglist);
+        p->p_pgrp = target;
+      }
+    }
   }
-
-  mtx_unlock_pair(&old_pgrp->pg_lock, &target->pg_lock);
 
   if (TAILQ_EMPTY(&old_pgrp->pg_members)) {
     pgrp_remove(old_pgrp);
@@ -456,6 +460,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
     p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, PATH_MAX);
 
   TAILQ_INIT(CHILDREN(p));
+  kitimer_init(p);
 
   WITH_SPIN_LOCK (td->td_lock)
     td->td_proc = p;
@@ -570,6 +575,10 @@ __noreturn void proc_exit(int exitstatus) {
 
   /* Clean up process resources. */
   klog("Freeing process PID(%d) {%p} resources", p->p_pid, p);
+
+  /* Stop per-process interval timer.
+   * NOTE: this function may release and re-acquire p->p_lock. */
+  kitimer_stop(p);
 
   /* Detach main thread from the process. */
   p->p_thread = NULL;
