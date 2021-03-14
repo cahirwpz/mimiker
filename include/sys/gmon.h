@@ -34,16 +34,32 @@
 #ifndef _SYS_GMON_H_
 #define _SYS_GMON_H_
 
+#include <machine/profile.h>
+
+/*
+ * Structure prepended to gmon.out profiling data file.
+ */
+struct gmonhdr {
+	u_long	lpc;		/* base pc address of sample buffer */
+	u_long	hpc;		/* max pc address of sampled buffer */
+	int	ncnt;		/* size of sample buffer (plus this header) */
+	int	version;	/* version number */
+	int	profrate;	/* profiling clock rate */
+	int	spare[3];	/* reserved */
+};
+#define GMONVERSION	0x00051879
+
 /*
  * histogram counters are unsigned shorts (according to the kernel).
  */
-typedef unsigned short HISTCOUNTER;
+#define	HISTCOUNTER	unsigned short
+
 /*
  * fraction of text space to allocate for histogram counters here, 1/2
  */
 #ifndef HISTFRACTION
-#define HISTFRACTION 2
-#endif /* HISTFRACTION */
+#define	HISTFRACTION	2
+#endif	/* HISTFRACTION */
 
 /*
  * Fraction of text space to allocate for from hash buckets.
@@ -73,57 +89,65 @@ typedef unsigned short HISTCOUNTER;
  * profiling data structures without (in practice) sacrificing
  * any granularity.
  */
-#define HASHFRACTION 2
+#define	HASHFRACTION	2
 
 /*
  * percent of text space to allocate for tostructs with a minimum.
  */
-#define ARCDENSITY 2
-#define MINARCS 50
-#define MAXARCS ((1 << (unsigned int)(8 * sizeof(HISTCOUNTER))) - 2)
+#define ARCDENSITY	2
+#define MINARCS		50
+#define MAXARCS		((1 << (unsigned int)(8 * sizeof(HISTCOUNTER))) - 2)
 
-typedef struct tostruct {
-  u_long selfpc;
-  long count;
-  u_short link;
-  u_short pad;
-} tostruct_t;
+struct tostruct {
+	u_long	selfpc;
+	long	count;
+	u_short	link;
+	u_short pad;
+};
+
+/*
+ * a raw arc, with pointers to the calling site and
+ * the called site and a count.
+ */
+struct rawarc {
+	u_long	raw_frompc;
+	u_long	raw_selfpc;
+	long	raw_count;
+};
 
 /*
  * The profiling data structures are housed in this structure.
  */
-
-typedef struct gmonparam {
-  int state;
-  u_short *kcount;
-  u_long kcountsize;
-  u_short *froms;
-  u_long fromssize;
-  tostruct_t *tos;
-  u_long tossize;
-  long tolimit;
-  u_long lowpc;
-  u_long highpc;
-  u_long textsize;
-  u_long hashfraction;
-} gmonparam_t;
-
-extern gmonparam_t _gmonparam;
+struct gmonparam {
+	int		state;
+	u_short		*kcount;
+	u_long		kcountsize;
+	u_short		*froms;
+	u_long		fromssize;
+	struct tostruct	*tos;
+	u_long		tossize;
+	long		tolimit;
+	u_long		lowpc;
+	u_long		highpc;
+	u_long		textsize;
+	u_long		hashfraction;
+};
+extern struct gmonparam _gmonparam;
 
 /*
  * Possible states of profiling.
  */
-typedef enum {
-  GMON_PROF_ON = 0,
-  GMON_PROF_BUSY = 1,
-  GMON_PROF_ERROR = 2,
-  GMON_PROF_OFF = 3,
-} gmon_flags_t;
+#define	GMON_PROF_ON	0
+#define	GMON_PROF_BUSY	1
+#define	GMON_PROF_ERROR	2
+#define	GMON_PROF_OFF	3
 
-#if KPROF
-void init_prof(void);
-#else
-#define init_prof() __nothing
-#endif
-
+/*
+ * Sysctl definitions for extracting profiling information from the kernel.
+ */
+#define	GPROF_STATE	0	/* int: profiling enabling variable */
+#define	GPROF_COUNT	1	/* struct: profile tick count buffer */
+#define	GPROF_FROMS	2	/* struct: from location hash bucket */
+#define	GPROF_TOS	3	/* struct: destination/count structure */
+#define	GPROF_GMONPARAM	4	/* struct: profiling parameters (see above) */
 #endif /* !_SYS_GMON_H_ */
