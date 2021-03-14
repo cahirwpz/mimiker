@@ -41,10 +41,6 @@ etags
 # generated assembly files
 assym.h
 
-# generated hash functions in libterminfo
-lib/libterminfo/hash.c
-lib/libterminfo/termcap_hash.c
-
 # Editor swap files
 *.sw[a-p]
 

@@ -59,8 +59,8 @@ int test_nanosleep(void) {
   /* Check if sleept at least requested time */;
   for (int g = 0; g < 20; g++) {
     rqt.tv_nsec = (1000 << g);
-    diff = *((timeval_t *)&rqt);
-    diff.tv_usec /= 1000;
+    diff.tv_sec = rqt.tv_sec;
+    diff.tv_usec = rqt.tv_nsec / 1000;
 
     ret = gettimeofday(&time1, NULL);
     assert(ret == 0);
