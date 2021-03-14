@@ -251,12 +251,11 @@ void lockdep_acquire(lock_class_mapping_t *lock) {
 }
 
 void lockdep_release(lock_class_mapping_t *lock) {
-  lock_class_t *class;
+  lock_class_t *class = lock->lock_class;
   thread_t *thread = thread_self();
-  lockdep_lock();
-
-  class = look_up_lock_class(lock);
   assert(class);
+
+  lockdep_lock();
 
   /* Delete the class of the released lock and shift the rest */
   int i = thread->td_lock_depth - 1;
