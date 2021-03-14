@@ -15,7 +15,7 @@
  * During read calls to /dev/procstat this info can be read.
  *
  * Example:
- * euid   pid    ppid    pgrp   session  state    elfpath
+ * euid   pid    ppid    pgrp   session  state    name
  * 0       1       0       1       1       R      /bin/ksh
  */
 
@@ -26,6 +26,9 @@
 
 /* maximum amount of processes that procstat can handle */
 #define MAX_PROC 40
+
+/* maximum length of displayed name of process */
+#define PROC_NAME_MAX 100
 
 /* we want to have at most 10 instances of procstat */
 #define MAX_PROCSTAT 10
@@ -44,7 +47,7 @@ typedef struct ps_entry {
   pgid_t pgrp;
   sid_t sid;
   proc_state_t proc_state;
-  char *elfpath;
+  char *name;
 } ps_entry_t;
 
 typedef struct ps_buf {
@@ -76,6 +79,55 @@ static vnodeops_t dev_procstat_vnodeops = {
   .v_close = dev_procstat_close,
 };
 
+static void proc_copyargs(proc_t *p, char *buf, size_t maxlen) {
+  int argc;
+  char *arg;
+  size_t len, used = 0;
+  vaddr_t argv;
+
+  copyin((void *) p->p_args, &argc, sizeof(int));
+  argv = p->p_args + sizeof(int);
+
+  /* we don't want to see argv[0] */
+  argv += sizeof(char *);
+  klog("process %d has %d args", p->p_pid, argc);
+
+  for (int i = 1; i < argc && used < maxlen; ++i) {
+    klog("used: %d", used);
+    /* add space before each argument */
+    buf[used++] = ' ';
+    klog("used: %d", used);
+
+    /* get address of string */
+    copyin((void *) argv, &arg, sizeof(char *));
+
+    /* get string into buffer */
+    klog("copying into %p", buf + used);
+    copyinstr((void *) arg, buf + used, maxlen - used, &len);
+    klog("%d argument: %s (len: %d, used: %d)", i, buf + used, len, used);
+
+    used += len - 1; /* last character is '\0\ */
+    klog("used: %d", used);
+    argv += sizeof(char *);
+  }
+}
+
+static char *get_name(proc_t *p) {
+  char *buf = kmalloc(M_TEMP, PROC_NAME_MAX, M_ZERO);
+
+  /* copy program's name from elfpath */
+  char *start = strrchr(p->p_elfpath, '/');
+  if (start == NULL)
+    start = p->p_elfpath;
+
+  strncpy(buf, start + 1, PROC_NAME_MAX);
+  size_t len = strlen(buf);
+
+  proc_copyargs(p, buf + len, PROC_NAME_MAX - len);
+
+  return buf;
+}
+
 static void ps_entry_fill(ps_entry_t *pe, proc_t *p) {
   SCOPED_MTX_LOCK(&p->p_lock);
   pe->uid = p->p_cred.cr_euid;
@@ -84,7 +136,7 @@ static void ps_entry_fill(ps_entry_t *pe, proc_t *p) {
   pe->pgrp = p->p_pgrp->pg_id;
   pe->sid = p->p_pgrp->pg_session->s_sid;
   pe->proc_state = p->p_state;
-  pe->elfpath = kstrndup(M_TEMP, p->p_elfpath, PATH_MAX);
+  pe->name = get_name(p);
 }
 
 /* buf must be at least MAX_P_STRING long
@@ -93,7 +145,7 @@ static void ps_entry_fill(ps_entry_t *pe, proc_t *p) {
 static int ps_entry_tostring(char *buf, ps_entry_t *pe) {
   int r = snprintf(buf, MAX_P_STRING, "%d\t%d\t%d\t%d\t%d\t%c\t%s\n", pe->uid,
                    pe->pid, pe->ppid, pe->pgrp, pe->sid,
-                   proc_state[pe->proc_state], pe->elfpath);
+                   proc_state[pe->proc_state], pe->name);
 
   return MIN(r, MAX_P_STRING);
 }
@@ -182,7 +234,7 @@ static int dev_procstat_read(file_t *f, uio_t *uio) {
 static int dev_procstat_close(vnode_t *v, file_t *fp) {
   ps_buf_t *ps = fp->f_data;
   for (int i = 0; i < ps->nproc; ++i) {
-    kfree(M_TEMP, ps->ps[i].elfpath);
+    kfree(M_TEMP, ps->ps[i].name);
   }
   kfree(M_TEMP, ps);
 

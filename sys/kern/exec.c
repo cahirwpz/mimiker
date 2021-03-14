@@ -383,6 +383,8 @@ static int _do_execve(exec_args_t *args) {
   if ((error = exec_args_copyout(args, &stack_top)))
     goto fail;
 
+  p->p_args = stack_top;
+
   fdtab_onexec(p->p_fdtable);
 
   /* Set up user context. */

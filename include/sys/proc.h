@@ -119,6 +119,8 @@ struct proc {
   /* program segments */
   vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
   vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */
+
+  vaddr_t p_args;       /* (!) Position of argc on stack. */
   /* XXX: process resource usage stats */
 };
 
@@ -182,6 +184,8 @@ int proc_getsid(pid_t pid, sid_t *sidp);
 /*!\brief Get the SID of the process with PID `pid`.
  * The SID is returned in `*sidp`. */
 int proc_getsid(pid_t pid, sid_t *sidp);
+
+int proc_getargv(proc_t *p, char *buf, size_t maxlen);
 
 /*! \brief Wake up the parent process when child's state changes.
  *
