@@ -251,7 +251,6 @@ void lockdep_acquire(lock_class_mapping_t *lock) {
 }
 
 void lockdep_release(lock_class_mapping_t *lock) {
-  bool shift = false;
   lock_class_t *class;
   thread_t *thread = thread_self();
   lockdep_lock();
