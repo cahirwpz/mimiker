@@ -39,13 +39,13 @@ void init_prof(void) {
     klog("Not enough memory for profiling!\n");
     return;
   }
-  assert(is_aligned(profptr, sizeof(tostruct_t)));
+  assert(is_aligned(profptr, alignof(tostruct_t)));
   p->tos = (tostruct_t *)profptr;
   profptr += p->tossize;
-  assert(is_aligned(profptr, sizeof(u_short)));
+  assert(is_aligned(profptr, alignof(u_short)));
   p->kcount = (u_short *)profptr;
   profptr += p->kcountsize;
-  assert(is_aligned(profptr, sizeof(u_short)));
+  assert(is_aligned(profptr, alignof(u_short)));
   p->froms = (u_short *)profptr;
   p->state = GMON_PROF_ON;
 }
