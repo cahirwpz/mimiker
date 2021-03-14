@@ -259,11 +259,11 @@ void lockdep_release(lock_class_mapping_t *lock) {
   assert(class);
 
   /* Delete the class of the released lock and shift the rest */
-  int i = 0;
+  int i = thread->td_lock_depth - 1;
   /* Search for the class being released. */
-  while (i < thread->td_lock_depth && class != thread->td_held_locks[i])
-    i++;
-  assert(i < thread->td_lock_depth);
+  while (i >= 0 && class != thread->td_held_locks[i])
+    i--;
+  assert(i >= 0);
   /* Move all classes above it downward in the stack. */
   for (i = i + 1; i < thread->td_lock_depth; i++)
     thread->td_held_locks[i - 1] = thread->td_held_locks[i];
