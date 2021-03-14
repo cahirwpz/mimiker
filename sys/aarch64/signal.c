@@ -35,7 +35,6 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   _REG(uctx, X0) = sig;
   _REG(uctx, X1) = sc_info;
   _REG(uctx, X2) = sc_uctx;
-  _REG(uctx, SP) -= sizeof(intptr_t *);
   _REG(uctx, LR) = sc_code;
 
   return 0;
