@@ -15,20 +15,20 @@
  * During read calls to /dev/procstat this info can be read.
  *
  * Example:
- * euid   pid    ppid    pgrp   session  state    name
+ * euid   pid    ppid    pgrp   session  state    command
  * 0       1       0       1       1       R      /bin/ksh
  */
 
 /* maximum size of output string of proc info
- * name + path + state (1 character)+ spaces (10 characters) +
+ * command + state (1 character)+ spaces (10 characters) +
  *  + 5 * max length of uint32 (10 characters)*/
 #define MAX_P_STRING (PATH_MAX + 5 * 10 + 1 + 10)
 
 /* maximum amount of processes that procstat can handle */
 #define MAX_PROC 40
 
-/* maximum length of displayed name of process */
-#define PROC_NAME_MAX 128
+/* length of displayed command of process (includes terminating null byte) */
+#define PROC_COMM_MAX 128
 
 /* we want to have at most 10 instances of procstat */
 #define MAX_PROCSTAT 10
@@ -47,7 +47,7 @@ typedef struct ps_entry {
   pgid_t pgrp;
   sid_t sid;
   proc_state_t proc_state;
-  char *name;
+  char *command;
 } ps_entry_t;
 
 typedef struct ps_buf {
@@ -79,20 +79,22 @@ static vnodeops_t dev_procstat_vnodeops = {
   .v_close = dev_procstat_close,
 };
 
-static char *get_name(proc_t *p) {
-  char *buf = kmalloc(M_TEMP, PROC_NAME_MAX, M_ZERO);
+static char *get_command(proc_t *p) {
+  char *buf = kmalloc(M_TEMP, PROC_COMM_MAX, M_ZERO);
 
-  /* copy program's name from elfpath */
-  char *start = strrchr(p->p_elfpath, '/');
+  /* copy program's name from elfpath (without starting slash) */
+  char *start = strrchr(p->p_elfpath, '/') + 1;
   if (start == NULL)
     start = p->p_elfpath;
 
-  strncpy(buf, start + 1, PROC_NAME_MAX);
-  size_t len = strlen(buf);
-  if (len < PROC_NAME_MAX)
+  ssize_t len = strlcpy(buf, start, PROC_COMM_MAX);
+  len = min(len, PROC_COMM_MAX - 1);
+
+  /* if there is enough space append space after program name */
+  if (len + 1 < PROC_COMM_MAX)
     buf[len++] = ' ';
 
-  strncpy(buf + len, p->p_args, PROC_NAME_MAX - len);
+  strlcpy(buf + len, p->p_args, PROC_COMM_MAX - len);
 
   return buf;
 }
@@ -105,7 +107,7 @@ static void ps_entry_fill(ps_entry_t *pe, proc_t *p) {
   pe->pgrp = p->p_pgrp->pg_id;
   pe->sid = p->p_pgrp->pg_session->s_sid;
   pe->proc_state = p->p_state;
-  pe->name = get_name(p);
+  pe->command = get_command(p);
 }
 
 /* buf must be at least MAX_P_STRING long
@@ -114,7 +116,7 @@ static void ps_entry_fill(ps_entry_t *pe, proc_t *p) {
 static int ps_entry_tostring(char *buf, ps_entry_t *pe) {
   int r = snprintf(buf, MAX_P_STRING, "%d\t%d\t%d\t%d\t%d\t%c\t%s\n", pe->uid,
                    pe->pid, pe->ppid, pe->pgrp, pe->sid,
-                   proc_state[pe->proc_state], pe->name);
+                   proc_state[pe->proc_state], pe->command);
 
   return min(r, MAX_P_STRING);
 }
@@ -181,7 +183,7 @@ static int dev_procstat_read(file_t *f, uio_t *uio) {
 
   uio->uio_offset = f->f_offset;
   while (uio->uio_resid > 0) {
-    size_t len = min(uio->uio_resid, ps->psize - ps->offset);
+    ssize_t len = min(uio->uio_resid, ps->psize - ps->offset);
     if ((error = uiomove(ps->buf, len, uio)))
       break;
 
@@ -203,7 +205,7 @@ static int dev_procstat_read(file_t *f, uio_t *uio) {
 static int dev_procstat_close(vnode_t *v, file_t *fp) {
   ps_buf_t *ps = fp->f_data;
   for (int i = 0; i < ps->nproc; ++i) {
-    kfree(M_TEMP, ps->ps[i].name);
+    kfree(M_TEMP, ps->ps[i].command);
   }
   kfree(M_TEMP, ps);
 
