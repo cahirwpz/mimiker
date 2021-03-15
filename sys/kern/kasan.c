@@ -40,6 +40,7 @@ struct __asan_global {
 size_t _kasan_shadow_size;
 size_t _kasan_sanitized_size;
 static int kasan_ready;
+extern mtx_t maxkvaddr_lock;
 
 static const char *code_name(uint8_t code) {
   switch (code) {
@@ -222,6 +223,8 @@ static void call_ctors(void) {
 }
 
 void kasan_grow(vaddr_t maxkvaddr) {
+  assert(mtx_owned(&maxkvaddr_lock));
+
   size_t size = maxkvaddr - KASAN_MD_SANITIZED_START - _kasan_sanitized_size;
   assert(size % (SUPERPAGESIZE << 3) == 0);
 
