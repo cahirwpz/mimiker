@@ -123,7 +123,7 @@ static int dev_procstat_open(vnode_t *v, int mode, file_t *fp) {
   ps->nproc = 0;
   mtx_init(&ps->lock, 0);
 
-  WITH_MTX_LOCK (all_proc_mtx) {
+  WITH_MTX_LOCK (&all_proc_mtx) {
     TAILQ_FOREACH (p, &proc_list, p_all) {
       if (p->p_pid == 0)
         continue; /* we don't want to show proc0 to user */
