@@ -5,6 +5,11 @@ include $(TOPDIR)/config.mk
 CURL = curl -L --create-dirs
 RM = rm -f -v
 CP = cp -v
+TAR = tar
+TOUCH = touch
+MKDIR = mkdir -p
+CD = cd
+MV = mv
 
 ifeq ($(shell uname),FreeBSD)
 MAKEFLAGS = -j$(shell sysctl -n hw.ncpu)

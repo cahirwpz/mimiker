@@ -37,8 +37,8 @@ $(SRCDIR)/$(BINUTILS).tar.xz:
 
 binutils-unpack: $(SRCDIR)/binutils/.unpack
 $(SRCDIR)/binutils/.unpack: $(SRCDIR)/$(BINUTILS).tar.xz
-	cd $(SRCDIR) && tar xJf $^ && mv $(BINUTILS) binutils
-	touch $@
+	$(CD) $(SRCDIR) && $(TAR) xJf $^ && $(MV) $(BINUTILS) binutils
+	$(TOUCH) $@
 
 .PHONY: binutils-unpack
 
@@ -49,8 +49,8 @@ $(SRCDIR)/$(GCC).tar.xz:
 
 gcc-unpack: $(SRCDIR)/gcc/.unpack
 $(SRCDIR)/gcc/.unpack: $(SRCDIR)/$(GCC).tar.xz
-	cd $(SRCDIR) && tar xJf $^ && mv $(GCC) gcc
-	touch $@
+	$(CD) $(SRCDIR) && $(TAR) xJf $^ && $(MV) $(GCC) gcc
+	$(TOUCH) $@
 
 .PHONY: gcc-unpack
 
@@ -61,8 +61,8 @@ $(SRCDIR)/$(GDB).tar.xz:
 
 gdb-unpack: $(SRCDIR)/gdb/.unpack
 $(SRCDIR)/gdb/.unpack: $(SRCDIR)/$(GDB).tar.xz
-	cd $(SRCDIR) && tar xJf $^ && mv $(GDB) gdb
-	touch $@
+	$(CD) $(SRCDIR) && $(TAR) xJf $^ && $(MV) $(GDB) gdb
+	$(TOUCH) $@
 
 .PHONY: gdb-unpack
 
@@ -73,25 +73,25 @@ $(SRCDIR)/$(GMP).tar.xz:
 
 gmp-unpack: $(SRCDIR)/gmp/.unpack
 $(SRCDIR)/gmp/.unpack: $(SRCDIR)/$(GMP).tar.xz
-	cd $(SRCDIR) && tar xJf $^ && mv $(GMP) gmp
-	touch $@
+	$(CD) $(SRCDIR) && $(TAR) xJf $^ && $(MV) $(GMP) gmp
+	$(TOUCH) $@
 
 gmp-configure: $(HOSTBUILD)/gmp/.configure
 $(HOSTBUILD)/gmp/.configure: $(SRCDIR)/gmp/.unpack
-	mkdir -p $(HOSTBUILD)/gmp && cd $(HOSTBUILD)/gmp && $(SRCDIR)/gmp/configure \
+	$(MKDIR) $(HOSTBUILD)/gmp && $(CD) $(HOSTBUILD)/gmp && $(SRCDIR)/gmp/configure \
 		--disable-shared \
 		--prefix=$(HOSTDIR)
-	touch $@
+	$(TOUCH) $@
 
 gmp-build: $(HOSTBUILD)/gmp/.build
 $(HOSTBUILD)/gmp/.build: $(HOSTBUILD)/gmp/.configure
-	cd $(HOSTBUILD)/gmp && $(MAKE)
-	touch $@
+	$(CD) $(HOSTBUILD)/gmp && $(MAKE)
+	$(TOUCH) $@
 
 gmp-install: $(HOSTBUILD)/gmp/.install
 $(HOSTBUILD)/gmp/.install: $(HOSTBUILD)/gmp/.build
-	cd $(HOSTBUILD)/gmp && $(MAKE) install-strip
-	touch $@
+	$(CD) $(HOSTBUILD)/gmp && $(MAKE) install-strip
+	$(TOUCH) $@
 
 gmp-clean:
 	$(RM) -r $(HOSTBUILD)/gmp
@@ -105,26 +105,26 @@ $(SRCDIR)/$(MPFR).tar.xz:
 
 mpfr-unpack: $(SRCDIR)/mpfr/.unpack
 $(SRCDIR)/mpfr/.unpack: $(SRCDIR)/$(MPFR).tar.xz
-	cd $(SRCDIR) && tar xJf $^ && mv $(MPFR) mpfr
-	touch $@
+	$(CD) $(SRCDIR) && $(TAR) xJf $^ && $(MV) $(MPFR) mpfr
+	$(TOUCH) $@
 
 mpfr-configure: mpfr/.configure
 $(HOSTBUILD)/mpfr/.configure: $(SRCDIR)/mpfr/.unpack $(HOSTBUILD)/gmp/.install
-	mkdir -p $(HOSTBUILD)/mpfr && cd $(HOSTBUILD)/mpfr && $(SRCDIR)/mpfr/configure \
+	$(MKDIR) $(HOSTBUILD)/mpfr && $(CD) $(HOSTBUILD)/mpfr && $(SRCDIR)/mpfr/configure \
 		--disable-shared \
 		--prefix=$(HOSTDIR) \
 		--with-gmp=$(HOSTDIR)
-	touch $@
+	$(TOUCH) $@
 
 mpfr-build: $(HOSTBUILD)/mpfr/.build
 $(HOSTBUILD)/mpfr/.build: $(HOSTBUILD)/mpfr/.configure
-	cd $(HOSTBUILD)/mpfr && $(MAKE)
-	touch $@
+	$(CD) $(HOSTBUILD)/mpfr && $(MAKE)
+	$(TOUCH) $@
 
 mpfr-install: $(HOSTBUILD)/mpfr/.install
 $(HOSTBUILD)/mpfr/.install: $(HOSTBUILD)/mpfr/.build
-	cd $(HOSTBUILD)/mpfr && $(MAKE) install-strip
-	touch $@
+	$(CD) $(HOSTBUILD)/mpfr && $(MAKE) install-strip
+	$(TOUCH) $@
 
 mpfr-clean:
 	$(RM) -r $(HOSTBUILD)/mpfr
@@ -138,27 +138,27 @@ $(SRCDIR)/$(MPC).tar.gz:
 
 mpc-unpack: $(SRCDIR)/mpc/.unpack
 $(SRCDIR)/mpc/.unpack: $(SRCDIR)/$(MPC).tar.gz
-	cd $(SRCDIR) && tar xzf $^ && mv $(MPC) mpc
-	touch $@
+	$(CD) $(SRCDIR) && $(TAR) xzf $^ && $(MV) $(MPC) mpc
+	$(TOUCH) $@
 
 mpc-configure: $(HOSTBUILD)/mpc/.configure
 $(HOSTBUILD)/mpc/.configure: $(SRCDIR)/mpc/.unpack $(HOSTBUILD)/gmp/.install $(HOSTBUILD)/mpfr/.install
-	mkdir -p $(HOSTBUILD)/mpc && cd $(HOSTBUILD)/mpc && $(SRCDIR)/mpc/configure \
+	$(MKDIR) $(HOSTBUILD)/mpc && $(CD) $(HOSTBUILD)/mpc && $(SRCDIR)/mpc/configure \
 		--disable-shared \
 		--prefix=$(HOSTDIR) \
 		--with-gmp=$(HOSTDIR) \
 		--with-mpfr=$(HOSTDIR)
-	touch $@
+	$(TOUCH) $@
 
 mpc-build: $(HOSTBUILD)/mpc/.build
 $(HOSTBUILD)/mpc/.build: $(HOSTBUILD)/mpc/.configure
-	cd $(HOSTBUILD)/mpc && $(MAKE)
-	touch $@
+	$(CD) $(HOSTBUILD)/mpc && $(MAKE)
+	$(TOUCH) $@
 
 mpc-install: $(HOSTBUILD)/mpc/.install
 $(HOSTBUILD)/mpc/.install: $(HOSTBUILD)/mpc/.build
-	cd $(HOSTBUILD)/mpc && $(MAKE) install-strip
-	touch $@
+	$(CD) $(HOSTBUILD)/mpc && $(MAKE) install-strip
+	$(TOUCH) $@
 
 mpc-clean:
 	$(RM) -r $(HOSTBUILD)/mpc
@@ -172,26 +172,26 @@ $(SRCDIR)/$(ISL).tar.xz:
 
 isl-unpack: $(SRCDIR)/isl/.unpack
 $(SRCDIR)/isl/.unpack: $(SRCDIR)/$(ISL).tar.xz
-	cd $(SRCDIR) && tar xJf $^ && mv $(ISL) isl
-	touch $@
+	$(CD) $(SRCDIR) && $(TAR) xJf $^ && $(MV)  $(ISL) isl
+	$(TOUCH) $@
 
 isl-configure: $(HOSTBUILD)/isl/.configure
 $(HOSTBUILD)/isl/.configure: $(SRCDIR)/isl/.unpack $(HOSTBUILD)/gmp/.install
-	mkdir -p $(HOSTBUILD)/isl && cd $(HOSTBUILD)/isl && $(SRCDIR)/isl/configure \
+	$(MKDIR) $(HOSTBUILD)/isl && $(CD) $(HOSTBUILD)/isl && $(SRCDIR)/isl/configure \
 		--disable-shared \
 		--prefix=$(HOSTDIR) \
 		--with-gmp-prefix=$(HOSTDIR)
-	touch $@
+	$(TOUCH) $@
 
 isl-build: $(HOSTBUILD)/isl/.build
 $(HOSTBUILD)/isl/.build: $(HOSTBUILD)/isl/.configure
-	cd $(HOSTBUILD)/isl && $(MAKE)
-	touch $@
+	$(CD) $(HOSTBUILD)/isl && $(MAKE)
+	$(TOUCH) $@
 
 isl-install: $(HOSTBUILD)/isl/.install
 $(HOSTBUILD)/isl/.install: $(HOSTBUILD)/isl/.build
-	cd $(HOSTBUILD)/isl && $(MAKE) install-strip
-	touch $@
+	$(CD) $(HOSTBUILD)/isl && $(MAKE) install-strip
+	$(TOUCH) $@
 
 isl-clean:
 	$(RM) -r $(HOSTBUILD)/isl
@@ -205,28 +205,28 @@ $(SRCDIR)/$(CLOOG).tar.gz:
 
 cloog-unpack: $(SRCDIR)/cloog/.unpack
 $(SRCDIR)/cloog/.unpack: $(SRCDIR)/$(CLOOG).tar.gz
-	cd $(SRCDIR) && tar xzf $^ && mv $(CLOOG) cloog
-	touch $@
+	$(CD) $(SRCDIR) && $(TAR) xzf $^ && $(MV)  $(CLOOG) cloog
+	$(TOUCH) $@
 
 cloog-configure: $(HOSTBUILD)/cloog/.configure
 $(HOSTBUILD)/cloog/.configure: $(SRCDIR)/cloog/.unpack $(HOSTBUILD)/gmp/.install $(HOSTBUILD)/isl/.install
-	mkdir -p $(HOSTBUILD)/cloog && cd $(HOSTBUILD)/cloog && $(SRCDIR)/cloog/configure \
+	$(MKDIR) $(HOSTBUILD)/cloog && $(CD) $(HOSTBUILD)/cloog && $(SRCDIR)/cloog/configure \
 		--disable-shared \
 		--prefix=$(HOSTDIR) \
 		--with-isl=system \
 		--with-gmp-prefix=$(HOSTDIR) \
 		--with-isl-prefix=$(HOSTDIR)
-	touch $@
+	$(TOUCH) $@
 
 cloog-build: $(HOSTBUILD)/cloog/.build
 $(HOSTBUILD)/cloog/.build: $(HOSTBUILD)/cloog/.configure
-	cd $(HOSTBUILD)/cloog && $(MAKE)
-	touch $@
+	$(CD) $(HOSTBUILD)/cloog && $(MAKE)
+	$(TOUCH) $@
 
 cloog-install: $(HOSTBUILD)/cloog/.install
 $(HOSTBUILD)/cloog/.install: $(HOSTBUILD)/cloog/.build
-	cd $(HOSTBUILD)/cloog && $(MAKE) install-strip
-	touch $@
+	$(CD) $(HOSTBUILD)/cloog && $(MAKE) install-strip
+	$(TOUCH) $@
 
 cloog-clean:
 	$(RM) -r $(HOSTBUILD)/cloog

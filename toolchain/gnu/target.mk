@@ -23,7 +23,7 @@ package:
 
 binutils-configure: binutils/.configure
 binutils/.configure:
-	mkdir -p binutils && cd binutils && $(SRCDIR)/binutils/configure \
+	$(MKDIR) binutils && $(CD) binutils && $(SRCDIR)/binutils/configure \
 		--target=$(TARGET) \
 		--prefix=$(PREFIX) \
 		--datarootdir=$(PREFIX)/$(TARGET)/share \
@@ -37,17 +37,17 @@ binutils/.configure:
 		--with-mpc=$(HOSTDIR) \
 		--with-isl=$(HOSTDIR) \
 		--with-python=$(shell which python3)
-	touch $@
+	$(TOUCH) $@
 
 binutils-build: binutils/.build
 binutils/.build: binutils/.configure
-	cd binutils && $(MAKE) LDFLAGS=-Wl,--as-needed
-	touch $@
+	$(CD) binutils && $(MAKE) LDFLAGS=-Wl,--as-needed
+	$(TOUCH) $@
 
 binutils-install: binutils/.install
 binutils/.install: binutils/.build
-	cd binutils && $(MAKE) install DESTDIR=$(DESTDIR)
-	touch $@
+	$(CD) binutils && $(MAKE) install DESTDIR=$(DESTDIR)
+	$(TOUCH) $@
 
 binutils-clean:
 	$(RM) -r binutils
@@ -65,7 +65,7 @@ TARGET_TOOLS = AS_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-as \
 
 gcc-configure: gcc/.configure
 gcc/.configure: binutils/.install
-	mkdir -p gcc && cd gcc && PATH=$(PREFIX)/bin:$$PATH $(SRCDIR)/gcc/configure \
+	$(MKDIR) gcc && $(CD) gcc && PATH=$(PREFIX)/bin:$$PATH $(SRCDIR)/gcc/configure \
 		--target=$(TARGET) \
 		--prefix=$(PREFIX) \
 		--datarootdir=$(PREFIX)/$(TARGET)/share \
@@ -85,19 +85,19 @@ gcc/.configure: binutils/.install
 		--with-newlib \
 		--without-headers \
 		$(GCC_EXTRA_CONF)
-	touch $@
+	$(TOUCH) $@
 
 gcc-build: gcc/.build
 gcc/.build: gcc/.configure
-	cd gcc && $(MAKE) all-gcc $(TARGET_TOOLS)
-	cd gcc && $(MAKE) all-target-libgcc $(TARGET_TOOLS)
-	touch $@
+	$(CD) gcc && $(MAKE) all-gcc $(TARGET_TOOLS)
+	$(CD) gcc && $(MAKE) all-target-libgcc $(TARGET_TOOLS)
+	$(TOUCH) $@
 
 gcc-install: gcc/.install
 gcc/.install: gcc/.build
-	cd gcc && $(MAKE) install-gcc DESTDIR=$(DESTDIR) $(TARGET_TOOLS)
-	cd gcc && $(MAKE) install-target-libgcc DESTDIR=$(DESTDIR) $(TARGET_TOOLS)
-	touch $@
+	$(CD) gcc && $(MAKE) install-gcc DESTDIR=$(DESTDIR) $(TARGET_TOOLS)
+	$(CD) gcc && $(MAKE) install-target-libgcc DESTDIR=$(DESTDIR) $(TARGET_TOOLS)
+	$(TOUCH) $@
 
 gcc-clean:
 	$(RM) -r gcc
@@ -108,7 +108,7 @@ gcc-clean:
 
 gdb-configure: gdb/.configure
 gdb/.configure: gcc/.install
-	mkdir -p gdb && cd gdb && PATH=$(PREFIX)/bin:$$PATH $(SRCDIR)/gdb/configure \
+	$(MKDIR) gdb && $(CD) gdb && PATH=$(PREFIX)/bin:$$PATH $(SRCDIR)/gdb/configure \
 		--target=$(TARGET)\
 		--prefix=$(PREFIX) \
 		--datarootdir=$(PREFIX)/$(TARGET)/share \
@@ -123,17 +123,17 @@ gdb/.configure: gcc/.install
 		--disable-source-highlight \
 		--with-tui \
 		--with-python=$(shell which python3)
-	touch $@
+	$(TOUCH) $@
 
 gdb-build: gdb/.build
 gdb/.build: gdb/.configure
-	cd gdb && $(MAKE) LDFLAGS=-Wl,--as-needed
-	touch $@
+	$(CD) gdb && $(MAKE) LDFLAGS=-Wl,--as-needed
+	$(TOUCH) $@
 
 gdb-install: gdb/.install
 gdb/.install: gdb/.build
-	cd gdb && $(MAKE) install-gdb DESTDIR=$(DESTDIR)
-	touch $@
+	$(CD) gdb && $(MAKE) install-gdb DESTDIR=$(DESTDIR)
+	$(TOUCH) $@
 
 gdb-clean:
 	$(RM) -r gdb
