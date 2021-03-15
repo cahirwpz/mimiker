@@ -227,7 +227,7 @@ fail:
 }
 
 static int open_executable(const char *path, vnode_t **vn_p, cred_t *cred) {
-  vnode_t *vn = *vn_p;
+  vnode_t *vn;
   int error;
 
   klog("Loading program '%s'", path);

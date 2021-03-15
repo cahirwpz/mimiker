@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = csu libc libm libutil
+SUBDIR = csu libc libm libterminfo libutil
 
 all: build
 
