@@ -571,10 +571,10 @@ vaddr_t pmap_growkernel(vaddr_t maxkvaddr) {
    * For 8 pages used by kernel we need 1 page for KASAN.
    * shadow map is grown by a multiple of L1_SPACE_SIZE.
    */
-  maxkvaddr = roundup(maxkvaddr, 8 * L1_SPACE_SIZE);
+  maxkvaddr = roundup(maxkvaddr, L1_SPACE_SIZE);
 
   WITH_MTX_LOCK (&pmap->mtx) {
-    for (va = rounddown(pmap_maxkvaddr, 8 * L1_SPACE_SIZE); va < maxkvaddr;
+    for (va = rounddown(pmap_maxkvaddr, L1_SPACE_SIZE); va < maxkvaddr;
          va += L1_SPACE_SIZE) {
       if (!is_valid_pde(PDE_OF(pmap, va)))
         pmap_add_pde(pmap, va);
