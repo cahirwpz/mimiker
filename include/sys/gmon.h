@@ -34,19 +34,25 @@
 #ifndef _SYS_GMON_H_
 #define _SYS_GMON_H_
 
-#include <machine/profile.h>
+#if KPROF
+void init_prof(void);
+#else
+#define init_prof() __nothing
+#endif
 
 /*
  * Structure prepended to gmon.out profiling data file.
  */
-struct gmonhdr {
+typedef struct gmonhdr {
   u_long lpc;   /* base pc address of sample buffer */
   u_long hpc;   /* max pc address of sampled buffer */
   int ncnt;     /* size of sample buffer (plus this header) */
   int version;  /* version number */
   int profrate; /* profiling clock rate */
   int spare[3]; /* reserved */
-};
+} gmonhdr_t;
+extern gmonhdr_t _gmonhdr;
+
 #define GMONVERSION 0x00051879
 
 /*
@@ -98,12 +104,12 @@ struct gmonhdr {
 #define MINARCS 50
 #define MAXARCS ((1 << (unsigned int)(8 * sizeof(HISTCOUNTER))) - 2)
 
-struct tostruct {
+typedef struct tostruct {
   u_long selfpc;
   long count;
   u_short link;
   u_short pad;
-};
+} tostruct_t;
 
 /*
  * a raw arc, with pointers to the calling site and
@@ -118,7 +124,7 @@ struct rawarc {
 /*
  * The profiling data structures are housed in this structure.
  */
-struct gmonparam {
+typedef struct gmonparam {
   int state;
   u_short *kcount;
   u_long kcountsize;
@@ -131,16 +137,19 @@ struct gmonparam {
   u_long highpc;
   u_long textsize;
   u_long hashfraction;
-};
-extern struct gmonparam _gmonparam;
+} gmonparam_t;
+extern gmonparam_t _gmonparam;
 
 /*
  * Possible states of profiling.
  */
-#define GMON_PROF_ON 0
-#define GMON_PROF_BUSY 1
-#define GMON_PROF_ERROR 2
-#define GMON_PROF_OFF 3
+typedef enum {
+  GMON_PROF_ON = 0,
+  GMON_PROF_BUSY = 1,
+  GMON_PROF_ERROR = 2,
+  GMON_PROF_OFF = 3,
+  GMON_PROF_NOT_INIT = 4,
+} gmon_flags_t;
 
 /*
  * Sysctl definitions for extracting profiling information from the kernel.

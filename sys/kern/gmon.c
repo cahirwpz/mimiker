@@ -5,12 +5,13 @@
 #include <sys/gmon.h>
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/mimiker.h>
 #include <machine/vm_param.h>
 #include <sys/types.h>
 
-gmonparam_t _gmonparam = {.state = GMON_PROF_OFF};
-
+gmonparam_t _gmonparam = {.state = GMON_PROF_NOT_INIT};
+gmonhdr_t _gmonhdr = {.profrate = CLK_TCK};
 /* The macros description are provided in gmon.h */
 void init_prof(void) {
   void *profptr;
@@ -48,4 +49,11 @@ void init_prof(void) {
   assert(is_aligned(profptr, alignof(u_short)));
   p->froms = (u_short *)profptr;
   p->state = GMON_PROF_ON;
+
+  gmonhdr_t *hdr = &_gmonhdr;
+  hdr->lpc = p->lowpc;
+  hdr->hpc = p->highpc;
+  hdr->ncnt = p->kcountsize + sizeof(gmonhdr_t);
+  hdr->version = GMONVERSION;
+  hdr->spare[0] = hdr->spare[1] = hdr->spare[2] = 0;
 }
