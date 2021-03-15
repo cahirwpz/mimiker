@@ -29,7 +29,7 @@ typedef struct lock_class_link {
   lock_class_t *to;
 } lock_class_link_t;
 
-static spin_t main_lock = SPIN_INITIALIZER(0);
+static SPIN_DEFINE(main_lock, 0);
 
 #define CLASSHASH_SIZE 64
 /* We have to divide the key by the alignment of lock_class_key_t to prevent the

@@ -32,13 +32,13 @@ typedef struct mtx {
 #define MTX_FLAGMASK 7
 
 #if LOCKDEP
-#define MTX_INITIALIZER(mutexname, recursive)                                   \
+#define MTX_INITIALIZER(mutexname, recursive)                                  \
   (mtx_t) {                                                                    \
     .m_attr = (recursive) | LK_TYPE_BLOCK,                                     \
-    .m_lockmap = LOCKDEP_MAPPING_INITIALIZER(mutexname)                         \
+    .m_lockmap = LOCKDEP_MAPPING_INITIALIZER(mutexname)                        \
   }
 #else
-#define MTX_INITIALIZER(mutexname, recursive)                                   \
+#define MTX_INITIALIZER(mutexname, recursive)                                  \
   (mtx_t) {                                                                    \
     .m_attr = (recursive) | LK_TYPE_BLOCK                                      \
   }
