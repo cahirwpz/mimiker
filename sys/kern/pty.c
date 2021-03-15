@@ -235,7 +235,7 @@ int do_posix_openpt(proc_t *p, int flags, register_t *res) {
   tty->t_data = pty;
 
   if (!(flags & O_NOCTTY)) {
-    WITH_MTX_LOCK (all_proc_mtx)
+    WITH_MTX_LOCK (&all_proc_mtx)
       WITH_MTX_LOCK (&tty->t_lock)
         maybe_assoc_ctty(p, tty);
   }

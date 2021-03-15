@@ -3,7 +3,6 @@
 SYSCALL_MISSING(getrusage)
 SYSCALL_MISSING(rename)
 SYSCALL_MISSING(getrlimit)
-SYSCALL_MISSING(setitimer)
 SYSCALL_MISSING(setrlimit)
 SYSCALL_MISSING(socketpair)
 SYSCALL_MISSING(madvise)
