@@ -9,6 +9,7 @@ from .struct import GdbStructMeta
 
 OFILE = "gmon.out"
 
+
 class RawArc(Structure):
     _fields_ = [('raw_frompc', c_uint), ('raw_selfpc', c_uint),
                 ('raw_count', c_int)]
@@ -79,8 +80,9 @@ class Kgmon(SimpleCommand):
         super().__init__('kgmon')
 
     def __call__(self, args):
-        if gdb.parse_and_eval('_gmonparam.state') == gdb.parse_and_eval('GMON_PROF_NOT_INIT'):
-            print("Kgmon not innitalized yet or you have to compile the program with KPROF=1")
+        state = gdb.parse_and_eval('_gmonparam.state')
+        if state == gdb.parse_and_eval('GMON_PROF_NOT_INIT'):
+            print("Compile program with KPROF=1 or gmon not innitalized yet")
             return
         infer = gdb.inferiors()[0]
         gmonparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
