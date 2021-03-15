@@ -46,7 +46,7 @@ class Kgmon(SimpleCommand):
     def __call__(self, args):
         state = gdb.parse_and_eval('_gmonparam.state')
         if state == gdb.parse_and_eval('GMON_PROF_NOT_INIT'):
-            print("Compile program with KGPROF=1 or gmon not innitalized yet")
+            print("Compile program with KGPROF=1 or gmon not initialized yet")
             return
         gmon = GmonOut().write_to_file()
         print("KGMON: Finished")
