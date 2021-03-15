@@ -37,8 +37,7 @@ struct __asan_global {
   const void *odr_indicator; /* The address of the ODR indicator symbol */
 };
 
-size_t _kasan_shadow_size;
-size_t _kasan_sanitized_size;
+size_t _kasan_sanitized_end;
 static int kasan_ready;
 extern mtx_t maxkvaddr_lock;
 
@@ -222,34 +221,34 @@ static void call_ctors(void) {
   }
 }
 
+static inline vaddr_t kasan_va_to_shadow(vaddr_t va) {
+  return KASAN_MD_SHADOW_START +
+         (va - KASAN_MD_SANITIZED_START) / KASAN_SHADOW_SCALE_SIZE;
+}
+
 void kasan_grow(vaddr_t maxkvaddr) {
   assert(mtx_owned(&maxkvaddr_lock));
+  maxkvaddr = roundup2(maxkvaddr, PAGESIZE * KASAN_SHADOW_SCALE_SIZE);
+  vaddr_t va = kasan_va_to_shadow(_kasan_sanitized_end);
+  vaddr_t end = kasan_va_to_shadow(maxkvaddr);
 
-  size_t size = maxkvaddr - KASAN_MD_SANITIZED_START - _kasan_sanitized_size;
-  assert(size % (SUPERPAGESIZE << 3) == 0);
-
-  size_t num_pde = (size >> KASAN_SHADOW_SCALE_SHIFT) / SUPERPAGESIZE;
-  vaddr_t va = KASAN_MD_SHADOW_START + _kasan_shadow_size;
-
-  for (size_t i = 0; i < num_pde; ++i) {
-    for (size_t j = 0; j < PT_ENTRIES; ++j) {
-      vm_page_t *pg = vm_page_alloc(1);
-      paddr_t pa = pg->paddr;
-      pmap_kenter(va, pa, VM_PROT_READ | VM_PROT_WRITE, 0);
-      va += PAGESIZE;
-      _kasan_shadow_size += PAGESIZE;
-    }
+  /* Allocate and map shadow pages to cover the new KVA space. */
+  for (; va < end; va += PAGESIZE) {
+    vm_page_t *pg = vm_page_alloc(1);
+    pmap_kenter(va, pg->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
   }
 
-  kasan_mark_valid(
-    (const void *)(KASAN_MD_SANITIZED_START + _kasan_sanitized_size), size);
-  _kasan_sanitized_size += size;
+  if (maxkvaddr > _kasan_sanitized_end) {
+    kasan_mark_valid((const void *)(_kasan_sanitized_end),
+                     maxkvaddr - _kasan_sanitized_end);
+    _kasan_sanitized_end = maxkvaddr;
+  }
 }
 
 void init_kasan(void) {
   /* Set entire shadow memory to zero */
   kasan_mark_valid((const void *)KASAN_MD_SANITIZED_START,
-                   _kasan_sanitized_size);
+                   _kasan_sanitized_end - KASAN_MD_SANITIZED_START);
 
   /* KASAN is ready to check for errors! */
   kasan_ready = 1;

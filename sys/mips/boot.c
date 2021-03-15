@@ -13,8 +13,7 @@ __boot_data void *_bootmem_end;
 extern pde_t *_kernel_pmap_pde;
 /* The boot stack is used before we switch out to thread0. */
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
-extern size_t _kasan_sanitized_size;
-extern size_t _kasan_shadow_size;
+extern size_t _kasan_sanitized_end;
 
 /* Allocates pages in kseg0. The argument will be aligned to PAGESIZE. */
 static __boot_text void *bootmem_alloc(size_t bytes) {
@@ -102,6 +101,8 @@ __boot_text void *mips_init(void) {
     pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
 
 #if KASAN /* Prepare KASAN shadow mappings */
+  vaddr_t kasan_sanitized_end =
+    roundup(va, SUPERPAGESIZE << KASAN_SHADOW_SCALE_SHIFT);
   size_t kasan_sanitized_size = roundup(
     va - MIPS_PHYS_TO_KSEG2(text), SUPERPAGESIZE << KASAN_SHADOW_SCALE_SHIFT);
   size_t kasan_shadow_size = kasan_sanitized_size >> KASAN_SHADOW_SCALE_SHIFT;
@@ -136,8 +137,7 @@ __boot_text void *mips_init(void) {
   /* Since variables are in kseg2 we cannot initialize them earlier. */
   _kernel_pmap_pde = pde;
 #if KASAN
-  _kasan_sanitized_size = kasan_sanitized_size;
-  _kasan_shadow_size = kasan_shadow_size;
+  _kasan_sanitized_end = kasan_sanitized_end;
 #endif /* !KASAN */
 
   /* Return the end of boot stack (grows downwards on MIPS) as new sp.
