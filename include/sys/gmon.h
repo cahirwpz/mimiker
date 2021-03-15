@@ -67,6 +67,8 @@ extern gmonhdr_t _gmonhdr;
 #define HISTFRACTION 2
 #endif /* HISTFRACTION */
 
+#define INSTR_GRANULARITY HISTFRACTION * sizeof(HISTCOUNTER)
+
 /*
  * Fraction of text space to allocate for from hash buckets.
  * The value of HASHFRACTION is based on the minimum number of bytes
@@ -126,7 +128,7 @@ struct rawarc {
  */
 typedef struct gmonparam {
   int state;
-  u_short *kcount;
+  HISTCOUNTER *kcount;
   u_long kcountsize;
   u_short *froms;
   u_long fromssize;

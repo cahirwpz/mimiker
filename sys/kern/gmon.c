@@ -17,10 +17,9 @@ void init_prof(void) {
   void *profptr;
   gmonparam_t *p = &_gmonparam;
 
-  p->lowpc = rounddown((unsigned long)__kernel_start,
-                       HISTFRACTION * sizeof(HISTCOUNTER));
+  p->lowpc = rounddown((unsigned long)__kernel_start, INSTR_GRANULARITY);
   p->highpc =
-    roundup((unsigned long)__etext, HISTFRACTION * sizeof(HISTCOUNTER));
+    roundup((unsigned long)__etext, INSTR_GRANULARITY);
   p->textsize = p->highpc - p->lowpc;
   p->kcountsize = p->textsize / HISTFRACTION;
   p->hashfraction = HASHFRACTION;

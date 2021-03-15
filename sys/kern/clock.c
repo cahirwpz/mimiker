@@ -27,7 +27,7 @@ static void statclock(void) {
   if (g->state == GMON_PROF_ON && pc >= g->lowpc) {
     instr = pc - g->lowpc;
     if (instr < g->textsize) {
-      instr /= HISTFRACTION * sizeof(*g->kcount);
+      instr /= INSTR_GRANULARITY;
       g->kcount[instr]++;
     }
   }
