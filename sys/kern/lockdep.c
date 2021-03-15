@@ -250,6 +250,7 @@ void lockdep_acquire(lock_class_mapping_t *lock) {
   lockdep_unlock();
 }
 
+/* This function is called with the `lock` held. */
 void lockdep_release(lock_class_mapping_t *lock) {
   lock_class_t *class = lock->lock_class;
   thread_t *thread = thread_self();
