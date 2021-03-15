@@ -28,22 +28,20 @@ static void consume(ringbuf_t *buf, unsigned bytes) {
     buf->tail = 0;
 }
 
-/* below two function are to help track ringbuf pointers in case when it is
+/* below two function are to help to track ringbuf pointers in case when it is
  * changed by something else. e.q. DMA */
 void ringbuf_produce(ringbuf_t *buf, unsigned bytes) {
+  assert(buf->count + bytes <= buf->size);
   buf->count += bytes;
   buf->head += bytes;
   buf->head %= buf->size;
-  if (buf->count > buf->size)
-    buf->count = buf->size;
 }
 
 void ringbuf_consume(ringbuf_t *buf, unsigned bytes) {
+  assert(buf->count >= bytes);
   buf->count -= bytes;
   buf->tail += bytes;
   buf->tail %= buf->size;
-  if (buf->count > buf->size)
-    buf->count = 0;
 }
 
 bool ringbuf_putb(ringbuf_t *buf, uint8_t byte) {
