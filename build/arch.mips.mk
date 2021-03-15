@@ -21,8 +21,8 @@ CLANG_ABIFLAGS += -msoft-float
 endif
 
 ifeq ($(KERNEL), 1)
-KPROF ?= 0
+KGPROF ?= 0
 
 # Added to all files
-CFLAGS += -DKPROF=$(KPROF)
+CFLAGS += -DKGPROF=$(KGPROF)
 endif

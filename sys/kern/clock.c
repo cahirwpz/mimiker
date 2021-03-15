@@ -14,7 +14,7 @@ systime_t getsystime(void) {
   return now;
 }
 
-#if KPROF
+#if KGPROF
 static void statclock(void) {
   uintptr_t pc, instr;
   gmonparam_t *g = &_gmonparam;

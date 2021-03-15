@@ -14,7 +14,7 @@ gmonparam_t _gmonparam = {.state = GMON_PROF_NOT_INIT};
 gmonhdr_t _gmonhdr = {.profrate = CLK_TCK};
 /* The macros description are provided in gmon.h */
 void init_prof(void) {
-#if KPROF == 0
+#if KGPROF == 0
   return;
 #endif
   void *profptr;
