@@ -7,23 +7,28 @@
 /*
  * Lock depedency validator builds the graph between locks where edge denotes
  * that lock X was acquired while holding lock Y. This allows for detecting a
- * situation, when there is no ordering between some pair of locks.
+ * situation when there is no ordering (i.e. X is sometimes locked before Y and
+ * vice-versa) between some pair of locks.
  *
  * The basic object the validator operates upon is a 'class' of locks. A class
  * of locks is a group of locks that are logically the same with respect to
  * locking rules, even if the locks may have multiple instantiations. For
- * example a lock in the vnode struct is one class, while each vnode has its own
+ * example a lock proc_t::p_lock is one class, while each proc_t has its own
  * instantiation of that lock class.
  *
  * Every lock class is identified by its key. For statically allocated lock
- * objects the key equals to the pointer of that lock. Dynamically allocated
+ * instances the key equals to the pointer of that lock. Dynamically allocated
  * ones get the key depending on where they were initialized.
  *
  * Lock depedency validator uses pre-allocated global memory for its internal
  * structures.
  *
- * To enable, compile the kernel with LOCKDEP=1 flag. If the lock order is
- * violated the kernel will panic.
+ * To enable, compile the kernel with LOCKDEP=1 flag.
+ *
+ * Every lock acquisition is instrumented in the way that we try to add an edge
+ * between corresponding classes. If it does not exist we add it to the graph
+ * and then we run the bfs to search for cycles. If the lock order is violated
+ * the kernel will panic.
  */
 
 #define LOCKDEP_MAX_HELD_LOCKS 16

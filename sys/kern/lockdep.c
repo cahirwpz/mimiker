@@ -13,21 +13,23 @@ typedef struct lock_class {
 
   /* A list of lock classes corresponding to locks acquired while holding a lock
    * belonging to this lock class. */
-  SIMPLEQ_HEAD(, lock_class_link) locked_after;
+  SIMPLEQ_HEAD(, lock_class_edge) locked_after;
 
   /* Used in the graph traversal to decide if the graph node was already
-   * visited. */
+   * visited. This won't never overflow, because bfs won't be run more than
+   * possible number of edges in the graph.
+   */
   int bfs_gen_id;
 } lock_class_t;
 
 /*
- * lock_class_link represents an edge in the graph of lock depedency. An edge
+ * lock_class_edge represents an edge in the graph of lock depedency. An edge
  * C1-> C2 is created if the lock class C2 acquired while holding the class C1.
  */
-typedef struct lock_class_link {
-  SIMPLEQ_ENTRY(lock_class_link) entry;
+typedef struct lock_class_edge {
+  SIMPLEQ_ENTRY(lock_class_edge) link;
   lock_class_t *to;
-} lock_class_link_t;
+} lock_class_edge_t;
 
 static SPIN_DEFINE(main_lock, 0);
 
@@ -49,14 +51,14 @@ static SIMPLEQ_HEAD(, lock_class) lock_hashtbl[CLASSHASH_SIZE];
 static lock_class_t lock_classes[MAX_CLASSES];
 static int class_cnt = 0;
 
-#define MAX_LINKS 256
-static lock_class_link_t lock_links[MAX_LINKS];
-static int link_cnt = 0;
+#define MAX_EDGES 256
+static lock_class_edge_t lock_edges[MAX_EDGES];
+static int edge_cnt = 0;
 
 #define BFS_QUEUE_SIZE 32
 
 typedef struct {
-  lock_class_link_t *items[BFS_QUEUE_SIZE];
+  lock_class_edge_t *items[BFS_QUEUE_SIZE];
   size_t head, tail;
 } bfs_queue_t;
 
@@ -75,7 +77,7 @@ static inline int bfs_q_full(bfs_queue_t *q) {
   return ((q->tail + 1) % BFS_QUEUE_SIZE) == q->head;
 }
 
-static inline int bfs_q_enqueue(bfs_queue_t *q, lock_class_link_t *elem) {
+static inline int bfs_q_enqueue(bfs_queue_t *q, lock_class_edge_t *elem) {
   if (bfs_q_full(q))
     return 0;
 
@@ -84,8 +86,8 @@ static inline int bfs_q_enqueue(bfs_queue_t *q, lock_class_link_t *elem) {
   return 1;
 }
 
-static inline lock_class_link_t *bfs_q_dequeue(bfs_queue_t *q) {
-  lock_class_link_t *elem;
+static inline lock_class_edge_t *bfs_q_dequeue(bfs_queue_t *q) {
+  lock_class_edge_t *elem;
 
   if (bfs_q_empty(q))
     return NULL;
@@ -103,10 +105,10 @@ static inline void lockdep_unlock(void) {
   spin_unlock(&main_lock);
 }
 
-static inline lock_class_link_t *bfs_next_link(lock_class_link_t *link) {
-  if (link == NULL)
+static inline lock_class_edge_t *bfs_next_edge(lock_class_edge_t *edge) {
+  if (edge == NULL)
     return NULL;
-  return SIMPLEQ_NEXT(link, entry);
+  return SIMPLEQ_NEXT(edge, link);
 }
 
 static inline void bfs_mark_visited(lock_class_t *class) {
@@ -122,7 +124,7 @@ static inline int bfs_is_visited(lock_class_t *class) {
  * <target> or not.
  */
 static bool check_path(lock_class_t *src, lock_class_t *target) {
-  lock_class_link_t *child, *link = NULL;
+  lock_class_edge_t *child, *edge = NULL;
   bfs_queue_t *queue = &bfs_queue;
 
   bfs_q_init(queue);
@@ -131,15 +133,15 @@ static bool check_path(lock_class_t *src, lock_class_t *target) {
   bfs_q_enqueue(queue, SIMPLEQ_FIRST(&src->locked_after));
   bfs_mark_visited(src);
 
-  while ((link = bfs_next_link(link)) || (link = bfs_q_dequeue(queue))) {
-    if (bfs_is_visited(link->to))
+  while ((edge = bfs_next_edge(edge)) || (edge = bfs_q_dequeue(queue))) {
+    if (bfs_is_visited(edge->to))
       continue;
-    bfs_mark_visited(link->to);
+    bfs_mark_visited(edge->to);
 
-    if (link->to == target)
+    if (edge->to == target)
       return true;
 
-    if ((child = SIMPLEQ_FIRST(&link->to->locked_after))) {
+    if ((child = SIMPLEQ_FIRST(&edge->to->locked_after))) {
       if (!bfs_q_enqueue(queue, child))
         panic("lockdep: bfs queue overflow");
     }
@@ -160,11 +162,17 @@ static lock_class_t *look_up_lock_class(lock_class_mapping_t *lock) {
   return NULL;
 }
 
-static lock_class_t *alloc_class(void) {
+static lock_class_t *alloc_class(lock_class_key_t *key, const char *name) {
   if (class_cnt >= MAX_CLASSES)
     panic("lockdep: no more classes");
 
-  return &lock_classes[class_cnt++];
+  lock_class_t *class = &lock_classes[class_cnt++];
+  class->key = key;
+  class->name = name;
+  SIMPLEQ_INIT(&class->locked_after);
+  class->bfs_gen_id = 0;
+
+  return class;
 }
 
 static lock_class_t *get_or_create_class(lock_class_mapping_t *lock) {
@@ -177,10 +185,7 @@ static lock_class_t *get_or_create_class(lock_class_mapping_t *lock) {
 
   class = look_up_lock_class(lock);
   if (!class) {
-    class = alloc_class();
-    class->key = lock->key;
-    class->name = lock->name;
-    SIMPLEQ_INIT(&class->locked_after);
+    class = alloc_class(lock->key, lock->name);
     SIMPLEQ_INSERT_HEAD(CLASS_HASH_CHAIN(lock->key), class, hash_entry);
   }
   lock->lock_class = class;
@@ -188,40 +193,43 @@ static lock_class_t *get_or_create_class(lock_class_mapping_t *lock) {
   return class;
 }
 
-static lock_class_link_t *alloc_link(void) {
-  if (link_cnt >= MAX_LINKS)
-    panic("lockdep: no more links");
+static lock_class_edge_t *alloc_edge(lock_class_t *to) {
+  if (edge_cnt >= MAX_EDGES)
+    panic("lockdep: no more edges");
 
-  return &lock_links[link_cnt++];
+  lock_class_edge_t *edge = &lock_edges[edge_cnt++];
+  edge->to = to;
+
+  return edge;
 }
 
-static void add_prev_link(void) {
-  lock_class_t *hprev, *hcur;
-  lock_class_link_t *link;
-  thread_t *thread = thread_self();
-  int depth = thread->td_lock_depth;
+static void add_edge_to(thread_t *thread, lock_class_t *lock) {
+  lock_class_t *prevlock;
+  lock_class_edge_t *edge;
 
+  thread->td_held_locks[thread->td_lock_depth++] = lock;
+
+  int depth = thread->td_lock_depth;
   if (depth < 2)
     return;
 
-  hcur = thread->td_held_locks[depth - 1];
-  hprev = thread->td_held_locks[depth - 2];
+  prevlock = thread->td_held_locks[depth - 2];
 
-  if (hcur == hprev)
+  /* Do not add loops to the graph */
+  if (lock == prevlock)
     return;
 
-  SIMPLEQ_FOREACH(link, &(hprev->locked_after), entry) {
-    if (hcur == link->to)
+  /* Do not add multiple edges */
+  SIMPLEQ_FOREACH(edge, &(prevlock->locked_after), link) {
+    if (lock == edge->to)
       return;
   }
 
-  link = alloc_link();
-  link->to = hcur;
+  edge = alloc_edge(lock);
+  SIMPLEQ_INSERT_HEAD(&(prevlock->locked_after), edge, link);
 
-  SIMPLEQ_INSERT_HEAD(&(hprev->locked_after), link, entry);
-
-  if (check_path(hcur, hprev)) {
-    panic("lockdep: cycle between locks %s and %s", hprev->name, hcur->name);
+  if (check_path(lock, prevlock)) {
+    panic("lockdep: cycle between locks %s and %s", prevlock->name, lock->name);
   }
 }
 
@@ -243,9 +251,7 @@ void lockdep_acquire(lock_class_mapping_t *lock) {
   if (!(class = lock->lock_class))
     class = get_or_create_class(lock);
 
-  thread->td_held_locks[thread->td_lock_depth++] = class;
-
-  add_prev_link();
+  add_edge_to(thread, class);
 
   lockdep_unlock();
 }
@@ -255,6 +261,9 @@ void lockdep_release(lock_class_mapping_t *lock) {
   lock_class_t *class = lock->lock_class;
   thread_t *thread = thread_self();
   assert(class);
+
+  lockdep_lock();
+
   assert(thread->td_lock_depth >= 1);
 
   /* Delete the class of the released lock and shift the rest */
@@ -268,6 +277,8 @@ void lockdep_release(lock_class_mapping_t *lock) {
     thread->td_held_locks[i - 1] = thread->td_held_locks[i];
 
   thread->td_lock_depth--;
+
+  lockdep_unlock();
 }
 
 #endif
