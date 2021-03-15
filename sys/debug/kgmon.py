@@ -9,7 +9,6 @@ from .struct import GdbStructMeta
 
 OFILE = "gmon.out"
 
-
 class RawArc(Structure):
     _fields_ = [('raw_frompc', c_uint), ('raw_selfpc', c_uint),
                 ('raw_count', c_int)]
@@ -20,11 +19,6 @@ class ToStruct(Structure):
                 ('link', c_ushort), ('pad', c_ushort)]
 
 
-class GmonHeader(Structure):
-    _fields_ = [('lpc', c_uint), ('hpc', c_uint), ('ncnt', c_int),
-                ('version', c_int), ('profrate', c_int), ('spare', c_int * 3)]
-
-
 class GmonParam(metaclass=GdbStructMeta):
     __ctype__ = 'struct gmonparam'
     __cast__ = {'state': int, 'kcount': POINTER(c_ushort), 'kcountsize': int,
@@ -32,22 +26,18 @@ class GmonParam(metaclass=GdbStructMeta):
                 'tossize': int, 'tolimit': int, 'lowpc': int, 'highpc': int,
                 'textsize': int, 'hashfraction': int}
 
-    def writeheader(self):
-        GMONVERSION = 333945
-        gmonhdr = GmonHeader()
-        gmonhdr.lpc = self.lowpc
-        gmonhdr.hpc = self.highpc
-        gmonhdr.ncnt = c_int(self.kcountsize + sizeof(GmonHeader))
-        gmonhdr.version = GMONVERSION
-        gmonhdr.spare[0] = gmonhdr.spare[1] = gmonhdr.spare[2] = 0
-        # TO DO: read the profrate value
-        gmonhdr.profrate = 1000
+    def writeheader(self, inferior):
+        gmonhdr_size = int(gdb.parse_and_eval('sizeof(_gmonhdr)'))
+        gmonhdr_p = gdb.parse_and_eval('&_gmonhdr')
+        memory = inferior.read_memory(gmonhdr_p, gmonhdrsize)
+        array = unpack('IIiiiiii', memory)
         with open(OFILE, "wb") as of:
-            of.write(gmonhdr)
+            for i in array:
+                of.write(c_int(i))
 
     def writetickbuffer(self, inferior):
         kcountsize = self.kcountsize
-        kcount = gdb.parse_and_eval('_gmonparam.kcount[0]').address
+        kcount = gdb.parse_and_eval('_gmonparam.kcount')
         memory = inferior.read_memory(kcount, kcountsize * sizeof(c_ushort))
         array = unpack(kcountsize * 'H', memory)
         with open(OFILE, "ab") as of:
@@ -56,10 +46,10 @@ class GmonParam(metaclass=GdbStructMeta):
 
     def writearcinfo(self, inferior):
         rawarc = RawArc()
-        sizeoffroms_p = gdb.parse_and_eval('sizeof(*_gmonparam.froms)')
-        endfrom = int(self.fromssize / sizeoffroms_p)
+        froms_p_size = gdb.parse_and_eval('sizeof(*_gmonparam.froms)')
+        endfrom = int(self.fromssize / froms_p_size)
 
-        froms = gdb.parse_and_eval(f'_gmonparam.froms[0]').address
+        froms = gdb.parse_and_eval('_gmonparam.froms')
         memory = inferior.read_memory(froms, endfrom * sizeof(c_ushort))
         array = unpack(endfrom * 'H', memory)
 
@@ -67,11 +57,11 @@ class GmonParam(metaclass=GdbStructMeta):
             if i == 0:
                 continue
             frompc = self.lowpc
-            frompc += fromindex * self.hashfraction * sizeoffroms_p
+            frompc += fromindex * self.hashfraction * froms_p_size
             toindex = froms
 
             while toindex != 0:
-                tos = gdb.parse_and_eval('_gmonparam.tos[0]').address
+                tos = gdb.parse_and_eval('_gmonparam.tos')
                 memory = inferior.read_memory(tos, sizeof(ToStruct))
                 read = unpack('IiHH', memory)
                 rawarc.raw_frompc = frompc
@@ -83,7 +73,7 @@ class GmonParam(metaclass=GdbStructMeta):
 
 
 class Kgmon(SimpleCommand):
-    """Dump the data to gmon.out"""
+    """Dump the gprof data to gmon.out"""
 
     def __init__(self):
         super().__init__('kgmon')
@@ -91,7 +81,7 @@ class Kgmon(SimpleCommand):
     def __call__(self, args):
         infer = gdb.inferiors()[0]
         gmonparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
-        gmonparam.writeheader()
+        gmonparam.writeheader(infer)
         gmonparam.writetickbuffer(infer)
         gmonparam.writearcinfo(infer)
         print("KGMON: Finished")
