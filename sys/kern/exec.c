@@ -323,6 +323,24 @@ static bool check_setid(vnode_t *vn, uid_t *uid, gid_t *gid) {
   return (*uid != (uid_t)-1) || (*gid != (gid_t)-1);
 }
 
+static char *prepare_pargs(exec_args_t *args) {
+  char *pargs = kmalloc(M_STR, MAX_PARGS_LEN, M_ZERO);
+  size_t it = 1, used = 0, max = MAX_PARGS_LEN;
+
+  while (used < max && it < args->argc) {
+    strncpy(pargs + used, args->argv[it], max - used);
+
+    /* calculate how much we have copied */
+    used += strlen(pargs + used);
+
+    /* add space between args */
+    if (used < max)
+      pargs[used++] = ' ';
+    ++it;
+  }
+  return pargs;
+}
+
 /* XXX We assume process may only have a single thread. But if there were more
  * than one thread in the process that called exec, all other threads must be
  * forcefully terminated. */
@@ -383,7 +401,7 @@ static int _do_execve(exec_args_t *args) {
   if ((error = exec_args_copyout(args, &stack_top)))
     goto fail;
 
-  p->p_args = stack_top;
+  p->p_args = prepare_pargs(args);
 
   fdtab_onexec(p->p_fdtable);
 

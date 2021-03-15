@@ -76,6 +76,8 @@ typedef enum {
   PF_CHILD_STATE_CHANGED = 0x2, /* Child state changed, recheck children */
 } proc_flags_t;
 
+#define MAX_PARGS_LEN 100
+
 /*! \brief Process structure
  *
  * Field markings and the corresponding locks:
@@ -120,7 +122,7 @@ struct proc {
   vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
   vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */
 
-  vaddr_t p_args;       /* (!) Position of argc on stack. */
+  char *p_args; /* (!) first 100 bytes of arguments of process */
   /* XXX: process resource usage stats */
 };
 

@@ -28,7 +28,7 @@
 #define MAX_PROC 40
 
 /* maximum length of displayed name of process */
-#define PROC_NAME_MAX 100
+#define PROC_NAME_MAX 128
 
 /* we want to have at most 10 instances of procstat */
 #define MAX_PROCSTAT 10
@@ -79,39 +79,6 @@ static vnodeops_t dev_procstat_vnodeops = {
   .v_close = dev_procstat_close,
 };
 
-static void proc_copyargs(proc_t *p, char *buf, size_t maxlen) {
-  int argc;
-  char *arg;
-  size_t len, used = 0;
-  vaddr_t argv;
-
-  copyin((void *) p->p_args, &argc, sizeof(int));
-  argv = p->p_args + sizeof(int);
-
-  /* we don't want to see argv[0] */
-  argv += sizeof(char *);
-  klog("process %d has %d args", p->p_pid, argc);
-
-  for (int i = 1; i < argc && used < maxlen; ++i) {
-    klog("used: %d", used);
-    /* add space before each argument */
-    buf[used++] = ' ';
-    klog("used: %d", used);
-
-    /* get address of string */
-    copyin((void *) argv, &arg, sizeof(char *));
-
-    /* get string into buffer */
-    klog("copying into %p", buf + used);
-    copyinstr((void *) arg, buf + used, maxlen - used, &len);
-    klog("%d argument: %s (len: %d, used: %d)", i, buf + used, len, used);
-
-    used += len - 1; /* last character is '\0\ */
-    klog("used: %d", used);
-    argv += sizeof(char *);
-  }
-}
-
 static char *get_name(proc_t *p) {
   char *buf = kmalloc(M_TEMP, PROC_NAME_MAX, M_ZERO);
 
@@ -122,8 +89,10 @@ static char *get_name(proc_t *p) {
 
   strncpy(buf, start + 1, PROC_NAME_MAX);
   size_t len = strlen(buf);
+  if (len < PROC_NAME_MAX)
+    buf[len++] = ' ';
 
-  proc_copyargs(p, buf + len, PROC_NAME_MAX - len);
+  strncpy(buf + len, p->p_args, PROC_NAME_MAX - len);
 
   return buf;
 }

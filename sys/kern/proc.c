@@ -532,6 +532,7 @@ static void proc_reap(proc_t *p) {
   TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
   TAILQ_REMOVE(&zombie_list, p, p_zombie);
   kfree(M_STR, p->p_elfpath);
+  kfree(M_TEMP, p->p_args);
   TAILQ_REMOVE(PROC_HASH_CHAIN(p->p_pid), p, p_hash);
   pool_free(P_PROC, p);
 }
