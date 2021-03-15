@@ -12,7 +12,7 @@
  * High priority task (td2) tries to acquire mutex and blocks, but firstly lends
  * its priority to low priority task (td0) that owns the mutex. */
 
-static mtx_t *mtx = &MTX_INITIALIZER(mtx, 0);
+static MTX_DEFINE(mtx, 0);
 static thread_t *td[T];
 static volatile bool high_prio_mtx_acquired;
 static prio_t LOW, MED, HIGH;
@@ -30,7 +30,7 @@ static void low_prio_task(void *arg) {
     sched_add(td[1]);
     sched_add(td[2]);
 
-    WITH_MTX_LOCK (mtx) {
+    WITH_MTX_LOCK (&mtx) {
       /* We were the first to take the mutex. */
       assert(high_prio_mtx_acquired == 0);
       thread_yield();
@@ -61,9 +61,9 @@ static void med_prio_task(void *arg) {
 
 /* code executed by td2 */
 static void high_prio_task(void *arg) {
-  assert(mtx_owner(mtx) == td[0]);
+  assert(mtx_owner(&mtx) == td[0]);
 
-  WITH_MTX_LOCK (mtx)
+  WITH_MTX_LOCK (&mtx)
     high_prio_mtx_acquired = 1;
 }
 

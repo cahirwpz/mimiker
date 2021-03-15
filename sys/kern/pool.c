@@ -51,7 +51,7 @@ typedef struct pool {
 } pool_t;
 
 static TAILQ_HEAD(, pool) pool_list = TAILQ_HEAD_INITIALIZER(pool_list);
-static mtx_t *pool_list_lock = &MTX_INITIALIZER(pool_list_lock, 0);
+static MTX_DEFINE(pool_list_lock, 0);
 static KMALLOC_DEFINE(M_POOL, "pool allocators");
 
 typedef struct slab {
@@ -268,7 +268,7 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
   kasan_quar_init(&pool->pp_quarantine, (quar_free_t)_pool_free);
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
        pool->pp_itemsize);
-  WITH_MTX_LOCK (pool_list_lock)
+  WITH_MTX_LOCK (&pool_list_lock)
     TAILQ_INSERT_TAIL(&pool_list, pool, pp_link);
 }
 
@@ -289,7 +289,7 @@ pool_t *pool_create(const char *desc, size_t size) {
 }
 
 void pool_destroy(pool_t *pool) {
-  WITH_MTX_LOCK (pool_list_lock)
+  WITH_MTX_LOCK (&pool_list_lock)
     TAILQ_REMOVE(&pool_list, pool, pp_link);
   WITH_MTX_LOCK (&pool->pp_mtx)
     /* Lock needed as the quarantine may call _pool_free! */

@@ -101,10 +101,10 @@ static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
   uint64_t count = pit_get_counter64(pit);
-  uint32_t freq = pit->timer.tm_frequency;
+  uint32_t freq = tm->tm_frequency;
   uint32_t sec = count / freq;
   uint32_t frac = count % freq;
-  bintime_t bt = bintime_mul(HZ2BT(freq), frac);
+  bintime_t bt = bintime_mul(tm->tm_min_period, frac);
   bt.sec += sec;
   return bt;
 }

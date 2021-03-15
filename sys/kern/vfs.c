@@ -15,12 +15,12 @@ static KMALLOC_DEFINE(M_VFS, "vfs");
 
 /* The list of all installed filesystem types */
 vfsconf_list_t vfsconf_list = TAILQ_HEAD_INITIALIZER(vfsconf_list);
-mtx_t vfsconf_list_mtx = MTX_INITIALIZER(vfsconf_list_mtx, 0);
+MTX_DEFINE(vfsconf_list_mtx, 0);
 
 /* The list of all mounts mounted */
 typedef TAILQ_HEAD(, mount) mount_list_t;
 static mount_list_t mount_list = TAILQ_HEAD_INITIALIZER(mount_list);
-static mtx_t mount_list_mtx = MTX_INITIALIZER(mount_list_mtx, 0);
+static MTX_DEFINE(mount_list_mtx, 0);
 
 /* Default vfs operations */
 static vfs_root_t vfs_default_root;

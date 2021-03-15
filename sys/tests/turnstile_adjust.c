@@ -16,7 +16,7 @@
 
 typedef TAILQ_HEAD(td_queue, thread) td_queue_t;
 
-static mtx_t ts_adj_mtx = MTX_INITIALIZER(ts_adj_mtx, 0);
+static MTX_DEFINE(ts_adj_mtx, 0);
 static thread_t *threads[T];
 
 static void set_prio(thread_t *td, prio_t prio) {

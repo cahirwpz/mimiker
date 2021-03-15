@@ -18,7 +18,7 @@ static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));
 
 typedef TAILQ_HEAD(, thread) thread_list_t;
 
-static mtx_t *threads_lock = &MTX_INITIALIZER(threads_lock, 0);
+static MTX_DEFINE(threads_lock, 0);
 static thread_list_t all_threads = TAILQ_HEAD_INITIALIZER(all_threads);
 static thread_list_t zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 
@@ -54,14 +54,14 @@ void init_thread0(void) {
   sigpend_init(&td->td_sigpend);
   LIST_INIT(&td->td_contested);
 
-  WITH_MTX_LOCK (threads_lock)
+  WITH_MTX_LOCK (&threads_lock)
     TAILQ_INSERT_TAIL(&all_threads, td, td_all);
 }
 
 void thread_reap(void) {
   thread_list_t zombies;
 
-  WITH_MTX_LOCK (threads_lock) {
+  WITH_MTX_LOCK (&threads_lock) {
     zombies = zombie_threads;
     TAILQ_INIT(&zombie_threads);
   }
@@ -102,7 +102,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   thread_entry_setup(td, fn, arg);
 
   /* From now on, you must use locks on new thread structure. */
-  WITH_MTX_LOCK (threads_lock)
+  WITH_MTX_LOCK (&threads_lock)
     TAILQ_INSERT_TAIL(&all_threads, td, td_all);
 
   klog("Thread %ld {%p} has been created", td->td_tid, td);
@@ -117,7 +117,7 @@ void thread_delete(thread_t *td) {
 
   klog("Freeing up thread %ld {%p}", td->td_tid, td);
 
-  WITH_MTX_LOCK (threads_lock)
+  WITH_MTX_LOCK (&threads_lock)
     TAILQ_REMOVE(&all_threads, td, td_all);
 
   kmem_free(td->td_kstack.stk_base, PAGESIZE);
@@ -158,7 +158,7 @@ __noreturn void thread_exit(void) {
    */
   preempt_disable();
 
-  WITH_MTX_LOCK (threads_lock) {
+  WITH_MTX_LOCK (&threads_lock) {
     spin_lock(td->td_lock); /* force threads_lock >> thread_t::td_lock order */
     TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
   }
@@ -195,7 +195,7 @@ void thread_yield(void) {
 /* It would be better to have a hash-map from tid_t to thread_t,
  * but using a list is sufficient for now. */
 thread_t *thread_find(tid_t id) {
-  SCOPED_MTX_LOCK(threads_lock);
+  SCOPED_MTX_LOCK(&threads_lock);
 
   thread_t *td;
   TAILQ_FOREACH (td, &all_threads, td_all) {
