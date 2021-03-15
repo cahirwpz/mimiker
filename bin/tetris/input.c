@@ -92,7 +92,6 @@ static void read_one(char *c) {
  * Return 0 => no input, 1 => can read_one()
  */
 int rwait(struct timeval *tvp) {
-#define NILTZ ((struct timezone *)0)
 
   if (have_char)
     return 1;
