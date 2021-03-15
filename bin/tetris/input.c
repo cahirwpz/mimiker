@@ -74,13 +74,11 @@ void input_init(void) {
   signal(SIGALRM, handle_sigalrm);
 }
 
-static int read_one(char *c) {
-  if (have_char) {
-    have_char = 0;
-    *c = buffered_char;
-    return 1;
-  }
-  return read(STDIN_FILENO, c, 1);
+static void read_one(char *c) {
+  if (!have_char)
+    stop("read_one(): no buffered char");
+  have_char = 0;
+  *c = buffered_char;
 }
 
 /*
@@ -91,7 +89,7 @@ static int read_one(char *c) {
  *
  * If tvp is nil, wait forever, but return if poll is interrupted.
  *
- * Return 0 => no input, 1 => can read() from stdin
+ * Return 0 => no input, 1 => can read_one()
  */
 int rwait(struct timeval *tvp) {
 #define NILTZ ((struct timezone *)0)
@@ -157,8 +155,10 @@ void tsleep(void) {
   tv.tv_sec = 0;
   tv.tv_usec = fallrate;
   while (TV_POS(&tv))
-    if (rwait(&tv) && read_one(&c) != 1)
+    if (rwait(&tv)) {
+      read_one(&c);
       break;
+    }
 }
 
 /*
@@ -184,7 +184,6 @@ int tgetchar(void) {
   }
   if (!rwait(&timeleft))
     return (-1);
-  if (read_one(&c) != 1)
-    stop("end of file, help");
+  read_one(&c);
   return ((int)(unsigned char)c);
 }
