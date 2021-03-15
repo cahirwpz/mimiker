@@ -26,10 +26,13 @@ typedef struct mtx {
 #define MTX_CONTESTED 1
 #define MTX_FLAGMASK 7
 
-#define MTX_INITIALIZER(recursive)                                             \
+#define MTX_INITIALIZER(mutexname, recursive)                                  \
   (mtx_t) {                                                                    \
     .m_attr = (recursive) | LK_TYPE_BLOCK                                      \
   }
+
+#define MTX_DEFINE(mutexname, recursive)                                       \
+  mtx_t mutexname = MTX_INITIALIZER(mutexname, recursive)
 
 /*! \brief Initializes mutex.
  *
