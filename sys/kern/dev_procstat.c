@@ -82,10 +82,13 @@ static vnodeops_t dev_procstat_vnodeops = {
 static char *get_command(proc_t *p) {
   char *buf = kmalloc(M_TEMP, PROC_COMM_MAX, M_ZERO);
 
-  /* copy program's name from elfpath (without starting slash) */
-  char *start = strrchr(p->p_elfpath, '/') + 1;
+  /* copy program's name from elfpath */
+  char *start = strrchr(p->p_elfpath, '/');
   if (start == NULL)
     start = p->p_elfpath;
+  else
+    /* omit slash */
+    start += 1;
 
   ssize_t len = strlcpy(buf, start, PROC_COMM_MAX);
   len = min(len, PROC_COMM_MAX - 1);
@@ -183,7 +186,7 @@ static int dev_procstat_read(file_t *f, uio_t *uio) {
 
   uio->uio_offset = f->f_offset;
   while (uio->uio_resid > 0) {
-    ssize_t len = min(uio->uio_resid, ps->psize - ps->offset);
+    size_t len = min(uio->uio_resid, ps->psize - ps->offset);
     if ((error = uiomove(ps->buf, len, uio)))
       break;
 

@@ -325,11 +325,10 @@ static bool check_setid(vnode_t *vn, uid_t *uid, gid_t *gid) {
 
 static char *prepare_pargs(exec_args_t *args) {
   char *pargs = kmalloc(M_STR, MAX_PARGS_LEN, M_ZERO);
-  size_t it = 1;
-  ssize_t used = 0, max = MAX_PARGS_LEN;
+  size_t it = 1, used = 0, max = MAX_PARGS_LEN;
 
   while (used < max && it < args->argc) {
-    ssize_t len = strlcpy(pargs + used, args->argv[it], max - used);
+    size_t len = strlcpy(pargs + used, args->argv[it], max - used);
 
     /* calculate how much we have copied */
     len = min(len, max - used);
