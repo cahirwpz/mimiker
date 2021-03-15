@@ -254,8 +254,7 @@ void lockdep_release(lock_class_mapping_t *lock) {
   lock_class_t *class = lock->lock_class;
   thread_t *thread = thread_self();
   assert(class);
-
-  lockdep_lock();
+  assert(thread->td_lock_depth >= 1);
 
   /* Delete the class of the released lock and shift the rest */
   int i = thread->td_lock_depth - 1;
@@ -268,11 +267,6 @@ void lockdep_release(lock_class_mapping_t *lock) {
     thread->td_held_locks[i - 1] = thread->td_held_locks[i];
 
   thread->td_lock_depth--;
-
-  if (thread->td_lock_depth < 0)
-    panic("lockdep: depth below 0");
-
-  lockdep_unlock();
 }
 
 #endif
