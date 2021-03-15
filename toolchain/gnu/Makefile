@@ -1,3 +1,5 @@
+# vim: tabstop=8 shiftwidth=8 noexpandtab list:
+
 TOPDIR = $(CURDIR)
 
 include $(TOPDIR)/common.mk

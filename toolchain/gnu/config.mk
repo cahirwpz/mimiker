@@ -1,3 +1,5 @@
+# vim: tabstop=8 shiftwidth=8 noexpandtab list:
+
 VERSION = 1.4
 
 ISL = isl-0.18

@@ -1,3 +1,5 @@
+# vim: tabstop=8 shiftwidth=8 noexpandtab list:
+
 include $(TOPDIR)/common.mk
 
 DESTDIR := $(TOPDIR)/$(TARGET)/debian/tmp
@@ -55,11 +57,11 @@ binutils-clean:
 ### GNU Compiler Collection
 
 TARGET_TOOLS = AS_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-as \
-		 AR_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-ar \
-		 LD_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-ld \
-		 NM_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-nm \
-		 STRIP_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-strip \
-		 RANLIB_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-ranlib \
+	       AR_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-ar \
+	       LD_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-ld \
+	       NM_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-nm \
+	       STRIP_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-strip \
+	       RANLIB_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-ranlib \
 
 gcc-configure: gcc/.configure
 gcc/.configure: binutils/.install

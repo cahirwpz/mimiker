@@ -1,3 +1,5 @@
+# vim: tabstop=8 shiftwidth=8 noexpandtab list:
+
 include $(TOPDIR)/config.mk
 
 CURL = curl -L --create-dirs
