@@ -63,7 +63,7 @@ TARGET_TOOLS = AS_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-as \
 
 gcc-configure: gcc/.configure
 gcc/.configure: binutils/.install
-	$(MKDIR) gcc && $(CD) gcc && PATH=$(PREFIX)/bin:$$PATH $(SRCDIR)/gcc/configure \
+	$(MKDIR) gcc && $(CD) gcc && PATH=$(DESTDIR)$(PREFIX)/bin:$$PATH $(SRCDIR)/gcc/configure \
 		--target=$(TARGET) \
 		--prefix=$(PREFIX) \
 		--datarootdir=$(PREFIX)/$(TARGET)/share \
@@ -104,7 +104,7 @@ gcc-clean:
 
 gdb-configure: gdb/.configure
 gdb/.configure: gcc/.install
-	$(MKDIR) gdb && $(CD) gdb && PATH=$(PREFIX)/bin:$$PATH $(SRCDIR)/gdb/configure \
+	$(MKDIR) gdb && $(CD) gdb && PATH=$(DESTDIR)$(PREFIX)/bin:$$PATH $(SRCDIR)/gdb/configure \
 		--target=$(TARGET)\
 		--prefix=$(PREFIX) \
 		--datarootdir=$(PREFIX)/$(TARGET)/share \
