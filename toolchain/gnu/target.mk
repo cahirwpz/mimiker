@@ -1,10 +1,10 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab list:
 
+all: gcc-install gdb-install
+
 include $(TOPDIR)/common.mk
 
 DESTDIR := $(TOPDIR)/$(TARGET)/debian/tmp
-
-all: gcc-install gdb-install
 
 clean: binutils-clean gcc-clean gdb-clean
 	$(RM) -r debian

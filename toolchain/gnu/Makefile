@@ -2,9 +2,9 @@
 
 TOPDIR = $(CURDIR)
 
-include $(TOPDIR)/common.mk
-
 all: package
+
+include $(TOPDIR)/common.mk
 
 build-host: gmp-install mpfr-install mpc-install isl-install cloog-install
 
