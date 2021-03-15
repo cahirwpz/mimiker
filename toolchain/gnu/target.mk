@@ -52,8 +52,6 @@ binutils/.install: binutils/.build
 binutils-clean:
 	$(RM) -r binutils
 
-.PHONY: binutils-configure binutils-build binutils-install binutils-clean
-
 ### GNU Compiler Collection
 
 TARGET_TOOLS = AS_FOR_TARGET=$(DESTDIR)$(PREFIX)/bin/$(TARGET)-as \
@@ -102,8 +100,6 @@ gcc/.install: gcc/.build
 gcc-clean:
 	$(RM) -r gcc
 
-.PHONY: gcc-configure gcc-build gcc-install gcc-clean
-
 ### GNU Debugger
 
 gdb-configure: gdb/.configure
@@ -138,4 +134,5 @@ gdb/.install: gdb/.build
 gdb-clean:
 	$(RM) -r gdb
 
-.PHONY: gdb-configure gdb-build gdb-install gdb-clean
+
+.PHONY: $(foreach util, binutils gcc gdb, $(foreach op, configure build install clean, $(util)-$(op)))

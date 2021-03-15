@@ -96,8 +96,6 @@ $(HOSTBUILD)/gmp/.install: $(HOSTBUILD)/gmp/.build
 gmp-clean:
 	$(RM) -r $(HOSTBUILD)/gmp
 
-.PHONY: gmp-unpack gmp-configure gmp-build gmp-install gmp-clean
-
 ### Library for multiple-precision floating-point computations
 
 $(SRCDIR)/$(MPFR).tar.xz:
@@ -128,8 +126,6 @@ $(HOSTBUILD)/mpfr/.install: $(HOSTBUILD)/mpfr/.build
 
 mpfr-clean:
 	$(RM) -r $(HOSTBUILD)/mpfr
-
-.PHONY: mpfr-unpack mpfr-configure mpfr-build mpfr-install mpfr-clean
 
 ### Library for the arithmetic of complex numbers
 
@@ -163,8 +159,6 @@ $(HOSTBUILD)/mpc/.install: $(HOSTBUILD)/mpc/.build
 mpc-clean:
 	$(RM) -r $(HOSTBUILD)/mpc
 
-.PHONY: mpc-unpack mpc-configure mpc-build mpc-install mpc-clean
-
 ### Integer Set Library
 
 $(SRCDIR)/$(ISL).tar.xz:
@@ -195,8 +189,6 @@ $(HOSTBUILD)/isl/.install: $(HOSTBUILD)/isl/.build
 
 isl-clean:
 	$(RM) -r $(HOSTBUILD)/isl
-
-.PHONY: isl-unpack isl-configure isl-build isl-install isl-clean
 
 ### CLooG - The Chunky Loop Generator
 
@@ -231,4 +223,5 @@ $(HOSTBUILD)/cloog/.install: $(HOSTBUILD)/cloog/.build
 cloog-clean:
 	$(RM) -r $(HOSTBUILD)/cloog
 
-.PHONY: cloog-unpack cloog-configure cloog-build cloog-install cloog-clean
+
+.PHONY: $(foreach util, isl mpfr gmp mpc cloog, $(foreach op, unpack configure build install clean, $(util)-$(op)))
