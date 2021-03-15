@@ -29,7 +29,7 @@ class GmonParam(metaclass=GdbStructMeta):
     def writeheader(self, inferior):
         gmonhdr_size = int(gdb.parse_and_eval('sizeof(_gmonhdr)'))
         gmonhdr_p = gdb.parse_and_eval('&_gmonhdr')
-        memory = inferior.read_memory(gmonhdr_p, gmonhdrsize)
+        memory = inferior.read_memory(gmonhdr_p, gmonhdr_size)
         array = unpack('IIiiiiii', memory)
         with open(OFILE, "wb") as of:
             for i in array:
@@ -79,6 +79,9 @@ class Kgmon(SimpleCommand):
         super().__init__('kgmon')
 
     def __call__(self, args):
+        if gdb.parse_and_eval('_gmonparam.state') == gdb.parse_and_eval('GMON_PROF_NOT_INIT'):
+            print("Kgmon not innitalized yet or you have to compile the program with KPROF=1")
+            return
         infer = gdb.inferiors()[0]
         gmonparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
         gmonparam.writeheader(infer)

@@ -28,6 +28,7 @@ SOURCES = \
 	file_syscalls.c \
 	filedesc.c \
 	fork.c \
+	gmon.c \
 	initrd.c \
 	interrupt.c \
 	isa.c \
@@ -83,12 +84,6 @@ kasan.o : CFLAGS_KASAN =
 else
 # Clean dependencies without having to pass `KASAN=1` to `make clean`.
 CLEAN-FILES += .kasan.D .kasan_quar.D
-endif
-
-ifeq ($(KPROF), 1)
-SOURCES += gmon.c
-else
-CLEAN-FILES += .gmon.D
 endif
 
 FORMAT-EXCLUDE = sysent.h

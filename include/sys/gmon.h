@@ -34,11 +34,7 @@
 #ifndef _SYS_GMON_H_
 #define _SYS_GMON_H_
 
-#if KPROF
 void init_prof(void);
-#else
-#define init_prof() __nothing
-#endif
 
 /*
  * Structure prepended to gmon.out profiling data file.

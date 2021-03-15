@@ -14,17 +14,18 @@ gmonparam_t _gmonparam = {.state = GMON_PROF_NOT_INIT};
 gmonhdr_t _gmonhdr = {.profrate = CLK_TCK};
 /* The macros description are provided in gmon.h */
 void init_prof(void) {
+#if KPROF == 0
+  return;
+#endif
   void *profptr;
   gmonparam_t *p = &_gmonparam;
 
   p->lowpc = rounddown((unsigned long)__kernel_start, INSTR_GRANULARITY);
-  p->highpc =
-    roundup((unsigned long)__etext, INSTR_GRANULARITY);
+  p->highpc = roundup((unsigned long)__etext, INSTR_GRANULARITY);
   p->textsize = p->highpc - p->lowpc;
   p->kcountsize = p->textsize / HISTFRACTION;
   p->hashfraction = HASHFRACTION;
   p->fromssize = p->textsize / HASHFRACTION;
-  
   p->tolimit = (p->textsize * ARCDENSITY) / 100;
   if (p->tolimit < MINARCS)
     p->tolimit = MINARCS;
