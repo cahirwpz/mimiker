@@ -7,6 +7,7 @@ from struct import unpack
 from .cmd import SimpleCommand
 from .struct import GdbStructMeta
 
+
 class GmonOut():
 
     def write_to_file(self, path="gmon.out"):
