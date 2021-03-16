@@ -35,7 +35,7 @@ static inline uint16_t pit_get_counter(pit_state_t *pit) {
   count |= inb(TIMER_CNTR0);
   count |= inb(TIMER_CNTR0) << 8;
 
-  /* PIT counter counts from n to 1, we make it ascending from 0 to n*/
+  /* PIT counter counts from n to 1, we make it ascending from 0 to n-1*/
   return pit->period_ticks - count;
 }
 
@@ -45,7 +45,7 @@ static void pit_update_time(pit_state_t *pit) {
   uint32_t last_sec = pit->sec;
   uint16_t now_ticks16 = pit_get_counter(pit);
   uint16_t ticks_passed = now_ticks16 - pit->prev_ticks16;
-  if (pit->prev_ticks16 >= now_ticks16) {
+  if (pit->prev_ticks16 > now_ticks16) {
     pit->overflowed = false;
     ticks_passed += pit->period_ticks;
   }
