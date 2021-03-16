@@ -8,12 +8,18 @@ bool mtx_owned(mtx_t *m) {
   return (mtx_owner(m) == thread_self());
 }
 
-void mtx_init(mtx_t *m, lk_attr_t la) {
+void _mtx_init(mtx_t *m, lk_attr_t attr, const char *name,
+               lock_class_key_t *key) {
   /* The caller must not attempt to set the lock's type, only flags. */
-  assert((la & LK_TYPE_MASK) == 0);
+  assert((attr & LK_TYPE_MASK) == 0);
   m->m_owner = 0;
   m->m_count = 0;
-  m->m_attr = la | LK_TYPE_BLOCK;
+  m->m_attr = attr | LK_TYPE_BLOCK;
+
+#if LOCKDEP
+  m->m_lockmap =
+    (lock_class_mapping_t){.key = key, .name = name, .lock_class = NULL};
+#endif
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {
@@ -23,6 +29,10 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
     m->m_count++;
     return;
   }
+
+#if LOCKDEP
+  lockdep_acquire(&m->m_lockmap);
+#endif
 
   thread_t *td = thread_self();
 
@@ -61,6 +71,10 @@ void mtx_unlock(mtx_t *m) {
     m->m_count--;
     return;
   }
+
+#if LOCKDEP
+  lockdep_release(&m->m_lockmap);
+#endif
 
   /* Fast path: if lock is not contested then drop ownership. */
   intptr_t expected = (intptr_t)thread_self();
