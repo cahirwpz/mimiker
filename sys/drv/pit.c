@@ -120,14 +120,13 @@ static int timer_pit_stop(timer_t *tm) {
 static bintime_t timer_pit_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  uint32_t freq = pit->timer.tm_frequency;
   uint32_t sec, ticks;
   WITH_INTR_DISABLED {
     pit_update_time(pit);
     sec = pit->sec;
     ticks = pit->ticks;
   }
-  bintime_t bt = bintime_mul(HZ2BT(freq), ticks);
+  bintime_t bt = bintime_mul(tm->tm_min_period, ticks);
   bt.sec += sec;
   return bt;
 }
