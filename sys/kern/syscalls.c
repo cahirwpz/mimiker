@@ -1075,7 +1075,7 @@ static int sys_getlogin(proc_t *p, getlogin_args_t *args, register_t *res) {
 
   klog("getlogin(%p, %zu)", namebuf, buflen);
 
-  WITH_MTX_LOCK (all_proc_mtx)
+  WITH_MTX_LOCK (&all_proc_mtx)
     memcpy(login_tmp, p->p_pgrp->pg_session->s_login, sizeof(login_tmp));
 
   return copyout(login_tmp, namebuf, min(buflen, sizeof(login_tmp)));
