@@ -39,6 +39,14 @@ static inline uint16_t pit_get_counter(pit_state_t *pit) {
   return pit->period_ticks - count;
 }
 
+static inline void pit_incr_ticks(pit_state_t *pit, uint16_t ticks) {
+  pit->ticks += ticks;
+  if (pit->ticks >= TIMER_FREQ) {
+      pit->ticks -= TIMER_FREQ;
+      pit->sec++;
+    }
+}
+
 static void pit_update_time(pit_state_t *pit) {
   assert(intr_disabled());
   uint32_t last_ticks = pit->ticks;
@@ -54,11 +62,7 @@ static void pit_update_time(pit_state_t *pit) {
    * overflows of our counter */
   pit->prev_ticks16 = now_ticks16;
 
-  pit->ticks += ticks_passed;
-  if (pit->ticks >= TIMER_FREQ) {
-    pit->ticks -= TIMER_FREQ;
-    pit->sec++;
-  }
+  pit_incr_ticks(pit, ticks_passed);
   assert(last_sec < pit->sec ||
          (last_sec == pit->sec && last_ticks < pit->ticks));
   assert(pit->ticks < TIMER_FREQ);
@@ -69,13 +73,8 @@ static intr_filter_t pit_intr(void *data) {
 
   /* XXX: It's still possible for periods to be lost. */
   pit_update_time(pit);
-  if (!pit->noticed_overflow) {
-    pit->ticks += pit->period_ticks;
-    if (pit->ticks >= TIMER_FREQ) {
-      pit->ticks -= TIMER_FREQ;
-      pit->sec++;
-    }
-  }
+  if (!pit->noticed_overflow)
+    pit_incr_ticks(pit, pit->period_ticks);
   tm_trigger(&pit->timer);
   /* It is set here to let us know in the next interrupt if we already
    * considered the overflow */
