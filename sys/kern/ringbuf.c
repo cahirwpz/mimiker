@@ -31,7 +31,7 @@ static void consume(ringbuf_t *buf, unsigned bytes) {
 /* below two function are to help to track ringbuf pointers in case when it is
  * changed by something else. e.q. DMA */
 void ringbuf_produce(ringbuf_t *buf, unsigned bytes) {
-  assert(buf->count + bytes <= buf->size);
+  assert(buf->count  <= buf->size && bytes <= buf->size &&  buf->count  <= buf->size - bytes);
   buf->count += bytes;
   buf->head += bytes;
   buf->head %= buf->size;
