@@ -7,3 +7,5 @@ endif
 ifeq ($(BOARD), rpi3)
 ARCH := aarch64
 endif
+
+LOCKDEP ?= 0
