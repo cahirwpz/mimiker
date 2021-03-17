@@ -12,7 +12,6 @@
 #include <sys/cred.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
-#include <sys/malloc.h>
 
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   thread_t *td = thread_self();
