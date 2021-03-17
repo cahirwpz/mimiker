@@ -45,7 +45,6 @@ void init_kgprof(void) {
   profptr += p->kcountsize;
   assert(is_aligned(profptr, alignof(u_short)));
   p->froms = (u_short *)profptr;
-  p->state = GMON_PROF_ON;
 
   gmonhdr_t *hdr = &_gmonhdr;
   hdr->lpc = p->lowpc;
@@ -53,4 +52,6 @@ void init_kgprof(void) {
   hdr->ncnt = p->kcountsize + sizeof(gmonhdr_t);
   hdr->version = GMONVERSION;
   hdr->spare[0] = hdr->spare[1] = hdr->spare[2] = 0;
+
+  p->state = GMON_PROF_ON;
 }
