@@ -11,7 +11,7 @@ typedef struct pit_state {
   resource_t *regs;
   resource_t *irq_res;
   timer_t timer;
-  bool noticed_overflow; /* should we add the counter period */
+  bool noticed_overflow; /* noticed and handled the counter overflowe */
   uint16_t period_ticks; /* number of PIT ticks in full period */
   /* values since last counter read */
   uint16_t prev_ticks16; /* number of ticks */
