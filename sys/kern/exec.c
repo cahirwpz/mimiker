@@ -402,9 +402,6 @@ static int _do_execve(exec_args_t *args) {
   if ((error = exec_args_copyout(args, &stack_top)))
     goto fail;
 
-  kfree(M_STR, p->p_args);
-  p->p_args = prepare_pargs(args);
-
   fdtab_onexec(p->p_fdtable);
 
   /* Set up user context. */
@@ -426,6 +423,9 @@ static int _do_execve(exec_args_t *args) {
 
   kfree(M_STR, p->p_elfpath);
   p->p_elfpath = kstrndup(M_STR, prog, PATH_MAX);
+
+  kfree(M_STR, p->p_args);
+  p->p_args = prepare_pargs(args);
 
   klog("Enter userspace with: pc=%p, sp=%p", eh.e_entry, stack_top);
   return EJUSTRETURN;
