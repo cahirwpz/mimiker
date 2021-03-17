@@ -28,7 +28,7 @@ SOURCES = \
 	file_syscalls.c \
 	filedesc.c \
 	fork.c \
-	gmon.c \
+	kgprof.c \
 	initrd.c \
 	interrupt.c \
 	isa.c \
