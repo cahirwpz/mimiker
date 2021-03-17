@@ -568,7 +568,7 @@ void pmap_growkernel(vaddr_t maxkvaddr) {
     }
   }
 
-  vm_kernel_end = va;
+  vm_kernel_end = maxkvaddr;
 
   /* TODO(pj) add new region into shadow map */
 }
