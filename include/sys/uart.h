@@ -7,7 +7,7 @@
 #include <sys/tty.h>
 #include <sys/uart_tty.h>
 
-/* 
+/*
  * Low-level uart methods.
  * For the following functions state is a uart_state::u_state which usually
  * contains only resources (memory and irq).
