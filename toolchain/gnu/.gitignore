@@ -1,0 +1,7 @@
+binutils
+gcc
+gdb
+host
+host-build
+sources
+*-mimiker-elf/debian

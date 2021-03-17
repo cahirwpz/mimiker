@@ -19,6 +19,7 @@
 #include <sys/vm_map.h>
 #include <sys/mutex.h>
 #include <sys/tty.h>
+#include <sys/time.h>
 #include <bitstring.h>
 
 /* Allocate PIDs from a reasonable range, can be changed as needed. */
@@ -38,11 +39,11 @@ static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
 static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
 static POOL_DEFINE(P_SESSION, "session", sizeof(session_t));
 
-mtx_t *all_proc_mtx = &MTX_INITIALIZER(0);
+MTX_DEFINE(all_proc_mtx, 0);
 
 /* all_proc_mtx protects following data: */
-static proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
-static proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
+proc_list_t proc_list = TAILQ_HEAD_INITIALIZER(proc_list);
+proc_list_t zombie_list = TAILQ_HEAD_INITIALIZER(zombie_list);
 static pgrp_list_t pgrp_list = TAILQ_HEAD_INITIALIZER(pgrp_list);
 
 static proc_t *proc_find_raw(pid_t pid);
@@ -68,7 +69,7 @@ static session_t session0 = {
 };
 
 static pgrp_t pgrp0 = {
-  .pg_lock = MTX_INITIALIZER(0),
+  .pg_lock = MTX_INITIALIZER(pgrp0.pg_lock, 0),
   .pg_members = TAILQ_HEAD_INITIALIZER(pgrp0.pg_members),
   .pg_session = &session0,
   .pg_jobc = 0,
@@ -76,7 +77,7 @@ static pgrp_t pgrp0 = {
 };
 
 proc_t proc0 = {
-  .p_lock = MTX_INITIALIZER(0),
+  .p_lock = MTX_INITIALIZER(proc0.p_lock, 0),
   .p_thread = &thread0,
   .p_pid = 0,
   .p_pgrp = &pgrp0,
@@ -120,7 +121,7 @@ static bool pid_is_taken(pid_t pid) {
 }
 
 static pid_t pid_alloc(void) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   static pid_t lastpid = 0;
 
@@ -147,13 +148,13 @@ static session_t *session_create(proc_t *leader) {
 }
 
 static void session_hold(session_t *s) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   s->s_count++;
 }
 
 static void session_drop(session_t *s) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   if (--s->s_count == 0) {
     TAILQ_REMOVE(SESSION_HASH_CHAIN(s->s_sid), s, s_hash);
@@ -162,7 +163,7 @@ static void session_drop(session_t *s) {
 }
 
 static session_t *session_lookup(sid_t sid) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   session_t *s;
   TAILQ_FOREACH (s, SESSION_HASH_CHAIN(sid), s_hash)
@@ -174,7 +175,7 @@ static session_t *session_lookup(sid_t sid) {
 /* Session functions */
 
 int proc_getsid(pid_t pid, sid_t *sidp) {
-  WITH_MTX_LOCK (all_proc_mtx) {
+  WITH_MTX_LOCK (&all_proc_mtx) {
     proc_t *p = proc_find(pid);
     if (p == NULL)
       return ESRCH;
@@ -198,7 +199,7 @@ static pgrp_t *pgrp_create(pgid_t pgid) {
 /* If the process group becomes orphaned and has at least one stopped process,
  * send SIGHUP followed by SIGCONT to every process in the group. */
 static void pgrp_maybe_orphan(pgrp_t *pg) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   SCOPED_MTX_LOCK(&pg->pg_lock);
   if (--pg->pg_jobc > 0)
@@ -235,7 +236,7 @@ static bool same_session_p(pgrp_t *pg1, pgrp_t *pg2) {
  * These counters need to be adjusted whenever any process leaves
  * or joins a process group. */
 static void pgrp_jobc_enter(proc_t *p, pgrp_t *pg) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   if (same_session_p(p->p_parent->p_pgrp, pg))
     pg->pg_jobc++;
@@ -247,7 +248,7 @@ static void pgrp_jobc_enter(proc_t *p, pgrp_t *pg) {
 }
 
 static void pgrp_jobc_leave(proc_t *p, pgrp_t *pg) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   if (same_session_p(p->p_parent->p_pgrp, pg))
     pgrp_maybe_orphan(pg);
@@ -260,7 +261,7 @@ static void pgrp_jobc_leave(proc_t *p, pgrp_t *pg) {
 
 /* Finds process group with the ID specified by pgid or returns NULL. */
 pgrp_t *pgrp_lookup(pgid_t pgid) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   pgrp_t *pgrp;
   TAILQ_FOREACH (pgrp, PGRP_HASH_CHAIN(pgid), pg_hash)
@@ -270,7 +271,7 @@ pgrp_t *pgrp_lookup(pgid_t pgid) {
 }
 
 static void pgrp_remove(pgrp_t *pgrp) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   /* Check if removed group was a foreground group of some terminal. */
   tty_t *tty = pgrp->pg_session->s_tty;
@@ -289,7 +290,7 @@ static void pgrp_remove(pgrp_t *pgrp) {
 /* Make a process leave its process group.
  * Called only on process exit, use _pgrp_enter for changing groups. */
 static void pgrp_leave(proc_t *p) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   pgrp_t *pgrp = p->p_pgrp;
 
@@ -309,6 +310,7 @@ static void pgrp_leave(proc_t *p) {
 static int _pgrp_enter(proc_t *p, pgrp_t *target) {
   pgrp_t *old_pgrp = p->p_pgrp;
   assert(old_pgrp);
+  assert(mtx_owned(&all_proc_mtx));
 
   if (old_pgrp == target)
     return 0;
@@ -316,15 +318,17 @@ static int _pgrp_enter(proc_t *p, pgrp_t *target) {
   pgrp_jobc_enter(p, target);
   pgrp_jobc_leave(p, old_pgrp);
 
-  mtx_lock_pair(&old_pgrp->pg_lock, &target->pg_lock);
-
-  WITH_PROC_LOCK(p) {
-    TAILQ_REMOVE(&old_pgrp->pg_members, p, p_pglist);
-    TAILQ_INSERT_HEAD(&target->pg_members, p, p_pglist);
-    p->p_pgrp = target;
+  /* Acquiring multiple pgrp locks here is safe because we're holding
+   * all_proc_mtx, see comments about pgrp_t in proc.h. */
+  WITH_MTX_LOCK (&old_pgrp->pg_lock) {
+    WITH_MTX_LOCK (&target->pg_lock) {
+      WITH_PROC_LOCK(p) {
+        TAILQ_REMOVE(&old_pgrp->pg_members, p, p_pglist);
+        TAILQ_INSERT_HEAD(&target->pg_members, p, p_pglist);
+        p->p_pgrp = target;
+      }
+    }
   }
-
-  mtx_unlock_pair(&old_pgrp->pg_lock, &target->pg_lock);
 
   if (TAILQ_EMPTY(&old_pgrp->pg_members)) {
     pgrp_remove(old_pgrp);
@@ -334,7 +338,7 @@ static int _pgrp_enter(proc_t *p, pgrp_t *target) {
 }
 
 int session_enter(proc_t *p) {
-  SCOPED_MTX_LOCK(all_proc_mtx);
+  SCOPED_MTX_LOCK(&all_proc_mtx);
   assert(p->p_pgrp);
 
   pgid_t pgid = p->p_pid;
@@ -357,7 +361,7 @@ int session_enter(proc_t *p) {
 
 /* Called only when process finishes. */
 static void session_leave(proc_t *p) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   if (!proc_is_session_leader(p))
     return;
@@ -390,7 +394,7 @@ static void session_leave(proc_t *p) {
 int pgrp_enter(proc_t *p, pid_t target, pgid_t pgid) {
   /* TODO: disallow setting the process group of children
    * that have called exec(). */
-  SCOPED_MTX_LOCK(all_proc_mtx);
+  SCOPED_MTX_LOCK(&all_proc_mtx);
   assert(p->p_pgrp);
 
   proc_t *targetp = proc_find_raw(target);
@@ -456,6 +460,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
     p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, PATH_MAX);
 
   TAILQ_INIT(CHILDREN(p));
+  kitimer_init(p);
 
   WITH_SPIN_LOCK (td->td_lock)
     td->td_proc = p;
@@ -465,7 +470,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
 
 void proc_add(proc_t *p) {
   assert(p->p_parent);
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   p->p_pid = pid_alloc();
   TAILQ_INSERT_TAIL(&proc_list, p, p_all);
@@ -478,7 +483,7 @@ void proc_add(proc_t *p) {
 /* Lookup a process in the PID hash table.
  * The returned process, if any, is NOT locked. */
 static proc_t *proc_find_raw(pid_t pid) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   proc_t *p = NULL;
   TAILQ_FOREACH (p, PROC_HASH_CHAIN(pid), p_hash)
@@ -489,7 +494,7 @@ static proc_t *proc_find_raw(pid_t pid) {
 }
 
 proc_t *proc_find(pid_t pid) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   proc_t *p = proc_find_raw(pid);
   if (p != NULL) {
@@ -503,7 +508,7 @@ proc_t *proc_find(pid_t pid) {
 }
 
 int proc_getpgid(pid_t pid, pgid_t *pgidp) {
-  SCOPED_MTX_LOCK(all_proc_mtx);
+  SCOPED_MTX_LOCK(&all_proc_mtx);
 
   proc_t *p = proc_find(pid);
   if (!p)
@@ -516,7 +521,7 @@ int proc_getpgid(pid_t pid, pgid_t *pgidp) {
 
 /* Release zombie process after parent processed its state. */
 static void proc_reap(proc_t *p) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
 
   assert(p->p_state == PS_ZOMBIE);
   assert(p->p_parent);
@@ -532,7 +537,7 @@ static void proc_reap(proc_t *p) {
 }
 
 static void proc_reparent(proc_t *old_parent, proc_t *new_parent) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
   assert(new_parent);
 
   proc_t *child, *next;
@@ -571,6 +576,10 @@ __noreturn void proc_exit(int exitstatus) {
   /* Clean up process resources. */
   klog("Freeing process PID(%d) {%p} resources", p->p_pid, p);
 
+  /* Stop per-process interval timer.
+   * NOTE: this function may release and re-acquire p->p_lock. */
+  kitimer_stop(p);
+
   /* Detach main thread from the process. */
   p->p_thread = NULL;
   td->td_proc = NULL;
@@ -579,16 +588,16 @@ __noreturn void proc_exit(int exitstatus) {
    * being deleted. */
   vm_map_t *uspace = p->p_uspace;
   p->p_uspace = NULL;
-  vm_map_delete(uspace);
-
-  fdtab_drop(p->p_fdtable);
 
   /* Record process statistics that will stay maintained in zombie state. */
   p->p_exitstatus = exitstatus;
 
   proc_unlock(p);
 
-  WITH_MTX_LOCK (all_proc_mtx) {
+  vm_map_delete(uspace);
+  fdtab_drop(p->p_fdtable);
+
+  WITH_MTX_LOCK (&all_proc_mtx) {
     if (p->p_pid == 1)
       panic("'init' process died!");
 
@@ -646,7 +655,7 @@ __noreturn void proc_exit(int exitstatus) {
 
 static int proc_pgsignal(pgid_t pgid, signo_t sig) {
   pgrp_t *pgrp = NULL;
-  SCOPED_MTX_LOCK(all_proc_mtx);
+  SCOPED_MTX_LOCK(&all_proc_mtx);
 
   if (pgid == 0) {
     pgrp = proc_self()->p_pgrp;
@@ -680,7 +689,7 @@ int proc_sendsig(pid_t pid, signo_t sig) {
   proc_t *target;
 
   if (pid > 0) {
-    SCOPED_MTX_LOCK(all_proc_mtx);
+    SCOPED_MTX_LOCK(&all_proc_mtx);
     target = proc_find(pid);
     if (target == NULL)
       return ESRCH;
@@ -738,7 +747,7 @@ int do_waitpid(pid_t pid, int *status, int options, pid_t *cldpidp) {
     int error = ECHILD;
     proc_t *child;
 
-    WITH_MTX_LOCK (all_proc_mtx) {
+    WITH_MTX_LOCK (&all_proc_mtx) {
       /* Check children meeting criteria implied by pid. */
       TAILQ_FOREACH (child, CHILDREN(p), p_child) {
         if (!child_matches(child, pid, p->p_pgrp))
@@ -805,7 +814,7 @@ int do_setlogin(const char *name) {
   if (strnlen(name, LOGIN_NAME_MAX) == LOGIN_NAME_MAX)
     return EINVAL;
 
-  WITH_MTX_LOCK (all_proc_mtx)
+  WITH_MTX_LOCK (&all_proc_mtx)
     strncpy(p->p_pgrp->pg_session->s_login, name, LOGIN_NAME_MAX);
 
   return 0;

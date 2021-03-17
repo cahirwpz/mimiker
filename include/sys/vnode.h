@@ -234,9 +234,10 @@ void vnode_put(vnode_t *v);
 bool vnode_is_mounted(vnode_t *v);
 
 /* Convenience function with default vnode operation implementation. */
-int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff);
 int vnode_access_generic(vnode_t *v, accmode_t mode, cred_t *cred);
+/* When successful increments reference counter for given vnode.*/
+int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 
 /* Default fileops implementations for files with v-nodes. */
 int default_vnread(file_t *f, uio_t *uio);
