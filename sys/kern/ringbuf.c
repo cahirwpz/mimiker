@@ -10,25 +10,6 @@ void ringbuf_init(ringbuf_t *rb, void *buf, size_t size) {
   rb->data = buf;
 }
 
-static void produce(ringbuf_t *buf, unsigned bytes) {
-  assert(buf->count <= buf->size && bytes <= buf->size &&
-         buf->count <= buf->size - bytes);
-  assert(buf->head + bytes <= buf->size);
-  buf->count += bytes;
-  buf->head += bytes;
-  if (buf->head == buf->size)
-    buf->head = 0;
-}
-
-static void consume(ringbuf_t *buf, unsigned bytes) {
-  assert(buf->count >= bytes);
-  assert(buf->tail + bytes <= buf->size);
-  buf->count -= bytes;
-  buf->tail += bytes;
-  if (buf->tail == buf->size)
-    buf->tail = 0;
-}
-
 /* below two function are to help to track ringbuf pointers in case when it is
  * changed by something else. e.q. DMA */
 void ringbuf_produce(ringbuf_t *buf, unsigned bytes) {
@@ -36,21 +17,25 @@ void ringbuf_produce(ringbuf_t *buf, unsigned bytes) {
          buf->count <= buf->size - bytes);
   buf->count += bytes;
   buf->head += bytes;
-  buf->head %= buf->size;
+  if (buf->head >= buf->size)
+    buf->head -= buf->size;
+  assert(buf->head < buf->size);
 }
 
 void ringbuf_consume(ringbuf_t *buf, unsigned bytes) {
   assert(buf->count >= bytes);
   buf->count -= bytes;
   buf->tail += bytes;
-  buf->tail %= buf->size;
+  if (buf->tail >= buf->size)
+    buf->tail -= buf->size;
+  assert(buf->tail < buf->size);
 }
 
 bool ringbuf_putb(ringbuf_t *buf, uint8_t byte) {
   if (buf->count == buf->size)
     return false;
   buf->data[buf->head] = byte;
-  produce(buf, 1);
+  ringbuf_produce(buf, 1);
   return true;
 }
 
@@ -66,7 +51,7 @@ bool ringbuf_getb(ringbuf_t *buf, uint8_t *byte_p) {
   if (buf->count == 0)
     return false;
   *byte_p = buf->data[buf->tail];
-  consume(buf, 1);
+  ringbuf_consume(buf, 1);
   return true;
 }
 
@@ -107,7 +92,7 @@ int ringbuf_read(ringbuf_t *buf, uio_t *uio) {
     int res = uiomove((char *)buf->data + buf->tail, size, uio);
     if (res)
       return res;
-    consume(buf, size);
+    ringbuf_consume(buf, size);
   }
   return 0;
 }
@@ -124,7 +109,7 @@ int ringbuf_write(ringbuf_t *buf, uio_t *uio) {
     int res = uiomove((char *)buf->data + buf->head, size, uio);
     if (res)
       return res;
-    produce(buf, size);
+    ringbuf_produce(buf, size);
   }
   return 0;
 }
