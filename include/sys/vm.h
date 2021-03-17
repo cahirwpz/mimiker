@@ -5,10 +5,15 @@
 #include <sys/queue.h>
 #include <machine/vm_param.h>
 
+#ifdef _KERNEL
+
+#include <sys/mutex.h>
+
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
 
 /* Real kernel end in kernel virtual address space. */
-extern void *vm_kernel_end;
+extern atomic_vaddr_t vm_kernel_end;
+extern mtx_t vm_kernel_end_lock;
 
 typedef enum {
   PG_ALLOCATED = 0x01,  /* page has been allocated */
@@ -67,5 +72,7 @@ struct vm_page {
 
 int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags);
 int do_munmap(vaddr_t addr, size_t length);
+
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_VM_H_ */

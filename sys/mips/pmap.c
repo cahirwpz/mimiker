@@ -47,9 +47,6 @@ static const pte_t vm_prot_map[] = {
 
 static pmap_t kernel_pmap;
 pde_t *_kernel_pmap_pde;
-/* pmap_maxkvaddr is used to track the range of virtual kernel addresses for
- * which page table pages have been allocated */
-static atomic_vaddr_t pmap_maxkvaddr;
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static spin_t *asid_lock = &SPIN_INITIALIZER(0);
 
@@ -512,7 +509,6 @@ static void pmap_setup(pmap_t *pmap) {
 void init_pmap(void) {
   pmap_setup(&kernel_pmap);
   kernel_pmap.pde = _kernel_pmap_pde;
-  pmap_maxkvaddr = roundup((vaddr_t)vm_kernel_end, PAGESIZE);
 }
 
 pmap_t *pmap_new(void) {
@@ -552,33 +548,27 @@ void pmap_delete(pmap_t *pmap) {
   pool_free(P_PMAP, pmap);
 }
 
-#define L1_SPACE_SIZE (PAGESIZE * PAGESIZE / sizeof(pte_t))
-
 /*
  * Increase usable kernel virtual address space to at least maxkvaddr.
  * Allocate page table (level 1) if needed.
  */
-vaddr_t pmap_growkernel(vaddr_t maxkvaddr) {
-  assert(maxkvaddr > atomic_load(&pmap_maxkvaddr));
+void pmap_growkernel(vaddr_t maxkvaddr) {
+  assert(mtx_owned(&vm_kernel_end_lock));
+  assert(maxkvaddr > vm_kernel_end);
 
   pmap_t *pmap = pmap_kernel();
   vaddr_t va;
 
-  /*
-   * For 8 pages used by kernel we need 1 page for KASAN.
-   * shadow map is grown by a multiple of L1_SPACE_SIZE.
-   */
-  maxkvaddr = roundup(maxkvaddr, 8 * L1_SPACE_SIZE);
+  maxkvaddr = roundup(maxkvaddr, PAGESIZE);
 
   WITH_MTX_LOCK (&pmap->mtx) {
-    for (va = pmap_maxkvaddr; va <= maxkvaddr; va += L1_SPACE_SIZE) {
+    for (va = vm_kernel_end; va < maxkvaddr; va += PAGESIZE) {
       if (!is_valid_pde(PDE_OF(pmap, va)))
         pmap_add_pde(pmap, va);
     }
-    pmap_maxkvaddr = va;
   }
 
-  /* TODO(pj) add new region into shadow map */
+  vm_kernel_end = va;
 
-  return atomic_load(&pmap_maxkvaddr);
+  /* TODO(pj) add new region into shadow map */
 }

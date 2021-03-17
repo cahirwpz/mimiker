@@ -12,15 +12,12 @@
 #include <sys/mutex.h>
 
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
-static atomic_vaddr_t maxkvaddr;
-static mtx_t maxkvaddr_lock = MTX_INITIALIZER(0);
 
 void init_kmem(void) {
   kvspace = vmem_create("kvspace", PAGESIZE);
   if (KERNEL_SPACE_BEGIN < (vaddr_t)__kernel_start)
     vmem_add(kvspace, KERNEL_SPACE_BEGIN,
              (vaddr_t)__kernel_start - KERNEL_SPACE_BEGIN);
-  maxkvaddr = (vaddr_t)vm_kernel_end;
 }
 
 static void kick_swapper(void) {
@@ -30,7 +27,7 @@ static void kick_swapper(void) {
 vaddr_t kva_alloc(size_t size) {
   assert(page_aligned_p(size));
   vmem_addr_t start;
-  vaddr_t old = atomic_load(&maxkvaddr);
+  vaddr_t old = atomic_load(&vm_kernel_end);
 
   /*
    * Let's assume that vmem_alloc failed.
@@ -42,21 +39,22 @@ vaddr_t kva_alloc(size_t size) {
    * vmem_alloc. We do that until success because kva_alloc should never failed.
    */
   while (vmem_alloc(kvspace, size, &start, M_NOGROW)) {
-    mtx_lock(&maxkvaddr_lock);
+    mtx_lock(&vm_kernel_end_lock);
     /* Check if other thread called pmap_growkernel between vmem_alloc and
      * mtx_lock. */
-    if (maxkvaddr > old) {
-      old = maxkvaddr;
-      mtx_unlock(&maxkvaddr_lock);
+    if (vm_kernel_end > old) {
+      old = vm_kernel_end;
+      mtx_unlock(&vm_kernel_end_lock);
       continue;
     }
 
-    maxkvaddr = pmap_growkernel(maxkvaddr + size);
-    klog("%s: increase kernel end %08lx -> %08lx", __func__, old, maxkvaddr);
+    pmap_growkernel(old + size);
+    klog("%s: increase kernel end %08lx -> %08lx", __func__, old,
+         vm_kernel_end);
 
-    int error = vmem_add(kvspace, old, maxkvaddr - old);
+    int error = vmem_add(kvspace, old, vm_kernel_end - old);
     assert(error == 0);
-    mtx_unlock(&maxkvaddr_lock);
+    mtx_unlock(&vm_kernel_end_lock);
   }
 
   assert(start != 0);
