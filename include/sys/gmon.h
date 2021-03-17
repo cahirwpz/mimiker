@@ -147,7 +147,7 @@ typedef enum {
   GMON_PROF_ERROR = 2,
   GMON_PROF_OFF = 3,
   GMON_PROF_NOT_INIT = 4,
-} gmon_flags_t;
+} gmon_state_t;
 
 /*
  * Sysctl definitions for extracting profiling information from the kernel.
