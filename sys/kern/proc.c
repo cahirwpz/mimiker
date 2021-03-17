@@ -83,6 +83,7 @@ proc_t proc0 = {
   .p_pgrp = &pgrp0,
   .p_state = PS_NORMAL,
   .p_children = TAILQ_HEAD_INITIALIZER(proc0.p_children),
+  .p_args = NULL,
 };
 
 void init_proc0(void) {

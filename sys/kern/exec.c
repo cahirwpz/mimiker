@@ -323,8 +323,7 @@ static bool check_setid(vnode_t *vn, uid_t *uid, gid_t *gid) {
   return (*uid != (uid_t)-1) || (*gid != (gid_t)-1);
 }
 
-static char *prepare_pargs(exec_args_t *args) {
-  char *pargs = kmalloc(M_STR, MAX_PARGS_LEN, M_ZERO);
+static void prepare_pargs(exec_args_t *args, char *pargs) {
   size_t it = 1, used = 0, max = MAX_PARGS_LEN;
 
   while (used + 1 < max && it < args->argc) {
@@ -339,7 +338,6 @@ static char *prepare_pargs(exec_args_t *args) {
       pargs[used++] = ' ';
     ++it;
   }
-  return pargs;
 }
 
 /* XXX We assume process may only have a single thread. But if there were more
@@ -402,7 +400,8 @@ static int _do_execve(exec_args_t *args) {
   if ((error = exec_args_copyout(args, &stack_top)))
     goto fail;
 
-  p->p_args = prepare_pargs(args);
+  assert(p->p_args != NULL);
+  prepare_pargs(args, p->p_args);
 
   fdtab_onexec(p->p_fdtable);
 
