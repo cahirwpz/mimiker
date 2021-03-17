@@ -104,7 +104,7 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   pit->ticks = 0;
   pit->prev_ticks16 = 0;
   pit->period_ticks = counter;
-  pit->noticed_overflow = true;
+  pit->noticed_overflow = false;
 
   pit_set_frequency(pit);
 
