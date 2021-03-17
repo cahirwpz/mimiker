@@ -34,7 +34,7 @@
 #ifndef _SYS_GMON_H_
 #define _SYS_GMON_H_
 
-void init_prof(void);
+void init_kgprof(void);
 
 /*
  * Structure prepended to gmon.out profiling data file.
