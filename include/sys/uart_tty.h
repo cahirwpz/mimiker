@@ -13,7 +13,7 @@
 typedef struct tty_thread {
   thread_t *ttd_thread;
   tty_t *ttd_tty;
-  condvar_t ttd_cv;
+  condvar_t ttd_cv; /* Use with uart_state::u_lock. */
   uint8_t ttd_flags;
 } tty_thread_t;
 

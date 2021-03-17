@@ -7,20 +7,25 @@
 #include <sys/tty.h>
 #include <sys/uart_tty.h>
 
-/* For the following functions state is a uart_state::u_state which usually
- * contains only resources (memory and irq). */
+/* 
+ * Low-level uart methods.
+ * For the following functions state is a uart_state::u_state which usually
+ * contains only resources (memory and irq).
+ */
 
-/* Return single character from uart. */
+/* Return single character from uart. Receiver hardware queue must be ready
+ * (uart_rx_ready_t).  */
 typedef uint8_t (*uart_getc_t)(void *state);
-/* Return true iff RX is ready. */
+/* Return true iff receiver hardware queue is ready. */
 typedef bool (*uart_rx_ready_t)(void *state);
-/* Put character in uart. */
+/* Put character in uart. Transmitter hardware queue must be ready
+ * (uart_tx_ready_t). */
 typedef void (*uart_putc_t)(void *state, uint8_t byte);
-/* Return true iff TX is ready. */
+/* Return true iff transmitter hardware queue is ready. */
 typedef bool (*uart_tx_ready_t)(void *state);
-/* Enable TX interrupt. */
+/* Enable transmitter interrupt. */
 typedef void (*uart_tx_enable_t)(void *state);
-/* Disable TX interrupt. */
+/* Disable transmitter interrupt. */
 typedef void (*uart_tx_disable_t)(void *state);
 
 typedef struct uart_methods {
@@ -38,8 +43,8 @@ static inline uart_methods_t *uart_methods(device_t *dev) {
 
 typedef struct uart_state {
   spin_t u_lock;
-  ringbuf_t u_rx_buf;
-  ringbuf_t u_tx_buf;
+  ringbuf_t u_rx_buf; /* Software receiver queue. */
+  ringbuf_t u_tx_buf; /* Software transmitter queue. */
   tty_thread_t u_ttd;
   void *u_state; /* Private state - mostly memory and irq resources. */
 } uart_state_t;
