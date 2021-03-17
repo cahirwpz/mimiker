@@ -28,10 +28,7 @@ class GmonOut():
     def write_tick_buffer(self, inferior, file):
         kcountsize = int(gdb.parse_and_eval('_gmonparam.kcountsize'))
         kcount = gdb.parse_and_eval('_gmonparam.kcount')
-        memory = inferior.read_memory(kcount, kcountsize)
-        array = unpack(kcountsize * 'c', memory)
-        for i in array:
-            file.write(c_char(i))
+        file.write(inferior.read_memory(kcount, kcountsize))
 
     def write_arc_info(self, inferior, file):
         return
