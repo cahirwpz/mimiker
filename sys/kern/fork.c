@@ -83,12 +83,6 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   child->p_cwd = parent->p_cwd;
   child->p_cmask = parent->p_cmask;
 
-  /* Copy process arguments */
-  child->p_args = kmalloc(M_STR, MAX_PARGS_LEN, M_ZERO);
-  if (parent->p_args)
-    /* we can't copy p_args from proc0 */
-    memcpy(child->p_args, parent->p_args, MAX_PARGS_LEN);
-
   /* Copy signal handler dispatch rules. */
   memcpy(child->p_sigactions, parent->p_sigactions,
          sizeof(child->p_sigactions));
