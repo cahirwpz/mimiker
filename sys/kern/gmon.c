@@ -27,10 +27,7 @@ void init_kgprof(void) {
   p->hashfraction = HASHFRACTION;
   p->fromssize = p->textsize / HASHFRACTION;
   p->tolimit = (p->textsize * ARCDENSITY) / 100;
-  if (p->tolimit < MINARCS)
-    p->tolimit = MINARCS;
-  else if (p->tolimit > MAXARCS)
-    p->tolimit = MAXARCS;
+  p->tolimit = min(max(p->tolimit, MINARCS), MAXARCS);
   p->tossize = p->tolimit * sizeof(tostruct_t);
 
   int size = p->kcountsize + p->tossize + p->fromssize;
