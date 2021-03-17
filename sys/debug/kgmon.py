@@ -17,7 +17,8 @@ class GmonOut():
             self.write_tick_buffer(infer, of)
             self.write_arc_info(infer, of)
 
-    def write_header(self, inferior, file):
+    @staticmethod
+    def write_header(inferior, file):
         gmonhdr_size = int(gdb.parse_and_eval('sizeof(_gmonhdr)'))
         gmonhdr_p = gdb.parse_and_eval('&_gmonhdr')
         memory = inferior.read_memory(gmonhdr_p, gmonhdr_size)
@@ -25,12 +26,14 @@ class GmonOut():
         for i in array:
             file.write(c_int(i))
 
-    def write_tick_buffer(self, inferior, file):
+    @staticmethod
+    def write_tick_buffer(inferior, file):
         kcountsize = int(gdb.parse_and_eval('_gmonparam.kcountsize'))
         kcount = gdb.parse_and_eval('_gmonparam.kcount')
         file.write(inferior.read_memory(kcount, kcountsize))
 
-    def write_arc_info(self, inferior, file):
+    @staticmethod
+    def write_arc_info(inferior, file):
         return
 
 
