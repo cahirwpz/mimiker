@@ -138,3 +138,5 @@ typedef enum {
   GMON_PROF_OFF = 3,
   GMON_PROF_NOT_INIT = 4,
 } gmon_state_t;
+
+#endif /* !_SYS_GMON_H_ */
