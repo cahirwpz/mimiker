@@ -1,4 +1,4 @@
-/* Programmable Interval Timer (PIT) driver for Intel 8253 */
+/* Programmable Interval Timer (PIT) driver for Intel 8254 */
 #include <sys/klog.h>
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
@@ -11,7 +11,7 @@ typedef struct pit_state {
   resource_t *regs;
   resource_t *irq_res;
   timer_t timer;
-  bool noticed_overflow; /* noticed and handled the counter overflowe */
+  bool noticed_overflow; /* noticed and handled the counter overflow */
   uint16_t period_ticks; /* number of PIT ticks in full period */
   /* values since last counter read */
   uint16_t prev_ticks16; /* number of ticks */
