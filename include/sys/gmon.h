@@ -110,16 +110,6 @@ typedef struct tostruct {
 } tostruct_t;
 
 /*
- * a raw arc, with pointers to the calling site and
- * the called site and a count.
- */
-struct rawarc {
-  u_long raw_frompc;
-  u_long raw_selfpc;
-  long raw_count;
-};
-
-/*
  * The profiling data structures are housed in this structure.
  */
 typedef struct gmonparam {
@@ -148,13 +138,3 @@ typedef enum {
   GMON_PROF_OFF = 3,
   GMON_PROF_NOT_INIT = 4,
 } gmon_state_t;
-
-/*
- * Sysctl definitions for extracting profiling information from the kernel.
- */
-#define GPROF_STATE 0     /* int: profiling enabling variable */
-#define GPROF_COUNT 1     /* struct: profile tick count buffer */
-#define GPROF_FROMS 2     /* struct: from location hash bucket */
-#define GPROF_TOS 3       /* struct: destination/count structure */
-#define GPROF_GMONPARAM 4 /* struct: profiling parameters (see above) */
-#endif                    /* !_SYS_GMON_H_ */
