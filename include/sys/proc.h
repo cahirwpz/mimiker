@@ -187,8 +187,6 @@ int proc_getsid(pid_t pid, sid_t *sidp);
  * The SID is returned in `*sidp`. */
 int proc_getsid(pid_t pid, sid_t *sidp);
 
-int proc_getargv(proc_t *p, char *buf, size_t maxlen);
-
 /*! \brief Wake up the parent process when child's state changes.
  *
  * Must be called with parent::p_lock held. */
