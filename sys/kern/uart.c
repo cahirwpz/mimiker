@@ -22,6 +22,7 @@ intr_filter_t uart_intr(void *data /* device_t* */) {
   intr_filter_t res = IF_STRAY;
 
   WITH_SPIN_LOCK (&uart->u_lock) {
+    /* data ready to be received? */
     if (uart_rx_ready(dev)) {
       (void)ringbuf_putb(&uart->u_rx_buf, uart_getc(dev));
       ttd->ttd_flags |= TTY_THREAD_RXRDY;
@@ -29,6 +30,7 @@ intr_filter_t uart_intr(void *data /* device_t* */) {
       res = IF_FILTERED;
     }
 
+    /* transmit register empty? */
     if (uart_tx_ready(dev)) {
       uint8_t byte;
       while (uart_tx_ready(dev) && ringbuf_getb(&uart->u_tx_buf, &byte))

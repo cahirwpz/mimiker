@@ -5,9 +5,12 @@
 #include <sys/device.h>
 #include <sys/tty.h>
 
+/* tty->t_outq -> uart_state::u_tx_buf */
 #define TTY_THREAD_TXRDY 0x1
+/* uart_state::u_rx_buf -> tty->t_inq */
 #define TTY_THREAD_RXRDY 0x2
 #define TTY_THREAD_WORK_MASK (TTY_THREAD_TXRDY | TTY_THREAD_RXRDY)
+/* If cleared, don't wake up worker thread from uart_intr. */
 #define TTY_THREAD_OUTQ_NONEMPTY 0x4
 
 typedef struct tty_thread {
