@@ -35,6 +35,7 @@ SOURCES = \
 	klog.c \
 	kmem.c \
 	ktest.c \
+	lockdep.c \
 	main.c \
 	malloc.c \
 	mutex.c \
