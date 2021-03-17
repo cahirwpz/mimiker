@@ -54,7 +54,7 @@ extern gmonhdr_t _gmonhdr;
 /*
  * histogram counters are unsigned shorts (according to the kernel).
  */
-#define HISTCOUNTER unsigned short
+typedef unsigned short HISTCOUNTER;
 
 /*
  * fraction of text space to allocate for histogram counters here, 1/2
