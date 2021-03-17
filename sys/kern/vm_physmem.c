@@ -84,7 +84,7 @@ static void *vm_boot_alloc(size_t n) {
 }
 
 static void vm_boot_finish(void) {
-  vm_kernel_end = align(vm_kernel_end, PAGESIZE);
+  vm_kernel_end = (vaddr_t)align((void *)vm_kernel_end, PAGESIZE);
   vm_boot_done = true;
 }
 
