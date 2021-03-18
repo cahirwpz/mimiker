@@ -23,6 +23,7 @@ __boot_data void *_bootmem_end;
 /* Kernel page directory entries. */
 paddr_t _kernel_pmap_pde;
 alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
+alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
@@ -208,7 +209,8 @@ __boot_text static paddr_t build_page_table(void) {
   l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
 
 #if KASAN /* Prepare KASAN shadow mappings */
-  kasan_sanitized_end = roundup(va, SUPERPAGESIZE << KASAN_SHADOW_SCALE_SHIFT);
+  kasan_sanitized_end =
+    SUPERPAGESIZE + roundup(va, SUPERPAGESIZE << KASAN_SHADOW_SCALE_SHIFT);
   size_t kasan_sanitized_size = kasan_sanitized_end - KASAN_MD_SANITIZED_START;
   size_t kasan_shadow_size =
     roundup(kasan_sanitized_size >> KASAN_SHADOW_SCALE_SHIFT, SUPERPAGESIZE);
@@ -335,6 +337,10 @@ __boot_text void *aarch64_init(atag_tag_t *atags) {
 
   enable_mmu(build_page_table());
   return _atags;
+}
+
+void *aarch64_init_boot_stack(void) {
+  return &_boot_stack[PAGESIZE];
 }
 
 /* TODO(pj) Remove those after architecture split of gdb debug scripts. */

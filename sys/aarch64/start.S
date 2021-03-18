@@ -34,6 +34,11 @@ _ENTRY(_start)
 
         BL      aarch64_init
 
+        MOV     x19, x0
+        BL      aarch64_init_boot_stack
+        mov     sp, x0
+        mov     x0, x19
+
         BL      board_stack
         MOV     sp, x0
 
