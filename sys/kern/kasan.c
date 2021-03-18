@@ -269,6 +269,7 @@ DEFINE_ASAN_LOAD_STORE(1);
 DEFINE_ASAN_LOAD_STORE(2);
 DEFINE_ASAN_LOAD_STORE(4);
 DEFINE_ASAN_LOAD_STORE(8);
+DEFINE_ASAN_LOAD_STORE(16);
 
 void __asan_loadN_noabort(uintptr_t addr, size_t size) {
   shadow_check(addr, size, true);

@@ -7,6 +7,7 @@
 #include <sys/vm_physmem.h>
 #include <sys/context.h>
 #include <sys/interrupt.h>
+#include <sys/kasan.h>
 #include <aarch64/atags.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
@@ -85,6 +86,7 @@ static void rpi3_physmem(void) {
 }
 
 __noreturn void board_init(void) {
+  init_kasan();
   init_klog();
   rpi3_physmem();
   intr_enable();

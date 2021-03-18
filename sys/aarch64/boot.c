@@ -5,6 +5,7 @@
 #include <aarch64/pmap.h>
 #include <aarch64/pte.h>
 #include <aarch64/atags.h>
+#include <aarch64/kasan.h>
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
@@ -25,6 +26,10 @@ alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
 
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
+extern size_t _kasan_sanitized_end;
+#if KASAN
+__boot_data static vaddr_t kasan_sanitized_end;
+#endif
 
 __boot_text static void halt(void) {
   for (;;)
@@ -140,6 +145,9 @@ __boot_text static void clear_bss(void) {
 #define DMAP_L2_SIZE roundup(DMAP_L2_ENTRIES * sizeof(pde_t), PAGESIZE)
 #define DMAP_L3_SIZE roundup(DMAP_L3_ENTRIES * sizeof(pte_t), PAGESIZE)
 
+#define PTE_MASK 0xfffffffffffff000
+#define PTE_FRAME_ADDR(pte) ((pte)&PTE_MASK)
+
 __boot_text static paddr_t build_page_table(void) {
   /* l0 entry is 512GB */
   volatile pde_t *l0 = bootmem_alloc(PAGESIZE);
@@ -198,6 +206,38 @@ __boot_text static paddr_t build_page_table(void) {
     l1d[i] = (pde_t)&l2d[i * PT_ENTRIES] | L1_TABLE;
 
   l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
+
+#if KASAN /* Prepare KASAN shadow mappings */
+  kasan_sanitized_end = roundup(va, SUPERPAGESIZE << KASAN_SHADOW_SCALE_SHIFT);
+  size_t kasan_sanitized_size = kasan_sanitized_end - KASAN_MD_SANITIZED_START;
+  size_t kasan_shadow_size =
+    roundup(kasan_sanitized_size >> KASAN_SHADOW_SCALE_SHIFT, SUPERPAGESIZE);
+  vaddr_t kasan_shadow_end = KASAN_MD_SHADOW_START + kasan_shadow_size;
+  va = KASAN_MD_SHADOW_START;
+  /* Allocate physical memory for shadow area */
+  pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
+
+  while (va < kasan_shadow_end) {
+    if (l0[L0_INDEX(va)] == 0)
+      l0[L0_INDEX(va)] = (pde_t)bootmem_alloc(PAGESIZE) | L0_TABLE;
+
+    pde_t *l1k = (pde_t *)PTE_FRAME_ADDR(l0[L0_INDEX(va)]);
+    if (l1k[L1_INDEX(va)] == 0)
+      l1k[L1_INDEX(va)] = (pde_t)bootmem_alloc(PAGESIZE) | L1_TABLE;
+
+    pde_t *l2k = (pde_t *)PTE_FRAME_ADDR(l1k[L1_INDEX(va)]);
+    if (l2k[L2_INDEX(va)] == 0)
+      l2k[L2_INDEX(va)] = (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
+
+    pde_t *l3k = (pde_t *)PTE_FRAME_ADDR(l2k[L2_INDEX(va)]);
+
+    for (int j = 0; j < PT_ENTRIES; j++) {
+      l3k[L3_INDEX(va)] = pa | ATTR_AP_RW | ATTR_XN | pte_default;
+      va += PAGESIZE;
+      pa += PAGESIZE;
+    }
+  }
+#endif /* !KASAN */
 
   return (paddr_t)l0;
 }
@@ -267,6 +307,9 @@ __boot_text static void enable_mmu(paddr_t pde) {
   __isb();
 
   _kernel_pmap_pde = pde;
+#if KASAN
+  _kasan_sanitized_end = kasan_sanitized_end;
+#endif
 }
 
 __boot_text static void atags_copy(atag_tag_t *atags) {
