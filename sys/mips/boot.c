@@ -137,7 +137,7 @@ __boot_text void *mips_init(void) {
   /* Since variables are in kseg2 we cannot initialize them earlier. */
   _kernel_pmap_pde = pde;
 #if KASAN
-  _kasan_sanitized_end = kasan_sanitized_end;
+  _kasan_sanitized_end = KASAN_MD_SANITIZED_START + kasan_sanitized_size;
 #endif /* !KASAN */
 
   /* Return the end of boot stack (grows downwards on MIPS) as new sp.
