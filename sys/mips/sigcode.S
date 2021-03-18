@@ -7,7 +7,7 @@
         .set noreorder
 
 LEAF_NOPROFILE(sigcode)
-        addi    a0, sp, 4               # address of ucontext_t to restore
+        addi    a0, sp, STACK_ALIGN           # address of ucontext_t to restore
         li      v0, SYS_sigreturn
         syscall
         # just in case sigreturn fails

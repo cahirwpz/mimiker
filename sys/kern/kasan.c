@@ -5,6 +5,7 @@
 #include <sys/klog.h>
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
+#include <sys/vm.h>
 #include <machine/vm_param.h>
 #include <machine/kasan.h>
 #include <machine/pmap.h>
@@ -39,7 +40,6 @@ struct __asan_global {
 
 size_t _kasan_sanitized_end;
 static int kasan_ready;
-extern mtx_t maxkvaddr_lock;
 
 static const char *code_name(uint8_t code) {
   switch (code) {
@@ -227,7 +227,7 @@ static inline vaddr_t kasan_va_to_shadow(vaddr_t va) {
 }
 
 void kasan_grow(vaddr_t maxkvaddr) {
-  assert(mtx_owned(&maxkvaddr_lock));
+  assert(mtx_owned(&vm_kernel_end_lock));
   maxkvaddr = roundup2(maxkvaddr, PAGESIZE * KASAN_SHADOW_SCALE_SIZE);
   vaddr_t va = kasan_va_to_shadow(_kasan_sanitized_end);
   vaddr_t end = kasan_va_to_shadow(maxkvaddr);
@@ -239,8 +239,8 @@ void kasan_grow(vaddr_t maxkvaddr) {
   }
 
   if (maxkvaddr > _kasan_sanitized_end) {
-    kasan_mark_valid((const void *)(_kasan_sanitized_end),
-                     maxkvaddr - _kasan_sanitized_end);
+    kasan_mark_invalid((const void *)(_kasan_sanitized_end),
+                       maxkvaddr - _kasan_sanitized_end, 0);
     _kasan_sanitized_end = maxkvaddr;
   }
 }

@@ -28,7 +28,7 @@ typedef struct vm_physseg {
 static TAILQ_HEAD(, vm_physseg) seglist = TAILQ_HEAD_INITIALIZER(seglist);
 static vm_pagelist_t freelist[PM_NQUEUES];
 static size_t pagecount[PM_NQUEUES];
-static mtx_t *physmem_lock = &MTX_INITIALIZER(LK_RECURSIVE);
+static MTX_DEFINE(physmem_lock, LK_RECURSIVE);
 
 void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
@@ -36,7 +36,7 @@ void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
   static vm_physseg_t freeseg[VM_PHYSSEG_NMAX];
   static unsigned freeseg_last = 0;
 
-  SCOPED_MTX_LOCK(physmem_lock);
+  SCOPED_MTX_LOCK(&physmem_lock);
 
   assert(freeseg_last < VM_PHYSSEG_NMAX - 1);
 
@@ -51,12 +51,13 @@ void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
 }
 
 static bool vm_boot_done = false;
-void *vm_kernel_end = __kernel_end;
+atomic_vaddr_t vm_kernel_end = (vaddr_t)__kernel_end;
+MTX_DEFINE(vm_kernel_end_lock, 0);
 
 static void *vm_boot_alloc(size_t n) {
   assert(!vm_boot_done);
 
-  void *begin = align(vm_kernel_end, sizeof(long));
+  void *begin = align((void *)vm_kernel_end, sizeof(long));
   void *end = align(begin + n, PAGESIZE);
 
   vm_physseg_t *seg = TAILQ_FIRST(&seglist);
@@ -83,7 +84,7 @@ static void *vm_boot_alloc(size_t n) {
 }
 
 static void vm_boot_finish(void) {
-  vm_kernel_end = align(vm_kernel_end, PAGESIZE);
+  vm_kernel_end = (vaddr_t)align((void *)vm_kernel_end, PAGESIZE);
   vm_boot_done = true;
 }
 
@@ -210,7 +211,7 @@ static vm_page_t *pm_take_page(size_t fl) {
 vm_page_t *vm_page_alloc(size_t npages) {
   assert((npages > 0) && powerof2(npages));
 
-  SCOPED_MTX_LOCK(physmem_lock);
+  SCOPED_MTX_LOCK(&physmem_lock);
 
   size_t n = log2(npages);
   size_t fl = n;
@@ -231,7 +232,7 @@ vm_page_t *vm_page_alloc(size_t npages) {
 int vm_pagelist_alloc(size_t n, vm_pagelist_t *pglist) {
   TAILQ_INIT(pglist);
 
-  SCOPED_MTX_LOCK(physmem_lock);
+  SCOPED_MTX_LOCK(&physmem_lock);
 
   /* Check if the request can be satisfied at all. */
   size_t sums[PM_NQUEUES + 1];
@@ -314,12 +315,12 @@ static void vm_page_free_nolock(vm_page_t *pg) {
 }
 
 void vm_page_free(vm_page_t *page) {
-  SCOPED_MTX_LOCK(physmem_lock);
+  SCOPED_MTX_LOCK(&physmem_lock);
   vm_page_free_nolock(page);
 }
 
 void vm_pagelist_free(vm_pagelist_t *pglist) {
-  SCOPED_MTX_LOCK(physmem_lock);
+  SCOPED_MTX_LOCK(&physmem_lock);
 
   vm_page_t *pg, *pg_next;
   TAILQ_FOREACH_SAFE (pg, pglist, pageq, pg_next) {
@@ -329,7 +330,7 @@ void vm_pagelist_free(vm_pagelist_t *pglist) {
 }
 
 vm_page_t *vm_page_find(paddr_t pa) {
-  SCOPED_MTX_LOCK(physmem_lock);
+  SCOPED_MTX_LOCK(&physmem_lock);
 
   vm_physseg_t *seg_it;
   TAILQ_FOREACH (seg_it, &seglist, seglink) {
