@@ -43,4 +43,4 @@ class Kgmon(SimpleCommand):
             print("Compile program with KGPROF=1 or gmon not initialized yet")
             return
         gmon = GmonOut().write_to_file()
-        print("kgmon - finished successfully")
+        print("KGMON - finished successfully")
