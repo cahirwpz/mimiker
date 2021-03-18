@@ -2,10 +2,7 @@ import gdb
 import sys
 
 
-from ctypes import *
-from struct import unpack
 from .cmd import SimpleCommand
-from .struct import GdbStructMeta
 
 
 class GmonOut():
@@ -21,10 +18,7 @@ class GmonOut():
     def write_header(inferior, file):
         gmonhdr_size = int(gdb.parse_and_eval('sizeof(_gmonhdr)'))
         gmonhdr_p = gdb.parse_and_eval('&_gmonhdr')
-        memory = inferior.read_memory(gmonhdr_p, gmonhdr_size)
-        array = unpack('IIiiiiii', memory)
-        for i in array:
-            file.write(c_int(i))
+        file.write(inferior.read_memory(gmonhdr_p, gmonhdr_size))
 
     @staticmethod
     def write_tick_buffer(inferior, file):
@@ -49,4 +43,4 @@ class Kgmon(SimpleCommand):
             print("Compile program with KGPROF=1 or gmon not initialized yet")
             return
         gmon = GmonOut().write_to_file()
-        print("KGMON: Finished")
+        print("kgmon - finished successfully")
