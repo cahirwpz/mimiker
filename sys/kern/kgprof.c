@@ -30,10 +30,8 @@ void init_kgprof(void) {
   int size = p->kcountsize + p->tossize + p->fromssize;
   int aligned_size = align(size, PAGESIZE);
   profptr = kmem_alloc(aligned_size, M_NOWAIT | M_ZERO);
-  if (profptr == NULL) {
-    klog("Not enough memory for profiling!\n");
-    return;
-  }
+  assert(profptr != NULL);
+  
   assert(is_aligned(profptr, alignof(tostruct_t)));
   p->tos = (tostruct_t *)profptr;
   profptr += p->tossize;
