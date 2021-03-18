@@ -96,10 +96,8 @@ static inline __always_inline void bt_make(word_t *bt, size_t size,
   word_t val = size | flags;
   word_t *ft = (void *)bt + size - sizeof(word_t);
 
-#ifndef _LP64
-  kasan_mark_valid(bt - 1, 2 * sizeof(word_t));
+  kasan_mark_valid((word_t *)bt - 1, 2 * sizeof(word_t));
   kasan_mark_valid(ft, 2 * sizeof(word_t));
-#endif
 
   *bt = val;
   *ft = (flags & USED) ? CANARY : val;
