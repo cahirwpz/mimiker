@@ -72,8 +72,12 @@ static intr_filter_t pit_intr(void *data) {
   pit_state_t *pit = data;
 
   /* XXX: It's still possible for periods to be lost.
-  For example disabling interrupts for the whole period
-  without calling pit_gettime will lose period_ticks. */
+   * For example disabling interrupts for the whole period
+   * without calling pit_gettime will lose period_ticks.
+   * It is also possible that time suddenly jumps by period_ticks
+   * due to the fact that pit_update_time() can't detect an overflow if
+   * the current counter value is greater than the previous one, while
+   * pit_intr() can thanks to the noticed_overflow flag. */
   pit_update_time(pit);
   if (!pit->noticed_overflow)
     pit_incr_ticks(pit, pit->period_ticks);
