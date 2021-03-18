@@ -26,7 +26,7 @@
 #include <sys/console.h>
 #include <sys/stat.h>
 #include <sys/lockdep.h>
-#include <sys/gmon.h>
+#include <sys/kgprof.h>
 
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
