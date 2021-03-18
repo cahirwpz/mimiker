@@ -38,7 +38,7 @@ struct __asan_global {
   const void *odr_indicator; /* The address of the ODR indicator symbol */
 };
 
-size_t _kasan_sanitized_end;
+vaddr_t _kasan_sanitized_end;
 static int kasan_ready;
 
 static const char *code_name(uint8_t code) {
