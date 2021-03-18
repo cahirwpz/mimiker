@@ -7,12 +7,13 @@ from .cmd import SimpleCommand
 
 class GmonOut():
 
-    def write_to_file(self, path="gmon.out"):
+    @staticmethod
+    def write_to_file(path="gmon.out"):
         infer = gdb.inferiors()[0]
         with open(path, "wb") as of:
-            self.write_header(infer, of)
-            self.write_tick_buffer(infer, of)
-            self.write_arc_info(infer, of)
+            GmonOut.write_header(infer, of)
+            GmonOut.write_tick_buffer(infer, of)
+            GmonOut.write_arc_info(infer, of)
 
     @staticmethod
     def write_header(inferior, file):
@@ -42,5 +43,5 @@ class Kgmon(SimpleCommand):
         if state == gdb.parse_and_eval('GMON_PROF_NOT_INIT'):
             print("Compile program with KGPROF=1 or gmon not initialized yet")
             return
-        gmon = GmonOut().write_to_file()
+        gmon = GmonOut.write_to_file()
         print("KGMON - finished successfully")
