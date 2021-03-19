@@ -4,7 +4,7 @@ Mimiker Build System
 ### Command line options
 
 The following command line options are provided:
-- BOARD: The target board. Currently supported boards: malta, rpi3. Defaults to malta.
+- BOARD: The target board. Currently supported boards: `malta`, `rpi3`. Defaults to `malta`.
 - VERBOSE: 1-recipes are loud. Otherwise, recipes are quiet.
 - KASAN: 1-employ the kernel address sanitizer, otherwise don't. Defaults to 0.
 - LOCKDEP: 1-employ the lock dependency validator, otherwise don't. Defaults to 0.
