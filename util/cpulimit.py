@@ -20,7 +20,7 @@ if __name__ == "__main__":
     parser.add_argument('cmd', metavar='CMD', type=str, nargs='+',
                         help='Command to execute')
     parser.add_argument('-p', '--pid', type=int,
-                        help='PID of process to send SIGINT to')
+                        help='PID of process to send SIGUSR1 to')
     parser.add_argument('-t', '--timeout', type=int,
                         help='CPU time limit (in seconds)')
 
