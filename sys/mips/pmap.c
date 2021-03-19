@@ -13,6 +13,7 @@
 #include <sys/vm_physmem.h>
 #include <bitstring.h>
 #include <errno.h>
+#include <sys/kasan.h>
 
 typedef struct pmap {
   mtx_t mtx;                      /* protects all fields in this structure */
@@ -546,4 +547,36 @@ void pmap_delete(pmap_t *pmap) {
   vm_page_free(pg);
   free_asid(pmap->asid);
   pool_free(P_PMAP, pmap);
+}
+
+#define L1_SPACE_SIZE (PAGESIZE * PAGESIZE / sizeof(pte_t))
+
+/*
+ * Increase usable kernel virtual address space to at least maxkvaddr.
+ * Allocate page table (level 1) if needed.
+ */
+void pmap_growkernel(vaddr_t maxkvaddr) {
+  assert(mtx_owned(&vm_kernel_end_lock));
+  assert(maxkvaddr > vm_kernel_end);
+
+  pmap_t *pmap = pmap_kernel();
+  vaddr_t va;
+
+  maxkvaddr = roundup2(maxkvaddr, L1_SPACE_SIZE);
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    for (va = vm_kernel_end; va < maxkvaddr; va += L1_SPACE_SIZE) {
+      if (!is_valid_pde(PDE_OF(pmap, va)))
+        pmap_add_pde(pmap, va);
+    }
+  }
+
+  /*
+   * kasan_grow calls pmap_kenter which acquires pmap->mtx.
+   * But we are under vm_kernel_end_lock from kmem so it's safe to call
+   * kasan_grow.
+   */
+  kasan_grow(maxkvaddr);
+
+  vm_kernel_end = maxkvaddr;
 }
