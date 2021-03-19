@@ -614,7 +614,7 @@ void pmap_growkernel(vaddr_t maxkvaddr) {
   pmap_t *pmap = pmap_kernel();
   vaddr_t va;
 
-  maxkvaddr = roundup(maxkvaddr, L2_SIZE);
+  maxkvaddr = roundup2(maxkvaddr, L2_SIZE);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (va = vm_kernel_end; va < maxkvaddr; va += L2_SIZE)
