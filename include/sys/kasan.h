@@ -13,13 +13,13 @@
 #define KASAN_CODE_STACK_RIGHT 0xF3
 
 /* Our own redzone codes */
+#define KASAN_CODE_FRESH_KVA 0xF9
 #define KASAN_CODE_GLOBAL_OVERFLOW 0xFA
 #define KASAN_CODE_KMEM_FREED 0xFB
 #define KASAN_CODE_POOL_OVERFLOW 0xFC
 #define KASAN_CODE_POOL_FREED 0xFD
 #define KASAN_CODE_KMALLOC_OVERFLOW 0xFE
 #define KASAN_CODE_KMALLOC_FREED 0xFF
-#define KASAN_CODE_NEW 0xF9
 
 /* Redzone sizes for instrumented allocators */
 #define KASAN_POOL_REDZONE_SIZE 8

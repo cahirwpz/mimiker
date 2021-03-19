@@ -58,8 +58,8 @@ static const char *code_name(uint8_t code) {
       return "kmalloc buffer-overflow";
     case KASAN_CODE_KMALLOC_FREED:
       return "kmalloc use-after-free";
-    case KASAN_CODE_NEW:
-      return "unallocated address space";
+    case KASAN_CODE_FRESH_KVA:
+      return "unused kernel address space";
     case 1 ... 7:
       return "partial redzone";
     default:
@@ -241,7 +241,7 @@ void kasan_grow(vaddr_t maxkvaddr) {
 
   if (maxkvaddr > _kasan_sanitized_end) {
     kasan_mark_invalid((const void *)(_kasan_sanitized_end),
-                       maxkvaddr - _kasan_sanitized_end, KASAN_CODE_NEW);
+                       maxkvaddr - _kasan_sanitized_end, KASAN_CODE_FRESH_KVA);
     _kasan_sanitized_end = maxkvaddr;
   }
 }
