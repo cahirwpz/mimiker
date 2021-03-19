@@ -1,3 +1,14 @@
+# vim: tabstop=8 shiftwidth=8 noexpandtab:
+#
+# This is a common makefile used to establish the implementation of the basic
+# tools used throughout the build system.
+#
+# The following make variables are assumed to be set:
+# -ARCH: The target architecture.
+# -TARGET: The target triplet corresponding to ARCH.
+# -CLANG: 1-switch compiler to Clang, otherwise use GCC.
+# -CLANG/GCC_ABIFLAGS: Compiler specific ABI flags.
+
 ifndef ARCH
   $(error ARCH variable not defined. Have you included config.mk?)
 endif

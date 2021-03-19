@@ -1,3 +1,12 @@
+# vim: tabstop=8 shiftwidth=8 noexpandtab:
+#
+# This is a common makefile which specifies aarch64 architecture specific 
+# settings.
+#
+# The following make variables are assumed to be set:
+# -KERNEL: Defined if compiling a kernel source.
+# -BOARD: Board defining the destination platform.
+
 TARGET := aarch64-mimiker-elf
 GCC_ABIFLAGS :=
 CLANG_ABIFLAGS := -target aarch64-elf

@@ -12,12 +12,14 @@ CPPFLAGS = -I$(CURDIR) \
 	   -I$(CURDIR)/stdlib \
 	   -D_LIBC -DNO_FENV_H
 
+
 SUBLIBS = cdb citrus gdtoa gen locale misc regex quad \
 	  stdio stdlib string sys termios time
 
 SOURCES = $(foreach dir, $(SUBLIBS), \
             $(wildcard $(dir)/*.[cS]) $(wildcard $(dir)/$(ARCH)/*.[cS]))
 
+include $(TOPDIR)/config.mk
 include $(TOPDIR)/build/build.lib.mk
 
 $(SOURCES): $(ARCH)/assym.h

@@ -1,7 +1,17 @@
+# vim: tabstop=8 shiftwidth=8 noexpandtab:
+#
+# This is a common makefile which specifies MIPS architecture specific settings.
+#
+# The following make variables are assumed to be set:
+# -KERNEL: Defined if compiling a kernel source.
+# -BOARD: Board defining the destination platform.
+
 TARGET := mipsel-mimiker-elf
-# -G 0 disables small-data and small-bss, as otherwise they would exceed 64KB limit
+# -G 0 disables small-data and small-bss,
+# as otherwise they would exceed 64KB limit
 GCC_ABIFLAGS := -mips32r2 -EL -G 0
-CLANG_ABIFLAGS := -target mipsel-elf -march=mips32r2 -mno-abicalls -modd-spreg -G 0
+CLANG_ABIFLAGS := -target mipsel-elf -march=mips32r2 -mno-abicalls \
+		  -modd-spreg -G 0
 ELFTYPE := elf32-littlemips 
 ELFARCH := mips
 

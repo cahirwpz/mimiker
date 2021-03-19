@@ -30,7 +30,7 @@ mimiker.img.gz: mimiker.img
 
 # Lists of all files that we consider operating system kernel sources.
 SRCDIRS = $(TOPDIR)/include $(TOPDIR)/sys
-SRCFILES_C = $(shell find $(SRCDIRS) -iname '*.[chS]')
+SRCFILES_C = $(shell find $(SRCDIRS) -iname '*.[ch]')
 SRCFILES_ASM = $(shell find $(SRCDIRS) -iname '*.S')
 SRCFILES = $(SRCFILES_C) $(SRCFILES_ASM)
 

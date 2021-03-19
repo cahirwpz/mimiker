@@ -1,4 +1,16 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
+#
+# This is a common makefile for kernel files. It is essentialy used for
+# building kernel static libraties (i.e. *.ka archives) but may also be used
+# to build a bunch of unrelated kernel sources.
+#
+# The following make variables are assumed to be set: 
+# -KLIB: "no" if kernel library shouldn't be built. Otherwise, the variable
+#  must be undefined.
+# For other variables see included makefiles.
+#
+# Note that *_dtb.o targets should be manually added to the OBJECTS variable
+# in the including makefile.
 
 KLIB ?= $(shell basename $(CURDIR)).ka
 
