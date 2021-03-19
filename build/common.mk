@@ -21,8 +21,10 @@
 # -Through the makefiles the TOPDIR variable is used. Whenever it occurs,
 #  the including makefile should set it to the path to the mimiker directory
 #  in the host system.
+# -All make variables composing an API of a makefile form the build direcotry
+#  must be set by the including makefile before the makefile is included.
 #
-# The following make variables are assumed to be set:
+# The following make variables are set by the including makefile:
 # -VERBOSE: 1-recipes are loud, otherwise recipes are quiet.
 # -SRCDIR: Source directory path relative to $(TOPDIR). This may be used
 #  to build some sources outside the cwd (current working directory).

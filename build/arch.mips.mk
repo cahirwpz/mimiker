@@ -2,7 +2,7 @@
 #
 # This is a common makefile which specifies MIPS architecture specific settings.
 #
-# The following make variables are assumed to be set:
+# The following make variables are set by the including makefile:
 # -KERNEL: Defined if compiling a kernel source.
 # -BOARD: Board defining the destination platform.
 

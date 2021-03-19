@@ -3,7 +3,7 @@
 # This is a common makefile used to establish the implementation of the basic
 # tools used throughout the build system.
 #
-# The following make variables are assumed to be set:
+# The following make variables are set by the including makefile:
 # -ARCH: The target architecture.
 # -TARGET: The target triplet corresponding to ARCH.
 # -CLANG: 1-switch compiler to Clang, otherwise use GCC.

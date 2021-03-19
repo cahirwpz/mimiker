@@ -2,6 +2,9 @@
 #
 # This is a common makefile used to supplement the compilation flags with
 # the user space specific flags.
+#
+# The following make variables are set by the including makefile:
+# -SYSROOT: Path to the sysroot directory in the host system. 
 
 include $(TOPDIR)/build/flags.mk
 

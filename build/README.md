@@ -12,4 +12,4 @@ The following command line options are provided:
 
 ### API between makefiles
 
-Each makefile available in the build directory may be included by other makefiles. In such a case, a set of input make variables must be provided by the including makefile. The set of required make variables along with a brief description are supplied at the beginning of each makefile.
+Each makefile available in the build directory may be included by other makefiles. A makefile defines a set of make variables which are to be set by the including makefile. Those variables along with a brief description are supplied at the beginning of each makefile. If a variable is said to have a default value or other variables condition its usage, then such a variable is optional. Otherwise, the variable must be supplied be the including makefile and must be set before including the makefile. Throughout the makefiles composing the build system, the special make variable TOPDIR is used. It should always be set by the top-level makefile to the path to the mimiker directory in the host system.

@@ -2,6 +2,8 @@
 
 TOPDIR = $(realpath ..)
 
+include $(TOPDIR)/config.mk
+
 SUBDIR = $(ARCH) drv kern libkern tests
 KLIB = no
 

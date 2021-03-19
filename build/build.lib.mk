@@ -2,7 +2,9 @@
 #
 # This is a common makefile for user space libraries.
 #
-# See included makefiles for customizable variables. 
+# The following make variables are set by the including makefile:
+# -SUBDIR: The directories which will compose the destination library.
+# For other variables see included makefiles.
 
 LIBNAME = $(shell basename $(CURDIR)).a
 BUILD-FILES += $(LIBNAME)

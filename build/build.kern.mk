@@ -4,9 +4,10 @@
 # building kernel static libraries (i.e. *.ka archives) but may also be used
 # to build a bunch of unrelated kernel sources.
 #
-# The following make variables are assumed to be set: 
+# The following make variables are set by the including makefile:
 # -KLIB: "no" if kernel library shouldn't be built. Otherwise, the variable
 #  must be undefined.
+# -SUBDIR: The directories which will compose the destination library.
 # For other variables see included makefiles.
 #
 # Note that *_dtb.o targets should be manually added to the OBJECTS variable

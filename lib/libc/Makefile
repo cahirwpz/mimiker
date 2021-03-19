@@ -16,10 +16,11 @@ CPPFLAGS = -I$(CURDIR) \
 SUBLIBS = cdb citrus gdtoa gen locale misc regex quad \
 	  stdio stdlib string sys termios time
 
+include $(TOPDIR)/config.mk
+
 SOURCES = $(foreach dir, $(SUBLIBS), \
             $(wildcard $(dir)/*.[cS]) $(wildcard $(dir)/$(ARCH)/*.[cS]))
 
-include $(TOPDIR)/config.mk
 include $(TOPDIR)/build/build.lib.mk
 
 $(SOURCES): $(ARCH)/assym.h

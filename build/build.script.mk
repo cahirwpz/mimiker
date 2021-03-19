@@ -2,7 +2,7 @@
 #
 # This is a common makefile for installing userspace scripts.
 #
-# The following make variables are assumed to be set:
+# The following make variables are set by the including makefile:
 # -SCRIPT: The name of the script.
 # -BINDIR: The path relative to $(SYSROOT) at which $(SCRIPT) will be 
 #  installed. Defaults to $(SYSROOT)/bin.

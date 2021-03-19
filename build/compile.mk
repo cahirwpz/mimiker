@@ -3,7 +3,7 @@
 # This is a common makefile used to obtain objects and dependency files to
 # build.
 #
-# The following make variables are assumed to be set:
+# The following make variables are set by the including makefile:
 # -SOURCES: The *.[cSy] files to compile.
 
 SOURCES_YACC = $(filter %.y,$(SOURCES))
