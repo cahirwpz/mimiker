@@ -4,7 +4,7 @@
 # the kernel specific flags.
 #
 # The following make variables are set by the including makefile:
-# -LOCKDEP: Lock depedency validator flag.
+# -LOCKDEP: Lock dependency validator flag.
 
 include $(TOPDIR)/build/flags.mk
 
