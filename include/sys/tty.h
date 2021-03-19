@@ -15,6 +15,7 @@
 #define LINEBUF_SIZE 0x100
 
 typedef struct session session_t;
+typedef struct device device_t;
 
 struct tty;
 

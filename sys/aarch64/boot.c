@@ -167,21 +167,21 @@ __boot_text static paddr_t build_page_table(void) {
   }
 
   const pte_t pte_default =
-    L3_PAGE | ATTR_AF | ATTR_SH(ATTR_SH_IS) | ATTR_IDX(ATTR_NORMAL_MEM_WB);
+    L3_PAGE | ATTR_AF | ATTR_SH_IS | ATTR_IDX(ATTR_NORMAL_MEM_WB);
 
   paddr_t pa = (paddr_t)__boot;
 
   /* boot sections */
   for (; pa < text; pa += PAGESIZE, va += PAGESIZE)
-    l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | pte_default;
+    l3[L3_INDEX(va)] = pa | ATTR_AP_RW | pte_default;
 
   /* text section */
   for (; pa < data; pa += PAGESIZE, va += PAGESIZE)
-    l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RO) | pte_default;
+    l3[L3_INDEX(va)] = pa | ATTR_AP_RO | pte_default;
 
   /* data & bss sections */
   for (; pa < ebss; pa += PAGESIZE, va += PAGESIZE)
-    l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
+    l3[L3_INDEX(va)] = pa | ATTR_AP_RW | ATTR_XN | pte_default;
 
   /* direct map construction */
   volatile pde_t *l1d = bootmem_alloc(DMAP_L1_SIZE);
@@ -189,7 +189,7 @@ __boot_text static paddr_t build_page_table(void) {
   volatile pde_t *l3d = bootmem_alloc(DMAP_L3_SIZE);
 
   for (intptr_t i = 0; i < DMAP_L3_ENTRIES; i++)
-    l3d[i] = (i * PAGESIZE) | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
+    l3d[i] = (i * PAGESIZE) | ATTR_AP_RW | ATTR_XN | pte_default;
 
   for (intptr_t i = 0; i < DMAP_L2_ENTRIES; i++)
     l2d[i] = (pde_t)&l3d[i * PT_ENTRIES] | L2_TABLE;
@@ -254,11 +254,16 @@ __boot_text static void enable_mmu(paddr_t pde) {
   WRITE_SPECIALREG(tcr_el1, tcr);
 
   /* --- more magic bits
-   * M -- MMU enable for EL1 and EL0 stage 1 address translation.
-   * I -- SP must be aligned to 16.
-   * C -- Cacheability control, for data accesses.
+   * M   - MMU enable for EL1 and EL0 stage 1 address translation.
+   * I   - Cacheability control.
+   * C   - Cacheability control, for data accesses.
+   * A   - Alignment check.
+   * SA  - SP alignment check - EL1.
+   * SA0 - SP alignment check - EL0.
+   *
    */
-  WRITE_SPECIALREG(sctlr_el1, SCTLR_M | SCTLR_I | SCTLR_C);
+  WRITE_SPECIALREG(sctlr_el1, SCTLR_M | SCTLR_I | SCTLR_C | SCTLR_A | SCTLR_SA |
+                                SCTLR_SA0);
   __isb();
 
   _kernel_pmap_pde = pde;
