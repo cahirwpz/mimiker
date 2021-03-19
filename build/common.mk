@@ -1,10 +1,10 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 #
 # This is a common makefile used throughout the mimiker build system.
-# It defines basic mimiker specific recips and the structure of the
+# It defines basic mimiker specific recipes and the structure of the
 # build system itself. 
 #
-# Characteristics of the buld system:
+# Characteristics of the build system:
 # -The following standard targets are defined: download, install, build, 
 #  clean, distclean, and format.
 # -To accomplish any of the standard targets, the analogous target in all
@@ -13,13 +13,13 @@
 #  format target, which will apply the recursion only if FORMAT-RECURSE
 #  is undefined.
 # -For each directory listed in SUBDIR, a special <subdir>-before target
-#  may be supplied. If such a taret exists, it will be executed before
+#  may be supplied. If such a target exists, it will be executed before
 #  executing the build target of the subdirectory.
 # -The including makefile can define a <standard target>-here target which
 #  will be executed after satisfying <standard target> for each of the
 #  subdirectories.
 # -Through the makefiles the TOPDIR variable is used. Whenever it occurs,
-#  the including makefile should set it to the path to the mimiker direcotry
+#  the including makefile should set it to the path to the mimiker directory
 #  in the host system.
 #
 # The following make variables are assumed to be set:
@@ -27,7 +27,7 @@
 # -SRCDIR: Source directory path relative to $(TOPDIR). This may be used
 #  to build some outer sources to the cwd. Defaults to cwd.
 # -SUBDIR: Subdirectories to process.
-# -DEPENDENCY-FILES: Files specifing dependencies (i.e. *.D files).
+# -DEPENDENCY-FILES: Files specifying dependencies (i.e. *.D files).
 # -BUILD-FILES: Files to build at the current recursion level 
 #  (besides build-here).
 # -INSTALL-FILES: Files to install at the current recursion level

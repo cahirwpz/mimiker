@@ -3,7 +3,7 @@
 # This is a common makefile used to supplement the compilation flags with
 # the kernel specific flags.
 #
-# The following make variables are asummed to be set:
+# The following make variables are assumed to be set:
 # -LOCKDEP: Lock depedency validator flag.
 
 include $(TOPDIR)/build/flags.mk

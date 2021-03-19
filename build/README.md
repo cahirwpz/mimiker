@@ -5,7 +5,7 @@ Mimiker Build System
 
 The following command line options are provided:
 - BOARD: The target board. Defaults to `malta`.
-- VERBOSE: 1-recips are loud. Otherwise, recips are quiet.
+- VERBOSE: 1-recipes are loud. Otherwise, recipes are quiet.
 - KASAN: 1-employ the kernel address sanitizer, otherwise don't. Defaults to 0.
 - LOCKDEP: 1-employ the lock dependency validator, otherwise don't. Defaults to 0.
 - CLANG: 1-use Clang, otherwise use GCC.

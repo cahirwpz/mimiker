@@ -1,7 +1,7 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 #
 # This is a common makefile for kernel files. It is essentialy used for
-# building kernel static libraties (i.e. *.ka archives) but may also be used
+# building kernel static libraries (i.e. *.ka archives) but may also be used
 # to build a bunch of unrelated kernel sources.
 #
 # The following make variables are assumed to be set: 

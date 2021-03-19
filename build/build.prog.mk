@@ -5,11 +5,11 @@
 # makefiles. Generally custom user programs will want to provide their own
 # makefile, but for our own purposes this template is very convenient.
 #
-# This following make variables are assumed to be set:
+# The following make variables are assumed to be set:
 # -PROGRAM: The name for the resulting userspace ELF file. Generally, this will
 #  be the program name installed into /bin directory.
 # -SOURCES: C or assembly files to compile. Defaults to $(PROGRAM).c.
-# -BINDIR: The path realtive to $(SYSROOT) at which $(PROGRAM) will be 
+# -BINDIR: The path relative to $(SYSROOT) at which $(PROGRAM) will be 
 #  installed. Defaults to $(SYSROOT)/bin.
 # -BINMODE: permission mode. Defaults to 0755.
 # For other variables see included makefiles.

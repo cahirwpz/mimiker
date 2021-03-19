@@ -2,9 +2,9 @@
 #
 # This is a common makefile for installing userspace scripts.
 #
-# This following make variables are assumed to be set:
-# -SCRIPT: The name of script.
-# -BINDIR: The path realtive to $(SYSROOT) at which $(SCRIPT) will be 
+# The following make variables are assumed to be set:
+# -SCRIPT: The name of the script.
+# -BINDIR: The path relative to $(SYSROOT) at which $(SCRIPT) will be 
 #  installed. Defaults to $(SYSROOT)/bin.
 # -BINMODE: permission mode. Defaults to 0755.
 # For other variables see included makefiles.
