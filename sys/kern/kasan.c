@@ -59,6 +59,8 @@ static const char *code_name(uint8_t code) {
       return "kmalloc buffer-overflow";
     case KASAN_CODE_KMALLOC_FREED:
       return "kmalloc use-after-free";
+    case KASAN_CODE_NEW:
+      return "unallocated address space";
     case 1 ... 7:
       return "partial redzone";
     default:
