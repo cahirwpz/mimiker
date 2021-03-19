@@ -25,7 +25,8 @@
 # The following make variables are assumed to be set:
 # -VERBOSE: 1-recipes are loud, otherwise recipes are quiet.
 # -SRCDIR: Source directory path relative to $(TOPDIR). This may be used
-#  to build some outer sources to the cwd. Defaults to cwd.
+#  to build some sources outside the cwd (current working directory).
+#  Defaults to cwd.
 # -SUBDIR: Subdirectories to process.
 # -DEPENDENCY-FILES: Files specifying dependencies (i.e. *.D files).
 # -BUILD-FILES: Files to build at the current recursion level 
