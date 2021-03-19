@@ -2,8 +2,8 @@
 from ptrace.debugger import (PtraceDebugger, ProcessEvent,
                              ProcessExit, ProcessSignal, NewProcessEvent)
 from ptrace.debugger.child import createChild
-import os
 import argparse
+import os
 import signal
 
 
