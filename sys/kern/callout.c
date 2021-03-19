@@ -81,7 +81,7 @@ static void callout_thread(void *arg) {
 void init_callout(void) {
   bzero(&ci, sizeof(ci));
 
-  ci.lock = SPIN_INITIALIZER(0);
+  spin_init(&ci.lock, 0);
 
   for (int i = 0; i < CALLOUT_BUCKETS; i++)
     TAILQ_INIT(ci_list(i));

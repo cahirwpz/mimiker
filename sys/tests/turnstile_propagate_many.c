@@ -74,7 +74,7 @@ static void starter_routine(void *_arg) {
 
 static int test_turnstile_propagate_many(void) {
   for (int i = 0; i < T + 1; i++)
-    mtx[i] = MTX_INITIALIZER(0);
+    mtx_init(&mtx[i], 0);
 
   for (int i = 1; i <= T; i++) {
     char name[20];

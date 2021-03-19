@@ -95,7 +95,7 @@ static int ps_entry_tostring(char *buf, ps_entry_t *pe) {
                    pe->pid, pe->ppid, pe->pgrp, pe->sid,
                    proc_state[pe->proc_state], pe->elfpath);
 
-  return MIN(r, MAX_P_STRING);
+  return min(r, MAX_P_STRING);
 }
 
 static int dev_procstat_open(vnode_t *v, int mode, file_t *fp) {
@@ -123,7 +123,7 @@ static int dev_procstat_open(vnode_t *v, int mode, file_t *fp) {
   ps->nproc = 0;
   mtx_init(&ps->lock, 0);
 
-  WITH_MTX_LOCK (all_proc_mtx) {
+  WITH_MTX_LOCK (&all_proc_mtx) {
     TAILQ_FOREACH (p, &proc_list, p_all) {
       if (p->p_pid == 0)
         continue; /* we don't want to show proc0 to user */
@@ -160,7 +160,7 @@ static int dev_procstat_read(file_t *f, uio_t *uio) {
 
   uio->uio_offset = f->f_offset;
   while (uio->uio_resid > 0) {
-    size_t len = MIN(uio->uio_resid, ps->psize - ps->offset);
+    size_t len = min(uio->uio_resid, ps->psize - ps->offset);
     if ((error = uiomove(ps->buf, len, uio)))
       break;
 
