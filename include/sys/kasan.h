@@ -19,6 +19,7 @@
 #define KASAN_CODE_POOL_FREED 0xFD
 #define KASAN_CODE_KMALLOC_OVERFLOW 0xFE
 #define KASAN_CODE_KMALLOC_FREED 0xFF
+#define KASAN_CODE_NEW 0xDF
 
 /* Redzone sizes for instrumented allocators */
 #define KASAN_POOL_REDZONE_SIZE 8

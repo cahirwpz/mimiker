@@ -240,7 +240,7 @@ void kasan_grow(vaddr_t maxkvaddr) {
 
   if (maxkvaddr > _kasan_sanitized_end) {
     kasan_mark_invalid((const void *)(_kasan_sanitized_end),
-                       maxkvaddr - _kasan_sanitized_end, 0);
+                       maxkvaddr - _kasan_sanitized_end, KASAN_CODE_NEW);
     _kasan_sanitized_end = maxkvaddr;
   }
 }
