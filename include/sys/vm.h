@@ -7,7 +7,7 @@
 
 #ifdef _KERNEL
 
-#include <sys/mutex.h>
+typedef struct mtx mtx_t;
 
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
 
