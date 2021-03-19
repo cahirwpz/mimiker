@@ -547,3 +547,30 @@ void pmap_delete(pmap_t *pmap) {
   free_asid(pmap->asid);
   pool_free(P_PMAP, pmap);
 }
+
+#define L1_SPACE_SIZE (PAGESIZE * PAGESIZE / sizeof(pte_t))
+
+/*
+ * Increase usable kernel virtual address space to at least maxkvaddr.
+ * Allocate page table (level 1) if needed.
+ */
+void pmap_growkernel(vaddr_t maxkvaddr) {
+  assert(mtx_owned(&vm_kernel_end_lock));
+  assert(maxkvaddr > vm_kernel_end);
+
+  pmap_t *pmap = pmap_kernel();
+  vaddr_t va;
+
+  maxkvaddr = roundup2(maxkvaddr, L1_SPACE_SIZE);
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    for (va = vm_kernel_end; va < maxkvaddr; va += L1_SPACE_SIZE) {
+      if (!is_valid_pde(PDE_OF(pmap, va)))
+        pmap_add_pde(pmap, va);
+    }
+  }
+
+  vm_kernel_end = maxkvaddr;
+
+  /* TODO(pj) add new region into shadow map */
+}
