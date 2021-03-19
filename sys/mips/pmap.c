@@ -573,7 +573,7 @@ void pmap_growkernel(vaddr_t maxkvaddr) {
 
   /*
    * kasan_grow calls pmap_kenter which acquires pmap->mtx.
-   * But we are under va_kernel_end_lock from kmem so it's safe to call
+   * But we are under vm_kernel_end_lock from kmem so it's safe to call
    * kasan_grow.
    */
   kasan_grow(maxkvaddr);
