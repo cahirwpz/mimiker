@@ -9,7 +9,7 @@
 #  clean, distclean, and format.
 # -To accomplish any of the standard targets, the analogous target in all
 #  the directories listed in SUBDIR must be accomplished first 
-#  (the depth-first traverse). The only exception from this rule is the
+#  (using depth-first traversal). The only exception from this rule is the
 #  format target, which will apply the recursion only if FORMAT-RECURSE
 #  is undefined.
 # -For each directory listed in SUBDIR, a special <subdir>-before target
