@@ -41,7 +41,7 @@
 #  (besides format-here).
 # -SOURCES_H: C headers to format at the current recursion level
 #  (besides format-here).
-# -FORMAT_EXCLUDE: Files which shouldn't be fomrmatted.
+# -FORMAT_EXCLUDE: Files which shouldn't be formatted.
 # -FORMAT-RECURSE: Should be set to "no" if recursion shouldn't be applied
 #  to SUBDIR. Otherwise, must be undefined.
 # -PHONY-TARGETS: Phony targets.
