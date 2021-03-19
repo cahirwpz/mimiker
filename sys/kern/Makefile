@@ -16,6 +16,7 @@ SOURCES = \
 	device.c \
 	dev_cons.c \
 	dev_null.c \
+	dev_procstat.c \
 	dev_vga.c \
 	devfs.c \
 	exception.c \
@@ -34,6 +35,7 @@ SOURCES = \
 	klog.c \
 	kmem.c \
 	ktest.c \
+	lockdep.c \
 	main.c \
 	malloc.c \
 	mutex.c \
