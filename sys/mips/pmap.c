@@ -13,6 +13,7 @@
 #include <sys/vm_physmem.h>
 #include <bitstring.h>
 #include <errno.h>
+#include <sys/kasan.h>
 
 typedef struct pmap {
   mtx_t mtx;                      /* protects all fields in this structure */
@@ -570,7 +571,12 @@ void pmap_growkernel(vaddr_t maxkvaddr) {
     }
   }
 
-  vm_kernel_end = maxkvaddr;
+  /*
+   * kasan_grow calls pmap_kenter which acquires pmap->mtx.
+   * But we are under vm_kernel_end_lock from kmem so it's safe to call
+   * kasan_grow.
+   */
+  kasan_grow(maxkvaddr);
 
-  /* TODO(pj) add new region into shadow map */
+  vm_kernel_end = maxkvaddr;
 }
