@@ -383,6 +383,7 @@ END(user_exc_enter)
 _switch_to_uctx:
         move sp, a0
         j user_exc_leave
+        nop
 
 SNESTED(kern_exc_enter, CTX_SIZE, ra)
         # Fetch PCPU address
