@@ -1,6 +1,10 @@
 #ifndef _MIPS_PMAP_H_
 #define _MIPS_PMAP_H_
 
+#ifndef _MACHDEP
+#error "Do not use this header file outside kernel machine dependent code!"
+#endif
+
 #ifndef __ASSEMBLER__
 #include <sys/types.h>
 
