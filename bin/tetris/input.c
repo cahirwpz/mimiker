@@ -41,6 +41,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <string.h>
 
 #include <errno.h>
 #include <unistd.h>
@@ -71,7 +72,10 @@ static void handle_sigalrm(int signo) {
 }
 
 void input_init(void) {
-  signal(SIGALRM, handle_sigalrm);
+  sigaction_t act;
+  memset(&act, 0, sizeof(act));
+  act.sa_handler = handle_sigalrm;
+  sigaction(SIGALRM, &act, NULL);
 }
 
 static void read_one(char *c) {
