@@ -5,7 +5,7 @@
 # The following make variables are set by the including makefile:
 # -SCRIPT: The name of the script.
 # -BINDIR: The path relative to $(SYSROOT) at which $(SCRIPT) will be 
-#  installed. Defaults to $(SYSROOT)/bin.
+#  installed. Defaults to bin.
 # -BINMODE: permission mode. Defaults to 0755.
 # For other variables see included makefiles.
 

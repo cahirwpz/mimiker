@@ -10,7 +10,7 @@
 #  be the program name installed into /bin directory.
 # -SOURCES: C or assembly files to compile. Defaults to $(PROGRAM).c.
 # -BINDIR: The path relative to $(SYSROOT) at which $(PROGRAM) will be 
-#  installed. Defaults to $(SYSROOT)/bin.
+#  installed. Defaults to bin.
 # -BINMODE: permission mode. Defaults to 0755.
 # For other variables see included makefiles.
 
