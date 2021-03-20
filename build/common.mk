@@ -21,7 +21,7 @@
 # -Through the makefiles the TOPDIR variable is used. Whenever it occurs,
 #  the including makefile should set it to the path to the mimiker directory
 #  in the host system.
-# -All make variables composing an API of a makefile form the build direcotry
+# -All make variables composing an API of a makefile form the build directory
 #  must be set by the including makefile before the makefile is included.
 #
 # The following make variables are set by the including makefile:
