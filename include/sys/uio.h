@@ -61,12 +61,8 @@ typedef struct uio {
 #define UIO_VECTOR_USER(op, iov, iovcnt, len)                                  \
   UIO_VECTOR(op, vm_map_user(), iov, iovcnt, len)
 
-int uiomove_save(void *buf, size_t n, uio_t *uio, uiosave_t *save);
-
-static inline int uiomove(void *buf, size_t n, uio_t *uio) {
-  return uiomove_save(buf, n, uio, NULL);
-}
-
+int uiomove(void *buf, size_t n, uio_t *uio);
+void uio_save(const uio_t *uio, uiosave_t *save);
 void uio_restore(uio_t *uio, const uiosave_t *save);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
 int iovec_length(const iovec_t *iov, int iovcnt, size_t *lengthp);

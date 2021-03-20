@@ -105,7 +105,8 @@ static int pty_write(file_t *f, uio_t *uio) {
   SCOPED_MTX_LOCK(&tty->t_lock);
 
   while (uio->uio_resid > 0) {
-    if ((error = uiomove_save(&c, 1, uio, &save)))
+    uio_save(uio, &save);
+    if ((error = uiomove(&c, 1, uio)))
       break;
     if ((error = pty_putc_sleep(tty, pty, c))) {
       /* Undo the last uiomove(). */
