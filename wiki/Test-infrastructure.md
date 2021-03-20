@@ -34,7 +34,7 @@ listed below:
 ### Programming tests
 
 ##### Kernel tests
-Located in `$(TOPDIR)/tests`.
+Located in `/sys/tests`.
 Test function signature looks like this: `{name}(void)` or sometimes
 `{name}(unsigned int)` but needs to be coerced to `(int (*)(void))`.
 
@@ -47,7 +47,7 @@ Where `name` is test name, `func` is pointer to test function,
 flags as mentioned below, and `max` is maximum random argument fed to the test.
 
 ##### User tests
-Located in `$(TOPDIR)/user/utest`.
+Located in `/bin/utest`.
 User-space test function signature looks like this: `int test_{name}(void)` and
 should be defined in `user/utest/utest.h`.
 In order to make the test runnable one has to add one of these lines to

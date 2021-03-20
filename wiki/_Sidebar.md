@@ -16,6 +16,5 @@
 - [Libkern](https://github.com/hadarai/mimiker-wiki/wiki/Libkern-information)
 
 **Miscellaneous**
-- [Newcomers FAQ](https://github.com/hadarai/mimiker-wiki/wiki/newcomers-FAQ)
 - [Related scripts](https://github.com/hadarai/mimiker-wiki/wiki/Related-scripts)
 - [Running Doom](https://github.com/hadarai/mimiker-wiki/wiki/Running-DOOM-on-mimiker)
