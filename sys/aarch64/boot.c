@@ -23,7 +23,7 @@ __boot_data void *_bootmem_end;
 /* Kernel page directory entries. */
 paddr_t _kernel_pmap_pde;
 alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
-alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
+static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
