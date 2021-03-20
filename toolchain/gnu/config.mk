@@ -17,6 +17,8 @@ GMP-URL = "https://gmplib.org/download/gmp/$(GMP).tar.xz"
 MPC-URL = "https://ftp.gnu.org/gnu/mpc/$(MPC).tar.gz"
 CLOOG-URL = "http://www.bastoul.net/cloog/pages/download/$(CLOOG).tar.gz"
 BINUTILS-URL = "https://ftp.gnu.org/gnu/binutils/$(BINUTILS).tar.xz"
+#TODO: revert to the old URL when GCC 11 is officially released
+#GCC-URL = "https://ftp.gnu.org/gnu/gcc/$(GCC)/$(GCC).tar.xz"
 GCC-URL = "ftp://ftp.fu-berlin.de/unix/languages/gcc/snapshots/11-20210314/$(GCC).tar.xz"
 GDB-URL = "https://ftp.gnu.org/gnu/gdb/$(GDB).tar.xz"
 
