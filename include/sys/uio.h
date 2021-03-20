@@ -22,6 +22,7 @@ typedef enum { UIO_READ, UIO_WRITE } uio_op_t;
 typedef struct uio {
   iovec_t *uio_iov;      /* scatter/gather list */
   int uio_iovcnt;        /* length of scatter/gather list */
+  size_t uio_iov_off;    /* offset in current iov segment */
   off_t uio_offset;      /* offset in target object */
   size_t uio_resid;      /* remaining bytes to process */
   uio_op_t uio_op;       /* operation */
@@ -31,8 +32,8 @@ typedef struct uio {
 #define UIO_SINGLE(op, vm_map, offset, buf, buflen)                            \
   (uio_t) {                                                                    \
     .uio_iov = (iovec_t[1]){(iovec_t){__UNCONST(buf), (buflen)}},              \
-    .uio_iovcnt = 1, .uio_offset = (offset), .uio_resid = (buflen),            \
-    .uio_op = (op), .uio_vmspace = (vm_map)                                    \
+    .uio_iovcnt = 1, .uio_iov_off = 0, .uio_offset = (offset),                 \
+    .uio_resid = (buflen), .uio_op = (op), .uio_vmspace = (vm_map)             \
   }
 
 #define UIO_SINGLE_KERNEL(op, offset, buf, buflen)                             \
@@ -43,8 +44,9 @@ typedef struct uio {
 
 #define UIO_VECTOR(op, vm_map, iov, iovcnt, len)                               \
   (uio_t) {                                                                    \
-    .uio_iov = (iov), .uio_iovcnt = (iovcnt), .uio_offset = 0,                 \
-    .uio_resid = (len), .uio_op = (op), .uio_vmspace = (vm_map)                \
+    .uio_iov = (iov), .uio_iovcnt = (iovcnt), .uio_iov_off = 0,                \
+    .uio_offset = 0, .uio_resid = (len), .uio_op = (op),                       \
+    .uio_vmspace = (vm_map)                                                    \
   }
 
 #define UIO_VECTOR_KERNEL(op, iov, iovcnt, len)                                \
