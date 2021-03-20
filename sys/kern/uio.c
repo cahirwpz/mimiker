@@ -6,8 +6,8 @@
 #include <sys/errno.h>
 
 typedef enum {
-  UIOMOVE_NO_IO = 0x1,          /* Don't actually transfer any data */
-  UIOMOVE_NO_MODIFY = 0x2,      /* Don't modify uio structure */
+  UIOMOVE_NO_IO = 0x1,     /* Don't actually transfer any data */
+  UIOMOVE_NO_MODIFY = 0x2, /* Don't modify uio structure */
 } uiomove_flags_t;
 
 static int copyin_vmspace(vm_map_t *vm, const void *restrict udaddr,
@@ -56,7 +56,8 @@ static int _uiomove(void *buf, size_t n, uio_t *uio, uiomove_flags_t flags) {
     size_t cnt = iov->iov_len - iov_off;
 
     if (cnt == 0) {
-      /* If no data left to move in this vector, proceed to the next io vector. */
+      /* If no data left to move in this vector, proceed to the next io vector.
+       */
       assert(iov_idx < uio->uio_iovcnt);
       iov_idx++;
       iov_off = 0;
