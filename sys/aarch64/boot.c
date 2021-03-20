@@ -27,8 +27,8 @@ static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
-extern size_t _kasan_sanitized_end;
 #if KASAN
+extern size_t _kasan_sanitized_end;
 __boot_data static vaddr_t kasan_sanitized_end;
 #endif
 
