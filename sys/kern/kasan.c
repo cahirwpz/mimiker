@@ -4,6 +4,8 @@
 #include <sys/kasan.h>
 #include <sys/klog.h>
 #include <sys/thread.h>
+#include <sys/vm_physmem.h>
+#include <sys/vm.h>
 #include <machine/vm_param.h>
 #include <machine/kasan.h>
 
@@ -35,6 +37,7 @@ struct __asan_global {
   const void *odr_indicator; /* The address of the ODR indicator symbol */
 };
 
+vaddr_t _kasan_sanitized_end;
 static int kasan_ready;
 
 static const char *code_name(uint8_t code) {
@@ -55,6 +58,8 @@ static const char *code_name(uint8_t code) {
       return "kmalloc buffer-overflow";
     case KASAN_CODE_KMALLOC_FREED:
       return "kmalloc use-after-free";
+    case KASAN_CODE_FRESH_KVA:
+      return "unused kernel address space";
     case 1 ... 7:
       return "partial redzone";
     default:
@@ -217,10 +222,34 @@ static void call_ctors(void) {
   }
 }
 
+static inline vaddr_t kasan_va_to_shadow(vaddr_t va) {
+  return KASAN_MD_SHADOW_START +
+         (va - KASAN_MD_SANITIZED_START) / KASAN_SHADOW_SCALE_SIZE;
+}
+
+void kasan_grow(vaddr_t maxkvaddr) {
+  assert(mtx_owned(&vm_kernel_end_lock));
+  maxkvaddr = roundup2(maxkvaddr, PAGESIZE * KASAN_SHADOW_SCALE_SIZE);
+  vaddr_t va = kasan_va_to_shadow(_kasan_sanitized_end);
+  vaddr_t end = kasan_va_to_shadow(maxkvaddr);
+
+  /* Allocate and map shadow pages to cover the new KVA space. */
+  for (; va < end; va += PAGESIZE) {
+    vm_page_t *pg = vm_page_alloc(1);
+    pmap_kenter(va, pg->paddr, VM_PROT_READ | VM_PROT_WRITE, 0);
+  }
+
+  if (maxkvaddr > _kasan_sanitized_end) {
+    kasan_mark_invalid((const void *)(_kasan_sanitized_end),
+                       maxkvaddr - _kasan_sanitized_end, KASAN_CODE_FRESH_KVA);
+    _kasan_sanitized_end = maxkvaddr;
+  }
+}
+
 void init_kasan(void) {
   /* Set entire shadow memory to zero */
   kasan_mark_valid((const void *)KASAN_MD_SANITIZED_START,
-                   KASAN_MD_SANITIZED_SIZE);
+                   _kasan_sanitized_end - KASAN_MD_SANITIZED_START);
 
   /* KASAN is ready to check for errors! */
   kasan_ready = 1;
