@@ -54,6 +54,8 @@ typedef struct uio {
   UIO_VECTOR(op, vm_map_user(), iov, iovcnt, len)
 
 int uiomove(void *buf, size_t n, uio_t *uio);
+int uio_peek(void *buf, size_t n, uio_t *uio);
+void uio_advance(uio_t *uio, size_t n);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
 int iovec_length(const iovec_t *iov, int iovcnt, size_t *lengthp);
 
