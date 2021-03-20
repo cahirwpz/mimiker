@@ -104,13 +104,11 @@ static int pty_write(file_t *f, uio_t *uio) {
   SCOPED_MTX_LOCK(&tty->t_lock);
 
   while (uio->uio_resid > 0) {
-    if ((error = uiomove(&c, 1, uio)))
+    if ((error = uio_peek(&c, 1, uio)))
       break;
-    if ((error = pty_putc_sleep(tty, pty, c))) {
-      /* Undo the last uiomove(). */
-      uio->uio_resid++;
+    if ((error = pty_putc_sleep(tty, pty, c)))
       break;
-    }
+    uio_advance(uio, 1);
   }
 
   /* Don't report errors on partial writes. */
