@@ -282,10 +282,10 @@ def TestRun(sim, dbg, timeout):
         rc = gdb.expect_exact([pexpect.EOF, '(gdb) '], timeout=None)
 
         if rc == 1:
-            timeout = b'Program received signal SIGINT' in gdb.before
+            timed_out = b'Program received signal SIGINT' in gdb.before
             PostMortem(gdb)
-            print('Test run %s!' % ('timeout' if timeout else 'failed'))
-            if timeout:
+            print('Test run %s!' % ('timeout' if timed_out else 'failed'))
+            if timed_out:
                 rc = 2
     except KeyboardInterrupt:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
