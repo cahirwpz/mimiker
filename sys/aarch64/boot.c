@@ -209,13 +209,13 @@ __boot_text static paddr_t build_page_table(void) {
   l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
 
 #if KASAN /* Prepare KASAN shadow mappings */
-  kasan_sanitized_end =
-    SUPERPAGESIZE + roundup(va, SUPERPAGESIZE << KASAN_SHADOW_SCALE_SHIFT);
-  size_t kasan_sanitized_size = kasan_sanitized_end - KASAN_MD_SANITIZED_START;
-  size_t kasan_shadow_size =
-    roundup(kasan_sanitized_size >> KASAN_SHADOW_SCALE_SHIFT, SUPERPAGESIZE);
+  size_t kasan_sanitzied_size =
+    SUPERPAGESIZE + roundup2(va - KASAN_MD_SANITIZED_START,
+                             SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
+  size_t kasan_shadow_size = kasan_sanitzied_size / KASAN_SHADOW_SCALE_SIZE;
   vaddr_t kasan_shadow_end = KASAN_MD_SHADOW_START + kasan_shadow_size;
   va = KASAN_MD_SHADOW_START;
+  kasan_sanitized_end = KASAN_MD_SANITIZED_START + kasan_sanitzied_size;
   /* Allocate physical memory for shadow area */
   pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
 
