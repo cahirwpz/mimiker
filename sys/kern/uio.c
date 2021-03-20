@@ -33,7 +33,7 @@ static int copyout_vmspace(vm_map_t *vm, const void *restrict kaddr,
 
 /* Heavily inspired by NetBSD's uiomove */
 /* This function modifies uio to reflect on the progress. */
-int uiomove(void *buf, size_t n, uio_t *uio) {
+int uiomove_save(void *buf, size_t n, uio_t *uio, uiosave_t *save) {
   /* Calling uiomove from critical section (no interrupts or no preemption)
    * is not allowed since it may be copying from pageable memory. */
   assert(!intr_disabled() && !preempt_disabled());
@@ -42,6 +42,12 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
   int error = 0;
 
   assert(uio->uio_op == UIO_READ || uio->uio_op == UIO_WRITE);
+
+  if (save) {
+    save->us_resid = uio->uio_resid;
+    save->us_iovcnt = uio->uio_iovcnt;
+    save->us_iov_off = uio->uio_iov_off;
+  }
 
   while (n > 0 && uio->uio_resid > 0) {
     /* Take the first io vector */
@@ -79,6 +85,15 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
 
   /* Invert error sign, because copy routines use negative error codes */
   return error;
+}
+
+void uio_restore(uio_t *uio, const uiosave_t *save) {
+  size_t nbytes = save->us_resid - uio->uio_resid;
+  uio->uio_resid -= nbytes;
+  uio->uio_offset -= nbytes;
+  uio->uio_iov_off = save->us_iov_off;
+  uio->uio_iov -= save->us_iovcnt - uio->uio_iovcnt;
+  uio->uio_iovcnt = save->us_iovcnt;
 }
 
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio) {

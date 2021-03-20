@@ -17,6 +17,12 @@ ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
 
 typedef struct vm_map vm_map_t;
 
+typedef struct {
+  size_t us_resid;   /* Saved value of uio_resid */
+  int us_iovcnt;     /* Saved value of uio_iovcnt */
+  size_t us_iov_off; /* Saved value of uio_iov_off */
+} uiosave_t;
+
 typedef enum { UIO_READ, UIO_WRITE } uio_op_t;
 
 typedef struct uio {
@@ -55,7 +61,13 @@ typedef struct uio {
 #define UIO_VECTOR_USER(op, iov, iovcnt, len)                                  \
   UIO_VECTOR(op, vm_map_user(), iov, iovcnt, len)
 
-int uiomove(void *buf, size_t n, uio_t *uio);
+int uiomove_save(void *buf, size_t n, uio_t *uio, uiosave_t *save);
+
+static inline int uiomove(void *buf, size_t n, uio_t *uio) {
+  return uiomove_save(buf, n, uio, NULL);
+}
+
+void uio_restore(uio_t *uio, const uiosave_t *save);
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio);
 int iovec_length(const iovec_t *iov, int iovcnt, size_t *lengthp);
 
