@@ -17,6 +17,8 @@ ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
 
 typedef struct vm_map vm_map_t;
 
+/* This structure stores just enough information about an uio
+ * to be able to restore it after the uio is modified by uiomove(). */
 typedef struct {
   size_t us_resid;   /* Saved value of uio_resid */
   int us_iovcnt;     /* Saved value of uio_iovcnt */
