@@ -7,7 +7,7 @@
 
 int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p) {
-  *handle_p = kmem_map(addr, size, PMAP_NOCACHE);
+  *handle_p = kmem_map_contig(addr, size, PMAP_NOCACHE);
   return 0;
 }
 
@@ -99,7 +99,7 @@ bus_space_t *generic_bus_space = &(bus_space_t){
 void bus_intr_setup(device_t *dev, resource_t *irq, ih_filter_t *filter,
                     ih_service_t *service, void *arg, const char *name) {
   device_t *idev = BUS_METHOD_PROVIDER(dev, intr_setup);
-  BUS_METHODS(idev->parent).intr_setup(idev, irq, filter, service, arg, name);
+  bus_methods(idev->parent)->intr_setup(idev, irq, filter, service, arg, name);
   if (irq->r_handler)
     resource_activate(irq);
 }
@@ -107,7 +107,7 @@ void bus_intr_setup(device_t *dev, resource_t *irq, ih_filter_t *filter,
 void bus_intr_teardown(device_t *dev, resource_t *irq) {
   assert(resource_active(irq));
   device_t *idev = BUS_METHOD_PROVIDER(dev, intr_teardown);
-  BUS_METHODS(idev->parent).intr_teardown(idev, irq);
+  bus_methods(idev->parent)->intr_teardown(idev, irq);
   irq->r_handler = NULL;
   resource_deactivate(irq);
 }
@@ -117,7 +117,7 @@ int bus_activate_resource(device_t *dev, resource_t *r) {
     return 0;
 
   device_t *idev = BUS_METHOD_PROVIDER(dev, activate_resource);
-  int error = BUS_METHODS(idev->parent).activate_resource(idev, r);
+  int error = bus_methods(idev->parent)->activate_resource(idev, r);
   if (error == 0)
     resource_activate(r);
   return error;
@@ -127,7 +127,7 @@ void bus_deactivate_resource(device_t *dev, resource_t *r) {
   if (r->r_type != RT_IRQ) {
     assert(resource_active(r));
     device_t *idev = BUS_METHOD_PROVIDER(dev, deactivate_resource);
-    BUS_METHODS(idev->parent).deactivate_resource(idev, r);
+    bus_methods(idev->parent)->deactivate_resource(idev, r);
     resource_deactivate(r);
   }
 }

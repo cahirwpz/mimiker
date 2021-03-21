@@ -1,4 +1,4 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/ringbuf.h>
 #include <sys/uio.h>
 
@@ -49,6 +49,31 @@ bool ringbuf_getb(ringbuf_t *buf, uint8_t *byte_p) {
     return false;
   *byte_p = buf->data[buf->tail];
   consume(buf, 1);
+  return true;
+}
+
+bool ringbuf_getnb(ringbuf_t *buf, uint8_t *data, size_t n) {
+  if (buf->count < n)
+    return false;
+  for (size_t i = 0; i < n; i++)
+    ringbuf_getb(buf, &data[i]);
+  return true;
+}
+
+bool ringbuf_moveb(ringbuf_t *src, ringbuf_t *dst) {
+  uint8_t byte;
+  if (src->count == 0 || dst->count == dst->size)
+    return false;
+  ringbuf_getb(src, &byte);
+  ringbuf_putb(dst, byte);
+  return true;
+}
+
+bool ringbuf_movenb(ringbuf_t *src, ringbuf_t *dst, size_t n) {
+  if (src->count < n || dst->count + n > dst->size)
+    return false;
+  for (size_t i = 0; i < n; i++)
+    ringbuf_moveb(src, dst);
   return true;
 }
 

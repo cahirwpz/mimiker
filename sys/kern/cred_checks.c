@@ -21,7 +21,7 @@ int cred_cansignal(proc_t *target, cred_t *cred) {
 }
 
 int proc_cansignal(proc_t *target, signo_t sig) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
   assert(mtx_owned(&target->p_lock));
 
   proc_t *p = proc_self();
@@ -121,4 +121,11 @@ int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode) {
 
 check:
   return (mode & granted) == mode ? 0 : EACCES;
+}
+
+int cred_can_utime(vnode_t *vn, uid_t f_owner, cred_t *cred) {
+  if (f_owner == cred->cr_euid)
+    return 0;
+
+  return VOP_ACCESS(vn, VWRITE, cred);
 }

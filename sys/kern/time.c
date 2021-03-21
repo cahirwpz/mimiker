@@ -1,6 +1,11 @@
+#include <sys/mutex.h>
+#include <sys/signal.h>
 #include <sys/errno.h>
 #include <sys/sleepq.h>
 #include <sys/time.h>
+#include <sys/callout.h>
+#include <sys/proc.h>
+#include <sys/klog.h>
 #include <limits.h>
 
 int do_clock_gettime(clockid_t clk, timespec_t *tp) {
@@ -19,7 +24,7 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp) {
   return 0;
 }
 
-static systime_t ts2hz(timespec_t *ts) {
+static systime_t ts2hz(const timespec_t *ts) {
   if (ts->tv_sec < 0 || (ts->tv_sec == 0 && ts->tv_nsec == 0))
     return 0;
 
@@ -40,13 +45,20 @@ static systime_t ts2hz(timespec_t *ts) {
   return ticks + nsectck + 1;
 }
 
+static bool timespec_invalid(const timespec_t *ts) {
+  return ts->tv_nsec < 0 || ts->tv_nsec >= 1000000000L || ts->tv_sec < 0;
+}
+
+static bool timeval_invalid(const timeval_t *tv) {
+  return tv->tv_usec < 0 || tv->tv_usec >= 1000000 || tv->tv_sec < 0;
+}
+
 static int ts2timo(clockid_t clock_id, int flags, timespec_t *ts,
                    systime_t *timo, timespec_t *start) {
   int error;
   *timo = 0;
 
-  if (ts->tv_nsec < 0 || ts->tv_nsec >= 1000000000L || ts->tv_sec < 0 ||
-      (flags & ~TIMER_ABSTIME))
+  if (timespec_invalid(ts) || (flags & ~TIMER_ABSTIME))
     return EINVAL;
 
   if ((error = do_clock_gettime(clock_id, start)))
@@ -134,4 +146,152 @@ time_t tm2sec(tm_t *t) {
   return (time_t)(t->tm_year - 70) * year_scale_s +
          (t->tm_mday - 1) * day_scale_s + t->tm_hour * hour_scale_s +
          t->tm_min * min_scale_s + t->tm_sec + res;
+}
+
+timespec_t nanotime(void) {
+  timespec_t tp;
+  bintime_t bt = bintime();
+  bt2ts(&bt, &tp);
+  return tp;
+}
+
+static systime_t tv2hz(const timeval_t *tv) {
+  timespec_t ts;
+  tv2ts(tv, &ts);
+  return ts2hz(&ts);
+}
+
+static timeval_t microuptime(void) {
+  timeval_t now;
+  bintime_t btnow = binuptime();
+  bt2tv(&btnow, &now);
+  return now;
+}
+
+static void kitimer_get(proc_t *p, struct itimerval *tval) {
+  assert(mtx_owned(&p->p_lock));
+
+  timeval_t now = microuptime();
+  kitimer_t *it = &p->p_itimer;
+
+  if (timercmp(&it->kit_next, &now, <=))
+    timerclear(&tval->it_value);
+  else
+    timersub(&it->kit_next, &now, &tval->it_value);
+
+  tval->it_interval = it->kit_interval;
+}
+
+int do_getitimer(proc_t *p, int which, struct itimerval *tval) {
+  if (which == ITIMER_PROF || which == ITIMER_VIRTUAL)
+    return ENOTSUP;
+  else if (which != ITIMER_REAL)
+    return EINVAL;
+
+  SCOPED_MTX_LOCK(&p->p_lock);
+
+  kitimer_get(p, tval);
+
+  return 0;
+}
+
+bool kitimer_stop(proc_t *p) {
+  assert(mtx_owned(&p->p_lock));
+
+  kitimer_t *it = &p->p_itimer;
+
+  if (callout_stop(&it->kit_callout))
+    return true;
+
+  mtx_unlock(&p->p_lock);
+  callout_drain(&it->kit_callout);
+  mtx_lock(&p->p_lock);
+  return false;
+}
+
+static void kitimer_timeout(void *arg) {
+  proc_t *p = arg;
+
+  SCOPED_MTX_LOCK(&p->p_lock);
+
+  if (!proc_is_alive(p))
+    return;
+
+  sig_kill(p, &DEF_KSI_RAW(SIGALRM));
+
+  kitimer_t *it = &p->p_itimer;
+
+  if (!timerisset(&it->kit_interval)) {
+    timerclear(&it->kit_next);
+    return;
+  }
+
+  timeval_t next = it->kit_next;
+  timeradd(&next, &it->kit_interval, &next);
+  timeval_t now = microuptime();
+  /* Skip missed periods. This will have the effect of compressing multiple
+   * SIGALRM signals into one. */
+  while (timercmp(&next, &now, <=))
+    timeradd(&next, &it->kit_interval, &next);
+  it->kit_next = next;
+
+  /* Undo the `+ 1` done by ts2hz(). */
+  systime_t st = tv2hz(&next) - 1;
+  callout_reschedule(&it->kit_callout, st);
+}
+
+void kitimer_init(proc_t *p) {
+  callout_setup(&p->p_itimer.kit_callout, kitimer_timeout, p);
+}
+
+/* The timer must have been stopped prior to calling this function. */
+static void kitimer_setup(proc_t *p, const struct itimerval *itval) {
+  assert(mtx_owned(&p->p_lock));
+
+  kitimer_t *it = &p->p_itimer;
+  const timeval_t *value = &itval->it_value;
+
+  if (timerisset(value)) {
+    /* Convert next to absolute time.  */
+    timeval_t abs = microuptime();
+    timeradd(value, &abs, &abs);
+    it->kit_next = abs;
+    it->kit_interval = itval->it_interval;
+    /* Undo the `+ 1` done by ts2hz(). */
+    systime_t st = tv2hz(&it->kit_next) - 1;
+    callout_schedule_abs(&it->kit_callout, st);
+  } else {
+    timerclear(&it->kit_next);
+    timerclear(&it->kit_interval);
+  }
+}
+
+int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
+                 struct itimerval *oval) {
+  if (which == ITIMER_PROF || which == ITIMER_VIRTUAL)
+    return ENOTSUP;
+  else if (which != ITIMER_REAL)
+    return EINVAL;
+
+  if (timeval_invalid(&itval->it_value) || timeval_invalid(&itval->it_interval))
+    return EINVAL;
+
+  if (tv2hz(&itval->it_value) == UINT_MAX ||
+      tv2hz(&itval->it_interval) == UINT_MAX)
+    return EINVAL;
+
+  SCOPED_MTX_LOCK(&p->p_lock);
+
+  /* We need to successfully stop the timer without dropping p_lock.  */
+  while (!kitimer_stop(p))
+    continue;
+
+  if (oval) {
+    /* Store old timer value. */
+    kitimer_get(p, oval);
+  }
+
+  kitimer_setup(p, itval);
+
+  return 0;
 }

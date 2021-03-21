@@ -1,4 +1,4 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/mutex.h>
 #include <sys/turnstile.h>
 #include <sys/sched.h>
@@ -8,12 +8,18 @@ bool mtx_owned(mtx_t *m) {
   return (mtx_owner(m) == thread_self());
 }
 
-void mtx_init(mtx_t *m, lk_attr_t la) {
+void _mtx_init(mtx_t *m, lk_attr_t attr, const char *name,
+               lock_class_key_t *key) {
   /* The caller must not attempt to set the lock's type, only flags. */
-  assert((la & LK_TYPE_MASK) == 0);
+  assert((attr & LK_TYPE_MASK) == 0);
   m->m_owner = 0;
   m->m_count = 0;
-  m->m_attr = la | LK_TYPE_BLOCK;
+  m->m_attr = attr | LK_TYPE_BLOCK;
+
+#if LOCKDEP
+  m->m_lockmap =
+    (lock_class_mapping_t){.key = key, .name = name, .lock_class = NULL};
+#endif
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {
@@ -23,6 +29,10 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
     m->m_count++;
     return;
   }
+
+#if LOCKDEP
+  lockdep_acquire(&m->m_lockmap);
+#endif
 
   thread_t *td = thread_self();
 
@@ -62,6 +72,10 @@ void mtx_unlock(mtx_t *m) {
     return;
   }
 
+#if LOCKDEP
+  lockdep_release(&m->m_lockmap);
+#endif
+
   /* Fast path: if lock is not contested then drop ownership. */
   intptr_t expected = (intptr_t)thread_self();
   if (atomic_compare_exchange_strong(&m->m_owner, &expected, 0))
@@ -78,27 +92,5 @@ void mtx_unlock(mtx_t *m) {
     uintptr_t owner = atomic_exchange(&m->m_owner, 0);
     if (owner & MTX_CONTESTED)
       turnstile_broadcast(m);
-  }
-}
-
-void mtx_lock_pair(mtx_t *m1, mtx_t *m2) {
-  assert(m1 != m2);
-  if ((uintptr_t)m1 < (uintptr_t)m2) {
-    mtx_lock(m1);
-    mtx_lock(m2);
-  } else {
-    mtx_lock(m2);
-    mtx_lock(m1);
-  }
-}
-
-void mtx_unlock_pair(mtx_t *m1, mtx_t *m2) {
-  assert(m1 != m2);
-  if ((uintptr_t)m1 < (uintptr_t)m2) {
-    mtx_unlock(m2);
-    mtx_unlock(m1);
-  } else {
-    mtx_unlock(m1);
-    mtx_unlock(m2);
   }
 }

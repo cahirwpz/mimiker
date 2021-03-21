@@ -1,4 +1,4 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/pool.h>
 #include <sys/spinlock.h>
 #include <sys/sched.h>
@@ -69,7 +69,7 @@ static void turnstile_ctor(turnstile_t *ts) {
 void init_turnstile(void) {
   for (int i = 0; i < TC_TABLESIZE; i++) {
     turnstile_chain_t *tc = &turnstile_chains[i];
-    tc->tc_lock = SPIN_INITIALIZER(0);
+    spin_init(&tc->tc_lock, 0);
     LIST_INIT(&tc->tc_turnstiles);
   }
 }

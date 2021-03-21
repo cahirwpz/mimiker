@@ -64,7 +64,7 @@ void init_sleepq(void) {
 
   for (int i = 0; i < SC_TABLESIZE; i++) {
     sleepq_chain_t *sc = &sleepq_chains[i];
-    sc->sc_lock = SPIN_INITIALIZER(0);
+    spin_init(&sc->sc_lock, 0);
     TAILQ_INIT(&sc->sc_queues);
   }
 }
@@ -90,6 +90,18 @@ void sleepq_destroy(sleepq_t *sq) {
 static sleepq_t *sq_lookup(sleepq_chain_t *sc, void *wchan) {
   assert(sc_owned(sc));
 
+  sleepq_t *sq;
+  TAILQ_FOREACH (sq, &sc->sc_queues, sq_entry) {
+    if (sq->sq_wchan == wchan)
+      return sq;
+  }
+
+  return NULL;
+}
+
+/* XXX For gdb use only !!! */
+static __used sleepq_t *sleepq_lookup(void *wchan) {
+  sleepq_chain_t *sc = SC_LOOKUP(wchan);
   sleepq_t *sq;
   TAILQ_FOREACH (sq, &sc->sc_queues, sq_entry) {
     if (sq->sq_wchan == wchan)
@@ -297,9 +309,10 @@ int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
     return EINTR;
   }
 
-  if (timeout > 0)
-    callout_setup_relative(&td->td_slpcallout, timeout, (timeout_t)sq_timeout,
-                           td);
+  if (timeout > 0) {
+    callout_setup(&td->td_slpcallout, (timeout_t)sq_timeout, td);
+    callout_schedule(&td->td_slpcallout, timeout);
+  }
 
   td->td_flags |= (timeout > 0) ? TDF_SLPTIMED : TDF_SLPINTR;
   sq_enter(td, sc, wchan, waitpt);

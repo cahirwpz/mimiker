@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <sys/uio.h>
+#include <sys/param.h>
 
 static const char *str = "Hello world from a user program!\n";
 static char buf[100];
@@ -161,6 +163,107 @@ int test_fd_dup(void) {
   return 0;
 }
 
+static int iovec_str_compare(const struct iovec *iov, int iovcnt,
+                             const char *str) {
+  int cmp;
+  size_t len = strlen(str);
+  for (int i = 0; i < iovcnt && len > 0; i++) {
+    size_t cmplen = MIN(iov[i].iov_len, len);
+    if ((cmp = strncmp(iov[i].iov_base, str, cmplen)) != 0)
+      return cmp;
+    str += cmplen;
+    len -= cmplen;
+  }
+  return 0;
+}
+
+static void _init_iovec(char *buf, struct iovec *iov, size_t *lens, int nlens) {
+  for (int i = 0; i < nlens; i++) {
+    iov[i].iov_base = buf;
+    iov[i].iov_len = lens[i];
+    buf += lens[i];
+  }
+}
+
+#define init_iovec(buf, iov, ...)                                              \
+  _init_iovec(buf, iov, (size_t[]){__VA_ARGS__},                               \
+              sizeof((size_t[]){__VA_ARGS__}) / sizeof(size_t))
+
+int test_fd_readv(void) {
+  /* Read all at once */
+  const char *contents =
+    "This is the content of file \"fd_test_file\" in directory \"/tests\"!";
+  struct iovec iov[10];
+#define assert_readv_equal(fd, iov, iovcnt, str)                               \
+  {                                                                            \
+    n = readv(fd + FD_OFFSET, iov, iovcnt);                                    \
+    assert(n >= 0);                                                            \
+    assert(iovec_str_compare(iov, iovcnt, str) == 0);                          \
+  }
+
+  init_iovec(buf, iov, sizeof(buf));
+  assert_open_ok(0, "/tests/fd_test_file", 0, O_RDONLY);
+  assert_readv_equal(0, iov, 1, contents);
+  assert_close_ok(0);
+
+  init_iovec(buf, iov, 20, 20, 20, 20, 20);
+  assert_open_ok(0, "/tests/fd_test_file", 0, O_RDONLY);
+  assert_readv_equal(0, iov, 5, contents);
+  assert_close_ok(0);
+
+  /* Read in parts */
+  assert_open_ok(0, "/tests/fd_test_file", 0, O_RDONLY);
+#define assert_readv_double_equal(fd, buf, iov, sndlen, str)                   \
+  {                                                                            \
+    size_t _fstlen = strlen(str) - sndlen;                                     \
+    init_iovec(buf, iov, _fstlen, sndlen);                                     \
+    assert_readv_equal(fd, iov, 2, str);                                       \
+  }
+
+  assert_readv_double_equal(0, buf, iov, 3, "This is the ");
+  assert_readv_double_equal(0, buf, iov, 8, "content of file ");
+  assert_readv_double_equal(0, buf, iov, 14, "\"fd_test_file\" in directory ");
+  assert_readv_double_equal(0, buf, iov, 2, "\"/tests\"!");
+  assert_close_ok(0);
+
+  /* Read in parts, using lseek aswell */
+  assert_open_ok(0, "/tests/fd_test_file", 0, O_RDONLY);
+  assert_lseek_ok(0, strlen("This is the "), SEEK_SET);
+  assert_readv_double_equal(0, buf, iov, 4, "content of file ");
+  assert_lseek_ok(0, strlen("This is the "), SEEK_SET);
+  assert_readv_double_equal(0, buf, iov, 1, "content of file ");
+  assert_readv_double_equal(0, buf, iov, 9, "\"fd_test_file\" in directory ");
+  assert_readv_double_equal(0, buf, iov, 3, "\"/tests\"!");
+  assert_close_ok(0);
+  return 0;
+}
+
+int test_fd_writev(void) {
+  struct iovec iov[10];
+
+  /* Fill buf with some data. */
+  for (size_t i = 0; i < sizeof(buf); i++)
+    buf[i] = (char)i;
+
+  assert_open_ok(0, "/tmp/file", 0, O_RDWR | O_CREAT);
+
+  init_iovec(buf, iov, 10, 20, 30);
+  assert(writev(FD_OFFSET, iov, 2) == 30);
+  assert(writev(FD_OFFSET, iov + 2, 1) == 30);
+
+  assert_lseek_ok(0, 0, SEEK_SET);
+
+  init_iovec(buf, iov, 10, 20, 30);
+  assert(readv(FD_OFFSET, iov, 3) == 60);
+  /* Verify that we read the same thing that was written. */
+  for (size_t i = 0; i < 60; i++)
+    assert(buf[i] == (char)i);
+
+  assert_close_ok(0);
+  unlink("/tmp/file");
+  return 0;
+}
+
 /* Tests below do not use std* file descriptors */
 #undef FD_OFFSET
 #include "utest_fd.h"
@@ -195,6 +298,8 @@ int test_fd_all(void) {
   /* Call all fd-related tests one by one to see how they impact the process
    * file descriptor table. */
   test_fd_read();
+  test_fd_readv();
+  test_fd_writev();
   test_fd_devnull();
   test_fd_multidesc();
   test_fd_readwrite();

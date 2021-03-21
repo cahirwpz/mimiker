@@ -38,7 +38,11 @@ static int arm_timer_stop(timer_t *tm) {
 
 static bintime_t arm_timer_gettime(timer_t *tm) {
   uint64_t count = READ_SPECIALREG(cntpct_el0);
-  return bintime_mul(tm->tm_min_period, count);
+  bintime_t res = bintime_mul(tm->tm_min_period, (uint32_t) count);
+  bintime_t high_bits = bintime_mul(tm->tm_min_period, (uint32_t) (count >> 32));
+  bintime_add_frac(&res, (high_bits.frac << 32));
+  res.sec += (high_bits.sec << 32) + (high_bits.frac >> 32);
+  return res;
 }
 
 static intr_filter_t arm_timer_intr(void *data /* device_t* */) {
@@ -70,6 +74,7 @@ static int arm_timer_attach(device_t *dev) {
   state->timer = (timer_t){
     .tm_name = "arm-cpu-timer",
     .tm_flags = TMF_PERIODIC,
+    .tm_quality = 0,
     .tm_start = arm_timer_start,
     .tm_stop = arm_timer_stop,
     .tm_gettime = arm_timer_gettime,

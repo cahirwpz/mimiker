@@ -130,7 +130,8 @@ static const char *basename(const char *path) {
 }
 
 static void read_cpio_archive(void) {
-  void *tape = (void *)kmem_map(ramdisk_get_start(), ramdisk_get_size(), 0);
+  void *tape =
+    (void *)kmem_map_contig(ramdisk_get_start(), ramdisk_get_size(), 0);
 
   while (true) {
     cpio_node_t *node = cpio_node_alloc();
@@ -254,12 +255,16 @@ static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
   va->va_uid = cn->c_uid;
   va->va_gid = cn->c_gid;
   va->va_size = cn->c_size;
+
+  va->va_atime = (timespec_t){.tv_sec = cn->c_mtime, .tv_nsec = 0};
+  va->va_mtime = va->va_atime;
+  va->va_ctime = va->va_atime;
   return 0;
 }
 
 static int initrd_vnode_readlink(vnode_t *v, uio_t *uio) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
-  return uiomove_frombuf(cn->c_data, MIN((size_t)cn->c_size, uio->uio_resid),
+  return uiomove_frombuf(cn->c_data, min((size_t)cn->c_size, uio->uio_resid),
                          uio);
 }
 

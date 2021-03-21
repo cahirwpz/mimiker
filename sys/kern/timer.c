@@ -6,7 +6,7 @@
 #include <sys/mutex.h>
 #include <sys/errno.h>
 
-static mtx_t timers_mtx = MTX_INITIALIZER(0);
+static MTX_DEFINE(timers_mtx, 0);
 static timer_list_t timers = TAILQ_HEAD_INITIALIZER(timers);
 static timer_t *time_source = NULL;
 static bintime_t boottime = BINTIME(0);
@@ -73,21 +73,24 @@ int tm_deregister(timer_t *tm) {
 }
 
 timer_t *tm_reserve(const char *name, unsigned flags) {
-  timer_t *tm = NULL;
+  timer_t *found = NULL;
 
   WITH_MTX_LOCK (&timers_mtx) {
+    timer_t *tm;
     TAILQ_FOREACH (tm, &timers, tm_link) {
       if (is_reserved(tm))
         continue;
       if (name && strcmp(tm->tm_name, name))
         continue;
-      if (tm->tm_flags & flags)
-        break;
+      if (!(tm->tm_flags & flags))
+        continue;
+      if (!found || found->tm_quality < tm->tm_quality)
+        found = tm;
     }
-    if (tm)
-      tm->tm_flags |= TMF_RESERVED;
+    if (found)
+      found->tm_flags |= TMF_RESERVED;
   }
-  return tm;
+  return found;
 }
 
 int tm_release(timer_t *tm) {

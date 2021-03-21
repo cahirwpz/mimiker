@@ -171,7 +171,6 @@ tty_t *tty_alloc(void) {
   cv_init(&tty->t_serialize_cv, "t_serialize_cv");
   tty->t_line.ln_buf = kmalloc(M_DEV, LINEBUF_SIZE, M_WAITOK);
   tty->t_line.ln_size = LINEBUF_SIZE;
-  tty->t_line.ln_count = 0;
   tty_init_termios(&tty->t_termios);
   return tty;
 }
@@ -395,8 +394,8 @@ static void tty_erase(tty_t *tty, uint8_t c) {
           tty_output(tty, '\b');
         break;
       default:
-        klog("tty_erase: don't know how to erase character 0x%hhx (class %hh), "
-             "ignoring.",
+        klog("tty_erase: "
+             "don't know how to erase character 0x%hhx (class %hhd), ignoring.",
              c, CCLASS(c));
         break;
     }
@@ -559,7 +558,7 @@ bool tty_input(tty_t *tty, uint8_t c) {
     tty_echo(tty, c);
     if (CCEQ(cc[VEOF], c) && (lflag & ECHO)) {
       /* Place the cursor over the '^' of the ^D. */
-      i = MIN(2, tty->t_column - i);
+      i = min(2UL, tty->t_column - i);
       while (i--)
         tty_output(tty, '\b');
     }
@@ -572,6 +571,7 @@ bool tty_input(tty_t *tty, uint8_t c) {
       return false;
     }
 
+    tty_echo(tty, c);
     ringbuf_putb(&tty->t_inq, c);
     tty_wakeup(tty);
     return true;
@@ -945,7 +945,7 @@ static int tty_get_fg_pgrp(tty_t *tty, int *pgid_p) {
 }
 
 static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
-  WITH_MTX_LOCK (all_proc_mtx) {
+  WITH_MTX_LOCK (&all_proc_mtx) {
     proc_t *p = proc_self();
     pgrp_t *pg = pgrp_lookup(pgid);
     WITH_MTX_LOCK (&tty->t_lock) {
@@ -1004,6 +1004,13 @@ int tty_ioctl(file_t *f, u_long cmd, void *data) {
     }
     case TIOCSWINSZ:
       return tty_set_winsize(tty, data);
+    case TIOCSCTTY: {
+      SCOPED_MTX_LOCK(&all_proc_mtx);
+      SCOPED_MTX_LOCK(&tty->t_lock);
+      if (!maybe_assoc_ctty(proc_self(), tty))
+        return EPERM;
+      return 0;
+    }
     case 0:
       return EPASSTHROUGH;
     default: {
@@ -1054,8 +1061,8 @@ void tty_detach_driver(tty_t *tty) {
   cv_broadcast(&tty->t_serialize_cv);
 
   /* We can't free the tty structure yet, as there may still be existing
-   * references to the vnode. We free it in tty_vn_reclaim, once all references
-   * to the vnode are gone. */
+   * references to the vnode. We free it in tty_vn_reclaim, once all
+   * references to the vnode are gone. */
   devfs_unlink(tty->t_vnode->v_data);
   vnode_t *v = tty->t_vnode;
   tty->t_vnode = NULL;
@@ -1076,20 +1083,21 @@ static fileops_t tty_fileops = {
   .fo_ioctl = tty_ioctl,
 };
 
-void maybe_assoc_ctty(proc_t *p, tty_t *tty) {
-  assert(mtx_owned(all_proc_mtx));
+bool maybe_assoc_ctty(proc_t *p, tty_t *tty) {
+  assert(mtx_owned(&all_proc_mtx));
   assert(mtx_owned(&tty->t_lock));
 
   if (!proc_is_session_leader(p))
-    return;
+    return false;
   if (tty->t_session != NULL)
-    return;
+    return false;
   session_t *s = p->p_pgrp->pg_session;
   if (s->s_tty != NULL)
-    return;
+    return false;
   tty->t_session = s;
   s->s_tty = tty;
   tty->t_pgrp = p->p_pgrp;
+  return true;
 }
 
 static int _tty_vn_open(vnode_t *v, int mode, file_t *fp) {
@@ -1119,7 +1127,7 @@ static int _tty_vn_open(vnode_t *v, int mode, file_t *fp) {
 }
 
 static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
-  SCOPED_MTX_LOCK(all_proc_mtx);
+  SCOPED_MTX_LOCK(&all_proc_mtx);
   return _tty_vn_open(v, mode, fp);
 }
 
@@ -1144,7 +1152,7 @@ int tty_makedev(devfs_node_t *parent, const char *name, tty_t *tty) {
 static int dev_tty_open(vnode_t *v, int mode, file_t *fp) {
   proc_t *p = proc_self();
 
-  SCOPED_MTX_LOCK(all_proc_mtx);
+  SCOPED_MTX_LOCK(&all_proc_mtx);
   tty_t *tty = p->p_pgrp->pg_session->s_tty;
   if (!tty)
     return ENXIO;

@@ -15,6 +15,7 @@
 #define LINEBUF_SIZE 0x100
 
 typedef struct session session_t;
+typedef struct device device_t;
 
 struct tty;
 
@@ -167,9 +168,10 @@ void tty_detach_driver(tty_t *tty);
  * If the process is a session leader, the session has no associated terminal,
  * and the terminal has no associated session, make this terminal
  * the controlling terminal for the session.
+ * Returns whether the controlling terminal assignment succeeded.
  * Must be called with all_proc_mtx and tty->t_lock held.
  */
-void maybe_assoc_ctty(proc_t *p, tty_t *tty);
+bool maybe_assoc_ctty(proc_t *p, tty_t *tty);
 
 /*
  * Create a TTY device node in devfs.

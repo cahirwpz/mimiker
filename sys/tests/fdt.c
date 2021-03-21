@@ -1,4 +1,4 @@
-#include <sys/mimiker.h>
+#include <sys/klog.h>
 #include <sys/ktest.h>
 #include <sys/fdt.h>
 
@@ -82,5 +82,5 @@ static int test_fdt_getprop(void) {
 
 KTEST_ADD(fdt_get_path, test_fdt_get_path, 0);
 KTEST_ADD(fdt_get_name, test_fdt_get_name, 0);
-KTEST_ADD(fst_subnode, test_fdt_subnode, 0);
-KTEST_ADD(fst_getprop, test_fdt_getprop, 0);
+KTEST_ADD(fdt_subnode, test_fdt_subnode, 0);
+KTEST_ADD(fdt_getprop, test_fdt_getprop, 0);

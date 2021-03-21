@@ -444,9 +444,10 @@ void *krealloc(kmalloc_pool_t *mp, void *old_ptr, size_t size, unsigned flags) {
 }
 
 char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
-  size_t n = strnlen(s, maxlen) + 1;
-  char *copy = kmalloc(mp, n, M_ZERO);
+  size_t n = strnlen(s, maxlen);
+  char *copy = kmalloc(mp, n + 1, 0);
   memcpy(copy, s, n);
+  copy[n] = '\0';
   return copy;
 }
 

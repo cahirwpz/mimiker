@@ -1,5 +1,0 @@
-pycodestyle==2.5.0
-pexpect==4.7.0
-fdt==0.1.2
-texttable==1.6.0
-

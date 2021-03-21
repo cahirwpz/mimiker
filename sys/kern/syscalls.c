@@ -1075,10 +1075,10 @@ static int sys_getlogin(proc_t *p, getlogin_args_t *args, register_t *res) {
 
   klog("getlogin(%p, %zu)", namebuf, buflen);
 
-  WITH_MTX_LOCK (all_proc_mtx)
+  WITH_MTX_LOCK (&all_proc_mtx)
     memcpy(login_tmp, p->p_pgrp->pg_session->s_login, sizeof(login_tmp));
 
-  return copyout(login_tmp, namebuf, MIN(buflen, sizeof(login_tmp)));
+  return copyout(login_tmp, namebuf, min(buflen, sizeof(login_tmp)));
 }
 
 static int sys_setlogin(proc_t *p, setlogin_args_t *args, register_t *res) {
@@ -1103,4 +1103,149 @@ static int sys_posix_openpt(proc_t *p, posix_openpt_args_t *args,
   klog("posix_openpt(0x%x)", flags);
 
   return do_posix_openpt(p, flags, res);
+}
+
+static int sys_futimens(proc_t *p, futimens_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const timespec_t *u_times = SCARG(args, times);
+  timespec_t times[2];
+  int error;
+
+  klog("futimens(%d, %x)", fd, u_times);
+
+  if (u_times != NULL) {
+    if ((error = copyin_s(u_times, times)))
+      return error;
+  }
+
+  return do_futimens(p, fd, u_times == NULL ? NULL : times);
+}
+
+static int sys_utimensat(proc_t *p, utimensat_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const char *u_path = SCARG(args, path);
+  const timespec_t *u_times = SCARG(args, times);
+  int flag = SCARG(args, flag);
+  timespec_t times[2];
+  int error;
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("utimensat(%d, \"%s\", %x, %d)", fd, path, u_times, flag);
+
+  if (u_times != NULL) {
+    if ((error = copyin_s(u_times, times)))
+      goto end;
+  }
+
+  error = do_utimensat(p, fd, path, u_times == NULL ? NULL : times, flag);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
+}
+
+static int sys_readv(proc_t *p, readv_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const iovec_t *u_iov = SCARG(args, iov);
+  int iovcnt = SCARG(args, iovcnt);
+  size_t len;
+  int error;
+
+  if (iovcnt <= 0 || iovcnt > IOV_MAX)
+    return EINVAL;
+
+  const size_t iov_size = sizeof(iovec_t) * iovcnt;
+  iovec_t *k_iov = kmalloc(M_TEMP, iov_size, 0);
+
+  if ((error = copyin(u_iov, k_iov, iov_size)) ||
+      (error = iovec_length(k_iov, iovcnt, &len)))
+    goto end;
+
+  uio_t uio = UIO_VECTOR_USER(UIO_READ, k_iov, iovcnt, len);
+  error = do_read(p, fd, &uio);
+  *res = len - uio.uio_resid;
+
+end:
+  kfree(M_TEMP, k_iov);
+  return error;
+}
+
+static int sys_writev(proc_t *p, writev_args_t *args, register_t *res) {
+  int fd = SCARG(args, fd);
+  const iovec_t *u_iov = SCARG(args, iov);
+  int iovcnt = SCARG(args, iovcnt);
+  size_t len;
+  int error;
+
+  if (iovcnt <= 0 || iovcnt > IOV_MAX)
+    return EINVAL;
+
+  const size_t iov_size = sizeof(iovec_t) * iovcnt;
+  iovec_t *k_iov = kmalloc(M_TEMP, iov_size, 0);
+
+  if ((error = copyin(u_iov, k_iov, iov_size)) ||
+      (error = iovec_length(k_iov, iovcnt, &len)))
+    goto end;
+
+  uio_t uio = UIO_VECTOR_USER(UIO_WRITE, k_iov, iovcnt, len);
+  error = do_write(p, fd, &uio);
+  *res = len - uio.uio_resid;
+
+end:
+  kfree(M_TEMP, k_iov);
+  return error;
+}
+
+static int sys_sigpending(proc_t *p, sigpending_args_t *args, register_t *res) {
+  sigset_t *u_set = SCARG(args, set);
+  int error;
+
+  klog("sigpending(%p)", u_set);
+
+  sigset_t k_set;
+
+  if ((error = do_sigpending(p, &k_set)))
+    return error;
+
+  return copyout_s(k_set, u_set);
+}
+
+static int sys_getitimer(proc_t *p, getitimer_args_t *args, register_t *res) {
+  int which = SCARG(args, which);
+  struct itimerval *u_tval = SCARG(args, val);
+  int error;
+
+  klog("getitimer(%p)", u_tval);
+
+  struct itimerval tval;
+
+  if ((error = do_getitimer(p, which, &tval)))
+    return error;
+
+  return copyout_s(tval, u_tval);
+}
+
+static int sys_setitimer(proc_t *p, setitimer_args_t *args, register_t *res) {
+  int which = SCARG(args, which);
+  struct itimerval *u_tval = SCARG(args, val);
+  struct itimerval *u_oval = SCARG(args, oval);
+  int error;
+
+  klog("setitimer(%p, %p)", u_tval, u_oval);
+
+  struct itimerval tval, oval;
+  if ((error = copyin_s(u_tval, tval)))
+    return error;
+
+  if ((error = do_setitimer(p, which, &tval, u_oval ? &oval : NULL)))
+    return error;
+
+  if (u_oval)
+    error = copyout_s(oval, u_oval);
+
+  return error;
 }

@@ -19,6 +19,8 @@ int main(int argc, char **argv) {
      like an overkill to me. */
   CHECKRUN_TEST(mmap);
   CHECKRUN_TEST(munmap_sigsegv);
+  CHECKRUN_TEST(mmap_prot_none);
+  CHECKRUN_TEST(mmap_prot_read);
   CHECKRUN_TEST(sbrk);
   CHECKRUN_TEST(sbrk_sigsegv);
   CHECKRUN_TEST(misbehave);
@@ -31,6 +33,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(fd_open_path);
   CHECKRUN_TEST(fd_dup);
   CHECKRUN_TEST(fd_pipe);
+  CHECKRUN_TEST(fd_readv);
+  CHECKRUN_TEST(fd_writev);
   CHECKRUN_TEST(fd_all);
   CHECKRUN_TEST(signal_basic);
   CHECKRUN_TEST(signal_send);
@@ -59,6 +63,14 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(exc_sigsys);
   CHECKRUN_TEST(syscall_in_bds);
 #endif /* !__mips__ */
+
+#ifdef __aarch64__
+  CHECKRUN_TEST(exc_unknown_instruction);
+  CHECKRUN_TEST(exc_msr_instruction);
+  CHECKRUN_TEST(exc_mrs_instruction);
+  CHECKRUN_TEST(exc_brk);
+#endif /* !__aarch64__ */
+
   CHECKRUN_TEST(setjmp);
   CHECKRUN_TEST(sigaction_with_setjmp);
   CHECKRUN_TEST(sigaction_handler_returns);
@@ -96,6 +108,7 @@ int main(int argc, char **argv) {
 
   CHECKRUN_TEST(gettimeofday);
   CHECKRUN_TEST(nanosleep);
+  CHECKRUN_TEST(itimer);
 
   CHECKRUN_TEST(get_set_uid);
   CHECKRUN_TEST(get_set_gid);
@@ -104,6 +117,11 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(sharing_memory_simple);
   CHECKRUN_TEST(sharing_memory_child_and_grandchild);
 
+  CHECKRUN_TEST(pty_simple);
+
+  CHECKRUN_TEST(tty_canon);
+  CHECKRUN_TEST(tty_echo);
+  CHECKRUN_TEST(tty_signals);
   printf("No user test \"%s\" available.\n", test_name);
   return 1;
 }

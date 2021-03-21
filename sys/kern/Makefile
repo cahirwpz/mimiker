@@ -3,7 +3,6 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
-	assert.c \
 	bus.c \
 	callout.c \
 	clock.c \
@@ -17,6 +16,7 @@ SOURCES = \
 	device.c \
 	dev_cons.c \
 	dev_null.c \
+	dev_procstat.c \
 	dev_vga.c \
 	devfs.c \
 	exception.c \
@@ -30,10 +30,12 @@ SOURCES = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
+	isa.c \
 	kenv.c \
 	klog.c \
 	kmem.c \
 	ktest.c \
+	lockdep.c \
 	main.c \
 	malloc.c \
 	mutex.c \
@@ -63,6 +65,8 @@ SOURCES = \
 	timer.c \
 	tmpfs.c \
 	tty.c \
+	uart.c \
+	uart_tty.c \
 	uio.c \
 	ustack.c \
 	vfs.c \

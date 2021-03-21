@@ -9,6 +9,7 @@
 #include <sys/condvar.h>
 #include <sys/file.h>
 #include <sys/cred.h>
+#include <sys/time.h>
 
 /* Forward declarations */
 typedef struct vnode vnode_t;
@@ -106,12 +107,15 @@ static inline bool is_mountpoint(vnode_t *v) {
 }
 
 typedef struct vattr {
-  mode_t va_mode;   /* files access mode and type */
-  nlink_t va_nlink; /* number of references to file */
-  ino_t va_ino;     /* file id */
-  uid_t va_uid;     /* owner user id */
-  gid_t va_gid;     /* owner group id */
-  size_t va_size;   /* file size in bytes */
+  mode_t va_mode;      /* files access mode and type */
+  nlink_t va_nlink;    /* number of references to file */
+  ino_t va_ino;        /* file id */
+  uid_t va_uid;        /* owner user id */
+  gid_t va_gid;        /* owner group id */
+  size_t va_size;      /* file size in bytes */
+  timespec_t va_atime; /* time of last access */
+  timespec_t va_mtime; /* time of last data modification */
+  timespec_t va_ctime; /* time of last file status change */
 } vattr_t;
 
 void vattr_null(vattr_t *va);
@@ -230,9 +234,10 @@ void vnode_put(vnode_t *v);
 bool vnode_is_mounted(vnode_t *v);
 
 /* Convenience function with default vnode operation implementation. */
-int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff);
 int vnode_access_generic(vnode_t *v, accmode_t mode, cred_t *cred);
+/* When successful increments reference counter for given vnode.*/
+int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
 
 /* Default fileops implementations for files with v-nodes. */
 int default_vnread(file_t *f, uio_t *uio);

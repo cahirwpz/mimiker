@@ -1,0 +1,5 @@
+pycodestyle
+pexpect
+fdt
+texttable
+python-ptrace

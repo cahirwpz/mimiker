@@ -59,10 +59,24 @@ bool pmap_is_referenced(vm_page_t *pg);
 void pmap_set_referenced(vm_page_t *pg);
 void pmap_set_modified(vm_page_t *pg);
 
+/*
+ * For address `va` (must not cross two pages) check if access with `prot`
+ * permission would succeed and emulate referenced & modified bits.
+ *
+ * Returns:
+ *  - 0: if the access should be permitted
+ *  - EFAULT: if `va` is not mapped by current pmap
+ *  - EACCESS: if `va` mapping has been found to have insufficient permissions
+ *  - EINVAL: if `va` refers to kernel non-pageable memory
+ */
+int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot);
+
 void pmap_activate(pmap_t *pmap);
 
 pmap_t *pmap_lookup(vaddr_t va);
 pmap_t *pmap_kernel(void);
 pmap_t *pmap_user(void);
+
+void pmap_growkernel(vaddr_t maxkvaddr);
 
 #endif /* !_SYS_PMAP_H_ */
