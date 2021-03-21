@@ -53,6 +53,17 @@ static int test_uiomove(void) {
   uio.uio_offset = 0;
   uio.uio_resid = 8 + 7 + 10;
 
+  uiosave_t save;
+  uio_save(&uio, &save);
+  res = uiomove((char *)text, strlen(text), &uio);
+  assert(res == 0);
+  buffer2[37] = 0; /* Manually null-terminate */
+  res = strcmp(buffer2, "Example ====string ========with data ");
+  assert(res == 0);
+
+  /* Roll back and redo the read and check that the result is the same. */
+  uio_restore(&uio, &save);
+  memset(buffer2, '=', sizeof(buffer2));
   res = uiomove((char *)text, strlen(text), &uio);
   assert(res == 0);
   buffer2[37] = 0; /* Manually null-terminate */
