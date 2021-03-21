@@ -89,7 +89,7 @@ void uio_save(const uio_t *uio, uiosave_t *save) {
 
 void uio_restore(uio_t *uio, const uiosave_t *save) {
   size_t nbytes = save->us_resid - uio->uio_resid;
-  uio->uio_resid -= nbytes;
+  uio->uio_resid += nbytes;
   uio->uio_offset -= nbytes;
   uio->uio_iov_off = save->us_iov_off;
   uio->uio_iov -= save->us_iovcnt - uio->uio_iovcnt;
