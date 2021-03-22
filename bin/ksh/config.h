@@ -229,7 +229,7 @@
 #define POSIXLY_CORRECT 1
 
 /* Specify default $ENV? */
-#define DEFAULT_ENV	"$HOME/.kshrc"
+#define DEFAULT_ENV	"/etc/.kshrc"
 
 /* Include shl(1) support? */
 /* #undef SWTCH */
