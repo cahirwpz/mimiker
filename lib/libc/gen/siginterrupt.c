@@ -37,20 +37,18 @@ extern sigset_t __sigintr;
  * Set signal state to prevent restart of system calls
  * after an instance of the indicated signal.
  */
-int
-siginterrupt(int sig, int flag)
-{
-	struct sigaction sa;
-	int ret;
+int siginterrupt(int sig, int flag) {
+  struct sigaction sa;
+  int ret;
 
-	if ((ret = sigaction(sig, (struct sigaction *)0, &sa)) < 0)
-		return (ret);
-	if (flag) {
-		sigaddset(&__sigintr, sig);
-		sa.sa_flags &= ~SA_RESTART;
-	} else {
-		sigdelset(&__sigintr, sig);
-		sa.sa_flags |= SA_RESTART;
-	}
-	return (sigaction(sig, &sa, (struct sigaction *)0));
+  if ((ret = sigaction(sig, (struct sigaction *)0, &sa)) < 0)
+    return (ret);
+  if (flag) {
+    sigaddset(&__sigintr, sig);
+    sa.sa_flags &= ~SA_RESTART;
+  } else {
+    sigdelset(&__sigintr, sig);
+    sa.sa_flags |= SA_RESTART;
+  }
+  return (sigaction(sig, &sa, (struct sigaction *)0));
 }
