@@ -2,7 +2,7 @@
 #include <string.h>
 #include <signal.h>
 
-extern sigset_t __sigintr; /* Shared with siginterrupt() */
+sigset_t __sigintr; /* Shared with siginterrupt() */
 
 sig_t signal(int sig, sig_t handler) {
   sigaction_t act, oldact;
