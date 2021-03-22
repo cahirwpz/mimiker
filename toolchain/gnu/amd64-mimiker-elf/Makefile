@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-TARGET = amd64-mimiker-elf
+TARGET = x86_64-mimiker-elf
 
 GCC_EXTRA_CONF = --with-arch=x86-64 \
 		 --with-abi=m64
