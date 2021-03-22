@@ -1,0 +1,32 @@
+Stop the VM upon receiving a SIGXCPU signal.
+Index: qemu-mimiker/qemu-4.2.1/gdbstub.c
+--- qemu-mimiker.orig/qemu-4.2.1/gdbstub.c
++++ qemu-mimiker/qemu-4.2.1/gdbstub.c
+@@ -3230,6 +3230,15 @@ static void gdb_sigterm_handler(int signal)
+         vm_stop(RUN_STATE_PAUSED);
+     }
+ }
++
++static sig_atomic_t sigxcpu_handled;
++
++static void gdb_sigxcpu_handler(int signal) {
++    if (!sigxcpu_handled && runstate_is_running()) {
++        qemu_system_vmstop_request(RUN_STATE_PAUSED);
++    }
++    sigxcpu_handled = 1;
++}
+ #endif
+ 
+ static void gdb_monitor_open(Chardev *chr, ChardevBackend *backend,
+@@ -3347,6 +3356,11 @@ int gdbserver_start(const char *device)
+             act.sa_handler = gdb_sigterm_handler;
+             sigaction(SIGINT, &act, NULL);
+         }
++        struct sigaction act;
++
++        memset(&act, 0, sizeof(act));
++        act.sa_handler = gdb_sigxcpu_handler;
++        sigaction(SIGXCPU, &act, NULL);
+ #endif
+         /*
+          * FIXME: it's a bit weird to allow using a mux chardev here
