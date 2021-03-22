@@ -5,6 +5,8 @@
 
 #include <sys/types.h>
 
+extern vaddr_t _kasan_sanitized_end;
+
 /* The following codes are part of internal compiler interface:
  * https://github.com/gcc-mirror/gcc/blob/master/libsanitizer/asan/asan_internal.h
  */
