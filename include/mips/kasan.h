@@ -5,6 +5,7 @@
 
 /* Part of internal compiler interface */
 #define KASAN_SHADOW_SCALE_SHIFT 3
+#define KASAN_SHADOW_SCALE_SIZE (1 << KASAN_SHADOW_SCALE_SHIFT)
 
 /* Shadow memory */
 #define KASAN_MD_SHADOW_START 0xF0000000
