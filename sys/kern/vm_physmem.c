@@ -6,6 +6,7 @@
 #include <sys/mutex.h>
 #include <sys/pmap.h>
 #include <sys/vm_physmem.h>
+#include <sys/kasan.h>
 
 #define FREELIST(page) (&freelist[log2((page)->size)])
 #define PAGECOUNT(page) (pagecount[log2((page)->size)])
@@ -59,6 +60,9 @@ static void *vm_boot_alloc(size_t n) {
 
   void *begin = align((void *)vm_kernel_end, sizeof(long));
   void *end = align(begin + n, PAGESIZE);
+#if KASAN
+  assert((vaddr_t)end <= _kasan_sanitized_end);
+#endif
 
   vm_physseg_t *seg = TAILQ_FIRST(&seglist);
 
