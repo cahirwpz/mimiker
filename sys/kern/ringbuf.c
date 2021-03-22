@@ -10,7 +10,7 @@ void ringbuf_init(ringbuf_t *rb, void *buf, size_t size) {
   rb->data = buf;
 }
 
-/* below two function are to help to track ringbuf pointers in case when it is
+/* below two functions are to help to track ringbuf pointers in case when it is
  * changed by something else. e.q. DMA */
 void ringbuf_produce(ringbuf_t *buf, unsigned bytes) {
   assert(bytes <= buf->size - buf->count);
