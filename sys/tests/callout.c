@@ -4,7 +4,6 @@
 #include <sys/time.h>
 #include <sys/ktest.h>
 #include <sys/interrupt.h>
-#include <sys/time.h>
 
 static int counter;
 
