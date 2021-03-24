@@ -2,6 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
+ARCH = amd64
 TARGET = x86_64-mimiker-elf
 
 GCC_EXTRA_CONF = --with-arch=x86-64 \

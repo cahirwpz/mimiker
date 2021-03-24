@@ -11,7 +11,8 @@ clean: binutils-clean gcc-clean gdb-clean
 
 package:
 	$(CP) -T -a $(TOPDIR)/debian debian
-	sed -i -e 's#%{TARGET}#$(TARGET:%-mimiker-elf=%)#g' \
+	sed -i -e 's#%{ARCH}#$(ARCH)#g' \
+	       -e 's#%{TARGET}#$(TARGET)#g' \
 	       -e 's#%{DATE}#$(shell date -R)#g' \
 	       -e 's#%{VERSION}#$(VERSION)#g' \
 	       `find debian -type f`
