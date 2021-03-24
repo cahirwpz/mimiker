@@ -122,11 +122,15 @@
 #define CTR_ILINE_VAL(reg) ((reg)&CTR_ILINE_MASK)
 #define CTR_ILINE_SIZE(reg) (4 << (CTR_ILINE_VAL(reg) >> CTR_ILINE_SHIFT))
 
-/* DAIF - Interrupt Mask Bits */
-#define DAIF_D_MASKED (1 << 9)
-#define DAIF_A_MASKED (1 << 8)
-#define DAIF_I_MASKED (1 << 7)
-#define DAIF_F_MASKED (1 << 6)
+/*
+ * DAIF - Interrupt Mask Bits
+ * Use that flags only for daifset, daifclr registers.
+ * For read-only daif register use PSR_*.
+ */
+#define DAIF_D (1 << 3)
+#define DAIF_A (1 << 2)
+#define DAIF_I (1 << 1)
+#define DAIF_F (1 << 0)
 
 /* DCZID_EL0 - Data Cache Zero ID register */
 #define DCZID_DZP (1 << 4) /* DC ZVA prohibited if non-0 */
@@ -231,7 +235,7 @@
 #define EXCP_SP_ALIGN 0x26     /* SP slignment fault */
 #define EXCP_TRAP_FP 0x2c      /* Trapped FP exception */
 #define EXCP_SERROR 0x2f       /* SError interrupt */
-#define EXCP_BRKPT_EL0 0x30    /* Hardware breakpoint, from same EL */
+#define EXCP_BRKPT_EL0 0x30    /* Hardware breakpoint, from lower EL */
 #define EXCP_SOFTSTP_EL0 0x32  /* Software Step, from lower EL */
 #define EXCP_SOFTSTP_EL1 0x33  /* Software Step, from same EL */
 #define EXCP_WATCHPT_EL1 0x35  /* Watchpoint, from same EL */
@@ -734,6 +738,7 @@
 #define PSR_C 0x20000000
 #define PSR_Z 0x40000000
 #define PSR_N 0x80000000
+#define PSR_NZCV (PSR_N | PSR_Z | PSR_C | PSR_V)
 #define PSR_FLAGS 0xf0000000
 
 /* TCR_EL1 - Translation Control Register */

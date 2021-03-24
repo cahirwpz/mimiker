@@ -25,6 +25,7 @@
 #include <sys/pmap.h>
 #include <sys/console.h>
 #include <sys/stat.h>
+#include <sys/lockdep.h>
 
 #if KCSAN
 extern int kcsan_ready;
@@ -87,6 +88,9 @@ __noreturn void kernel_init(void) {
   /* Make dispatcher & scheduler structures ready for use. */
   init_sleepq();
   init_turnstile();
+#if LOCKDEP
+  lockdep_init();
+#endif
   init_thread0();
   init_sched();
 

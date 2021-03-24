@@ -84,7 +84,7 @@
 .endif
         ldr     x10, [sp, #CTX_ELR]
         msr     elr_el1, x10
-        ldr     w11, [sp, #CTX_SPSR]
+        ldr     x11, [sp, #CTX_SPSR]
         msr     spsr_el1, x11
         ldp     x0,  x1,  [sp, #CTX_X0]
         ldp     x2,  x3,  [sp, #CTX_X2]
@@ -165,6 +165,9 @@ ENTRY(handle_user_trap)
         mov     x0, sp
         bl      user_trap_handler
 user_exc_leave:
+        /* disable interrupts */
+        msr     daifset, #DAIF_I
+
         /* load thread_t::tdp_flags */
         /* thread_t::tdp_flags is a volatile unsigned - use 32-bit */
         load_pcpu x1

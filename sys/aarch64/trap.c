@@ -124,12 +124,18 @@ void user_trap_handler(mcontext_t *uctx) {
       sig_trap(ctx, SIGBUS);
       break;
 
+    case EXCP_UNKNOWN:
     case EXCP_MSR: /* privileged instruction */
       sig_trap(ctx, SIGILL);
       break;
 
     case EXCP_FP_SIMD:
       thread_self()->td_pflags |= TDP_FPUINUSE;
+      break;
+
+    case EXCP_BRKPT_EL0:
+    case EXCP_BRK:
+      sig_trap(ctx, SIGTRAP);
       break;
 
     default:
@@ -148,7 +154,7 @@ void kern_trap_handler(ctx_t *ctx) {
   register_t far = READ_SPECIALREG(far_el1);
 
   /* If interrupts were enabled before we trapped, then turn them on here. */
-  if ((_REG(ctx, SPSR) & DAIF_I_MASKED) == 0)
+  if ((_REG(ctx, SPSR) & PSR_I) == 0)
     cpu_intr_enable();
 
   switch (ESR_ELx_EXCEPTION(esr)) {

@@ -1,5 +1,4 @@
 #include <aarch64/asm.h>
-#include <aarch64/armreg.h>
 #include <aarch64/pcpu.h>
 
 #include "assym.h"
@@ -71,7 +70,7 @@
 ENTRY(ctx_switch)
         # ctx_switch must be called with interrupts disabled
         mrs     x2, daif
-        and     x2, x2, #DAIF_I_MASKED
+        and     x2, x2, #PSR_I
         cmp     x2, xzr
         bne     .ctx_save
         hlt     #0

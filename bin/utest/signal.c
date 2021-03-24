@@ -199,9 +199,17 @@ int test_signal_mask(void) {
   sigcont_handled = 0;
   kill(pid, SIGUSR1);
 
+<<<<<<< HEAD
   /* Yield a couple times to make sure that the child sends us the signal. */
   for (int i = 0; i < 5; i++)
+=======
+  /* Wait until we get a signal from the child. */
+  sigset_t set;
+  do {
+>>>>>>> master
     sched_yield();
+    sigpending(&set);
+  } while (!__sigismember(&set, SIGCONT));
 
   assert(!sigcont_handled);
 

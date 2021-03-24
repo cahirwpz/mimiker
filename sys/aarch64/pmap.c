@@ -38,36 +38,57 @@ static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 #define DMAP_BASE 0xffffff8000000000 /* last 512GB */
 #define PHYS_TO_DMAP(x) ((intptr_t)(x) + DMAP_BASE)
 
-static const pte_t pte_default =
-  L3_PAGE | ATTR_DBM | ATTR_AF | ATTR_SH(ATTR_SH_IS);
+/*
+ * This table describes which access bits need to be set in page table entry
+ * for successful memory translation by MMU. Other configurations causes memory
+ * fault - see aarch64/trap.c.
+ *
+ * +--------------+----+------+----+----+
+ * |    access    | AF | USER | RO | XN |
+ * +==============+====+======+====+====+
+ * | user read    | 1  | 1    | *  | *  |
+ * +--------------+----+------+----+----+
+ * | user write   | 1  | 1    | 0  | *  |
+ * +--------------+----+------+----+----+
+ * | user exec    | 1  | 1    | *  | 0  |
+ * +--------------+----+------+----+----+
+ * | kernel read  | 1  | *    | *  | *  |
+ * +--------------+----+------+----+----+
+ * | kernel write | 1  | *    | 0  | *  |
+ * +--------------+----+------+----+----+
+ * | kernel exec  | 1  | *    | *  | 0  |
+ * +--------------+----+------+----+----+
+ */
+
+static const pte_t pte_common = L3_PAGE | ATTR_SH_IS;
 static const pte_t pte_noexec = ATTR_XN | ATTR_SW_NOEXEC;
 
 static const pte_t vm_prot_map[] = {
-  [VM_PROT_NONE] = ATTR_XN | pte_noexec | pte_default,
+  [VM_PROT_NONE] = pte_noexec | pte_common,
   [VM_PROT_READ] =
-    ATTR_AP(ATTR_AP_RO) | ATTR_SW_READ | pte_noexec | pte_default,
+    ATTR_AP_RO | ATTR_SW_READ | ATTR_AF | pte_noexec | pte_common,
   [VM_PROT_WRITE] =
-    ATTR_AP(ATTR_AP_RW) | ATTR_SW_WRITE | pte_noexec | pte_default,
-  [VM_PROT_READ | VM_PROT_WRITE] = ATTR_AP(ATTR_AP_RW) | ATTR_SW_READ |
-                                   ATTR_SW_WRITE | pte_noexec | pte_default,
-  [VM_PROT_EXEC] = pte_default,
+    ATTR_AP_RW | ATTR_SW_WRITE | ATTR_AF | pte_noexec | pte_common,
+  [VM_PROT_READ | VM_PROT_WRITE] = ATTR_AP_RW | ATTR_SW_READ | ATTR_SW_WRITE |
+                                   ATTR_AF | pte_noexec | pte_common,
+  [VM_PROT_EXEC] = ATTR_AF | pte_common,
   [VM_PROT_READ | VM_PROT_EXEC] =
-    ATTR_AP(ATTR_AP_RO) | ATTR_SW_READ | pte_default,
+    ATTR_AP_RO | ATTR_SW_READ | ATTR_AF | pte_common,
   [VM_PROT_WRITE | VM_PROT_EXEC] =
-    ATTR_AP(ATTR_AP_RW) | ATTR_SW_WRITE | pte_default,
+    ATTR_AP_RW | ATTR_SW_WRITE | ATTR_AF | pte_common,
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] =
-    ATTR_AP(ATTR_AP_RW) | ATTR_SW_READ | ATTR_SW_WRITE | pte_default,
+    ATTR_AP_RW | ATTR_SW_READ | ATTR_SW_WRITE | ATTR_AF | pte_common,
 };
 
 static pmap_t kernel_pmap;
 paddr_t _kernel_pmap_pde;
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
-static spin_t *asid_lock = &SPIN_INITIALIZER(0);
+static SPIN_DEFINE(asid_lock, 0);
 
 /* this lock is used to protect the vm_page::pv_list field */
 /* the order of acquiring locks is as follows: firstly pv_list_lock and then
  * pmap_t::mtx */
-static mtx_t *pv_list_lock = &MTX_INITIALIZER(0);
+static MTX_DEFINE(pv_list_lock, 0);
 
 #define PTE_FRAME_ADDR(pte) ((pte)&PA_MASK)
 #define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
@@ -122,7 +143,7 @@ pmap_t *pmap_lookup(vaddr_t addr) {
 
 static asid_t alloc_asid(void) {
   int free = 0;
-  WITH_SPIN_LOCK (asid_lock) {
+  WITH_SPIN_LOCK (&asid_lock) {
     bit_ffc(asid_used, MAX_ASID, &free);
     if (free < 0)
       panic("Out of asids!");
@@ -134,7 +155,7 @@ static asid_t alloc_asid(void) {
 
 static void free_asid(asid_t asid) {
   klog("free_asid(%d)", asid);
-  SCOPED_SPIN_LOCK(asid_lock);
+  SCOPED_SPIN_LOCK(&asid_lock);
   bit_clear(asid_used, (unsigned)asid);
   tlb_invalidate_asid(asid);
 }
@@ -144,7 +165,7 @@ static void free_asid(asid_t asid) {
  */
 
 static void pv_add(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
-  assert(mtx_owned(pv_list_lock));
+  assert(mtx_owned(&pv_list_lock));
   pv_entry_t *pv = pool_alloc(P_PV, M_ZERO);
   pv->pmap = pmap;
   pv->va = va;
@@ -153,7 +174,7 @@ static void pv_add(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
 }
 
 static pv_entry_t *pv_find(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
-  assert(mtx_owned(pv_list_lock));
+  assert(mtx_owned(&pv_list_lock));
   pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
     if (pv->pmap == pmap && pv->va == va)
@@ -163,7 +184,7 @@ static pv_entry_t *pv_find(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
 }
 
 static void pv_remove(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
-  assert(mtx_owned(pv_list_lock));
+  assert(mtx_owned(&pv_list_lock));
   pv_entry_t *pv = pv_find(pmap, va, pg);
   assert(pv != NULL);
   TAILQ_REMOVE(&pg->pv_list, pv, page_link);
@@ -226,7 +247,7 @@ static pte_t make_pte(paddr_t pa, pte_t prot, unsigned flags) {
 
 static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte, vaddr_t va) {
   if (pmap != pmap_kernel())
-    pte |= ATTR_AP(ATTR_AP_USER);
+    pte |= ATTR_AP_USER;
   *ptep = pte;
   tlb_invalidate(va, pmap->asid);
 }
@@ -354,10 +375,10 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   bool kern_mapping = (pmap == pmap_kernel());
 
   /* Mark user pages as non-referenced & non-modified. */
-  pte_t mask = kern_mapping ? 0UL : (ATTR_AF | ATTR_DBM);
+  pte_t mask = kern_mapping ? 0UL : (ATTR_AF);
   pte_t pte = make_pte(pa, vm_prot_map[prot] & ~mask, flags);
 
-  WITH_MTX_LOCK (pv_list_lock) {
+  WITH_MTX_LOCK (&pv_list_lock) {
     WITH_MTX_LOCK (&pmap->mtx) {
       pv_entry_t *pv = pv_find(pmap, va, pg);
       if (pv == NULL)
@@ -378,7 +399,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 
   klog("Remove page mapping for address range %p-%p", start, end);
 
-  WITH_MTX_LOCK (pv_list_lock) {
+  WITH_MTX_LOCK (&pv_list_lock) {
     WITH_MTX_LOCK (&pmap->mtx) {
       for (vaddr_t va = start; va < end; va += PAGESIZE) {
         pte_t *ptep = pmap_lookup_pte(pmap, va);
@@ -419,7 +440,7 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
 }
 
 void pmap_page_remove(vm_page_t *pg) {
-  SCOPED_MTX_LOCK(pv_list_lock);
+  SCOPED_MTX_LOCK(&pv_list_lock);
 
   while (!TAILQ_EMPTY(&pg->pv_list)) {
     pv_entry_t *pv = TAILQ_FIRST(&pg->pv_list);
@@ -445,7 +466,7 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
 }
 
 static void pmap_modify_flags(vm_page_t *pg, pte_t set, pte_t clr) {
-  SCOPED_MTX_LOCK(pv_list_lock);
+  SCOPED_MTX_LOCK(&pv_list_lock);
   pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
     pmap_t *pmap = pv->pmap;
@@ -472,7 +493,7 @@ bool pmap_clear_referenced(vm_page_t *pg) {
 bool pmap_clear_modified(vm_page_t *pg) {
   bool prev = pmap_is_modified(pg);
   pg->flags &= ~PG_MODIFIED;
-  pmap_modify_flags(pg, ATTR_AP(ATTR_AP_RO), ATTR_DBM);
+  pmap_modify_flags(pg, ATTR_AP_RO, 0);
   return prev;
 }
 
@@ -491,7 +512,7 @@ void pmap_set_referenced(vm_page_t *pg) {
 
 void pmap_set_modified(vm_page_t *pg) {
   pg->flags |= PG_MODIFIED;
-  pmap_modify_flags(pg, ATTR_DBM, ATTR_AP(ATTR_AP_RO));
+  pmap_modify_flags(pg, 0, ATTR_AP_RO);
 }
 
 int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
@@ -516,7 +537,7 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
   vm_page_t *pg = vm_page_find(pa);
   assert(pg != NULL);
 
-  WITH_MTX_LOCK (pv_list_lock) {
+  WITH_MTX_LOCK (&pv_list_lock) {
     /* Kernel non-pageable memory? */
     if (TAILQ_EMPTY(&pg->pv_list))
       return EINVAL;
@@ -566,7 +587,7 @@ void pmap_delete(pmap_t *pmap) {
     paddr_t pa;
     pmap_extract_nolock(pmap, pv->va, &pa);
     pg = vm_page_find(pa);
-    WITH_MTX_LOCK (pv_list_lock)
+    WITH_MTX_LOCK (&pv_list_lock)
       TAILQ_REMOVE(&pg->pv_list, pv, page_link);
     TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
     pool_free(P_PV, pv);
@@ -580,4 +601,27 @@ void pmap_delete(pmap_t *pmap) {
 
   free_asid(pmap->asid);
   pool_free(P_PMAP, pmap);
+}
+
+/*
+ * Increase usable kernel virtual address space to at least maxkvaddr.
+ * Allocate page table (levels 1, 2, 3) if needed.
+ */
+void pmap_growkernel(vaddr_t maxkvaddr) {
+  assert(mtx_owned(&vm_kernel_end_lock));
+  assert(maxkvaddr > vm_kernel_end);
+
+  pmap_t *pmap = pmap_kernel();
+  vaddr_t va;
+
+  maxkvaddr = roundup2(maxkvaddr, L2_SIZE);
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    for (va = vm_kernel_end; va < maxkvaddr; va += L2_SIZE)
+      pmap_ensure_pte(pmap, va);
+  }
+
+  vm_kernel_end = maxkvaddr;
+
+  /* TODO(pj) add new region into shadow map */
 }
