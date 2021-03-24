@@ -91,10 +91,10 @@ endif
 ifeq ($(KCSAN), 1)
 SOURCES += kcsan.c
 
-kcsan.o : CFLAGS_KCSAN = 
+kcsan.o : CFLAGS_KCSAN =
 else
 # Clean dependencies without having to pass `KCSAN=1` to `make clean`.
-CLEAN-FILES += .kcsan.D 
+CLEAN-FILES += .kcsan.D
 endif
 
 FORMAT-EXCLUDE = sysent.h
