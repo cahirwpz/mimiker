@@ -4,7 +4,7 @@ all: gcc-install gdb-install
 
 include $(TOPDIR)/common.mk
 
-DESTDIR := $(TOPDIR)/$(TARGET)/debian/tmp
+DESTDIR := $(CURDIR)/debian/tmp
 
 clean: binutils-clean gcc-clean gdb-clean
 	$(RM) -r debian
