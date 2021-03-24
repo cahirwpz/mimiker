@@ -336,10 +336,6 @@ __boot_text void *aarch64_init(atag_tag_t *atags) {
   atags_copy(atags);
 
   enable_mmu(build_page_table());
-  return _atags;
-}
-
-void *aarch64_init_boot_stack(void) {
   return &_boot_stack[PAGESIZE];
 }
 

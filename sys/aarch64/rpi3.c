@@ -12,7 +12,10 @@
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 
-static int count_atags(atag_tag_t *atags) {
+extern uint8_t _atags[];
+
+static int count_atags(void) {
+  atag_tag_t *atags = (atag_tag_t *)_atags;
   int ntokens = 0;
   atag_tag_t *atag;
   ATAG_FOREACH(atag, atags) {
@@ -28,7 +31,8 @@ static int count_atags(atag_tag_t *atags) {
   return ntokens;
 }
 
-static void process_atags(atag_tag_t *atags, char **tokens, kstack_t *stk) {
+static void process_atags(char **tokens, kstack_t *stk) {
+  atag_tag_t *atags = (atag_tag_t *)_atags;
   char buf[32];
 
   atag_tag_t *atag;
@@ -50,14 +54,14 @@ static void process_atags(atag_tag_t *atags, char **tokens, kstack_t *stk) {
   *tokens = NULL;
 }
 
-void *board_stack(atag_tag_t *atags) {
+void *board_stack(void) {
   kstack_t *stk = &thread0.td_kstack;
 
   thread0.td_uctx = kstack_alloc_s(stk, mcontext_t);
 
-  int ntokens = count_atags(atags);
+  int ntokens = count_atags();
   char **kenvp = kstack_alloc(stk, (ntokens + 2) * sizeof(char *));
-  process_atags(atags, kenvp, stk);
+  process_atags(kenvp, stk);
   kstack_fix_bottom(stk);
   init_kenv(kenvp);
 
