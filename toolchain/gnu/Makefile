@@ -15,7 +15,6 @@ build-%-mimiker-elf: build-host binutils-unpack gcc-unpack gdb-unpack
 	$(MAKE) -C $*-mimiker-elf
 
 %-mimiker-elf_$(VERSION)_amd64.deb: build-%-mimiker-elf
-
 	$(MAKE) -C $*-mimiker-elf package
 
 clean-%-mimiker-elf:
