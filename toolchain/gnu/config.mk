@@ -25,4 +25,4 @@ BINUTILS-URL = "https://ftp.gnu.org/gnu/binutils/$(BINUTILS).tar.xz"
 GCC-URL = "ftp://ftp.fu-berlin.de/unix/languages/gcc/snapshots/11-20210314/$(GCC).tar.xz"
 GDB-URL = "https://ftp.gnu.org/gnu/gdb/$(GDB).tar.xz"
 
-TARGETS = mipsel aarch64 amd64
+TARGETS = mipsel aarch64 x86_64
