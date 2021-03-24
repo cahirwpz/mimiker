@@ -49,7 +49,7 @@ int isatty(int);
 int link(const char *, const char *);
 long pathconf(const char *, int);
 int pause(void);
-int pipe(int *);
+int pipe(int[2]);
 ssize_t read(int, void *, size_t);
 int rmdir(const char *);
 int setgid(gid_t);

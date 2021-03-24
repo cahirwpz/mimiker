@@ -21,7 +21,7 @@
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data void *_bootmem_end;
 /* Kernel page directory entries. */
-paddr_t _kernel_pmap_pde;
+extern paddr_t _kernel_pmap_pde;
 alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
