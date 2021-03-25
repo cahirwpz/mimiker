@@ -5,6 +5,8 @@
 
 #include <sys/types.h>
 
+/* This variable marks the top end of the virtual address range
+ * for which shadow memory has been allocated. */
 extern vaddr_t _kasan_sanitized_end;
 
 /* The following codes are part of internal compiler interface:

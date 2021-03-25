@@ -61,6 +61,10 @@ static void *vm_boot_alloc(size_t n) {
   void *begin = align((void *)vm_kernel_end, sizeof(long));
   void *end = align(begin + n, PAGESIZE);
 #if KASAN
+  /* We're not ready to call kasan_grow() yet, so this function could
+   * potentially make vm_kernel_end go past _kernel_sanitized_end, which could
+   * lead to KASAN referencing unmapped addresses in the shadow map, causing
+   * a panic. Make sure that doesn't happen. */
   assert((vaddr_t)end <= _kasan_sanitized_end);
 #endif
 
