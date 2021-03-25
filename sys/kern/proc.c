@@ -344,10 +344,6 @@ int session_enter(proc_t *p) {
   pgid_t pgid = p->p_pid;
   pgrp_t *pg = pgrp_lookup(pgid);
 
-  /* Process group leaders are not allowed to create new sessions. */
-  if (pg == p->p_pgrp)
-    return EPERM;
-
   /* There's already a process group with pgid equal to pid of
    * the calling process, hence we can't create a new session. */
   if (pg)
