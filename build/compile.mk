@@ -1,10 +1,9 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 #
-# This is a common makefile used to obtain objects and dependency files to
-# build.
+# Common makefile used to obtain objects and dependency files to build.
 #
-# The following make variables are set by the including makefile:
-# -SOURCES: The *.[cSy] files to compile.
+# Required common variables: SOURCES.
+#
 
 SOURCES_YACC = $(filter %.y,$(SOURCES))
 SOURCES_GEN += $(SOURCES_YACC:%.y=%.c)

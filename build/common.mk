@@ -1,53 +1,19 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 #
-# This is a common makefile used throughout the mimiker build system.
-# It defines basic mimiker specific recipes and the structure of the
-# build system itself. 
-#
-# Characteristics of the build system:
-# -The following standard targets are defined: download, install, build, 
-#  clean, distclean, and format.
-# -To accomplish any of the standard targets, the analogous target in all
-#  the directories listed in SUBDIR must be accomplished first 
-#  (using depth-first traversal). The only exception from this rule is the
-#  format target, which will apply the recursion only if FORMAT-RECURSE
-#  is undefined.
-# -For each directory listed in SUBDIR, a special <subdir>-before target
-#  may be supplied. If such a target exists, it will be executed before
-#  executing the build target of the subdirectory.
-# -The including makefile can define a <standard target>-here target which
-#  will be executed after satisfying <standard target> for each of the
-#  subdirectories.
-# -Through the makefiles the TOPDIR variable is used. Whenever it occurs,
-#  the including makefile should set it to the path to the mimiker directory
-#  in the host system.
-# -All make variables composing an API of a makefile from the build directory
-#  must be set by the including makefile before the makefile is included.
+# Common makefile used throughout the mimiker build system.  It defines basic
+# mimiker specific recipes and the structure of the build system itself. 
 #
 # The following make variables are set by the including makefile:
-# -VERBOSE: 1-recipes are loud, otherwise recipes are quiet.
-# -SRCDIR: Source directory path relative to $(TOPDIR). This may be used
-#  to build some sources outside the cwd (current working directory).
-#  Defaults to cwd.
-# -SUBDIR: Subdirectories to process.
-# -DEPENDENCY-FILES: Files specifying dependencies (i.e. *.D files).
-# -BUILD-FILES: Files to build at the current recursion level 
-#  (besides build-here).
-# -INSTALL-FILES: Files to install at the current recursion level
-#  (besides install-here).
-# -CLEAN-FILES: Files to remove at the current recursion level
-#  (besides clean-here).
-# -SOURCES_C: C sources to format at the current recursion level
-#  (besides format-here).
-# -SOURCES_H: C headers to format at the current recursion level
-#  (besides format-here).
-# -FORMAT_EXCLUDE: Files that shouldn't be formatted.
-# -FORMAT-RECURSE: Should be set to "no" if recursion shouldn't be applied
-#  to SUBDIR. Otherwise, must be undefined.
-# -PHONY-TARGETS: Phony targets.
-# For other variables see included makefiles.
+# - SRCDIR: Source directory path relative to $(TOPDIR). This may be used
+#   to build some sources outside the cwd (current working directory).
+#   Defaults to cwd.
+# - SOURCES_C: C sources to format at the current recursion level
+#   (besides format-here).
+# - SOURCES_H: C headers to format at the current recursion level
+#   (besides format-here).
+#
 
-SYSROOT  = $(TOPDIR)/sysroot
+SYSROOT = $(TOPDIR)/sysroot
 DIR = $(patsubst $(TOPDIR)/%,%,$(CURDIR)/)
 
 # Pass "VERBOSE=1" at command line to display command being invoked by GNU Make

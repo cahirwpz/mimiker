@@ -1,11 +1,8 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 #
-# This is a common makefile used to establish the target architecture
-# and set the default value of the lock dependency validator flag.
+# Common makefile used to establish values for variables that configure
+# build system for given platform.
 #
-# The following make variables are set by the including makefile:
-# -BOARD: The target board. Defaults to malta.
-# -LOCKDEP: The lock dependency validator flag. Defaults to 0.
 
 BOARD ?= malta
 
@@ -17,5 +14,8 @@ ifeq ($(BOARD), rpi3)
 ARCH := aarch64
 endif
 
+VERBOSE ?= 0
+CLANG ?= 0
 LOCKDEP ?= 0
+KASAN ?= 0
 KGPROF ?= 0

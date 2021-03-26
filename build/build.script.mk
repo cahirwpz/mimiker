@@ -3,11 +3,10 @@
 # This is a common makefile for installing userspace scripts.
 #
 # The following make variables are set by the including makefile:
-# -SCRIPT: The name of the script.
-# -BINDIR: The path relative to $(SYSROOT) at which $(SCRIPT) will be 
-#  installed. Defaults to bin.
-# -BINMODE: permission mode. Defaults to 0755.
-# For other variables see included makefiles.
+# - SCRIPT: The name of the script.
+#
+# Following variables have default values assigned: BINDIR, BINMODE.
+#
 
 ifndef SCRIPT
 $(error SCRIPT is not set)

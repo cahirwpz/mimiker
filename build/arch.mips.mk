@@ -1,10 +1,8 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 #
-# This is a common makefile which specifies MIPS architecture specific settings.
+# Common makefile which specifies MIPS architecture specific settings.
 #
-# The following make variables are set by the including makefile:
-# -KERNEL: Defined if compiling a kernel source.
-# -BOARD: Board defining the destination platform.
+# Required common variables: KERNEL, BOARD.
 
 TARGET := mipsel-mimiker-elf
 # -G 0 disables small-data and small-bss,
@@ -16,7 +14,6 @@ ELFTYPE := elf32-littlemips
 ELFARCH := mips
 
 ifeq ($(KERNEL), 1)
-KASAN ?= 0
 ifeq ($(KASAN), 1)
   # Added to files that are sanitized
   CFLAGS_KASAN = -fsanitize=kernel-address -fasan-shadow-offset=0xD8000000 \
@@ -25,7 +22,6 @@ ifeq ($(KASAN), 1)
                  --param asan-instrument-allocas=1
 endif
 # Added to all files
-CFLAGS += -DKASAN=$(KASAN) -DKGPROF=$(KGPROF)
 GCC_ABIFLAGS += -msoft-float
 CLANG_ABIFLAGS += -msoft-float
 endif

@@ -1,18 +1,16 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 #
-# This is a common makefile for various simple usermode programs that reside in
+# Common makefile for various simple usermode programs that reside in
 # subdirectories. This is mostly a template for program-specific
 # makefiles. Generally custom user programs will want to provide their own
 # makefile, but for our own purposes this template is very convenient.
 #
 # The following make variables are set by the including makefile:
-# -PROGRAM: The name for the resulting userspace ELF file. Generally, this will
-#  be the program name installed into /bin directory.
-# -SOURCES: C or assembly files to compile. Defaults to $(PROGRAM).c.
-# -BINDIR: The path relative to $(SYSROOT) at which $(PROGRAM) will be 
-#  installed. Defaults to bin.
-# -BINMODE: permission mode. Defaults to 0755.
-# For other variables see included makefiles.
+# - PROGRAM: The name for the resulting userspace ELF file. Generally, this will
+#   be the program name installed into /bin directory.
+#
+# Following variables have default values assigned: SOURCES, BINDIR, BINMODE.
+#
 
 ifndef PROGRAM 
 $(error PROGRAM is not set)

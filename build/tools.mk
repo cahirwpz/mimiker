@@ -4,10 +4,7 @@
 # tools used throughout the build system.
 #
 # The following make variables are set by the including makefile:
-# -ARCH: The target architecture.
-# -TARGET: The target triplet corresponding to ARCH.
-# -CLANG: 1-switch compiler to Clang, otherwise use GCC.
-# -CLANG/GCC_ABIFLAGS: Compiler specific ABI flags.
+# - TARGET, {CLANG,GCC}_ABIFLAGS: Set by arch.*.mk files.
 
 ifndef ARCH
   $(error ARCH variable not defined. Have you included config.mk?)

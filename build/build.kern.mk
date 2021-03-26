@@ -1,16 +1,15 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
 #
-# This is a common makefile for kernel files. It is essentially used for
-# building kernel static libraries (i.e. *.ka archives) but may also be used
-# to build a bunch of unrelated kernel sources.
+# Common makefile for kernel files. It is essentially used for building kernel
+# static libraries (i.e. `*.ka` archives) but may also be used to build a bunch
+# of unrelated kernel sources.
 #
 # The following make variables are set by the including makefile:
-# -KLIB: "no" if kernel library shouldn't be built. Otherwise, the variable
-#  must be undefined.
-# -SUBDIR: The directories which will compose the destination library.
-# For other variables see included makefiles.
+# - KLIB: "no" if kernel library shouldn't be built.
+#   Otherwise the variable must be undefined.
+# - SUBDIR: The directories which will compose the destination library.
 #
-# Note that *_dtb.o targets should be manually added to the OBJECTS variable
+# Note that `*_dtb.o` targets should be manually added to the OBJECTS variable
 # in the including makefile.
 
 KLIB ?= $(shell basename $(CURDIR)).ka
