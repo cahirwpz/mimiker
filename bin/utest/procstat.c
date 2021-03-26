@@ -10,7 +10,7 @@ int test_procstat(void) {
   FILE *pstat = fopen("/dev/procstat", "r");
   assert(pstat != NULL);
 
-  for(;;) {
+  for (;;) {
     if ((got = fscanf(pstat, "%d\t%d\t%d\t%d\t%d\t%c\t", &euid, &pid, &ppid,
                       &pgrp, &session, &state)) == -1)
       break;
