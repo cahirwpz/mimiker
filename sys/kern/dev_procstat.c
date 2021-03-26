@@ -33,6 +33,9 @@
 /* we want to have at most 10 instances of procstat */
 #define MAX_PROCSTAT 10
 
+/* string used when process has no p_elfpath or p_args */
+#define NONAME "-"
+
 static char proc_state[4] = {
   [PS_NORMAL] = 'R',
   [PS_STOPPED] = 'S',
@@ -82,16 +85,21 @@ static vnodeops_t dev_procstat_vnodeops = {
 static char *get_command(proc_t *p) {
   char *buf = kmalloc(M_TEMP, PROC_COMM_MAX, M_ZERO);
   ssize_t left = PROC_COMM_MAX, used = 0;
+  char *command;
 
   /* copy program's name from elfpath */
-  char *start = strrchr(p->p_elfpath, '/');
-  if (start == NULL)
-    start = p->p_elfpath;
-  else
-    /* omit slash */
-    start += 1;
+  if (p->p_elfpath) {
+    command = strrchr(p->p_elfpath, '/');
+    if (command == NULL)
+      command = p->p_elfpath;
+    else
+      /* omit slash */
+      command += 1;
+  } else {
+    command = NONAME;
+  }
 
-  ssize_t wanted = strlcpy(buf, start, left);
+  ssize_t wanted = strlcpy(buf, command, left);
   used += min(wanted, left - 1);
   left = PROC_COMM_MAX - used;
 
@@ -101,7 +109,9 @@ static char *get_command(proc_t *p) {
     left--;
   }
 
-  strlcpy(buf + used, p->p_args, left);
+  char *args = p->p_args ? p->p_args : NONAME;
+  strlcpy(buf + used, args, left);
+
   return buf;
 }
 
