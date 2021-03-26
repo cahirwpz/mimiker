@@ -92,7 +92,7 @@ static char *get_command(proc_t *p) {
     start += 1;
 
   ssize_t wanted = strlcpy(buf, start, left);
-  used += min(wanted, left);
+  used += min(wanted, left - 1);
   left = PROC_COMM_MAX - used;
 
   /* if there is enough space append space after program name */
