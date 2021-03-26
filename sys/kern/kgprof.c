@@ -1,24 +1,19 @@
-#include <sys/param.h>
-#include <sys/interrupt.h>
 #include <sys/klog.h>
-#include <sys/kmem.h>
+#include <sys/context.h>
 #include <sys/gmon.h>
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/mimiker.h>
+#include <sys/kmem.h>
+#include <sys/thread.h>
 #include <machine/vm_param.h>
-#include <sys/types.h>
 
-gmonparam_t _gmonparam = {.state = GMON_PROF_NOT_INIT};
-gmonhdr_t _gmonhdr = {.profrate = CLK_TCK};
+static gmonparam_t _gmonparam = {.state = GMON_PROF_NOT_INIT};
+static gmonhdr_t _gmonhdr = {.profrate = CLK_TCK};
+
 /* The macros description are provided in gmon.h */
 void init_kgprof(void) {
-  void *profptr;
   gmonparam_t *p = &_gmonparam;
 
-  p->lowpc = rounddown((unsigned long)__kernel_start, INSTR_GRANULARITY);
-  p->highpc = roundup((unsigned long)__etext, INSTR_GRANULARITY);
+  p->lowpc = rounddown((u_long)__kernel_start, INSTR_GRANULARITY);
+  p->highpc = roundup((u_long)__etext, INSTR_GRANULARITY);
   p->textsize = p->highpc - p->lowpc;
   p->kcountsize = p->textsize / HISTFRACTION;
   p->hashfraction = HASHFRACTION;
@@ -27,19 +22,19 @@ void init_kgprof(void) {
   p->tolimit = min(max(p->tolimit, MINARCS), MAXARCS);
   p->tossize = p->tolimit * sizeof(tostruct_t);
 
-  int size = p->kcountsize + p->tossize + p->fromssize;
-  int aligned_size = align(size, PAGESIZE);
-  profptr = kmem_alloc(aligned_size, M_NOWAIT | M_ZERO);
+  size_t size = p->kcountsize + p->tossize + p->fromssize;
+  void *profptr = kmem_alloc(align(size, PAGESIZE), M_NOWAIT | M_ZERO);
   assert(profptr != NULL);
 
-  assert(is_aligned(profptr, alignof(tostruct_t)));
   p->tos = (tostruct_t *)profptr;
   profptr += p->tossize;
-  assert(is_aligned(profptr, alignof(u_short)));
   p->kcount = (u_short *)profptr;
   profptr += p->kcountsize;
-  assert(is_aligned(profptr, alignof(u_short)));
   p->froms = (u_short *)profptr;
+
+  assert(is_aligned(p->tos, alignof(tostruct_t)));
+  assert(is_aligned(p->kcount, alignof(u_short)));
+  assert(is_aligned(p->froms, alignof(u_short)));
 
   gmonhdr_t *hdr = &_gmonhdr;
   hdr->lpc = p->lowpc;
@@ -49,4 +44,22 @@ void init_kgprof(void) {
   hdr->spare[0] = hdr->spare[1] = hdr->spare[2] = 0;
 
   p->state = GMON_PROF_ON;
+}
+
+void kgprof_tick(void) {
+  uintptr_t pc, instr;
+  gmonparam_t *g = &_gmonparam;
+  thread_t *td = thread_self();
+
+  if (td->td_kframe == NULL)
+    return;
+
+  pc = ctx_get_pc(td->td_kframe);
+  if (g->state == GMON_PROF_ON && pc >= g->lowpc) {
+    instr = pc - g->lowpc;
+    if (instr < g->textsize) {
+      instr /= INSTR_GRANULARITY;
+      g->kcount[instr]++;
+    }
+  }
 }

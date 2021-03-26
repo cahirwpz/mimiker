@@ -45,7 +45,6 @@ typedef struct gmonhdr {
   int profrate; /* profiling clock rate */
   int spare[3]; /* reserved */
 } gmonhdr_t;
-extern gmonhdr_t _gmonhdr;
 
 #define GMONVERSION 0x00051879
 
@@ -124,7 +123,6 @@ typedef struct gmonparam {
   u_long textsize;
   u_long hashfraction;
 } gmonparam_t;
-extern gmonparam_t _gmonparam;
 
 /*
  * Possible states of profiling.

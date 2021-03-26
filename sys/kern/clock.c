@@ -4,8 +4,7 @@
 #include <sys/mimiker.h>
 #include <sys/klog.h>
 #include <sys/timer.h>
-#include <sys/context.h>
-#include <sys/gmon.h>
+#include <sys/kgprof.h>
 
 static systime_t now = 0;
 static timer_t *clock = NULL;
@@ -14,32 +13,14 @@ systime_t getsystime(void) {
   return now;
 }
 
-#if KGPROF
-static void statclock(void) {
-  uintptr_t pc, instr;
-  gmonparam_t *g = &_gmonparam;
-  thread_t *td = thread_self();
-
-  if (td->td_kframe == NULL)
-    return;
-
-  pc = ctx_get_pc(td->td_kframe);
-  if (g->state == GMON_PROF_ON && pc >= g->lowpc) {
-    instr = pc - g->lowpc;
-    if (instr < g->textsize) {
-      instr /= INSTR_GRANULARITY;
-      g->kcount[instr]++;
-    }
-  }
+static void stat_clock(void) {
+  kgprof_tick();
 }
-#else
-#define statclock() __nothing
-#endif
 
 static void clock_cb(timer_t *tm, void *arg) {
   bintime_t bin = binuptime();
   now = bt2st(&bin);
-  statclock();
+  stat_clock();
   callout_process(now);
   sched_clock();
 }
