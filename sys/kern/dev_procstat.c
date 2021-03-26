@@ -16,19 +16,19 @@
  *
  * Example:
  * euid   pid    ppid    pgrp   session  state    command
- * 0       1       0       1       1       R      /bin/ksh
+ * 0       1       0       1       1       R      ls -l
  */
+
+/* length of displayed command of process (includes terminating null byte) */
+#define PROC_COMM_MAX 128
 
 /* maximum size of output string of proc info
  * command + state (1 character)+ spaces (10 characters) +
  *  + 5 * max length of uint32 (10 characters)*/
-#define MAX_P_STRING (PATH_MAX + 5 * 10 + 1 + 10)
+#define MAX_P_STRING (PROC_COMM_MAX + 1 + 10 + 5 * 10)
 
 /* maximum amount of processes that procstat can handle */
 #define MAX_PROC 40
-
-/* length of displayed command of process (includes terminating null byte) */
-#define PROC_COMM_MAX 128
 
 /* we want to have at most 10 instances of procstat */
 #define MAX_PROCSTAT 10
@@ -81,6 +81,7 @@ static vnodeops_t dev_procstat_vnodeops = {
 
 static char *get_command(proc_t *p) {
   char *buf = kmalloc(M_TEMP, PROC_COMM_MAX, M_ZERO);
+  ssize_t left = PROC_COMM_MAX, used = 0;
 
   /* copy program's name from elfpath */
   char *start = strrchr(p->p_elfpath, '/');
@@ -90,15 +91,17 @@ static char *get_command(proc_t *p) {
     /* omit slash */
     start += 1;
 
-  ssize_t len = strlcpy(buf, start, PROC_COMM_MAX);
-  len = min(len, PROC_COMM_MAX - 1);
+  ssize_t wanted = strlcpy(buf, start, left);
+  used += min(wanted, left);
+  left = PROC_COMM_MAX - used;
 
   /* if there is enough space append space after program name */
-  if (len + 1 < PROC_COMM_MAX)
-    buf[len++] = ' ';
+  if (left > 1) {
+    buf[used++] = ' ';
+    left--;
+  }
 
-  strlcpy(buf + len, p->p_args, PROC_COMM_MAX - len);
-
+  strlcpy(buf + used, p->p_args, left);
   return buf;
 }
 

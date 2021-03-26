@@ -120,7 +120,6 @@ struct proc {
   /* program segments */
   vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
   vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */
-
   /* XXX: process resource usage stats */
 };
 

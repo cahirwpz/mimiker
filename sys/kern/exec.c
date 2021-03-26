@@ -329,20 +329,18 @@ static char *pargs_create(exec_args_t *args) {
   size_t left = PARGS_MAX;
 
   for (size_t i = 1; used + 1 < PARGS_MAX && i < args->argc; i++) {
-    left = PARGS_MAX - used;
-
     size_t wanted = strlcpy(pargs + used, args->argv[i], left);
 
     /* calculate how much we have copied (without terminating null byte) */
     used += min(wanted, left - 1);
+    left = PARGS_MAX - used;
 
-    /* add space between args */
-    if (left > 1)
+    /* add space between args if there is space and it is not last argument*/
+    if (left > 1 && i + 1 < args->argc) {
       pargs[used++] = ' ';
+      left--;
+    }
   }
-
-  assert(left >= 1);
-  pargs[used] = '\0';
 
   return pargs;
 }
