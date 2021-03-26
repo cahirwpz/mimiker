@@ -1,3 +1,6 @@
+# This file is a fork of GitHub Wiki Action plugin
+# https://github.com/Andrew-Chen-Wang/github-wiki-action
+
 FROM alpine/git
 
 RUN apk add rsync

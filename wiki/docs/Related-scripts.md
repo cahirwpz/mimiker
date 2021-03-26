@@ -1,2 +1,0 @@
-Mimiker-related scripts
----

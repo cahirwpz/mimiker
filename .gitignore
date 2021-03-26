@@ -59,6 +59,9 @@ sysroot
 # Visual Studio Code files
 .vscode
 
+# MacOS Finder's file
+.DS_Store
+
 # DTB
 *.dtb
 
@@ -67,3 +70,4 @@ sysroot
 
 # pcap files
 *.pcap
+
