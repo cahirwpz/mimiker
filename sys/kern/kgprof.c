@@ -12,7 +12,7 @@ static gmonhdr_t _gmonhdr = {.profrate = CLK_TCK};
 void init_kgprof(void) {
   gmonparam_t *p = &_gmonparam;
 
-  p->lowpc = rounddown((u_long)__kernel_start, INSTR_GRANULARITY);
+  p->lowpc = rounddown((u_long)__text, INSTR_GRANULARITY);
   p->highpc = roundup((u_long)__etext, INSTR_GRANULARITY);
   p->textsize = p->highpc - p->lowpc;
   p->kcountsize = p->textsize / HISTFRACTION;
