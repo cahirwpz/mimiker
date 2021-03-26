@@ -51,12 +51,13 @@ void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
 }
 
 static bool vm_boot_done = false;
-void *vm_kernel_end = __kernel_end;
+atomic_vaddr_t vm_kernel_end = (vaddr_t)__kernel_end;
+MTX_DEFINE(vm_kernel_end_lock, 0);
 
 static void *vm_boot_alloc(size_t n) {
   assert(!vm_boot_done);
 
-  void *begin = align(vm_kernel_end, sizeof(long));
+  void *begin = align((void *)vm_kernel_end, sizeof(long));
   void *end = align(begin + n, PAGESIZE);
 
   vm_physseg_t *seg = TAILQ_FIRST(&seglist);
@@ -83,7 +84,7 @@ static void *vm_boot_alloc(size_t n) {
 }
 
 static void vm_boot_finish(void) {
-  vm_kernel_end = align(vm_kernel_end, PAGESIZE);
+  vm_kernel_end = (vaddr_t)align((void *)vm_kernel_end, PAGESIZE);
   vm_boot_done = true;
 }
 
