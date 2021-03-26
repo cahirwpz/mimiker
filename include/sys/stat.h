@@ -141,10 +141,10 @@ int fstatat(int, const char *, struct stat *, int);
 int mkdirat(int, const char *, mode_t);
 int fchmodat(int, const char *, mode_t, int);
 
-int utimens(const char *, const struct timespec *);
-int lutimens(const char *, const struct timespec *);
-int futimens(int, const struct timespec *);
-int utimensat(int, const char *, const struct timespec *, int);
+int utimens(const char *, const struct timespec[2]);
+int lutimens(const char *, const struct timespec[2]);
+int futimens(int, const struct timespec[2]);
+int utimensat(int, const char *, const struct timespec[2], int);
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_STAT_H_ */
