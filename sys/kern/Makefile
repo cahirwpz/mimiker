@@ -51,7 +51,6 @@ SOURCES = \
 	ringbuf.c \
 	rman.c \
 	runq.c \
-	rwlock.c \
 	sbrk.c \
 	sched.c \
 	signal.c \
