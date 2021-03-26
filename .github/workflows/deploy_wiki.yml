@@ -1,4 +1,6 @@
 name: Deploy Wiki
+author: ???Andrew Chen Wang <acwangpython@gmail.com>
+description: This action publishes Wiki pages with a provided directory into a GitHub repository's Wiki.
 
 on:
   push:
@@ -12,13 +14,45 @@ on:
 jobs:
   deploy-wiki:
     runs-on: ubuntu-latest
+    container: cahirwpz/mimiker/wiki:latest
     steps:
-    - uses: actions/checkout@v2
-
     - name: Push Wiki Changes
-      uses: Andrew-Chen-Wang/github-wiki-action@v2
+      uses: actions/checkout@v2
       env:
         WIKI_DIR: wiki/
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_MAIL: ${{ secrets.OWNER_EMAIL }} 
         GH_NAME: ${{ github.repository_owner }} 
+
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  
+inputs:
+  WIKI_DIR:
+    description: 'Directory to rsync files to the wiki.'
+    required: false
+    default: 'wiki/'
+  GH_TOKEN:
+    description: 'The GitHub Token for this action to use. Specify secrets.GITHUB_TOKEN.'
+    required: true
+  GH_MAIL:
+    description: 'The email associated with the token.'
+    required: true
+  GH_NAME:
+    description: 'The username associated with the token.'
+    required: true
+  REPO:
+    description: 'The target repository. Default is the current repo.'
+    required: false
+  WIKI_PUSH_MESSAGE:
+    description: 'The commit message for the wiki commit. Default is the commit to actual repository.'
+    required: false
+  EXCLUDED_FILES:
+    description: 'A list of files you want to exclude (separate with spaces).'
+    required: false
+
+branding:
+  icon: upload-cloud
+  color: blue
