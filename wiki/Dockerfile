@@ -1,4 +1,4 @@
-# This file is a fork of GitHub Wiki Action plugin
+# This file is a fork of GitHub Wiki Action plugin by Andrew Chen Wang
 # https://github.com/Andrew-Chen-Wang/github-wiki-action
 
 FROM alpine/git

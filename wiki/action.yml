@@ -1,8 +1,8 @@
+# This file is a fork of GitHub Wiki Action plugin by Andrew Chen Wang
+# https://github.com/Andrew-Chen-Wang/github-wiki-action
+
 name: GitHub Wiki Action
 author: Andrew Chen Wang <acwangpython@gmail.com>
-
-# This file is a fork of GitHub Wiki Action plugin
-# https://github.com/Andrew-Chen-Wang/github-wiki-action
 
 description: This action publishes Wiki pages with a provided directory into a GitHub repository's Wiki.
 runs:

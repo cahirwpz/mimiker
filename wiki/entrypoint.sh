@@ -1,9 +1,7 @@
 #!/bin/sh
 
-
-# This file is a fork of GitHub Wiki Action plugin
+# This file is a fork of GitHub Wiki Action plugin by Andrew Chen Wang
 # https://github.com/Andrew-Chen-Wang/github-wiki-action
-
 
 TEMP_CLONE_FOLDER="temp_wiki_$GITHUB_SHA"
 TEMP_EXCLUDED_FILE="temp_wiki_excluded_$GITHUB_SHA.txt"
