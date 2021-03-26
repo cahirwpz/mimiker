@@ -25,7 +25,7 @@ ifeq ($(KASAN), 1)
                  --param asan-instrument-allocas=1
 endif
 # Added to all files
-CFLAGS += -DKASAN=$(KASAN)
+CFLAGS += -DKASAN=$(KASAN) -DKGPROF=$(KGPROF)
 GCC_ABIFLAGS += -msoft-float
 CLANG_ABIFLAGS += -msoft-float
 endif

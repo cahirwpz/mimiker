@@ -18,3 +18,4 @@ ARCH := aarch64
 endif
 
 LOCKDEP ?= 0
+KGPROF ?= 0
