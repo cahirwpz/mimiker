@@ -453,12 +453,10 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   p->p_thread = td;
   p->p_parent = parent;
 
-  if (parent) {
-    if (parent->p_elfpath)
-      p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, PATH_MAX);
-    if (parent->p_args)
-      p->p_args = kstrndup(M_STR, parent->p_args, MAX_PARGS_LEN);
-  }
+  if (parent->p_elfpath)
+    p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, PATH_MAX);
+  if (parent->p_args)
+    p->p_args = kstrndup(M_STR, parent->p_args, PARGS_MAX);
 
   TAILQ_INIT(CHILDREN(p));
   kitimer_init(p);

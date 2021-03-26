@@ -323,22 +323,27 @@ static bool check_setid(vnode_t *vn, uid_t *uid, gid_t *gid) {
   return (*uid != (uid_t)-1) || (*gid != (gid_t)-1);
 }
 
-static char *prepare_pargs(exec_args_t *args) {
-  char *pargs = kmalloc(M_STR, MAX_PARGS_LEN, M_ZERO);
-  size_t it = 1, used = 0, max = MAX_PARGS_LEN;
+static char *pargs_create(exec_args_t *args) {
+  char *pargs = kmalloc(M_STR, PARGS_MAX, M_ZERO);
+  size_t used = 0;
+  size_t left = PARGS_MAX;
 
-  while (used + 1 < max && it < args->argc) {
-    size_t len = strlcpy(pargs + used, args->argv[it], max - used);
+  for (size_t i = 1; used + 1 < PARGS_MAX && i < args->argc; i++) {
+    left = PARGS_MAX - used;
+
+    size_t wanted = strlcpy(pargs + used, args->argv[i], left);
 
     /* calculate how much we have copied (without terminating null byte) */
-    len = min(len, max - used - 1);
-    used += len;
+    used += min(wanted, left - 1);
 
     /* add space between args */
-    if (used + 1 < max)
+    if (left > 1)
       pargs[used++] = ' ';
-    ++it;
   }
+
+  assert(left >= 1);
+  pargs[used] = '\0';
+
   return pargs;
 }
 
@@ -403,7 +408,7 @@ static int _do_execve(exec_args_t *args) {
     goto fail;
 
   kfree(M_STR, p->p_args);
-  p->p_args = prepare_pargs(args);
+  p->p_args = pargs_create(args);
 
   fdtab_onexec(p->p_fdtable);
 

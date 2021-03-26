@@ -76,8 +76,6 @@ typedef enum {
   PF_CHILD_STATE_CHANGED = 0x2, /* Child state changed, recheck children */
 } proc_flags_t;
 
-#define MAX_PARGS_LEN 100
-
 /*! \brief Process structure
  *
  * Field markings and the corresponding locks:
@@ -103,6 +101,7 @@ struct proc {
   pid_t p_pid;                /* (!) Process ID */
   cred_t p_cred;              /* (@, *) Process credentials */
   char *p_elfpath;            /* (!) path of loaded elf file */
+  char *p_args;               /* (!) prefix of process arguments */
   TAILQ_ENTRY(proc) p_pglist; /* (g + a) link on pg_members list */
   pgrp_t *p_pgrp;             /* (@ + a) process group */
   volatile proc_state_t p_state;  /* (@) process state */
@@ -122,7 +121,6 @@ struct proc {
   vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
   vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */
 
-  char *p_args; /* (!) first 100 bytes of arguments of process */
   /* XXX: process resource usage stats */
 };
 
