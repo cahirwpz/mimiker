@@ -214,7 +214,7 @@ static inline emmc_result_t emmc_send_app_cmd(device_t *dev, uint32_t cmd,
  * \param dev e.MMC controller device
  * \param wflags conditions to be met
  */
-/* static inline int emmc_wait(device_t *dev, emmc_wait_flags_t wflags) {
+static inline int emmc_wait(device_t *dev, emmc_wait_flags_t wflags) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, wait);
   return emmc_methods(idev->parent)->wait(dev, wflags);
 }
