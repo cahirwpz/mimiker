@@ -881,15 +881,20 @@ static int tty_get_termios(tty_t *tty, struct termios *t) {
 }
 
 static int tty_set_termios(tty_t *tty, u_long cmd, struct termios *t) {
-  int error;
+  int err;
 
   SCOPED_MTX_LOCK(&tty->t_lock);
   if (tty_detached(tty))
     return ENXIO;
 
+  /* Processes in background process groups are restricted from modifying
+   * their controlling terminal's settings. */
+  if ((err = tty_check_background(tty, SIGTTOU)))
+    return err;
+
   if (cmd == TIOCSETAW || cmd == TIOCSETAF)
-    if ((error = tty_drain_out(tty)))
-      return error;
+    if ((err = tty_drain_out(tty)))
+      return err;
   if (cmd == TIOCSETAF)
     tty_discard_input(tty);
 
@@ -945,10 +950,15 @@ static int tty_get_fg_pgrp(tty_t *tty, int *pgid_p) {
 }
 
 static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
+  int err;
   WITH_MTX_LOCK (&all_proc_mtx) {
     proc_t *p = proc_self();
     pgrp_t *pg = pgrp_lookup(pgid);
     WITH_MTX_LOCK (&tty->t_lock) {
+      /* Processes in background process groups are restricted from modifying
+       * their controlling terminal's settings. */
+      if ((err = tty_check_background(tty, SIGTTOU)))
+        return err;
       if (tty_detached(tty))
         return ENXIO;
       /* The target process group must be in the same session
@@ -965,7 +975,12 @@ static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
 }
 
 static int tty_set_winsize(tty_t *tty, struct winsize *sz) {
+  int err;
   SCOPED_MTX_LOCK(&tty->t_lock);
+  /* Processes in background process groups are restricted from modifying
+   * their controlling terminal's settings. */
+  if ((err = tty_check_background(tty, SIGTTOU)))
+    return err;
   if (memcmp(&tty->t_winsize, sz, sizeof(struct winsize)) == 0)
     return 0;
   tty->t_winsize = *sz;
