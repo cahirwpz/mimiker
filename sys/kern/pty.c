@@ -100,7 +100,7 @@ static int pty_write(file_t *f, uio_t *uio) {
     return 0;
 
   size_t start_resid = uio->uio_resid;
-  uiosave_t save;
+  uiostate_t save;
 
   SCOPED_MTX_LOCK(&tty->t_lock);
 
