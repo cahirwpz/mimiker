@@ -15,6 +15,7 @@ int main(void) {
   if ((termfile = fopen("/dev/tty", "r+")) == NULL)
     return err;
   int term_fd = fileno(termfile);
+  /* Initialize libterminfo state. */
   if (setupterm(NULL, term_fd, NULL))
     return err;
   setbuf(termfile, NULL);
