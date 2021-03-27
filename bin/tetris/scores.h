@@ -1,8 +1,11 @@
-/*	$NetBSD: signal.h,v 1.57 2019/01/08 17:35:42 joerg Exp $	*/
+/*	$NetBSD: scores.h,v 1.5 2009/05/25 08:33:57 dholland Exp $	*/
 
 /*-
- * Copyright (c) 1991, 1993
+ * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Chris Torek and Darren F. Provine.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,53 +31,57 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)signal.h	8.3 (Berkeley) 3/30/94
+ *	@(#)scores.h	8.1 (Berkeley) 5/31/93
  */
-
-#ifndef _SIGNAL_H_
-#define _SIGNAL_H_
-
-#include <sys/cdefs.h>
-#include <sys/signal.h>
-
-__BEGIN_DECLS
-extern const char *const *sys_signame;
-extern const char *const *sys_siglist;
-extern const int sys_nsig;
-
-int raise(int);
-
-const char *signalname(int);
-int signalnext(int);
-int signalnumber(const char *);
-
-void (*signal(int, void (*)(int)))(int);
-
-int kill(pid_t, int);
-int sigaction(int, const sigaction_t *__restrict, sigaction_t *__restrict);
-int sigaddset(sigset_t *, int);
-int sigdelset(sigset_t *, int);
-int sigemptyset(sigset_t *);
-int sigfillset(sigset_t *);
-int sigismember(const sigset_t *, int);
-int sigpending(sigset_t *);
-int sigprocmask(int, const sigset_t *__restrict, sigset_t *__restrict);
-int sigsuspend(const sigset_t *);
 
 /*
- * X/Open CAE Specification Issue 4 Version 2
+ * Tetris scores.
  */
 
-int killpg(int pgrp, int sig);
-int siginterrupt(int sig, int flag);
+/* Header for high score file. */
+#define HSH_MAGIC_SIZE 8
+struct highscore_header {
+	char hsh_magic[HSH_MAGIC_SIZE];
+	uint32_t hsh_endiantag;
+	uint32_t hsh_version;
+};
 
-/*
- * Mimiker specific stuff.
- */
-#ifdef _LIBC
-void sigreturn(void);
-#endif
+/* Current on-disk high score record. */
+struct highscore_ondisk {
+	char hso_name[20];
+	int32_t hso_score;
+	int32_t hso_level;
+	int32_t hso_pad;
+	int64_t hso_time;
+};
 
-__END_DECLS
+/* 5.99.x after time_t change, on 32-bit machines */
+struct highscore_ondisk_599 {
+	char hso599_name[20];
+	int32_t hso599_score;
+	int32_t hso599_level;
+	int32_t hso599_time[2];
+};
 
-#endif /* !_SIGNAL_H_ */
+/* 5.0 and earlier on-disk high score record. */
+struct highscore_ondisk_50 {
+	char hso50_name[20];
+	int32_t hso50_score;
+	int32_t hso50_level;
+	int32_t hso50_time;
+};
+
+/* In-memory high score record. */
+struct highscore {
+	char	hs_name[20];	/* login name */
+	int	hs_score;	/* raw score */
+	int	hs_level;	/* play level */
+	time_t	hs_time;	/* time at game end */
+};
+
+#define MAXHISCORES	80
+#define MAXSCORES	9	/* maximum high score entries per person */
+#define	EXPIRATION	(5L * 365 * 24 * 60 * 60)
+
+void	savescore(int);
+void	showscores(int);
