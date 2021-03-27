@@ -23,6 +23,7 @@ typedef int (*d_detach_t)(device_t *dev);
 typedef enum {
   DIF_BUS,
   DIF_PCI_BUS,
+  DIF_UART,
   DIF_COUNT /* this must be the last item */
 } drv_if_t;
 

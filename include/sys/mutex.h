@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <sys/mimiker.h>
 #include <sys/_lock.h>
+#include <sys/lockdep.h>
 
 typedef struct thread thread_t;
 
@@ -20,16 +21,28 @@ typedef struct mtx {
   lk_attr_t m_attr;          /*!< lock attributes */
   volatile unsigned m_count; /*!< counter for recursive mutexes */
   atomic_intptr_t m_owner;   /*!< stores address of the owner */
+
+#if LOCKDEP
+  lock_class_mapping_t m_lockmap;
+#endif
 } mtx_t;
 
 /* Flags stored in lower 3 bits of m_owner. */
 #define MTX_CONTESTED 1
 #define MTX_FLAGMASK 7
 
+#if LOCKDEP
+#define MTX_INITIALIZER(mutexname, recursive)                                  \
+  (mtx_t) {                                                                    \
+    .m_attr = (recursive) | LK_TYPE_BLOCK,                                     \
+    .m_lockmap = LOCKDEP_MAPPING_INITIALIZER(mutexname)                        \
+  }
+#else
 #define MTX_INITIALIZER(mutexname, recursive)                                  \
   (mtx_t) {                                                                    \
     .m_attr = (recursive) | LK_TYPE_BLOCK                                      \
   }
+#endif
 
 #define MTX_DEFINE(mutexname, recursive)                                       \
   mtx_t mutexname = MTX_INITIALIZER(mutexname, recursive)
@@ -37,7 +50,14 @@ typedef struct mtx {
 /*! \brief Initializes mutex.
  *
  * \note Every mutex has to be initialized before it is used. */
-void mtx_init(mtx_t *m, lk_attr_t attr);
+void _mtx_init(mtx_t *m, lk_attr_t attr, const char *name,
+               lock_class_key_t *key);
+
+#define mtx_init(lock, attr)                                                   \
+  {                                                                            \
+    static lock_class_key_t __key;                                             \
+    _mtx_init(lock, attr, #lock, &__key);                                      \
+  }
 
 /*! \brief Makes mutex unusable for further locking.
  *

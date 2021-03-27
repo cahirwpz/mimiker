@@ -28,6 +28,7 @@ SOURCES = \
 	file_syscalls.c \
 	filedesc.c \
 	fork.c \
+	kgprof.c \
 	initrd.c \
 	interrupt.c \
 	isa.c \
@@ -35,6 +36,7 @@ SOURCES = \
 	klog.c \
 	kmem.c \
 	ktest.c \
+	lockdep.c \
 	main.c \
 	malloc.c \
 	mutex.c \
@@ -49,7 +51,6 @@ SOURCES = \
 	ringbuf.c \
 	rman.c \
 	runq.c \
-	rwlock.c \
 	sbrk.c \
 	sched.c \
 	signal.c \
@@ -63,6 +64,8 @@ SOURCES = \
 	timer.c \
 	tmpfs.c \
 	tty.c \
+	uart.c \
+	uart_tty.c \
 	uio.c \
 	ustack.c \
 	vfs.c \
