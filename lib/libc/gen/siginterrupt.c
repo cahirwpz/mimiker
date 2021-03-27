@@ -1,7 +1,7 @@
-/*	$NetBSD: signal.h,v 1.57 2019/01/08 17:35:42 joerg Exp $	*/
+/*	$NetBSD: siginterrupt.c,v 1.13 2012/06/25 22:32:43 abs Exp $	*/
 
-/*-
- * Copyright (c) 1991, 1993
+/*
+ * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,54 +27,28 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)signal.h	8.3 (Berkeley) 3/30/94
  */
-
-#ifndef _SIGNAL_H_
-#define _SIGNAL_H_
 
 #include <sys/cdefs.h>
-#include <sys/signal.h>
+#include <signal.h>
 
-__BEGIN_DECLS
-extern const char *const *sys_signame;
-extern const char *const *sys_siglist;
-extern const int sys_nsig;
-
-int raise(int);
-
-const char *signalname(int);
-int signalnext(int);
-int signalnumber(const char *);
-
-void (*signal(int, void (*)(int)))(int);
-
-int kill(pid_t, int);
-int sigaction(int, const sigaction_t *__restrict, sigaction_t *__restrict);
-int sigaddset(sigset_t *, int);
-int sigdelset(sigset_t *, int);
-int sigemptyset(sigset_t *);
-int sigfillset(sigset_t *);
-int sigismember(const sigset_t *, int);
-int sigpending(sigset_t *);
-int sigprocmask(int, const sigset_t *__restrict, sigset_t *__restrict);
-int sigsuspend(const sigset_t *);
-
+extern sigset_t __sigintr;
 /*
- * X/Open CAE Specification Issue 4 Version 2
+ * Set signal state to prevent restart of system calls
+ * after an instance of the indicated signal.
  */
+int siginterrupt(int sig, int flag) {
+  struct sigaction sa;
+  int ret;
 
-int killpg(int pgrp, int sig);
-int siginterrupt(int sig, int flag);
-
-/*
- * Mimiker specific stuff.
- */
-#ifdef _LIBC
-void sigreturn(void);
-#endif
-
-__END_DECLS
-
-#endif /* !_SIGNAL_H_ */
+  if ((ret = sigaction(sig, (struct sigaction *)0, &sa)) < 0)
+    return (ret);
+  if (flag) {
+    sigaddset(&__sigintr, sig);
+    sa.sa_flags &= ~SA_RESTART;
+  } else {
+    sigdelset(&__sigintr, sig);
+    sa.sa_flags |= SA_RESTART;
+  }
+  return (sigaction(sig, &sa, (struct sigaction *)0));
+}
