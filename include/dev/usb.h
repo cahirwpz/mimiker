@@ -4,6 +4,10 @@
 #ifndef _DEV_USB_H_
 #define _DEV_USB_H_
 
+/*
+ * Constructs defined by the USB specification.
+ */
+
 /* Definition of some hardcoded USB constants. */
 
 #define USB_MAX_IPACKET 8 /* initial USB packet size */
@@ -144,5 +148,27 @@ typedef struct usb_endpoint_descriptor {
 #define UE_ISOCHRONOUS 0x01
 #define UE_BULK 0x02
 #define UE_INTERRUPT 0x03
+
+/*
+ * Implementation specific constructs.
+ */
+
+typedef enum {
+  TF_INPUT = 1,     /* input transfer */
+  TF_CONTROL = 2,   /* control transfer */
+  TF_BULK = 4,      /* bulk transfer */
+  TF_INTERRUPT = 8, /* interrupt transfer */
+  TF_STALLED = 16,  /* STALL condition encountered */
+  TF_ERROR = 32,    /* errors other than STALL */
+} transfer_flags_t;
+
+/* USB buffer identifies a USB transfer. */
+typedef struct usb_buf {
+  ringbuf_t buf;          /* write source or read destination */
+  condvar_t cv;           /* wait for the transfer to complete */
+  spin_t lock;            /* buffer guard */
+  transfer_flags_t flags; /* transfer description */
+  uint16_t transfer_size; /* size of the transfer */
+} usb_buf_t;
 
 #endif /* _DEV_USB_H_ */
