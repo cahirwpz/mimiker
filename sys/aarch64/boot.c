@@ -29,7 +29,6 @@ extern char exception_vectors[];
 extern char hypervisor_vectors[];
 #if KASAN
 extern size_t _kasan_sanitized_end;
-__boot_data static vaddr_t kasan_sanitized_end;
 #endif
 
 __boot_text static void halt(void) {
@@ -209,10 +208,10 @@ __boot_text static paddr_t build_page_table(void) {
   l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
 
 #if KASAN /* Prepare KASAN shadow mappings */
-  size_t kasan_sanitzied_size =
+  size_t kasan_sanitized_size =
     SUPERPAGESIZE + roundup2(va - KASAN_MD_SANITIZED_START,
                              SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
-  size_t kasan_shadow_size = kasan_sanitzied_size / KASAN_SHADOW_SCALE_SIZE;
+  size_t kasan_shadow_size = kasan_sanitized_size / KASAN_SHADOW_SCALE_SIZE;
   vaddr_t kasan_shadow_end = KASAN_MD_SHADOW_START + kasan_shadow_size;
   va = KASAN_MD_SHADOW_START;
   /* XXX _kasan_sanitized_end is at a high address which is not mapped yet,
@@ -312,9 +311,6 @@ __boot_text static void enable_mmu(paddr_t pde) {
   __isb();
 
   _kernel_pmap_pde = pde;
-#if KASAN
-  _kasan_sanitized_end = kasan_sanitized_end;
-#endif
 }
 
 __boot_text static void atags_copy(atag_tag_t *atags) {
