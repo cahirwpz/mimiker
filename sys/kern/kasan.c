@@ -231,7 +231,7 @@ static inline vaddr_t kasan_va_to_shadow(vaddr_t va) {
 void kasan_grow(vaddr_t maxkvaddr) {
   assert(mtx_owned(&vm_kernel_end_lock));
   maxkvaddr = roundup2(maxkvaddr, PAGESIZE * KASAN_SHADOW_SCALE_SIZE);
-  assert(maxkvaddr < KASAN_MD_SANITIZED_END);
+  assert(maxkvaddr < KASAN_MD_MAX_SANITIZED_END);
   vaddr_t va = kasan_va_to_shadow(_kasan_sanitized_end);
   vaddr_t end = kasan_va_to_shadow(maxkvaddr);
 
