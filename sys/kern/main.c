@@ -26,10 +26,7 @@
 #include <sys/console.h>
 #include <sys/stat.h>
 #include <sys/lockdep.h>
-
-#if KCSAN
-extern int kcsan_ready;
-#endif
+#include <sys/kcsan.h>
 
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
@@ -114,9 +111,7 @@ __noreturn void kernel_init(void) {
 
   klog("Kernel initialized!");
 
-#if KCSAN
-  kcsan_ready = 1;
-#endif
+  init_kcsan();
 
   pid_t init_pid;
   do_fork(start_init, NULL, &init_pid);

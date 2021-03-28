@@ -3,6 +3,7 @@
 #include <sys/thread.h>
 #include <machine/interrupt.h>
 #include <sys/klog.h>
+#include <sys/kcsan.h>
 
 #define WATCHPOINT_READ_BIT (1 << 31)
 #define WATCHPOINT_SIZE_SHIFT 28
@@ -11,6 +12,10 @@
 
 #define WATCHPOINT_INVALID 0
 
+/*
+ * These values were chosen rather arbitrarily, so feel free to modify them if
+ * for example higher performance is needed.
+ */
 #define WATCHPOINT_NUM 32
 #define SKIP_COUNT 500
 #define WATCHPOINT_DELAY 10000
@@ -26,7 +31,7 @@ static atomic_int kcsan_set_watchpoint_count;
 /* How many accesses should be skipped before we setup a watchpoint. */
 static atomic_int skip_counter = SKIP_COUNT;
 
-int kcsan_ready;
+static int kcsan_ready;
 
 static inline int encode_watchpoint(uintptr_t addr, size_t size, bool is_read) {
   return (is_read ? WATCHPOINT_READ_BIT : 0) | (size << WATCHPOINT_SIZE_SHIFT) |
@@ -57,13 +62,17 @@ static inline bool should_watch(void) {
   return atomic_fetch_sub(&skip_counter, 1) == 1;
 }
 
-static void delay(int count) {
+static inline void delay(int count) {
   for (int i = 0; i < count; i++) {
     __asm__ volatile("nop");
   }
 }
 
-static inline atomic_int *find_watchpoint(uintptr_t addr, size_t size,
+/*
+ * For a given memory access returns the conflicting watchpoint if the data race
+ * is found. Otherwise returns NULL.
+ */
+static inline atomic_int *search_for_race(uintptr_t addr, size_t size,
                                           bool is_read) {
   uintptr_t other_addr;
   size_t other_size;
@@ -101,13 +110,23 @@ static inline atomic_int *insert_watchpoint(uintptr_t addr, size_t size,
   return watchpoint_p;
 }
 
+static inline uint64_t read_mem(uintptr_t addr, size_t size) {
+  switch (size) {
+    case 1:
+      return *((uint8_t *)addr);
+    case 2:
+      return *((uint16_t *)addr);
+    case 4:
+      return *((uint32_t *)addr);
+    case 8:
+      return *((uint64_t *)addr);
+    default:
+      return 0;
+  }
+}
+
 static inline void setup_watchpoint(uintptr_t addr, size_t size, bool is_read) {
-  union {
-    uint8_t b1;
-    uint16_t b2;
-    uint32_t b4;
-    uint64_t b8;
-  } prev_val = {}, new_val = {};
+  uint64_t prev_val = 0, new_val = 0;
 
   /* Reset the counter. */
   atomic_store(&skip_counter, SKIP_COUNT);
@@ -120,51 +139,18 @@ static inline void setup_watchpoint(uintptr_t addr, size_t size, bool is_read) {
 
   atomic_fetch_add(&kcsan_set_watchpoint_count, 1);
 
-  switch (size) {
-    case 1:
-      prev_val.b1 = *((uint8_t *)addr);
-      break;
-    case 2:
-      prev_val.b2 = *((uint16_t *)addr);
-      break;
-    case 4:
-      prev_val.b4 = *((uint32_t *)addr);
-      break;
-    case 8:
-      prev_val.b8 = *((uint64_t *)addr);
-      break;
-    default:
-      break;
-  }
-
+  prev_val = read_mem(addr, size);
   delay(WATCHPOINT_DELAY);
+  new_val = read_mem(addr, size);
 
-  switch (size) {
-    case 1:
-      new_val.b1 = *((uint8_t *)addr);
-      break;
-    case 2:
-      new_val.b2 = *((uint16_t *)addr);
-      break;
-    case 4:
-      new_val.b4 = *((uint32_t *)addr);
-      break;
-    case 8:
-      new_val.b8 = *((uint64_t *)addr);
-      break;
-    default:
-      break;
-  }
-
-  if (prev_val.b8 != new_val.b8) {
+  if (__predict_false(prev_val != new_val)) {
     panic("===========KernelConcurrencySanitizer===========\n"
           "* value of the watched variable %p has changed\n"
           "* %s of size %lu\n"
           "* previous value %x\n"
           "* current value %x\n"
           "============================================",
-          (void *)addr, (is_read ? "read" : "write"), size, prev_val.b8,
-          new_val.b8);
+          (void *)addr, (is_read ? "read" : "write"), size, prev_val, new_val);
   }
 
   atomic_store(watchpoint_p, WATCHPOINT_INVALID);
@@ -178,8 +164,8 @@ static void kcsan_check(uintptr_t addr, size_t size, bool is_read) {
   if (addr < KERNEL_SPACE_BEGIN)
     return;
 
-  atomic_int *watchpoint = find_watchpoint(addr, size, is_read);
-  if (watchpoint == NULL) {
+  atomic_int *watchpoint = search_for_race(addr, size, is_read);
+  if (__predict_true(watchpoint == NULL)) {
     if (should_watch())
       setup_watchpoint(addr, size, is_read);
   } else {
@@ -260,3 +246,7 @@ void __tsan_init(void) {
 DEFINE_KCSAN_ATOMIC_OPS(8);
 DEFINE_KCSAN_ATOMIC_OPS(16);
 DEFINE_KCSAN_ATOMIC_OPS(32);
+
+void init_kcsan(void) {
+  kcsan_ready = 1;
+}

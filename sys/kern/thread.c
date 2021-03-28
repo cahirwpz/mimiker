@@ -131,6 +131,11 @@ void thread_delete(thread_t *td) {
   pool_free(P_THREAD, td);
 }
 
+/*
+ * Instrumentation in this function makes KCSAN crash. I don't know the cause,
+ * but the function is so simple that there is no need to instrumentate it
+ * anyway.
+ */
 __no_sanitize thread_t *thread_self(void) {
   return PCPU_GET(curthread);
 }
