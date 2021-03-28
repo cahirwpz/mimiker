@@ -40,15 +40,14 @@ static int hidkbd_probe(device_t *dev) {
   return 1;
 }
 
-static int hidkbd_read(vnode_t *v, uio_t *uio, int ioflags) {
+static int hidkbd_read(vnode_t *v, uio_t *uio, __unused int ioflags) {
   device_t *dev = devfs_node_data(v);
   hidkbd_state_t *hidkbd = dev->state;
-  usb_device_t *usbd = usb_device_of(dev);
 
   uio->uio_offset = 0;
 
   hidkbd_inr_t report;
-  int error = usb_poll(usbd, hidkbd->usbb, 0, &report, sizeof(hidkbd_inr_t));
+  int error = usb_poll(dev, hidkbd->usbb, 0, &report, sizeof(hidkbd_inr_t));
   if (error)
     return 1;
 
@@ -61,12 +60,11 @@ static vnodeops_t hidkbd_ops = {
 
 static int hidkbd_attach(device_t *dev) {
   hidkbd_state_t *hidkbd = dev->state;
-  usb_device_t *usbd = usb_device_of(dev);
 
-  if (usb_set_idle(usbd))
+  if (usb_set_idle(dev))
     return 1;
 
-  if (usb_set_boot_protocol(usbd))
+  if (usb_set_boot_protocol(dev))
     return 1;
 
   /* Prepare a report buffer. */
@@ -74,7 +72,7 @@ static int hidkbd_attach(device_t *dev) {
   hidkbd->usbb = usb_alloc_buf(buf, HIDKBD_BUFFER_SIZE, TF_INPUT | TF_INTERRUPT,
                                sizeof(hidkbd_inr_t));
 
-  usb_interrupt_transfer(usbd, hidkbd->usbb);
+  usb_interrupt_transfer(dev, hidkbd->usbb);
 
   /* Prepare /dev/hidkbd interface. */
   devfs_makedev(NULL, "hidkbd", &hidkbd_ops, dev, NULL);

@@ -10,6 +10,8 @@
 #include <dev/usbhc.h>
 #include <dev/umass.h>
 
+/* TODO(MichalBlk): in case of multiple host controllers, this needs
+ * protection. */
 static uint8_t usb_max_addr = 1;
 
 static usb_endpoint_descriptor_t *usb_endp(usb_device_t *usbd,
@@ -70,9 +72,8 @@ void usb_process(usb_buf_t *usbb, void *data, transfer_flags_t err_flags) {
 }
 
 /* Alloc a device attached to port `prot`. */
-static usb_device_t *usb_alloc_dev(uint8_t port, usbhc_space_t *uhs) {
+static usb_device_t *usb_alloc_dev(uint8_t port) {
   usb_device_t *usbd = kmalloc(M_DEV, sizeof(usb_device_t), M_ZERO);
-  usbd->uhs = uhs;
   usbd->dd.bMaxPacketSize = USB_MAX_IPACKET;
   usbd->port = port;
   return usbd;
@@ -131,11 +132,11 @@ void usb_wait(usb_buf_t *usbb) {
     cv_wait(&usbb->cv, &usbb->lock);
 }
 
-static int usb_control_transfer(usb_device_t *usbd, usb_buf_t *usbb,
+static int usb_control_transfer(device_t *dev, usb_buf_t *usbb,
                                 usb_device_request_t *req) {
   assert(usbb->flags & TF_CONTROL);
 
-  usbhc_transfer(usbd, usbb, req);
+  usbhc_transfer(dev, usbb, req);
 
   WITH_SPIN_LOCK (&usbb->lock) { usb_wait(usbb); }
   /* In case of control transfers, we consider a STALL condition
@@ -146,33 +147,36 @@ static int usb_control_transfer(usb_device_t *usbd, usb_buf_t *usbb,
   return 0;
 }
 
-int usb_set_idle(usb_device_t *usbd) {
+int usb_set_idle(device_t *dev) {
+  usb_device_t *usbd = usb_device_of(dev);
   usb_device_request_t req = (usb_device_request_t){
     .bmRequestType = UT_WRITE_CLASS_INTERFACE,
     .bRequest = UR_SET_IDLE,
     .wIndex = usbd->inum,
   };
   usb_buf_t *usbb = usb_alloc_empty_buf(TF_CONTROL);
-  int error = usb_control_transfer(usbd, usbb, &req);
+  int error = usb_control_transfer(dev, usbb, &req);
 
   usb_free_buf(usbb);
   return error;
 }
 
-int usb_set_boot_protocol(usb_device_t *usbd) {
+int usb_set_boot_protocol(device_t *dev) {
+  usb_device_t *usbd = usb_device_of(dev);
   usb_device_request_t req = (usb_device_request_t){
     .bmRequestType = UT_WRITE_CLASS_INTERFACE,
     .bRequest = UR_SET_PROTOCOL,
     .wIndex = usbd->inum,
   };
   usb_buf_t *usbb = usb_alloc_empty_buf(TF_CONTROL);
-  int error = usb_control_transfer(usbd, usbb, &req);
+  int error = usb_control_transfer(dev, usbb, &req);
 
   usb_free_buf(usbb);
   return error;
 }
 
-int usb_bbb_get_max_lun(usb_device_t *usbd, uint8_t *maxlun) {
+int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun) {
+  usb_device_t *usbd = usb_device_of(dev);
   usb_device_request_t req = (usb_device_request_t){
     .bmRequestType = UT_READ_CLASS_INTERFACE,
     .bRequest = UR_BBB_GET_MAX_LUN,
@@ -180,7 +184,7 @@ int usb_bbb_get_max_lun(usb_device_t *usbd, uint8_t *maxlun) {
     .wLength = 1,
   };
   usb_buf_t *usbb = usb_alloc_buf_from_struct(maxlun, TF_INPUT | TF_CONTROL, 1);
-  int error = usb_control_transfer(usbd, usbb, &req);
+  int error = usb_control_transfer(dev, usbb, &req);
 
   if (!error)
     goto bad;
@@ -196,20 +200,22 @@ bad:
   return error;
 }
 
-int usb_bbb_reset(usb_device_t *usbd) {
+int usb_bbb_reset(device_t *dev) {
+  usb_device_t *usbd = usb_device_of(dev);
   usb_device_request_t req = (usb_device_request_t){
     .bmRequestType = UT_WRITE_CLASS_INTERFACE,
     .bRequest = UR_BBB_RESET,
     .wIndex = usbd->inum,
   };
   usb_buf_t *usbb = usb_alloc_empty_buf(TF_CONTROL);
-  int error = usb_control_transfer(usbd, usbb, &req);
+  int error = usb_control_transfer(dev, usbb, &req);
 
   usb_free_buf(usbb);
   return error;
 }
 
-int usb_unhalt_endp(usb_device_t *usbd, uint8_t idx) {
+int usb_unhalt_endp(device_t *dev, uint8_t idx) {
+  usb_device_t *usbd = usb_device_of(dev);
   assert(idx < usbd->nendps);
 
   usb_device_request_t req = (usb_device_request_t){
@@ -219,18 +225,18 @@ int usb_unhalt_endp(usb_device_t *usbd, uint8_t idx) {
     .wIndex = UE_GET_ADDR(usbd->endps[idx].bEndpointAddress),
   };
   usb_buf_t *usbb = usb_alloc_empty_buf(TF_CONTROL);
-  int error = usb_control_transfer(usbd, usbb, &req);
+  int error = usb_control_transfer(dev, usbb, &req);
 
   usb_free_buf(usbb);
   return error;
 }
 
-void usb_interrupt_transfer(usb_device_t *usbd, usb_buf_t *usbb) {
+void usb_interrupt_transfer(device_t *dev, usb_buf_t *usbb) {
   assert(usbb->flags & TF_INTERRUPT);
-  usbhc_transfer(usbd, usbb, NULL);
+  usbhc_transfer(dev, usbb, NULL);
 }
 
-int usb_poll(usb_device_t *usbd, usb_buf_t *usbb, uint8_t idx, void *buf,
+int usb_poll(device_t *dev, usb_buf_t *usbb, uint8_t idx, void *buf,
              size_t size) {
   WITH_SPIN_LOCK (&usbb->lock) {
     for (;;) {
@@ -242,9 +248,9 @@ int usb_poll(usb_device_t *usbd, usb_buf_t *usbb, uint8_t idx, void *buf,
       }
 
       if (usbb->flags & TF_STALLED && !(usbb->flags & TF_ERROR)) {
-        usb_unhalt_endp(usbd, idx);
+        usb_unhalt_endp(dev, idx);
         usb_clean_error(usbb);
-        usb_interrupt_transfer(usbd, usbb);
+        usb_interrupt_transfer(dev, usbb);
       } else {
         return 1;
       }
@@ -253,13 +259,14 @@ int usb_poll(usb_device_t *usbd, usb_buf_t *usbb, uint8_t idx, void *buf,
   return 0;
 }
 
-void usb_bulk_transfer(usb_device_t *usbd, usb_buf_t *usbb) {
+void usb_bulk_transfer(device_t *dev, usb_buf_t *usbb) {
   assert(usbb->flags & TF_BULK);
-  usbhc_transfer(usbd, usbb, NULL);
+  usbhc_transfer(dev, usbb, NULL);
 }
 
-static int usb_set_addr(usb_device_t *usbd) {
+static int usb_set_addr(device_t *dev) {
   uint8_t addr = usb_max_addr++;
+  usb_device_t *usbd = usb_device_of(dev);
   usb_device_request_t req = (usb_device_request_t){
     .bmRequestType = UT_WRITE_DEVICE,
     .bRequest = UR_SET_ADDRESS,
@@ -268,7 +275,7 @@ static int usb_set_addr(usb_device_t *usbd) {
   usb_buf_t *usbb = usb_alloc_empty_buf(TF_CONTROL);
   int error = 0;
 
-  if (!(error = usb_control_transfer(usbd, usbb, &req))) {
+  if (!(error = usb_control_transfer(dev, usbb, &req))) {
     usbd->addr = addr;
     mdelay(2);
   }
@@ -277,7 +284,7 @@ static int usb_set_addr(usb_device_t *usbd) {
   return error;
 }
 
-static int usb_get_dev_dsc(usb_device_t *usbd, usb_device_descriptor_t *dd) {
+static int usb_get_dev_dsc(device_t *dev, usb_device_descriptor_t *dd) {
   usb_device_request_t req = (usb_device_request_t){
     .bmRequestType = UT_READ_DEVICE,
     .bRequest = UR_GET_DESCRIPTOR,
@@ -289,20 +296,20 @@ static int usb_get_dev_dsc(usb_device_t *usbd, usb_device_descriptor_t *dd) {
   int error = 0;
 
   /* Read the first 8 bytes. */
-  if ((error = usb_control_transfer(usbd, usbb, &req)))
+  if ((error = usb_control_transfer(dev, usbb, &req)))
     goto end;
 
   /* Get the whole descriptor. */
   req.wLength = dd->bLength;
   usb_reset_buf(usbb, dd->bLength);
-  error = usb_control_transfer(usbd, usbb, &req);
+  error = usb_control_transfer(dev, usbb, &req);
 
 end:
   usb_free_buf(usbb);
   return error;
 }
 
-static int usb_get_str_lang_dsc(usb_device_t *usbd, usb_string_lang_t *langs) {
+static int usb_get_str_lang_dsc(device_t *dev, usb_string_lang_t *langs) {
   usb_device_request_t req = (usb_device_request_t){
     .bmRequestType = UT_READ_DEVICE,
     .bRequest = UR_GET_DESCRIPTOR,
@@ -314,13 +321,13 @@ static int usb_get_str_lang_dsc(usb_device_t *usbd, usb_string_lang_t *langs) {
   int error = 0;
 
   /* Obtain size of the lang table. */
-  if ((error = usb_control_transfer(usbd, usbb, &req)))
+  if ((error = usb_control_transfer(dev, usbb, &req)))
     goto end;
 
   /* Read the whole lang table. */
   req.wLength = langs->bLength;
   usb_reset_buf(usbb, req.wLength);
-  error = usb_control_transfer(usbd, usbb, &req);
+  error = usb_control_transfer(dev, usbb, &req);
 
 end:
   usb_free_buf(usbb);
@@ -337,12 +344,12 @@ static int usb_find_lang(usb_string_lang_t *langs, uint16_t lid) {
   return 1;
 }
 
-static int usb_english_support(usb_device_t *usbd) {
+static int usb_english_support(device_t *dev) {
   usb_string_lang_t *langs =
     kmalloc(M_DEV, sizeof(usb_string_lang_t), M_WAITOK);
   int error = 0;
 
-  if (!(error = usb_get_str_lang_dsc(usbd, langs)))
+  if (!(error = usb_get_str_lang_dsc(dev, langs)))
     error = usb_find_lang(langs, US_ENG_LID);
 
   if (!error)
@@ -354,7 +361,7 @@ static int usb_english_support(usb_device_t *usbd) {
   return error;
 }
 
-static int usb_get_str_dsc(usb_device_t *usbd, uint8_t idx,
+static int usb_get_str_dsc(device_t *dev, uint8_t idx,
                            usb_string_descriptor_t *sd) {
   usb_device_request_t req = (usb_device_request_t){
     .bmRequestType = UT_READ_DEVICE,
@@ -367,13 +374,13 @@ static int usb_get_str_dsc(usb_device_t *usbd, uint8_t idx,
   int error = 0;
 
   /* Obtain the size of the descriptor. */
-  if ((error = usb_control_transfer(usbd, usbb, &req)))
+  if ((error = usb_control_transfer(dev, usbb, &req)))
     goto end;
 
   /* Read the whole descriptor. */
   req.wLength = sd->bLength;
   usb_reset_buf(usbb, req.wLength);
-  error = usb_control_transfer(usbd, usbb, &req);
+  error = usb_control_transfer(dev, usbb, &req);
 
 end:
   usb_free_buf(usbb);
@@ -393,14 +400,14 @@ static void usb_print_str_dsc(usb_string_descriptor_t *sd, const char *msg) {
   klog("%s: %s", msg, buf);
 }
 
-static void usb_handle_str_dsc(usb_device_t *usbd, uint8_t idx,
+static void usb_handle_str_dsc(device_t *dev, uint8_t idx,
                                const char *msg) {
   if (!idx)
     return;
 
   usb_string_descriptor_t *sd =
     kmalloc(M_DEV, sizeof(usb_string_descriptor_t), M_WAITOK);
-  if (!usb_get_str_dsc(usbd, idx, sd))
+  if (!usb_get_str_dsc(dev, idx, sd))
     usb_print_str_dsc(sd, msg);
 
   kfree(M_DEV, sd);
@@ -408,7 +415,7 @@ static void usb_handle_str_dsc(usb_device_t *usbd, uint8_t idx,
 
 #define CONFIG_SIZE 0x30
 
-static int usb_get_config_dsc(usb_device_t *usbd, uint8_t num,
+static int usb_get_config_dsc(device_t *dev, uint8_t num,
                               usb_config_descriptor_t *cd) {
   usb_device_request_t req = (usb_device_request_t){
     .bmRequestType = UT_READ_DEVICE,
@@ -420,27 +427,27 @@ static int usb_get_config_dsc(usb_device_t *usbd, uint8_t num,
   int error = 0;
 
   /* Obtain the total size of the configuration. */
-  if ((error = usb_control_transfer(usbd, usbb, &req)))
+  if ((error = usb_control_transfer(dev, usbb, &req)))
     goto end;
 
   /* Read the whole configuration. */
   req.wLength = cd->wTotalLength;
   usb_reset_buf(usbb, req.wLength);
-  error = usb_control_transfer(usbd, usbb, &req);
+  error = usb_control_transfer(dev, usbb, &req);
 
 end:
   usb_free_buf(usbb);
   return error;
 }
 
-static int usb_set_configuration(usb_device_t *usbd, uint8_t val) {
+static int usb_set_configuration(device_t *dev, uint8_t val) {
   usb_device_request_t req = (usb_device_request_t){
     .bmRequestType = UT_WRITE,
     .bRequest = UR_SET_CONFIG,
     .wValue = val,
   };
   usb_buf_t *usbb = usb_alloc_empty_buf(TF_CONTROL);
-  int error = usb_control_transfer(usbd, usbb, &req);
+  int error = usb_control_transfer(dev, usbb, &req);
 
   usb_free_buf(usbb);
   return error;
@@ -465,8 +472,9 @@ static void usb_print_transfer_type(usb_endpoint_descriptor_t *ed) {
   klog("transfer type: %s", str);
 }
 
-static void usb_print_dev(usb_device_t *usbd, usb_config_descriptor_t *cd,
+static void usb_print_dev(device_t *dev, usb_config_descriptor_t *cd,
                           usb_interface_descriptor_t *id) {
+  usb_device_t *usbd = usb_device_of(dev);
   usb_device_descriptor_t *dd = &usbd->dd;
 
   klog("USB release: %04hx", dd->bcdUSB);
@@ -479,21 +487,21 @@ static void usb_print_dev(usb_device_t *usbd, usb_config_descriptor_t *cd,
   klog("device release: %04hx", dd->bcdDevice);
   klog("number of configutarions: %02hhx", dd->bNumConfigurations);
 
-  bool eng = !usb_english_support(usbd);
+  bool eng = !usb_english_support(dev);
 
   if (eng) {
-    usb_handle_str_dsc(usbd, dd->iManufacturer, "manufacturer");
-    usb_handle_str_dsc(usbd, dd->iProduct, "product");
-    usb_handle_str_dsc(usbd, dd->iSerialNumber, "serial number");
+    usb_handle_str_dsc(dev, dd->iManufacturer, "manufacturer");
+    usb_handle_str_dsc(dev, dd->iProduct, "product");
+    usb_handle_str_dsc(dev, dd->iSerialNumber, "serial number");
   }
 
   if (eng)
-    usb_handle_str_dsc(usbd, cd->iConfiguration, "configuration");
+    usb_handle_str_dsc(dev, cd->iConfiguration, "configuration");
   klog("number of interfaces: %hhu", cd->bNumInterface);
   klog("maximum power consumption: %hhu mA", cd->bMaxPower * 2);
 
   if (eng)
-    usb_handle_str_dsc(usbd, id->iInterface, "interface");
+    usb_handle_str_dsc(dev, id->iInterface, "interface");
   klog("number of endpoints: %hhu", id->bNumEndpoints);
 
   for (int i = 0; i < usbd->nendps; i++) {
@@ -522,11 +530,12 @@ usb_endp_dsc_addr(usb_interface_descriptor_t *id) {
   return (usb_endpoint_descriptor_t *)(id + 1);
 }
 
-static int usb_configure(usb_device_t *usbd) {
+static int usb_configure(device_t *dev) {
+  usb_device_t *usbd = usb_device_of(dev);
   usb_config_descriptor_t *cd = kmalloc(M_DEV, CONFIG_SIZE, M_WAITOK);
   int error = 0;
 
-  if ((error = usb_get_config_dsc(usbd, 0, cd)))
+  if ((error = usb_get_config_dsc(dev, 0, cd)))
     goto end;
 
   usb_interface_descriptor_t *id = (usb_interface_descriptor_t *)(cd + 1);
@@ -546,57 +555,59 @@ static int usb_configure(usb_device_t *usbd) {
   for (int i = 0; i < usbd->nendps; i++)
     memcpy(&usbd->endps[i], &ed[i], sizeof(usb_endpoint_descriptor_t));
 
-  if ((error = usb_set_configuration(usbd, cd->bConfigurationValue)))
+  if ((error = usb_set_configuration(dev, cd->bConfigurationValue)))
     goto end;
 
-  usb_print_dev(usbd, cd, id);
+  usb_print_dev(dev, cd, id);
 
 end:
   kfree(M_DEV, cd);
   return error;
 }
 
-static int usb_identify(usb_device_t *usbd) {
-  if (usb_get_dev_dsc(usbd, &usbd->dd))
+static int usb_identify(device_t *dev) {
+  usb_device_t *usbd = usb_device_of(dev);
+
+  if (usb_get_dev_dsc(dev, &usbd->dd))
     return 1;
 
-  usbhc_reset_port(usbd->uhs, usbd->port);
+  usbhc_reset_port(dev->parent, usbd->port);
 
-  if (usb_set_addr(usbd))
+  if (usb_set_addr(dev))
     return 1;
 
   return 0;
 }
 
-void usb_enumerate(device_t *dev, usbhc_space_t *uhs) {
-  uint8_t nports = usbhc_number_of_ports(uhs);
+void usb_enumerate(device_t *dev) {
+  uint8_t nports = usbhc_number_of_ports(dev);
 
   for (uint8_t pn = 0; pn < nports; pn++) {
-    usbhc_reset_port(uhs, pn);
+    usbhc_reset_port(dev, pn);
 
-    if (!usbhc_device_present(uhs, pn)) {
+    if (!usbhc_device_present(dev, pn)) {
       klog("no device attached to port %hhu", pn);
       continue;
     }
     klog("device attached to port %hhu", pn);
 
-    usb_device_t *usbd = usb_alloc_dev(pn, uhs);
-    if (usb_identify(usbd)) {
+    device_t *udev = device_add_child(dev, pn);
+    udev->instance = usb_alloc_dev(pn);
+
+    if (usb_identify(udev)) {
       klog("failed to identify the device at port %hhu", pn);
       goto bad;
     }
 
-    if (usb_configure(usbd)) {
+    if (usb_configure(udev)) {
       klog("failed to configure the device at port %hhu", pn);
       goto bad;
     }
 
-    device_t *d = device_add_child(dev, pn);
-    d->instance = usbd;
     continue;
 
   bad:
-    usb_free_dev(usbd);
-    continue;
+    usb_free_dev(udev->instance);
+    device_remove_child(dev, pn);
   }
 }

@@ -24,6 +24,7 @@ typedef enum {
   DIF_BUS,
   DIF_PCI_BUS,
   DIF_UART,
+  DIF_USBHC,
   DIF_COUNT /* this must be the last item */
 } drv_if_t;
 
@@ -82,6 +83,7 @@ static inline bool device_bus(device_t *dev) {
 
 device_t *device_alloc(int unit);
 device_t *device_add_child(device_t *parent, int unit);
+void device_remove_child(device_t *parent, int uint);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);

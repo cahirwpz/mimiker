@@ -132,19 +132,22 @@ static bool uhci_check_port(uhci_state_t *uhci, uint8_t pn) {
 }
 
 /* Check whether a device is attached to a specified UHCI port. */
-static bool uhci_device_present(uhci_state_t *uhci, uint8_t pn) {
+static bool uhci_device_present(device_t *dev, uint8_t pn) {
+  uhci_state_t *uhci = dev->state;
   return chkw(UHCI_PORTSC(pn), UHCI_PORTSC_CCS);
 }
 
 /* (MichalBlk) this procedure can be used to root hub port only. */
-static void uhci_reset_port(uhci_state_t *uhci, uint8_t pn) {
+static void uhci_reset_port(device_t *dev, uint8_t pn) {
+  uhci_state_t *uhci = dev->state;
+
   setw(UHCI_PORTSC(pn), UHCI_PORTSC_PR);
   mdelay(USB_PORT_ROOT_RESET_DELAY_SPEC);
   clrw(UHCI_PORTSC(pn), UHCI_PORTSC_PR);
   mdelay(USB_PORT_RESET_RECOVERY_SPEC);
 
   /* Only enable the port if some device is attached. */
-  if (!uhci_device_present(uhci, pn))
+  if (!uhci_device_present(dev, pn))
     return;
 
   /* Clear status chenge indicators. */
@@ -170,7 +173,8 @@ static uint8_t uhci_init_ports(uhci_state_t *uhci) {
   return pn;
 }
 
-static uint8_t uhci_number_of_ports(uhci_state_t *uhci) {
+static uint8_t uhci_number_of_ports(device_t *dev) {
+  uhci_state_t *uhci = dev->state;
   return uhci->nports;
 }
 
@@ -468,8 +472,10 @@ static size_t uhci_req_size(uint16_t mps, usb_buf_t *usbb) {
           sizeof(uhci_td_t));
 }
 
-static void uhci_transfer(uhci_state_t *uhci, usb_device_t *usbd,
-                          usb_buf_t *usbb, usb_device_request_t *req) {
+static void uhci_transfer(device_t *dev, usb_buf_t *usbb, 
+		          usb_device_request_t *req) {
+  uhci_state_t *uhci = dev->parent->state;
+  usb_device_t *usbd = usb_device_of(dev);
   uint16_t transfer_size = usbb->transfer_size;
   uint16_t mps = usb_max_pkt_size(usbd, usbb);
   size_t offset = uhci_req_size(mps, usbb);
@@ -528,7 +534,6 @@ static void uhci_transfer(uhci_state_t *uhci, usb_device_t *usbd,
 }
 
 DEVCLASS_CREATE(usbhc);
-static usbhc_space_t uhci_space;
 
 static int uhci_attach(device_t *dev) {
   uhci_state_t *uhci = dev->state;
@@ -582,19 +587,18 @@ static int uhci_attach(device_t *dev) {
   outw(UHCI_CMD, UHCI_CMD_RS);
 
   dev->devclass = &DEVCLASS(usbhc);
-  USBHC_SPACE_SET_STATE(&uhci_space, uhci);
 
   /* Detect and configure attached devices. */
-  usb_enumerate(dev, &uhci_space);
+  usb_enumerate(dev);
 
   return bus_generic_probe(dev);
 }
 
-static usbhc_space_t uhci_space = {
-  USBHC_SPACE_SET(number_of_ports, uhci_number_of_ports),
-  USBHC_SPACE_SET(device_present, uhci_device_present),
-  USBHC_SPACE_SET(reset_port, uhci_reset_port),
-  USBHC_SPACE_SET(transfer, uhci_transfer),
+static usbhc_methods_t uhci_usbhc_if = {
+  .number_of_ports = uhci_number_of_ports,
+  .device_present = uhci_device_present,
+  .reset_port = uhci_reset_port,
+  .transfer = uhci_transfer,
 };
 
 static driver_t uhci = {
@@ -603,6 +607,10 @@ static driver_t uhci = {
   .pass = SECOND_PASS,
   .probe = uhci_probe,
   .attach = uhci_attach,
+  .interfaces = 
+    {
+      [DIF_USBHC] = &uhci_usbhc_if,
+    },
 };
 
 DEVCLASS_ENTRY(pci, uhci);

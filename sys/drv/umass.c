@@ -43,21 +43,18 @@ static inline uint8_t cbw_flags(int direction) {
 }
 
 static int umass_reset(device_t *dev) {
-  usb_device_t *usbd = usb_device_of(dev);
-
-  if (usb_bbb_reset(usbd))
+  if (usb_bbb_reset(dev))
     return 1;
-  if (usb_unhalt_endp(usbd, 0))
+  if (usb_unhalt_endp(dev, 0))
     return 1;
-  if (usb_unhalt_endp(usbd, 1))
+  if (usb_unhalt_endp(dev, 1))
     return 1;
 
   return 0;
 }
 
 static int umass_send(device_t *dev, usb_buf_t *usbb) {
-  usb_device_t *usbd = usb_device_of(dev);
-  usb_bulk_transfer(usbd, usbb);
+  usb_bulk_transfer(dev, usbb);
   WITH_SPIN_LOCK (&usbb->lock) { usb_wait(usbb); }
   if (usb_transfer_error(usbb))
     return 1;
@@ -304,10 +301,9 @@ static vnodeops_t umass_ops = {
 
 static int umass_attach(device_t *dev) {
   umass_state_t *umass = dev->state;
-  usb_device_t *usbd = usb_device_of(dev);
 
   uint8_t maxlun;
-  if (usb_bbb_get_max_lun(usbd, &maxlun))
+  if (usb_bbb_get_max_lun(dev, &maxlun))
     return 1;
   umass->nluns = (maxlun == 0xff ? 1 : maxlun + 1);
 

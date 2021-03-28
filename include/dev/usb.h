@@ -154,7 +154,6 @@ typedef struct usbhc_space usbhc_space_t;
 typedef struct usb_device {
   usb_device_descriptor_t dd;
   usb_endpoint_descriptor_t *endps; /* endpoints supplied by interface `inum` */
-  usbhc_space_t *uhs;               /* host controller space used */
   uint8_t nendps;                   /* numer of endpoints */
   uint8_t addr;                     /* device address */
   uint8_t inum;                     /* interface number */
@@ -221,15 +220,15 @@ void usb_reset_buf(usb_buf_t *usbb, uint16_t transfer_size);
 
 void usb_wait(usb_buf_t *usbb);
 bool usb_transfer_error(usb_buf_t *usbb);
-int usb_unhalt_endp(usb_device_t *usbd, uint8_t idx);
-int usb_set_idle(usb_device_t *usbd);
-int usb_set_boot_protocol(usb_device_t *usbd);
-int usb_bbb_get_max_lun(usb_device_t *usbd, uint8_t *maxlun);
-int usb_bbb_reset(usb_device_t *usbd);
-void usb_interrupt_transfer(usb_device_t *usbd, usb_buf_t *usbb);
-int usb_poll(usb_device_t *usbd, usb_buf_t *usbb, uint8_t idx, void *buf,
+int usb_unhalt_endp(device_t *dev, uint8_t idx);
+int usb_set_idle(device_t *dev);
+int usb_set_boot_protocol(device_t *dev);
+int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun);
+int usb_bbb_reset(device_t *dev);
+void usb_interrupt_transfer(device_t *dev, usb_buf_t *usbb);
+int usb_poll(device_t *dev, usb_buf_t *usbb, uint8_t idx, void *buf,
              size_t size);
-void usb_bulk_transfer(usb_device_t *usbd, usb_buf_t *usbb);
-void usb_enumerate(device_t *dev, usbhc_space_t *uhs);
+void usb_bulk_transfer(device_t *dev, usb_buf_t *usbb);
+void usb_enumerate(device_t *dev);
 
 #endif /* _DEV_USB_H_ */

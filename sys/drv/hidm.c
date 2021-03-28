@@ -42,12 +42,11 @@ static int hidm_probe(device_t *dev) {
 static int hidm_read(vnode_t *v, uio_t *uio, __unused int ioflags) {
   device_t *dev = devfs_node_data(v);
   hidm_state_t *hidm = dev->state;
-  usb_device_t *usbd = usb_device_of(dev);
 
   uio->uio_offset = 0;
 
   hidm_report_t report;
-  int error = usb_poll(usbd, hidm->usbb, 0, &report, sizeof(hidm_report_t));
+  int error = usb_poll(dev, hidm->usbb, 0, &report, sizeof(hidm_report_t));
   if (error)
     return 1;
 
@@ -60,12 +59,11 @@ static vnodeops_t hidm_ops = {
 
 static int hidm_attach(device_t *dev) {
   hidm_state_t *hidm = dev->state;
-  usb_device_t *usbd = usb_device_of(dev);
 
-  if (usb_set_idle(usbd))
+  if (usb_set_idle(dev))
     return 1;
 
-  if (usb_set_boot_protocol(usbd))
+  if (usb_set_boot_protocol(dev))
     return 1;
 
   /* Prepare a report buffer. */
@@ -73,7 +71,7 @@ static int hidm_attach(device_t *dev) {
   hidm->usbb = usb_alloc_buf(buf, HIDM_BUFFER_SIZE, TF_INPUT | TF_INTERRUPT,
                              sizeof(hidm_report_t));
 
-  usb_interrupt_transfer(usbd, hidm->usbb);
+  usb_interrupt_transfer(dev, hidm->usbb);
 
   /* Prepare /dev/hidm interface. */
   devfs_makedev(NULL, "hidm", &hidm_ops, dev, NULL);
