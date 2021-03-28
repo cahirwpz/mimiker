@@ -10,7 +10,7 @@ CFLAGS += -mcpu=cortex-a53+nofp -march=armv8-a+nofp -mgeneral-regs-only
 ifeq ($(KASAN), 1)
   # Added to files that are sanitized
   CFLAGS_KASAN = -fsanitize=kernel-address \
-				 -fasan-shadow-offset=0xe0001f0000000000 \
+		   -fasan-shadow-offset=0xe0001f0000000000 \
                  --param asan-globals=1 \
                  --param asan-stack=1 \
                  --param asan-instrument-allocas=1
