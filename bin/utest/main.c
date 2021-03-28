@@ -122,6 +122,9 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(tty_canon);
   CHECKRUN_TEST(tty_echo);
   CHECKRUN_TEST(tty_signals);
+
+  CHECKRUN_TEST(procstat);
+
   printf("No user test \"%s\" available.\n", test_name);
   return 1;
 }
