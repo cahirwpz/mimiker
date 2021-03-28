@@ -400,8 +400,7 @@ static void usb_print_str_dsc(usb_string_descriptor_t *sd, const char *msg) {
   klog("%s: %s", msg, buf);
 }
 
-static void usb_handle_str_dsc(device_t *dev, uint8_t idx,
-                               const char *msg) {
+static void usb_handle_str_dsc(device_t *dev, uint8_t idx, const char *msg) {
   if (!idx)
     return;
 

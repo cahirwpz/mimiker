@@ -11,8 +11,8 @@
 typedef uint8_t (*usbhc_number_of_ports_t)(device_t *dev);
 typedef bool (*usbhc_device_present_t)(device_t *dev, uint8_t port);
 typedef void (*usbhc_reset_port_t)(device_t *dev, uint8_t port);
-typedef void (*usbhc_transfer_t)(device_t *dev, 
-		           usb_buf_t *usbb, usb_device_request_t *req);
+typedef void (*usbhc_transfer_t)(device_t *dev, usb_buf_t *usbb,
+                                 usb_device_request_t *req);
 
 typedef struct usbhc_methods {
   usbhc_number_of_ports_t number_of_ports;
@@ -25,8 +25,9 @@ static inline usbhc_methods_t *usbhc_methods(device_t *dev) {
   return (usbhc_methods_t *)dev->driver->interfaces[DIF_USBHC];
 }
 
-#define USBHC_METHOD_PROVIDER(dev, method) \
-  (device_method_provider((dev), DIF_USBHC, offsetof(struct usbhc_methods, method)))
+#define USBHC_METHOD_PROVIDER(dev, method)                                     \
+  (device_method_provider((dev), DIF_USBHC,                                    \
+                          offsetof(struct usbhc_methods, method)))
 
 /*! \brief Returns the number of root hub ports.
  *
@@ -39,7 +40,7 @@ static inline uint8_t usbhc_number_of_ports(device_t *dev) {
   return usbhc_methods(dev)->number_of_ports(dev);
 }
 
-/*! \brief Checks whether any device is attached to the specified 
+/*! \brief Checks whether any device is attached to the specified
  * root hub port.
  *
  * This function will be called during enumeration of ports

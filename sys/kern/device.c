@@ -25,7 +25,7 @@ device_t *device_add_child(device_t *parent, int unit) {
 
 void device_remove_child(device_t *parent, int unit) {
   device_t *child;
-  TAILQ_FOREACH(child, &parent->children, link) {
+  TAILQ_FOREACH (child, &parent->children, link) {
     if (child->unit == unit)
       break;
   }

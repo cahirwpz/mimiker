@@ -472,8 +472,8 @@ static size_t uhci_req_size(uint16_t mps, usb_buf_t *usbb) {
           sizeof(uhci_td_t));
 }
 
-static void uhci_transfer(device_t *dev, usb_buf_t *usbb, 
-		          usb_device_request_t *req) {
+static void uhci_transfer(device_t *dev, usb_buf_t *usbb,
+                          usb_device_request_t *req) {
   uhci_state_t *uhci = dev->parent->state;
   usb_device_t *usbd = usb_device_of(dev);
   uint16_t transfer_size = usbb->transfer_size;
@@ -607,7 +607,7 @@ static driver_t uhci = {
   .pass = SECOND_PASS,
   .probe = uhci_probe,
   .attach = uhci_attach,
-  .interfaces = 
+  .interfaces =
     {
       [DIF_USBHC] = &uhci_usbhc_if,
     },
