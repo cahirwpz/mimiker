@@ -215,7 +215,10 @@ __boot_text static paddr_t build_page_table(void) {
   size_t kasan_shadow_size = kasan_sanitzied_size / KASAN_SHADOW_SCALE_SIZE;
   vaddr_t kasan_shadow_end = KASAN_MD_SHADOW_START + kasan_shadow_size;
   va = KASAN_MD_SHADOW_START;
-  kasan_sanitized_end = KASAN_MD_SANITIZED_START + kasan_sanitzied_size;
+  /* XXX _kasan_sanitized_end is at a high address which is not mapped yet,
+   * so we access it using its physical address instead. */
+  *(vaddr_t *)AARCH64_PHYSADDR(&_kasan_sanitized_end) =
+    KASAN_MD_SANITIZED_START + kasan_sanitized_size;
   /* Allocate physical memory for shadow area */
   pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
 
