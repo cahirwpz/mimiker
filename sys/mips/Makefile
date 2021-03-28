@@ -27,7 +27,7 @@ SOURCES = \
 
 OBJECTS += $(BOARD)_dtb.o
 
-CLEAN-FILES += assym.h *-devhint.c
+CLEAN-FILES += assym.h
 
 CPPFLAGS += -D_MACHDEP
 

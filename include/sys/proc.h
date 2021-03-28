@@ -101,6 +101,7 @@ struct proc {
   pid_t p_pid;                /* (!) Process ID */
   cred_t p_cred;              /* (@, *) Process credentials */
   char *p_elfpath;            /* (!) path of loaded elf file */
+  char *p_args;               /* (!) prefix of process arguments */
   TAILQ_ENTRY(proc) p_pglist; /* (g + a) link on pg_members list */
   pgrp_t *p_pgrp;             /* (@ + a) process group */
   volatile proc_state_t p_state;  /* (@) process state */
