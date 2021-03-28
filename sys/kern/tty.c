@@ -412,6 +412,8 @@ static void tty_wakeup(tty_t *tty) {
 
 /*
  * Check whether we're allowed to continue with an operation.
+ * This function is used before reading or writing to the tty, as well as
+ * modifying tty settings.
  * Heavily based on FreeBSD's tty_wait_background().
  */
 static int tty_check_background(tty_t *tty, int sig) {
@@ -887,8 +889,6 @@ static int tty_set_termios(tty_t *tty, u_long cmd, struct termios *t) {
   if (tty_detached(tty))
     return ENXIO;
 
-  /* Processes in background process groups are restricted from modifying
-   * their controlling terminal's settings. */
   if ((err = tty_check_background(tty, SIGTTOU)))
     return err;
 
@@ -955,8 +955,6 @@ static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
     proc_t *p = proc_self();
     pgrp_t *pg = pgrp_lookup(pgid);
     WITH_MTX_LOCK (&tty->t_lock) {
-      /* Processes in background process groups are restricted from modifying
-       * their controlling terminal's settings. */
       if ((err = tty_check_background(tty, SIGTTOU)))
         return err;
       if (tty_detached(tty))
@@ -977,8 +975,6 @@ static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
 static int tty_set_winsize(tty_t *tty, struct winsize *sz) {
   int err;
   SCOPED_MTX_LOCK(&tty->t_lock);
-  /* Processes in background process groups are restricted from modifying
-   * their controlling terminal's settings. */
   if ((err = tty_check_background(tty, SIGTTOU)))
     return err;
   if (memcmp(&tty->t_winsize, sz, sizeof(struct winsize)) == 0)
