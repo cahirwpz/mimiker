@@ -53,7 +53,7 @@ static inline bool usbhc_device_present(device_t *dev, uint8_t port) {
   return usbhc_methods(dev)->device_present(dev, port);
 }
 
-/*! \brief Resets to the specified root hub port.
+/*! \brief Resets the specified root hub port.
  *
  * This function is essential to bring the attached device to the
  * default state.
@@ -67,12 +67,12 @@ static inline void usbhc_reset_port(device_t *dev, uint8_t port) {
 
 /*! \brief Schedules a transfer between the host and the specified USB device.
  *
- * USB bus transfers are main actions performed by each USB device.
+ * USB bus transfers are the main actions performed by each USB device.
  * This is an asynchronic function.
  *
  * \param usbd USB device requesting the transfer
  * \param usbb USB buffer defining the transfer
- * \param req USB device request in case of controll transfers
+ * \param req USB device request in case of control transfers
  */
 static inline void usbhc_transfer(device_t *dev, usb_buf_t *usbb,
                                   usb_device_request_t *req) {
