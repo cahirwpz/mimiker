@@ -2,11 +2,11 @@ qemu-mimiker (4.2.1+mimiker1) unstable; urgency=medium
 
   * Add system simulator for AMD64.
 
- -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Fri, 26 Mar 2021 16:01:25 +0100
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl> Sun, 28 Mar 2021 15:07:54 +0200 
 
 qemu-mimiker (4.2.1+mimiker2) unstable; urgency=medium
 
-  * Add SIGXCPU handler in order to interrupt QEmu on timeout.
+  * Add SIGXCPU handler in order to interrupt QEMU on timeout.
 
  -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Mon, 22 Mar 2021 08:41:23 +0100
 
