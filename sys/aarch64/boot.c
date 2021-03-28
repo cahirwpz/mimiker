@@ -233,7 +233,7 @@ __boot_text static paddr_t build_page_table(void) {
 
     pde_t *l3k = (pde_t *)PTE_FRAME_ADDR(l2k[L2_INDEX(va)]);
 
-    for (int j = 0; j < PT_ENTRIES; j++) {
+    for (int j = 0; va < kasan_shadow_end && j < PT_ENTRIES; j++) {
       l3k[L3_INDEX(va)] = pa | ATTR_AP_RW | ATTR_XN | pte_default;
       va += PAGESIZE;
       pa += PAGESIZE;
