@@ -88,7 +88,7 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
 
   /* Link the child process into all the structures
    * by which it can be reached from the outside at once. */
-  WITH_MTX_LOCK (all_proc_mtx) {
+  WITH_MTX_LOCK (&all_proc_mtx) {
     /* Enter child into parent's process group.
      * No jobc adjustments are necessary, since the new child has no children
      * of its own, and it's in the same process group as the parent. */

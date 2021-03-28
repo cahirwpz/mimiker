@@ -5,6 +5,10 @@
 
 #include <sys/types.h>
 
+/* This variable marks the top end of the virtual address range
+ * for which shadow memory has been allocated. */
+extern vaddr_t _kasan_sanitized_end;
+
 /* The following codes are part of internal compiler interface:
  * https://github.com/gcc-mirror/gcc/blob/master/libsanitizer/asan/asan_internal.h
  */
@@ -13,6 +17,7 @@
 #define KASAN_CODE_STACK_RIGHT 0xF3
 
 /* Our own redzone codes */
+#define KASAN_CODE_FRESH_KVA 0xF9
 #define KASAN_CODE_GLOBAL_OVERFLOW 0xFA
 #define KASAN_CODE_KMEM_FREED 0xFB
 #define KASAN_CODE_POOL_OVERFLOW 0xFC
@@ -53,6 +58,9 @@ typedef struct {
  * memory is usable. */
 void init_kasan(void);
 
+/* Increase address space covered by KASAN to maxkvaddr. */
+void kasan_grow(vaddr_t maxkvaddr);
+
 /* Mark bytes as valid (in the shadow memory) */
 void kasan_mark_valid(const void *addr, size_t size);
 
@@ -74,6 +82,7 @@ void kasan_quar_additem(quar_t *q, void *pool, void *ptr);
 void kasan_quar_releaseall(quar_t *q);
 #else /* !KASAN */
 #define init_kasan() __nothing
+#define kasan_grow(maxkvaddr) __nothing
 #define kasan_mark_valid(addr, size) __nothing
 #define kasan_mark_invalid(addr, size, code) __nothing
 #define kasan_mark(addr, size, size_with_redzone, code) __nothing

@@ -29,7 +29,7 @@ typedef struct klog {
 } klog_t;
 
 static klog_t klog;
-static spin_t klog_lock = SPIN_INITIALIZER(LK_RECURSIVE);
+static SPIN_DEFINE(klog_lock, LK_RECURSIVE);
 
 static const char *subsystems[] = {
   [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout", [KL_INIT] = "init",

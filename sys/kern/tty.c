@@ -558,7 +558,7 @@ bool tty_input(tty_t *tty, uint8_t c) {
     tty_echo(tty, c);
     if (CCEQ(cc[VEOF], c) && (lflag & ECHO)) {
       /* Place the cursor over the '^' of the ^D. */
-      i = MIN(2, tty->t_column - i);
+      i = min(2UL, tty->t_column - i);
       while (i--)
         tty_output(tty, '\b');
     }
@@ -945,7 +945,7 @@ static int tty_get_fg_pgrp(tty_t *tty, int *pgid_p) {
 }
 
 static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
-  WITH_MTX_LOCK (all_proc_mtx) {
+  WITH_MTX_LOCK (&all_proc_mtx) {
     proc_t *p = proc_self();
     pgrp_t *pg = pgrp_lookup(pgid);
     WITH_MTX_LOCK (&tty->t_lock) {
@@ -1005,7 +1005,7 @@ int tty_ioctl(file_t *f, u_long cmd, void *data) {
     case TIOCSWINSZ:
       return tty_set_winsize(tty, data);
     case TIOCSCTTY: {
-      SCOPED_MTX_LOCK(all_proc_mtx);
+      SCOPED_MTX_LOCK(&all_proc_mtx);
       SCOPED_MTX_LOCK(&tty->t_lock);
       if (!maybe_assoc_ctty(proc_self(), tty))
         return EPERM;
@@ -1084,7 +1084,7 @@ static fileops_t tty_fileops = {
 };
 
 bool maybe_assoc_ctty(proc_t *p, tty_t *tty) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
   assert(mtx_owned(&tty->t_lock));
 
   if (!proc_is_session_leader(p))
@@ -1127,7 +1127,7 @@ static int _tty_vn_open(vnode_t *v, int mode, file_t *fp) {
 }
 
 static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
-  SCOPED_MTX_LOCK(all_proc_mtx);
+  SCOPED_MTX_LOCK(&all_proc_mtx);
   return _tty_vn_open(v, mode, fp);
 }
 
@@ -1152,7 +1152,7 @@ int tty_makedev(devfs_node_t *parent, const char *name, tty_t *tty) {
 static int dev_tty_open(vnode_t *v, int mode, file_t *fp) {
   proc_t *p = proc_self();
 
-  SCOPED_MTX_LOCK(all_proc_mtx);
+  SCOPED_MTX_LOCK(&all_proc_mtx);
   tty_t *tty = p->p_pgrp->pg_session->s_tty;
   if (!tty)
     return ENXIO;

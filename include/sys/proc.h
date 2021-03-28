@@ -10,6 +10,7 @@
 #include <sys/cred.h>
 #include <sys/syslimits.h>
 #include <sys/uio.h>
+#include <sys/time.h>
 
 typedef struct thread thread_t;
 typedef struct proc proc_t;
@@ -21,7 +22,8 @@ typedef TAILQ_HEAD(, proc) proc_list_t;
 typedef TAILQ_HEAD(, pgrp) pgrp_list_t;
 typedef TAILQ_HEAD(, session) session_list_t;
 
-extern mtx_t *all_proc_mtx;
+extern mtx_t all_proc_mtx;
+extern proc_list_t proc_list, zombie_list;
 
 /*! \brief Called during kernel initialization. */
 void init_proc(void);
@@ -54,6 +56,8 @@ typedef struct session {
  *  (!) read-only access, do not modify!
  *  When two locks are specified (see pg_members), either one suffices
  *  for reading, but both must be held for writing.
+ *  NOTE: You can acquire multiple pg_locks, but only if you're already holding
+ *  all_proc_mtx.
  */
 typedef struct pgrp {
   mtx_t pg_lock;
@@ -97,6 +101,7 @@ struct proc {
   pid_t p_pid;                /* (!) Process ID */
   cred_t p_cred;              /* (@, *) Process credentials */
   char *p_elfpath;            /* (!) path of loaded elf file */
+  char *p_args;               /* (!) prefix of process arguments */
   TAILQ_ENTRY(proc) p_pglist; /* (g + a) link on pg_members list */
   pgrp_t *p_pgrp;             /* (@ + a) process group */
   volatile proc_state_t p_state;  /* (@) process state */
@@ -111,6 +116,7 @@ struct proc {
   volatile proc_flags_t p_flags;  /* (@) PF_* flags */
   vnode_t *p_cwd;                 /* ($) current working directory */
   mode_t p_cmask;                 /* ($) mask for file creation */
+  kitimer_t p_itimer;             /* (@) interval timer state  */
   /* program segments */
   vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
   vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */

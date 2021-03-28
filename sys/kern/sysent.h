@@ -85,6 +85,8 @@ static int sys_utimensat(proc_t *, utimensat_args_t *, register_t *);
 static int sys_readv(proc_t *, readv_args_t *, register_t *);
 static int sys_writev(proc_t *, writev_args_t *, register_t *);
 static int sys_sigpending(proc_t *, sigpending_args_t *, register_t *);
+static int sys_getitimer(proc_t *, getitimer_args_t *, register_t *);
+static int sys_setitimer(proc_t *, setitimer_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { .nargs = 1, .call = (syscall_t *)sys_syscall },
@@ -167,5 +169,7 @@ struct sysent sysent[] = {
   [SYS_readv] = { .nargs = 3, .call = (syscall_t *)sys_readv },
   [SYS_writev] = { .nargs = 3, .call = (syscall_t *)sys_writev },
   [SYS_sigpending] = { .nargs = 1, .call = (syscall_t *)sys_sigpending },
+  [SYS_getitimer] = { .nargs = 2, .call = (syscall_t *)sys_getitimer },
+  [SYS_setitimer] = { .nargs = 3, .call = (syscall_t *)sys_setitimer },
 };
 
