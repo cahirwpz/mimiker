@@ -1,4 +1,4 @@
-qemu-mimiker (4.2.1+mimiker1) unstable; urgency=medium
+qemu-mimiker (4.2.1+mimiker2) unstable; urgency=medium
 
   * Add system simulator for AMD64.
 
