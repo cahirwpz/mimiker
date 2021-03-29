@@ -1,3 +1,10 @@
+# vim: tabstop=8 shiftwidth=8 noexpandtab:
+#
+# Common makefile used to obtain objects and dependency files to build.
+#
+# Required common variables: SOURCES.
+#
+
 SOURCES_YACC = $(filter %.y,$(SOURCES))
 SOURCES_GEN += $(SOURCES_YACC:%.y=%.c)
 
