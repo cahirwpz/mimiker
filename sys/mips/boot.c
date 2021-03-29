@@ -5,6 +5,7 @@
 #include <mips/tlb.h>
 #include <sys/mimiker.h>
 #include <sys/vm.h>
+#include <sys/kasan.h>
 #include <mips/kasan.h>
 
 /* Last address in kseg0 used by kernel for boot allocation. */
@@ -13,7 +14,6 @@ __boot_data void *_bootmem_end;
 extern pde_t *_kernel_pmap_pde;
 /* The boot stack is used before we switch out to thread0. */
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
-extern size_t _kasan_sanitized_end;
 
 /* Allocates pages in kseg0. The argument will be aligned to PAGESIZE. */
 static __boot_text void *bootmem_alloc(size_t bytes) {
