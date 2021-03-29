@@ -8,7 +8,6 @@
 #include <sys/vm.h>
 #include <machine/vm_param.h>
 #include <machine/kasan.h>
-#include <machine/pmap.h>
 
 /* Part of internal compiler interface */
 #define KASAN_SHADOW_SCALE_SHIFT 3
