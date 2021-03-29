@@ -19,8 +19,10 @@
  * last two are discarded, because they don't meet the conditions of the
  * previously defined data race.
  *
- * These function calls are ignored (SKIP_COUNT - 1) out of SKIP_COUNT times; to
- * do otherwise would slow the kernel to a point of complete unusability. On the
+ * On every memory access KCSAN, basically do two things: checks for the already
+ * existing data race on that address and occasionally sets up a watchpoint. The
+ * second part is skipped (SKIP_COUNT - 1) out of SKIP_COUNT times; to do
+ * otherwise would slow the kernel to a point of complete unusability. On the
  * SKIP_COUNT th time, though, KCSAN keeps an eye on the address for a period of
  * time, looking for other accesses. While running in the context of the thread
  * where the access was performed, KCSAN will set a "watchpoint", which is done

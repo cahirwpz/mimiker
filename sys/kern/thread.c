@@ -132,9 +132,8 @@ void thread_delete(thread_t *td) {
 }
 
 /*
- * Instrumentation in this function makes KCSAN crash. I don't know the cause,
- * but the function is so simple that there is no need to instrumentate it
- * anyway.
+ * Instrumentation in this function would cause KCSAN to fall into an infinite
+ * recursion.
  */
 __no_sanitize thread_t *thread_self(void) {
   return PCPU_GET(curthread);

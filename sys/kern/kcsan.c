@@ -6,7 +6,7 @@
 #include <sys/kcsan.h>
 
 #define WATCHPOINT_READ_BIT (1 << 31)
-#define WATCHPOINT_SIZE_SHIFT 28
+#define WATCHPOINT_SIZE_SHIFT 29
 #define WATCHPOINT_SIZE_MASK (~(WATCHPOINT_ADDR_MASK | WATCHPOINT_READ_BIT))
 #define WATCHPOINT_ADDR_MASK ((1 << WATCHPOINT_SIZE_SHIFT) - 1)
 
@@ -34,8 +34,8 @@ static atomic_int skip_counter = SKIP_COUNT;
 static int kcsan_ready;
 
 static inline int encode_watchpoint(uintptr_t addr, size_t size, bool is_read) {
-  return (is_read ? WATCHPOINT_READ_BIT : 0) | (size << WATCHPOINT_SIZE_SHIFT) |
-         (addr & WATCHPOINT_ADDR_MASK);
+  return (is_read ? WATCHPOINT_READ_BIT : 0) |
+         (log2(size) << WATCHPOINT_SIZE_SHIFT) | (addr & WATCHPOINT_ADDR_MASK);
 }
 
 static inline bool decode_watchpoint(int watchpoint, uintptr_t *addr,
@@ -44,7 +44,7 @@ static inline bool decode_watchpoint(int watchpoint, uintptr_t *addr,
     return false;
 
   *addr = watchpoint & WATCHPOINT_ADDR_MASK;
-  *size = (watchpoint & WATCHPOINT_SIZE_MASK) >> WATCHPOINT_SIZE_SHIFT;
+  *size = 1 << ((watchpoint & WATCHPOINT_SIZE_MASK) >> WATCHPOINT_SIZE_SHIFT);
   *is_read = (watchpoint & WATCHPOINT_READ_BIT) == WATCHPOINT_READ_BIT;
   return true;
 }
