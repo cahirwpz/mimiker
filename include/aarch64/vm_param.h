@@ -2,6 +2,7 @@
 #define _AARCH64_VM_PARAM_H_
 
 #define PAGESIZE 4096
+#define SUPERPAGESIZE (1 << 21) /* 2 MB */
 
 #define KERNEL_SPACE_BEGIN 0xffff000000000000L
 #define KERNEL_SPACE_END 0xffffffffffffffffL
