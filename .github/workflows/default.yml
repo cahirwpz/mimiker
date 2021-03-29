@@ -71,6 +71,8 @@ jobs:
             sys/mimiker.elf
             sys/mimiker.img.gz
             sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
             initrd.cpio
 
   build_aarch64_clang:
@@ -80,6 +82,16 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: make BOARD=rpi3 CLANG=1
+      - uses: actions/upload-artifact@v2
+        with:
+          name: "aarch64 clang kernel+ramdisk"
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.img.gz
+            sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            initrd.cpio
 
   kernel_tests_mips_gcc:
     name: Tests MIPS (GCC + KASAN)
@@ -113,3 +125,14 @@ jobs:
         with:
           name: "aarch64 gcc kernel+ramdisk"
       - run: ./run_tests.py --board rpi3 --times=50
+
+  kernel_tests_aarch64_clang:
+    name: Tests AArch64 (Clang)
+    runs-on: self-hosted
+    needs: build_aarch64_clang
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: "aarch64 clang kernel+ramdisk"
+      - run: ./run_tests.py --board rpi3 --times=100
