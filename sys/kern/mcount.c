@@ -97,7 +97,7 @@ void __cyg_profile_func_enter(void *from, void *self) {
     if (frompc > p->textsize)
       goto done;
 
-    size_t index = (frompc / (p->hashfraction * sizeof(*p->froms)));
+    size_t index = (frompc / (HASHFRACTION * sizeof(*p->froms)));
     frompcindex = &p->froms[index];
     toindex = *frompcindex;
     if (toindex == 0) {
