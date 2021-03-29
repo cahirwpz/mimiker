@@ -9,7 +9,7 @@ GMP = gmp-6.1.2
 MPC = mpc-1.1.0
 CLOOG = cloog-0.18.4
 
-# Cross tools composing the toolchain.
+# The toolchain is comprised of following packages:
 BINUTILS = binutils-2.35
 GCC = gcc-11-20210314
 GDB = gdb-10.1
