@@ -94,7 +94,7 @@ void __cyg_profile_func_enter(void *from, void *self) {
     *		not from text space.  too bad.
     */
     frompc -= p->lowpc;
-    if (frompc > p->textsize)
+    if (frompc >= p->textsize)
       goto done;
 
     size_t index = (frompc / (HASHFRACTION * sizeof(*p->froms)));
