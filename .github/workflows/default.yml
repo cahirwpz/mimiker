@@ -92,17 +92,6 @@ jobs:
           name: "mips gcc kernel+ramdisk"
       - run: ./run_tests.py --board malta --timeout=80 --times=50
 
-  kernel_tests_mips_clang:
-    name: Tests MIPS (Clang)
-    runs-on: self-hosted
-    needs: build_mips_clang
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v2
-        with:
-          name: "mips clang kernel+ramdisk"
-      - run: ./run_tests.py --board malta --times=100
-
   kernel_tests_aarch64_gcc:
     name: Tests AArch64 (GCC + KASAN)
     runs-on: self-hosted
