@@ -69,9 +69,14 @@
         .cfi_rel_offset sp, CTX_SP
 .endm
 
-/* Load context from sp. */
 .macro  load_ctx el
         msr     daifset, #2
+.if \el == 0
+        load_pcpu x10
+        ldr     x10, [x10, #PCPU_CURTHREAD]
+        ldr     x10, [x10, #TD_UCTX]
+        mov     sp,  x10
+.endif
         ldp     lr, x16, [sp, #CTX_LR]
         ldr     x10, [sp, #CTX_ELR]
         msr     elr_el1, x10
