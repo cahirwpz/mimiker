@@ -17,13 +17,14 @@ jobs:
     steps:
     - name: Checkout on container
       uses: actions/checkout@v2
-      
+
     - name: Push Wiki Changes
       # here action.yml script is run
       uses: ./wiki/
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # This is email of a user that can push to this repository.
         GH_MAIL: ${{ secrets.OWNER_EMAIL }}
+        # This is username of a user that can push to this repository.
         GH_NAME: ${{ github.repository_owner }}
-
 

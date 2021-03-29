@@ -7,17 +7,17 @@ TEMP_CLONE_FOLDER="temp_wiki_$GITHUB_SHA"
 TEMP_EXCLUDED_FILE="temp_wiki_excluded_$GITHUB_SHA.txt"
 
 if [ -z "$GH_TOKEN" ]; then
-  echo "GH_TOKEN ENV is missing. Use $\{{ secrets.GITHUB_TOKEN }}"
+  echo "GH_TOKEN ENV is missing."
   exit 1
 fi
 
 if [ -z "$GH_MAIL" ]; then
-  echo "GH_MAIL ENV is missing. Use the email for a user that can push to this repository."
+  echo "GH_MAIL ENV is missing."
   exit 1
 fi
 
 if [ -z "$GH_NAME" ]; then
-  echo "GH_NAME ENV is missing. Use the username for a user that can push to this repository."
+  echo "GH_NAME ENV is missing."
   exit 1
 fi
 
