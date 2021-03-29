@@ -24,4 +24,9 @@ endif
 # Added to all files
 GCC_ABIFLAGS += -msoft-float
 CLANG_ABIFLAGS += -msoft-float
+ifeq ($(KGPROF), 1)
+  CFLAGS_KGPROF = -finstrument-functions \
+                  -finstrument-functions-exclude-file-list=lib,bin,sys/mips,spinlock.c  \
+                  -finstrument-functions-exclude-function-list=intr_disable,intr_enable,thread_self,intr_root_handler
+endif
 endif

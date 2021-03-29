@@ -88,6 +88,13 @@ else
 CLEAN-FILES += .kasan.D .kasan_quar.D
 endif
 
+ifeq ($(KGPROF), 1)
+SOURCES += mcount.c
+mcount.o : CFLAGS_KGPROF =
+else
+CLEAN-FILES += .mcount.D
+endif
+
 FORMAT-EXCLUDE = sysent.h
 
 include $(TOPDIR)/build/build.kern.mk
