@@ -86,9 +86,6 @@ void __cyg_profile_func_enter(void *from, void *self) {
   if (p->state != GMON_PROF_ON)
     return;
 
-  intr_disable();
-
-
   WITH_SPIN_LOCK (&mcount_lock) {
     p->state = GMON_PROF_BUSY;
     /*
@@ -179,8 +176,6 @@ void __cyg_profile_func_enter(void *from, void *self) {
     if (p->state != GMON_PROF_ERROR)
       p->state = GMON_PROF_ON;
   }
-  intr_enable();
-  return;
 }
 
 void __cyg_profile_func_exit(void *this_fn, void *call_site) {
