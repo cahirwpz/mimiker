@@ -206,6 +206,9 @@ __boot_text static paddr_t build_page_table(void) {
   l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
 
 #if KASAN /* Prepare KASAN shadow mappings */
+  /* XXX we add SUPERPAGESIZE to account for future allocations made with
+   * vm_boot_alloc() which can't extend the shadow map, as the VM system isn't
+   * fully initialized yet. */
   size_t kasan_sanitized_size =
     SUPERPAGESIZE + roundup2(va - KASAN_MD_SANITIZED_START,
                              SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
