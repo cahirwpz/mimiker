@@ -4,16 +4,6 @@
 #include <sys/cdefs.h>
 #include <sys/sysent.h>
 #include <sys/context.h>
-#include <sys/ucontext.h>
-#include <sys/thread.h>
-
-/* The ctx argument MUST be thread_self()->td_uctx, otherwise the calling
- * thread's kernel stack pointer will be corrupted. */
-__noreturn __long_call void _switch_to_uctx(mcontext_t *ctx);
-
-static inline __noreturn void switch_to_userspace(void) {
-  _switch_to_uctx(thread_self()->td_uctx);
-}
 
 __noreturn __long_call void user_exc_leave(void);
 

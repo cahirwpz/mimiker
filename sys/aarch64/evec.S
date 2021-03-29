@@ -211,11 +211,6 @@ ENTRY(handle_user_intr)
         eret
 END(handle_user_intr)
 
-ENTRY(_switch_to_uctx)
-        mov     sp, x0
-        b user_exc_leave
-END(_switch_to_uctx)
-
 .macro  VECKERN name
         b       handle_kern_\name
         .align  7

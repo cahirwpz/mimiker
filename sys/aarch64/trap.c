@@ -9,7 +9,6 @@
 #include <sys/sysent.h>
 #include <sys/errno.h>
 #include <sys/context.h>
-#include <sys/exception.h>
 #include <aarch64/armreg.h>
 #include <aarch64/interrupt.h>
 #include <aarch64/pmap.h>

@@ -7,7 +7,6 @@
 #include <sys/pcpu.h>
 #include <sys/sleepq.h>
 #include <sys/sched.h>
-#include <sys/exception.h>
 
 static KMALLOC_DEFINE(M_INTR, "interrupt events & handlers");
 
