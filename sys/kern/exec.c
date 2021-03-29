@@ -324,6 +324,28 @@ static bool check_setid(vnode_t *vn, uid_t *uid, gid_t *gid) {
   return (*uid != (uid_t)-1) || (*gid != (gid_t)-1);
 }
 
+static char *pargs_create(exec_args_t *args) {
+  char *pargs = kmalloc(M_STR, PARGS_MAX, M_ZERO);
+  size_t used = 0;
+  size_t left = PARGS_MAX;
+
+  for (size_t i = 1; used + 1 < PARGS_MAX && i < args->argc; i++) {
+    size_t wanted = strlcpy(pargs + used, args->argv[i], left);
+
+    /* calculate how much we have copied (without terminating null byte) */
+    used += min(wanted, left - 1);
+    left = PARGS_MAX - used;
+
+    /* add space between args if there is space and it is not last argument*/
+    if (left > 1 && i + 1 < args->argc) {
+      pargs[used++] = ' ';
+      left--;
+    }
+  }
+
+  return pargs;
+}
+
 /* XXX We assume process may only have a single thread. But if there were more
  * than one thread in the process that called exec, all other threads must be
  * forcefully terminated. */
@@ -383,6 +405,9 @@ static int _do_execve(exec_args_t *args) {
   /* Prepare program stack, which includes storing program args. */
   if ((error = exec_args_copyout(args, &stack_top)))
     goto fail;
+
+  kfree(M_STR, p->p_args);
+  p->p_args = pargs_create(args);
 
   fdtab_onexec(p->p_fdtable);
 

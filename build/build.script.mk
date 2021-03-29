@@ -1,7 +1,12 @@
-# Common makefile for installing userspace scripts.
+# vim: tabstop=8 shiftwidth=8 noexpandtab:
 #
-# This template assumes following make variables are set:
-#  SCRIPT: The name of script.
+# This is a common makefile for installing userspace scripts.
+#
+# The following make variables are set by the including makefile:
+# - SCRIPT: The name of the script.
+#
+# Following variables have default values assigned: BINDIR, BINMODE.
+#
 
 ifndef SCRIPT
 $(error SCRIPT is not set)
@@ -12,6 +17,7 @@ BINDIR ?= $(shell echo $(DIR) | cut -f 1 -d / | tr . /)
 INSTALL-FILES += $(SYSROOT)/$(BINDIR)/$(SCRIPT)
 BINMODE ?= 0755
 
+all: install
 
 include $(TOPDIR)/build/common.mk
 
