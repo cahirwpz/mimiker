@@ -117,4 +117,6 @@ int test_tty_canon(void);
 int test_tty_echo(void);
 int test_tty_signals(void);
 
+int test_procstat(void);
+
 #endif /* __UTEST_H__ */
