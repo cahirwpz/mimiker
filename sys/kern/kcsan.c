@@ -51,7 +51,7 @@ static inline bool decode_watchpoint(int watchpoint, uintptr_t *addr,
 
 static inline bool address_match(uintptr_t addr1, size_t size1, uintptr_t addr2,
                                  size_t size2) {
-  return (addr1 <= addr2 + size2 - 1) && (addr2 <= addr1 + size1 - 1);
+  return (addr1 < addr2 + size2) && (addr2 < addr1 + size1);
 }
 
 static inline int watchpoint_slot(uintptr_t addr) {
