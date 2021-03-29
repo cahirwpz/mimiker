@@ -12,7 +12,6 @@ ELFTYPE := elf64-littleaarch64
 ELFARCH := aarch64
 
 ifeq ($(KERNEL), 1)
-	KASAN ?= 0
 	CFLAGS += -mcpu=cortex-a53+nofp -march=armv8-a+nofp -mgeneral-regs-only
 	ifeq ($(KASAN), 1)
 	# Added to files that are sanitized
@@ -22,7 +21,6 @@ ifeq ($(KERNEL), 1)
 		       --param asan-stack=1 \
 		       --param asan-instrument-allocas=1
 	endif
-	CFLAGS += -DKASAN=$(KASAN)
 else
 	CFLAGS += -mcpu=cortex-a53 -march=armv8-a
 endif

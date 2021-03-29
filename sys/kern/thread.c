@@ -29,9 +29,7 @@ static tid_t make_tid(void) {
   return tid++;
 }
 
-#define STACK_SIZE ((sizeof(void *) / sizeof(int)) * PAGESIZE)
-
-static alignas(STACK_SIZE) uint8_t _stack0[STACK_SIZE];
+static alignas(PAGESIZE) uint8_t _stack0[KSTACK_SIZE];
 
 /* Thread Zero is initially running with interrupts disabled! */
 thread_t thread0 = {
@@ -43,7 +41,7 @@ thread_t thread0 = {
   .td_state = TDS_RUNNING,
   .td_idnest = 1,
   .td_pdnest = 1,
-  .td_kstack = KSTACK_INIT(_stack0, STACK_SIZE),
+  .td_kstack = KSTACK_INIT(_stack0, KSTACK_SIZE),
 };
 
 /* Initializes Thread Zero (first thread in the system). */
@@ -94,7 +92,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   bzero(&td->td_slpcallout, sizeof(callout_t));
 
   td->td_name = kstrndup(M_STR, name, TD_NAME_MAX);
-  kstack_init(&td->td_kstack, kmem_alloc(STACK_SIZE, M_ZERO), STACK_SIZE);
+  kstack_init(&td->td_kstack, kmem_alloc(KSTACK_SIZE, M_ZERO), KSTACK_SIZE);
 
   td->td_sleepqueue = sleepq_alloc();
   td->td_turnstile = turnstile_alloc();
@@ -122,7 +120,7 @@ void thread_delete(thread_t *td) {
   WITH_MTX_LOCK (&threads_lock)
     TAILQ_REMOVE(&all_threads, td, td_all);
 
-  kmem_free(td->td_kstack.stk_base, STACK_SIZE);
+  kmem_free(td->td_kstack.stk_base, KSTACK_SIZE);
 
   callout_drain(&td->td_slpcallout);
   sleepq_destroy(td->td_sleepqueue);
