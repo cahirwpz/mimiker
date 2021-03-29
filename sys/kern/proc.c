@@ -83,6 +83,7 @@ proc_t proc0 = {
   .p_pgrp = &pgrp0,
   .p_state = PS_NORMAL,
   .p_children = TAILQ_HEAD_INITIALIZER(proc0.p_children),
+  .p_args = NULL,
 };
 
 void init_proc0(void) {
@@ -452,8 +453,10 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   p->p_thread = td;
   p->p_parent = parent;
 
-  if (parent && parent->p_elfpath)
+  if (parent->p_elfpath)
     p->p_elfpath = kstrndup(M_STR, parent->p_elfpath, PATH_MAX);
+  if (parent->p_args)
+    p->p_args = kstrndup(M_STR, parent->p_args, PARGS_MAX);
 
   TAILQ_INIT(CHILDREN(p));
   kitimer_init(p);
@@ -528,6 +531,7 @@ static void proc_reap(proc_t *p) {
   TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
   TAILQ_REMOVE(&zombie_list, p, p_zombie);
   kfree(M_STR, p->p_elfpath);
+  kfree(M_TEMP, p->p_args);
   TAILQ_REMOVE(PROC_HASH_CHAIN(p->p_pid), p, p_hash);
   pool_free(P_PROC, p);
 }

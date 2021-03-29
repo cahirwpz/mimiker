@@ -229,7 +229,8 @@
 #define POSIXLY_CORRECT 1
 
 /* Specify default $ENV? */
-#define DEFAULT_ENV	"$HOME/.kshrc"
+/* TODO: change this back to "$HOME/.kshrc" once we have home directories. */
+#define DEFAULT_ENV	"/etc/.kshrc"
 
 /* Include shl(1) support? */
 /* #undef SWTCH */

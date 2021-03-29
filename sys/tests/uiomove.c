@@ -29,6 +29,7 @@ static int test_uiomove(void) {
   iov[2].iov_len = 12;
   uio.uio_iovcnt = 3;
   uio.uio_iov = &iov[0];
+  uio.uio_iovoff = 0;
   uio.uio_offset = 5;
   uio.uio_resid = 8 + 5 + 12;
 
@@ -48,9 +49,21 @@ static int test_uiomove(void) {
   iov[2].iov_len = 10;
   uio.uio_iovcnt = 3;
   uio.uio_iov = &iov[0];
+  uio.uio_iovoff = 0;
   uio.uio_offset = 0;
   uio.uio_resid = 8 + 7 + 10;
 
+  uiostate_t save;
+  uio_save(&uio, &save);
+  res = uiomove((char *)text, strlen(text), &uio);
+  assert(res == 0);
+  buffer2[37] = 0; /* Manually null-terminate */
+  res = strcmp(buffer2, "Example ====string ========with data ");
+  assert(res == 0);
+
+  /* Roll back and redo the read and check that the result is the same. */
+  uio_restore(&uio, &save);
+  memset(buffer2, '=', sizeof(buffer2));
   res = uiomove((char *)text, strlen(text), &uio);
   assert(res == 0);
   buffer2[37] = 0; /* Manually null-terminate */

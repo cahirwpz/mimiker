@@ -179,3 +179,5 @@ UTEST_ADD_SIMPLE(pty_simple);
 UTEST_ADD_SIMPLE(tty_canon);
 UTEST_ADD_SIMPLE(tty_echo);
 UTEST_ADD_SIMPLE(tty_signals);
+
+UTEST_ADD_SIMPLE(procstat);
