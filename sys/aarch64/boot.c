@@ -1,5 +1,6 @@
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
+#include <sys/kasan.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
@@ -27,9 +28,6 @@ static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
-#if KASAN
-extern size_t _kasan_sanitized_end;
-#endif
 
 __boot_text static void halt(void) {
   for (;;)
