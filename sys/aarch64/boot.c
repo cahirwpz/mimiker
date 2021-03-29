@@ -239,7 +239,7 @@ __boot_text static paddr_t build_page_table(void) {
       pa += PAGESIZE;
     }
   }
-#endif /* !KASAN */
+#endif /* KASAN */
 
   return (paddr_t)l0;
 }
