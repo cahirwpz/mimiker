@@ -14,4 +14,7 @@
 
 #define VM_PHYSSEG_NMAX 16
 
+#define KSTACK_PAGES 2
+#define KSTACK_SIZE (KSTACK_PAGES * PAGESIZE)
+
 #endif /* !_AARCH64_VM_PARAM_H_ */
