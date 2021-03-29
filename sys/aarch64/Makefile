@@ -31,3 +31,5 @@ CPPFLAGS += -D_MACHDEP
 include $(TOPDIR)/build/build.kern.mk
 
 $(SOURCES): assym.h
+
+boot.o : CFLAGS_KASAN =
