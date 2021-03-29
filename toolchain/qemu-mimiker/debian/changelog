@@ -1,8 +1,8 @@
-qemu-mimiker (4.2.1+mimiker2) unstable; urgency=medium
+qemu-mimiker (4.2.1+mimiker3) unstable; urgency=medium
 
   * Add system simulator for AMD64.
 
- -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl> Sun, 28 Mar 2021 15:07:54 +0200 
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Mon, 29 Mar 2021 17:47:01 +0200
 
 qemu-mimiker (4.2.1+mimiker2) unstable; urgency=medium
 
