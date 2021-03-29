@@ -38,7 +38,7 @@ _ENTRY(_start)
          * It's needed because in rpi3.c accesses to stack are instrumented
          * and KASAN works only for virtual addresses.
          * Stack instrumentation is done directly by GCC not by our code so
-         * we can't disable KASAN for that file in simply way because we call
+         * we can't disable KASAN for that file in a simple way because we call
          * functions from libkern.
          */
         mov     sp, x0
