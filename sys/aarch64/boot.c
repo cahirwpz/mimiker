@@ -343,4 +343,8 @@ __boot_text void *aarch64_init(atag_tag_t *atags) {
 typedef struct {
 } tlbentry_t;
 
-static __unused __boot_data volatile tlbentry_t _gdb_tlb_entry;
+static __boot_data volatile tlbentry_t _gdb_tlb_entry;
+
+__boot_text void _gdb_tlb_read_index(unsigned i) {
+  (void)_gdb_tlb_entry;
+}
