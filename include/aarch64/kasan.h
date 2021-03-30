@@ -1,18 +1,18 @@
-#ifndef _MIPS_KASAN_H_
-#define _MIPS_KASAN_H_
+#ifndef _AARCH64_KASAN_H_
+#define _AARCH64_KASAN_H_
 
-#include <mips/vm_param.h>
+#include <aarch64/vm_param.h>
 
 /* Part of internal compiler interface */
 #define KASAN_SHADOW_SCALE_SHIFT 3
 #define KASAN_SHADOW_SCALE_SIZE (1 << KASAN_SHADOW_SCALE_SHIFT)
 
 /* Shadow memory */
-#define KASAN_MD_SHADOW_START 0xF0000000
-#define KASAN_MD_MAX_SHADOW_SIZE (1 << 24) /* 16 MB */
+#define KASAN_MD_SHADOW_START 0xffffff0000000000
+#define KASAN_MD_MAX_SHADOW_SIZE (1ULL << 30) /* 1 GB */
 
 /* Sanitized memory (accesses within this range are checked) */
-#define KASAN_MD_SANITIZED_START KERNEL_SPACE_BEGIN /* beginning of KSEG2 */
+#define KASAN_MD_SANITIZED_START KERNEL_SPACE_BEGIN
 #define KASAN_MD_MAX_SANITIZED_SIZE                                            \
   (KASAN_MD_MAX_SHADOW_SIZE << KASAN_SHADOW_SCALE_SHIFT)
 #define KASAN_MD_MAX_SANITIZED_END                                             \
@@ -31,4 +31,4 @@ __always_inline static inline bool kasan_md_addr_supported(uintptr_t addr) {
   return addr >= KASAN_MD_SANITIZED_START && addr < KASAN_MD_MAX_SANITIZED_END;
 }
 
-#endif /* !_MIPS_KASAN_H_ */
+#endif /* !_AARCH64_KASAN_H_ */

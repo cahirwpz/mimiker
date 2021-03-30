@@ -2,6 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
+ARCH = mipsel
 TARGET = mipsel-mimiker-elf
 
 GCC_EXTRA_CONF = --with-arch=mips32r2 \

@@ -1,0 +1,2 @@
+export TERM=xterm
+setwinsize
