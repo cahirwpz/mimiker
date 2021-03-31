@@ -26,7 +26,7 @@ build: $(TARGETS:%=build-%-mimiker-elf)
 package: $(TARGETS:%=%-mimiker-elf_$(VERSION)_amd64.deb)
 
 clean: $(TARGETS:%=clean-%-mimiker-elf) clean-host
-	$(RM) -r sources
+	$(RM) -r $(SRCDIR)
 
 .PHONY: all build clean build-host clean-host
 

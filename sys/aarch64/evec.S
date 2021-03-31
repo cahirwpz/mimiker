@@ -60,28 +60,24 @@
         mrs     x11, spsr_el1
         stp     x10, x11, [sp, #CTX_ELR]
 .if \el == 1
-        add     x18, sp, #CTX_SIZE
+        add     x10, sp, #CTX_SIZE
 .else
-        mrs     x18, sp_el0
+        mrs     x10, sp_el0
 .endif
-        stp      lr, x18, [sp, #CTX_LR]
+        stp      lr, x10, [sp, #CTX_LR]
         .cfi_rel_offset lr, CTX_LR
         .cfi_rel_offset sp, CTX_SP
-        load_pcpu x18
 .endm
 
 .macro  load_ctx el
         msr     daifset, #2
 .if \el == 0
-        load_pcpu x18
-        ldr     x18, [x18, #PCPU_CURTHREAD]
-        ldr     x18, [x18, #TD_UCTX]
-        mov     sp,  x18
+        load_pcpu x10
+        ldr     x10, [x10, #PCPU_CURTHREAD]
+        ldr     x10, [x10, #TD_UCTX]
+        mov     sp,  x10
 .endif
-        ldp     lr, x18, [sp, #CTX_LR]
-.if \el == 0
-        msr     sp_el0, x18
-.endif
+        ldp     lr, x16, [sp, #CTX_LR]
         ldr     x10, [sp, #CTX_ELR]
         msr     elr_el1, x10
         ldr     x11, [sp, #CTX_SPSR]
@@ -94,8 +90,10 @@
         ldp     x10, x11, [sp, #CTX_X10]
         ldp     x12, x13, [sp, #CTX_X12]
         ldp     x14, x15, [sp, #CTX_X14]
-        ldp     x16, x17, [sp, #CTX_X16]
 .if \el == 0
+        /* x16 holds sp from context */
+        msr     sp_el0, x16
+        ldp     x16, x17, [sp, #CTX_X16]
         ldp     x18, x19, [sp, #CTX_X18]
         ldp     x20, x21, [sp, #CTX_X20]
         ldp     x22, x23, [sp, #CTX_X22]
@@ -104,13 +102,16 @@
         ldp     x28, x29, [sp, #CTX_X28]
         add     sp, sp, #CTX_SIZE
 .else
-        ldr     x29, [sp, #CTX_FP]
-        mov     sp, x18
-        load_pcpu x18
+        /* Save current sp */
+        mov     x17, sp
+        /* Load sp from context */
+        mov     sp, x16
+        /* Load last 2 registers from context */
+        ldp     x16, x17, [x17, #CTX_X16]
 .endif
 .endm
 
-/* 
+/*
  * WARNING!
  * tmp is a register number.
  */
