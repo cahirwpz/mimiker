@@ -100,15 +100,17 @@ static int pty_write(file_t *f, uio_t *uio) {
     return 0;
 
   size_t start_resid = uio->uio_resid;
+  uiostate_t save;
 
   SCOPED_MTX_LOCK(&tty->t_lock);
 
   while (uio->uio_resid > 0) {
+    uio_save(uio, &save);
     if ((error = uiomove(&c, 1, uio)))
       break;
     if ((error = pty_putc_sleep(tty, pty, c))) {
       /* Undo the last uiomove(). */
-      uio->uio_resid++;
+      uio_restore(uio, &save);
       break;
     }
   }

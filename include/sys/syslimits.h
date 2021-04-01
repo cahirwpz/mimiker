@@ -58,6 +58,7 @@
 #define PATH_MAX 1024 /* max bytes in pathname */
 #define PIPE_BUF 512  /* max bytes for atomic pipe writes */
 #define IOV_MAX 1024  /* max elements in i/o vector */
+#define PARGS_MAX 100 /* max length of stored process arguments */
 
 #define BC_BASE_MAX 99     /* max ibase/obase values in bc(1) */
 #define BC_DIM_MAX 2048    /* max array elements in bc(1) */
