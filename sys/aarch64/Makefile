@@ -21,10 +21,12 @@ SOURCES = boot.c \
 	  tlb.c \
 	  trap.c
 
+BUILD-FILES += $(BOARD).dtb
+
 CFLAGS.boot.c = -mcmodel=large
 CFLAGS.rpi3.c = -mcmodel=large
 
-CLEAN-FILES += assym.h
+CLEAN-FILES += assym.h $(BOARD).dtb
 
 CPPFLAGS += -D_MACHDEP
 

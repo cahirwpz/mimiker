@@ -8,60 +8,102 @@
 #include <sys/context.h>
 #include <sys/interrupt.h>
 #include <sys/kasan.h>
+#include <sys/fdt.h>
 #include <aarch64/atags.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 
-extern uint8_t _atags[];
-
-static int count_atags(void) {
-  atag_tag_t *atags = (atag_tag_t *)_atags;
-  int ntokens = 0;
-  atag_tag_t *atag;
-  ATAG_FOREACH(atag, atags) {
-    uint32_t tag = ATAG_TAG(atag);
-    if (tag == ATAG_MEM) {
-      ntokens++;
-    } else if (tag == ATAG_INITRD2) {
-      ntokens += 2;
-    } else if (tag == ATAG_CMDLINE) {
-      ntokens += cmdline_count_tokens(atag->tag_cmd.command);
-    }
-  }
+static int count_dtb(void *dtb) {
+  /* memsize, rd_start, rd_size, cmdline */
+  int ntokens = 4;
   return ntokens;
 }
 
-static void process_atags(char **tokens, kstack_t *stk) {
-  atag_tag_t *atags = (atag_tag_t *)_atags;
+static int process_dtb_memsize(void *dtb) {
+  const char *path = "/memory@0";
+  const char *name = "reg";
+  const int *prop;
+  int offset;
+  int len;
+
+  offset = fdt_path_offset(dtb, path);
+  prop = (const int *)fdt_getprop(dtb, offset, name, &len);
+  if (prop == NULL || (size_t)len < 2 * sizeof(int))
+    panic("Failed to get memory size from FDT!");
+
+  return fdt32_to_cpu(prop[1]);
+}
+
+static int process_dtb_rd_start(void *dtb) {
+  const char *path = "/chosen";
+  const char *name = "linux,initrd-start";
+  const int *prop;
+  int offset;
+  int len;
+
+  offset = fdt_path_offset(dtb, path);
+  prop = (const int *)fdt_getprop(dtb, offset, name, &len);
+  if (prop == NULL)
+    panic("Failed to get initrd-start from FDT!");
+
+  return fdt32_to_cpu(*prop);
+}
+
+static int process_dtb_rd_size(void *dtb) {
+  const char *path = "/chosen";
+  const char *name = "linux,initrd-end";
+  const int *prop;
+  int offset;
+  int len;
+
+  offset = fdt_path_offset(dtb, path);
+  prop = (const int *)fdt_getprop(dtb, offset, name, &len);
+  if (prop == NULL)
+    panic("Failed to get initrd-end from FDT!");
+
+  return fdt32_to_cpu(*prop) - process_dtb_rd_start(dtb);
+}
+
+static const char *process_dtb_cmdline(void *dtb) {
+  const char *path = "/chosen";
+  const char *name = "bootargs";
+  const char *prop;
+  int offset;
+
+  offset = fdt_path_offset(dtb, path);
+  prop = (const char *)fdt_getprop(dtb, offset, name, NULL);
+  if (prop == NULL)
+    panic("Failed to get cmdline from FDT!");
+
+  return prop;
+}
+
+static void process_dtb(char **tokens, kstack_t *stk, void *dtb) {
   char buf[32];
 
-  atag_tag_t *atag;
-  ATAG_FOREACH(atag, atags) {
-    uint32_t tag = ATAG_TAG(atag);
-    if (tag == ATAG_MEM) {
-      snprintf(buf, sizeof(buf), "memsize=%d", atag->tag_mem.size);
-      tokens = cmdline_extract_tokens(stk, buf, tokens);
-    } else if (tag == ATAG_INITRD2) {
-      snprintf(buf, sizeof(buf), "rd_start=%d", atag->tag_initrd.start);
-      tokens = cmdline_extract_tokens(stk, buf, tokens);
-      snprintf(buf, sizeof(buf), "rd_size=%d", atag->tag_initrd.size);
-      tokens = cmdline_extract_tokens(stk, buf, tokens);
-    } else if (tag == ATAG_CMDLINE) {
-      tokens = cmdline_extract_tokens(stk, atag->tag_cmd.command, tokens);
-    }
-  }
+  snprintf(buf, sizeof(buf), "memsize=%d", process_dtb_memsize(dtb));
+  tokens = cmdline_extract_tokens(stk, buf, tokens);
+  snprintf(buf, sizeof(buf), "rd_start=%d", process_dtb_rd_start(dtb));
+  tokens = cmdline_extract_tokens(stk, buf, tokens);
+  snprintf(buf, sizeof(buf), "rd_size=%d", process_dtb_rd_size(dtb));
+  tokens = cmdline_extract_tokens(stk, buf, tokens);
+  tokens = cmdline_extract_tokens(stk, process_dtb_cmdline(dtb), tokens);
 
   *tokens = NULL;
 }
 
-void *board_stack(void) {
+void *board_stack(void *dtb) {
+  dtb = (void *)PHYS_TO_DMAP(dtb);
+  if (fdt_check_header(dtb))
+    panic("FDT incorrect header!");
+
   kstack_t *stk = &thread0.td_kstack;
 
   thread0.td_uctx = kstack_alloc_s(stk, mcontext_t);
 
-  int ntokens = count_atags();
+  int ntokens = count_dtb(dtb);
   char **kenvp = kstack_alloc(stk, (ntokens + 2) * sizeof(char *));
-  process_atags(kenvp, stk);
+  process_dtb(kenvp, stk, dtb);
   kstack_fix_bottom(stk);
   init_kenv(kenvp);
 

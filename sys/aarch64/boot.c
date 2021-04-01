@@ -5,7 +5,6 @@
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
 #include <aarch64/pte.h>
-#include <aarch64/atags.h>
 #include <aarch64/kasan.h>
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
@@ -23,7 +22,6 @@
 __boot_data void *_bootmem_end;
 /* Kernel page directory entries. */
 extern paddr_t _kernel_pmap_pde;
-alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
@@ -130,19 +128,6 @@ __boot_text static void clear_bss(void) {
 
 /* Create direct map of whole physical memory located at DMAP_BASE virtual
  * address. We will use this mapping later in pmap module. */
-
-/* XXX Raspberry PI 3 specific! */
-#define DMAP_SIZE 0x3c000000
-#define DMAP_BASE 0xffffff8000000000 /* last 512GB */
-
-#define DMAP_L3_ENTRIES max(1, DMAP_SIZE / PAGESIZE)
-#define DMAP_L2_ENTRIES max(1, DMAP_L3_ENTRIES / PT_ENTRIES)
-#define DMAP_L1_ENTRIES max(1, DMAP_L2_ENTRIES / PT_ENTRIES)
-
-#define DMAP_L1_SIZE roundup(DMAP_L1_ENTRIES * sizeof(pde_t), PAGESIZE)
-#define DMAP_L2_SIZE roundup(DMAP_L2_ENTRIES * sizeof(pde_t), PAGESIZE)
-#define DMAP_L3_SIZE roundup(DMAP_L3_ENTRIES * sizeof(pte_t), PAGESIZE)
-
 #define PTE_MASK 0xfffffffffffff000
 #define PTE_FRAME_ADDR(pte) ((pte)&PTE_MASK)
 
@@ -314,26 +299,13 @@ __boot_text static void enable_mmu(paddr_t pde) {
   _kernel_pmap_pde = pde;
 }
 
-__boot_text static void atags_copy(atag_tag_t *atags) {
-  uint8_t *dst = (uint8_t *)AARCH64_PHYSADDR(_atags);
-
-  atag_tag_t *tag;
-  ATAG_FOREACH(tag, atags) {
-    size_t size = ATAG_SIZE(tag);
-    uint8_t *src = (uint8_t *)tag;
-    for (size_t i = 0; i < size; i++)
-      *dst++ = *src++;
-  }
-}
-
-__boot_text void *aarch64_init(atag_tag_t *atags) {
+__boot_text void *aarch64_init(void) {
   drop_to_el1();
   configure_cpu();
   clear_bss();
 
   /* Set end address of kernel for boot allocation purposes. */
   _bootmem_end = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
-  atags_copy(atags);
 
   enable_mmu(build_page_table());
   return &_boot_stack[PAGESIZE];

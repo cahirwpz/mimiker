@@ -37,7 +37,6 @@ static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 #define PA_MASK 0xfffffffff000
 #define ADDR_MASK 0x8ffffffff000
 #define DMAP_BASE 0xffffff8000000000 /* last 512GB */
-#define PHYS_TO_DMAP(x) ((intptr_t)(x) + DMAP_BASE)
 
 /*
  * This table describes which access bits need to be set in page table entry
