@@ -44,14 +44,14 @@ typedef struct vm_page vm_page_t;
 typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
 
 typedef struct pv_entry pv_entry_t;
-typedef struct vm_object vm_object_t;
+typedef struct uvm_object uvm_object_t;
 typedef struct slab slab_t;
 typedef uintptr_t vm_offset_t;
 
 /* Field marking and corresponding locks:
  * (@) pv_list_lock (in pmap.c)
  * (P) physmem_lock (in vm_physmem.c)
- * (O) vm_object::mtx */
+ * (O) uvm_object::uo_lock */
 
 struct vm_page {
   union {
@@ -59,12 +59,12 @@ struct vm_page {
     TAILQ_ENTRY(vm_page) pageq; /* used to group allocated pages */
     struct {
       TAILQ_ENTRY(vm_page) list;
-    } obj;        /* (O) list of pages in vm_object */
+    } obj;        /* (O) list of pages in uvm_object */
     slab_t *slab; /* active when page is used by pool allocator */
   };
   TAILQ_HEAD(, pv_entry) pv_list; /* (@) where this page is mapped? */
-  vm_object_t *object;            /* (O) object owning that page */
-  vm_offset_t offset;             /* (O) offset to page in vm_object */
+  uvm_object_t *object;           /* (O) object owning that page */
+  vm_offset_t offset;             /* (O) offset to page in uvm_object */
   paddr_t paddr;                  /* (P) physical address of page */
   pg_flags_t flags;               /* (P) page flags (used by physmem as well) */
   uint32_t size;                  /* (P) size of page in PAGESIZE units */

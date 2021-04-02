@@ -5,7 +5,7 @@
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/vm_map.h>
-#include <sys/vm_object.h>
+#include <sys/uvm_object.h>
 #include <sys/thread.h>
 #include <sys/errno.h>
 #include <sys/filedesc.h>
@@ -281,7 +281,7 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
    */
   *stack_top_p = USER_STACK_TOP;
 
-  vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
+  uvm_object_t *stack_obj = uvm_object_alloc(VM_ANONYMOUS);
   /* FTTB stack has to be executable since kernel copies sigcode onto stack
    * when context is set to signal handler code. This code is run when user
    * returns from signal handler. */

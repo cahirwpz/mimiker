@@ -5,7 +5,7 @@
 #include <sys/pool.h>
 #include <sys/pmap.h>
 #include <sys/vm_pager.h>
-#include <sys/vm_object.h>
+#include <sys/uvm_object.h>
 #include <sys/vm_map.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
@@ -15,7 +15,7 @@
 
 struct vm_segment {
   TAILQ_ENTRY(vm_segment) link;
-  vm_object_t *object;
+  uvm_object_t *object;
   vm_prot_t prot;
   vm_seg_flags_t flags;
   vaddr_t start;
@@ -113,7 +113,7 @@ vm_map_t *vm_map_new(void) {
   return map;
 }
 
-vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
+vm_segment_t *vm_segment_alloc(uvm_object_t *obj, vaddr_t start, vaddr_t end,
                                vm_prot_t prot, vm_seg_flags_t flags) {
   assert(page_aligned_p(start) && page_aligned_p(end));
 
@@ -129,7 +129,7 @@ vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
 static void vm_segment_free(vm_segment_t *seg) {
   /* we assume no other segment points to this object */
   if (seg->object)
-    vm_object_free(seg->object);
+    uvm_object_drop(seg->object);
   pool_free(P_VMSEG, seg);
 }
 
@@ -173,16 +173,16 @@ void vm_segment_destroy_range(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
   }
 
   size_t length = end - start;
-  vm_object_remove_pages(seg->object, start - seg->start, length);
+  uvm_object_remove_pages(seg->object, start - seg->start, length);
 
   if (seg->start == start) {
     seg->start = end;
   } else if (seg->end == end) {
     seg->end = start;
   } else { /* a hole inside the segment */
-    vm_object_t *obj = vm_object_clone(seg->object);
-    vm_object_remove_pages(obj, 0, start - seg->start);
-    vm_object_remove_pages(seg->object, end - seg->start, seg->end - end);
+    uvm_object_t *obj = uvm_object_clone(seg->object);
+    uvm_object_remove_pages(obj, 0, start - seg->start);
+    uvm_object_remove_pages(seg->object, end - seg->start, seg->end - end);
     vm_segment_t *new_seg =
       vm_segment_alloc(obj, end, seg->end, seg->prot, seg->flags);
     seg->end = start;
@@ -302,7 +302,7 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
     return EINVAL;
 
   /* Create object with a pager that supplies cleared pages on page fault. */
-  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
+  uvm_object_t *obj = uvm_object_alloc(VM_ANONYMOUS);
   vm_segment_t *seg =
     vm_segment_alloc(obj, addr, addr + length, prot, VM_SEG_SHARED);
 
@@ -332,7 +332,7 @@ int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
     off_t offset = new_end - seg->start;
     size_t length = seg->end - new_end;
     pmap_remove(map->pmap, new_end, seg->end);
-    vm_object_remove_pages(seg->object, offset, length);
+    uvm_object_remove_pages(seg->object, offset, length);
     /* TODO there's no reference to pmap in page, so we have to do it here */
   }
 
@@ -369,16 +369,16 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
     vm_segment_t *it;
     TAILQ_FOREACH (it, &map->entries, link) {
-      vm_object_t *obj;
+      uvm_object_t *obj;
       vm_segment_t *seg;
 
       if (it->flags & VM_SEG_SHARED) {
         refcnt_acquire(&it->object->ref_counter);
         obj = it->object;
       } else {
-        /* vm_object_clone will clone the data from the vm_object_t
+        /* uvm_object_clone will clone the data from the uvm_object_t
          * and will return the new object with ref_counter equal to one */
-        obj = vm_object_clone(it->object);
+        obj = uvm_object_clone(it->object);
       }
       seg = vm_segment_alloc(obj, it->start, it->end, it->prot, it->flags);
       TAILQ_INSERT_TAIL(&new_map->entries, seg, link);
@@ -416,16 +416,16 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   assert(seg->start <= fault_addr && fault_addr < seg->end);
 
-  vm_object_t *obj = seg->object;
+  uvm_object_t *obj = seg->object;
 
   assert(obj != NULL);
 
   vaddr_t fault_page = fault_addr & -PAGESIZE;
   vaddr_t offset = fault_page - seg->start;
-  vm_page_t *frame = vm_object_find_page(seg->object, offset);
+  vm_page_t *frame = uvm_object_find_page(seg->object, offset);
 
   if (frame == NULL)
-    frame = obj->pager->pgr_fault(obj, offset);
+    frame = obj->uo_pager->pgr_fault(obj, offset);
 
   if (frame == NULL)
     return EFAULT;

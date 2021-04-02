@@ -5,7 +5,7 @@
 #include <sys/thread.h>
 #include <sys/errno.h>
 #include <sys/vm_map.h>
-#include <sys/vm_object.h>
+#include <sys/uvm_object.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 
