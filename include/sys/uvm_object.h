@@ -22,6 +22,7 @@ typedef struct uvm_object {
 } uvm_object_t;
 
 uvm_object_t *uvm_object_alloc(vm_pgr_type_t type);
+void uvm_object_hold(uvm_object_t *obj);
 void uvm_object_drop(uvm_object_t *obj);
 void uvm_object_add_page(uvm_object_t *obj, vm_offset_t off, vm_page_t *pg);
 void uvm_object_remove_pages(uvm_object_t *obj, vm_offset_t off, size_t len);

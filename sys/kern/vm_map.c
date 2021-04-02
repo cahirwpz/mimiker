@@ -373,7 +373,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
       vm_segment_t *seg;
 
       if (it->flags & VM_SEG_SHARED) {
-        refcnt_acquire(&it->object->ref_counter);
+        uvm_object_hold(it->object);
         obj = it->object;
       } else {
         /* uvm_object_clone will clone the data from the uvm_object_t

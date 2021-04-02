@@ -81,13 +81,19 @@ void uvm_object_remove_pages(uvm_object_t *obj, vm_offset_t off, size_t len) {
 }
 
 #define uvm_object_remove_all_pages(obj)                                       \
-  uvm_object_remove_pages((obj), 0, (size_t)(-PAGESIZE))
+  uvm_object_remove_pages_nolock((obj), 0, (size_t)(-PAGESIZE))
+
+void uvm_object_hold(uvm_object_t *obj) {
+  refcnt_acquire(&obj->uo_refs);
+}
 
 void uvm_object_drop(uvm_object_t *obj) {
-  if (!refcnt_release(&obj->uo_refs))
-    return;
+  WITH_MTX_LOCK (&obj->uo_lock) {
+    if (!refcnt_release(&obj->uo_refs))
+      return;
 
-  uvm_object_remove_all_pages(obj);
+    uvm_object_remove_all_pages(obj);
+  }
   pool_free(P_VMOBJ, obj);
 }
 
