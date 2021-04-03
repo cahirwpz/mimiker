@@ -1,5 +1,5 @@
-#define ASM_FILE
 #include <amd64/asm.h>
+#define ASM_FILE
 #include <amd64/multiboot2.h>
 
 #define MULTIBOOT_HEADER_LENGTH (multiboot_header_end - multiboot_header_start)
