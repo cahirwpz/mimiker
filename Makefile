@@ -27,7 +27,7 @@ usr.bin-before: lib-install
 # appear "without their explicit target". Thus, the only thing we can do is
 # forcing make to always rebuild the archive.
 ifeq ($(BOARD), pc)
-INITRD_DEPENDENCIES = sys-install
+INITRD_DEPENDENCIES = include-install
 else
 INITRD_DEPENDENCIES = bin-install
 endif
