@@ -114,8 +114,6 @@ CONFIG = {
                 'binary': 'qemu-mimiker-x86_64',
                 'options': [
                     '-cpu', 'qemu64',
-                    #'-drive', ('if=pflash,format=raw,'
-                     #          'file=/usr/share/ovmf/OVMF.fd'),
                     '-drive', ('if=pflash,format=raw,'
                                'file=../OVMF.fd'),
                     '-drive', 'format=raw,file=disk.img,id=hd0',
