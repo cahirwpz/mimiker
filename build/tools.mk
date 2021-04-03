@@ -32,7 +32,7 @@ endif
 
 CC       = $(TARGET_CC)
 AS       = $(TARGET_CC)
-LD       = $(TARGET)-gcc $(GCC_ABIFLAGS) -g 
+LD       = $(TARGET)-gcc $(GCC_ABIFLAGS) -g
 AR       = $(TARGET)-ar
 NM       = $(TARGET)-nm
 GDB      = $(TARGET)-gdb
