@@ -6,7 +6,8 @@ HEADERS = $(wildcard *.h) $(foreach dir, machine sys, $(wildcard $(dir)/*.h))
 INSTALL-FILES = $(addprefix $(SYSROOT)/usr/include/, $(HEADERS))
 
 SOURCES_H = $(foreach dir, . dev aarch64 mips sys, $(wildcard $(dir)/*.h))
-FORMAT-EXCLUDE = mips/m32c0.h sys/syscall.h sys/syscallargs.h
+FORMAT-EXCLUDE = mips/m32c0.h amd64/asm.h amd64/multiboot2.h  sys/syscall.h \
+	         sys/syscallargs.h
 
 all: build
 
@@ -18,6 +19,7 @@ machine: ../config.mk
 	@echo "[SYMLINK] machine -> $(ARCH)"
 	$(RM) machine
 	$(LN) -s $(ARCH) machine
+	$(MKDIR) $(SYSROOT)
 
 distclean-here:
 	$(RM) -v machine

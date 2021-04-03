@@ -8,4 +8,8 @@ ifeq ($(BOARD), rpi3)
 ARCH := aarch64
 endif
 
+ifeq ($(BOARD), pc)
+ARCH := amd64
+endif
+
 LOCKDEP ?= 0

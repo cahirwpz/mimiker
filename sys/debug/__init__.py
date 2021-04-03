@@ -36,4 +36,6 @@ CurrentThread()
 CurrentProcess()
 
 # Events
-gdb.events.stop.connect(stop_handler)
+# TODO(MichalBlk): make it work on AMD64.
+if not gdb.selected_frame().architecture().name().startswith('i386:x86-64'):
+    gdb.events.stop.connect(stop_handler)

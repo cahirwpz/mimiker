@@ -8,6 +8,7 @@
 *.elf
 *.uelf
 *.test
+*.EFI
 
 # Kernel blobs
 *.img

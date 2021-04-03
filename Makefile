@@ -3,7 +3,12 @@
 TOPDIR = $(CURDIR)
 
 # Directories which require calling make recursively
+ifeq ($(BOARD), pc)
+# XXX: just build the kernel for now.
+SUBDIR = sys include
+else
 SUBDIR = sys lib bin usr.bin etc include
+endif
 
 all: install
 
@@ -21,17 +26,34 @@ usr.bin-before: lib-install
 # programs into sysroot. This sounds silly, but apparently make assumes no files
 # appear "without their explicit target". Thus, the only thing we can do is
 # forcing make to always rebuild the archive.
-initrd.cpio: bin-install
+ifeq ($(BOARD), pc)
+INITRD_DEPENDENCY = sys-install
+else
+INITRD_DEPENDENCY = bin-install
+endif
+
+initrd.cpio: $(INITRD_DEPENDENCY)
 	@echo "[INITRD] Building $@..."
 	cd sysroot && \
 	  find -depth \( ! -name "*.dbg" -and -print \) | sort | \
 	    $(CPIO) -o -R +0:+0 -F ../$@ 2> /dev/null
 
-INSTALL-FILES += initrd.cpio
+DISK_IMAGE = disk.img
+DISK_SIZE = 1073741824  # 1GiB
+
+$(DISK_IMAGE):
+	dd if=/dev/zero of=$(DISK_IMAGE) bs=512 \
+	   count=$(shell echo '$(DISK_SIZE) / 512' | bc)
+
+disk: $(DISK_IMAGE) initrd.cpio
+	sgdisk -z $(DISK_IMAGE)
+	$(MAKE) -C sys/$(ARCH) disk
+
+INSTALL-FILES += initrd.cpio disk
 CLEAN-FILES += initrd.cpio
 
 distclean-here:
-	$(RM) -r sysroot
+	$(RM) -r sysroot $(DISK_IMAGE)
 
 setup:
 	$(MAKE) -C include setup
