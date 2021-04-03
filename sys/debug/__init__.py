@@ -2,6 +2,7 @@ import gdb
 
 from .cpu import Cpu
 from .kdump import Kdump
+from .kgmon import Kgmon
 from .klog import Klog
 from .ktrace import Ktrace
 from .proc import Kprocess, Process, CurrentProcess
@@ -30,6 +31,7 @@ Klog()
 Kprocess()
 Kthread()
 Ktrace()
+Kgmon()
 
 # Functions
 CurrentThread()

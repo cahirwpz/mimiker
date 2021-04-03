@@ -15,7 +15,7 @@ include $(TOPDIR)/build/common.mk
 
 setup: machine
 
-machine: ../config.mk
+machine: $(TOPDIR)/config.mk
 	@echo "[SYMLINK] machine -> $(ARCH)"
 	$(RM) machine
 	$(LN) -s $(ARCH) machine
