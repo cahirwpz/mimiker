@@ -1,0 +1,14 @@
+Source: %{ARCH}-mimiker-elf
+Section: unknown
+Priority: optional
+Maintainer: Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.8
+Homepage: http://mimiker.ii.uni.wroc.pl
+
+Package: %{ARCH}-mimiker-elf
+Architecture: amd64
+Depends: ${shlibs:Depends} ${misc:Depends}
+Description: Mimiker OS toolchain for %{ARCH} architecture
+ Toolchain for developing Mimiker operating system.  This package contains
+ cross tools i.e. gcc, binutils, gdb targeted at %{ARCH} architecture.

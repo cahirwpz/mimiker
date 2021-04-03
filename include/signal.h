@@ -66,6 +66,7 @@ int sigsuspend(const sigset_t *);
  */
 
 int killpg(int pgrp, int sig);
+int siginterrupt(int sig, int flag);
 
 /*
  * Mimiker specific stuff.

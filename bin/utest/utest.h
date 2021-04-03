@@ -62,6 +62,12 @@ int test_exc_reserved_instruction(void);
 int test_exc_integer_overflow(void);
 int test_exc_sigsys(void);
 int test_exc_unaligned_access(void);
+
+int test_exc_unknown_instruction(void);
+int test_exc_msr_instruction(void);
+int test_exc_mrs_instruction(void);
+int test_exc_brk(void);
+
 int test_syscall_in_bds(void);
 
 int test_setjmp(void);
@@ -96,6 +102,7 @@ int test_session_login_name(void);
 
 int test_gettimeofday(void);
 int test_nanosleep(void);
+int test_itimer(void);
 
 int test_get_set_uid(void);
 int test_get_set_gid(void);
@@ -109,5 +116,7 @@ int test_pty_simple(void);
 int test_tty_canon(void);
 int test_tty_echo(void);
 int test_tty_signals(void);
+
+int test_procstat(void);
 
 #endif /* __UTEST_H__ */

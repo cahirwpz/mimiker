@@ -412,6 +412,8 @@ static void tty_wakeup(tty_t *tty) {
 
 /*
  * Check whether we're allowed to continue with an operation.
+ * This function is used before reading or writing to the tty, as well as
+ * modifying tty settings.
  * Heavily based on FreeBSD's tty_wait_background().
  */
 static int tty_check_background(tty_t *tty, int sig) {
@@ -558,7 +560,7 @@ bool tty_input(tty_t *tty, uint8_t c) {
     tty_echo(tty, c);
     if (CCEQ(cc[VEOF], c) && (lflag & ECHO)) {
       /* Place the cursor over the '^' of the ^D. */
-      i = MIN(2, tty->t_column - i);
+      i = min(2UL, tty->t_column - i);
       while (i--)
         tty_output(tty, '\b');
     }
@@ -881,15 +883,18 @@ static int tty_get_termios(tty_t *tty, struct termios *t) {
 }
 
 static int tty_set_termios(tty_t *tty, u_long cmd, struct termios *t) {
-  int error;
+  int err;
 
   SCOPED_MTX_LOCK(&tty->t_lock);
   if (tty_detached(tty))
     return ENXIO;
 
+  if ((err = tty_check_background(tty, SIGTTOU)))
+    return err;
+
   if (cmd == TIOCSETAW || cmd == TIOCSETAF)
-    if ((error = tty_drain_out(tty)))
-      return error;
+    if ((err = tty_drain_out(tty)))
+      return err;
   if (cmd == TIOCSETAF)
     tty_discard_input(tty);
 
@@ -945,10 +950,13 @@ static int tty_get_fg_pgrp(tty_t *tty, int *pgid_p) {
 }
 
 static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
-  WITH_MTX_LOCK (all_proc_mtx) {
+  int err;
+  WITH_MTX_LOCK (&all_proc_mtx) {
     proc_t *p = proc_self();
     pgrp_t *pg = pgrp_lookup(pgid);
     WITH_MTX_LOCK (&tty->t_lock) {
+      if ((err = tty_check_background(tty, SIGTTOU)))
+        return err;
       if (tty_detached(tty))
         return ENXIO;
       /* The target process group must be in the same session
@@ -965,7 +973,10 @@ static int tty_set_fg_pgrp(tty_t *tty, pgid_t pgid) {
 }
 
 static int tty_set_winsize(tty_t *tty, struct winsize *sz) {
+  int err;
   SCOPED_MTX_LOCK(&tty->t_lock);
+  if ((err = tty_check_background(tty, SIGTTOU)))
+    return err;
   if (memcmp(&tty->t_winsize, sz, sizeof(struct winsize)) == 0)
     return 0;
   tty->t_winsize = *sz;
@@ -1005,7 +1016,7 @@ int tty_ioctl(file_t *f, u_long cmd, void *data) {
     case TIOCSWINSZ:
       return tty_set_winsize(tty, data);
     case TIOCSCTTY: {
-      SCOPED_MTX_LOCK(all_proc_mtx);
+      SCOPED_MTX_LOCK(&all_proc_mtx);
       SCOPED_MTX_LOCK(&tty->t_lock);
       if (!maybe_assoc_ctty(proc_self(), tty))
         return EPERM;
@@ -1084,7 +1095,7 @@ static fileops_t tty_fileops = {
 };
 
 bool maybe_assoc_ctty(proc_t *p, tty_t *tty) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
   assert(mtx_owned(&tty->t_lock));
 
   if (!proc_is_session_leader(p))
@@ -1127,7 +1138,7 @@ static int _tty_vn_open(vnode_t *v, int mode, file_t *fp) {
 }
 
 static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
-  SCOPED_MTX_LOCK(all_proc_mtx);
+  SCOPED_MTX_LOCK(&all_proc_mtx);
   return _tty_vn_open(v, mode, fp);
 }
 
@@ -1152,7 +1163,7 @@ int tty_makedev(devfs_node_t *parent, const char *name, tty_t *tty) {
 static int dev_tty_open(vnode_t *v, int mode, file_t *fp) {
   proc_t *p = proc_self();
 
-  SCOPED_MTX_LOCK(all_proc_mtx);
+  SCOPED_MTX_LOCK(&all_proc_mtx);
   tty_t *tty = p->p_pgrp->pg_session->s_tty;
   if (!tty)
     return ENXIO;
