@@ -51,4 +51,4 @@ clean:
 distclean: clean
 	rm -f $(ARCHIVE)
 
-.PHONY: download unpack configure build install package clean distclean
+.PHONY: all download unpack configure build install package clean distclean

@@ -23,7 +23,7 @@ DISK_IMAGE := $(TOPDIR)/disk.img
 SECTOR_SIZE := 512
 
 # 550 MiB is the recommended ESP size.
-ESP_SIZE := $(shell echo '550 * 2^20' | bc)
+ESP_SIZE := 576716800
 
 # LBA of the first sector.
 ESP_START := 2048
@@ -52,48 +52,49 @@ CONFIG := $(CURDIR)/grub.cfg
 # Startup UEFI shell script.
 STARTUP := $(CURDIR)/startup.nsh
 
-disk-init: $(DISK_IMAGE)
-	@echo "Create ESP"
+disk-init:
+	@echo "[DISK] Create ESP"
 	sgdisk -z $(DISK_IMAGE)
 	sgdisk -n 1:$(ESP_START):$(ESP_END) \
 	       -t 1:ef00 \
 	       $(DISK_IMAGE)
 
 $(UEFI_APP): $(CONFIG)
-	@echo "Creata a standalone GRUB binary"
-	PATH=$(TOPDIR)/grub/bin:$$PATH \
-		grub-mkstandalone -O x86_64-efi -o $(UEFI_APP) \
-				  "boot/grub/grub.cfg=$(CONFIG)"
+	@echo "[DISK] Creata a standalone GRUB binary"
+	grub-mkstandalone -O x86_64-efi -o $(UEFI_APP) \
+			  "boot/grub/grub.cfg=$(CONFIG)"
 
-disk-boot-image: $(KERNEL_IMAGE) $(INITRD) $(UEFI_APP) $(STARTUP)
-	@echo "Create ESP image"
+disk-boot-image: $(UEFI_APP)
+	@echo "[DISK] Create an ESP image"
 	dd if=/dev/zero of=$(ESP_IMAGE) bs=$(SECTOR_SIZE) \
 	   count=$(ESP_SECTOR_COUNT)
 
-	@echo "Format the partition for FAT32"
+	@echo "[DISK] Format the partition for FAT32"
 	mkdosfs -F 32 $(ESP_IMAGE)
 
-	@echo "Copy kernel image and initrd to the partition"
+	@echo "[DISK] Copy kernel image and initrd to the partition"
 	mmd -i $(ESP_IMAGE) ::/mimiker
 	mcopy -i $(ESP_IMAGE) $(KERNEL_IMAGE) ::/mimiker
 	mcopy -i $(ESP_IMAGE) $(INITRD) ::/mimiker
 
-	@echo "Place the bootloader at the default UEFI application load path"
+	@echo "[DISK] Place the bootloader at the default UEFI " \
+	      "application load path"
 	mmd -i $(ESP_IMAGE) ::/EFI
 	mmd -i $(ESP_IMAGE) ::/EFI/BOOT
 	mcopy -i $(ESP_IMAGE) $(UEFI_APP) ::/EFI/BOOT
 
-	@echo "Supply a default UEFI shell script"
+	@echo "[DISK] Supply a default UEFI shell script"
 	mcopy -i $(ESP_IMAGE) $(STARTUP) ::
 
 disk: disk-init disk-boot-image
-	@echo "Save the ESP image on the disk"
+	@echo "[DISK] Save the ESP image on the disk"
 	dd if=$(ESP_IMAGE) of=$(DISK_IMAGE) bs=$(SECTOR_SIZE) \
 	   count=$(ESP_SECTOR_COUNT) seek=$(ESP_START) conv=notrunc
 
+PHONY-TARGETS += disk-init disk-boot-image disk
+
 clean-here:
-	$(RM) $(ESP_IMAGE)
+	$(RM) -r $(ESP_IMAGE)
 
 distclean-here:
-	$(RM) $(UEFI_APP)
-
+	$(RM) -r $(UEFI_APP)

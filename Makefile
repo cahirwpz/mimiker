@@ -27,33 +27,34 @@ usr.bin-before: lib-install
 # appear "without their explicit target". Thus, the only thing we can do is
 # forcing make to always rebuild the archive.
 ifeq ($(BOARD), pc)
-INITRD_DEPENDENCY = sys-install
+INITRD_DEPENDENCIES = sys-install
 else
-INITRD_DEPENDENCY = bin-install
+INITRD_DEPENDENCIES = bin-install
 endif
 
-initrd.cpio: $(INITRD_DEPENDENCY)
+initrd.cpio: $(INITRD_DEPENDENCIES)
 	@echo "[INITRD] Building $@..."
 	cd sysroot && \
 	  find -depth \( ! -name "*.dbg" -and -print \) | sort | \
 	    $(CPIO) -o -R +0:+0 -F ../$@ 2> /dev/null
 
-DISK_IMAGE = disk.img
 DISK_SIZE = 1073741824  # 1GiB
 
-$(DISK_IMAGE):
-	dd if=/dev/zero of=$(DISK_IMAGE) bs=512 \
+disk.img:
+	@echo "[DISK] Building $@..."
+	dd if=/dev/zero of=disk.img bs=512 \
 	   count=$(shell echo '$(DISK_SIZE) / 512' | bc)
 
-disk: $(DISK_IMAGE) initrd.cpio
-	sgdisk -z $(DISK_IMAGE)
+# Creating the boot partition is platform dependent.
+# TODO: create and populate partitions besides the boot partition.
+disk: initrd.cpio disk.img
 	$(MAKE) -C sys/$(ARCH) disk
 
 INSTALL-FILES += initrd.cpio disk
 CLEAN-FILES += initrd.cpio
 
 distclean-here:
-	$(RM) -r sysroot $(DISK_IMAGE)
+	$(RM) -r sysroot disk.img
 
 setup:
 	$(MAKE) -C include setup
@@ -61,7 +62,7 @@ setup:
 test: sys-build initrd.cpio
 	./run_tests.py --board $(BOARD)
 
-PHONY-TARGETS += setup test
+PHONY-TARGETS += setup test disk
 
 IMGVER = 1.8.0
 IMGNAME = cahirwpz/mimiker-ci

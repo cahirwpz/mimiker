@@ -33,3 +33,7 @@ include $(TOPDIR)/build/build.kern.mk
 $(SOURCES): assym.h
 
 boot.o : CFLAGS_KASAN =
+
+disk:
+
+PHONY-FILES += disk
