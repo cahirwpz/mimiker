@@ -5,9 +5,9 @@
 
 int sig_send(signo_t sig __unused, sigset_t *mask __unused,
              sigaction_t *sa __unused, ksiginfo_t *ksi __unused) {
-  panic("not implemented");
+  panic("not implemented!");
 }
 
 void sig_trap(ctx_t *ctx __unused, signo_t sig __unused) {
-  panic("not implemented");
+  panic("not implemented!");
 }
