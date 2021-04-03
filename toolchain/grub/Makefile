@@ -4,8 +4,6 @@ VERSION := 2.04
 GRUB := grub-$(VERSION)
 ARCHIVE := $(GRUB).tar.xz
 
-TOPDIR := $(CURDIR)
-
 all: package
 
 download: $(ARCHIVE)

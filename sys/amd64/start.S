@@ -37,8 +37,9 @@ multiboot_header_start:
 
 multiboot_header_end:
 
+	.code32
+
 _ENTRY(_start)
-	add %rax, %rax
 	jmp _start
 END(_start)
 
