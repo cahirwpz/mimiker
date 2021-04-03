@@ -21,18 +21,18 @@ CLANG_FOUND = $(shell which clang > /dev/null; echo $$?)
 ifneq ($(CLANG_FOUND), 0)
   $(error clang compiler not found - please refer to README.md!)
 endif
-TARGET_CC = clang $(CLANG_ABIFLAGS)
+TARGET_CC = clang $(CLANG_ABIFLAGS) -g
 # The genassym script produces C code with asm statements that have
 # garbage instructions, which Clang checks using its built-in assembler
 # and refuses to compile. This option disables this check.
 ASSYM_CFLAGS += -no-integrated-as
 else
-TARGET_CC = $(TARGET)-gcc $(GCC_ABIFLAGS)
+TARGET_CC = $(TARGET)-gcc $(GCC_ABIFLAGS) -g
 endif
 
 CC       = $(TARGET_CC)
 AS       = $(TARGET_CC)
-LD       = $(TARGET)-gcc $(GCC_ABIFLAGS) 
+LD       = $(TARGET)-gcc $(GCC_ABIFLAGS) -g 
 AR       = $(TARGET)-ar
 NM       = $(TARGET)-nm
 GDB      = $(TARGET)-gdb
@@ -43,7 +43,6 @@ OBJDUMP  = $(TARGET)-objdump
 STRIP    = $(TARGET)-strip
 
 CP      = cp
-MKDIR   = mkdir -p
 CPIO    = cpio --format=crc
 CSCOPE  = cscope -b
 CTAGS   = ctags

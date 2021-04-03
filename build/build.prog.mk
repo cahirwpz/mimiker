@@ -32,7 +32,6 @@ include $(TOPDIR)/build/common.mk
 # Linking the program according to the provided script
 $(PROGRAM).uelf: $(OBJECTS)
 	@echo "[LD] $(DIR)$< -> $(DIR)$@"
-	@echo $(LD) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS)
 	$(LD) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS)
 
 $(SYSROOT)/$(BINDIR)/$(PROGRAM): $(PROGRAM).uelf

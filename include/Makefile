@@ -19,7 +19,6 @@ machine: $(TOPDIR)/config.mk
 	@echo "[SYMLINK] machine -> $(ARCH)"
 	$(RM) machine
 	$(LN) -s $(ARCH) machine
-	$(MKDIR) $(SYSROOT)
 
 distclean-here:
 	$(RM) -v machine
