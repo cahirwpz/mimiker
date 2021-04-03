@@ -1,9 +1,9 @@
 #include <sys/devclass.h>
 #include <sys/emmc.h>
 
-DEVCLASS_CREATE(emmc);
+/* DEVCLASS_CREATE(emmc); */
 
-static emmc_resp_type_t emmc_resp_types[57] = {
+emmc_resp_type_t emmc_resp_type[57] = {
   [EMMC_CMD_GO_IDLE] = EMMCRESP_NONE,
   [EMMC_CMD_SEND_OP_COND] = EMMCRESP_R3,
   [EMMC_CMD_ALL_SEND_CID] = EMMCRESP_R2,
@@ -43,7 +43,3 @@ static emmc_resp_type_t emmc_resp_types[57] = {
   [EMMC_CMD_APP_CMD] = EMMCRESP_R1,
   [EMMC_CMD_GEN_CMD] = EMMCRESP_R1,
 };
-
-emmc_resp_type_t emmc_get_resp_type(emmc_command_t cmd) {
-  return emmc_resp_types[(int)cmd];
-}

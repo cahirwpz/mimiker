@@ -51,7 +51,7 @@ typedef struct emmc_response {
 /* Accessors for fields in R1-R5 response.
  * End bit CRC7 and headers are ommited, because not every controller provides
  * access tio them */
-#define EMMC_R1_CARD_STATUS(resp) EMMC_FMASK48(resp, 0, 32) 
+#define EMMC_R1_CARD_STATUS(resp) EMMC_FMASK48(resp, 0, 32)
 #if BYTE_ORDER == _BIG_ENDIAN
 #define EMMC_R2_CIDCSD_H(resp) ((uint64_t *)((resp)->r))[0]
 #define EMMC_R2_CIDCSD_L(resp) ((uint64_t *)((resp)->r))[1]
@@ -112,11 +112,11 @@ typedef enum emmc_command {
   EMMC_CMD_GEN_CMD = 56,
 } emmc_command_t;
 
-#define EMMC_I_DATA_DONE 0x01
-#define EMMC_I_WRITE_READY 0x02
-#define EMMC_I_READ_READY 0x04
-
-typedef uint64_t emmc_wait_flags_t;
+typedef enum {
+  EMMC_I_DATA_DONE = 0x01,
+  EMMC_I_WRITE_READY = 0x02,
+  EMMC_I_READ_READY = 0x04,
+} emmc_wait_flags_t;
 
 typedef enum emmc_app_flags {
   /* At most one of these */
@@ -137,6 +137,14 @@ typedef enum emmc_app_flags {
 #define EMMC_APP_CMDTYPE 0x03
 #define EMMC_APP_RESPTYPE 0x60
 
+typedef enum emmc_prop_id {
+  EMMC_PROP_R_MODE,
+  EMMC_PROP_RW_BLKSIZE,
+  EMMC_PROP_RW_BLKCNT,
+  EMMC_PROP_R_INT_FLAGS,
+} emmc_prop_id_t;
+typedef uint64_t emmc_prop_val_t;
+
 /* For a detailed explanation on semantics refer to the comments above
  * respective wrappers */
 typedef emmc_result_t (*emmc_send_cmd_t)(device_t *dev, emmc_command_t cmd,
@@ -156,14 +164,6 @@ typedef int (*emmc_get_prop_t)(device_t *dev, emmc_prop_id_t id,
                                emmc_prop_val_t *val);
 typedef int (*emmc_set_prop_t)(device_t *dev, emmc_prop_id_t id,
                                emmc_prop_val_t val);
-
-typedef enum emmc_prop_id {
-  EMMC_PROP_R_MODE,
-  EMMC_PROP_RW_BLKSIZE,
-  EMMC_PROP_RW_BLKCNT,
-  EMMC_PROP_R_INT_FLAGS,
-} emmc_prop_id_t;
-typedef uint64_t emmc_prop_val_t;
 
 typedef struct emmc_methods {
   emmc_send_cmd_t send_cmd;
@@ -298,6 +298,6 @@ static inline emmc_device_t *emmc_device_of(device_t *device) {
                                                          : NULL);
 }
 
-emmc_resp_type_t emmc_get_resp_type(emmc_command_t cmd);
+extern emmc_resp_type_t emmc_resp_type[57];
 
 #endif
