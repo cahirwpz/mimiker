@@ -6,4 +6,3 @@ ENTRY(strlen)
 END(strlen)
 
 # vim: sw=8 ts=8 et
-

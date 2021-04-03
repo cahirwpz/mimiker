@@ -9,7 +9,6 @@
 
 	.align MULTIBOOT_HEADER_ALIGN
 
-.globl multiboot_header_start
 multiboot_header_start:
 
 	.long MULTIBOOT2_HEADER_MAGIC
@@ -36,7 +35,6 @@ multiboot_header_start:
 	.short 0
 	.long 8     # sizeof(struct multiboot_tag)	
 
-.globl multiboot_header_end
 multiboot_header_end:
 
 _ENTRY(_start)

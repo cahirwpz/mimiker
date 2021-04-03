@@ -10,4 +10,4 @@ Package: grub-mimiker
 Architecture: amd64
 Depends: ${shlibs:Depends} ${misc:Depends}
 Description: Multiboot2 boot loader for Mimiker OS
- This package contains modified GRUB boot loader for Mimiker OS.
+ This package contains GRUB boot loader for Mimiker OS.

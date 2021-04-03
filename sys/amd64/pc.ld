@@ -14,7 +14,7 @@ PHDRS
 
 SECTIONS
 {
-  /* The first 1MB is used while operating in protected mode.
+  /* The first 1MB is used while operating in real address mode.
    * The kernel is loaded at the beginning of the extended memory. */
   . = 0x100000;
 

@@ -75,7 +75,7 @@ bool pmap_clear_referenced(vm_page_t *pg __unused) {
   panic("not implemented!");
 }
 
-__noreturn bool pmap_clear_modified(vm_page_t *pg __unused) {
+bool pmap_clear_modified(vm_page_t *pg __unused) {
   panic("not implemented!");
 }
 

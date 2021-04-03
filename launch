@@ -127,7 +127,7 @@ CONFIG = {
             '-n',
             '-ex=set confirm no',
             '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
-            '-ex=set tcp connect-timeout 60',
+            '-ex=set tcp connect-timeout 30',
             '-ex=target remote localhost:{gdbport}',
             '--silent',
         ],

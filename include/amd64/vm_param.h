@@ -1,4 +1,4 @@
-/* TODO(MichalBlk): revise these definitions. */
+/* TODO(MichalBlk): revise this header. */
 #ifndef _AMD64_VM_PARAM_H_
 #define _AMD64_VM_PARAM_H_
 

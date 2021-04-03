@@ -69,7 +69,7 @@ disk-boot-image: $(UEFI_APP)
 	dd if=/dev/zero of=$(ESP_IMAGE) bs=$(SECTOR_SIZE) \
 	   count=$(ESP_SECTOR_COUNT)
 
-	@echo "[DISK] Format the partition for FAT32"
+	@echo "[DISK] Format the partition with FAT32"
 	mkdosfs -F 32 $(ESP_IMAGE)
 
 	@echo "[DISK] Copy kernel image and initrd to the partition"
