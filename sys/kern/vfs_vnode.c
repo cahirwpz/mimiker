@@ -11,6 +11,7 @@
 #include <sys/mount.h>
 #include <sys/spinlock.h>
 #include <sys/condvar.h>
+#include <sys/cred.h>
 
 static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
 
