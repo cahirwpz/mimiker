@@ -1,3 +1,9 @@
+/* build system hack */
+#ifdef KASAN
+#undef KASAN
+#endif /* KASAN */
+#define KASAN 1
+
 #include <sys/vm.h>
 #include <sys/pmap.h>
 #include <sys/param.h>
