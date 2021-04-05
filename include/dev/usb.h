@@ -154,21 +154,19 @@ typedef struct usb_endpoint_descriptor {
  */
 
 typedef enum {
-  TF_INPUT = 1,     /* input transfer */
-  TF_CONTROL = 2,   /* control transfer */
-  TF_BULK = 4,      /* bulk transfer */
-  TF_INTERRUPT = 8, /* interrupt transfer */
-  TF_STALLED = 16,  /* STALL condition encountered */
-  TF_ERROR = 32,    /* errors other than STALL */
-} transfer_flags_t;
+  TF_CONTROL = 1,   /* control transfer */
+  TF_BULK = 2,      /* bulk transfer */
+  TF_INTERRUPT = 4, /* interrupt transfer */
+  TF_STALLED = 8,  /* STALL condition encountered */
+  TF_ERROR = 16,    /* errors other than STALL */
+} usb_transfer_flags_t;
 
-/* USB buffer identifies a USB transfer. */
+/* USB buffer used for USB transfers. */
 typedef struct usb_buf {
   ringbuf_t buf;          /* write source or read destination */
   condvar_t cv;           /* wait for the transfer to complete */
   spin_t lock;            /* buffer guard */
-  transfer_flags_t flags; /* transfer description */
-  uint16_t transfer_size; /* size of the transfer */
+  usb_transfer_flags_t flags; /* transfer description */
 } usb_buf_t;
 
 #endif /* _DEV_USB_H_ */
