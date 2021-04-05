@@ -5,7 +5,7 @@
 #
 ENTRY(ctx_switch)
 	# not implemented
-	mov 0, %rax
+	jmp ctx_switch
 END(ctx_switch)
 
 # vim: sw=8 ts=8 et
