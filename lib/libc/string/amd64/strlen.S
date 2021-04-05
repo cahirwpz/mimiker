@@ -2,7 +2,7 @@
 
 ENTRY(strlen)
 	# not implemented
-	mov 0, %rax
+	jmp strlen
 END(strlen)
 
 # vim: sw=8 ts=8 et

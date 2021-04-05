@@ -60,7 +60,7 @@ INSTALL-FILES += initrd.cpio
 endif
 
 distclean-here:
-	$(RM) -r sysroot disk.img
+	$(RM) -r sysroot
 
 setup:
 	$(MAKE) -C include setup

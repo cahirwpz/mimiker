@@ -2,27 +2,27 @@
 
 ENTRY(copyinstr)
 	# not implemented
-	mov 0, %rax
+	jmp copyinstr
 END(copyinstr)
 
 ENTRY(copyin)
 	# not implemented
-	mov 0, %rax
+	jmp copyin
 END(copyin)
 
 ENTRY(copyout)
 	# not implemented
-	mov 0, %rax
+	jmp copyout
 END(copyout)
 
 ENTRY(try_load_word)
 	# not implemented
-	mov 0, %rax
+	jmp try_load_word
 END(try_load_word)
 
 ENTRY(try_store_word)
 	# not implemented
-	mov 0, %rax
+	jmp try_store_word
 END(try_store_word)
 
 # vim: sw=8 ts=8 et

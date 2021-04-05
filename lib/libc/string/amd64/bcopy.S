@@ -2,7 +2,7 @@
 
 ENTRY(bcopy)
 	# not implemented
-	mov 0, %rax
+	jmp bcopy
 END(bcopy)
 
 # vim: sw=8 ts=8 et

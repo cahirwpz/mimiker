@@ -2,7 +2,7 @@
 
 ENTRY(memcpy)
 	# not implemented
-	mov 0, %rax
+	jmp memcpy
 END(memcpy)
 
 # vim: sw=8 ts=8 et
