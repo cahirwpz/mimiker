@@ -4,4 +4,3 @@
 #define __ALIGNBYTES (sizeof(long long) - 1)
 
 #endif /* !_AMD64_CDEFS_H_ */
-

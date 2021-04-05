@@ -8,11 +8,11 @@
 *.elf
 *.uelf
 *.test
-*.EFI
 
 # Kernel blobs
 *.img
 *.img.gz
+*.iso
 
 # Ramdisk
 *.cpio

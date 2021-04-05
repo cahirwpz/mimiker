@@ -38,20 +38,26 @@ initrd.cpio: $(INITRD_DEPENDENCIES)
 	  find -depth \( ! -name "*.dbg" -and -print \) | sort | \
 	    $(CPIO) -o -R +0:+0 -F ../$@ 2> /dev/null
 
-DISK_SIZE = 1073741824  # 1GiB
-
-disk.img:
-	@echo "[DISK] Building $@..."
-	dd if=/dev/zero of=disk.img bs=512 \
-	   count=$(shell echo '$(DISK_SIZE) / 512' | bc)
-
-# Creating the boot partition is platform dependent.
-# TODO: create and populate partitions besides the boot partition.
-disk: initrd.cpio disk.img
-	$(MAKE) -C sys/$(ARCH) disk
-
-INSTALL-FILES += initrd.cpio disk
 CLEAN-FILES += initrd.cpio
+
+include $(TOPDIR)/config.mk
+
+mimiker.iso: initrd.cpio sys/$(ARCH)/grub.cfg
+	@echo "[ISO] Building $@..."
+	$(MKDIR) iso/mimiker
+	$(CP) sys/mimiker.elf iso/mimiker
+	$(CP) initrd.cpio iso/mimiker
+	$(MKDIR) iso/boot/grub
+	$(CP) sys/$(ARCH)/grub.cfg iso/boot/grub
+	grub-mkrescue -o $@ iso
+	$(RM) -r iso
+
+ifeq ($(BOARD), pc)
+INSTALL-FILES += mimiker.iso
+CLEAN-FILES += mimiker.iso
+else
+INSTALL-FILES += initrd.cpio
+endif
 
 distclean-here:
 	$(RM) -r sysroot disk.img
@@ -62,7 +68,7 @@ setup:
 test: sys-build initrd.cpio
 	./run_tests.py --board $(BOARD)
 
-PHONY-TARGETS += setup test disk
+PHONY-TARGETS += setup test
 
 IMGVER = 1.8.0
 IMGNAME = cahirwpz/mimiker-ci

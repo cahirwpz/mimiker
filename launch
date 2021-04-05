@@ -114,9 +114,8 @@ CONFIG = {
                 'binary': 'qemu-mimiker-x86_64',
                 'options': [
                     '-cpu', 'qemu64',
-                    '-drive', ('if=pflash,format=raw,'
-                               'file=../OVMF.fd'),
-                    '-drive', 'format=raw,file=disk.img,id=hd0',
+                    '-boot', 'd',
+                    '-cdrom', 'mimiker.iso',
                     '-device', 'VGA'],
                 'network_options': [],
                 'uarts': []

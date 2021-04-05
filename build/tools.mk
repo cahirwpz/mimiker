@@ -43,6 +43,7 @@ OBJDUMP  = $(TARGET)-objdump
 STRIP    = $(TARGET)-strip
 
 CP      = cp
+MKDIR   = mkdir -p
 CPIO    = cpio --format=crc
 CSCOPE  = cscope -b
 CTAGS   = ctags
