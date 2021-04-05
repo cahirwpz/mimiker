@@ -157,15 +157,15 @@ typedef enum {
   TF_CONTROL = 1,   /* control transfer */
   TF_BULK = 2,      /* bulk transfer */
   TF_INTERRUPT = 4, /* interrupt transfer */
-  TF_STALLED = 8,  /* STALL condition encountered */
+  TF_STALLED = 8,   /* STALL condition encountered */
   TF_ERROR = 16,    /* errors other than STALL */
 } usb_transfer_flags_t;
 
 /* USB buffer used for USB transfers. */
 typedef struct usb_buf {
-  ringbuf_t buf;          /* write source or read destination */
-  condvar_t cv;           /* wait for the transfer to complete */
-  spin_t lock;            /* buffer guard */
+  ringbuf_t buf;              /* write source or read destination */
+  condvar_t cv;               /* wait for the transfer to complete */
+  spin_t lock;                /* buffer guard */
   usb_transfer_flags_t flags; /* transfer description */
 } usb_buf_t;
 
