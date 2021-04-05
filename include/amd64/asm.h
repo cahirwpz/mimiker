@@ -121,7 +121,8 @@
   _ENTRY(_ASM_LABEL(y));                                                       \
   _PROF_PROLOGUE
 #define LABEL(y) _LABEL(_C_LABEL(y))
-#define END(y) .size y, .- y
+#define _END(y) .size y, .- y
+#define END(y) _END(_C_LABEL(y))
 
 #define ASMSTR .asciz
 

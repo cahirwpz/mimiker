@@ -41,6 +41,6 @@ multiboot_header_end:
 
 _ENTRY(_start)
 	jmp _start
-END(_start)
+_END(_start)
 
 # vim: sw=8 ts=8 et
