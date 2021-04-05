@@ -20,14 +20,6 @@ multiboot_header_start:
 
 	# TODO(MichalBlk): request some information (e.g. meminfo, VBE...)
 
-	.align 8
-	.short MULTIBOOT_HEADER_TAG_FRAMEBUFFER
-	.short 0
-	.long 20    # sizeof(struct multiboot_header_tag_framebuffer)
-	.long 0     # no width preference
-	.long 0     # no height preference
-	.long 0     # no depth preference
-
 	# end of the tag list
 
 	.align 8

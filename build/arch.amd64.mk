@@ -10,7 +10,7 @@ GCC_ABIFLAGS :=
 CLANG_ABIFLAGS := -target x86_64-elf
 ELFTYPE := elf64-x86-64
 ELFARCH := i386:x86-64
-LDFLAGS += -z max-page-size=0x200000
+LDFLAGS += -z max-page-size=0x1000
 
 ifeq ($(KERNEL), 1)
 # Interrupts in kernel mode doesn't cause stack switch,
