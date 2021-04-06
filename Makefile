@@ -21,9 +21,7 @@ usr.bin-before: lib-install
 # programs into sysroot. This sounds silly, but apparently make assumes no files
 # appear "without their explicit target". Thus, the only thing we can do is
 # forcing make to always rebuild the archive.
-INITRD_DEPENDENCIES = bin-install
-
-initrd.cpio: $(INITRD_DEPENDENCIES)
+initrd.cpio: bin-install
 	@echo "[INITRD] Building $@..."
 	cd sysroot && \
 	  find -depth \( ! -name "*.dbg" -and -print \) | sort | \
