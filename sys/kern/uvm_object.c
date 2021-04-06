@@ -98,6 +98,7 @@ void uvm_object_drop(uvm_object_t *obj) {
 }
 
 uvm_object_t *uvm_object_clone(uvm_object_t *obj) {
+  /* XXX: this function will not be used in UVM */
   uvm_object_t *new_obj = uvm_object_alloc(VM_DUMMY);
   new_obj->uo_pager = obj->uo_pager;
 
