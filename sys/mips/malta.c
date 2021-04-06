@@ -1,10 +1,10 @@
 #define KLOG KL_INIT
 #include <sys/interrupt.h>
+#include <sys/cpu_interrupt.h>
 #include <mips/cpuinfo.h>
 #include <mips/mips.h>
 #include <mips/malta.h>
 #include <mips/mcontext.h>
-#include <mips/interrupt.h>
 #include <mips/tlb.h>
 #include <sys/klog.h>
 #include <sys/console.h>

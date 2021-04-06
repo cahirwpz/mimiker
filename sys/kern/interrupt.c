@@ -1,9 +1,9 @@
 #define KL_LOG KL_INTR
 #include <sys/klog.h>
 #include <sys/mimiker.h>
-#include <machine/interrupt.h>
 #include <sys/malloc.h>
 #include <sys/interrupt.h>
+#include <sys/cpu_interrupt.h>
 #include <sys/pcpu.h>
 #include <sys/sleepq.h>
 #include <sys/sched.h>

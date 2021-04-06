@@ -2,11 +2,11 @@
 #include <sys/klog.h>
 #include <mips/m32c0.h>
 #include <mips/config.h>
-#include <mips/interrupt.h>
 #include <sys/bus.h>
 #include <sys/devclass.h>
 #include <sys/device.h>
 #include <sys/interrupt.h>
+#include <sys/cpu_interrupt.h>
 #include <sys/timer.h>
 
 typedef struct mips_timer_state {

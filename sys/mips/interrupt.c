@@ -1,8 +1,8 @@
 #include <sys/interrupt.h>
+#include <sys/cpu_interrupt.h>
 #include <sys/sched.h>
 #include <mips/mips.h>
 #include <mips/m32c0.h>
-#include <mips/interrupt.h>
 
 /* Extra information regarding DI / EI usage (from MIPS® ISA documentation):
  *
@@ -19,6 +19,11 @@ void cpu_intr_enable(void) {
   asm volatile("ei; ehb");
 }
 
+/* Interrupts are enabled when SR.IE = 1 and SR.EXL = 0 and SR.ERL = 0,
+ * according to MIPS documentation.
+ *
+ * The kernel leaves Exception (EXL) or Error Level (ERL) as soon as possible,
+ * hence we consider exceptions to be disabled if and only if SR.IE = 0. */
 bool cpu_intr_disabled(void) {
   return (mips32_getsr() & SR_IE) == 0;
 }

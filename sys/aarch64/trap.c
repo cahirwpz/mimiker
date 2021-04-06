@@ -9,8 +9,8 @@
 #include <sys/sysent.h>
 #include <sys/errno.h>
 #include <sys/context.h>
+#include <sys/cpu_interrupt.h>
 #include <aarch64/armreg.h>
-#include <aarch64/interrupt.h>
 #include <aarch64/pmap.h>
 
 static __noreturn void kernel_oops(ctx_t *ctx) {

@@ -4,10 +4,10 @@
 #include <sys/devclass.h>
 #include <aarch64/armreg.h>
 #include <aarch64/bcm2835reg.h>
-#include <aarch64/interrupt.h>
 #include <sys/kmem.h>
 #include <sys/pmap.h>
 #include <sys/interrupt.h>
+#include <sys/cpu_interrupt.h>
 
 /*
  * located at BCM2836_ARM_LOCAL_BASE
