@@ -21,7 +21,7 @@ vm_page_t *vm_object_find_page(vm_object_t *obj, vm_offset_t offset) {
   SCOPED_MTX_LOCK(&obj->mtx);
 
   vm_page_t *pg;
-  TAILQ_FOREACH (pg, &obj->list, obj.list) {
+  TAILQ_FOREACH (pg, &obj->list, objpages) {
     if (pg->offset == offset)
       return pg;
   }
@@ -39,9 +39,9 @@ void vm_object_add_page(vm_object_t *obj, vm_offset_t offset, vm_page_t *pg) {
 
   WITH_MTX_LOCK (&obj->mtx) {
     vm_page_t *it;
-    TAILQ_FOREACH (it, &obj->list, obj.list) {
+    TAILQ_FOREACH (it, &obj->list, objpages) {
       if (it->offset > pg->offset) {
-        TAILQ_INSERT_BEFORE(it, pg, obj.list);
+        TAILQ_INSERT_BEFORE(it, pg, objpages);
         obj->npages++;
         return;
       }
@@ -50,7 +50,7 @@ void vm_object_add_page(vm_object_t *obj, vm_offset_t offset, vm_page_t *pg) {
     }
 
     /* offset of page is greater than the offset of any other page */
-    TAILQ_INSERT_TAIL(&obj->list, pg, obj.list);
+    TAILQ_INSERT_TAIL(&obj->list, pg, objpages);
     obj->npages++;
   }
 }
@@ -61,7 +61,7 @@ static void vm_object_remove_pages_nolock(vm_object_t *obj, vm_offset_t offset,
   assert(page_aligned_p(offset) && page_aligned_p(length));
 
   vm_page_t *pg, *next;
-  TAILQ_FOREACH_SAFE (pg, &obj->list, obj.list, next) {
+  TAILQ_FOREACH_SAFE (pg, &obj->list, objpages, next) {
     if (pg->offset >= offset + length)
       break;
     if (pg->offset < offset)
@@ -69,7 +69,7 @@ static void vm_object_remove_pages_nolock(vm_object_t *obj, vm_offset_t offset,
 
     pg->offset = 0;
     pg->object = NULL;
-    TAILQ_REMOVE(&obj->list, pg, obj.list);
+    TAILQ_REMOVE(&obj->list, pg, objpages);
     vm_page_free(pg);
     obj->npages--;
   }
@@ -101,7 +101,7 @@ vm_object_t *vm_object_clone(vm_object_t *obj) {
 
   WITH_MTX_LOCK (&obj->mtx) {
     vm_page_t *pg;
-    TAILQ_FOREACH (pg, &obj->list, obj.list) {
+    TAILQ_FOREACH (pg, &obj->list, objpages) {
       vm_page_t *new_pg = vm_page_alloc(1);
       pmap_copy_page(pg, new_pg);
       vm_object_add_page(new_obj, pg->offset, new_pg);
@@ -115,7 +115,7 @@ void vm_map_object_dump(vm_object_t *obj) {
   SCOPED_MTX_LOCK(&obj->mtx);
 
   vm_page_t *pg;
-  TAILQ_FOREACH (pg, &obj->list, obj.list) {
+  TAILQ_FOREACH (pg, &obj->list, objpages) {
     klog("(vm-obj) offset: 0x%08lx, size: %ld", pg->offset, pg->size);
   }
 }
