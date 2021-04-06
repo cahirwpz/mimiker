@@ -30,6 +30,8 @@ CPPFLAGS += -D_MACHDEP
 
 include $(TOPDIR)/build/build.kern.mk
 
+ifeq ($(ARCH), aarch64)
 $(SOURCES): assym.h
+endif
 
 boot.o : CFLAGS_KASAN =
