@@ -3,12 +3,7 @@
 TOPDIR = $(CURDIR)
 
 # Directories which require calling make recursively
-ifeq ($(BOARD), pc)
-# XXX: just build the kernel for now.
-SUBDIR = sys include
-else
 SUBDIR = sys lib bin usr.bin etc include
-endif
 
 all: install
 
@@ -26,11 +21,7 @@ usr.bin-before: lib-install
 # programs into sysroot. This sounds silly, but apparently make assumes no files
 # appear "without their explicit target". Thus, the only thing we can do is
 # forcing make to always rebuild the archive.
-ifeq ($(BOARD), pc)
-INITRD_DEPENDENCIES = include-install
-else
 INITRD_DEPENDENCIES = bin-install
-endif
 
 initrd.cpio: $(INITRD_DEPENDENCIES)
 	@echo "[INITRD] Building $@..."
