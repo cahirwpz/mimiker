@@ -6,13 +6,13 @@
 
 # Executables
 *.elf
+*.elf32
 *.uelf
 *.test
 
 # Kernel blobs
 *.img
 *.img.gz
-*.iso
 
 # Ramdisk
 *.cpio

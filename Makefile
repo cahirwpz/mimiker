@@ -38,26 +38,8 @@ initrd.cpio: $(INITRD_DEPENDENCIES)
 	  find -depth \( ! -name "*.dbg" -and -print \) | sort | \
 	    $(CPIO) -o -R +0:+0 -F ../$@ 2> /dev/null
 
-CLEAN-FILES += initrd.cpio
-
-include $(TOPDIR)/config.mk
-
-mimiker.iso: initrd.cpio sys/$(ARCH)/grub.cfg
-	@echo "[ISO] Building $@..."
-	$(MKDIR) iso/mimiker
-	$(CP) sys/mimiker.elf iso/mimiker
-	$(CP) initrd.cpio iso/mimiker
-	$(MKDIR) iso/boot/grub
-	$(CP) sys/$(ARCH)/grub.cfg iso/boot/grub
-	grub-mkrescue -o $@ iso
-	$(RM) -r iso
-
-ifeq ($(BOARD), pc)
-INSTALL-FILES += mimiker.iso
-CLEAN-FILES += mimiker.iso
-else
 INSTALL-FILES += initrd.cpio
-endif
+CLEAN-FILES += initrd.cpio
 
 distclean-here:
 	$(RM) -r sysroot

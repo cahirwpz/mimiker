@@ -63,7 +63,7 @@ CONFIG = {
                 'kernel': 'sys/mimiker.img.gz',
             },
             'pc': {
-                'kernel': 'sys/mimiker.elf',
+                'kernel': 'sys/mimiker.elf32',
             },
         },
     },
@@ -75,14 +75,14 @@ CONFIG = {
             # '-icount', 'shift=3,sleep=on,rr=record,rrfile=replay.bin',
             '-icount', 'shift=3,align=off,sleep=on',
             '-rtc', 'clock=vm',
+            '-kernel', '{kernel}',
+            '-initrd', '{initrd}',
             '-S', '-gdb', 'tcp:127.0.0.1:{gdbport},server,wait',
             '-serial', 'none'],
         'board': {
             'malta': {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
-                    '-kernel', '{kernel}',
-                    '-initrd', '{initrd}',
                     '-device', 'VGA',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
@@ -100,8 +100,6 @@ CONFIG = {
             'rpi3': {
                 'binary': 'qemu-mimiker-aarch64',
                 'options': [
-                    '-kernel', '{kernel}',
-                    '-initrd', '{initrd}',
                     '-machine', 'raspi3',
                     '-smp', '4',
                     '-cpu', 'cortex-a53'],
@@ -113,10 +111,7 @@ CONFIG = {
             'pc': {
                 'binary': 'qemu-mimiker-x86_64',
                 'options': [
-                    '-cpu', 'qemu64',
-                    '-boot', 'd',
-                    '-cdrom', 'mimiker.iso',
-                    '-device', 'VGA'],
+                    '-cpu', 'qemu64'],
                 'network_options': [],
                 'uarts': []
             },
