@@ -74,7 +74,7 @@ CONFIG = {
             '-rtc', 'clock=vm',
             '-kernel', '{kernel}',
             '-initrd', '{initrd}',
-            '-gdb', 'tcp:127.0.0.1:{gdbport},server,wait',
+            '-S', '-gdb', 'tcp:127.0.0.1:{gdbport},server,wait',
             '-serial', 'none'],
         'board': {
             'malta': {
