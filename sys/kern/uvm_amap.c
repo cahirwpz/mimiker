@@ -17,6 +17,7 @@ static inline int uvm_amap_slot(uvm_aref_t *aref, vaddr_t offset) {
 
 uvm_amap_t *uvm_amap_alloc(void) {
   uvm_amap_t *amap = pool_alloc(P_AMAP, M_ZERO);
+  mtx_init(&amap->am_lock, 0);
   return amap;
 }
 
