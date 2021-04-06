@@ -4,6 +4,7 @@ TOPDIR = $(realpath ..)
 
 include $(TOPDIR)/config.mk
 
+ARCHS = aarch64 mips
 SUBDIR = $(ARCH) drv kern libkern tests
 KLIB = no
 

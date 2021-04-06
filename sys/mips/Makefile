@@ -12,7 +12,7 @@ SOURCES = \
 	ebase.S \
 	gt64120.c \
 	interrupt.c \
-	$(BOARD).c \
+	malta.c \
 	pmap.c \
 	rootdev.c \
 	sigcode.S \

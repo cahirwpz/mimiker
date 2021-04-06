@@ -99,7 +99,7 @@ build-recursive: $(SUBDIR:%=%-build)
 install-recursive: $(SUBDIR:%=%-install)
 clean-recursive: $(SUBDIR:%=%-clean)
 distclean-recursive: $(SUBDIR:%=%-distclean)
-format-recursive: $(SUBDIR:%=%-format)
+format-recursive: $(SUBDIR:%=%-format) $(ARCHS:%=%-format)
 
 # Define main rules of the build system
 download: download-recursive download-here

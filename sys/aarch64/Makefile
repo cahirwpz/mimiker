@@ -11,7 +11,7 @@ SOURCES = boot.c \
 	  pl011.c \
 	  pmap.c \
 	  rootdev.c \
-	  $(BOARD).c \
+	  rpi3.c \
 	  sigcode.S \
 	  signal.c \
 	  start.S \
