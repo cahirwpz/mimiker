@@ -81,19 +81,17 @@ void vm_object_remove_pages(vm_object_t *obj, vm_offset_t off, size_t len) {
 }
 
 #define vm_object_remove_all_pages(obj)                                        \
-  vm_object_remove_pages_nolock((obj), 0, (size_t)(-PAGESIZE))
+  vm_object_remove_pages((obj), 0, (size_t)(-PAGESIZE))
 
 void vm_object_hold(vm_object_t *obj) {
   refcnt_acquire(&obj->ref_counter);
 }
 
 void vm_object_drop(vm_object_t *obj) {
-  WITH_MTX_LOCK (&obj->mtx) {
-    if (!refcnt_release(&obj->ref_counter))
-      return;
+  if (!refcnt_release(&obj->ref_counter))
+    return;
 
-    vm_object_remove_all_pages(obj);
-  }
+  vm_object_remove_all_pages(obj);
   pool_free(P_VMOBJ, obj);
 }
 
