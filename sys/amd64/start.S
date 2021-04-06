@@ -1,10 +1,9 @@
 #include <amd64/asm.h>
-#define ASM_FILE
-#include <amd64/multiboot.h>
+#include "assym.h"
 
 #define MULTIBOOT_HEADER_CHECKSUM (-MULTIBOOT_HEADER_MAGIC)
 
-	.align 4
+	.align MULTIBOOT_HEADER_ALIGN
 
 multiboot_header_start:
 

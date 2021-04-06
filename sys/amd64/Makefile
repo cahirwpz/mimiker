@@ -14,6 +14,10 @@ SOURCES = boot.c \
 	  switch.S \
 	  thread.c
 
+CLEAN-FILES += assym.h
+
 CPPFLAGS += -D_MACHDEP
 
 include $(TOPDIR)/build/build.kern.mk
+
+$(SOURCES): assym.h
