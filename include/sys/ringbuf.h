@@ -23,7 +23,11 @@ static inline bool ringbuf_full(ringbuf_t *buf) {
 }
 
 void ringbuf_init(ringbuf_t *rb, void *buf, size_t size);
+/*! \brief Update ringbuf_t when there are new bytes put without ringbuf_* api.
+ *         (e.q. DMA access) */
 void ringbuf_produce(ringbuf_t *buf, size_t bytes);
+/*! \brief Update ringbuf_t when there are bytes consumed without ringbuf_* api.
+ *         (e.q. DMA access) */
 void ringbuf_consume(ringbuf_t *buf, size_t bytes);
 bool ringbuf_putb(ringbuf_t *buf, uint8_t byte);
 /*! \brief Put exactly n bytes into buf if there's enough space. */
