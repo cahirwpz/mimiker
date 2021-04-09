@@ -6,6 +6,8 @@
 TEMP_CLONE_FOLDER="temp_wiki_$GITHUB_SHA"
 TEMP_EXCLUDED_FILE="temp_wiki_excluded_$GITHUB_SHA.txt"
 
+# This script assumes there is rsync and git installed in executing container.
+
 if [ -z "$GH_TOKEN" ]; then
   echo "GH_TOKEN ENV is missing."
   exit 1
@@ -49,5 +51,4 @@ cd $TEMP_CLONE_FOLDER
 git add .
 git commit -m "$message"
 git push --set-upstream https://$GH_NAME:$GH_TOKEN@github.com/$REPO.wiki.git master
-
 
