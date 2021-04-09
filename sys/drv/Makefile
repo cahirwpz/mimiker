@@ -4,6 +4,7 @@ TOPDIR = $(realpath ../..)
 
 SOURCES = \
 	atkbdc.c \
+	sd.c \
 	ns16550.c \
 	rtc.c \
 	rtl8139.c \

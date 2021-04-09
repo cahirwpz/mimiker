@@ -200,6 +200,8 @@ static int rootdev_probe(device_t *bus) {
 
 #define MMIO_BASE 0xFFFFFFFF3F000000
 
+DEVCLASS_DECLARE(emmc);
+
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
@@ -235,16 +237,12 @@ static int rootdev_attach(device_t *bus) {
   
   /* EMMC */
   dev = device_add_child(bus, 3);
+  dev->devclass = &DEVCLASS(emmc);
   device_add_memory(dev, 0, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_GPIO_BASE),
                     PAGESIZE);
   device_add_memory(dev, 1, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_EMMC_BASE),
                     PAGESIZE);
   device_add_irq(dev, 2, BCM2835_INT_EMMC);
-/*   device_add_memory(dev, 0, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_GPIO_BASE),
-                    0x1000);
-  device_add_memory(dev, 1, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_EMMC_BASE),
-                    0x1000); */
-  /*device_add_irq(dev, 2, BCM2835_INT_EMMC); Overlaps with RID no.1 ? */
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
 

@@ -144,6 +144,7 @@ typedef struct emmc_state {
   int last_code_cnt;
   uint32_t intr_flags;
   int twait;
+  emmc_op_mode_t op_mode;
 } emmc_state_t;
 
 #define b_in bus_read_4
@@ -162,47 +163,75 @@ static void delay(int64_t count) {
                    : [count] "+r"(count));
 }
 
+static inline uint32_t emmc_wait_flags_to_hwflags(emmc_wait_flags_t mask) {
+  uint32_t result =
+    ((mask & EMMC_I_DATA_DONE) ? INT_DATA_DONE : 0) |
+    ((mask & EMMC_I_READ_READY) ? INT_READ_RDY : 0) |
+    ((mask & EMMC_I_WRITE_READY) ? INT_WRITE_RDY : 0);
+  return result;
+}
+
+
 /**
  * \brief Wait for (a set of) interrupt
- * \warning This routine needs to be called with driver's spinlock held!
  * \param dev eMMC device
  * \param mask expected interrupts
  * \param clear additional interrupt bits to be cleared
  * \return 0 on success, SD_ERROR on error, SD_TIMEOUT on eMMC device timeout, 
  * SD_NO_RESPONSE on eMMC controller timeout.
  */
-static int32_t emmc_intr_wait(device_t * dev, uint32_t mask) {
+static int32_t sdhc_intr_wait(device_t * dev, uint32_t mask) {
   emmc_state_t *state = (emmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
+  uint32_t m = 0;
 
-  while (mask) {
-    /* Busy-wait for a while. Should be good enough if the card works fine */
-    for (int i = 0; i < 64; i++) {
-      if ((state->intr_flags = b_in(emmc, EMMC_INTERRUPT)))
-        break;
-    }
-    /* Sleep for a while if no interrupts have been received so far */
-    if (!state->intr_flags) {
-      state->twait = 1;
-      if (cv_wait_timed(&state->cv_response, &state->slock, 10000)) {
-        state->twait = 0;
-        b_out(emmc, EMMC_INTERRUPT, 0xffffffff);
-        return SD_TIMEOUT;
+  WITH_SPIN_LOCK(&state->slock) {
+emmc_restart_intr_wait:
+    while (mask) {
+      if (state->intr_flags & mask) {
+        m = mask;
+        mask &= ~state->intr_flags;
+        state->intr_flags &= ~m;
+        goto emmc_restart_intr_wait;
       }
-      state->twait = 0;
+      /* Busy-wait for a while. Should be good enough if the card works fine */
+      for (int i = 0; i < 64; i++) {
+        if ((state->intr_flags = b_in(emmc, EMMC_INTERRUPT)))
+          goto emmc_restart_intr_wait;
+      }
+      /* Sleep for a while if no interrupts have been received so far */
+      if (!state->intr_flags) {
+        state->twait = 1;
+        if (cv_wait_timed(&state->cv_response, &state->slock, 10000)) {
+          state->twait = 0;
+          b_out(emmc, EMMC_INTERRUPT, 0xffffffff);
+          return SD_TIMEOUT;
+        }
+        state->twait = 0;
+      }
+      if (state->intr_flags & INT_ERROR_MASK) {
+        state->intr_flags = 0;
+        return SD_ERROR;
+      }
+      m = state->intr_flags;
+      mask &= ~state->intr_flags;
+      state->intr_flags &= ~m;
     }
-    if (state->intr_flags & INT_ERROR_MASK)
-      return SD_ERROR;
-    mask &= ~state->intr_flags;
   }
-
   return SD_OK;
+}
+
+static int sdhc_wait(device_t *cdev, emmc_wait_flags_t wflags) {
+  assert(cdev->parent && cdev->parent->driver == &emmc_driver);
+
+  uint32_t mask = emmc_wait_flags_to_hwflags(wflags);
+  return sdhc_intr_wait(cdev->parent, mask);
 }
 
 /**
  * \brief Wait for status
  */
-int emmc_status(device_t *dev, uint32_t mask) {
+int sdhc_status(device_t *dev, uint32_t mask) {
   emmc_state_t *state = (emmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
   int32_t cnt = 10000;
@@ -212,7 +241,7 @@ int emmc_status(device_t *dev, uint32_t mask) {
   return cnt <= 0;
 }
 
-static intr_filter_t emmc_intr_filter(void *data) {
+static intr_filter_t sdhc_intr_filter(void *data) {
   emmc_state_t *state = (emmc_state_t *)data;
   resource_t *emmc = state->emmc;
   WITH_SPIN_LOCK(&state->slock) {
@@ -231,130 +260,151 @@ static intr_filter_t emmc_intr_filter(void *data) {
 #define CMD_TYPE_RESUME   0x00800000
 #define CMD_TYPE_ABORT    0x00c00000
 #define CMD_DATA_TRANSFER 0x00200000
+#define CMD_CHECKCRC      0x00080000
+#define CMD_CHECKIDX      0x00100000
 #define CMD_RESP136       0x00010000
 #define CMD_RESP48        0x00020000
+#define CMD_RESP48B       0x00030000
 
 /* This function might be (and probably is!) incomplete, but it does enough
  * to handle the current block device scenario */
-uint32_t encode_cmd(emmc_command_t cmd) {
-  uint32_t code = (uint32_t)cmd << 24;
+uint32_t encode_cmd(emmc_cmd_t cmd) {
+  uint32_t code = (uint32_t)cmd.cmd_idx << 24;
 
-  switch (cmd) {
-    case EMMC_CMD_ALL_SEND_CID:
+  switch (cmd.exp_resp) {
+    case EMMCRESP_NONE:
+      break;
+    case EMMCRESP_R2:
       code |= CMD_RESP136;
       break;
-    case EMMC_CMD_SET_RELATIVE_ADDR:
-      code |= CMD_RESP48;
-      break;
-    case EMMC_CMD_SELECT_CARD:
-      code |= CMD_RESP48;
-      break;
-    case EMMC_CMD_SEND_EXT_CSD:
-      code |= CMD_RESP48;
-      break;
-    case EMMC_CMD_STOP_TRANSMISSION:
-      code |= CMD_RESP48;
-      break;
-    case EMMC_CMD_READ_BLOCK:
-      code |= CMD_DATA_TRANSFER | CMD_RESP48;
-      break;
-    case EMMC_CMD_READ_MULTIPLE_BLOCKS:
-      code |= CMD_DATA_TRANSFER | CMD_RESP48;
-      break;
-    case EMMC_CMD_SET_BLOCK_COUNT:
-      code |= CMD_RESP48;
-      break;
-    case EMMC_CMD_WRITE_BLOCK:
-      code |= CMD_DATA_TRANSFER | CMD_RESP48;
-      break;
-    case EMMC_CMD_WRITE_MULTIPLE_BLOCKS:
-      code |= CMD_DATA_TRANSFER | CMD_RESP48;
+    case EMMCRESP_R1B:
+      code |= CMD_RESP48B;
       break;
     default:
-      break;
+      code |= CMD_RESP48;
   }
-  return code;
-}
-
-__unused
-static uint32_t encode_app_cmd(uint32_t cmd, emmc_app_flags_t app_flags) {
-  uint32_t code = (uint32_t)cmd << 24;
-  switch (app_flags & EMMC_APP_CMDTYPE) {
-    case EMMC_APP_SUSPEND:
+  switch (cmd.flags & EMMC_APP_CMDTYPE) {
+    case EMMC_F_SUSPEND:
       code |= CMD_TYPE_SUSPEND;
       break;
-    case EMMC_APP_RESUME:
+    case EMMC_F_RESUME:
       code |= CMD_TYPE_RESUME;
       break;
-    case EMMC_APP_ABORT:
+    case EMMC_F_ABORT:
       code |= CMD_TYPE_ABORT;
       break;
     default:
       break;
   }
-  if (app_flags & EMMC_APP_DATA)
+  if (cmd.flags & EMMC_F_DATA)
     code |= CMD_DATA_TRANSFER;
-  switch (app_flags & EMMC_APP_RESPTYPE) {
-    case EMMC_APP_RESP136:
-      code |= CMD_RESP136;
-      break;
-    case EMMC_APP_RESP48:
-      code |= CMD_RESP48;
-    default:
-      break;
-  }
+  if (cmd.flags & EMMC_F_CHKIDX)
+    code |= CMD_CHECKIDX;
+  if (cmd.flags & EMMC_F_CHKCRC)
+    code |= CMD_CHECKCRC;
+  
   return code;
 }
 
-static int get_prop(device_t *dev, uint32_t id, uint64_t *var) {
-/*   switch (id) {
-    case EMMC_VAL_APPFLAGS:
-      *var = EMMC_APP_NEEDS_CMDTYPE | EMMC_APP_NEEDS_RESPTYPE | EMMC_APP_DATA;
-      return 1;
+static int sdhc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
+  assert(cdev->parent && cdev->parent->driver == &emmc_driver);
+  emmc_state_t *state = (emmc_state_t *)cdev->parent->state;
+  resource_t *emmc = state->emmc;
+
+  uint32_t reg = 0;
+  switch (id) {
+    case EMMC_PROP_R_SUPP_CCS:
+      *var = state->sd_scr[0] & SCR_SUPP_CCS;
+      return -1;
+    case EMMC_PROP_R_SUPP_SET_BLKCNT:
+      *var = state->sd_scr[0] & SCR_SUPP_SET_BLKCNT;
+      return -1;
+    case EMMC_PROP_RW_BLKCNT:
+      reg = b_in(emmc, EMMC_BLKSIZECNT);
+      *var = (reg & 0xffff0000) >> 16;
+      return -1;
+    case EMMC_PROP_RW_BLKSIZE:
+      reg = b_in(emmc, EMMC_BLKSIZECNT);
+      *var = reg & 0x03ff;
+      return -1;
+    case EMMC_PROP_R_MAXBLKSIZE:
+      *var = 512;
+      return -1;
+    case EMMC_PROP_R_MAXBLKCNT:
+      *var = 255;
+      return -1;
+    case EMMC_PROP_R_VOLTAGE_SUPPLY:
+      *var = 1;
+      return -1;
+    case EMMC_PROP_RW_RESP_LOW:
+      *var = (uint64_t)b_in(emmc, EMMC_RESP0) |
+             (uint64_t)b_in(emmc, EMMC_RESP1) << 32;
+      return -1;
+    case EMMC_PROP_RW_RESP_HI:
+      *var = (uint64_t)b_in(emmc, EMMC_RESP2) |
+             (uint64_t)b_in(emmc, EMMC_RESP3) << 32;
+      return -1;
     default:
       return 0;
-  } */
-/*   switch (id) {
-    case EMMC_PROP_R_INT_FLAGS:
-      *var = vintr_rd(dev);
-      return 1;
+  }
+}
+
+static int sdhc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
+  assert(cdev->parent &&cdev->parent->driver == &emmc_driver);
+  emmc_state_t *state = (emmc_state_t *)cdev->parent->state;
+  resource_t *emmc = state->emmc;
+
+  uint32_t reg = 0;
+  switch (id) {
+    case EMMC_PROP_RW_BLKCNT:
+      if (var & ~0xffff)
+        return 0;
+      reg = b_in(emmc, EMMC_BLKSIZECNT);
+      reg = (reg & 0x0000ffff) | (var << 16);
+      b_out(emmc, EMMC_BLKSIZECNT, reg);
+      return -1;
+    case EMMC_PROP_RW_BLKSIZE:
+      if (var & ~0x03ff)
+        return 0;
+      reg = b_in(emmc, EMMC_BLKSIZECNT);
+      reg = (reg & ~0x03ff) | var;
+      b_out(emmc, EMMC_BLKSIZECNT, reg);
+      return -1;
+    case EMMC_PROP_RW_RESP_LOW:
+      b_out(emmc, EMMC_RESP0, (uint32_t)var);
+      b_out(emmc, EMMC_RESP1, (uint32_t)(var >> 32));
+      return -1;
+    case EMMC_PROP_RW_RESP_HI:
+      b_out(emmc, EMMC_RESP2, (uint32_t)var);
+      b_out(emmc, EMMC_RESP3, (uint32_t)(var >> 32));
+      return -1;
     default:
       return 0;
-  } */
+  }
 }
 
-static int set_prop(device_t *dev, uint32_t id, uint64_t var) {
-  return 0;
-}
-
-__unused
-static emmc_result_t emmc_cmd2(device_t *dev, uint32_t cmd, uint32_t arg1,
-                               uint32_t arg2, emmc_response_t *resp) {
+static emmc_result_t sdhc_cmd_code(device_t *dev, uint32_t code, uint32_t arg1,
+                                   uint32_t arg2, emmc_resp_t *resp) {
   emmc_state_t *state = (emmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
 
   uint32_t r = 0;
   state->sd_err = SD_OK;
 
-  uint32_t code = encode_cmd(cmd);
-
-  if (emmc_status(dev, SR_CMD_INHIBIT)) {
+  if (sdhc_status(dev, SR_CMD_INHIBIT)) {
     klog("ERROR: EMMC busy\n");
     return EMMC_ERR_BUSY;
   }
 
   klog("EMMC: Sending command %p, arg1 %p, arg2 %p\n", code, arg1, arg2);
-  WITH_SPIN_LOCK(&state->slock) {
-    b_out(emmc, EMMC_ARG1, arg1);
-    b_out(emmc, EMMC_ARG2, arg2);
-    b_out(emmc, EMMC_CMDTM, code);
-    delay(150);
-    
-    if ((r = emmc_intr_wait(dev, INT_CMD_DONE))) {
-      klog("ERROR: failed to send EMMC command %p\n", code);
-      state->sd_err = r;
-      return 0;
-    }
+
+  b_out(emmc, EMMC_ARG1, arg1);
+  b_out(emmc, EMMC_ARG2, arg2);
+  b_out(emmc, EMMC_CMDTM, code);    
+  if ((r = sdhc_intr_wait(dev, INT_CMD_DONE))) {
+    klog("ERROR: failed to send EMMC command %p\n", code);
+    state->sd_err = r;
+    return 0;
   }
 
   if (resp) {
@@ -367,14 +417,25 @@ static emmc_result_t emmc_cmd2(device_t *dev, uint32_t cmd, uint32_t arg1,
   return EMMC_OK;
 }
 
+static emmc_result_t sdhc_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg1,
+                               uint32_t arg2, emmc_resp_t *resp) {
+  assert(cdev->parent && cdev->parent->driver == &emmc_driver);
+
+  if (cmd.flags & EMMC_F_APP)
+    sdhc_cmd(cdev, EMMC_CMD(APP_CMD), 0, 0, NULL);
+
+  uint32_t code = encode_cmd(cmd);
+  return sdhc_cmd_code(cdev->parent, code, arg1, arg2, resp);
+}
+
 /**
  * \brief Send a command
  * \param dev eMMC device
  * \param mask expected interrupts
  * \param clear additional interrupt bits to be cleared
  */
-static emmc_result_t emmc_cmd(device_t *dev, uint32_t code, uint32_t arg,
-                              uint32_t mask) {
+static emmc_result_t sdhc_cmd_old(device_t *dev, uint32_t code, uint32_t arg,
+                                  uint32_t mask) {
   emmc_state_t *state = (emmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
 
@@ -383,8 +444,8 @@ static emmc_result_t emmc_cmd(device_t *dev, uint32_t code, uint32_t arg,
   state->sd_err = SD_OK;
   /* Application-specific commands require CMD55 to be sent beforehand */
   if (code & CMD_APP_SPECIFIC) {
-    r = emmc_cmd(dev, CMD_APP_CMD | (state->sd_rca ? CMD_RSPNS_48 : 0),
-                 state->sd_rca, 0);
+    r = sdhc_cmd_old(dev, CMD_APP_CMD | (state->sd_rca ? CMD_RSPNS_48 : 0),
+                     state->sd_rca, 0);
     if (state->sd_rca && !r) {
       klog("ERROR: failed to send SD APP command\n");
       state->sd_err = SD_ERROR;
@@ -392,7 +453,7 @@ static emmc_result_t emmc_cmd(device_t *dev, uint32_t code, uint32_t arg,
     }
     code &= ~CMD_APP_SPECIFIC;
   }
-  if (emmc_status(dev, SR_CMD_INHIBIT)) {
+  if (sdhc_status(dev, SR_CMD_INHIBIT)) {
     klog("ERROR: EMMC busy\n");
     state->sd_err = SD_TIMEOUT;
     return 0;
@@ -403,7 +464,7 @@ static emmc_result_t emmc_cmd(device_t *dev, uint32_t code, uint32_t arg,
     b_out(emmc, EMMC_CMDTM, code);
     delay(150);
     
-    if ((r = emmc_intr_wait(dev, INT_CMD_DONE | mask))) {
+    if ((r = sdhc_intr_wait(dev, INT_CMD_DONE | mask))) {
       klog("ERROR: failed to send EMMC command\n");
       state->sd_err = r;
       return 0;
@@ -448,7 +509,7 @@ static emmc_result_t emmc_cmd(device_t *dev, uint32_t code, uint32_t arg,
   else if (code == CMD_SEND_REL_ADDR) {
     state->sd_err = (((r & 0x1fff)) | ((r & 0x2000) << 6) |
                     ((r & 0x4000) << 8) | ((r & 0x8000) << 8)) &
-             CMD_ERRORS_MASK;
+                    CMD_ERRORS_MASK;
 
     if (state->last_code_cnt == 0)
       klog("EMMC: Sending command %s, arg %p\n", "ADDRESS", arg);
@@ -459,148 +520,52 @@ static emmc_result_t emmc_cmd(device_t *dev, uint32_t code, uint32_t arg,
   return 0;
 }
 
-/**
- * read a block from sd card and return the number of bytes read
- * returns 0 on error.
- */
-int emmc_read_block(device_t *dev, uint32_t lba, unsigned char *buffer,
-                    uint32_t num) {
-  assert(dev->driver == (driver_t *)&emmc_driver);
-  emmc_state_t *state = (emmc_state_t *)dev->state;
+static emmc_result_t sdhc_read(device_t *cdev, void *buf, size_t len,
+                               size_t *read) {
+  assert(cdev->parent && cdev->parent->driver == &emmc_driver);
+  device_t *emmcdev = cdev->parent;
+  emmc_state_t *state = (emmc_state_t *)emmcdev->state;
   resource_t *emmc = state->emmc;
-  if (num < 1)
-    num = 1;
-  if (lba != state->last_lba)
-    klog("sd_readblock lba %p, num %p\n", lba, num);
-  state->last_lba = lba;
 
-/*   if (emmc_status(dev, SR_DAT_INHIBIT)) {
-    state->sd_err = SD_TIMEOUT;
-    return 0;
-  } */
-  uint32_t *buf = (uint32_t *)buffer;
-  if (state->sd_scr[0] & SCR_SUPP_CCS) {
-    /* Multiple block transfers either be terminated after a set amount of
-     * block is transferred, or by sending CMD_STOP_TRANS command */
-    if (num > 1 && (state->sd_scr[0] & SCR_SUPP_SET_BLKCNT)) {
-      emmc_cmd(dev, CMD_SET_BLOCKCNT, num, 0);
-      if (state->sd_err)
-        return 0;
-    }
-    b_out(emmc, EMMC_BLKSIZECNT, (num << 16) | 512);
-    if (num > 1) {
-      /* emmc_cmd(dev, CMD_READ_MULTI, lba, INT_READ_RDY, 0); */
-      emmc_cmd2(dev, EMMC_CMD_READ_MULTIPLE_BLOCKS, lba, 0, NULL);
-    } else {
-      emmc_cmd(dev, CMD_READ_SINGLE, lba, INT_READ_RDY);
-    }
-    if (state->sd_err)
-      return 0;
-  } else {
-    b_out(emmc, EMMC_BLKSIZECNT, (1 << 16) | 512);
-  }
-  for (uint32_t c = 0; c < num; c++) {
-    if (!(state->sd_scr[0] & SCR_SUPP_CCS)) {
-      emmc_cmd(dev, CMD_READ_SINGLE, (lba + c) * 512, INT_DATA_DONE);
-      if (state->sd_err)
-        return 0;
-    }
-    uint32_t cnt = 10000;
-    uint32_t d = 0;
-    while (d < 128 && cnt) {
-      if (1/* b_in(emmc, EMMC_STATUS) & SR_READ_AVAILABLE */) {
-        if (d == 127 && c == num - 1)
-          spin_lock(&state->slock);
-        buf[d++] = b_in(emmc, EMMC_DATA);
-        if (d == 128 && c == num - 1) {
-          if (cnt && emmc_intr_wait(dev, INT_DATA_DONE)) {
-            spin_unlock(&state->slock);
-            state->sd_err = SD_TIMEOUT;
-            return 0;
-          }
-          spin_unlock(&state->slock);
-        }
-      } else {
-        cnt--;
-      }
-    }
-    if (!cnt)
-      state->sd_err = SD_TIMEOUT;
-    if (state->sd_err)
-      return 0;
-    buf += 128;
-  }
-  if (num > 1 && !(state->sd_scr[0] & SCR_SUPP_SET_BLKCNT) &&
-      (state->sd_scr[0] & SCR_SUPP_CCS))
-    emmc_cmd(dev, CMD_STOP_TRANS, 0, 0);
-  return state->sd_err != SD_OK ? 0 : num * 512;
+  assert((len & 0x03) == 0); /* Assert multiple of 32 bits */
+  uint64_t blksz = 0;
+  emmc_get_prop(cdev, EMMC_PROP_RW_BLKSIZE, &blksz);
+  if (len & (blksz - 1))
+    return EMMC_ERR_IERR; /* Length is not a multiple of block size */
+  
+  /* A very simple transfer */
+  for (size_t i = 0; i < (len >> 2); i++)
+    ((uint32_t *)buf)[i] = b_in(emmc, EMMC_DATA);
+  
+  /* TODO (mohr): check wether the transfer fully succeeded! */
+  return len;
 }
 
-/**
- * Write a block to the sd card
- * returns 0 on error
- */
-int emmc_write_block(device_t *dev, uint32_t lba, const uint8_t *buffer,
-                     uint32_t num) {
-  assert(dev->driver == (driver_t *)&emmc_driver);
-  emmc_state_t *state = (emmc_state_t *)dev->state;
+static emmc_result_t sdhc_write(device_t *cdev, const void *buf, size_t len,
+                                size_t *wrote) {
+  assert(cdev->parent && cdev->parent->driver == &emmc_driver);
+  device_t *emmcdev = cdev->parent;
+  emmc_state_t *state = (emmc_state_t *)emmcdev->state;
   resource_t *emmc = state->emmc;
-  
-  if (((uint64_t)buffer & (uint64_t)0x3) != 0)
-    return 0;
-  uint32_t *buf = (uint32_t *)buffer;
-  uint32_t c = 0;
-  if (num < 1)
-    return 0;
-  if (emmc_status(dev, SR_DAT_INHIBIT)) {
-    state->sd_err = SD_TIMEOUT;
-    return 0;
-  }
-  if (state->sd_scr[0] & SCR_SUPP_CCS) {
-    if (num > 1 && (state->sd_scr[0] & SCR_SUPP_SET_BLKCNT)) {
-      emmc_cmd(dev, CMD_SET_BLOCKCNT, num, 0);
-      if (state->sd_err)
-        return 0;
-    }
-    b_out(emmc, EMMC_BLKSIZECNT, (num << 16) | 512);
-    emmc_cmd(dev, num == 1 ? CMD_WRITE_SINGLE : CMD_WRITE_MULTI, lba,
-             INT_WRITE_RDY);
-    if (state->sd_err)
-      return 0;
-  } else {
-    b_out(emmc, EMMC_BLKSIZECNT, (1 << 16) | 512);
-  }
-  while (c < num) {
-    if (!(state->sd_scr[0] & SCR_SUPP_CCS)) {
-      emmc_cmd(dev, CMD_WRITE_SINGLE, (lba + c) * 512, INT_WRITE_RDY);
-    }
-    if (state->sd_err)
-      return 0;
-    WITH_SPIN_LOCK(&state->slock) {
-      uint32_t cnt = 10000;
-      int32_t d = 0;
-      while (d < 128 && cnt) {
-        if (b_in(emmc, EMMC_STATUS) & SR_WRITE_AVAILABLE)
-          b_out(emmc, EMMC_DATA, buf[d++]);
-        else
-          cnt--;
-      }
-      if (!emmc_intr_wait(dev, INT_DATA_DONE))
-        return 1;
-      if (state->sd_err)
-        return 0;
-    }
-    c++;
-    buf += 128;
-  }
 
-  return 0;
+  assert((len & 0x03) == 0); /* Assert multiple of 32 bits */
+  uint64_t blksz = 0;
+  emmc_get_prop(cdev, EMMC_PROP_RW_BLKSIZE, &blksz);
+  if (len & (blksz - 1))
+    return EMMC_ERR_IERR; /* Length is not a multiple of block size */
+  
+  /* A very simple transfer */
+  for (size_t i = 0; i < (len >> 2); i++)
+    b_out(emmc, EMMC_DATA, ((uint32_t *)buf)[i]);
+  
+  /* TODO (mohr): check wether the transfer fully succeeded! */
+  return len;
 }
 
 /**
  * set SD clock to frequency in Hz
  */
-int32_t sd_clk(device_t *dev, uint32_t f) {
+int32_t sdhc_clk(device_t *dev, uint32_t f) {
   emmc_state_t *state = (emmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
   uint32_t d, c = 41666666 / f, x, s = 32, h = 0;
@@ -651,7 +616,7 @@ int32_t sd_clk(device_t *dev, uint32_t f) {
     d = 2;
     s = 0;
   }
-  klog("sd_clk divisor %p, shift %p\n", d, s);
+  klog("sdhc_clk divisor %p, shift %p\n", d, s);
   if (state->sd_hv > HOST_SPEC_V2)
     h = (d & 0x300) >> 2;
   d = (((d & 0x0ff) << 8) | h);
@@ -744,7 +709,7 @@ static int emmc_init(device_t *dev) {
   b_set(emmc, EMMC_CONTROL1, C1_CLK_INTLEN | C1_TOUNIT_MAX);
   delay(30);                               /* ! */;
   // Set clock to setup frequency.
-  if ((r = sd_clk(dev, 400000)))
+  if ((r = sdhc_clk(dev, 400000)))
     return r;
   b_out(emmc, EMMC_INT_EN,
         INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY | INT_WRITE_RDY |
@@ -753,18 +718,21 @@ static int emmc_init(device_t *dev) {
         INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY | INT_WRITE_RDY |
         INT_CMD_TIMEOUT | INT_DATA_TIMEOUT);
   state->sd_scr[0] = state->sd_scr[1] = state->sd_rca = state->sd_err = 0;
-  emmc_cmd(dev, CMD_GO_IDLE, 0, 0);
+
+  return SD_OK;
+
+  sdhc_cmd_old(dev, CMD_GO_IDLE, 0, 0);
   if (state->sd_err)
     return state->sd_err;
 
-  emmc_cmd(dev, CMD_SEND_IF_COND, 0x000001AA, 0);
+  sdhc_cmd_old(dev, CMD_SEND_IF_COND, 0x000001AA, 0);
   if (state->sd_err)
     return state->sd_err;
   cnt = 6;
   r = 0;
   while (!(r & ACMD41_CMD_COMPLETE) && cnt--) {
     delay(400);                               /* ! */
-    r = emmc_cmd(dev, CMD_SEND_OP_COND, ACMD41_ARG_HC, 0);
+    r = sdhc_cmd_old(dev, CMD_SEND_OP_COND, ACMD41_ARG_HC, 0);
     klog("EMMC: CMD_SEND_OP_COND returned ");
     if (r & ACMD41_CMD_COMPLETE)
       klog("COMPLETE ");
@@ -785,23 +753,23 @@ static int emmc_init(device_t *dev) {
   if (r & ACMD41_CMD_CCS)
     ccs = SCR_SUPP_CCS;
 
-  emmc_cmd(dev, CMD_ALL_SEND_CID, 0, 0);
+  sdhc_cmd_old(dev, CMD_ALL_SEND_CID, 0, 0);
 
-  state->sd_rca = emmc_cmd(dev, CMD_SEND_REL_ADDR, 0, 0);
+  state->sd_rca = sdhc_cmd_old(dev, CMD_SEND_REL_ADDR, 0, 0);
   klog("EMMC: CMD_SEND_REL_ADDR returned %p \n", state->sd_rca);
   if (state->sd_err)
     return state->sd_err;
 
-  if ((r = sd_clk(dev, 25000000)))
+  if ((r = sdhc_clk(dev, 25000000)))
     return r;
 
-  emmc_cmd(dev, CMD_CARD_SELECT, state->sd_rca, 0);
+  sdhc_cmd_old(dev, CMD_CARD_SELECT, state->sd_rca, 0);
   if (state->sd_err)
     return state->sd_err;
-  if (emmc_status(dev, SR_DAT_INHIBIT))
+  if (sdhc_status(dev, SR_DAT_INHIBIT))
     return SD_TIMEOUT;
   b_out(emmc, EMMC_BLKSIZECNT, (1 << 16) | 8);
-  emmc_cmd(dev, CMD_SEND_SCR, 0, INT_READ_RDY);
+  sdhc_cmd_old(dev, CMD_SEND_SCR, 0, INT_READ_RDY);
   if (state->sd_err)
     return state->sd_err;
 
@@ -814,13 +782,13 @@ static int emmc_init(device_t *dev) {
       else
         cnt--;
     }
-    if (emmc_intr_wait(dev, INT_DATA_DONE))
+    if (sdhc_intr_wait(dev, INT_DATA_DONE))
       return state->sd_err;
   }
   if (r != 2)
     return SD_TIMEOUT;
   if (state->sd_scr[0] & SCR_SD_BUS_WIDTH_4) {
-    emmc_cmd(dev, CMD_SET_BUS_WIDTH, state->sd_rca | 2, 0);
+    sdhc_cmd_old(dev, CMD_SET_BUS_WIDTH, state->sd_rca | 2, 0);
     if (state->sd_err)
       return state->sd_err;
     b_set(emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
@@ -839,14 +807,14 @@ static int emmc_init(device_t *dev) {
 
 /*----------------------------------------------------------------------------*/
 
-static int emmc_probe(device_t *dev) {
+static int sdhc_probe(device_t *dev) {
   /* return 0; */
   return dev->unit == 3;
 }
 
 DEVCLASS_DECLARE(emmc);
 
-static int emmc_attach(device_t *dev) {
+static int sdhc_attach(device_t *dev) {
   assert(dev->driver == (driver_t *)&emmc_driver);
   emmc_state_t *state = (emmc_state_t *)dev->state;
   state->last_lba = 0;
@@ -864,7 +832,7 @@ static int emmc_attach(device_t *dev) {
   emmc_gpio_init(dev);
 
   state->irq = device_take_irq(dev, 2, RF_ACTIVE);
-  bus_intr_setup(dev, state->irq, emmc_intr_filter, NULL, state,
+  bus_intr_setup(dev, state->irq, sdhc_intr_filter, NULL, state,
                  "e.MMMC interrupt");
 
   int init_res = emmc_init(dev);
@@ -878,6 +846,7 @@ static int emmc_attach(device_t *dev) {
   device_t *child = device_add_child(dev, 0);
   child->bus = DEV_BUS_EMMC;
   child->devclass = &DEVCLASS(emmc);
+  child->unit = 0;
 
   return bus_generic_probe(dev);
 }
@@ -888,19 +857,19 @@ static int emmc_attach(device_t *dev) {
 #undef b_clr
 
 emmc_methods_t emmc_emmc_if = {
-  .send_cmd = NULL,
-  .send_app_cmd = NULL,
-  .read = NULL,
-  .write = NULL,
-  .get_prop = get_prop,
-  .set_prop = set_prop,
+  .send_cmd = sdhc_cmd,
+  .wait = sdhc_wait,
+  .read = sdhc_read,
+  .write = sdhc_write,
+  .get_prop = sdhc_get_prop,
+  .set_prop = sdhc_set_prop,
 };
 
 static driver_t emmc_driver = {
   .desc = "e.MMC memory card driver",
   .size = sizeof(emmc_state_t),
-  .probe = emmc_probe,
-  .attach = emmc_attach,
+  .probe = sdhc_probe,
+  .attach = sdhc_attach,
   .pass = SECOND_PASS,
   .interfaces =
     {
