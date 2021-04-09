@@ -2,11 +2,14 @@
 
 VERSION = 1.5
 
+# Libraries required to build the toolchain.
 ISL = isl-0.18
 MPFR = mpfr-4.0.2
 GMP = gmp-6.1.2
 MPC = mpc-1.1.0
 CLOOG = cloog-0.18.4
+
+# The toolchain is comprised of following packages:
 BINUTILS = binutils-2.35
 GCC = gcc-11-20210314
 GDB = gdb-10.1
@@ -22,4 +25,4 @@ BINUTILS-URL = "https://ftp.gnu.org/gnu/binutils/$(BINUTILS).tar.xz"
 GCC-URL = "ftp://ftp.fu-berlin.de/unix/languages/gcc/snapshots/11-20210314/$(GCC).tar.xz"
 GDB-URL = "https://ftp.gnu.org/gnu/gdb/$(GDB).tar.xz"
 
-TARGETS = mipsel aarch64
+TARGETS = mipsel aarch64 amd64
