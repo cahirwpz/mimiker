@@ -19,7 +19,6 @@ jobs:
       uses: actions/checkout@v2 
 
     - name: Push Wiki Changes
-      # here action.yml script is run
       run: ./wiki/entrypoint.sh 
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
