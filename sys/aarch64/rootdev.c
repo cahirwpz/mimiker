@@ -234,7 +234,7 @@ static int rootdev_attach(device_t *bus) {
   device_add_memory(dev, 0, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE),
                     BCM2835_UART0_SIZE);
   device_add_irq(dev, 0, BCM2835_INT_UART0);
-  
+
   /* EMMC */
   dev = device_add_child(bus, 3);
   dev->devclass = &DEVCLASS(emmc);

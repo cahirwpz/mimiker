@@ -37,12 +37,12 @@ static const emmc_cmd_t sd_cmd_send_op_cond = {
 #define SD_ACMD41_RESP_SW18A_OFFSET 24
 #define SD_ACMD41_RESP_SW18A_WIDTH 1
 
-#define SD_ACMD41_RESP_SET_BUSY(r, b) \
-  EMMC_FMASK48_WR((r), SD_ACMD41_RESP_BUSY_OFFSET, \
-    SD_ACMD41_RESP_BUSY_WIDTH, (b))
-#define SD_ACMD41_RESP_READ_BUSY(r) \
+#define SD_ACMD41_RESP_SET_BUSY(r, b)                                          \
+  EMMC_FMASK48_WR((r), SD_ACMD41_RESP_BUSY_OFFSET, SD_ACMD41_RESP_BUSY_WIDTH,  \
+                  (b))
+#define SD_ACMD41_RESP_READ_BUSY(r)                                            \
   EMMC_FMASK48((r), SD_ACMD41_RESP_BUSY_OFFSET, SD_ACMD41_RESP_BUSY_WIDTH)
-#define SD_ACMD41_RESP_READ_CCS(r) \
+#define SD_ACMD41_RESP_READ_CCS(r)                                             \
   EMMC_FMASK48((r), SD_ACMD41_RESP_CCS_OFFSET, SD_ACMD41_RESP_CCS_WIDTH)
 
 typedef struct emmcblk_state {
@@ -89,18 +89,16 @@ static int sd_attach(device_t *dev) {
   /* Counter-intuitively, the busy bit is set ot 0 if the card is not ready */
   SD_ACMD41_RESP_SET_BUSY(&response, 0);
   while (trial_cnt & ~SD_ACMD41_RESP_READ_BUSY(&response)) {
-    emmc_send_cmd(dev, sd_cmd_send_op_cond, SD_ACMD41_SD2_0_POLLRDY_ARG1,
-                  0, &response);
+    emmc_send_cmd(dev, sd_cmd_send_op_cond, SD_ACMD41_SD2_0_POLLRDY_ARG1, 0,
+                  &response);
   }
   ccs = SD_ACMD41_RESP_READ_CCS(&response);
   klog("eMMC device detected as %s", ccs ? high_cap_str : standard_cap_str);
-  
 
   return 0;
 }
 
-__unused
-static char testbuf[] =
+__unused static char testbuf[] =
   "Man is a rope stretched between the animal and the Superman--a rope over an "
   "abyss.\n\nA dangerous crossing, a dangerous wayfaring, a dangerous "
   "looking-back, a dangerous trembling and halting.\n\nWhat is great in man is "
@@ -142,8 +140,6 @@ static char testbuf[] =
   "lightning, and succumb as heralds.\n\nLo, I am a herald of the lightning, "
   "and a heavy drop out of the cloud: the lightning, however, is the "
   "SUPERMAN.\n";
-
-
 
 /**
  * read a block from sd card and return the number of bytes read
@@ -189,7 +185,7 @@ int emmcblk_read_blk(device_t *dev, uint32_t lba, unsigned char *buffer,
   if (sup_ccs) {
     r = emmc_read(dev, buf, num * 512, NULL);
     if (r != EMMC_OK)
-        return 0;
+      return 0;
     if (emmc_wait(dev, EMMC_I_DATA_DONE))
       return 0;
   } else {
@@ -216,22 +212,22 @@ int emmcblk_write_blk(device_t *dev, uint32_t lba, const uint8_t *buffer,
                       uint32_t num) {
   assert(dev->driver == (driver_t *)&sd_block_device_driver);
   /* emmcblk_state_t *state = (emmcblk_state_t *)dev->state; */
-  
+
   if (((uint64_t)buffer & (uint64_t)0x3) != 0)
     return 0;
-  
+
   uint32_t *buf = (uint32_t *)buffer;
   emmc_result_t r;
   uint32_t c = 0;
 
   if (num < 1)
     return 0;
-  
+
   uint64_t sup_ccs = 0;
   uint64_t sup_blkcnt = 0;
   (void)emmc_get_prop(dev, EMMC_PROP_R_SUPP_CCS, &sup_ccs);
   (void)emmc_get_prop(dev, EMMC_PROP_R_SUPP_SET_BLKCNT, &sup_blkcnt);
-  
+
   if (sup_ccs) {
     if (num > 1 && sup_blkcnt) {
       r = emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, 0, NULL);
@@ -241,9 +237,9 @@ int emmcblk_write_blk(device_t *dev, uint32_t lba, const uint8_t *buffer,
     emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num);
     emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 512);
 
-    emmc_send_cmd(dev, num == 1 ?
-                  EMMC_CMD(WRITE_BLOCK) : EMMC_CMD(WRITE_MULTIPLE_BLOCKS),
-                  lba, 0, NULL);
+    emmc_send_cmd(
+      dev, num == 1 ? EMMC_CMD(WRITE_BLOCK) : EMMC_CMD(WRITE_MULTIPLE_BLOCKS),
+      lba, 0, NULL);
     if (emmc_wait(dev, EMMC_I_WRITE_READY))
       return 0;
   } else {
@@ -268,13 +264,11 @@ int emmcblk_write_blk(device_t *dev, uint32_t lba, const uint8_t *buffer,
   return 0;
 }
 
-static driver_t sd_block_device_driver = {
-  .desc = "e.MMC block device driver",
-  .size = sizeof(emmcblk_state_t),
-  .probe = sd_probe,
-  .attach = sd_attach,
-  .pass = SECOND_PASS,
-  .interfaces = {}
-};
+static driver_t sd_block_device_driver = {.desc = "e.MMC block device driver",
+                                          .size = sizeof(emmcblk_state_t),
+                                          .probe = sd_probe,
+                                          .attach = sd_attach,
+                                          .pass = SECOND_PASS,
+                                          .interfaces = {}};
 
 DEVCLASS_ENTRY(emmc, sd_block_device_driver);

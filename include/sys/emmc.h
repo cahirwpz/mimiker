@@ -49,8 +49,9 @@ typedef struct emmc_resp {
 /* Read a bitfield */
 #define EMMC_FMASK48(r, o, n) ((EMMC_RESPV48((r)) >> (o)) & ((1 << (n)) - 1))
 /* Write to a bitfield */
-#define EMMC_FMASK48_WR(r, o, n, v) EMMC_RESPV48((r)) = (EMMC_RESPV48((r)) & \
-  ~(((1 << (n)) - 1) << (o))) | (((v) & ((1 << (n)) - 1)) << (o))
+#define EMMC_FMASK48_WR(r, o, n, v)                                            \
+  EMMC_RESPV48((r)) = (EMMC_RESPV48((r)) & ~(((1 << (n)) - 1) << (o))) |       \
+                      (((v) & ((1 << (n)) - 1)) << (o))
 
 /* Accessors for fields in R1-R5 response.
  * End bit CRC7 and headers are ommited, because not every controller provides
@@ -125,14 +126,14 @@ typedef enum {
 typedef enum emmc_cmd_flags {
   EMMC_F_NULL = 0x0,
   /* At most one of these */
-  EMMC_F_SUSPEND = 0x01,     /* Suspend current data transfer */
-  EMMC_F_RESUME = 0x02,      /* Resume last data transfer */
-  EMMC_F_ABORT = 0x03,       /* Abort current data transfer */
+  EMMC_F_SUSPEND = 0x01, /* Suspend current data transfer */
+  EMMC_F_RESUME = 0x02,  /* Resume last data transfer */
+  EMMC_F_ABORT = 0x03,   /* Abort current data transfer */
   /* Any subset of these */
-  EMMC_F_DATA = 0x04,        /* Data transfer is expected */
-  EMMC_F_CHKIDX = 0x08,      /* Check commands index in response */
-  EMMC_F_CHKCRC = 0x10,      /* Check CRC in response */
-  EMMC_F_APP = 0x20,         /* App-specific command */
+  EMMC_F_DATA = 0x04,   /* Data transfer is expected */
+  EMMC_F_CHKIDX = 0x08, /* Check commands index in response */
+  EMMC_F_CHKCRC = 0x10, /* Check CRC in response */
+  EMMC_F_APP = 0x20,    /* App-specific command */
 } emmc_cmd_flags_t;
 /* Useful for drivers to build masks for app-flags */
 #define EMMC_APP_CMDTYPE 0x03
@@ -142,7 +143,6 @@ typedef struct emmc_cmd {
   emmc_cmd_flags_t flags;
   emmc_resp_type_t exp_resp;
 } emmc_cmd_t;
-
 
 typedef enum emmc_prop_id {
   EMMC_PROP_R_MODE,
@@ -299,6 +299,6 @@ static inline emmc_cmd_t emmc_r1b(emmc_cmd_t cmd) {
  * If device is expected to respond with R1b, wrap the command with
  * `emmc_r1b`, like `emmc_r1b(EMMC_CMD(SWITCH))1.*/
 extern const emmc_cmd_t default_emmc_commands[57];
-#define EMMC_CMD(idx) default_emmc_commands[EMMC_CMD_ ## idx]
+#define EMMC_CMD(idx) default_emmc_commands[EMMC_CMD_##idx]
 
 #endif
