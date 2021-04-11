@@ -18,7 +18,14 @@ static vm_page_t *anon_pager_fault(vm_object_t *obj, vm_offset_t offset) {
 }
 
 vm_pager_t pagers[] = {
-  [VM_PGR_DUMMY] = {.pgr_type = VM_PGR_DUMMY, .pgr_fault = dummy_pager_fault},
-  [VM_PGR_ANONYMOUS] = {.pgr_type = VM_PGR_ANONYMOUS,
-                        .pgr_fault = anon_pager_fault},
+  [VM_PGR_DUMMY] =
+    {
+      .pgr_type = VM_PGR_DUMMY,
+      .pgr_fault = dummy_pager_fault,
+    },
+  [VM_PGR_ANONYMOUS] =
+    {
+      .pgr_type = VM_PGR_ANONYMOUS,
+      .pgr_fault = anon_pager_fault,
+    },
 };
