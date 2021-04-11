@@ -40,8 +40,6 @@ static void uvm_anon_free(uvm_anon_t *anon) {
 }
 
 static void uvm_amap_free(uvm_amap_t *amap) {
-  mtx_unlock(&amap->am_lock);
-
   for (int i = 0; i < amap->am_nused; ++i) {
     int slot = amap->am_bckptr[i];
     uvm_anon_free(amap->am_anon[slot]);
@@ -58,6 +56,7 @@ void uvm_amap_drop(uvm_amap_t *amap) {
   assert(mtx_owned(&amap->am_lock));
   amap->am_ref--;
 
+  uvm_amap_unlock(amap);
   if (amap->am_ref == 0)
     uvm_amap_free(amap);
 }

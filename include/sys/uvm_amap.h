@@ -43,9 +43,16 @@ uvm_amap_t *uvm_amap_alloc(void);
 void uvm_amap_lock(uvm_amap_t *amap);
 /* Release amap->am_lock. */
 void uvm_amap_unlock(uvm_amap_t *amap);
-/* Increase reference counter. */
+
+/* Increase reference counter.
+ *
+ * Must be called with amap:am_lock held. */
 void uvm_amap_hold(uvm_amap_t *amap);
-/* Decrement reference counter and destroy amap if it has reached 0. */
+
+/* Decrement reference counter and destroy amap if it has reached 0.
+ *
+ * Must be called with amap:am_lock held.
+ * Releases amap:am_lock. */
 void uvm_amap_drop(uvm_amap_t *amap);
 /* Lookup an anon at offset in amap. */
 uvm_anon_t *uvm_amap_lookup(uvm_aref_t *aref, vaddr_t offset);
