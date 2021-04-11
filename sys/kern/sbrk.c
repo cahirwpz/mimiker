@@ -22,7 +22,7 @@ void sbrk_attach(proc_t *p) {
   /* Initially allocate one page for brk segment. */
   vaddr_t addr = SBRK_START;
   uvm_object_t *obj = uvm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *seg = vm_segment_alloc(
+  vm_map_entry_t *seg = vm_map_entry_alloc(
     obj, addr, addr + PAGESIZE, VM_PROT_READ | VM_PROT_WRITE, VM_SEG_PRIVATE);
   if (vm_map_insert(map, seg, VM_FIXED))
     panic("Could not allocate data segment!");
@@ -37,7 +37,7 @@ int sbrk_resize(proc_t *p, intptr_t increment, vaddr_t *newbrkp) {
 
   vaddr_t last_end = p->p_sbrk_end;
   vaddr_t new_end = p->p_sbrk_end + increment;
-  vaddr_t sbrk_start = vm_segment_start(p->p_sbrk);
+  vaddr_t sbrk_start = vm_map_entry_start(p->p_sbrk);
 
   if (new_end < sbrk_start)
     return EINVAL;
@@ -46,7 +46,7 @@ int sbrk_resize(proc_t *p, intptr_t increment, vaddr_t *newbrkp) {
   vaddr_t new_end_aligned =
     max(align(new_end, PAGESIZE), sbrk_start + PAGESIZE);
 
-  if (vm_segment_resize(p->p_uspace, p->p_sbrk, new_end_aligned))
+  if (vm_map_entry_resize(p->p_uspace, p->p_sbrk, new_end_aligned))
     return ENOMEM;
 
   p->p_sbrk_end = new_end;

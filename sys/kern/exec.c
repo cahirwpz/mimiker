@@ -252,7 +252,7 @@ static int open_executable(const char *path, vnode_t **vn_p, cred_t *cred) {
 
 typedef struct exec_vmspace {
   vm_map_t *uspace;
-  vm_segment_t *sbrk;
+  vm_map_entry_t *sbrk;
   vaddr_t sbrk_end;
 } exec_vmspace_t;
 
@@ -285,7 +285,7 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
   /* FTTB stack has to be executable since kernel copies sigcode onto stack
    * when context is set to signal handler code. This code is run when user
    * returns from signal handler. */
-  vm_segment_t *stack_seg = vm_segment_alloc(
+  vm_map_entry_t *stack_seg = vm_map_entry_alloc(
     stack_obj, USER_STACK_TOP - USER_STACK_SIZE, USER_STACK_TOP,
     VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC, VM_SEG_PRIVATE);
   int error = vm_map_insert(p->p_uspace, stack_seg, VM_FIXED);
