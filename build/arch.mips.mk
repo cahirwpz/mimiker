@@ -27,7 +27,6 @@ CLANG_ABIFLAGS += -msoft-float
 endif
 
 ifeq ($(KERNEL), 1)
-KCSAN ?= 0
 ifeq ($(KCSAN), 1)
   # Added to files that are sanitized
   CFLAGS_KCSAN = -fsanitize=thread \

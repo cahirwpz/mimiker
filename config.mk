@@ -19,3 +19,4 @@ CLANG ?= 0
 LOCKDEP ?= 0
 KASAN ?= 0
 KGPROF ?= 0
+KCSAN ?= 0

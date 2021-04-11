@@ -157,8 +157,12 @@ static inline void setup_watchpoint(uintptr_t addr, size_t size, bool is_read) {
 }
 
 static void kcsan_check(uintptr_t addr, size_t size, bool is_read) {
-  if (!kcsan_ready || cpu_intr_disabled() || preempt_disabled() ||
-      size > MAX_ENCODABLE_SIZE)
+  if (!kcsan_ready || cpu_intr_disabled() || preempt_disabled())
+    return;
+
+  /* For the sake of simplicity, we consider only accesses of size
+   * 1, 2, 4, 8. */
+  if (size > MAX_ENCODABLE_SIZE || !powerof2(size))
     return;
 
   if (addr < KERNEL_SPACE_BEGIN)
