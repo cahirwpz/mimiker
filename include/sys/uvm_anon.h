@@ -21,15 +21,22 @@ struct uvm_anon {
   vm_page_t *an_page; /* (@) Pointer to holded page */
 };
 
-/* Allocate new anon */
+/* Allocate new anon. */
 uvm_anon_t *uvm_anon_alloc(void);
-/* Acquire anon->an_lock */
+/* Acquire anon->an_lock. */
 void uvm_anon_lock(uvm_anon_t *anon);
-/* Release anon->an_lock */
+/* Release anon->an_lock. */
 void uvm_anon_unlock(uvm_anon_t *anon);
-/* Increase anon's reference counter */
+
+/* Increase anon's reference counter.
+ *
+ * Must be called with anon:an_lock held. */
 void uvm_anon_hold(uvm_anon_t *anon);
-/* Decrease anon's reference counter and destroy anon if it reached 0 */
+
+/* Decrease anon's reference counter and destroy anon if it reached 0.
+ *
+ * Must be called with anon:an_lock held.
+ * Releases anon:an_lock. */
 void uvm_anon_drop(uvm_anon_t *anon);
 
 #endif /* !_SYS_UVM_ANON_H_ */

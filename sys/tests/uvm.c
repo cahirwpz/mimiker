@@ -16,6 +16,7 @@ static int test_anon_simple(void) {
   uvm_anon_drop(anon);
   assert(anon->an_ref == 1);
 
+  uvm_anon_lock(anon);
   uvm_anon_drop(anon);
 
   return KTEST_SUCCESS;

@@ -28,7 +28,6 @@ void uvm_anon_hold(uvm_anon_t *anon) {
 }
 
 static void anon_free(uvm_anon_t *anon) {
-  mtx_unlock(&anon->an_lock);
   /* TODO(fz): free anon->an_page */
   pool_free(P_ANON, anon);
 }
@@ -37,6 +36,7 @@ void uvm_anon_drop(uvm_anon_t *anon) {
   assert(mtx_owned(&anon->an_lock));
   anon->an_ref--;
 
+  uvm_anon_unlock(anon);
   if (anon->an_ref == 0)
     anon_free(anon);
 }
