@@ -154,8 +154,8 @@ typedef struct usb_endpoint_descriptor {
  */
 
 typedef enum {
-  TF_STALLED = 1, /* STALL condition encountered */
-  TF_ERROR = 2,   /* errors other than STALL */
+  UEF_STALLED = 1, /* STALL condition encountered */
+  UEF_ERROR = 2,   /* errors other than STALL */
 } usb_error_flags_t;
 
 /* USB buffer used for USB transfers. */
