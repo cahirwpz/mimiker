@@ -3,12 +3,9 @@
 
 #include <sys/vm.h>
 
-typedef enum {
-  VM_DUMMY,
-  VM_ANONYMOUS,
-} vm_pgr_type_t;
+typedef enum { VM_PGR_DUMMY, VM_PGR_ANONYMOUS, VM_PGR_COUNT } vm_pgr_type_t;
 
-typedef vm_page_t *vm_pgr_fault_t(vm_object_t *obj, off_t offset);
+typedef vm_page_t *vm_pgr_fault_t(vm_object_t *obj, vm_offset_t offset);
 
 typedef struct vm_pager {
   vm_pgr_type_t pgr_type;

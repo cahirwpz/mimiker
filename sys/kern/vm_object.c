@@ -12,12 +12,14 @@ vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   vm_object_t *obj = pool_alloc(P_VMOBJ, M_ZERO);
   TAILQ_INIT(&obj->list);
   mtx_init(&obj->mtx, 0);
+  assert(type < VM_PGR_COUNT);
   obj->pager = &pagers[type];
   obj->ref_counter = 1;
   return obj;
 }
 
 vm_page_t *vm_object_find_page(vm_object_t *obj, vm_offset_t offset) {
+  assert(page_aligned_p(offset));
   SCOPED_MTX_LOCK(&obj->mtx);
 
   vm_page_t *pg;
@@ -30,7 +32,7 @@ vm_page_t *vm_object_find_page(vm_object_t *obj, vm_offset_t offset) {
 }
 
 void vm_object_add_page(vm_object_t *obj, vm_offset_t offset, vm_page_t *pg) {
-  assert(page_aligned_p(pg->offset));
+  assert(page_aligned_p(offset));
   /* For simplicity of implementation let's insert pages of size 1 only */
   assert(pg->size == 1);
 
@@ -92,8 +94,7 @@ void vm_object_free(vm_object_t *obj) {
 }
 
 vm_object_t *vm_object_clone(vm_object_t *obj) {
-  vm_object_t *new_obj = vm_object_alloc(VM_DUMMY);
-  new_obj->pager = obj->pager;
+  vm_object_t *new_obj = vm_object_alloc(obj->pager->pgr_type);
 
   WITH_MTX_LOCK (&obj->mtx) {
     vm_page_t *pg;
@@ -107,7 +108,7 @@ vm_object_t *vm_object_clone(vm_object_t *obj) {
   return new_obj;
 }
 
-void vm_map_object_dump(vm_object_t *obj) {
+void vm_object_dump(vm_object_t *obj) {
   SCOPED_MTX_LOCK(&obj->mtx);
 
   vm_page_t *pg;

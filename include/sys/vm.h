@@ -26,7 +26,7 @@ typedef enum {
   VM_PROT_NONE = 0,
   VM_PROT_READ = 1,  /* can read page */
   VM_PROT_WRITE = 2, /* can write page */
-  VM_PROT_EXEC = 4   /* can execute page */
+  VM_PROT_EXEC = 4,  /* can execute page */
 } vm_prot_t;
 
 #define VM_PROT_MASK (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC)

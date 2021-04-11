@@ -127,7 +127,6 @@ vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
 }
 
 static void vm_segment_free(vm_segment_t *seg) {
-  /* we assume no other segment points to this object */
   if (seg->object)
     vm_object_free(seg->object);
   pool_free(P_VMSEG, seg);
@@ -153,7 +152,7 @@ static void vm_map_insert_after(vm_map_t *map, vm_segment_t *after,
   map->nentries++;
 }
 
-void vm_segment_destroy(vm_map_t *map, vm_segment_t *seg) {
+static void vm_segment_destroy(vm_map_t *map, vm_segment_t *seg) {
   assert(mtx_owned(&map->mtx));
 
   TAILQ_REMOVE(&map->entries, seg, link);
@@ -186,7 +185,7 @@ void vm_segment_destroy_range(vm_map_t *map, vm_segment_t *seg, vaddr_t start,
     vm_segment_t *new_seg =
       vm_segment_alloc(obj, end, seg->end, seg->prot, seg->flags);
     seg->end = start;
-    vm_map_insert_after(map, new_seg, seg);
+    vm_map_insert_after(map, seg, new_seg);
   }
 }
 
@@ -302,9 +301,8 @@ int vm_map_alloc_segment(vm_map_t *map, vaddr_t addr, size_t length,
     return EINVAL;
 
   /* Create object with a pager that supplies cleared pages on page fault. */
-  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *seg =
-    vm_segment_alloc(obj, addr, addr + length, prot, VM_SEG_SHARED);
+  vm_object_t *obj = vm_object_alloc(VM_PGR_ANONYMOUS);
+  vm_segment_t *seg = vm_segment_alloc(obj, addr, addr + length, prot, 0);
 
   /* Given the hint try to insert the segment at given position or after it. */
   if (vm_map_insert(map, seg, flags)) {
@@ -329,7 +327,7 @@ int vm_segment_resize(vm_map_t *map, vm_segment_t *seg, vaddr_t new_end) {
       return ENOMEM;
   } else {
     /* Shrinking entry */
-    off_t offset = new_end - seg->start;
+    vm_offset_t offset = new_end - seg->start;
     size_t length = seg->end - new_end;
     pmap_remove(map->pmap, new_end, seg->end);
     vm_object_remove_pages(seg->object, offset, length);
@@ -356,7 +354,7 @@ void vm_map_dump(vm_map_t *map) {
          (it->prot & VM_PROT_READ) ? 'r' : '-',
          (it->prot & VM_PROT_WRITE) ? 'w' : '-',
          (it->prot & VM_PROT_EXEC) ? 'x' : '-');
-    vm_map_object_dump(it->object);
+    vm_object_dump(it->object);
   }
 }
 
@@ -382,8 +380,8 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
       }
       seg = vm_segment_alloc(obj, it->start, it->end, it->prot, it->flags);
       TAILQ_INSERT_TAIL(&new_map->entries, seg, link);
-      new_map->nentries++;
     }
+    new_map->nentries = map->nentries;
   }
 
   return new_map;

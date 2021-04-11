@@ -4,11 +4,11 @@
 #include <sys/vm_pager.h>
 #include <sys/vm_physmem.h>
 
-static vm_page_t *dummy_pager_fault(vm_object_t *obj, off_t offset) {
+static vm_page_t *dummy_pager_fault(vm_object_t *obj, vm_offset_t offset) {
   return NULL;
 }
 
-static vm_page_t *anon_pager_fault(vm_object_t *obj, off_t offset) {
+static vm_page_t *anon_pager_fault(vm_object_t *obj, vm_offset_t offset) {
   assert(obj != NULL);
 
   vm_page_t *new_pg = vm_page_alloc(1);
@@ -18,6 +18,7 @@ static vm_page_t *anon_pager_fault(vm_object_t *obj, off_t offset) {
 }
 
 vm_pager_t pagers[] = {
-  [VM_DUMMY] = {.pgr_fault = dummy_pager_fault},
-  [VM_ANONYMOUS] = {.pgr_fault = anon_pager_fault},
+  [VM_PGR_DUMMY] = {.pgr_type = VM_PGR_DUMMY, .pgr_fault = dummy_pager_fault},
+  [VM_PGR_ANONYMOUS] = {.pgr_type = VM_PGR_ANONYMOUS,
+                        .pgr_fault = anon_pager_fault},
 };

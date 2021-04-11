@@ -281,7 +281,7 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
    */
   *stack_top_p = USER_STACK_TOP;
 
-  vm_object_t *stack_obj = vm_object_alloc(VM_ANONYMOUS);
+  vm_object_t *stack_obj = vm_object_alloc(VM_PGR_ANONYMOUS);
   /* FTTB stack has to be executable since kernel copies sigcode onto stack
    * when context is set to signal handler code. This code is run when user
    * returns from signal handler. */
