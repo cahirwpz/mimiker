@@ -11,28 +11,33 @@
 typedef uint8_t (*usbhc_number_of_ports_t)(device_t *dev);
 typedef bool (*usbhc_device_present_t)(device_t *dev, uint8_t port);
 typedef void (*usbhc_reset_port_t)(device_t *dev, uint8_t port);
-typedef void (*usbhc_read_t)(device_t *dev, uint16_t size, uint16_t mps,
-                             uint8_t endp, uint8_t addr, uint8_t interval,
-                             usb_buf_t *usbb);
-typedef void (*usbhc_write_t)(device_t *dev, uint16_t size, uint16_t mps,
-                              uint8_t endp, uint8_t addr, uint8_t interval,
-                              usb_buf_t *usbb);
-typedef void (*usbhc_control_read_t)(device_t *dev, uint16_t size, uint16_t mps,
-                                     uint8_t addr, usb_buf_t *usbb,
-                                     usb_device_request_t *req);
-typedef void (*usbhc_control_write_t)(device_t *dev, uint16_t size,
-                                      uint16_t mps, uint8_t addr,
-                                      usb_buf_t *usbb,
-                                      usb_device_request_t *req);
+typedef void (*usbhc_control_in_t)(device_t *dev, uint16_t size, uint16_t mps,
+                                   uint8_t addr, usb_buf_t *usbb,
+                                   usb_device_request_t *req);
+typedef void (*usbhc_control_out_t)(device_t *dev, uint16_t size, uint16_t mps,
+                                    uint8_t addr, usb_buf_t *usbb,
+                                    usb_device_request_t *req);
+typedef void (*usbhc_intr_in_t)(device_t *dev, uint16_t size, uint16_t mps,
+                                uint8_t endp, uint8_t addr, uint8_t interval,
+                                usb_buf_t *usbb);
+typedef void (*usbhc_intr_out_t)(device_t *dev, uint16_t size, uint16_t mps,
+                                 uint8_t endp, uint8_t addr, uint8_t interval,
+                                 usb_buf_t *usbb);
+typedef void (*usbhc_bulk_in_t)(device_t *dev, uint16_t size, uint16_t mps,
+                                uint8_t endp, uint8_t addr, usb_buf_t *usbb);
+typedef void (*usbhc_bulk_out_t)(device_t *dev, uint16_t size, uint16_t mps,
+                                 uint8_t endp, uint8_t addr, usb_buf_t *usbb);
 
 typedef struct usbhc_methods {
   usbhc_number_of_ports_t number_of_ports;
   usbhc_device_present_t device_present;
   usbhc_reset_port_t reset_port;
-  usbhc_read_t read;
-  usbhc_write_t write;
-  usbhc_control_read_t control_read;
-  usbhc_control_write_t control_write;
+  usbhc_control_in_t control_in;
+  usbhc_control_out_t control_out;
+  usbhc_intr_in_t intr_in;
+  usbhc_intr_out_t intr_out;
+  usbhc_bulk_in_t bulk_in;
+  usbhc_bulk_out_t bulk_out;
 } usbhc_methods_t;
 
 static inline usbhc_methods_t *usbhc_methods(device_t *dev) {
@@ -79,46 +84,6 @@ static inline void usbhc_reset_port(device_t *dev, uint8_t port) {
   usbhc_methods(dev)->reset_port(dev, port);
 }
 
-/*! \brief Schedules an input transfer between the host and the specified
- * USB device.
- *
- * This is an asynchronic function.
- *
- * \param dev USB bus device
- * \param size transfer size
- * \param mps max packet size handled by the device
- * \param endp endpoint address within the device
- * \param addr USB device address on the USB bus
- * \param interval when to perform the transfer
- * \param usbb USB buffer used for the transfer
- */
-static void usbhc_read(device_t *dev, uint16_t size, uint16_t mps, uint8_t endp,
-                       uint8_t addr, uint8_t interval, usb_buf_t *usbb) {
-  device_t *idev = USBHC_METHOD_PROVIDER(dev, read);
-  usbhc_methods(idev->parent)->read(dev, size, mps, endp, addr, interval, usbb);
-}
-
-/*! \brief Schedules an output transfer between the host and the specified
- * USB device.
- *
- * This is an asynchronic function.
- *
- * \param dev USB bus device
- * \param size transfer size
- * \param mps max packet size handled by the device
- * \param endp endpoint address within the device
- * \param addr USB device address on the USB bus
- * \param interval when to perform the transfer
- * \param usbb USB buffer used for the transfer
- */
-static void usbhc_write(device_t *dev, uint16_t size, uint16_t mps,
-                        uint8_t endp, uint8_t addr, uint8_t interval,
-                        usb_buf_t *usbb) {
-  device_t *idev = USBHC_METHOD_PROVIDER(dev, read);
-  usbhc_methods(idev->parent)
-    ->write(dev, size, mps, endp, addr, interval, usbb);
-}
-
 /*! \brief Schedules a control input transfer between the host and
  * the specified USB device.
  *
@@ -131,12 +96,11 @@ static void usbhc_write(device_t *dev, uint16_t size, uint16_t mps,
  * \param usbb USB buffer used for the transfer
  * \param req USB device request
  */
-static void usbhc_control_read(device_t *dev, uint16_t size, uint16_t mps,
-                               uint8_t addr, usb_buf_t *usbb,
-                               usb_device_request_t *req) {
+static void usbhc_control_in(device_t *dev, uint16_t size, uint16_t mps,
+                             uint8_t addr, usb_buf_t *usbb,
+                             usb_device_request_t *req) {
   device_t *idev = USBHC_METHOD_PROVIDER(dev, read);
-  usbhc_methods(idev->parent)
-    ->control_read(dev, size, mps, endp, addr, interval, usbb);
+  usbhc_methods(idev->parent)->control_in(dev, size, mps, addr, usbb, req);
 }
 
 /*! \brief Schedules a control output transfer between the host and
@@ -151,12 +115,89 @@ static void usbhc_control_read(device_t *dev, uint16_t size, uint16_t mps,
  * \param usbb USB buffer used for the transfer
  * \param req USB device request
  */
-static void usbhc_control_write(device_t *dev, uint16_t size, uint16_t mps,
-                                uint8_t addr, usb_buf_t *usbb,
-                                usb_device_request_t *req) {
+static void usbhc_control_out(device_t *dev, uint16_t size, uint16_t mps,
+                              uint8_t addr, usb_buf_t *usbb,
+                              usb_device_request_t *req) {
+  device_t *idev = USBHC_METHOD_PROVIDER(dev, read);
+  usbhc_methods(idev->parent)->control_out(dev, size, mps, addr, usbb, req);
+}
+
+/*! \brief Schedules an input interrupt transfer between the host
+ * and the specified USB device.
+ *
+ * This is an asynchronic function.
+ *
+ * \param dev USB bus device
+ * \param size transfer size
+ * \param mps max packet size handled by the device
+ * \param endp endpoint address within the device
+ * \param addr USB device address on the USB bus
+ * \param interval when to perform the transfer
+ * \param usbb USB buffer used for the transfer
+ */
+static void usbhc_intr_in(device_t *dev, uint16_t size, uint16_t mps,
+                          uint8_t endp, uint8_t addr, uint8_t interval,
+                          usb_buf_t *usbb) {
   device_t *idev = USBHC_METHOD_PROVIDER(dev, read);
   usbhc_methods(idev->parent)
-    ->control_write(dev, size, mps, endp, addr, interval, usbb);
+    ->intr_in(dev, size, mps, endp, addr, interval, usbb);
+}
+
+/*! \brief Schedules an output interrupt transfer between the host
+ * and the specified USB device.
+ *
+ * This is an asynchronic function.
+ *
+ * \param dev USB bus device
+ * \param size transfer size
+ * \param mps max packet size handled by the device
+ * \param endp endpoint address within the device
+ * \param addr USB device address on the USB bus
+ * \param interval when to perform the transfer
+ * \param usbb USB buffer used for the transfer
+ */
+static void usbhc_intr_out(device_t *dev, uint16_t size, uint16_t mps,
+                           uint8_t endp, uint8_t addr, uint8_t interval,
+                           usb_buf_t *usbb) {
+  device_t *idev = USBHC_METHOD_PROVIDER(dev, read);
+  usbhc_methods(idev->parent)
+    ->intr_out(dev, size, mps, endp, addr, interval, usbb);
+}
+
+/*! \brief Schedules an input bulk transfer between the host
+ * and the specified USB device.
+ *
+ * This is an asynchronic function.
+ *
+ * \param dev USB bus device
+ * \param size transfer size
+ * \param mps max packet size handled by the device
+ * \param endp endpoint address within the device
+ * \param addr USB device address on the USB bus
+ * \param usbb USB buffer used for the transfer
+ */
+static void usbhc_bulk_in(device_t *dev, uint16_t size, uint16_t mps,
+                          uint8_t endp, uint8_t addr, usb_buf_t *usbb) {
+  device_t *idev = USBHC_METHOD_PROVIDER(dev, read);
+  usbhc_methods(idev->parent)->bulk_in(dev, size, mps, endp, addr, usbb);
+}
+
+/*! \brief Schedules an output bulk transfer between the host
+ * and the specified USB device.
+ *
+ * This is an asynchronic function.
+ *
+ * \param dev USB bus device
+ * \param size transfer size
+ * \param mps max packet size handled by the device
+ * \param endp endpoint address within the device
+ * \param addr USB device address on the USB bus
+ * \param usbb USB buffer used for the transfer
+ */
+static void usbhc_bulk_out(device_t *dev, uint16_t size, uint16_t mps,
+                           uint8_t endp, uint8_t addr, usb_buf_t *usbb) {
+  device_t *idev = USBHC_METHOD_PROVIDER(dev, read);
+  usbhc_methods(idev->parent)->bulk_out(dev, size, mps, endp, addr, usbb);
 }
 
 #endif /* _DEV_USBHC_H_ */
