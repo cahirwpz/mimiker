@@ -287,7 +287,7 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
    * returns from signal handler. */
   vm_map_entry_t *stack_seg = vm_map_entry_alloc(
     stack_obj, USER_STACK_TOP - USER_STACK_SIZE, USER_STACK_TOP,
-    VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC, VM_SEG_PRIVATE);
+    VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC, VM_ENT_PRIVATE);
   int error = vm_map_insert(p->p_uspace, stack_seg, VM_FIXED);
   assert(error == 0);
 

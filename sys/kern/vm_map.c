@@ -18,7 +18,7 @@ struct vm_map_entry {
   uvm_object_t *object;
   /* TODO(fz): add aref */
   vm_prot_t prot;
-  vm_seg_flags_t flags;
+  vm_entry_flags_t flags;
   vaddr_t start;
   vaddr_t end;
 };
@@ -116,7 +116,7 @@ vm_map_t *vm_map_new(void) {
 
 vm_map_entry_t *vm_map_entry_alloc(uvm_object_t *obj, vaddr_t start,
                                    vaddr_t end, vm_prot_t prot,
-                                   vm_seg_flags_t flags) {
+                                   vm_entry_flags_t flags) {
   assert(page_aligned_p(start) && page_aligned_p(end));
 
   vm_map_entry_t *seg = pool_alloc(P_VMSEG, M_ZERO);
@@ -265,7 +265,7 @@ int vm_map_insert(vm_map_t *map, vm_map_entry_t *seg, vm_flags_t flags) {
   vm_map_entry_t *after;
   vaddr_t start = seg->start;
   size_t length = seg->end - seg->start;
-  vm_seg_flags_t seg_flags = 0;
+  vm_entry_flags_t entry_flags = 0;
 
   int error = vm_map_findspace_nolock(map, &start, length, &after);
   if (error)
@@ -275,11 +275,11 @@ int vm_map_insert(vm_map_t *map, vm_map_entry_t *seg, vm_flags_t flags) {
 
   assert((flags & (VM_SHARED | VM_PRIVATE)) != (VM_SHARED | VM_PRIVATE));
 
-  seg_flags |= (flags & VM_SHARED) ? VM_SEG_SHARED : VM_SEG_PRIVATE;
+  entry_flags |= (flags & VM_SHARED) ? VM_ENT_SHARED : VM_ENT_PRIVATE;
 
   seg->start = start;
   seg->end = start + length;
-  seg->flags = seg_flags;
+  seg->flags = entry_flags;
 
   vm_map_insert_after(map, after, seg);
   return 0;
@@ -305,7 +305,7 @@ int vm_map_alloc_entry(vm_map_t *map, vaddr_t addr, size_t length,
   /* Create object with a pager that supplies cleared pages on page fault. */
   uvm_object_t *obj = uvm_object_alloc(VM_ANONYMOUS);
   vm_map_entry_t *seg =
-    vm_map_entry_alloc(obj, addr, addr + length, prot, VM_SEG_SHARED);
+    vm_map_entry_alloc(obj, addr, addr + length, prot, VM_ENT_SHARED);
 
   /* Given the hint try to insert the segment at given position or after it. */
   if (vm_map_insert(map, seg, flags)) {
@@ -373,7 +373,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
       uvm_object_t *obj;
       vm_map_entry_t *seg;
 
-      if (it->flags & VM_SEG_SHARED) {
+      if (it->flags & VM_ENT_SHARED) {
         uvm_object_hold(it->object);
         obj = it->object;
       } else {

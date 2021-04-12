@@ -107,7 +107,7 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
   uvm_object_t *obj = uvm_object_alloc(VM_ANONYMOUS);
   vm_map_entry_t *seg = vm_map_entry_alloc(
     obj, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC,
-    VM_SEG_PRIVATE);
+    VM_ENT_PRIVATE);
   error = vm_map_insert(p->p_uspace, seg, VM_FIXED);
   /* TODO: What if segments overlap? */
   assert(error == 0);
