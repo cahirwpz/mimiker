@@ -134,7 +134,7 @@ static void vm_map_entry_free(vm_map_entry_t *seg) {
   pool_free(P_VMSEG, seg);
 }
 
-vm_map_entry_t *vm_map_find_segment(vm_map_t *map, vaddr_t vaddr) {
+vm_map_entry_t *vm_map_find_entry(vm_map_t *map, vaddr_t vaddr) {
   assert(mtx_owned(&map->mtx));
 
   vm_map_entry_t *it;
@@ -393,7 +393,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
 int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   SCOPED_VM_MAP_LOCK(map);
 
-  vm_map_entry_t *seg = vm_map_find_segment(map, fault_addr);
+  vm_map_entry_t *seg = vm_map_find_entry(map, fault_addr);
 
   if (!seg) {
     klog("Tried to access unmapped memory region: 0x%08lx!", fault_addr);

@@ -48,7 +48,7 @@ void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *seg);
 void vm_map_entry_destroy_range(vm_map_t *map, vm_map_entry_t *seg,
                                 vaddr_t start, vaddr_t end);
 
-vm_map_entry_t *vm_map_find_segment(vm_map_t *vm_map, vaddr_t vaddr);
+vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vaddr_t vaddr);
 
 void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot);
 

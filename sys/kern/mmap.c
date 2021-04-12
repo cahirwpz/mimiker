@@ -70,7 +70,7 @@ int do_munmap(vaddr_t addr, size_t length) {
 
   WITH_VM_MAP_LOCK (uspace) {
     while (addr < right_boundary) {
-      vm_map_entry_t *seg = vm_map_find_segment(uspace, addr);
+      vm_map_entry_t *seg = vm_map_find_entry(uspace, addr);
       if (!seg)
         return EINVAL;
 
