@@ -28,6 +28,6 @@ void uvm_object_add_page(uvm_object_t *obj, vm_offset_t off, vm_page_t *pg);
 void uvm_object_remove_pages(uvm_object_t *obj, vm_offset_t off, size_t len);
 vm_page_t *uvm_object_find_page(uvm_object_t *obj, vm_offset_t off);
 uvm_object_t *uvm_object_clone(uvm_object_t *obj);
-void vm_map_object_dump(uvm_object_t *obj);
+void uvm_object_dump(uvm_object_t *obj);
 
 #endif /* !_SYS_VM_OBJECT_H_ */

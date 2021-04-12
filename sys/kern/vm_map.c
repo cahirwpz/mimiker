@@ -129,7 +129,6 @@ vm_map_entry_t *vm_map_entry_alloc(uvm_object_t *obj, vaddr_t start,
 }
 
 static void vm_map_entry_free(vm_map_entry_t *seg) {
-  /* we assume no other segment points to this object */
   if (seg->object)
     uvm_object_drop(seg->object);
   pool_free(P_VMSEG, seg);
@@ -358,7 +357,7 @@ void vm_map_dump(vm_map_t *map) {
          (it->prot & VM_PROT_READ) ? 'r' : '-',
          (it->prot & VM_PROT_WRITE) ? 'w' : '-',
          (it->prot & VM_PROT_EXEC) ? 'x' : '-');
-    vm_map_object_dump(it->object);
+    uvm_object_dump(it->object);
   }
 }
 

@@ -114,7 +114,7 @@ uvm_object_t *uvm_object_clone(uvm_object_t *obj) {
   return new_obj;
 }
 
-void vm_map_object_dump(uvm_object_t *obj) {
+void uvm_object_dump(uvm_object_t *obj) {
   SCOPED_MTX_LOCK(&obj->uo_lock);
 
   vm_page_t *pg;
