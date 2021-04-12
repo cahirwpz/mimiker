@@ -72,6 +72,22 @@
 
 static SPIN_DEFINE(mcount_lock, 0);
 
+/*
+ * The function is updating an array of linked lists, which stores 
+ * how many times a functions have been called by another function.
+ * 
+ *  froms[X] - an array of linked list, index X encodes a function, the kept
+ *             value is an index of tos entry (the first node in the list,
+ *             0 - means an empty list), the list is sorted by most recently
+ *             used function
+ * 
+ *  tos[N]   - a node, which let us know how many times function with address selfpc 
+ *             have been called by X, and stores index of the next element in the list
+ *             (0 - means the end of the list)
+ * 
+ *  tos[0] + 1  is the smallest index of an unused tos entry
+ */
+
 void __cyg_profile_func_enter(void *from, void *self) {
   u_long frompc = (u_long)from, selfpc = (u_long)self;
   u_short *frompcindex;
