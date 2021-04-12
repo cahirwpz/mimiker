@@ -46,7 +46,7 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
   while (n > 0 && uio->uio_resid > 0) {
     /* Take the first io vector */
     iovec_t *iov = uio->uio_iov;
-    size_t cnt = iov->iov_len;
+    size_t cnt = iov->iov_len - uio->uio_iovoff;
 
     if (cnt == 0) {
       /* If no data left to move in this vector, proceed to the next io vector,
@@ -55,22 +55,22 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
         break;
       uio->uio_iov++;
       uio->uio_iovcnt--;
+      uio->uio_iovoff = 0;
       continue;
     }
     if (cnt > n)
       cnt = n;
+    char *base = iov->iov_base + uio->uio_iovoff;
     /* Perform copyout/copyin. */
     if (uio->uio_op == UIO_READ)
-      error = copyout_vmspace(uio->uio_vmspace, cbuf, iov->iov_base, cnt);
+      error = copyout_vmspace(uio->uio_vmspace, cbuf, base, cnt);
     else
-      error = copyin_vmspace(uio->uio_vmspace, iov->iov_base, cbuf, cnt);
+      error = copyin_vmspace(uio->uio_vmspace, base, cbuf, cnt);
     /* Exit immediately if there was a problem with moving data */
     if (error)
       break;
 
-    /* Store progress on current io vector */
-    iov->iov_base = (char *)iov->iov_base + cnt;
-    iov->iov_len -= cnt;
+    uio->uio_iovoff += cnt;
     uio->uio_resid -= cnt;
     uio->uio_offset += cnt;
     cbuf += cnt;
@@ -79,6 +79,21 @@ int uiomove(void *buf, size_t n, uio_t *uio) {
 
   /* Invert error sign, because copy routines use negative error codes */
   return error;
+}
+
+void uio_save(const uio_t *uio, uiostate_t *save) {
+  save->us_resid = uio->uio_resid;
+  save->us_iovcnt = uio->uio_iovcnt;
+  save->us_iovoff = uio->uio_iovoff;
+}
+
+void uio_restore(uio_t *uio, const uiostate_t *save) {
+  size_t nbytes = save->us_resid - uio->uio_resid;
+  uio->uio_resid += nbytes;
+  uio->uio_offset -= nbytes;
+  uio->uio_iovoff = save->us_iovoff;
+  uio->uio_iov -= save->us_iovcnt - uio->uio_iovcnt;
+  uio->uio_iovcnt = save->us_iovcnt;
 }
 
 int uiomove_frombuf(void *buf, size_t buflen, struct uio *uio) {

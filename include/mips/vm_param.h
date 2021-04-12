@@ -15,4 +15,7 @@
 
 #define VM_PHYSSEG_NMAX 16
 
+#define KSTACK_PAGES 1
+#define KSTACK_SIZE (KSTACK_PAGES * PAGESIZE)
+
 #endif /* !_MIPS_VM_PARAM_H_ */

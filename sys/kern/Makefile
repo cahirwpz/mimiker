@@ -29,6 +29,7 @@ SOURCES = \
 	file_syscalls.c \
 	filedesc.c \
 	fork.c \
+	kgprof.c \
 	initrd.c \
 	interrupt.c \
 	isa.c \
@@ -51,7 +52,6 @@ SOURCES = \
 	ringbuf.c \
 	rman.c \
 	runq.c \
-	rwlock.c \
 	sbrk.c \
 	sched.c \
 	signal.c \
