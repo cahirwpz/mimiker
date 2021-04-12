@@ -26,7 +26,7 @@ GCC_ABIFLAGS += -msoft-float
 CLANG_ABIFLAGS += -msoft-float
 ifeq ($(KGPROF), 1)
   CFLAGS_KGPROF = -finstrument-functions \
-                  -finstrument-functions-exclude-file-list=spinlock.c,trap.c \
-                  -finstrument-functions-exclude-function-list=intr_disable,intr_enable,thread_self,intr_root_handler,user_mode_p
+                  -finstrument-functions-exclude-file-list=spinlock.c  \
+                  -finstrument-functions-exclude-function-list=intr_disable,intr_enable,thread_self,intr_root_handler,user_mode_p,exc_code,mips_exc_handler
 endif
 endif
