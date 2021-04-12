@@ -2,11 +2,12 @@
 #include <sys/context.h>
 #include <sys/gmon.h>
 #include <sys/kmem.h>
+#include <sys/timer.h>
 #include <sys/thread.h>
 #include <machine/vm_param.h>
 
 gmonparam_t _gmonparam = {.state = GMON_PROF_NOT_INIT};
-static gmonhdr_t _gmonhdr = {.profrate = CLK_TCK};
+static gmonhdr_t _gmonhdr;
 
 /* The macros description are provided in gmon.h */
 void init_kgprof(void) {
@@ -62,4 +63,12 @@ void kgprof_tick(void) {
       g->kcount[instr]++;
     }
   }
+}
+
+void set_kgprof_profrate(int profrate) {
+  _gmonhdr.profrate = profrate;
+}
+
+timer_t *get_prof_timer(void) {
+  return tm_reserve(NULL, TMF_PERIODIC);
 }
