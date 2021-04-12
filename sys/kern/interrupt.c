@@ -166,7 +166,7 @@ void intr_root_claim(intr_root_filter_t filter, device_t *dev, void *arg) {
   ir_arg = arg;
 }
 
-void intr_root_handler(ctx_t *ctx) {
+__no_instrument_function void intr_root_handler(ctx_t *ctx) {
   thread_t *td = thread_self();
 
   assert(cpu_intr_disabled());

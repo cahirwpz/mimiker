@@ -88,6 +88,6 @@ void intr_event_run_handlers(intr_event_t *ie);
 typedef void (*intr_root_filter_t)(ctx_t *ctx, device_t *dev, void *arg);
 
 void intr_root_claim(intr_root_filter_t filter, device_t *dev, void *arg);
-void intr_root_handler(ctx_t *ctx);
+void intr_root_handler(ctx_t *ctx) __no_instrument_function;
 
 #endif /* !_SYS_INTERRUPT_H_ */
