@@ -137,7 +137,7 @@ void init_vm_page(void) {
          * seg->end = 2^(k+1) * A + 2^k + B
          *
          * Let's just restrict to B (this ensures that we won't get beyond the
-         * segment while page->paddr * PAGESIZE still divides page->paddr). */
+         * segment while page->size * PAGESIZE still divides page->paddr). */
         size = pg_compute_size(seg->end ^ pa);
       }
       page->paddr = pa;
