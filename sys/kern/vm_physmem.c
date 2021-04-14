@@ -125,10 +125,7 @@ void init_vm_page(void) {
   bzero(pages, npages * sizeof(vm_page_t));
 
   TAILQ_FOREACH (seg, &seglist, seglink) {
-    /* Configure all pages in the segment. Please note that we need to go
-     * through all pages, and while some sizes may cause overlap,
-     * we will only include valid, no overlapping, sector-wide pages
-     * on the free lists.*/
+    /* Configure all pages in the segment. */
     for (unsigned i = 0; i < seg->npages; i++) {
       vm_page_t *page = &pages[i];
       paddr_t pa = seg->start + i * PAGESIZE;
