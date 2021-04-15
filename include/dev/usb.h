@@ -164,6 +164,7 @@ typedef struct usb_buf {
   condvar_t cv;            /* wait for the transfer to complete */
   spin_t lock;             /* buffer guard */
   usb_error_flags_t flags; /* errors encountered during transfer */
+  uint16_t transfer_size;  /* transfer size */
 } usb_buf_t;
 
 #endif /* _DEV_USB_H_ */
