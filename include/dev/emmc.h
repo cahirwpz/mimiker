@@ -1,6 +1,11 @@
 #ifndef _SYS_EMMC_H_
 #define _SYS_EMMC_H_
 
+/* This interface is based on a JESD86-A441 specification, which can be
+ * obtained for for free from JEDEC standards and documents archive at:
+ * https://www.jedec.org/document_search?search_api_views_fulltext=jesd84-a441
+ */
+
 #include <inttypes.h>
 #include <sys/mimiker.h>
 #include <sys/device.h>
@@ -8,7 +13,7 @@
 #include <stddef.h>
 
 /* These operation modes are described in JESD86-A441, with a brief summary
-   at page 27 */
+ * at page 27 */
 typedef enum emmc_op_mode {
   EMMCMODE_BOOT,
   EMMCMODE_CARD_ID,
@@ -17,18 +22,7 @@ typedef enum emmc_op_mode {
   EMMCMODE_INA,
 } emmc_op_mode_t;
 
-typedef enum emmc_result {
-  EMMC_OK,
-  EMMC_ERR_IERR,
-  EMMC_ERR_TIMEOUT,
-  EMMC_ERR_NOT_RESPONDING,
-  EMMC_ERR_INTR,
-  EMMC_ERR_BUSY,
-} emmc_result_t;
-
-/* Response types R1-R5 are described in JESD86-A441, page 94.
- * Response R1 and R1b are normally both represented as `EMMCRESP_R1`,
- * because they are structurally identical. */
+/* Response types R1-R5 are described in JESD86-A441, page 94. */
 typedef enum emmc_resp_type {
   EMMCRESP_NONE,
   EMMCRESP_R1,
@@ -135,8 +129,10 @@ typedef enum emmc_cmd_flags {
   EMMC_F_CHKCRC = 0x10, /* Check CRC in response */
   EMMC_F_APP = 0x20,    /* App-specific command */
 } emmc_cmd_flags_t;
-/* Useful for drivers to build masks for app-flags */
-#define EMMC_APP_CMDTYPE 0x03
+
+static inline emmc_cmd_flags_t emmc_cmdtype(emmc_cmd_flags_t flags) {
+  return flags & (EMMC_F_SUSPEND | EMMC_F_RESUME | EMMC_F_ABORT);
+}
 
 typedef struct emmc_cmd {
   emmc_cmd_idx_t cmd_idx;
@@ -144,31 +140,42 @@ typedef struct emmc_cmd {
   emmc_resp_type_t exp_resp;
 } emmc_cmd_t;
 
+#define EMMC_VOLTAGE_WINDOW_LOW 0x01 /* 1.1V - 1.3V */
+#define EMMC_VOLTAGE_WINDOW_MID 0x02 /* 1.65V - 1.95V */
+#define EMMC_VOLTAGE_WINDOW_HI 0x04  /* 2.7V -3.6V */
+
+/* R stands for "read"
+ * W stands for "write" */
 typedef enum emmc_prop_id {
-  EMMC_PROP_R_MODE,
-  EMMC_PROP_RW_BLKSIZE,
-  EMMC_PROP_RW_BLKCNT,
-  EMMC_PROP_R_MAXBLKSIZE,
-  EMMC_PROP_R_MAXBLKCNT,
-  EMMC_PROP_R_INT_FLAGS,
-  EMMC_PROP_R_SUPP_CCS,
-  EMMC_PROP_R_SUPP_SET_BLKCNT,
-  EMMC_PROP_R_VOLTAGE_SUPPLY,
-  EMMC_PROP_RW_RESP_LOW,
-  EMMC_PROP_RW_RESP_HI,
+  EMMC_PROP_RW_BLKSIZE,       /* Transfer block size */
+  EMMC_PROP_RW_BLKCNT,        /* Transfer block count */
+  EMMC_PROP_R_MAXBLKSIZE,     /* The biggest supported size of a block */
+  EMMC_PROP_R_MAXBLKCNT,      /* The biggest supported number of blocks per
+                               * transfer */
+  EMMC_PROP_R_VOLTAGE_SUPPLY, /* A subset of EMMC_VOLTAGE_WINDOW_* flags,
+                               * describing voltage windows in which the
+                               * controller is able to operate */
+  EMMC_PROP_RW_RESP_LOW,      /* Low 64 bits of response register(s) */
+  EMMC_PROP_RW_RESP_HI,       /* High 64 bits of response register(s) */
 } emmc_prop_id_t;
 typedef uint64_t emmc_prop_val_t;
 
+typedef struct emmc_device {
+  uint64_t cid[2];
+  uint64_t csd[2];
+  uint32_t rca;
+  uint32_t hostver;
+  uint32_t appflags;
+} emmc_device_t;
+
 /* For a detailed explanation on semantics refer to the comments above
  * respective wrappers */
-typedef emmc_result_t (*emmc_send_cmd_t)(device_t *dev, emmc_cmd_t cmd,
-                                         uint32_t arg1, uint32_t arg2,
-                                         emmc_resp_t *res);
+typedef int (*emmc_send_cmd_t)(device_t *dev, emmc_cmd_t cmd, uint32_t arg1,
+                               uint32_t arg2, emmc_resp_t *res);
 typedef int (*emmc_wait_t)(device_t *dev, emmc_wait_flags_t wflags);
-typedef emmc_result_t (*emmc_read_dat_t)(device_t *dev, void *buf, size_t len,
-                                         size_t *read);
-typedef emmc_result_t (*emmc_write_dat_t)(device_t *dev, const void *buf,
-                                          size_t len, size_t *wrote);
+typedef int (*emmc_read_dat_t)(device_t *dev, void *buf, size_t len, size_t *n);
+typedef int (*emmc_write_dat_t)(device_t *dev, const void *buf, size_t len,
+                                size_t *n);
 typedef int (*emmc_get_prop_t)(device_t *dev, emmc_prop_id_t id,
                                emmc_prop_val_t *val);
 typedef int (*emmc_set_prop_t)(device_t *dev, emmc_prop_id_t id,
@@ -182,14 +189,6 @@ typedef struct emmc_methods {
   emmc_get_prop_t get_prop;
   emmc_set_prop_t set_prop;
 } emmc_methods_t;
-
-typedef struct emmc_device {
-  uint64_t cid[2];
-  uint64_t csd[2];
-  uint32_t rca;
-  uint32_t hostver;
-  uint32_t appflags;
-} emmc_device_t;
 
 static inline emmc_methods_t *emmc_methods(device_t *dev) {
   return (emmc_methods_t *)dev->driver->interfaces[DIF_EMMC];
@@ -206,11 +205,10 @@ static inline emmc_methods_t *emmc_methods(device_t *dev) {
  * \param arg1 first argument
  * \param arg2 second argument
  * \param resp pointer for response data to be written to or NULL
- * \return EMMC_OK on success
+ * \return EMMC_OK on success EBUSY if device is busy, ETIME on timeout.
  */
-static inline emmc_result_t emmc_send_cmd(device_t *dev, emmc_cmd_t cmd,
-                                          uint32_t arg1, uint32_t arg2,
-                                          emmc_resp_t *resp) {
+static inline int emmc_send_cmd(device_t *dev, emmc_cmd_t cmd, uint32_t arg1,
+                                uint32_t arg2, emmc_resp_t *resp) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, send_cmd);
   return emmc_methods(idev->parent)->send_cmd(dev, cmd, arg1, arg2, resp);
 }
@@ -219,6 +217,7 @@ static inline emmc_result_t emmc_send_cmd(device_t *dev, emmc_cmd_t cmd,
  * \brief Wait until e.MMC signals
  * \param dev e.MMC controller device
  * \param wflags conditions to be met
+ * \return 0 on success, ETIME on timeout
  */
 static inline int emmc_wait(device_t *dev, emmc_wait_flags_t wflags) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, wait);
@@ -230,13 +229,13 @@ static inline int emmc_wait(device_t *dev, emmc_wait_flags_t wflags) {
  * \param dev e.MMC controller device
  * \param buf pointer to where the data should be written to
  * \param len expected data length
- * \param read pointer for the number of read bytes or NULL
- * \return EMMC_OK on success
+ * \param n pointer for the number of read bytes or NULL
+ * \return 0 on success, ENODATA if no new data can be read, EBUSY if device is
+ * busy
  */
-static inline emmc_result_t emmc_read(device_t *dev, void *buf, size_t len,
-                                      size_t *read) {
+static inline int emmc_read(device_t *dev, void *buf, size_t len, size_t *n) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, read);
-  return emmc_methods(idev->parent)->read(dev, buf, len, read);
+  return emmc_methods(idev->parent)->read(dev, buf, len, n);
 }
 
 /**
@@ -244,13 +243,13 @@ static inline emmc_result_t emmc_read(device_t *dev, void *buf, size_t len,
  * \param dev e.MMC controller device
  * \param buf pointer to where the data should be read from
  * \param len data length
- * \param wrote pointer for the number of written bytes in or NULL
+ * \param n pointer for the number of written bytes in or NULL
  * \return EMMC_OK on success
  */
-static inline emmc_result_t emmc_write(device_t *dev, const void *buf,
-                                       size_t len, size_t *wrote) {
+static inline int emmc_write(device_t *dev, const void *buf, size_t len,
+                             size_t *n) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, write);
-  return emmc_methods(idev->parent)->write(dev, buf, len, wrote);
+  return emmc_methods(idev->parent)->write(dev, buf, len, n);
 }
 
 /**
@@ -258,7 +257,7 @@ static inline emmc_result_t emmc_write(device_t *dev, const void *buf,
  * \param dev e.MMC controller device
  * \param id value identifier
  * \param var pointer to where the associated value should be written to
- * \return -1 if value was fetched successfully, 0 if it wasn't
+ * \return 0 if value was fetched successfully, non-zero if it wasn't
  */
 static inline int emmc_get_prop(device_t *dev, emmc_prop_id_t id,
                                 emmc_prop_val_t *val) {
@@ -271,7 +270,7 @@ static inline int emmc_get_prop(device_t *dev, emmc_prop_id_t id,
  * \param dev e.MMC controller device
  * \param id value identifier
  * \param var pointer to where the associated value should be written to
- * \return -1 if value was fetched successfully, 0 if it wasn't
+ * \return 0 if value was fetched successfully, non-zero if it wasn't
  */
 static inline int emmc_set_prop(device_t *dev, emmc_prop_id_t id,
                                 emmc_prop_val_t val) {
@@ -292,7 +291,7 @@ static inline emmc_cmd_t emmc_r1b(emmc_cmd_t cmd) {
 
 /* Disclaimer: Responses of type R1 and R1b are all reported as R1.
  * If device is expected to respond with R1b, wrap the command with
- * `emmc_r1b`, like `emmc_r1b(EMMC_CMD(SWITCH))1.*/
+ * `emmc_r1b`, like `emmc_r1b(EMMC_CMD(SWITCH)). */
 extern const emmc_cmd_t default_emmc_commands[57];
 #define EMMC_CMD(idx) default_emmc_commands[EMMC_CMD_##idx]
 

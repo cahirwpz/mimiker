@@ -1,9 +1,18 @@
 #include <sys/devclass.h>
-#include <sys/emmc.h>
+#include <dev/emmc.h>
 
+/* An ugly fix, bu I don't know if we can do better with current build system */
+#if BOARD==rpi3
 DEVCLASS_CREATE(emmc);
+#endif
 
-/* Some of these might contain incorrect flags */
+/* Some of these might contain incorrect flags. Please, if you are implementing
+ * a driver for a new e.MMC device, check the configuration here and ensure
+ * that for any commands that were not previously used, flags are set correctly.
+ *
+ * Also, don't mind the magical 57. It's not going to change and is irrelevant
+ * for any purpouses other than expanding this particualar table if the e.MMC
+ * standard ever gets a new command with an index higher than 56. */
 const emmc_cmd_t default_emmc_commands[57] = {
   [EMMC_CMD_GO_IDLE] = {EMMC_CMD_GO_IDLE, 0, EMMCRESP_NONE},
   [EMMC_CMD_SEND_OP_COND] = {EMMC_CMD_SEND_OP_COND, 0, EMMCRESP_R3},
