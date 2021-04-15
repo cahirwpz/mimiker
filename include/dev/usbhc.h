@@ -11,33 +11,27 @@
 typedef uint8_t (*usbhc_number_of_ports_t)(device_t *dev);
 typedef bool (*usbhc_device_present_t)(device_t *dev, uint8_t port);
 typedef void (*usbhc_reset_port_t)(device_t *dev, uint8_t port);
-typedef void (*usbhc_control_in_t)(device_t *dev, uint16_t size, uint16_t mps,
-                                   uint8_t addr, usb_buf_t *usbb,
-                                   usb_device_request_t *req);
-typedef void (*usbhc_control_out_t)(device_t *dev, uint16_t size, uint16_t mps,
-                                    uint8_t addr, usb_buf_t *usbb,
-                                    usb_device_request_t *req);
-typedef void (*usbhc_intr_in_t)(device_t *dev, uint16_t size, uint16_t mps,
-                                uint8_t endp, uint8_t addr, uint8_t interval,
-                                usb_buf_t *usbb);
-typedef void (*usbhc_intr_out_t)(device_t *dev, uint16_t size, uint16_t mps,
-                                 uint8_t endp, uint8_t addr, uint8_t interval,
-                                 usb_buf_t *usbb);
-typedef void (*usbhc_bulk_in_t)(device_t *dev, uint16_t size, uint16_t mps,
-                                uint8_t endp, uint8_t addr, usb_buf_t *usbb);
-typedef void (*usbhc_bulk_out_t)(device_t *dev, uint16_t size, uint16_t mps,
-                                 uint8_t endp, uint8_t addr, usb_buf_t *usbb);
+typedef void (*usbhc_control_transfer_t)(device_t *dev, uint16_t size,
+                                         uint16_t mps, uint8_t addr,
+                                         usb_buf_t *usbb,
+                                         usb_device_request_t *req);
+typedef void (*usbhc_intr_transfer_t)(device_t *dev, uint16_t size,
+                                      uint16_t mps, uint8_t endp, uint8_t addr,
+                                      uint8_t interval, usb_buf_t *usbb);
+typedef void (*usbhc_bulk_transfer_t)(device_t *dev, uint16_t size,
+                                      uint16_t mps, uint8_t endp, uint8_t addr,
+                                      usb_buf_t *usbb);
 
 typedef struct usbhc_methods {
   usbhc_number_of_ports_t number_of_ports;
   usbhc_device_present_t device_present;
   usbhc_reset_port_t reset_port;
-  usbhc_control_in_t control_in;
-  usbhc_control_out_t control_out;
-  usbhc_intr_in_t intr_in;
-  usbhc_intr_out_t intr_out;
-  usbhc_bulk_in_t bulk_in;
-  usbhc_bulk_out_t bulk_out;
+  usbhc_control_transfer_t control_in;
+  usbhc_control_transfer_t control_out;
+  usbhc_intr_transfer_t intr_in;
+  usbhc_intr_transfer_t intr_out;
+  usbhc_bulk_transfer_t bulk_in;
+  usbhc_bulk_transfer_t bulk_out;
 } usbhc_methods_t;
 
 static inline usbhc_methods_t *usbhc_methods(device_t *dev) {
