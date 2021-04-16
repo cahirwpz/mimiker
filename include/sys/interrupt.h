@@ -22,13 +22,13 @@ typedef struct device device_t;
  *
  * \sa preempt_disable()
  */
-void intr_disable(void);
+void intr_disable(void) __no_instrument_function;
 
 /*! \brief Enables interrupts. */
-void intr_enable(void);
+void intr_enable(void) __no_instrument_function;
 
 /*! \brief Checks if interrupts are disabled now. */
-bool intr_disabled(void);
+bool intr_disabled(void) __no_instrument_function;
 
 /* Two following functions are workaround to make interrupt disabling work with
  * scoped and with statement. */

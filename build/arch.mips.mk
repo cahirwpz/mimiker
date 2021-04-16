@@ -25,8 +25,6 @@ endif
 GCC_ABIFLAGS += -msoft-float
 CLANG_ABIFLAGS += -msoft-float
 ifeq ($(KGPROF), 1)
-  CFLAGS_KGPROF = -finstrument-functions \
-                  -finstrument-functions-exclude-file-list=spinlock.c  \
-                  -finstrument-functions-exclude-function-list=intr_disable,intr_enable
+  CFLAGS_KGPROF = -finstrument-functions
 endif
 endif
