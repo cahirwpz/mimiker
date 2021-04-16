@@ -1,5 +1,5 @@
-#ifndef _SYS_EMMC_H_
-#define _SYS_EMMC_H_
+#ifndef _DEV_EMMC_H_
+#define _DEV_EMMC_H_
 
 /* This interface is based on a JESD86-A441 specification, which can be
  * obtained for for free from JEDEC standards and documents archive at:
@@ -11,16 +11,6 @@
 #include <sys/device.h>
 #include <sys/endian.h>
 #include <stddef.h>
-
-/* These operation modes are described in JESD86-A441, with a brief summary
- * at page 27 */
-typedef enum emmc_op_mode {
-  EMMCMODE_BOOT,
-  EMMCMODE_CARD_ID,
-  EMMCMODE_INTR,
-  EMMCMODE_TRANSFER,
-  EMMCMODE_INA,
-} emmc_op_mode_t;
 
 /* Response types R1-R5 are described in JESD86-A441, page 94. */
 typedef enum emmc_resp_type {
@@ -205,7 +195,7 @@ static inline emmc_methods_t *emmc_methods(device_t *dev) {
  * \param arg1 first argument
  * \param arg2 second argument
  * \param resp pointer for response data to be written to or NULL
- * \return EMMC_OK on success EBUSY if device is busy, ETIME on timeout.
+ * \return 0 on success EBUSY if device is busy, ETIMEDOUT on timeout.
  */
 static inline int emmc_send_cmd(device_t *dev, emmc_cmd_t cmd, uint32_t arg1,
                                 uint32_t arg2, emmc_resp_t *resp) {
@@ -217,7 +207,7 @@ static inline int emmc_send_cmd(device_t *dev, emmc_cmd_t cmd, uint32_t arg1,
  * \brief Wait until e.MMC signals
  * \param dev e.MMC controller device
  * \param wflags conditions to be met
- * \return 0 on success, ETIME on timeout
+ * \return 0 on success, ETIMEDOUT on timeout
  */
 static inline int emmc_wait(device_t *dev, emmc_wait_flags_t wflags) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, wait);
@@ -244,7 +234,7 @@ static inline int emmc_read(device_t *dev, void *buf, size_t len, size_t *n) {
  * \param buf pointer to where the data should be read from
  * \param len data length
  * \param n pointer for the number of written bytes in or NULL
- * \return EMMC_OK on success
+ * \return 0 on success
  */
 static inline int emmc_write(device_t *dev, const void *buf, size_t len,
                              size_t *n) {
@@ -295,4 +285,4 @@ static inline emmc_cmd_t emmc_r1b(emmc_cmd_t cmd) {
 extern const emmc_cmd_t default_emmc_commands[57];
 #define EMMC_CMD(idx) default_emmc_commands[EMMC_CMD_##idx]
 
-#endif
+#endif /* !_DEV_EMMC_H_ */
