@@ -76,6 +76,7 @@
 #define __no_sanitize                                                          \
   __attribute__((no_sanitize("address", "thread", "undefined")))
 #define __no_instrument_function __attribute__((no_instrument_function))
+#define __no_instrument_kgprof __no_instrument_function
 
 /* Clang introduces support for the fallthrough attribute in C2x. */
 #ifdef __clang__

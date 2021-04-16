@@ -69,7 +69,7 @@
 
 /* Checks often used in assert statements. */
 bool preempt_disabled(void);
-bool intr_disabled(void) __no_instrument_function;
+bool intr_disabled(void) __no_instrument_kgprof;
 
 /* Attribute macros for boot/wired functions/data */
 #define __boot_text __long_call __section(".boot.text")
