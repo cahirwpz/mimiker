@@ -2,7 +2,7 @@
 #define _DEV_EMMC_H_
 
 /* This interface is based on a JESD86-A441 specification, which can be
- * obtained for for free from JEDEC standards and documents archive at:
+ * obtained for free from JEDEC standards and documents archive at:
  * https://www.jedec.org/document_search?search_api_views_fulltext=jesd84-a441
  */
 
