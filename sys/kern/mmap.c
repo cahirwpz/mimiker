@@ -76,8 +76,7 @@ int do_munmap(vaddr_t addr, size_t length) {
 
       vaddr_t end = vm_map_entry_end(ent);
 
-      vm_map_entry_destroy_range(uspace, ent, addr,
-                                 min(right_boundary, end));
+      vm_map_entry_destroy_range(uspace, ent, addr, min(right_boundary, end));
 
       addr = end;
     }
