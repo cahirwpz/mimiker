@@ -114,9 +114,8 @@ vm_map_t *vm_map_new(void) {
   return map;
 }
 
-vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vaddr_t start,
-                                   vaddr_t end, vm_prot_t prot,
-                                   vm_entry_flags_t flags) {
+vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
+                                   vm_prot_t prot, vm_entry_flags_t flags) {
   assert(page_aligned_p(start) && page_aligned_p(end));
 
   vm_map_entry_t *ent = pool_alloc(P_VM_MAPENT, M_ZERO);

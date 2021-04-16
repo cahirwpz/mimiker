@@ -61,7 +61,7 @@ struct vm_page {
     slab_t *slab; /* active when page is used by pool allocator */
   };
   TAILQ_HEAD(, pv_entry) pv_list; /* (@) where this page is mapped? */
-  vm_object_t *object;           /* (O) object owning that page */
+  vm_object_t *object;            /* (O) object owning that page */
   vm_offset_t offset;             /* (O) offset to page in vm_object */
   paddr_t paddr;                  /* (P) physical address of page */
   pg_flags_t flags;               /* (P) page flags (used by physmem as well) */
