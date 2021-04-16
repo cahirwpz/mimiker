@@ -4,7 +4,7 @@
 #include <sys/sbrk.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
-#include <sys/uvm_object.h>
+#include <sys/vm_object.h>
 
 /* Note that this sbrk implementation does not actually extend .data section,
  * because we have no guarantee that there is any free space after .data in the
@@ -21,7 +21,7 @@ void sbrk_attach(proc_t *p) {
 
   /* Initially allocate one page for brk segment. */
   vaddr_t addr = SBRK_START;
-  uvm_object_t *obj = uvm_object_alloc(VM_ANONYMOUS);
+  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
   vm_map_entry_t *ent = vm_map_entry_alloc(
     obj, addr, addr + PAGESIZE, VM_PROT_READ | VM_PROT_WRITE, VM_ENT_PRIVATE);
   if (vm_map_insert(map, ent, VM_FIXED))
