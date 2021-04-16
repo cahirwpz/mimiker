@@ -54,7 +54,7 @@ int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags) {
   return 0;
 }
 
-int do_munmap(vaddr_t addr, size_t length) {
+int do_munmap(vaddr_t start, size_t length) {
   thread_t *td = thread_self();
   assert(td && td->td_proc && td->td_proc->p_uspace);
 
@@ -63,22 +63,27 @@ int do_munmap(vaddr_t addr, size_t length) {
   if (length == 0)
     return EINVAL;
 
-  if (!page_aligned_p(addr) || !page_aligned_p(length))
+  if (!page_aligned_p(start) || !page_aligned_p(length))
     return EINVAL;
 
-  vaddr_t right_boundary = addr + length;
+  vaddr_t end = start + length;
 
   WITH_VM_MAP_LOCK (uspace) {
-    while (addr < right_boundary) {
-      vm_map_entry_t *ent = vm_map_find_entry(uspace, addr);
-      if (!ent)
-        return EINVAL;
+    vm_map_entry_t *ent = vm_map_find_entry(uspace, start);
+    if (!ent)
+      return 0;
 
-      vaddr_t end = vm_map_entry_end(ent);
+    while (vm_map_entry_start(ent) <= start && vm_map_entry_end(ent) >= end) {
+      vaddr_t rm_start = max(start, vm_map_entry_start(ent));
+      vaddr_t rm_end = min(end, vm_map_entry_end(ent));
+      vm_map_entry_t *next = vm_map_entry_next(ent);
 
-      vm_map_entry_destroy_range(uspace, ent, addr, min(right_boundary, end));
+      vm_map_entry_destroy_range(uspace, ent, rm_start, rm_end);
 
-      addr = end;
+      if (!next)
+        break;
+
+      ent = next;
     }
   }
   return 0;

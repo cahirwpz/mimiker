@@ -80,6 +80,10 @@ vaddr_t vm_map_entry_end(vm_map_entry_t *ent) {
   return ent->end;
 }
 
+vm_map_entry_t *vm_map_entry_next(vm_map_entry_t *ent) {
+  return TAILQ_NEXT(ent, link);
+}
+
 bool vm_map_address_p(vm_map_t *map, vaddr_t addr) {
   return map && vm_map_start(map) <= addr && addr < vm_map_end(map);
 }
