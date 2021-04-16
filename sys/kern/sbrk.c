@@ -22,12 +22,12 @@ void sbrk_attach(proc_t *p) {
   /* Initially allocate one page for brk segment. */
   vaddr_t addr = SBRK_START;
   uvm_object_t *obj = uvm_object_alloc(VM_ANONYMOUS);
-  vm_map_entry_t *seg = vm_map_entry_alloc(
+  vm_map_entry_t *ent = vm_map_entry_alloc(
     obj, addr, addr + PAGESIZE, VM_PROT_READ | VM_PROT_WRITE, VM_ENT_PRIVATE);
-  if (vm_map_insert(map, seg, VM_FIXED))
+  if (vm_map_insert(map, ent, VM_FIXED))
     panic("Could not allocate data segment!");
 
-  p->p_sbrk = seg;
+  p->p_sbrk = ent;
   p->p_sbrk_end = addr;
 }
 
