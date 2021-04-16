@@ -4,7 +4,7 @@
 #include <sys/exec.h>
 #include <sys/libkern.h>
 #include <sys/vm_map.h>
-#include <sys/vm_object.h>
+#include <sys/uvm_object.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
 #include <sys/vnode.h>
@@ -104,18 +104,18 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
   vaddr_t end = roundup(ph->p_vaddr + ph->p_memsz, PAGESIZE);
 
   /* Temporarily permissive protection. */
-  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *seg = vm_segment_alloc(
+  uvm_object_t *obj = uvm_object_alloc(VM_ANONYMOUS);
+  vm_map_entry_t *ent = vm_map_entry_alloc(
     obj, start, end, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC,
-    VM_SEG_PRIVATE);
-  error = vm_map_insert(p->p_uspace, seg, VM_FIXED);
+    VM_ENT_PRIVATE);
+  error = vm_map_insert(p->p_uspace, ent, VM_FIXED);
   /* TODO: What if segments overlap? */
   assert(error == 0);
 
-  /* Read data from file into the segment */
+  /* Read data from file into the map entry */
   if (ph->p_filesz > 0) {
     /* TODO: This is a lot of copying! Ideally we would look up the
-     * vm_object associated with the elf vnode, create a shadow vm_object
+     * uvm_object associated with the elf vnode, create a shadow uvm_object
      * on top of it using correct size/offset, and we would use it to page
      * the file contents on demand. But we don't have a vnode_pager yet.
      */

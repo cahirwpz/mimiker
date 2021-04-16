@@ -4,7 +4,7 @@
 #include <sys/sbrk.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
-#include <sys/vm_object.h>
+#include <sys/uvm_object.h>
 
 /* Note that this sbrk implementation does not actually extend .data section,
  * because we have no guarantee that there is any free space after .data in the
@@ -21,13 +21,13 @@ void sbrk_attach(proc_t *p) {
 
   /* Initially allocate one page for brk segment. */
   vaddr_t addr = SBRK_START;
-  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
-  vm_segment_t *seg = vm_segment_alloc(
-    obj, addr, addr + PAGESIZE, VM_PROT_READ | VM_PROT_WRITE, VM_SEG_PRIVATE);
-  if (vm_map_insert(map, seg, VM_FIXED))
+  uvm_object_t *obj = uvm_object_alloc(VM_ANONYMOUS);
+  vm_map_entry_t *ent = vm_map_entry_alloc(
+    obj, addr, addr + PAGESIZE, VM_PROT_READ | VM_PROT_WRITE, VM_ENT_PRIVATE);
+  if (vm_map_insert(map, ent, VM_FIXED))
     panic("Could not allocate data segment!");
 
-  p->p_sbrk = seg;
+  p->p_sbrk = ent;
   p->p_sbrk_end = addr;
 }
 
@@ -37,7 +37,7 @@ int sbrk_resize(proc_t *p, intptr_t increment, vaddr_t *newbrkp) {
 
   vaddr_t last_end = p->p_sbrk_end;
   vaddr_t new_end = p->p_sbrk_end + increment;
-  vaddr_t sbrk_start = vm_segment_start(p->p_sbrk);
+  vaddr_t sbrk_start = vm_map_entry_start(p->p_sbrk);
 
   if (new_end < sbrk_start)
     return EINVAL;
@@ -46,7 +46,7 @@ int sbrk_resize(proc_t *p, intptr_t increment, vaddr_t *newbrkp) {
   vaddr_t new_end_aligned =
     max(align(new_end, PAGESIZE), sbrk_start + PAGESIZE);
 
-  if (vm_segment_resize(p->p_uspace, p->p_sbrk, new_end_aligned))
+  if (vm_map_entry_resize(p->p_uspace, p->p_sbrk, new_end_aligned))
     return ENOMEM;
 
   p->p_sbrk_end = new_end;
