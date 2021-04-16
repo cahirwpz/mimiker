@@ -13,10 +13,10 @@
  * \see intr_enable
  * \see intr_disable
  */
-void cpu_intr_disable(void);
+void cpu_intr_disable(void) __no_instrument_kgprof;
 
 /*! \brief Enables interrupts by setting SR.IE to 1. */
-void cpu_intr_enable(void);
+void cpu_intr_enable(void) __no_instrument_kgprof;
 
 /*! \brief Check if interrupts are disabled.
  *
@@ -26,7 +26,7 @@ void cpu_intr_enable(void);
  * The kernel leaves Exception (EXL) or Error Level (ERL) as soon as possible,
  * hence we consider exceptions to be disabled if and only if SR.IE = 0.
  */
-bool cpu_intr_disabled(void);
+bool cpu_intr_disabled(void) __no_instrument_kgprof;
 
 #ifdef _MACHDEP
 
