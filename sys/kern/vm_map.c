@@ -173,7 +173,8 @@ static inline vm_map_entry_t *vm_mapent_copy(vm_map_entry_t *src) {
   return new;
 }
 
-/* Split vm_map_entry into two not empty entries. */
+/* Split vm_map_entry into two not empty entries.
+ * Returns entry which is after base entry. */
 static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
                                           vaddr_t splitat) {
   assert(mtx_owned(&map->mtx));
@@ -181,6 +182,7 @@ static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
 
   vm_map_entry_t *new_ent = vm_mapent_copy(ent);
 
+  /* clip both entries */
   ent->end = splitat;
   new_ent->start = splitat;
 
@@ -197,16 +199,16 @@ void vm_map_entry_destroy_range(vm_map_t *map, vm_map_entry_t *ent,
   vm_map_entry_t *del = ent;
 
   if (start > ent->start) {
+    /* entry we want to delete is after clipped entry */
     del = vm_map_entry_split(map, ent, start);
   }
 
   if (end < ent->end) {
+    /* entry which is after del is one we want to keep */
     vm_map_entry_split(map, del, end);
   }
 
   vm_map_entry_destroy(map, del);
-  /* XXX: do we need to remove pages from object?
-   * Is it possible to do that correctly since we have shared objects? */
 }
 
 void vm_map_delete(vm_map_t *map) {

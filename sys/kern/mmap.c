@@ -69,6 +69,8 @@ int do_munmap(vaddr_t start, size_t length) {
   vaddr_t end = start + length;
 
   WITH_VM_MAP_LOCK (uspace) {
+
+    /* Find first entry affected by unmapping memory. */
     vm_map_entry_t *ent = vm_map_find_entry(uspace, start);
     if (!ent)
       return 0;
@@ -76,6 +78,9 @@ int do_munmap(vaddr_t start, size_t length) {
     while (vm_map_entry_start(ent) <= start && vm_map_entry_end(ent) >= end) {
       vaddr_t rm_start = max(start, vm_map_entry_start(ent));
       vaddr_t rm_end = min(end, vm_map_entry_end(ent));
+
+      /* Next entry that could be affected is right after current one.
+       * Since we can delate it entirely, we have to take next entry now. */
       vm_map_entry_t *next = vm_map_entry_next(ent);
 
       vm_map_entry_destroy_range(uspace, ent, rm_start, rm_end);
