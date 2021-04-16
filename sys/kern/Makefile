@@ -74,7 +74,7 @@ SOURCES = \
 	vfs_syscalls.c \
 	vfs_vnode.c \
 	vm_map.c \
-	uvm_object.c \
+	vm_object.c \
 	vm_pager.c \
 	vm_physmem.c \
 	vmem.c

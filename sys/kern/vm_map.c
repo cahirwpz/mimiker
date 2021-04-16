@@ -5,7 +5,7 @@
 #include <sys/pool.h>
 #include <sys/pmap.h>
 #include <sys/vm_pager.h>
-#include <sys/uvm_object.h>
+#include <sys/vm_object.h>
 #include <sys/vm_map.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
@@ -15,7 +15,7 @@
 
 struct vm_map_entry {
   TAILQ_ENTRY(vm_map_entry) link;
-  uvm_object_t *object;
+  vm_object_t *object;
   /* TODO(fz): add aref */
   vm_prot_t prot;
   vm_entry_flags_t flags;
@@ -114,7 +114,7 @@ vm_map_t *vm_map_new(void) {
   return map;
 }
 
-vm_map_entry_t *vm_map_entry_alloc(uvm_object_t *obj, vaddr_t start,
+vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vaddr_t start,
                                    vaddr_t end, vm_prot_t prot,
                                    vm_entry_flags_t flags) {
   assert(page_aligned_p(start) && page_aligned_p(end));
@@ -130,7 +130,7 @@ vm_map_entry_t *vm_map_entry_alloc(uvm_object_t *obj, vaddr_t start,
 
 static void vm_map_entry_free(vm_map_entry_t *ent) {
   if (ent->object)
-    uvm_object_drop(ent->object);
+    vm_object_drop(ent->object);
   pool_free(P_VM_MAPENT, ent);
 }
 
@@ -174,16 +174,16 @@ void vm_map_entry_destroy_range(vm_map_t *map, vm_map_entry_t *ent,
   }
 
   size_t length = end - start;
-  uvm_object_remove_pages(ent->object, start - ent->start, length);
+  vm_object_remove_pages(ent->object, start - ent->start, length);
 
   if (ent->start == start) {
     ent->start = end;
   } else if (ent->end == end) {
     ent->end = start;
   } else { /* a hole inside the entry */
-    uvm_object_t *obj = uvm_object_clone(ent->object);
-    uvm_object_remove_pages(obj, 0, start - ent->start);
-    uvm_object_remove_pages(ent->object, end - ent->start, ent->end - end);
+    vm_object_t *obj = vm_object_clone(ent->object);
+    vm_object_remove_pages(obj, 0, start - ent->start);
+    vm_object_remove_pages(ent->object, end - ent->start, ent->end - end);
     vm_map_entry_t *new_ent =
       vm_map_entry_alloc(obj, end, ent->end, ent->prot, ent->flags);
     ent->end = start;
@@ -303,7 +303,7 @@ int vm_map_alloc_entry(vm_map_t *map, vaddr_t addr, size_t length,
     return EINVAL;
 
   /* Create object with a pager that supplies cleared pages on page fault. */
-  uvm_object_t *obj = uvm_object_alloc(VM_ANONYMOUS);
+  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
   vm_map_entry_t *ent =
     vm_map_entry_alloc(obj, addr, addr + length, prot, VM_ENT_SHARED);
 
@@ -333,7 +333,7 @@ int vm_map_entry_resize(vm_map_t *map, vm_map_entry_t *ent, vaddr_t new_end) {
     off_t offset = new_end - ent->start;
     size_t length = ent->end - new_end;
     pmap_remove(map->pmap, new_end, ent->end);
-    uvm_object_remove_pages(ent->object, offset, length);
+    vm_object_remove_pages(ent->object, offset, length);
     /* TODO there's no reference to pmap in page, so we have to do it here */
   }
 
@@ -357,7 +357,7 @@ void vm_map_dump(vm_map_t *map) {
          (it->prot & VM_PROT_READ) ? 'r' : '-',
          (it->prot & VM_PROT_WRITE) ? 'w' : '-',
          (it->prot & VM_PROT_EXEC) ? 'x' : '-');
-    uvm_object_dump(it->object);
+    vm_object_dump(it->object);
   }
 }
 
@@ -370,16 +370,16 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
     vm_map_entry_t *it;
     TAILQ_FOREACH (it, &map->entries, link) {
-      uvm_object_t *obj;
+      vm_object_t *obj;
       vm_map_entry_t *ent;
 
       if (it->flags & VM_ENT_SHARED) {
-        uvm_object_hold(it->object);
+        vm_object_hold(it->object);
         obj = it->object;
       } else {
-        /* uvm_object_clone will clone the data from the uvm_object_t
+        /* vm_object_clone will clone the data from the vm_object_t
          * and will return the new object with ref_counter equal to one */
-        obj = uvm_object_clone(it->object);
+        obj = vm_object_clone(it->object);
       }
       ent = vm_map_entry_alloc(obj, it->start, it->end, it->prot, it->flags);
       TAILQ_INSERT_TAIL(&new_map->entries, ent, link);
@@ -417,16 +417,16 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   assert(ent->start <= fault_addr && fault_addr < ent->end);
 
-  uvm_object_t *obj = ent->object;
+  vm_object_t *obj = ent->object;
 
   assert(obj != NULL);
 
   vaddr_t fault_page = fault_addr & -PAGESIZE;
   vaddr_t offset = fault_page - ent->start;
-  vm_page_t *frame = uvm_object_find_page(ent->object, offset);
+  vm_page_t *frame = vm_object_find_page(ent->object, offset);
 
   if (frame == NULL)
-    frame = obj->uo_pager->pgr_fault(obj, offset);
+    frame = obj->vo_pager->pgr_fault(obj, offset);
 
   if (frame == NULL)
     return EFAULT;

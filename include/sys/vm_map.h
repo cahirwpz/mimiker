@@ -41,7 +41,7 @@ vm_map_t *vm_map_lookup(vaddr_t addr);
 vm_map_t *vm_map_new(void);
 void vm_map_delete(vm_map_t *vm_map);
 
-vm_map_entry_t *vm_map_entry_alloc(uvm_object_t *obj, vaddr_t start,
+vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vaddr_t start,
                                    vaddr_t end, vm_prot_t prot,
                                    vm_entry_flags_t flags);
 void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent);

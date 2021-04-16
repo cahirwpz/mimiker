@@ -2,7 +2,7 @@
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/vm_pager.h>
-#include <sys/uvm_object.h>
+#include <sys/vm_object.h>
 #include <sys/vm_map.h>
 #include <sys/errno.h>
 #include <sys/thread.h>
@@ -41,7 +41,7 @@ static int paging_on_demand_and_memory_protection_demo(void) {
 
   /* preceding redzone segment */
   {
-    uvm_object_t *obj = uvm_object_alloc(VM_DUMMY);
+    vm_object_t *obj = vm_object_alloc(VM_DUMMY);
     vm_map_entry_t *seg =
       vm_map_entry_alloc(obj, pre_start, start, VM_PROT_NONE, VM_ENT_PRIVATE);
     n = vm_map_insert(umap, seg, VM_FIXED);
@@ -50,7 +50,7 @@ static int paging_on_demand_and_memory_protection_demo(void) {
 
   /* data segment */
   {
-    uvm_object_t *obj = uvm_object_alloc(VM_ANONYMOUS);
+    vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
     vm_map_entry_t *seg = vm_map_entry_alloc(
       obj, start, end, VM_PROT_READ | VM_PROT_WRITE, VM_ENT_PRIVATE);
     n = vm_map_insert(umap, seg, VM_FIXED);
@@ -59,7 +59,7 @@ static int paging_on_demand_and_memory_protection_demo(void) {
 
   /* succeeding redzone segment */
   {
-    uvm_object_t *obj = uvm_object_alloc(VM_DUMMY);
+    vm_object_t *obj = vm_object_alloc(VM_DUMMY);
     vm_map_entry_t *seg =
       vm_map_entry_alloc(obj, end, post_end, VM_PROT_NONE, VM_ENT_PRIVATE);
     n = vm_map_insert(umap, seg, VM_FIXED);
