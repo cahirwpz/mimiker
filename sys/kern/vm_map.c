@@ -162,33 +162,47 @@ void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
   vm_map_entry_free(ent);
 }
 
+static inline vm_map_entry_t *vm_mapent_copy(vm_map_entry_t *src) {
+  uvm_object_hold(src->object);
+  vm_map_entry_t *new = vm_map_entry_alloc(src->object, src->start, src->end,
+                                           src->prot, src->flags);
+  return new;
+}
+
+/* Split vm_map_entry into two not empty entries. */
+static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
+                                          vaddr_t splitat) {
+  assert(mtx_owned(&map->mtx));
+  assert(ent->start < splitat && splitat + 1 < ent->end);
+
+  vm_map_entry_t *new_ent = vm_mapent_copy(ent);
+
+  ent->end = splitat;
+  new_ent->start = splitat;
+
+  vm_map_insert_after(map, ent, new_ent);
+  return new_ent;
+}
+
 void vm_map_entry_destroy_range(vm_map_t *map, vm_map_entry_t *ent,
                                 vaddr_t start, vaddr_t end) {
   assert(mtx_owned(&map->mtx));
   assert(start >= ent->start && end <= ent->end);
 
   pmap_remove(map->pmap, start, end);
-  if (ent->start == start && ent->end == end) {
-    vm_map_entry_destroy(map, ent);
-    return;
+  vm_map_entry_t *del = ent;
+
+  if (start > ent->start) {
+    del = vm_map_entry_split(map, ent, start);
   }
 
-  size_t length = end - start;
-  uvm_object_remove_pages(ent->object, start - ent->start, length);
-
-  if (ent->start == start) {
-    ent->start = end;
-  } else if (ent->end == end) {
-    ent->end = start;
-  } else { /* a hole inside the entry */
-    uvm_object_t *obj = uvm_object_clone(ent->object);
-    uvm_object_remove_pages(obj, 0, start - ent->start);
-    uvm_object_remove_pages(ent->object, end - ent->start, ent->end - end);
-    vm_map_entry_t *new_ent =
-      vm_map_entry_alloc(obj, end, ent->end, ent->prot, ent->flags);
-    ent->end = start;
-    vm_map_insert_after(map, new_ent, ent);
+  if (end < ent->end) {
+    vm_map_entry_split(map, del, end);
   }
+
+  vm_map_entry_destroy(map, del);
+  /* XXX: do we need to remove pages from object?
+   * Is it possible to do that correctly since we have shared objects? */
 }
 
 void vm_map_delete(vm_map_t *map) {
