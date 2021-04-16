@@ -10,7 +10,7 @@
  *
  * Field marking and corresponding locks:
  * (a) atomic
- * (@) vm_object::vm_lock
+ * (@) vm_object::vo_lock
  */
 
 typedef struct vm_object {
