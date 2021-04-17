@@ -39,7 +39,7 @@ typedef struct emmc_resp {
 
 /* Accessors for fields in R1-R5 response.
  * End bit CRC7 and headers are ommited, because not every controller provides
- * access tio them */
+ * access to them */
 #define EMMC_R1_CARD_STATUS(resp) EMMC_FMASK48(resp, 0, 32)
 #if BYTE_ORDER == _BIG_ENDIAN
 #define EMMC_R2_CIDCSD_H(resp) ((uint64_t *)((resp)->r))[0]

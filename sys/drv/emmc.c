@@ -1,7 +1,8 @@
 #include <sys/devclass.h>
 #include <dev/emmc.h>
 
-/* An ugly fix, bu I don't know if we can do better with current build system */
+/* An ugly fix, but I don't know if we can do better with current build system
+ */
 #if BOARD==rpi3
 DEVCLASS_CREATE(emmc);
 #endif
