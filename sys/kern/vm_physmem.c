@@ -297,15 +297,15 @@ int vm_pagelist_alloc(size_t n, vm_pagelist_t *pglist) {
     size_t pgsz = 1 << fl;
 
     /* Is page too large to satisfy remaining part of the request? */
-    if (n < pgsz && prev_sum + pgsz / 2 >= n) {
+    if (n < pgsz) {
       pm_split_page(fl);
-      sums[--fl] += pgsz / 2;
+      sums[--fl] += pgsz;
       continue;
     }
 
     vm_page_t *pg = pm_take_page(fl);
     TAILQ_INSERT_TAIL(pglist, pg, pageq);
-    n -= (pgsz > n ? n : pgsz);
+    n -= pgsz;
   }
 
   return 0;
