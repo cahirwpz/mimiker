@@ -72,7 +72,7 @@ static void kva_map_page(vaddr_t va, paddr_t pa, size_t n, unsigned flags) {
 }
 
 void kva_map(vaddr_t ptr, size_t size, kmem_flags_t flags) {
-  assert(page_aligned_p(size));
+  assert(page_aligned_p(ptr) && page_aligned_p(size));
 
   /* Mark the entire block as valid */
   kasan_mark_valid((void *)ptr, size);
