@@ -162,7 +162,7 @@ vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) {
 
   klog("%s: map %p of size %ld at %p", __func__, pa, size, va);
 
-  kmem_map_page(va, pa, size / PAGESIZE, flags);
+  kva_map_page(va, pa, size / PAGESIZE, flags);
 
   return va;
 }
