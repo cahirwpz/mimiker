@@ -69,8 +69,8 @@ static int hidkbd_attach(device_t *dev) {
 
   /* Prepare a report buffer. */
   void *buf = kmalloc(M_DEV, HIDKBD_BUFFER_SIZE, M_WAITOK);
-  hidkbd->usbb = usb_alloc_buf(buf, HIDKBD_BUFFER_SIZE, TF_INPUT | TF_INTERRUPT,
-                               sizeof(hidkbd_inr_t));
+  hidkbd->usbb = usb_alloc_buf(buf, HIDKBD_BUFFER_SIZE, USB_TT_INTERRUPT,
+                               USB_INPUT, sizeof(hidkbd_inr_t));
 
   usb_interrupt_transfer(dev, hidkbd->usbb);
 
@@ -88,5 +88,4 @@ static driver_t hidkbd_driver = {
   .attach = hidkbd_attach,
 };
 
-DEVCLASS_DECLARE(usbhc);
-DEVCLASS_ENTRY(usbhc, hidkbd_driver);
+DEVCLASS_ENTRY(usb, hidkbd_driver);

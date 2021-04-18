@@ -18,10 +18,13 @@ int main(int argc, char **argv) {
   while (1) {
     if (write(fd, WRITE_DATA, sizeof(WRITE_DATA)) != sizeof(WRITE_DATA))
       return EXIT_FAILURE;
+
     if (read(fd, buf, BLOCK_SIZE) != BLOCK_SIZE)
       return EXIT_FAILURE;
+
     printf("data: \"%s\"\n", buf);
     fflush(stdout);
+
     memset(buf, 0, BLOCK_SIZE);
   }
 

@@ -58,7 +58,12 @@ struct driver {
   void *interfaces[DIF_COUNT]; /* pointers to device methods structures */
 };
 
-typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
+typedef enum {
+  DEV_BUS_NONE,
+  DEV_BUS_PCI,
+  DEV_BUS_ISA,
+  DEV_BUS_USB,
+} device_bus_t;
 
 struct device {
   /* Device hierarchy. */

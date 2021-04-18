@@ -68,7 +68,7 @@ static int hidm_attach(device_t *dev) {
 
   /* Prepare a report buffer. */
   void *buf = kmalloc(M_DEV, HIDM_BUFFER_SIZE, M_WAITOK);
-  hidm->usbb = usb_alloc_buf(buf, HIDM_BUFFER_SIZE, TF_INPUT | TF_INTERRUPT,
+  hidm->usbb = usb_alloc_buf(buf, HIDM_BUFFER_SIZE, USB_TT_INTERRUPT, USB_INPUT,
                              sizeof(hidm_report_t));
 
   usb_interrupt_transfer(dev, hidm->usbb);
@@ -87,5 +87,4 @@ static driver_t hidm_driver = {
   .attach = hidm_attach,
 };
 
-DEVCLASS_DECLARE(usbhc);
-DEVCLASS_ENTRY(usbhc, hidm_driver);
+DEVCLASS_ENTRY(usb, hidm_driver);

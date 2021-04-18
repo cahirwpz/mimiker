@@ -365,8 +365,8 @@ static void td_init(uhci_td_t *td, uint32_t ls, uint32_t ioc, uint32_t token,
           UHCI_TD_SETUP(sizeof(usb_device_request_t), (e), (d)), (dt))
 
 #define td_token(ln, e, d, tg, tp)                                             \
-  (((tp)&TF_INPUT) ? UHCI_TD_IN((ln), (e), (d), (tg))                          \
-                   : UHCI_TD_OUT((ln), (e), (d), (tg)))
+  (((tp) == USB_INPUT) ? UHCI_TD_IN((ln), (e), (d), (tg))                      \
+                       : UHCI_TD_OUT((ln), (e), (d), (tg)))
 
 #define td_data(td, ls, ln, e, d, tg, dt, tp)                                  \
   td_init((td), (ls), 0, td_token((ln), (e), (d), (tg), (tp)), (dt))
@@ -398,7 +398,7 @@ static void qh_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
   usb_buf_t *usbb = qh->qh_usbb;
   uhci_td_t *first = (uhci_td_t *)(qh + 1);
   uhci_td_t *td = first;
-  int poll = usbb->flags & TF_INTERRUPT;
+  int poll = usbb->type == USB_TT_INTERRUPT;
   uint32_t error = 0;
 
   for (; !error && !td_active(td); td++) {
@@ -418,17 +418,17 @@ static void qh_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
   }
 
   void *data = NULL;
-  transfer_flags_t flags = 0;
+  usb_error_flags_t eflags = 0;
 
   if (!error) {
-    int control = usbb->flags & TF_CONTROL;
+    int control = usbb->type == USB_TT_CONTROL;
     data = (void *)(td + 1) + (control ? sizeof(usb_device_request_t) : 0);
   } else {
     int stalled = error & UHCI_TD_STALLED;
     int other = error & ~UHCI_TD_STALLED;
-    flags = (stalled ? TF_STALLED : 0) | (other ? TF_ERROR : 0);
+    eflags = (stalled ? USB_ERR_STALLED : 0) | (other ? USB_ERR_OTHER : 0);
   }
-  usb_process(usbb, data, flags);
+  usb_process(usbb, data, eflags);
 
   if (error || !poll) {
     qh_remove(mq, qh);
@@ -466,20 +466,19 @@ static intr_filter_t uhci_isr(void *data) {
 
 /* Obtain the size of structures involved to compose a request. */
 static size_t uhci_req_size(uint16_t mps, usb_buf_t *usbb) {
-  int cntr_size = (usbb->flags & TF_CONTROL ? 2 : 0); /* setup + status */
+  int cntr_size = (usbb->type == USB_TT_CONTROL ? 2 : 0); /* setup + status */
   return sizeof(uhci_qh_t) +
          ((roundup(usbb->transfer_size, mps) / mps + cntr_size) *
           sizeof(uhci_td_t));
 }
 
-static void uhci_transfer(device_t *dev, usb_buf_t *usbb,
+static void uhci_transfer(device_t *dev, uint16_t mps, uint8_t endp,
+                          uint8_t addr, uint8_t interval, usb_buf_t *usbb,
                           usb_device_request_t *req) {
-  uhci_state_t *uhci = dev->parent->state;
+  uhci_state_t *uhci = usb_bus_of(dev)->parent->state;
   usb_device_t *usbd = usb_device_of(dev);
   uint16_t transfer_size = usbb->transfer_size;
-  uint16_t mps = usb_max_pkt_size(usbd, usbb);
   size_t offset = uhci_req_size(mps, usbb);
-  uint8_t endp = usb_endp_addr(usbd, usbb);
   void *buf = uhci_alloc_pool(uhci);
   uhci_qh_t *qh = buf;
   uhci_td_t *td = (uhci_td_t *)(qh + 1);
@@ -494,7 +493,7 @@ static void uhci_transfer(device_t *dev, usb_buf_t *usbb,
   void *dt = buf + offset;
   uint16_t cnt = 0;
 
-  if (usbb->flags & TF_CONTROL) {
+  if (usbb->type == USB_TT_CONTROL) {
     /* Copyin the request. */
     usb_device_request_t *r = dt;
     memcpy(r, req, sizeof(usb_device_request_t));
@@ -508,18 +507,18 @@ static void uhci_transfer(device_t *dev, usb_buf_t *usbb,
   }
 
   /* Copyin provided data. */
-  if (!(usbb->flags & TF_INPUT))
+  if (!(usbb->dir == USB_INPUT))
     memcpy(dt, usbb->buf.data, transfer_size);
 
   /* Prepare DATA packets. */
   for (uint16_t nbytes = 0; nbytes != transfer_size; cnt++) {
     uint16_t psize = min(transfer_size - nbytes, mps);
-    td_data(&td[cnt], ls, psize, endp, usbd->addr, cnt & 1, dt, usbb->flags);
+    td_data(&td[cnt], ls, psize, endp, usbd->addr, cnt & 1, dt, usbb->dir);
     nbytes += psize;
     dt += psize;
   }
 
-  if (usbb->flags & TF_CONTROL) {
+  if (usbb->type == USB_TT_CONTROL) {
     /* Prepare a STATUS packet. */
     uint8_t sts_type = usb_status_type(usbb);
     td_status(&td[cnt], ls, endp, usbd->addr, sts_type);
@@ -530,10 +529,24 @@ static void uhci_transfer(device_t *dev, usb_buf_t *usbb,
     last->td_status |= UHCI_TD_IOC;
   }
 
-  qh_schedule(uhci, qh, usb_interval(usbd, usbb));
+  qh_schedule(uhci, qh, interval);
 }
 
-DEVCLASS_CREATE(usbhc);
+static void uhci_control_transfer(device_t *dev, uint16_t mps, uint8_t addr,
+                                  usb_buf_t *usbb, usb_device_request_t *req) {
+  uhci_transfer(dev, mps, 0, addr, 0, usbb, req);
+}
+
+static void uhci_interrupt_transfer(device_t *dev, uint16_t mps, uint8_t endp,
+                                    uint8_t addr, uint8_t interval,
+                                    usb_buf_t *usbb) {
+  uhci_transfer(dev, mps, endp, addr, interval, usbb, NULL);
+}
+
+static void uhci_bulk_transfer(device_t *dev, uint16_t mps, uint8_t endp,
+                               uint8_t addr, usb_buf_t *usbb) {
+  uhci_transfer(dev, mps, endp, addr, 0, usbb, NULL);
+}
 
 static int uhci_attach(device_t *dev) {
   uhci_state_t *uhci = dev->state;
@@ -586,19 +599,19 @@ static int uhci_attach(device_t *dev) {
   /* Start the controller. */
   outw(UHCI_CMD, UHCI_CMD_RS);
 
-  dev->devclass = &DEVCLASS(usbhc);
+  usb_init(dev);
 
   /* Detect and configure attached devices. */
-  usb_enumerate(dev);
-
-  return bus_generic_probe(dev);
+  return usb_enumerate(dev);
 }
 
 static usbhc_methods_t uhci_usbhc_if = {
   .number_of_ports = uhci_number_of_ports,
   .device_present = uhci_device_present,
   .reset_port = uhci_reset_port,
-  .transfer = uhci_transfer,
+  .control_transfer = uhci_control_transfer,
+  .interrupt_transfer = uhci_interrupt_transfer,
+  .bulk_transfer = uhci_bulk_transfer,
 };
 
 static driver_t uhci = {

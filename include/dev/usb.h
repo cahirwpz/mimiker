@@ -7,6 +7,11 @@
 #include <sys/ringbuf.h>
 #include <sys/condvar.h>
 #include <sys/spinlock.h>
+#include <sys/device.h>
+
+/*
+ * Constructs defined by the USB specification.
+ */
 
 /* Definition of some hardcoded USB constants. */
 
@@ -149,6 +154,10 @@ typedef struct usb_endpoint_descriptor {
 #define UE_BULK 0x02
 #define UE_INTERRUPT 0x03
 
+/*
+ * Implementation specific constructs.
+ */
+
 typedef struct usbhc_space usbhc_space_t;
 
 typedef struct usb_device {
@@ -161,24 +170,39 @@ typedef struct usb_device {
 } usb_device_t;
 
 typedef enum {
-  TF_INPUT = 1,
-  TF_CONTROL = 2,
-  TF_BULK = 4,
-  TF_INTERRUPT = 8,
-  TF_STALLED = 16,
-  TF_ERROR = 32, /* errors other than STALL */
-} transfer_flags_t;
+  USB_ERR_STALLED = 1, /* STALL condition encountered */
+  USB_ERR_OTHER = 2,   /* errors other than STALL */
+} usb_error_flags_t;
 
+typedef enum {
+  USB_TT_NONE,
+  USB_TT_CONTROL,
+  USB_TT_INTERRUPT,
+  USB_TT_BULK,
+} usb_transfer_type_t;
+
+typedef enum {
+  USB_INPUT,
+  USB_OUTPUT,
+} usb_direction_t;
+
+/* USB buffer used for USB transfers. */
 typedef struct usb_buf {
-  ringbuf_t buf;
-  condvar_t cv;
-  spin_t lock;
-  transfer_flags_t flags;
-  uint16_t transfer_size;
+  ringbuf_t buf;            /* write source or read destination */
+  condvar_t cv;             /* wait for the transfer to complete */
+  spin_t lock;              /* buffer guard */
+  usb_error_flags_t eflags; /* errors encountered during transfer */
+  usb_transfer_type_t type; /* what kind of transfer is this ? */
+  usb_direction_t dir;      /* transfer direction */
+  uint16_t transfer_size;   /* size of the transfer */
 } usb_buf_t;
 
-static inline usb_device_t *usb_device_of(device_t *device) {
-  return (usb_device_t *)device->instance;
+static inline usb_device_t *usb_device_of(device_t *dev) {
+  return dev->bus == DEV_BUS_USB ? dev->instance : NULL;
+}
+
+static inline device_t *usb_bus_of(device_t *dev) {
+  return dev->bus == DEV_BUS_USB ? dev->parent : TAILQ_FIRST(&dev->children);
 }
 
 static inline int usb_endp_type(usb_device_t *usbd, uint8_t idx) {
@@ -191,33 +215,26 @@ static inline int usb_endp_dir(usb_device_t *usbd, uint8_t idx) {
   return UE_GET_DIR(usbd->endps[idx].bEndpointAddress);
 }
 
+void usb_init(device_t *dev);
+int usb_enumerate(device_t *dev);
+
 uint16_t usb_max_pkt_size(usb_device_t *usbd, usb_buf_t *usbb);
 uint8_t usb_endp_addr(usb_device_t *usbd, usb_buf_t *usbb);
 uint8_t usb_status_type(usb_buf_t *usbb);
 uint8_t usb_interval(usb_device_t *usbd, usb_buf_t *usbb);
-void usb_process(usb_buf_t *usbb, void *data, transfer_flags_t flags);
-usb_buf_t *usb_alloc_buf(void *data, size_t size, transfer_flags_t flags,
-                         uint16_t transfer_size);
+void usb_process(usb_buf_t *usbb, void *data, usb_error_flags_t flags);
+usb_buf_t *usb_alloc_buf(void *data, size_t size, usb_transfer_type_t type,
+                         usb_direction_t dir, uint16_t transfer_size);
 
-#define usb_alloc_buf_from_struct(sp, flags, ts)                               \
-  usb_alloc_buf((sp), sizeof(*(sp)), (flags), (ts))
+#define usb_alloc_buf_from_struct(sp, type, dir, transfer_size)                \
+  usb_alloc_buf((sp), sizeof(*(sp)), (type), (dir), (transfer_size))
 
-#define usb_alloc_empty_buf(flags) usb_alloc_buf(NULL, 0, (flags), 0)
-
-#define usb_alloc_bulk_buf(data, size, flags)                                  \
-  usb_alloc_buf((data), (size), (flags), (size))
+#define usb_alloc_empty_buf(type, dir) usb_alloc_buf(NULL, 0, (type), (dir), 0)
 
 void usb_free_buf(usb_buf_t *usbb);
 void usb_reuse_buf(usb_buf_t *usbb, void *data, size_t size,
-                   transfer_flags_t flags, uint16_t transfer_size);
-
-#define usb_reuse_bulk_buf(usbb, data, size, flags)                            \
-  usb_reuse_buf((usbb), (data), (size), (flags), (size))
-
+                   usb_direction_t dir, uint16_t transfer_size);
 void usb_reset_buf(usb_buf_t *usbb, uint16_t transfer_size);
-
-#define usb_reset_bulk_buf(usbb) usb_reset_buf((usbb), (usbb)->buf.size)
-
 void usb_wait(usb_buf_t *usbb);
 bool usb_transfer_error(usb_buf_t *usbb);
 int usb_unhalt_endp(device_t *dev, uint8_t idx);
@@ -229,6 +246,5 @@ void usb_interrupt_transfer(device_t *dev, usb_buf_t *usbb);
 int usb_poll(device_t *dev, usb_buf_t *usbb, uint8_t idx, void *buf,
              size_t size);
 void usb_bulk_transfer(device_t *dev, usb_buf_t *usbb);
-void usb_enumerate(device_t *dev);
 
 #endif /* _DEV_USB_H_ */
