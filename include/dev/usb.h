@@ -154,17 +154,39 @@ typedef struct usb_endpoint_descriptor {
  */
 
 typedef enum {
-  UEF_STALLED = 1, /* STALL condition encountered */
-  UEF_ERROR = 2,   /* errors other than STALL */
+  USB_ERR_STALLED = 1, /* STALL condition encountered */
+  USB_ERR_OTHER = 2,   /* errors other than STALL */
 } usb_error_flags_t;
+
+typedef enum {
+  USB_TT_NONE,
+  USB_TT_CONTROL,
+  USB_TT_INTERRUPT,
+  USB_TT_BULK,
+} usb_transfer_type_t;
+
+typedef enum {
+  USB_INPUT,
+  USB_OUTPUT,
+} usb_direction_t;
 
 /* USB buffer used for USB transfers. */
 typedef struct usb_buf {
-  ringbuf_t buf;           /* write source or read destination */
-  condvar_t cv;            /* wait for the transfer to complete */
-  spin_t lock;             /* buffer guard */
-  usb_error_flags_t flags; /* errors encountered during transfer */
-  uint16_t transfer_size;  /* transfer size */
+  ringbuf_t buf;            /* write source or read destination */
+  condvar_t cv;             /* wait for the transfer to complete */
+  spin_t lock;              /* buffer guard */
+  usb_error_flags_t eflags; /* errors encountered during transfer */
+  usb_transfer_type_t type; /* what kind of transfer is this ? */
+  usb_direction_t dir;      /* transfer direction */
+  uint16_t transfer_size;   /* size of the transfer */
 } usb_buf_t;
+
+static inline usb_device_t *usb_device_of(device_t *dev) {
+  return dev->bus == DEV_BUS_USB ? dev->instance : NULL;
+}
+
+static inline device_t *usb_bus_of(device_t *dev) {
+  return dev->bus == DEV_BUS_USB ? dev->parent : TAILQ_FIRST(&dev->children);
+}
 
 #endif /* _DEV_USB_H_ */
