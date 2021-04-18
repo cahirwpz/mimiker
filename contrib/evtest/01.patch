@@ -1,0 +1,71 @@
+diff --git a/evtest.c b/evtest.c
+index 40bc82b..29a2f37 100644
+--- a/evtest.c
++++ b/evtest.c
+@@ -43,8 +43,8 @@
+ #include <config.h>
+ #endif
+ 
+-#include <linux/version.h>
+-#include <linux/input.h>
++#include <sys/input.h>
++#include <sys/ioctl.h>
+ 
+ #include <string.h>
+ #include <fcntl.h>
+@@ -107,10 +107,7 @@ static const struct query_mode {
+ static int grab_flag = 0;
+ static volatile sig_atomic_t stop = 0;
+ 
+-static void interrupt_handler(int sig)
+-{
+-	stop = 1;
+-}
++static const char *program_invocation_short_name;
+ 
+ /**
+  * Look up an entry in the query_modes table by its textual name.
+@@ -1034,15 +1031,8 @@ static int print_events(int fd)
+ {
+ 	struct input_event ev[64];
+ 	int i, rd;
+-	fd_set rdfs;
+-
+-	FD_ZERO(&rdfs);
+-	FD_SET(fd, &rdfs);
+ 
+ 	while (!stop) {
+-		select(fd + 1, &rdfs, NULL, NULL, NULL);
+-		if (stop)
+-			break;
+ 		rd = read(fd, ev, sizeof(ev));
+ 
+ 		if (rd < (int) sizeof(struct input_event)) {
+@@ -1057,7 +1047,7 @@ static int print_events(int fd)
+ 			type = ev[i].type;
+ 			code = ev[i].code;
+ 
+-			printf("Event: time %ld.%06ld, ", ev[i].time.tv_sec, ev[i].time.tv_usec);
++			printf("Event: time %lld.%06d, ", ev[i].time.tv_sec, ev[i].time.tv_usec);
+ 
+ 			if (type == EV_SYN) {
+ 				if (code == SYN_MT_REPORT)
+@@ -1160,9 +1150,6 @@ static int do_capture(const char *device, int grab_flag)
+ 		printf("***********************************************\n");
+ 	}
+ 
+-	signal(SIGINT, interrupt_handler);
+-	signal(SIGTERM, interrupt_handler);
+-
+ 	free(filename);
+ 
+ 	return print_events(fd);
+@@ -1258,6 +1245,8 @@ int main (int argc, char **argv)
+ 	const char *event_type;
+ 	enum evtest_mode mode = MODE_CAPTURE;
+ 
++	program_invocation_short_name = argv[0];
++
+ 	while (1) {
+ 		int option_index = 0;
+ 		int c = getopt_long(argc, argv, "", long_options, &option_index);
