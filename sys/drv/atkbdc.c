@@ -12,6 +12,8 @@
 #include <dev/atkbdcreg.h>
 #include <sys/interrupt.h>
 #include <sys/devclass.h>
+#include <sys/sched.h>
+#include <dev/evdev.h>
 
 /* XXX: resource size must be a power of 2 ?! */
 #undef IO_KBDSIZE
@@ -28,6 +30,9 @@ typedef struct atkbdc_state {
   ringbuf_t scancodes;
   resource_t *irq_res;
   resource_t *regs;
+  thread_t *thread;
+  evdev_dev_t *evdev;
+  int evdev_state;
 } atkbdc_state_t;
 
 /* For now, this is the only keyboard driver we'll want to have, so the
@@ -62,27 +67,26 @@ static void write_data(resource_t *regs, uint8_t byte) {
   bus_write_1(regs, KBD_DATA_PORT, byte);
 }
 
-static int scancode_read(vnode_t *v, uio_t *uio, int ioflag) {
-  atkbdc_state_t *atkbdc = devfs_node_data(v);
-  int error;
+static void atkbdc_thread(void *arg) {
+  atkbdc_state_t *atkbdc = arg;
+  int keycode;
+  uint8_t scancode;
 
-  uio->uio_offset = 0; /* This device does not support offsets. */
+  while (true) {
+    WITH_SPIN_LOCK (&atkbdc->lock) {
+      while (!ringbuf_getb(&atkbdc->scancodes, &scancode))
+        cv_wait(&atkbdc->nonempty, &atkbdc->lock);
+    }
 
-  WITH_SPIN_LOCK (&atkbdc->lock) {
-    uint8_t data;
-    /* For simplicity, copy to the user space one byte at a time. */
-    while (!ringbuf_getb(&atkbdc->scancodes, &data))
-      cv_wait(&atkbdc->nonempty, &atkbdc->lock);
-    if ((error = uiomove_frombuf(&data, 1, uio)))
-      return error;
+    keycode = evdev_scancode2key(&atkbdc->evdev_state, scancode);
+
+    if (keycode != KEY_RESERVED) {
+      evdev_push_event(atkbdc->evdev, EV_KEY, (uint16_t)keycode,
+                       scancode & 0x80 ? 0 : 1);
+      evdev_sync(atkbdc->evdev);
+    }
   }
-
-  return 0;
 }
-
-static vnodeops_t scancode_vnodeops = {
-  .v_read = scancode_read,
-};
 
 /* Reset keyboard and perform a self-test. */
 static bool kbd_reset(resource_t *regs) {
@@ -146,6 +150,20 @@ static int atkbdc_probe(device_t *dev) {
   return 1;
 }
 
+static void evdev_init(atkbdc_state_t *atkbdc) {
+  evdev_dev_t *evdev = evdev_alloc();
+  evdev_set_name(evdev, "AT keyboard");
+  evdev_set_id(evdev, BUS_I8042, 1, 1, 0);
+  evdev_support_event(evdev, EV_SYN);
+  evdev_support_event(evdev, EV_KEY);
+  evdev_support_event(evdev, EV_REP);
+  evdev_support_all_known_keys(evdev);
+
+  evdev_register(evdev);
+  atkbdc->evdev = evdev;
+  atkbdc->evdev_state = 0;
+}
+
 static int atkbdc_attach(device_t *dev) {
   atkbdc_state_t *atkbdc = dev->state;
 
@@ -165,8 +183,11 @@ static int atkbdc_attach(device_t *dev) {
   write_command(atkbdc->regs, KBDC_SET_COMMAND_BYTE);
   write_data(atkbdc->regs, KBD_ENABLE_KBD_INT);
 
-  /* Prepare /dev/scancode interface. */
-  devfs_makedev(NULL, "scancode", &scancode_vnodeops, atkbdc, NULL);
+  atkbdc->thread = thread_create("atkbdc", atkbdc_thread, atkbdc,
+                                 prio_ithread(PRIO_ITHRD_QTY - 1));
+  sched_add(atkbdc->thread);
+
+  evdev_init(atkbdc);
 
   return 0;
 }

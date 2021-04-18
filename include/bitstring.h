@@ -85,6 +85,13 @@ typedef unsigned char bitstr_t;
   /*LINTED bitwise on signed*/                                                 \
   ((name)[_bit_byte(bit)] &= (unsigned char)~_bit_mask(bit))
 
+/* change bit N of bitstring name to the specified value */
+#define bit_change(name, bit, value)                                           \
+  if ((value))                                                                 \
+    bit_set(name, bit);                                                        \
+  else                                                                         \
+    bit_clear(name, bit)
+
 /* clear bits start ... stop in bitstring */
 #define bit_nclear(name, start, stop)                                          \
   do {                                                                         \
