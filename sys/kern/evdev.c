@@ -7,6 +7,7 @@
 #include <sys/malloc.h>
 #include <sys/device.h>
 #include <bitstring.h>
+#include <sys/libkern.h>
 
 #define NAMELEN 80
 
