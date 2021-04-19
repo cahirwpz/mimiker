@@ -2,8 +2,9 @@
 
 TOPDIR = $(realpath ../..)
 
-SOURCES = \
+SOURCES-MIPS = \
 	82371AB.c \
+	board.c \
 	boot.c \
 	cbus.c \
 	context.c \
@@ -12,7 +13,6 @@ SOURCES = \
 	ebase.S \
 	gt64120.c \
 	interrupt.c \
-	$(BOARD).c \
 	pmap.c \
 	rootdev.c \
 	sigcode.S \
@@ -25,14 +25,12 @@ SOURCES = \
 	trap.c \
 	uart_cbus.c
 
-OBJECTS += $(BOARD)_dtb.o
-
 CLEAN-FILES += assym.h
 
 CPPFLAGS += -D_MACHDEP
 
 include $(TOPDIR)/build/build.kern.mk
 
-$(SOURCES): assym.h
+$(SOURCES-MIPS): assym.h
 
 boot.o : CFLAGS_KASAN =

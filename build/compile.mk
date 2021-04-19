@@ -9,6 +9,7 @@ SOURCES_YACC = $(filter %.y,$(SOURCES))
 SOURCES_GEN += $(SOURCES_YACC:%.y=%.c)
 
 SOURCES_C = $(filter %.c,$(SOURCES)) $(SOURCES_GEN)
+SOURCES_ALL_C = $(filter %.c,$(SOURCES_ALL)) $(SOURCES_GEN)
 SOURCES_ASM = $(filter %.S,$(SOURCES))
 
 OBJECTS += $(SOURCES_C:%.c=%.o) $(SOURCES_ASM:%.S=%.o)
