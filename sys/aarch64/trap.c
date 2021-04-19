@@ -9,7 +9,7 @@
 #include <sys/sysent.h>
 #include <sys/errno.h>
 #include <sys/context.h>
-#include <sys/cpu_interrupt.h>
+#include <sys/cpu.h>
 #include <aarch64/armreg.h>
 #include <aarch64/pmap.h>
 

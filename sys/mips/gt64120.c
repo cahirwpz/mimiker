@@ -35,7 +35,6 @@
 #include <dev/isareg.h>
 #include <dev/gt64120reg.h>
 #include <sys/interrupt.h>
-#include <sys/cpu_interrupt.h>
 #include <sys/pci.h>
 #include <sys/spinlock.h>
 #include <sys/libkern.h>

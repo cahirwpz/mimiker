@@ -2,7 +2,7 @@
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
-#include <sys/cpu_interrupt.h>
+#include <sys/cpu.h>
 #include <sys/context.h>
 #include <mips/tlb.h>
 #include <sys/pmap.h>

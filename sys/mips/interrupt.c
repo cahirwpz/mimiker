@@ -1,6 +1,4 @@
-#include <sys/interrupt.h>
-#include <sys/cpu_interrupt.h>
-#include <sys/sched.h>
+#include <sys/cpu.h>
 #include <mips/mips.h>
 #include <mips/m32c0.h>
 

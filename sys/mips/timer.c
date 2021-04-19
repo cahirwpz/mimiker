@@ -6,7 +6,6 @@
 #include <sys/devclass.h>
 #include <sys/device.h>
 #include <sys/interrupt.h>
-#include <sys/cpu_interrupt.h>
 #include <sys/timer.h>
 
 typedef struct mips_timer_state {

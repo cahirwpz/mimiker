@@ -1,7 +1,7 @@
-#ifndef _SYS_CPU_INTERRUPT_H_
-#define _SYS_CPU_INTERRUPT_H_
+#ifndef _SYS_CPU_H_
+#define _SYS_CPU_H_
 
-/*! \file sys/cpu_interrupt.h */
+/*! \file sys/cpu.h */
 
 #include <stdbool.h>
 
@@ -21,4 +21,4 @@ void cpu_intr_enable(void);
 /*! \brief Check if local CPU interrupts are disabled. */
 bool cpu_intr_disabled(void);
 
-#endif /* !_SYS_CPU_INTERRUPT_H_ */
+#endif /* !_SYS_CPU_H_ */

@@ -7,7 +7,6 @@
 #include <sys/kmem.h>
 #include <sys/pmap.h>
 #include <sys/interrupt.h>
-#include <sys/cpu_interrupt.h>
 
 /*
  * located at BCM2836_ARM_LOCAL_BASE

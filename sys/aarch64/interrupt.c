@@ -1,5 +1,4 @@
-#include <sys/mimiker.h>
-#include <sys/cpu_interrupt.h>
+#include <sys/cpu.h>
 #include <aarch64/armreg.h>
 
 void cpu_intr_disable(void) {
