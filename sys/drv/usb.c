@@ -142,7 +142,7 @@ static int usb_control_transfer(device_t *dev, usb_buf_t *usbb,
   usb_device_t *usbd = usb_device_of(dev);
   uint16_t mps = usb_max_pkt_size(usbd, usbb);
 
-  usbhc_control_transfer(dev, mps, usbd->addr, usbb, req);
+  usbhc_control_transfer(dev, mps, usbd->port, usbd->addr, usbb, req);
 
   WITH_SPIN_LOCK (&usbb->lock) { usb_wait(usbb); }
   /* In case of control transfers, we consider a STALL condition
@@ -246,7 +246,8 @@ void usb_interrupt_transfer(device_t *dev, usb_buf_t *usbb) {
   uint8_t endp = usb_endp_addr(usbd, usbb);
   uint8_t interval = usb_interval(usbd, usbb);
 
-  usbhc_interrupt_transfer(dev, mps, endp, usbd->addr, interval, usbb);
+  usbhc_interrupt_transfer(dev, mps, usbd->port, usbd->addr, endp, interval,
+                           usbb);
 }
 
 int usb_poll(device_t *dev, usb_buf_t *usbb, uint8_t idx, void *buf,
@@ -279,7 +280,7 @@ void usb_bulk_transfer(device_t *dev, usb_buf_t *usbb) {
   uint16_t mps = usb_max_pkt_size(usbd, usbb);
   uint8_t endp = usb_endp_addr(usbd, usbb);
 
-  usbhc_bulk_transfer(dev, mps, endp, usbd->addr, usbb);
+  usbhc_bulk_transfer(dev, mps, usbd->port, usbd->addr, endp, usbb);
 }
 
 static int usb_set_addr(device_t *dev) {

@@ -472,11 +472,10 @@ static size_t uhci_req_size(uint16_t mps, usb_buf_t *usbb) {
           sizeof(uhci_td_t));
 }
 
-static void uhci_transfer(device_t *dev, uint16_t mps, uint8_t endp,
-                          uint8_t addr, uint8_t interval, usb_buf_t *usbb,
-                          usb_device_request_t *req) {
-  uhci_state_t *uhci = usb_bus_of(dev)->parent->state;
-  usb_device_t *usbd = usb_device_of(dev);
+static void uhci_transfer(device_t *dev, uint16_t mps, uint8_t port,
+                          uint8_t addr, uint8_t endp, uint8_t interval,
+                          usb_buf_t *usbb, usb_device_request_t *req) {
+  uhci_state_t *uhci = dev->parent->state;
   uint16_t transfer_size = usbb->transfer_size;
   size_t offset = uhci_req_size(mps, usbb);
   void *buf = uhci_alloc_pool(uhci);
@@ -488,7 +487,7 @@ static void uhci_transfer(device_t *dev, uint16_t mps, uint8_t endp,
   qh_add_td(qh, td);
 
   /* Are we talking with a low speed device? */
-  uint32_t ls = chkw(UHCI_PORTSC(usbd->port), UHCI_PORTSC_LSDA);
+  uint32_t ls = chkw(UHCI_PORTSC(port), UHCI_PORTSC_LSDA);
 
   void *dt = buf + offset;
   uint16_t cnt = 0;
@@ -502,7 +501,7 @@ static void uhci_transfer(device_t *dev, uint16_t mps, uint8_t endp,
     dt = r + 1;
 
     /* Prepare a SETUP packet. */
-    td_setup(td, ls, endp, usbd->addr, r);
+    td_setup(td, ls, endp, addr, r);
     cnt++;
   }
 
@@ -513,7 +512,7 @@ static void uhci_transfer(device_t *dev, uint16_t mps, uint8_t endp,
   /* Prepare DATA packets. */
   for (uint16_t nbytes = 0; nbytes != transfer_size; cnt++) {
     uint16_t psize = min(transfer_size - nbytes, mps);
-    td_data(&td[cnt], ls, psize, endp, usbd->addr, cnt & 1, dt, usbb->dir);
+    td_data(&td[cnt], ls, psize, endp, addr, cnt & 1, dt, usbb->dir);
     nbytes += psize;
     dt += psize;
   }
@@ -521,7 +520,7 @@ static void uhci_transfer(device_t *dev, uint16_t mps, uint8_t endp,
   if (usbb->type == USB_TT_CONTROL) {
     /* Prepare a STATUS packet. */
     uint8_t sts_type = usb_status_type(usbb);
-    td_status(&td[cnt], ls, endp, usbd->addr, sts_type);
+    td_status(&td[cnt], ls, endp, addr, sts_type);
   } else {
     /* The last TD has to finish the transfer. */
     uhci_td_t *last = &td[cnt - 1];
@@ -532,20 +531,21 @@ static void uhci_transfer(device_t *dev, uint16_t mps, uint8_t endp,
   qh_schedule(uhci, qh, interval);
 }
 
-static void uhci_control_transfer(device_t *dev, uint16_t mps, uint8_t addr,
-                                  usb_buf_t *usbb, usb_device_request_t *req) {
-  uhci_transfer(dev, mps, 0, addr, 0, usbb, req);
+static void uhci_control_transfer(device_t *dev, uint16_t mps, uint8_t port,
+                                  uint8_t addr, usb_buf_t *usbb,
+                                  usb_device_request_t *req) {
+  uhci_transfer(dev, mps, port, addr, 0, 0, usbb, req);
 }
 
-static void uhci_interrupt_transfer(device_t *dev, uint16_t mps, uint8_t endp,
-                                    uint8_t addr, uint8_t interval,
-                                    usb_buf_t *usbb) {
-  uhci_transfer(dev, mps, endp, addr, interval, usbb, NULL);
+static void uhci_interrupt_transfer(device_t *dev, uint16_t mps, uint8_t port,
+                                    uint8_t addr, uint8_t endp,
+                                    uint8_t interval, usb_buf_t *usbb) {
+  uhci_transfer(dev, mps, port, addr, endp, interval, usbb, NULL);
 }
 
-static void uhci_bulk_transfer(device_t *dev, uint16_t mps, uint8_t endp,
-                               uint8_t addr, usb_buf_t *usbb) {
-  uhci_transfer(dev, mps, endp, addr, 0, usbb, NULL);
+static void uhci_bulk_transfer(device_t *dev, uint16_t mps, uint8_t port,
+                               uint8_t addr, uint8_t endp, usb_buf_t *usbb) {
+  uhci_transfer(dev, mps, port, addr, endp, 0, usbb, NULL);
 }
 
 static int uhci_attach(device_t *dev) {
