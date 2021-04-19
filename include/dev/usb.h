@@ -153,32 +153,32 @@ typedef struct usb_endpoint_descriptor {
  * Implementation specific constructs.
  */
 
-typedef enum {
+typedef enum usb_error {
   USB_ERR_STALLED = 1, /* STALL condition encountered */
   USB_ERR_OTHER = 2,   /* errors other than STALL */
-} usb_error_flags_t;
+} usb_error_t;
 
-typedef enum {
-  USB_TT_NONE,
-  USB_TT_CONTROL,
-  USB_TT_INTERRUPT,
-  USB_TT_BULK,
-} usb_transfer_type_t;
+typedef enum usb_transfer {
+  USB_TFR_NONE,
+  USB_TFR_CONTROL,
+  USB_TFR_INTERRUPT,
+  USB_TFR_BULK,
+} usb_transfer_t;
 
-typedef enum {
-  USB_INPUT,
-  USB_OUTPUT,
+typedef enum usb_direction {
+  USB_DIR_INPUT,
+  USB_DIR_OUTPUT,
 } usb_direction_t;
 
 /* USB buffer used for USB transfers. */
 typedef struct usb_buf {
-  ringbuf_t buf;            /* write source or read destination */
-  condvar_t cv;             /* wait for the transfer to complete */
-  spin_t lock;              /* buffer guard */
-  usb_error_flags_t eflags; /* errors encountered during transfer */
-  usb_transfer_type_t type; /* what kind of transfer is this ? */
-  usb_direction_t dir;      /* transfer direction */
-  uint16_t transfer_size;   /* size of the transfer */
+  ringbuf_t buf;           /* write source or read destination */
+  condvar_t cv;            /* wait for the transfer to complete */
+  spin_t lock;             /* buffer guard */
+  usb_error_t error;       /* errors encountered during transfer */
+  usb_transfer_t transfer; /* what kind of transfer is this ? */
+  usb_direction_t dir;     /* transfer direction */
+  uint16_t transfer_size;  /* size of the transfer */
 } usb_buf_t;
 
 static inline usb_device_t *usb_device_of(device_t *dev) {
