@@ -30,7 +30,6 @@
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <mips/malta.h>
-#include <mips/interrupt.h>
 #include <dev/i8259.h>
 #include <dev/piixreg.h>
 #include <dev/isareg.h>

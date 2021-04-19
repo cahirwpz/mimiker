@@ -1,5 +1,5 @@
 #include <sys/mimiker.h>
-#include <aarch64/interrupt.h>
+#include <sys/cpu.h>
 #include <aarch64/armreg.h>
 
 __no_instrument_kgprof void cpu_intr_disable(void) {
