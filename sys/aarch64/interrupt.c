@@ -1,3 +1,4 @@
+#include <sys/mimiker.h>
 #include <sys/cpu.h>
 #include <aarch64/armreg.h>
 
