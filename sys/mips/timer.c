@@ -2,7 +2,6 @@
 #include <sys/klog.h>
 #include <mips/m32c0.h>
 #include <mips/config.h>
-#include <mips/interrupt.h>
 #include <sys/bus.h>
 #include <sys/devclass.h>
 #include <sys/device.h>
