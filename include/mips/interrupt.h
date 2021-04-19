@@ -1,33 +1,6 @@
 #ifndef _MIPS_INTERRUPT_H_
 #define _MIPS_INTERRUPT_H_
 
-/*! \file mips/interrupt.h */
-
-#include <stdbool.h>
-
-/*! \brief Disables interrupts by setting SR.IE to 0.
- *
- * \warning Do not use these if you don't know what you're doing!
- * Use \a intr_disable instead.
- *
- * \see intr_enable
- * \see intr_disable
- */
-void cpu_intr_disable(void) __no_instrument_kgprof;
-
-/*! \brief Enables interrupts by setting SR.IE to 1. */
-void cpu_intr_enable(void) __no_instrument_kgprof;
-
-/*! \brief Check if interrupts are disabled.
- *
- * Interrupts are enabled when SR.IE = 1 and SR.EXL = 0 and SR.ERL = 0,
- * according to MIPS documentation.
- *
- * The kernel leaves Exception (EXL) or Error Level (ERL) as soon as possible,
- * hence we consider exceptions to be disabled if and only if SR.IE = 0.
- */
-bool cpu_intr_disabled(void) __no_instrument_kgprof;
-
 #ifdef _MACHDEP
 
 typedef enum {

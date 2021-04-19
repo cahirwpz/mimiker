@@ -334,7 +334,7 @@ void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
     /* coalesce previous segment */
     prev = TAILQ_PREV(bt, vmem_seglist, bt_seglink);
     if (prev != NULL && prev->bt_type == BT_TYPE_FREE) {
-      assert(bt_end(prev) < bt->bt_start);
+      assert(bt_end(prev) + 1 == bt->bt_start);
       bt_remfree(vm, prev);
       bt_remseg(vm, prev);
       bt->bt_size += prev->bt_size;
@@ -348,7 +348,7 @@ void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
     /* coalesce next segment */
     next = TAILQ_NEXT(bt, bt_seglink);
     if (next != NULL && next->bt_type == BT_TYPE_FREE) {
-      assert(bt_end(bt) < next->bt_start);
+      assert(bt_end(bt) + 1 == next->bt_start);
       bt_remfree(vm, next);
       bt_remseg(vm, next);
       bt->bt_size += next->bt_size;
