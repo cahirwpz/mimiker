@@ -12,13 +12,16 @@ typedef uint8_t (*usbhc_number_of_ports_t)(device_t *dev);
 typedef bool (*usbhc_device_present_t)(device_t *dev, uint8_t port);
 typedef void (*usbhc_reset_port_t)(device_t *dev, uint8_t port);
 typedef void (*usbhc_control_transfer_t)(device_t *dev, uint16_t mps,
-                                         uint8_t addr, usb_buf_t *usbb,
+                                         uint8_t port, uint8_t addr,
+                                         usb_buf_t *usbb,
                                          usb_device_request_t *req);
 typedef void (*usbhc_interrupt_transfer_t)(device_t *dev, uint16_t mps,
-                                           uint8_t endp, uint8_t addr,
-                                           uint8_t interval, usb_buf_t *usbb);
-typedef void (*usbhc_bulk_transfer_t)(device_t *dev, uint16_t mps, uint8_t endp,
-                                      uint8_t addr, usb_buf_t *usbb);
+                                           uint8_t port, uint8_t addr,
+                                           uint8_t endp, uint8_t interval,
+                                           usb_buf_t *usbb);
+typedef void (*usbhc_bulk_transfer_t)(device_t *dev, uint16_t mps, uint8_t port,
+                                      uint8_t addr, uint8_t endp,
+                                      usb_buf_t *usbb);
 
 typedef struct usbhc_methods {
   usbhc_number_of_ports_t number_of_ports;
@@ -80,15 +83,18 @@ static inline void usbhc_reset_port(device_t *dev, uint8_t port) {
  *
  * \param dev USB device
  * \param mps max packet size handled by the device
+ * \param port port the device is attached to
  * \param addr USB device address on the USB bus
  * \param usbb USB buffer used for the transfer
  * \param req USB device request
  */
 static inline void usbhc_control_transfer(device_t *dev, uint16_t mps,
-                                          uint8_t addr, usb_buf_t *usbb,
+                                          uint8_t port, uint8_t addr,
+                                          usb_buf_t *usbb,
                                           usb_device_request_t *req) {
   device_t *idev = USBHC_METHOD_PROVIDER(dev, control_transfer);
-  usbhc_methods(idev->parent)->control_transfer(dev, mps, addr, usbb, req);
+  usbhc_methods(idev->parent)
+    ->control_transfer(idev, mps, port, addr, usbb, req);
 }
 
 /*! \brief Schedules an interrupt transfer between the host
@@ -98,17 +104,19 @@ static inline void usbhc_control_transfer(device_t *dev, uint16_t mps,
  *
  * \param dev USB device
  * \param mps max packet size handled by the device
- * \param endp endpoint address within the device
+ * \param port port the device is attached to
  * \param addr USB device address on the USB bus
+ * \param endp endpoint address within the device
  * \param interval when to perform the transfer
  * \param usbb USB buffer used for the transfer
  */
 static inline void usbhc_interrupt_transfer(device_t *dev, uint16_t mps,
-                                            uint8_t endp, uint8_t addr,
-                                            uint8_t interval, usb_buf_t *usbb) {
+                                            uint8_t port, uint8_t addr,
+                                            uint8_t endp, uint8_t interval,
+                                            usb_buf_t *usbb) {
   device_t *idev = USBHC_METHOD_PROVIDER(dev, interrupt_transfer);
   usbhc_methods(idev->parent)
-    ->interrupt_transfer(dev, mps, endp, addr, interval, usbb);
+    ->interrupt_transfer(idev, mps, port, addr, endp, interval, usbb);
 }
 
 /*! \brief Schedules a bulk transfer between the host
@@ -118,15 +126,16 @@ static inline void usbhc_interrupt_transfer(device_t *dev, uint16_t mps,
  *
  * \param dev USB device
  * \param mps max packet size handled by the device
- * \param endp endpoint address within the device
+ * \param port port the device is attached to
  * \param addr USB device address on the USB bus
+ * \param endp endpoint address within the device
  * \param usbb USB buffer used for the transfer
  */
 static inline void usbhc_bulk_transfer(device_t *dev, uint16_t mps,
-                                       uint8_t endp, uint8_t addr,
+                                       uint8_t port, uint8_t addr, uint8_t endp,
                                        usb_buf_t *usbb) {
   device_t *idev = USBHC_METHOD_PROVIDER(dev, bulk_transfer);
-  usbhc_methods(idev->parent)->bulk_transfer(dev, mps, endp, addr, usbb);
+  usbhc_methods(idev->parent)->bulk_transfer(idev, mps, port, addr, endp, usbb);
 }
 
 #endif /* _DEV_USBHC_H_ */
