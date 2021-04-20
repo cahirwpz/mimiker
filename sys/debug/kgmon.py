@@ -6,7 +6,7 @@ from struct import *
 
 def gmon_write(path):
     infer = gdb.inferiors()[0]
-
+    long_size = int(gdb.parse_and_eval('sizeof(long)'))
     with open(path, "wb") as of:
         # Write headers
         gmonhdr_size = int(gdb.parse_and_eval('sizeof(_gmonhdr)'))
@@ -30,7 +30,11 @@ def gmon_write(path):
         memory = infer.read_memory(froms, fromssize)
         froms_array = unpack('H' * int(fromssize/calcsize('H')), memory)
         memory = infer.read_memory(tos, tossize)
-        tos_array = unpack('IiHH' * int(tossize/calcsize('IiHH')), memory)
+
+        if long_size == 32:
+            tos_array = unpack('IiHH' * int(tossize/calcsize('IiHH')), memory)
+        elif long_size == 64:
+            tos_array = unpack('LlHH' * int(tossize/calcsize('IiHH')), memory)
 
         index = 0
         for from_val in froms_array:
@@ -43,7 +47,10 @@ def gmon_write(path):
                 selfpc = tos_array[toindex * 4]
                 count = tos_array[toindex * 4 + 1]
                 toindex = tos_array[toindex * 4 + 2]
-                of.write(pack('IIi', frompc, selfpc, count))
+                if long_size == 32:
+                    of.write(pack('IIi', frompc, selfpc, count))
+                elif long_size == 64:
+                    of.write(pack('LLl', frompc, selfpc, count))
             index += 1
 
 
