@@ -4,7 +4,7 @@
 #include <sys/cdefs.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
-#include <machine/bus_defs.h>
+#include <sys/bus_defs.h>
 
 #define RMAN_ADDR_MAX UINTPTR_MAX
 #define RMAN_SIZE_MAX UINTPTR_MAX
