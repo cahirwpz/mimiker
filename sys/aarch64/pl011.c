@@ -12,7 +12,7 @@
 #include <sys/interrupt.h>
 #include <sys/ringbuf.h>
 #include <sys/tty.h>
-#include <sys/uart.h>
+#include <dev/uart.h>
 #include <sys/uart_tty.h>
 #include <aarch64/bcm2835reg.h>
 #include <aarch64/bcm2835_gpioreg.h>

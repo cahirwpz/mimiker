@@ -8,6 +8,7 @@ SOURCES = \
 	rtc.c \
 	rtl8139.c \
 	pit.c \
-	stdvga.c
+	stdvga.c \
+	uart.c
 
 include $(TOPDIR)/build/build.kern.mk

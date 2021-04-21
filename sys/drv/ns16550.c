@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 #include <sys/devclass.h>
 #include <sys/tty.h>
-#include <sys/uart.h>
+#include <dev/uart.h>
 #include <sys/uart_tty.h>
 
 #define UART_BUFSIZE 128
