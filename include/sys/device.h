@@ -25,7 +25,6 @@ typedef enum {
   DIF_PCI_BUS,
   DIF_EMMC,
   DIF_UART,
-  DIF_EMMC,
   DIF_USBHC,
   DIF_COUNT /* this must be the last item */
 } drv_if_t;
