@@ -1,8 +1,8 @@
 #include <sys/klog.h>
 #include <sys/rman.h>
 #include <sys/bus.h>
-#include <aarch64/bcm2835reg.h>
-#include <aarch64/bcm2835_gpioreg.h>
+#include <dev/bcm2835reg.h>
+#include <dev/bcm2835_gpioreg.h>
 
 /*
  * \brief delay function

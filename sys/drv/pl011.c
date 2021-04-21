@@ -14,10 +14,10 @@
 #include <sys/tty.h>
 #include <dev/uart.h>
 #include <sys/uart_tty.h>
-#include <aarch64/bcm2835reg.h>
-#include <aarch64/bcm2835_gpioreg.h>
-#include <aarch64/plcomreg.h>
-#include <aarch64/gpio.h>
+#include <dev/bcm2835reg.h>
+#include <dev/bcm2835_gpioreg.h>
+#include <dev/plcomreg.h>
+#include <dev/bcm2835_gpio.h>
 
 #define UART0_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE)
 #define UART_BUFSIZE 128

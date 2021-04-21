@@ -1,7 +1,7 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
 #include <sys/mimiker.h>
-#include <sys/pci.h>
+#include <dev/pci.h>
 #include <sys/interrupt.h>
 #include <sys/errno.h>
 #include <sys/libkern.h>

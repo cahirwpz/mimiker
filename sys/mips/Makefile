@@ -3,18 +3,14 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES-MIPS = \
-	82371AB.c \
 	board.c \
 	boot.c \
-	cbus.c \
 	context.c \
 	copy.S \
 	cpu.c \
 	ebase.S \
-	gt64120.c \
 	interrupt.c \
 	pmap.c \
-	rootdev.c \
 	sigcode.S \
 	signal.c \
 	start.S \
@@ -22,8 +18,7 @@ SOURCES-MIPS = \
 	thread.c \
 	timer.c \
 	tlb.c \
-	trap.c \
-	uart_cbus.c
+	trap.c
 
 CLEAN-FILES += assym.h
 

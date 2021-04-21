@@ -30,7 +30,6 @@ SOURCES = \
 	fork.c \
 	initrd.c \
 	interrupt.c \
-	isa.c \
 	kenv.c \
 	klog.c \
 	kmem.c \
@@ -39,8 +38,6 @@ SOURCES = \
 	malloc.c \
 	mutex.c \
 	mmap.c \
-	pci.c \
-	pci_ids.c \
 	pcpu.c \
 	pipe.c \
 	pool.c \

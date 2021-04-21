@@ -9,10 +9,7 @@ SOURCES-AARCH64 = \
 	copy.S \
 	evec.S \
 	interrupt.c \
-	gpio.c \
-	pl011.c \
 	pmap.c \
-	rootdev.c \
 	sigcode.S \
 	signal.c \
 	start.S \

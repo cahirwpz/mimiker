@@ -1,6 +1,6 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
-#include <mips/malta.h>
+#include <dev/malta.h>
 #include <mips/mips.h>
 #include <mips/m32c0.h>
 #include <mips/interrupt.h>

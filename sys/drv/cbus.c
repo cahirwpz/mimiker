@@ -1,4 +1,4 @@
-#include <mips/malta.h>
+#include <dev/malta.h>
 #include <mips/mips.h>
 #include <sys/bus.h>
 
