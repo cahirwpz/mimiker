@@ -28,7 +28,6 @@ SOURCES = \
 	file_syscalls.c \
 	filedesc.c \
 	fork.c \
-	kgprof.c \
 	initrd.c \
 	interrupt.c \
 	isa.c \
@@ -84,6 +83,9 @@ SOURCES-KASAN = \
 
 SOURCES-LOCKDEP = \
 	lockdep.c
+
+SOURCES-KGPROF = \
+	kgprof.c
 
 FORMAT-EXCLUDE = sysent.h
 
