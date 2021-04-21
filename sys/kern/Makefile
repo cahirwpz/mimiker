@@ -14,10 +14,8 @@ SOURCES = \
 	cred_syscalls.c \
 	devclass.c \
 	device.c \
-	dev_cons.c \
 	dev_null.c \
 	dev_procstat.c \
-	dev_vga.c \
 	devfs.c \
 	exception.c \
 	exec.c \

@@ -2,7 +2,6 @@
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <dev/pci.h>
-#include <sys/interrupt.h>
 #include <sys/errno.h>
 #include <sys/libkern.h>
 #include <sys/devfs.h>

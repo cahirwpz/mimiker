@@ -10,7 +10,6 @@
 #include <sys/ttycom.h>
 #include <dev/isareg.h>
 #include <dev/ns16550reg.h>
-#include <sys/interrupt.h>
 #include <sys/stat.h>
 #include <sys/devclass.h>
 #include <sys/tty.h>

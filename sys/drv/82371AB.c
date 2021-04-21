@@ -8,7 +8,6 @@
 #include <sys/bus.h>
 #include <dev/malta.h>
 #include <dev/pci.h>
-#include <sys/interrupt.h>
 #include <dev/piixreg.h>
 #include <dev/isareg.h>
 #include <sys/libkern.h>

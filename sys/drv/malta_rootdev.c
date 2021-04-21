@@ -6,7 +6,6 @@
 #include <mips/interrupt.h>
 #include <sys/bus.h>
 #include <sys/exception.h>
-#include <sys/interrupt.h>
 #include <sys/devclass.h>
 #include <mips/mcontext.h>
 

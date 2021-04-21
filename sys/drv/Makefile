@@ -3,6 +3,8 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
+	dev_cons.c \
+	dev_vga.c \
 	uart.c
 
 SOURCES-MIPS = \
