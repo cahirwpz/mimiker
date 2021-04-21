@@ -36,7 +36,6 @@ SOURCES = \
 	klog.c \
 	kmem.c \
 	ktest.c \
-	lockdep.c \
 	main.c \
 	malloc.c \
 	mutex.c \
@@ -82,6 +81,9 @@ SOURCES = \
 SOURCES-KASAN = \
 	kasan.c \
 	kasan_quar.c
+
+SOURCES-LOCKDEP = \
+	lockdep.c
 
 FORMAT-EXCLUDE = sysent.h
 
