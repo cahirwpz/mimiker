@@ -31,6 +31,7 @@ SOURCES = \
 	uiomove.c \
 	utest.c \
 	uvm_amap.c \
+	uvm.c \
 	vm_map.c \
 	devclass.c \
 	vfs.c \
