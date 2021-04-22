@@ -105,10 +105,10 @@ void __cyg_profile_func_enter(void *from, void *self) {
   WITH_SPIN_LOCK (&mcount_lock) {
     p->state = GMON_PROF_BUSY;
     /*
-    * check that frompcindex is a reasonable pc value.
-    * for example:	signal catchers get called from the stack,
-    *		not from text space.  too bad.
-    */
+     * check that frompc is a reasonable pc value.
+     * for example:	signal catchers get called from the stack,
+     *		not from text space.  too bad.
+     */
     frompc -= p->lowpc;
     if (frompc >= p->textsize)
       goto done;
@@ -116,13 +116,15 @@ void __cyg_profile_func_enter(void *from, void *self) {
     size_t index = (frompc / (HASHFRACTION * sizeof(*p->froms)));
     frompcindex = &p->froms[index];
     toindex = *frompcindex;
+    /*
+     *	First time profiling this calling function .
+     */
     if (toindex == 0) {
       /*
-      *	first time traversing this arc
-      */
+       * Getting an unused node (the smallest unused tos entry index).
+       */
       toindex = ++p->tos[0].link;
       if (toindex >= p->tolimit) {
-        /* halt further profiling */
         p->state = GMON_PROF_ERROR;
         goto done;
       }
@@ -135,27 +137,23 @@ void __cyg_profile_func_enter(void *from, void *self) {
       goto done;
     }
     top = &p->tos[(size_t)toindex];
+    /*
+     * Node with our called function at front of chain; usual case.
+     */
     if (top->selfpc == selfpc) {
-      /*
-      * arc at front of chain; usual case.
-      */
       top->count++;
       goto done;
     }
     /*
-    * have to go looking down chain for it.
-    * top points to what we are looking at,
-    * prevtop points to previous top.
-    * we know it is not at the head of the chain.
-    */
+     * Traversing the list and looking for node with our called function.
+     */
     while (true) {
+      /*
+       * The list does not contain a node with the called function.
+       * Check if there are still available nodes to use, if so get one
+       * and add it to the list.
+       */
       if (top->link == 0) {
-        /*
-        * top is end of the chain and none of the chain
-        * had top->selfpc == selfpc.
-        * so we allocate a new tostruct
-        * and link it to the head of the chain.
-        */
         toindex = ++p->tos[0].link;
         if (toindex >= p->tolimit) {
           p->state = GMON_PROF_ERROR;
@@ -170,16 +168,15 @@ void __cyg_profile_func_enter(void *from, void *self) {
         goto done;
       }
       /*
-      * otherwise, check the next arc on the chain.
-      */
+       * Move to the next node.
+       */
       prevtop = top;
       top = &p->tos[top->link];
+      /*
+       * We found our node,remove it from our list
+       * and add it at the beginning of the list.
+       */
       if (top->selfpc == selfpc) {
-        /*
-        * there it is.
-        * increment its count
-        * move it to the head of the chain.
-        */
         top->count++;
         toindex = prevtop->link;
         prevtop->link = top->link;
