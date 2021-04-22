@@ -8,35 +8,35 @@
 #include <sys/mutex.h>
 #include <sys/vm.h>
 
-typedef struct uvm_anon uvm_anon_t;
+typedef struct vm_anon vm_anon_t;
 
 /*
  * Field markings and the corresponding locks:
- *  (@) uvm_anon:an_lock
+ *  (@) vm_anon:an_lock
  */
 
-struct uvm_anon {
+struct vm_anon {
   mtx_t an_lock;
   int an_ref;         /* (@) Reference counter */
   vm_page_t *an_page; /* (@) Pointer to holded page */
 };
 
 /* Allocate new anon. */
-uvm_anon_t *uvm_anon_alloc(void);
+vm_anon_t *vm_anon_alloc(void);
 /* Acquire anon->an_lock. */
-void uvm_anon_lock(uvm_anon_t *anon);
+void vm_anon_lock(vm_anon_t *anon);
 /* Release anon->an_lock. */
-void uvm_anon_unlock(uvm_anon_t *anon);
+void vm_anon_unlock(vm_anon_t *anon);
 
 /* Increase anon's reference counter.
  *
  * Must be called with anon:an_lock held. */
-void uvm_anon_hold(uvm_anon_t *anon);
+void vm_anon_hold(vm_anon_t *anon);
 
 /* Decrease anon's reference counter and destroy anon if it reached 0.
  *
  * Must be called with anon:an_lock held.
  * Releases anon:an_lock. */
-void uvm_anon_drop(uvm_anon_t *anon);
+void vm_anon_drop(vm_anon_t *anon);
 
 #endif /* !_SYS_UVM_ANON_H_ */
