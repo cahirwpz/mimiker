@@ -24,35 +24,31 @@ static driver_t sd_block_device_driver;
 #define SD_R6_RCA(resp) EMMC_FMASK48(resp, 16, 16)
 
 /* Custom commands */
-#define SD_CMD_SET_IF_COND (emmc_cmd_t) {    \
-  .cmd_idx = 8,                              \
-  .flags = 0,                                \
-  .exp_resp = SDRESP_R7,                     \
-}
+#define SD_CMD_SET_IF_COND                                                     \
+  (emmc_cmd_t) {                                                               \
+    .cmd_idx = 8, .flags = 0, .exp_resp = SDRESP_R7,                           \
+  }
 
-#define SD_CMD_SEND_OP_COND (emmc_cmd_t) {   \
-  .cmd_idx = 41,                             \
-  .flags = EMMC_F_APP,                       \
-  .exp_resp = EMMCRESP_R1,                   \
-}
+#define SD_CMD_SEND_OP_COND                                                    \
+  (emmc_cmd_t) {                                                               \
+    .cmd_idx = 41, .flags = EMMC_F_APP, .exp_resp = EMMCRESP_R1,               \
+  }
 
-#define SD_CMD_SEND_SCR (emmc_cmd_t) {       \
-  .cmd_idx = 51,                             \
-  .flags = EMMC_F_APP | EMMC_F_DATA,         \
-  .exp_resp = EMMCRESP_R1,                   \
-}
+#define SD_CMD_SEND_SCR                                                        \
+  (emmc_cmd_t) {                                                               \
+    .cmd_idx = 51, .flags = EMMC_F_APP | EMMC_F_DATA_READ,                     \
+    .exp_resp = EMMCRESP_R1,                                                   \
+  }
 
-#define SD_CMD_SEND_REL_ADDR (emmc_cmd_t) {  \
-  .cmd_idx = 3,                              \
-  .flags = 0,                                \
-  .exp_resp = SDRESP_R6,                     \
-}
+#define SD_CMD_SEND_REL_ADDR                                                   \
+  (emmc_cmd_t) {                                                               \
+    .cmd_idx = 3, .flags = 0, .exp_resp = SDRESP_R6,                           \
+  }
 
-#define SD_CMD_SET_BUS_WIDTH (emmc_cmd_t) {  \
-  .cmd_idx = 6,                              \
-  .flags = EMMC_F_APP,                       \
-  .exp_resp = EMMCRESP_R1,                   \
-}
+#define SD_CMD_SET_BUS_WIDTH                                                   \
+  (emmc_cmd_t) {                                                               \
+    .cmd_idx = 6, .flags = EMMC_F_APP, .exp_resp = EMMCRESP_R1,                \
+  }
 
 #define SD_ACMD41_SD2_0_POLLRDY_ARG1 0x51ff8000
 #define SD_ACMD41_RESP_BUSY_OFFSET 31
@@ -86,7 +82,6 @@ typedef enum sd_props {
 } sd_props_t;
 
 typedef struct emmcblk_state {
-  uint16_t rca; /* Relative Card Address */
   sd_props_t props;
 } emmcblk_state_t;
 
@@ -100,13 +95,14 @@ static const char high_cap_str[] = "Ver 2.0 or later, High Capacity or Extended"
                                    " Capacity SD Memory Card";
 
 static int sd_attach(device_t *dev) {
-  emmcblk_state_t * state = (emmcblk_state_t *)dev->state;
+  emmcblk_state_t *state = (emmcblk_state_t *)dev->state;
 
   emmc_resp_t response;
   uint64_t propv;
   uint16_t trial_cnt;
   size_t of = 0;
   uint32_t scr[2];
+  uint16_t rca;
 
   state->props = 0;
 
@@ -130,7 +126,7 @@ static int sd_attach(device_t *dev) {
     klog("SD 2.0 voltage supply is mismatched, or the card is at Version 1.x");
     return -1;
   }
-  trial_cnt = 40;
+  trial_cnt = 120;
   /* Counter-intuitively, the busy bit is set ot 0 if the card is not ready */
   SD_ACMD41_RESP_SET_BUSY(&response, 0);
   while (trial_cnt & ~SD_ACMD41_RESP_READ_BUSY(&response)) {
@@ -150,20 +146,27 @@ static int sd_attach(device_t *dev) {
 
   emmc_send_cmd(dev, EMMC_CMD(ALL_SEND_CID), 0, 0, NULL);
   emmc_send_cmd(dev, SD_CMD_SEND_REL_ADDR, 0, 0, &response);
-  state->rca = SD_R6_RCA(&response);
+  rca = SD_R6_RCA(&response);
+  emmc_set_prop(dev, EMMC_PROP_RW_RCA, rca);
 
   /* At this point we should have just enetered data transfer mode */
 
   if (emmc_set_prop(dev, EMMC_PROP_RW_CLOCK_FREQ, 25000000))
     return -1;
-  
-  emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), state->rca, 0, NULL);
+
+  emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), rca << 16, 0, NULL);
   emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 8);
   emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, 1);
   emmc_send_cmd(dev, SD_CMD_SEND_SCR, 0, 0, NULL);
-  emmc_wait(dev, EMMC_I_READ_READY);
+  if (emmc_wait(dev, EMMC_I_READ_READY)) {
+    klog("SD card timed out when waiting for data (SD_CMD_SEND_SCR)");
+    return -1;
+  }
   emmc_read(dev, scr, 64, &of);
-  emmc_wait(dev, EMMC_I_DATA_DONE);
+  if (emmc_wait(dev, EMMC_I_DATA_DONE)) {
+    klog("SD card timed out when waiting for end of transmission");
+    return -1;
+  }
   if (of != 64) {
     klog("Failed to read SD Card's SCR");
     return -1;

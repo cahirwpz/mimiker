@@ -331,6 +331,8 @@ int32_t sdhc_clk(device_t *dev, uint32_t f) {
 #define CMD_TYPE_RESUME 0x00800000
 #define CMD_TYPE_ABORT 0x00c00000
 #define CMD_DATA_TRANSFER 0x00200000
+#define CMD_DATA_READ 0x00000010
+#define CMD_DATA_MULTI 0x00000020
 #define CMD_CHECKCRC 0x00080000
 #define CMD_CHECKIDX 0x00100000
 #define CMD_RESP136 0x00010000
@@ -367,8 +369,15 @@ uint32_t encode_cmd(emmc_cmd_t cmd) {
     default:
       break;
   }
-  if (cmd.flags & EMMC_F_DATA)
+  if (cmd.flags & EMMC_F_DATA_READ) {
+    code |= CMD_DATA_TRANSFER | CMD_DATA_READ;
+  }
+  if (cmd.flags & EMMC_F_DATA_WRITE) {
     code |= CMD_DATA_TRANSFER;
+  }
+  if (cmd.flags & EMMC_F_DATA_MULTI) {
+    code |= CMD_DATA_MULTI;
+  }
   if (cmd.flags & EMMC_F_CHKIDX)
     code |= CMD_CHECKIDX;
   if (cmd.flags & EMMC_F_CHKCRC)
@@ -408,6 +417,9 @@ static int sdhc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
     case EMMC_PROP_RW_RESP_HI:
       *var = (uint64_t)b_in(emmc, EMMC_RESP2) | (uint64_t)b_in(emmc, EMMC_RESP3)
                                                   << 32;
+      return 0;
+    case EMMC_PROP_RW_RCA:
+      *var = state->sd_rca;
       return 0;
     default:
       return ENODEV;
@@ -462,6 +474,9 @@ static int sdhc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
         default:
           return EINVAL;
       }
+    case EMMC_PROP_RW_RCA:
+      state->sd_rca = var;
+      return 0;
     default:
       return ENODEV;
   }
@@ -480,7 +495,7 @@ static int sdhc_cmd_code(device_t *dev, uint32_t code, uint32_t arg1,
     return EBUSY;
   }
 
-  klog("EMMC: Sending command %p, arg1 %p, arg2 %p", code, arg1, arg2);
+  /* klog("EMMC: Sending command %p, arg1 %p, arg2 %p", code, arg1, arg2); */
 
   b_out(emmc, EMMC_ARG1, arg1);
   b_out(emmc, EMMC_ARG2, arg2);
@@ -504,9 +519,10 @@ static int sdhc_cmd_code(device_t *dev, uint32_t code, uint32_t arg1,
 static int sdhc_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg1,
                     uint32_t arg2, emmc_resp_t *resp) {
   assert(cdev->parent && cdev->parent->driver == &emmc_driver);
+  emmc_state_t *state = (emmc_state_t *)cdev->parent->state;
 
   if (cmd.flags & EMMC_F_APP)
-    sdhc_cmd(cdev, EMMC_CMD(APP_CMD), 0, 0, NULL);
+    sdhc_cmd(cdev, EMMC_CMD(APP_CMD), state->sd_rca << 16, 0, NULL);
 
   uint32_t code = encode_cmd(cmd);
   return sdhc_cmd_code(cdev->parent, code, arg1, arg2, resp);
@@ -621,7 +637,8 @@ static int sdhc_read(device_t *cdev, void *buf, size_t len, size_t *read) {
     ((uint32_t *)buf)[i] = b_in(emmc, EMMC_DATA);
 
   /* TODO (mohr): check wether the transfer fully succeeded! */
-  return len;
+  *read = len;
+  return 0;
 }
 
 static int sdhc_write(device_t *cdev, const void *buf, size_t len,
@@ -811,9 +828,11 @@ static int emmc_init(device_t *dev) {
     klog(" SET_BLKCNT");
   if (ccs)
     klog(" CCS");
-  klog("\r\n");
   state->sd_scr[0] &= ~SCR_SUPP_CCS;
   state->sd_scr[0] |= ccs;
+
+  state->sd_rca = 0;
+
   return SD_OK;
 }
 

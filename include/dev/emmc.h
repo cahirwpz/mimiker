@@ -108,16 +108,18 @@ typedef enum {
 } emmc_wait_flags_t;
 
 typedef enum emmc_cmd_flags {
-  EMMC_F_NULL = 0x0,
   /* At most one of these */
   EMMC_F_SUSPEND = 0x01, /* Suspend current data transfer */
   EMMC_F_RESUME = 0x02,  /* Resume last data transfer */
   EMMC_F_ABORT = 0x03,   /* Abort current data transfer */
+  /* At most one of these */
+  EMMC_F_DATA_READ = 0x04,  /* Read data transfer is expected */
+  EMMC_F_DATA_WRITE = 0x08, /* Write data transfer is expected */
   /* Any subset of these */
-  EMMC_F_DATA = 0x04,   /* Data transfer is expected */
-  EMMC_F_CHKIDX = 0x08, /* Check commands index in response */
-  EMMC_F_CHKCRC = 0x10, /* Check CRC in response */
-  EMMC_F_APP = 0x20,    /* App-specific command */
+  EMMC_F_DATA_MULTI = 0x10, /* Multi-block transfer */
+  EMMC_F_CHKIDX = 0x20,     /* Check commands index in response */
+  EMMC_F_CHKCRC = 0x40,     /* Check CRC in response */
+  EMMC_F_APP = 0x80,        /* App-specific command */
 } emmc_cmd_flags_t;
 
 static inline emmc_cmd_flags_t emmc_cmdtype(emmc_cmd_flags_t flags) {
@@ -154,6 +156,7 @@ typedef enum emmc_prop_id {
   EMMC_PROP_RW_CLOCK_FREQ,    /* Clocking frequency (Hz)
                                * (ETIMEDOUT on timeout, */
   EMMC_PROP_RW_BUSWIDTH,      /* Bus width, ie. no. of data lanes. */
+  EMMC_PROP_RW_RCA,           /* Relative card address */
 } emmc_prop_id_t;
 typedef uint64_t emmc_prop_val_t;
 
