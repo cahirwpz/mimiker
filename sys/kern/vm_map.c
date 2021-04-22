@@ -129,7 +129,7 @@ vm_segment_t *vm_segment_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
 static void vm_segment_free(vm_segment_t *seg) {
   /* we assume no other segment points to this object */
   if (seg->object)
-    vm_object_free(seg->object);
+    vm_object_drop(seg->object);
   pool_free(P_VMSEG, seg);
 }
 
@@ -373,7 +373,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
       vm_segment_t *seg;
 
       if (it->flags & VM_SEG_SHARED) {
-        refcnt_acquire(&it->object->ref_counter);
+        vm_object_hold(it->object);
         obj = it->object;
       } else {
         /* vm_object_clone will clone the data from the vm_object_t

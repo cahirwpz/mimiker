@@ -22,7 +22,8 @@ typedef struct vm_object {
 } vm_object_t;
 
 vm_object_t *vm_object_alloc(vm_pgr_type_t type);
-void vm_object_free(vm_object_t *obj);
+void vm_object_hold(vm_object_t *obj);
+void vm_object_drop(vm_object_t *obj);
 void vm_object_add_page(vm_object_t *obj, vm_offset_t off, vm_page_t *pg);
 void vm_object_remove_pages(vm_object_t *obj, vm_offset_t off, size_t len);
 vm_page_t *vm_object_find_page(vm_object_t *obj, vm_offset_t off);
