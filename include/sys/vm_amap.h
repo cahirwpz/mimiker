@@ -12,7 +12,7 @@ typedef struct vm_aref vm_aref_t;
 typedef struct vm_amap vm_amap_t;
 
 struct vm_aref {
-  int ar_pageoff;      /* page offset into amap we start */
+  int ar_pageoff;     /* page offset into amap we start */
   vm_amap_t *ar_amap; /* pointer to amap */
 };
 

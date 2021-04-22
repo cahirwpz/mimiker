@@ -30,7 +30,7 @@ SOURCES = \
 	turnstile_propagate_many.c \
 	uiomove.c \
 	utest.c \
-	uvm_amap.c \
+	vm_amap.c \
 	vm_map.c \
 	devclass.c \
 	vfs.c \
