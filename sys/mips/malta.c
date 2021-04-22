@@ -4,7 +4,6 @@
 #include <mips/mips.h>
 #include <mips/malta.h>
 #include <mips/mcontext.h>
-#include <mips/interrupt.h>
 #include <mips/tlb.h>
 #include <sys/klog.h>
 #include <sys/console.h>
