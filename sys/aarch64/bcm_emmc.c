@@ -637,7 +637,8 @@ static int sdhc_read(device_t *cdev, void *buf, size_t len, size_t *read) {
     ((uint32_t *)buf)[i] = b_in(emmc, EMMC_DATA);
 
   /* TODO (mohr): check wether the transfer fully succeeded! */
-  *read = len;
+  if (read)
+    *read = len;
   return 0;
 }
 
@@ -659,7 +660,9 @@ static int sdhc_write(device_t *cdev, const void *buf, size_t len,
     b_out(emmc, EMMC_DATA, ((uint32_t *)buf)[i]);
 
   /* TODO (mohr): check wether the transfer fully succeeded! */
-  return len;
+  if (wrote)
+    *wrote = len;
+  return 0;
 }
 
 #define GPFSEL4 0x0010

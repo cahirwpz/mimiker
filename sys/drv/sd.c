@@ -89,10 +89,14 @@ static int sd_probe(device_t *dev) {
   return dev->unit == 0;
 }
 
+static char testbuf[2880];
+
 static const char standard_cap_str[] = "Ver 2.0 or later, Standard Capacity "
                                        "SD Memory Card";
 static const char high_cap_str[] = "Ver 2.0 or later, High Capacity or Extended"
                                    " Capacity SD Memory Card";
+
+static int emmc_blk_test_rw(device_t *dev);
 
 static int sd_attach(device_t *dev) {
   emmcblk_state_t *state = (emmcblk_state_t *)dev->state;
@@ -184,10 +188,13 @@ static int sd_attach(device_t *dev) {
        (state->props & SD_SUPP_CCS) ? "YES" : "NO",
        (state->props & SD_SUPP_BLKCNT) ? "YES" : "NO");
 
+  if (emmc_blk_test_rw(dev))
+    return -1;
+
   return 0;
 }
 
-__unused static char testbuf[] =
+static char testbuf[] =
   "Man is a rope stretched between the animal and the Superman--a rope over an "
   "abyss.\n\nA dangerous crossing, a dangerous wayfaring, a dangerous "
   "looking-back, a dangerous trembling and halting.\n\nWhat is great in man is "
@@ -234,8 +241,7 @@ __unused static char testbuf[] =
  * read a block from sd card and return the number of bytes read
  * returns 0 on error.
  */
-int emmcblk_read_blk(device_t *dev, uint32_t lba, unsigned char *buffer,
-                     uint32_t num) {
+int emmcblk_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
   assert(dev->driver == (driver_t *)&sd_block_device_driver);
   emmcblk_state_t *state = (emmcblk_state_t *)dev->state;
 
@@ -294,13 +300,14 @@ int emmcblk_read_blk(device_t *dev, uint32_t lba, unsigned char *buffer,
  * Write a block to the sd card
  * returns 0 on error
  */
-int emmcblk_write_blk(device_t *dev, uint32_t lba, const uint8_t *buffer,
+int emmcblk_write_blk(device_t *dev, uint32_t lba, const void *buffer,
                       uint32_t num) {
   assert(dev->driver == (driver_t *)&sd_block_device_driver);
   emmcblk_state_t *state = (emmcblk_state_t *)dev->state;
 
-  if (((uint64_t)buffer & (uint64_t)0x3) != 0)
-    return 0;
+  /* DMA requirements */
+  /* if (((uint64_t)buffer & (uint64_t)0x3) != 0)
+    return 0; */
 
   uint32_t *buf = (uint32_t *)buffer;
   int r;
@@ -333,8 +340,10 @@ int emmcblk_write_blk(device_t *dev, uint32_t lba, const uint8_t *buffer,
       if (emmc_wait(dev, EMMC_I_WRITE_READY))
         return 0;
     }
-    if (emmc_read(dev, buf, 512, NULL))
+    if (emmc_write(dev, buf, 512, NULL)) {
+      klog("eMMC write failed");
       return 0;
+    }
     if (emmc_wait(dev, EMMC_I_DATA_DONE))
       return 0;
 
@@ -342,7 +351,31 @@ int emmcblk_write_blk(device_t *dev, uint32_t lba, const uint8_t *buffer,
     buf += 128;
   }
 
+  return num * 512;
+}
+
+static int emmc_blk_test_rw(device_t *dev) {
+  int r = 0;
+  char *buf = kmalloc(M_DEV, 4 * 512, M_ZERO);
+  r = emmcblk_write_blk(dev, 0, testbuf, 4);
+  if (!r)
+    goto sd_test_failed;
+  r = emmcblk_read_blk(dev, 0, buf, 4);
+  if (!r)
+    goto sd_test_failed;
+  for (size_t i = 0; i < 4 * 512; i++) {
+    if (buf[i] != testbuf[i]) {
+      klog("SD test bytes don't match at 0x%x", i);
+      goto sd_test_failed;
+    }
+  }
+  klog("SD test passed");
+  kfree(M_DEV, buf);
   return 0;
+sd_test_failed:
+  klog("SD test failed");
+  kfree(M_DEV, buf);
+  return -1;
 }
 
 static driver_t sd_block_device_driver = {.desc = "e.MMC block device driver",
