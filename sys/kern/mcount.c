@@ -149,9 +149,9 @@ void __cyg_profile_func_enter(void *from, void *self) {
      */
     while (true) {
       /*
-       * The list does not contain a node with the called function.
-       * Check if there are still available nodes to use, if so get one
-       * and add it to the list.
+       * We reached the end of the list it does not contain a node with
+       * the called function. Check if there are still available nodes to use,
+       *  if so get one and add it to the list.
        */
       if (top->link == 0) {
         toindex = ++p->tos[0].link;
