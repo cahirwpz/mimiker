@@ -27,14 +27,19 @@ def gmon_write(path):
         tos = gdb.parse_and_eval('_gmonparam.tos')
         lowpc = gdb.parse_and_eval('_gmonparam.lowpc')
 
+        long_size = gdb.parse_and_eval('sizeof(long)')
+        tos_rep = "IiHH"
+        output_rep = "IIi"
+        if long_size == 8:
+            tos_rep = "QqHHi"
+            output_rep = "QQq"
+        tos_rep_len = len(tos_rep)
+
         memory = infer.read_memory(froms, fromssize)
         froms_array = unpack('H' * int(fromssize/calcsize('H')), memory)
         memory = infer.read_memory(tos, tossize)
 
-        if long_size == 32:
-            tos_array = unpack('IiHH' * int(tossize/calcsize('IiHH')), memory)
-        elif long_size == 64:
-            tos_array = unpack('LlHH' * int(tossize/calcsize('IiHH')), memory)
+        tos_array = unpack(tos_rep * int(tossize/calcsize(tos_rep)), memory)
 
         fromindex = 0
         for from_val in froms_array:
@@ -44,19 +49,11 @@ def gmon_write(path):
             toindex = from_val
 
             while toindex != 0:
-                selfpc = tos_array[toindex * 4]
-                count = tos_array[toindex * 4 + 1]
-                toindex = tos_array[toindex * 4 + 2]
-<<<<<<< HEAD
-                if long_size == 32:
-                    of.write(pack('IIi', frompc, selfpc, count))
-                elif long_size == 64:
-                    of.write(pack('LLl', frompc, selfpc, count))
-            index += 1
-=======
-                of.write(pack('IIi', frompc, selfpc, count))
+                selfpc = tos_array[toindex * tos_rep_len]
+                count = tos_array[toindex * tos_rep_len + 1]
+                toindex = tos_array[toindex * tos_rep_len + 2]
+                of.write(pack(output_rep, frompc, selfpc, count))
             fromindex += 1
->>>>>>> kgprof
 
 
 class Kgmon(SimpleCommand):
