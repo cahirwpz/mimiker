@@ -4,6 +4,10 @@
 #ifndef _DEV_USB_H_
 #define _DEV_USB_H_
 
+/*
+ * Constructs defined by the USB specification.
+ */
+
 /* Definition of some hardcoded USB constants. */
 
 #define USB_MAX_IPACKET 8 /* initial USB packet size */
@@ -144,5 +148,45 @@ typedef struct usb_endpoint_descriptor {
 #define UE_ISOCHRONOUS 0x01
 #define UE_BULK 0x02
 #define UE_INTERRUPT 0x03
+
+/*
+ * Implementation specific constructs.
+ */
+
+typedef enum usb_error {
+  USB_ERR_STALLED = 1, /* STALL condition encountered */
+  USB_ERR_OTHER = 2,   /* errors other than STALL */
+} usb_error_t;
+
+typedef enum usb_transfer {
+  USB_TFR_NONE,
+  USB_TFR_CONTROL,
+  USB_TFR_INTERRUPT,
+  USB_TFR_BULK,
+} usb_transfer_t;
+
+typedef enum usb_direction {
+  USB_DIR_INPUT,
+  USB_DIR_OUTPUT,
+} usb_direction_t;
+
+/* USB buffer used for USB transfers. */
+typedef struct usb_buf {
+  ringbuf_t buf;           /* write source or read destination */
+  condvar_t cv;            /* wait for the transfer to complete */
+  spin_t lock;             /* buffer guard */
+  usb_error_t error;       /* errors encountered during transfer */
+  usb_transfer_t transfer; /* what kind of transfer is this ? */
+  usb_direction_t dir;     /* transfer direction */
+  uint16_t transfer_size;  /* size of the transfer */
+} usb_buf_t;
+
+static inline usb_device_t *usb_device_of(device_t *dev) {
+  return dev->bus == DEV_BUS_USB ? dev->instance : NULL;
+}
+
+static inline device_t *usb_bus_of(device_t *dev) {
+  return dev->bus == DEV_BUS_USB ? dev->parent : TAILQ_FIRST(&dev->children);
+}
 
 #endif /* _DEV_USB_H_ */
