@@ -11,6 +11,9 @@ static int test_amap_simple(void) {
   assert(amap != NULL);
 
   vm_aref_t aref = {.ar_pageoff = 0, .ar_amap = amap};
+  vm_amap_lock(amap);
+  vm_amap_hold(amap);
+  vm_amap_unlock(amap);
 
   vm_amap_add(&aref, (vm_anon_t *)1, 3 * PAGESIZE);
   vm_amap_add(&aref, (vm_anon_t *)2, 7 * PAGESIZE);
@@ -47,7 +50,34 @@ static int test_amap_simple(void) {
   assert(amap->am_bckptr[1] == 14);
   assert(amap->am_bckptr[3] == -1);
   assert(amap->am_anon[7] == NULL);
+  vm_amap_unlock(amap);
 
+  vm_aref_t new_aref = vm_amap_split(&aref, 5 * PAGESIZE);
+  vm_amap_lock(amap);
+  assert(amap->am_ref == 2);
+  vm_amap_unlock(amap);
+
+  vm_amap_add(&aref, (vm_anon_t *)5, 1 * PAGESIZE);
+  vm_amap_add(&new_aref, (vm_anon_t *)6, 1 * PAGESIZE);
+
+  vm_amap_lock(amap);
+  assert(amap->am_nused == 5);
+  assert(amap->am_anon[1] == (vm_anon_t *)5);
+  assert(amap->am_anon[6] == (vm_anon_t *)6);
+  assert(amap->am_bckptr[3] == 1);
+  assert(amap->am_bckptr[4] == 6);
+  vm_amap_unlock(amap);
+
+  assert(vm_amap_lookup(&aref, 1 * PAGESIZE) == (vm_anon_t *)5);
+  assert(vm_amap_lookup(&new_aref, 1 * PAGESIZE) == (vm_anon_t *)6);
+  assert(vm_amap_lookup(&new_aref, (14 - 5) * PAGESIZE) == (vm_anon_t *)4);
+
+  /* we have to drop amap twice becouse we have two refs now */
+  vm_amap_lock(amap);
+  vm_amap_drop(amap);
+
+  vm_amap_lock(amap);
+  assert(amap->am_ref == 1);
   vm_amap_drop(amap);
 
   return KTEST_SUCCESS;
