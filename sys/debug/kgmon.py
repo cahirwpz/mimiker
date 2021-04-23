@@ -36,7 +36,7 @@ def gmon_write(path):
         for from_val in froms_array:
             if from_val == 0:
                 continue
-            frompc = lowpc + index * froms_p_size
+            frompc = lowpc + index * froms_p_size * hashfraction
             toindex = from_val
 
             while toindex != 0:
