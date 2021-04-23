@@ -19,7 +19,7 @@ def gmon_write(path):
         of.write(infer.read_memory(kcount, kcountsize))
 
         # Write arc info
-        froms_p_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
+        froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
         fromssize = int(gdb.parse_and_eval('_gmonparam.fromssize'))
         tossize = int(gdb.parse_and_eval('_gmonparam.tossize'))
         hashfraction = gdb.parse_and_eval('_gmonparam.hashfraction')
@@ -32,11 +32,11 @@ def gmon_write(path):
         memory = infer.read_memory(tos, tossize)
         tos_array = unpack('IiHH' * int(tossize/calcsize('IiHH')), memory)
 
-        index = 0
+        fromindex = 0
         for from_val in froms_array:
             if from_val == 0:
                 continue
-            frompc = lowpc + index * froms_p_size * hashfraction
+            frompc = lowpc + fromindex * froms_el_size * hashfraction
             toindex = from_val
 
             while toindex != 0:
@@ -44,7 +44,7 @@ def gmon_write(path):
                 count = tos_array[toindex * 4 + 1]
                 toindex = tos_array[toindex * 4 + 2]
                 of.write(pack('IIi', frompc, selfpc, count))
-            index += 1
+            fromindex += 1
 
 
 class Kgmon(SimpleCommand):
