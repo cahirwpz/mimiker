@@ -25,6 +25,6 @@ endif
 GCC_ABIFLAGS += -msoft-float
 CLANG_ABIFLAGS += -msoft-float
 ifeq ($(KGPROF), 1)
-  CFLAGS_KGPROF = -finstrument-functions
+	CFLAGS_KGPROF = -finstrument-functions
 endif
 endif
