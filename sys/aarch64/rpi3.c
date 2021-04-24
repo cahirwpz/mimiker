@@ -137,7 +137,7 @@ static void rpi3_physmem(void) {
       continue;
     assert(memory[i].start < memory[i].end);
     vm_physseg_plug_used(memory[i].start, memory[i].end);
-    if (i == 3) {
+    if (i == 2) {
       if (memory[i].end < ram_end)
         vm_physseg_plug(memory[i].end, ram_end);
     } else if (memory[i].end < memory[i + 1].start) {
