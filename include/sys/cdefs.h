@@ -79,7 +79,7 @@
 #ifdef KGPROF
 #define __no_instrument_kgprof __no_instrument_function
 #else
-#define __no_instrument_kgprof 
+#define __no_instrument_kgprof
 #endif
 
 /* Clang introduces support for the fallthrough attribute in C2x. */
