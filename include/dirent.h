@@ -59,7 +59,6 @@ ssize_t getdents(int, char *, size_t);
 int alphasort(const struct dirent **, const struct dirent **);
 int scandir(const char *, struct dirent ***, int (*)(const struct dirent *),
             int (*)(const struct dirent **, const struct dirent **));
-int versionsort(const struct dirent **, const struct dirent **);
 __END_DECLS
 
 #endif /* !_KERNEL */

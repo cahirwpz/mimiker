@@ -68,7 +68,6 @@ char *stpcpy(char *restrict, const char *restrict);
 char *stpncpy(char *restrict, const char *restrict, size_t);
 char *strndup(const char *, size_t);
 size_t strnlen(const char *, size_t);
-int strverscmp(const char *, const char *);
 
 size_t strlcat(char *, const char *, size_t);
 size_t strlcpy(char *, const char *, size_t);

@@ -1,5 +1,5 @@
 diff --git a/evtest.c b/evtest.c
-index 40bc82b..29a2f37 100644
+index 40bc82b..1a6ead1 100644
 --- a/evtest.c
 +++ b/evtest.c
 @@ -43,8 +43,8 @@
@@ -13,7 +13,7 @@ index 40bc82b..29a2f37 100644
  
  #include <string.h>
  #include <fcntl.h>
-@@ -107,10 +107,7 @@ static const struct query_mode {
+@@ -107,10 +107,9 @@ static const struct query_mode {
  static int grab_flag = 0;
  static volatile sig_atomic_t stop = 0;
  
@@ -22,10 +22,12 @@ index 40bc82b..29a2f37 100644
 -	stop = 1;
 -}
 +static const char *program_invocation_short_name;
++
++int versionsort(const struct dirent **, const struct dirent **);
  
  /**
   * Look up an entry in the query_modes table by its textual name.
-@@ -1034,15 +1031,8 @@ static int print_events(int fd)
+@@ -1034,15 +1033,8 @@ static int print_events(int fd)
  {
  	struct input_event ev[64];
  	int i, rd;
@@ -41,7 +43,7 @@ index 40bc82b..29a2f37 100644
  		rd = read(fd, ev, sizeof(ev));
  
  		if (rd < (int) sizeof(struct input_event)) {
-@@ -1057,7 +1047,7 @@ static int print_events(int fd)
+@@ -1057,7 +1049,7 @@ static int print_events(int fd)
  			type = ev[i].type;
  			code = ev[i].code;
  
@@ -50,7 +52,7 @@ index 40bc82b..29a2f37 100644
  
  			if (type == EV_SYN) {
  				if (code == SYN_MT_REPORT)
-@@ -1160,9 +1150,6 @@ static int do_capture(const char *device, int grab_flag)
+@@ -1160,9 +1152,6 @@ static int do_capture(const char *device, int grab_flag)
  		printf("***********************************************\n");
  	}
  
@@ -60,7 +62,7 @@ index 40bc82b..29a2f37 100644
  	free(filename);
  
  	return print_events(fd);
-@@ -1258,6 +1245,8 @@ int main (int argc, char **argv)
+@@ -1258,6 +1247,8 @@ int main (int argc, char **argv)
  	const char *event_type;
  	enum evtest_mode mode = MODE_CAPTURE;
  

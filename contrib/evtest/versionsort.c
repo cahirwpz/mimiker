@@ -1,10 +1,10 @@
 /* Copied from musl libc */
 
-#define _GNU_SOURCE
-#include <ctype.h>
 #include <string.h>
+#include <dirent.h>
+#include <ctype.h>
 
-int strverscmp(const char *l0, const char *r0) {
+static int strverscmp(const char *l0, const char *r0) {
   const unsigned char *l = (const void *)l0;
   const unsigned char *r = (const void *)r0;
   size_t i, dp, j;
@@ -37,4 +37,8 @@ int strverscmp(const char *l0, const char *r0) {
   }
 
   return l[i] - r[i];
+}
+
+int versionsort(const struct dirent **a, const struct dirent **b) {
+  return strverscmp((*a)->d_name, (*b)->d_name);
 }
