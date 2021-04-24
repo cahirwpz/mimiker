@@ -95,10 +95,6 @@ void __cyg_profile_func_enter(void *from, void *self) {
   gmonparam_t *p = &_gmonparam;
   long toindex;
 
-  /*
-   * check that we are profiling
-   * and that we aren't recursively invoked.
-   */
   if (p->state != GMON_PROF_ON)
     return;
 
