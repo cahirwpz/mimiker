@@ -9,6 +9,7 @@
 #include <sys/interrupt.h>
 #include <sys/kasan.h>
 #include <sys/fdt.h>
+#include <sys/dtb.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
@@ -77,6 +78,8 @@ static void process_dtb(char **tokens, kstack_t *stk, void *dtb) {
 }
 
 void *board_stack(paddr_t dtb) {
+  dtb_early_init(dtb, fdt_totalsize(PHYS_TO_DMAP(dtb)));
+
   kstack_t *stk = &thread0.td_kstack;
 
   thread0.td_uctx = kstack_alloc_s(stk, mcontext_t);
@@ -92,6 +95,22 @@ void *board_stack(paddr_t dtb) {
   return stk->stk_ptr;
 }
 
+typedef struct {
+  paddr_t start;
+  paddr_t end;
+} addr_range_t;
+
+static int addr_range_cmp(const void *_lhs, const void *_rhs) {
+  const addr_range_t *lhs = _lhs;
+  const addr_range_t *rhs = _rhs;
+
+  assert(lhs->start != rhs->start);
+
+  if (lhs->start < rhs->start)
+    return -1;
+  return 1;
+}
+
 static void rpi3_physmem(void) {
   /* XXX: workaround - pmap_enter fails to physical page with address 0 */
   paddr_t ram_start = PAGESIZE;
@@ -100,16 +119,30 @@ static void rpi3_physmem(void) {
   paddr_t kern_end = (paddr_t)_bootmem_end;
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
+  paddr_t dtb_start = dtb_early_root();
+  paddr_t dtb_end =
+    dtb_start + roundup(fdt_totalsize(PHYS_TO_DMAP(dtb_start)), PAGESIZE);
 
-  vm_physseg_plug(ram_start, kern_start);
-  vm_physseg_plug_used(kern_start, kern_end);
+  addr_range_t memory[3] = {
+    {.start = kern_start, .end = kern_end},
+    {.start = rd_start, .end = rd_end},
+    {.start = dtb_start, .end = dtb_end},
+  };
 
-  if (rd_start != rd_end) {
-    vm_physseg_plug(kern_end, rd_start);
-    vm_physseg_plug_used(rd_start, rd_end);
-    vm_physseg_plug(rd_end, ram_end);
-  } else {
-    vm_physseg_plug(kern_end, ram_end);
+  qsort(memory, 3, sizeof(addr_range_t), addr_range_cmp);
+
+  vm_physseg_plug(ram_start, memory[0].start);
+  for (int i = 0; i < 3; ++i) {
+    if (memory[i].start == memory[i].end)
+      continue;
+    assert(memory[i].start < memory[i].end);
+    vm_physseg_plug_used(memory[i].start, memory[i].end);
+    if (i == 3) {
+      if (memory[i].end < ram_end)
+        vm_physseg_plug(memory[i].end, ram_end);
+    } else if (memory[i].end < memory[i + 1].start) {
+      vm_physseg_plug(memory[i].end, memory[i + 1].start);
+    }
   }
 }
 

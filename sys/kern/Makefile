@@ -19,6 +19,7 @@ SOURCES = \
 	dev_procstat.c \
 	dev_vga.c \
 	devfs.c \
+	dtb.c \
 	exception.c \
 	exec.c \
 	exec_elf.c \
