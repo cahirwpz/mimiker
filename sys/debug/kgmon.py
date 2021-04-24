@@ -41,7 +41,7 @@ def gmon_write(path):
             frompc = lowpc + fromindex * froms_el_size * hashfraction
             toindex = from_val
 
-            # Traversing the tos list for the calling function 
+            # Traversing the tos list for the calling function
             # It stores data about called functions
             while toindex != 0:
                 selfpc = tos_array[toindex * 4]
