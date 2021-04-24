@@ -34,11 +34,15 @@ def gmon_write(path):
 
         fromindex = 0
         for from_val in froms_array:
+            # Nothing has been called from this function
             if from_val == 0:
                 continue
+            # Getting the calling function addres from encoded value
             frompc = lowpc + fromindex * froms_el_size * hashfraction
             toindex = from_val
 
+            # Traversing the tos list for the calling function 
+            # It stores data about called functions
             while toindex != 0:
                 selfpc = tos_array[toindex * 4]
                 count = tos_array[toindex * 4 + 1]
