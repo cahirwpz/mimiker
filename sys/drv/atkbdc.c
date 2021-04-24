@@ -153,7 +153,7 @@ static int atkbdc_probe(device_t *dev) {
 static void evdev_init(atkbdc_state_t *atkbdc) {
   evdev_dev_t *evdev = evdev_alloc();
   evdev_set_name(evdev, "AT keyboard");
-  evdev_set_id(evdev, BUS_I8042, 1, 1, 0);
+  evdev_set_id(evdev, BUS_I8042, ATKBDC_VENDOR_ID, ATKBDC_DEVICE_ID, 0);
   evdev_support_event(evdev, EV_SYN);
   evdev_support_event(evdev, EV_KEY);
   evdev_support_event(evdev, EV_REP);
