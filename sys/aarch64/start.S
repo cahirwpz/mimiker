@@ -28,6 +28,8 @@ _ENTRY(_start)
         CMP     x3, #0
         BNE     .
 
+        /* Save pointer to dtb. */
+        mov     x19, x0
         /* Setup initial stack. */
         ADR     x3, __boot_stack_end
         MOV     sp, x3
@@ -42,6 +44,8 @@ _ENTRY(_start)
          * functions from libkern.
          */
         mov     sp, x0
+        /* Restore dtb pointer. */
+        mov     x0, x19
 
         BL      board_stack
         MOV     sp, x0
