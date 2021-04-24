@@ -113,7 +113,7 @@ static int sd_attach(device_t *dev) {
   /* The routine below is based on SD Specifications: Part 1 Physical Layer
    * Simplified Specification, Version 6.0. See: page 30 */
 
-  klog("Attachind SD/SDHC block device interface");
+  klog("Attaching SD/SDHC block device interface...");
 
   emmc_send_cmd(dev, EMMC_CMD(GO_IDLE), 0, 0, NULL);
   if (emmc_get_prop(dev, EMMC_PROP_R_VOLTAGE_SUPPLY, &propv)) {
