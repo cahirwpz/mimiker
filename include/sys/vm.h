@@ -51,7 +51,7 @@ typedef uintptr_t vm_offset_t;
 /* Field marking and corresponding locks:
  * (@) pv_list_lock (in pmap.c)
  * (P) physmem_lock (in vm_physmem.c)
- * (O) vm_object::uo_lock */
+ * (O) vm_object::vo_lock */
 
 struct vm_page {
   union {
