@@ -61,9 +61,6 @@ void vm_amap_add(vm_aref_t *aref, vm_anon_t *anon, vaddr_t offset);
 /* Remove an annon from an amap. */
 void vm_amap_remove(vm_aref_t *aref, vaddr_t offset);
 
-/* Returns aref to second part of amap. */
-vm_aref_t vm_amap_split(vm_aref_t *aref, vaddr_t offset);
-
 /* TODO: ppref */
 
 /* TODO: aref interface */

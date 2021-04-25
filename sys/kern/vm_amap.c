@@ -155,14 +155,3 @@ void vm_amap_remove(vm_aref_t *aref, vaddr_t offset) {
   SCOPED_MTX_LOCK(&amap->am_lock);
   vm_amap_remove_nolock(amap, slot);
 }
-
-vm_aref_t vm_amap_split(vm_aref_t *aref, vaddr_t offset) {
-  vm_amap_t *amap = aref->ar_amap;
-
-  vm_aref_t new_aref = {.ar_amap = amap,
-                        .ar_pageoff = vm_amap_slot(aref, offset)};
-
-  WITH_MTX_LOCK (&amap->am_lock)
-    vm_amap_hold(amap);
-  return new_aref;
-}
