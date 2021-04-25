@@ -253,6 +253,8 @@ static void kern_trap_handler(ctx_t *ctx) {
 }
 
 __no_instrument_kgprof void mips_exc_handler(ctx_t *ctx) {
+  thread_t *td = thread_self();
+  assert(td->td_idnest == 0);
   assert(cpu_intr_disabled());
 
   bool user_mode = user_mode_p(ctx);
