@@ -120,13 +120,14 @@ static void rpi3_physmem(void) {
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
   paddr_t dtb_start = dtb_early_root();
-  paddr_t dtb_end =
-    dtb_start + roundup(fdt_totalsize(PHYS_TO_DMAP(dtb_start)), PAGESIZE);
+  paddr_t dtb_end = dtb_start + fdt_totalsize(PHYS_TO_DMAP(dtb_start));
 
   addr_range_t memory[3] = {
-    {.start = kern_start, .end = kern_end},
-    {.start = rd_start, .end = rd_end},
-    {.start = dtb_start, .end = dtb_end},
+    {.start = rounddown(kern_start, PAGESIZE),
+     .end = roundup(kern_end, PAGESIZE)},
+    {.start = rounddown(rd_start, PAGESIZE), .end = roundup(rd_end, PAGESIZE)},
+    {.start = rounddown(dtb_start, PAGESIZE),
+     .end = roundup(dtb_end, PAGESIZE)},
   };
 
   qsort(memory, 3, sizeof(addr_range_t), addr_range_cmp);
