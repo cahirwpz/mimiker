@@ -88,7 +88,7 @@ static SPIN_DEFINE(mcount_lock, 0);
  *  tos[0] + 1  is the smallest index of an unused tos entry
  */
 
-void __cyg_profile_func_enter(void *from, void *self) {
+__no_instrument_kgprof void __cyg_profile_func_enter(void *from, void *self) {
   u_long frompc = (u_long)from, selfpc = (u_long)self;
   u_short *frompcindex;
   tostruct_t *top, *prevtop;
@@ -187,5 +187,5 @@ void __cyg_profile_func_enter(void *from, void *self) {
   }
 }
 
-void __cyg_profile_func_exit(void *this_fn, void *call_site) {
+__no_instrument_kgprof void __cyg_profile_func_exit(void *this_fn, void *call_site) {
 }
