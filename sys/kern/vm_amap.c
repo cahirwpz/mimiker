@@ -5,6 +5,7 @@
 #include <sys/pool.h>
 #include <sys/malloc.h>
 #include <sys/vm_amap.h>
+#include <sys/vm_anon.h>
 
 #define AMAP_SLOT_EMPTY (-1)
 
@@ -37,6 +38,8 @@ void vm_amap_hold(vm_amap_t *amap) {
 /* TODO: revisit after vm_anon implementation. */
 static void vm_anon_free(vm_anon_t *anon) {
   assert(anon != NULL);
+  vm_anon_lock(anon);
+  vm_anon_drop(anon);
 }
 
 static void vm_amap_free(vm_amap_t *amap) {
