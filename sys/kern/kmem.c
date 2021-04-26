@@ -72,7 +72,7 @@ static void kva_map_page(vaddr_t va, paddr_t pa, size_t n, unsigned flags) {
 }
 
 void kva_map(vaddr_t ptr, size_t size, kmem_flags_t flags) {
-  assert(page_aligned_p(size));
+  assert(page_aligned_p(ptr) && page_aligned_p(size));
 
   /* Mark the entire block as valid */
   kasan_mark_valid((void *)ptr, size);
@@ -140,15 +140,10 @@ vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size, unsigned flags) {
   if (!pg)
     return 0;
 
-  vaddr_t va = kva_alloc(size);
+  if (pap)
+    *pap = pg->paddr;
 
-  /* Mark the entire block as valid */
-  kasan_mark_valid((void *)va, size);
-
-  kva_map_page(va, pg->paddr, pg->size, flags);
-
-  *pap = pg->paddr;
-  return va;
+  return kmem_map_contig(pg->paddr, pg->size, flags);
 }
 
 void kmem_free(void *ptr, size_t size) {
@@ -167,8 +162,7 @@ vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) {
 
   klog("%s: map %p of size %ld at %p", __func__, pa, size, va);
 
-  for (size_t offset = 0; offset < size; offset += PAGESIZE)
-    pmap_kenter(va + offset, pa + offset, VM_PROT_READ | VM_PROT_WRITE, flags);
+  kva_map_page(va, pa, size / PAGESIZE, flags);
 
   return va;
 }

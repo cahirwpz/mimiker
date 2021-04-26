@@ -4,14 +4,15 @@ all: gcc-install gdb-install
 
 include $(TOPDIR)/common.mk
 
-DESTDIR := $(TOPDIR)/$(TARGET)/debian/tmp
+DESTDIR := $(CURDIR)/debian/tmp
 
 clean: binutils-clean gcc-clean gdb-clean
 	$(RM) -r debian
 
 package:
 	$(CP) -T -a $(TOPDIR)/debian debian
-	sed -i -e 's#%{TARGET}#$(TARGET:%-mimiker-elf=%)#g' \
+	sed -i -e 's#%{ARCH}#$(ARCH)#g' \
+	       -e 's#%{TARGET}#$(TARGET)#g' \
 	       -e 's#%{DATE}#$(shell date -R)#g' \
 	       -e 's#%{VERSION}#$(VERSION)#g' \
 	       `find debian -type f`

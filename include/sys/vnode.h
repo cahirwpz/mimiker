@@ -8,7 +8,6 @@
 #include <sys/spinlock.h>
 #include <sys/condvar.h>
 #include <sys/file.h>
-#include <sys/cred.h>
 #include <sys/time.h>
 
 /* Forward declarations */
@@ -19,6 +18,7 @@ typedef struct file file_t;
 typedef struct dirent dirent_t;
 typedef struct stat stat_t;
 typedef struct componentname componentname_t;
+typedef struct cred cred_t;
 
 /* Indicates that given field of vattr structure does not hold a value.
  * vnodeops should not modify attributes set to VNOVAL. */
