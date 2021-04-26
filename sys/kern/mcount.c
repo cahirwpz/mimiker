@@ -86,6 +86,10 @@ static SPIN_DEFINE(mcount_lock, 0);
  *             (0 - means the end of the list)
  * 
  *  tos[0] + 1  is the smallest index of an unused tos entry
+ * 
+ * \warning This function while unlocking spinlock can turn on interrupts when 
+ * thread's td_idnest == 0, this problem occurs in mips_exc_handler,
+ * this is why we do not profile user_mode_p.
  */
 
 __no_instrument_kgprof void __cyg_profile_func_enter(void *from, void *self) {
