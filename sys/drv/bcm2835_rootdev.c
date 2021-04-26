@@ -3,10 +3,9 @@
 #include <sys/bus.h>
 #include <sys/devclass.h>
 #include <aarch64/armreg.h>
-#include <aarch64/bcm2835reg.h>
+#include <dev/bcm2835reg.h>
 #include <sys/kmem.h>
 #include <sys/pmap.h>
-#include <sys/interrupt.h>
 
 /*
  * located at BCM2836_ARM_LOCAL_BASE
