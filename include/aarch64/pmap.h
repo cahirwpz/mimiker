@@ -34,7 +34,4 @@ typedef struct pmap pmap_t;
 #define PA_MASK 0xfffffffff000
 #define PTE_FRAME_ADDR(pte) ((pte)&PA_MASK)
 
-//#define PTE_MASK 0xfffffffffffff000
-//#define PTE_FRAME_ADDR(pte) ((pte)&PTE_MASK)
-
 #endif /* !_AARCH64_PMAP_H_ */
