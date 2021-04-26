@@ -22,10 +22,10 @@ def gmon_write(path):
         froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
         fromssize = int(gdb.parse_and_eval('_gmonparam.fromssize'))
         tossize = int(gdb.parse_and_eval('_gmonparam.tossize'))
-        hashfraction = gdb.parse_and_eval('_gmonparam.hashfraction')
+        hashfraction = int(gdb.parse_and_eval('_gmonparam.hashfraction'))
         froms = gdb.parse_and_eval('_gmonparam.froms')
         tos = gdb.parse_and_eval('_gmonparam.tos')
-        lowpc = gdb.parse_and_eval('_gmonparam.lowpc')
+        lowpc = int(gdb.parse_and_eval('_gmonparam.lowpc'))
 
         memory = infer.read_memory(froms, fromssize)
         froms_array = unpack('H' * int(fromssize/calcsize('H')), memory)
