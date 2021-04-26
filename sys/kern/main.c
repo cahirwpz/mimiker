@@ -86,9 +86,7 @@ __noreturn void kernel_init(void) {
   /* Make dispatcher & scheduler structures ready for use. */
   init_sleepq();
   init_turnstile();
-#if LOCKDEP
   lockdep_init();
-#endif
   init_thread0();
   init_sched();
 

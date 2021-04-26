@@ -6,9 +6,8 @@
 #include <sys/device.h>
 #include <sys/rman.h>
 #include <sys/bus.h>
-#include <mips/malta.h>
-#include <sys/pci.h>
-#include <sys/interrupt.h>
+#include <dev/malta.h>
+#include <dev/pci.h>
 #include <dev/piixreg.h>
 #include <dev/isareg.h>
 #include <sys/libkern.h>
