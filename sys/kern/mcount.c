@@ -92,7 +92,7 @@ static SPIN_DEFINE(mcount_lock, 0);
  * this is why we do not profile user_mode_p.
  */
 
-__no_instrument_kgprof void __cyg_profile_func_enter(void *from, void *self) {
+__no_instrument_kgprof void __cyg_profile_func_enter(void *self, void *from) {
   u_long frompc = (u_long)from, selfpc = (u_long)self;
   u_short *frompcindex;
   tostruct_t *top, *prevtop;
