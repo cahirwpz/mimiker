@@ -42,13 +42,13 @@ int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags) {
     return EINVAL;
 
   int error;
-  vm_segment_t *seg;
-  if ((error = vm_map_alloc_segment(vmap, addr, length, prot, flags, &seg)))
+  vm_map_entry_t *ent;
+  if ((error = vm_map_alloc_entry(vmap, addr, length, prot, flags, &ent)))
     return error;
 
-  vaddr_t start = vm_segment_start(seg);
+  vaddr_t start = vm_map_entry_start(ent);
 
-  klog("Created segment at %p, length: %u", (void *)start, length);
+  klog("Created map entry at %p, length: %u", (void *)start, length);
 
   *addr_p = start;
   return 0;
@@ -70,13 +70,13 @@ int do_munmap(vaddr_t addr, size_t length) {
 
   WITH_VM_MAP_LOCK (uspace) {
     while (addr < right_boundary) {
-      vm_segment_t *seg = vm_map_find_segment(uspace, addr);
-      if (!seg)
+      vm_map_entry_t *ent = vm_map_find_entry(uspace, addr);
+      if (!ent)
         return EINVAL;
 
-      vaddr_t end = vm_segment_end(seg);
+      vaddr_t end = vm_map_entry_end(ent);
 
-      vm_segment_destroy_range(uspace, seg, addr, min(right_boundary, end));
+      vm_map_entry_destroy_range(uspace, ent, addr, min(right_boundary, end));
 
       addr = end;
     }
