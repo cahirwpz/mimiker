@@ -2,7 +2,7 @@
 #include <sys/interrupt.h>
 #include <mips/cpuinfo.h>
 #include <mips/mips.h>
-#include <mips/malta.h>
+#include <dev/malta.h>
 #include <mips/mcontext.h>
 #include <mips/tlb.h>
 #include <sys/klog.h>

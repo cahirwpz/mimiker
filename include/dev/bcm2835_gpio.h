@@ -1,8 +1,7 @@
-#ifndef _AARCH64_GPIO_H_
-#define _AARCH64_GPIO_H_
+#ifndef _DEV_BCM2835_GPIO_H_
+#define _DEV_BCM2835_GPIO_H_
 
-#include <aarch64/bcm2835_gpioreg.h>
-#include <sys/rman.h>
+#include <dev/bcm2835_gpioreg.h>
 
 #define MMIO_BASE 0xFFFFFFFF3F000000
 
@@ -17,4 +16,4 @@ void bcm2835_gpio_function_select(resource_t *r, unsigned pin,
 void bcm2835_gpio_set_pull(resource_t *r, unsigned pin,
                            bcm2838_gpio_gppud_t pud);
 
-#endif /* !_AARCH64_GPIO_H_ */
+#endif /* !_DEV_BCM2835_GPIO_H_ */
