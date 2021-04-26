@@ -165,7 +165,7 @@ void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
   vm_map_entry_free(ent);
 }
 
-static inline vm_map_entry_t *vm_mapent_copy(vm_map_entry_t *src) {
+static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
   vm_object_hold(src->object);
   vm_map_entry_t *new = vm_map_entry_alloc(src->object, src->start, src->end,
                                            src->prot, src->flags);
@@ -179,7 +179,7 @@ static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
   assert(mtx_owned(&map->mtx));
   assert(ent->start < splitat && splitat + 1 < ent->end);
 
-  vm_map_entry_t *new_ent = vm_mapent_copy(ent);
+  vm_map_entry_t *new_ent = vm_map_entry_copy(ent);
 
   /* clip both entries */
   ent->end = splitat;
