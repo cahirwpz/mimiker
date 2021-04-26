@@ -6,7 +6,7 @@
 #include <sys/devclass.h>
 #include <sys/klog.h>
 #include <sys/types.h>
-#include <aarch64/gpio.h>
+#include <dev/bcm2835_gpio.h>
 #include <sys/device.h>
 #include <sys/bus.h>
 #include <sys/time.h>
@@ -79,7 +79,7 @@
 #define ACMD41_CMD_CCS 0x40000000
 #define ACMD41_ARG_HC 0x51ff8000
 
-static driver_t emmc_driver;
+static driver_t bcmemmc_driver;
 
 typedef struct bcmemmc_state {
   resource_t *gpio;
@@ -166,7 +166,7 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
 }
 
 static int bcmemmc_wait(device_t *cdev, emmc_wait_flags_t wflags) {
-  assert(cdev->parent && cdev->parent->driver == &emmc_driver);
+  assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
 
   uint32_t mask = emmc_wait_flags_to_hwflags(wflags);
   return bcmemmc_intr_wait(cdev->parent, mask);
@@ -319,7 +319,7 @@ uint32_t encode_cmd(emmc_cmd_t cmd) {
 }
 
 static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
-  assert(cdev->parent && cdev->parent->driver == &emmc_driver);
+  assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   resource_t *emmc = state->emmc;
 
@@ -359,7 +359,7 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
 }
 
 static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
-  assert(cdev->parent && cdev->parent->driver == &emmc_driver);
+  assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   resource_t *emmc = state->emmc;
 
@@ -443,7 +443,7 @@ static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg1,
 
 static int bcmemmc_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg1,
                        uint32_t arg2, emmc_resp_t *resp) {
-  assert(cdev->parent && cdev->parent->driver == &emmc_driver);
+  assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
 
   if (cmd.flags & EMMC_F_APP)
@@ -454,7 +454,7 @@ static int bcmemmc_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg1,
 }
 
 static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *read) {
-  assert(cdev->parent && cdev->parent->driver == &emmc_driver);
+  assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
   resource_t *emmc = state->emmc;
@@ -473,7 +473,7 @@ static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *read) {
 
 static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
                          size_t *wrote) {
-  assert(cdev->parent && cdev->parent->driver == &emmc_driver);
+  assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
   resource_t *emmc = state->emmc;
@@ -537,7 +537,7 @@ static void emmc_gpio_init(device_t *dev) {
 }
 
 static int bcmemmc_init(device_t *dev) {
-  assert(dev->driver == (driver_t *)&emmc_driver);
+  assert(dev->driver == (driver_t *)&bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
   int64_t r, cnt;
@@ -581,7 +581,7 @@ static int bcmemmc_probe(device_t *dev) {
 DEVCLASS_DECLARE(emmc);
 
 static int bcmemmc_attach(device_t *dev) {
-  assert(dev->driver == (driver_t *)&emmc_driver);
+  assert(dev->driver == (driver_t *)&bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
 
   state->gpio = device_take_memory(dev, 0, RF_ACTIVE);

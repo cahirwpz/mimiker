@@ -1,11 +1,7 @@
 #include <sys/devclass.h>
 #include <dev/emmc.h>
 
-/* An ugly fix, but I don't know if we can do better with current build system
- */
-#if BOARD == rpi3
 DEVCLASS_CREATE(emmc);
-#endif
 
 /* Some of these might contain incorrect flags. Please, if you are implementing
  * a driver for a new e.MMC device, check the configuration here and ensure
