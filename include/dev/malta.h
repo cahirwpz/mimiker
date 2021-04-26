@@ -1,17 +1,11 @@
-#ifndef _MIPS_MALTA_H_
-#define _MIPS_MALTA_H_
+#ifndef _DEV_MALTA_H_
+#define _DEV_MALTA_H_
 
 #ifndef _MACHDEP
 #error "Do not use this header file outside kernel machine dependent code!"
 #endif
 
 #include <sys/cdefs.h>
-
-/*! \brief Prepares thread0 stack that is placed in kseg2. */
-void *board_stack(int argc, char **argv, char **envp);
-
-/*! \brief Executes platform initialization code placed in kseg2. */
-__noreturn void board_init(void);
 
 /*
  * Malta Memory Map:
@@ -89,4 +83,4 @@ __noreturn void board_init(void);
 #define MALTA_CBUS_UART_OFFSET 0x900
 #define MALTA_CBUS_UART_INTR 2
 
-#endif
+#endif /* !_DEV_MALTA_H_ */

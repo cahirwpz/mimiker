@@ -3,7 +3,6 @@
 #include <dev/mc146818reg.h>
 #include <dev/isareg.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/libkern.h>
