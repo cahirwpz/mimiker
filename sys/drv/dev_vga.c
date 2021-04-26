@@ -4,7 +4,7 @@
 #include <sys/errno.h>
 #include <sys/uio.h>
 #include <sys/libkern.h>
-#include <sys/vga.h>
+#include <dev/vga.h>
 
 static int framebuffer_write(vnode_t *v, uio_t *uio, int ioflag) {
   return vga_fb_write(devfs_node_data(v), uio);

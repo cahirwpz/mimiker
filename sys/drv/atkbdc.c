@@ -10,7 +10,6 @@
 #include <sys/bus.h>
 #include <dev/isareg.h>
 #include <dev/atkbdcreg.h>
-#include <sys/interrupt.h>
 #include <sys/devclass.h>
 #include <sys/sched.h>
 #include <dev/evdev.h>
