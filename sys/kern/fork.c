@@ -70,7 +70,7 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
 
   /* Find copied brk segment. */
   WITH_VM_MAP_LOCK (child->p_uspace) {
-    child->p_sbrk = vm_map_find_segment(child->p_uspace, SBRK_START);
+    child->p_sbrk = vm_map_find_entry(child->p_uspace, SBRK_START);
     child->p_sbrk_end = parent->p_sbrk_end;
   }
 
