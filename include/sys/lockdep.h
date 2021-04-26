@@ -46,7 +46,11 @@ typedef struct lock_class_mapping {
 #define LOCKDEP_MAPPING_INITIALIZER(lockname)                                  \
   { .key = NULL, .name = #lockname, .lock_class = NULL }
 
+#if LOCKDEP
 void lockdep_init(void);
+#else
+#define lockdep_init() __nothing
+#endif
 
 void lockdep_acquire(lock_class_mapping_t *lock);
 void lockdep_release(lock_class_mapping_t *lock);

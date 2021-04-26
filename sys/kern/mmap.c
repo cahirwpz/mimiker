@@ -69,7 +69,6 @@ int do_munmap(vaddr_t start, size_t length) {
   vaddr_t end = start + length;
 
   WITH_VM_MAP_LOCK (uspace) {
-
     /* Find first entry affected by unmapping memory. */
     vm_map_entry_t *ent = vm_map_find_entry(uspace, start);
     if (!ent)

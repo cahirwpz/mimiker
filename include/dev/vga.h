@@ -1,5 +1,5 @@
-#ifndef _SYS_VGA_H_
-#define _SYS_VGA_H_
+#ifndef _DEV_VGA_H_
+#define _DEV_VGA_H_
 
 #include <sys/cdefs.h>
 #include <sys/uio.h>
@@ -42,4 +42,4 @@ static inline int vga_set_videomode(vga_device_t *vga, unsigned xres,
   return vga->set_videomode(vga, xres, yres, bpp);
 }
 
-#endif /* !_SYS_VGA_H_ */
+#endif /* !_DEV_VGA_H_ */

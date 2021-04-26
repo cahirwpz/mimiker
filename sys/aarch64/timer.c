@@ -2,7 +2,6 @@
 #include <sys/klog.h>
 #include <sys/timer.h>
 #include <aarch64/armreg.h>
-#include <aarch64/bcm2835reg.h>
 #include <sys/interrupt.h>
 #include <sys/bus.h>
 #include <sys/devclass.h>

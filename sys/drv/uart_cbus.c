@@ -2,8 +2,7 @@
 #include <sys/console.h>
 #include <sys/linker_set.h>
 #include <dev/ns16550reg.h>
-#include <mips/malta.h>
-#include <mips/mips.h>
+#include <dev/malta.h>
 #include <sys/bus.h>
 #include <sys/kmem.h>
 #include <sys/pmap.h>
