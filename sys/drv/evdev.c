@@ -618,8 +618,8 @@ int evdev_register(evdev_dev_t *evdev) {
   return evdev_dev_create(evdev);
 }
 
-int evdev_push_event(evdev_dev_t *evdev, uint16_t type, uint16_t code,
-                     int32_t value) {
+void evdev_push_event(evdev_dev_t *evdev, uint16_t type, uint16_t code,
+                      int32_t value) {
   SCOPED_MTX_LOCK(&evdev->ev_lock);
 
   if (type == EV_KEY && evdev_event_supported(evdev, EV_REP)) {
@@ -634,8 +634,6 @@ int evdev_push_event(evdev_dev_t *evdev, uint16_t type, uint16_t code,
   }
 
   evdev_send_event(evdev, type, code, value);
-
-  return 0;
 }
 
 static void init_evdev(void) {

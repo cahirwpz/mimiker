@@ -157,22 +157,22 @@ uint16_t evdev_hid2key(int scancode) {
   return evdev_usb_scancodes[scancode];
 }
 
-uint16_t evdev_scancode2key(int *state, int scancode) {
+uint16_t evdev_scancode2key(int *statep, int scancode) {
   uint16_t keycode;
 
   /* translate the scan code into a keycode */
   keycode = evdev_at_set1_scancodes[scancode & 0x7f];
-  switch (*state) {
+  switch (*statep) {
     case 0x00: /* normal scancode */
       switch (scancode) {
         case 0xE0:
         case 0xE1:
-          *state = scancode;
+          *statep = scancode;
           return NONE;
       }
       break;
     case 0xE0: /* 0xE0 prefix */
-      *state = 0;
+      *statep = 0;
       keycode = evdev_at_set1_scancodes[0x80 + (scancode & 0x7f)];
       break;
     case 0xE1: /* 0xE1 prefix */
@@ -182,16 +182,16 @@ uint16_t evdev_scancode2key(int *state, int scancode) {
        * Ctrl-pause/break produces:
        * E0-46 E0-C6 (See above.)
        */
-      *state = 0;
+      *statep = 0;
       if ((scancode & 0x7f) == 0x1D)
-        *state = scancode;
+        *statep = scancode;
       return NONE;
       /* NOT REACHED */
     case 0x1D: /* pause / break */
     case 0x9D:
-      if ((*state ^ scancode) & 0x80)
+      if ((*statep ^ scancode) & 0x80)
         return NONE;
-      *state = 0;
+      *statep = 0;
       if ((scancode & 0x7f) != 0x45)
         return NONE;
       keycode = KEY_PAUSE;

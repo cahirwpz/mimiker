@@ -66,6 +66,11 @@ static void write_data(resource_t *regs, uint8_t byte) {
   bus_write_1(regs, KBD_DATA_PORT, byte);
 }
 
+/*
+ * A function executed by the atkbdc thread.
+ * The thread pulls scancodes from the ringbuf, converts them to
+ * evdev-compatible keycodes and then pushes them into evdev.
+ */
 static void atkbdc_thread(void *arg) {
   atkbdc_state_t *atkbdc = arg;
   int keycode;
@@ -151,16 +156,25 @@ static int atkbdc_probe(device_t *dev) {
 
 static void evdev_init(atkbdc_state_t *atkbdc) {
   evdev_dev_t *evdev = evdev_alloc();
+
+  /* Set basic evdev parameters. */
   evdev_set_name(evdev, "AT keyboard");
   evdev_set_id(evdev, BUS_I8042, ATKBDC_VENDOR_ID, ATKBDC_DEVICE_ID, 0);
+
+  /* EV_SYN is required for every evdev device. */
   evdev_support_event(evdev, EV_SYN);
   evdev_support_event(evdev, EV_KEY);
+  /* Key repetition are also supported. */
   evdev_support_event(evdev, EV_REP);
+  /* Mark all AT-compatible keys as supported. */
   evdev_support_all_known_keys(evdev);
 
-  evdev_register(evdev);
+  /* Bind evdev to atkbdc state for future references. */
   atkbdc->evdev = evdev;
   atkbdc->evdev_state = 0;
+
+  /* Finally, register the device in the file system .*/
+  evdev_register(evdev);
 }
 
 static int atkbdc_attach(device_t *dev) {
@@ -184,9 +198,10 @@ static int atkbdc_attach(device_t *dev) {
 
   atkbdc->thread = thread_create("atkbdc", atkbdc_thread, atkbdc,
                                  prio_ithread(PRIO_ITHRD_QTY - 1));
-  sched_add(atkbdc->thread);
 
   evdev_init(atkbdc);
+
+  sched_add(atkbdc->thread);
 
   return 0;
 }

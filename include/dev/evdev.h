@@ -67,14 +67,17 @@ void evdev_set_flag(evdev_dev_t *evdev, uint16_t flag);
 /*
  * Finalize initialization and register an evdev device. Should be called after
  * all properties of the evdev device are set.
+ *
+ * Returns 0 on success and a non-zero value on error.
  */
 int evdev_register(evdev_dev_t *evdev);
 
 /*
- * Push a new event to an evdev.
+ * Push a new event to an evdev. The triple (`type`, `code`, `value`) describes
+ * the event. It should be in the same format as in `struct input_event`.
  */
-int evdev_push_event(evdev_dev_t *evdev, uint16_t type, uint16_t code,
-                     int32_t value);
+void evdev_push_event(evdev_dev_t *evdev, uint16_t type, uint16_t code,
+                      int32_t value);
 
 /* Utility functions: */
 
@@ -86,9 +89,10 @@ uint16_t evdev_hid2key(int scancode);
 /*
  * Convert a AT keyboard scancode to a evdev-compatible keycode. The function is
  * stateful because of AT extended scan codes - some keys are encoded in two
- * numbers.
+ * numbers. Hence, `statep` should point to the same state in the consecutive
+ * function calls.
  */
-uint16_t evdev_scancode2key(int *state, int scancode);
+uint16_t evdev_scancode2key(int *statep, int scancode);
 
 /*
  * A wrapper for the evdev_support_key function - marks all the AT-compatible
@@ -97,14 +101,13 @@ uint16_t evdev_scancode2key(int *state, int scancode);
 void evdev_support_all_known_keys(evdev_dev_t *evdev);
 
 /* Event reporting shortcuts: */
-static inline int evdev_sync(evdev_dev_t *evdev) {
-
-  return evdev_push_event(evdev, EV_SYN, SYN_REPORT, 1);
+static inline void evdev_sync(evdev_dev_t *evdev) {
+  evdev_push_event(evdev, EV_SYN, SYN_REPORT, 1);
 }
 
-static inline int evdev_push_key(evdev_dev_t *evdev, uint16_t code,
-                                 int32_t value) {
-  return evdev_push_event(evdev, EV_KEY, code, value != 0);
+static inline void evdev_push_key(evdev_dev_t *evdev, uint16_t code,
+                                  int32_t value) {
+  evdev_push_event(evdev, EV_KEY, code, value != 0);
 }
 
 #endif /* _DEV_EVDEV_H_ */
