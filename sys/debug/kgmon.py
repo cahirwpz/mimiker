@@ -62,5 +62,9 @@ class Kgmon(SimpleCommand):
         state = gdb.parse_and_eval('_gmonparam.state')
         if state == gdb.parse_and_eval('GMON_PROF_NOT_INIT'):
             print("Compile program with KGPROF=1 or gmon not initialized yet")
+        elif state == gdb.parse_and_eval('GMON_PROF_BUSY'):
+            print("The mcount function is running - wait for it to finish")
         else:
+            if state == gdb.parse_and_eval('GMON_PROF_ERROR'):
+                print("The tostruct array was too small for the whole process")
             gmon_write(args or 'gmon.out')
