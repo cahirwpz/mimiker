@@ -35,17 +35,12 @@ void vm_amap_hold(vm_amap_t *amap) {
   amap->am_ref++;
 }
 
-/* TODO: revisit after vm_anon implementation. */
-static void vm_anon_free(vm_anon_t *anon) {
-  assert(anon != NULL);
-  vm_anon_lock(anon);
-  vm_anon_drop(anon);
-}
-
 static void vm_amap_free(vm_amap_t *amap) {
   for (int i = 0; i < amap->am_nused; ++i) {
     int slot = amap->am_slot[i];
-    vm_anon_free(amap->am_anon[slot]);
+    vm_anon_t *anon = amap->am_anon[slot];
+    vm_anon_lock(anon);
+    vm_anon_drop(anon);
   }
 
   kfree(M_TEMP, amap->am_slot);
@@ -133,6 +128,9 @@ void vm_amap_add(vm_aref_t *aref, vm_anon_t *anon, vaddr_t offset) {
   vm_amap_t *amap = aref->ar_amap;
   int slot = vm_amap_slot(aref, offset);
 
+  WITH_MTX_LOCK(&anon->an_lock)
+    vm_anon_hold(anon);
+
   SCOPED_MTX_LOCK(&amap->am_lock);
   vm_amap_add_nolock(amap, anon, slot);
 }
@@ -141,7 +139,9 @@ static void vm_amap_remove_nolock(vm_amap_t *amap, int slot) {
   assert(amap->am_nslot > slot);
   assert(amap->am_anon[slot] != NULL);
 
-  vm_anon_free(amap->am_anon[slot]);
+  vm_anon_t *anon = amap->am_anon[slot];
+  vm_anon_lock(anon);
+  vm_anon_drop(anon);
   amap->am_anon[slot] = NULL;
 
   int bslot = amap->am_bckptr[slot];
