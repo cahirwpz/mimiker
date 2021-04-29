@@ -44,7 +44,7 @@ static void vm_anon_free(vm_anon_t *anon) {
 
 static void vm_amap_free(vm_amap_t *amap) {
   for (int i = 0; i < amap->am_nused; ++i) {
-    int slot = amap->am_bckptr[i];
+    int slot = amap->am_slot[i];
     vm_anon_free(amap->am_anon[slot]);
   }
 
@@ -91,8 +91,8 @@ static void __vm_amap_extend(vm_amap_t *amap, int size) {
 
   /* copy pointers only for allocated anons */
   for (int i = 0; i < amap->am_nused; ++i) {
-    int bslot = amap->am_bckptr[i];
-    anon[bslot] = amap->am_anon[bslot];
+    int slot = amap->am_slot[i];
+    anon[slot] = amap->am_anon[slot];
   }
 
   /* set new entries to AMAP_SLOT_EMPTY */
@@ -125,8 +125,8 @@ static void vm_amap_add_nolock(vm_amap_t *amap, vm_anon_t *anon, int slot) {
 
   assert(amap->am_anon[slot] == NULL);
   amap->am_anon[slot] = anon;
-  amap->am_slot[slot] = amap->am_nused;
-  amap->am_bckptr[amap->am_nused++] = slot;
+  amap->am_bckptr[slot] = amap->am_nused;
+  amap->am_slot[amap->am_nused++] = slot;
 }
 
 void vm_amap_add(vm_aref_t *aref, vm_anon_t *anon, vaddr_t offset) {
@@ -144,10 +144,10 @@ static void vm_amap_remove_nolock(vm_amap_t *amap, int slot) {
   vm_anon_free(amap->am_anon[slot]);
   amap->am_anon[slot] = NULL;
 
-  int bslot = amap->am_slot[slot];
-  amap->am_slot[slot] = AMAP_SLOT_EMPTY;
-  amap->am_bckptr[bslot] = AMAP_SLOT_EMPTY;
-  swap(amap->am_bckptr[bslot], amap->am_bckptr[amap->am_nused - 1]);
+  int bslot = amap->am_bckptr[slot];
+  amap->am_bckptr[slot] = AMAP_SLOT_EMPTY;
+  amap->am_slot[bslot] = AMAP_SLOT_EMPTY;
+  swap(amap->am_slot[bslot], amap->am_slot[amap->am_nused - 1]);
   amap->am_nused--;
 }
 

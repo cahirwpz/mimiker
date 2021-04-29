@@ -35,15 +35,15 @@ static int test_amap_simple(void) {
   assert(amap->am_anon[2] == an3);
   assert(amap->am_anon[14] == an4);
 
-  assert(amap->am_bckptr[0] == 3);
-  assert(amap->am_bckptr[1] == 7);
-  assert(amap->am_bckptr[2] == 2);
-  assert(amap->am_bckptr[3] == 14);
-
-  assert(amap->am_slot[3] == 0);
-  assert(amap->am_slot[7] == 1);
+  assert(amap->am_slot[0] == 3);
+  assert(amap->am_slot[1] == 7);
   assert(amap->am_slot[2] == 2);
-  assert(amap->am_slot[14] == 3);
+  assert(amap->am_slot[3] == 14);
+
+  assert(amap->am_bckptr[3] == 0);
+  assert(amap->am_bckptr[7] == 1);
+  assert(amap->am_bckptr[2] == 2);
+  assert(amap->am_bckptr[14] == 3);
   vm_amap_unlock(amap);
 
   assert(vm_amap_lookup(&aref, 7 * PAGESIZE) == an2);
@@ -52,9 +52,9 @@ static int test_amap_simple(void) {
   assert(vm_amap_lookup(&aref, 7 * PAGESIZE) == NULL);
 
   vm_amap_lock(amap);
-  assert(amap->am_slot[7] == -1);
-  assert(amap->am_bckptr[1] == 14);
-  assert(amap->am_bckptr[3] == -1);
+  assert(amap->am_bckptr[7] == -1);
+  assert(amap->am_slot[1] == 14);
+  assert(amap->am_slot[3] == -1);
   assert(amap->am_anon[7] == NULL);
   vm_amap_unlock(amap);
 
@@ -100,8 +100,8 @@ static int test_amap_split(void) {
   assert(amap->am_nused == 6);
   assert(amap->am_anon[1] == an5);
   assert(amap->am_anon[6] == an6);
-  assert(amap->am_bckptr[4] == 1);
-  assert(amap->am_bckptr[5] == 6);
+  assert(amap->am_slot[4] == 1);
+  assert(amap->am_slot[5] == 6);
   vm_amap_unlock(amap);
 
   assert(vm_amap_lookup(&aref, 1 * PAGESIZE) == an5);
