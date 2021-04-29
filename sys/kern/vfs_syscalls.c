@@ -142,6 +142,7 @@ static int vfs_open(proc_t *p, file_t *f, int fdat, char *pathname, int flags,
 
   if (!error) {
     file_set_flags(f, flags);
+    f->f_mode = flags;
     error = VOP_OPEN(v, flags, f);
   }
 

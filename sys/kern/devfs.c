@@ -169,7 +169,6 @@ static int devfs_dev_vop_open(vnode_t *v, int mode, file_t *fp) {
   fp->f_ops = &devfs_fileops;
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
-  fp->f_mode = mode;
 
   return DOP_OPEN(dn, mode);
 }
