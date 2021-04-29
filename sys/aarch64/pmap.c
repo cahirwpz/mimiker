@@ -335,9 +335,9 @@ void pmap_kremove(vaddr_t va, size_t size) {
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (size_t off = 0; off < size; off += PAGESIZE) {
-      pte_t *ptep = pmap_lookup_pte(pmap, va);
+      pte_t *ptep = pmap_lookup_pte(pmap, va + off);
       assert(ptep != NULL);
-      pmap_write_pte(pmap, ptep, 0, va);
+      pmap_write_pte(pmap, ptep, 0, va + off);
     }
   }
 }
