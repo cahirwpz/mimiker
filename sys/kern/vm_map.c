@@ -80,7 +80,7 @@ vaddr_t vm_map_entry_end(vm_map_entry_t *ent) {
   return ent->end;
 }
 
-vm_map_entry_t *vm_map_entry_next(vm_map_entry_t *ent) {
+inline vm_map_entry_t *vm_map_entry_next(vm_map_entry_t *ent) {
   return TAILQ_NEXT(ent, link);
 }
 
@@ -253,7 +253,7 @@ static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
   /* Browse available gaps. */
   vm_map_entry_t *it;
   TAILQ_FOREACH (it, &map->entries, link) {
-    vm_map_entry_t *next = TAILQ_NEXT(it, link);
+    vm_map_entry_t *next = vm_map_entry_next(it);
     vaddr_t gap_start = it->end;
     vaddr_t gap_end = next ? next->start : vm_map_end(map);
 
@@ -346,7 +346,7 @@ int vm_map_entry_resize(vm_map_t *map, vm_map_entry_t *ent, vaddr_t new_end) {
 
   if (new_end >= ent->end) {
     /* Expanding entry */
-    vm_map_entry_t *next = TAILQ_NEXT(ent, link);
+    vm_map_entry_t *next = vm_map_entry_next(ent);
     vaddr_t gap_end = next ? next->start : vm_map_end(map);
     if (new_end > gap_end)
       return ENOMEM;
