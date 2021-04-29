@@ -32,26 +32,28 @@ static int vga_write(vnode_t *v, uio_t *uio, int ioflag) {
   return vga_fb_write(devfs_node_data(v), uio);
 }
 
-static fb_palette_t *palette_copyin(fb_palette_t *user_palette) {
+static int vga_ioctl_set_palette(vga_device_t *vga,
+                                 fb_palette_t *user_palette) {
+  int error;
   size_t len = user_palette->len;
   fb_palette_t *palette = fb_palette_create(len);
 
-  if (copyin(user_palette->red, palette->red, len))
-    goto err;
-  if (copyin(user_palette->green, palette->green, len))
-    goto err;
-  if (copyin(user_palette->blue, palette->blue, len))
-    goto err;
+  if ((error = copyin(user_palette->red, palette->red, len)))
+    goto end;
+  if ((error = copyin(user_palette->green, palette->green, len)))
+    goto end;
+  if ((error = copyin(user_palette->blue, palette->blue, len)))
+    goto end;
 
-  return palette;
+  error = vga_palette_write(vga, palette);
 
-err:
+end:
   fb_palette_destroy(palette);
-  return NULL;
+
+  return error;
 }
 
 static int vga_ioctl(vnode_t *v, u_long cmd, void *data) {
-  int error;
   vga_device_t *vga = devfs_node_data(v);
 
   switch (cmd) {
@@ -60,13 +62,7 @@ static int vga_ioctl(vnode_t *v, u_long cmd, void *data) {
     case FBIOCSET_FBINFO:
       return vga_set_fbinfo(vga, data);
     case FBIOCSET_PALETTE:
-      fb_palette_t *palette = palette_copyin(data);
-      if (palette == NULL)
-        return EFAULT;
-
-      error = vga_palette_write(vga, palette);
-      fb_palette_destroy(palette);
-      return error;
+      return vga_ioctl_set_palette(vga, data);
   }
 
   return EINVAL;
