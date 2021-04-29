@@ -398,7 +398,7 @@ static int tmpfs_uiomove(tmpfs_node_t *node, uio_t *uio, size_t n) {
   return uiomove(blk + blkoff, len, uio);
 }
 
-static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
+static int tmpfs_vop_read(vnode_t *v, uio_t *uio) {
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
   size_t remaining;
   int error = 0;
@@ -420,7 +420,7 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
   return error;
 }
 
-static int tmpfs_vop_write(vnode_t *v, uio_t *uio, int ioflag) {
+static int tmpfs_vop_write(vnode_t *v, uio_t *uio) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
   int error = 0;
@@ -430,7 +430,7 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio, int ioflag) {
   if (node->tfn_type != V_REG)
     return EOPNOTSUPP;
 
-  if (ioflag & IO_APPEND)
+  if (uio->uio_flags & FF_APPEND)
     uio->uio_offset = node->tfn_size;
 
   if (uio->uio_offset + uio->uio_resid > node->tfn_size)

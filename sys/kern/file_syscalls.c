@@ -17,6 +17,8 @@ int do_read(proc_t *p, int fd, uio_t *uio) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
     return error;
+
+  uio->uio_flags |= f->f_flags & F_IFLAGS;
   error = FOP_READ(f, uio);
   file_drop(f);
   return error;
@@ -28,19 +30,25 @@ int do_write(proc_t *p, int fd, uio_t *uio) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
     return error;
+
+  uio->uio_flags |= f->f_flags & F_OFLAGS;
   error = FOP_WRITE(f, uio);
   file_drop(f);
   return error;
 }
 
 int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp) {
-  /* TODO: RW file flag! For now we just file_get_read */
   file_t *f;
   int error;
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  error = FOP_SEEK(f, offset, whence, newoffp);
+
+  if (f->f_ops->fo_flags & FOF_SEEKABLE)
+    error = FOP_SEEK(f, offset, whence, newoffp);
+  else
+    error = ESPIPE;
+
   file_drop(f);
   return error;
 }
@@ -124,12 +132,16 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
       }
       if (f->f_flags & FF_APPEND)
         flags |= O_APPEND;
+      if (f->f_flags & FF_NONBLOCK)
+        flags |= O_NONBLOCK;
       *resp = flags;
       break;
 
     case F_SETFL:
       if (arg & O_APPEND)
         flags |= FF_APPEND;
+      if (arg & O_NONBLOCK)
+        flags |= FF_NONBLOCK;
       f->f_flags = flags;
       break;
 

@@ -13,43 +13,62 @@
 #include <sys/queue.h>
 #include <sys/stat.h>
 
-typedef struct devfs_node devfs_node_t;
-typedef TAILQ_HEAD(, devfs_node) devfs_node_list_t;
-
-struct devfs_node {
-  TAILQ_ENTRY(devfs_node) dn_link;
-  char *dn_name;
-  ino_t dn_ino;
-  nlink_t dn_nlinks;
-  mode_t dn_mode;
-  uid_t dn_uid;
-  gid_t dn_gid;
-  void *dn_data;
-  vnode_t *dn_vnode;
-  devfs_node_t *dn_parent;
-  devfs_node_list_t dn_children;
-};
-
 static KMALLOC_DEFINE(M_DEVFS, "devfs");
 
 /* device filesystem state structure */
 typedef struct devfs_mount {
-  mtx_t lock;
-  ino_t next_ino;
-  devfs_node_t root;
+  mtx_t lock;        /* guards the following fields */
+  ino_t next_ino;    /* next node identifier to grant */
+  devfs_node_t root; /* root devfs node of a devfs instance */
 } devfs_mount_t;
 
 static devfs_mount_t devfs = {
-  .lock = MTX_INITIALIZER(devfs.lock, 0), .next_ino = 2, .root = {}};
-static vnode_lookup_t devfs_vop_lookup;
-static vnode_readdir_t devfs_vop_readdir;
+  .lock = MTX_INITIALIZER(devfs.lock, 0),
+  .next_ino = 2,
+  .root = {},
+};
+
+static vnode_lookup_t devfs_dir_vop_lookup;
+static vnode_readdir_t devfs_dir_vop_readdir;
 static vnode_getattr_t devfs_vop_getattr;
-static vnode_reclaim_t devfs_vop_reclaim;
-static vnodeops_t devfs_vnodeops = {.v_lookup = devfs_vop_lookup,
-                                    .v_readdir = devfs_vop_readdir,
-                                    .v_getattr = devfs_vop_getattr,
-                                    .v_reclaim = devfs_vop_reclaim,
-                                    .v_open = vnode_open_generic};
+static vnode_reclaim_t devfs_dir_vop_reclaim;
+static vnode_open_t devfs_dev_vop_open;
+static vnode_reclaim_t devfs_dev_vop_reclaim;
+
+/* Devfs directory v-node operations. */
+static vnodeops_t devfs_dir_vnodeops = {
+  .v_lookup = devfs_dir_vop_lookup,
+  .v_readdir = devfs_dir_vop_readdir,
+  .v_getattr = devfs_vop_getattr,
+  .v_reclaim = devfs_dir_vop_reclaim,
+  .v_open = vnode_open_generic,
+};
+
+/* Devfs device v-node operations. */
+static vnodeops_t devfs_dev_vnodeops = {
+  .v_open = devfs_dev_vop_open,
+  .v_access = vnode_access_generic,
+  .v_getattr = devfs_vop_getattr,
+  .v_reclaim = devfs_dev_vop_reclaim,
+};
+
+static fo_read_t devfs_fop_read;
+static fo_write_t devfs_fop_write;
+static fo_close_t devfs_fop_close;
+static fo_seek_t devfs_fop_seek;
+static fo_stat_t devfs_fop_stat;
+static fo_ioctl_t devfs_fop_ioctl;
+
+/* Devfs device file opeartions. */
+static fileops_t devfs_fileops = {
+  .fo_flags = FOF_SEEKABLE,
+  .fo_read = devfs_fop_read,
+  .fo_write = devfs_fop_write,
+  .fo_close = devfs_fop_close,
+  .fo_seek = devfs_fop_seek,
+  .fo_stat = devfs_fop_stat,
+  .fo_ioctl = devfs_fop_ioctl,
+};
 
 static inline devfs_node_t *vn2dn(vnode_t *v) {
   return (devfs_node_t *)v->v_data;
@@ -89,6 +108,7 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name,
 
   devfs_node_t *dn = kmalloc(M_DEVFS, sizeof(devfs_node_t), M_ZERO);
   dn->dn_ino = ++devfs.next_ino;
+  dn->dn_size = 0; /* device is free to alter the size field */
   dn->dn_uid = 0;
   dn->dn_gid = 0;
   dn->dn_nlinks = 1;
@@ -103,17 +123,20 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name,
 int devfs_unlink(devfs_node_t *dn) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
-  assert(dn->dn_parent != NULL);
+  devfs_node_t *parent = dn->dn_parent;
+  assert(parent != NULL);
 
   /* Only allow removal of empty directories. */
   if (dn->dn_vnode->v_type == V_DIR && !TAILQ_EMPTY(&dn->dn_children))
     return ENOTEMPTY;
 
-  TAILQ_REMOVE(&dn->dn_parent->dn_children, dn, dn_link);
+  TAILQ_REMOVE(&parent->dn_children, dn, dn_link);
+  parent->dn_nlinks--;
   vnode_drop(dn->dn_vnode);
   return 0;
 }
 
+/* TODO: should be static. */
 void devfs_free(devfs_node_t *dn) {
   assert(dn->dn_vnode->v_usecnt == 0);
   kfree(M_STR, dn->dn_name);
@@ -121,7 +144,7 @@ void devfs_free(devfs_node_t *dn) {
 }
 
 /* Free a devfs directory after unlinking it. */
-static int devfs_vop_reclaim(vnode_t *v) {
+static int devfs_dir_vop_reclaim(vnode_t *v) {
   assert(v->v_type == V_DIR);
   devfs_free(vn2dn(v));
   return 0;
@@ -129,17 +152,156 @@ static int devfs_vop_reclaim(vnode_t *v) {
 
 static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
   devfs_node_t *dn = vn2dn(v);
-  memset(va, 0, sizeof(vattr_t));
+  bzero(va, sizeof(vattr_t));
   va->va_mode = dn->dn_mode;
   va->va_uid = dn->dn_uid;
   va->va_gid = dn->dn_gid;
   va->va_nlink = dn->dn_nlinks;
   va->va_ino = dn->dn_ino;
-  /* XXX we have only devices which should have size 0 */
-  va->va_size = 0;
+  va->va_size = dn->dn_size;
   return 0;
 }
 
+static int devfs_dev_vop_open(vnode_t *v, int mode, file_t *fp) {
+  devfs_node_t *dn = vn2dn(v);
+
+  fp->f_data = dn;
+  fp->f_ops = &devfs_fileops;
+  fp->f_type = FT_VNODE;
+  fp->f_vnode = v;
+  fp->f_mode = mode;
+
+  return DOP_OPEN(dn, mode);
+}
+
+/* Free a devfs directory after unlinking it. */
+static int devfs_dev_vop_reclaim(vnode_t *v) {
+  assert(v->v_type == V_DEV);
+  devfs_node_t *dn = vn2dn(v);
+  /* XXX: what if an error occurs during `d_reclaim`? */
+  DOP_RECLAIM(dn);
+  devfs_free(dn);
+  return 0;
+}
+
+static int devfs_fop_read(file_t *fp, uio_t *uio) {
+  devfs_node_t *dn = file_data(fp);
+  bool seekable = dn->dn_devsw->d_type & DT_SEEKABLE;
+
+  uio->uio_offset = seekable ? fp->f_offset : 0;
+  int error = DOP_READ(dn, uio);
+  if (seekable && !error)
+    fp->f_offset = uio->uio_offset;
+  return error;
+}
+
+static int devfs_fop_write(file_t *fp, uio_t *uio) {
+  devfs_node_t *dn = file_data(fp);
+  bool seekable = dn->dn_devsw->d_type & DT_SEEKABLE;
+
+  uio->uio_offset = seekable ? fp->f_offset : 0;
+  int error = DOP_WRITE(dn, uio);
+  if (seekable && !error)
+    fp->f_offset = uio->uio_offset;
+  return error;
+}
+
+static int devfs_fop_close(file_t *fp) {
+  return DOP_CLOSE(file_data(fp), fp->f_mode);
+}
+
+static int devfs_fop_stat(file_t *fp, stat_t *sb) {
+  return default_vnstat(fp, sb);
+}
+
+static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
+                          off_t *newoffp) {
+  devfs_node_t *dn = file_data(fp);
+
+  if (!(dn->dn_devsw->d_type & DT_SEEKABLE))
+    return ESPIPE;
+
+  if (whence == SEEK_CUR) {
+    offset += fp->f_offset;
+  } else if (whence == SEEK_END) {
+    offset += dn->dn_size;
+  } else if (whence != SEEK_SET) {
+    return EINVAL;
+  }
+
+  if (offset < 0) {
+    offset = 0;
+  } else if ((size_t)offset > dn->dn_size) {
+    offset = dn->dn_size;
+  }
+
+  *newoffp = fp->f_offset = offset;
+  return 0;
+}
+
+static int devfs_fop_ioctl(file_t *fp, u_long cmd, void *data) {
+  return DOP_IOCTL(file_data(fp), cmd, data, fp->f_mode);
+}
+
+static int devfs_dop_stub(devfs_node_t *dn, ...) {
+  return 0;
+}
+
+static int devfs_dop_nop(devfs_node_t *dn, ...) {
+  return EOPNOTSUPP;
+}
+
+#define devfs_dop_open_default devfs_dop_stub
+#define devfs_dop_close_default devfs_dop_stub
+#define devfs_dop_reclaim_default devfs_dop_stub
+#define devfs_dop_read_default devfs_dop_nop
+#define devfs_dop_write_default devfs_dop_nop
+#define devfs_dop_ioctl_default devfs_dop_nop
+
+#define DEFAULT_IF_NULL(devsw, name)                                           \
+  do {                                                                         \
+    if (devsw->d_##name == NULL)                                               \
+      devsw->d_##name = (dev_##name##_t)devfs_dop_##name##_default;            \
+  } while (0)
+
+static void devfs_add_default_dops(devsw_t *devsw) {
+  /* TODO: remove this `if` after rewriting drivers. */
+  if (devsw != NULL) {
+    DEFAULT_IF_NULL(devsw, open);
+    DEFAULT_IF_NULL(devsw, close);
+    DEFAULT_IF_NULL(devsw, reclaim);
+    DEFAULT_IF_NULL(devsw, read);
+    DEFAULT_IF_NULL(devsw, write);
+    DEFAULT_IF_NULL(devsw, ioctl);
+  }
+}
+
+int devfs_makedev(devfs_node_t *parent, const char *name, devsw_t *devsw,
+                  void *data, vnode_t **vnode_p) {
+  SCOPED_MTX_LOCK(&devfs.lock);
+
+  devfs_node_t *dn;
+  int error = devfs_add_entry(parent, name, &dn);
+  if (error)
+    return error;
+
+  devfs_add_default_dops(devsw);
+
+  dn->dn_devsw = devsw;
+  dn->dn_vnode = vnode_new(V_DEV, &devfs_dev_vnodeops, dn);
+  dn->dn_data = data;
+  dn->dn_mode =
+    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+
+  klog("devfs: registered '%s' device", name);
+  if (vnode_p) {
+    vnode_hold(dn->dn_vnode);
+    *vnode_p = dn->dn_vnode;
+  }
+  return 0;
+}
+
+/* TODO: remove the following function after rewriting all drivers. */
 static void devfs_add_default_vops(vnodeops_t *vops) {
   if (vops->v_open == NULL)
     vops->v_open = vnode_open_generic;
@@ -151,27 +313,23 @@ static void devfs_add_default_vops(vnodeops_t *vops) {
     vops->v_getattr = devfs_vop_getattr;
 }
 
-int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
-                  void *data, vnode_t **vnode_p) {
-  SCOPED_MTX_LOCK(&devfs.lock);
-
-  devfs_node_t *dn;
-  int error = devfs_add_entry(parent, name, &dn);
+/* TODO: remove the following function after rewriting all drivers. */
+int devfs_makedev_old(devfs_node_t *parent, const char *name, vnodeops_t *vops,
+                      void *data, vnode_t **vnode_p) {
+  vnode_t *v = NULL;
+  int error = devfs_makedev(parent, name, NULL, data, &v);
   if (error)
     return error;
 
   devfs_add_default_vops(vops);
   vnodeops_init(vops);
+  v->v_ops = vops;
 
-  dn->dn_vnode = vnode_new(V_DEV, vops, dn);
-  dn->dn_data = data;
-  dn->dn_mode =
-    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-  if (vnode_p) {
-    vnode_hold(dn->dn_vnode);
-    *vnode_p = dn->dn_vnode;
-  }
-  klog("devfs: registered '%s' device", name);
+  if (vnode_p)
+    *vnode_p = v;
+  else
+    vnode_drop(v);
+
   return 0;
 }
 
@@ -181,30 +339,23 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
 
   devfs_node_t *dn;
   int error = devfs_add_entry(parent, name, &dn);
-  if (!error) {
-    dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, dn);
-    dn->dn_data = NULL;
-    dn->dn_mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-    TAILQ_INIT(&dn->dn_children);
-    *dir_p = dn;
-  }
+  if (error)
+    return error;
+
+  dn->dn_vnode = vnode_new(V_DIR, &devfs_dir_vnodeops, dn);
+  dn->dn_mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+  TAILQ_INIT(&dn->dn_children);
+  *dir_p = dn;
   return 0;
 }
 
-void *devfs_node_data(vnode_t *v) {
+void *devfs_node_data_old(vnode_t *v) {
   devfs_node_t *dn = vn2dn(v);
   return dn->dn_data;
 }
 
-/* We are using a single vnode for each devfs_node instead of allocating a new
-   one each time, to simplify things. */
-static int devfs_mount(mount_t *m) {
-  devfs.root.dn_vnode->v_mount = m;
-  m->mnt_data = &devfs;
-  return 0;
-}
-
-static int devfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
+static int devfs_dir_vop_lookup(vnode_t *dv, componentname_t *cn,
+                                vnode_t **vp) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
   if (dv->v_type != V_DIR)
@@ -261,8 +412,16 @@ static readdir_ops_t devfs_readdir_ops = {
   .convert = devfs_to_dirent,
 };
 
-static int devfs_vop_readdir(vnode_t *v, uio_t *uio) {
+static int devfs_dir_vop_readdir(vnode_t *v, uio_t *uio) {
   return readdir_generic(v, uio, &devfs_readdir_ops);
+}
+
+/* We are using a single vnode for each devfs_node instead of allocating a new
+ * one each time, to simplify things. */
+static int devfs_mount(mount_t *m) {
+  devfs.root.dn_vnode->v_mount = m;
+  m->mnt_data = &devfs;
+  return 0;
 }
 
 static int devfs_root(mount_t *m, vnode_t **vp) {
@@ -272,10 +431,11 @@ static int devfs_root(mount_t *m, vnode_t **vp) {
 }
 
 static int devfs_init(vfsconf_t *vfc) {
-  vnodeops_init(&devfs_vnodeops);
+  vnodeops_init(&devfs_dir_vnodeops);
+  vnodeops_init(&devfs_dev_vnodeops);
 
   devfs_node_t *dn = &devfs.root;
-  dn->dn_vnode = vnode_new(V_DIR, &devfs_vnodeops, dn);
+  dn->dn_vnode = vnode_new(V_DIR, &devfs_dir_vnodeops, dn);
   dn->dn_mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
   dn->dn_uid = 0;
   dn->dn_gid = 0;
@@ -294,9 +454,14 @@ static int devfs_init(vfsconf_t *vfc) {
 }
 
 static vfsops_t devfs_vfsops = {
-  .vfs_mount = devfs_mount, .vfs_root = devfs_root, .vfs_init = devfs_init};
+  .vfs_mount = devfs_mount,
+  .vfs_root = devfs_root,
+  .vfs_init = devfs_init,
+};
 
-static vfsconf_t devfs_conf = {.vfc_name = "devfs",
-                               .vfc_vfsops = &devfs_vfsops};
+static vfsconf_t devfs_conf = {
+  .vfc_name = "devfs",
+  .vfc_vfsops = &devfs_vfsops,
+};
 
 SET_ENTRY(vfsconf, devfs_conf);

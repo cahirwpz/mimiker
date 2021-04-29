@@ -234,7 +234,7 @@ static int dev_procstat_close(vnode_t *v, file_t *fp) {
 
 static void init_dev_procstat(void) {
   mtx_init(&procstat_lock, 0);
-  devfs_makedev(NULL, "procstat", &dev_procstat_vnodeops, NULL, NULL);
+  devfs_makedev_old(NULL, "procstat", &dev_procstat_vnodeops, NULL, NULL);
 }
 
 SET_ENTRY(devfs_init, init_dev_procstat);

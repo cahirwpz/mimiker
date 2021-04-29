@@ -35,6 +35,7 @@ typedef struct uio {
   size_t uio_resid;      /* remaining bytes to process */
   uio_op_t uio_op;       /* operation */
   vm_map_t *uio_vmspace; /* destination address space */
+  unsigned uio_flags;    /* IO flags */
 } uio_t;
 
 #define UIO_SINGLE(op, vm_map, offset, buf, buflen)                            \

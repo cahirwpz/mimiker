@@ -61,8 +61,8 @@ static void write_data(resource_t *regs, uint8_t byte) {
   bus_write_1(regs, KBD_DATA_PORT, byte);
 }
 
-static int scancode_read(vnode_t *v, uio_t *uio, int ioflag) {
-  atkbdc_state_t *atkbdc = devfs_node_data(v);
+static int scancode_read(vnode_t *v, uio_t *uio) {
+  atkbdc_state_t *atkbdc = devfs_node_data_old(v);
   int error;
 
   uio->uio_offset = 0; /* This device does not support offsets. */
@@ -165,7 +165,7 @@ static int atkbdc_attach(device_t *dev) {
   write_data(atkbdc->regs, KBD_ENABLE_KBD_INT);
 
   /* Prepare /dev/scancode interface. */
-  devfs_makedev(NULL, "scancode", &scancode_vnodeops, atkbdc, NULL);
+  devfs_makedev_old(NULL, "scancode", &scancode_vnodeops, atkbdc, NULL);
 
   return 0;
 }

@@ -184,7 +184,7 @@ int default_vnread(file_t *f, uio_t *uio) {
   int error = 0;
   vnode_lock(v);
   uio->uio_offset = f->f_offset;
-  error = VOP_READ(f->f_vnode, uio, 0);
+  error = VOP_READ(f->f_vnode, uio);
   f->f_offset = uio->uio_offset;
   vnode_unlock(v);
   return error;
@@ -192,12 +192,10 @@ int default_vnread(file_t *f, uio_t *uio) {
 
 int default_vnwrite(file_t *f, uio_t *uio) {
   vnode_t *v = f->f_vnode;
-  int error = 0, ioflag = 0;
-  if (f->f_flags & FF_APPEND)
-    ioflag |= IO_APPEND;
+  int error = 0;
   vnode_lock(v);
   uio->uio_offset = f->f_offset;
-  error = VOP_WRITE(f->f_vnode, uio, ioflag);
+  error = VOP_WRITE(f->f_vnode, uio);
   f->f_offset = uio->uio_offset;
   vnode_unlock(v);
   return error;
@@ -292,6 +290,7 @@ int default_vnioctl(file_t *f, u_long cmd, void *data) {
 }
 
 static fileops_t default_vnode_fileops = {
+  .fo_flags = FOF_SEEKABLE,
   .fo_read = default_vnread,
   .fo_write = default_vnwrite,
   .fo_close = default_vnclose,
@@ -305,21 +304,6 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   fp->f_ops = &default_vnode_fileops;
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
-  switch (mode & O_ACCMODE) {
-    case O_RDONLY:
-      fp->f_flags = FF_READ;
-      break;
-    case O_WRONLY:
-      fp->f_flags = FF_WRITE;
-      break;
-    case O_RDWR:
-      fp->f_flags = FF_READ | FF_WRITE;
-      break;
-  }
-
-  if (mode & O_APPEND)
-    fp->f_flags |= FF_APPEND;
-
   return 0;
 }
 

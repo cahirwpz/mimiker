@@ -23,6 +23,7 @@ typedef struct rtc_state {
   char asctime[RTC_ASCTIME_SIZE];
   unsigned counter; /* TODO Should that be part of intr_handler_t ? */
   resource_t *irq_res;
+  devfs_node_t *dn;
 } rtc_state_t;
 
 /*
@@ -74,11 +75,10 @@ static intr_filter_t rtc_intr(void *data) {
   return IF_STRAY;
 }
 
-static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
-  rtc_state_t *rtc = devfs_node_data(v);
+static int rtc_time_read(devfs_node_t *dn, uio_t *uio) {
+  rtc_state_t *rtc = devfs_node_data(dn);
   tm_t t;
 
-  uio->uio_offset = 0; /* This device does not support offsets. */
   sleepq_wait(rtc, NULL);
   rtc_gettime(rtc->regs, &t);
   int count = snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d",
@@ -89,7 +89,9 @@ static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
   return uiomove_frombuf(rtc->asctime, count, uio);
 }
 
-static vnodeops_t rtc_time_vnodeops = {.v_read = rtc_time_read};
+static devsw_t rtc_devsw = {
+  .d_read = rtc_time_read,
+};
 
 static int rtc_attach(device_t *dev) {
   rtc_state_t *rtc = dev->state;
@@ -108,7 +110,9 @@ static int rtc_attach(device_t *dev) {
   rtc_setb(rtc->regs, MC_REGB, MC_REGB_PIE);
 
   /* Prepare /dev/rtc interface. */
-  devfs_makedev(NULL, "rtc", &rtc_time_vnodeops, rtc, NULL);
+  vnode_t *v;
+  devfs_makedev(NULL, "rtc", &rtc_devsw, rtc, &v);
+  rtc->dn = v->v_data;
 
   tm_t t;
 
@@ -116,6 +120,12 @@ static int rtc_attach(device_t *dev) {
   boottime_init(&t);
 
   return 0;
+}
+
+static int rtc_detach(device_t *dev) {
+  rtc_state_t *rtc = dev->state;
+  /* TODO: implement resource list deallocation. */
+  return devfs_unlink(rtc->dn);
 }
 
 static int rtc_probe(device_t *dev) {
@@ -128,6 +138,7 @@ static driver_t rtc_driver = {
   .pass = SECOND_PASS,
   .attach = rtc_attach,
   .probe = rtc_probe,
+  .detach = rtc_detach,
 };
 
 DEVCLASS_ENTRY(isa, rtc_driver);

@@ -6,16 +6,16 @@
 
 static void *zero_page, *junk_page;
 
-static int dev_null_write(vnode_t *v, uio_t *uio, int ioflag) {
+static int dev_null_write(vnode_t *v, uio_t *uio) {
   uio->uio_resid = 0;
   return 0;
 }
 
-static int dev_null_read(vnode_t *v, uio_t *uio, int ioflag) {
+static int dev_null_read(vnode_t *v, uio_t *uio) {
   return 0;
 }
 
-static int dev_zero_write(vnode_t *v, uio_t *uio, int ioflag) {
+static int dev_zero_write(vnode_t *v, uio_t *uio) {
   /* We might just discard the data, but to demonstrate using uiomove for
    * writing, store the data into a junkyard page. */
   int error = 0;
@@ -28,7 +28,7 @@ static int dev_zero_write(vnode_t *v, uio_t *uio, int ioflag) {
   return error;
 }
 
-static int dev_zero_read(vnode_t *v, uio_t *uio, int ioflag) {
+static int dev_zero_read(vnode_t *v, uio_t *uio) {
   int error = 0;
   while (uio->uio_resid && !error) {
     size_t len = uio->uio_resid;
@@ -49,8 +49,8 @@ static void init_dev_null(void) {
   zero_page = kmem_alloc(PAGESIZE, M_ZERO);
   junk_page = kmem_alloc(PAGESIZE, 0);
 
-  devfs_makedev(NULL, "null", &dev_null_vnodeops, NULL, NULL);
-  devfs_makedev(NULL, "zero", &dev_zero_vnodeops, NULL, NULL);
+  devfs_makedev_old(NULL, "null", &dev_null_vnodeops, NULL, NULL);
+  devfs_makedev_old(NULL, "zero", &dev_zero_vnodeops, NULL, NULL);
 }
 
 SET_ENTRY(devfs_init, init_dev_null);

@@ -21,6 +21,10 @@ typedef int fo_seek_t(file_t *f, off_t offset, int whence, off_t *newoffp);
 typedef int fo_stat_t(file_t *f, stat_t *sb);
 typedef int fo_ioctl_t(file_t *f, u_long cmd, void *data);
 
+typedef enum {
+  FOF_SEEKABLE = 1, /* file interface permits random access */
+} fileops_flags_t;
+
 typedef struct {
   fo_read_t *fo_read;
   fo_write_t *fo_write;
@@ -28,6 +32,7 @@ typedef struct {
   fo_seek_t *fo_seek;
   fo_stat_t *fo_stat;
   fo_ioctl_t *fo_ioctl;
+  fileops_flags_t fo_flags;
 } fileops_t;
 
 typedef enum {
@@ -36,9 +41,16 @@ typedef enum {
   FT_PTY = 3,   /* master side of a pseudoterminal */
 } filetype_t;
 
-#define FF_READ 0x0001
-#define FF_WRITE 0x0002
-#define FF_APPEND 0x0004
+typedef enum fileflags {
+  FF_READ = 1,     /* file can be read from */
+  FF_WRITE = 2,    /* file can be written to */
+  FF_APPEND = 4,   /* file offset should be set to EOF prior to each write */
+  FF_NONBLOCK = 8, /* read & write return EAGAIN instead blocking */
+} fileflags_t;
+
+/* Flags passed to I/O requests. */
+#define F_IFLAGS (FF_NONBLOCK)             /* input flags */
+#define F_OFLAGS (FF_APPEND | FF_NONBLOCK) /* output flags */
 
 typedef struct file {
   void *f_data; /* File specific data */
@@ -46,18 +58,26 @@ typedef struct file {
   filetype_t f_type; /* File type */
   vnode_t *f_vnode;
   off_t f_offset;
-  refcnt_t f_count; /* Reference counter */
-  unsigned f_flags; /* File flags FF_* */
+  refcnt_t f_count;    /* Reference counter */
+  fileflags_t f_flags; /* File flags FF_* */
+  int f_mode;          /* Open flags */
 } file_t;
 
 file_t *file_alloc(void);
 void file_destroy(file_t *f);
+
+static inline void *file_data(file_t *f) {
+  return f->f_data;
+}
 
 /*! \brief Increments reference counter. */
 void file_hold(file_t *f);
 
 /*! \brief Decrements refcounter and destroys file if it has reached 0. */
 void file_drop(file_t *f);
+
+/*! \brief Sets file's flags based on O_* open flags. */
+void file_set_flags(file_t *f, int mode);
 
 static inline int FOP_READ(file_t *f, uio_t *uio) {
   return f->f_ops->fo_read(f, uio);
