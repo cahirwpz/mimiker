@@ -223,7 +223,7 @@ static int devfs_dev_vop_open(vnode_t *v, int mode, file_t *fp) {
   return 0;
 }
 
-/* Free a devfs directory after unlinking it. */
+/* Free a devfs device file after unlinking it. */
 static int devfs_dev_vop_reclaim(vnode_t *v) {
   assert(v->v_type == V_DEV);
   devfs_node_t *dn = vn2dn(v);
