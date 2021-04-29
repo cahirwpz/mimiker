@@ -3,6 +3,8 @@
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/mutex.h>
+#include <sys/time.h>
 
 #define DEVFS_NAME_MAX 64
 
@@ -19,12 +21,16 @@ struct devfs_node {
   char *dn_name;     /* device name */
 
   /* Node attributes (as in vattr). */
-  mode_t dn_mode;    /* node protection mode */
-  nlink_t dn_nlinks; /* number of hard links */
-  ino_t dn_ino;      /* node identifier */
-  size_t dn_size;    /* device file size (for seekable devices) */
-  uid_t dn_uid;      /* file owner */
-  gid_t dn_gid;      /* file group */
+  mode_t dn_mode;      /* node protection mode */
+  nlink_t dn_nlinks;   /* number of hard links */
+  ino_t dn_ino;        /* node identifier */
+  size_t dn_size;      /* device file size (for seekable devices) */
+  uid_t dn_uid;        /* file owner */
+  gid_t dn_gid;        /* file group */
+  timespec_t dn_atime; /* last access time */
+  timespec_t dn_mtime; /* last data modification time */
+  timespec_t dn_ctime; /* last file status change time */
+  mtx_t dn_timelock;   /* guards dn_*time fields */
 
   union {
     /* Directory-specific data. */
@@ -60,6 +66,7 @@ typedef enum {
  * Character/Block device switch table.
  */
 struct devsw {
+  dev_type_t d_type;   /* device type */
   dev_open_t d_open;   /* prepare device for devfs operations */
   dev_close_t d_close; /* called when file referring to the device is closed */
   dev_reclaim_t d_reclaim; /* free the devfs node and driver-private data */
@@ -74,7 +81,6 @@ struct devsw {
     /* TODO: d_startegy. */
   };
   dev_ioctl_t d_ioctl; /* read or modify device properties */
-  dev_type_t d_type;
 };
 
 static inline int DOP_OPEN(devfs_node_t *dn, int flags) {

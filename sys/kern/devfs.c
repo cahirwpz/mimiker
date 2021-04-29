@@ -5,7 +5,6 @@
 #include <sys/vnode.h>
 #include <sys/errno.h>
 #include <sys/libkern.h>
-#include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/linker_set.h>
 #include <sys/dirent.h>
@@ -15,17 +14,23 @@
 
 static KMALLOC_DEFINE(M_DEVFS, "devfs");
 
+typedef enum {
+  DEVFS_UPDATE_ATIME = 1,
+  DEVFS_UPDATE_MTIME = 2,
+  DEVFS_UPDATE_CTIME = 4,
+} devfs_time_type_t;
+
 /* device filesystem state structure */
 typedef struct devfs_mount {
-  mtx_t lock;        /* guards the following fields */
-  ino_t next_ino;    /* next node identifier to grant */
-  devfs_node_t root; /* root devfs node of a devfs instance */
+  mtx_t lock;         /* guards the following fields */
+  ino_t next_ino;     /* next node identifier to grant */
+  devfs_node_t *root; /* root devfs node of a devfs instance */
 } devfs_mount_t;
 
 static devfs_mount_t devfs = {
   .lock = MTX_INITIALIZER(devfs.lock, 0),
   .next_ino = 2,
-  .root = {},
+  .root = NULL,
 };
 
 static vnode_lookup_t devfs_dir_vop_lookup;
@@ -74,12 +79,25 @@ static inline devfs_node_t *vn2dn(vnode_t *v) {
   return (devfs_node_t *)v->v_data;
 }
 
+static void devfs_update_time(devfs_node_t *dn, devfs_time_type_t type) {
+  timespec_t nowtm = nanotime();
+
+  WITH_MTX_LOCK (&dn->dn_timelock) {
+    if (type & DEVFS_UPDATE_ATIME)
+      dn->dn_atime = nowtm;
+    if (type & DEVFS_UPDATE_MTIME)
+      dn->dn_mtime = nowtm;
+    if (type & DEVFS_UPDATE_CTIME)
+      dn->dn_ctime = nowtm;
+  }
+}
+
 static devfs_node_t *devfs_find_child(devfs_node_t *parent,
                                       const componentname_t *cn) {
   assert(mtx_owned(&devfs.lock));
 
   if (parent == NULL)
-    parent = &devfs.root;
+    parent = devfs.root;
 
   devfs_node_t *dn;
   TAILQ_FOREACH (dn, &parent->dn_children, dn_link)
@@ -94,29 +112,47 @@ static devfs_node_t *devfs_find_child(devfs_node_t *parent,
   return NULL;
 }
 
-static int devfs_add_entry(devfs_node_t *parent, const char *name,
+static devfs_node_t *devfs_node_create(const char *name, int mode) {
+  devfs_node_t *dn = kmalloc(M_DEVFS, sizeof(devfs_node_t), M_ZERO);
+  assert(dn);
+
+  dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
+  dn->dn_mode = mode;
+  dn->dn_nlinks = (mode & S_IFDIR) ? 2 : 1;
+  dn->dn_ino = devfs.next_ino++;
+  /* UID and GID are set to 0 by `kmalloc`.
+   * Note that `dn_size` is initially 0, but the device is
+   * free to alter this field. */
+  dn->dn_atime = nanotime();
+  dn->dn_mtime = dn->dn_atime;
+  dn->dn_ctime = dn->dn_atime;
+  mtx_init(&dn->dn_timelock, 0);
+
+  return dn;
+}
+
+static int devfs_add_entry(devfs_node_t *parent, const char *name, int mode,
                            devfs_node_t **dnp) {
   assert(mtx_owned(&devfs.lock));
 
   if (parent == NULL)
-    parent = &devfs.root;
+    parent = devfs.root;
   if (parent->dn_vnode->v_type != V_DIR)
     return ENOTDIR;
 
   if (devfs_find_child(parent, &COMPONENTNAME(name)))
     return EEXIST;
 
-  devfs_node_t *dn = kmalloc(M_DEVFS, sizeof(devfs_node_t), M_ZERO);
-  dn->dn_ino = ++devfs.next_ino;
-  dn->dn_size = 0; /* device is free to alter the size field */
-  dn->dn_uid = 0;
-  dn->dn_gid = 0;
-  dn->dn_nlinks = 1;
+  devfs_node_t *dn = devfs_node_create(name, mode);
   dn->dn_parent = parent;
-  dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
   TAILQ_INSERT_TAIL(&parent->dn_children, dn, dn_link);
-  parent->dn_nlinks++;
+  if (mode & S_IFDIR)
+    parent->dn_nlinks++;
   *dnp = dn;
+
+  devfs_update_time(parent, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
+  devfs_update_time(dn, DEVFS_UPDATE_CTIME);
+
   return 0;
 }
 
@@ -131,7 +167,8 @@ int devfs_unlink(devfs_node_t *dn) {
     return ENOTEMPTY;
 
   TAILQ_REMOVE(&parent->dn_children, dn, dn_link);
-  parent->dn_nlinks--;
+  if (dn->dn_mode & S_IFDIR)
+    parent->dn_nlinks--;
   vnode_drop(dn->dn_vnode);
   return 0;
 }
@@ -152,6 +189,7 @@ static int devfs_dir_vop_reclaim(vnode_t *v) {
 
 static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
   devfs_node_t *dn = vn2dn(v);
+
   bzero(va, sizeof(vattr_t));
   va->va_mode = dn->dn_mode;
   va->va_uid = dn->dn_uid;
@@ -159,6 +197,13 @@ static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
   va->va_nlink = dn->dn_nlinks;
   va->va_ino = dn->dn_ino;
   va->va_size = dn->dn_size;
+
+  WITH_MTX_LOCK (&dn->dn_timelock) {
+    va->va_atime = dn->dn_atime;
+    va->va_mtime = dn->dn_mtime;
+    va->va_ctime = dn->dn_ctime;
+  }
+
   return 0;
 }
 
@@ -187,10 +232,14 @@ static int devfs_fop_read(file_t *fp, uio_t *uio) {
   devfs_node_t *dn = file_data(fp);
   bool seekable = dn->dn_devsw->d_type & DT_SEEKABLE;
 
-  uio->uio_offset = seekable ? fp->f_offset : 0;
+  if (!seekable)
+    uio->uio_offset = fp->f_offset;
   int error = DOP_READ(dn, uio);
   if (seekable && !error)
     fp->f_offset = uio->uio_offset;
+
+  devfs_update_time(dn, DEVFS_UPDATE_ATIME);
+
   return error;
 }
 
@@ -198,10 +247,14 @@ static int devfs_fop_write(file_t *fp, uio_t *uio) {
   devfs_node_t *dn = file_data(fp);
   bool seekable = dn->dn_devsw->d_type & DT_SEEKABLE;
 
-  uio->uio_offset = seekable ? fp->f_offset : 0;
+  if (!seekable)
+    uio->uio_offset = fp->f_offset;
   int error = DOP_WRITE(dn, uio);
   if (seekable && !error)
     fp->f_offset = uio->uio_offset;
+
+  devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
+
   return error;
 }
 
@@ -235,6 +288,8 @@ static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
   }
 
   *newoffp = fp->f_offset = offset;
+  devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
+
   return 0;
 }
 
@@ -279,8 +334,10 @@ int devfs_makedev(devfs_node_t *parent, const char *name, devsw_t *devsw,
                   void *data, vnode_t **vnode_p) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
+  int mode =
+    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
   devfs_node_t *dn;
-  int error = devfs_add_entry(parent, name, &dn);
+  int error = devfs_add_entry(parent, name, mode, &dn);
   if (error)
     return error;
 
@@ -289,14 +346,12 @@ int devfs_makedev(devfs_node_t *parent, const char *name, devsw_t *devsw,
   dn->dn_devsw = devsw;
   dn->dn_vnode = vnode_new(V_DEV, &devfs_dev_vnodeops, dn);
   dn->dn_data = data;
-  dn->dn_mode =
-    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
 
-  klog("devfs: registered '%s' device", name);
   if (vnode_p) {
     vnode_hold(dn->dn_vnode);
     *vnode_p = dn->dn_vnode;
   }
+  klog("devfs: registered '%s' device", name);
   return 0;
 }
 
@@ -336,13 +391,13 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
                   devfs_node_t **dir_p) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
+  int mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
   devfs_node_t *dn;
-  int error = devfs_add_entry(parent, name, &dn);
+  int error = devfs_add_entry(parent, name, mode, &dn);
   if (error)
     return error;
 
   dn->dn_vnode = vnode_new(V_DIR, &devfs_dir_vnodeops, dn);
-  dn->dn_mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
   TAILQ_INIT(&dn->dn_children);
   *dir_p = dn;
   return 0;
@@ -412,19 +467,20 @@ static readdir_ops_t devfs_readdir_ops = {
 };
 
 static int devfs_dir_vop_readdir(vnode_t *v, uio_t *uio) {
+  devfs_update_time(vn2dn(v), DEVFS_UPDATE_ATIME);
   return readdir_generic(v, uio, &devfs_readdir_ops);
 }
 
 /* We are using a single vnode for each devfs_node instead of allocating a new
  * one each time, to simplify things. */
 static int devfs_mount(mount_t *m) {
-  devfs.root.dn_vnode->v_mount = m;
+  devfs.root->dn_vnode->v_mount = m;
   m->mnt_data = &devfs;
   return 0;
 }
 
 static int devfs_root(mount_t *m, vnode_t **vp) {
-  *vp = devfs.root.dn_vnode;
+  *vp = devfs.root->dn_vnode;
   vnode_hold(*vp);
   return 0;
 }
@@ -433,14 +489,12 @@ static int devfs_init(vfsconf_t *vfc) {
   vnodeops_init(&devfs_dir_vnodeops);
   vnodeops_init(&devfs_dev_vnodeops);
 
-  devfs_node_t *dn = &devfs.root;
+  int mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+  devfs.root = devfs_node_create("", mode);
+  devfs_node_t *dn = devfs.root;
+
   dn->dn_vnode = vnode_new(V_DIR, &devfs_dir_vnodeops, dn);
-  dn->dn_mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-  dn->dn_uid = 0;
-  dn->dn_gid = 0;
-  dn->dn_name = "";
   dn->dn_parent = dn;
-  dn->dn_ino = devfs.next_ino;
   TAILQ_INIT(&dn->dn_children);
 
   /* Prepare some initial devices */

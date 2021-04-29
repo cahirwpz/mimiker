@@ -26,13 +26,13 @@ typedef enum {
 } fileops_flags_t;
 
 typedef struct {
+  fileops_flags_t fo_flags;
   fo_read_t *fo_read;
   fo_write_t *fo_write;
   fo_close_t *fo_close;
   fo_seek_t *fo_seek;
   fo_stat_t *fo_stat;
   fo_ioctl_t *fo_ioctl;
-  fileops_flags_t fo_flags;
 } fileops_t;
 
 typedef enum {

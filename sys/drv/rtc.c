@@ -90,6 +90,7 @@ static int rtc_time_read(devfs_node_t *dn, uio_t *uio) {
 }
 
 static devsw_t rtc_devsw = {
+  .d_type = DT_OTHER,
   .d_read = rtc_time_read,
 };
 
