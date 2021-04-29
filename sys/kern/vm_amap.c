@@ -169,3 +169,26 @@ vm_aref_t vm_amap_split(vm_aref_t *aref, vaddr_t offset) {
     vm_amap_hold(amap);
   return new_aref;
 }
+
+vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t end) {
+  vm_amap_t *amap = aref->ar_amap;
+  int first_slot = aref->ar_pageoff;
+  int last_slot = vm_amap_slot(aref, end);
+
+  vm_amap_t *new = vm_amap_alloc();
+  WITH_MTX_LOCK(&new->am_lock)
+    vm_amap_hold(new);
+
+  SCOPED_MTX_LOCK(&amap->am_lock);
+
+  for (int i = 0; i < amap->am_nused; ++i) {
+    int slot = amap->am_slot[i];
+    if (first_slot <= slot && slot < last_slot) {
+      vm_anon_t *anon = amap->am_anon[slot];
+      vm_amap_add_nolock(new, anon, slot - first_slot);
+      WITH_MTX_LOCK(&anon->an_lock)
+        vm_anon_hold(anon);
+    }
+  }
+  return (vm_aref_t) {.ar_amap = new, .ar_pageoff = 0};
+}

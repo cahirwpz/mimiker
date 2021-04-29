@@ -114,5 +114,53 @@ static int test_amap_split(void) {
   return KTEST_SUCCESS;
 }
 
+static int test_amap_copy(void) {
+  vm_amap_t *amap = vm_amap_alloc();
+
+  vm_aref_t aref = {.ar_pageoff = 0, .ar_amap = amap};
+
+  vm_amap_lock(amap);
+  vm_amap_hold(amap);
+  vm_amap_unlock(amap);
+
+  vm_anon_t *an1 = vm_anon_alloc();
+  vm_anon_t *an2 = vm_anon_alloc();
+  vm_anon_t *an3 = vm_anon_alloc();
+
+  vm_amap_add(&aref, an1, 3 * PAGESIZE);
+  vm_amap_add(&aref, an2, 7 * PAGESIZE);
+  vm_amap_add(&aref, an3, 10 * PAGESIZE);
+
+  /* Get new aref pointing somewhere in amap. */
+  vm_aref_t src_aref = {.ar_pageoff = 4, .ar_amap = amap};
+
+  /* Copy amap between src_aref and 10th anon. */
+  vm_aref_t naref = vm_amap_copy(&src_aref, 6 * PAGESIZE);
+
+  vm_amap_t *new = naref.ar_amap;
+  assert(new != NULL);
+  assert(new != amap);
+
+  vm_amap_lock(new);
+  vm_amap_lock(amap);
+
+  assert(new->am_nused == 1);
+  assert(new->am_anon[3] == amap->am_anon[7]);
+
+  vm_anon_t *anon = new->am_anon[3];
+  WITH_MTX_LOCK(&anon->an_lock)
+    assert(anon->an_ref == 2);
+
+  anon = amap->am_anon[3];
+  WITH_MTX_LOCK(&anon->an_lock)
+    assert(anon->an_ref == 1);
+
+  vm_amap_drop(new);
+  vm_amap_drop(amap);
+
+  return KTEST_SUCCESS;
+}
+
 KTEST_ADD(vm_amap_simple, test_amap_simple, 0);
 KTEST_ADD(vm_amap_split, test_amap_split, 0);
+KTEST_ADD(vm_amap_copy, test_amap_copy, 0);
