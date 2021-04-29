@@ -63,6 +63,7 @@ class Kgmon(SimpleCommand):
         if state == gdb.parse_and_eval('GMON_PROF_NOT_INIT'):
             print("Compile program with KGPROF=1 or gmon not initialized yet")
         elif state == gdb.parse_and_eval('GMON_PROF_BUSY'):
+            # To ensure consistent data
             print("The mcount function is running - wait for it to finish")
         else:
             if state == gdb.parse_and_eval('GMON_PROF_ERROR'):

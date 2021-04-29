@@ -103,6 +103,11 @@ __no_instrument_kgprof void __cyg_profile_func_enter(void *self, void *from) {
     return;
 
   WITH_SPIN_LOCK (&mcount_lock) {
+    /* 
+     * To ensure consistent data in kgmon - this function can move
+     * a node from the middle of the list at the beginning and
+     * during this process we can omit it.
+     */
     p->state = GMON_PROF_BUSY;
     /*
      * check that frompc is a reasonable pc value.
