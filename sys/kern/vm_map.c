@@ -172,12 +172,15 @@ static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
   return new;
 }
 
-/* Split vm_map_entry into two not empty entries.
+/* Split vm_map_entry into two not empty entries. (Smallest possible entry is
+ * entry with one page thus splitat must be page aligned.)
+ *
  * Returns entry which is after base entry. */
 static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
                                           vaddr_t splitat) {
   assert(mtx_owned(&map->mtx));
-  assert(ent->start < splitat && splitat + 1 < ent->end);
+  assert(page_aligned_p(splitat));
+  assert(ent->start < splitat && splitat < ent->end);
 
   vm_map_entry_t *new_ent = vm_map_entry_copy(ent);
 
