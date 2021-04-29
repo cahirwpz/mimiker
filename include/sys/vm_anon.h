@@ -38,5 +38,9 @@ void vm_anon_hold(vm_anon_t *anon);
  * Must be called with anon:an_lock held.
  * Releases anon:an_lock. */
 void vm_anon_drop(vm_anon_t *anon);
+/* Create new anon with copy of page from given one. */
+vm_anon_t *vm_anon_copy(vm_anon_t *anon);
+/* Create new anon with copy of given page. */
+vm_anon_t *vm_anon_copy_page(vm_page_t *page);
 
 #endif /* !_SYS_UVM_ANON_H_ */
