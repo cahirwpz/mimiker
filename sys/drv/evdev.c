@@ -48,10 +48,10 @@ static devfs_node_t *evdev_input_dir;
  * `evdev_client_t` is created whenever the evdev file is opened. Its jobs is to
  * handle an interaction with the user-space. Every client has its private event
  * buffer. Every time an input event is issued, it firstly goes through
- *`evdev_dev_t` and then it is propagated to clients. This allows us to have
+ * `evdev_dev_t` and then it is propagated to clients. This allows us to have
  * multiple, non-interfering readers of a single evdev device. Hence, every
- *input device has exactly one `evdev_dev_t`, but possibly can have many
- *`evdev_client_t` structures linked to it.
+ * input device has exactly one `evdev_dev_t`, but possibly can have many
+ * `evdev_client_t` structures linked to it.
  *
  * Field markings and the corresponding locks:
  * (!) - read-only access
@@ -208,11 +208,12 @@ static void evdev_client_push(evdev_client_t *client, uint16_t type,
 
   /* If queue is full drop its content and place SYN_DROPPED event */
   if (tail + 1 == head || (tail + 1 - count) == head) {
-    head = ready = tail = 0;
+    head = ready = 0;
     client->ec_buffer[head] =
       (input_event_t){.type = EV_SYN, .code = SYN_DROPPED, .value = 0};
     client->ec_buffer_head = head;
     client->ec_buffer_ready = head;
+    tail = 1;
   }
 
   client->ec_buffer[tail].type = type;
@@ -426,6 +427,7 @@ static int evdev_dev_create(evdev_dev_t *evdev) {
   do {
     snprintf(buf, sizeof(buf), "event%d", unit);
     ret = devfs_makedev(evdev_input_dir, buf, &evdev_vnodeops, evdev, NULL);
+    unit++;
   } while (ret == EEXIST);
 
   return ret;
@@ -519,6 +521,8 @@ static void evdev_dispose_client(evdev_dev_t *evdev, evdev_client_t *client) {
 /* Callout function called every key repetition. */
 static void evdev_repeat_callout(void *arg) {
   evdev_dev_t *evdev = (evdev_dev_t *)arg;
+
+  SCOPED_MTX_LOCK(&evdev->ev_lock);
 
   evdev_send_event(evdev, EV_KEY, evdev->ev_rep_key, KEY_EVENT_REPEAT);
   evdev_send_event(evdev, EV_SYN, SYN_REPORT, 1);
