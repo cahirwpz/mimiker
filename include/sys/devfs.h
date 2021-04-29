@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/refcnt.h>
 #include <sys/mutex.h>
 #include <sys/time.h>
 
@@ -43,6 +44,7 @@ struct devfs_node {
     };
   };
 
+  refcnt_t dn_refcnt;              /* number of open files */
   devfs_node_t *dn_parent;         /* parent devfs node */
   TAILQ_ENTRY(devfs_node) dn_link; /* link on `dn_parent->dn_children` */
 };
@@ -110,7 +112,7 @@ static inline int DOP_IOCTL(devfs_node_t *dn, u_long cmd, void *data,
 
 /* If parent is NULL new device will be attached to root devfs directory. */
 int devfs_makedev(devfs_node_t *parent, const char *name, devsw_t *devsw,
-                  void *data, vnode_t **vnode_p);
+                  void *data, devfs_node_t **dn_p);
 int devfs_makedir(devfs_node_t *parent, const char *name, devfs_node_t **dir_p);
 
 /* TODO: rewrite all device drivers which use devfs to rely on devsw

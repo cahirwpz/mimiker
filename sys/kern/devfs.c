@@ -215,13 +215,19 @@ static int devfs_dev_vop_open(vnode_t *v, int mode, file_t *fp) {
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
 
-  return DOP_OPEN(dn, mode);
+  int error = DOP_OPEN(dn, mode);
+  if (error)
+    return error;
+
+  refcnt_acquire(&dn->dn_refcnt);
+  return 0;
 }
 
 /* Free a devfs directory after unlinking it. */
 static int devfs_dev_vop_reclaim(vnode_t *v) {
   assert(v->v_type == V_DEV);
   devfs_node_t *dn = vn2dn(v);
+  assert(dn->dn_refcnt == 0);
   /* XXX: what if an error occurs during `d_reclaim`? */
   DOP_RECLAIM(dn);
   devfs_free(dn);
@@ -259,7 +265,9 @@ static int devfs_fop_write(file_t *fp, uio_t *uio) {
 }
 
 static int devfs_fop_close(file_t *fp) {
-  return DOP_CLOSE(file_data(fp), fp->f_mode);
+  devfs_node_t *dn = file_data(fp);
+  refcnt_release(&dn->dn_refcnt);
+  return DOP_CLOSE(dn, fp->f_mode);
 }
 
 static int devfs_fop_stat(file_t *fp, stat_t *sb) {
@@ -331,7 +339,7 @@ static void devfs_add_default_dops(devsw_t *devsw) {
 }
 
 int devfs_makedev(devfs_node_t *parent, const char *name, devsw_t *devsw,
-                  void *data, vnode_t **vnode_p) {
+                  void *data, devfs_node_t **dn_p) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
   int mode =
@@ -347,10 +355,9 @@ int devfs_makedev(devfs_node_t *parent, const char *name, devsw_t *devsw,
   dn->dn_vnode = vnode_new(V_DEV, &devfs_dev_vnodeops, dn);
   dn->dn_data = data;
 
-  if (vnode_p) {
-    vnode_hold(dn->dn_vnode);
-    *vnode_p = dn->dn_vnode;
-  }
+  if (dn_p)
+    *dn_p = dn;
+
   klog("devfs: registered '%s' device", name);
   return 0;
 }
@@ -370,19 +377,21 @@ static void devfs_add_default_vops(vnodeops_t *vops) {
 /* TODO: remove the following function after rewriting all drivers. */
 int devfs_makedev_old(devfs_node_t *parent, const char *name, vnodeops_t *vops,
                       void *data, vnode_t **vnode_p) {
-  vnode_t *v = NULL;
-  int error = devfs_makedev(parent, name, NULL, data, &v);
+  devfs_node_t *dn = NULL;
+  int error = devfs_makedev(parent, name, NULL, data, &dn);
   if (error)
     return error;
 
   devfs_add_default_vops(vops);
   vnodeops_init(vops);
+
+  vnode_t *v = dn->dn_vnode;
   v->v_ops = vops;
 
-  if (vnode_p)
+  if (vnode_p) {
+    vnode_hold(v);
     *vnode_p = v;
-  else
-    vnode_drop(v);
+  }
 
   return 0;
 }
