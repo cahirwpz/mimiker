@@ -1,8 +1,8 @@
 #include <sys/klog.h>
 #include <sys/rman.h>
 #include <sys/bus.h>
-#include <aarch64/bcm2835reg.h>
-#include <aarch64/bcm2835_gpioreg.h>
+#include <dev/bcm2835reg.h>
+#include <dev/bcm2835_gpioreg.h>
 
 /*
  * \brief delay function
@@ -10,11 +10,16 @@
  *
  * This just loops <delay> times in a way that the compiler
  * won't optimize away.
+ *
+ * clang-format is off because of different clang-format versions on build
+ * server and CI
  */
+/* clang-format off */
 static void delay(int64_t count) {
   __asm__ volatile("1: subs %[count], %[count], #1; bne 1b"
                    : [ count ] "+r"(count));
 }
+/* clang-format on */
 
 void bcm2835_gpio_function_select(resource_t *r, unsigned pin,
                                   bcm2835_gpio_func_t func) {

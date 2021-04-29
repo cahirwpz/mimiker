@@ -80,7 +80,7 @@ vaddr_t vm_map_entry_end(vm_map_entry_t *ent) {
   return ent->end;
 }
 
-vm_map_entry_t *vm_map_entry_next(vm_map_entry_t *ent) {
+inline vm_map_entry_t *vm_map_entry_next(vm_map_entry_t *ent) {
   return TAILQ_NEXT(ent, link);
 }
 
@@ -165,21 +165,25 @@ void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
   vm_map_entry_free(ent);
 }
 
-static inline vm_map_entry_t *vm_mapent_copy(vm_map_entry_t *src) {
-  vm_object_hold(src->object);
+static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
+  if (src->object)
+    vm_object_hold(src->object);
   vm_map_entry_t *new = vm_map_entry_alloc(src->object, src->start, src->end,
                                            src->prot, src->flags);
   return new;
 }
 
-/* Split vm_map_entry into two not empty entries.
+/* Split vm_map_entry into two not empty entries. (Smallest possible entry is
+ * entry with one page thus splitat must be page aligned.)
+ *
  * Returns entry which is after base entry. */
 static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
                                           vaddr_t splitat) {
   assert(mtx_owned(&map->mtx));
-  assert(ent->start < splitat && splitat + 1 < ent->end);
+  assert(page_aligned_p(splitat));
+  assert(ent->start < splitat && splitat < ent->end);
 
-  vm_map_entry_t *new_ent = vm_mapent_copy(ent);
+  vm_map_entry_t *new_ent = vm_map_entry_copy(ent);
 
   /* clip both entries */
   ent->end = splitat;
@@ -250,7 +254,7 @@ static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
   /* Browse available gaps. */
   vm_map_entry_t *it;
   TAILQ_FOREACH (it, &map->entries, link) {
-    vm_map_entry_t *next = TAILQ_NEXT(it, link);
+    vm_map_entry_t *next = vm_map_entry_next(it);
     vaddr_t gap_start = it->end;
     vaddr_t gap_end = next ? next->start : vm_map_end(map);
 
@@ -343,7 +347,7 @@ int vm_map_entry_resize(vm_map_t *map, vm_map_entry_t *ent, vaddr_t new_end) {
 
   if (new_end >= ent->end) {
     /* Expanding entry */
-    vm_map_entry_t *next = TAILQ_NEXT(ent, link);
+    vm_map_entry_t *next = vm_map_entry_next(ent);
     vaddr_t gap_end = next ? next->start : vm_map_end(map);
     if (new_end > gap_end)
       return ENOMEM;
