@@ -8,19 +8,18 @@
 #include <sys/errno.h>
 #include <sys/device.h>
 #include <sys/bus.h>
+#include <sys/fb.h>
 #include <sys/devclass.h>
 
-#define VGA_PALETTE_SIZE (256 * 3)
+#define VGA_PALETTE_SIZE 256
 
 typedef struct stdvga_state {
   resource_t *mem;
   resource_t *io;
 
-  unsigned int width;
-  unsigned int height;
-  unsigned int bpp;
+  fb_info_t fb_info;
 
-  uint8_t *palette_buffer;
+  fb_palette_t *palette;
   uint8_t *fb_buffer; /* This buffer is only needed because we can't pass uio
                          directly to the bus. */
   vga_device_t vga;
@@ -77,62 +76,62 @@ static void stdvga_palette_write_single(stdvga_state_t *stdvga, uint8_t offset,
   stdvga_io_write(stdvga, VGA_PALETTE_DATA, b >> 2);
 }
 
-static void stdvga_palette_write_buffer(stdvga_state_t *stdvga,
-                                        const uint8_t buf[VGA_PALETTE_SIZE]) {
-  for (int i = 0; i < VGA_PALETTE_SIZE / 3; i++)
-    stdvga_palette_write_single(stdvga, i, buf[3 * i + 0], buf[3 * i + 1],
-                                buf[3 * i + 2]);
+static void stdvga_palette_write_all(stdvga_state_t *stdvga) {
+  for (size_t i = 0; i < stdvga->palette->len; i++)
+    stdvga_palette_write_single(stdvga, i, stdvga->palette->red[i],
+                                stdvga->palette->green[i],
+                                stdvga->palette->blue[i]);
 }
 
-static int stdvga_palette_write(vga_device_t *vga, uio_t *uio) {
+static int stdvga_palette_write(vga_device_t *vga, fb_palette_t *palette) {
   stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
-  int error = uiomove_frombuf(stdvga->palette_buffer, VGA_PALETTE_SIZE, uio);
-  if (error)
-    return error;
+  size_t len = stdvga->palette->len;
+
+  if (len != palette->len)
+    return EINVAL;
+
+  memcpy(stdvga->palette->red, palette->red, len);
+  memcpy(stdvga->palette->green, palette->green, len);
+  memcpy(stdvga->palette->blue, palette->blue, len);
+
   /* TODO: Only update the modified area. */
-  stdvga_palette_write_buffer(stdvga, stdvga->palette_buffer);
+  stdvga_palette_write_all(stdvga);
   return 0;
 }
 
-static int stdvga_get_videomode(vga_device_t *vga, unsigned *xres,
-                                unsigned *yres, unsigned *bpp) {
+static int stdvga_get_fbinfo(vga_device_t *vga, fb_info_t *fb_info) {
   stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
-  *xres = stdvga->width;
-  *yres = stdvga->height;
-  *bpp = stdvga->bpp;
+  memcpy(fb_info, &stdvga->fb_info, sizeof(fb_info_t));
   return 0;
 }
 
-static int stdvga_set_videomode(vga_device_t *vga, unsigned xres, unsigned yres,
-                                unsigned bpp) {
+static int stdvga_set_fbinfo(vga_device_t *vga, fb_info_t *fb_info) {
   stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
 
   /* Impose some reasonable resolution limit. As long as we have to use an
      fb_buffer, the limit is related to the size of memory pool used by the
      graphics driver. */
-  if (xres > 640 || yres > 480)
+  if (fb_info->width > 640 || fb_info->height > 480)
     return EINVAL;
 
-  if (bpp != 8 && bpp != 16 && bpp != 24)
+  if (fb_info->bpp != 8 && fb_info->bpp != 16 && fb_info->bpp != 24)
     return EINVAL;
 
   /* We keep the size of the potentially previously allocated fb_buffer */
-  int previous_size =
-    align(sizeof(uint8_t) * stdvga->width * stdvga->height, PAGESIZE);
+  int previous_size = align(
+    sizeof(uint8_t) * stdvga->fb_info.width * stdvga->fb_info.height, PAGESIZE);
 
-  stdvga->width = xres;
-  stdvga->height = yres;
-  stdvga->bpp = bpp;
+  memcpy(&stdvga->fb_info, fb_info, sizeof(fb_info_t));
 
   /* Apply resolution */
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->width);
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_YRES, stdvga->height);
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->fb_info.width);
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_YRES, stdvga->fb_info.height);
 
   /* Set BPP */
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_BPP, stdvga->bpp);
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_BPP, stdvga->fb_info.bpp);
 
-  int aligned_size =
-    align(sizeof(uint8_t) * stdvga->width * stdvga->height, PAGESIZE);
+  int aligned_size = align(
+    sizeof(uint8_t) * stdvga->fb_info.width * stdvga->fb_info.height, PAGESIZE);
 
   if (stdvga->fb_buffer)
     kmem_free(stdvga->fb_buffer, previous_size);
@@ -147,12 +146,12 @@ static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
   /* TODO: Some day `bus_space_map` will be implemented. This will allow to map
    * RT_MEMORY resource into kernel virtual address space. BUS_SPACE_MAP_LINEAR
    * would be ideal for frambuffer memory, since we could access it directly. */
-  int error =
-    uiomove_frombuf(stdvga->fb_buffer, stdvga->width * stdvga->height, uio);
+  int error = uiomove_frombuf(
+    stdvga->fb_buffer, stdvga->fb_info.width * stdvga->fb_info.height, uio);
   if (error)
     return error;
   bus_write_region_1(stdvga->mem, 0, stdvga->fb_buffer,
-                     stdvga->width * stdvga->height);
+                     stdvga->fb_info.width * stdvga->fb_info.height);
   return 0;
 }
 
@@ -168,6 +167,13 @@ static int stdvga_probe(device_t *dev) {
   return 1;
 }
 
+static vga_ops_t stdvga_ops = {
+  .palette_write = stdvga_palette_write,
+  .fb_write = stdvga_fb_write,
+  .get_fbinfo = stdvga_get_fbinfo,
+  .set_fbinfo = stdvga_set_fbinfo,
+};
+
 static int stdvga_attach(device_t *dev) {
   stdvga_state_t *stdvga = dev->state;
 
@@ -178,25 +184,23 @@ static int stdvga_attach(device_t *dev) {
   assert(stdvga->io != NULL);
 
   stdvga->vga = (vga_device_t){
-    .palette_write = stdvga_palette_write,
-    .fb_write = stdvga_fb_write,
-    .get_videomode = stdvga_get_videomode,
-    .set_videomode = stdvga_set_videomode,
+    .vg_usecnt = 0,
+    .vg_ops = &stdvga_ops,
   };
 
-  /* Prepare palette buffer */
-  stdvga->palette_buffer =
-    kmalloc(M_DEV, sizeof(uint8_t) * VGA_PALETTE_SIZE, M_ZERO);
+  /* Prepare palette buffers */
+  stdvga->palette = fb_palette_create(VGA_PALETTE_SIZE);
 
   /* Apply resolution */
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->width);
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_YRES, stdvga->height);
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->fb_info.width);
+  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_YRES, stdvga->fb_info.height);
 
   /* Enable palette access */
   stdvga_io_write(stdvga, VGA_AR_ADDR, VGA_AR_PAS);
 
   /* Configure initial videomode. */
-  stdvga_set_videomode(&stdvga->vga, 320, 200, 8);
+  fb_info_t def_fb_info = {.width = 320, .height = 200, .bpp = 8};
+  stdvga_set_fbinfo(&stdvga->vga, &def_fb_info);
 
   /* Enable VBE. */
   stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_ENABLE,

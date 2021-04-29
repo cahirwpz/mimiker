@@ -24,14 +24,16 @@ index 6a5b46b..82b3edf 100644
      if (M_CheckParm ("-shdev"))
      {
 diff --git a/headless_doom/i_video_benchmark.c b/headless_doom/i_video_benchmark.c
-index d55b2fe..5ec4d8f 100644
+index d55b2fe..f575c09 100644
 --- a/headless_doom/i_video_benchmark.c
 +++ b/headless_doom/i_video_benchmark.c
-@@ -24,13 +24,13 @@
+@@ -24,13 +24,15 @@
  
  #include <stdlib.h>
  #include <unistd.h>
 +#include <fcntl.h>
++#include <sys/fb.h>
++#include <sys/ioctl.h>
  #if 0
  #include <sys/ipc.h>
  #include <sys/shm.h>
@@ -42,32 +44,50 @@ index d55b2fe..5ec4d8f 100644
  
  
  #include <stdarg.h>
-@@ -97,6 +97,9 @@ void I_UpdateNoBlit (void)
+@@ -57,6 +59,8 @@
+ 
+ extern unsigned headless_count;
+ 
++static int vgafd;
++
+ void I_ShutdownGraphics(void)
+ {
+ }
+@@ -97,6 +101,7 @@ void I_UpdateNoBlit (void)
  //
  void I_FinishUpdate (void)
  {
-+    int fd = open("/dev/vga/fb", O_WRONLY, 0);
-+    write(fd, screens[0], SCREENWIDTH*SCREENHEIGHT);
-+    close(fd);
++    write(vgafd, screens[0], SCREENWIDTH*SCREENHEIGHT);
      headless_count ++ ;
  }
  
-@@ -119,6 +122,9 @@ void I_ReadScreen (byte* scr)
+@@ -119,6 +124,16 @@ void I_ReadScreen (byte* scr)
  //
  void I_SetPalette (byte* palette)
  {
-+    int fd = open("/dev/vga/palette", O_WRONLY, 0);
-+    write(fd, palette, 3 * 256);
-+    close(fd);
++    unsigned char *buff = malloc (3 * 256);
++    for (int i = 0; i < 256; i++) {
++        buff[i] = palette[3 * i];
++        buff[i + 256] = palette[3 * i + 1];
++        buff[i + 2 * 256] = palette[3 * i + 2];
++    }
++
++    struct fb_palette fb_palette = {.len = 256, .red = buff, .green = buff + 256, .blue = buff + 2 * 256};
++    ioctl(vgafd, FBIOCSET_PALETTE, &fb_palette);
++    free(buff);
  }
  
  
-@@ -132,5 +138,8 @@ void I_InitGraphics(void)
+@@ -130,7 +145,12 @@ void I_InitGraphics(void)
  
+     firsttime = 0;
+ 
++    vgafd = open("/dev/vga", O_WRONLY, 0);
++
  	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
      printf ("Headless Doom running in Benchmark mode\n");
-+    FILE *f = fopen("/dev/vga/videomode", "r+b");
-+    fprintf(f, "%d %d 8", SCREENWIDTH, SCREENHEIGHT);
-+    fclose(f);
++
++    struct fb_info fb_info = {.width = SCREENWIDTH, .height = SCREENHEIGHT, .bpp = 8};
++    ioctl(vgafd, FBIOCSET_FBINFO, &fb_info);
  }
  
