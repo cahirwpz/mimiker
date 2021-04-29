@@ -44,7 +44,7 @@ void init_clock(void) {
     tm_init(profclock, prof_clock, NULL);
     set_kgprof_profrate(PROF_TCK);
     if (tm_start(profclock, TMF_PERIODIC, (bintime_t){}, HZ2BT(PROF_TCK))) {
-      klog("Failed to star profclock!");
+      klog("Failed to start profclock!");
       tm_release(profclock);
       set_kgprof_profrate(CLK_TCK);
       profclock = NULL;
