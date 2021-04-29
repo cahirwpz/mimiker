@@ -121,11 +121,6 @@ typedef struct vattr {
 void vattr_null(vattr_t *va);
 void vattr_convert(vattr_t *va, stat_t *sb);
 
-/*
- * Flags for ioflag.
- */
-#define IO_APPEND 0x00020 /* append write to end */
-
 #define VOP_CALL(op, v, ...)                                                   \
   ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, ##__VA_ARGS__)) : ENOTSUP
 
