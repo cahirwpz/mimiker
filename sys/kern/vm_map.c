@@ -166,7 +166,8 @@ void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
 }
 
 static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
-  vm_object_hold(src->object);
+  if (src->object)
+    vm_object_hold(src->object);
   vm_map_entry_t *new = vm_map_entry_alloc(src->object, src->start, src->end,
                                            src->prot, src->flags);
   return new;
