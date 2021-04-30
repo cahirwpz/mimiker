@@ -8,15 +8,13 @@ static int test_anon_simple(void) {
   assert(anon != NULL);
 
   vm_anon_lock(anon);
-
-  vm_anon_hold(anon);
   vm_anon_hold(anon);
   assert(anon->an_ref == 2);
 
   vm_anon_drop(anon);
-  assert(anon->an_ref == 1);
 
   vm_anon_lock(anon);
+  assert(anon->an_ref == 1);
   vm_anon_drop(anon);
 
   return KTEST_SUCCESS;

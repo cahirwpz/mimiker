@@ -12,9 +12,6 @@ static int test_amap_simple(void) {
   assert(amap != NULL);
 
   vm_aref_t aref = {.ar_pageoff = 0, .ar_amap = amap};
-  vm_amap_lock(amap);
-  vm_amap_hold(amap);
-  vm_amap_unlock(amap);
 
   vm_anon_t *an1 = vm_anon_alloc();
   vm_anon_t *an2 = vm_anon_alloc();
@@ -70,10 +67,6 @@ static int test_amap_split(void) {
   assert(amap != NULL);
 
   vm_aref_t aref = {.ar_pageoff = 0, .ar_amap = amap};
-
-  vm_amap_lock(amap);
-  vm_amap_hold(amap);
-  vm_amap_unlock(amap);
 
   vm_anon_t *an1 = vm_anon_alloc();
   vm_anon_t *an2 = vm_anon_alloc();

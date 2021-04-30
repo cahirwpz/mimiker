@@ -7,6 +7,8 @@
 #include <sys/vm_pager.h>
 #include <sys/vm_object.h>
 #include <sys/vm_map.h>
+#include <sys/vm_amap.h>
+#include <sys/vm_anon.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
@@ -16,7 +18,7 @@
 struct vm_map_entry {
   TAILQ_ENTRY(vm_map_entry) link;
   vm_object_t *object;
-  /* TODO(fz): add aref */
+  vm_aref_t aref;
   vm_prot_t prot;
   vm_entry_flags_t flags;
   vaddr_t start;
@@ -134,6 +136,10 @@ vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
 static void vm_map_entry_free(vm_map_entry_t *ent) {
   if (ent->object)
     vm_object_drop(ent->object);
+  if (ent->aref.ar_amap) {
+    vm_amap_lock(ent->aref.ar_amap);
+    vm_amap_drop(ent->aref.ar_amap);
+  }
   pool_free(P_VM_MAPENT, ent);
 }
 
@@ -177,8 +183,8 @@ static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
  * entry with one page thus splitat must be page aligned.)
  *
  * Returns entry which is after base entry. */
-static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
-                                          vaddr_t splitat) {
+vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
+                                   vaddr_t splitat) {
   assert(mtx_owned(&map->mtx));
   assert(page_aligned_p(splitat));
   assert(ent->start < splitat && splitat < ent->end);
@@ -188,6 +194,9 @@ static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
   /* clip both entries */
   ent->end = splitat;
   new_ent->start = splitat;
+
+  if (ent->aref.ar_amap)
+    new_ent->aref = vm_amap_split(&ent->aref, splitat - ent->start);
 
   vm_map_insert_after(map, ent, new_ent);
   return new_ent;
@@ -393,18 +402,15 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
     vm_map_entry_t *it;
     TAILQ_FOREACH (it, &map->entries, link) {
-      vm_object_t *obj;
-      vm_map_entry_t *ent;
+      vm_object_t *obj = it->object;
+      vm_object_hold(obj);
 
-      if (it->flags & VM_ENT_SHARED) {
-        vm_object_hold(it->object);
-        obj = it->object;
-      } else {
-        /* vm_object_clone will clone the data from the vm_object_t
-         * and will return the new object with ref_counter equal to one */
-        obj = vm_object_clone(it->object);
+      if (!(it->flags & VM_ENT_SHARED)) {
+        it->flags |= VM_ENT_COW | VM_ENT_NEEDSCPY;
+        pmap_protect(map->pmap, it->start, it->end, it->prot & ~VM_PROT_WRITE);
       }
-      ent = vm_map_entry_alloc(obj, it->start, it->end, it->prot, it->flags);
+
+      vm_map_entry_t *ent = vm_map_entry_alloc(obj, it->start, it->end, it->prot, it->flags);
       TAILQ_INSERT_TAIL(&new_map->entries, ent, link);
       new_map->nentries++;
     }
@@ -440,21 +446,67 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   assert(ent->start <= fault_addr && fault_addr < ent->end);
 
-  vm_object_t *obj = ent->object;
-
-  assert(obj != NULL);
-
   vaddr_t fault_page = fault_addr & -PAGESIZE;
   vaddr_t offset = fault_page - ent->start;
-  vm_page_t *frame = vm_object_find_page(ent->object, offset);
 
-  if (frame == NULL)
-    frame = obj->vo_pager->pgr_fault(obj, offset);
+  bool cow = ent->flags & VM_ENT_COW && fault_type == VM_PROT_WRITE;
+
+  if (cow && ent->flags & VM_ENT_NEEDSCPY) {
+    ent->aref = vm_amap_copy(&ent->aref, ent->end - ent->start);
+    ent->flags &= ~VM_ENT_NEEDSCPY;
+  }
+
+  vm_page_t *frame = NULL;
+  vm_amap_t *amap = ent->aref.ar_amap;
+  vm_object_t *obj = ent->object;
+
+  vm_anon_t *new_anon = NULL; // anon that will be inserted into our amap
+
+  /* First look for page in amap. */
+  if (amap) {
+    vm_anon_t *anon = vm_amap_lookup(&ent->aref, offset);
+
+    if (anon) {
+      frame = anon->an_page;
+      /* If we are in cow scenario and anon is referenced from multiple amaps we need to copy it. */
+      if (cow && anon->an_ref > 1) {
+        WITH_MTX_LOCK(&anon->an_lock)
+          new_anon = vm_anon_copy(anon);
+        frame = new_anon->an_page;
+      }
+    }
+  }
+
+  /* If not found in amap look into object. */
+  if (!frame && obj) {
+    frame = vm_object_find_page(ent->object, offset);
+
+    if (frame == NULL)
+      frame = obj->vo_pager->pgr_fault(obj, offset);
+
+    /* If we are in cow scenario we need to copy this page. */
+    if (frame && cow) {
+      new_anon = vm_anon_copy_page(frame);
+      frame = new_anon->an_page;
+    }
+  }
+
+  /* If we've copied page insert it into our amap. */
+  if (new_anon) {
+    if (ent->aref.ar_amap == NULL) {
+      ent->aref.ar_amap = vm_amap_alloc();
+    }
+    vm_amap_add(&ent->aref, new_anon, offset);
+  }
 
   if (frame == NULL)
     return EFAULT;
 
-  pmap_enter(map->pmap, fault_page, frame, ent->prot, 0);
+  vm_prot_t prot = ent->prot;
+  if (ent->flags & VM_ENT_COW && fault_type == VM_PROT_READ)
+    prot &= ~VM_PROT_WRITE;
+
+  pmap_enter(map->pmap, fault_page, frame, prot, 0);
 
   return 0;
 }

@@ -8,8 +8,11 @@
 #include <sys/vm_anon.h>
 
 #define AMAP_SLOT_EMPTY (-1)
+#define AREF_EMPTY ((vm_aref_t){.ar_pageoff = 0, .ar_amap = 0})
 
 static POOL_DEFINE(P_AMAP, "vm_amap", sizeof(vm_amap_t));
+
+static long alloc_cnt, free_cnt;
 
 static inline int vm_amap_slot(vm_aref_t *aref, vaddr_t offset) {
   assert(offset % PAGESIZE == 0);
@@ -19,6 +22,8 @@ static inline int vm_amap_slot(vm_aref_t *aref, vaddr_t offset) {
 vm_amap_t *vm_amap_alloc(void) {
   vm_amap_t *amap = pool_alloc(P_AMAP, M_ZERO);
   mtx_init(&amap->am_lock, 0);
+  amap->am_ref = 1;
+  klog("Allocated %ld amaps", ++alloc_cnt);
   return amap;
 }
 
@@ -48,6 +53,7 @@ static void vm_amap_free(vm_amap_t *amap) {
   kfree(M_TEMP, amap->am_anon);
 
   pool_free(P_AMAP, amap);
+  klog("Freed %ld amaps", ++free_cnt);
 }
 
 void vm_amap_drop(vm_amap_t *amap) {
@@ -109,7 +115,7 @@ static void __vm_amap_extend(vm_amap_t *amap, int size) {
 
 static void vm_amap_extend(vm_amap_t *amap, int size) {
   int capacity = max(amap->am_nslot, 1);
-  while (capacity < size)
+  while (capacity <= size)
     capacity *= 2;
   __vm_amap_extend(amap, capacity);
 }
@@ -125,11 +131,10 @@ static void vm_amap_add_nolock(vm_amap_t *amap, vm_anon_t *anon, int slot) {
 }
 
 void vm_amap_add(vm_aref_t *aref, vm_anon_t *anon, vaddr_t offset) {
+  WITH_MTX_LOCK(&anon->an_lock)
+    assert(anon->an_ref >= 1);
   vm_amap_t *amap = aref->ar_amap;
   int slot = vm_amap_slot(aref, offset);
-
-  WITH_MTX_LOCK(&anon->an_lock)
-    vm_anon_hold(anon);
 
   SCOPED_MTX_LOCK(&amap->am_lock);
   vm_amap_add_nolock(amap, anon, slot);
@@ -172,12 +177,18 @@ vm_aref_t vm_amap_split(vm_aref_t *aref, vaddr_t offset) {
 
 vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t end) {
   vm_amap_t *amap = aref->ar_amap;
+
+  if (amap == NULL)
+    return AREF_EMPTY;
+
+  WITH_MTX_LOCK(&amap->am_lock)
+    if (amap->am_ref == 1)
+      return *aref;
+
   int first_slot = aref->ar_pageoff;
   int last_slot = vm_amap_slot(aref, end);
 
   vm_amap_t *new = vm_amap_alloc();
-  WITH_MTX_LOCK(&new->am_lock)
-    vm_amap_hold(new);
 
   SCOPED_MTX_LOCK(&amap->am_lock);
 
@@ -185,9 +196,11 @@ vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t end) {
     int slot = amap->am_slot[i];
     if (first_slot <= slot && slot < last_slot) {
       vm_anon_t *anon = amap->am_anon[slot];
-      vm_amap_add_nolock(new, anon, slot - first_slot);
-      WITH_MTX_LOCK(&anon->an_lock)
+      WITH_MTX_LOCK(&anon->an_lock) {
         vm_anon_hold(anon);
+        assert(anon->an_ref > 1);
+      }
+      vm_amap_add_nolock(new, anon, slot - first_slot);
     }
   }
   return (vm_aref_t) {.ar_amap = new, .ar_pageoff = 0};
