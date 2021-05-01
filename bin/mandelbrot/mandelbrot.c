@@ -9,11 +9,12 @@
 
 #define WIDTH 640
 #define HEIGHT 480
+#define PALETTE_LEN 256
 
 #define STR(x) #x
 
 uint8_t image[WIDTH * HEIGHT];
-uint8_t palette_buff[256 * 3];
+uint8_t palette_buff[PALETTE_LEN * 3];
 
 void prepare_videomode(int vgafd) {
   struct fb_info fb_info;
@@ -22,24 +23,22 @@ void prepare_videomode(int vgafd) {
   printf("Current resolution: %dx%d, %d BPP\n", fb_info.width, fb_info.height, fb_info.bpp);
 
   /* Write new configuration. */
-  fb_info.width = 640;
-  fb_info.height = 480;
+  fb_info.width = WIDTH;
+  fb_info.height = HEIGHT;
   fb_info.bpp = 8;
   ioctl(vgafd, FBIOCSET_FBINFO, &fb_info);
 }
 
 void prepare_palette(int vgafd) {
   struct fb_palette palette = {
-    .len = 256,
-    .red = palette_buff,
-    .green = palette_buff + 256,
-    .blue = palette_buff + 256 * 2
+    .len = PALETTE_LEN,
+    .colors = (void *)palette_buff,
   };
 
-  for (unsigned int i = 0; i < 256; i++) {
-    palette.red[i] = i;
-    palette.green[i] = i * i / 255;
-    palette.blue[i] = i * i / 255;
+  for (unsigned int i = 0; i < PALETTE_LEN; i++) {
+    palette.colors[i].r = i;
+    palette.colors[i].g = i * i / 255;
+    palette.colors[i].b = i * i / 255;
   }
 
   ioctl(vgafd, FBIOCSET_PALETTE, &palette);
@@ -102,6 +101,8 @@ int main(void) {
   }
 
   display_image(vgafd);
+
+  close(vgafd);
 
   return 0;
 }

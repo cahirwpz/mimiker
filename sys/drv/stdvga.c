@@ -19,7 +19,7 @@ typedef struct stdvga_state {
 
   fb_info_t fb_info;
 
-  fb_palette_t *palette;
+  fb_palette_t palette;
   uint8_t *fb_buffer; /* This buffer is only needed because we can't pass uio
                          directly to the bus. */
   vga_device_t vga;
@@ -77,22 +77,20 @@ static void stdvga_palette_write_single(stdvga_state_t *stdvga, uint8_t offset,
 }
 
 static void stdvga_palette_write_all(stdvga_state_t *stdvga) {
-  for (size_t i = 0; i < stdvga->palette->len; i++)
-    stdvga_palette_write_single(stdvga, i, stdvga->palette->red[i],
-                                stdvga->palette->green[i],
-                                stdvga->palette->blue[i]);
+  for (size_t i = 0; i < stdvga->palette.len; i++)
+    stdvga_palette_write_single(stdvga, i, stdvga->palette.colors[i].r,
+                                stdvga->palette.colors[i].g,
+                                stdvga->palette.colors[i].b);
 }
 
 static int stdvga_palette_write(vga_device_t *vga, fb_palette_t *palette) {
   stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
-  size_t len = stdvga->palette->len;
+  size_t len = stdvga->palette.len;
 
   if (len != palette->len)
     return EINVAL;
 
-  memcpy(stdvga->palette->red, palette->red, len);
-  memcpy(stdvga->palette->green, palette->green, len);
-  memcpy(stdvga->palette->blue, palette->blue, len);
+  memcpy(stdvga->palette.colors, palette->colors, 3 * len);
 
   /* TODO: Only update the modified area. */
   stdvga_palette_write_all(stdvga);
@@ -143,6 +141,8 @@ static int stdvga_set_fbinfo(vga_device_t *vga, fb_info_t *fb_info) {
 
 static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
   stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
+  uio->uio_offset = 0; /* This device does not support offsets. */
+
   /* TODO: Some day `bus_space_map` will be implemented. This will allow to map
    * RT_MEMORY resource into kernel virtual address space. BUS_SPACE_MAP_LINEAR
    * would be ideal for frambuffer memory, since we could access it directly. */
@@ -174,6 +174,11 @@ static vga_ops_t stdvga_ops = {
   .set_fbinfo = stdvga_set_fbinfo,
 };
 
+static void init_fb_palette(fb_palette_t *palette, size_t len) {
+  palette->len = len;
+  palette->colors = kmalloc(M_DEV, 3 * len, M_ZERO);
+}
+
 static int stdvga_attach(device_t *dev) {
   stdvga_state_t *stdvga = dev->state;
 
@@ -189,11 +194,7 @@ static int stdvga_attach(device_t *dev) {
   };
 
   /* Prepare palette buffers */
-  stdvga->palette = fb_palette_create(VGA_PALETTE_SIZE);
-
-  /* Apply resolution */
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->fb_info.width);
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_YRES, stdvga->fb_info.height);
+  init_fb_palette(&stdvga->palette, VGA_PALETTE_SIZE);
 
   /* Enable palette access */
   stdvga_io_write(stdvga, VGA_AR_ADDR, VGA_AR_PAS);

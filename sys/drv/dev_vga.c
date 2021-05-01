@@ -4,6 +4,7 @@
 #include <sys/libkern.h>
 #include <dev/vga.h>
 #include <sys/fb.h>
+#include <sys/device.h>
 #include <stdatomic.h>
 
 static int vga_open(vnode_t *v, int mode, file_t *fp) {
@@ -13,7 +14,7 @@ static int vga_open(vnode_t *v, int mode, file_t *fp) {
   /* Disallow opening the file more than once. */
   int expected = 0;
   if (!atomic_compare_exchange_strong(&vga->vg_usecnt, &expected, 1))
-    return EMFILE;
+    return EBUSY;
 
   /* On error, decrease the use count. */
   if ((error = vnode_open_generic(v, mode, fp)))
@@ -36,19 +37,14 @@ static int vga_ioctl_set_palette(vga_device_t *vga,
                                  fb_palette_t *user_palette) {
   int error;
   size_t len = user_palette->len;
-  fb_palette_t *palette = fb_palette_create(len);
+  fb_palette_t palette;
+  palette.len = len;
+  palette.colors = kmalloc(M_DEV, 3 * len, 0);
 
-  if ((error = copyin(user_palette->red, palette->red, len)))
-    goto end;
-  if ((error = copyin(user_palette->green, palette->green, len)))
-    goto end;
-  if ((error = copyin(user_palette->blue, palette->blue, len)))
-    goto end;
+  if (!(error = copyin(user_palette->colors, palette.colors, 3 * len)))
+    error = vga_palette_write(vga, &palette);
 
-  error = vga_palette_write(vga, palette);
-
-end:
-  fb_palette_destroy(palette);
+  kfree(M_DEV, palette.colors);
 
   return error;
 }

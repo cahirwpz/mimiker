@@ -1,10 +1,8 @@
 #ifndef _FRAMEBUFFER_H
 #define _FRAMEBUFFER_H
 
-#ifndef __KERNEL__
 #include <sys/ioccom.h>
 #include <sys/types.h>
-#endif
 
 #define FB_IOC_MAGIC 'F'
 #define FBIOCGET_FBINFO _IOR(FB_IOC_MAGIC, 0x01, struct fb_info)
@@ -15,23 +13,14 @@
 #ifdef _KERNEL
 typedef struct fb_palette fb_palette_t;
 typedef struct fb_info fb_info_t;
-
-/*
- * Allocate fb_palette_t for `len` colours.
- */
-fb_palette_t *fb_palette_create(size_t len);
-
-/*
- * Deallocate palette and its buffers.
- */
-void fb_palette_destroy(fb_palette_t *palette);
 #endif /* _KERNEL */
 
 struct fb_palette {
   uint32_t len;
-  uint8_t *red;
-  uint8_t *green;
-  uint8_t *blue;
+
+  struct {
+    uint8_t r, g, b;
+  } * colors;
 };
 
 struct fb_info {
