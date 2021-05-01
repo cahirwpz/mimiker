@@ -79,14 +79,8 @@ SOURCES-LOCKDEP = \
 	lockdep.c
 
 SOURCES-KGPROF = \
-	kgprof.c
-
-ifeq ($(KGPROF), 1)
-SOURCES += mcount.c
-mcount.o : CFLAGS_KGPROF =
-else
-CLEAN-FILES += .mcount.D
-endif
+	kgprof.c \
+	mcount.c
 
 FORMAT-EXCLUDE = sysent.h
 
