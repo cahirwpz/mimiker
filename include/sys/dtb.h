@@ -10,7 +10,7 @@
 /* Return handle (va) to dtb provided by bootloader. */
 void *dtb_root(void);
 
-/* 
+/*
  * Return physical address of dtb. That address should be provided by
  * bootlader.
  */
