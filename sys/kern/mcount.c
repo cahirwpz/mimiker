@@ -73,21 +73,21 @@
 static SPIN_DEFINE(mcount_lock, 0);
 
 /*
- * The function is updating an array of linked lists, which stores 
+ * The function is updating an array of linked lists, which stores
  * how many times a functions have been called by another function.
- * 
+ *
  *  froms[X] - an array of linked list, index X encodes a function, the kept
  *             value is an index of tos entry (the first node in the list,
  *             0 - means an empty list), the list is sorted by most recently
  *             used function
- * 
- *  tos[N]   - a node, which let us know how many times function with address selfpc 
- *             have been called by X, and stores index of the next element in the list
- *             (0 - means the end of the list)
- * 
+ *
+ *  tos[N]   - a node, which let us know how many times function with address
+ *             selfpc have been called by X, and stores index of the next
+ *             element in the list (0 - means the end of the list)
+ *
  *  tos[0] + 1  is the smallest index of an unused tos entry
- * 
- * \warning This function while unlocking spinlock can turn on interrupts when 
+ *
+ * \warning This function while unlocking spinlock can turn on interrupts when
  * thread's td_idnest == 0, this problem occurs e.g. in mips_exc_handler,
  * this is why we do not profile user_mode_p.
  */
@@ -103,7 +103,7 @@ __no_instrument_kgprof void __cyg_profile_func_enter(void *self, void *from) {
     return;
 
   WITH_SPIN_LOCK (&mcount_lock) {
-    /* 
+    /*
      * To ensure consistent data in kgmon - this function can move
      * a node from the middle of the list at the beginning and
      * during this process we can omit it.
@@ -196,5 +196,6 @@ __no_instrument_kgprof void __cyg_profile_func_enter(void *self, void *from) {
   }
 }
 
-__no_instrument_kgprof void __cyg_profile_func_exit(void *this_fn, void *call_site) {
+__no_instrument_kgprof void __cyg_profile_func_exit(void *this_fn,
+                                                    void *call_site) {
 }
