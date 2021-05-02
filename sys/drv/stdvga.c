@@ -1,12 +1,10 @@
-/* Standard VGA driver */
-#include <sys/klog.h>
+/*
+ * Standard VGA driver
+ */
+
 #include <dev/pci.h>
 #include <sys/libkern.h>
-#include <sys/malloc.h>
-#include <sys/kmem.h>
 #include <sys/errno.h>
-#include <sys/device.h>
-#include <sys/bus.h>
 #include <sys/fb.h>
 #include <sys/devfs.h>
 #include <sys/devclass.h>
