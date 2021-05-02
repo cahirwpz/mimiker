@@ -24,6 +24,8 @@ typedef struct cred cred_t;
  * vnodeops should not modify attributes set to VNOVAL. */
 #define VNOVAL (-1)
 
+/* Flag for vattr:va_flags.
+ * Utimes argument was null. */
 #define VA_UTIMES_NULL 1
 
 /* vnode access modes
