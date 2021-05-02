@@ -61,9 +61,12 @@ static int badfo_ioctl(file_t *f, u_long cmd, void *data) {
   return EOPNOTSUPP;
 }
 
-fileops_t badfileops = {.fo_read = badfo_read,
-                        .fo_write = badfo_write,
-                        .fo_close = badfo_close,
-                        .fo_stat = badfo_stat,
-                        .fo_seek = badfo_seek,
-                        .fo_ioctl = badfo_ioctl};
+fileops_t badfileops = {
+  .fo_flags = FOF_SEEKABLE,
+  .fo_read = badfo_read,
+  .fo_write = badfo_write,
+  .fo_close = badfo_close,
+  .fo_stat = badfo_stat,
+  .fo_seek = badfo_seek,
+  .fo_ioctl = badfo_ioctl,
+};
