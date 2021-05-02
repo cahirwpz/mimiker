@@ -66,7 +66,6 @@ static fo_ioctl_t devfs_fop_ioctl;
 
 /* Devfs device file opeartions. */
 static fileops_t devfs_fileops = {
-  .fo_flags = FOF_SEEKABLE,
   .fo_read = devfs_fop_read,
   .fo_write = devfs_fop_write,
   .fo_close = devfs_fop_close,

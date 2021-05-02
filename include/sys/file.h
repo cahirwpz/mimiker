@@ -21,12 +21,7 @@ typedef int fo_seek_t(file_t *f, off_t offset, int whence, off_t *newoffp);
 typedef int fo_stat_t(file_t *f, stat_t *sb);
 typedef int fo_ioctl_t(file_t *f, u_long cmd, void *data);
 
-typedef enum {
-  FOF_SEEKABLE = 1, /* file interface permits random access */
-} fileops_flags_t;
-
 typedef struct {
-  fileops_flags_t fo_flags;
   fo_read_t *fo_read;
   fo_write_t *fo_write;
   fo_close_t *fo_close;

@@ -290,7 +290,6 @@ int default_vnioctl(file_t *f, u_long cmd, void *data) {
 }
 
 static fileops_t default_vnode_fileops = {
-  .fo_flags = FOF_SEEKABLE,
   .fo_read = default_vnread,
   .fo_write = default_vnwrite,
   .fo_close = default_vnclose,

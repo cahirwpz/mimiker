@@ -1086,7 +1086,6 @@ void tty_detach_driver(tty_t *tty) {
 /* We implement I/O operations as fileops in order to bypass
  * the vnode layer's locking. */
 static fileops_t tty_fileops = {
-  .fo_flags = FOF_SEEKABLE,
   .fo_read = tty_read,
   .fo_write = tty_write,
   .fo_close = default_vnclose,
