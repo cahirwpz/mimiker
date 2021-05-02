@@ -5,9 +5,9 @@
 #include <sys/types.h>
 
 #define FB_IOC_MAGIC 'F'
-#define FBIOCGET_FBINFO _IOR(FB_IOC_MAGIC, 0x01, struct fb_info)
-#define FBIOCSET_FBINFO _IOW(FB_IOC_MAGIC, 0x01, struct fb_info)
-#define FBIOCSET_PALETTE _IOW(FB_IOC_MAGIC, 0x02, struct fb_palette)
+#define FBIOCGET_FBINFO _IOR(FB_IOC_MAGIC, 1, struct fb_info)
+#define FBIOCSET_FBINFO _IOW(FB_IOC_MAGIC, 1, struct fb_info)
+#define FBIOCSET_PALETTE _IOW(FB_IOC_MAGIC, 2, struct fb_palette)
 
 struct fb_color {
   uint8_t r, g, b;

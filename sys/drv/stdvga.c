@@ -27,9 +27,6 @@ typedef struct stdvga_state {
 
   atomic_int usecnt;
   fb_info_t fb_info;
-
-  /* FIXME Needed only because we can't pass uio directly to the bus. */
-  uint8_t *buffer;
 } stdvga_state_t;
 
 /* Detailed information about VGA registers is available at
@@ -111,31 +108,19 @@ fail:
 }
 
 static int stdvga_set_fbinfo(stdvga_state_t *vga, fb_info_t *fb_info) {
-  /* Impose some reasonable resolution limit. As long as we have to use
-   * `buffer`, the limit is related to the size of memory pool used by
-   * the graphics driver. */
+  /* Impose some reasonable resolution limit. */
   if (fb_info->width > 640 || fb_info->height > 480)
     return EINVAL;
 
   if (fb_info->bpp != 8 && fb_info->bpp != 16 && fb_info->bpp != 24)
     return EINVAL;
 
-  /* We keep the size of the potentially previously allocated `buffer` */
-  size_t prev_size = align(FB_SIZE(&vga->fb_info), PAGESIZE);
-
   memcpy(&vga->fb_info, fb_info, sizeof(fb_info_t));
 
-  /* Apply resolution & bits per pixel */
+  /* Apply resolution & bits per pixel. */
   stdvga_vbe_write(vga, VBE_DISPI_INDEX_XRES, vga->fb_info.width);
   stdvga_vbe_write(vga, VBE_DISPI_INDEX_YRES, vga->fb_info.height);
   stdvga_vbe_write(vga, VBE_DISPI_INDEX_BPP, vga->fb_info.bpp);
-
-  size_t new_size = align(FB_SIZE(&vga->fb_info), PAGESIZE);
-
-  if (vga->buffer)
-    kmem_free(vga->buffer, prev_size);
-
-  vga->buffer = kmem_alloc(new_size, M_ZERO);
   return 0;
 }
 
@@ -170,20 +155,12 @@ static int stdvga_close(vnode_t *v, file_t *fp) {
 
 static int stdvga_write(vnode_t *v, uio_t *uio, int ioflag) {
   stdvga_state_t *vga = devfs_node_data(v);
-  int error = 0;
+  size_t size = FB_SIZE(&vga->fb_info);
 
   /* This device does not support offsets. */
   uio->uio_offset = 0;
 
-  size_t size = FB_SIZE(&vga->fb_info);
-
-  /* FIXME Some day `bus_space_map` will be implemented. This will allow to map
-   * RT_MEMORY resource into kernel virtual address space. BUS_SPACE_MAP_LINEAR
-   * would be ideal for frambuffer memory, since we could access it directly. */
-  if ((error = uiomove_frombuf(vga->buffer, size, uio)))
-    return error;
-  bus_write_region_1(vga->mem, 0, vga->buffer, size);
-  return 0;
+  return uiomove_frombuf((void *)vga->mem->r_bus_handle, size, uio);
 }
 
 static int stdvga_ioctl(vnode_t *v, u_long cmd, void *data) {
