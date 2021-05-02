@@ -12,6 +12,12 @@
 #include <sys/devclass.h>
 #include <sys/rman.h>
 #include <sys/klog.h>
+#include <sys/vnode.h>
+#include <sys/devfs.h>
+
+/* Must be a power of two */
+#define DEFAULT_BLKSIZE 512
+#define SD_KERNEL_BLOCKS 4  /* Number of blocks buffered in kernel memory */
 
 static driver_t sd_block_device_driver;
 
@@ -81,25 +87,22 @@ typedef enum sd_props {
   SD_SUPP_BUSWIDTH_4,
 } sd_props_t;
 
-typedef struct emmcblk_state {
+typedef struct sd_state {
   sd_props_t props;
-} emmcblk_state_t;
+  void *block_buf;
+} sd_state_t;
 
 static int sd_probe(device_t *dev) {
   return dev->unit == 0;
 }
-
-static char testbuf[2880];
 
 static const char standard_cap_str[] = "Ver 2.0 or later, Standard Capacity "
                                        "SD Memory Card";
 static const char high_cap_str[] = "Ver 2.0 or later, High Capacity or Extended"
                                    " Capacity SD Memory Card";
 
-static int emmc_blk_test_rw(device_t *dev);
-
-static int sd_attach(device_t *dev) {
-  emmcblk_state_t *state = (emmcblk_state_t *)dev->state;
+static int sd_init(device_t *dev) {
+  sd_state_t *state = (sd_state_t *)dev->state;
 
   emmc_resp_t response;
   uint64_t propv;
@@ -188,62 +191,16 @@ static int sd_attach(device_t *dev) {
        (state->props & SD_SUPP_CCS) ? "YES" : "NO",
        (state->props & SD_SUPP_BLKCNT) ? "YES" : "NO");
 
-  if (emmc_blk_test_rw(dev))
-    return -1;
-
   return 0;
 }
-
-static char testbuf[] =
-  "Man is a rope stretched between the animal and the Superman--a rope over an "
-  "abyss.\n\nA dangerous crossing, a dangerous wayfaring, a dangerous "
-  "looking-back, a dangerous trembling and halting.\n\nWhat is great in man is "
-  "that he is a bridge and not a goal: what is lovable in man is that he is an "
-  "OVER-GOING and a DOWN-GOING.\n\nI love those that know not how to live "
-  "except as down-goers, for they are the over-goers.\n\nI love the great "
-  "despisers, because they are the great adorers, and arrows of longing for "
-  "the other shore.\n\nI love those who do not first seek a reason beyond the "
-  "stars for going down and being sacrifices, but sacrifice themselves to the "
-  "earth, that the earth of the Superman may hereafter arrive.\n\nI love him "
-  "who lives in order to know, and seeks to know in order that the Superman "
-  "may hereafter live. Thus seeks he his own down-going.\n\nI love him who "
-  "labors and invents, that he may build the house for the Superman, and "
-  "prepare for him earth, animal, and plant: for thus seeks he his own "
-  "down-going.\n\nI love him who loves his virtue: for virtue is the will to "
-  "down-going, and an arrow of longing.\n\nI love him who reserves no share of "
-  "spirit for himself, but wants to be wholly the spirit of his virtue: thus "
-  "walks he as spirit over the bridge.\n\nI love him who makes his virtue his "
-  "inclination and destiny: thus, for the sake of his virtue, he is willing to "
-  "live on, or live no more.\n\nI love him who desires not too many virtues. "
-  "One virtue is more of a virtue than two, because it is more of a knot for "
-  "one's destiny to cling to.\n\nI love him whose soul is lavish, who wants no "
-  "thanks and does not give back: for he always bestows, and desires not to "
-  "keep for himself.\n\nI love him who is ashamed when the dice fall in his "
-  "favor, and who then asks: \"Am I a dishonest player?\"--for he is willing "
-  "to succumb.\n\nI love him who scatters golden words in advance of his "
-  "deeds, and always does more than he promises: for he seeks his own "
-  "down-going.\n\nI love him who justifies the future ones, and redeems the "
-  "past ones: for he is willing to succumb through the present ones.\n\nI love "
-  "him who chastens his God, because he loves his God: for he must succumb "
-  "through the wrath of his God.\n\nI love him whose soul is deep even in the "
-  "wounding, and may succumb through a small matter: thus goes he willingly "
-  "over the bridge.\n\nI love him whose soul is so overfull that he forgets "
-  "himself, and all things that are in him: thus all things become his "
-  "down-going.\n\nI love him who is of a free spirit and a free heart: thus is "
-  "his head only the bowels of his heart; his heart, however, causes his "
-  "down-going.\n\nI love all who are like heavy drops falling one by one out "
-  "of the dark cloud that lowers over man: they herald the coming of the "
-  "lightning, and succumb as heralds.\n\nLo, I am a herald of the lightning, "
-  "and a heavy drop out of the cloud: the lightning, however, is the "
-  "SUPERMAN.\n";
 
 /**
  * read a block from sd card and return the number of bytes read
  * returns 0 on error.
  */
-int emmcblk_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
+int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
   assert(dev->driver == (driver_t *)&sd_block_device_driver);
-  emmcblk_state_t *state = (emmcblk_state_t *)dev->state;
+  sd_state_t *state = (sd_state_t *)dev->state;
 
   if (num < 1)
     return 0;
@@ -262,7 +219,7 @@ int emmcblk_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
         return 0;
     }
     emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num);
-    emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 512);
+    emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE);
     if (num > 1) {
       emmc_send_cmd(dev, EMMC_CMD(READ_MULTIPLE_BLOCKS), lba, 0, NULL);
     } else {
@@ -272,10 +229,10 @@ int emmcblk_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
       return 0;
   } else {
     emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num);
-    emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 512);
+    emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE);
   }
   if (state->props & SD_SUPP_CCS) {
-    r = emmc_read(dev, buf, num * 512, NULL);
+    r = emmc_read(dev, buf, num * DEFAULT_BLKSIZE, NULL);
     if (r)
       return 0;
     if (emmc_wait(dev, EMMC_I_DATA_DONE))
@@ -293,21 +250,16 @@ int emmcblk_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
   }
   if (num > 1 && !sup_blkcnt && (state->props & SD_SUPP_CCS))
     emmc_send_cmd(dev, EMMC_CMD(STOP_TRANSMISSION), 0, 0, NULL);
-  return num * 512;
+  return num * DEFAULT_BLKSIZE;
 }
 
 /**
  * Write a block to the sd card
  * returns 0 on error
  */
-int emmcblk_write_blk(device_t *dev, uint32_t lba, const void *buffer,
-                      uint32_t num) {
+int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
   assert(dev->driver == (driver_t *)&sd_block_device_driver);
-  emmcblk_state_t *state = (emmcblk_state_t *)dev->state;
-
-  /* DMA requirements */
-  /* if (((uint64_t)buffer & (uint64_t)0x3) != 0)
-    return 0; */
+  sd_state_t *state = (sd_state_t *)dev->state;
 
   uint32_t *buf = (uint32_t *)buffer;
   int r;
@@ -323,7 +275,7 @@ int emmcblk_write_blk(device_t *dev, uint32_t lba, const void *buffer,
         return 0;
     }
     emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num);
-    emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 512);
+    emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE);
 
     emmc_send_cmd(
       dev, num == 1 ? EMMC_CMD(WRITE_BLOCK) : EMMC_CMD(WRITE_MULTIPLE_BLOCKS),
@@ -332,7 +284,7 @@ int emmcblk_write_blk(device_t *dev, uint32_t lba, const void *buffer,
       return 0;
   } else {
     emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num);
-    emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 512);
+    emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE);
   }
   while (c < num) {
     if (!(state->props & SD_SUPP_BLKCNT)) {
@@ -340,7 +292,7 @@ int emmcblk_write_blk(device_t *dev, uint32_t lba, const void *buffer,
       if (emmc_wait(dev, EMMC_I_WRITE_READY))
         return 0;
     }
-    if (emmc_write(dev, buf, 512, NULL)) {
+    if (emmc_write(dev, buf, DEFAULT_BLKSIZE, NULL)) {
       klog("eMMC write failed");
       return 0;
     }
@@ -351,38 +303,69 @@ int emmcblk_write_blk(device_t *dev, uint32_t lba, const void *buffer,
     buf += 128;
   }
 
-  return num * 512;
+  return num * DEFAULT_BLKSIZE;
 }
 
-static int emmc_blk_test_rw(device_t *dev) {
-  int r = 0;
-  char *buf = kmalloc(M_DEV, 4 * 512, M_ZERO);
-  r = emmcblk_write_blk(dev, 0, testbuf, 4);
-  if (!r)
-    goto sd_test_failed;
-  r = emmcblk_read_blk(dev, 0, buf, 4);
-  if (!r)
-    goto sd_test_failed;
-  for (size_t i = 0; i < 4 * 512; i++) {
-    if (buf[i] != testbuf[i]) {
-      klog("SD test bytes don't match at 0x%x", i);
-      goto sd_test_failed;
-    }
-  }
-  klog("SD test passed");
-  kfree(M_DEV, buf);
+static inline int sd_check_uio(uio_t *uio) {
+  if (uio->uio_resid & (DEFAULT_BLKSIZE - 1))
+    return -1;
+  if (uio->uio_offset & (DEFAULT_BLKSIZE - 1))
+    return -1;
   return 0;
-sd_test_failed:
-  klog("SD test failed");
-  kfree(M_DEV, buf);
-  return -1;
 }
 
-static driver_t sd_block_device_driver = {.desc = "e.MMC block device driver",
-                                          .size = sizeof(emmcblk_state_t),
-                                          .probe = sd_probe,
-                                          .attach = sd_attach,
-                                          .pass = SECOND_PASS,
-                                          .interfaces = {}};
+typedef int(*sd_transfer_t)(device_t *dev, uint32_t lba, void *buffer,
+                            uint32_t num);
+
+static int sd_vop_uio(vnode_t *v, uio_t *uio, int ioflag) {
+  device_t *dev = devfs_node_data(v);
+  sd_state_t *state = (sd_state_t *)dev->state;
+
+  if (sd_check_uio(uio))
+    return -1;
+  
+  uint32_t lba = uio->uio_offset / DEFAULT_BLKSIZE;
+  uint32_t blk_cnt = uio->uio_resid / DEFAULT_BLKSIZE;
+
+  sd_transfer_t transfer = uio->uio_op == UIO_READ ? sd_read_blk : sd_write_blk;
+
+  for (uint32_t blocks_left = blk_cnt; blocks_left;
+       blocks_left -= SD_KERNEL_BLOCKS) {
+    uint32_t num = min(blocks_left, (uint32_t)SD_KERNEL_BLOCKS);
+    transfer(dev, lba, state->block_buf, num);
+    uiomove_frombuf(state->block_buf, num * DEFAULT_BLKSIZE, uio);
+    if (num < SD_KERNEL_BLOCKS)
+      break;
+  }
+
+  return 0;
+}
+
+static vnodeops_t sd_vnodeops = {
+  .v_read = sd_vop_uio,
+  .v_write = sd_vop_uio,
+};
+
+static int sd_attach(device_t *dev) {
+  sd_state_t *state = (sd_state_t *)dev->state;
+
+  state->block_buf = kmalloc(M_DEV, SD_KERNEL_BLOCKS * DEFAULT_BLKSIZE, 0);
+
+  if (sd_init(dev))
+    return -1;
+  
+  devfs_makedev(NULL, "sd_card", &sd_vnodeops, dev, NULL);
+
+  return 0;
+}
+
+static driver_t sd_block_device_driver = {
+  .desc = "SD(SC/HC) block device driver",
+  .size = sizeof(sd_state_t),
+  .probe = sd_probe,
+  .attach = sd_attach,
+  .pass = SECOND_PASS,
+  .interfaces = {},
+};
 
 DEVCLASS_ENTRY(emmc, sd_block_device_driver);
