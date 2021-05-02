@@ -67,7 +67,7 @@ bool cred_groupmember(gid_t gid, cred_t *cred);
 bool cred_can_chmod(uid_t f_owner, gid_t f_group, cred_t *cred, mode_t mode);
 bool cred_can_chown(uid_t f_owner, cred_t *cred, uid_t new_uid, gid_t new_gid);
 int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode);
-int cred_can_utime(vnode_t *vn, uid_t f_owner, cred_t *cred);
+int cred_can_utime(vnode_t *vn, uid_t f_owner, cred_t *cred, int vaflags);
 
 /* setlogin() check  */
 bool cred_can_setlogin(cred_t *cred);

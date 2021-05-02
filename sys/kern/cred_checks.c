@@ -123,9 +123,15 @@ check:
   return (mode & granted) == mode ? 0 : EACCES;
 }
 
-int cred_can_utime(vnode_t *vn, uid_t f_owner, cred_t *cred) {
-  if (f_owner == cred->cr_euid)
+int cred_can_utime(vnode_t *vn, uid_t f_owner, cred_t *cred, int vaflags) {
+  /* owner and root can change times */
+  if (f_owner == cred->cr_euid || cred->cr_euid == 0)
     return 0;
 
+  /* any other user can change times only to current time... */
+  if ((vaflags & VA_UTIMES_NULL) == 0)
+    return EPERM;
+
+  /* and only when he has write permission */
   return VOP_ACCESS(vn, VWRITE, cred);
 }
