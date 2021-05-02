@@ -3,7 +3,7 @@
 #include <sys/malloc.h>
 #include <sys/device.h>
 #include <sys/devclass.h>
-#include <sys/pci.h>
+#include <dev/pci.h>
 #include <dev/isareg.h>
 
 /* For reference look at:
