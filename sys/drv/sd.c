@@ -17,7 +17,7 @@
 
 /* Must be a power of two */
 #define DEFAULT_BLKSIZE 512
-#define SD_KERNEL_BLOCKS 4  /* Number of blocks buffered in kernel memory */
+#define SD_KERNEL_BLOCKS 4 /* Number of blocks buffered in kernel memory */
 
 static driver_t sd_block_device_driver;
 
@@ -314,8 +314,8 @@ static inline int sd_check_uio(uio_t *uio) {
   return 0;
 }
 
-typedef int(*sd_transfer_t)(device_t *dev, uint32_t lba, void *buffer,
-                            uint32_t num);
+typedef int (*sd_transfer_t)(device_t *dev, uint32_t lba, void *buffer,
+                             uint32_t num);
 
 static int sd_vop_uio(vnode_t *v, uio_t *uio, int ioflag) {
   device_t *dev = devfs_node_data(v);
@@ -323,7 +323,7 @@ static int sd_vop_uio(vnode_t *v, uio_t *uio, int ioflag) {
 
   if (sd_check_uio(uio))
     return -1;
-  
+
   uint32_t lba = uio->uio_offset / DEFAULT_BLKSIZE;
   uint32_t blk_cnt = uio->uio_resid / DEFAULT_BLKSIZE;
 
@@ -353,7 +353,7 @@ static int sd_attach(device_t *dev) {
 
   if (sd_init(dev))
     return -1;
-  
+
   devfs_makedev(NULL, "sd_card", &sd_vnodeops, dev, NULL);
 
   return 0;
