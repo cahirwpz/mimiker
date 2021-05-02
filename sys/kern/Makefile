@@ -94,3 +94,4 @@ sysent.h $(SYSCALL_H) $(SYSCALLARGS_H): syscalls.conf syscalls.master
 	$(TOPDIR)/sys/script/makesyscalls.sh $^
 
 kasan.o : CFLAGS_KASAN =
+mcount.o : CFLAGS_KGPROF =
