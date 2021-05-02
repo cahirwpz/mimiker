@@ -69,9 +69,9 @@ struct devsw {
   dev_type_t d_type;   /* device type */
   dev_open_t d_open;   /* prepare device for devfs operations */
   dev_close_t d_close; /* called when file referring to the device is closed */
-  dev_read_t d_read;       /* read bytes form a device file */
-  dev_write_t d_write;     /* write bytes to a device file */
-  dev_ioctl_t d_ioctl;     /* read or modify device properties */
+  dev_read_t d_read;   /* read bytes form a device file */
+  dev_write_t d_write; /* write bytes to a device file */
+  dev_ioctl_t d_ioctl; /* read or modify device properties */
 };
 
 static inline int DOP_OPEN(devfs_node_t *dn, int flags) {
