@@ -999,9 +999,8 @@ static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize) {
 
 static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
                          cred_t *cred, int vaflags) {
-  int err;
-  if ((err = cred_can_utime(v->tfn_vnode, v->tfn_uid, cred, vaflags)))
-    return err;
+  if (!cred_can_utime(v->tfn_vnode, v->tfn_uid, cred, vaflags))
+    return EPERM;
 
   mtx_lock(&v->tfn_timelock);
   if (atime->tv_sec != VNOVAL)
