@@ -21,12 +21,7 @@ typedef int fo_seek_t(file_t *f, off_t offset, int whence, off_t *newoffp);
 typedef int fo_stat_t(file_t *f, stat_t *sb);
 typedef int fo_ioctl_t(file_t *f, u_long cmd, void *data);
 
-typedef enum {
-  FOF_SEEKABLE = 1, /* file has cursor */
-} fo_flags_t;
-
 typedef struct {
-  fo_flags_t fo_flags;
   fo_read_t *fo_read;
   fo_write_t *fo_write;
   fo_close_t *fo_close;
@@ -34,6 +29,12 @@ typedef struct {
   fo_stat_t *fo_stat;
   fo_ioctl_t *fo_ioctl;
 } fileops_t;
+
+/* Put `nowrite` into `fo_write` if a file doesn't support writes. */
+int nowrite(file_t *f, uio_t *uio);
+
+/* Put `noseek` into `fo_seek` if a file is not seekable. */
+int noseek(file_t *f, off_t offset, int whence, off_t *newoffp);
 
 typedef enum filetype {
   FT_VNODE = 1, /* regular file */

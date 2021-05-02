@@ -154,6 +154,7 @@ static fileops_t pipeops = {
   .fo_read = pipe_read,
   .fo_write = pipe_write,
   .fo_close = pipe_close,
+  .fo_seek = noseek,
   .fo_stat = pipe_stat,
   .fo_ioctl = pipe_ioctl,
 };

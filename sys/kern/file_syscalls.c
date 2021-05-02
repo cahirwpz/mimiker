@@ -43,12 +43,7 @@ int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-
-  if (f->f_ops->fo_flags & FOF_SEEKABLE)
-    error = FOP_SEEK(f, offset, whence, newoffp);
-  else
-    error = ESPIPE;
-
+  error = FOP_SEEK(f, offset, whence, newoffp);
   file_drop(f);
   return error;
 }
