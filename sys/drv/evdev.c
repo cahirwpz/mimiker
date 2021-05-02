@@ -448,7 +448,7 @@ static fileops_t evdev_fileops = {
 };
 
 static int evdev_open(vnode_t *v, int mode, file_t *fp) {
-  evdev_dev_t *evdev = devfs_node_data(v);
+  evdev_dev_t *evdev = devfs_node_data_old(v);
   int error = 0;
 
   if ((error = vnode_open_generic(v, mode, fp)))
@@ -514,7 +514,7 @@ static int evdev_dev_create(evdev_dev_t *evdev) {
    * FIXME Not the best solution, but will do for now. */
   do {
     snprintf(buf, sizeof(buf), "event%d", unit);
-    ret = devfs_makedev(evdev_input_dir, buf, &evdev_vnodeops, evdev, NULL);
+    ret = devfs_makedev_old(evdev_input_dir, buf, &evdev_vnodeops, evdev, NULL);
     unit++;
   } while (ret == EEXIST);
 

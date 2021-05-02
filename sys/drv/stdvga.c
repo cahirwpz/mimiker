@@ -123,7 +123,7 @@ static int stdvga_set_fbinfo(stdvga_state_t *vga, fb_info_t *fb_info) {
 }
 
 static int stdvga_open(vnode_t *v, int mode, file_t *fp) {
-  stdvga_state_t *vga = devfs_node_data(v);
+  stdvga_state_t *vga = devfs_node_data_old(v);
   int error;
 
   /* Disallow opening the file more than once. */
@@ -146,13 +146,13 @@ fail:
 }
 
 static int stdvga_close(vnode_t *v, file_t *fp) {
-  stdvga_state_t *vga = devfs_node_data(v);
+  stdvga_state_t *vga = devfs_node_data_old(v);
   atomic_store(&vga->usecnt, 0);
   return 0;
 }
 
-static int stdvga_write(vnode_t *v, uio_t *uio, int ioflag) {
-  stdvga_state_t *vga = devfs_node_data(v);
+static int stdvga_write(vnode_t *v, uio_t *uio) {
+  stdvga_state_t *vga = devfs_node_data_old(v);
   size_t size = FB_SIZE(&vga->fb_info);
 
   /* This device does not support offsets. */
@@ -162,7 +162,7 @@ static int stdvga_write(vnode_t *v, uio_t *uio, int ioflag) {
 }
 
 static int stdvga_ioctl(vnode_t *v, u_long cmd, void *data) {
-  stdvga_state_t *vga = devfs_node_data(v);
+  stdvga_state_t *vga = devfs_node_data_old(v);
 
   if (cmd == FBIOCGET_FBINFO) {
     memcpy(data, &vga->fb_info, sizeof(fb_info_t));
@@ -215,7 +215,7 @@ static int stdvga_attach(device_t *dev) {
   stdvga_vbe_set(vga, VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED);
 
   /* Install /dev/vga device file. */
-  devfs_makedev(NULL, "vga", &stdvga_vnodeops, vga, NULL);
+  devfs_makedev_old(NULL, "vga", &stdvga_vnodeops, vga, NULL);
 
   return 0;
 }
