@@ -227,8 +227,6 @@ static int devfs_dev_vop_reclaim(vnode_t *v) {
   assert(v->v_type == V_DEV);
   devfs_node_t *dn = vn2dn(v);
   assert(dn->dn_refcnt == 0);
-  /* XXX: what if an error occurs during `d_reclaim`? */
-  DOP_RECLAIM(dn);
   devfs_free(dn);
   return 0;
 }
@@ -314,7 +312,6 @@ static int devfs_dop_nop(devfs_node_t *dn, ...) {
 
 #define devfs_dop_open_default devfs_dop_stub
 #define devfs_dop_close_default devfs_dop_stub
-#define devfs_dop_reclaim_default devfs_dop_stub
 #define devfs_dop_read_default devfs_dop_nop
 #define devfs_dop_write_default devfs_dop_nop
 #define devfs_dop_ioctl_default devfs_dop_nop
@@ -330,7 +327,6 @@ static void devfs_add_default_dops(devsw_t *devsw) {
   if (devsw != NULL) {
     DEFAULT_IF_NULL(devsw, open);
     DEFAULT_IF_NULL(devsw, close);
-    DEFAULT_IF_NULL(devsw, reclaim);
     DEFAULT_IF_NULL(devsw, read);
     DEFAULT_IF_NULL(devsw, write);
     DEFAULT_IF_NULL(devsw, ioctl);

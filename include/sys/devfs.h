@@ -51,10 +51,8 @@ struct devfs_node {
 
 typedef int (*dev_open_t)(devfs_node_t *dev, int flags);
 typedef int (*dev_close_t)(devfs_node_t *dev, int flags);
-typedef int (*dev_reclaim_t)(devfs_node_t *dev);
 typedef int (*dev_read_t)(devfs_node_t *dev, uio_t *uio);
 typedef int (*dev_write_t)(devfs_node_t *dev, uio_t *uio);
-/* TODO: add `dev_strategy_t`. */
 typedef int (*dev_ioctl_t)(devfs_node_t *dev, u_long cmd, void *data,
                            int flags);
 
@@ -71,7 +69,6 @@ struct devsw {
   dev_type_t d_type;   /* device type */
   dev_open_t d_open;   /* prepare device for devfs operations */
   dev_close_t d_close; /* called when file referring to the device is closed */
-  dev_reclaim_t d_reclaim; /* free the devfs node and driver-private data */
   dev_read_t d_read;       /* read bytes form a device file */
   dev_write_t d_write;     /* write bytes to a device file */
   dev_ioctl_t d_ioctl;     /* read or modify device properties */
@@ -83,10 +80,6 @@ static inline int DOP_OPEN(devfs_node_t *dn, int flags) {
 
 static inline int DOP_CLOSE(devfs_node_t *dn, int flags) {
   return dn->dn_devsw->d_close(dn, flags);
-}
-
-static inline int DOP_RECLAIM(devfs_node_t *dn) {
-  return dn->dn_devsw->d_reclaim(dn);
 }
 
 static inline int DOP_READ(devfs_node_t *dn, uio_t *uio) {
