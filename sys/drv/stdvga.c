@@ -1,7 +1,6 @@
 /* Standard VGA driver */
 #include <sys/klog.h>
 #include <dev/pci.h>
-#include <dev/vga.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/kmem.h>
@@ -9,7 +8,16 @@
 #include <sys/device.h>
 #include <sys/bus.h>
 #include <sys/fb.h>
+#include <sys/devfs.h>
 #include <sys/devclass.h>
+#include <sys/vnode.h>
+#include <stdatomic.h>
+
+typedef struct fb_color fb_color_t;
+typedef struct fb_palette fb_palette_t;
+typedef struct fb_info fb_info_t;
+
+#define FB_SIZE(fbi) ((fbi)->width * (fbi)->height * ((fbi)->bpp / 8))
 
 #define VGA_PALETTE_SIZE 256
 
@@ -17,16 +25,12 @@ typedef struct stdvga_state {
   resource_t *mem;
   resource_t *io;
 
+  atomic_int usecnt;
   fb_info_t fb_info;
 
-  fb_palette_t palette;
-  uint8_t *fb_buffer; /* This buffer is only needed because we can't pass uio
-                         directly to the bus. */
-  vga_device_t vga;
+  /* FIXME Needed only because we can't pass uio directly to the bus. */
+  uint8_t *buffer;
 } stdvga_state_t;
-
-#define STDVGA_FROM_VGA(vga)                                                   \
-  (stdvga_state_t *)container_of(vga, stdvga_state_t, vga)
 
 /* Detailed information about VGA registers is available at
    http://www.osdever.net/FreeVGA/vga/vga.htm */
@@ -56,104 +60,152 @@ typedef struct stdvga_state {
 static void stdvga_io_write(stdvga_state_t *vga, uint16_t reg, uint8_t value) {
   bus_write_1(vga->io, reg + VGA_MMIO_OFFSET, value);
 }
+
 static uint8_t __unused stdvga_io_read(stdvga_state_t *vga, uint16_t reg) {
   return bus_read_1(vga->io, reg + VGA_MMIO_OFFSET);
 }
+
 static void stdvga_vbe_write(stdvga_state_t *vga, uint16_t reg,
                              uint16_t value) {
   /* <<1 shift enables access to 16-bit registers. */
   bus_write_2(vga->io, (reg << 1) + VBE_MMIO_OFFSET, value);
 }
+
 static uint16_t stdvga_vbe_read(stdvga_state_t *vga, uint16_t reg) {
   return bus_read_2(vga->io, (reg << 1) + VBE_MMIO_OFFSET);
 }
 
-static void stdvga_palette_write_single(stdvga_state_t *stdvga, uint8_t offset,
-                                        uint8_t r, uint8_t g, uint8_t b) {
-  stdvga_io_write(stdvga, VGA_PALETTE_ADDR, offset);
-  stdvga_io_write(stdvga, VGA_PALETTE_DATA, r >> 2);
-  stdvga_io_write(stdvga, VGA_PALETTE_DATA, g >> 2);
-  stdvga_io_write(stdvga, VGA_PALETTE_DATA, b >> 2);
+static uint16_t stdvga_vbe_set(stdvga_state_t *vga, uint16_t reg,
+                               uint16_t mask) {
+  uint16_t oldval = stdvga_vbe_read(vga, reg);
+  stdvga_vbe_write(vga, reg, oldval | mask);
+  return oldval;
 }
 
-static void stdvga_palette_write_all(stdvga_state_t *stdvga) {
-  for (size_t i = 0; i < stdvga->palette.len; i++)
-    stdvga_palette_write_single(stdvga, i, stdvga->palette.colors[i].r,
-                                stdvga->palette.colors[i].g,
-                                stdvga->palette.colors[i].b);
+static void stdvga_set_color(stdvga_state_t *vga, uint8_t index, uint8_t r,
+                             uint8_t g, uint8_t b) {
+  stdvga_io_write(vga, VGA_PALETTE_ADDR, index);
+  stdvga_io_write(vga, VGA_PALETTE_DATA, r >> 2);
+  stdvga_io_write(vga, VGA_PALETTE_DATA, g >> 2);
+  stdvga_io_write(vga, VGA_PALETTE_DATA, b >> 2);
 }
 
-static int stdvga_palette_write(vga_device_t *vga, fb_palette_t *palette) {
-  stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
-  size_t len = stdvga->palette.len;
-
-  if (len != palette->len)
+static int stdvga_set_palette(stdvga_state_t *vga, fb_palette_t *pal) {
+  if (pal->len == 0 || pal->len > VGA_PALETTE_SIZE)
     return EINVAL;
 
-  memcpy(stdvga->palette.colors, palette->colors, 3 * len);
+  fb_color_t *colors = kmalloc(M_DEV, pal->len * sizeof(fb_color_t), 0);
+  if (!colors)
+    return ENOMEM;
 
-  /* TODO: Only update the modified area. */
-  stdvga_palette_write_all(stdvga);
-  return 0;
+  int error;
+  if ((error = copyin(pal->colors, colors, pal->len * sizeof(fb_color_t))))
+    goto fail;
+
+  for (uint32_t i = 0; i < pal->len; i++)
+    stdvga_set_color(vga, i, colors[i].r, colors[i].g, colors[i].b);
+
+fail:
+  kfree(M_DEV, colors);
+  return error;
 }
 
-static int stdvga_get_fbinfo(vga_device_t *vga, fb_info_t *fb_info) {
-  stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
-  memcpy(fb_info, &stdvga->fb_info, sizeof(fb_info_t));
-  return 0;
-}
-
-static int stdvga_set_fbinfo(vga_device_t *vga, fb_info_t *fb_info) {
-  stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
-
-  /* Impose some reasonable resolution limit. As long as we have to use an
-     fb_buffer, the limit is related to the size of memory pool used by the
-     graphics driver. */
+static int stdvga_set_fbinfo(stdvga_state_t *vga, fb_info_t *fb_info) {
+  /* Impose some reasonable resolution limit. As long as we have to use
+   * `buffer`, the limit is related to the size of memory pool used by
+   * the graphics driver. */
   if (fb_info->width > 640 || fb_info->height > 480)
     return EINVAL;
 
   if (fb_info->bpp != 8 && fb_info->bpp != 16 && fb_info->bpp != 24)
     return EINVAL;
 
-  /* We keep the size of the potentially previously allocated fb_buffer */
-  int previous_size = align(
-    sizeof(uint8_t) * stdvga->fb_info.width * stdvga->fb_info.height, PAGESIZE);
+  /* We keep the size of the potentially previously allocated `buffer` */
+  size_t prev_size = align(FB_SIZE(&vga->fb_info), PAGESIZE);
 
-  memcpy(&stdvga->fb_info, fb_info, sizeof(fb_info_t));
+  memcpy(&vga->fb_info, fb_info, sizeof(fb_info_t));
 
-  /* Apply resolution */
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_XRES, stdvga->fb_info.width);
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_YRES, stdvga->fb_info.height);
+  /* Apply resolution & bits per pixel */
+  stdvga_vbe_write(vga, VBE_DISPI_INDEX_XRES, vga->fb_info.width);
+  stdvga_vbe_write(vga, VBE_DISPI_INDEX_YRES, vga->fb_info.height);
+  stdvga_vbe_write(vga, VBE_DISPI_INDEX_BPP, vga->fb_info.bpp);
 
-  /* Set BPP */
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_BPP, stdvga->fb_info.bpp);
+  size_t new_size = align(FB_SIZE(&vga->fb_info), PAGESIZE);
 
-  int aligned_size = align(
-    sizeof(uint8_t) * stdvga->fb_info.width * stdvga->fb_info.height, PAGESIZE);
+  if (vga->buffer)
+    kmem_free(vga->buffer, prev_size);
 
-  if (stdvga->fb_buffer)
-    kmem_free(stdvga->fb_buffer, previous_size);
-
-  stdvga->fb_buffer = kmem_alloc(aligned_size, M_ZERO);
-
+  vga->buffer = kmem_alloc(new_size, M_ZERO);
   return 0;
 }
 
-static int stdvga_fb_write(vga_device_t *vga, uio_t *uio) {
-  stdvga_state_t *stdvga = STDVGA_FROM_VGA(vga);
-  uio->uio_offset = 0; /* This device does not support offsets. */
+static int stdvga_open(vnode_t *v, int mode, file_t *fp) {
+  stdvga_state_t *vga = devfs_node_data(v);
+  int error;
 
-  /* TODO: Some day `bus_space_map` will be implemented. This will allow to map
+  /* Disallow opening the file more than once. */
+  int expected = 0;
+  if (!atomic_compare_exchange_strong(&vga->usecnt, &expected, 1))
+    return EBUSY;
+
+  /* On error, decrease the use count. */
+  if ((error = vnode_open_generic(v, mode, fp)))
+    goto fail;
+
+  if ((error = stdvga_set_fbinfo(vga, &vga->fb_info)))
+    goto fail;
+
+  return 0;
+
+fail:
+  atomic_store(&vga->usecnt, 0);
+  return error;
+}
+
+static int stdvga_close(vnode_t *v, file_t *fp) {
+  stdvga_state_t *vga = devfs_node_data(v);
+  atomic_store(&vga->usecnt, 0);
+  return 0;
+}
+
+static int stdvga_write(vnode_t *v, uio_t *uio, int ioflag) {
+  stdvga_state_t *vga = devfs_node_data(v);
+  int error = 0;
+
+  /* This device does not support offsets. */
+  uio->uio_offset = 0;
+
+  size_t size = FB_SIZE(&vga->fb_info);
+
+  /* FIXME Some day `bus_space_map` will be implemented. This will allow to map
    * RT_MEMORY resource into kernel virtual address space. BUS_SPACE_MAP_LINEAR
    * would be ideal for frambuffer memory, since we could access it directly. */
-  int error = uiomove_frombuf(
-    stdvga->fb_buffer, stdvga->fb_info.width * stdvga->fb_info.height, uio);
-  if (error)
+  if ((error = uiomove_frombuf(vga->buffer, size, uio)))
     return error;
-  bus_write_region_1(stdvga->mem, 0, stdvga->fb_buffer,
-                     stdvga->fb_info.width * stdvga->fb_info.height);
+  bus_write_region_1(vga->mem, 0, vga->buffer, size);
   return 0;
 }
+
+static int stdvga_ioctl(vnode_t *v, u_long cmd, void *data) {
+  stdvga_state_t *vga = devfs_node_data(v);
+
+  if (cmd == FBIOCGET_FBINFO) {
+    memcpy(data, &vga->fb_info, sizeof(fb_info_t));
+    return 0;
+  }
+  if (cmd == FBIOCSET_FBINFO)
+    return stdvga_set_fbinfo(vga, data);
+  if (cmd == FBIOCSET_PALETTE)
+    return stdvga_set_palette(vga, data);
+  return EINVAL;
+}
+
+static vnodeops_t stdvga_vnodeops = {
+  .v_open = stdvga_open,
+  .v_close = stdvga_close,
+  .v_write = stdvga_write,
+  .v_ioctl = stdvga_ioctl,
+};
 
 static int stdvga_probe(device_t *dev) {
   pci_device_t *pcid = pci_device_of(dev);
@@ -167,49 +219,28 @@ static int stdvga_probe(device_t *dev) {
   return 1;
 }
 
-static vga_ops_t stdvga_ops = {
-  .palette_write = stdvga_palette_write,
-  .fb_write = stdvga_fb_write,
-  .get_fbinfo = stdvga_get_fbinfo,
-  .set_fbinfo = stdvga_set_fbinfo,
-};
-
-static void init_fb_palette(fb_palette_t *palette, size_t len) {
-  palette->len = len;
-  palette->colors = kmalloc(M_DEV, 3 * len, M_ZERO);
-}
-
 static int stdvga_attach(device_t *dev) {
-  stdvga_state_t *stdvga = dev->state;
+  stdvga_state_t *vga = dev->state;
 
-  stdvga->mem = device_take_memory(dev, 0, RF_ACTIVE | RF_PREFETCHABLE);
-  stdvga->io = device_take_memory(dev, 2, RF_ACTIVE);
+  vga->mem = device_take_memory(dev, 0, RF_ACTIVE | RF_PREFETCHABLE);
+  vga->io = device_take_memory(dev, 2, RF_ACTIVE);
 
-  assert(stdvga->mem != NULL);
-  assert(stdvga->io != NULL);
+  assert(vga->mem != NULL);
+  assert(vga->io != NULL);
 
-  stdvga->vga = (vga_device_t){
-    .vg_usecnt = 0,
-    .vg_ops = &stdvga_ops,
-  };
-
-  /* Prepare palette buffers */
-  init_fb_palette(&stdvga->palette, VGA_PALETTE_SIZE);
+  vga->usecnt = 0;
 
   /* Enable palette access */
-  stdvga_io_write(stdvga, VGA_AR_ADDR, VGA_AR_PAS);
+  stdvga_io_write(vga, VGA_AR_ADDR, VGA_AR_PAS);
 
   /* Configure initial videomode. */
-  fb_info_t def_fb_info = {.width = 320, .height = 200, .bpp = 8};
-  stdvga_set_fbinfo(&stdvga->vga, &def_fb_info);
+  vga->fb_info = (fb_info_t){.width = 320, .height = 200, .bpp = 8};
 
   /* Enable VBE. */
-  stdvga_vbe_write(stdvga, VBE_DISPI_INDEX_ENABLE,
-                   stdvga_vbe_read(stdvga, VBE_DISPI_INDEX_ENABLE) |
-                     VBE_DISPI_ENABLED);
+  stdvga_vbe_set(vga, VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED);
 
-  /* Install /dev/vga interace. */
-  dev_vga_install(&stdvga->vga);
+  /* Install /dev/vga device file. */
+  devfs_makedev(NULL, "vga", &stdvga_vnodeops, vga, NULL);
 
   return 0;
 }
