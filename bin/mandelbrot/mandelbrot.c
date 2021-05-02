@@ -13,14 +13,15 @@
 
 #define STR(x) #x
 
-uint8_t image[WIDTH * HEIGHT];
-uint8_t palette_buff[PALETTE_LEN * 3];
+static uint8_t image[WIDTH * HEIGHT];
+static uint8_t palette_buff[PALETTE_LEN * 3];
 
-void prepare_videomode(int vgafd) {
+static void prepare_videomode(int vgafd) {
   struct fb_info fb_info;
-  
+
   ioctl(vgafd, FBIOCGET_FBINFO, &fb_info);
-  printf("Current resolution: %dx%d, %d BPP\n", fb_info.width, fb_info.height, fb_info.bpp);
+  printf("Current resolution: %dx%d, %d BPP\n", fb_info.width, fb_info.height,
+         fb_info.bpp);
 
   /* Write new configuration. */
   fb_info.width = WIDTH;
@@ -29,7 +30,7 @@ void prepare_videomode(int vgafd) {
   ioctl(vgafd, FBIOCSET_FBINFO, &fb_info);
 }
 
-void prepare_palette(int vgafd) {
+static void prepare_palette(int vgafd) {
   struct fb_palette palette = {
     .len = PALETTE_LEN,
     .colors = (void *)palette_buff,
@@ -44,11 +45,11 @@ void prepare_palette(int vgafd) {
   ioctl(vgafd, FBIOCSET_PALETTE, &palette);
 }
 
-void display_image(int vgafd) {
+static void display_image(int vgafd) {
   write(vgafd, image, WIDTH * HEIGHT);
 }
 
-int f(float re, float im) {
+static int fun(float re, float im) {
   float re0 = re, im0 = im;
   unsigned int n = 0;
   for (n = 0; n < 50; n++) {
@@ -84,7 +85,7 @@ int main(void) {
       re *= 1.8f;
       im *= 1.8f;
 
-      image[y * WIDTH + x] = f(re, im);
+      image[y * WIDTH + x] = fun(re, im);
     }
   }
 
