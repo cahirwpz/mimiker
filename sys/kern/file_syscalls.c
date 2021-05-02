@@ -18,7 +18,7 @@ int do_read(proc_t *p, int fd, uio_t *uio) {
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
     return error;
 
-  uio->uio_flags |= f->f_flags & F_IFLAGS;
+  uio->uio_ioflags |= f->f_flags & IO_MASK;
   error = FOP_READ(f, uio);
   file_drop(f);
   return error;
@@ -31,7 +31,7 @@ int do_write(proc_t *p, int fd, uio_t *uio) {
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
     return error;
 
-  uio->uio_flags |= f->f_flags & F_OFLAGS;
+  uio->uio_ioflags |= f->f_flags & IO_MASK;
   error = FOP_WRITE(f, uio);
   file_drop(f);
   return error;
@@ -130,18 +130,18 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
         if (f->f_flags & FF_WRITE)
           flags |= O_WRONLY;
       }
-      if (f->f_flags & FF_APPEND)
+      if (f->f_flags & IO_APPEND)
         flags |= O_APPEND;
-      if (f->f_flags & FF_NONBLOCK)
+      if (f->f_flags & IO_NONBLOCK)
         flags |= O_NONBLOCK;
       *resp = flags;
       break;
 
     case F_SETFL:
       if (arg & O_APPEND)
-        flags |= FF_APPEND;
+        flags |= IO_APPEND;
       if (arg & O_NONBLOCK)
-        flags |= FF_NONBLOCK;
+        flags |= IO_NONBLOCK;
       f->f_flags = flags;
       break;
 

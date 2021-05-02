@@ -430,7 +430,7 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio) {
   if (node->tfn_type != V_REG)
     return EOPNOTSUPP;
 
-  if (uio->uio_flags & FF_APPEND)
+  if (uio->uio_ioflags & IO_APPEND)
     uio->uio_offset = node->tfn_size;
 
   if (uio->uio_offset + uio->uio_resid > node->tfn_size)

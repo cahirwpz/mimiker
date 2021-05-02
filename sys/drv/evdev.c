@@ -442,7 +442,9 @@ static int evdev_ioctl(file_t *f, u_long cmd, void *data) {
 
 static fileops_t evdev_fileops = {
   .fo_read = evdev_read,
+  .fo_write = nowrite,
   .fo_close = default_vnclose,
+  .fo_seek = noseek,
   .fo_stat = default_vnstat,
   .fo_ioctl = evdev_ioctl,
 };

@@ -36,24 +36,12 @@ void file_drop(file_t *f) {
     file_destroy(f);
 }
 
-void file_set_flags(file_t *f, int mode) {
-  switch (mode & O_ACCMODE) {
-    case O_RDONLY:
-      f->f_flags = FF_READ;
-      break;
-    case O_WRONLY:
-      f->f_flags = FF_WRITE;
-      break;
-    case O_RDWR:
-      f->f_flags = FF_READ | FF_WRITE;
-      break;
-  }
+int nowrite(file_t *f, uio_t *uio) {
+  return EBADF;
+}
 
-  if (mode & O_APPEND)
-    f->f_flags |= FF_APPEND;
-
-  if (mode & O_NONBLOCK)
-    f->f_flags |= FF_NONBLOCK;
+int noseek(file_t *f, off_t offset, int whence, off_t *newoffp) {
+  return ESPIPE;
 }
 
 /* Operations on invalid file descriptors */
@@ -82,7 +70,6 @@ static int badfo_ioctl(file_t *f, u_long cmd, void *data) {
 }
 
 fileops_t badfileops = {
-  .fo_flags = FOF_SEEKABLE,
   .fo_read = badfo_read,
   .fo_write = badfo_write,
   .fo_close = badfo_close,

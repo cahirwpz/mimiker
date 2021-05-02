@@ -192,6 +192,7 @@ static fileops_t pty_fileops = {
   .fo_read = pty_read,
   .fo_write = pty_write,
   .fo_close = pty_close,
+  .fo_seek = noseek,
   .fo_stat = pty_stat,
   .fo_ioctl = pty_ioctl,
 };
