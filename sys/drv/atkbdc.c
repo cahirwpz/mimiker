@@ -1,4 +1,10 @@
-/* AT keybord controller driver */
+/*
+ * atkbdc: AT keybord controller driver.
+ *
+ * Communication protocol is specified at:
+ * https://www.win.tue.nl/~aeb/linux/kbd/scancodes-11.html
+ */
+
 #define KL_LOG KL_DEV
 #include <sys/libkern.h>
 #include <sys/vnode.h>

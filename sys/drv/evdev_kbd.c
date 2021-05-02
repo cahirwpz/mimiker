@@ -6,6 +6,11 @@
 
 #define NONE KEY_RESERVED
 
+/*
+ * USB HID scancode list is available at:
+ * https://www.win.tue.nl/~aeb/linux/kbd/scancodes-14.html
+ */
+
 /* clang-format off */
 static uint16_t evdev_usb_scancodes[256] = {
 	/* 0x00 - 0x27 */
@@ -76,7 +81,18 @@ static uint16_t evdev_usb_scancodes[256] = {
 	KEY_SLEEP,	KEY_COFFEE,	KEY_REFRESH,	KEY_CALC,
 	NONE,		NONE,		NONE,		NONE,
 };
+/* clang-format on */
 
+uint16_t evdev_hid2key(int scancode) {
+  return evdev_usb_scancodes[scancode];
+}
+
+/*
+ * PC AT scancode list is available at:
+ * https://www.win.tue.nl/~aeb/linux/kbd/scancodes-1.html
+ */
+
+/* clang-format off */
 static uint16_t evdev_at_set1_scancodes[] = {
 	/* 0x00 - 0x1f */
 	NONE,		KEY_ESC,	KEY_1,		KEY_2,
@@ -152,10 +168,6 @@ static uint16_t evdev_at_set1_scancodes[] = {
 	NONE,		NONE,		NONE,		NONE,
 };
 /* clang-format on */
-
-uint16_t evdev_hid2key(int scancode) {
-  return evdev_usb_scancodes[scancode];
-}
 
 uint16_t evdev_scancode2key(int *statep, int scancode) {
   uint16_t keycode;
