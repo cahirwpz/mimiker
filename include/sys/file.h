@@ -47,7 +47,6 @@ typedef enum filetype {
   FT_PTY = 3,   /* master side of a pseudoterminal */
 } filetype_t;
 
-
 #define FF_READ 1  /* file can be read from */
 #define FF_WRITE 2 /* file can be written to */
 #define FF_MASK (FF_READ | FF_WRITE)

@@ -140,11 +140,8 @@ static int vfs_open(proc_t *p, file_t *f, int fdat, char *pathname, int flags,
   if (flags & O_TRUNC)
     error = vfs_truncate(v, 0, &p->p_cred);
 
-  if (!error) {
-    file_set_flags(f, flags);
-    f->f_mode = flags;
+  if (!error)
     error = VOP_OPEN(v, flags, f);
-  }
 
   /* Drop our reference to v. We received it from vfs_namelookup, but we no
      longer need it - file f keeps its own reference to v after open. */

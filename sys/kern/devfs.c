@@ -267,7 +267,7 @@ static int devfs_fop_write(file_t *fp, uio_t *uio) {
 static int devfs_fop_close(file_t *fp) {
   devfs_node_t *dn = file_data(fp);
   refcnt_release(&dn->dn_refcnt);
-  return DOP_CLOSE(dn, fp->f_mode);
+  return DOP_CLOSE(dn, fp->f_flags);
 }
 
 static int devfs_fop_stat(file_t *fp, stat_t *sb) {
@@ -302,7 +302,7 @@ static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
 }
 
 static int devfs_fop_ioctl(file_t *fp, u_long cmd, void *data) {
-  return DOP_IOCTL(file_data(fp), cmd, data, fp->f_mode);
+  return DOP_IOCTL(file_data(fp), cmd, data, fp->f_flags);
 }
 
 static int devfs_dop_stub(devfs_node_t *dn, ...) {
