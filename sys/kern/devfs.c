@@ -234,7 +234,7 @@ static int devfs_dev_vop_reclaim(vnode_t *v) {
 }
 
 static int devfs_fop_read(file_t *fp, uio_t *uio) {
-  devfs_node_t *dn = file_data(fp);
+  devfs_node_t *dn = fp->f_data;
   bool seekable = dn->dn_devsw->d_type & DT_SEEKABLE;
 
   if (!seekable)
@@ -249,7 +249,7 @@ static int devfs_fop_read(file_t *fp, uio_t *uio) {
 }
 
 static int devfs_fop_write(file_t *fp, uio_t *uio) {
-  devfs_node_t *dn = file_data(fp);
+  devfs_node_t *dn = fp->f_data;
   bool seekable = dn->dn_devsw->d_type & DT_SEEKABLE;
 
   if (!seekable)
@@ -264,7 +264,7 @@ static int devfs_fop_write(file_t *fp, uio_t *uio) {
 }
 
 static int devfs_fop_close(file_t *fp) {
-  devfs_node_t *dn = file_data(fp);
+  devfs_node_t *dn = fp->f_data;
   refcnt_release(&dn->dn_refcnt);
   return DOP_CLOSE(dn, fp->f_flags);
 }
@@ -275,7 +275,7 @@ static int devfs_fop_stat(file_t *fp, stat_t *sb) {
 
 static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
                           off_t *newoffp) {
-  devfs_node_t *dn = file_data(fp);
+  devfs_node_t *dn = fp->f_data;
 
   if (!(dn->dn_devsw->d_type & DT_SEEKABLE))
     return ESPIPE;
@@ -301,7 +301,7 @@ static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
 }
 
 static int devfs_fop_ioctl(file_t *fp, u_long cmd, void *data) {
-  return DOP_IOCTL(file_data(fp), cmd, data, fp->f_flags);
+  return DOP_IOCTL(fp->f_data, cmd, data, fp->f_flags);
 }
 
 static int devfs_dop_stub(devfs_node_t *dn, ...) {

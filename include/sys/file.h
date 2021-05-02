@@ -63,18 +63,11 @@ typedef struct file {
 file_t *file_alloc(void);
 void file_destroy(file_t *f);
 
-static inline void *file_data(file_t *f) {
-  return f->f_data;
-}
-
 /*! \brief Increments reference counter. */
 void file_hold(file_t *f);
 
 /*! \brief Decrements refcounter and destroys file if it has reached 0. */
 void file_drop(file_t *f);
-
-/*! \brief Sets file's flags based on O_* open flags. */
-void file_set_flags(file_t *f, int mode);
 
 static inline int FOP_READ(file_t *f, uio_t *uio) {
   return f->f_ops->fo_read(f, uio);
