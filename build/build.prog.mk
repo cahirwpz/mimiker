@@ -19,6 +19,7 @@ endif
 SOURCES ?= $(PROGRAM).c
 BINDIR ?= $(shell echo $(DIR) | cut -f 1 -d / | tr . /)
 
+SOURCES_ALL = $(SOURCES)
 BUILD-FILES += $(PROGRAM).uelf
 INSTALL-FILES += $(SYSROOT)/$(BINDIR)/$(PROGRAM)
 BINMODE ?= 0755

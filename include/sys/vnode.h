@@ -39,8 +39,8 @@ typedef int vnode_lookup_t(vnode_t *dv, componentname_t *cn, vnode_t **vp);
 typedef int vnode_readdir_t(vnode_t *dv, uio_t *uio);
 typedef int vnode_open_t(vnode_t *v, int mode, file_t *fp);
 typedef int vnode_close_t(vnode_t *v, file_t *fp);
-typedef int vnode_read_t(vnode_t *v, uio_t *uio, int ioflag);
-typedef int vnode_write_t(vnode_t *v, uio_t *uio, int ioflag);
+typedef int vnode_read_t(vnode_t *v, uio_t *uio);
+typedef int vnode_write_t(vnode_t *v, uio_t *uio);
 typedef int vnode_seek_t(vnode_t *v, off_t oldoff, off_t newoff);
 typedef int vnode_getattr_t(vnode_t *v, vattr_t *va);
 typedef int vnode_setattr_t(vnode_t *v, vattr_t *va, cred_t *cred);
@@ -127,11 +127,6 @@ typedef struct vattr {
 void vattr_null(vattr_t *va);
 void vattr_convert(vattr_t *va, stat_t *sb);
 
-/*
- * Flags for ioflag.
- */
-#define IO_APPEND 0x00020 /* append write to end */
-
 #define VOP_CALL(op, v, ...)                                                   \
   ((v)->v_ops->v_##op) ? ((v)->v_ops->v_##op(v, ##__VA_ARGS__)) : ENOTSUP
 
@@ -152,12 +147,12 @@ static inline int VOP_CLOSE(vnode_t *v, file_t *fp) {
   return VOP_CALL(close, v, fp);
 }
 
-static inline int VOP_READ(vnode_t *v, uio_t *uio, int ioflag) {
-  return VOP_CALL(read, v, uio, ioflag);
+static inline int VOP_READ(vnode_t *v, uio_t *uio) {
+  return VOP_CALL(read, v, uio);
 }
 
-static inline int VOP_WRITE(vnode_t *v, uio_t *uio, int ioflag) {
-  return VOP_CALL(write, v, uio, ioflag);
+static inline int VOP_WRITE(vnode_t *v, uio_t *uio) {
+  return VOP_CALL(write, v, uio);
 }
 
 static inline int VOP_SEEK(vnode_t *v, off_t oldoff, off_t newoff) {

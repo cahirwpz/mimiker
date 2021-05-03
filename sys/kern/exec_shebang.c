@@ -23,7 +23,7 @@ int exec_shebang_inspect(vnode_t *vn) {
     return ENOEXEC;
 
   uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, 0, sig, 2);
-  if ((error = VOP_READ(vn, &uio, 0))) {
+  if ((error = VOP_READ(vn, &uio))) {
     klog("Failed to read shebang!");
     return error;
   }
@@ -58,7 +58,7 @@ int exec_shebang_load(vnode_t *vn, exec_args_t *args) {
   int error;
 
   uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, 2, interp, PATH_MAX);
-  if ((error = VOP_READ(vn, &uio, 0)))
+  if ((error = VOP_READ(vn, &uio)))
     goto fail;
 
   /* Make sure there's a terminator in user data. */

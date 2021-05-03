@@ -185,7 +185,7 @@ int default_vnread(file_t *f, uio_t *uio) {
   int error = 0;
   vnode_lock(v);
   uio->uio_offset = f->f_offset;
-  error = VOP_READ(f->f_vnode, uio, 0);
+  error = VOP_READ(f->f_vnode, uio);
   f->f_offset = uio->uio_offset;
   vnode_unlock(v);
   return error;
@@ -193,12 +193,10 @@ int default_vnread(file_t *f, uio_t *uio) {
 
 int default_vnwrite(file_t *f, uio_t *uio) {
   vnode_t *v = f->f_vnode;
-  int error = 0, ioflag = 0;
-  if (f->f_flags & FF_APPEND)
-    ioflag |= IO_APPEND;
+  int error = 0;
   vnode_lock(v);
   uio->uio_offset = f->f_offset;
-  error = VOP_WRITE(f->f_vnode, uio, ioflag);
+  error = VOP_WRITE(f->f_vnode, uio);
   f->f_offset = uio->uio_offset;
   vnode_unlock(v);
   return error;
@@ -306,6 +304,7 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   fp->f_ops = &default_vnode_fileops;
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
+
   switch (mode & O_ACCMODE) {
     case O_RDONLY:
       fp->f_flags = FF_READ;
@@ -319,7 +318,10 @@ int vnode_open_generic(vnode_t *v, int mode, file_t *fp) {
   }
 
   if (mode & O_APPEND)
-    fp->f_flags |= FF_APPEND;
+    fp->f_flags |= IO_APPEND;
+
+  if (mode & O_NONBLOCK)
+    fp->f_flags |= IO_NONBLOCK;
 
   return 0;
 }
