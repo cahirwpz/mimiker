@@ -854,7 +854,7 @@ static int tty_drain_out(tty_t *tty) {
 }
 
 static int tty_vn_close(vnode_t *v, file_t *fp) {
-  tty_t *tty = devfs_node_data_old(v);
+  tty_t *tty = devfs_node_data(v);
   SCOPED_MTX_LOCK(&tty->t_lock);
   assert(tty->t_opencount > 0);
   tty->t_opencount--;
@@ -1112,7 +1112,7 @@ bool maybe_assoc_ctty(proc_t *p, tty_t *tty) {
 }
 
 static int _tty_vn_open(vnode_t *v, int mode, file_t *fp) {
-  tty_t *tty = devfs_node_data_old(v);
+  tty_t *tty = devfs_node_data(v);
   proc_t *p = proc_self();
   int error;
 
@@ -1143,7 +1143,7 @@ static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
 }
 
 static int tty_vn_reclaim(vnode_t *v) {
-  tty_free(devfs_node_data_old(v));
+  tty_free(devfs_node_data(v));
   devfs_free(v->v_data);
   return 0;
 }
@@ -1155,7 +1155,7 @@ static vnodeops_t tty_vnodeops = {
 };
 
 int tty_makedev(devfs_node_t *parent, const char *name, tty_t *tty) {
-  return devfs_makedev_old(parent, name, &tty_vnodeops, tty, &tty->t_vnode);
+  return devfs_makedev(parent, name, &tty_vnodeops, tty, &tty->t_vnode);
 }
 
 /* Controlling terminal pseudo-device (/dev/tty) */
@@ -1174,7 +1174,7 @@ static int dev_tty_open(vnode_t *v, int mode, file_t *fp) {
 static vnodeops_t dev_tty_vnodeops = {.v_open = dev_tty_open};
 
 static void init_dev_tty(void) {
-  devfs_makedev_old(NULL, "tty", &dev_tty_vnodeops, NULL, NULL);
+  devfs_makedev(NULL, "tty", &dev_tty_vnodeops, NULL, NULL);
 }
 
 SET_ENTRY(devfs_init, init_dev_tty);

@@ -334,8 +334,8 @@ static void devfs_add_default_dops(devsw_t *devsw) {
   }
 }
 
-int devfs_makedev(devfs_node_t *parent, const char *name, devsw_t *devsw,
-                  void *data, devfs_node_t **dn_p) {
+int devfs_makedev_new(devfs_node_t *parent, const char *name, devsw_t *devsw,
+                      void *data, devfs_node_t **dn_p) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
   int mode =
@@ -371,10 +371,10 @@ static void devfs_add_default_vops(vnodeops_t *vops) {
 }
 
 /* TODO: remove the following function after rewriting all drivers. */
-int devfs_makedev_old(devfs_node_t *parent, const char *name, vnodeops_t *vops,
-                      void *data, vnode_t **vnode_p) {
+int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
+                  void *data, vnode_t **vnode_p) {
   devfs_node_t *dn = NULL;
-  int error = devfs_makedev(parent, name, NULL, data, &dn);
+  int error = devfs_makedev_new(parent, name, NULL, data, &dn);
   if (error)
     return error;
 
@@ -408,7 +408,7 @@ int devfs_makedir(devfs_node_t *parent, const char *name,
   return 0;
 }
 
-void *devfs_node_data_old(vnode_t *v) {
+void *devfs_node_data(vnode_t *v) {
   devfs_node_t *dn = vn2dn(v);
   return dn->dn_data;
 }

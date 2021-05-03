@@ -35,7 +35,7 @@ static vnodeops_t dev_cons_vnodeops = {.v_read = dev_cons_read,
                                        .v_write = dev_cons_write};
 
 static void init_dev_cons(void) {
-  devfs_makedev_old(NULL, "cons", &dev_cons_vnodeops, NULL, NULL);
+  devfs_makedev(NULL, "cons", &dev_cons_vnodeops, NULL, NULL);
 }
 
 SET_ENTRY(devfs_init, init_dev_cons);

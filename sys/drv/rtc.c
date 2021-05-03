@@ -111,7 +111,7 @@ static int rtc_attach(device_t *dev) {
   rtc_setb(rtc->regs, MC_REGB, MC_REGB_PIE);
 
   /* Prepare /dev/rtc interface. */
-  devfs_makedev(NULL, "rtc", &rtc_devsw, rtc, &rtc->dn);
+  devfs_makedev_new(NULL, "rtc", &rtc_devsw, rtc, &rtc->dn);
 
   tm_t t;
 

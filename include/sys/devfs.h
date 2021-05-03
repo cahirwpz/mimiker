@@ -75,24 +75,24 @@ struct devsw {
 };
 
 /* If parent is NULL new device will be attached to root devfs directory. */
-int devfs_makedev(devfs_node_t *parent, const char *name, devsw_t *devsw,
-                  void *data, devfs_node_t **dn_p);
+int devfs_makedev_new(devfs_node_t *parent, const char *name, devsw_t *devsw,
+                      void *data, devfs_node_t **dn_p);
 int devfs_makedir(devfs_node_t *parent, const char *name, devfs_node_t **dir_p);
 
 /* TODO: rewrite all device drivers which use devfs to rely on devsw
  * instead vnodeops. FTTB, obsolete device drivers use the following
  * function instead `devfs_makedev`. */
-int devfs_makedev_old(devfs_node_t *parent, const char *name, vnodeops_t *vops,
-                      void *data, vnode_t **vnode_p);
+int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
+                  void *data, vnode_t **vnode_p);
 
 /* TODO: remove it after rewriting drivers. */
-void *devfs_node_data_old(vnode_t *vnode);
+void *devfs_node_data(vnode_t *vnode);
 
 /*
  * Remove a node from the devfs tree.
  *
  * The devfs node and the corresponding vnode will no longer be accessible,
- * but there may still be existing references to them. 
+ * but there may still be existing references to them.
  *
  * This function should be called form the driver's detach function.
  */

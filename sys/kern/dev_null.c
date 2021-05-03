@@ -49,8 +49,8 @@ static void init_dev_null(void) {
   zero_page = kmem_alloc(PAGESIZE, M_ZERO);
   junk_page = kmem_alloc(PAGESIZE, 0);
 
-  devfs_makedev_old(NULL, "null", &dev_null_vnodeops, NULL, NULL);
-  devfs_makedev_old(NULL, "zero", &dev_zero_vnodeops, NULL, NULL);
+  devfs_makedev(NULL, "null", &dev_null_vnodeops, NULL, NULL);
+  devfs_makedev(NULL, "zero", &dev_zero_vnodeops, NULL, NULL);
 }
 
 SET_ENTRY(devfs_init, init_dev_null);
