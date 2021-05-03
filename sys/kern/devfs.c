@@ -33,6 +33,37 @@ static devfs_mount_t devfs = {
   .root = NULL,
 };
 
+#define MODE_FILE                                                              \
+  (S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
+
+#define MODE_DIR (S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)
+
+/*
+ * Device filesystem node.
+ */
+
+typedef TAILQ_HEAD(, devfs_node) devfs_node_list_t;
+
+struct devfs_node {
+  vnode_t *dn_vnode; /* corresponding v-node */
+
+  /* Node attributes (as in vattr). */
+  nlink_t dn_nlinks;   /* number of hard links */
+  ino_t dn_ino;        /* node identifier */
+  timespec_t dn_atime; /* last access time */
+  timespec_t dn_mtime; /* last data modification time */
+  timespec_t dn_ctime; /* last file status change time */
+  mtx_t dn_timelock;   /* guards dn_*time fields */
+  dev_file_t dn_file;  /* device-specific data, also extra attributes */
+
+  /* Directory-specific data. */
+  devfs_node_list_t dn_children; /* list of children nodes */
+
+  refcnt_t dn_refcnt;              /* number of open files */
+  devfs_node_t *dn_parent;         /* parent devfs node */
+  TAILQ_ENTRY(devfs_node) dn_link; /* link on `dn_parent->dn_children` */
+};
+
 /*
  * Devfs internal functions.
  */
@@ -63,7 +94,7 @@ static devfs_node_t *devfs_find_child(devfs_node_t *parent,
 
   devfs_node_t *dn;
   TAILQ_FOREACH (dn, &parent->dn_children, dn_link)
-    if (componentname_equal(cn, dn->dn_name))
+    if (componentname_equal(cn, dn->dn_file.name))
       return dn;
 
   if (componentname_equal(cn, ".."))
@@ -78,8 +109,8 @@ static devfs_node_t *devfs_node_create(const char *name, int mode) {
   devfs_node_t *dn = kmalloc(M_DEVFS, sizeof(devfs_node_t), M_ZERO);
   assert(dn);
 
-  dn->dn_name = kstrndup(M_STR, name, DEVFS_NAME_MAX);
-  dn->dn_mode = mode;
+  strncpy(dn->dn_file.name, name, DEVFS_NAME_MAX);
+  dn->dn_file.mode = mode;
   dn->dn_nlinks = (mode & S_IFDIR) ? 2 : 1;
   dn->dn_ino = devfs.next_ino++;
   /* UID and GID are set to 0 by `kmalloc`.
@@ -121,7 +152,6 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name, int mode,
 /* FIXME should be defined as static */
 void devfs_free(devfs_node_t *dn) {
   assert(dn->dn_vnode->v_usecnt == 0);
-  kfree(M_STR, dn->dn_name);
   kfree(M_DEVFS, dn);
 }
 
@@ -131,11 +161,12 @@ void devfs_free(devfs_node_t *dn) {
 
 static int devfs_fop_read(file_t *fp, uio_t *uio) {
   devfs_node_t *dn = fp->f_data;
-  bool seekable = dn->dn_devsw->d_type & DT_SEEKABLE;
+  dev_file_t *dev = &dn->dn_file;
+  bool seekable = dev->devsw->d_type & DT_SEEKABLE;
 
   if (!seekable)
     uio->uio_offset = fp->f_offset;
-  int error = dn->dn_devsw->d_read(dn, uio);
+  int error = dev->devsw->d_read(dev, uio);
   if (seekable && !error)
     fp->f_offset = uio->uio_offset;
 
@@ -146,11 +177,12 @@ static int devfs_fop_read(file_t *fp, uio_t *uio) {
 
 static int devfs_fop_write(file_t *fp, uio_t *uio) {
   devfs_node_t *dn = fp->f_data;
-  bool seekable = dn->dn_devsw->d_type & DT_SEEKABLE;
+  dev_file_t *dev = &dn->dn_file;
+  bool seekable = dev->devsw->d_type & DT_SEEKABLE;
 
   if (!seekable)
     uio->uio_offset = fp->f_offset;
-  int error = dn->dn_devsw->d_write(dn, uio);
+  int error = dev->devsw->d_write(dev, uio);
   if (seekable && !error)
     fp->f_offset = uio->uio_offset;
 
@@ -161,8 +193,9 @@ static int devfs_fop_write(file_t *fp, uio_t *uio) {
 
 static int devfs_fop_close(file_t *fp) {
   devfs_node_t *dn = fp->f_data;
+  dev_file_t *dev = &dn->dn_file;
   refcnt_release(&dn->dn_refcnt);
-  return dn->dn_devsw->d_close(dn, fp->f_flags);
+  return dev->devsw->d_close(dev, fp->f_flags);
 }
 
 static int devfs_fop_stat(file_t *fp, stat_t *sb) {
@@ -172,22 +205,24 @@ static int devfs_fop_stat(file_t *fp, stat_t *sb) {
 static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
                           off_t *newoffp) {
   devfs_node_t *dn = fp->f_data;
+  dev_file_t *dev = &dn->dn_file;
+  bool seekable = dev->devsw->d_type & DT_SEEKABLE;
 
-  if (!(dn->dn_devsw->d_type & DT_SEEKABLE))
+  if (!seekable)
     return ESPIPE;
 
   if (whence == SEEK_CUR) {
     offset += fp->f_offset;
   } else if (whence == SEEK_END) {
-    offset += dn->dn_size;
+    offset += dev->size;
   } else if (whence != SEEK_SET) {
     return EINVAL;
   }
 
   if (offset < 0) {
     offset = 0;
-  } else if ((size_t)offset > dn->dn_size) {
-    offset = dn->dn_size;
+  } else if ((size_t)offset > dev->size) {
+    offset = dev->size;
   }
 
   *newoffp = fp->f_offset = offset;
@@ -198,7 +233,8 @@ static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
 
 static int devfs_fop_ioctl(file_t *fp, u_long cmd, void *data) {
   devfs_node_t *dn = fp->f_data;
-  return dn->dn_devsw->d_ioctl(dn, cmd, data, fp->f_flags);
+  dev_file_t *dev = &dn->dn_file;
+  return dev->devsw->d_ioctl(dev, cmd, data, fp->f_flags);
 }
 
 static fileops_t devfs_fileops = {
@@ -218,12 +254,12 @@ static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
   devfs_node_t *dn = vn2dn(v);
 
   bzero(va, sizeof(vattr_t));
-  va->va_mode = dn->dn_mode;
-  va->va_uid = dn->dn_uid;
-  va->va_gid = dn->dn_gid;
+  va->va_mode = dn->dn_file.mode;
+  va->va_uid = dn->dn_file.uid;
+  va->va_gid = dn->dn_file.gid;
+  va->va_size = dn->dn_file.size;
   va->va_nlink = dn->dn_nlinks;
   va->va_ino = dn->dn_ino;
-  va->va_size = dn->dn_size;
 
   WITH_MTX_LOCK (&dn->dn_timelock) {
     va->va_atime = dn->dn_atime;
@@ -236,13 +272,14 @@ static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
 
 static int devfs_vop_open(vnode_t *v, int mode, file_t *fp) {
   devfs_node_t *dn = vn2dn(v);
+  dev_file_t *dev = &dn->dn_file;
 
   fp->f_data = dn;
   fp->f_ops = &devfs_fileops;
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
 
-  int error = dn->dn_devsw->d_open(dn, mode);
+  int error = dev->devsw->d_open(dev, mode);
   if (error)
     return error;
 
@@ -298,7 +335,7 @@ static size_t devfs_dirent_namlen(vnode_t *v, void *it) {
     return 1;
   if (it == DIRENT_DOTDOT)
     return 2;
-  return strlen(((devfs_node_t *)it)->dn_name);
+  return strlen(((devfs_node_t *)it)->dn_file.name);
 }
 
 static void devfs_to_dirent(vnode_t *v, void *it, dirent_t *dir) {
@@ -313,7 +350,7 @@ static void devfs_to_dirent(vnode_t *v, void *it, dirent_t *dir) {
     name = "..";
   } else {
     node = (devfs_node_t *)it;
-    name = node->dn_name;
+    name = node->dn_file.name;
   }
   dir->d_fileno = node->dn_ino;
   dir->d_type = vt2dt(node->dn_vnode->v_type);
@@ -361,8 +398,7 @@ static int devfs_init(vfsconf_t *vfc) {
   vnodeops_init(&devfs_dir_vnodeops);
   vnodeops_init(&devfs_dev_vnodeops);
 
-  int mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-  devfs.root = devfs_node_create("", mode);
+  devfs.root = devfs_node_create("", MODE_DIR);
   devfs_node_t *dn = devfs.root;
 
   dn->dn_vnode = vnode_new(V_DIR, &devfs_dir_vnodeops, dn);
@@ -395,28 +431,25 @@ SET_ENTRY(vfsconf, devfs_conf);
  * Devfs kernel interface for device drivers.
  */
 
-int dev_noopen(devfs_node_t *dn, int flags) {
+int dev_noopen(dev_file_t *dev, int flags) {
   return 0;
 }
 
-int dev_noclose(devfs_node_t *dn, int flags) {
+int dev_noclose(dev_file_t *dev, int flags) {
   return 0;
 }
 
-int dev_noread(devfs_node_t *dn, uio_t *uio) {
+int dev_noread(dev_file_t *dev, uio_t *uio) {
   return EOPNOTSUPP;
 }
 
-int dev_nowrite(devfs_node_t *dn, uio_t *uio) {
+int dev_nowrite(dev_file_t *dev, uio_t *uio) {
   return EOPNOTSUPP;
 }
 
-int dev_noioctl(devfs_node_t *dn, u_long cmd, void *data, int flags) {
+int dev_noioctl(dev_file_t *dev, u_long cmd, void *data, int flags) {
   return EOPNOTSUPP;
 }
-
-#define MODE_FILE                                                              \
-  (S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
 static int _devfs_makedev(devfs_node_t *parent, const char *name, void *data,
                           devfs_node_t **dn_p) {
@@ -425,13 +458,14 @@ static int _devfs_makedev(devfs_node_t *parent, const char *name, void *data,
   if ((error = devfs_add_entry(parent, name, MODE_FILE, &dn)))
     return error;
 
-  dn->dn_data = data;
+  dn->dn_file.data = data;
   dn->dn_vnode = vnode_new(V_DEV, &devfs_dev_vnodeops, dn);
+  *dn_p = dn;
   return 0;
 }
 
 int devfs_makedev_new(devfs_node_t *parent, const char *name, devsw_t *devsw,
-                      void *data, devfs_node_t **dn_p) {
+                      void *data, dev_file_t **dev_p) {
   devfs_node_t *dn;
   int error;
 
@@ -439,11 +473,11 @@ int devfs_makedev_new(devfs_node_t *parent, const char *name, devsw_t *devsw,
     if ((error = _devfs_makedev(parent, name, data, &dn)))
       return error;
 
-    dn->dn_devsw = devsw;
+    dn->dn_file.devsw = devsw;
   }
 
-  if (dn_p)
-    *dn_p = dn;
+  if (dev_p)
+    *dev_p = &dn->dn_file;
 
   klog("devfs: registered '%s' device", name);
   return 0;
@@ -488,10 +522,8 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
 
 void *devfs_node_data(vnode_t *v) {
   devfs_node_t *dn = vn2dn(v);
-  return dn->dn_data;
+  return dn->dn_file.data;
 }
-
-#define MODE_DIR (S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)
 
 int devfs_makedir(devfs_node_t *parent, const char *name,
                   devfs_node_t **dir_p) {
@@ -519,7 +551,7 @@ int devfs_unlink(devfs_node_t *dn) {
     return ENOTEMPTY;
 
   TAILQ_REMOVE(&parent->dn_children, dn, dn_link);
-  if (dn->dn_mode & S_IFDIR)
+  if (dn->dn_file.mode & S_IFDIR)
     parent->dn_nlinks--;
   vnode_drop(dn->dn_vnode);
   return 0;

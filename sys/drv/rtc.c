@@ -23,7 +23,7 @@ typedef struct rtc_state {
   char asctime[RTC_ASCTIME_SIZE];
   unsigned counter; /* TODO Should that be part of intr_handler_t ? */
   resource_t *irq_res;
-  devfs_node_t *dn;
+  dev_file_t *dev;
 } rtc_state_t;
 
 /*
@@ -75,8 +75,8 @@ static intr_filter_t rtc_intr(void *data) {
   return IF_STRAY;
 }
 
-static int rtc_time_read(devfs_node_t *dn, uio_t *uio) {
-  rtc_state_t *rtc = dn->dn_data;
+static int rtc_time_read(dev_file_t *df, uio_t *uio) {
+  rtc_state_t *rtc = df->data;
   tm_t t;
 
   sleepq_wait(rtc, NULL);
@@ -115,7 +115,7 @@ static int rtc_attach(device_t *dev) {
   rtc_setb(rtc->regs, MC_REGB, MC_REGB_PIE);
 
   /* Prepare /dev/rtc interface. */
-  devfs_makedev_new(NULL, "rtc", &rtc_devsw, rtc, &rtc->dn);
+  devfs_makedev_new(NULL, "rtc", &rtc_devsw, rtc, &rtc->dev);
 
   tm_t t;
 
