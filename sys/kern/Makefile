@@ -14,10 +14,8 @@ SOURCES = \
 	cred_syscalls.c \
 	devclass.c \
 	device.c \
-	dev_cons.c \
 	dev_null.c \
 	dev_procstat.c \
-	dev_vga.c \
 	devfs.c \
 	exception.c \
 	exec.c \
@@ -28,21 +26,16 @@ SOURCES = \
 	file_syscalls.c \
 	filedesc.c \
 	fork.c \
-	kgprof.c \
 	initrd.c \
 	interrupt.c \
-	isa.c \
 	kenv.c \
 	klog.c \
 	kmem.c \
 	ktest.c \
-	lockdep.c \
 	main.c \
 	malloc.c \
 	mutex.c \
 	mmap.c \
-	pci.c \
-	pci_ids.c \
 	pcpu.c \
 	pipe.c \
 	pool.c \
@@ -64,7 +57,6 @@ SOURCES = \
 	timer.c \
 	tmpfs.c \
 	tty.c \
-	uart.c \
 	uart_tty.c \
 	uio.c \
 	ustack.c \
@@ -79,14 +71,15 @@ SOURCES = \
 	vm_physmem.c \
 	vmem.c
 
-ifeq ($(KASAN), 1)
-SOURCES += kasan.c kasan_quar.c
-# KASAN's run-time library mustn't be sanitized!
-kasan.o : CFLAGS_KASAN =
-else
-# Clean dependencies without having to pass `KASAN=1` to `make clean`.
-CLEAN-FILES += .kasan.D .kasan_quar.D
-endif
+SOURCES-KASAN = \
+	kasan.c \
+	kasan_quar.c
+
+SOURCES-LOCKDEP = \
+	lockdep.c
+
+SOURCES-KGPROF = \
+	kgprof.c
 
 ifeq ($(KGPROF), 1)
 SOURCES += mcount.c
@@ -105,3 +98,5 @@ SYSCALLARGS_H = $(TOPDIR)/include/sys/syscallargs.h
 sysent.h $(SYSCALL_H) $(SYSCALLARGS_H): syscalls.conf syscalls.master
 	@echo "[MAKESYSCALLS] $(lastword $^) -> $@"
 	$(TOPDIR)/sys/script/makesyscalls.sh $^
+
+kasan.o : CFLAGS_KASAN =

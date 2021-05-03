@@ -3,7 +3,6 @@
 #include <dev/i8253reg.h>
 #include <dev/isareg.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/timer.h>
 #include <sys/devclass.h>
 

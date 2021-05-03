@@ -1,4 +1,4 @@
-#include <sys/pci.h>
+#include <dev/pci.h>
 
 /* Taken from http://pciids.sourceforge.net/v2.2/pci.ids */
 

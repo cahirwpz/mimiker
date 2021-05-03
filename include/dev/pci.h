@@ -1,5 +1,5 @@
-#ifndef _SYS_PCI_H_
-#define _SYS_PCI_H_
+#ifndef _DEV_PCI_H_
+#define _DEV_PCI_H_
 
 #include <sys/cdefs.h>
 #include <sys/device.h>
@@ -150,4 +150,4 @@ static inline bool pci_device_match(pci_device_t *pcid, uint16_t vendor_id,
          (pcid->device_id == device_id);
 }
 
-#endif /* !_SYS_PCI_H_ */
+#endif /* !_DEV_PCI_H_ */

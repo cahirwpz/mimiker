@@ -1,6 +1,6 @@
 #include <sys/spinlock.h>
 #include <sys/ringbuf.h>
-#include <sys/uart.h>
+#include <dev/uart.h>
 #include <sys/uart_tty.h>
 
 void uart_init(device_t *dev, const char *name, size_t buf_size, void *state,

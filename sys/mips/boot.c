@@ -1,5 +1,4 @@
 #include <mips/m32c0.h>
-#include <mips/malta.h>
 #include <mips/mips.h>
 #include <mips/pmap.h>
 #include <mips/tlb.h>
