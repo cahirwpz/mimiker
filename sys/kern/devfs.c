@@ -418,18 +418,29 @@ int dev_noioctl(devfs_node_t *dn, u_long cmd, void *data, int flags) {
 #define MODE_FILE                                                              \
   (S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
-int devfs_makedev_new(devfs_node_t *parent, const char *name, devsw_t *devsw,
-                      void *data, devfs_node_t **dn_p) {
-  SCOPED_MTX_LOCK(&devfs.lock);
-
+static int _devfs_makedev(devfs_node_t *parent, const char *name, void *data,
+                          devfs_node_t **dn_p) {
+  int error;
   devfs_node_t *dn;
-  int error = devfs_add_entry(parent, name, MODE_FILE, &dn);
-  if (error)
+  if ((error = devfs_add_entry(parent, name, MODE_FILE, &dn)))
     return error;
 
-  dn->dn_devsw = devsw;
-  dn->dn_vnode = vnode_new(V_DEV, &devfs_dev_vnodeops, dn);
   dn->dn_data = data;
+  dn->dn_vnode = vnode_new(V_DEV, &devfs_dev_vnodeops, dn);
+  return 0;
+}
+
+int devfs_makedev_new(devfs_node_t *parent, const char *name, devsw_t *devsw,
+                      void *data, devfs_node_t **dn_p) {
+  devfs_node_t *dn;
+  int error;
+
+  WITH_MTX_LOCK (&devfs.lock) {
+    if ((error = _devfs_makedev(parent, name, data, &dn)))
+      return error;
+
+    dn->dn_devsw = devsw;
+  }
 
   if (dn_p)
     *dn_p = dn;
@@ -452,21 +463,24 @@ static void devfs_add_default_vops(vnodeops_t *vops) {
 
 /* TODO: remove the following function after rewriting all drivers. */
 int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
-                  void *data, vnode_t **vnode_p) {
-  devfs_node_t *dn = NULL;
-  int error = devfs_makedev_new(parent, name, NULL, data, &dn);
-  if (error)
-    return error;
+                  void *data, vnode_t **vn_p) {
+  devfs_node_t *dn;
+  int error;
 
-  devfs_add_default_vops(vops);
-  vnodeops_init(vops);
+  WITH_MTX_LOCK (&devfs.lock) {
+    if ((error = _devfs_makedev(parent, name, data, &dn)))
+      return error;
 
-  vnode_t *v = dn->dn_vnode;
-  v->v_ops = vops;
+    devfs_add_default_vops(vops);
+    vnodeops_init(vops);
 
-  if (vnode_p) {
-    vnode_hold(v);
-    *vnode_p = v;
+    vnode_t *vn = dn->dn_vnode;
+    vn->v_ops = vops;
+
+    if (vn_p) {
+      vnode_hold(vn);
+      *vn_p = vn;
+    }
   }
 
   return 0;
