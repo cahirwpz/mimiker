@@ -12,11 +12,6 @@ static paddr_t _dtb_root_pa = 0;
 /* size of dtb */
 static size_t _dtb_size = 0;
 
-void *dtb_root(void) {
-  assert(_dtb_root != NULL);
-  return _dtb_root;
-}
-
 paddr_t dtb_early_root(void) {
   assert(_dtb_root_pa != 0);
   return _dtb_root_pa;
@@ -25,6 +20,11 @@ paddr_t dtb_early_root(void) {
 void dtb_early_init(paddr_t dtb, size_t size) {
   _dtb_root_pa = dtb;
   _dtb_size = size;
+}
+
+void *dtb_root(void) {
+  assert(_dtb_root != NULL);
+  return _dtb_root;
 }
 
 void dtb_init(void) {
