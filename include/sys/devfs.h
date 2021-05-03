@@ -6,43 +6,25 @@
 typedef struct vnode vnode_t;
 typedef struct devfs_node devfs_node_t;
 typedef struct vnodeops vnodeops_t;
-typedef struct devsw devsw_t;
+typedef struct devfile devfile_t;
 typedef struct uio uio_t;
 
 /*
- * Device node.
- *
- * XXX: should it be read-only for device drivers code ?
+ * Device file node.
  */
 
-#define DEVFS_NAME_MAX 64
+typedef int (*dev_open_t)(devfile_t *dev, int flags);
+typedef int (*dev_close_t)(devfile_t *dev, int flags);
+typedef int (*dev_read_t)(devfile_t *dev, uio_t *uio);
+typedef int (*dev_write_t)(devfile_t *dev, uio_t *uio);
+typedef int (*dev_ioctl_t)(devfile_t *dev, u_long cmd, void *data, int flags);
 
-typedef struct dev_file {
-  char name[DEVFS_NAME_MAX]; /* device file name */
-  devsw_t *devsw;            /* device switch table */
-  void *data;                /* device specific data */
-  mode_t mode;               /* node protection mode */
-  size_t size;               /* device file size (for seekable devices) */
-  uid_t uid;                 /* file owner */
-  gid_t gid;                 /* file group */
-} dev_file_t;
-
-/*
- * Device switch table and its functions.
- */
-
-typedef int (*dev_open_t)(dev_file_t *dev, int flags);
-typedef int (*dev_close_t)(dev_file_t *dev, int flags);
-typedef int (*dev_read_t)(dev_file_t *dev, uio_t *uio);
-typedef int (*dev_write_t)(dev_file_t *dev, uio_t *uio);
-typedef int (*dev_ioctl_t)(dev_file_t *dev, u_long cmd, void *data, int flags);
-
-/* Put these into `devsw` to provide default implementation for an operation. */
-int dev_noopen(dev_file_t *, int);
-int dev_noclose(dev_file_t *, int);
-int dev_noread(dev_file_t *, uio_t *);
-int dev_nowrite(dev_file_t *, uio_t *);
-int dev_noioctl(dev_file_t *, u_long, void *, int);
+/* Put these into `devops` to provide default impl. for an operation. */
+int dev_noopen(devfile_t *, int);
+int dev_noclose(devfile_t *, int);
+int dev_noread(devfile_t *, uio_t *);
+int dev_nowrite(devfile_t *, uio_t *);
+int dev_noioctl(devfile_t *, u_long, void *, int);
 
 typedef enum {
   DT_OTHER = 0,    /* other non-seekable device file */
@@ -50,18 +32,23 @@ typedef enum {
   /* TODO: add DT_CONS (!) and DT_DISK. */
 } dev_type_t;
 
-struct devsw {
+typedef struct devops {
   dev_type_t d_type;   /* device type */
   dev_open_t d_open;   /* prepare device for devfs operations */
   dev_close_t d_close; /* called when file referring to the device is closed */
   dev_read_t d_read;   /* read bytes form a device file */
   dev_write_t d_write; /* write bytes to a device file */
   dev_ioctl_t d_ioctl; /* read or modify device properties */
-};
+} devops_t;
+
+typedef struct devfile {
+  devops_t *ops; /* device operation table */
+  void *data;    /* device specific data */
+} devfile_t;
 
 /* If parent is NULL new device will be attached to root devfs directory. */
-int devfs_makedev_new(devfs_node_t *parent, const char *name, devsw_t *devsw,
-                      void *data, dev_file_t **dev_p);
+int devfs_makedev_new(devfs_node_t *parent, const char *name, devops_t *devops,
+                      void *data, devfile_t **dev_p);
 int devfs_makedir(devfs_node_t *parent, const char *name, devfs_node_t **dir_p);
 
 /* TODO: rewrite all device drivers which use devfs to rely on devsw
