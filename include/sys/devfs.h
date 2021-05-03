@@ -74,27 +74,6 @@ struct devsw {
   dev_ioctl_t d_ioctl; /* read or modify device properties */
 };
 
-static inline int DOP_OPEN(devfs_node_t *dn, int flags) {
-  return dn->dn_devsw->d_open(dn, flags);
-}
-
-static inline int DOP_CLOSE(devfs_node_t *dn, int flags) {
-  return dn->dn_devsw->d_close(dn, flags);
-}
-
-static inline int DOP_READ(devfs_node_t *dn, uio_t *uio) {
-  return dn->dn_devsw->d_read(dn, uio);
-}
-
-static inline int DOP_WRITE(devfs_node_t *dn, uio_t *uio) {
-  return dn->dn_devsw->d_write(dn, uio);
-}
-
-static inline int DOP_IOCTL(devfs_node_t *dn, u_long cmd, void *data,
-                            int flags) {
-  return dn->dn_devsw->d_ioctl(dn, cmd, data, flags);
-}
-
 /* If parent is NULL new device will be attached to root devfs directory. */
 int devfs_makedev(devfs_node_t *parent, const char *name, devsw_t *devsw,
                   void *data, devfs_node_t **dn_p);
@@ -109,22 +88,17 @@ int devfs_makedev_old(devfs_node_t *parent, const char *name, vnodeops_t *vops,
 /* TODO: remove it after rewriting drivers. */
 void *devfs_node_data_old(vnode_t *vnode);
 
-static inline void *devfs_node_data(devfs_node_t *dn) {
-  return dn->dn_data;
-}
-
 /*
  * Remove a node from the devfs tree.
- * The devfs node and the corresponding vnode will no longer be accessible, but
- * there may still be existing references to them. The device driver should
- * provide a `d_reclaim()` function so that it is notified when it is safe to
- * free any driver-private data (the corresponding devfs node is released
- * automatically).
+ *
+ * The devfs node and the corresponding vnode will no longer be accessible,
+ * but there may still be existing references to them. 
+ *
  * This function should be called form the driver's detach function.
  */
 int devfs_unlink(devfs_node_t *dn);
 
-/* TODO: rmove it after rewriting drivers. */
+/* TODO: remove it after rewriting drivers. */
 void devfs_free(devfs_node_t *dn);
 
 #endif /* !_SYS_DEVFS_H_ */

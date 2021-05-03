@@ -214,7 +214,7 @@ static int devfs_dev_vop_open(vnode_t *v, int mode, file_t *fp) {
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
 
-  int error = DOP_OPEN(dn, mode);
+  int error = dn->dn_devsw->d_open(dn, mode);
   if (error)
     return error;
 
@@ -237,7 +237,7 @@ static int devfs_fop_read(file_t *fp, uio_t *uio) {
 
   if (!seekable)
     uio->uio_offset = fp->f_offset;
-  int error = DOP_READ(dn, uio);
+  int error = dn->dn_devsw->d_read(dn, uio);
   if (seekable && !error)
     fp->f_offset = uio->uio_offset;
 
@@ -252,7 +252,7 @@ static int devfs_fop_write(file_t *fp, uio_t *uio) {
 
   if (!seekable)
     uio->uio_offset = fp->f_offset;
-  int error = DOP_WRITE(dn, uio);
+  int error = dn->dn_devsw->d_write(dn, uio);
   if (seekable && !error)
     fp->f_offset = uio->uio_offset;
 
@@ -264,7 +264,7 @@ static int devfs_fop_write(file_t *fp, uio_t *uio) {
 static int devfs_fop_close(file_t *fp) {
   devfs_node_t *dn = fp->f_data;
   refcnt_release(&dn->dn_refcnt);
-  return DOP_CLOSE(dn, fp->f_flags);
+  return dn->dn_devsw->d_close(dn, fp->f_flags);
 }
 
 static int devfs_fop_stat(file_t *fp, stat_t *sb) {
@@ -299,7 +299,8 @@ static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
 }
 
 static int devfs_fop_ioctl(file_t *fp, u_long cmd, void *data) {
-  return DOP_IOCTL(fp->f_data, cmd, data, fp->f_flags);
+  devfs_node_t *dn = fp->f_data;
+  return dn->dn_devsw->d_ioctl(dn, cmd, data, fp->f_flags);
 }
 
 static int devfs_dop_stub(devfs_node_t *dn, ...) {
