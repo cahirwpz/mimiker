@@ -121,12 +121,6 @@ static int rtc_attach(device_t *dev) {
   return 0;
 }
 
-static int rtc_detach(device_t *dev) {
-  rtc_state_t *rtc = dev->state;
-  /* TODO: implement resource list deallocation. */
-  return devfs_unlink(rtc->dn);
-}
-
 static int rtc_probe(device_t *dev) {
   return dev->unit == 2; /* XXX: unit 2 assigned by gt_pci */
 }
@@ -135,9 +129,8 @@ static driver_t rtc_driver = {
   .desc = "MC146818 RTC driver",
   .size = sizeof(rtc_state_t),
   .pass = SECOND_PASS,
-  .attach = rtc_attach,
   .probe = rtc_probe,
-  .detach = rtc_detach,
+  .attach = rtc_attach,
 };
 
 DEVCLASS_ENTRY(isa, rtc_driver);
