@@ -123,7 +123,8 @@ check:
   return (mode & granted) == mode ? 0 : EACCES;
 }
 
-bool cred_can_utime(vnode_t *vn, uid_t f_owner, cred_t *cred, int vaflags) {
+bool cred_can_utime(vnode_t *vn, uid_t f_owner, cred_t *cred,
+                    va_flags_t vaflags) {
   /* owner and root can change times */
   if (f_owner == cred->cr_euid || cred->cr_euid == 0)
     return true;

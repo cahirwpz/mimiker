@@ -24,9 +24,10 @@ typedef struct cred cred_t;
  * vnodeops should not modify attributes set to VNOVAL. */
 #define VNOVAL (-1)
 
-/* Flag for vattr:va_flags.
- * Utimes argument was null. */
-#define VA_UTIMES_NULL 1
+/* Flags for vattr:va_flags. */
+typedef enum {
+  VA_UTIMES_NULL = 1, /* Utimes argument was null. */
+} va_flags_t;
 
 /* vnode access modes
  * VADMIN - owner of file (root has VADMIN to all files) */
@@ -117,7 +118,7 @@ typedef struct vattr {
   uid_t va_uid;        /* owner user id */
   gid_t va_gid;        /* owner group id */
   size_t va_size;      /* file size in bytes */
-  int va_flags;        /* additional flags */
+  va_flags_t va_flags; /* additional flags */
   timespec_t va_atime; /* time of last access */
   timespec_t va_mtime; /* time of last data modification */
   timespec_t va_ctime; /* time of last file status change */

@@ -66,7 +66,8 @@ bool cred_groupmember(gid_t gid, cred_t *cred);
 /* VFS checks */
 bool cred_can_chmod(uid_t f_owner, gid_t f_group, cred_t *cred, mode_t mode);
 bool cred_can_chown(uid_t f_owner, cred_t *cred, uid_t new_uid, gid_t new_gid);
-bool cred_can_utime(vnode_t *vn, uid_t f_owner, cred_t *cred, int vaflags);
+bool cred_can_utime(vnode_t *vn, uid_t f_owner, cred_t *cred,
+                    va_flags_t vaflags);
 int cred_can_access(vattr_t *va, cred_t *cred, accmode_t mode);
 
 /* setlogin() check  */

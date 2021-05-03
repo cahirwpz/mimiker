@@ -310,7 +310,7 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de);
 static blkptr_t *tmpfs_get_blk(tmpfs_node_t *v, size_t blkno);
 static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize);
 static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
-                         cred_t *cred, int vaflags);
+                         cred_t *cred, va_flags_t vaflags);
 static void tmpfs_update_time(tmpfs_node_t *v, tmpfs_time_type_t type);
 
 /* tmpfs readdir operations */
@@ -998,7 +998,7 @@ static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize) {
 }
 
 static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
-                         cred_t *cred, int vaflags) {
+                         cred_t *cred, va_flags_t vaflags) {
   if (!cred_can_utime(v->tfn_vnode, v->tfn_uid, cred, vaflags))
     return EPERM;
 
