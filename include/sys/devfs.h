@@ -56,6 +56,13 @@ typedef int (*dev_write_t)(devfs_node_t *dev, uio_t *uio);
 typedef int (*dev_ioctl_t)(devfs_node_t *dev, u_long cmd, void *data,
                            int flags);
 
+/* Put these into `devsw` to provide default implementation for an operation. */
+int dev_noopen(devfs_node_t *, int);
+int dev_noclose(devfs_node_t *, int);
+int dev_noread(devfs_node_t *, uio_t *);
+int dev_nowrite(devfs_node_t *, uio_t *);
+int dev_noioctl(devfs_node_t *, u_long, void *, int);
+
 typedef enum {
   DT_OTHER = 0,    /* other non-seekable device file */
   DT_SEEKABLE = 1, /* other seekable device file (also a flag) */

@@ -395,35 +395,24 @@ SET_ENTRY(vfsconf, devfs_conf);
  * Devfs kernel interface for device drivers.
  */
 
-static int devfs_dop_stub(devfs_node_t *dn, ...) {
+int dev_noopen(devfs_node_t *, int) {
   return 0;
 }
 
-static int devfs_dop_nop(devfs_node_t *dn, ...) {
+int dev_noclose(devfs_node_t *, int) {
+  return 0;
+}
+
+int dev_noread(devfs_node_t *, uio_t *) {
   return EOPNOTSUPP;
 }
 
-#define devfs_dop_open_default devfs_dop_stub
-#define devfs_dop_close_default devfs_dop_stub
-#define devfs_dop_read_default devfs_dop_nop
-#define devfs_dop_write_default devfs_dop_nop
-#define devfs_dop_ioctl_default devfs_dop_nop
+int dev_nowrite(devfs_node_t *, uio_t *) {
+  return EOPNOTSUPP;
+}
 
-#define DEFAULT_IF_NULL(devsw, name)                                           \
-  do {                                                                         \
-    if (devsw->d_##name == NULL)                                               \
-      devsw->d_##name = (dev_##name##_t)devfs_dop_##name##_default;            \
-  } while (0)
-
-static void devfs_add_default_dops(devsw_t *devsw) {
-  /* TODO: remove this `if` after rewriting drivers. */
-  if (devsw != NULL) {
-    DEFAULT_IF_NULL(devsw, open);
-    DEFAULT_IF_NULL(devsw, close);
-    DEFAULT_IF_NULL(devsw, read);
-    DEFAULT_IF_NULL(devsw, write);
-    DEFAULT_IF_NULL(devsw, ioctl);
-  }
+int dev_noioctl(devfs_node_t *, u_long, void *, int) {
+  return EOPNOTSUPP;
 }
 
 int devfs_makedev_new(devfs_node_t *parent, const char *name, devsw_t *devsw,
@@ -436,8 +425,6 @@ int devfs_makedev_new(devfs_node_t *parent, const char *name, devsw_t *devsw,
   int error = devfs_add_entry(parent, name, mode, &dn);
   if (error)
     return error;
-
-  devfs_add_default_dops(devsw);
 
   dn->dn_devsw = devsw;
   dn->dn_vnode = vnode_new(V_DEV, &devfs_dev_vnodeops, dn);

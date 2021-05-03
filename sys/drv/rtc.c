@@ -91,7 +91,11 @@ static int rtc_time_read(devfs_node_t *dn, uio_t *uio) {
 
 static devsw_t rtc_devsw = {
   .d_type = DT_OTHER,
+  .d_open = dev_noopen,
+  .d_close = dev_noclose,
   .d_read = rtc_time_read,
+  .d_write = dev_nowrite,
+  .d_ioctl = dev_noioctl,
 };
 
 static int rtc_attach(device_t *dev) {
