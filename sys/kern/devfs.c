@@ -395,34 +395,35 @@ SET_ENTRY(vfsconf, devfs_conf);
  * Devfs kernel interface for device drivers.
  */
 
-int dev_noopen(devfs_node_t *, int) {
+int dev_noopen(devfs_node_t *dn, int flags) {
   return 0;
 }
 
-int dev_noclose(devfs_node_t *, int) {
+int dev_noclose(devfs_node_t *dn, int flags) {
   return 0;
 }
 
-int dev_noread(devfs_node_t *, uio_t *) {
+int dev_noread(devfs_node_t *dn, uio_t *uio) {
   return EOPNOTSUPP;
 }
 
-int dev_nowrite(devfs_node_t *, uio_t *) {
+int dev_nowrite(devfs_node_t *dn, uio_t *uio) {
   return EOPNOTSUPP;
 }
 
-int dev_noioctl(devfs_node_t *, u_long, void *, int) {
+int dev_noioctl(devfs_node_t *dn, u_long cmd, void *data, int flags) {
   return EOPNOTSUPP;
 }
+
+#define MODE_FILE                                                              \
+  (S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
 int devfs_makedev_new(devfs_node_t *parent, const char *name, devsw_t *devsw,
                       void *data, devfs_node_t **dn_p) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
-  int mode =
-    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
   devfs_node_t *dn;
-  int error = devfs_add_entry(parent, name, mode, &dn);
+  int error = devfs_add_entry(parent, name, MODE_FILE, &dn);
   if (error)
     return error;
 
@@ -476,13 +477,14 @@ void *devfs_node_data(vnode_t *v) {
   return dn->dn_data;
 }
 
+#define MODE_DIR (S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)
+
 int devfs_makedir(devfs_node_t *parent, const char *name,
                   devfs_node_t **dir_p) {
   SCOPED_MTX_LOCK(&devfs.lock);
 
-  int mode = S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
   devfs_node_t *dn;
-  int error = devfs_add_entry(parent, name, mode, &dn);
+  int error = devfs_add_entry(parent, name, MODE_DIR, &dn);
   if (error)
     return error;
 
