@@ -151,7 +151,7 @@ static int stdvga_close(vnode_t *v, file_t *fp) {
   return 0;
 }
 
-static int stdvga_write(vnode_t *v, uio_t *uio, int ioflag) {
+static int stdvga_write(vnode_t *v, uio_t *uio) {
   stdvga_state_t *vga = devfs_node_data(v);
   size_t size = FB_SIZE(&vga->fb_info);
 
