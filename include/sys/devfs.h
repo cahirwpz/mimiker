@@ -51,9 +51,9 @@ int devfs_makedev_new(devfs_node_t *parent, const char *name, devops_t *devops,
                       void *data, devfile_t **dev_p);
 int devfs_makedir(devfs_node_t *parent, const char *name, devfs_node_t **dir_p);
 
-/* TODO: rewrite all device drivers which use devfs to rely on devsw
- * instead vnodeops. FTTB, obsolete device drivers use the following
- * function instead `devfs_makedev`. */
+/* TODO: rewrite all device drivers which use devfs to rely on `devops`
+ * instead `vnodeops`. FTTB obsolete device drivers use the following
+ * function instead `devfs_makedev_new`. */
 int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
                   void *data, vnode_t **vnode_p);
 
