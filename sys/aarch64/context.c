@@ -50,7 +50,7 @@ void mcontext_restart_syscall(mcontext_t *ctx) {
   _REG(ctx, PC) -= 4; /* TODO subtract 2 if in thumb mode */
 }
 
-bool user_mode_p(ctx_t *ctx) {
+__no_instrument_kgprof bool user_mode_p(ctx_t *ctx) {
   return (_REG(ctx, SPSR) & PSR_M_MASK) == PSR_M_EL0t;
 }
 
