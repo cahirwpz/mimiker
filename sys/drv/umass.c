@@ -39,7 +39,7 @@ static int umass_probe(device_t *dev) {
 }
 
 static inline uint8_t cbw_flags(int direction) {
-  return (direction == USB_INPUT ? CBWFLAGS_IN : CBWFLAGS_OUT);
+  return (direction == USB_DIR_INPUT ? CBWFLAGS_IN : CBWFLAGS_OUT);
 }
 
 static int umass_reset(device_t *dev) {
@@ -64,7 +64,7 @@ static int umass_send(device_t *dev, usb_buf_t *usbb) {
 static int umass_send_cbw(device_t *dev, usb_buf_t *usbb) {
   int error = 0;
 
-  if (umass_send(dev, usbb) && usbb->eflags & USB_ERR_STALLED) {
+  if (umass_send(dev, usbb) && usbb->error & USB_ERR_STALLED) {
     if (umass_reset(dev))
       return 1;
     usb_reset_buf(usbb, usbb->transfer_size);
@@ -96,8 +96,8 @@ static int umass_transfer(device_t *dev, void *data, size_t size, int direction,
   };
   memcpy(cbw.CBWCDB, cmd, cmd_len);
 
-  usb_buf_t *usbb = usb_alloc_buf_from_struct(&cbw, USB_TT_BULK, USB_OUTPUT,
-                                              sizeof(umass_bbb_cbw_t));
+  usb_buf_t *usbb = usb_alloc_buf_from_struct(
+    &cbw, USB_TFR_BULK, USB_DIR_OUTPUT, sizeof(umass_bbb_cbw_t));
   int error = 0;
 
   /* Send Command Block Wrapper. */
@@ -110,7 +110,7 @@ static int umass_transfer(device_t *dev, void *data, size_t size, int direction,
 
   /* Receive a Command Status Block. */
   umass_bbb_csw_t csb;
-  usb_reuse_buf(usbb, &csb, sizeof(umass_bbb_csw_t), USB_INPUT,
+  usb_reuse_buf(usbb, &csb, sizeof(umass_bbb_csw_t), USB_DIR_INPUT,
                 sizeof(umass_bbb_csw_t));
   if ((error |= umass_send(dev, usbb)))
     goto bad;
@@ -159,8 +159,8 @@ static int umass_inquiry(device_t *dev, uint8_t lun) {
     .opcode = INQUIRY,
     .length = le2be(SHORT_INQUIRY_LENGTH, 2),
   };
-  int error = umass_transfer(dev, &sid, SHORT_INQUIRY_LENGTH, USB_INPUT, &siq,
-                             sizeof(scsi_inquiry_t), lun);
+  int error = umass_transfer(dev, &sid, SHORT_INQUIRY_LENGTH, USB_DIR_INPUT,
+                             &siq, sizeof(scsi_inquiry_t), lun);
 
   if (error)
     return 1;
@@ -200,8 +200,9 @@ static int umass_request_sense(device_t *dev, uint8_t lun) {
     .opcode = REQUEST_SENSE,
     .length = sizeof(scsi_sense_data_t),
   };
-  int error = umass_transfer(dev, &ssd, sizeof(scsi_sense_data_t), USB_INPUT,
-                             &srs, sizeof(scsi_request_sense_t), lun);
+  int error =
+    umass_transfer(dev, &ssd, sizeof(scsi_sense_data_t), USB_DIR_INPUT, &srs,
+                   sizeof(scsi_request_sense_t), lun);
 
   /* (MichalBlk) in the future, some recovery logic may be needed. */
   return error;
@@ -216,13 +217,13 @@ static int umass_read_capacity(device_t *dev, uint8_t lun) {
   /* A device may require a sequence of request pairs of the form
    * read capacity + request sense. */
   for (int i = 0; i < 4; i++) {
-    umass_transfer(dev, &srcd, sizeof(scsi_read_capacity_data_t), USB_INPUT,
+    umass_transfer(dev, &srcd, sizeof(scsi_read_capacity_data_t), USB_DIR_INPUT,
                    &src, sizeof(scsi_read_capacity_t), lun);
     umass_request_sense(dev, 0);
   }
 
-  if (umass_transfer(dev, &srcd, sizeof(scsi_read_capacity_data_t), USB_INPUT,
-                     &src, sizeof(scsi_read_capacity_t), lun))
+  if (umass_transfer(dev, &srcd, sizeof(scsi_read_capacity_data_t),
+                     USB_DIR_INPUT, &src, sizeof(scsi_read_capacity_t), lun))
     return 1;
 
   /* (MichalBlk) FTTB, we assume number of logical block <= UINT32_MAX. */
@@ -241,7 +242,7 @@ static int umass_read_capacity(device_t *dev, uint8_t lun) {
 
 /* (MichalBlk) this is a very simple read function that is provided
  * for testing purposes only. */
-static int umass_read(vnode_t *v, uio_t *uio, __unused int ioflags) {
+static int umass_read(vnode_t *v, uio_t *uio) {
   device_t *dev = devfs_node_data(v);
   umass_state_t *umass = dev->state;
 
@@ -255,7 +256,7 @@ static int umass_read(vnode_t *v, uio_t *uio, __unused int ioflags) {
     .addr = le2be(42, 4),
     .length = le2be(1, 2),
   };
-  int error = umass_transfer(dev, buf, umass->block_length, USB_INPUT, &srw,
+  int error = umass_transfer(dev, buf, umass->block_length, USB_DIR_INPUT, &srw,
                              sizeof(scsi_rw_10_t), 0);
 
   if (error)
@@ -270,7 +271,7 @@ bad:
 
 /* (MichalBlk) this is a very simple write function that is provided
  * for testing purposes only. */
-static int umass_write(vnode_t *v, uio_t *uio, __unused int ioflags) {
+static int umass_write(vnode_t *v, uio_t *uio) {
   device_t *dev = devfs_node_data(v);
   umass_state_t *umass = dev->state;
 
@@ -288,7 +289,7 @@ static int umass_write(vnode_t *v, uio_t *uio, __unused int ioflags) {
     .addr = le2be(42, 4),
     .length = le2be(1, 2),
   };
-  error = umass_transfer(dev, buf, umass->block_length, USB_OUTPUT, &srw,
+  error = umass_transfer(dev, buf, umass->block_length, USB_DIR_OUTPUT, &srw,
                          sizeof(scsi_rw_10_t), 0);
 
 bad:

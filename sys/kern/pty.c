@@ -134,10 +134,6 @@ static int pty_close(file_t *f) {
   return 0;
 }
 
-static int pty_seek(file_t *f, off_t offset, int whence, off_t *newoffp) {
-  return ESPIPE;
-}
-
 static int pty_stat(file_t *f, stat_t *sb) {
   /* Delegate to the slave tty.
    * We can't call default_vnstat() because we don't have a file_t pointing to
@@ -192,12 +188,14 @@ static int pty_ioctl(file_t *f, u_long cmd, void *data) {
   return tty_ioctl(f, cmd, data);
 }
 
-static fileops_t pty_fileops = {.fo_read = pty_read,
-                                .fo_write = pty_write,
-                                .fo_close = pty_close,
-                                .fo_seek = pty_seek,
-                                .fo_stat = pty_stat,
-                                .fo_ioctl = pty_ioctl};
+static fileops_t pty_fileops = {
+  .fo_read = pty_read,
+  .fo_write = pty_write,
+  .fo_close = pty_close,
+  .fo_seek = noseek,
+  .fo_stat = pty_stat,
+  .fo_ioctl = pty_ioctl,
+};
 
 static void pty_notify_out(tty_t *tty) {
   pty_t *pty = tty->t_data;

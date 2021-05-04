@@ -24,6 +24,7 @@ typedef enum {
   DIF_BUS,
   DIF_PCI_BUS,
   DIF_UART,
+  DIF_EMMC,
   DIF_USBHC,
   DIF_COUNT /* this must be the last item */
 } drv_if_t;
@@ -62,6 +63,7 @@ typedef enum {
   DEV_BUS_NONE,
   DEV_BUS_PCI,
   DEV_BUS_ISA,
+  DEV_BUS_EMMC,
   DEV_BUS_USB,
 } device_bus_t;
 

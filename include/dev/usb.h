@@ -169,32 +169,32 @@ typedef struct usb_device {
   uint8_t port;                     /* roothub port number */
 } usb_device_t;
 
-typedef enum {
+typedef enum usb_error {
   USB_ERR_STALLED = 1, /* STALL condition encountered */
   USB_ERR_OTHER = 2,   /* errors other than STALL */
-} usb_error_flags_t;
+} usb_error_t;
 
-typedef enum {
-  USB_TT_NONE,
-  USB_TT_CONTROL,
-  USB_TT_INTERRUPT,
-  USB_TT_BULK,
-} usb_transfer_type_t;
+typedef enum usb_transfer {
+  USB_TFR_NONE,
+  USB_TFR_CONTROL,
+  USB_TFR_INTERRUPT,
+  USB_TFR_BULK,
+} usb_transfer_t;
 
-typedef enum {
-  USB_INPUT,
-  USB_OUTPUT,
+typedef enum usb_direction {
+  USB_DIR_INPUT,
+  USB_DIR_OUTPUT,
 } usb_direction_t;
 
 /* USB buffer used for USB transfers. */
 typedef struct usb_buf {
-  ringbuf_t buf;            /* write source or read destination */
-  condvar_t cv;             /* wait for the transfer to complete */
-  spin_t lock;              /* buffer guard */
-  usb_error_flags_t eflags; /* errors encountered during transfer */
-  usb_transfer_type_t type; /* what kind of transfer is this ? */
-  usb_direction_t dir;      /* transfer direction */
-  uint16_t transfer_size;   /* size of the transfer */
+  ringbuf_t buf;           /* write source or read destination */
+  condvar_t cv;            /* wait for the transfer to complete */
+  spin_t lock;             /* buffer guard */
+  usb_error_t error;       /* errors encountered during transfer */
+  usb_transfer_t transfer; /* what kind of transfer is this ? */
+  usb_direction_t dir;     /* transfer direction */
+  uint16_t transfer_size;  /* size of the transfer */
 } usb_buf_t;
 
 static inline usb_device_t *usb_device_of(device_t *dev) {
@@ -222,8 +222,8 @@ uint16_t usb_max_pkt_size(usb_device_t *usbd, usb_buf_t *usbb);
 uint8_t usb_endp_addr(usb_device_t *usbd, usb_buf_t *usbb);
 uint8_t usb_status_type(usb_buf_t *usbb);
 uint8_t usb_interval(usb_device_t *usbd, usb_buf_t *usbb);
-void usb_process(usb_buf_t *usbb, void *data, usb_error_flags_t flags);
-usb_buf_t *usb_alloc_buf(void *data, size_t size, usb_transfer_type_t type,
+void usb_process(usb_buf_t *usbb, void *data, usb_error_t flags);
+usb_buf_t *usb_alloc_buf(void *data, size_t size, usb_transfer_t type,
                          usb_direction_t dir, uint16_t transfer_size);
 
 #define usb_alloc_buf_from_struct(sp, type, dir, transfer_size)                \

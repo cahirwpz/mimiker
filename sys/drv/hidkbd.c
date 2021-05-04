@@ -40,7 +40,7 @@ static int hidkbd_probe(device_t *dev) {
   return 1;
 }
 
-static int hidkbd_read(vnode_t *v, uio_t *uio, __unused int ioflags) {
+static int hidkbd_read(vnode_t *v, uio_t *uio) {
   device_t *dev = devfs_node_data(v);
   hidkbd_state_t *hidkbd = dev->state;
 
@@ -69,8 +69,8 @@ static int hidkbd_attach(device_t *dev) {
 
   /* Prepare a report buffer. */
   void *buf = kmalloc(M_DEV, HIDKBD_BUFFER_SIZE, M_WAITOK);
-  hidkbd->usbb = usb_alloc_buf(buf, HIDKBD_BUFFER_SIZE, USB_TT_INTERRUPT,
-                               USB_INPUT, sizeof(hidkbd_inr_t));
+  hidkbd->usbb = usb_alloc_buf(buf, HIDKBD_BUFFER_SIZE, USB_TFR_INTERRUPT,
+                               USB_DIR_INPUT, sizeof(hidkbd_inr_t));
 
   usb_interrupt_transfer(dev, hidkbd->usbb);
 

@@ -1,6 +1,5 @@
 #define KL_LOG KL_USB
 #include <sys/bus.h>
-#include <sys/pci.h>
 #include <sys/devclass.h>
 #include <sys/libkern.h>
 #include <sys/klog.h>
@@ -9,24 +8,28 @@
 #include <sys/vm_physmem.h>
 #include <sys/spinlock.h>
 #include <sys/time.h>
+#include <dev/pci.h>
 #include <dev/usb.h>
 #include <dev/usbhc.h>
 #include <dev/uhci.h>
 #include <dev/uhcireg.h>
 
+/* Number of main queues.
+ * Available shedule intervals are: 1, 2, ..., 2^`UHCI_NMAINQS`. */
 #define UHCI_NQUEUES 5
+
 #define UHCI_BUF_SIZE 1024
 #define UHCI_BUF_NUM (PAGESIZE / UHCI_BUF_SIZE)
 #define UHCI_BUF_FREE 1
 
 typedef struct uhci_state {
-  uhci_qh_t *queues[UHCI_NQUEUES]; /* schedule queues */
-  void *pool;                      /* one page for physical buffers */
-  spin_t lock;                     /* UHCI pool guard */
-  uint32_t *frames;                /* UHCI frame list */
-  resource_t *regs;                /* host controller registers */
-  resource_t *irq;                 /* host controller interrupt */
-  uint8_t nports;                  /* number of roothub ports */
+  uhci_qh_t *queues[UHCI_NQUEUES]; /* main queues (i.e. schedule queues) */
+  void *pool;
+  spin_t lock;      /* UHCI pool guard */
+  uint32_t *frames; /* UHCI frame list */
+  resource_t *regs; /* host controller registers */
+  resource_t *irq;  /* host controller interrupt */
+  uint8_t nports;   /* number of roothub ports */
 } uhci_state_t;
 
 /*
@@ -365,8 +368,8 @@ static void td_init(uhci_td_t *td, uint32_t ls, uint32_t ioc, uint32_t token,
           UHCI_TD_SETUP(sizeof(usb_device_request_t), (e), (d)), (dt))
 
 #define td_token(ln, e, d, tg, tp)                                             \
-  (((tp) == USB_INPUT) ? UHCI_TD_IN((ln), (e), (d), (tg))                      \
-                       : UHCI_TD_OUT((ln), (e), (d), (tg)))
+  (((tp) == USB_DIR_INPUT) ? UHCI_TD_IN((ln), (e), (d), (tg))                  \
+                           : UHCI_TD_OUT((ln), (e), (d), (tg)))
 
 #define td_data(td, ls, ln, e, d, tg, dt, tp)                                  \
   td_init((td), (ls), 0, td_token((ln), (e), (d), (tg), (tp)), (dt))
@@ -398,7 +401,7 @@ static void qh_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
   usb_buf_t *usbb = qh->qh_usbb;
   uhci_td_t *first = (uhci_td_t *)(qh + 1);
   uhci_td_t *td = first;
-  int poll = usbb->type == USB_TT_INTERRUPT;
+  int poll = usbb->transfer == USB_TFR_INTERRUPT;
   uint32_t error = 0;
 
   for (; !error && !td_active(td); td++) {
@@ -418,10 +421,10 @@ static void qh_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
   }
 
   void *data = NULL;
-  usb_error_flags_t eflags = 0;
+  usb_error_t eflags = 0;
 
   if (!error) {
-    int control = usbb->type == USB_TT_CONTROL;
+    int control = usbb->transfer == USB_TFR_CONTROL;
     data = (void *)(td + 1) + (control ? sizeof(usb_device_request_t) : 0);
   } else {
     int stalled = error & UHCI_TD_STALLED;
@@ -466,7 +469,8 @@ static intr_filter_t uhci_isr(void *data) {
 
 /* Obtain the size of structures involved to compose a request. */
 static size_t uhci_req_size(uint16_t mps, usb_buf_t *usbb) {
-  int cntr_size = (usbb->type == USB_TT_CONTROL ? 2 : 0); /* setup + status */
+  int cntr_size =
+    (usbb->transfer == USB_TFR_CONTROL ? 2 : 0); /* setup + status */
   return sizeof(uhci_qh_t) +
          ((roundup(usbb->transfer_size, mps) / mps + cntr_size) *
           sizeof(uhci_td_t));
@@ -492,7 +496,7 @@ static void uhci_transfer(device_t *dev, uint16_t mps, uint8_t port,
   void *dt = buf + offset;
   uint16_t cnt = 0;
 
-  if (usbb->type == USB_TT_CONTROL) {
+  if (usbb->transfer == USB_TFR_CONTROL) {
     /* Copyin the request. */
     usb_device_request_t *r = dt;
     memcpy(r, req, sizeof(usb_device_request_t));
@@ -506,7 +510,7 @@ static void uhci_transfer(device_t *dev, uint16_t mps, uint8_t port,
   }
 
   /* Copyin provided data. */
-  if (!(usbb->dir == USB_INPUT))
+  if (!(usbb->dir == USB_DIR_INPUT))
     memcpy(dt, usbb->buf.data, transfer_size);
 
   /* Prepare DATA packets. */
@@ -517,7 +521,7 @@ static void uhci_transfer(device_t *dev, uint16_t mps, uint8_t port,
     dt += psize;
   }
 
-  if (usbb->type == USB_TT_CONTROL) {
+  if (usbb->transfer == USB_TFR_CONTROL) {
     /* Prepare a STATUS packet. */
     uint8_t sts_type = usb_status_type(usbb);
     td_status(&td[cnt], ls, endp, addr, sts_type);

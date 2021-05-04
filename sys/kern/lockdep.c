@@ -1,5 +1,3 @@
-#if LOCKDEP
-
 #include <sys/lockdep.h>
 #include <sys/spinlock.h>
 #include <sys/thread.h>
@@ -280,5 +278,3 @@ void lockdep_release(lock_class_mapping_t *lock) {
 
   lockdep_unlock();
 }
-
-#endif

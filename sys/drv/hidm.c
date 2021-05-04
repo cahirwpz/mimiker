@@ -39,7 +39,7 @@ static int hidm_probe(device_t *dev) {
   return 1;
 }
 
-static int hidm_read(vnode_t *v, uio_t *uio, __unused int ioflags) {
+static int hidm_read(vnode_t *v, uio_t *uio) {
   device_t *dev = devfs_node_data(v);
   hidm_state_t *hidm = dev->state;
 
@@ -68,8 +68,8 @@ static int hidm_attach(device_t *dev) {
 
   /* Prepare a report buffer. */
   void *buf = kmalloc(M_DEV, HIDM_BUFFER_SIZE, M_WAITOK);
-  hidm->usbb = usb_alloc_buf(buf, HIDM_BUFFER_SIZE, USB_TT_INTERRUPT, USB_INPUT,
-                             sizeof(hidm_report_t));
+  hidm->usbb = usb_alloc_buf(buf, HIDM_BUFFER_SIZE, USB_TFR_INTERRUPT,
+                             USB_DIR_INPUT, sizeof(hidm_report_t));
 
   usb_interrupt_transfer(dev, hidm->usbb);
 
