@@ -387,23 +387,23 @@ SET_ENTRY(vfsconf, devfs_conf);
  * Devfs kernel interface for device drivers.
  */
 
-int dev_noopen(devfile_t *dev, int flags) {
+static int dev_noopen(devfile_t *dev, int flags) {
   return 0;
 }
 
-int dev_noclose(devfile_t *dev, int flags) {
+static int dev_noclose(devfile_t *dev, int flags) {
   return 0;
 }
 
-int dev_noread(devfile_t *dev, uio_t *uio) {
+static int dev_noread(devfile_t *dev, uio_t *uio) {
   return EOPNOTSUPP;
 }
 
-int dev_nowrite(devfile_t *dev, uio_t *uio) {
+static int dev_nowrite(devfile_t *dev, uio_t *uio) {
   return EOPNOTSUPP;
 }
 
-int dev_noioctl(devfile_t *dev, u_long cmd, void *data, int flags) {
+static int dev_noioctl(devfile_t *dev, u_long cmd, void *data, int flags) {
   return EOPNOTSUPP;
 }
 
@@ -428,6 +428,17 @@ int devfs_makedev_new(devfs_node_t *parent, const char *name, devops_t *devops,
   WITH_MTX_LOCK (&devfs.lock) {
     if ((error = _devfs_makedev(parent, name, data, &dn)))
       return error;
+
+    if (devops->d_open == NULL)
+      devops->d_open = dev_noopen;
+    if (devops->d_close == NULL)
+      devops->d_close = dev_noclose;
+    if (devops->d_read == NULL)
+      devops->d_read = dev_noread;
+    if (devops->d_write == NULL)
+      devops->d_write = dev_nowrite;
+    if (devops->d_ioctl == NULL)
+      devops->d_ioctl = dev_noioctl;
 
     dn->dn_device.ops = devops;
   }
