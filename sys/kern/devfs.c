@@ -73,8 +73,12 @@ static devfs_mount_t devfs = {
  * Devfs internal functions.
  */
 
-static inline devfs_node_t *vn2dn(vnode_t *v) {
+static inline devfs_node_t *devfs_node_of(vnode_t *v) {
   return (devfs_node_t *)v->v_data;
+}
+
+static inline devfile_t *device_of(vnode_t *v) {
+  return &devfs_node_of(v)->dn_device;
 }
 
 typedef enum devfs_time_update {
@@ -161,102 +165,11 @@ void devfs_free(devfs_node_t *dn) {
 }
 
 /*
- * Fileops interface for device nodes.
- */
-
-static int devfs_fop_read(file_t *fp, uio_t *uio) {
-  devfs_node_t *dn = fp->f_data;
-  devfile_t *dev = &dn->dn_device;
-  bool seekable = dev->ops->d_type & DT_SEEKABLE;
-
-  if (!seekable)
-    uio->uio_offset = fp->f_offset;
-  int error = dev->ops->d_read(dev, uio);
-  if (seekable && !error)
-    fp->f_offset = uio->uio_offset;
-
-  devfs_update_time(dn, DEVFS_UPDATE_ATIME);
-
-  return error;
-}
-
-static int devfs_fop_write(file_t *fp, uio_t *uio) {
-  devfs_node_t *dn = fp->f_data;
-  devfile_t *dev = &dn->dn_device;
-  bool seekable = dev->ops->d_type & DT_SEEKABLE;
-
-  if (!seekable)
-    uio->uio_offset = fp->f_offset;
-  int error = dev->ops->d_write(dev, uio);
-  if (seekable && !error)
-    fp->f_offset = uio->uio_offset;
-
-  devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
-
-  return error;
-}
-
-static int devfs_fop_close(file_t *fp) {
-  devfs_node_t *dn = fp->f_data;
-  devfile_t *dev = &dn->dn_device;
-  refcnt_release(&dn->dn_refcnt);
-  return dev->ops->d_close(dev, fp->f_flags);
-}
-
-static int devfs_fop_stat(file_t *fp, stat_t *sb) {
-  return default_vnstat(fp, sb);
-}
-
-static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
-                          off_t *newoffp) {
-  devfs_node_t *dn = fp->f_data;
-  devfile_t *dev = &dn->dn_device;
-  bool seekable = dev->ops->d_type & DT_SEEKABLE;
-
-  if (!seekable)
-    return ESPIPE;
-
-  if (whence == SEEK_CUR) {
-    offset += fp->f_offset;
-  } else if (whence == SEEK_END) {
-    offset += dn->dn_size;
-  } else if (whence != SEEK_SET) {
-    return EINVAL;
-  }
-
-  if (offset < 0) {
-    offset = 0;
-  } else if ((size_t)offset > dn->dn_size) {
-    offset = dn->dn_size;
-  }
-
-  *newoffp = fp->f_offset = offset;
-  devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
-
-  return 0;
-}
-
-static int devfs_fop_ioctl(file_t *fp, u_long cmd, void *data) {
-  devfs_node_t *dn = fp->f_data;
-  devfile_t *dev = &dn->dn_device;
-  return dev->ops->d_ioctl(dev, cmd, data, fp->f_flags);
-}
-
-static fileops_t devfs_fileops = {
-  .fo_read = devfs_fop_read,
-  .fo_write = devfs_fop_write,
-  .fo_close = devfs_fop_close,
-  .fo_seek = devfs_fop_seek,
-  .fo_stat = devfs_fop_stat,
-  .fo_ioctl = devfs_fop_ioctl,
-};
-
-/*
  * Devfs device v-node operations.
  */
 
 static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
-  devfs_node_t *dn = vn2dn(v);
+  devfs_node_t *dn = devfs_node_of(v);
 
   bzero(va, sizeof(vattr_t));
   va->va_mode = dn->dn_mode;
@@ -272,15 +185,10 @@ static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
 }
 
 static int devfs_vop_open(vnode_t *v, int mode, file_t *fp) {
-  devfs_node_t *dn = vn2dn(v);
+  devfs_node_t *dn = devfs_node_of(v);
   devfile_t *dev = &dn->dn_device;
 
-  fp->f_data = dn;
-  fp->f_ops = &devfs_fileops;
-  fp->f_type = FT_VNODE;
-  fp->f_vnode = v;
-
-  int error = dev->ops->d_open(dev, mode);
+  int error = dev->ops->d_open(dev, fp->f_flags);
   if (error)
     return error;
 
@@ -288,9 +196,48 @@ static int devfs_vop_open(vnode_t *v, int mode, file_t *fp) {
   return 0;
 }
 
+static int devfs_vop_read(vnode_t *v, uio_t *uio) {
+  devfs_node_t *dn = devfs_node_of(v);
+  devfile_t *dev = &dn->dn_device;
+
+  int error = dev->ops->d_read(dev, uio);
+
+  devfs_update_time(dn, DEVFS_UPDATE_ATIME);
+
+  return error;
+}
+
+static int devfs_vop_write(vnode_t *v, uio_t *uio) {
+  devfs_node_t *dn = devfs_node_of(v);
+  devfile_t *dev = &dn->dn_device;
+
+  int error = dev->ops->d_write(dev, uio);
+
+  devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
+
+  return error;
+}
+
+static int devfs_vop_close(vnode_t *v, file_t *fp) {
+  devfs_node_t *dn = devfs_node_of(v);
+  devfile_t *dev = &dn->dn_device;
+  refcnt_release(&dn->dn_refcnt);
+  return dev->ops->d_close(dev, fp->f_flags);
+}
+
+static int devfs_vop_seek(vnode_t *v, off_t oldoff, off_t newoff) {
+  devfile_t *dev = device_of(v);
+  return (dev->ops->d_type & DT_SEEKABLE) ? 0 : ESPIPE;
+}
+
+static int devfs_vop_ioctl(vnode_t *v, u_long cmd, void *data, file_t *fp) {
+  devfile_t *dev = device_of(v);
+  return dev->ops->d_ioctl(dev, cmd, data, fp->f_flags);
+}
+
 /* Free a devfs device file after unlinking it. */
 static int devfs_vop_reclaim(vnode_t *v) {
-  devfs_node_t *dn = vn2dn(v);
+  devfs_node_t *dn = devfs_node_of(v);
   assert(dn->dn_refcnt == 0);
   devfs_free(dn);
   return 0;
@@ -298,6 +245,11 @@ static int devfs_vop_reclaim(vnode_t *v) {
 
 static vnodeops_t devfs_dev_vnodeops = {
   .v_open = devfs_vop_open,
+  .v_close = devfs_vop_close,
+  .v_read = devfs_vop_read,
+  .v_write = devfs_vop_write,
+  .v_seek = devfs_vop_seek,
+  .v_ioctl = devfs_vop_ioctl,
   .v_access = vnode_access_generic,
   .v_getattr = devfs_vop_getattr,
   .v_reclaim = devfs_vop_reclaim,
@@ -313,7 +265,7 @@ static int devfs_vop_lookup(vnode_t *dv, componentname_t *cn, vnode_t **vp) {
   if (dv->v_type != V_DIR)
     return ENOTDIR;
 
-  devfs_node_t *dn = devfs_find_child(vn2dn(dv), cn);
+  devfs_node_t *dn = devfs_find_child(devfs_node_of(dv), cn);
   if (!dn)
     return ENOENT;
   *vp = dn->dn_vnode;
@@ -326,7 +278,7 @@ static void *devfs_dirent_next(vnode_t *v, void *it) {
   if (it == DIRENT_DOT)
     return DIRENT_DOTDOT;
   if (it == DIRENT_DOTDOT)
-    return TAILQ_FIRST(&vn2dn(v)->dn_children);
+    return TAILQ_FIRST(&devfs_node_of(v)->dn_children);
   return TAILQ_NEXT((devfs_node_t *)it, dn_link);
 }
 
@@ -344,10 +296,10 @@ static void devfs_to_dirent(vnode_t *v, void *it, dirent_t *dir) {
   devfs_node_t *node;
   const char *name;
   if (it == DIRENT_DOT) {
-    node = vn2dn(v);
+    node = devfs_node_of(v);
     name = ".";
   } else if (it == DIRENT_DOTDOT) {
-    node = vn2dn(v)->dn_parent;
+    node = devfs_node_of(v)->dn_parent;
     name = "..";
   } else {
     node = (devfs_node_t *)it;
@@ -365,7 +317,7 @@ static readdir_ops_t devfs_readdir_ops = {
 };
 
 static int devfs_vop_readdir(vnode_t *v, uio_t *uio) {
-  devfs_update_time(vn2dn(v), DEVFS_UPDATE_ATIME);
+  devfs_update_time(devfs_node_of(v), DEVFS_UPDATE_ATIME);
   return readdir_generic(v, uio, &devfs_readdir_ops);
 }
 
@@ -498,7 +450,7 @@ static void devfs_add_default_vops(vnodeops_t *vops) {
 
 /* TODO: remove the following function after rewriting all drivers. */
 int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
-                  void *data, vnode_t **vn_p) {
+                  void *data, vnode_t **vp) {
   devfs_node_t *dn;
   int error;
 
@@ -509,12 +461,12 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
     devfs_add_default_vops(vops);
     vnodeops_init(vops);
 
-    vnode_t *vn = dn->dn_vnode;
-    vn->v_ops = vops;
+    vnode_t *v = dn->dn_vnode;
+    v->v_ops = vops;
 
-    if (vn_p) {
-      vnode_hold(vn);
-      *vn_p = vn;
+    if (vp) {
+      vnode_hold(v);
+      *vp = v;
     }
   }
 
@@ -522,8 +474,7 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
 }
 
 void *devfs_node_data(vnode_t *v) {
-  devfs_node_t *dn = vn2dn(v);
-  return dn->dn_device.data;
+  return device_of(v)->data;
 }
 
 int devfs_makedir(devfs_node_t *parent, const char *name,
