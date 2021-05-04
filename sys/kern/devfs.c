@@ -187,9 +187,12 @@ static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
 static int devfs_vop_open(vnode_t *v, int mode, file_t *fp) {
   devfs_node_t *dn = devfs_node_of(v);
   devfile_t *dev = &dn->dn_device;
+  int error;
 
-  int error = dev->ops->d_open(dev, fp->f_flags);
-  if (error)
+  if ((error = vnode_open_generic(v, mode, fp)))
+    return error;
+
+  if ((error = dev->ops->d_open(dev, fp->f_flags)))
     return error;
 
   refcnt_acquire(&dn->dn_refcnt);
