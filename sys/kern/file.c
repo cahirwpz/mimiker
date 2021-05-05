@@ -36,6 +36,14 @@ void file_drop(file_t *f) {
     file_destroy(f);
 }
 
+int nowrite(file_t *f, uio_t *uio) {
+  return EBADF;
+}
+
+int noseek(file_t *f, off_t offset, int whence, off_t *newoffp) {
+  return ESPIPE;
+}
+
 /* Operations on invalid file descriptors */
 static int badfo_read(file_t *f, uio_t *uio) {
   return EOPNOTSUPP;
@@ -61,9 +69,11 @@ static int badfo_ioctl(file_t *f, u_long cmd, void *data) {
   return EOPNOTSUPP;
 }
 
-fileops_t badfileops = {.fo_read = badfo_read,
-                        .fo_write = badfo_write,
-                        .fo_close = badfo_close,
-                        .fo_stat = badfo_stat,
-                        .fo_seek = badfo_seek,
-                        .fo_ioctl = badfo_ioctl};
+fileops_t badfileops = {
+  .fo_read = badfo_read,
+  .fo_write = badfo_write,
+  .fo_close = badfo_close,
+  .fo_stat = badfo_stat,
+  .fo_seek = badfo_seek,
+  .fo_ioctl = badfo_ioctl,
+};
