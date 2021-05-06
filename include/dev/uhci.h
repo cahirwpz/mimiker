@@ -18,7 +18,6 @@ typedef uint32_t uhci_physaddr_t;
 #define UHCI_PTR_TD 0x00000000
 #define UHCI_PTR_QH 0x00000002
 #define UHCI_PTR_VF 0x00000004
-#define UHCI_PTR_MASK 0x00000007
 
 typedef struct uhci_td uhci_td_t;
 typedef struct uhci_qh uhci_qh_t;
