@@ -45,11 +45,11 @@ uint8_t usb_endp_addr(usb_device_t *usbd, usb_buf_t *usbb) {
   return UE_GET_ADDR(ep->bEndpointAddress);
 }
 
-uint8_t usb_status_type(usb_buf_t *usbb) {
+usb_direction_t usb_buf_status_direction(usb_buf_t *usbb) {
   assert(usbb->transfer == USB_TFR_CONTROL);
-  return (!(usbb->dir == USB_DIR_INPUT) || !usbb->transfer_size
-            ? USB_DIR_INPUT
-            : USB_DIR_OUTPUT);
+  if (usbb->dir == USB_DIR_INPUT)
+    return USB_DIR_OUTPUT;
+  return USB_DIR_INPUT;
 }
 
 uint8_t usb_interval(usb_device_t *usbd, usb_buf_t *usbb) {

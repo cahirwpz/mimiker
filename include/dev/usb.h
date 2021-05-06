@@ -230,7 +230,7 @@ int usb_enumerate(device_t *dev);
 
 uint16_t usb_max_pkt_size(usb_device_t *usbd, usb_buf_t *usbb);
 uint8_t usb_endp_addr(usb_device_t *usbd, usb_buf_t *usbb);
-uint8_t usb_status_type(usb_buf_t *usbb);
+usb_direction_t usb_buf_status_direction(usb_buf_t *usbb);
 uint8_t usb_interval(usb_device_t *usbd, usb_buf_t *usbb);
 void usb_process(usb_buf_t *usbb, void *data, usb_error_t flags);
 usb_buf_t *usb_alloc_buf(void *data, size_t size, usb_transfer_t type,

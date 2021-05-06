@@ -554,15 +554,10 @@ static void uhci_control_transfer(device_t *dev, uint16_t maxpkt, uint8_t port,
   td = uhci_data_stage(maxpkt, addr, 0, buf, ls, td + 1, 1, qh->qh_data);
 
   /* Prepare a STATUS packet. */
-  uint8_t sts_type = usb_status_type(buf);
-  td_status(td, ls, addr, sts_type);
+  usb_direction_t status_dir = usb_buf_status_direction(buf);
+  td_status(td, ls, addr, status_dir);
 
   uhci_schedule(uhci, qh, 0);
-  /*
-    for (int i = 0; i < UHCI_FRAMELIST_COUNT; i++) {
-      uhci->frames[i] = uhci_physaddr(qh) | UHCI_PTR_QH;
-    }
-  */
 }
 
 /* Issue an interrupt transfer. */
