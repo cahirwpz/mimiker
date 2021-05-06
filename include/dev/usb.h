@@ -194,7 +194,7 @@ typedef struct usb_buf {
   usb_error_t error;       /* errors encountered during transfer */
   usb_transfer_t transfer; /* what kind of transfer is this ? */
   usb_direction_t dir;     /* transfer direction */
-  uint16_t transfer_size;  /* size of the transfer */
+  uint16_t transfer_size;  /* size of data to transfer in the data stage */
 } usb_buf_t;
 
 static inline usb_device_t *usb_device_of(device_t *dev) {
@@ -213,6 +213,16 @@ static inline int usb_endp_type(usb_device_t *usbd, uint8_t idx) {
 static inline int usb_endp_dir(usb_device_t *usbd, uint8_t idx) {
   assert(idx < usbd->nendps);
   return UE_GET_DIR(usbd->endps[idx].bEndpointAddress);
+}
+
+static inline bool usb_buf_periodic(usb_buf_t *buf) {
+  return buf->transfer == USB_TFR_INTERRUPT;
+}
+
+#include <sys/libkern.h>
+
+static inline void usb_buf_copy_data(usb_buf_t *buf, void *dst) {
+  memcpy(dst, buf->buf.data, buf->transfer_size);
 }
 
 void usb_init(device_t *dev);
