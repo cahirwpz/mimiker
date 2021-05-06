@@ -4,6 +4,11 @@
 #ifndef _DEV_USB_H_
 #define _DEV_USB_H_
 
+#include <sys/ringbuf.h>
+#include <sys/condvar.h>
+#include <sys/spinlock.h>
+#include <sys/device.h>
+
 /*
  * Constructs defined by the USB specification.
  */
@@ -172,14 +177,16 @@ typedef enum usb_direction {
 
 /* USB buffer used for USB transfers. */
 typedef struct usb_buf {
-  ringbuf_t buf;           /* write source or read destination */
+  ringbuf_t rb;            /* write source or read destination */
   condvar_t cv;            /* wait for the transfer to complete */
   spin_t lock;             /* buffer guard */
   usb_error_t error;       /* errors encountered during transfer */
   usb_transfer_t transfer; /* what kind of transfer is this ? */
   usb_direction_t dir;     /* transfer direction */
-  uint16_t transfer_size;  /* size of the transfer */
+  uint16_t transfer_size;  /* size of the data stage */
 } usb_buf_t;
+
+typedef struct usb_device usb_device_t;
 
 static inline usb_device_t *usb_device_of(device_t *dev) {
   return dev->bus == DEV_BUS_USB ? dev->instance : NULL;
@@ -188,5 +195,25 @@ static inline usb_device_t *usb_device_of(device_t *dev) {
 static inline device_t *usb_bus_of(device_t *dev) {
   return dev->bus == DEV_BUS_USB ? dev->parent : TAILQ_FIRST(&dev->children);
 }
+
+/* Returns true if the transfer described by `buf` is peridic. */
+bool usb_buf_periodic(usb_buf_t *buf);
+
+/* Returns direction for the STATUS stage of a transfer. */
+usb_direction_t usb_buf_status_direction(usb_buf_t *buf);
+
+/* Copy data bytes contained in `buf` to designated area `dst`. */
+void usb_buf_copy_data(usb_buf_t *buf, void *dst);
+
+/* Initialize the underlying USB bus of the host controller `dev`. */
+void usb_init(device_t *dev);
+
+/* Enumerate and configure all devices attached to root hub `dev`.
+ * Returns an error code. */
+int usb_enumerate(device_t *dev);
+
+/* Process data `data` received in the transfer described by `buf`,
+ * or process error `error` encountered during the transfer. */
+void usb_process(usb_buf_t *buf, void *data, usb_error_t error);
 
 #endif /* _DEV_USB_H_ */

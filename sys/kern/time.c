@@ -295,3 +295,14 @@ int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
 
   return 0;
 }
+
+static void mdelay_timeout(__unused void *arg) {
+  /* Nothing to do here. */
+}
+
+void mdelay(useconds_t ms) {
+  callout_t callout;
+  callout_setup(&callout, mdelay_timeout, NULL);
+  callout_schedule(&callout, ms);
+  callout_drain(&callout);
+}
