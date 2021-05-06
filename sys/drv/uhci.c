@@ -109,28 +109,28 @@ static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
 #define outd(addr, val) bus_write_4(uhci->regs, (addr), (val))
 
 /*
- * Set specified bit in a given UHCI port.
+ * Set specified bit in the given UHCI port.
  */
 #define setb(p, b) outb((p), inb(p) | (b))
 #define setw(p, b) outw((p), inw(p) | (b))
 #define setd(p, b) outd((p), ind(p) | (b))
 
 /*
- * Clear specified bit in a given UHCI port.
+ * Clear specified bit in the given UHCI port.
  */
 #define clrb(p, b) outb((p), inb(p) & ~(b))
 #define clrw(p, b) outw((p), inw(p) & ~(b))
 #define clrd(p, b) outd((p), ind(p) & ~(b))
 
 /*
- * Clear specified bit in a given UHCI write clear port.
+ * Clear specified bit in the given UHCI write clear port.
  */
 #define wclrb(p, b) setb((p), b)
 #define wclrw(p, b) setw((p), b)
 #define wclrd(p, b) setd((p), b)
 
 /*
- * Check if a specified bit is set in a given UHCI port.
+ * Check if the specified bit is set in the given UHCI port.
  */
 #define chkb(p, b) ((inb(p) & (b)) != 0)
 #define chkw(p, b) ((inw(p) & (b)) != 0)
@@ -141,7 +141,7 @@ static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
  */
 
 /* Obtain the physical address corresponding
- * to the specified virtual address. */
+ * to specified virtual address. */
 static uhci_physaddr_t uhci_physaddr(void *vaddr) {
   paddr_t paddr = 0;
   pmap_kextract((vaddr_t)vaddr, &paddr);
@@ -185,7 +185,7 @@ static void td_init(uhci_td_t *td, bool ls, bool ioc, uint32_t token,
   uint32_t ioc_mask = (ioc ? UHCI_TD_IOC : 0);
 
   bzero(td, sizeof(uhci_td_t));
-  /* Consecutive transfer descriptors are always contiguou. */
+  /* Consecutive transfer descriptors are always contiguous. */
   td->td_next =
     (ioc ? UHCI_PTR_T : uhci_physaddr(td + 1) | UHCI_PTR_VF | UHCI_PTR_TD);
   td->td_status = UHCI_TD_SET_ERRCNT(3) | ioc_mask | ls_mask | UHCI_TD_ACTIVE;
@@ -235,7 +235,7 @@ static inline uint32_t td_error_status(uhci_td_t *td) {
   return td->td_status & UHCI_TD_ERROR;
 }
 
-/* Check whether a transfer descriptro is active (i.e. should be executed). */
+/* Check whether a transfer descriptor is active (i.e. should be executed). */
 static inline bool td_active(uhci_td_t *td) {
   return td->td_status & UHCI_TD_ACTIVE;
 }
@@ -271,7 +271,7 @@ static void qh_init(uhci_qh_t *qh, usb_buf_t *buf) {
 static uhci_qh_t *qh_alloc(usb_buf_t *buf) {
   void *area = pool_alloc(P_TFR, M_ZERO);
   /* Allocation scheme of pool's memory ensures that adjusting the
-   * virtual address also adjusts the physicall address. */
+   * virtual address also adjusts the physical address. */
   uhci_qh_t *qh = align(area, UHCI_ALIGNMENT);
   qh_init(qh, buf);
   qh->qh_cookie = area;
@@ -813,6 +813,7 @@ static int uhci_attach(device_t *dev) {
   return usb_enumerate(dev);
 }
 
+/* UHCI host controller interface. */
 static usbhc_methods_t uhci_usbhc_if = {
   .number_of_ports = uhci_number_of_ports,
   .device_present = uhci_device_present,
