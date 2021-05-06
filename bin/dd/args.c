@@ -445,12 +445,16 @@ static const struct ioflag {
 	{ "alt_io",	O_ALT_IO,	C_IFLAG|C_OFLAG	},
 #endif
 	{ "append",	O_APPEND,	C_OFLAG		},
+#if 0
 	{ "async",	O_ASYNC,	C_IFLAG|C_OFLAG	},
+#endif
 	{ "cloexec",	O_CLOEXEC,	C_IFLAG|C_OFLAG	},
 	{ "creat",	O_CREAT,	C_OFLAG		},
 	{ "direct",	O_DIRECT,	C_IFLAG|C_OFLAG	},
 	{ "directory",	O_DIRECTORY,	C_NONE		},
+#if 0
 	{ "dsync",	O_DSYNC,	C_OFLAG		},
+#endif
 	{ "excl",	O_EXCL,		C_OFLAG		},
 	{ "exlock",	O_EXLOCK,	C_IFLAG|C_OFLAG	},
 	{ "noctty",	O_NOCTTY,	C_IFLAG|C_OFLAG	},
@@ -461,9 +465,13 @@ static const struct ioflag {
 #endif
 	{ "rdonly",	O_RDONLY,	C_IFLAG		},
 	{ "rdwr",	O_RDWR,		C_IFLAG		},
+#if 0
 	{ "rsync",	O_RSYNC,	C_IFLAG		},
+#endif
 	{ "shlock",	O_SHLOCK,	C_IFLAG|C_OFLAG	},
+#if 0
 	{ "sync",	O_SYNC,		C_IFLAG|C_OFLAG	},
+#endif
 	{ "trunc",	O_TRUNC,	C_OFLAG		},
 	{ "wronly",	O_WRONLY,	C_OFLAG		},
 };

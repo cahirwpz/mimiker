@@ -506,7 +506,14 @@ dd_close(void)
 	 */
 	if (out.fd == STDOUT_FILENO && ddop_fsync(out, out.fd) == -1
 	    && errno != EINVAL) {
+		/* fsync is not implemented yet. It is not cucial to perform fsync yet,
+		 * but it'd be nice to close the file before crashing. */
+#if 0
 		err(EXIT_FAILURE, "fsync stdout");
+#else
+		(void)fprintf(stderr, "WARNING: fsync is not implemented. Data might "
+							  "get lost.\n");
+#endif
 		/* NOTREACHED */
 	}
 	if (ddop_close(out, out.fd) == -1) {
