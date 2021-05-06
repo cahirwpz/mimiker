@@ -90,7 +90,7 @@ typedef enum sd_props {
 typedef struct sd_state {
   sd_props_t props;
   void *block_buf;
-  /* Stuff specific to the system-exposed IO */ 
+  /* Stuff specific to the system-exposed IO */
   struct {
     uint32_t lba;
   } sysio;
