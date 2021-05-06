@@ -79,7 +79,7 @@ static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
  *         |   transfer  |      `td_buffer`         |             |
  *         |  descriptor |------------------------> |             |
  *         |      0      |                          |  row data   |
- *         ---------------                          |    stram    |
+ *         ---------------                          |   stream    |
  *         |             |                          |             |
  *               ...                                      ...
  *         |             |                          |             |
