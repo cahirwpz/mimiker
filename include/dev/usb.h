@@ -202,18 +202,18 @@ bool usb_buf_periodic(usb_buf_t *buf);
 /* Returns direction for the STATUS stage of a transfer. */
 usb_direction_t usb_buf_status_direction(usb_buf_t *buf);
 
-/* Copy data bytes contained in `buf` to designated area `dst`. */
+/* Copies data bytes contained in `buf` to designated area `dst`. */
 void usb_buf_copy_data(usb_buf_t *buf, void *dst);
 
-/* Initialize the underlying USB bus of the host controller `dev`. */
+/* Initializes the underlying USB bus of the host controller `dev`. */
 void usb_init(device_t *dev);
 
-/* Enumerate and configure all devices attached to root hub `dev`.
+/* Enumerates and configures all devices attached to root hub `dev`.
  * Returns an error code. */
 int usb_enumerate(device_t *dev);
 
-/* Process data `data` received in the transfer described by `buf`,
- * or process error `error` encountered during the transfer. */
+/* Processes data `data` received in the transfer described by `buf`,
+ * or processes error `error` encountered during the transfer. */
 void usb_process(usb_buf_t *buf, void *data, usb_error_t error);
 
 #endif /* _DEV_USB_H_ */
