@@ -74,7 +74,7 @@ static intr_filter_t rtc_intr(void *data) {
   return IF_STRAY;
 }
 
-static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
+static int rtc_time_read(vnode_t *v, uio_t *uio) {
   rtc_state_t *rtc = devfs_node_data(v);
   tm_t t;
 
