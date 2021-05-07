@@ -7,12 +7,27 @@ system for Malta board and Raspberry Pi 3.
 
 Main project ideas:
 
-- Main one is to implement only Kernel Space part of system on our own.
-Keeping interface with User Space as compatible as possible with
-NetBSD. That way we'll be capable of running all programs for that
-system on ours (we already can run a few of those). Consequece of that
+- Implement only Kernel Space part of system on our own.
+- Keep User Space interface with User Space as compatible as possible with
+NetBSD. That way we'll be capable to run all programs designed for that
+system, we already are able run a few of those. Consequece of that
 is that all header files are the same as NetBSD's.
 - Target architectures are MIPS64 and AArch64.
+
+### More significant tools we use
+
+- QEMU - virtual machine that allows us to run system
+- Tmux - terminal multiplexer, that allows us to access multiple terminals in
+one window
+- klog - ?
+- Korn Shell - simple shell that we already ported
+
+#### How system is run?
+
+When you turn on the system with `./launch` script system is being run in QEMU.
+Multiple terminals are connected to VM. Between these we can switch with Tmux.
+On one of them we have klog (log with kernel messages). On the second one is GDB.
+On the other one there can be Korn Shell working in the system.
 
 ### Project file hierarchy
 
