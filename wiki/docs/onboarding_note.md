@@ -10,7 +10,7 @@ Main project ideas:
 - Implement only Kernel Space part of system on our own.
 - Keep User Space interface with User Space as compatible as possible with
   NetBSD. That way we'll be capable to run all programs designed for that
-  system, we already are able run a few of those. Consequece of that
+  system, we already are able to run a few of those. Consequence of that
   is that all header files are the same as NetBSD's.
 - Target architectures are MIPS32 and AArch64.
 
@@ -27,11 +27,11 @@ Main project ideas:
 When you turn on the system with `./launch` script system is being run in QEMU.
 Multiple terminals are connected to VM. Between these we can switch with Tmux.
 On one of them we have klog (log with kernel messages). On the second one is GDB.
-On the other one there can be Korn Shell working in the system.
+The other one there can be Korn Shell working in the system.
 
 ### Project file hierarchy
 
-Most of incoherences in file hierarchy come from expectations of C
+Most of the incoherence in file hierarchy come from expectations of C
 programs to find header files in specific locations.
 More information can be found in `hier(7)`[^1].
 
@@ -42,19 +42,19 @@ More information can be found in `hier(7)`[^1].
 - `build/` elements of build system, parts shared by all Makefiles
 - `etc/` system configuration files and scripts, installed in `/sysroot`
   - `etc/group` group permissions file
-- `include/` folder with all of header files for programs ran in User and Kernel
-  Space. Goes straight to `sysroot/`. That one has most of incoherences, because
-  everyting here is compatible with NetBSD and standard C library.
+- `include/` folder with all the header files for programs ran in User and Kernel
+  Space. Goes straight to `sysroot/`. That one has most of the incoherences, because
+  everything here is compatible with NetBSD and standard C library.
   - `include/dev/` description of hardware registers and struct definitions. Vast
-    majority of contained files has been aquired. Everything that concerns
-    drivers is located here.
+    majority of contained files has been acquired. Everything that concerns
+    drivers are located here.
   - `include/mips/` and `/include/aarch64` parts depending on architecture,
-    partly aquired, available for Kernel
-  - `include/sys/` hearders mostly for Kernel, but with parts dedicated for
+    partly acquired, available for Kernel
+  - `include/sys/` headers mostly for Kernel, but with parts dedicated for
     User Space
 - `lib/` User Space libraries ported from NetBSD, but only those we need
   - `lib\csu\` files `crt0` ("C runtime 0") describing program life before
-  `main` function a nd after calling `return` at the end
+  `main` function and after calling `return` at the end
   - `\lib\libc` C library files, parts that depend on architecture are written
     in Assembly
 - `sys/` contains Kernel files
@@ -68,7 +68,7 @@ More information can be found in `hier(7)`[^1].
   - `toolchain/qemu-mimiker/` port of QEMU -
     machine emulator and virtualizer for running our system
   - `toolchain/openocd-mimiker` port of OpenOCD -
-    interface for hardware debugger. Adapter between Raspberry Pi 3 board and GDB
+    Interface for hardware debugger. Adapter between Raspberry Pi 3 board and GDB
 - `Dockerfile` description of environment for GitHub Actions build and testing
 - `.github/workflows/` scripts for Continuous integration
   - `.github/workflows/default.yml` CI script that
@@ -83,11 +83,12 @@ More information can be found in `hier(7)`[^1].
 ### Licence
 
 This project is licensed under the BSD 3-Clause. Details of code we can
-use can be found here[^2] and that[^3] is a nice cheatsheet.
-Simplest inferences include facts that we can use all the code under MIT
+use can be found here[^2] and that[^3] is a nice cheat sheet.
+The Simplest inferences include facts that we can use all the code under MIT
 licence and we are not supposed to look at or be inspired by any code
 under GPL.
 
 [^1]: https://man.netbsd.org/hier.7
 [^2]: https://en.wikipedia.org/wiki/License_compatibility
 [^3]: https://en.wikipedia.org/wiki/License_compatibility#/media/File:Floss-license-slide-image.svg
+
