@@ -45,7 +45,7 @@ uint8_t usb_endp_addr(usb_device_t *usbd, usb_buf_t *usbb) {
   return UE_GET_ADDR(ep->bEndpointAddress);
 }
 
-usb_direction_t usb_buf_status_direction(usb_buf_t *usbb) {
+usb_direction_t usb_buf_status_dir(usb_buf_t *usbb) {
   assert(usbb->transfer == USB_TFR_CONTROL);
   if (usbb->dir == USB_DIR_INPUT)
     return USB_DIR_OUTPUT;
