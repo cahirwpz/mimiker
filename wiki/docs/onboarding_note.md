@@ -12,7 +12,7 @@ Main project ideas:
   NetBSD. That way we'll be capable to run all programs designed for that
   system, we already are able run a few of those. Consequece of that
   is that all header files are the same as NetBSD's.
-- Target architectures are MIPS64 and AArch64.
+- Target architectures are MIPS32 and AArch64.
 
 ### More significant tools we use
 
