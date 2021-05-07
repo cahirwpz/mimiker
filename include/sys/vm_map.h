@@ -10,9 +10,9 @@ typedef struct vm_map vm_map_t;
 typedef struct vm_map_entry vm_map_entry_t;
 
 typedef enum {
-  VM_ENT_SHARED = 1,  /* shared memory */
-  VM_ENT_PRIVATE = 2, /* private memory (default) */
-  VM_ENT_COW = 4, /* copy on write */
+  VM_ENT_SHARED = 1,   /* shared memory */
+  VM_ENT_PRIVATE = 2,  /* private memory (default) */
+  VM_ENT_COW = 4,      /* copy on write */
   VM_ENT_NEEDSCPY = 8, /* amap needs copy */
 } vm_entry_flags_t;
 

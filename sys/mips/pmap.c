@@ -148,12 +148,12 @@ static void pv_add(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
   pv_entry_t *pv = pool_alloc(P_PV, M_ZERO);
   pv->pmap = pmap;
   pv->va = va;
-  //TAILQ_INSERT_TAIL(&pg->pv_list, pv, page_link);
+  // TAILQ_INSERT_TAIL(&pg->pv_list, pv, page_link);
   pv->page_link.tqe_next = TAILQ_END(head);
   pv->page_link.tqe_prev = (&pg->pv_list)->tqh_last;
   *(&pg->pv_list)->tqh_last = pv;
   (&pg->pv_list)->tqh_last = &(pv->page_link.tqe_next);
-  //TAILQ_INSERT_TAIL(&pmap->pv_list, pv, pmap_link);
+  // TAILQ_INSERT_TAIL(&pmap->pv_list, pv, pmap_link);
   pv->pmap_link.tqe_next = TAILQ_END(&pmap->pv_list);
   pv->pmap_link.tqe_prev = (&pmap->pv_list)->tqh_last;
   *(&pmap->pv_list)->tqh_last = pv;

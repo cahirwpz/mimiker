@@ -28,8 +28,8 @@ struct vm_amap {
   int am_ref;     /* (@) reference counter */
   int am_nslot;   /* (@) number of allocated slots */
   int am_nused;   /* (@) number of used slots */
-  int *am_slot; /* (@) stack of used anons - refers to am_anon & am_bckptr */
-  int *am_bckptr;   /* (@) slots of used anons - refers to am_slot */
+  int *am_slot;   /* (@) stack of used anons - refers to am_anon & am_bckptr */
+  int *am_bckptr; /* (@) slots of used anons - refers to am_slot */
   vm_anon_t **am_anon; /* (@) anons in that map */
 };
 

@@ -141,11 +141,11 @@ static int test_amap_copy(void) {
   assert(new->am_anon[3] == amap->am_anon[7]);
 
   vm_anon_t *anon = new->am_anon[3];
-  WITH_MTX_LOCK(&anon->an_lock)
+  WITH_MTX_LOCK (&anon->an_lock)
     assert(anon->an_ref == 2);
 
   anon = amap->am_anon[3];
-  WITH_MTX_LOCK(&anon->an_lock)
+  WITH_MTX_LOCK (&anon->an_lock)
     assert(anon->an_ref == 1);
 
   vm_amap_drop(new);

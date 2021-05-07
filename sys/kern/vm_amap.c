@@ -131,7 +131,7 @@ static void vm_amap_add_nolock(vm_amap_t *amap, vm_anon_t *anon, int slot) {
 }
 
 void vm_amap_add(vm_aref_t *aref, vm_anon_t *anon, vaddr_t offset) {
-  WITH_MTX_LOCK(&anon->an_lock)
+  WITH_MTX_LOCK (&anon->an_lock)
     assert(anon->an_ref >= 1);
   vm_amap_t *amap = aref->ar_amap;
   int slot = vm_amap_slot(aref, offset);
@@ -181,7 +181,7 @@ vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t end) {
   if (amap == NULL)
     return AREF_EMPTY;
 
-  WITH_MTX_LOCK(&amap->am_lock)
+  WITH_MTX_LOCK (&amap->am_lock)
     if (amap->am_ref == 1)
       return *aref;
 
@@ -196,7 +196,7 @@ vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t end) {
     int slot = amap->am_slot[i];
     if (first_slot <= slot && slot < last_slot) {
       vm_anon_t *anon = amap->am_anon[slot];
-      WITH_MTX_LOCK(&anon->an_lock) {
+      WITH_MTX_LOCK (&anon->an_lock) {
         int ref = anon->an_ref;
         vm_anon_hold(anon);
         assert(anon->an_ref == ref + 1);
@@ -204,5 +204,5 @@ vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t end) {
       vm_amap_add_nolock(new, anon, slot - first_slot);
     }
   }
-  return (vm_aref_t) {.ar_amap = new, .ar_pageoff = 0};
+  return (vm_aref_t){.ar_amap = new, .ar_pageoff = 0};
 }

@@ -166,7 +166,8 @@ static int findspace_demo(void) {
 #define START_ADDR (1 * PAGESIZE + USER_SPACE_BEGIN)
 #define END_ADDR (20 * PAGESIZE + USER_SPACE_BEGIN)
 
-/* I wish we can make test without definition, but we need it to specify amap for entry. */
+/* I wish we can make test without definition, but we need it to specify amap
+ * for entry. */
 typedef struct vm_map_entry {
   TAILQ_ENTRY(vm_map_entry) link;
   vm_object_t *object;
@@ -203,7 +204,7 @@ static int test_entry_amap(void) {
   vm_amap_add(&e1->aref, an4, 15 * PAGESIZE);
 
   vm_map_entry_t *e2;
-  WITH_VM_MAP_LOCK(map)
+  WITH_VM_MAP_LOCK (map)
     e2 = vm_map_entry_split(map, e1, START_ADDR + 10 * PAGESIZE);
 
   assert(e1->aref.ar_amap == e2->aref.ar_amap);
@@ -215,9 +216,11 @@ static int test_entry_amap(void) {
   assert(e1->start == START_ADDR && e1->end == START_ADDR + 10 * PAGESIZE);
   assert(e2->start == START_ADDR + 10 * PAGESIZE && e2->end == END_ADDR);
 
-  WITH_VM_MAP_LOCK(map) {
-    klog("found1: %p e1: %p", vm_map_find_entry(map, 7 * PAGESIZE + START_ADDR), e1);
-    klog("found2: %p e2: %p", vm_map_find_entry(map, 15 * PAGESIZE + START_ADDR), e2);
+  WITH_VM_MAP_LOCK (map) {
+    klog("found1: %p e1: %p", vm_map_find_entry(map, 7 * PAGESIZE + START_ADDR),
+         e1);
+    klog("found2: %p e2: %p",
+         vm_map_find_entry(map, 15 * PAGESIZE + START_ADDR), e2);
     assert(vm_map_find_entry(map, 7 * PAGESIZE + START_ADDR) == e1);
     assert(vm_map_find_entry(map, 15 * PAGESIZE + START_ADDR) == e2);
   }
