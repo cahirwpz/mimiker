@@ -30,15 +30,25 @@ typedef struct {
   fo_ioctl_t *fo_ioctl;
 } fileops_t;
 
-typedef enum {
+/* Put `nowrite` into `fo_write` if a file doesn't support writes. */
+int nowrite(file_t *f, uio_t *uio);
+
+/* Put `noseek` into `fo_seek` if a file is not seekable. */
+int noseek(file_t *f, off_t offset, int whence, off_t *newoffp);
+
+typedef enum filetype {
   FT_VNODE = 1, /* regular file */
   FT_PIPE = 2,  /* pipe */
   FT_PTY = 3,   /* master side of a pseudoterminal */
 } filetype_t;
 
-#define FF_READ 0x0001
-#define FF_WRITE 0x0002
-#define FF_APPEND 0x0004
+#define FF_READ 1  /* file can be read from */
+#define FF_WRITE 2 /* file can be written to */
+#define FF_MASK (FF_READ | FF_WRITE)
+
+#define IO_APPEND 4   /* file offset should be set to EOF prior to each write */
+#define IO_NONBLOCK 8 /* read & write return EAGAIN instead of blocking */
+#define IO_MASK (IO_APPEND | IO_NONBLOCK)
 
 typedef struct file {
   void *f_data; /* File specific data */
@@ -47,7 +57,7 @@ typedef struct file {
   vnode_t *f_vnode;
   off_t f_offset;
   refcnt_t f_count; /* Reference counter */
-  unsigned f_flags; /* File flags FF_* */
+  unsigned f_flags; /* FF_* and IO_* flags */
 } file_t;
 
 file_t *file_alloc(void);
