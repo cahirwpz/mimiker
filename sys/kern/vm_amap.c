@@ -197,8 +197,9 @@ vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t end) {
     if (first_slot <= slot && slot < last_slot) {
       vm_anon_t *anon = amap->am_anon[slot];
       WITH_MTX_LOCK(&anon->an_lock) {
+        int ref = anon->an_ref;
         vm_anon_hold(anon);
-        assert(anon->an_ref > 1);
+        assert(anon->an_ref == ref + 1);
       }
       vm_amap_add_nolock(new, anon, slot - first_slot);
     }

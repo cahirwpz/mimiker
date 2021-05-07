@@ -30,6 +30,7 @@ void vm_anon_hold(vm_anon_t *anon) {
 }
 
 static void anon_free(vm_anon_t *anon) {
+  klog("Feeing anon with page %p", anon->an_page);
   if (anon->an_page)
     vm_page_free(anon->an_page);
   pool_free(P_ANON, anon);

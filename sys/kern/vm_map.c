@@ -449,9 +449,12 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   vaddr_t fault_page = fault_addr & -PAGESIZE;
   vaddr_t offset = fault_page - ent->start;
 
+  //klog("Looking for page %p", fault_page);
+
   bool cow = ent->flags & VM_ENT_COW && fault_type == VM_PROT_WRITE;
 
   if (cow && ent->flags & VM_ENT_NEEDSCPY) {
+    //klog("Have to copy amap.");
     ent->aref = vm_amap_copy(&ent->aref, ent->end - ent->start);
     ent->flags &= ~VM_ENT_NEEDSCPY;
   }
@@ -464,12 +467,15 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   /* First look for page in amap. */
   if (amap) {
+    //klog("Looking for frame in amap.");
     vm_anon_t *anon = vm_amap_lookup(&ent->aref, offset);
 
     if (anon) {
+      //klog("Frame found in amap.");
       frame = anon->an_page;
       /* If we are in cow scenario and anon is referenced from multiple amaps we need to copy it. */
       if (cow && anon->an_ref > 1) {
+        //klog("Copy page from anon to anon.");
         WITH_MTX_LOCK(&anon->an_lock)
           new_anon = vm_anon_copy(anon);
         frame = new_anon->an_page;
@@ -479,13 +485,16 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   /* If not found in amap look into object. */
   if (!frame && obj) {
+    //klog("Looking for frame in object");
     frame = vm_object_find_page(ent->object, offset);
 
     if (frame == NULL)
       frame = obj->vo_pager->pgr_fault(obj, offset);
-
+    else
+      //klog("Frame got from object.");
     /* If we are in cow scenario we need to copy this page. */
     if (frame && cow) {
+      //klog("Copy page from object to anon.");
       new_anon = vm_anon_copy_page(frame);
       frame = new_anon->an_page;
     }
@@ -494,8 +503,10 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   /* If we've copied page insert it into our amap. */
   if (new_anon) {
     if (ent->aref.ar_amap == NULL) {
+      //klog("Have to create new amap.");
       ent->aref.ar_amap = vm_amap_alloc();
     }
+    klog("Adding new anon with page %p(%p) into amap %p for addr %p", new_anon->an_page, fault_page, ent->aref.ar_amap);
     vm_amap_add(&ent->aref, new_anon, offset);
   }
 
