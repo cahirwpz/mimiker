@@ -74,7 +74,7 @@ int do_munmap(vaddr_t start, size_t length) {
     if (!ent)
       return EINVAL;
 
-    while (vm_map_entry_start(ent) <= start && vm_map_entry_end(ent) >= end) {
+    while (vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end) {
       vaddr_t rm_start = max(start, vm_map_entry_start(ent));
       vaddr_t rm_end = min(end, vm_map_entry_end(ent));
 
