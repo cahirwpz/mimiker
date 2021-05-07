@@ -554,7 +554,7 @@ static void uhci_control_transfer(device_t *dev, uint16_t maxpkt, uint8_t port,
   td = uhci_data_stage(maxpkt, addr, 0, buf, ls, td + 1, 1, qh->qh_data);
 
   /* Prepare a STATUS packet. */
-  usb_direction_t status_dir = usb_buf_status_direction(buf);
+  usb_direction_t status_dir = usb_buf_status_dir(buf);
   td_status(td, ls, addr, status_dir);
 
   uhci_schedule(uhci, qh, 0);

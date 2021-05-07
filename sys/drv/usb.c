@@ -5,7 +5,7 @@ bool usb_buf_periodic(usb_buf_t *buf) {
   return true;
 }
 
-usb_direction_t usb_buf_status_direction(usb_buf_t *buf) {
+usb_direction_t usb_buf_status_dir(usb_buf_t *buf) {
   /* Not yet implemented! */
   return 0;
 }

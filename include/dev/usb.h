@@ -200,7 +200,7 @@ static inline device_t *usb_bus_of(device_t *dev) {
 bool usb_buf_periodic(usb_buf_t *buf);
 
 /* Returns direction for the STATUS stage of a transfer. */
-usb_direction_t usb_buf_status_direction(usb_buf_t *buf);
+usb_direction_t usb_buf_status_dir(usb_buf_t *buf);
 
 /* Copies data bytes contained in `buf` to designated area `dst`. */
 void usb_buf_copy_data(usb_buf_t *buf, void *dst);
