@@ -2,6 +2,7 @@
 #define _SYS_DEVFS_H_
 
 #include <sys/types.h>
+#include <sys/refcnt.h>
 
 typedef struct vnode vnode_t;
 typedef struct devfs_node devfs_node_t;
@@ -35,8 +36,10 @@ typedef struct devops {
 } devops_t;
 
 typedef struct devnode {
-  devops_t *ops; /* device operation table */
-  void *data;    /* device specific data */
+  devops_t *ops;   /* device operation table */
+  void *data;      /* device specific data */
+  size_t size;     /* opened device node size (for seekable devices) */
+  refcnt_t refcnt; /* number of open files referring to this device */
 } devnode_t;
 
 /* If parent is NULL new device will be attached to root devfs directory. */

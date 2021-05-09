@@ -37,7 +37,6 @@ struct devfs_node {
   /* Node attributes (as in vattr). */
   nlink_t dn_nlinks;   /* number of hard links */
   mode_t dn_mode;      /* node protection mode */
-  size_t dn_size;      /* device file size (for seekable devices) */
   uid_t dn_uid;        /* file owner */
   gid_t dn_gid;        /* file group */
   ino_t dn_ino;        /* node identifier */
@@ -48,7 +47,6 @@ struct devfs_node {
   /* Directory-specific data. */
   devfs_node_list_t dn_children; /* list of children nodes */
 
-  refcnt_t dn_refcnt;              /* number of open files */
   devfs_node_t *dn_parent;         /* parent devfs node */
   TAILQ_ENTRY(devfs_node) dn_link; /* link on `dn_parent->dn_children` */
 };
@@ -165,36 +163,34 @@ void devfs_free(devfs_node_t *dn) {
  */
 
 static int devfs_fop_read(file_t *fp, uio_t *uio) {
-  devfs_node_t *dn = fp->f_data;
-  devnode_t *dev = &dn->dn_device;
+  devnode_t *dev = fp->f_data;
   int error = dev->ops->d_read(dev, uio);
 
+  devfs_node_t *dn = container_of(dev, devfs_node_t, dn_device);
   devfs_update_time(dn, DEVFS_UPDATE_ATIME);
 
   return error;
 }
 
 static int devfs_fop_write(file_t *fp, uio_t *uio) {
-  devfs_node_t *dn = fp->f_data;
-  devnode_t *dev = &dn->dn_device;
+  devnode_t *dev = fp->f_data;
   int error = dev->ops->d_write(dev, uio);
 
+  devfs_node_t *dn = container_of(dev, devfs_node_t, dn_device);
   devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
 
   return error;
 }
 
 static int devfs_fop_close(file_t *fp) {
-  devfs_node_t *dn = fp->f_data;
-  devnode_t *dev = &dn->dn_device;
-  refcnt_release(&dn->dn_refcnt);
+  devnode_t *dev = fp->f_data;
+  refcnt_release(&dev->refcnt);
   return dev->ops->d_close(dev, fp->f_flags);
 }
 
 static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
                           off_t *newoffp) {
-  devfs_node_t *dn = fp->f_data;
-  devnode_t *dev = &dn->dn_device;
+  devnode_t *dev = fp->f_data;
   bool seekable = dev->ops->d_type & DT_SEEKABLE;
 
   if (!seekable)
@@ -203,26 +199,27 @@ static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
   if (whence == SEEK_CUR) {
     offset += fp->f_offset;
   } else if (whence == SEEK_END) {
-    offset += dn->dn_size;
+    offset += dev->size;
   } else if (whence != SEEK_SET) {
     return EINVAL;
   }
 
   if (offset < 0) {
     offset = 0;
-  } else if ((size_t)offset > dn->dn_size) {
-    offset = dn->dn_size;
+  } else if ((size_t)offset > dev->size) {
+    offset = dev->size;
   }
 
   *newoffp = fp->f_offset = offset;
+
+  devfs_node_t *dn = container_of(dev, devfs_node_t, dn_device);
   devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
 
   return 0;
 }
 
 static int devfs_fop_ioctl(file_t *fp, u_long cmd, void *data) {
-  devfs_node_t *dn = fp->f_data;
-  devnode_t *dev = &dn->dn_device;
+  devnode_t *dev = fp->f_data;
   return dev->ops->d_ioctl(dev, cmd, data, fp->f_flags);
 }
 
@@ -246,7 +243,7 @@ static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
   va->va_mode = dn->dn_mode;
   va->va_uid = dn->dn_uid;
   va->va_gid = dn->dn_gid;
-  va->va_size = dn->dn_size;
+  va->va_size = 0; /* only opened device nodes have size */
   va->va_nlink = dn->dn_nlinks;
   va->va_ino = dn->dn_ino;
   va->va_atime = dn->dn_atime;
@@ -263,7 +260,7 @@ static int devfs_vop_open(vnode_t *v, int mode, file_t *fp) {
   if ((error = vnode_open_generic(v, mode, fp)))
     return error;
 
-  fp->f_data = dn;
+  fp->f_data = dev;
   fp->f_ops = &devfs_fileops;
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
@@ -271,14 +268,15 @@ static int devfs_vop_open(vnode_t *v, int mode, file_t *fp) {
   if ((error = dev->ops->d_open(dev, mode)))
     return error;
 
-  refcnt_acquire(&dn->dn_refcnt);
+  refcnt_acquire(&dev->refcnt);
   return 0;
 }
 
 /* Free a devfs device file after unlinking it. */
 static int devfs_vop_reclaim(vnode_t *v) {
   devfs_node_t *dn = devfs_node_of(v);
-  assert(dn->dn_refcnt == 0);
+  devnode_t *dev = &dn->dn_device;
+  assert(dev->refcnt == 0);
   devfs_free(dn);
   return 0;
 }
