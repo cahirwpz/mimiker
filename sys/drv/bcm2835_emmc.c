@@ -484,40 +484,27 @@ static void emmc_gpio_init(device_t *dev) {
   resource_t *gpio = state->gpio;
   int64_t r = 0;
   /* GPIO_CD */
-  r = b_in(gpio, GPFSEL4);
-  r &= ~(7 << (7 * 3));
-  b_out(gpio, GPFSEL4, r);
-  b_out(gpio, GPPUD, 2);
-  delay(150); /* ! */
-  b_out(gpio, GPPUDCLK1, 1 << 15);
-  delay(150); /* ! */
-  b_out(gpio, GPPUD, 0);
-  b_out(gpio, GPPUDCLK1, 0);
+  bcm2835_gpio_function_select(gpio, 47, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_set_pull(gpio, 47, 2);
   r = b_in(gpio, GPHEN1);
   r |= 1 << 15;
   b_out(gpio, GPHEN1, r);
 
   /* GPIO_CLK, GPIO_CMD */
-  r = b_in(gpio, GPFSEL4);
-  r |= (7 << (8 * 3)) | (7 << (9 * 3));
-  b_out(gpio, GPFSEL4, r);
-  b_out(gpio, GPPUD, 2);
-  delay(150); /* ! */
-  b_out(gpio, GPPUDCLK1, (1 << 16) | (1 << 17));
-  delay(150); /* ! */
-  b_out(gpio, GPPUD, 0);
-  b_out(gpio, GPPUDCLK1, 0);
+  bcm2835_gpio_function_select(gpio, 48, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_function_select(gpio, 49, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_set_pull(gpio, 48, 2);
+  bcm2835_gpio_set_pull(gpio, 49, 2);
 
   /* GPIO_DAT0, GPIO_DAT1, GPIO_DAT2, GPIO_DAT3 */
-  r = b_in(gpio, GPFSEL5);
-  r |= (7 << (0 * 3)) | (7 << (1 * 3)) | (7 << (2 * 3)) | (7 << (3 * 3));
-  b_out(gpio, GPFSEL5, r);
-  b_out(gpio, GPPUD, 2);
-  delay(150); /* ! */
-  b_out(gpio, GPPUDCLK1, (1 << 18) | (1 << 19) | (1 << 20) | (1 << 21));
-  delay(150); /* ! */
-  b_out(gpio, GPPUD, 0);
-  b_out(gpio, GPPUDCLK1, 0);
+  bcm2835_gpio_function_select(gpio, 50, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_function_select(gpio, 51, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_function_select(gpio, 52, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_function_select(gpio, 53, BCM2835_GPIO_ALT3);\
+  bcm2835_gpio_set_pull(gpio, 50, 2);
+  bcm2835_gpio_set_pull(gpio, 51, 2);
+  bcm2835_gpio_set_pull(gpio, 52, 2);
+  bcm2835_gpio_set_pull(gpio, 53, 2);
 }
 
 static int bcmemmc_init(device_t *dev) {
