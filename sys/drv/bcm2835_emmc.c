@@ -15,6 +15,7 @@
 #include <sys/bus.h>
 #include <dev/emmc.h>
 #include <sys/errno.h>
+#include <sys/bitops.h>
 
 #define GPPUD 0x0094
 
@@ -184,8 +185,9 @@ int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
   resource_t *emmc = state->emmc;
   uint32_t d, c = 41666666 / f, x, s = 32, h = 0;
   int32_t cnt = 100000;
+
   while ((b_in(emmc, EMMC_STATUS) & (SR_CMD_INHIBIT | SR_DAT_INHIBIT)) && cnt--)
-    delay(3); /* ! */
+    delay(3);
   if (cnt <= 0) {
     klog("ERROR: timeout waiting for inhibit flag");
     return ETIMEDOUT;
@@ -194,34 +196,12 @@ int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
   b_clr(emmc, EMMC_CONTROL1, C1_CLK_EN);
   delay(30); /* ! */
   x = c - 1;
-  if (!x)
-    s = 0;
-  else {
-    if (!(x & 0xffff0000u)) {
-      x <<= 16;
-      s -= 16;
-    }
-    if (!(x & 0xff000000u)) {
-      x <<= 8;
-      s -= 8;
-    }
-    if (!(x & 0xf0000000u)) {
-      x <<= 4;
-      s -= 4;
-    }
-    if (!(x & 0xc0000000u)) {
-      x <<= 2;
-      s -= 2;
-    }
-    if (!(x & 0x80000000u)) {
-      x <<= 1;
-      s -= 1;
-    }
-    if (s > 0)
-      s--;
-    if (s > 7)
-      s = 7;
-  }
+  s = fls32(x);
+  if (s > 0)
+    s--;
+  if (s > 7)
+    s = 7;
+  
   if (state->host_version > HOST_SPEC_V2)
     d = c;
   else
