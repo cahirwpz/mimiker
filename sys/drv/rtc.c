@@ -23,7 +23,7 @@ typedef struct rtc_state {
   char asctime[RTC_ASCTIME_SIZE];
   unsigned counter; /* TODO Should that be part of intr_handler_t ? */
   resource_t *irq_res;
-  devfile_t *dev;
+  devnode_t *dev;
 } rtc_state_t;
 
 /*
@@ -75,7 +75,7 @@ static intr_filter_t rtc_intr(void *data) {
   return IF_STRAY;
 }
 
-static int rtc_time_read(devfile_t *dev, uio_t *uio) {
+static int rtc_time_read(devnode_t *dev, uio_t *uio) {
   rtc_state_t *rtc = dev->data;
   tm_t t;
 

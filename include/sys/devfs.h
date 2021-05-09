@@ -6,18 +6,18 @@
 typedef struct vnode vnode_t;
 typedef struct devfs_node devfs_node_t;
 typedef struct vnodeops vnodeops_t;
-typedef struct devfile devfile_t;
+typedef struct devnode devnode_t;
 typedef struct uio uio_t;
 
 /*
  * Device file node.
  */
 
-typedef int (*dev_open_t)(devfile_t *dev, int flags);
-typedef int (*dev_close_t)(devfile_t *dev, int flags);
-typedef int (*dev_read_t)(devfile_t *dev, uio_t *uio);
-typedef int (*dev_write_t)(devfile_t *dev, uio_t *uio);
-typedef int (*dev_ioctl_t)(devfile_t *dev, u_long cmd, void *data, int flags);
+typedef int (*dev_open_t)(devnode_t *dev, int flags);
+typedef int (*dev_close_t)(devnode_t *dev, int flags);
+typedef int (*dev_read_t)(devnode_t *dev, uio_t *uio);
+typedef int (*dev_write_t)(devnode_t *dev, uio_t *uio);
+typedef int (*dev_ioctl_t)(devnode_t *dev, u_long cmd, void *data, int flags);
 
 typedef enum {
   DT_OTHER = 0,    /* other non-seekable device file */
@@ -34,14 +34,14 @@ typedef struct devops {
   dev_ioctl_t d_ioctl; /* read or modify device properties */
 } devops_t;
 
-typedef struct devfile {
+typedef struct devnode {
   devops_t *ops; /* device operation table */
   void *data;    /* device specific data */
-} devfile_t;
+} devnode_t;
 
 /* If parent is NULL new device will be attached to root devfs directory. */
 int devfs_makedev_new(devfs_node_t *parent, const char *name, devops_t *devops,
-                      void *data, devfile_t **dev_p);
+                      void *data, devnode_t **dev_p);
 int devfs_makedir(devfs_node_t *parent, const char *name, devfs_node_t **dir_p);
 
 /* TODO: rewrite all device drivers which use devfs to rely on `devops`

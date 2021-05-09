@@ -32,7 +32,7 @@ typedef TAILQ_HEAD(, devfs_node) devfs_node_list_t;
 struct devfs_node {
   char dn_name[DEVFS_NAME_MAX]; /* device file name */
   vnode_t *dn_vnode;            /* corresponding v-node */
-  devfile_t dn_device;          /* device-specific data  */
+  devnode_t dn_device;          /* device-specific data  */
 
   /* Node attributes (as in vattr). */
   nlink_t dn_nlinks;   /* number of hard links */
@@ -166,7 +166,7 @@ void devfs_free(devfs_node_t *dn) {
 
 static int devfs_fop_read(file_t *fp, uio_t *uio) {
   devfs_node_t *dn = fp->f_data;
-  devfile_t *dev = &dn->dn_device;
+  devnode_t *dev = &dn->dn_device;
   int error = dev->ops->d_read(dev, uio);
 
   devfs_update_time(dn, DEVFS_UPDATE_ATIME);
@@ -176,7 +176,7 @@ static int devfs_fop_read(file_t *fp, uio_t *uio) {
 
 static int devfs_fop_write(file_t *fp, uio_t *uio) {
   devfs_node_t *dn = fp->f_data;
-  devfile_t *dev = &dn->dn_device;
+  devnode_t *dev = &dn->dn_device;
   int error = dev->ops->d_write(dev, uio);
 
   devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
@@ -186,7 +186,7 @@ static int devfs_fop_write(file_t *fp, uio_t *uio) {
 
 static int devfs_fop_close(file_t *fp) {
   devfs_node_t *dn = fp->f_data;
-  devfile_t *dev = &dn->dn_device;
+  devnode_t *dev = &dn->dn_device;
   refcnt_release(&dn->dn_refcnt);
   return dev->ops->d_close(dev, fp->f_flags);
 }
@@ -194,7 +194,7 @@ static int devfs_fop_close(file_t *fp) {
 static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
                           off_t *newoffp) {
   devfs_node_t *dn = fp->f_data;
-  devfile_t *dev = &dn->dn_device;
+  devnode_t *dev = &dn->dn_device;
   bool seekable = dev->ops->d_type & DT_SEEKABLE;
 
   if (!seekable)
@@ -222,7 +222,7 @@ static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
 
 static int devfs_fop_ioctl(file_t *fp, u_long cmd, void *data) {
   devfs_node_t *dn = fp->f_data;
-  devfile_t *dev = &dn->dn_device;
+  devnode_t *dev = &dn->dn_device;
   return dev->ops->d_ioctl(dev, cmd, data, fp->f_flags);
 }
 
@@ -257,7 +257,7 @@ static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
 
 static int devfs_vop_open(vnode_t *v, int mode, file_t *fp) {
   devfs_node_t *dn = devfs_node_of(v);
-  devfile_t *dev = &dn->dn_device;
+  devnode_t *dev = &dn->dn_device;
   int error;
 
   if ((error = vnode_open_generic(v, mode, fp)))
@@ -419,23 +419,23 @@ SET_ENTRY(vfsconf, devfs_conf);
  * Devfs kernel interface for device drivers.
  */
 
-static int dev_noopen(devfile_t *dev, int flags) {
+static int dev_noopen(devnode_t *dev, int flags) {
   return 0;
 }
 
-static int dev_noclose(devfile_t *dev, int flags) {
+static int dev_noclose(devnode_t *dev, int flags) {
   return 0;
 }
 
-static int dev_noread(devfile_t *dev, uio_t *uio) {
+static int dev_noread(devnode_t *dev, uio_t *uio) {
   return EOPNOTSUPP;
 }
 
-static int dev_nowrite(devfile_t *dev, uio_t *uio) {
+static int dev_nowrite(devnode_t *dev, uio_t *uio) {
   return EOPNOTSUPP;
 }
 
-static int dev_noioctl(devfile_t *dev, u_long cmd, void *data, int flags) {
+static int dev_noioctl(devnode_t *dev, u_long cmd, void *data, int flags) {
   return EOPNOTSUPP;
 }
 
@@ -453,7 +453,7 @@ static int _devfs_makedev(devfs_node_t *parent, const char *name, void *data,
 }
 
 int devfs_makedev_new(devfs_node_t *parent, const char *name, devops_t *devops,
-                      void *data, devfile_t **dev_p) {
+                      void *data, devnode_t **dev_p) {
   devfs_node_t *dn;
   int error;
 
