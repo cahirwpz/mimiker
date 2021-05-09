@@ -77,10 +77,6 @@ static inline devfs_node_t *devfs_node_of(vnode_t *v) {
   return (devfs_node_t *)v->v_data;
 }
 
-static inline devfile_t *device_of(vnode_t *v) {
-  return &devfs_node_of(v)->dn_device;
-}
-
 typedef enum devfs_time_update {
   DEVFS_UPDATE_ATIME = 1,
   DEVFS_UPDATE_MTIME = 2,
@@ -165,6 +161,81 @@ void devfs_free(devfs_node_t *dn) {
 }
 
 /*
+ * Fileops interface for device nodes.
+ */
+
+static int devfs_fop_read(file_t *fp, uio_t *uio) {
+  devfs_node_t *dn = fp->f_data;
+  devfile_t *dev = &dn->dn_device;
+  int error = dev->ops->d_read(dev, uio);
+
+  devfs_update_time(dn, DEVFS_UPDATE_ATIME);
+
+  return error;
+}
+
+static int devfs_fop_write(file_t *fp, uio_t *uio) {
+  devfs_node_t *dn = fp->f_data;
+  devfile_t *dev = &dn->dn_device;
+  int error = dev->ops->d_write(dev, uio);
+
+  devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
+
+  return error;
+}
+
+static int devfs_fop_close(file_t *fp) {
+  devfs_node_t *dn = fp->f_data;
+  devfile_t *dev = &dn->dn_device;
+  refcnt_release(&dn->dn_refcnt);
+  return dev->ops->d_close(dev, fp->f_flags);
+}
+
+static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
+                          off_t *newoffp) {
+  devfs_node_t *dn = fp->f_data;
+  devfile_t *dev = &dn->dn_device;
+  bool seekable = dev->ops->d_type & DT_SEEKABLE;
+
+  if (!seekable)
+    return ESPIPE;
+
+  if (whence == SEEK_CUR) {
+    offset += fp->f_offset;
+  } else if (whence == SEEK_END) {
+    offset += dn->dn_size;
+  } else if (whence != SEEK_SET) {
+    return EINVAL;
+  }
+
+  if (offset < 0) {
+    offset = 0;
+  } else if ((size_t)offset > dn->dn_size) {
+    offset = dn->dn_size;
+  }
+
+  *newoffp = fp->f_offset = offset;
+  devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
+
+  return 0;
+}
+
+static int devfs_fop_ioctl(file_t *fp, u_long cmd, void *data) {
+  devfs_node_t *dn = fp->f_data;
+  devfile_t *dev = &dn->dn_device;
+  return dev->ops->d_ioctl(dev, cmd, data, fp->f_flags);
+}
+
+static fileops_t devfs_fileops = {
+  .fo_read = devfs_fop_read,
+  .fo_write = devfs_fop_write,
+  .fo_close = devfs_fop_close,
+  .fo_seek = devfs_fop_seek,
+  .fo_stat = default_vnstat,
+  .fo_ioctl = devfs_fop_ioctl,
+};
+
+/*
  * Devfs device v-node operations.
  */
 
@@ -192,50 +263,16 @@ static int devfs_vop_open(vnode_t *v, int mode, file_t *fp) {
   if ((error = vnode_open_generic(v, mode, fp)))
     return error;
 
-  if ((error = dev->ops->d_open(dev, fp->f_flags)))
+  fp->f_data = dn;
+  fp->f_ops = &devfs_fileops;
+  fp->f_type = FT_VNODE;
+  fp->f_vnode = v;
+
+  if ((error = dev->ops->d_open(dev, mode)))
     return error;
 
   refcnt_acquire(&dn->dn_refcnt);
   return 0;
-}
-
-static int devfs_vop_read(vnode_t *v, uio_t *uio) {
-  devfs_node_t *dn = devfs_node_of(v);
-  devfile_t *dev = &dn->dn_device;
-
-  int error = dev->ops->d_read(dev, uio);
-
-  devfs_update_time(dn, DEVFS_UPDATE_ATIME);
-
-  return error;
-}
-
-static int devfs_vop_write(vnode_t *v, uio_t *uio) {
-  devfs_node_t *dn = devfs_node_of(v);
-  devfile_t *dev = &dn->dn_device;
-
-  int error = dev->ops->d_write(dev, uio);
-
-  devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
-
-  return error;
-}
-
-static int devfs_vop_close(vnode_t *v, file_t *fp) {
-  devfs_node_t *dn = devfs_node_of(v);
-  devfile_t *dev = &dn->dn_device;
-  refcnt_release(&dn->dn_refcnt);
-  return dev->ops->d_close(dev, fp->f_flags);
-}
-
-static int devfs_vop_seek(vnode_t *v, off_t oldoff, off_t newoff) {
-  devfile_t *dev = device_of(v);
-  return (dev->ops->d_type & DT_SEEKABLE) ? 0 : ESPIPE;
-}
-
-static int devfs_vop_ioctl(vnode_t *v, u_long cmd, void *data, file_t *fp) {
-  devfile_t *dev = device_of(v);
-  return dev->ops->d_ioctl(dev, cmd, data, fp->f_flags);
 }
 
 /* Free a devfs device file after unlinking it. */
@@ -248,11 +285,6 @@ static int devfs_vop_reclaim(vnode_t *v) {
 
 static vnodeops_t devfs_dev_vnodeops = {
   .v_open = devfs_vop_open,
-  .v_close = devfs_vop_close,
-  .v_read = devfs_vop_read,
-  .v_write = devfs_vop_write,
-  .v_seek = devfs_vop_seek,
-  .v_ioctl = devfs_vop_ioctl,
   .v_access = vnode_access_generic,
   .v_getattr = devfs_vop_getattr,
   .v_reclaim = devfs_vop_reclaim,
@@ -488,7 +520,7 @@ int devfs_makedev(devfs_node_t *parent, const char *name, vnodeops_t *vops,
 }
 
 void *devfs_node_data(vnode_t *v) {
-  return device_of(v)->data;
+  return devfs_node_of(v)->dn_device.data;
 }
 
 int devfs_makedir(devfs_node_t *parent, const char *name,

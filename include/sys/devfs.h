@@ -13,17 +13,17 @@ typedef struct uio uio_t;
  * Device file node.
  */
 
-typedef enum {
-  DT_OTHER = 0,    /* other non-seekable device file */
-  DT_SEEKABLE = 1, /* other seekable device file (also a flag) */
-  /* TODO: add DT_CONS (!) and DT_DISK. */
-} dev_type_t;
-
 typedef int (*dev_open_t)(devfile_t *dev, int flags);
 typedef int (*dev_close_t)(devfile_t *dev, int flags);
 typedef int (*dev_read_t)(devfile_t *dev, uio_t *uio);
 typedef int (*dev_write_t)(devfile_t *dev, uio_t *uio);
 typedef int (*dev_ioctl_t)(devfile_t *dev, u_long cmd, void *data, int flags);
+
+typedef enum {
+  DT_OTHER = 0,    /* other non-seekable device file */
+  DT_SEEKABLE = 1, /* other seekable device file (also a flag) */
+  /* TODO: add DT_CONS (!) and DT_DISK. */
+} dev_type_t;
 
 typedef struct devops {
   dev_type_t d_type;   /* device type */
