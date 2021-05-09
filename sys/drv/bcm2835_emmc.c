@@ -17,8 +17,6 @@
 #include <sys/errno.h>
 #include <sys/bitops.h>
 
-#define GPPUD 0x0094
-
 #define EMMC_ARG2 0x0000
 #define EMMC_BLKSIZECNT 0x0004
 #define EMMC_ARG1 0x0008
@@ -474,9 +472,6 @@ static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
   return 0;
 }
 
-#define GPFSEL4 0x0010
-#define GPFSEL5 0x0014
-#define GPPUDCLK1 0x009C
 #define GPHEN1 0x0068
 
 static void emmc_gpio_init(device_t *dev) {
@@ -500,7 +495,7 @@ static void emmc_gpio_init(device_t *dev) {
   bcm2835_gpio_function_select(gpio, 50, BCM2835_GPIO_ALT3);
   bcm2835_gpio_function_select(gpio, 51, BCM2835_GPIO_ALT3);
   bcm2835_gpio_function_select(gpio, 52, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_function_select(gpio, 53, BCM2835_GPIO_ALT3);\
+  bcm2835_gpio_function_select(gpio, 53, BCM2835_GPIO_ALT3);
   bcm2835_gpio_set_pull(gpio, 50, 2);
   bcm2835_gpio_set_pull(gpio, 51, 2);
   bcm2835_gpio_set_pull(gpio, 52, 2);
