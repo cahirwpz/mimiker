@@ -1,6 +1,5 @@
 #define KL_LOG KL_DEV
 
-#include <sys/memdev.h>
 #include <sys/mimiker.h>
 #include <sys/rman.h>
 #include <sys/devclass.h>
@@ -68,16 +67,6 @@
 #define HOST_SPEC_V2 1
 #define HOST_SPEC_V1 0
 
-// SCR flags
-#define SCR_SD_BUS_WIDTH_4 0x00000400
-#define SCR_SUPP_SET_BLKCNT 0x02000000
-// added by my driver
-#define SCR_SUPP_CCS 0x00000001
-
-#define ACMD41_VOLTAGE 0x00ff8000
-#define ACMD41_CMD_COMPLETE 0x80000000
-#define ACMD41_CMD_CCS 0x40000000
-#define ACMD41_ARG_HC 0x51ff8000
 
 static driver_t bcmemmc_driver;
 
