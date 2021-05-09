@@ -75,24 +75,6 @@ static inline devfs_node_t *devfs_node_of(vnode_t *v) {
   return (devfs_node_t *)v->v_data;
 }
 
-typedef enum devfs_time_update {
-  DEVFS_UPDATE_ATIME = 1,
-  DEVFS_UPDATE_MTIME = 2,
-  DEVFS_UPDATE_CTIME = 4,
-  DEVFS_UPDATE_ALL = 7,
-} devfs_time_update_t;
-
-static void devfs_update_time(devfs_node_t *dn, devfs_time_update_t update) {
-  timespec_t nowtm = nanotime();
-
-  if (update & DEVFS_UPDATE_ATIME)
-    dn->dn_atime = nowtm;
-  if (update & DEVFS_UPDATE_MTIME)
-    dn->dn_mtime = nowtm;
-  if (update & DEVFS_UPDATE_CTIME)
-    dn->dn_ctime = nowtm;
-}
-
 static devfs_node_t *devfs_find_child(devfs_node_t *parent,
                                       const componentname_t *cn) {
   assert(mtx_owned(&devfs.lock));
@@ -123,7 +105,7 @@ static devfs_node_t *devfs_node_create(const char *name, int mode) {
   /* UID and GID are set to 0 by `kmalloc`.
    * Note that `dn_size` is initially 0, but the device is
    * free to alter this field. */
-  devfs_update_time(dn, DEVFS_UPDATE_ALL);
+  /* TODO: update atime & mtime & ctime */
   return dn;
 }
 
@@ -146,9 +128,6 @@ static int devfs_add_entry(devfs_node_t *parent, const char *name, int mode,
     parent->dn_nlinks++;
   *dnp = dn;
 
-  devfs_update_time(parent, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
-  devfs_update_time(dn, DEVFS_UPDATE_CTIME);
-
   return 0;
 }
 
@@ -164,22 +143,12 @@ void devfs_free(devfs_node_t *dn) {
 
 static int devfs_fop_read(file_t *fp, uio_t *uio) {
   devnode_t *dev = fp->f_data;
-  int error = dev->ops->d_read(dev, uio);
-
-  devfs_node_t *dn = container_of(dev, devfs_node_t, dn_device);
-  devfs_update_time(dn, DEVFS_UPDATE_ATIME);
-
-  return error;
+  return dev->ops->d_read(dev, uio);
 }
 
 static int devfs_fop_write(file_t *fp, uio_t *uio) {
   devnode_t *dev = fp->f_data;
-  int error = dev->ops->d_write(dev, uio);
-
-  devfs_node_t *dn = container_of(dev, devfs_node_t, dn_device);
-  devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
-
-  return error;
+  return dev->ops->d_write(dev, uio);
 }
 
 static int devfs_fop_close(file_t *fp) {
@@ -211,10 +180,6 @@ static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
   }
 
   *newoffp = fp->f_offset = offset;
-
-  devfs_node_t *dn = container_of(dev, devfs_node_t, dn_device);
-  devfs_update_time(dn, DEVFS_UPDATE_MTIME | DEVFS_UPDATE_CTIME);
-
   return 0;
 }
 
@@ -350,7 +315,6 @@ static readdir_ops_t devfs_readdir_ops = {
 };
 
 static int devfs_vop_readdir(vnode_t *v, uio_t *uio) {
-  devfs_update_time(devfs_node_of(v), DEVFS_UPDATE_ATIME);
   return readdir_generic(v, uio, &devfs_readdir_ops);
 }
 
