@@ -68,7 +68,6 @@
 #define HOST_SPEC_V2 1
 #define HOST_SPEC_V1 0
 
-
 static driver_t bcmemmc_driver;
 
 typedef struct bcmemmc_state {
@@ -97,7 +96,7 @@ typedef struct bcmemmc_state {
  */
 static void delay(int64_t count) {
   __asm__ volatile("1: subs %[count], %[count], #1; bne 1b"
-                   : [count] "+r"(count));
+                   : [ count ] "+r"(count));
 }
 
 static inline uint32_t emmc_wait_flags_to_hwflags(emmc_wait_flags_t mask) {
@@ -189,7 +188,7 @@ int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
   while ((b_in(emmc, EMMC_STATUS) & (SR_CMD_INHIBIT | SR_DAT_INHIBIT)) && cnt--)
     delay(3);
   if (cnt <= 0) {
-    klog("ERROR: timeout waiting for inhibit flag");
+    klog("e.MMC ERROR: timeout waiting for inhibit flag");
     return ETIMEDOUT;
   }
 
@@ -201,7 +200,7 @@ int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
     s--;
   if (s > 7)
     s = 7;
-  
+
   if (state->host_version > HOST_SPEC_V2)
     d = c;
   else
@@ -287,6 +286,34 @@ uint32_t encode_cmd(emmc_cmd_t cmd) {
   return code;
 }
 
+static int bcmemmc_set_bus_width(bcmemmc_state_t *state, uint32_t bw) {
+  switch (bw) {
+    case EMMC_BUSWIDTH_1:
+      b_clr(state->emmc, EMMC_CONTROL0, C0_HCTL_8BIT);
+      b_clr(state->emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
+      return 0;
+    case EMMC_BUSWIDTH_4:
+      b_clr(state->emmc, EMMC_CONTROL0, C0_HCTL_8BIT);
+      b_set(state->emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
+      return 0;
+    case EMMC_BUSWIDTH_8:
+      b_set(state->emmc, EMMC_CONTROL0, C0_HCTL_8BIT);
+      b_clr(state->emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
+      return 0;
+    default:
+      return EINVAL;
+  }
+}
+
+static int bcmemmc_get_bus_width(bcmemmc_state_t *state) {
+  uint32_t ctl = b_in(state->emmc, EMMC_CONTROL0);
+  if (ctl & C0_HCTL_8BIT)
+    return EMMC_BUSWIDTH_8;
+  if (ctl & C0_HCTL_DWITDH)
+    return EMMC_BUSWIDTH_4;
+  return EMMC_BUSWIDTH_1;
+}
+
 static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
   assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
@@ -318,6 +345,9 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
     case EMMC_PROP_RW_RESP_HI:
       *var = (uint64_t)b_in(emmc, EMMC_RESP2) | (uint64_t)b_in(emmc, EMMC_RESP3)
                                                   << 32;
+      return 0;
+    case EMMC_PROP_RW_BUSWIDTH:
+      *var = bcmemmc_get_bus_width(state);
       return 0;
     case EMMC_PROP_RW_RCA:
       *var = state->rca;
@@ -359,22 +389,7 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
     case EMMC_PROP_RW_CLOCK_FREQ:
       return bcmemmc_clk(cdev->parent, var);
     case EMMC_PROP_RW_BUSWIDTH:
-      switch (var) {
-        case EMMC_BUSWIDTH_1:
-          b_clr(emmc, EMMC_CONTROL0, C0_HCTL_8BIT);
-          b_clr(emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
-          return 0;
-        case EMMC_BUSWIDTH_4:
-          b_clr(emmc, EMMC_CONTROL0, C0_HCTL_8BIT);
-          b_set(emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
-          return 0;
-        case EMMC_BUSWIDTH_8:
-          b_set(emmc, EMMC_CONTROL0, C0_HCTL_8BIT);
-          b_clr(emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
-          return 0;
-        default:
-          return EINVAL;
-      }
+      return bcmemmc_set_bus_width(state, var);
     case EMMC_PROP_RW_RCA:
       state->rca = var;
       return 0;
