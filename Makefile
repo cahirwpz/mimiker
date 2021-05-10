@@ -47,7 +47,7 @@ udrive-img:
 
 PHONY-TARGETS += setup test print
 
-IMGVER = 1.8.0
+IMGVER = 1.8.1
 IMGNAME = cahirwpz/mimiker-ci
 
 docker-build:
