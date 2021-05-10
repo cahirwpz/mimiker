@@ -15,8 +15,7 @@
 #include <sys/bus.h>
 #include <dev/emmc.h>
 #include <sys/errno.h>
-
-#define GPPUD 0x0094
+#include <sys/bitops.h>
 
 #define EMMC_ARG2 0x0000
 #define EMMC_BLKSIZECNT 0x0004
@@ -67,7 +66,6 @@
 #define HOST_SPEC_V2 1
 #define HOST_SPEC_V1 0
 
-
 static driver_t bcmemmc_driver;
 
 typedef struct bcmemmc_state {
@@ -96,7 +94,7 @@ typedef struct bcmemmc_state {
  */
 static void delay(int64_t count) {
   __asm__ volatile("1: subs %[count], %[count], #1; bne 1b"
-                   : [count] "+r"(count));
+                   : [ count ] "+r"(count));
 }
 
 static inline uint32_t emmc_wait_flags_to_hwflags(emmc_wait_flags_t mask) {
@@ -184,44 +182,23 @@ int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
   resource_t *emmc = state->emmc;
   uint32_t d, c = 41666666 / f, x, s = 32, h = 0;
   int32_t cnt = 100000;
+
   while ((b_in(emmc, EMMC_STATUS) & (SR_CMD_INHIBIT | SR_DAT_INHIBIT)) && cnt--)
-    delay(3); /* ! */
+    delay(3);
   if (cnt <= 0) {
-    klog("ERROR: timeout waiting for inhibit flag");
+    klog("e.MMC ERROR: timeout waiting for inhibit flag");
     return ETIMEDOUT;
   }
 
   b_clr(emmc, EMMC_CONTROL1, C1_CLK_EN);
   delay(30); /* ! */
   x = c - 1;
-  if (!x)
-    s = 0;
-  else {
-    if (!(x & 0xffff0000u)) {
-      x <<= 16;
-      s -= 16;
-    }
-    if (!(x & 0xff000000u)) {
-      x <<= 8;
-      s -= 8;
-    }
-    if (!(x & 0xf0000000u)) {
-      x <<= 4;
-      s -= 4;
-    }
-    if (!(x & 0xc0000000u)) {
-      x <<= 2;
-      s -= 2;
-    }
-    if (!(x & 0x80000000u)) {
-      x <<= 1;
-      s -= 1;
-    }
-    if (s > 0)
-      s--;
-    if (s > 7)
-      s = 7;
-  }
+  s = fls32(x);
+  if (s > 0)
+    s--;
+  if (s > 7)
+    s = 7;
+
   if (state->host_version > HOST_SPEC_V2)
     d = c;
   else
@@ -307,6 +284,34 @@ uint32_t encode_cmd(emmc_cmd_t cmd) {
   return code;
 }
 
+static int bcmemmc_set_bus_width(bcmemmc_state_t *state, uint32_t bw) {
+  switch (bw) {
+    case EMMC_BUSWIDTH_1:
+      b_clr(state->emmc, EMMC_CONTROL0, C0_HCTL_8BIT);
+      b_clr(state->emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
+      return 0;
+    case EMMC_BUSWIDTH_4:
+      b_clr(state->emmc, EMMC_CONTROL0, C0_HCTL_8BIT);
+      b_set(state->emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
+      return 0;
+    case EMMC_BUSWIDTH_8:
+      b_set(state->emmc, EMMC_CONTROL0, C0_HCTL_8BIT);
+      b_clr(state->emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
+      return 0;
+    default:
+      return EINVAL;
+  }
+}
+
+static int bcmemmc_get_bus_width(bcmemmc_state_t *state) {
+  uint32_t ctl = b_in(state->emmc, EMMC_CONTROL0);
+  if (ctl & C0_HCTL_8BIT)
+    return EMMC_BUSWIDTH_8;
+  if (ctl & C0_HCTL_DWITDH)
+    return EMMC_BUSWIDTH_4;
+  return EMMC_BUSWIDTH_1;
+}
+
 static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
   assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
@@ -338,6 +343,9 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
     case EMMC_PROP_RW_RESP_HI:
       *var = (uint64_t)b_in(emmc, EMMC_RESP2) | (uint64_t)b_in(emmc, EMMC_RESP3)
                                                   << 32;
+      return 0;
+    case EMMC_PROP_RW_BUSWIDTH:
+      *var = bcmemmc_get_bus_width(state);
       return 0;
     case EMMC_PROP_RW_RCA:
       *var = state->rca;
@@ -379,22 +387,7 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
     case EMMC_PROP_RW_CLOCK_FREQ:
       return bcmemmc_clk(cdev->parent, var);
     case EMMC_PROP_RW_BUSWIDTH:
-      switch (var) {
-        case EMMC_BUSWIDTH_1:
-          b_clr(emmc, EMMC_CONTROL0, C0_HCTL_8BIT);
-          b_clr(emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
-          return 0;
-        case EMMC_BUSWIDTH_4:
-          b_clr(emmc, EMMC_CONTROL0, C0_HCTL_8BIT);
-          b_set(emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
-          return 0;
-        case EMMC_BUSWIDTH_8:
-          b_set(emmc, EMMC_CONTROL0, C0_HCTL_8BIT);
-          b_clr(emmc, EMMC_CONTROL0, C0_HCTL_DWITDH);
-          return 0;
-        default:
-          return EINVAL;
-      }
+      return bcmemmc_set_bus_width(state, var);
     case EMMC_PROP_RW_RCA:
       state->rca = var;
       return 0;
@@ -479,9 +472,6 @@ static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
   return 0;
 }
 
-#define GPFSEL4 0x0010
-#define GPFSEL5 0x0014
-#define GPPUDCLK1 0x009C
 #define GPHEN1 0x0068
 
 static void emmc_gpio_init(device_t *dev) {
@@ -489,40 +479,27 @@ static void emmc_gpio_init(device_t *dev) {
   resource_t *gpio = state->gpio;
   int64_t r = 0;
   /* GPIO_CD */
-  r = b_in(gpio, GPFSEL4);
-  r &= ~(7 << (7 * 3));
-  b_out(gpio, GPFSEL4, r);
-  b_out(gpio, GPPUD, 2);
-  delay(150); /* ! */
-  b_out(gpio, GPPUDCLK1, 1 << 15);
-  delay(150); /* ! */
-  b_out(gpio, GPPUD, 0);
-  b_out(gpio, GPPUDCLK1, 0);
+  bcm2835_gpio_function_select(gpio, 47, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_set_pull(gpio, 47, 2);
   r = b_in(gpio, GPHEN1);
   r |= 1 << 15;
   b_out(gpio, GPHEN1, r);
 
   /* GPIO_CLK, GPIO_CMD */
-  r = b_in(gpio, GPFSEL4);
-  r |= (7 << (8 * 3)) | (7 << (9 * 3));
-  b_out(gpio, GPFSEL4, r);
-  b_out(gpio, GPPUD, 2);
-  delay(150); /* ! */
-  b_out(gpio, GPPUDCLK1, (1 << 16) | (1 << 17));
-  delay(150); /* ! */
-  b_out(gpio, GPPUD, 0);
-  b_out(gpio, GPPUDCLK1, 0);
+  bcm2835_gpio_function_select(gpio, 48, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_function_select(gpio, 49, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_set_pull(gpio, 48, 2);
+  bcm2835_gpio_set_pull(gpio, 49, 2);
 
   /* GPIO_DAT0, GPIO_DAT1, GPIO_DAT2, GPIO_DAT3 */
-  r = b_in(gpio, GPFSEL5);
-  r |= (7 << (0 * 3)) | (7 << (1 * 3)) | (7 << (2 * 3)) | (7 << (3 * 3));
-  b_out(gpio, GPFSEL5, r);
-  b_out(gpio, GPPUD, 2);
-  delay(150); /* ! */
-  b_out(gpio, GPPUDCLK1, (1 << 18) | (1 << 19) | (1 << 20) | (1 << 21));
-  delay(150); /* ! */
-  b_out(gpio, GPPUD, 0);
-  b_out(gpio, GPPUDCLK1, 0);
+  bcm2835_gpio_function_select(gpio, 50, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_function_select(gpio, 51, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_function_select(gpio, 52, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_function_select(gpio, 53, BCM2835_GPIO_ALT3);
+  bcm2835_gpio_set_pull(gpio, 50, 2);
+  bcm2835_gpio_set_pull(gpio, 51, 2);
+  bcm2835_gpio_set_pull(gpio, 52, 2);
+  bcm2835_gpio_set_pull(gpio, 53, 2);
 }
 
 static int bcmemmc_init(device_t *dev) {
