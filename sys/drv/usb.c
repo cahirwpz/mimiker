@@ -1,21 +1,35 @@
 #include <dev/usb.h>
 
-bool usb_buf_periodic(usb_buf_t *buf) {
+void usb_buf_copyout(usb_buf_t *buf, void *dst, size_t size) {
   /* Not yet implemented! */
-  return true;
 }
 
 usb_direction_t usb_buf_status_dir(usb_buf_t *buf) {
   /* Not yet implemented! */
   return 0;
 }
+usb_direction_t usb_buf_dir(usb_buf_t *buf) {
+  /* Not yet implemented! */
+  return 0;
+}
 
-void usb_buf_copy_data(usb_buf_t *buf, void *dst) {
+uint16_t usb_buf_transfer_size(usb_buf_t *buf) {
+  /* Not yet implemented! */
+  return 0;
+}
+
+void usb_buf_process(usb_buf_t *buf, void *data, usb_error_t error) {
   /* Not yet implemented! */
 }
 
-void usb_process(usb_buf_t *buf, void *data, usb_error_t error) {
+bool usb_buf_periodic(usb_buf_t *buf) {
   /* Not yet implemented! */
+  return true;
+}
+
+usb_direction_t usb_status_dir(usb_direction_t dir, uint16_t transfer_size) {
+  /* Not yet implemented! */
+  return 0;
 }
 
 void usb_init(device_t *dev) {

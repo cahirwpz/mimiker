@@ -3,8 +3,16 @@
  *
  * For explanation of terms used throughout the code
  * please see the following documents:
- * - ftp://ftp.netbsd.org/pub/NetBSD/misc/blymn/uhci11d.pdf
- * - http://esd.cs.ucr.edu/webres/usb11.pdf
+ * - UHCI 1.1 specification:
+ *     ftp://ftp.netbsd.org/pub/NetBSD/misc/blymn/uhci11d.pdf
+ * - USB 2.0 specification:
+ *     http://sdpha2.ucsd.edu/Lab_Equip_Manuals/usb_20.pdf
+ *
+ * Each inner function if given a description. For description
+ * of the rest of contained functions please see `include/dev/usbhc.h`.
+ * Each function which composes an interface is given a leading underscore
+ * in orded to avoid symbol confilcts with interface wrappers presented in
+ * aforementioned header file.
  */
 #define KL_LOG KL_DEV
 #include <sys/errno.h>
@@ -79,7 +87,7 @@ static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
  *         |   transfer  |      `td_buffer`         |             |
  *         |  descriptor |------------------------> |             |
  *         |      0      |                          |  row data   |
- *         ---------------                          |   stream    |
+ *         ---------------                          |    stram    |
  *         |             |                          |             |
  *               ...                                      ...
  *         |             |                          |             |
@@ -109,28 +117,28 @@ static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
 #define outd(addr, val) bus_write_4(uhci->regs, (addr), (val))
 
 /*
- * Set specified bit in the given UHCI port.
+ * Set specified bit in a given UHCI port.
  */
 #define setb(p, b) outb((p), inb(p) | (b))
 #define setw(p, b) outw((p), inw(p) | (b))
 #define setd(p, b) outd((p), ind(p) | (b))
 
 /*
- * Clear specified bit in the given UHCI port.
+ * Clear specified bit in a given UHCI port.
  */
 #define clrb(p, b) outb((p), inb(p) & ~(b))
 #define clrw(p, b) outw((p), inw(p) & ~(b))
 #define clrd(p, b) outd((p), ind(p) & ~(b))
 
 /*
- * Clear specified bit in the given UHCI write clear port.
+ * Clear specified bit in a given UHCI write clear port.
  */
 #define wclrb(p, b) setb((p), b)
 #define wclrw(p, b) setw((p), b)
 #define wclrd(p, b) setd((p), b)
 
 /*
- * Check if the specified bit is set in the given UHCI port.
+ * Check if a specified bit is set in a given UHCI port.
  */
 #define chkb(p, b) ((inb(p) & (b)) != 0)
 #define chkw(p, b) ((inw(p) & (b)) != 0)
@@ -141,7 +149,7 @@ static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
  */
 
 /* Obtain the physical address corresponding
- * to specified virtual address. */
+ * to the specified virtual address. */
 static uhci_physaddr_t uhci_physaddr(void *vaddr) {
   paddr_t paddr = 0;
   pmap_kextract((vaddr_t)vaddr, &paddr);
@@ -185,7 +193,7 @@ static void td_init(uhci_td_t *td, bool ls, bool ioc, uint32_t token,
   uint32_t ioc_mask = (ioc ? UHCI_TD_IOC : 0);
 
   bzero(td, sizeof(uhci_td_t));
-  /* Consecutive transfer descriptors are always contiguous. */
+  /* Consecutive transfer descriptors are always contiguou. */
   td->td_next =
     (ioc ? UHCI_PTR_T : uhci_physaddr(td + 1) | UHCI_PTR_VF | UHCI_PTR_TD);
   td->td_status = UHCI_TD_SET_ERRCNT(3) | ioc_mask | ls_mask | UHCI_TD_ACTIVE;
@@ -194,10 +202,9 @@ static void td_init(uhci_td_t *td, bool ls, bool ioc, uint32_t token,
 }
 
 /* Create a SETUP transfer descriptor. */
-static void td_setup(uhci_td_t *td, bool ls, uint8_t addr,
-                     usb_device_request_t *req) {
+static void td_setup(uhci_td_t *td, bool ls, uint8_t addr, usb_dev_req_t *req) {
   /* SETUP packages are used only in control transfers, hence endpoint is 0. */
-  uint32_t token = UHCI_TD_SETUP(sizeof(usb_device_request_t), 0, addr);
+  uint32_t token = UHCI_TD_SETUP(sizeof(usb_dev_req_t), 0, addr);
   /* A SETUP packet is always the first packet of a transfer, thus
    * no Interrupt On Competion is used. */
   td_init(td, ls, false, token, req);
@@ -235,7 +242,7 @@ static inline uint32_t td_error_status(uhci_td_t *td) {
   return td->td_status & UHCI_TD_ERROR;
 }
 
-/* Check whether a transfer descriptor is active (i.e. should be executed). */
+/* Check whether a transfer descriptro is active (i.e. should be executed). */
 static inline bool td_active(uhci_td_t *td) {
   return td->td_status & UHCI_TD_ACTIVE;
 }
@@ -271,7 +278,7 @@ static void qh_init(uhci_qh_t *qh, usb_buf_t *buf) {
 static uhci_qh_t *qh_alloc(usb_buf_t *buf) {
   void *area = pool_alloc(P_TFR, M_ZERO);
   /* Allocation scheme of pool's memory ensures that adjusting the
-   * virtual address also adjusts the physical address. */
+   * virtual address also adjusts the physicall address. */
   uhci_qh_t *qh = align(area, UHCI_ALIGNMENT);
   qh_init(qh, buf);
   qh->qh_cookie = area;
@@ -365,7 +372,7 @@ static void qh_remove(uhci_qh_t *mq, uhci_qh_t *qh) {
 /* Obtain the queue's status. If an error has encountered, `error` is
  * set appropriately, otherwise, `true` is returned if the queue
  * has been executed. */
-static bool qh_status(uhci_qh_t *qh, usb_error_t *error) {
+static bool qh_status(uhci_qh_t *qh, uint32_t *error) {
   uhci_td_t *td = qh_first_td(qh);
   uint32_t err = 0;
 
@@ -426,7 +433,7 @@ static void uhci_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
   /* If an error has occured, signal the error and discard the transfer. */
   if (error) {
     usb_error_t uerr = uhcie2usbe(error);
-    usb_process(buf, NULL, uerr);
+    usb_buf_process(buf, NULL, uerr);
     qh_discard(mq, qh);
     return;
   }
@@ -438,7 +445,7 @@ static void uhci_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
   }
 
   /* Let the USB bus layer handle the received data. */
-  usb_process(buf, qh->qh_data, 0);
+  usb_buf_process(buf, qh->qh_data, 0);
 
   /* If this is a periodic transfer we have to reactivate it. */
   if (usb_buf_periodic(buf)) {
@@ -511,12 +518,12 @@ static void uhci_schedule(uhci_state_t *uhci, uhci_qh_t *qh, uint8_t interval) {
 static uhci_td_t *uhci_data_stage(uint16_t maxpkt, uint8_t addr, uint8_t endp,
                                   usb_buf_t *buf, bool ls, uhci_td_t *td,
                                   uint16_t toggle, void *data) {
-  usb_direction_t dir = buf->dir;
-  uint16_t transfer_size = buf->transfer_size;
+  usb_direction_t dir = usb_buf_dir(buf);
+  uint16_t transfer_size = usb_buf_transfer_size(buf);
 
   /* Copyin data to transfer. */
   if (dir == USB_DIR_OUTPUT)
-    usb_buf_copy_data(buf, data);
+    usb_buf_copyout(buf, data, transfer_size);
 
   /* Prepare DATA packets. */
   for (uint16_t nbytes = 0; nbytes != transfer_size; toggle ^= 1) {
@@ -534,17 +541,17 @@ static inline bool uhci_low_speed(uhci_state_t *uhci, uint8_t port);
 /* Issue a control transfer. */
 static void uhci_control_transfer(device_t *dev, uint16_t maxpkt, uint8_t port,
                                   uint8_t addr, usb_buf_t *buf,
-                                  usb_device_request_t *req) {
-  assert(buf->transfer_size + sizeof(usb_device_request_t) <=
-         UHCI_DATA_BUF_SIZE);
+                                  usb_dev_req_t *req) {
+  uint16_t transfer_size = usb_buf_transfer_size(buf);
+  assert(transfer_size + sizeof(usb_dev_req_t) <= UHCI_DATA_BUF_SIZE);
 
   uhci_state_t *uhci = dev->parent->state;
   bool ls = uhci_low_speed(uhci, port);
   uhci_qh_t *qh = qh_alloc(buf);
 
   /* Copyin the USB device request at the end of the data buffer. */
-  void *req_cpy = qh->qh_data + buf->transfer_size;
-  memcpy(req_cpy, req, sizeof(usb_device_request_t));
+  void *req_cpy = qh->qh_data + transfer_size;
+  memcpy(req_cpy, req, sizeof(usb_dev_req_t));
 
   /* Prepare a SETUP packet. */
   uhci_td_t *td = qh_first_td(qh);
@@ -554,7 +561,7 @@ static void uhci_control_transfer(device_t *dev, uint16_t maxpkt, uint8_t port,
   td = uhci_data_stage(maxpkt, addr, 0, buf, ls, td + 1, 1, qh->qh_data);
 
   /* Prepare a STATUS packet. */
-  usb_direction_t status_dir = usb_buf_status_dir(buf);
+  usb_direction_t status_dir = usb_status_dir(usb_buf_dir(buf), transfer_size);
   td_status(td, ls, addr, status_dir);
 
   uhci_schedule(uhci, qh, 0);
@@ -564,7 +571,8 @@ static void uhci_control_transfer(device_t *dev, uint16_t maxpkt, uint8_t port,
 static void uhci_interrupt_transfer(device_t *dev, uint16_t maxpkt,
                                     uint8_t port, uint8_t addr, uint8_t endp,
                                     uint8_t interval, usb_buf_t *buf) {
-  assert(buf->transfer_size <= UHCI_DATA_BUF_SIZE);
+  uint16_t transfer_size = usb_buf_transfer_size(buf);
+  assert(transfer_size <= UHCI_DATA_BUF_SIZE);
 
   uhci_state_t *uhci = dev->parent->state;
   bool ls = uhci_low_speed(uhci, port);
@@ -813,7 +821,6 @@ static int uhci_attach(device_t *dev) {
   return usb_enumerate(dev);
 }
 
-/* UHCI host controller interface. */
 static usbhc_methods_t uhci_usbhc_if = {
   .number_of_ports = uhci_number_of_ports,
   .device_present = uhci_device_present,

@@ -21,13 +21,16 @@
 #define USB_PORT_ROOT_RESET_DELAY_SPEC 50 /* ms */
 #define USB_PORT_RESET_RECOVERY_SPEC 10   /* ms */
 
-typedef struct usb_device_request {
+/*
+ * USB device request.
+ */
+typedef struct usb_dev_req {
   uint8_t bmRequestType;
   uint8_t bRequest;
   uint16_t wValue;
   uint16_t wIndex;
   uint16_t wLength;
-} __packed usb_device_request_t;
+} __packed usb_dev_req_t;
 
 #define UT_WRITE 0x00
 #define UT_READ 0x80
@@ -181,7 +184,7 @@ typedef struct usb_buf {
   condvar_t cv;            /* wait for the transfer to complete */
   spin_t lock;             /* buffer guard */
   usb_error_t error;       /* errors encountered during transfer */
-  usb_transfer_t transfer; /* what kind of transfer is this ? */
+  usb_transfer_t transfer; /* what kind of transfer is this? */
   usb_direction_t dir;     /* transfer direction */
   uint16_t transfer_size;  /* size of the data stage */
 } usb_buf_t;
@@ -196,24 +199,13 @@ static inline device_t *usb_bus_of(device_t *dev) {
   return dev->bus == DEV_BUS_USB ? dev->parent : TAILQ_FIRST(&dev->children);
 }
 
-/* Returns true if the transfer described by `buf` is peridic. */
+void usb_buf_copyout(usb_buf_t *buf, void *dst, size_t size);
+usb_direction_t usb_buf_dir(usb_buf_t *buf);
+uint16_t usb_buf_transfer_size(usb_buf_t *buf);
+void usb_buf_process(usb_buf_t *buf, void *data, usb_error_t error);
 bool usb_buf_periodic(usb_buf_t *buf);
-
-/* Returns direction for the STATUS stage of a transfer. */
-usb_direction_t usb_buf_status_dir(usb_buf_t *buf);
-
-/* Copies data bytes contained in `buf` to designated area `dst`. */
-void usb_buf_copy_data(usb_buf_t *buf, void *dst);
-
-/* Initializes the underlying USB bus of the host controller `dev`. */
+usb_direction_t usb_status_dir(usb_direction_t dir, uint16_t transfer_size);
 void usb_init(device_t *dev);
-
-/* Enumerates and configures all devices attached to root hub `dev`.
- * Returns an error code. */
 int usb_enumerate(device_t *dev);
-
-/* Processes data `data` received in the transfer described by `buf`,
- * or processes error `error` encountered during the transfer. */
-void usb_process(usb_buf_t *buf, void *data, usb_error_t error);
 
 #endif /* _DEV_USB_H_ */
