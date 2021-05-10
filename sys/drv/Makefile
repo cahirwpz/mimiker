@@ -9,12 +9,12 @@ SOURCES = \
 SOURCES-MIPS = \
 	82371AB.c \
 	atkbdc.c \
-	hidkbd.c \
-	hidm.c \
 	cbus.c \
 	evdev.c \
 	evdev_kbd.c \
 	gt64120.c \
+	hidkbd.c \
+	hidm.c \
 	isa.c \
 	malta_rootdev.c \
 	ns16550.c \
@@ -25,7 +25,6 @@ SOURCES-MIPS = \
 	pit.c \
 	stdvga.c \
 	uhci.c \
-	umass.c \
 	usb.c \
 	uart_cbus.c
 

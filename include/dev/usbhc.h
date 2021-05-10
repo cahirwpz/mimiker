@@ -13,8 +13,7 @@ typedef bool (*usbhc_device_present_t)(device_t *dev, uint8_t port);
 typedef void (*usbhc_reset_port_t)(device_t *dev, uint8_t port);
 typedef void (*usbhc_control_transfer_t)(device_t *dev, uint16_t maxpkt,
                                          uint8_t port, uint8_t addr,
-                                         usb_buf_t *buf,
-                                         usb_device_request_t *req);
+                                         usb_buf_t *buf, usb_dev_req_t *req);
 typedef void (*usbhc_interrupt_transfer_t)(device_t *dev, uint16_t maxpkt,
                                            uint8_t port, uint8_t addr,
                                            uint8_t endpt, uint8_t interval,
@@ -35,10 +34,6 @@ typedef struct usbhc_methods {
 static inline usbhc_methods_t *usbhc_methods(device_t *dev) {
   return (usbhc_methods_t *)dev->driver->interfaces[DIF_USBHC];
 }
-
-#define USBHC_METHOD_PROVIDER(dev, method)                                     \
-  (device_method_provider((dev), DIF_USBHC,                                    \
-                          offsetof(struct usbhc_methods, method)))
 
 /*! \brief Returns the number of root hub ports.
  *
@@ -90,11 +85,9 @@ static inline void usbhc_reset_port(device_t *dev, uint8_t port) {
  */
 static inline void usbhc_control_transfer(device_t *dev, uint16_t maxpkt,
                                           uint8_t port, uint8_t addr,
-                                          usb_buf_t *buf,
-                                          usb_device_request_t *req) {
-  device_t *idev = USBHC_METHOD_PROVIDER(dev, control_transfer);
-  usbhc_methods(idev->parent)
-    ->control_transfer(idev, maxpkt, port, addr, buf, req);
+                                          usb_buf_t *buf, usb_dev_req_t *req) {
+  usbhc_methods(dev->parent)
+    ->control_transfer(dev, maxpkt, port, addr, buf, req);
 }
 
 /*! \brief Schedules an interrupt transfer between the host
@@ -114,9 +107,8 @@ static inline void usbhc_interrupt_transfer(device_t *dev, uint16_t maxpkt,
                                             uint8_t port, uint8_t addr,
                                             uint8_t endpt, uint8_t interval,
                                             usb_buf_t *buf) {
-  device_t *idev = USBHC_METHOD_PROVIDER(dev, interrupt_transfer);
-  usbhc_methods(idev->parent)
-    ->interrupt_transfer(idev, maxpkt, port, addr, endpt, interval, buf);
+  usbhc_methods(dev->parent)
+    ->interrupt_transfer(dev, maxpkt, port, addr, endpt, interval, buf);
 }
 
 /*! \brief Schedules a bulk transfer between the host
@@ -134,9 +126,8 @@ static inline void usbhc_interrupt_transfer(device_t *dev, uint16_t maxpkt,
 static inline void usbhc_bulk_transfer(device_t *dev, uint16_t maxpkt,
                                        uint8_t port, uint8_t addr,
                                        uint8_t endpt, usb_buf_t *buf) {
-  device_t *idev = USBHC_METHOD_PROVIDER(dev, bulk_transfer);
-  usbhc_methods(idev->parent)
-    ->bulk_transfer(idev, maxpkt, port, addr, endpt, buf);
+  usbhc_methods(dev->parent)
+    ->bulk_transfer(dev, maxpkt, port, addr, endpt, buf);
 }
 
 #endif /* _DEV_USBHC_H_ */
