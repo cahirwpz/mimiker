@@ -1,4 +1,4 @@
-# Proposition for new tags semantic
+# New tags semantic
 
 ## General info
 
@@ -7,13 +7,6 @@
   - `?a` - authors nick
   - `?s` - name of source from which code have been taken
   - `?t` - term
-
-## Mergers
-
-- `FTTB` -> `FIXME`
-- `NOTE` -> `XXX`
-- `HACK` -> `XXX`
-- `TODO` + `FIXME` -> `TODO`?
 
 ## Changes of description
 
