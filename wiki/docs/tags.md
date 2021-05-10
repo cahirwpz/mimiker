@@ -8,7 +8,7 @@
   - `?s` - name of source from which code have been taken
   - `?t` - term
 
-## Changes of description
+## Description changes
 
 - **FIXME(?a)** - info about needed fixes, that we are aware about, but
     we leave it be
