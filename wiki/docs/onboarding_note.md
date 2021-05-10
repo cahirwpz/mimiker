@@ -2,17 +2,20 @@
 
 ## Project overview
 
-Mimiker is an experiment with implementation of very simple operating
+Mimiker is an experimental implementation of very simple UNIX-like operating
 system for Malta board and Raspberry Pi 3.
 
-Main project ideas:
+### Main project goals:
 
-- Implement only Kernel Space part of system on our own.
-- Keep User Space interface with User Space as compatible as possible with
+- to be a research system helping us to understand structure of UNIX kernels
+- implement only Kernel of the system on our own.
+- keep User Space interface as compatible as possible with
   NetBSD. That way we'll be capable to run all programs designed for that
   system, we already are able to run a few of those. Consequence of that
   is that all header files are the same as NetBSD's.
-- Target architectures are MIPS32 and AArch64.
+- We want kernel to be run on a modern architecture, we started with MIPS32, 
+  but currently we are switching to AArch64 (Raspberry Pi 3)
+- We love to KISS
 
 ### More significant tools we use
 
