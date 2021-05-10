@@ -17,19 +17,18 @@ system for Malta board and Raspberry Pi 3.
   but currently we are switching to AArch64 (Raspberry Pi 3)
 - We love to KISS
 
-### More significant tools we use
+### More significant tools we use to run system
 
-- QEMU - virtual machine that allows us to run system
+- QEMU - virtual machine allowing us to run system
 - Tmux - terminal multiplexer, that allows us to access multiple terminals in
   one window
-- klog - ?
-- Korn Shell - simple shell that we already ported
+- Korn Shell (`ksh`) - simple and only one shell that we already ported
 
 #### How system is run?
 
-When you turn on the system with `./launch` script system is being run in QEMU.
-Multiple terminals are connected to VM. Between these we can switch with Tmux.
-On one of them we have klog (log with kernel messages). On the second one is GDB.
+When you turn on the system with `./launch` script[^4] system is being run in QEMU.
+Multiple terminals are connected to VM. Between these you can switch with Tmux.
+On one of them is klog (log with kernel messages). On the second one is GDB.
 The other one there can be Korn Shell working in the system.
 
 ### Project file hierarchy
@@ -94,4 +93,4 @@ under GPL.
 [^1]: https://man.netbsd.org/hier.7
 [^2]: https://en.wikipedia.org/wiki/License_compatibility
 [^3]: https://en.wikipedia.org/wiki/License_compatibility#/media/File:Floss-license-slide-image.svg
-
+[^4]: https://github.com/cahirwpz/mimiker#readme
