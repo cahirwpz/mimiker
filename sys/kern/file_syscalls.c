@@ -19,7 +19,7 @@ int do_read(proc_t *p, int fd, uio_t *uio) {
     return error;
 
   uio->uio_ioflags |= f->f_flags & IO_MASK;
-  error = FOP_READ(f, uio);
+  error = f->f_ops->fo_read(f, uio);
   file_drop(f);
   return error;
 }
@@ -32,7 +32,7 @@ int do_write(proc_t *p, int fd, uio_t *uio) {
     return error;
 
   uio->uio_ioflags |= f->f_flags & IO_MASK;
-  error = FOP_WRITE(f, uio);
+  error = f->f_ops->fo_write(f, uio);
   file_drop(f);
   return error;
 }
@@ -43,7 +43,7 @@ int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  error = FOP_SEEK(f, offset, whence, newoffp);
+  error = f->f_ops->fo_seek(f, offset, whence, newoffp);
   file_drop(f);
   return error;
 }
@@ -54,7 +54,7 @@ int do_fstat(proc_t *p, int fd, stat_t *sb) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  error = FOP_STAT(f, sb);
+  error = f->f_ops->fo_stat(f, sb);
   file_drop(f);
   return error;
 }
@@ -155,7 +155,7 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  error = FOP_IOCTL(f, cmd, data);
+  error = f->f_ops->fo_ioctl(f, cmd, data);
   file_drop(f);
   if (error == EPASSTHROUGH)
     error = ENOTTY;
