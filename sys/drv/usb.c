@@ -183,6 +183,9 @@ uint16_t usb_buf_transfer_size(usb_buf_t *buf) {
 int usb_buf_read(usb_buf_t *buf, void *dst, int flags) {
   assert(buf->dir == USB_DIR_INPUT);
 
+  if (buf->error)
+    return EIO;
+
   ringbuf_t *rb = &buf->rb;
   size_t size = buf->transfer_size;
   assert(size);
@@ -210,6 +213,9 @@ int usb_buf_read(usb_buf_t *buf, void *dst, int flags) {
 
 int usb_buf_write(usb_buf_t *buf, int flags) {
   assert(buf->dir == USB_DIR_OUTPUT);
+
+  if (buf->error)
+    return EIO;
 
   ringbuf_t *rb = &buf->rb;
   size_t size = usb_buf_wait_size(buf);
@@ -1049,3 +1055,7 @@ static driver_t usb_bus = {
       [DIF_USB_BBB] = &usb_bbb_if,
     },
 };
+
+/* TODO: remove this when merging any USB device driver. */
+static driver_t usb_dev_driver_stub;
+DEVCLASS_ENTRY(usb, usb_dev_driver_stub);
