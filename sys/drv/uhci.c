@@ -10,9 +10,6 @@
  *
  * Each inner function if given a description. For description
  * of the rest of contained functions please see `include/dev/usbhc.h`.
- * Each function which composes an interface is given a leading underscore
- * in orded to avoid symbol confilcts with interface wrappers presented in
- * aforementioned header file.
  */
 #define KL_LOG KL_DEV
 #include <sys/errno.h>
