@@ -19,7 +19,7 @@
 
 - **FIXME(?a)** - info about needed fixes, that we are aware about, but
     we leave it be
-- **TODO(?a)** - info about some features unimplemented for
+- **TODO(?a)** - info about some unimplemented features for
     the time being, less obliging than GitHub Issue
 - **XXX(?a)** - explanation for some non-obvious part of code, some *HACK*
 - **START OF ?s CODE / END OF ?s CODE** - marks foreign part of code
