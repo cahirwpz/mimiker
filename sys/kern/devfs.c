@@ -230,7 +230,7 @@ static int devfs_vop_open(vnode_t *v, int mode, file_t *fp) {
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
 
-  if ((error = dev->ops->d_open(dev, mode)))
+  if ((error = dev->ops->d_open(dev, mode, fp)))
     return error;
 
   refcnt_acquire(&dev->refcnt);
@@ -381,7 +381,7 @@ SET_ENTRY(vfsconf, devfs_conf);
  * Devfs kernel interface for device drivers.
  */
 
-static int dev_noopen(devnode_t *dev, int flags) {
+static int dev_noopen(devnode_t *dev, int flags, file_t *fp) {
   return 0;
 }
 

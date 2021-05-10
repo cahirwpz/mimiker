@@ -8,13 +8,14 @@ typedef struct vnode vnode_t;
 typedef struct devfs_node devfs_node_t;
 typedef struct vnodeops vnodeops_t;
 typedef struct devnode devnode_t;
+typedef struct file file_t;
 typedef struct uio uio_t;
 
 /*
  * Device file node.
  */
 
-typedef int (*dev_open_t)(devnode_t *dev, int flags);
+typedef int (*dev_open_t)(devnode_t *dev, int flags, file_t *fp);
 typedef int (*dev_close_t)(devnode_t *dev, int flags);
 typedef int (*dev_read_t)(devnode_t *dev, uio_t *uio);
 typedef int (*dev_write_t)(devnode_t *dev, uio_t *uio);
