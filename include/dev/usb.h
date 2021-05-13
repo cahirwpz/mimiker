@@ -114,7 +114,7 @@ typedef struct usb_str_lang {
 /*
  * USB configuration descriptor.
  */
-typedef struct usb_config_dsc {
+typedef struct usb_cfg_dsc {
   uint8_t bLength;
   uint8_t bDescriptorType;
   uint16_t wTotalLength;
@@ -123,7 +123,7 @@ typedef struct usb_config_dsc {
   uint8_t iConfiguration;
   uint8_t bmAttributes;
   uint8_t bMaxPower; /* max current in 2 mA units */
-} __packed usb_config_dsc_t;
+} __packed usb_cfg_dsc_t;
 
 /*
  * USB interface descriptor.
@@ -153,14 +153,14 @@ typedef struct usb_if_dsc {
 /*
  * USB endpoint descriptor.
  */
-typedef struct usb_endp_dsc {
+typedef struct usb_endpt_dsc {
   uint8_t bLength;
   uint8_t bDescriptorType;
   uint8_t bEndpointAddress;
   uint8_t bmAttributes;
   uint16_t wMaxPacketSize;
   uint8_t bInterval;
-} __packed usb_endp_dsc_t;
+} __packed usb_endpt_dsc_t;
 
 #define UE_ADDR 0x0f
 #define UE_DIR_IN 0x80  /* IN-token endpoint */
@@ -198,29 +198,44 @@ typedef enum usb_direction {
   USB_DIR_OUTPUT,
 } __packed usb_direction_t;
 
-typedef struct usb_endp {
-  TAILQ_ENTRY(usb_endp) link; /* entry on device's endpoint list */
-  uint16_t maxpkt;            /* max packet size */
-  uint8_t addr;               /* address within a device */
-  usb_transfer_t transfer;    /* transfer type */
-  usb_direction_t dir;        /* transfer direction */
-  uint8_t interval;           /* interval for polling data transfers */
-} usb_endp_t;
+/* XXX: FTTB, we only handle low and full speed devices. */
+typedef enum usb_speed {
+  USB_SPD_LOW,
+  USB_SPD_FULL,
+} __packed usb_speed_t;
+
+typedef struct usb_endpt {
+  TAILQ_ENTRY(usb_endpt) link; /* entry on device's endpoint list */
+  uint16_t maxpkt;             /* max packet size */
+  uint8_t addr;                /* address within a device */
+  usb_transfer_t transfer;     /* transfer type */
+  usb_direction_t dir;         /* transfer direction */
+  uint8_t interval;            /* interval for polling data transfers */
+} usb_endpt_t;
 
 /* USB device software representation. */
 typedef struct usb_device {
-  TAILQ_HEAD(, usb_endp) endps; /* endpoints provided by the device */
-  uint8_t addr;                 /* address of the device */
-  uint8_t port;                 /* root hub port number */
-  uint8_t ifnum;                /* current interface number */
-  uint8_t class_code;           /* device class code */
-  uint8_t subclass_code;        /* device subclass code */
-  uint8_t protocol_code;        /* protocol code */
-  uint16_t vendor_id;           /* vendor ID */
-  uint16_t product_id;          /* product ID */
+  TAILQ_HEAD(, usb_endpt) endpts; /* endpoints provided by the device */
+  usb_speed_t speed;              /* speed characteristic */
+  uint8_t addr;                   /* address of the device */
+  uint8_t ifnum;                  /* current interface number */
+  uint8_t class_code;             /* device class code */
+  uint8_t subclass_code;          /* device subclass code */
+  uint8_t protocol_code;          /* protocol code */
+  uint16_t vendor_id;             /* vendor ID */
+  uint16_t product_id;            /* product ID */
 } usb_device_t;
 
-typedef struct usb_buf usb_buf_t;
+/* USB buffer used for USB transfers. */
+typedef struct usb_buf {
+  condvar_t cv;           /* wait for the transfer to complete */
+  spin_t lock;            /* buffer guard */
+  usb_endpt_t *endpt;     /* device's endpoint we're talking with */
+  void *data;             /* data buffer */
+  int executed;           /* 1 - transfer has been executed, 0 otherwise */
+  uint16_t transfer_size; /* size of data to transfer in the data stage */
+  usb_error_t error;      /* errors encountered during transfer */
+} usb_buf_t;
 
 static inline usb_device_t *usb_device_of(device_t *dev) {
   return dev->bus == DEV_BUS_USB ? dev->instance : NULL;
