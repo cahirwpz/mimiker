@@ -114,7 +114,7 @@ typedef struct usb_str_lang {
 /*
  * USB configuration descriptor.
  */
-typedef struct usb_config_dsc {
+typedef struct usb_cfg_dsc {
   uint8_t bLength;
   uint8_t bDescriptorType;
   uint16_t wTotalLength;
@@ -123,7 +123,7 @@ typedef struct usb_config_dsc {
   uint8_t iConfiguration;
   uint8_t bmAttributes;
   uint8_t bMaxPower; /* max current in 2 mA units */
-} __packed usb_config_dsc_t;
+} __packed usb_cfg_dsc_t;
 
 /*
  * USB interface descriptor.
@@ -153,14 +153,14 @@ typedef struct usb_if_dsc {
 /*
  * USB endpoint descriptor.
  */
-typedef struct usb_endp_dsc {
+typedef struct usb_endpt_dsc {
   uint8_t bLength;
   uint8_t bDescriptorType;
   uint8_t bEndpointAddress;
   uint8_t bmAttributes;
   uint16_t wMaxPacketSize;
   uint8_t bInterval;
-} __packed usb_endp_dsc_t;
+} __packed usb_endpt_dsc_t;
 
 #define UE_ADDR 0x0f
 #define UE_DIR_IN 0x80  /* IN-token endpoint */
@@ -198,29 +198,44 @@ typedef enum usb_direction {
   USB_DIR_OUTPUT,
 } __packed usb_direction_t;
 
-typedef struct usb_endp {
-  TAILQ_ENTRY(usb_endp) link; /* entry on device's endpoint list */
-  uint16_t maxpkt;            /* max packet size */
-  uint8_t addr;               /* address within a device */
-  usb_transfer_t transfer;    /* transfer type */
-  usb_direction_t dir;        /* transfer direction */
-  uint8_t interval;           /* interval for polling data transfers */
-} usb_endp_t;
+/* XXX: FTTB, we only handle low and full speed devices. */
+typedef enum usb_speed {
+  USB_SPD_LOW,
+  USB_SPD_FULL,
+} __packed usb_speed_t;
+
+typedef struct usb_endpt {
+  TAILQ_ENTRY(usb_endpt) link; /* entry on device's endpoint list */
+  uint16_t maxpkt;             /* max packet size */
+  uint8_t addr;                /* address within a device */
+  usb_transfer_t transfer;     /* transfer type */
+  usb_direction_t dir;         /* transfer direction */
+  uint8_t interval;            /* interval for polling data transfers */
+} usb_endpt_t;
 
 /* USB device software representation. */
 typedef struct usb_device {
-  TAILQ_HEAD(, usb_endp) endps; /* endpoints provided by the device */
-  uint8_t addr;                 /* address of the device */
-  uint8_t port;                 /* root hub port number */
-  uint8_t ifnum;                /* current interface number */
-  uint8_t class_code;           /* device class code */
-  uint8_t subclass_code;        /* device subclass code */
-  uint8_t protocol_code;        /* protocol code */
-  uint16_t vendor_id;           /* vendor ID */
-  uint16_t product_id;          /* product ID */
+  TAILQ_HEAD(, usb_endpt) endpts; /* endpoints provided by the device */
+  usb_speed_t speed;              /* speed characteristic */
+  uint8_t addr;                   /* address of the device */
+  uint8_t ifnum;                  /* current interface number */
+  uint8_t class_code;             /* device class code */
+  uint8_t subclass_code;          /* device subclass code */
+  uint8_t protocol_code;          /* protocol code */
+  uint16_t vendor_id;             /* vendor ID */
+  uint16_t product_id;            /* product ID */
 } usb_device_t;
 
-typedef struct usb_buf usb_buf_t;
+/* USB buffer used for USB transfers. */
+typedef struct usb_buf {
+  condvar_t cv;           /* wait for the transfer to complete */
+  spin_t lock;            /* buffer guard */
+  usb_endpt_t *endpt;     /* device's endpoint we're talking with */
+  void *data;             /* data buffer */
+  int executed;           /* 1 - transfer has been executed, 0 otherwise */
+  uint16_t transfer_size; /* size of data to transfer in the data stage */
+  usb_error_t error;      /* errors encountered during transfer */
+} usb_buf_t;
 
 static inline usb_device_t *usb_device_of(device_t *dev) {
   return dev->bus == DEV_BUS_USB ? dev->instance : NULL;
@@ -230,57 +245,27 @@ static inline device_t *usb_bus_of(device_t *dev) {
   return dev->bus == DEV_BUS_USB ? dev->parent : TAILQ_FIRST(&dev->children);
 }
 
-/* Copies data bytes form `src` to buffer `buf`'s internal buffer.
- * Before copying, the internal buffer is reseted. This function should
- * be used before performing output transfers on a buffer. */
-void usb_buf_copyin(usb_buf_t *buf, void *src, size_t size);
-
-/* Copies data bytes contained in `buf` to designated area `dst`.
- * Data is copied from the beginning of an internal buffer and isn't mark
- * as readed. For reading data form a buffer use `usb_buf_read` instead. */
-void usb_buf_copyout(usb_buf_t *buf, void *dst, size_t size);
-
-/* Allocate a USB buffer with internal buffer of size `size`. */
-usb_buf_t *usb_buf_alloc(size_t size);
+/* Allocates a USB buffer. */
+usb_buf_t *usb_buf_alloc(void);
 
 /* Releases a previously allocated buffer. */
 void usb_buf_free(usb_buf_t *buf);
 
-/* Returns current `buf`'s transfer direction. */
-usb_direction_t usb_buf_dir(usb_buf_t *buf);
-
-/* Returns current `buf`'s transfer data stage size. */
-uint16_t usb_buf_transfer_size(usb_buf_t *buf);
-
-/* Processes data `data` received in transfer in which `buf` is used,
- * or processes error `error` encountered during the transfer. */
-void usb_buf_process(usb_buf_t *buf, void *data, usb_error_t error);
-
 /* Returns true if the transfer in which `buf` is being used in is peridoc. */
 bool usb_buf_periodic(usb_buf_t *buf);
 
-/* Returns `buf`'s error status. The error status is always cleared upon
- * passing `buf` to any USB transfer function (as that means the buffer is
- * beaing reused). */
-usb_error_t usb_buf_error(usb_buf_t *buf);
+/* Waits until the transfer in which `buf` is being used in completes, or
+ * until an error is encountered. If an error is returned, further information
+ * may be obtained through `buf->error`. */
+int usb_buf_wait(usb_buf_t *buf);
 
-/* Reads bytes received in lates `buf`'s transfer, or waits for the data
- * to arrive. The only supported value of `flags` is `IO_NONBLOCK`.
- * If data isn't ready yet, and `IO_NONBLOCK` is specified, the function
- * immediately returns with `EAGAIN`. If an error other than `EAGAIN`
- * is returned, further information may be obtained through `usb_buf_error`. */
-int usb_buf_read(usb_buf_t *buf, void *dst, int flags);
-
-/* Waits for the data involved in `buf`'s latest transfer to be written
- * to the destioation device. The only supported value of `flags`
- * is `IO_NONBLOCK`. If data isn't already written, and `IO_NONBLOCK`
- * is specified, the function immediately returns with `EAGAIN`.
- * If an error other than `EAGAIN` is returned, further information
- * may be obtained through `usb_buf_error`. */
-int usb_buf_write(usb_buf_t *buf, int flags);
+/* Processes data `data` received in transfer in which `buf` was used,
+ * or processes error `error` encountered during the transfer.
+ * Only for host controller driver internal use! */
+void usb_buf_process(usb_buf_t *buf, void *data, usb_error_t error);
 
 /* Returns direction for the STATUS stage of a transfer.
- * Should only be used by USB host controller drivers. */
+ * Only for host controller driver internal use! */
 usb_direction_t usb_status_dir(usb_direction_t dir, uint16_t transfer_size);
 
 /* Initializes the underlying USB bus of the host controller `hcdev`. */
@@ -292,93 +277,104 @@ int usb_enumerate(device_t *hcdev);
 /*
  * USB standard interface.
  *
- * The following interface provides basic USB transfers: control, interrupt,
- * and bulk. Although control transfers are supplied, if there is a need to
- * perform some standard request form a device driver, it should be added to
- * USB bus standard requests interface.
+ * The following interface provides basic USB transfers: control,
+ * and data stage only transfers. Although control transfers are supplied,
+ * if a need to perform some standard request form a device driver arises,
+ * the request should be added to the USB bus standard requests interface
+ * instead of using control transfers directly.
  */
 
 typedef void (*usb_control_transfer_t)(device_t *dev, usb_buf_t *buf,
-                                       usb_direction_t dir, usb_dev_req_t *req);
-typedef void (*usb_interrupt_transfer_t)(device_t *dev, usb_buf_t *buf,
-                                         usb_direction_t dir, uint16_t size);
-typedef void (*usb_bulk_transfer_t)(device_t *dev, usb_buf_t *buf,
-                                    usb_direction_t dir, uint16_t size);
+                                       void *data, usb_direction_t dir,
+                                       usb_dev_req_t *req);
+typedef void (*usb_data_transfer_t)(device_t *dev, usb_buf_t *buf, void *data,
+                                    uint16_t size, usb_transfer_t transfer,
+                                    usb_direction_t dir);
 
 typedef struct usb_methods {
   usb_control_transfer_t control_transfer;
-  usb_interrupt_transfer_t interrupt_transfer;
-  usb_bulk_transfer_t bulk_transfer;
+  usb_data_transfer_t data_transfer;
 } usb_methods_t;
 
 static inline usb_methods_t *usb_methods(device_t *dev) {
   return (usb_methods_t *)dev->driver->interfaces[DIF_USB];
 }
 
-/* Issues a control transfer of direction `dir`, with device request `req`
- * using buffer `buf`. This is an asynchronous function. In order to receive
- * involved data use `usb_buf_read`. To wait for the data to be written
- * use `usb_buf_write`. All encountered errors will be reflected in `buf`'s
- * error status (see `usb_buf_error`). */
+/*
+ * Issues a control transfer.
+ *
+ * This is an asynchronous function. In order to wait for the transfer to
+ * complete, use `usb_buf_wait` with `buf` as the argument.
+ *
+ * - `dev`  - device requesting the transfer
+ * - `buf`  - USB buffer used for transaction
+ * - `data` - data to transfer, or destination address
+ * - `dir`  - transfer direction
+ * - `req`  - USB device request
+ */
 static inline void usb_control_transfer(device_t *dev, usb_buf_t *buf,
-                                        usb_direction_t dir,
+                                        void *data, usb_direction_t dir,
                                         usb_dev_req_t *req) {
-  usb_methods(dev->parent)->control_transfer(dev, buf, dir, req);
+  usb_methods(dev->parent)->control_transfer(dev, buf, data, dir, req);
 }
 
-/* Issues an interrupt transfer of direction `dir`, using buffer `buf`.
- * This is an asynchronous function. In order to receive involved data use
- * `usb_buf_read`. To wait for the data to be written use `usb_buf_write`.
- * All encountered errors will be reflected in `buf`'s error status
- * (see `usb_buf_error`). Input interrupt transfers are periodic, thus
- * `usb_buf_read` can be called multiple times. */
-static inline void usb_interrupt_transfer(device_t *dev, usb_buf_t *buf,
-                                          usb_direction_t dir, size_t size) {
-  usb_methods(dev->parent)->interrupt_transfer(dev, buf, dir, size);
-}
-
-/* Issues a bulk transfer of direction `dir`, using buffer `buf`.
- * This is an asynchronous function. In order to receive involved data use
- * `usb_buf_read`. To wait for the data to be written use `usb_buf_write`.
- * All encountered errors will be reflected in `buf`'s  error status
- * (see `usb_buf_error`). */
-static inline void usb_bulk_transfer(device_t *dev, usb_buf_t *buf,
-                                     usb_direction_t dir, size_t size) {
-  usb_methods(dev->parent)->bulk_transfer(dev, buf, dir, size);
+/*
+ * Issues a data stage only transfer.
+ *
+ * This is an asynchronous function. In order to wait for the transfer to
+ * complete, use `usb_buf_wait` with `buf` as the argument.
+ *
+ * - `dev`  - device requesting the transfer
+ * - `buf`  - USB buffer used for transaction
+ * - `data` - data to transfer, or destination address
+ * - `size` - transfer size
+ * - `transfer` - `USB_TFR_INTERRUPT` or `USB_TFR_BULK`
+ * - `dir`  - transfer direction
+ */
+static inline void usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
+                                     uint16_t size, usb_transfer_t transfer,
+                                     usb_direction_t dir) {
+  usb_methods(dev->parent)->data_transfer(dev, buf, data, size, transfer, dir);
 }
 
 /*
  * USB standard requests interface.
  *
  * The following interface provides standard USB requests. Requests used for
- * device identification and configuration aren't supplied since USB bus
+ * device identification and configuration aren't exposed since USB bus
  * driver identifies and configures each device automatically during enumeration
  * process. It is suggested to add a new method to this interface instead of
  * using `usb_control_transfer` request if a need occurs.
  */
 
-typedef int (*usb_unhalt_endp_t)(device_t *dev, usb_transfer_t transfer,
-                                 usb_direction_t dir);
+typedef int (*usb_unhalt_endpt_t)(device_t *dev, usb_transfer_t transfer,
+                                  usb_direction_t dir);
 
 typedef struct usb_req_methods {
-  usb_unhalt_endp_t unhalt_endp;
+  usb_unhalt_endpt_t unhalt_endpt;
 } usb_req_methods_t;
 
 static inline usb_req_methods_t *usb_req_methods(device_t *dev) {
   return (usb_req_methods_t *)dev->driver->interfaces[DIF_USB_REQ];
 }
 
-/* Unhalts endpoint of device `dev` which implements transfer type `transfer`
- * with direction `dir`. */
-static inline int usb_unhalt_endp(device_t *dev, usb_transfer_t transfer,
-                                  usb_direction_t dir) {
-  return usb_req_methods(dev->parent)->unhalt_endp(dev, transfer, dir);
+/*
+ * Unhalts device's endpoint.
+ *
+ * Used in recovery process.
+ *
+ * - `dev` - USB device
+ * - (`transfer`, `dir`) - identifies device's endpoint
+ */
+static inline int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
+                                   usb_direction_t dir) {
+  return usb_req_methods(dev->parent)->unhalt_endpt(dev, transfer, dir);
 }
 
 /*
  * USB HID specific standard requests interface.
  *
- * The following interface provides standard USB request specific to
+ * The following interface provides standard USB requests specific to
  * HID device class.
  */
 
@@ -394,12 +390,24 @@ static inline usb_hid_methods_t *usb_hid_methods(device_t *dev) {
   return (usb_hid_methods_t *)dev->driver->interfaces[DIF_USB_HID];
 }
 
-/* Tells device `dev` to inhibit all reports until a report changes. */
+/*
+ * Tells a device to inhibit all reports until a report changes.
+ *
+ * Used in driver's configuration phase.
+ *
+ * - `dev` - USB device
+ */
 static inline int usb_hid_set_idle(device_t *dev) {
   return usb_hid_methods(dev->parent)->set_idle(dev);
 }
 
-/* Sets `dev`'s report format to the boot interface report format. */
+/*
+ * Sets device's report format to the boot interface report format.
+ *
+ * Used by drivers which don't implement HID descriptor parsing.
+ *
+ * - `dev` - USB device
+ */
 static inline int usb_hid_set_boot_protocol(device_t *dev) {
   return usb_hid_methods(dev->parent)->set_boot_protocol(dev);
 }
@@ -407,9 +415,9 @@ static inline int usb_hid_set_boot_protocol(device_t *dev) {
 /*
  * USB Bulk-Only specific standard requests interface.
  *
- * The following interface provides standard USB request specific to
+ * The following interface provides standard USB requests specific to
  * devices which rely on the Bulk-Only protocol.
- * BBB refers Bulk/Bulk/Bulk for Command/Data/Status phases.
+ * (BBB refers Bulk/Bulk/Bulk for Command/Data/Status phases.)
  */
 
 typedef int (*usb_bbb_get_max_lun_t)(device_t *dev, uint8_t *maxlun);
@@ -424,12 +432,23 @@ static inline usb_bbb_methods_t *usb_bbb_methods(device_t *dev) {
   return (usb_bbb_methods_t *)dev->driver->interfaces[DIF_USB_BBB];
 }
 
-/* Retrives the maximum Logical Unit Number of device `dev`. */
+/*
+ * Retrives the maximum Logical Unit Number of a device.
+ *
+ * - `dev` - USB device
+ * - `maxlun` - destination address
+ */
 static inline int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun) {
   return usb_bbb_methods(dev->parent)->get_max_lun(dev, maxlun);
 }
 
-/* Resets mass storage device `dev`. */
+/*
+ * Resets USB mass storage device.
+ *
+ * Used in recovery process.
+ *
+ * - `dev` - USB device
+ */
 static inline int usb_bbb_reset(device_t *dev) {
   return usb_bbb_methods(dev->parent)->reset(dev);
 }
