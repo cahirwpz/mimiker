@@ -21,6 +21,8 @@
 #define USB_PORT_ROOT_RESET_DELAY_SPEC 50 /* ms */
 #define USB_PORT_RESET_RECOVERY_SPEC 10   /* ms */
 
+#define USB_BUS_RESET_DELAY 100 /* ms */
+
 /*
  * USB device request.
  */
