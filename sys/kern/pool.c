@@ -34,6 +34,7 @@ typedef struct pool {
   slab_list_t pp_full_slabs;
   slab_list_t pp_part_slabs; /* partially allocated slabs */
   size_t pp_itemsize;        /* size of item */
+  size_t pp_alignment;       /* alignment of allocated items */
 #if KASAN
   size_t pp_redzone; /* size of redzone after each item */
   quar_t pp_quarantine;
@@ -71,7 +72,7 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
   klog("add slab at %p to '%s' pool", slab, pool->pp_desc);
 
   slab->ph_size = slabsize;
-  slab->ph_itemsize = pool->pp_itemsize;
+  slab->ph_itemsize = align(pool->pp_itemsize, pool->pp_alignment);
 #if KASAN
   slab->ph_itemsize += pool->pp_redzone;
 #endif /* !KASAN */
@@ -97,7 +98,13 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
   assert(slab->ph_ntotal > 0);
 
   size_t header = sizeof(slab_t) + bitstr_size(slab->ph_ntotal);
-  slab->ph_items = (void *)slab + align(header, PI_ALIGNMENT);
+  void *slab_end = (void *)slab + slabsize;
+  slab->ph_items = (void *)slab + align(header, pool->pp_alignment);
+
+  /* We might have lost a single item due to the alignment. */
+  if ((slab_end - slab->ph_items) / slab->ph_itemsize < slab->ph_ntotal)
+    slab->ph_ntotal--;
+
   bzero(slab->ph_bitmap, bitstr_size(slab->ph_ntotal));
 
   LIST_INSERT_HEAD(&pool->pp_empty_slabs, slab, ph_link);
@@ -242,9 +249,11 @@ static void pool_dtor(pool_t *pool) {
   klog("destroyed pool '%s' at %p", pool->pp_desc, pool);
 }
 
-static void pool_init(pool_t *pool, const char *desc, size_t size) {
+static void pool_init(pool_t *pool, const char *desc, size_t size,
+                      size_t alignment) {
   pool_ctor(pool);
   pool->pp_desc = desc;
+  pool->pp_alignment = alignment;
 #if KASAN
   /* the alignment is within the redzone */
   pool->pp_itemsize = size;
@@ -271,7 +280,13 @@ void pool_add_page(pool_t *pool, void *page, size_t size) {
 
 pool_t *pool_create(const char *desc, size_t size) {
   pool_t *pool = kmalloc(M_POOL, sizeof(pool_t), M_ZERO | M_NOWAIT);
-  pool_init(pool, desc, size);
+  pool_init(pool, desc, size, PI_ALIGNMENT);
+  return pool;
+}
+
+pool_t *pool_create_aligned(const char *desc, size_t size, size_t alignment) {
+  pool_t *pool = kmalloc(M_POOL, sizeof(pool_t), M_ZERO | M_NOWAIT);
+  pool_init(pool, desc, size, max(alignment, PI_ALIGNMENT));
   return pool;
 }
 
