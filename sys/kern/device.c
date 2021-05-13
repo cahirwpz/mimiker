@@ -23,17 +23,9 @@ device_t *device_add_child(device_t *parent, int unit) {
   return child;
 }
 
-void device_remove_child(device_t *parent, int unit) {
-  device_t *child;
-  TAILQ_FOREACH (child, &parent->children, link) {
-    if (child->unit == unit)
-      break;
-  }
-  assert(child);
-  if (child->state)
-    kfree(M_DEV, child->state);
-  TAILQ_REMOVE(&parent->children, child, link);
-  kfree(M_DEV, child);
+void device_remove_child(device_t *parent, device_t *dev) {
+  TAILQ_REMOVE(&parent->children, dev, link);
+  kfree(M_DEV, dev);
 }
 
 /* TODO: this routine should go over all drivers within a suitable class and
