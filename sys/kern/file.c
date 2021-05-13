@@ -22,7 +22,7 @@ void file_destroy(file_t *f) {
      fileops are set to badfileops. */
   /* TODO: What if an error happens during close? */
   if (f->f_ops != &badfileops)
-    FOP_CLOSE(f);
+    f->f_ops->fo_close(f);
 
   pool_free(P_FILE, f);
 }
