@@ -1,3 +1,4 @@
+#include <sys/libkern.h>
 #include <sys/vnode.h>
 #include <sys/devclass.h>
 #include <sys/devfs.h>
@@ -19,6 +20,7 @@ typedef struct hidkbd_in_report {
 
 typedef struct hidkbd_state {
   usb_buf_t *buf;
+  void *data;
 } hidkbd_state_t;
 
 static int hidkbd_read(vnode_t *v, uio_t *uio) {
@@ -28,19 +30,20 @@ static int hidkbd_read(vnode_t *v, uio_t *uio) {
   uio->uio_offset = 0;
 
   hidkbd_in_report_t report;
-  int error = usb_buf_read(hidkbd->buf, &report, 0);
-  if (!error)
+  int error = usb_buf_wait(hidkbd->buf);
+  if (!error) {
+    memcpy(&report, hidkbd->data, sizeof(hidkbd_in_report_t));
     return uiomove_frombuf(&report, sizeof(hidkbd_in_report_t), uio);
+  }
 
-  usb_error_t uerr = usb_buf_error(hidkbd->buf);
-  if (uerr != USB_ERR_STALLED)
+  if (hidkbd->buf->error != USB_ERR_STALLED)
     return error;
 
-  if ((error = usb_unhalt_endp(dev, USB_TFR_INTERRUPT, USB_DIR_INPUT)))
+  if ((error = usb_unhalt_endpt(dev, USB_TFR_INTERRUPT, USB_DIR_INPUT)))
     return error;
 
-  usb_interrupt_transfer(dev, hidkbd->buf, USB_DIR_INPUT,
-                         sizeof(hidkbd_in_report_t));
+  usb_data_transfer(dev, hidkbd->buf, hidkbd->data, sizeof(hidkbd_in_report_t),
+                    USB_TFR_INTERRUPT, USB_DIR_INPUT);
 
   return error;
 }
@@ -73,10 +76,11 @@ static int hidkbd_attach(device_t *dev) {
     return ENXIO;
 
   /* Prepare a report buffer. */
-  hidkbd->buf = usb_buf_alloc(HIDKBD_BUFFER_SIZE);
+  hidkbd->buf = usb_buf_alloc();
+  hidkbd->data = kmalloc(M_DEV, sizeof(hidkbd_in_report_t), M_WAITOK);
 
-  usb_interrupt_transfer(dev, hidkbd->buf, USB_DIR_INPUT,
-                         sizeof(hidkbd_in_report_t));
+  usb_data_transfer(dev, hidkbd->buf, hidkbd->data, sizeof(hidkbd_in_report_t),
+                    USB_TFR_INTERRUPT, USB_DIR_INPUT);
 
   /* Prepare /dev/hidkbd interface. */
   devfs_makedev(NULL, "hidkbd", &hidkbd_ops, dev, NULL);

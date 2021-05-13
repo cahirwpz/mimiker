@@ -1,5 +1,4 @@
-#define KL_LOG KL_USB
-#include <sys/klog.h>
+#include <sys/libkern.h>
 #include <sys/vnode.h>
 #include <sys/devclass.h>
 #include <sys/devfs.h>
@@ -18,6 +17,7 @@ typedef struct hidm_report {
 
 typedef struct hidm_state {
   usb_buf_t *buf;
+  void *data;
 } hidm_state_t;
 
 static int hidm_read(vnode_t *v, uio_t *uio) {
@@ -27,18 +27,20 @@ static int hidm_read(vnode_t *v, uio_t *uio) {
   uio->uio_offset = 0;
 
   hidm_report_t report;
-  int error = usb_buf_read(hidm->buf, &report, 0);
-  if (!error)
+  int error = usb_buf_wait(hidm->buf);
+  if (!error) {
+    memcpy(&report, hidm->data, sizeof(hidm_report_t));
     return uiomove_frombuf(&report, sizeof(hidm_report_t), uio);
+  }
 
-  usb_error_t uerr = usb_buf_error(hidm->buf);
-  if (uerr != USB_ERR_STALLED)
+  if (hidm->buf->error != USB_ERR_STALLED)
     return error;
 
-  if ((error = usb_unhalt_endp(dev, USB_TFR_INTERRUPT, USB_DIR_INPUT)))
+  if ((error = usb_unhalt_endpt(dev, USB_TFR_INTERRUPT, USB_DIR_INPUT)))
     return error;
 
-  usb_interrupt_transfer(dev, hidm->buf, USB_DIR_INPUT, sizeof(hidm_report_t));
+  usb_data_transfer(dev, hidm->buf, hidm->data, sizeof(hidm_report_t),
+                    USB_TFR_INTERRUPT, USB_DIR_INPUT);
 
   return error;
 }
@@ -69,9 +71,11 @@ static int hidm_attach(device_t *dev) {
     return ENXIO;
 
   /* Prepare a report buffer. */
-  hidm->buf = usb_buf_alloc(HIDM_BUFFER_SIZE);
+  hidm->buf = usb_buf_alloc();
+  hidm->data = kmalloc(M_DEV, sizeof(hidm_report_t), M_WAITOK);
 
-  usb_interrupt_transfer(dev, hidm->buf, USB_DIR_INPUT, sizeof(hidm_report_t));
+  usb_data_transfer(dev, hidm->buf, hidm->data, sizeof(hidm_report_t),
+                    USB_TFR_INTERRUPT, USB_DIR_INPUT);
 
   /* Prepare /dev/hidm interface. */
   devfs_makedev(NULL, "hidm", &hidm_ops, dev, NULL);

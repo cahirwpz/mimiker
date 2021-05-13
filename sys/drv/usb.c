@@ -18,7 +18,6 @@
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/klog.h>
-#include <sys/file.h>
 #include <sys/bus.h>
 #include <dev/usb.h>
 #include <dev/usbhc.h>
@@ -64,80 +63,53 @@ static const char *dir_info[] = {
   [USB_DIR_OUTPUT] = "output",
 };
 
-/* USB buffer used for USB transfers. */
-struct usb_buf {
-  ringbuf_t rb;            /* write source or read destination */
-  condvar_t cv;            /* wait for the transfer to complete */
-  spin_t lock;             /* buffer guard */
-  usb_error_t error;       /* errors encountered during transfer */
-  usb_transfer_t transfer; /* what kind of transfer is this? */
-  usb_direction_t dir;     /* transfer direction */
-  uint16_t transfer_size;  /* size of data to transfer in the data stage */
+/* Messages used in printing device speeds. */
+static const char *speed_info[] = {
+  [USB_SPD_LOW] = "low",
+  [USB_SPD_FULL] = "full",
 };
 
 /*
  * USB buffer handling functions.
  */
 
-void usb_buf_copyin(usb_buf_t *buf, void *src, size_t size) {
-  ringbuf_t *rb = &buf->rb;
-  assert(rb->size <= size);
-  ringbuf_reset(rb);
-  memcpy(rb->data, src, size);
-}
-
-void usb_buf_copyout(usb_buf_t *buf, void *dst, size_t size) {
-  ringbuf_t *rb = &buf->rb;
-  assert(rb->size >= size);
-  memcpy(dst, rb->data, size);
-}
-
-usb_buf_t *usb_buf_alloc(size_t size) {
+usb_buf_t *usb_buf_alloc(void) {
   usb_buf_t *buf = kmalloc(M_DEV, sizeof(usb_buf_t), M_ZERO);
-  void *data = NULL;
-  if (size)
-    data = kmalloc(M_DEV, size, M_WAITOK);
 
-  ringbuf_init(&buf->rb, data, size);
   cv_init(&buf->cv, "USB buffer ready");
   spin_init(&buf->lock, 0);
 
   return buf;
 }
 
-#define usb_buf_alloc_empty() usb_buf_alloc(0)
-
 void usb_buf_free(usb_buf_t *buf) {
-  ringbuf_t *rb = &buf->rb;
-  if (rb->data)
-    kfree(M_DEV, rb->data);
   kfree(M_DEV, buf);
 }
 
-/*
- * In case of an input transfer, data stage size is always non-zero, and we can
- * simply wait for `buf->transfer_size` bytes to appear in the waiting function.
- * However, an output transfer may have data stage size equal to zero.
- * In such cases we'll wait for `USB_BUF_MIN_WAIT_SIZE` to become the value of
- * ring buffer's count member. This value is non-zero, therefore we'll be
- * woken up.
- */
-#define USB_BUF_MIN_WAIT_SIZE 1
-
-/* Return the amount of bytes we'll wait to receive. */
-static uint16_t usb_buf_wait_size(usb_buf_t *buf) {
-  return max(buf->transfer_size, USB_BUF_MIN_WAIT_SIZE);
+/* Prepare buffer `buf` for a new transaction. */
+static void usb_buf_prepare(usb_buf_t *buf, usb_endpt_t *endpt, void *data,
+                            uint16_t transfer_size) {
+  buf->endpt = endpt;
+  buf->data = data;
+  buf->executed = 0;
+  buf->transfer_size = transfer_size;
+  buf->error = 0; /* there is no error in the transaction yet */
 }
 
-/* Wait until the transaction designated by `buf` is done,
- * or until an error occurs. */
-static void usb_buf_wait(usb_buf_t *buf) {
+int usb_buf_wait(usb_buf_t *buf) {
   SCOPED_SPIN_LOCK(&buf->lock);
 
-  ringbuf_t *rb = &buf->rb;
-  uint16_t wait_size = usb_buf_wait_size(buf);
-  while (!buf->error && !ringbuf_contains(rb, wait_size))
+  while (!buf->error && !buf->executed)
     cv_wait(&buf->cv, &buf->lock);
+
+  /* If an error has occured, let's just return `EIO`
+   * since further information is available in `buf->error`. */
+  if (buf->error)
+    return EIO;
+  else
+    buf->executed = 0;
+
+  return 0;
 }
 
 void usb_buf_process(usb_buf_t *buf, void *data, usb_error_t error) {
@@ -148,97 +120,18 @@ void usb_buf_process(usb_buf_t *buf, void *data, usb_error_t error) {
     goto end;
   }
 
-  ringbuf_t *rb = &buf->rb;
-  uint16_t wait_size = usb_buf_wait_size(buf);
-
-  if (buf->dir == USB_DIR_INPUT) {
-    /* Copy data to the buffer. Note, that if there isn't enough space
-     * to accommodate the data, the data is lost. */
-    ringbuf_putnb(rb, data, wait_size);
-  } else {
-    /* `count` reflects the amount of written data. */
-    rb->count = wait_size;
-  }
+  usb_endpt_t *endpt = buf->endpt;
+  if (endpt->dir == USB_DIR_INPUT)
+    memcpy(buf->data, data, buf->transfer_size);
+  buf->executed = 1;
 
 end:
   cv_signal(&buf->cv);
 }
 
 bool usb_buf_periodic(usb_buf_t *buf) {
-  return buf->transfer == USB_TFR_INTERRUPT && buf->dir == USB_DIR_INPUT;
-}
-
-usb_error_t usb_buf_error(usb_buf_t *buf) {
-  return buf->error;
-}
-
-usb_direction_t usb_buf_dir(usb_buf_t *buf) {
-  return buf->dir;
-}
-
-uint16_t usb_buf_transfer_size(usb_buf_t *buf) {
-  return buf->transfer_size;
-}
-
-int usb_buf_read(usb_buf_t *buf, void *dst, int flags) {
-  assert(buf->dir == USB_DIR_INPUT);
-
-  if (buf->error)
-    return EIO;
-
-  ringbuf_t *rb = &buf->rb;
-  size_t size = buf->transfer_size;
-  assert(size);
-
-  /* Try to get the data. */
-  if (ringbuf_getnb(rb, dst, size))
-    return 0;
-
-  /* If we can't wait, we won't. */
-  if (flags & IO_NONBLOCK)
-    return EAGAIN;
-
-  /* Wait until the data is ready. */
-  while (!buf->error && !ringbuf_getnb(rb, dst, size))
-    usb_buf_wait(buf);
-
-  /* If an error has occured, let's just return `EIO` since further information
-   * is available in `buf->error`. */
-  int error = 0;
-  if (buf->error)
-    error = EIO;
-
-  return error;
-}
-
-int usb_buf_write(usb_buf_t *buf, int flags) {
-  assert(buf->dir == USB_DIR_OUTPUT);
-
-  if (buf->error)
-    return EIO;
-
-  ringbuf_t *rb = &buf->rb;
-  size_t size = usb_buf_wait_size(buf);
-
-  /* Data has been written iff `rb->count` is equal to `size`. */
-  if (rb->count == size)
-    return 0;
-
-  /* If we can't wait, we won't. */
-  if (flags & IO_NONBLOCK)
-    return EAGAIN;
-
-  /* Wait for the data to be written. */
-  while (!buf->error && rb->count != size)
-    usb_buf_wait(buf);
-
-  /* If an error has occured, let's just return `EIO` since further information
-   * is available in `buf->error`. */
-  int error = 0;
-  if (buf->error)
-    error = EIO;
-
-  return error;
+  usb_endpt_t *endpt = buf->endpt;
+  return endpt->transfer == USB_TFR_INTERRUPT && endpt->dir == USB_DIR_INPUT;
 }
 
 /*
@@ -246,23 +139,23 @@ int usb_buf_write(usb_buf_t *buf, int flags) {
  */
 
 /* Allocate an endpoint. */
-static usb_endp_t *usb_endp_alloc(uint16_t maxpkt, uint8_t addr,
-                                  usb_transfer_t transfer, usb_direction_t dir,
-                                  uint8_t interval) {
-  usb_endp_t *endp = kmalloc(M_DEV, sizeof(usb_endp_t), M_ZERO);
+static usb_endpt_t *usb_endpt_alloc(uint16_t maxpkt, uint8_t addr,
+                                    usb_transfer_t transfer,
+                                    usb_direction_t dir, uint8_t interval) {
+  usb_endpt_t *endpt = kmalloc(M_DEV, sizeof(usb_endpt_t), M_ZERO);
 
-  endp->maxpkt = maxpkt;
-  endp->addr = addr;
-  endp->transfer = transfer;
-  endp->dir = dir;
-  endp->interval = interval;
+  endpt->maxpkt = maxpkt;
+  endpt->addr = addr;
+  endpt->transfer = transfer;
+  endpt->dir = dir;
+  endpt->interval = interval;
 
-  return endp;
+  return endpt;
 }
 
 /* Release an endpoint. */
-static inline void usb_endp_free(usb_endp_t *endp) {
-  kfree(M_DEV, endp);
+static void usb_endpt_free(usb_endpt_t *endpt) {
+  kfree(M_DEV, endpt);
 }
 
 /*
@@ -270,52 +163,53 @@ static inline void usb_endp_free(usb_endp_t *endp) {
  */
 
 /* Allocate a new device attached to port `prot`. */
-static usb_device_t *usb_dev_alloc(uint8_t port) {
+static usb_device_t *usb_dev_alloc(usb_speed_t speed) {
   /* We'll need USB device and a corresponding index table. */
   size_t size = sizeof(usb_device_t) + USB_IDX_COUNT * sizeof(uint8_t);
   usb_device_t *udev = kmalloc(M_DEV, size, M_ZERO);
-  TAILQ_INIT(&udev->endps);
+  TAILQ_INIT(&udev->endpts);
 
   /* Each device supplies at least a control endpoint.
    * The control endpoint's max packet size is at least `USB_MAX_IPACKET`. */
 
   /* Input control endpoint. */
-  usb_endp_t *endp =
-    usb_endp_alloc(USB_MAX_IPACKET, 0, USB_TFR_CONTROL, USB_DIR_INPUT, 0);
-  TAILQ_INSERT_TAIL(&udev->endps, endp, link);
+  usb_endpt_t *endpt =
+    usb_endpt_alloc(USB_MAX_IPACKET, 0, USB_TFR_CONTROL, USB_DIR_INPUT, 0);
+  TAILQ_INSERT_TAIL(&udev->endpts, endpt, link);
 
   /* Outptu control endpoint. */
-  endp = usb_endp_alloc(USB_MAX_IPACKET, 0, USB_TFR_CONTROL, USB_DIR_OUTPUT, 0);
-  TAILQ_INSERT_TAIL(&udev->endps, endp, link);
+  endpt =
+    usb_endpt_alloc(USB_MAX_IPACKET, 0, USB_TFR_CONTROL, USB_DIR_OUTPUT, 0);
+  TAILQ_INSERT_TAIL(&udev->endpts, endpt, link);
 
-  udev->port = port;
+  udev->speed = speed;
   return udev;
 }
 
 /* Release a device. */
 static void usb_dev_free(usb_device_t *udev) {
-  usb_endp_t *endp;
-  TAILQ_FOREACH (endp, &udev->endps, link)
-    usb_endp_free(endp);
+  usb_endpt_t *endpt;
+  TAILQ_FOREACH (endpt, &udev->endpts, link)
+    usb_endpt_free(endpt);
   kfree(M_DEV, udev);
 }
 
 /* Return endpoint of device `dev` which implements transfer type `transfer`
  * with direction `dir`. */
-static usb_endp_t *usb_dev_endp(usb_device_t *udev, usb_transfer_t transfer,
-                                usb_direction_t dir) {
+static usb_endpt_t *usb_dev_endpt(usb_device_t *udev, usb_transfer_t transfer,
+                                  usb_direction_t dir) {
   /* XXX: we assume that only one enpoint matches
    * the pair (`transfer`, `dir`). */
-  usb_endp_t *endp;
-  TAILQ_FOREACH (endp, &udev->endps, link) {
-    if (endp->transfer == transfer && endp->dir == dir)
+  usb_endpt_t *endpt;
+  TAILQ_FOREACH (endpt, &udev->endpts, link) {
+    if (endpt->transfer == transfer && endpt->dir == dir)
       break;
   }
-  return endp;
+  return endpt;
 }
 
-#define usb_dev_ctrl_endp(udev)                                                \
-  usb_dev_endp((udev), USB_TFR_CONTROL, USB_DIR_INPUT | USB_DIR_OUTPUT)
+#define usb_dev_ctrl_endpt(udev, dir)                                          \
+  usb_dev_endpt((udev), USB_TFR_CONTROL, (dir))
 
 /* Get string descriptor index at position `idx` in the device's index table. */
 static inline uint8_t usb_dev_get_idx(usb_device_t *udev, usb_idx_t idx) {
@@ -333,55 +227,30 @@ static inline void usb_dev_set_idx(usb_device_t *udev, usb_idx_t idx,
  * USB transfer functions.
  */
 
-static void _usb_control_transfer(device_t *dev, usb_buf_t *buf,
+static void _usb_control_transfer(device_t *dev, usb_buf_t *buf, void *data,
                                   usb_direction_t dir, usb_dev_req_t *req) {
   usb_device_t *udev = usb_device_of(dev);
-  usb_endp_t *endp = usb_dev_ctrl_endp(udev);
-  device_t *busdev = usb_bus_of(dev);
+  usb_endpt_t *endpt = usb_dev_ctrl_endpt(udev, dir);
+  assert(endpt);
 
-  /* Mark the buffer as being used for a transaction. */
-  buf->error = 0; /* there is no error in the transaction yet */
-  buf->dir = dir;
-  buf->transfer = USB_TFR_CONTROL;
-  buf->transfer_size = req->wLength;
+  usb_buf_prepare(buf, endpt, data, req->wLength);
 
   /* The corresponding host controller implements the actual transfer. */
-  usbhc_control_transfer(busdev, endp->maxpkt, udev->port, udev->addr, buf,
-                         req);
+  usbhc_control_transfer(dev, buf, req);
 }
 
-static void _usb_interrupt_transfer(device_t *dev, usb_buf_t *buf,
-                                    usb_direction_t dir, uint16_t size) {
+static void _usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
+                               uint16_t size, usb_transfer_t transfer,
+                               usb_direction_t dir) {
   usb_device_t *udev = usb_device_of(dev);
-  usb_endp_t *endp = usb_dev_endp(udev, USB_TFR_INTERRUPT, dir);
-  device_t *busdev = usb_bus_of(dev);
+  /* XXX: add `transfer` argument. */
+  usb_endpt_t *endpt = usb_dev_endpt(udev, transfer, dir);
+  assert(endpt);
 
-  /* Mark the buffer as being used for a transaction. */
-  buf->error = 0; /* there is no error in the transaction yet */
-  buf->dir = dir;
-  buf->transfer = USB_TFR_INTERRUPT;
-  buf->transfer_size = size;
+  usb_buf_prepare(buf, endpt, data, size);
 
   /* The corresponding host controller implements the actual transfer. */
-  usbhc_interrupt_transfer(busdev, endp->maxpkt, udev->port, udev->addr,
-                           endp->addr, endp->interval, buf);
-}
-
-static void _usb_bulk_transfer(device_t *dev, usb_buf_t *buf,
-                               usb_direction_t dir, uint16_t size) {
-  usb_device_t *udev = usb_device_of(dev);
-  usb_endp_t *endp = usb_dev_endp(udev, USB_TFR_BULK, dir);
-  device_t *busdev = usb_bus_of(dev);
-
-  /* Mark the buffer as being used for a transaction. */
-  buf->error = 0; /* there is no error in the transaction yet */
-  buf->dir = dir;
-  buf->transfer = USB_TFR_BULK;
-  buf->transfer_size = size;
-
-  /* The corresponding host controller implements the actual transfer. */
-  usbhc_bulk_transfer(busdev, endp->maxpkt, udev->port, udev->addr, endp->addr,
-                      buf);
+  usbhc_data_transfer(dev, buf);
 }
 
 /*
@@ -396,19 +265,19 @@ static int usb_get_dev_dsc(device_t *dev, usb_dev_dsc_t *devdsc) {
     .wValue = UV_MAKE(UDESC_DEVICE, 0),
     .wLength = sizeof(uint8_t),
   };
-  usb_buf_t *buf = usb_buf_alloc(sizeof(usb_dev_dsc_t));
+  usb_buf_t *buf = usb_buf_alloc();
 
   /* The actual size of the descriptor is contained in the first byte,
    * hence we'll read it first. */
-  usb_control_transfer(dev, buf, USB_DIR_INPUT, &req);
-  int error = usb_buf_read(buf, devdsc, 0);
+  usb_control_transfer(dev, buf, devdsc, USB_DIR_INPUT, &req);
+  int error = usb_buf_wait(buf);
   if (error)
     goto end;
 
   /* Get the whole descriptor. */
   req.wLength = devdsc->bLength;
-  usb_control_transfer(dev, buf, USB_DIR_INPUT, &req);
-  error = usb_buf_read(buf, devdsc, 0);
+  usb_control_transfer(dev, buf, devdsc, USB_DIR_INPUT, &req);
+  error = usb_buf_wait(buf);
 
 end:
   usb_buf_free(buf);
@@ -425,9 +294,9 @@ static int usb_set_addr(device_t *dev) {
     .bRequest = UR_SET_ADDRESS,
     .wValue = addr,
   };
-  usb_buf_t *buf = usb_buf_alloc_empty();
-  usb_control_transfer(dev, buf, USB_DIR_OUTPUT, &req);
-  int error = usb_buf_write(buf, 0);
+  usb_buf_t *buf = usb_buf_alloc();
+  usb_control_transfer(dev, buf, NULL, USB_DIR_OUTPUT, &req);
+  int error = usb_buf_wait(buf);
   if (!error)
     udev->addr = addr;
 
@@ -448,7 +317,7 @@ static int usb_set_addr(device_t *dev) {
  *   configuration start ----------------------
  *                       |   configuration    | Includes the total length
  *                       |       header       | of the configuration.
- *                       | (usb_config_dsc_t) |
+ *                       |  (usb_cfg_dsc_t)   |
  *                       ----------------------
  *                       |     interface      |
  *                       |     descriptor     | Includes number of endpoints.
@@ -458,14 +327,14 @@ static int usb_set_addr(device_t *dev) {
  *                      *|  (usb_hid_dsc_t)   |
  *                       ----------------------
  *                       |     endpoint 0     |
- *                       |    (usb_endp_t)    |
+ *                       |   (usb_endpt_t)    |
  *                       ----------------------
  *                       |                    |
  *                                ...
  *                       |                    |
  *                       ----------------------
  *                       |     endpoint n     |
- *                       |    (usb_endp_t)    |
+ *                       |   (usb_endpt_t)    |
  *    configuration end  ----------------------
  */
 
@@ -474,25 +343,25 @@ static int usb_set_addr(device_t *dev) {
 #define USB_MAX_CONFIG_SIZE 0x30
 
 /* Retreive device's configuration. */
-static int usb_get_config(device_t *dev, usb_config_dsc_t *configdsc) {
+static int usb_get_config(device_t *dev, usb_cfg_dsc_t *cfgdsc) {
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_READ_DEVICE,
     .bRequest = UR_GET_DESCRIPTOR,
     .wValue = UV_MAKE(UDESC_CONFIG, 0 /* the first configuration */),
     .wLength = sizeof(uint32_t),
   };
-  usb_buf_t *buf = usb_buf_alloc(USB_MAX_CONFIG_SIZE);
+  usb_buf_t *buf = usb_buf_alloc();
 
   /* First we'll read the total size of the configuration. */
-  usb_control_transfer(dev, buf, USB_DIR_INPUT, &req);
-  int error = usb_buf_read(buf, configdsc, 0);
+  usb_control_transfer(dev, buf, cfgdsc, USB_DIR_INPUT, &req);
+  int error = usb_buf_wait(buf);
   if (error)
     goto end;
 
   /* Read the whole configuration. */
-  req.wLength = configdsc->wTotalLength;
-  usb_control_transfer(dev, buf, USB_DIR_INPUT, &req);
-  error = usb_buf_read(buf, configdsc, 0);
+  req.wLength = cfgdsc->wTotalLength;
+  usb_control_transfer(dev, buf, cfgdsc, USB_DIR_INPUT, &req);
+  error = usb_buf_wait(buf);
 
 end:
   usb_buf_free(buf);
@@ -507,30 +376,30 @@ static int usb_set_config(device_t *dev, uint8_t val) {
     .bRequest = UR_SET_CONFIG,
     .wValue = val,
   };
-  usb_buf_t *buf = usb_buf_alloc_empty();
-  usb_control_transfer(dev, buf, USB_DIR_OUTPUT, &req);
-  int error = usb_buf_write(buf, 0);
+  usb_buf_t *buf = usb_buf_alloc();
+  usb_control_transfer(dev, buf, NULL, USB_DIR_OUTPUT, &req);
+  int error = usb_buf_wait(buf);
 
   usb_buf_free(buf);
   return error;
 }
 
-static int _usb_unhalt_endp(device_t *dev, usb_transfer_t transfer,
-                            usb_direction_t dir) {
+static int _usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
+                             usb_direction_t dir) {
   usb_device_t *udev = usb_device_of(dev);
-  usb_endp_t *endp = usb_dev_endp(udev, transfer, dir);
-  if (!endp)
+  usb_endpt_t *endpt = usb_dev_endpt(udev, transfer, dir);
+  if (!endpt)
     return EINVAL;
 
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_WRITE_ENDPOINT,
     .bRequest = UR_CLEAR_FEATURE,
     .wValue = UF_ENDPOINT_HALT,
-    .wIndex = endp->addr,
+    .wIndex = endpt->addr,
   };
-  usb_buf_t *buf = usb_buf_alloc_empty();
-  usb_control_transfer(dev, buf, USB_DIR_OUTPUT, &req);
-  int error = usb_buf_write(buf, 0);
+  usb_buf_t *buf = usb_buf_alloc();
+  usb_control_transfer(dev, buf, NULL, USB_DIR_OUTPUT, &req);
+  int error = usb_buf_wait(buf);
 
   usb_buf_free(buf);
   return error;
@@ -545,18 +414,18 @@ static int usb_get_str_lang_dsc(device_t *dev, usb_str_lang_t *langs) {
     .wIndex = USB_LANGUAGE_TABLE,
     .wLength = sizeof(uint8_t),
   };
-  usb_buf_t *buf = usb_buf_alloc(sizeof(usb_str_lang_t));
+  usb_buf_t *buf = usb_buf_alloc();
 
   /* Size is contained in the first byte, so get it first. */
-  usb_control_transfer(dev, buf, USB_DIR_INPUT, &req);
-  int error = usb_buf_read(buf, langs, 0);
+  usb_control_transfer(dev, buf, langs, USB_DIR_INPUT, &req);
+  int error = usb_buf_wait(buf);
   if (error)
     goto end;
 
   /* Read the whole language table. */
   req.wLength = langs->bLength;
-  usb_control_transfer(dev, buf, USB_DIR_INPUT, &req);
-  error = usb_buf_read(buf, langs, 0);
+  usb_control_transfer(dev, buf, langs, USB_DIR_INPUT, &req);
+  error = usb_buf_wait(buf);
 
 end:
   usb_buf_free(buf);
@@ -572,18 +441,18 @@ static int usb_get_str_dsc(device_t *dev, uint8_t idx, usb_str_dsc_t *strdsc) {
     .wIndex = US_ENG_LID,
     .wLength = sizeof(uint8_t),
   };
-  usb_buf_t *buf = usb_buf_alloc(sizeof(usb_str_dsc_t));
+  usb_buf_t *buf = usb_buf_alloc();
 
   /* Obtain size of the descriptor. */
-  usb_control_transfer(dev, buf, USB_DIR_INPUT, &req);
-  int error = usb_buf_read(buf, strdsc, 0);
+  usb_control_transfer(dev, buf, strdsc, USB_DIR_INPUT, &req);
+  int error = usb_buf_wait(buf);
   if (error)
     goto end;
 
   /* Read the whole descriptor. */
   req.wLength = strdsc->bLength;
-  usb_control_transfer(dev, buf, USB_DIR_INPUT, &req);
-  error = usb_buf_read(buf, strdsc, 0);
+  usb_control_transfer(dev, buf, strdsc, USB_DIR_INPUT, &req);
+  error = usb_buf_wait(buf);
 
 end:
   usb_buf_free(buf);
@@ -601,9 +470,9 @@ static int _usb_hid_set_idle(device_t *dev) {
     .bRequest = UR_SET_IDLE,
     .wIndex = udev->ifnum,
   };
-  usb_buf_t *buf = usb_buf_alloc_empty();
-  usb_control_transfer(dev, buf, USB_DIR_OUTPUT, &req);
-  int error = usb_buf_write(buf, 0);
+  usb_buf_t *buf = usb_buf_alloc();
+  usb_control_transfer(dev, buf, NULL, USB_DIR_OUTPUT, &req);
+  int error = usb_buf_wait(buf);
 
   usb_buf_free(buf);
   return error;
@@ -616,9 +485,9 @@ static int _usb_hid_set_boot_protocol(device_t *dev) {
     .bRequest = UR_SET_PROTOCOL,
     .wIndex = udev->ifnum,
   };
-  usb_buf_t *buf = usb_buf_alloc_empty();
-  usb_control_transfer(dev, buf, USB_DIR_OUTPUT, &req);
-  int error = usb_buf_write(buf, 0);
+  usb_buf_t *buf = usb_buf_alloc();
+  usb_control_transfer(dev, buf, NULL, USB_DIR_OUTPUT, &req);
+  int error = usb_buf_wait(buf);
 
   usb_buf_free(buf);
   return error;
@@ -636,9 +505,9 @@ static int _usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun) {
     .wIndex = udev->ifnum,
     .wLength = sizeof(uint8_t),
   };
-  usb_buf_t *buf = usb_buf_alloc(sizeof(uint8_t));
-  usb_control_transfer(dev, buf, USB_DIR_INPUT, &req);
-  int error = usb_buf_read(buf, maxlun, 0);
+  usb_buf_t *buf = usb_buf_alloc();
+  usb_control_transfer(dev, buf, maxlun, USB_DIR_INPUT, &req);
+  int error = usb_buf_wait(buf);
 
   if (!error)
     goto end;
@@ -661,9 +530,9 @@ static int _usb_bbb_reset(device_t *dev) {
     .bRequest = UR_BBB_RESET,
     .wIndex = udev->ifnum,
   };
-  usb_buf_t *buf = usb_buf_alloc_empty();
-  usb_control_transfer(dev, buf, USB_DIR_OUTPUT, &req);
-  int error = usb_buf_write(buf, 0);
+  usb_buf_t *buf = usb_buf_alloc();
+  usb_control_transfer(dev, buf, NULL, USB_DIR_OUTPUT, &req);
+  int error = usb_buf_wait(buf);
 
   usb_buf_free(buf);
   return error;
@@ -741,7 +610,9 @@ static int usb_print_single_str_dsc(device_t *dev, uint8_t idx,
 
   char *str = usb_str_dsc2str(strdsc);
   klog("%s: %s", msg, str);
-  kfree(M_DEV, str);
+  /* XXX: we don't release converted strings since it would demage debugging
+   * messages (it isn't a big loss since those strings are very short in both
+   * size and number). */
 
 end:
   kfree(M_DEV, strdsc);
@@ -768,17 +639,17 @@ static int usb_print_all_str_dsc(device_t *dev) {
 }
 
 /* Print endpoints supplied by device `dev`. */
-static void usb_print_endps(device_t *dev) {
+static void usb_print_endpts(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
 
-  usb_endp_t *endp;
-  TAILQ_FOREACH (endp, &udev->endps, link) {
-    klog("endpoint %hhd", endp->addr);
-    klog("max packet size %hd", endp->maxpkt);
-    klog("transfer type: %s", tfr_info[endp->transfer]);
-    klog("direction: %s", dir_info[endp->dir]);
-    if (endp->interval)
-      klog("interval: %hhd", endp->interval);
+  usb_endpt_t *endpt;
+  TAILQ_FOREACH (endpt, &udev->endpts, link) {
+    klog("endpoint %d", endpt->addr);
+    klog("max packet size %x", endpt->maxpkt);
+    klog("transfer type: %s", tfr_info[endpt->transfer]);
+    klog("direction: %s", dir_info[endpt->dir]);
+    if (endpt->interval)
+      klog("interval: %d", endpt->interval);
     else
       klog("no polling required");
   }
@@ -794,6 +665,7 @@ static int usb_print_dev(device_t *dev) {
   klog("device protocol code: %02hhx", udev->protocol_code);
   klog("vendor ID: %04hx", udev->vendor_id);
   klog("product ID: %04hx", udev->product_id);
+  klog("speed: %s", speed_info[udev->speed]);
 
   bool eng;
   int error = usb_english_support(dev, &eng);
@@ -803,7 +675,7 @@ static int usb_print_dev(device_t *dev) {
   if ((error = usb_print_all_str_dsc(dev)))
     return error;
 
-  usb_print_endps(dev);
+  usb_print_endpts(dev);
 
   return error;
 }
@@ -830,8 +702,10 @@ static int usb_identify(device_t *dev) {
   }
 
   /* Update endpoint zero's max packet size. */
-  usb_endp_t *endp = usb_dev_ctrl_endp(udev);
-  endp->maxpkt = devdsc->bMaxPacketSize;
+  usb_endpt_t *endpt = usb_dev_ctrl_endpt(udev, USB_DIR_INPUT);
+  endpt->maxpkt = devdsc->bMaxPacketSize;
+  endpt = usb_dev_ctrl_endpt(udev, USB_DIR_OUTPUT);
+  endpt->maxpkt = devdsc->bMaxPacketSize;
 
   udev->vendor_id = devdsc->idVendor;
   udev->product_id = devdsc->idProduct;
@@ -850,42 +724,42 @@ end:
 }
 
 /* Get the interface descriptor from a configuration descriptor. */
-static inline usb_if_dsc_t *usb_config_if_dsc(usb_config_dsc_t *configdsc) {
-  return (usb_if_dsc_t *)(configdsc + 1);
+static inline usb_if_dsc_t *usb_cfg_if_dsc(usb_cfg_dsc_t *cfgdsc) {
+  return (usb_if_dsc_t *)(cfgdsc + 1);
 }
 
 /* Return address of the first endpoint within interface `ifdsc`. */
-static usb_endp_dsc_t *usb_if_endp_dsc(usb_if_dsc_t *ifdsc) {
+static usb_endpt_dsc_t *usb_if_endpt_dsc(usb_if_dsc_t *ifdsc) {
   void *addr = ifdsc + 1;
   if (ifdsc->bInterfaceClass == UICLASS_HID) {
     usb_hid_dsc_t *hiddsc = addr;
     addr += hiddsc->bLength;
   }
-  return (usb_endp_dsc_t *)addr;
+  return (usb_endpt_dsc_t *)addr;
 }
 
 /* Process each endpoint implemented by interface `ifdsc`
  * within device `udev`. */
-static void usb_if_process_endps(usb_if_dsc_t *ifdsc, usb_device_t *udev) {
-  usb_endp_dsc_t *endpdsc = usb_if_endp_dsc(ifdsc);
+static void usb_if_process_endpts(usb_if_dsc_t *ifdsc, usb_device_t *udev) {
+  usb_endpt_dsc_t *endptdsc = usb_if_endpt_dsc(ifdsc);
 
-  for (uint8_t i = 0; i < ifdsc->bNumEndpoints; i++, endpdsc++) {
+  for (uint8_t i = 0; i < ifdsc->bNumEndpoints; i++, endptdsc++) {
     /* Obtain endpoint's address. */
-    uint8_t addr = UE_GET_ADDR(endpdsc->bEndpointAddress);
+    uint8_t addr = UE_GET_ADDR(endptdsc->bEndpointAddress);
 
     /* Obtain endpoint's direction. */
     usb_direction_t dir = USB_DIR_OUTPUT;
-    if (UE_GET_DIR(endpdsc->bEndpointAddress))
+    if (UE_GET_DIR(endptdsc->bEndpointAddress))
       dir = USB_DIR_INPUT;
 
     /* Obtain endpoint's transfer type. */
-    uint8_t attr = endpdsc->bmAttributes;
+    uint8_t attr = endptdsc->bmAttributes;
     usb_transfer_t transfer = UE_TRANSFER_TYPE(attr) + 1;
 
     /* Add a new endpoint to the device. */
-    usb_endp_t *endp = usb_endp_alloc(endpdsc->wMaxPacketSize, addr, transfer,
-                                      dir, endpdsc->bInterval);
-    TAILQ_INSERT_TAIL(&udev->endps, endp, link);
+    usb_endpt_t *endpt = usb_endpt_alloc(endptdsc->wMaxPacketSize, addr,
+                                         transfer, dir, endptdsc->bInterval);
+    TAILQ_INSERT_TAIL(&udev->endpts, endpt, link);
   }
 }
 
@@ -893,15 +767,15 @@ static void usb_if_process_endps(usb_if_dsc_t *ifdsc, usb_device_t *udev) {
  * descriptor is described beside `usb_get_config` definition. */
 static int usb_configure(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
-  usb_config_dsc_t *configdsc = kmalloc(M_DEV, USB_MAX_CONFIG_SIZE, M_ZERO);
-  int error = usb_get_config(dev, configdsc);
+  usb_cfg_dsc_t *cfgdsc = kmalloc(M_DEV, USB_MAX_CONFIG_SIZE, M_ZERO);
+  int error = usb_get_config(dev, cfgdsc);
   if (error)
     return error;
 
   /* Save configuration string descriptor index. */
-  usb_dev_set_idx(udev, USB_IDX_CONFIGURATION, configdsc->iConfiguration);
+  usb_dev_set_idx(udev, USB_IDX_CONFIGURATION, cfgdsc->iConfiguration);
 
-  usb_if_dsc_t *ifdsc = usb_config_if_dsc(configdsc);
+  usb_if_dsc_t *ifdsc = usb_cfg_if_dsc(cfgdsc);
 
   /* Fill device codes if necessarry. */
   if (!udev->class_code) {
@@ -917,29 +791,29 @@ static int usb_configure(device_t *dev) {
   usb_dev_set_idx(udev, USB_IDX_INTERFACE, ifdsc->iInterface);
 
   /* Process each supplied endpoint. */
-  usb_if_process_endps(ifdsc, udev);
+  usb_if_process_endpts(ifdsc, udev);
 
   /* Move the device to the configured state. */
-  error = usb_set_config(dev, configdsc->bConfigurationValue);
+  error = usb_set_config(dev, cfgdsc->bConfigurationValue);
 
   return error;
 }
 
 /* Create and add a new child device attached to port `port`
  * to USB bus device `busdev`. */
-static device_t *usb_add_child(device_t *busdev, uint8_t port) {
+static device_t *usb_add_child(device_t *busdev, uint8_t port,
+                               usb_speed_t speed) {
   device_t *dev = device_add_child(busdev, port);
   dev->bus = DEV_BUS_USB;
-  dev->instance = usb_dev_alloc(port);
+  dev->instance = usb_dev_alloc(speed);
   return dev;
 }
 
 /* Remove USB bus's device `dev`. */
 static void usb_remove_child(device_t *busdev, device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
-  uint8_t port = udev->port;
   usb_dev_free(udev);
-  device_remove_child(busdev, port);
+  device_remove_child(busdev, dev);
 }
 
 int usb_enumerate(device_t *hcdev) {
@@ -960,7 +834,8 @@ int usb_enumerate(device_t *hcdev) {
 
     /* We'll perform some requests on device's behalf so lets create
      * its software representation. */
-    device_t *dev = usb_add_child(busdev, port);
+    usb_speed_t speed = usbhc_device_speed(hcdev, port);
+    device_t *dev = usb_add_child(busdev, port, speed);
 
     if ((error = usb_identify(dev))) {
       klog("failed to identify the device at port %hhu", port);
@@ -1021,13 +896,12 @@ static int usb_attach(device_t *busdev) {
 /* USB bus standard interface. */
 static usb_methods_t usb_if = {
   .control_transfer = _usb_control_transfer,
-  .interrupt_transfer = _usb_interrupt_transfer,
-  .bulk_transfer = _usb_bulk_transfer,
+  .data_transfer = _usb_data_transfer,
 };
 
 /* USB standard requests interface. */
 static usb_req_methods_t usb_req_if = {
-  .unhalt_endp = _usb_unhalt_endp,
+  .unhalt_endpt = _usb_unhalt_endpt,
 };
 
 /* USB HID specific standard requests interface. */

@@ -66,16 +66,16 @@ struct uhci_td {
   (UHCI_TD_BITSTUFF | UHCI_TD_CRCTO | UHCI_TD_BABBLE | UHCI_TD_DBUFFER |       \
    UHCI_TD_STALLED)
 
-#define UHCI_TD_SETUP(len, endp, dev)                                          \
-  (UHCI_TD_SET_MAXLEN(len) | UHCI_TD_SET_ENDPT(endp) |                         \
+#define UHCI_TD_SETUP(len, endpt, dev)                                         \
+  (UHCI_TD_SET_MAXLEN(len) | UHCI_TD_SET_ENDPT(endpt) |                        \
    UHCI_TD_SET_DEVADDR(dev) | UHCI_TD_PID_SETUP)
 
-#define UHCI_TD_OUT(len, endp, dev, dt)                                        \
-  (UHCI_TD_SET_MAXLEN(len) | UHCI_TD_SET_ENDPT(endp) |                         \
+#define UHCI_TD_OUT(len, endpt, dev, dt)                                       \
+  (UHCI_TD_SET_MAXLEN(len) | UHCI_TD_SET_ENDPT(endpt) |                        \
    UHCI_TD_SET_DEVADDR(dev) | UHCI_TD_PID_OUT | UHCI_TD_SET_DT(dt))
 
-#define UHCI_TD_IN(len, endp, dev, dt)                                         \
-  (UHCI_TD_SET_MAXLEN(len) | UHCI_TD_SET_ENDPT(endp) |                         \
+#define UHCI_TD_IN(len, endpt, dev, dt)                                        \
+  (UHCI_TD_SET_MAXLEN(len) | UHCI_TD_SET_ENDPT(endpt) |                        \
    UHCI_TD_SET_DEVADDR(dev) | UHCI_TD_PID_IN | UHCI_TD_SET_DT(dt))
 
 typedef struct usb_buf usb_buf_t;
@@ -94,7 +94,6 @@ struct uhci_qh {
       TAILQ_ENTRY(uhci_qh) qh_link; /* link on a main queue's list */
       usb_buf_t *qh_buf; /* usb buffer associated with the transaction */
       void *qh_data;     /* I/O data buffer of the transaction */
-      void *qh_cookie;   /* cookie concerning allocation */
     };
   };
 } __aligned(UHCI_QH_ALIGN);
