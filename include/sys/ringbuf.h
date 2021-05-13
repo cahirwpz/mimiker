@@ -3,8 +3,6 @@
 
 #include <sys/cdefs.h>
 #include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
 
 typedef struct uio uio_t;
 
