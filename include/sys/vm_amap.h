@@ -64,7 +64,8 @@ void vm_amap_remove(vm_aref_t *aref, vaddr_t offset);
 /* Returns aref to second part of amap. */
 vm_aref_t vm_amap_split(vm_aref_t *aref, vaddr_t offset);
 
-/* Copy part of underlying amap from start specified by aref to end. */
+/* Copy part of amap descirbed with aref and ending at given addres.
+ * If there is no amap to copy, returns newly created empty amap. */
 vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t end);
 
 /* TODO: ppref */

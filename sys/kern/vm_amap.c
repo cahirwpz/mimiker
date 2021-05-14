@@ -23,7 +23,7 @@ vm_amap_t *vm_amap_alloc(void) {
   vm_amap_t *amap = pool_alloc(P_AMAP, M_ZERO);
   mtx_init(&amap->am_lock, 0);
   amap->am_ref = 1;
-  klog("Allocated %ld amaps", ++alloc_cnt);
+  klog("allocating %ld amap", ++alloc_cnt);
   return amap;
 }
 
@@ -53,7 +53,7 @@ static void vm_amap_free(vm_amap_t *amap) {
   kfree(M_TEMP, amap->am_anon);
 
   pool_free(P_AMAP, amap);
-  klog("Freed %ld amaps", ++free_cnt);
+  klog("freeing %ld amap (%p)", ++free_cnt, amap);
 }
 
 void vm_amap_drop(vm_amap_t *amap) {
@@ -178,19 +178,23 @@ vm_aref_t vm_amap_split(vm_aref_t *aref, vaddr_t offset) {
 vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t end) {
   vm_amap_t *amap = aref->ar_amap;
 
-  if (amap == NULL)
-    return AREF_EMPTY;
+  if (amap == NULL) {
+    /* Have to create new amap. */
+    vm_amap_t *amap = vm_amap_alloc();
+    return (vm_aref_t) {.ar_amap = amap, .ar_pageoff = 0};
+  }
 
-  WITH_MTX_LOCK (&amap->am_lock)
+  WITH_MTX_LOCK(&amap->am_lock) {
     if (amap->am_ref == 1)
       return *aref;
+  }
 
   int first_slot = aref->ar_pageoff;
   int last_slot = vm_amap_slot(aref, end);
 
   vm_amap_t *new = vm_amap_alloc();
 
-  SCOPED_MTX_LOCK(&amap->am_lock);
+  vm_amap_lock(amap);
 
   for (int i = 0; i < amap->am_nused; ++i) {
     int slot = amap->am_slot[i];
@@ -204,5 +208,9 @@ vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t end) {
       vm_amap_add_nolock(new, anon, slot - first_slot);
     }
   }
-  return (vm_aref_t){.ar_amap = new, .ar_pageoff = 0};
+
+  /* Drop reference to amap and release lock */
+  vm_amap_drop(amap);
+
+  return (vm_aref_t) {.ar_amap = new, .ar_pageoff = 0};
 }

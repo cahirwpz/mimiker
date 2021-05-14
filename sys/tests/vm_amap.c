@@ -112,10 +112,6 @@ static int test_amap_copy(void) {
 
   vm_aref_t aref = {.ar_pageoff = 0, .ar_amap = amap};
 
-  vm_amap_lock(amap);
-  vm_amap_hold(amap);
-  vm_amap_unlock(amap);
-
   vm_anon_t *an1 = vm_anon_alloc();
   vm_anon_t *an2 = vm_anon_alloc();
   vm_anon_t *an3 = vm_anon_alloc();
@@ -127,8 +123,18 @@ static int test_amap_copy(void) {
   /* Get new aref pointing somewhere in amap. */
   vm_aref_t src_aref = {.ar_pageoff = 4, .ar_amap = amap};
 
-  /* Copy amap between src_aref and 10th anon. */
   vm_aref_t naref = vm_amap_copy(&src_aref, 6 * PAGESIZE);
+
+  /* Since amap is only referenced once it won't be copied. */
+  assert(naref.ar_amap == src_aref.ar_amap && naref.ar_pageoff == src_aref.ar_pageoff);
+
+  /* We have to increase amap refcount to trigger real copying */
+  vm_amap_lock(amap);
+  vm_amap_hold(amap);
+  vm_amap_unlock(amap);
+
+  /* Copy amap between src_aref and 10th anon. */
+  naref = vm_amap_copy(&src_aref, 6 * PAGESIZE);
 
   vm_amap_t *new = naref.ar_amap;
   assert(new != NULL);

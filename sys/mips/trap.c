@@ -129,8 +129,8 @@ static void tlb_exception_handler(ctx_t *ctx) {
   int code = exc_code(ctx);
   vaddr_t vaddr = _REG(ctx, BADVADDR);
 
-  klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
-       _REG(ctx, EPC), vaddr);
+  //klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
+  //     _REG(ctx, EPC), vaddr);
 
   pmap_t *pmap = pmap_lookup(vaddr);
   if (!pmap) {
@@ -155,6 +155,7 @@ static void tlb_exception_handler(ctx_t *ctx) {
   if (vm_page_fault(vmap, vaddr, access) == 0)
     return;
 
+  klog("Page fault not handled.");
 fault:
   if (td->td_onfault) {
     /* handle copyin / copyout faults */

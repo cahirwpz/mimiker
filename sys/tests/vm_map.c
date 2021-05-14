@@ -225,6 +225,12 @@ static int test_entry_amap(void) {
     assert(vm_map_find_entry(map, 15 * PAGESIZE + START_ADDR) == e2);
   }
 
+  /* To safe removial of this artificial vm_space */
+  an1->an_page = (vm_page_t *)0;
+  an2->an_page = (vm_page_t *)0;
+  an3->an_page = (vm_page_t *)0;
+  an4->an_page = (vm_page_t *)0;
+
   vm_map_delete(map);
   return KTEST_SUCCESS;
 }
