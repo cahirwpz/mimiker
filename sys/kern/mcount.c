@@ -63,7 +63,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
 #include <sys/types.h>
 #include <sys/gmon.h>
 #include <sys/interrupt.h>
@@ -73,19 +72,23 @@
 static SPIN_DEFINE(mcount_lock, 0);
 
 /*
+ *
  * The function is updating an array of linked lists, which stores
- * how many times a functions have been called by another function.
+ * how many times a function have been called by a second function.
  *
- *  froms[X] - an array of linked list, index X encodes a function, the kept
- *             value is an index of tos entry (the first node in the list,
- *             0 - means an empty list), the list is sorted by most recently
- *             used function
+ *  froms[X] - index X encodes a function (call site of the function,
+ *             there could be many for one function).
+ *             The value stored in froms[X] is an index of a tos entry,
+ *             which is a node from a linked list of called functions by X.
+ *             The list is sorted by most recently called functions.
  *
- *  tos[N]   - a node, which let us know how many times function with address
- *             selfpc have been called by X, and stores index of the next
- *             element in the list (0 - means the end of the list)
+ *  tos[Y]   - a tos entry Y stores information about the called function:
+ *              selfpc - the address
+ *              count - how many times have it been called by the call site
+ *              link - index of the next function called by the same call site
+ *                     (0 - end of the list)
  *
- *  tos[0] + 1  is the smallest index of an unused tos entry
+ *  tos[0].link + 1  is the smallest index of an unused tos entry
  *
  * \warning This function while unlocking spinlock can turn on interrupts when
  * thread's td_idnest == 0, this problem occurs e.g. in mips_exc_handler,
@@ -105,8 +108,8 @@ __no_instrument_kgprof void __cyg_profile_func_enter(void *self, void *from) {
   WITH_SPIN_LOCK (&mcount_lock) {
     /*
      * To ensure consistent data in kgmon - this function can move
-     * a node from the middle of the list at the beginning and
-     * during this process we can omit it.
+     * a node from the middle of the list to the beginning and
+     * during this process we can omit it while accesing the structure.
      */
     p->state = GMON_PROF_BUSY;
     /*
