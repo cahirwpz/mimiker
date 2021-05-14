@@ -108,7 +108,6 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
   for (size_t i = 0; i < slabsize; i += PAGESIZE) {
     vm_page_t *pg = kva_find_page((vaddr_t)slab + i);
     assert(pg != NULL);
-    assert(pg->slab == NULL);
     pg->slab = slab;
   }
 }
