@@ -4,7 +4,6 @@
 #ifndef _DEV_USB_H_
 #define _DEV_USB_H_
 
-#include <sys/ringbuf.h>
 #include <sys/condvar.h>
 #include <sys/spinlock.h>
 #include <sys/device.h>
