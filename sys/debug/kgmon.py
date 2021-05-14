@@ -5,15 +5,10 @@ from .struct import GdbStructMeta
 from struct import *
 
 
-class GmonParam(metaclass=GdbStructMeta):
-    __ctype__ = 'struct gmonparam'
-    __cast__ = {'state': int, 'kcount': int, 'kcountsize': int,
-                'froms': int, 'fromssize': int, 'tos': int,
-                'tossize': int, 'tolimit': int, 'lowpc': int, 'highpc': int,
-                'textsize': int, 'hashfraction': int}
-
-
 def gmon_write(path):
+    class GmonParam(metaclass=GdbStructMeta):
+        __ctype__ = 'struct gmonparam'
+
     infer = gdb.inferiors()[0]
     gparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
 
@@ -24,17 +19,14 @@ def gmon_write(path):
         of.write(infer.read_memory(gmonhdr_p, gmonhdr_size))
 
         # Write tick buffer
-        kcount = gdb.parse_and_eval('_gmonparam.kcount')
-        of.write(infer.read_memory(kcount, gparam.kcountsize))
+        of.write(infer.read_memory(gparam.kcount, gparam.kcountsize))
 
         # Write arc info
         froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
-        froms_p = gdb.parse_and_eval('_gmonparam.froms')
-        tos_p = gdb.parse_and_eval('_gmonparam.tos')
 
-        memory = infer.read_memory(froms_p, gparam.fromssize)
+        memory = infer.read_memory(gparam.froms, gparam.fromssize)
         froms_array = unpack('H' * int(gparam.fromssize/calcsize('H')), memory)
-        memory = infer.read_memory(tos_p, gparam.tossize)
+        memory = infer.read_memory(gparam.tos, gparam.tossize)
         size = calcsize('IiHH')
         tos_array = unpack('IiHH' * int(gparam.tossize/size), memory)
 
