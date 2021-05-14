@@ -4,6 +4,7 @@ from .cmd import SimpleCommand
 from .struct import GdbStructMeta
 from struct import *
 
+
 class GmonParam(metaclass=GdbStructMeta):
     __ctype__ = 'struct gmonparam'
     __cast__ = {'state': int, 'kcount': int, 'kcountsize': int,
@@ -14,7 +15,7 @@ class GmonParam(metaclass=GdbStructMeta):
 
 def gmon_write(path):
     infer = gdb.inferiors()[0]
-    gmonparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
+    gparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
 
     with open(path, "wb") as of:
         # Write headers
@@ -24,17 +25,18 @@ def gmon_write(path):
 
         # Write tick buffer
         kcount = gdb.parse_and_eval('_gmonparam.kcount')
-        of.write(infer.read_memory(kcount, gmonparam.kcountsize))
+        of.write(infer.read_memory(kcount, gparam.kcountsize))
 
         # Write arc info
         froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
         froms_p = gdb.parse_and_eval('_gmonparam.froms')
         tos_p = gdb.parse_and_eval('_gmonparam.tos')
 
-        memory = infer.read_memory(froms_p, gmonparam.fromssize)
-        froms_array = unpack('H' * int(gmonparam.fromssize/calcsize('H')), memory)
-        memory = infer.read_memory(tos_p, gmonparam.tossize)
-        tos_array = unpack('IiHH' * int(gmonparam.tossize/calcsize('IiHH')), memory)
+        memory = infer.read_memory(froms_p, gparam.fromssize)
+        froms_array = unpack('H' * int(gparam.fromssize/calcsize('H')), memory)
+        memory = infer.read_memory(tos_p, gparam.tossize)
+        size = calcsize('IiHH')
+        tos_array = unpack('IiHH' * int(gparam.tossize/size), memory)
 
         fromindex = 0
         for from_val in froms_array:
@@ -42,7 +44,8 @@ def gmon_write(path):
             if from_val == 0:
                 continue
             # Getting the calling function addres from encoded value
-            frompc = gmonparam.lowpc + fromindex * froms_el_size * gmonparam.hashfraction
+            offset = fromindex * froms_el_size * gparam.hashfraction
+            frompc = gparam.lowpc + offset
             toindex = from_val
 
             # Traversing the tos list for the calling function
