@@ -1,11 +1,20 @@
 import gdb
 
 from .cmd import SimpleCommand
+from .struct import GdbStructMeta
 from struct import *
+
+class GmonParam(metaclass=GdbStructMeta):
+    __ctype__ = 'struct gmonparam'
+    __cast__ = {'state': int, 'kcount': int, 'kcountsize': int,
+                'froms': int, 'fromssize': int, 'tos': int,
+                'tossize': int, 'tolimit': int, 'lowpc': int, 'highpc': int,
+                'textsize': int, 'hashfraction': int}
 
 
 def gmon_write(path):
     infer = gdb.inferiors()[0]
+    gmonparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
 
     with open(path, "wb") as of:
         # Write headers
@@ -14,23 +23,18 @@ def gmon_write(path):
         of.write(infer.read_memory(gmonhdr_p, gmonhdr_size))
 
         # Write tick buffer
-        kcountsize = int(gdb.parse_and_eval('_gmonparam.kcountsize'))
         kcount = gdb.parse_and_eval('_gmonparam.kcount')
-        of.write(infer.read_memory(kcount, kcountsize))
+        of.write(infer.read_memory(kcount, gmonparam.kcountsize))
 
         # Write arc info
         froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
-        fromssize = int(gdb.parse_and_eval('_gmonparam.fromssize'))
-        tossize = int(gdb.parse_and_eval('_gmonparam.tossize'))
-        hashfraction = int(gdb.parse_and_eval('_gmonparam.hashfraction'))
-        froms = gdb.parse_and_eval('_gmonparam.froms')
-        tos = gdb.parse_and_eval('_gmonparam.tos')
-        lowpc = int(gdb.parse_and_eval('_gmonparam.lowpc'))
+        froms_p = gdb.parse_and_eval('_gmonparam.froms')
+        tos_p = gdb.parse_and_eval('_gmonparam.tos')
 
-        memory = infer.read_memory(froms, fromssize)
-        froms_array = unpack('H' * int(fromssize/calcsize('H')), memory)
-        memory = infer.read_memory(tos, tossize)
-        tos_array = unpack('IiHH' * int(tossize/calcsize('IiHH')), memory)
+        memory = infer.read_memory(froms_p, gmonparam.fromssize)
+        froms_array = unpack('H' * int(gmonparam.fromssize/calcsize('H')), memory)
+        memory = infer.read_memory(tos_p, gmonparam.tossize)
+        tos_array = unpack('IiHH' * int(gmonparam.tossize/calcsize('IiHH')), memory)
 
         fromindex = 0
         for from_val in froms_array:
@@ -38,7 +42,7 @@ def gmon_write(path):
             if from_val == 0:
                 continue
             # Getting the calling function addres from encoded value
-            frompc = lowpc + fromindex * froms_el_size * hashfraction
+            frompc = gmonparam.lowpc + fromindex * froms_el_size * gmonparam.hashfraction
             toindex = from_val
 
             # Traversing the tos list for the calling function
