@@ -73,35 +73,7 @@ void file_hold(file_t *f);
 /*! \brief Decrements refcounter and destroys file if it has reached 0. */
 void file_drop(file_t *f);
 
-static inline int FOP_READ(file_t *f, uio_t *uio) {
-  return f->f_ops->fo_read(f, uio);
-}
-
-static inline int FOP_WRITE(file_t *f, uio_t *uio) {
-  return f->f_ops->fo_write(f, uio);
-}
-
-static inline int FOP_CLOSE(file_t *f) {
-  return f->f_ops->fo_close(f);
-}
-
-static inline int FOP_SEEK(file_t *f, off_t offset, int whence,
-                           off_t *newoffp) {
-  return f->f_ops->fo_seek(f, offset, whence, newoffp);
-}
-
-static inline int FOP_STAT(file_t *f, stat_t *sb) {
-  return f->f_ops->fo_stat(f, sb);
-}
-
-static inline int FOP_IOCTL(file_t *f, u_long cmd, void *data) {
-  return f->f_ops->fo_ioctl(f, cmd, data);
-}
-
-static inline int FOP_KQFILTER(file_t *f, knote_t *kn) {
-  return f->f_ops->fo_kqfilter(f, kn);
-}
-
+/* File operations for files that lost identity. */
 extern fileops_t badfileops;
 
 /* Procedures called by system calls implementation. */

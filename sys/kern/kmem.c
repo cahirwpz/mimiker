@@ -143,7 +143,7 @@ vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size, unsigned flags) {
   if (pap)
     *pap = pg->paddr;
 
-  return kmem_map_contig(pg->paddr, pg->size, flags);
+  return kmem_map_contig(pg->paddr, size, flags);
 }
 
 void kmem_free(void *ptr, size_t size) {
