@@ -4,7 +4,7 @@ TOPDIR = $(realpath ..)
 
 include $(TOPDIR)/config.mk
 
-SUBDIR = $(ARCH) drv kern libkern tests
+SUBDIR = aarch64 drv kern libkern mips tests
 KLIB = no
 
 BUILD-FILES += $(KERNEL-IMAGE) mimiker.elf cscope.out etags tags
@@ -12,7 +12,7 @@ CLEAN-FILES += mimiker.elf.map
 
 include $(TOPDIR)/build/build.kern.mk
 
-LDFLAGS += -T $(TOPDIR)/sys/$(ARCH)/$(BOARD).ld
+LDFLAGS += -T $(TOPDIR)/sys/$(ARCH)/$(ARCH).ld
 LDLIBS	= -Wl,--start-group \
 	    -Wl,--whole-archive $(KLIBLIST) -Wl,--no-whole-archive \
             -lgcc \

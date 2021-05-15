@@ -51,15 +51,13 @@ typedef uintptr_t vm_offset_t;
 /* Field marking and corresponding locks:
  * (@) pv_list_lock (in pmap.c)
  * (P) physmem_lock (in vm_physmem.c)
- * (O) vm_object::mtx */
+ * (O) vm_object::vo_lock */
 
 struct vm_page {
   union {
-    TAILQ_ENTRY(vm_page) freeq; /* (P) list of free pages for buddy system */
-    TAILQ_ENTRY(vm_page) pageq; /* used to group allocated pages */
-    struct {
-      TAILQ_ENTRY(vm_page) list;
-    } obj;        /* (O) list of pages in vm_object */
+    TAILQ_ENTRY(vm_page) freeq;    /* (P) list of free pages for buddy system */
+    TAILQ_ENTRY(vm_page) pageq;    /* used to group allocated pages */
+    TAILQ_ENTRY(vm_page) objpages; /* (O) list of pages in vm_object */
     slab_t *slab; /* active when page is used by pool allocator */
   };
   TAILQ_HEAD(, pv_entry) pv_list; /* (@) where this page is mapped? */

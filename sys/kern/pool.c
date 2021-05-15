@@ -24,9 +24,6 @@
 #define debug(...)
 #endif
 
-typedef void (*pool_ctor_t)(void *);
-typedef void (*pool_dtor_t)(void *);
-
 typedef LIST_HEAD(, slab) slab_list_t;
 
 typedef struct pool {
@@ -36,9 +33,7 @@ typedef struct pool {
   slab_list_t pp_empty_slabs;
   slab_list_t pp_full_slabs;
   slab_list_t pp_part_slabs; /* partially allocated slabs */
-  pool_ctor_t pp_ctor;
-  pool_dtor_t pp_dtor;
-  size_t pp_itemsize; /* size of item */
+  size_t pp_itemsize;        /* size of item */
 #if KASAN
   size_t pp_redzone; /* size of redzone after each item */
   quar_t pp_quarantine;
@@ -57,7 +52,7 @@ static KMALLOC_DEFINE(M_POOL, "pool allocators");
 typedef struct slab {
   LIST_ENTRY(slab) ph_link; /* pool slab list */
   uint16_t ph_nused;        /* # of items in use */
-  uint16_t ph_ntotal;       /* total number of chunks */
+  uint16_t ph_ntotal;       /* total number of items */
   size_t ph_size;           /* size of memory allocated for the slab */
   size_t ph_itemsize;       /* total size of item (with header and redzone) */
   void *ph_items;           /* ptr to array of items after bitmap */
@@ -75,7 +70,6 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
 
   klog("add slab at %p to '%s' pool", slab, pool->pp_desc);
 
-  slab->ph_nused = 0;
   slab->ph_size = slabsize;
   slab->ph_itemsize = pool->pp_itemsize;
 #if KASAN
@@ -104,13 +98,7 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
 
   size_t header = sizeof(slab_t) + bitstr_size(slab->ph_ntotal);
   slab->ph_items = (void *)slab + align(header, PI_ALIGNMENT);
-  memset(slab->ph_bitmap, 0, bitstr_size(slab->ph_ntotal));
-
-  for (int i = 0; i < slab->ph_ntotal; i++) {
-    void *item = slab_item_at(slab, i);
-    if (pool->pp_ctor)
-      pool->pp_ctor(item);
-  }
+  bzero(slab->ph_bitmap, bitstr_size(slab->ph_ntotal));
 
   LIST_INSERT_HEAD(&pool->pp_empty_slabs, slab, ph_link);
 
@@ -124,7 +112,7 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
   }
 }
 
-void *pool_alloc(pool_t *pool, unsigned flags) {
+void *pool_alloc(pool_t *pool, kmem_flags_t flags) {
   void *ptr;
 
   debug("pool_alloc: pool=%p", pool);
@@ -137,12 +125,12 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
         slab = kmem_alloc(PAGESIZE, flags);
         assert(slab != NULL);
         add_slab(pool, slab, PAGESIZE);
-      } else {
-        /* We're going to allocate from empty slab
-         * -> move it to the list of non-empty slabs. */
-        LIST_REMOVE(slab, ph_link);
-        LIST_INSERT_HEAD(&pool->pp_part_slabs, slab, ph_link);
       }
+      /* We're going to allocate from empty slab
+       * -> move it to the list of non-empty slabs. */
+      assert(slab->ph_nused == 0);
+      LIST_REMOVE(slab, ph_link);
+      LIST_INSERT_HEAD(&pool->pp_part_slabs, slab, ph_link);
     }
 
     assert(slab->ph_nused < slab->ph_ntotal);
@@ -163,10 +151,9 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
     pool->pp_nmaxused = max(pool->pp_nmaxused, pool->pp_nused);
   }
 
-  /* Create redzone after the item */
+  /* Create redzone after the item. */
   kasan_mark(ptr, pool->pp_itemsize, pool->pp_itemsize + pool->pp_redzone,
              KASAN_CODE_POOL_OVERFLOW);
-  /* XXX: Modify code below when pp_ctor & pp_dtor are reenabled */
   if (flags & M_ZERO)
     bzero(ptr, pool->pp_itemsize);
 
@@ -174,7 +161,7 @@ void *pool_alloc(pool_t *pool, unsigned flags) {
 }
 
 /* TODO: destroy empty slabs when their number reaches a certain threshold
- * (maybe leave one) */
+ * (maybe leave one). */
 static void _pool_free(pool_t *pool, void *ptr) {
   assert(mtx_owned(&pool->pp_mtx));
 
@@ -232,12 +219,16 @@ static void destroy_slabs(pool_t *pool, slab_list_t *slabs) {
   LIST_FOREACH_SAFE (slab, slabs, ph_link, next) {
     klog("destroy_slab: pool = %p, slab = %p", pool, slab);
 
+    pool->pp_ntotal -= slab->ph_ntotal;
+    pool->pp_npages -= slab->ph_size;
+
     LIST_REMOVE(slab, ph_link);
 
-    for (int i = 0; i < slab->ph_ntotal; i++) {
-      void *item = slab_item_at(slab, i);
-      if (pool->pp_dtor)
-        pool->pp_dtor(item);
+    for (size_t i = 0; i < slab->ph_size; i += PAGESIZE) {
+      vm_page_t *pg = kva_find_page((vaddr_t)slab + i);
+      assert(pg != NULL);
+      assert(pg->slab == slab);
+      pg->slab = NULL;
     }
 
     kmem_free(slab, slab->ph_size);
@@ -251,12 +242,9 @@ static void pool_dtor(pool_t *pool) {
   klog("destroyed pool '%s' at %p", pool->pp_desc, pool);
 }
 
-static void pool_init(pool_t *pool, const char *desc, size_t size,
-                      pool_ctor_t ctor, pool_dtor_t dtor) {
+static void pool_init(pool_t *pool, const char *desc, size_t size) {
   pool_ctor(pool);
   pool->pp_desc = desc;
-  pool->pp_ctor = ctor;
-  pool->pp_dtor = dtor;
 #if KASAN
   /* the alignment is within the redzone */
   pool->pp_itemsize = size;
@@ -277,14 +265,13 @@ void init_pool(void) {
 }
 
 void pool_add_page(pool_t *pool, void *page, size_t size) {
-  assert(is_aligned(size, PAGESIZE));
   SCOPED_MTX_LOCK(&pool->pp_mtx);
   add_slab(pool, page, size);
 }
 
 pool_t *pool_create(const char *desc, size_t size) {
   pool_t *pool = kmalloc(M_POOL, sizeof(pool_t), M_ZERO | M_NOWAIT);
-  pool_init(pool, desc, size, NULL, NULL);
+  pool_init(pool, desc, size);
   return pool;
 }
 

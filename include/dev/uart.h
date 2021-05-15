@@ -1,5 +1,5 @@
-#ifndef _SYS_UART_H_
-#define _SYS_UART_H_
+#ifndef _DEV_UART_H_
+#define _DEV_UART_H_
 
 #include <sys/cdefs.h>
 #include <sys/device.h>
@@ -90,4 +90,4 @@ void uart_init(device_t *dev, const char *name, size_t buf_size, void *state,
 
 intr_filter_t uart_intr(void *data /* device_t* */);
 
-#endif /* _SYS_UART_H_ */
+#endif /* _DEV_UART_H_ */
