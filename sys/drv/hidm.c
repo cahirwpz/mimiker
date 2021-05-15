@@ -51,6 +51,8 @@ static vnodeops_t hidm_ops = {
 
 static int hidm_probe(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
+  if (!udev)
+    return 0;
 
   /* We're looking for a HID mouse wwhich supports the boot interface. */
   if (udev->class_code != UICLASS_HID ||

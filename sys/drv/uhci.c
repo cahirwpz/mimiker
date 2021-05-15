@@ -784,7 +784,7 @@ static int uhci_attach(device_t *dev) {
 
   /* Perform the global reset of the UHCI controller. */
   set16(UHCI_CMD, UHCI_CMD_GRESET);
-  mdelay(10);
+  mdelay(USB_BUS_RESET_DELAY);
   set16(UHCI_CMD, 0x0000);
 
   /* After global reset, all registers are set to their
