@@ -384,8 +384,8 @@ static int usb_set_config(device_t *dev, uint8_t val) {
   return error;
 }
 
-static int _usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
-                             usb_direction_t dir) {
+int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
+                     usb_direction_t dir) {
   usb_device_t *udev = usb_device_of(dev);
   usb_endpt_t *endpt = usb_dev_endpt(udev, transfer, dir);
   if (!endpt)
@@ -463,7 +463,7 @@ end:
  * USB HID standard requests.
  */
 
-static int _usb_hid_set_idle(device_t *dev) {
+int usb_hid_set_idle(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_WRITE_CLASS_INTERFACE,
@@ -478,7 +478,7 @@ static int _usb_hid_set_idle(device_t *dev) {
   return error;
 }
 
-static int _usb_hid_set_boot_protocol(device_t *dev) {
+int usb_hid_set_boot_protocol(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_WRITE_CLASS_INTERFACE,
@@ -497,7 +497,7 @@ static int _usb_hid_set_boot_protocol(device_t *dev) {
  * USB Bulk-Only standard requests.
  */
 
-static int _usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun) {
+int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun) {
   usb_device_t *udev = usb_device_of(dev);
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_READ_CLASS_INTERFACE,
@@ -523,7 +523,7 @@ end:
   return error;
 }
 
-static int _usb_bbb_reset(device_t *dev) {
+int usb_bbb_reset(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_WRITE_CLASS_INTERFACE,
@@ -899,23 +899,6 @@ static usb_methods_t usb_if = {
   .data_transfer = _usb_data_transfer,
 };
 
-/* USB standard requests interface. */
-static usb_req_methods_t usb_req_if = {
-  .unhalt_endpt = _usb_unhalt_endpt,
-};
-
-/* USB HID specific standard requests interface. */
-static usb_hid_methods_t usb_hid_if = {
-  .set_idle = _usb_hid_set_idle,
-  .set_boot_protocol = _usb_hid_set_boot_protocol,
-};
-
-/* USB Bulk-Only specific standard requests interface. */
-static usb_bbb_methods_t usb_bbb_if = {
-  .get_max_lun = _usb_bbb_get_max_lun,
-  .reset = _usb_bbb_reset,
-};
-
 static driver_t usb_bus = {
   .desc = "USB bus driver",
   .size = sizeof(usb_state_t),
@@ -924,9 +907,6 @@ static driver_t usb_bus = {
   .interfaces =
     {
       [DIF_USB] = &usb_if,
-      [DIF_USB_REQ] = &usb_req_if,
-      [DIF_USB_HID] = &usb_hid_if,
-      [DIF_USB_BBB] = &usb_bbb_if,
     },
 };
 

@@ -339,25 +339,14 @@ static inline void usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
 }
 
 /*
- * USB standard requests interface.
+ * USB standard requests.
  *
- * The following interface provides standard USB requests. Requests used for
+ * The following functions implement standard USB requests. Requests used for
  * device identification and configuration aren't exposed since USB bus
  * driver identifies and configures each device automatically during enumeration
- * process. It is suggested to add a new method to this interface instead of
- * using `usb_control_transfer` request if a need occurs.
+ * process. It is suggested to add a new function to the presented set instead
+ * of using `usb_control_transfer` request if a need occurs.
  */
-
-typedef int (*usb_unhalt_endpt_t)(device_t *dev, usb_transfer_t transfer,
-                                  usb_direction_t dir);
-
-typedef struct usb_req_methods {
-  usb_unhalt_endpt_t unhalt_endpt;
-} usb_req_methods_t;
-
-static inline usb_req_methods_t *usb_req_methods(device_t *dev) {
-  return (usb_req_methods_t *)dev->driver->interfaces[DIF_USB_REQ];
-}
 
 /*
  * Unhalts device's endpoint.
@@ -367,29 +356,15 @@ static inline usb_req_methods_t *usb_req_methods(device_t *dev) {
  * - `dev` - USB device
  * - (`transfer`, `dir`) - identifies device's endpoint
  */
-static inline int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
-                                   usb_direction_t dir) {
-  return usb_req_methods(dev->parent)->unhalt_endpt(dev, transfer, dir);
-}
+int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
+                     usb_direction_t dir);
 
 /*
- * USB HID specific standard requests interface.
+ * USB HID specific standard requests.
  *
- * The following interface provides standard USB requests specific to
+ * The following functions implement standard USB requests specific to
  * HID device class.
  */
-
-typedef int (*usb_hid_set_idle_t)(device_t *dev);
-typedef int (*usb_hid_set_boot_protocol_t)(device_t *dev);
-
-typedef struct usb_hid_methods {
-  usb_hid_set_idle_t set_idle;
-  usb_hid_set_boot_protocol_t set_boot_protocol;
-} usb_hid_methods_t;
-
-static inline usb_hid_methods_t *usb_hid_methods(device_t *dev) {
-  return (usb_hid_methods_t *)dev->driver->interfaces[DIF_USB_HID];
-}
 
 /*
  * Tells a device to inhibit all reports until a report changes.
@@ -398,9 +373,7 @@ static inline usb_hid_methods_t *usb_hid_methods(device_t *dev) {
  *
  * - `dev` - USB device
  */
-static inline int usb_hid_set_idle(device_t *dev) {
-  return usb_hid_methods(dev->parent)->set_idle(dev);
-}
+int usb_hid_set_idle(device_t *dev);
 
 /*
  * Sets device's report format to the boot interface report format.
@@ -409,29 +382,15 @@ static inline int usb_hid_set_idle(device_t *dev) {
  *
  * - `dev` - USB device
  */
-static inline int usb_hid_set_boot_protocol(device_t *dev) {
-  return usb_hid_methods(dev->parent)->set_boot_protocol(dev);
-}
+int usb_hid_set_boot_protocol(device_t *dev);
 
 /*
- * USB Bulk-Only specific standard requests interface.
+ * USB Bulk-Only specific standard requests.
  *
- * The following interface provides standard USB requests specific to
+ * The following functions implements standard USB requests specific to
  * devices which rely on the Bulk-Only protocol.
  * (BBB refers Bulk/Bulk/Bulk for Command/Data/Status phases.)
  */
-
-typedef int (*usb_bbb_get_max_lun_t)(device_t *dev, uint8_t *maxlun);
-typedef int (*usb_bbb_reset_t)(device_t *dev);
-
-typedef struct usb_bbb_methods {
-  usb_bbb_get_max_lun_t get_max_lun;
-  usb_bbb_reset_t reset;
-} usb_bbb_methods_t;
-
-static inline usb_bbb_methods_t *usb_bbb_methods(device_t *dev) {
-  return (usb_bbb_methods_t *)dev->driver->interfaces[DIF_USB_BBB];
-}
 
 /*
  * Retrives the maximum Logical Unit Number of a device.
@@ -439,9 +398,7 @@ static inline usb_bbb_methods_t *usb_bbb_methods(device_t *dev) {
  * - `dev` - USB device
  * - `maxlun` - destination address
  */
-static inline int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun) {
-  return usb_bbb_methods(dev->parent)->get_max_lun(dev, maxlun);
-}
+int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun);
 
 /*
  * Resets USB mass storage device.
@@ -450,8 +407,6 @@ static inline int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun) {
  *
  * - `dev` - USB device
  */
-static inline int usb_bbb_reset(device_t *dev) {
-  return usb_bbb_methods(dev->parent)->reset(dev);
-}
+int usb_bbb_reset(device_t *dev);
 
 #endif /* _DEV_USB_H_ */
