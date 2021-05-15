@@ -27,9 +27,6 @@ typedef enum {
   DIF_EMMC,
   DIF_USBHC,
   DIF_USB,
-  DIF_USB_REQ,
-  DIF_USB_HID,
-  DIF_USB_BBB,
   DIF_COUNT /* this must be the last item */
 } drv_if_t;
 
