@@ -183,8 +183,12 @@ static intr_filter_t bcmemmc_intr_filter(void *data) {
 
 static uint32_t bcmemmc_clk_approx_divisor(uint32_t clk, uint32_t f) {
   int32_t c1 = clk / f;
-  int32_t c2 = c1 - 1;
-  int32_t c = abs((int32_t)f - clk / c1) < abs((int32_t)f - clk / c2) ? c1 : c2;
+  if (c1 == 0)
+    c1++;
+  int32_t c2 = c1 + 1;
+  int32_t c =
+    abs((int32_t)f - (int32_t)clk / c1) < abs((int32_t)f - (int32_t)clk / c2) ?
+    c1 : c2;
   return (uint32_t)c;
 }
 
@@ -198,7 +202,6 @@ static void bcmemmc_clk_fls(bcmemmc_state_t *state, uint32_t f) {
     s--;
   if (s > 0x07)
     s = 0x07;
-  return s;
   uint32_t d = (1 << s);
   if (d <= 2) {
     d = 2;
@@ -206,7 +209,7 @@ static void bcmemmc_clk_fls(bcmemmc_state_t *state, uint32_t f) {
   }
   b_out(emmc, EMMC_CONTROL1,
         (b_in(emmc, EMMC_CONTROL1) & 0xffff003f) | (d << 8));
-  klog("e.MMC: clock set to (%lu / %lu)Hz (requested %luHz)", clk, d, f);
+  klog("e.MMC: clock set to %luHz / %luHz (requested %luHz)", clk, d, f);
 }
 
 static void bcmemmc_clk_div(bcmemmc_state_t *state, uint32_t f) {
@@ -218,6 +221,7 @@ static void bcmemmc_clk_div(bcmemmc_state_t *state, uint32_t f) {
   uint32_t hi = (divisor & 0x0300) >> 2;
   b_out(emmc, EMMC_CONTROL1,
        (b_in(emmc, EMMC_CONTROL1) & 0xffff003f) | lo | hi);
+  klog("e.MMC: clock set to %luHz / %lu (requested %luHz)", clk, divisor, f);
 }
 
 /**
