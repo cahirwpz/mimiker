@@ -187,8 +187,9 @@ static uint32_t bcmemmc_clk_approx_divisor(uint32_t clk, uint32_t f) {
     c1++;
   int32_t c2 = c1 + 1;
   int32_t c =
-    abs((int32_t)f - (int32_t)clk / c1) < abs((int32_t)f - (int32_t)clk / c2) ?
-    c1 : c2;
+    abs((int32_t)f - (int32_t)clk / c1) < abs((int32_t)f - (int32_t)clk / c2)
+    ? c1
+    : c2;
   return (uint32_t)c;
 }
 
