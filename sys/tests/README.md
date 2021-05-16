@@ -47,9 +47,9 @@ Where `name` is test name, `func` is pointer to test function,
 flags as mentioned below, and `max` is maximum random argument fed to the test.
 
 ##### User tests
-Located in `$(TOPDIR)/user/utest`.
+Located in `$(TOPDIR)/bin/utest`.
 User-space test function signature looks like this: `int test_{name}(void)` and
-should be defined in `user/utest/utest.h`.
+should be defined in `bin/utest/utest.h`.
 In order to make the test runnable one has to add one of these lines to
 `test/utest.c` file:
 * `UTEST_ADD_SIMPLE({name})` - test fails on assertion or non-zero return value.
@@ -58,7 +58,7 @@ In order to make the test runnable one has to add one of these lines to
 * `UTEST_ADD({name}, {exit status}, flags)` - test passes when exited with
   status `{exit status}`.
 
-One also needs to add a line `CHECKRUN_TEST({name})` in `/user/utest/main.c`.
+One also needs to add a line `CHECKRUN_TEST({name})` in `/bin/utest/main.c`.
 
 ##### Flags
 * `KTEST_FLAG_NORETURN` - signifies that a test does not return.
