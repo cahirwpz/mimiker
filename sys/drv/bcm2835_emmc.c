@@ -174,13 +174,58 @@ static intr_filter_t bcmemmc_intr_filter(void *data) {
   return IF_FILTERED;
 }
 
-/**
- * set SD clock to frequency in Hz
+/* This seems to be the default frequency of the clk_emmc.
+ * Preferably, it should be somewhere between 50MHz and 100MHz, but changing
+ * it requires messing around with Clock Manager, which at the moment is beyound
+ * the scope of this driver.
  */
-int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
+#define GPIO_CLK_EMMC_DEFAULT_FREQ 41666666
+
+static uint32_t bcmemmc_clk_approx_divisor(uint32_t clk, uint32_t f) {
+  int32_t c1 = clk / f;
+  int32_t c2 = c1 - 1;
+  int32_t c = abs((int32_t)f - clk / c1) < abs((int32_t)f - clk / c2) ? c1 : c2;
+  return (uint32_t)c;
+}
+
+static void bcmemmc_clk_fls(bcmemmc_state_t *state, uint32_t f) {
+  resource_t *emmc = state->emmc;
+
+  uint32_t clk = GPIO_CLK_EMMC_DEFAULT_FREQ;
+  uint32_t divisor = bcmemmc_clk_approx_divisor(clk, f);
+  uint32_t s = fls32(divisor);
+  if (s > 0)
+    s--;
+  if (s > 0x07)
+    s = 0x07;
+  return s;
+  uint32_t d = (1 << s);
+  if (d <= 2) {
+    d = 2;
+    s = 0;
+  }
+  b_out(emmc, EMMC_CONTROL1,
+        (b_in(emmc, EMMC_CONTROL1) & 0xffff003f) | (d << 8));
+  klog("e.MMC: clock set to (%lu / %lu)Hz (requested %luHz)", clk, d, f);
+}
+
+static void bcmemmc_clk_div(bcmemmc_state_t *state, uint32_t f) {
+  resource_t *emmc = state->emmc;
+
+  uint32_t clk = GPIO_CLK_EMMC_DEFAULT_FREQ;
+  uint32_t divisor = bcmemmc_clk_approx_divisor(clk, f);
+  uint32_t lo = (divisor & 0x00ff) << 8;
+  uint32_t hi = (divisor & 0x0300) >> 2;
+  b_out(emmc, EMMC_CONTROL1,
+       (b_in(emmc, EMMC_CONTROL1) & 0xffff003f) | lo | hi);
+}
+
+/**
+ * set SD clock to frequency in Hz (approximately), divided mode
+ */
+static int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
-  uint32_t d, c = 41666666 / f, x, s = 32, h = 0;
   int32_t cnt = 100000;
 
   while ((b_in(emmc, EMMC_STATUS) & (SR_CMD_INHIBIT | SR_DAT_INHIBIT)) && cnt--)
@@ -191,37 +236,20 @@ int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
   }
 
   b_clr(emmc, EMMC_CONTROL1, C1_CLK_EN);
-  delay(30); /* ! */
-  x = c - 1;
-  s = fls32(x);
-  if (s > 0)
-    s--;
-  if (s > 7)
-    s = 7;
-
   if (state->host_version > HOST_SPEC_V2)
-    d = c;
+    bcmemmc_clk_div(state, f);
   else
-    d = (1 << s);
-  if (d <= 2) {
-    d = 2;
-    s = 0;
-  }
-  klog("bcmemmc_clk divisor %p, shift %p", d, s);
-  if (state->host_version > HOST_SPEC_V2)
-    h = (d & 0x300) >> 2;
-  d = (((d & 0x0ff) << 8) | h);
-  b_out(emmc, EMMC_CONTROL1, (b_in(emmc, EMMC_CONTROL1) & 0xffff003f) | d);
-  delay(30); /* ! */
+    bcmemmc_clk_fls(state, f);
   b_set(emmc, EMMC_CONTROL1, C1_CLK_EN);
-  delay(30); /* ! */
+
   cnt = 10000;
   while (!(b_in(emmc, EMMC_CONTROL1) & C1_CLK_STABLE) && cnt--)
-    delay(30); /* ! */
+    delay(30);
   if (cnt <= 0) {
     klog("ERROR: failed to get stable clock");
     return ETIMEDOUT;
   }
+
   return 0;
 }
 
