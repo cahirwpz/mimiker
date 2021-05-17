@@ -378,7 +378,7 @@ int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
  * Arguments:
  *  - `dev`: USB device
  *
- * error codes:
+ * Error codes:
  *  - EIO: an error has been encountered during the transfer
  */
 int usb_hid_set_idle(device_t *dev);
@@ -391,7 +391,7 @@ int usb_hid_set_idle(device_t *dev);
  * Arguments:
  *  - `dev`: USB device
  *
- * error codes:
+ * Error codes:
  *  - EIO: an error has been encountered during the transfer
  */
 int usb_hid_set_boot_protocol(device_t *dev);
@@ -411,7 +411,7 @@ int usb_hid_set_boot_protocol(device_t *dev);
  *  - `dev`: USB device
  *  - `maxlun_p`: destination address
  *
- * error codes:
+ * Error codes:
  *  - EIO: an error has been encountered during the transfer
  */
 int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun_p);
@@ -424,7 +424,7 @@ int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun_p);
  * Arguments:
  *  - `dev`: USB device
  *
- * error codes:
+ * Error codes:
  *  - EIO: an error has been encountered during the transfer
  */
 int usb_bbb_reset(device_t *dev);
