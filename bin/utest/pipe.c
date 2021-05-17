@@ -20,7 +20,7 @@
 //   return;
 // }
 
-static int test_pipe_parent_signaled(void) {
+int test_pipe_parent_signaled(void) {
   // signal(SIGPIPE, &parent_sigpipe_handler);
   int pipe_fd[2];
   pid_t child_pid;
@@ -56,7 +56,7 @@ static int test_pipe_parent_signaled(void) {
   return;
 }
 
-static void test_pipe_child_signaled(void) {
+int test_pipe_child_signaled(void) {
   int child_signaled_passed = 0;
   int pipe_fd[2];
   pid_t child_pid;
@@ -93,7 +93,7 @@ static void test_pipe_child_signaled(void) {
   return child_signaled_passed;
 }
 
-static int test_pipe_perror(void) {
+int test_pipe_perror(void) {
   int pipe_fd[2];
   pid_t child_pid;
 
