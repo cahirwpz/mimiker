@@ -199,6 +199,5 @@ __no_profile void __cyg_profile_func_enter(void *self, void *from) {
   }
 }
 
-__no_profile void __cyg_profile_func_exit(void *this_fn,
-                                                    void *call_site) {
+__no_profile void __cyg_profile_func_exit(void *this_fn, void *call_site) {
 }

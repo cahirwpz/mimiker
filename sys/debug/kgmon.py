@@ -9,8 +9,8 @@ def gmon_write(path):
     class GmonParam(metaclass=GdbStructMeta):
         __ctype__ = 'struct gmonparam'
 
-    infer = gdb.inferiors()[0]
     gparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
+    infer = gdb.inferiors()[0]
 
     with open(path, "wb") as of:
         # Write headers
