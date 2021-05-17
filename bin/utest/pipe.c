@@ -13,23 +13,13 @@
 #include "utest.h"
 #include "util.h"
 
-// int parent_signaled_passed = 0;
-
-// static void parent_sigpipe_handler(int signo) {
-//   parent_signaled_passed = 1;
-//   return;
-// }
-
 int test_pipe_parent_signaled(void) {
-  // signal(SIGPIPE, &parent_sigpipe_handler);
   int pipe_fd[2];
   pid_t child_pid;
 
-  if (pipe2(pipe_fd, 0) < 0) {
+  if (pipe2(pipe_fd, 0) < 0)
     perror("pipe2");
-    exit(EXIT_FAILURE);
-  }
-  int wstatus;
+
   switch (child_pid = fork()) {
     case -1: /* error */
       perror("fork");
@@ -44,14 +34,12 @@ int test_pipe_parent_signaled(void) {
       close(pipe_fd[0]); /* closing read end of pipe */
   }
 
+  int wstatus;
   if (waitpid(child_pid, &wstatus, 0) < 0)
     perror("waitpid");
 
-  // should trigger signal
+  // This is supposed to trigger SIGPIPE and get us killed
   write(pipe_fd[1], "hello world\n", 12);
-
-  // assert(parent_signaled_passed);
-  // signal(SIGPIPE, SIG_DFL);
 
   return;
 }
@@ -61,11 +49,9 @@ int test_pipe_child_signaled(void) {
   int pipe_fd[2];
   pid_t child_pid;
 
-  if (pipe2(pipe_fd, 0) < 0) {
+  if (pipe2(pipe_fd, 0) < 0)
     perror("pipe2");
-    exit(EXIT_FAILURE);
-  }
-  int wstatus;
+
   switch (child_pid = fork()) {
     case -1: /* error */
       perror("fork error\n");
@@ -81,6 +67,8 @@ int test_pipe_child_signaled(void) {
       close(pipe_fd[1]); /* closing write end of pipe */
       close(pipe_fd[0]); /* closing read end of pipe */
   }
+
+  int wstatus;
   if (waitpid(child_pid, &wstatus, 0) < 0) {
     perror("waitpid");
     exit(EXIT_FAILURE);
@@ -88,7 +76,7 @@ int test_pipe_child_signaled(void) {
   if (WIFSIGNALED(wstatus)) {
     child_signaled_passed = WTERMSIG(wstatus) == SIGPIPE;
   }
-  assert(child_signaled_passed);
+  assert_ok(child_signaled_passed);
 
   return child_signaled_passed;
 }

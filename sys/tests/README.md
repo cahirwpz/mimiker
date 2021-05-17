@@ -61,7 +61,11 @@ In order to make the test runnable one has to add one of these lines to
 * `UTEST_ADD({name}, {exit status}, flags)` - test passes when exited with
   status `{exit status}`.
 
-One also needs to add a line `CHECKRUN_TEST({name})` in `/bin/utest/main.c`.
+One also needs to add a line
+
+* `CHECKRUN_TEST({name})` in `/bin/utest/main.c`.
+* `${filename}.c` in `bin/utest/Makefile`
+
 
 ### Flags
 
