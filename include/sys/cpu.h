@@ -14,12 +14,12 @@
  * \see intr_enable
  * \see intr_disable
  */
-void cpu_intr_disable(void) __no_instrument_kgprof;
+void cpu_intr_disable(void) __no_profile;
 
 /*! \brief Enables local CPU interrupts. */
-void cpu_intr_enable(void) __no_instrument_kgprof;
+void cpu_intr_enable(void) __no_profile;
 
 /*! \brief Check if local CPU interrupts are disabled. */
-bool cpu_intr_disabled(void) __no_instrument_kgprof;
+bool cpu_intr_disabled(void) __no_profile;
 
 #endif /* !_SYS_CPU_H_ */

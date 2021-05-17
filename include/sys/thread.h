@@ -150,7 +150,7 @@ typedef struct thread {
 #endif
 } thread_t;
 
-thread_t *thread_self(void) __no_instrument_kgprof;
+thread_t *thread_self(void) __no_profile;
 
 /*! \brief Initialize first thread in the system. */
 void init_thread0(void);
