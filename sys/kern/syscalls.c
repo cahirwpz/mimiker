@@ -1251,11 +1251,11 @@ static int sys_setitimer(proc_t *p, setitimer_args_t *args, register_t *res) {
 }
 
 static int sys_sync(proc_t *p, void *args, register_t *res) {
-  /* NOP, buffering is not implemented */
+  /* TODO(mohrcore): implement buffering */
   return 0;
 }
 
 static int sys_fsync(proc_t *p, fsync_args_t *args, register_t *res) {
-  /* NOP, buffering is not implemented */
+  /* TODO(mohrcore): implement buffering */
   return 0;
 }
