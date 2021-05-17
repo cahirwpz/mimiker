@@ -252,16 +252,16 @@ usb_buf_t *usb_buf_alloc(void);
 /* Releases a previously allocated buffer. */
 void usb_buf_free(usb_buf_t *buf);
 
-/* Returns true if the transfer in which `buf` is being used in is peridoc. */
+/* Returns true if the transfer described by `buf` is periodic. */
 bool usb_buf_periodic(usb_buf_t *buf);
 
-/* Waits until the transfer in which `buf` is being used in completes, or
- * until an error is encountered. If an error is returned, further information
- * may be obtained through `buf->error`. */
+/* Waits until the transfer described by `buf` completes, or until an error is
+ * encountered. If an error is returned, further information may be obtained
+ * through `buf::error`. */
 int usb_buf_wait(usb_buf_t *buf);
 
-/* Processes data `data` received in transfer in which `buf` was used,
- * or processes error `error` encountered during the transfer.
+/* When the transfer request finishes the `data` or `error` are available.
+ * We need to update `buf` to reflect that change.
  * Only for host controller driver internal use! */
 void usb_buf_process(usb_buf_t *buf, void *data, usb_error_t error);
 
@@ -278,11 +278,10 @@ int usb_enumerate(device_t *hcdev);
 /*
  * USB standard interface.
  *
- * The following interface provides basic USB transfers: control,
- * and data stage only transfers. Although control transfers are supplied,
- * if a need to perform some standard request form a device driver arises,
- * the request should be added to the USB bus standard requests interface
- * instead of using control transfers directly.
+ * The following interface provides basic USB transfers: control and data stage
+ * only transfers. If you need to create a new function that performs a new
+ * type of request, as specified by the standard, **avoid** adding it to
+ * `usb_methods`. Just write a new function that uses the interface.
  */
 
 typedef void (*usb_control_transfer_t)(device_t *dev, usb_buf_t *buf,
@@ -302,16 +301,16 @@ static inline usb_methods_t *usb_methods(device_t *dev) {
 }
 
 /*
- * Issues a control transfer.
+ * Issues a control transfer asynchronously.
  *
- * This is an asynchronous function. In order to wait for the transfer to
- * complete, use `usb_buf_wait` with `buf` as the argument.
+ * Pass `buf` to `usb_buf_wait` to wait for the transfer to complete.
  *
- * - `dev`  - device requesting the transfer
- * - `buf`  - USB buffer used for transaction
- * - `data` - data to transfer, or destination address
- * - `dir`  - transfer direction
- * - `req`  - USB device request
+ * Arguments:
+ *  - `dev`: device requesting the transfer
+ *  - `buf`: USB buffer used for transaction
+ *  - `data`: data to transfer, or destination address
+ *  - `dir`: transfer direction
+ *  - `req`: USB device request
  */
 static inline void usb_control_transfer(device_t *dev, usb_buf_t *buf,
                                         void *data, usb_direction_t dir,
@@ -320,17 +319,17 @@ static inline void usb_control_transfer(device_t *dev, usb_buf_t *buf,
 }
 
 /*
- * Issues a data stage only transfer.
+ * Issues a data stage only transfer asynchronously.
  *
- * This is an asynchronous function. In order to wait for the transfer to
- * complete, use `usb_buf_wait` with `buf` as the argument.
+ * Pass `buf` to `usb_buf_wait` to wait for the transfer to complete.
  *
- * - `dev`  - device requesting the transfer
- * - `buf`  - USB buffer used for transaction
- * - `data` - data to transfer, or destination address
- * - `size` - transfer size
- * - `transfer` - `USB_TFR_INTERRUPT` or `USB_TFR_BULK`
- * - `dir`  - transfer direction
+ * Arguments:
+ *  - `dev`: device requesting the transfer
+ *  - `buf`: USB buffer used for transaction
+ *  - `data`: data to transfer, or destination address
+ *  - `size`: transfer size
+ *  - `transfer`: `USB_TFR_INTERRUPT` or `USB_TFR_BULK`
+ *  - `dir`: transfer direction
  */
 static inline void usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
                                      uint16_t size, usb_transfer_t transfer,
@@ -344,8 +343,8 @@ static inline void usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
  * The following functions implement standard USB requests. Requests used for
  * device identification and configuration aren't exposed since USB bus
  * driver identifies and configures each device automatically during enumeration
- * process. It is suggested to add a new function to the presented set instead
- * of using `usb_control_transfer` request if a need occurs.
+ * process. Consider adding a new function to the following set instead of using
+ * `usb_control_transfer` request directly.
  */
 
 /*
@@ -353,12 +352,13 @@ static inline void usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
  *
  * Used in recovery process.
  *
- * - `dev` - USB device
- * - (`transfer`, `dir`) - identifies device's endpoint
+ * Arguments:
+ *  - `dev`: USB device
+ *  - `transfer` + `dir`: identifies device's endpoint
  *
- * error codes:
- * - EINVAL - (`transfer`, `dir`) doesn't identify a `dev`'s endpoint
- * - EIO - an error has been encountered during the transfer
+ * Error codes:
+ *  - EINVAL: `transfer` + `dir` doesn't identify a `dev` endpoint
+ *  - EIO: an error has been encountered during the transfer
  */
 int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
                      usb_direction_t dir);
@@ -375,10 +375,11 @@ int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
  *
  * Used in driver's configuration phase.
  *
- * - `dev` - USB device
+ * Arguments:
+ *  - `dev`: USB device
  *
- * error codes:
- * - EIO - an error has been encountered during the transfer
+ * Error codes:
+ *  - EIO: an error has been encountered during the transfer
  */
 int usb_hid_set_idle(device_t *dev);
 
@@ -387,10 +388,11 @@ int usb_hid_set_idle(device_t *dev);
  *
  * Used by drivers which don't implement HID descriptor parsing.
  *
- * - `dev` - USB device
+ * Arguments:
+ *  - `dev`: USB device
  *
- * error codes:
- * - EIO - an error has been encountered during the transfer
+ * Error codes:
+ *  - EIO: an error has been encountered during the transfer
  */
 int usb_hid_set_boot_protocol(device_t *dev);
 
@@ -405,23 +407,25 @@ int usb_hid_set_boot_protocol(device_t *dev);
 /*
  * Retrives the maximum Logical Unit Number of a device.
  *
- * - `dev` - USB device
- * - `maxlun` - destination address
+ * Arguments:
+ *  - `dev`: USB device
+ *  - `maxlun_p`: destination address
  *
- * error codes:
- * - EIO - an error has been encountered during the transfer
+ * Error codes:
+ *  - EIO: an error has been encountered during the transfer
  */
-int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun);
+int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun_p);
 
 /*
  * Resets USB mass storage device.
  *
  * Used in recovery process.
  *
- * - `dev` - USB device
+ * Arguments:
+ *  - `dev`: USB device
  *
- * error codes:
- * - EIO - an error has been encountered during the transfer
+ * Error codes:
+ *  - EIO: an error has been encountered during the transfer
  */
 int usb_bbb_reset(device_t *dev);
 
