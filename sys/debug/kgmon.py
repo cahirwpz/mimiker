@@ -22,15 +22,18 @@ def gmon_write(path):
         of.write(infer.read_memory(gparam.kcount, gparam.kcountsize))
 
         # Write arc info
-        froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
-
         memory = infer.read_memory(gparam.froms, gparam.fromssize)
         froms_array = unpack('H' * int(gparam.fromssize/calcsize('H')), memory)
         memory = infer.read_memory(gparam.tos, gparam.tossize)
-        size = calcsize('IiHH')
-        tos_array = unpack('IiHH' * int(gparam.tossize/size), memory)
+
+        # The last H stands for padding in the tos strusture
+        tos_rep = 'IiHH'
+        tos_rep_len = len(tos_rep)
+        size = calcsize(tos_rep)
+        tos_array = unpack(tos_rep * int(gparam.tossize/size), memory)
 
         fromindex = 0
+        froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
         for from_val in froms_array:
             # Nothing has been called from this function
             if from_val == 0:
@@ -43,9 +46,9 @@ def gmon_write(path):
             # Traversing the tos list for the calling function
             # It stores data about called functions
             while toindex != 0:
-                selfpc = tos_array[toindex * 4]
-                count = tos_array[toindex * 4 + 1]
-                toindex = tos_array[toindex * 4 + 2]
+                selfpc = tos_array[toindex * tos_rep_len]
+                count = tos_array[toindex * tos_rep_len + 1]
+                toindex = tos_array[toindex * tos_rep_len + 2]
                 of.write(pack('IIi', frompc, selfpc, count))
             fromindex += 1
 
