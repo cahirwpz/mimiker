@@ -119,4 +119,7 @@ int test_tty_signals(void);
 
 int test_procstat(void);
 
+int test_pipe_signals(void);
+int test_pipe_errors(void);
+
 #endif /* __UTEST_H__ */

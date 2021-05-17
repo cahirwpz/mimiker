@@ -76,7 +76,7 @@ static void child_signaled(void) {
   return;
 }
 
-static void test_parent_epipe(void) {
+staticvoid test_parent_epipe(void) {
   int pipe_fd[2];
   pid_t child_pid;
 

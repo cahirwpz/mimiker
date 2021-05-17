@@ -34,7 +34,7 @@ listed below:
 
 ### Kernel tests
 
-Located in `$(TOPDIR)/tests`.
+Located in `$(TOPDIR)/sys/tests`.
 Test function signature looks like this: `{name}(void)` or sometimes
 `{name}(unsigned int)` but needs to be coerced to `(int (*)(void))`.
 
