@@ -125,6 +125,10 @@ int main(int argc, char **argv) {
 
   CHECKRUN_TEST(procstat);
 
+  CHECKRUN_TEST(pipe_parent_signaled);
+  CHECKRUN_TEST(pipe_child_signaled);
+  CHECKRUN_TEST(pipe_perror);
+
   printf("No user test \"%s\" available.\n", test_name);
   return 1;
 }

@@ -49,11 +49,11 @@ flags as mentioned below, and `max` is maximum random argument fed to the test.
 
 ### User tests
 
-Located in `$(TOPDIR)/bin/utest`.
+Located in `/bin/utest`.
 User-space test function signature looks like this: `int test_{name}(void)` and
-should be defined in `bin/utest/utest.h`.
+should be defined in `/bin/utest/utest.h`.
 In order to make the test runnable one has to add one of these lines to
-`test/utest.c` file:
+`/sys/tests/utest.c` file:
 
 * `UTEST_ADD_SIMPLE({name})` - test fails on assertion or non-zero return value.
 * `UTEST_ADD_SIGNAL({name}, {SIGNUMBER})` - test passes when terminated with

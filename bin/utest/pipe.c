@@ -1,11 +1,27 @@
+#include "utest.h"
+#include "util.h"
 
-static void parent_sigpipe_handler(int signo) {
-  parent_signaled_passed = 1;
-  return;
-}
+#include <assert.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
 
-static void parent_signaled(void) {
-  signal(SIGPIPE, &parent_sigpipe_handler);
+#include <signal.h>
+#include <string.h>
+
+#include <sys/types.h>
+#include <sys/wait.h>
+
+// int parent_signaled_passed = 0;
+
+// static void parent_sigpipe_handler(int signo) {
+//   parent_signaled_passed = 1;
+//   return;
+// }
+
+static int test_pipe_parent_signaled(void) {
+  // signal(SIGPIPE, &parent_sigpipe_handler);
   int pipe_fd[2];
   pid_t child_pid;
 
@@ -30,15 +46,18 @@ static void parent_signaled(void) {
 
   if (waitpid(child_pid, &wstatus, 0) < 0)
     perror("waitpid");
+
+  // should trigger signal
   write(pipe_fd[1], "hello world\n", 12);
 
-  assert(parent_signaled_passed);
-  signal(SIGPIPE, SIG_DFL);
+  // assert(parent_signaled_passed);
+  // signal(SIGPIPE, SIG_DFL);
 
   return;
 }
 
-static void child_signaled(void) {
+static void test_pipe_child_signaled(void) {
+  int child_signaled_passed = 0;
   int pipe_fd[2];
   pid_t child_pid;
 
@@ -49,14 +68,12 @@ static void child_signaled(void) {
   int wstatus;
   switch (child_pid = fork()) {
     case -1: /* error */
-      fprintf(stderr, "fork error\n");
+      perror("fork error\n");
       exit(EXIT_FAILURE);
 
     case 0:              /* child */
       close(pipe_fd[0]); /* closing read end of pipe */
-      // signal(SIGPIPE, child_signal_handler);
       while (1) {
-        printf("activ wait");
         write(pipe_fd[1], "hello world\n", 12);
       }
 
@@ -73,10 +90,10 @@ static void child_signaled(void) {
   }
   assert(child_signaled_passed);
 
-  return;
+  return child_signaled_passed;
 }
 
-staticvoid test_parent_epipe(void) {
+static int test_pipe_perror(void) {
   int pipe_fd[2];
   pid_t child_pid;
 
@@ -87,7 +104,7 @@ staticvoid test_parent_epipe(void) {
   int wstatus;
   switch (child_pid = fork()) {
     case -1: /* error */
-      fprintf(stderr, "fork\n");
+      perror("fork\n");
       exit(EXIT_FAILURE);
 
     case 0:              /* child */
@@ -115,4 +132,6 @@ staticvoid test_parent_epipe(void) {
     perror("sigdelset");
   if (sigprocmask(SIG_SETMASK, &mask, NULL) < 0)
     perror("sigprocmask");
+
+  return errno == EPIPE;
 }
