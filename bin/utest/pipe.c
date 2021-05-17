@@ -1,6 +1,3 @@
-#include "utest.h"
-#include "util.h"
-
 #include <assert.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -12,6 +9,9 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+
+#include "utest.h"
+#include "util.h"
 
 // int parent_signaled_passed = 0;
 
