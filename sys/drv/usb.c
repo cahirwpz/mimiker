@@ -106,9 +106,8 @@ int usb_buf_wait(usb_buf_t *buf) {
    * since further information is available in `buf->error`. */
   if (buf->error)
     return EIO;
-  else
-    buf->executed = 0;
 
+  buf->executed = 0;
   return 0;
 }
 
