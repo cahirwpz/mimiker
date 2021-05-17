@@ -95,5 +95,7 @@
 79  { int sys_sigpending(sigset_t *set); }
 80  { int sys_getitimer(int which, struct itimerval *val); }
 81  { int sys_setitimer(int which, struct itimerval *val, struct itimerval *oval); }
+82  { void sys_sync(void); }
+83  { int sys_fsync(int fd); }
 
 ; vim: ts=4 sw=4 sts=4 et
