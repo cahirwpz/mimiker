@@ -41,7 +41,7 @@ int test_pipe_parent_signaled(void) {
   // This is supposed to trigger SIGPIPE and get us killed
   write(pipe_fd[1], "hello world\n", 12);
 
-  return;
+  return 0;
 }
 
 int test_pipe_child_signaled(void) {
@@ -76,7 +76,7 @@ int test_pipe_child_signaled(void) {
   if (WIFSIGNALED(wstatus)) {
     child_signaled_passed = WTERMSIG(wstatus) == SIGPIPE;
   }
-  assert_ok(child_signaled_passed);
+  assert(child_signaled_passed);
 
   return child_signaled_passed;
 }
