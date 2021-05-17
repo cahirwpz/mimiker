@@ -12,7 +12,8 @@ typedef struct file file_t;
 typedef struct uio uio_t;
 
 /*
- * Device file node.
+ * Device node is a structure that exposes to user-space an entry point into
+ * device driver code through file interface.
  */
 
 /*
@@ -21,6 +22,7 @@ typedef struct uio uio_t;
  * We have a handful of scenarios to handle here, because some drivers:
  * (1) require that there's exactly one open file (e.g. disks),
  * (2) create a new instance of device node for each opened file (e.g. evdev),
+ *     let's call these *device clones*,
  * (3) look up a device node that already exists (e.g. /dev/tty).
  *
  * Arguments:
@@ -30,10 +32,14 @@ typedef struct uio uio_t;
  *  - `fp`: file that needs to be associated with the device node
  *
  * Please note that `fp::f_flags` will tell you if user wants to open this file
- * for read or write (FF_* flags). In case of device cloning (case 2) you should
- * set `fp::f_data` to private instance of device node for the user.
+ * for read or write (FF_* flags).
  *
- * Returns `ENXIO` if a device could not be configured for use.
+ * In case of device cloning (case 2) you should set `fp::f_data` to private
+ * instance of device node for the user. Normally `fp::f_data` points to
+ * the device node registered by the driver.
+ *
+ * Returns `ENXIO` if a device could not be configured for use
+ * (for instance: when no media is inserted into a drive).
  */
 typedef int (*dev_open_t)(devnode_t *dev, file_t *fp, int oflags);
 
@@ -98,9 +104,36 @@ typedef struct devops {
 typedef struct devnode {
   devops_t *ops;   /* device operation table */
   void *data;      /* device specific data */
-  size_t size;     /* opened device node size (for seekable devices) */
   refcnt_t refcnt; /* number of open files referring to this device */
+
+  /* File attributes available through stat(2). Please note that for cloned
+   * devices following attributes can only be read with fstat(2).
+   *
+   * `size` field may be set during first open request, e.g. when we detect
+   * media is present, and should be zero'ed out on last close, or when media
+   * is removed. */
+  mode_t mode; /* node protection mode */
+  uid_t uid;   /* file owner */
+  gid_t gid;   /* file group */
+  size_t size; /* size in bytes (for seekable devices) */
 } devnode_t;
+
+/*
+ * Device node management for device drivers.
+ *
+ * TODO(cahir): Following API is too complicated and needlessly exposes
+ * `devfs_node_t`. In fact we need something akin to `make_dev_s` and
+ * `destroy_dev` (see http://mdoc.su/f/make_dev_s) from FreeBSD, i.e.:
+ *
+ * - void make_dev_args_init(struct make_dev_args *args);
+ * - int make_dev_s(struct make_dev_args *args, struct cdev **cdev,
+ *                  const char *fmt, ...);
+ * - void destroy_dev(struct	cdev *dev);
+ *
+ * Directory handling (mkdir / rmdir) should be handled automatically.
+ * `devfs_makedev` should accept a full path to device node that is about
+ * to be created.
+ */
 
 /* If parent is NULL new device will be attached to root devfs directory. */
 int devfs_makedev_new(devfs_node_t *parent, const char *name, devops_t *devops,

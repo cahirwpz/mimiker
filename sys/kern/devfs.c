@@ -36,9 +36,6 @@ struct devfs_node {
 
   /* Node attributes (as in vattr). */
   nlink_t dn_nlinks;   /* number of hard links */
-  mode_t dn_mode;      /* node protection mode */
-  uid_t dn_uid;        /* file owner */
-  gid_t dn_gid;        /* file group */
   ino_t dn_ino;        /* node identifier */
   timespec_t dn_atime; /* last access time */
   timespec_t dn_mtime; /* last data modification time */
@@ -63,7 +60,7 @@ typedef struct devfs_mount {
 /* The only mount point for devfs. */
 static devfs_mount_t devfs = {
   .lock = MTX_INITIALIZER(devfs.lock, 0),
-  .next_ino = 2,
+  .next_ino = 2, /* traditional root i-node number in unix-like systems */
   .root = NULL,
 };
 
@@ -99,7 +96,7 @@ static devfs_node_t *devfs_node_create(const char *name, int mode) {
   devfs_node_t *dn = kmalloc(M_DEVFS, sizeof(devfs_node_t), M_ZERO | M_WAITOK);
 
   strncpy(dn->dn_name, name, DEVFS_NAME_MAX);
-  dn->dn_mode = mode;
+  dn->dn_device.mode = mode;
   dn->dn_nlinks = (mode & S_IFDIR) ? 2 : 1;
   dn->dn_ino = devfs.next_ino++;
   /* UID and GID are set to 0 by `kmalloc`.
@@ -205,10 +202,10 @@ static int devfs_vop_getattr(vnode_t *v, vattr_t *va) {
   devfs_node_t *dn = devfs_node_of(v);
 
   bzero(va, sizeof(vattr_t));
-  va->va_mode = dn->dn_mode;
-  va->va_uid = dn->dn_uid;
-  va->va_gid = dn->dn_gid;
-  va->va_size = 0; /* only opened device nodes have size */
+  va->va_mode = dn->dn_device.mode;
+  va->va_uid = dn->dn_device.uid;
+  va->va_gid = dn->dn_device.gid;
+  va->va_size = dn->dn_device.size;
   va->va_nlink = dn->dn_nlinks;
   va->va_ino = dn->dn_ino;
   va->va_atime = dn->dn_atime;
@@ -511,7 +508,7 @@ int devfs_unlink(devfs_node_t *dn) {
     return ENOTEMPTY;
 
   TAILQ_REMOVE(&parent->dn_children, dn, dn_link);
-  if (dn->dn_mode & S_IFDIR)
+  if (dn->dn_device.mode & S_IFDIR)
     parent->dn_nlinks--;
   vnode_drop(dn->dn_vnode);
   return 0;
