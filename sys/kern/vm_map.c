@@ -206,7 +206,7 @@ void vm_map_entry_destroy_range(vm_map_t *map, vm_map_entry_t *ent,
     del = vm_map_entry_split(map, ent, start);
   }
 
-  if (end < ent->end) {
+  if (end < del->end) {
     /* entry which is after del is one we want to keep */
     vm_map_entry_split(map, del, end);
   }
