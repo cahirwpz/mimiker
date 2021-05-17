@@ -1,7 +1,6 @@
-Test infrastructure
----
+# Test infrastructure
 
-### Running tests
+## Running tests
 
 If you just want to run all available tests please use `./run_tests.py`. This is
 the command that is used by continuous integration. Some useful arguments are
@@ -31,14 +30,16 @@ listed below:
   `repeat` specifies the number of times each test will be run. For example,
   `test=test1,test2 repeat=4` will run `test1` 4 times and then run `test2` 4 times.
 
-### Programming tests
+## Programming tests
 
-##### Kernel tests
+### Kernel tests
+
 Located in `$(TOPDIR)/tests`.
 Test function signature looks like this: `{name}(void)` or sometimes
 `{name}(unsigned int)` but needs to be coerced to `(int (*)(void))`.
 
 Macros to register tests:
+
 * `KTEST_ADD(name, func, flags)`
 * `KTEST_ADD_RANDINT(name, func, flags, max)` - need to cast function pointer to
   `(int (*)(void))`
@@ -46,12 +47,14 @@ Macros to register tests:
 Where `name` is test name, `func` is pointer to test function,
 flags as mentioned below, and `max` is maximum random argument fed to the test.
 
-##### User tests
+### User tests
+
 Located in `$(TOPDIR)/bin/utest`.
 User-space test function signature looks like this: `int test_{name}(void)` and
 should be defined in `bin/utest/utest.h`.
 In order to make the test runnable one has to add one of these lines to
 `test/utest.c` file:
+
 * `UTEST_ADD_SIMPLE({name})` - test fails on assertion or non-zero return value.
 * `UTEST_ADD_SIGNAL({name}, {SIGNUMBER})` - test passes when terminated with
   `{SIGNUMBER}`.
@@ -60,7 +63,8 @@ In order to make the test runnable one has to add one of these lines to
 
 One also needs to add a line `CHECKRUN_TEST({name})` in `/bin/utest/main.c`.
 
-##### Flags
+### Flags
+
 * `KTEST_FLAG_NORETURN` - signifies that a test does not return.
 * `KTEST_FLAG_DIRTY` - signifies that a test irreversibly breaks internal kernel
   state, and any further test done without restarting the kernel will be
