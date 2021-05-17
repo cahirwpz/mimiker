@@ -16,7 +16,7 @@
 struct vm_map_entry {
   TAILQ_ENTRY(vm_map_entry) link;
   vm_object_t *object;
-  /* TODO(fz): add aref */
+  vaddr_t offset; /* offset in object */
   vm_prot_t prot;
   vm_entry_flags_t flags;
   vaddr_t start;
@@ -124,6 +124,7 @@ vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
 
   vm_map_entry_t *ent = pool_alloc(P_VM_MAPENT, M_ZERO);
   ent->object = obj;
+  ent->offset = 0;
   ent->start = start;
   ent->end = end;
   ent->prot = prot;
@@ -188,6 +189,7 @@ static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
   /* clip both entries */
   ent->end = splitat;
   new_ent->start = splitat;
+  new_ent->offset = ent->offset + (ent->end - ent->start);
 
   vm_map_insert_after(map, ent, new_ent);
   return new_ent;
@@ -405,6 +407,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         obj = vm_object_clone(it->object);
       }
       ent = vm_map_entry_alloc(obj, it->start, it->end, it->prot, it->flags);
+      ent->offset = it->offset;
       TAILQ_INSERT_TAIL(&new_map->entries, ent, link);
       new_map->nentries++;
     }
@@ -445,7 +448,7 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   assert(obj != NULL);
 
   vaddr_t fault_page = fault_addr & -PAGESIZE;
-  vaddr_t offset = fault_page - ent->start;
+  vaddr_t offset = ent->offset + (fault_page - ent->start);
   vm_page_t *frame = vm_object_find_page(ent->object, offset);
 
   if (frame == NULL)
