@@ -1,9 +1,15 @@
 import gdb
 
 from .cmd import SimpleCommand
+from .struct import GdbStructMeta
+from struct import *
 
 
 def gmon_write(path):
+    class GmonParam(metaclass=GdbStructMeta):
+        __ctype__ = 'struct gmonparam'
+
+    gparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
     infer = gdb.inferiors()[0]
 
     with open(path, "wb") as of:
@@ -13,11 +19,38 @@ def gmon_write(path):
         of.write(infer.read_memory(gmonhdr_p, gmonhdr_size))
 
         # Write tick buffer
-        kcountsize = int(gdb.parse_and_eval('_gmonparam.kcountsize'))
-        kcount = gdb.parse_and_eval('_gmonparam.kcount')
-        of.write(infer.read_memory(kcount, kcountsize))
+        of.write(infer.read_memory(gparam.kcount, gparam.kcountsize))
 
-        # TODO: write arc info
+        # Write arc info
+        memory = infer.read_memory(gparam.froms, gparam.fromssize)
+        froms_array = unpack('H' * int(gparam.fromssize/calcsize('H')), memory)
+        memory = infer.read_memory(gparam.tos, gparam.tossize)
+
+        # The last H stands for padding in the tos strusture
+        tos_rep = 'IiHH'
+        tos_rep_len = len(tos_rep)
+        size = calcsize(tos_rep)
+        tos_array = unpack(tos_rep * int(gparam.tossize/size), memory)
+
+        fromindex = 0
+        froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
+        for from_val in froms_array:
+            # Nothing has been called from this function
+            if from_val == 0:
+                continue
+            # Getting the calling function addres from encoded value
+            offset = fromindex * froms_el_size * gparam.hashfraction
+            frompc = gparam.lowpc + offset
+            toindex = from_val
+
+            # Traversing the tos list for the calling function
+            # It stores data about called functions
+            while toindex != 0:
+                selfpc = tos_array[toindex * tos_rep_len]
+                count = tos_array[toindex * tos_rep_len + 1]
+                toindex = tos_array[toindex * tos_rep_len + 2]
+                of.write(pack('IIi', frompc, selfpc, count))
+            fromindex += 1
 
 
 class Kgmon(SimpleCommand):
@@ -30,6 +63,11 @@ class Kgmon(SimpleCommand):
         args = args.strip()
         state = gdb.parse_and_eval('_gmonparam.state')
         if state == gdb.parse_and_eval('GMON_PROF_NOT_INIT'):
-            print("Compile program with KGPROF=1 or gmon not initialized yet")
+            print("Kgprof not initialized yet")
+        elif state == gdb.parse_and_eval('GMON_PROF_BUSY'):
+            # To ensure consistent data
+            print("The mcount function is running - wait for it to finish")
         else:
+            if state == gdb.parse_and_eval('GMON_PROF_ERROR'):
+                print("The tostruct array was too small for the whole process")
             gmon_write(args or 'gmon.out')
