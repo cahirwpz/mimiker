@@ -1,4 +1,5 @@
 #include "utest.h"
+#include "util.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -9,6 +10,7 @@
 #include <signal.h>
 #include <setjmp.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #ifdef __mips__
 #define BAD_ADDR_SPAN 0x7fff0000
@@ -110,6 +112,39 @@ int test_mmap(void) {
   mmap_with_hint();
   mmap_bad();
   munmap_good();
+  return 0;
+}
+
+int test_munmap(void) {
+  void *addr;
+  int result, child;
+
+  addr =
+    mmap(NULL, 0x3000, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+  assert(addr != MAP_FAILED);
+
+  /* write data to parts which will remain mapped after unmap */
+  sprintf(addr, "first");
+  sprintf(addr + 0x2000, "second");
+
+  result = munmap(addr + 0x1000, 0x1000);
+  assert(result == 0);
+
+  /* Now we have to fork to trigger pagefault on both parts of mapped memory. */
+  child = fork();
+  if (child == 0) {
+    assert(strncmp(addr, "first", 5) == 0);
+    assert(strncmp(addr + 0x2000, "second", 6) == 0);
+    exit(0);
+  }
+
+  wait_for_child_exit(child, 0);
+
+  result = munmap(addr, 0x1000);
+  assert(result == 0);
+
+  result = munmap(addr + 0x2000, 0x1000);
+  assert(result == 0);
   return 0;
 }
 
