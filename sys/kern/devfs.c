@@ -154,7 +154,7 @@ static int devfs_fop_write(file_t *fp, uio_t *uio) {
 static int devfs_fop_close(file_t *fp) {
   devnode_t *dev = fp->f_data;
   refcnt_release(&dev->refcnt);
-  return dev->ops->d_close(dev, fp->f_flags);
+  return dev->ops->d_close(dev, fp);
 }
 
 static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
@@ -230,7 +230,7 @@ static int devfs_vop_open(vnode_t *v, int mode, file_t *fp) {
   fp->f_type = FT_VNODE;
   fp->f_vnode = v;
 
-  if ((error = dev->ops->d_open(dev, mode, fp)))
+  if ((error = dev->ops->d_open(dev, fp, mode)))
     return error;
 
   refcnt_acquire(&dev->refcnt);
@@ -381,11 +381,11 @@ SET_ENTRY(vfsconf, devfs_conf);
  * Devfs kernel interface for device drivers.
  */
 
-static int dev_noopen(devnode_t *dev, int flags, file_t *fp) {
+static int dev_noopen(devnode_t *dev, file_t *fp, int oflags) {
   return 0;
 }
 
-static int dev_noclose(devnode_t *dev, int flags) {
+static int dev_noclose(devnode_t *dev, file_t *fp) {
   return 0;
 }
 
