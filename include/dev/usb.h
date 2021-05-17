@@ -355,6 +355,10 @@ static inline void usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
  *
  * - `dev` - USB device
  * - (`transfer`, `dir`) - identifies device's endpoint
+ *
+ * error codes:
+ * - EINVAL - (`transfer`, `dir`) doesn't identify a `dev`'s endpoint
+ * - EIO - an error has been encountered during the transfer
  */
 int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
                      usb_direction_t dir);
@@ -372,6 +376,9 @@ int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
  * Used in driver's configuration phase.
  *
  * - `dev` - USB device
+ *
+ * error codes:
+ * - EIO - an error has been encountered during the transfer
  */
 int usb_hid_set_idle(device_t *dev);
 
@@ -381,6 +388,9 @@ int usb_hid_set_idle(device_t *dev);
  * Used by drivers which don't implement HID descriptor parsing.
  *
  * - `dev` - USB device
+ *
+ * error codes:
+ * - EIO - an error has been encountered during the transfer
  */
 int usb_hid_set_boot_protocol(device_t *dev);
 
@@ -397,6 +407,9 @@ int usb_hid_set_boot_protocol(device_t *dev);
  *
  * - `dev` - USB device
  * - `maxlun` - destination address
+ *
+ * error codes:
+ * - EIO - an error has been encountered during the transfer
  */
 int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun);
 
@@ -406,6 +419,9 @@ int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun);
  * Used in recovery process.
  *
  * - `dev` - USB device
+ *
+ * error codes:
+ * - EIO - an error has been encountered during the transfer
  */
 int usb_bbb_reset(device_t *dev);
 
