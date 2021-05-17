@@ -418,3 +418,7 @@ typedef struct {
   SYSCALLARG(struct itimerval *) val;
   SYSCALLARG(struct itimerval *) oval;
 } setitimer_args_t;
+
+typedef struct {
+  SYSCALLARG(int) fd;
+} fsync_args_t;

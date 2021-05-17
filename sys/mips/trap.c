@@ -11,7 +11,7 @@
 #include <sys/vm_map.h>
 #include <sys/vm_physmem.h>
 
-__no_instrument_kgprof static inline unsigned exc_code(ctx_t *ctx) {
+__no_profile static inline unsigned exc_code(ctx_t *ctx) {
   return (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
 }
 
@@ -252,7 +252,7 @@ static void kern_trap_handler(ctx_t *ctx) {
   }
 }
 
-__no_instrument_kgprof void mips_exc_handler(ctx_t *ctx) {
+__no_profile void mips_exc_handler(ctx_t *ctx) {
   thread_t *td = thread_self();
   assert(td->td_idnest == 0);
   assert(cpu_intr_disabled());
