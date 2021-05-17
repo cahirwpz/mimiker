@@ -82,12 +82,15 @@ static void munmap_good(void) {
   assert(errno == EINVAL);
 
   /* more pages */
-  addr = mmap_anon_prw(NULL, 0x5000);
+  addr = mmap_anon_prw(NULL, 0x3000);
 
-  result = munmap(addr, 0x2000);
+  result = munmap(addr + 0x1000, 0x1000);
   assert(result == 0);
 
-  result = munmap(addr + 0x2000, 0x3000);
+  result = munmap(addr, 0x1000);
+  assert(result == 0);
+
+  result = munmap(addr + 0x2000, 0x1000);
   assert(result == 0);
 }
 
