@@ -539,7 +539,7 @@ static intr_filter_t uhci_isr(void *data) {
   /* FTTB, we're interested in IOC and error events. */
   uint16_t intrmask = UHCI_STS_USBINT | UHCI_STS_USBEI;
 
-  /* Sould we bother this? */
+  /* Sould we bother about this? */
   if (!chk16(UHCI_STS, intrmask))
     return IF_STRAY;
 
