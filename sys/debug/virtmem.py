@@ -90,7 +90,8 @@ class VmMapSeg(UserCommand):
             return
         entries = vm_map['entries']
         table = TextTable(types='itttttt', align='rrrrrrr')
-        table.header(['segment', 'start', 'end', 'prot', 'flags', 'object', 'offset'])
+        table.header(['segment', 'start', 'end', 'prot', 'flags', 'object',
+                      'offset'])
         segments = TailQueue(entries, 'link')
         for idx, seg in enumerate(segments):
             table.add_row([idx, seg['start'], seg['end'], seg['prot'],
