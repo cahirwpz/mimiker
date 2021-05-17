@@ -47,6 +47,8 @@ void init_kgprof(void) {
 }
 
 void kgprof_tick(void) {
+  assert(intr_disabled());
+
   uintptr_t pc, instr;
   gmonparam_t *g = &_gmonparam;
   thread_t *td = thread_self();
