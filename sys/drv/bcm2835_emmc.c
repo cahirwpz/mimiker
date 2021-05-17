@@ -272,7 +272,7 @@ static int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
 
 /* This function might be (and probably is!) incomplete, but it does enough
  * to handle the current block device scenario */
-uint32_t encode_cmd(emmc_cmd_t cmd) {
+static uint32_t encode_cmd(emmc_cmd_t cmd) {
   uint32_t code = (uint32_t)cmd.cmd_idx << 24;
 
   switch (cmd.exp_resp) {
@@ -549,7 +549,7 @@ static int bcmemmc_init(device_t *dev) {
   b_set(emmc, EMMC_CONTROL1, C1_SRST_HC);
   cnt = 10000;
   do {
-    delay(30); /* ! */
+    delay(30);
   } while ((b_in(emmc, EMMC_CONTROL1) & C1_SRST_HC) && cnt--);
   if (cnt <= 0) {
     klog("ERROR: failed to reset EMMC");
@@ -557,9 +557,7 @@ static int bcmemmc_init(device_t *dev) {
   }
   klog("EMMC: reset OK");
   b_set(emmc, EMMC_CONTROL1, C1_CLK_INTLEN | C1_TOUNIT_MAX);
-  delay(30); /* ! */
-  ;
-  // Set clock to setup frequency.
+  delay(30);
   if ((r = bcmemmc_clk(dev, 400000)))
     return r;
   b_out(emmc, EMMC_INT_EN,
@@ -612,7 +610,7 @@ static int bcmemmc_attach(device_t *dev) {
   return bus_generic_probe(dev);
 }
 
-emmc_methods_t bcmemmc_emmc_if = {
+static emmc_methods_t bcmemmc_emmc_if = {
   .send_cmd = bcmemmc_cmd,
   .wait = bcmemmc_wait,
   .read = bcmemmc_read,
