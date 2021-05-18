@@ -27,7 +27,7 @@ system for Malta board and Raspberry Pi 3.
 
 #### How system is run?
 
-When you turn on the system with `./launch` script[^4] system is being run in QEMU.
+When you turn on the system with `./launch` [script][1] system is being run in QEMU.
 Multiple terminals are connected to VM. Between these you can switch with Tmux.
 On one of them is klog (log with kernel messages). On the second one is GDB.
 The other one there can be Korn Shell working in the system.
@@ -36,7 +36,7 @@ The other one there can be Korn Shell working in the system.
 
 Most of the incoherence in file hierarchy come from expectations of C
 programs to find header files in specific locations.
-More information can be found in `hier(7)`[^1].
+More information can be found in [`hier(7)`][2].
 
 * `bin/` and `usr.bin/` programs from NetBSD that are
   considered to be ready to run, because are build during compilation
@@ -88,12 +88,13 @@ More information can be found in `hier(7)`[^1].
 ### Licence
 
 This project is licensed under the BSD 3-Clause. Details of code we can
-use can be found here[^2] and that[^3] is a nice cheat sheet.
+use can be found [here][3] and [that][4] is a nice cheat sheet.
 The Simplest inferences include facts that we can use all the code under MIT
 licence and we are not supposed to look at or be inspired by any code
 under GPL.
 
-[^1]: https://man.netbsd.org/hier.7
-[^2]: https://en.wikipedia.org/wiki/License_compatibility
-[^3]: https://en.wikipedia.org/wiki/License_compatibility#/media/File:Floss-license-slide-image.svg
-[^4]: https://github.com/cahirwpz/mimiker#readme
+[1]: https://github.com/cahirwpz/mimiker#readme
+[2]: https://man.netbsd.org/hier.7
+[3]: https://en.wikipedia.org/wiki/License_compatibility
+[4]: https://en.wikipedia.org/wiki/License_compatibility#/media/File:Floss-license-slide-image.svg
+
