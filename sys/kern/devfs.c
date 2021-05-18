@@ -180,6 +180,22 @@ static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
   return 0;
 }
 
+static int devfs_fop_stat(file_t *fp, stat_t *sb) {
+  devnode_t *dev = fp->f_data;
+  int error;
+
+  /* Take all attributes from v-node. */
+  if ((error = default_vnstat(fp, sb)))
+    return error;
+
+  /* If devnode is cloned following fields may differ from the master node. */
+  sb->st_mode = dev->mode;
+  sb->st_uid = dev->uid;
+  sb->st_gid = dev->gid;
+  sb->st_size = dev->size;
+  return 0;
+}
+
 static int devfs_fop_ioctl(file_t *fp, u_long cmd, void *data) {
   devnode_t *dev = fp->f_data;
   return dev->ops->d_ioctl(dev, cmd, data, fp->f_flags);
@@ -190,7 +206,7 @@ static fileops_t devfs_fileops = {
   .fo_write = devfs_fop_write,
   .fo_close = devfs_fop_close,
   .fo_seek = devfs_fop_seek,
-  .fo_stat = default_vnstat,
+  .fo_stat = devfs_fop_stat,
   .fo_ioctl = devfs_fop_ioctl,
 };
 
