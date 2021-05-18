@@ -31,7 +31,7 @@ int fd_set_cloexec(fdtab_t *fdt, int fd, bool exclose);
 int fd_get_cloexec(fdtab_t *fdt, int fd, int *resp);
 /* Close file descriptors with cloexec flag. */
 int fdtab_onexec(fdtab_t *fdt);
-/* Close file descriptors which should be close on fork. */
+/* Close file descriptors which cannot be inherited by forked process. */
 int fdtab_onfork(fdtab_t *fdt);
 
 #endif /* !_SYS_FILEDESC_H_ */

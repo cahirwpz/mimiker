@@ -1,18 +1,7 @@
 #include <sys/event.h>
-#include <sys/mimiker.h>
-#include <sys/libkern.h>
-#include <sys/file.h>
-#include <sys/filedesc.h>
-#include <sys/condvar.h>
 #include <sys/errno.h>
-#include <sys/malloc.h>
-#include <sys/device.h>
-#include <sys/proc.h>
-#include <sys/pool.h>
-#include <sys/time.h>
 
 int do_kqueue1(proc_t *p, int flags, int *fd) {
-
   return ENOTSUP;
 }
 
