@@ -78,6 +78,9 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   /* TODO: Optionally share the descriptor table between processes. */
   child->p_fdtable = fdtab_copy(parent->p_fdtable);
 
+  /* Close files that aren't inherited via fork .*/
+  fdtab_onfork(child->p_fdtable);
+
   vnode_hold(parent->p_cwd);
   child->p_cwd = parent->p_cwd;
   child->p_cmask = parent->p_cmask;
