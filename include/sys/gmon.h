@@ -103,7 +103,6 @@ typedef struct tostruct {
   u_long selfpc;
   long count;
   u_short link;
-  u_short pad;
 } tostruct_t;
 
 /*
@@ -123,6 +122,7 @@ typedef struct gmonparam {
   u_long textsize;
   u_long hashfraction;
 } gmonparam_t;
+extern gmonparam_t _gmonparam;
 
 /*
  * Possible states of profiling.
