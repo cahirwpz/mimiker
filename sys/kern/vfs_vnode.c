@@ -13,7 +13,7 @@
 #include <sys/condvar.h>
 #include <sys/cred.h>
 
-static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
+static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t), P_DEF_ALIGN);
 
 static void vnlock_init(vnlock_t *vl);
 
@@ -282,7 +282,7 @@ int default_vnioctl(file_t *f, u_long cmd, void *data) {
     case V_LNK:
       break;
     case V_DEV:
-      error = VOP_IOCTL(v, cmd, data);
+      error = VOP_IOCTL(v, cmd, data, f);
       break;
   }
 

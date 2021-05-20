@@ -14,7 +14,7 @@
 #include <sys/kmem.h>
 #include <sys/context.h>
 
-static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));
+static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t), P_DEF_ALIGN);
 
 typedef TAILQ_HEAD(, thread) thread_list_t;
 
@@ -131,7 +131,7 @@ void thread_delete(thread_t *td) {
   pool_free(P_THREAD, td);
 }
 
-thread_t *thread_self(void) {
+__no_profile thread_t *thread_self(void) {
   return PCPU_GET(curthread);
 }
 

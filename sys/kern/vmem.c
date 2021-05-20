@@ -75,7 +75,7 @@ typedef struct bt {
 } bt_t;
 
 static KMALLOC_DEFINE(M_VMEM, "vmem");
-static POOL_DEFINE(P_BT, "vmem boundary tag", sizeof(bt_t));
+static POOL_DEFINE(P_BT, "vmem boundary tag", sizeof(bt_t), P_DEF_ALIGN);
 /* Note: in the future, the amount of static memory for boundary tags should
  * be reduced by more clever tag allocation technique that always keeps some
  * number of free tags. For more information, please see bt_alloc and bt_refill

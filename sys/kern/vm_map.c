@@ -16,7 +16,7 @@
 struct vm_map_entry {
   TAILQ_ENTRY(vm_map_entry) link;
   vm_object_t *object;
-  /* TODO(fz): add aref */
+  vaddr_t offset; /* offset in object */
   vm_prot_t prot;
   vm_entry_flags_t flags;
   vaddr_t start;
@@ -30,8 +30,9 @@ struct vm_map {
   mtx_t mtx; /* Mutex guarding vm_map structure and all its entries. */
 };
 
-static POOL_DEFINE(P_VM_MAP, "vm_map", sizeof(vm_map_t));
-static POOL_DEFINE(P_VM_MAPENT, "vm_map_entry", sizeof(vm_map_entry_t));
+static POOL_DEFINE(P_VM_MAP, "vm_map", sizeof(vm_map_t), P_DEF_ALIGN);
+static POOL_DEFINE(P_VM_MAPENT, "vm_map_entry", sizeof(vm_map_entry_t),
+                   P_DEF_ALIGN);
 
 static vm_map_t *kspace = &(vm_map_t){};
 
@@ -80,6 +81,10 @@ vaddr_t vm_map_entry_end(vm_map_entry_t *ent) {
   return ent->end;
 }
 
+inline vm_map_entry_t *vm_map_entry_next(vm_map_entry_t *ent) {
+  return TAILQ_NEXT(ent, link);
+}
+
 bool vm_map_address_p(vm_map_t *map, vaddr_t addr) {
   return map && vm_map_start(map) <= addr && addr < vm_map_end(map);
 }
@@ -120,6 +125,7 @@ vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
 
   vm_map_entry_t *ent = pool_alloc(P_VM_MAPENT, M_ZERO);
   ent->object = obj;
+  ent->offset = 0;
   ent->start = start;
   ent->end = end;
   ent->prot = prot;
@@ -161,33 +167,54 @@ void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
   vm_map_entry_free(ent);
 }
 
+static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
+  if (src->object)
+    vm_object_hold(src->object);
+  vm_map_entry_t *new = vm_map_entry_alloc(src->object, src->start, src->end,
+                                           src->prot, src->flags);
+  return new;
+}
+
+/* Split vm_map_entry into two not empty entries. (Smallest possible entry is
+ * entry with one page thus splitat must be page aligned.)
+ *
+ * Returns entry which is after base entry. */
+static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
+                                          vaddr_t splitat) {
+  assert(mtx_owned(&map->mtx));
+  assert(page_aligned_p(splitat));
+  assert(ent->start < splitat && splitat < ent->end);
+
+  vm_map_entry_t *new_ent = vm_map_entry_copy(ent);
+
+  /* clip both entries */
+  ent->end = splitat;
+  new_ent->start = splitat;
+  new_ent->offset = ent->offset + (ent->end - ent->start);
+
+  vm_map_insert_after(map, ent, new_ent);
+  return new_ent;
+}
+
 void vm_map_entry_destroy_range(vm_map_t *map, vm_map_entry_t *ent,
                                 vaddr_t start, vaddr_t end) {
   assert(mtx_owned(&map->mtx));
   assert(start >= ent->start && end <= ent->end);
 
   pmap_remove(map->pmap, start, end);
-  if (ent->start == start && ent->end == end) {
-    vm_map_entry_destroy(map, ent);
-    return;
+  vm_map_entry_t *del = ent;
+
+  if (start > ent->start) {
+    /* entry we want to delete is after clipped entry */
+    del = vm_map_entry_split(map, ent, start);
   }
 
-  size_t length = end - start;
-  vm_object_remove_pages(ent->object, start - ent->start, length);
-
-  if (ent->start == start) {
-    ent->start = end;
-  } else if (ent->end == end) {
-    ent->end = start;
-  } else { /* a hole inside the entry */
-    vm_object_t *obj = vm_object_clone(ent->object);
-    vm_object_remove_pages(obj, 0, start - ent->start);
-    vm_object_remove_pages(ent->object, end - ent->start, ent->end - end);
-    vm_map_entry_t *new_ent =
-      vm_map_entry_alloc(obj, end, ent->end, ent->prot, ent->flags);
-    ent->end = start;
-    vm_map_insert_after(map, new_ent, ent);
+  if (end < del->end) {
+    /* entry which is after del is one we want to keep */
+    vm_map_entry_split(map, del, end);
   }
+
+  vm_map_entry_destroy(map, del);
 }
 
 void vm_map_delete(vm_map_t *map) {
@@ -230,7 +257,7 @@ static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
   /* Browse available gaps. */
   vm_map_entry_t *it;
   TAILQ_FOREACH (it, &map->entries, link) {
-    vm_map_entry_t *next = TAILQ_NEXT(it, link);
+    vm_map_entry_t *next = vm_map_entry_next(it);
     vaddr_t gap_start = it->end;
     vaddr_t gap_end = next ? next->start : vm_map_end(map);
 
@@ -323,7 +350,7 @@ int vm_map_entry_resize(vm_map_t *map, vm_map_entry_t *ent, vaddr_t new_end) {
 
   if (new_end >= ent->end) {
     /* Expanding entry */
-    vm_map_entry_t *next = TAILQ_NEXT(ent, link);
+    vm_map_entry_t *next = vm_map_entry_next(ent);
     vaddr_t gap_end = next ? next->start : vm_map_end(map);
     if (new_end > gap_end)
       return ENOMEM;
@@ -381,6 +408,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         obj = vm_object_clone(it->object);
       }
       ent = vm_map_entry_alloc(obj, it->start, it->end, it->prot, it->flags);
+      ent->offset = it->offset;
       TAILQ_INSERT_TAIL(&new_map->entries, ent, link);
       new_map->nentries++;
     }
@@ -421,7 +449,7 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   assert(obj != NULL);
 
   vaddr_t fault_page = fault_addr & -PAGESIZE;
-  vaddr_t offset = fault_page - ent->start;
+  vaddr_t offset = ent->offset + (fault_page - ent->start);
   vm_page_t *frame = vm_object_find_page(ent->object, offset);
 
   if (frame == NULL)

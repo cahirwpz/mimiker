@@ -59,9 +59,10 @@ typedef struct uhci_state {
 
 #define UHCI_ALIGNMENT max(UHCI_TD_ALIGN, UHCI_QH_ALIGN)
 
-static POOL_DEFINE_ALIGNED(P_TFR, "UHCI transfer buffers", UHCI_TFR_BUF_SIZE,
-                           UHCI_ALIGNMENT);
-static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
+static POOL_DEFINE(P_TFR, "UHCI transfer buffers", UHCI_TFR_BUF_SIZE,
+                   UHCI_ALIGNMENT);
+static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE,
+                   P_DEF_ALIGN);
 
 /*
  * How do we manage the UHCI frame list?
