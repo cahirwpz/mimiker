@@ -33,7 +33,7 @@ struct pipe {
   pipe_end_t end[2]; /*!< both pipe ends */
 };
 
-static POOL_DEFINE(P_PIPE, "pipe", sizeof(pipe_t));
+static POOL_DEFINE(P_PIPE, "pipe", sizeof(pipe_t), P_DEF_ALIGN);
 
 static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
   mtx_init(&end->mtx, 0);

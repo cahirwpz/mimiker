@@ -14,8 +14,6 @@
 #include <bitstring.h>
 #include <sys/kasan.h>
 
-#define PI_ALIGNMENT sizeof(uint64_t)
-
 #define POOL_DEBUG 0
 
 #if defined(POOL_DEBUG) && POOL_DEBUG > 0
@@ -72,7 +70,7 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
   klog("add slab at %p to '%s' pool", slab, pool->pp_desc);
 
   slab->ph_size = slabsize;
-  slab->ph_itemsize = align(pool->pp_itemsize, pool->pp_alignment);
+  slab->ph_itemsize = pool->pp_itemsize;
 #if KASAN
   slab->ph_itemsize += pool->pp_redzone;
 #endif /* !KASAN */
@@ -115,7 +113,6 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
   for (size_t i = 0; i < slabsize; i += PAGESIZE) {
     vm_page_t *pg = kva_find_page((vaddr_t)slab + i);
     assert(pg != NULL);
-    assert(pg->slab == NULL);
     pg->slab = slab;
   }
 }
@@ -252,16 +249,18 @@ static void pool_dtor(pool_t *pool) {
 
 static void pool_init(pool_t *pool, const char *desc, size_t size,
                       size_t alignment) {
+  alignment = max(alignment, P_DEF_ALIGN);
+
   pool_ctor(pool);
   pool->pp_desc = desc;
   pool->pp_alignment = alignment;
 #if KASAN
   /* the alignment is within the redzone */
   pool->pp_itemsize = size;
-  pool->pp_redzone = align(size, PI_ALIGNMENT) - size + KASAN_POOL_REDZONE_SIZE;
+  pool->pp_redzone = align(size, alignment) - size + KASAN_POOL_REDZONE_SIZE;
 #else /* !KASAN */
   /* no redzone, we have to align the size itself */
-  pool->pp_itemsize = align(size, PI_ALIGNMENT);
+  pool->pp_itemsize = align(size, alignment);
 #endif
   kasan_quar_init(&pool->pp_quarantine, (quar_free_t)_pool_free);
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
@@ -279,15 +278,9 @@ void pool_add_page(pool_t *pool, void *page, size_t size) {
   add_slab(pool, page, size);
 }
 
-pool_t *pool_create(const char *desc, size_t size) {
+pool_t *pool_create(const char *desc, size_t size, size_t alignment) {
   pool_t *pool = kmalloc(M_POOL, sizeof(pool_t), M_ZERO | M_NOWAIT);
-  pool_init(pool, desc, size, PI_ALIGNMENT);
-  return pool;
-}
-
-pool_t *pool_create_aligned(const char *desc, size_t size, size_t alignment) {
-  pool_t *pool = kmalloc(M_POOL, sizeof(pool_t), M_ZERO | M_NOWAIT);
-  pool_init(pool, desc, size, max(alignment, PI_ALIGNMENT));
+  pool_init(pool, desc, size, alignment);
   return pool;
 }
 

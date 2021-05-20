@@ -19,12 +19,12 @@ typedef struct pool pool_t;
 /*! \brief Called during kernel initialization. */
 void init_pool(void);
 
+/* Default pool item alignment. */
+#define P_DEF_ALIGN sizeof(uint64_t)
+
 /*! \brief Creates a pool of objects of given size
  * and with default alignment. */
-pool_t *pool_create(const char *desc, size_t size);
-
-/*! \brief Creates a pool of objects of given size and alignment. */
-pool_t *pool_create_aligned(const char *desc, size_t size, size_t alignment);
+pool_t *pool_create(const char *desc, size_t size, size_t alignment);
 
 /*! \brief Adds a slab of one page to the pool.
  *
@@ -48,21 +48,11 @@ void *pool_alloc(pool_t *pool, kmem_flags_t flags) __warn_unused;
 /*! \brief Release an object that belongs to the pool. */
 void pool_free(pool_t *pool, void *ptr);
 
-/*! \brief Define a pool with default alignment that will be initialized
- * during system startup. */
+/*! \brief Define a pool that will be initialized during system startup. */
 #define POOL_DEFINE(NAME, ...)                                                 \
   struct pool *NAME;                                                           \
   static void __ctor_##NAME(void) {                                            \
     NAME = pool_create(__VA_ARGS__);                                           \
-  }                                                                            \
-  SET_ENTRY(pool_ctor_table, __ctor_##NAME);
-
-/*! \brief Define a pool with specified alignment that will be initialized
- * during system startup. */
-#define POOL_DEFINE_ALIGNED(NAME, ...)                                         \
-  struct pool *NAME;                                                           \
-  static void __ctor_##NAME(void) {                                            \
-    NAME = pool_create_aligned(__VA_ARGS__);                                   \
   }                                                                            \
   SET_ENTRY(pool_ctor_table, __ctor_##NAME);
 

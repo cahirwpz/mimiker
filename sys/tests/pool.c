@@ -13,7 +13,7 @@ static int test_pool_alloc(palloc_test_t flag) {
   const int N = 50;
 
   int size = 64;
-  pool_t *test = pool_create("test", size);
+  pool_t *test = pool_create("test", size, P_DEF_ALIGN);
 
   for (int n = 1; n < N; n++) {
     void **item = kmalloc(M_TEST, sizeof(void *) * n, 0);

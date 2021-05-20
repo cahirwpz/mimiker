@@ -6,7 +6,7 @@
 #include <sys/vnode.h>
 #include <sys/vfs.h>
 
-static POOL_DEFINE(P_FILE, "file", sizeof(file_t));
+static POOL_DEFINE(P_FILE, "file", sizeof(file_t), P_DEF_ALIGN);
 
 file_t *file_alloc(void) {
   file_t *f = pool_alloc(P_FILE, M_ZERO);
