@@ -23,7 +23,7 @@ void init_pool(void);
 #define P_DEF_ALIGN sizeof(uint64_t)
 
 /*! \brief Creates a pool of objects of given size
- * and with default alignment. */
+ * and with given alignment. */
 pool_t *pool_create(const char *desc, size_t size, size_t alignment);
 
 /*! \brief Adds a slab of one page to the pool.
