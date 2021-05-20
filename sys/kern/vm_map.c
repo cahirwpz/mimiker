@@ -19,6 +19,7 @@ struct vm_map_entry {
   TAILQ_ENTRY(vm_map_entry) link;
   vm_object_t *object;
   vm_aref_t aref;
+  vaddr_t offset; /* offset in object */
   vm_prot_t prot;
   vm_entry_flags_t flags;
   vaddr_t start;
@@ -126,6 +127,7 @@ vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
 
   vm_map_entry_t *ent = pool_alloc(P_VM_MAPENT, M_ZERO);
   ent->object = obj;
+  ent->offset = 0;
   ent->start = start;
   ent->end = end;
   ent->prot = prot;
@@ -176,7 +178,6 @@ static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
     vm_object_hold(src->object);
   vm_map_entry_t *new = vm_map_entry_alloc(src->object, src->start, src->end,
                                            src->prot, src->flags);
-  klog("Copyig entry %p-%p to %p-%p", src->start, src->end, new->start, new->end);
   return new;
 }
 
@@ -185,7 +186,7 @@ static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
  *
  * Returns entry which is after base entry. */
 vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
-                                   vaddr_t splitat) {
+                                          vaddr_t splitat) {
   assert(mtx_owned(&map->mtx));
   assert(page_aligned_p(splitat));
   assert(ent->start < splitat && splitat < ent->end);
@@ -195,9 +196,7 @@ vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
   /* clip both entries */
   ent->end = splitat;
   new_ent->start = splitat;
-
-  if (ent->aref.ar_amap)
-    new_ent->aref = vm_amap_split(&ent->aref, splitat - ent->start);
+  new_ent->offset = ent->offset + (ent->end - ent->start);
 
   vm_map_insert_after(map, ent, new_ent);
   return new_ent;
@@ -216,7 +215,7 @@ void vm_map_entry_destroy_range(vm_map_t *map, vm_map_entry_t *ent,
     del = vm_map_entry_split(map, ent, start);
   }
 
-  if (end < ent->end) {
+  if (end < del->end) {
     /* entry which is after del is one we want to keep */
     vm_map_entry_split(map, del, end);
   }
@@ -447,7 +446,7 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   assert(ent->start <= fault_addr && fault_addr < ent->end);
 
   vaddr_t fault_page = fault_addr & -PAGESIZE;
-  vaddr_t offset = fault_page - ent->start;
+  vaddr_t offset = ent->offset + (fault_page - ent->start);
 
   klog("Looking for page %p (asid: %d)", fault_page, pmap_get_asid(map->pmap));
 

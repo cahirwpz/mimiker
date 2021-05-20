@@ -11,6 +11,7 @@ static POOL_DEFINE(P_ANON, "vm_anon", sizeof(vm_anon_t));
 
 vm_anon_t *vm_anon_alloc(void) {
   vm_anon_t *anon = pool_alloc(P_ANON, M_ZERO);
+  anon->an_page = vm_page_alloc(1);
   anon->an_ref = 1;
   mtx_init(&anon->an_lock, 0);
   return anon;
@@ -49,15 +50,12 @@ vm_anon_t *vm_anon_copy(vm_anon_t *anon) {
   assert(mtx_owned(&anon->an_lock));
 
   vm_anon_t *new = vm_anon_alloc();
-  new->an_page = vm_page_alloc(1);
-
   pmap_copy_page(anon->an_page, new->an_page);
   return new;
 }
 
 vm_anon_t *vm_anon_copy_page(vm_page_t *page) {
   vm_anon_t *anon = vm_anon_alloc();
-  anon->an_page = vm_page_alloc(1);
   pmap_copy_page(page, anon->an_page);
   return anon;
 }
