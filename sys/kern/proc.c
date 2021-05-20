@@ -35,9 +35,9 @@ static proc_list_t proc_hashtbl[NBUCKETS];
 static pgrp_list_t pgrp_hashtbl[NBUCKETS];
 static session_list_t session_hashtbl[NBUCKETS];
 
-static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t));
-static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t));
-static POOL_DEFINE(P_SESSION, "session", sizeof(session_t));
+static POOL_DEFINE(P_PROC, "proc", sizeof(proc_t), P_DEF_ALIGN);
+static POOL_DEFINE(P_PGRP, "pgrp", sizeof(pgrp_t), P_DEF_ALIGN);
+static POOL_DEFINE(P_SESSION, "session", sizeof(session_t), P_DEF_ALIGN);
 
 MTX_DEFINE(all_proc_mtx, 0);
 

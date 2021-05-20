@@ -31,8 +31,8 @@ typedef struct pv_entry {
   vaddr_t va;                      /* under this address */
 } pv_entry_t;
 
-static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
-static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
+static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t), P_DEF_ALIGN);
+static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t), P_DEF_ALIGN);
 
 #define PA_MASK 0xfffffffff000
 #define ADDR_MASK 0x8ffffffff000
