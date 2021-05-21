@@ -16,14 +16,17 @@ SUBDIR = cat \
 	 mandelbrot \
 	 mkdir \
 	 mv \
+	 ps \
 	 pwd \
 	 rm \
 	 rmdir \
 	 sandbox \
+	 setwinsize \
 	 sleep \
 	 stty \
 	 test_kbd \
 	 test_rtc \
+	 tetris \
 	 utest
 
 all: build

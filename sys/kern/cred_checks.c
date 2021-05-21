@@ -21,7 +21,7 @@ int cred_cansignal(proc_t *target, cred_t *cred) {
 }
 
 int proc_cansignal(proc_t *target, signo_t sig) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
   assert(mtx_owned(&target->p_lock));
 
   proc_t *p = proc_self();

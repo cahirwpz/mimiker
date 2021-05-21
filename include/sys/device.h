@@ -23,6 +23,10 @@ typedef int (*d_detach_t)(device_t *dev);
 typedef enum {
   DIF_BUS,
   DIF_PCI_BUS,
+  DIF_UART,
+  DIF_EMMC,
+  DIF_USBHC,
+  DIF_USB,
   DIF_COUNT /* this must be the last item */
 } drv_if_t;
 
@@ -56,7 +60,13 @@ struct driver {
   void *interfaces[DIF_COUNT]; /* pointers to device methods structures */
 };
 
-typedef enum { DEV_BUS_NONE, DEV_BUS_PCI, DEV_BUS_ISA } device_bus_t;
+typedef enum {
+  DEV_BUS_NONE,
+  DEV_BUS_PCI,
+  DEV_BUS_ISA,
+  DEV_BUS_EMMC,
+  DEV_BUS_USB,
+} device_bus_t;
 
 struct device {
   /* Device hierarchy. */

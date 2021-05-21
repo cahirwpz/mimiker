@@ -24,6 +24,7 @@
 #include <sys/cred.h>
 #include <sys/statvfs.h>
 #include <sys/pty.h>
+#include <sys/event.h>
 
 #include "sysent.h"
 
@@ -1075,10 +1076,10 @@ static int sys_getlogin(proc_t *p, getlogin_args_t *args, register_t *res) {
 
   klog("getlogin(%p, %zu)", namebuf, buflen);
 
-  WITH_MTX_LOCK (all_proc_mtx)
+  WITH_MTX_LOCK (&all_proc_mtx)
     memcpy(login_tmp, p->p_pgrp->pg_session->s_login, sizeof(login_tmp));
 
-  return copyout(login_tmp, namebuf, MIN(buflen, sizeof(login_tmp)));
+  return copyout(login_tmp, namebuf, min(buflen, sizeof(login_tmp)));
 }
 
 static int sys_setlogin(proc_t *p, setlogin_args_t *args, register_t *res) {
@@ -1197,5 +1198,116 @@ static int sys_writev(proc_t *p, writev_args_t *args, register_t *res) {
 
 end:
   kfree(M_TEMP, k_iov);
+  return error;
+}
+
+static int sys_sigpending(proc_t *p, sigpending_args_t *args, register_t *res) {
+  sigset_t *u_set = SCARG(args, set);
+  int error;
+
+  klog("sigpending(%p)", u_set);
+
+  sigset_t k_set;
+
+  if ((error = do_sigpending(p, &k_set)))
+    return error;
+
+  return copyout_s(k_set, u_set);
+}
+
+static int sys_getitimer(proc_t *p, getitimer_args_t *args, register_t *res) {
+  int which = SCARG(args, which);
+  struct itimerval *u_tval = SCARG(args, val);
+  int error;
+
+  klog("getitimer(%p)", u_tval);
+
+  struct itimerval tval;
+
+  if ((error = do_getitimer(p, which, &tval)))
+    return error;
+
+  return copyout_s(tval, u_tval);
+}
+
+static int sys_setitimer(proc_t *p, setitimer_args_t *args, register_t *res) {
+  int which = SCARG(args, which);
+  struct itimerval *u_tval = SCARG(args, val);
+  struct itimerval *u_oval = SCARG(args, oval);
+  int error;
+
+  klog("setitimer(%p, %p)", u_tval, u_oval);
+
+  struct itimerval tval, oval;
+  if ((error = copyin_s(u_tval, tval)))
+    return error;
+
+  if ((error = do_setitimer(p, which, &tval, u_oval ? &oval : NULL)))
+    return error;
+
+  if (u_oval)
+    error = copyout_s(oval, u_oval);
+
+  return error;
+}
+
+static int sys_sync(proc_t *p, void *args, register_t *res) {
+  /* TODO(mohrcore): implement buffering */
+  return 0;
+}
+
+static int sys_fsync(proc_t *p, fsync_args_t *args, register_t *res) {
+  /* TODO(mohrcore): implement buffering */
+  return 0;
+}
+
+static int sys_kqueue1(proc_t *p, kqueue1_args_t *args, register_t *res) {
+  int flags = SCARG(args, flags);
+  int fd, error;
+
+  klog("kqueue1(%d)", flags);
+
+  error = do_kqueue1(p, flags, &fd);
+  *res = fd;
+
+  return error;
+}
+
+static int sys_kevent(proc_t *p, kevent_args_t *args, register_t *res) {
+  int kq = SCARG(args, kq);
+  const struct kevent *u_changelist = SCARG(args, changelist);
+  size_t nchanges = SCARG(args, nchanges);
+  struct kevent *u_eventlist = SCARG(args, eventlist);
+  size_t nevents = SCARG(args, nevents);
+  const struct timespec *u_timeout = SCARG(args, timeout);
+
+  kevent_t *changelist = kmalloc(M_TEMP, nchanges * sizeof(kevent_t), 0);
+  kevent_t *eventlist = kmalloc(M_TEMP, nevents * sizeof(kevent_t), 0);
+  timespec_t timeout;
+  int error, nret;
+
+  klog("kevent(%d, %p, %u, %p, %u, %p)", kq, u_changelist, nchanges,
+       u_eventlist, nevents, u_timeout);
+
+  if ((error = copyin(u_changelist, changelist, nchanges * sizeof(kevent_t))))
+    goto end;
+
+  if (u_timeout != NULL) {
+    if ((error = copyin_s(u_timeout, timeout)))
+      goto end;
+  }
+
+  if ((error = do_kevent(p, kq, changelist, nchanges, eventlist, nevents,
+                         u_timeout == NULL ? NULL : &timeout, &nret)))
+    goto end;
+
+  if ((error = copyout(eventlist, u_eventlist, nret * sizeof(kevent_t))))
+    goto end;
+
+  *res = nret;
+
+end:
+  kfree(M_TEMP, changelist);
+  kfree(M_TEMP, eventlist);
   return error;
 }

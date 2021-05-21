@@ -1,10 +1,10 @@
 #include <mips/m32c0.h>
-#include <mips/malta.h>
 #include <mips/mips.h>
 #include <mips/pmap.h>
 #include <mips/tlb.h>
 #include <sys/mimiker.h>
 #include <sys/vm.h>
+#include <sys/kasan.h>
 #include <mips/kasan.h>
 
 /* Last address in kseg0 used by kernel for boot allocation. */
@@ -100,11 +100,16 @@ __boot_text void *mips_init(void) {
     pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
 
 #if KASAN /* Prepare KASAN shadow mappings */
+  /* The loop below where we map the shadow pages depends on
+   * kasan_shadow_size % SUPERPAGESIZE == 0 for correctness. */
+  size_t kasan_sanitized_size = roundup2(
+    va - KASAN_MD_SANITIZED_START, SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
+  size_t kasan_shadow_size = kasan_sanitized_size / KASAN_SHADOW_SCALE_SIZE;
   va = KASAN_MD_SHADOW_START;
   /* Allocate physical memory for shadow area */
-  paddr_t pa = (paddr_t)bootmem_alloc(KASAN_MD_SHADOW_SIZE);
+  paddr_t pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
   /* How many PDEs should we use? */
-  int num_pde = KASAN_MD_SHADOW_SIZE / SUPERPAGESIZE;
+  int num_pde = kasan_shadow_size / SUPERPAGESIZE;
   for (int i = 0; i < num_pde; i++) {
     /* Allocate a new PT */
     pte = bootmem_alloc(PAGESIZE);
@@ -128,8 +133,11 @@ __boot_text void *mips_init(void) {
   mips32_setindex(0);
   mips32_tlbwi();
 
-  /* Since the variable is in kseg2 we cannot initialize it earlier. */
+  /* Since variables are in kseg2 we cannot initialize them earlier. */
   _kernel_pmap_pde = pde;
+#if KASAN
+  _kasan_sanitized_end = KASAN_MD_SANITIZED_START + kasan_sanitized_size;
+#endif /* !KASAN */
 
   /* Return the end of boot stack (grows downwards on MIPS) as new sp.
    * This is done in order to move kernel boot process to kseg2, since

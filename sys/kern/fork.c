@@ -70,13 +70,16 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
 
   /* Find copied brk segment. */
   WITH_VM_MAP_LOCK (child->p_uspace) {
-    child->p_sbrk = vm_map_find_segment(child->p_uspace, SBRK_START);
+    child->p_sbrk = vm_map_find_entry(child->p_uspace, SBRK_START);
     child->p_sbrk_end = parent->p_sbrk_end;
   }
 
   /* Copy the parent descriptor table. */
   /* TODO: Optionally share the descriptor table between processes. */
   child->p_fdtable = fdtab_copy(parent->p_fdtable);
+
+  /* Close files that aren't inherited via fork .*/
+  fdtab_onfork(child->p_fdtable);
 
   vnode_hold(parent->p_cwd);
   child->p_cwd = parent->p_cwd;
@@ -88,7 +91,7 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
 
   /* Link the child process into all the structures
    * by which it can be reached from the outside at once. */
-  WITH_MTX_LOCK (all_proc_mtx) {
+  WITH_MTX_LOCK (&all_proc_mtx) {
     /* Enter child into parent's process group.
      * No jobc adjustments are necessary, since the new child has no children
      * of its own, and it's in the same process group as the parent. */

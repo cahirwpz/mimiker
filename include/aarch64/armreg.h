@@ -235,7 +235,7 @@
 #define EXCP_SP_ALIGN 0x26     /* SP slignment fault */
 #define EXCP_TRAP_FP 0x2c      /* Trapped FP exception */
 #define EXCP_SERROR 0x2f       /* SError interrupt */
-#define EXCP_BRKPT_EL0 0x30    /* Hardware breakpoint, from same EL */
+#define EXCP_BRKPT_EL0 0x30    /* Hardware breakpoint, from lower EL */
 #define EXCP_SOFTSTP_EL0 0x32  /* Software Step, from lower EL */
 #define EXCP_SOFTSTP_EL1 0x33  /* Software Step, from same EL */
 #define EXCP_WATCHPT_EL1 0x35  /* Watchpoint, from same EL */
@@ -738,6 +738,7 @@
 #define PSR_C 0x20000000
 #define PSR_Z 0x40000000
 #define PSR_N 0x80000000
+#define PSR_NZCV (PSR_N | PSR_Z | PSR_C | PSR_V)
 #define PSR_FLAGS 0xf0000000
 
 /* TCR_EL1 - Translation Control Register */

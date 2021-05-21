@@ -50,7 +50,7 @@ void mcontext_restart_syscall(mcontext_t *ctx) {
   _REG(ctx, PC) -= 4; /* TODO subtract 2 if in thumb mode */
 }
 
-bool user_mode_p(ctx_t *ctx) {
+__no_profile bool user_mode_p(ctx_t *ctx) {
   return (_REG(ctx, SPSR) & PSR_M_MASK) == PSR_M_EL0t;
 }
 
@@ -58,8 +58,18 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
   mcontext_t *from = &uc->uc_mcontext;
   mcontext_t *to = td->td_uctx;
 
-  if (uc->uc_flags & _UC_CPU)
+  if (uc->uc_flags & _UC_CPU) {
+    register_t spsr = _REG(from, SPSR);
+    /* Validate CPU context. */
+    if (spsr & ~PSR_NZCV)
+      return EINVAL;
+
+    /* Allow only NZCV bits modification. */
+    spsr |= _REG(to, SPSR) & ~PSR_NZCV;
+    _REG(from, SPSR) = spsr;
+
     memcpy(&to->__gregs, &from->__gregs, sizeof(__gregset_t));
+  }
 
   /* 32 FP registers + FPCR + FPSR */
   if (uc->uc_flags & _UC_FPU)

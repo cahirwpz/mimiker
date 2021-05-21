@@ -2,8 +2,8 @@
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
+#include <sys/cpu.h>
 #include <sys/context.h>
-#include <mips/interrupt.h>
 #include <mips/tlb.h>
 #include <sys/pmap.h>
 #include <sys/sysent.h>
@@ -11,7 +11,7 @@
 #include <sys/vm_map.h>
 #include <sys/vm_physmem.h>
 
-static inline unsigned exc_code(ctx_t *ctx) {
+__no_profile static inline unsigned exc_code(ctx_t *ctx) {
   return (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
 }
 
@@ -252,7 +252,9 @@ static void kern_trap_handler(ctx_t *ctx) {
   }
 }
 
-void mips_exc_handler(ctx_t *ctx) {
+__no_profile void mips_exc_handler(ctx_t *ctx) {
+  thread_t *td = thread_self();
+  assert(td->td_idnest == 0);
   assert(cpu_intr_disabled());
 
   bool user_mode = user_mode_p(ctx);

@@ -18,7 +18,7 @@ static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));
 
 typedef TAILQ_HEAD(, thread) thread_list_t;
 
-static mtx_t *threads_lock = &MTX_INITIALIZER(0);
+static MTX_DEFINE(threads_lock, 0);
 static thread_list_t all_threads = TAILQ_HEAD_INITIALIZER(all_threads);
 static thread_list_t zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 
@@ -29,7 +29,7 @@ static tid_t make_tid(void) {
   return tid++;
 }
 
-static alignas(PAGESIZE) uint8_t _stack0[PAGESIZE];
+static alignas(PAGESIZE) uint8_t _stack0[KSTACK_SIZE];
 
 /* Thread Zero is initially running with interrupts disabled! */
 thread_t thread0 = {
@@ -41,7 +41,7 @@ thread_t thread0 = {
   .td_state = TDS_RUNNING,
   .td_idnest = 1,
   .td_pdnest = 1,
-  .td_kstack = KSTACK_INIT(_stack0, PAGESIZE),
+  .td_kstack = KSTACK_INIT(_stack0, KSTACK_SIZE),
 };
 
 /* Initializes Thread Zero (first thread in the system). */
@@ -54,14 +54,14 @@ void init_thread0(void) {
   sigpend_init(&td->td_sigpend);
   LIST_INIT(&td->td_contested);
 
-  WITH_MTX_LOCK (threads_lock)
+  WITH_MTX_LOCK (&threads_lock)
     TAILQ_INSERT_TAIL(&all_threads, td, td_all);
 }
 
 void thread_reap(void) {
   thread_list_t zombies;
 
-  WITH_MTX_LOCK (threads_lock) {
+  WITH_MTX_LOCK (&threads_lock) {
     zombies = zombie_threads;
     TAILQ_INIT(&zombie_threads);
   }
@@ -92,7 +92,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   bzero(&td->td_slpcallout, sizeof(callout_t));
 
   td->td_name = kstrndup(M_STR, name, TD_NAME_MAX);
-  kstack_init(&td->td_kstack, kmem_alloc(PAGESIZE, M_ZERO), PAGESIZE);
+  kstack_init(&td->td_kstack, kmem_alloc(KSTACK_SIZE, M_ZERO), KSTACK_SIZE);
 
   td->td_sleepqueue = sleepq_alloc();
   td->td_turnstile = turnstile_alloc();
@@ -102,7 +102,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   thread_entry_setup(td, fn, arg);
 
   /* From now on, you must use locks on new thread structure. */
-  WITH_MTX_LOCK (threads_lock)
+  WITH_MTX_LOCK (&threads_lock)
     TAILQ_INSERT_TAIL(&all_threads, td, td_all);
 
   klog("Thread %ld {%p} has been created", td->td_tid, td);
@@ -117,10 +117,10 @@ void thread_delete(thread_t *td) {
 
   klog("Freeing up thread %ld {%p}", td->td_tid, td);
 
-  WITH_MTX_LOCK (threads_lock)
+  WITH_MTX_LOCK (&threads_lock)
     TAILQ_REMOVE(&all_threads, td, td_all);
 
-  kmem_free(td->td_kstack.stk_base, PAGESIZE);
+  kmem_free(td->td_kstack.stk_base, KSTACK_SIZE);
 
   callout_drain(&td->td_slpcallout);
   sleepq_destroy(td->td_sleepqueue);
@@ -131,7 +131,7 @@ void thread_delete(thread_t *td) {
   pool_free(P_THREAD, td);
 }
 
-thread_t *thread_self(void) {
+__no_profile thread_t *thread_self(void) {
   return PCPU_GET(curthread);
 }
 
@@ -158,7 +158,7 @@ __noreturn void thread_exit(void) {
    */
   preempt_disable();
 
-  WITH_MTX_LOCK (threads_lock) {
+  WITH_MTX_LOCK (&threads_lock) {
     spin_lock(td->td_lock); /* force threads_lock >> thread_t::td_lock order */
     TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
   }
@@ -195,7 +195,7 @@ void thread_yield(void) {
 /* It would be better to have a hash-map from tid_t to thread_t,
  * but using a list is sufficient for now. */
 thread_t *thread_find(tid_t id) {
-  SCOPED_MTX_LOCK(threads_lock);
+  SCOPED_MTX_LOCK(&threads_lock);
 
   thread_t *td;
   TAILQ_FOREACH (td, &all_threads, td_all) {
@@ -210,8 +210,10 @@ thread_t *thread_find(tid_t id) {
 void thread_continue(thread_t *td) {
   assert(spin_owned(td->td_lock));
 
-  if (td->td_flags & TDF_STOPPING)
+  if (td->td_flags & TDF_STOPPING) {
     td->td_flags &= ~TDF_STOPPING;
-  else if (td_is_stopped(td))
+  } else {
+    assert(td_is_stopped(td));
     sched_wakeup(td, 0);
+  }
 }

@@ -75,6 +75,12 @@
 #define __transparent_union __attribute__((__transparent_union__))
 #define __no_sanitize                                                          \
   __attribute__((no_sanitize("address", "thread", "undefined")))
+#define __no_instrument_function __attribute__((no_instrument_function))
+#ifdef KGPROF
+#define __no_profile __no_instrument_function
+#else
+#define __no_profile
+#endif
 
 /* Clang introduces support for the fallthrough attribute in C2x. */
 #ifdef __clang__

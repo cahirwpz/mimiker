@@ -30,10 +30,13 @@ typedef struct spin {
   const void *s_lockpt;       /*!< place where the lock was acquired */
 } spin_t;
 
-#define SPIN_INITIALIZER(recursive)                                            \
+#define SPIN_INITIALIZER(spinname, recursive)                                  \
   (spin_t) {                                                                   \
     .s_attr = (recursive) | LK_TYPE_SPIN                                       \
   }
+
+#define SPIN_DEFINE(spinname, recursive)                                       \
+  spin_t spinname = SPIN_INITIALIZER(spinname, recursive);
 
 /*! \brief Initializes spin lock.
  *
@@ -46,10 +49,10 @@ void spin_init(spin_t *s, lk_attr_t attr);
 #define spin_destroy(m)
 
 /*! \brief Check if calling thread is the owner of \a s. */
-bool spin_owned(spin_t *s);
+bool spin_owned(spin_t *s) __no_profile;
 
 /*! \brief Acquires the spin lock (with custom \a waitpt) */
-void _spin_lock(spin_t *s, const void *waitpt);
+void _spin_lock(spin_t *s, const void *waitpt) __no_profile;
 
 /*! \brief Acquire the spin lock.
  *
@@ -60,7 +63,7 @@ static inline void spin_lock(spin_t *s) {
 }
 
 /*! \brief Release the spin lock. */
-void spin_unlock(spin_t *s);
+void spin_unlock(spin_t *s) __no_profile;
 
 DEFINE_CLEANUP_FUNCTION(spin_t *, spin_unlock);
 

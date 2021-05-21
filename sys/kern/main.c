@@ -25,6 +25,8 @@
 #include <sys/pmap.h>
 #include <sys/console.h>
 #include <sys/stat.h>
+#include <sys/lockdep.h>
+#include <sys/kgprof.h>
 
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
@@ -83,6 +85,7 @@ __noreturn void kernel_init(void) {
   /* Make dispatcher & scheduler structures ready for use. */
   init_sleepq();
   init_turnstile();
+  lockdep_init();
   init_thread0();
   init_sched();
 
@@ -103,6 +106,8 @@ __noreturn void kernel_init(void) {
   /* Some clocks has been found during device init process,
    * so it's high time to start system clock. */
   init_clock();
+
+  init_kgprof();
 
   klog("Kernel initialized!");
 

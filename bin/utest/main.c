@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
   /* Linker set in userspace would be quite difficult to set up, and it feels
      like an overkill to me. */
   CHECKRUN_TEST(mmap);
+  CHECKRUN_TEST(munmap);
   CHECKRUN_TEST(munmap_sigsegv);
   CHECKRUN_TEST(mmap_prot_none);
   CHECKRUN_TEST(mmap_prot_read);
@@ -63,6 +64,14 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(exc_sigsys);
   CHECKRUN_TEST(syscall_in_bds);
 #endif /* !__mips__ */
+
+#ifdef __aarch64__
+  CHECKRUN_TEST(exc_unknown_instruction);
+  CHECKRUN_TEST(exc_msr_instruction);
+  CHECKRUN_TEST(exc_mrs_instruction);
+  CHECKRUN_TEST(exc_brk);
+#endif /* !__aarch64__ */
+
   CHECKRUN_TEST(setjmp);
   CHECKRUN_TEST(sigaction_with_setjmp);
   CHECKRUN_TEST(sigaction_handler_returns);
@@ -100,6 +109,7 @@ int main(int argc, char **argv) {
 
   CHECKRUN_TEST(gettimeofday);
   CHECKRUN_TEST(nanosleep);
+  CHECKRUN_TEST(itimer);
 
   CHECKRUN_TEST(get_set_uid);
   CHECKRUN_TEST(get_set_gid);
@@ -113,6 +123,9 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(tty_canon);
   CHECKRUN_TEST(tty_echo);
   CHECKRUN_TEST(tty_signals);
+
+  CHECKRUN_TEST(procstat);
+
   printf("No user test \"%s\" available.\n", test_name);
   return 1;
 }

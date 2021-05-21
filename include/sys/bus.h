@@ -1,7 +1,7 @@
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
-#include <machine/bus_defs.h>
+#include <sys/bus_defs.h>
 #include <sys/device.h>
 #include <sys/interrupt.h>
 
@@ -145,7 +145,9 @@ struct bus_methods {
   void (*deactivate_resource)(device_t *dev, resource_t *r);
 };
 
-#define BUS_METHODS(dev) (*(bus_methods_t *)(dev)->driver->interfaces[DIF_BUS])
+static inline bus_methods_t *bus_methods(device_t *dev) {
+  return dev->driver->interfaces[DIF_BUS];
+}
 
 /* As for now this actually returns a child of the bus, see a comment
  * above `device_method_provider` in include/sys/device.c */
@@ -175,8 +177,8 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
                                              rman_addr_t end, size_t size,
                                              rman_flags_t flags) {
   device_t *idev = BUS_METHOD_PROVIDER(dev, alloc_resource);
-  return BUS_METHODS(idev->parent)
-    .alloc_resource(idev, type, rid, start, end, size, flags);
+  return bus_methods(idev->parent)
+    ->alloc_resource(idev, type, rid, start, end, size, flags);
 }
 
 /*! \brief Activates resource for a device.
@@ -199,7 +201,7 @@ void bus_deactivate_resource(device_t *dev, resource_t *r);
 
 static inline void bus_release_resource(device_t *dev, resource_t *r) {
   device_t *idev = BUS_METHOD_PROVIDER(dev, release_resource);
-  BUS_METHODS(idev->parent).release_resource(idev, r);
+  bus_methods(idev->parent)->release_resource(idev, r);
 }
 
 int bus_generic_probe(device_t *bus);

@@ -1,8 +1,6 @@
-#include <sys/interrupt.h>
-#include <sys/sched.h>
+#include <sys/cpu.h>
 #include <mips/mips.h>
 #include <mips/m32c0.h>
-#include <mips/interrupt.h>
 
 /* Extra information regarding DI / EI usage (from MIPS® ISA documentation):
  *
@@ -11,14 +9,19 @@
  * hazard is cleared by the EHB, JALR.HB, JR.HB, or ERET instructions. Software
  * must not assume that a fixed latency will clear the execution hazard. */
 
-void cpu_intr_disable(void) {
+__no_profile void cpu_intr_disable(void) {
   asm volatile("di; ehb");
 }
 
-void cpu_intr_enable(void) {
+__no_profile void cpu_intr_enable(void) {
   asm volatile("ei; ehb");
 }
 
-bool cpu_intr_disabled(void) {
+/* Interrupts are enabled when SR.IE = 1 and SR.EXL = 0 and SR.ERL = 0,
+ * according to MIPS documentation.
+ *
+ * The kernel leaves Exception (EXL) or Error Level (ERL) as soon as possible,
+ * hence we consider exceptions to be disabled if and only if SR.IE = 0. */
+__no_profile bool cpu_intr_disabled(void) {
   return (mips32_getsr() & SR_IE) == 0;
 }

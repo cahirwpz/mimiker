@@ -25,7 +25,7 @@ typedef LIST_HEAD(vmem_freelist, bt) vmem_freelist_t;
 typedef LIST_HEAD(vmem_hashlist, bt) vmem_hashlist_t;
 
 /* List of all vmem instances and a guarding mutex */
-static mtx_t vmem_list_lock = MTX_INITIALIZER(0);
+static MTX_DEFINE(vmem_list_lock, 0);
 static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
 
 /*! \brief vmem structure
@@ -80,7 +80,8 @@ static POOL_DEFINE(P_BT, "vmem boundary tag", sizeof(bt_t));
  * be reduced by more clever tag allocation technique that always keeps some
  * number of free tags. For more information, please see bt_alloc and bt_refill
  * methods in NetBSD's vmem and M_NOGROW flag in Mimiker. */
-static alignas(PAGESIZE) uint8_t P_BT_BOOTPAGE[PAGESIZE];
+#define PT_BT_BOOTPAGE_SIZE ((sizeof(void *) / sizeof(int)) * PAGESIZE)
+static alignas(PT_BT_BOOTPAGE_SIZE) uint8_t P_BT_BOOTPAGE[PT_BT_BOOTPAGE_SIZE];
 
 void init_vmem(void) {
   pool_add_page(P_BT, P_BT_BOOTPAGE, sizeof(P_BT_BOOTPAGE));
@@ -333,7 +334,7 @@ void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
     /* coalesce previous segment */
     prev = TAILQ_PREV(bt, vmem_seglist, bt_seglink);
     if (prev != NULL && prev->bt_type == BT_TYPE_FREE) {
-      assert(bt_end(prev) < bt->bt_start);
+      assert(bt_end(prev) + 1 == bt->bt_start);
       bt_remfree(vm, prev);
       bt_remseg(vm, prev);
       bt->bt_size += prev->bt_size;
@@ -347,7 +348,7 @@ void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
     /* coalesce next segment */
     next = TAILQ_NEXT(bt, bt_seglink);
     if (next != NULL && next->bt_type == BT_TYPE_FREE) {
-      assert(bt_end(bt) < next->bt_start);
+      assert(bt_end(bt) + 1 == next->bt_start);
       bt_remfree(vm, next);
       bt_remseg(vm, next);
       bt->bt_size += next->bt_size;

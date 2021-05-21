@@ -3,7 +3,6 @@
 #include <dev/mc146818reg.h>
 #include <dev/isareg.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/libkern.h>
@@ -24,6 +23,7 @@ typedef struct rtc_state {
   char asctime[RTC_ASCTIME_SIZE];
   unsigned counter; /* TODO Should that be part of intr_handler_t ? */
   resource_t *irq_res;
+  devnode_t *dev;
 } rtc_state_t;
 
 /*
@@ -75,11 +75,10 @@ static intr_filter_t rtc_intr(void *data) {
   return IF_STRAY;
 }
 
-static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
-  rtc_state_t *rtc = devfs_node_data(v);
+static int rtc_time_read(devnode_t *dev, uio_t *uio) {
+  rtc_state_t *rtc = dev->data;
   tm_t t;
 
-  uio->uio_offset = 0; /* This device does not support offsets. */
   sleepq_wait(rtc, NULL);
   rtc_gettime(rtc->regs, &t);
   int count = snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d",
@@ -90,7 +89,10 @@ static int rtc_time_read(vnode_t *v, uio_t *uio, int ioflag) {
   return uiomove_frombuf(rtc->asctime, count, uio);
 }
 
-static vnodeops_t rtc_time_vnodeops = {.v_read = rtc_time_read};
+static devops_t rtc_devops = {
+  .d_type = DT_OTHER,
+  .d_read = rtc_time_read,
+};
 
 static int rtc_attach(device_t *dev) {
   rtc_state_t *rtc = dev->state;
@@ -109,7 +111,7 @@ static int rtc_attach(device_t *dev) {
   rtc_setb(rtc->regs, MC_REGB, MC_REGB_PIE);
 
   /* Prepare /dev/rtc interface. */
-  devfs_makedev(NULL, "rtc", &rtc_time_vnodeops, rtc, NULL);
+  devfs_makedev_new(NULL, "rtc", &rtc_devops, rtc, &rtc->dev);
 
   tm_t t;
 
@@ -127,8 +129,8 @@ static driver_t rtc_driver = {
   .desc = "MC146818 RTC driver",
   .size = sizeof(rtc_state_t),
   .pass = SECOND_PASS,
-  .attach = rtc_attach,
   .probe = rtc_probe,
+  .attach = rtc_attach,
 };
 
 DEVCLASS_ENTRY(isa, rtc_driver);

@@ -1,10 +1,12 @@
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
+#include <sys/kasan.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
 #include <aarch64/pte.h>
 #include <aarch64/atags.h>
+#include <aarch64/kasan.h>
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
@@ -20,8 +22,9 @@
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data void *_bootmem_end;
 /* Kernel page directory entries. */
-paddr_t _kernel_pmap_pde;
+extern paddr_t _kernel_pmap_pde;
 alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
+static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
@@ -140,6 +143,9 @@ __boot_text static void clear_bss(void) {
 #define DMAP_L2_SIZE roundup(DMAP_L2_ENTRIES * sizeof(pde_t), PAGESIZE)
 #define DMAP_L3_SIZE roundup(DMAP_L3_ENTRIES * sizeof(pte_t), PAGESIZE)
 
+#define PTE_MASK 0xfffffffffffff000
+#define PTE_FRAME_ADDR(pte) ((pte)&PTE_MASK)
+
 __boot_text static paddr_t build_page_table(void) {
   /* l0 entry is 512GB */
   volatile pde_t *l0 = bootmem_alloc(PAGESIZE);
@@ -167,21 +173,21 @@ __boot_text static paddr_t build_page_table(void) {
   }
 
   const pte_t pte_default =
-    L3_PAGE | ATTR_AF | ATTR_SH(ATTR_SH_IS) | ATTR_IDX(ATTR_NORMAL_MEM_WB);
+    L3_PAGE | ATTR_AF | ATTR_SH_IS | ATTR_IDX(ATTR_NORMAL_MEM_WB);
 
   paddr_t pa = (paddr_t)__boot;
 
   /* boot sections */
   for (; pa < text; pa += PAGESIZE, va += PAGESIZE)
-    l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | pte_default;
+    l3[L3_INDEX(va)] = pa | ATTR_AP_RW | pte_default;
 
   /* text section */
   for (; pa < data; pa += PAGESIZE, va += PAGESIZE)
-    l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RO) | pte_default;
+    l3[L3_INDEX(va)] = pa | ATTR_AP_RO | pte_default;
 
   /* data & bss sections */
   for (; pa < ebss; pa += PAGESIZE, va += PAGESIZE)
-    l3[L3_INDEX(va)] = pa | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
+    l3[L3_INDEX(va)] = pa | ATTR_AP_RW | ATTR_XN | pte_default;
 
   /* direct map construction */
   volatile pde_t *l1d = bootmem_alloc(DMAP_L1_SIZE);
@@ -189,7 +195,7 @@ __boot_text static paddr_t build_page_table(void) {
   volatile pde_t *l3d = bootmem_alloc(DMAP_L3_SIZE);
 
   for (intptr_t i = 0; i < DMAP_L3_ENTRIES; i++)
-    l3d[i] = (i * PAGESIZE) | ATTR_AP(ATTR_AP_RW) | ATTR_XN | pte_default;
+    l3d[i] = (i * PAGESIZE) | ATTR_AP_RW | ATTR_XN | pte_default;
 
   for (intptr_t i = 0; i < DMAP_L2_ENTRIES; i++)
     l2d[i] = (pde_t)&l3d[i * PT_ENTRIES] | L2_TABLE;
@@ -198,6 +204,45 @@ __boot_text static paddr_t build_page_table(void) {
     l1d[i] = (pde_t)&l2d[i * PT_ENTRIES] | L1_TABLE;
 
   l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
+
+#if KASAN /* Prepare KASAN shadow mappings */
+  /* XXX we add 2 * SUPERPAGESIZE to account for future allocations made with
+   * vm_boot_alloc() which can't extend the shadow map, as the VM system isn't
+   * fully initialized yet. */
+  size_t kasan_sanitized_size =
+    2 * SUPERPAGESIZE + roundup2(va - KASAN_MD_SANITIZED_START,
+                                 SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
+  size_t kasan_shadow_size = kasan_sanitized_size / KASAN_SHADOW_SCALE_SIZE;
+  vaddr_t kasan_shadow_end = KASAN_MD_SHADOW_START + kasan_shadow_size;
+  va = KASAN_MD_SHADOW_START;
+  /* XXX _kasan_sanitized_end is at a high address which is not mapped yet,
+   * so we access it using its physical address instead. */
+  *(vaddr_t *)AARCH64_PHYSADDR(&_kasan_sanitized_end) =
+    KASAN_MD_SANITIZED_START + kasan_sanitized_size;
+  /* Allocate physical memory for shadow area */
+  pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
+
+  while (va < kasan_shadow_end) {
+    if (l0[L0_INDEX(va)] == 0)
+      l0[L0_INDEX(va)] = (pde_t)bootmem_alloc(PAGESIZE) | L0_TABLE;
+
+    pde_t *l1k = (pde_t *)PTE_FRAME_ADDR(l0[L0_INDEX(va)]);
+    if (l1k[L1_INDEX(va)] == 0)
+      l1k[L1_INDEX(va)] = (pde_t)bootmem_alloc(PAGESIZE) | L1_TABLE;
+
+    pde_t *l2k = (pde_t *)PTE_FRAME_ADDR(l1k[L1_INDEX(va)]);
+    if (l2k[L2_INDEX(va)] == 0)
+      l2k[L2_INDEX(va)] = (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
+
+    pde_t *l3k = (pde_t *)PTE_FRAME_ADDR(l2k[L2_INDEX(va)]);
+
+    for (int j = 0; va < kasan_shadow_end && j < PT_ENTRIES; j++) {
+      l3k[L3_INDEX(va)] = pa | ATTR_AP_RW | ATTR_XN | pte_default;
+      va += PAGESIZE;
+      pa += PAGESIZE;
+    }
+  }
+#endif /* KASAN */
 
   return (paddr_t)l0;
 }
@@ -254,11 +299,16 @@ __boot_text static void enable_mmu(paddr_t pde) {
   WRITE_SPECIALREG(tcr_el1, tcr);
 
   /* --- more magic bits
-   * M -- MMU enable for EL1 and EL0 stage 1 address translation.
-   * I -- SP must be aligned to 16.
-   * C -- Cacheability control, for data accesses.
+   * M   - MMU enable for EL1 and EL0 stage 1 address translation.
+   * I   - Cacheability control.
+   * C   - Cacheability control, for data accesses.
+   * A   - Alignment check.
+   * SA  - SP alignment check - EL1.
+   * SA0 - SP alignment check - EL0.
+   *
    */
-  WRITE_SPECIALREG(sctlr_el1, SCTLR_M | SCTLR_I | SCTLR_C);
+  WRITE_SPECIALREG(sctlr_el1, SCTLR_M | SCTLR_I | SCTLR_C | SCTLR_A | SCTLR_SA |
+                                SCTLR_SA0);
   __isb();
 
   _kernel_pmap_pde = pde;
@@ -286,7 +336,7 @@ __boot_text void *aarch64_init(atag_tag_t *atags) {
   atags_copy(atags);
 
   enable_mmu(build_page_table());
-  return _atags;
+  return &_boot_stack[PAGESIZE];
 }
 
 /* TODO(pj) Remove those after architecture split of gdb debug scripts. */

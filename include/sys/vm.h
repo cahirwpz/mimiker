@@ -5,10 +5,15 @@
 #include <sys/queue.h>
 #include <machine/vm_param.h>
 
+#ifdef _KERNEL
+
+typedef struct mtx mtx_t;
+
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
 
 /* Real kernel end in kernel virtual address space. */
-extern void *vm_kernel_end;
+extern atomic_vaddr_t vm_kernel_end;
+extern mtx_t vm_kernel_end_lock;
 
 typedef enum {
   PG_ALLOCATED = 0x01,  /* page has been allocated */
@@ -41,24 +46,23 @@ typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
 typedef struct pv_entry pv_entry_t;
 typedef struct vm_object vm_object_t;
 typedef struct slab slab_t;
+typedef uintptr_t vm_offset_t;
 
 /* Field marking and corresponding locks:
  * (@) pv_list_lock (in pmap.c)
  * (P) physmem_lock (in vm_physmem.c)
- * (O) vm_object::mtx */
+ * (O) vm_object::vo_lock */
 
 struct vm_page {
   union {
-    TAILQ_ENTRY(vm_page) freeq; /* (P) list of free pages for buddy system */
-    TAILQ_ENTRY(vm_page) pageq; /* used to group allocated pages */
-    struct {
-      TAILQ_ENTRY(vm_page) list;
-    } obj;        /* (O) list of pages in vm_object */
+    TAILQ_ENTRY(vm_page) freeq;    /* (P) list of free pages for buddy system */
+    TAILQ_ENTRY(vm_page) pageq;    /* used to group allocated pages */
+    TAILQ_ENTRY(vm_page) objpages; /* (O) list of pages in vm_object */
     slab_t *slab; /* active when page is used by pool allocator */
   };
   TAILQ_HEAD(, pv_entry) pv_list; /* (@) where this page is mapped? */
   vm_object_t *object;            /* (O) object owning that page */
-  off_t offset;                   /* (O) offset to page in vm_object */
+  vm_offset_t offset;             /* (O) offset to page in vm_object */
   paddr_t paddr;                  /* (P) physical address of page */
   pg_flags_t flags;               /* (P) page flags (used by physmem as well) */
   uint32_t size;                  /* (P) size of page in PAGESIZE units */
@@ -66,5 +70,7 @@ struct vm_page {
 
 int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags);
 int do_munmap(vaddr_t addr, size_t length);
+
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_VM_H_ */

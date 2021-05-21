@@ -2,7 +2,9 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = $(ARCH) drv kern libkern tests
+include $(TOPDIR)/config.mk
+
+SUBDIR = aarch64 drv kern libkern mips tests
 KLIB = no
 
 BUILD-FILES += $(KERNEL-IMAGE) mimiker.elf cscope.out etags tags
@@ -10,7 +12,7 @@ CLEAN-FILES += mimiker.elf.map
 
 include $(TOPDIR)/build/build.kern.mk
 
-LDFLAGS += -T $(TOPDIR)/sys/$(ARCH)/$(BOARD).ld
+LDFLAGS += -T $(TOPDIR)/sys/$(ARCH)/$(ARCH).ld
 LDLIBS	= -Wl,--start-group \
 	    -Wl,--whole-archive $(KLIBLIST) -Wl,--no-whole-archive \
             -lgcc \
@@ -30,7 +32,7 @@ mimiker.img.gz: mimiker.img
 
 # Lists of all files that we consider operating system kernel sources.
 SRCDIRS = $(TOPDIR)/include $(TOPDIR)/sys
-SRCFILES_C = $(shell find $(SRCDIRS) -iname '*.[chS]')
+SRCFILES_C = $(shell find $(SRCDIRS) -iname '*.[ch]')
 SRCFILES_ASM = $(shell find $(SRCDIRS) -iname '*.S')
 SRCFILES = $(SRCFILES_C) $(SRCFILES_ASM)
 

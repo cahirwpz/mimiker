@@ -84,6 +84,13 @@ static int sys_futimens(proc_t *, futimens_args_t *, register_t *);
 static int sys_utimensat(proc_t *, utimensat_args_t *, register_t *);
 static int sys_readv(proc_t *, readv_args_t *, register_t *);
 static int sys_writev(proc_t *, writev_args_t *, register_t *);
+static int sys_sigpending(proc_t *, sigpending_args_t *, register_t *);
+static int sys_getitimer(proc_t *, getitimer_args_t *, register_t *);
+static int sys_setitimer(proc_t *, setitimer_args_t *, register_t *);
+static int sys_sync(proc_t *, void *, register_t *);
+static int sys_fsync(proc_t *, fsync_args_t *, register_t *);
+static int sys_kqueue1(proc_t *, kqueue1_args_t *, register_t *);
+static int sys_kevent(proc_t *, kevent_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { .nargs = 1, .call = (syscall_t *)sys_syscall },
@@ -165,5 +172,12 @@ struct sysent sysent[] = {
   [SYS_utimensat] = { .nargs = 4, .call = (syscall_t *)sys_utimensat },
   [SYS_readv] = { .nargs = 3, .call = (syscall_t *)sys_readv },
   [SYS_writev] = { .nargs = 3, .call = (syscall_t *)sys_writev },
+  [SYS_sigpending] = { .nargs = 1, .call = (syscall_t *)sys_sigpending },
+  [SYS_getitimer] = { .nargs = 2, .call = (syscall_t *)sys_getitimer },
+  [SYS_setitimer] = { .nargs = 3, .call = (syscall_t *)sys_setitimer },
+  [SYS_sync] = { .nargs = 0, .call = (syscall_t *)sys_sync },
+  [SYS_fsync] = { .nargs = 1, .call = (syscall_t *)sys_fsync },
+  [SYS_kqueue1] = { .nargs = 1, .call = (syscall_t *)sys_kqueue1 },
+  [SYS_kevent] = { .nargs = 6, .call = (syscall_t *)sys_kevent },
 };
 

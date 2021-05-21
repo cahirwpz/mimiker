@@ -392,13 +392,13 @@ static int tmpfs_vop_close(vnode_t *v, file_t *fp) {
 
 static int tmpfs_uiomove(tmpfs_node_t *node, uio_t *uio, size_t n) {
   size_t blkoff = BLKOFF(uio->uio_offset);
-  size_t len = MIN(BLOCK_SIZE - blkoff, n);
+  size_t len = min(BLOCK_SIZE - blkoff, n);
   size_t blkno = BLKNO(uio->uio_offset);
   void *blk = *tmpfs_get_blk(node, blkno);
   return uiomove(blk + blkoff, len, uio);
 }
 
-static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
+static int tmpfs_vop_read(vnode_t *v, uio_t *uio) {
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
   size_t remaining;
   int error = 0;
@@ -412,7 +412,7 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
     return 0;
 
   while (!error &&
-         (remaining = MIN(node->tfn_size - uio->uio_offset, uio->uio_resid))) {
+         (remaining = min(node->tfn_size - uio->uio_offset, uio->uio_resid))) {
     error = tmpfs_uiomove(node, uio, remaining);
   }
   tmpfs_update_time(node, TMPFS_UPDATE_ATIME);
@@ -420,7 +420,7 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
   return error;
 }
 
-static int tmpfs_vop_write(vnode_t *v, uio_t *uio, int ioflag) {
+static int tmpfs_vop_write(vnode_t *v, uio_t *uio) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
   int error = 0;
@@ -430,7 +430,7 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio, int ioflag) {
   if (node->tfn_type != V_REG)
     return EOPNOTSUPP;
 
-  if (ioflag & IO_APPEND)
+  if (uio->uio_ioflags & IO_APPEND)
     uio->uio_offset = node->tfn_size;
 
   if (uio->uio_offset + uio->uio_resid > node->tfn_size)
@@ -573,7 +573,7 @@ static int tmpfs_vop_readlink(vnode_t *v, uio_t *uio) {
   assert(v->v_type == V_LNK);
 
   error = uiomove_frombuf(node->tfn_lnk.link,
-                          MIN((size_t)node->tfn_size, uio->uio_resid), uio);
+                          min((size_t)node->tfn_size, uio->uio_resid), uio);
   tmpfs_update_time(node, TMPFS_UPDATE_ATIME);
   return error;
 }
@@ -665,7 +665,7 @@ static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
   node->tfn_atime = nanotime();
   node->tfn_ctime = node->tfn_atime;
   node->tfn_mtime = node->tfn_atime;
-  node->tfn_timelock = MTX_INITIALIZER(0);
+  mtx_init(&node->tfn_timelock, 0);
 
   mtx_lock(&tfm->tfm_lock);
   node->tfn_ino = tfm->tfm_next_ino++;
@@ -1033,7 +1033,7 @@ static int tmpfs_mount(mount_t *mp) {
   /* Allocate the tmpfs mount structure and fill it. */
   tmpfs_mount_t *tfm = &tmpfs;
 
-  tfm->tfm_lock = MTX_INITIALIZER(LK_RECURSIVE);
+  mtx_init(&tfm->tfm_lock, LK_RECURSIVE);
   tfm->tfm_next_ino = 2;
   mp->mnt_data = tfm;
 

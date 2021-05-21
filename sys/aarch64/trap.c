@@ -9,8 +9,8 @@
 #include <sys/sysent.h>
 #include <sys/errno.h>
 #include <sys/context.h>
+#include <sys/cpu.h>
 #include <aarch64/armreg.h>
-#include <aarch64/interrupt.h>
 #include <aarch64/pmap.h>
 
 static __noreturn void kernel_oops(ctx_t *ctx) {
@@ -124,12 +124,18 @@ void user_trap_handler(mcontext_t *uctx) {
       sig_trap(ctx, SIGBUS);
       break;
 
+    case EXCP_UNKNOWN:
     case EXCP_MSR: /* privileged instruction */
       sig_trap(ctx, SIGILL);
       break;
 
     case EXCP_FP_SIMD:
       thread_self()->td_pflags |= TDP_FPUINUSE;
+      break;
+
+    case EXCP_BRKPT_EL0:
+    case EXCP_BRK:
+      sig_trap(ctx, SIGTRAP);
       break;
 
     default:

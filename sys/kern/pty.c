@@ -100,15 +100,17 @@ static int pty_write(file_t *f, uio_t *uio) {
     return 0;
 
   size_t start_resid = uio->uio_resid;
+  uiostate_t save;
 
   SCOPED_MTX_LOCK(&tty->t_lock);
 
   while (uio->uio_resid > 0) {
+    uio_save(uio, &save);
     if ((error = uiomove(&c, 1, uio)))
       break;
     if ((error = pty_putc_sleep(tty, pty, c))) {
       /* Undo the last uiomove(). */
-      uio->uio_resid++;
+      uio_restore(uio, &save);
       break;
     }
   }
@@ -130,10 +132,6 @@ static int pty_close(file_t *f) {
   tty_detach_driver(tty); /* Releases t_lock. */
   pty_free(pty);
   return 0;
-}
-
-static int pty_seek(file_t *f, off_t offset, int whence, off_t *newoffp) {
-  return ESPIPE;
 }
 
 static int pty_stat(file_t *f, stat_t *sb) {
@@ -190,12 +188,14 @@ static int pty_ioctl(file_t *f, u_long cmd, void *data) {
   return tty_ioctl(f, cmd, data);
 }
 
-static fileops_t pty_fileops = {.fo_read = pty_read,
-                                .fo_write = pty_write,
-                                .fo_close = pty_close,
-                                .fo_seek = pty_seek,
-                                .fo_stat = pty_stat,
-                                .fo_ioctl = pty_ioctl};
+static fileops_t pty_fileops = {
+  .fo_read = pty_read,
+  .fo_write = pty_write,
+  .fo_close = pty_close,
+  .fo_seek = noseek,
+  .fo_stat = pty_stat,
+  .fo_ioctl = pty_ioctl,
+};
 
 static void pty_notify_out(tty_t *tty) {
   pty_t *pty = tty->t_data;
@@ -235,7 +235,7 @@ int do_posix_openpt(proc_t *p, int flags, register_t *res) {
   tty->t_data = pty;
 
   if (!(flags & O_NOCTTY)) {
-    WITH_MTX_LOCK (all_proc_mtx)
+    WITH_MTX_LOCK (&all_proc_mtx)
       WITH_MTX_LOCK (&tty->t_lock)
         maybe_assoc_ctty(p, tty);
   }
