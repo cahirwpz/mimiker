@@ -122,6 +122,9 @@ static void rpi3_physmem(void) {
   paddr_t dtb_start = dtb_early_root();
   paddr_t dtb_end = dtb_start + fdt_totalsize(PHYS_TO_DMAP(dtb_start));
 
+  /*
+   * XXX: this should be handled directly by physmem
+   */
   addr_range_t memory[3] = {
     {.start = rounddown(kern_start, PAGESIZE),
      .end = roundup(kern_end, PAGESIZE)},
