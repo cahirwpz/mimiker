@@ -13,34 +13,43 @@
 #include "utest.h"
 #include "util.h"
 
+static sig_atomic_t parent_signal_delivered = 0;
+static sig_atomic_t child_signal_delivered = 0;
+
+void parent_sigpipe_handler(int signo) {
+  parent_signal_delivered = 1;
+  return;
+}
+
+void child_sigpipe_handler(int signo) {
+  child_signal_delivered = 1;
+  return;
+}
+
 int test_pipe_parent_signaled(void) {
   int pipe_fd[2];
-  pid_t child_pid;
 
-  if (pipe2(pipe_fd, 0) < 0)
-    perror("pipe2");
+  assert(pipe2(pipe_fd, 0) == 0);
 
-  switch (child_pid = fork()) {
-    case -1: /* error */
-      perror("fork");
-      exit(EXIT_FAILURE);
+  pid_t child_pid = fork();
+  assert(child_pid > 0);
 
-    case 0:              /* child */
-      close(pipe_fd[1]); /* closing write end of pipe */
-      close(pipe_fd[0]); /* closing read end of pipe */
-      exit(EXIT_SUCCESS);
-
-    default:             /* parent */
-      close(pipe_fd[0]); /* closing read end of pipe */
+  if (child_pid == 0) { /* child */
+    close(pipe_fd[1]);  /* closing write end of pipe */
+    close(pipe_fd[0]);  /* closing read end of pipe */
+    exit(EXIT_SUCCESS);
   }
 
-  // Sync with end of child execution
-  int wstatus;
-  if (waitpid(child_pid, &wstatus, 0) < 0)
-    perror("waitpid");
+  /* parent */
+  close(pipe_fd[0]); /* closing read end of pipe */
 
-  // This is supposed to trigger SIGPIPE and get us killed
-  write(pipe_fd[1], "hello world\n", 12);
+  // Sync with end of child execution
+  wait_for_child_exit(child_pid, EXIT_SUCCESS);
+
+  // This is supposed to trigger SIGPIPE and return EPIPE
+  assert(write(pipe_fd[1], "hello world\n", 12) == EPIPE);
+  assert(errno == EPIPE);
+  assert(parent_signal_delivered);
 
   return 0;
 }
@@ -50,81 +59,33 @@ int test_pipe_child_signaled(void) {
   int pipe_fd[2];
   pid_t child_pid;
 
-  if (pipe2(pipe_fd, 0) < 0)
-    perror("pipe2");
+  assert(pipe2(pipe_fd, 0) == 0);
 
-  switch (child_pid = fork()) {
-    case -1: /* error */
-      perror("fork error\n");
-      exit(EXIT_FAILURE);
+  pid_t child_pid = fork();
+  assert(child_pid > 0);
 
-    case 0:              /* child */
-      close(pipe_fd[0]); /* closing read end of pipe */
-      while (1) {
-        // This is supposed to trigger deadly SIGPIPE
-        write(pipe_fd[1], "hello world\n", 12);
-      }
+  if (child_pid == 0) { /* child */
+    signal(SIGPIPE, child_sigpipe_handler);
 
-    default:             /* parent */
-      close(pipe_fd[1]); /* closing write end of pipe */
-      close(pipe_fd[0]); /* closing read end of pipe */
+    close(pipe_fd[0]);        /* closing read end of pipe */
+    wait_for_signal(SIGUSR1); /* now we know that other end is closed */
+
+    /* This is supposed to trigger SIGPIPE and return EPIPE */
+    assert(write(pipe_fd[1], "hello world\n", 12) == EPIPE);
+    assert(errno == EPIPE);
+    assert(child_signal_delivered);
+
+    exit(EXIT_SUCCESS);
   }
 
-  // Wait for child to die
-  int wstatus;
-  if (waitpid(child_pid, &wstatus, 0) < 0)
-    perror("waitpid");
+  /* parent */
+  close(pipe_fd[1]); /* closing write end of pipe */
+  close(pipe_fd[0]); /* closing read end of pipe */
 
-  // Check if child died because of SIGPIPE
-  if (WIFSIGNALED(wstatus)) {
-    child_signaled_passed = WTERMSIG(wstatus) == SIGPIPE;
-  }
-  assert(child_signaled_passed);
+  /* send SIGUSR1 informing that parent closed both ends of pipe */
+  kill(child_pid, SIGUSR1);
 
-  return child_signaled_passed;
-}
+  wait_for_child_exit(child_pid, EXIT_SUCCESS);
 
-int test_pipe_perror(void) {
-  int pipe_fd[2];
-  pid_t child_pid;
-
-  if (pipe2(pipe_fd, 0) < 0)
-    perror("pipe2");
-  switch (child_pid = fork()) {
-    case -1:
-      perror("fork\n");
-      exit(EXIT_FAILURE);
-
-    case 0:              /* child */
-      close(pipe_fd[1]); /* closing write end of pipe */
-      close(pipe_fd[0]); /* closing read end of pipe */
-      exit(EXIT_SUCCESS);
-
-    default:             /* parent */
-      close(pipe_fd[0]); /* closing read end of pipe */
-  }
-
-  // Block only SIGPIPE
-  sigset_t pipe_mask;
-  if ((sigemptyset(&pipe_mask) == -1) || (sigaddset(&pipe_mask, SIGPIPE) == -1))
-    perror("sigemptyset or sigaddset");
-  if (sigprocmask(SIG_BLOCK, &pipe_mask, NULL) < 0)
-    perror("sigprocmask");
-
-  // Sync with end of child execution
-  int wstatus;
-  waitpid(child_pid, &wstatus, 0);
-
-  // This should generate EPIPE, because SIGPIPE is blocked
-  write(pipe_fd[1], "hello world\n", 12);
-  assert(errno == EPIPE);
-
-  // After test we drop the mask
-  sigset_t mask;
-  if (sigdelset(&pipe_mask, SIGPIPE) < 0)
-    perror("sigdelset");
-  if (sigprocmask(SIG_SETMASK, &mask, NULL) < 0)
-    perror("sigprocmask");
-
-  return errno == EPIPE;
+  return 0;
 }
