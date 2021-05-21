@@ -24,7 +24,7 @@ int exec_elf_inspect(vnode_t *vn, Elf_Ehdr *eh) {
 
   klog("User ELF size: %u", attr.va_size);
   uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, 0, eh, sizeof(Elf_Ehdr));
-  if ((error = VOP_READ(vn, &uio, 0))) {
+  if ((error = VOP_READ(vn, &uio))) {
     klog("Exec failed: Reading ELF header failed.");
     return error;
   }
@@ -121,7 +121,7 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
      */
     uio_t uio =
       UIO_SINGLE_USER(UIO_READ, ph->p_offset, (char *)start, ph->p_filesz);
-    if ((error = VOP_READ(vn, &uio, 0))) {
+    if ((error = VOP_READ(vn, &uio))) {
       klog("Exec failed: Reading ELF segment failed.");
       return error;
     }
@@ -153,7 +153,7 @@ int exec_elf_load(proc_t *p, vnode_t *vn, Elf_Ehdr *eh) {
   size_t phs_size = eh->e_phnum * eh->e_phentsize;
   char *phs = kmalloc(M_TEMP, phs_size, 0);
   uio_t uio = UIO_SINGLE_KERNEL(UIO_READ, eh->e_phoff, phs, phs_size);
-  if ((error = VOP_READ(vn, &uio, 0))) {
+  if ((error = VOP_READ(vn, &uio))) {
     klog("Exec failed: Reading program headers failed.");
     goto fail;
   }
