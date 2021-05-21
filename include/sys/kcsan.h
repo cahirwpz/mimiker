@@ -14,8 +14,8 @@
  *
  * When KCSAN is enabled, the code is instrumented to allow the monitoring of
  * memory accesses. Specifically, each memory access will be augmented by a
- * function call. The compiler distinguish different memory accesses depending
- * of the type of the variable: plain, volatile or atomic. In our implementation
+ * function call. The compiler distinguishes different memory accesses depending
+ * on the type of the variable: plain, volatile or atomic. In our implementation
  * last two are discarded, because they don't meet the conditions of the
  * previously defined data race.
  *
@@ -51,7 +51,7 @@
 #if KCSAN
 
 /*
- * The initializing function don't have to called too early. Preferably just
+ * The initializing function doesn't have to be called too early. Preferably just
  * before forking to the init process, since KCSAN is useless if only
  * one thread is running.
  */

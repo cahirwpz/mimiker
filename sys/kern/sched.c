@@ -222,7 +222,7 @@ void sched_maybe_preempt(void) {
  * Instrumentation in this function would cause KCSAN to fall into an infinite
  * recursion.
  */
-__no_sanitize bool preempt_disabled(void) {
+__no_kcsan_sanitize bool preempt_disabled(void) {
   thread_t *td = thread_self();
   return td->td_pdnest > 0;
 }

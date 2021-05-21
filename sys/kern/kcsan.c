@@ -3,6 +3,7 @@
 #include <sys/thread.h>
 #include <machine/interrupt.h>
 #include <sys/klog.h>
+#include <sys/cpu.h>
 #include <sys/kcsan.h>
 
 #define WATCHPOINT_READ_BIT (1 << 31)

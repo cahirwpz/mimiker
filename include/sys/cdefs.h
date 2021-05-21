@@ -82,6 +82,12 @@
 #define __no_profile
 #endif
 
+#ifdef KCSAN
+#define __no_kcsan_sanitize __no_sanitize
+#else
+#define __no_kcsan_sanitize
+#endif
+
 /* Clang introduces support for the fallthrough attribute in C2x. */
 #ifdef __clang__
 #define __fallthrough
