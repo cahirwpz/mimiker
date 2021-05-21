@@ -212,6 +212,7 @@ static void user_trap_handler(ctx_t *ctx) {
     case EXC_CPU:
       cp_id = (_REG(ctx, CAUSE) & CR_CEMASK) >> CR_CESHIFT;
       if (cp_id != 1) {
+        klog("SIGILL on %p", _REG(ctx, EPC));
         sig_trap(ctx, SIGILL);
       } else {
         /* Enable FPU for interrupted context. */
@@ -221,6 +222,7 @@ static void user_trap_handler(ctx_t *ctx) {
       break;
 
     case EXC_RI:
+      klog("SIGILL on %p", _REG(ctx, EPC));
       sig_trap(ctx, SIGILL);
       break;
 

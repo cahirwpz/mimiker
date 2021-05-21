@@ -15,6 +15,8 @@
 #include <sys/pcpu.h>
 #include <machine/vm_param.h>
 
+#define pflog(fmt, ...) klog("[asid:%d] " fmt, pmap_get_asid(map->pmap), __VA_ARGS__)
+
 struct vm_map_entry {
   TAILQ_ENTRY(vm_map_entry) link;
   vm_object_t *object;
@@ -412,6 +414,10 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         pmap_protect(map->pmap, it->start, it->end, it->prot & ~VM_PROT_WRITE);
       }
 
+      pflog("Copy entry [%p-%p %ld] -> [%p-%p %ld] (new_prot:%d)",
+            it->start, it->end, it->offset,
+            new->start, new->end, new->offset,
+            it->prot & ~VM_PROT_WRITE);
     }
   }
 
@@ -446,78 +452,172 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   assert(ent->start <= fault_addr && fault_addr < ent->end);
 
   vaddr_t fault_page = fault_addr & -PAGESIZE;
-  vaddr_t offset = ent->offset + (fault_page - ent->start);
+  vaddr_t offset = fault_page - ent->start;
 
-  klog("Looking for page %p (asid: %d)", fault_page, pmap_get_asid(map->pmap));
 
-  bool cow = ent->flags & VM_ENT_COW && fault_type == VM_PROT_WRITE;
+  pflog("Looking for page %p (fault_type:%d)", fault_page, fault_type);
 
-  if (cow && ent->flags & VM_ENT_NEEDSCPY) {
-    klog("Have to copy amap for entry %p-%p", ent->start, ent->end);
-    ent->aref = vm_amap_copy(&ent->aref, ent->end - ent->start);
-    ent->flags &= ~VM_ENT_NEEDSCPY;
-  }
+  bool cow = ent->flags & VM_ENT_COW; /* entry is copy on write */
+  bool needs_copy = ent->flags & VM_ENT_NEEDSCPY;
+  bool writing = fault_type == VM_PROT_WRITE; /* we are handling write fault */
+  bool amap = ent->aref.ar_amap != NULL;
+  vm_object_t *object = ent->object;
 
   vm_page_t *frame = NULL;
-  vm_amap_t *amap = ent->aref.ar_amap;
-  vm_object_t *obj = ent->object;
+  vm_prot_t enter_prot = ent->prot;
+  vm_anon_t *new_anon = NULL;
 
-  vm_anon_t *new_anon = NULL; // anon that will be inserted into our amap
-
-  /* First look for page in amap. */
+  /* Lookup in amap. */
   if (amap) {
     vm_anon_t *anon = vm_amap_lookup(&ent->aref, offset);
 
-    if (anon) {
-      frame = anon->an_page;
-      /* If we are in cow scenario and anon is referenced from multiple amaps we
-       * need to copy it. */
-      if (cow && anon->an_ref > 1) {
-        WITH_MTX_LOCK(&anon->an_lock)
-          new_anon = vm_anon_copy(anon);
-        frame = new_anon->an_page;
-      }
-    }
+    if (!anon) goto obj_lookup;
+
+    SCOPED_MTX_LOCK(&anon->an_lock);
+    frame = anon->an_page;
+
+    pflog("Found in amap (anon:%p) (frame:%p).", anon, frame);
+    if (cow && writing)
+      new_anon = vm_anon_copy(anon);
+    goto enter;
   }
 
-  klog("Searched amap (frame = %p) (new_anon = %p)", frame, new_anon);
+obj_lookup:
+  /* Lookup in object. */
+  if (object) {
+    vaddr_t obj_offset = ent->offset + offset;
+    frame = vm_object_find_page(object, obj_offset);
 
-  /* If not found in amap look into object. */
-  if (!frame && obj) {
-    frame = vm_object_find_page(ent->object, offset);
+    if (!frame)
+      frame = object->vo_pager->pgr_fault(object, obj_offset);
 
-    if (frame == NULL)
-      frame = obj->vo_pager->pgr_fault(obj, offset);
+    if (!frame) return EFAULT;
 
-    /* If we are in cow scenario we need to copy this page. */
-    if (frame && cow) {
+    pflog("Found in object (frame:%p).", frame);
+    if (cow && writing)
       new_anon = vm_anon_copy_page(frame);
-      frame = new_anon->an_page;
-    }
+    goto enter;
   }
 
-  klog("Searched object (frame = %p) (new_anon = %p)", frame, new_anon);
-
-  /* If we've copied page insert it into our amap. */
+enter:
+  /* Add new anon to amap. */
   if (new_anon) {
-    if (ent->aref.ar_amap == NULL)
-      ent->aref.ar_amap = vm_amap_alloc();
-    klog("Adding new anon with page %p(%p) into amap %p", new_anon->an_page, fault_page, ent->aref.ar_amap);
+    if (needs_copy)
+      ent->aref = vm_amap_copy(&ent->aref, ent->end - ent->start);
+
+    assert(ent->aref.ar_amap != NULL);
     vm_amap_add(&ent->aref, new_anon, offset);
 
-    /* We need to remove existing page from pmap if it exists because it is with wrong permissions. */
+    frame = new_anon->an_page;
+    pflog("Add new anon (anon:%p) (amap:%p) (frame:%p).", new_anon, ent->aref.ar_amap, frame);
+    pflog("Remove form pmap (addr:%p)", fault_page);
     pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
   }
 
-  if (frame == NULL)
-    return EFAULT;
+  /* Change protection if needed. */
+  if (cow && !writing)
+    enter_prot &= ~VM_PROT_WRITE;
 
-  vm_prot_t prot = ent->prot;
-  if (ent->flags & VM_ENT_COW && fault_type == VM_PROT_READ)
-    prot &= ~VM_PROT_WRITE;
-
-  klog("entering pmap for (page:%p) (frame:%p)", fault_page, frame);
-  pmap_enter(map->pmap, fault_page, frame, prot, 0);
-
+  /* Enter page. */
+  pflog("Entering frame. (frame:%p) (addr:%p) (prot:%d)", frame, fault_page, enter_prot);
+  pmap_enter(map->pmap, fault_page, frame, enter_prot, 0);
   return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//  if (cow && writing && ent->flags & VM_ENT_NEEDSCPY) {
+//    klog("Have to copy amap for entry %p-%p", ent->start, ent->end);
+//    ent->aref = vm_amap_copy(&ent->aref, ent->end - ent->start);
+//    ent->flags &= ~VM_ENT_NEEDSCPY;
+//  }
+//
+//  vm_page_t *frame = NULL;
+//  vm_amap_t *amap = ent->aref.ar_amap;
+//  vm_object_t *obj = ent->object;
+//  vm_prot_t enter_prot = ent->prot;
+//
+//  vm_anon_t *new_anon = NULL; /* anon that will be inserted into our amap */
+//
+//  /* First look for page in amap. */
+//  if (amap) {
+//    vm_anon_t *anon = vm_amap_lookup(&ent->aref, offset);
+//
+//    if (anon) {
+//      frame = anon->an_page;
+//      /* If we are in cow scenario and anon is referenced from multiple amaps we
+//       * need to copy it. */
+//      if (cow && writing && anon->an_ref > 1) {
+//        WITH_MTX_LOCK(&anon->an_lock)
+//          new_anon = vm_anon_copy(anon);
+//        frame = new_anon->an_page;
+//      }
+//
+//      if (cow && !writing)
+//        enter_prot &= ~VM_PROT_WRITE;
+//
+//      goto enter;
+//    }
+//  }
+//
+//  klog("Searched amap (frame = %p) (new_anon = %p)", frame, new_anon);
+//
+//  /* If not found in amap look into object. */
+//  if (!frame && obj) {
+//    vaddr_t obj_offset = ent->offset + offset;
+//    frame = vm_object_find_page(ent->object, obj_offset);
+//
+//    if (frame == NULL)
+//      frame = obj->vo_pager->pgr_fault(obj, obj_offset);
+//
+//    /* this was the last place where page could be found so return error */
+//    if (frame == NULL)
+//      return EFAULT;
+//
+//    /* If we are in cow scenario we need to copy this page. */
+//    if (cow && writing) {
+//      new_anon = vm_anon_copy_page(frame);
+//      frame = new_anon->an_page;
+//    }
+//
+//    if (cow && !writing)
+//      enter_prot &= ~VM_PROT_WRITE;
+//  }
+//
+//  klog("Searched object (frame = %p) (new_anon = %p)", frame, new_anon);
+//
+//  /* If we've copied page insert it into our amap. */
+//  if (new_anon) {
+//    if (ent->aref.ar_amap == NULL)
+//      ent->aref.ar_amap = vm_amap_alloc();
+//    klog("Adding new anon with page %p(%p) into amap %p", new_anon->an_page, fault_page, ent->aref.ar_amap);
+//    vm_amap_add(&ent->aref, new_anon, offset);
+//
+//    /* We need to remove existing page from pmap if it exists because it has wrong permissions. */
+//    pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
+//  }
+//
+//  klog("entering pmap for (page:%p) (frame:%p)", fault_page, frame);
+//  pmap_enter(map->pmap, fault_page, frame, prot, 0);
+//
+//  return 0;
+//}

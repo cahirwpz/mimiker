@@ -148,7 +148,7 @@ static void pv_add(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
   pv_entry_t *pv = pool_alloc(P_PV, M_ZERO);
   pv->pmap = pmap;
   pv->va = va;
-  klog("pv_add: pv %p va %p pg %p pmap %p (%d)", pv, va, pg, pmap, pmap->asid);
+  //klog("pv_add: pv %p va %p pg %p pmap %p (%d)", pv, va, pg, pmap, pmap->asid);
   //TAILQ_INSERT_TAIL(&pg->pv_list, pv, page_link);
   pv->page_link.tqe_next = TAILQ_END(head);
   pv->page_link.tqe_prev = (&pg->pv_list)->tqh_last;
@@ -175,7 +175,7 @@ static void pv_remove(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
   assert(mtx_owned(&pv_list_lock));
   pv_entry_t *pv = pv_find(pmap, va, pg);
   assert(pv != NULL);
-  klog("Removing pv_entry %p", pv);
+  //klog("Removing pv_entry %p", pv);
   TAILQ_REMOVE(&pg->pv_list, pv, page_link);
   TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
   pool_free(P_PV, pv);
@@ -330,7 +330,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
   assert(page_aligned_p(va));
   assert(pmap_address_p(pmap, va));
 
-  klog("Enter virtual mapping %p for frame %p (pmap %p (%d) prot: %d)", va, pa, pmap, pmap->asid, prot);
+  //klog("Enter virtual mapping %p for frame %p (pmap %p (%d) prot: %d)", va, pa, pmap, pmap->asid, prot);
 
   bool kern_mapping = (pmap == pmap_kernel());
 
@@ -357,7 +357,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(pmap_contains_p(pmap, start, end));
 
-  klog("Remove page mapping for address range %p-%p", start, end);
+  //klog("Remove page mapping for address range %p-%p", start, end);
 
   WITH_MTX_LOCK (&pv_list_lock) {
     WITH_MTX_LOCK (&pmap->mtx) {
@@ -380,8 +380,8 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(pmap_contains_p(pmap, start, end));
 
-  klog("Change protection bits to %x for address range %p-%p (pmap %p (%d))", prot, start,
-       end, pmap, pmap->asid);
+//  klog("Change protection bits to %x for address range %p-%p (pmap %p (%d))", prot, start,
+//       end, pmap, pmap->asid);
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {

@@ -175,7 +175,7 @@ vm_aref_t vm_amap_split(vm_aref_t *aref, vaddr_t offset) {
   return new_aref;
 }
 
-vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t end) {
+vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t size) {
   vm_amap_t *amap = aref->ar_amap;
 
   if (amap == NULL) {
@@ -190,7 +190,7 @@ vm_aref_t vm_amap_copy(vm_aref_t *aref, vaddr_t end) {
   }
 
   int first_slot = aref->ar_pageoff;
-  int last_slot = vm_amap_slot(aref, end);
+  int last_slot = vm_amap_slot(aref, size);
 
   vm_amap_t *new = vm_amap_alloc();
 
