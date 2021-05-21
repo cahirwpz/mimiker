@@ -27,7 +27,7 @@ int test_pipe_parent_signaled(void) {
   assert(pipe2(pipe_fd, 0) == 0);
 
   pid_t child_pid = fork();
-  assert(child_pid > 0);
+  assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
     close(pipe_fd[1]);  /* closing write end of pipe */
@@ -56,7 +56,7 @@ int test_pipe_child_signaled(void) {
   assert(pipe2(pipe_fd, 0) == 0);
 
   pid_t child_pid = fork();
-  assert(child_pid > 0);
+  assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
     signal(SIGPIPE, sigpipe_handler);
