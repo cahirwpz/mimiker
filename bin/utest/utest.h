@@ -122,6 +122,5 @@ int test_procstat(void);
 
 int test_pipe_parent_signaled(void);
 int test_pipe_child_signaled(void);
-int test_pipe_perror(void);
 
 #endif /* __UTEST_H__ */
