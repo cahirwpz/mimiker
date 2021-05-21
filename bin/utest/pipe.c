@@ -23,6 +23,7 @@ void sigpipe_handler(int signo) {
 int test_pipe_parent_signaled(void) {
   int pipe_fd[2];
   signal_delivered = 0;
+  signal(SIGPIPE, sigpipe_handler);
 
   assert(pipe2(pipe_fd, 0) == 0);
 
@@ -79,7 +80,14 @@ int test_pipe_child_signaled(void) {
   /* send SIGUSR1 informing that parent closed both ends of pipe */
   kill(child_pid, SIGUSR1);
 
-  wait_for_child_exit(child_pid, EXIT_SUCCESS);
+  /* I really want child to finish, not just change it's state.
+   * so i don't use wait_for_child_exit
+   */
+  int wstatus = 0;
+  while (!WIFEXITED(wstatus)) {
+    assert(waitpid(child_pid, &wstatus, 0) == child_pid);
+  }
+  assert(WEXITSTATUS(wstatus) == EXIT_SUCCESS);
 
   return 0;
 }
