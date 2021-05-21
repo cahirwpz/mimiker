@@ -17,6 +17,7 @@ SOURCES = \
 	dev_null.c \
 	dev_procstat.c \
 	devfs.c \
+	event.c \
 	exception.c \
 	exec.c \
 	exec_elf.c \
@@ -79,16 +80,11 @@ SOURCES-LOCKDEP = \
 	lockdep.c
 
 SOURCES-KGPROF = \
-	kgprof.c
+	kgprof.c \
+	mcount.c
 
-ifeq ($(KCSAN), 1)
-SOURCES += kcsan.c
-
-kcsan.o : CFLAGS_KCSAN =
-else
-# Clean dependencies without having to pass `KCSAN=1` to `make clean`.
-CLEAN-FILES += .kcsan.D
-endif
+SOURCES-KCSAN = \
+	kcsan.c
 
 FORMAT-EXCLUDE = sysent.h
 
@@ -102,3 +98,5 @@ sysent.h $(SYSCALL_H) $(SYSCALLARGS_H): syscalls.conf syscalls.master
 	$(TOPDIR)/sys/script/makesyscalls.sh $^
 
 kasan.o : CFLAGS_KASAN =
+mcount.o : CFLAGS_KGPROF =
+kcsan.o : CFLAGS_KCSAN =

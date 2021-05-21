@@ -275,3 +275,15 @@ int fdtab_onexec(fdtab_t *fdt) {
   }
   return 0;
 }
+
+int fdtab_onfork(fdtab_t *fdt) {
+  int error;
+  for (int fd = 0; fd < fdt->fdt_nfiles; ++fd) {
+    /* Kqueues aren't inherited by a child created with fork. */
+    if (fd_is_used(fdt, fd) &&
+        fdt->fdt_entries[fd].fde_file->f_type == FT_KQUEUE)
+      if ((error = fdtab_close_fd(fdt, fd)))
+        return error;
+  }
+  return 0;
+}

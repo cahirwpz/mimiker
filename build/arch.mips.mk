@@ -24,14 +24,13 @@ endif
 # Added to all files
 GCC_ABIFLAGS += -msoft-float
 CLANG_ABIFLAGS += -msoft-float
+ifeq ($(KGPROF), 1)
+	CFLAGS_KGPROF = -finstrument-functions
 endif
 
-ifeq ($(KERNEL), 1)
 ifeq ($(KCSAN), 1)
   # Added to files that are sanitized
   CFLAGS_KCSAN = -fsanitize=thread \
                   --param tsan-distinguish-volatile=1
 endif
-# Added to all files
-CFLAGS += -DKCSAN=$(KCSAN)
 endif
