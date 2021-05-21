@@ -13,21 +13,16 @@
 #include "utest.h"
 #include "util.h"
 
-static sig_atomic_t parent_signal_delivered = 0;
-static sig_atomic_t child_signal_delivered = 0;
+static sig_atomic_t signal_delivered;
 
-void parent_sigpipe_handler(int signo) {
-  parent_signal_delivered = 1;
-  return;
-}
-
-void child_sigpipe_handler(int signo) {
-  child_signal_delivered = 1;
+void sigpipe_handler(int signo) {
+  signal_delivered = 1;
   return;
 }
 
 int test_pipe_parent_signaled(void) {
   int pipe_fd[2];
+  signal_delivered = 0;
 
   assert(pipe2(pipe_fd, 0) == 0);
 
@@ -43,21 +38,20 @@ int test_pipe_parent_signaled(void) {
   /* parent */
   close(pipe_fd[0]); /* closing read end of pipe */
 
-  // Sync with end of child execution
+  /* Sync with end of child execution */
   wait_for_child_exit(child_pid, EXIT_SUCCESS);
 
-  // This is supposed to trigger SIGPIPE and return EPIPE
-  assert(write(pipe_fd[1], "hello world\n", 12) == EPIPE);
+  /* This is supposed to trigger SIGPIPE and return EPIPE */
+  assert(write(pipe_fd[1], "hello world\n", 12) == -1);
   assert(errno == EPIPE);
-  assert(parent_signal_delivered);
+  assert(signal_delivered);
 
   return 0;
 }
 
 int test_pipe_child_signaled(void) {
-  int child_signaled_passed = 0;
   int pipe_fd[2];
-  pid_t child_pid;
+  signal_delivered = 0;
 
   assert(pipe2(pipe_fd, 0) == 0);
 
@@ -65,15 +59,15 @@ int test_pipe_child_signaled(void) {
   assert(child_pid > 0);
 
   if (child_pid == 0) { /* child */
-    signal(SIGPIPE, child_sigpipe_handler);
+    signal(SIGPIPE, sigpipe_handler);
 
     close(pipe_fd[0]);        /* closing read end of pipe */
     wait_for_signal(SIGUSR1); /* now we know that other end is closed */
 
     /* This is supposed to trigger SIGPIPE and return EPIPE */
-    assert(write(pipe_fd[1], "hello world\n", 12) == EPIPE);
+    assert(write(pipe_fd[1], "hello world\n", 12) == -1);
     assert(errno == EPIPE);
-    assert(child_signal_delivered);
+    assert(signal_delivered);
 
     exit(EXIT_SUCCESS);
   }
