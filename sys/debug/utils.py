@@ -20,6 +20,7 @@ def global_var(name):
 def relpath(path):
     return path.rsplit('sys/')[-1]
 
+
 # calculates address of ret instruction within function body (MIPS specific)
 def func_ret_addr(name):
     s = gdb.execute('disass thread_create', to_string=True)
@@ -33,8 +34,7 @@ class TextTable(texttable.Texttable):
     termsize = shutil.get_terminal_size(fallback=(80, 25))
 
     def __init__(self, types=None, align=None):
-        #super().__init__(self.termsize[0])
-        super().__init__(160)
+        super().__init__(self.termsize[0])
         self.set_deco(self.HEADER | self.VLINES | self.BORDER)
         if types:
             self.set_cols_dtype(types)
