@@ -51,9 +51,9 @@
 #if KCSAN
 
 /*
- * The initializing function doesn't have to be called too early. Preferably just
- * before forking to the init process, since KCSAN is useless if only
- * one thread is running.
+ * The initializing function doesn't have to be called too early. Preferably
+ * just before forking to the init process, since KCSAN is useless if only one
+ * thread is running.
  */
 void init_kcsan(void);
 #else /* !KCSAN */
