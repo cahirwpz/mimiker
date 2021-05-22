@@ -43,6 +43,9 @@ class Process(metaclass=GdbStructMeta):
     def address(self):
         return self._obj.address
 
+    def vm_map(self):
+        return self._obj['p_uspace']
+
 
 class Kprocess(SimpleCommand):
     """List all processes."""
