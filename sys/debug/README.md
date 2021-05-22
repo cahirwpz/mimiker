@@ -16,8 +16,8 @@ you can use following custom commands:
 
 * `free_pages` - list of free pages per segment with virtual and physical
    addresses,
-* `segments` - list all memory segments, incl. start, end addresses and
-   number of pages (currently just one),
+* `vm_map` - list memory map of process of given pid (when number is given as argument)
+  or of current process (when no argument is given)
 * `klog` - all log messages currently saved in the kernel (can be saved to file
   as well),
 * `threads` - all existing threads,

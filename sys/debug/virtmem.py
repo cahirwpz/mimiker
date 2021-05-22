@@ -4,6 +4,7 @@ from .struct import TailQueue
 from .cmd import UserCommand
 from .cpu import TLBLo
 from .utils import TextTable, global_var, cast
+from .proc import Process
 
 
 PM_NQUEUES = 16
@@ -80,10 +81,20 @@ class VmMapSeg(UserCommand):
         super().__init__('vm_map')
 
     def __call__(self, args):
-        vm_map = gdb.parse_and_eval('vm_map_user()')
-        if vm_map == 0:
-            print('No active user vm_map!')
-            return
+        args = args.strip()
+        if len(args) == 0:
+            vm_map = gdb.parse_and_eval('vm_map_user()')
+            if vm_map == 0:
+                print('No active user vm_map!')
+                return
+        else:
+            pid = int(args)
+            proc = Process.from_pid(pid)
+            if proc is None:
+                print(f'No process of pid {pid}!')
+                return
+            vm_map = proc.vm_map()
+
         entries = vm_map['entries']
         table = TextTable(types='itttttt', align='rrrrrrr')
         table.header(['segment', 'start', 'end', 'prot', 'flags', 'object',
