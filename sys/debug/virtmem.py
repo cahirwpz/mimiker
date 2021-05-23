@@ -90,7 +90,7 @@ class VmMapSeg(UserCommand):
         else:
             pid = int(args)
             proc = Process.from_pid(pid)
-            if proc == None:
+            if proc is None:
                 print(f'No process of pid {pid}!')
                 return
             vm_map = proc.vm_map()
@@ -98,9 +98,79 @@ class VmMapSeg(UserCommand):
         entries = vm_map['entries']
         table = TextTable(types='itttttt', align='rrrrrrr')
         table.header(['segment', 'start', 'end', 'prot', 'flags', 'object',
-                      'offset'])
+                      'amap'])
         segments = TailQueue(entries, 'link')
         for idx, seg in enumerate(segments):
             table.add_row([idx, seg['start'], seg['end'], seg['prot'],
-                           seg['flags'], seg['object'], seg['offset']])
+                           seg['flags'], seg['object'],
+                           seg['aref']['ar_amap']])
         print(table)
+
+
+def print_entry(ent):
+    table = TextTable(types='ttttttt', align='rrrrrrr')
+    table.header(['start', 'end', 'prot', 'flags', 'object', 'offset', 'amap'])
+    table.add_row([ent['start'], ent['end'], ent['prot'], ent['flags'],
+                   ent['object'], ent['offset'], ent['aref']['ar_amap']])
+    print(table)
+
+
+def print_addr_in_object(ent, address):
+    offset = ent['offset'] + address - ent['start']
+    obj_addr = ent['object']
+    page = gdb.parse_and_eval(f'vm_object_find_page({obj_addr}, {offset})')
+    if page == 0x0:
+        print(f'There is no page for address {hex(address)} in vm_object')
+        return
+    obj = obj_addr.dereference()
+    print(f'Page found in object ({obj_addr}):\n{obj}')
+
+
+def print_addr_in_amap(ent, address):
+    aref_addr = ent['aref'].address
+    offset = address - ent['start']
+    anon_addr = gdb.parse_and_eval(f'vm_amap_lookup({aref_addr}, {offset})')
+    if anon_addr == 0x0:
+        print(f'There is no anon for address {hex(address)} in amap.')
+        return
+    anon = anon_addr.dereference()
+    print(f'Page found in anon ({anon_addr}):\n{anon}')
+
+
+class VmAddress(UserCommand):
+    """List all information about addres in given vm_map"""
+
+    def __init__(self):
+        super().__init__('vm_address')
+
+    def __call__(self, args):
+        args = args.split()
+
+        if len(args) < 2:
+            print("Please give pid and address")
+            return
+
+        pid = int(args[0])
+        address = int(args[1], 16)
+
+        proc = Process.from_pid(pid)
+        if proc is None:
+            print(f'No process of pid {pid}!')
+            return
+
+        PAGESHIFT = 12
+        entries = TailQueue(proc.vm_map()['entries'], 'link')
+        for ent in entries:
+            if address >= ent['start'] and address < ent['end']:
+                print(f'Address in entry {ent.address}')
+                print_entry(ent)
+                # align address
+                address = (address >> PAGESHIFT) << PAGESHIFT
+                obj = ent['object']
+                if obj != 0:
+                    print_addr_in_object(ent, address)
+                amap = ent['aref']['ar_amap']
+                if amap != 0:
+                    print_addr_in_amap(ent, address)
+                return
+        print(f'Adress not found in process {pid} address space.')
