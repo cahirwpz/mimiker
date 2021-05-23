@@ -418,15 +418,14 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
   }
 }
 
-static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg1,
-                            uint32_t arg2, emmc_resp_t *resp) {
+static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
+                            emmc_resp_t *resp) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
 
   uint32_t r = 0;
 
-  b_out(emmc, BCMEMMC_ARG1, arg1);
-  b_out(emmc, BCMEMMC_ARG2, arg2);
+  b_out(emmc, BCMEMMC_ARG1, arg);
   b_out(emmc, BCMEMMC_CMDTM, code);
   if ((r = bcmemmc_intr_wait(dev, INT_CMD_DONE))) {
     klog("ERROR: failed to send EMMC command %p", code);
@@ -443,16 +442,16 @@ static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg1,
   return 0;
 }
 
-static int bcmemmc_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg1,
-                       uint32_t arg2, emmc_resp_t *resp) {
+static int bcmemmc_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
+                       emmc_resp_t *resp) {
   assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
 
   if (cmd.flags & EMMC_F_APP)
-    bcmemmc_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, 0, NULL);
+    bcmemmc_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, NULL);
 
   uint32_t code = encode_cmd(cmd);
-  return bcmemmc_cmd_code(cdev->parent, code, arg1, arg2, resp);
+  return bcmemmc_cmd_code(cdev->parent, code, arg, resp);
 }
 
 static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *read) {

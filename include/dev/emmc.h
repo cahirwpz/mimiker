@@ -162,8 +162,8 @@ typedef uint64_t emmc_prop_val_t;
 
 /* For a detailed explanation on semantics refer to the comments above
  * respective wrappers */
-typedef int (*emmc_send_cmd_t)(device_t *dev, emmc_cmd_t cmd, uint32_t arg1,
-                               uint32_t arg2, emmc_resp_t *res);
+typedef int (*emmc_send_cmd_t)(device_t *dev, emmc_cmd_t cmd, uint32_t arg,
+                               emmc_resp_t *res);
 typedef int (*emmc_wait_t)(device_t *dev, emmc_wait_flags_t wflags);
 typedef int (*emmc_read_dat_t)(device_t *dev, void *buf, size_t len, size_t *n);
 typedef int (*emmc_write_dat_t)(device_t *dev, const void *buf, size_t len,
