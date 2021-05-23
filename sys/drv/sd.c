@@ -125,7 +125,7 @@ static int sd_init(device_t *dev) {
 
   emmc_send_cmd(dev, EMMC_CMD(GO_IDLE), 0, 0, NULL);
   if (emmc_get_prop(dev, EMMC_PROP_R_VOLTAGE_SUPPLY, &propv)) {
-    klog("Unable to determine eMMC controller's voltage supply.");
+    klog("Unable to determine e.MMC controller's voltage supply.");
     return -1;
   }
   uint8_t chkpat = ~propv + 1;
@@ -151,7 +151,7 @@ static int sd_init(device_t *dev) {
   }
   if (SD_ACMD41_RESP_READ_CCS(&response))
     state->props |= SD_SUPP_CCS;
-  klog("eMMC device detected as %s",
+  klog("e.MMC device detected as %s",
        (state->props & SD_SUPP_CCS) ? high_cap_str : standard_cap_str);
 
   /* Let's assume there's no voltage switching needed */
@@ -298,7 +298,7 @@ int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
         return 0;
     }
     if (emmc_write(dev, buf, DEFAULT_BLKSIZE, NULL)) {
-      klog("eMMC write failed");
+      klog("e.MMC write failed");
       return 0;
     }
     if (emmc_wait(dev, EMMC_I_DATA_DONE))

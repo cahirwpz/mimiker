@@ -160,14 +160,6 @@ typedef enum emmc_prop_id {
 } emmc_prop_id_t;
 typedef uint64_t emmc_prop_val_t;
 
-typedef struct emmc_device {
-  uint64_t cid[2];
-  uint64_t csd[2];
-  uint32_t rca;
-  uint32_t hostver;
-  uint32_t appflags;
-} emmc_device_t;
-
 /* For a detailed explanation on semantics refer to the comments above
  * respective wrappers */
 typedef int (*emmc_send_cmd_t)(device_t *dev, emmc_cmd_t cmd, uint32_t arg1,
@@ -205,7 +197,8 @@ static inline emmc_methods_t *emmc_methods(device_t *dev) {
  * \param arg1 first argument
  * \param arg2 second argument
  * \param resp pointer for response data to be written to or NULL
- * \return 0 on success EBUSY if device is busy, ETIMEDOUT on timeout.
+ * \return 0 on success EBUSY if device is busy, ETIMEDOUT on timeout, EIO
+ * on internal error.
  */
 static inline int emmc_send_cmd(device_t *dev, emmc_cmd_t cmd, uint32_t arg1,
                                 uint32_t arg2, emmc_resp_t *resp) {
@@ -279,11 +272,6 @@ static inline int emmc_set_prop(device_t *dev, emmc_prop_id_t id,
                                 emmc_prop_val_t val) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, set_prop);
   return emmc_methods(idev->parent)->set_prop(dev, id, val);
-}
-
-static inline emmc_device_t *emmc_device_of(device_t *device) {
-  return (emmc_device_t *)((device->bus == DEV_BUS_EMMC) ? device->instance
-                                                         : NULL);
 }
 
 /* Use if a command is expected to respond with R1b */
