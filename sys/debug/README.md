@@ -18,6 +18,8 @@ you can use following custom commands:
    addresses,
 * `vm_map` - list memory map of process of given pid (when number is given as argument)
   or of current process (when no argument is given)
+* `vm_address` - dump all information about given address in process virtual address space
+  (e.g. `kdump vm_address 3 0x412000` tells about address 0x412000 in vmspace of process 3)
 * `klog` - all log messages currently saved in the kernel (can be saved to file
   as well),
 * `threads` - all existing threads,
