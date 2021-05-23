@@ -83,10 +83,11 @@ int test_pipe_child_signaled(void) {
   /* I really want child to finish, not just change it's state.
    * so i don't use wait_for_child_exit
    */
-  int wstatus = 0;
-  while (!WIFEXITED(wstatus)) {
+  int wstatus = 1;
+  do {
     assert(waitpid(child_pid, &wstatus, 0) == child_pid);
-  }
+  } while (!WIFEXITED(wstatus));
+
   assert(WEXITSTATUS(wstatus) == EXIT_SUCCESS);
 
   return 0;
