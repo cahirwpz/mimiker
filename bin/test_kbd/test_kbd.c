@@ -12,6 +12,8 @@
 typedef struct input_event input_event_t;
 
 int main(int argc, char **argv) {
+  /* TODO: there should be a better way to select the required event file.
+   * FTTB, let's just hardcode the path. */
   int evfd = open("/dev/input/event0", O_RDONLY, 0);
   input_event_t buf[BUFSIZE];
   ssize_t n;
