@@ -13,6 +13,7 @@ SOURCES-MIPS = \
 	evdev.c \
 	evdev_kbd.c \
 	gt64120.c \
+	hidkbd.c \
 	isa.c \
 	malta_rootdev.c \
 	ns16550.c \
@@ -22,7 +23,8 @@ SOURCES-MIPS = \
 	pci_ids.c \
 	pit.c \
 	stdvga.c \
-	uart_cbus.c
+	uart_cbus.c \
+	usb.c
 
 SOURCES-AARCH64 = \
 	bcm2835_gpio.c \
