@@ -90,10 +90,6 @@ typedef enum sd_props {
 typedef struct sd_state {
   sd_props_t props;
   void *block_buf;
-  /* Stuff specific to the system-exposed IO */
-  struct {
-    uint32_t lba;
-  } sysio;
 } sd_state_t;
 
 static int sd_probe(device_t *dev) {
@@ -116,7 +112,6 @@ static int sd_init(device_t *dev) {
   uint16_t rca;
 
   state->props = 0;
-  state->sysio.lba = 0;
 
   /* The routine below is based on SD Specifications: Part 1 Physical Layer
    * Simplified Specification, Version 6.0. See: page 30 */
@@ -322,14 +317,14 @@ static inline int sd_check_uio(uio_t *uio) {
 typedef int (*sd_transfer_t)(device_t *dev, uint32_t lba, void *buffer,
                              uint32_t num);
 
-static int sd_vop_uio(vnode_t *v, uio_t *uio) {
-  device_t *dev = devfs_node_data(v);
+static int sd_dop_uio(devnode_t *d, uio_t *uio) {
+  device_t *dev = d->data;
   sd_state_t *state = (sd_state_t *)dev->state;
 
   if (sd_check_uio(uio))
     return -1;
 
-  uint32_t lba = state->sysio.lba + uio->uio_offset / DEFAULT_BLKSIZE;
+  uint32_t lba = uio->uio_offset / DEFAULT_BLKSIZE;
   uint32_t blk_cnt = uio->uio_resid / DEFAULT_BLKSIZE;
 
   sd_transfer_t transfer = uio->uio_op == UIO_READ ? sd_read_blk : sd_write_blk;
@@ -346,20 +341,9 @@ static int sd_vop_uio(vnode_t *v, uio_t *uio) {
   return 0;
 }
 
-static int sd_vop_seek(vnode_t *v, off_t old_off, off_t new_off) {
-  device_t *dev = devfs_node_data(v);
-  sd_state_t *state = (sd_state_t *)dev->state;
-
-  state->sysio.lba = new_off / DEFAULT_BLKSIZE;
-
-  return 0;
-}
-
-static vnodeops_t sd_vnodeops = {
-  .v_read = sd_vop_uio,
-  .v_write = sd_vop_uio,
-  .v_seek = sd_vop_seek,
-  .v_open = vnode_open_generic,
+static devops_t sd_devops = {
+  .d_read = sd_dop_uio,
+  .d_write = sd_dop_uio,
 };
 
 static int sd_attach(device_t *dev) {
@@ -370,7 +354,7 @@ static int sd_attach(device_t *dev) {
   if (sd_init(dev))
     return -1;
 
-  devfs_makedev(NULL, "sd_card", &sd_vnodeops, dev, NULL);
+  devfs_makedev_new(NULL, "sd_card", &sd_devops, dev, NULL);
 
   return 0;
 }
