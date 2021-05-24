@@ -37,10 +37,10 @@ int do_write(proc_t *p, int fd, uio_t *uio) {
     if (error == EPIPE) {
       mtx_lock(&proc_lock);
       // mutex_enter(&proc_lock);
-      kill(proc_t->p_pid, SIGPIPE)
-        // psignal(p, SIGPIPE);
-        // mutex_exit(&proc_lock);
-        mtx_unlock(&proc_lock);
+      kill(proc_t->p_pid, SIGPIPE);
+      // psignal(p, SIGPIPE);
+      // mutex_exit(&proc_lock);
+      mtx_unlock(&proc_lock);
       error = -1;
     }
   }
