@@ -162,8 +162,8 @@ typedef uint64_t emmc_prop_val_t;
 
 /* For a detailed explanation on semantics refer to the comments above
  * respective wrappers */
-typedef int (*emmc_send_cmd_t)(device_t *dev, emmc_cmd_t cmd, uint32_t arg1,
-                               uint32_t arg2, emmc_resp_t *res);
+typedef int (*emmc_send_cmd_t)(device_t *dev, emmc_cmd_t cmd, uint32_t arg,
+                               emmc_resp_t *res);
 typedef int (*emmc_wait_t)(device_t *dev, emmc_wait_flags_t wflags);
 typedef int (*emmc_read_dat_t)(device_t *dev, void *buf, size_t len, size_t *n);
 typedef int (*emmc_write_dat_t)(device_t *dev, const void *buf, size_t len,
@@ -200,10 +200,10 @@ static inline emmc_methods_t *emmc_methods(device_t *dev) {
  * \return 0 on success EBUSY if device is busy, ETIMEDOUT on timeout, EIO
  * on internal error.
  */
-static inline int emmc_send_cmd(device_t *dev, emmc_cmd_t cmd, uint32_t arg1,
-                                uint32_t arg2, emmc_resp_t *resp) {
+static inline int emmc_send_cmd(device_t *dev, emmc_cmd_t cmd, uint32_t arg,
+                                emmc_resp_t *resp) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, send_cmd);
-  return emmc_methods(idev->parent)->send_cmd(dev, cmd, arg1, arg2, resp);
+  return emmc_methods(idev->parent)->send_cmd(dev, cmd, arg, resp);
 }
 
 /**

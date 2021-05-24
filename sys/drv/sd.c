@@ -123,7 +123,7 @@ static int sd_init(device_t *dev) {
 
   klog("Attaching SD/SDHC block device interface...");
 
-  emmc_send_cmd(dev, EMMC_CMD(GO_IDLE), 0, 0, NULL);
+  emmc_send_cmd(dev, EMMC_CMD(GO_IDLE), 0, NULL);
   if (emmc_get_prop(dev, EMMC_PROP_R_VOLTAGE_SUPPLY, &propv)) {
     klog("Unable to determine e.MMC controller's voltage supply.");
     return -1;
@@ -133,7 +133,7 @@ static int sd_init(device_t *dev) {
     klog("Unable to determine whether CMD8 responds.");
     return -1;
   }
-  emmc_send_cmd(dev, SD_CMD_SET_IF_COND, propv << 8 | chkpat, 0, &response);
+  emmc_send_cmd(dev, SD_CMD_SET_IF_COND, propv << 8 | chkpat, &response);
   if (SD_R7_CHKPAT(&response) != chkpat) {
     klog("SD 2.0 voltage supply is mismatched, or the card is at Version 1.x");
     return -1;
@@ -146,7 +146,7 @@ static int sd_init(device_t *dev) {
       klog("Card timedout on ACMD41 polling.");
       return -1;
     }
-    emmc_send_cmd(dev, SD_CMD_SEND_OP_COND, SD_ACMD41_SD2_0_POLLRDY_ARG1, 0,
+    emmc_send_cmd(dev, SD_CMD_SEND_OP_COND, SD_ACMD41_SD2_0_POLLRDY_ARG1,
                   &response);
   }
   if (SD_ACMD41_RESP_READ_CCS(&response))
@@ -156,8 +156,8 @@ static int sd_init(device_t *dev) {
 
   /* Let's assume there's no voltage switching needed */
 
-  emmc_send_cmd(dev, EMMC_CMD(ALL_SEND_CID), 0, 0, NULL);
-  emmc_send_cmd(dev, SD_CMD_SEND_REL_ADDR, 0, 0, &response);
+  emmc_send_cmd(dev, EMMC_CMD(ALL_SEND_CID), 0, NULL);
+  emmc_send_cmd(dev, SD_CMD_SEND_REL_ADDR, 0, &response);
   rca = SD_R6_RCA(&response);
   emmc_set_prop(dev, EMMC_PROP_RW_RCA, rca);
 
@@ -166,10 +166,10 @@ static int sd_init(device_t *dev) {
   if (emmc_set_prop(dev, EMMC_PROP_RW_CLOCK_FREQ, 25000000))
     return -1;
 
-  emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), rca << 16, 0, NULL);
+  emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), rca << 16, NULL);
   emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 8);
   emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, 1);
-  emmc_send_cmd(dev, SD_CMD_SEND_SCR, 0, 0, NULL);
+  emmc_send_cmd(dev, SD_CMD_SEND_SCR, 0, NULL);
   if (emmc_wait(dev, EMMC_I_READ_READY)) {
     klog("SD card timed out when waiting for data (SD_CMD_SEND_SCR)");
     return -1;
@@ -188,7 +188,7 @@ static int sd_init(device_t *dev) {
     state->props |= SD_SUPP_BLKCNT;
   if (scr[0] & SCR_SD_BUS_WIDTH_4) {
     state->props |= SD_SUPP_BUSWIDTH_4;
-    emmc_send_cmd(dev, SD_CMD_SET_BUS_WIDTH, SD_BUSWIDTH_4, 0, NULL);
+    emmc_send_cmd(dev, SD_CMD_SET_BUS_WIDTH, SD_BUSWIDTH_4, NULL);
     emmc_set_prop(dev, EMMC_PROP_RW_BUSWIDTH, EMMC_BUSWIDTH_4);
   }
 
@@ -219,16 +219,16 @@ int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
     /* Multiple block transfers either be terminated after a set amount of
      * block is transferred, or by sending CMD_STOP_TRANS command */
     if (num > 1 && (state->props & SD_SUPP_BLKCNT)) {
-      r = emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, 0, NULL);
+      r = emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, NULL);
       if (r)
         return 0;
     }
     emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num);
     emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE);
     if (num > 1) {
-      emmc_send_cmd(dev, EMMC_CMD(READ_MULTIPLE_BLOCKS), lba, 0, NULL);
+      emmc_send_cmd(dev, EMMC_CMD(READ_MULTIPLE_BLOCKS), lba, NULL);
     } else {
-      emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba, 0, NULL);
+      emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba, NULL);
     }
     if (emmc_wait(dev, EMMC_I_READ_READY))
       return 0;
@@ -244,7 +244,7 @@ int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
       return 0;
   } else {
     for (uint32_t c = 0; c < num; c++) {
-      emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba + c, 0, NULL);
+      emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba + c, NULL);
       r = emmc_read(dev, buf, 512, NULL);
       if (r)
         return 0;
@@ -254,7 +254,7 @@ int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
     }
   }
   if (num > 1 && !sup_blkcnt && (state->props & SD_SUPP_CCS))
-    emmc_send_cmd(dev, EMMC_CMD(STOP_TRANSMISSION), 0, 0, NULL);
+    emmc_send_cmd(dev, EMMC_CMD(STOP_TRANSMISSION), 0, NULL);
   return num * DEFAULT_BLKSIZE;
 }
 
@@ -275,7 +275,7 @@ int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
 
   if (state->props & SD_SUPP_BLKCNT) {
     if (num > 1 && (state->props & SD_SUPP_BLKCNT)) {
-      r = emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, 0, NULL);
+      r = emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, NULL);
       if (r)
         return 0;
     }
@@ -284,7 +284,7 @@ int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
 
     emmc_send_cmd(
       dev, num == 1 ? EMMC_CMD(WRITE_BLOCK) : EMMC_CMD(WRITE_MULTIPLE_BLOCKS),
-      lba, 0, NULL);
+      lba, NULL);
     if (emmc_wait(dev, EMMC_I_WRITE_READY))
       return 0;
   } else {
@@ -293,7 +293,7 @@ int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
   }
   while (c < num) {
     if (!(state->props & SD_SUPP_BLKCNT)) {
-      emmc_send_cmd(dev, EMMC_CMD(WRITE_BLOCK), lba + c, 0, NULL);
+      emmc_send_cmd(dev, EMMC_CMD(WRITE_BLOCK), lba + c, NULL);
       if (emmc_wait(dev, EMMC_I_WRITE_READY))
         return 0;
     }
