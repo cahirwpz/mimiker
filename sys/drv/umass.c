@@ -14,9 +14,6 @@
  *
  * - SCSI Primary Commands - 4 Revision 18
  *     https://www.t10.org/
- *
- * Each inner function if given a description. For description
- * of the rest of contained functions please see `include/dev/usbhc.h`.
  */
 #define KL_LOG KL_DEV
 #include <sys/klog.h>

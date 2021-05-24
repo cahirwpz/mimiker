@@ -80,9 +80,13 @@ uint16_t evdev_hid2key(int scancode);
  * function calls. */
 uint16_t evdev_scancode2key(int *statep, int scancode);
 
+/* A wrapper for the evdev_support_key function - marks all
+ * the USB HID-compatible keys as supported. */
+void evdev_hid_support_all_known_keys(evdev_dev_t *evdev);
+
 /* A wrapper for the evdev_support_key function - marks all the AT-compatible
  * keys as supported. */
-void evdev_support_all_known_keys(evdev_dev_t *evdev);
+void evdev_at_support_all_known_keys(evdev_dev_t *evdev);
 
 /*
  * Event reporting shortcuts.

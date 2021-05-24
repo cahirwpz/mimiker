@@ -1,63 +1,194 @@
+/*
+ * USB HID keyboard driver.
+ *
+ * Relevant documents:
+ *
+ * - Device Class Definition for Human Interface Devices (HID) Version 1.11,
+ *   5/27/01:
+ *     https://www.usb.org/sites/default/files/hid1_11.pdf
+ */
+#define KL_LOG KL_DEV
+#include <sys/klog.h>
 #include <sys/libkern.h>
-#include <sys/vnode.h>
+#include <sys/errno.h>
 #include <sys/devclass.h>
-#include <sys/devfs.h>
 #include <sys/device.h>
-#include <sys/ringbuf.h>
+#include <sys/sched.h>
+#include <dev/evdev.h>
 #include <dev/usb.h>
 
 #define HIDKBD_NKEYCODES 6
 
-/* HID keyboard input report */
+/* HID keyboard modifier keys indexes. */
+typedef enum {
+  HIDKBD_MK_LEFTCTRL,
+  HIDKBD_MK_LEFTSHIFT,
+  HIDKBD_MK_LEFTALT,
+  HIDKBD_MK_LEFTMETA,
+  HIDKBD_MK_RIGTHCTRL,
+  HIDKBD_MK_RIGHTSHIFT,
+  HIDKBD_MK_RIGHTALT,
+  HIDKBD_MK_RIGHTMETA,
+} __packed hidkbd_modkey_t;
+
+/* HID keyboard input report. */
 typedef struct hidkbd_in_report {
   uint8_t modifier_keys;
   uint8_t reserved;
   uint8_t keycodes[HIDKBD_NKEYCODES];
 } __packed hidkbd_in_report_t;
 
-#define HIDKBD_IN_REPORT_NUM 32
-#define HIDKBD_BUFFER_SIZE (sizeof(hidkbd_in_report_t) * HIDKBD_IN_REPORT_NUM)
-
+/* HID keyboard software context. */
 typedef struct hidkbd_state {
-  usb_buf_t *buf;
-  void *data;
+  hidkbd_in_report_t prev_report; /* the most recent report */
+  thread_t *thread;               /* thread which gathers scancodes */
+  evdev_dev_t *evdev;             /* evdev device structure */
 } hidkbd_state_t;
 
-static int hidkbd_read(vnode_t *v, uio_t *uio) {
-  device_t *dev = devfs_node_data(v);
-  hidkbd_state_t *hidkbd = dev->state;
+/*
+ * Evdev handling functions.
+ */
 
-  uio->uio_offset = 0;
-
-  hidkbd_in_report_t report;
-  int error = usb_buf_wait(hidkbd->buf);
-  if (!error) {
-    memcpy(&report, hidkbd->data, sizeof(hidkbd_in_report_t));
-    return uiomove_frombuf(&report, sizeof(hidkbd_in_report_t), uio);
-  }
-
-  if (hidkbd->buf->error != USB_ERR_STALLED)
-    return error;
-
-  if ((error = usb_unhalt_endpt(dev, USB_TFR_INTERRUPT, USB_DIR_INPUT)))
-    return error;
-
-  usb_data_transfer(dev, hidkbd->buf, hidkbd->data, sizeof(hidkbd_in_report_t),
-                    USB_TFR_INTERRUPT, USB_DIR_INPUT);
-
-  return error;
+/* Convert a USB keyboard modifier key index to an evdev-compatible keycode. */
+static inline uint16_t evdev_mod2key(hidkbd_modkey_t modkey) {
+  return evdev_hid2key(modkey + 0xe0);
 }
 
-static vnodeops_t hidkbd_ops = {
-  .v_read = hidkbd_read,
-};
+/* Create and setup a corresponding evdev device. */
+static void hidkbd_init_evdev(device_t *dev) {
+  usb_device_t *udev = usb_device_of(dev);
+  hidkbd_state_t *hidkbd = dev->state;
+  evdev_dev_t *evdev = evdev_alloc();
+
+  /* Set the basic evdev parameters. */
+  evdev_set_name(evdev, "HID keyboard");
+  evdev_set_id(evdev, BUS_USB, udev->vendor_id, udev->product_id, 0);
+
+  /* EV_SYN is required for every evdev device. */
+  evdev_support_event(evdev, EV_SYN);
+  evdev_support_event(evdev, EV_KEY);
+  /* NOTE: we assume that the keyboard supports hardware key repetiton,
+   * which isn't said to always be true. */
+  evdev_support_event(evdev, EV_REP);
+  /* Mark all USB HID-compatible keys as supported. */
+  evdev_hid_support_all_known_keys(evdev);
+
+  /* Bind `evdev` to `hidkbd` for future references. */
+  hidkbd->evdev = evdev;
+
+  /* Finally, register the device in the file system. */
+  evdev_register(evdev);
+}
+
+/*
+ * Report processing functions.
+ */
+
+/* Process modifier keys. */
+static void hidkbd_process_modkeys(hidkbd_state_t *hidkbd, uint8_t modkeys) {
+  uint8_t prev_modkeys = hidkbd->prev_report.modifier_keys;
+
+  for (hidkbd_modkey_t i = HIDKBD_MK_LEFTCTRL; i <= HIDKBD_MK_RIGHTMETA; i++) {
+    uint8_t prev = prev_modkeys & (1 << i);
+    uint8_t cur = modkeys & (1 << i);
+
+    if (prev == cur && !cur)
+      continue;
+
+    uint16_t keycode = evdev_mod2key(i);
+    uint32_t value = cur ? 1 : 0;
+    evdev_push_event(hidkbd->evdev, EV_KEY, keycode, value);
+    evdev_sync(hidkbd->evdev);
+  }
+}
+
+/* Process keycodes. */
+static void hidkbd_process_keycodes(hidkbd_state_t *hidkbd, uint8_t *keycodes) {
+  uint8_t *prev_keycodes = hidkbd->prev_report.keycodes;
+
+  for (int i = 0; i < HIDKBD_NKEYCODES; i++) {
+    uint16_t keycode;
+    uint32_t value = 1;
+
+    if (*prev_keycodes == *keycodes) {
+      if (*keycodes == 0)
+        break;
+      keycode = evdev_hid2key(*keycodes);
+      goto both_up;
+    }
+
+    /* Has the button been pressed? */
+    if (*prev_keycodes == 0) {
+      keycode = evdev_hid2key(*keycodes);
+      goto both_up;
+    }
+
+    /* The button has been released. */
+    keycode = evdev_hid2key(*prev_keycodes);
+    value = 0;
+    goto prev_up;
+
+  both_up:
+    keycodes++;
+  prev_up:
+    prev_keycodes++;
+
+    if (keycode != KEY_RESERVED) {
+      evdev_push_event(hidkbd->evdev, EV_KEY, keycode, value);
+      evdev_sync(hidkbd->evdev);
+    }
+  }
+}
+
+/* Process an input report. */
+static void hidkbd_process_in_report(hidkbd_state_t *hidkbd,
+                                     hidkbd_in_report_t *report) {
+  hidkbd_process_modkeys(hidkbd, report->modifier_keys);
+  hidkbd_process_keycodes(hidkbd, report->keycodes);
+}
+
+/* A thread which gathers USB HID scancodes, converts them to evdev-compatible
+ * keycodes and then hands them over to the evdev layer. */
+static void hidkbd_thread(void *arg) {
+  device_t *dev = arg;
+  hidkbd_state_t *hidkbd = dev->state;
+  hidkbd_in_report_t report;
+
+  /* Obtain a USB buf. */
+  usb_buf_t *buf = usb_buf_alloc();
+
+  /* Register an interrupt input transfer. */
+  usb_data_transfer(dev, buf, &report, sizeof(hidkbd_in_report_t),
+                    USB_TFR_INTERRUPT, USB_DIR_INPUT);
+
+  while (true) {
+    /* Wait for the data to arrvie. */
+    int error = usb_buf_wait(buf);
+    if (!error) {
+      hidkbd_process_in_report(hidkbd, &report);
+      memcpy(&hidkbd->prev_report, &report, sizeof(hidkbd_in_report_t));
+      continue;
+    }
+
+    /* Recover and reenable the transfer. */
+    if ((error = usb_unhalt_endpt(dev, USB_TFR_INTERRUPT, USB_DIR_INPUT)))
+      panic("unable to unhalt an endpoint");
+
+    usb_data_transfer(dev, buf, &report, sizeof(hidkbd_in_report_t),
+                      USB_TFR_INTERRUPT, USB_DIR_INPUT);
+  }
+}
+
+/*
+ * Driver interface implementation.
+ */
 
 static int hidkbd_probe(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
   if (!udev)
     return 0;
 
-  /* We're looking for a HID keyboard with a boot interface. */
+  /* We're looking for a HID keyboard supporting the boot protocol. */
   if (udev->class_code != UICLASS_HID ||
       udev->subclass_code != UISUBCLASS_BOOT ||
       udev->protocol_code != UIPROTO_BOOT_KEYBOARD)
@@ -72,18 +203,16 @@ static int hidkbd_attach(device_t *dev) {
   if (usb_hid_set_idle(dev))
     return ENXIO;
 
+  /* We rely on the boot protocol. */
   if (usb_hid_set_boot_protocol(dev))
     return ENXIO;
 
-  /* Prepare a report buffer. */
-  hidkbd->buf = usb_buf_alloc();
-  hidkbd->data = kmalloc(M_DEV, sizeof(hidkbd_in_report_t), M_WAITOK);
+  hidkbd->thread = thread_create("hidkbd", hidkbd_thread, dev,
+                                 prio_ithread(PRIO_ITHRD_QTY - 1));
 
-  usb_data_transfer(dev, hidkbd->buf, hidkbd->data, sizeof(hidkbd_in_report_t),
-                    USB_TFR_INTERRUPT, USB_DIR_INPUT);
+  hidkbd_init_evdev(dev);
 
-  /* Prepare /dev/hidkbd interface. */
-  devfs_makedev(NULL, "hidkbd", &hidkbd_ops, dev, NULL);
+  sched_add(hidkbd->thread);
 
   return 0;
 }

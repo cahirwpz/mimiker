@@ -213,9 +213,16 @@ uint16_t evdev_scancode2key(int *statep, int scancode) {
   return keycode;
 }
 
-void evdev_support_all_known_keys(evdev_dev_t *evdev) {
+void evdev_hid_support_all_known_keys(evdev_dev_t *evdev) {
+  size_t nitems = sizeof(evdev_usb_scancodes) / sizeof(uint16_t);
+  for (size_t i = 0; i < nitems; i++)
+    if (evdev_usb_scancodes[i] != NONE)
+      evdev_support_key(evdev, evdev_usb_scancodes[i]);
+}
+
+void evdev_at_support_all_known_keys(evdev_dev_t *evdev) {
   size_t nitems = sizeof(evdev_at_set1_scancodes) / sizeof(uint16_t);
-  for (size_t i = KEY_RESERVED; i < nitems; i++)
+  for (size_t i = 0; i < nitems; i++)
     if (evdev_at_set1_scancodes[i] != NONE)
       evdev_support_key(evdev, evdev_at_set1_scancodes[i]);
 }

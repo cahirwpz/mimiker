@@ -8,7 +8,6 @@ SOURCES = \
 
 SOURCES-MIPS = \
 	82371AB.c \
-	atkbdc.c \
 	cbus.c \
 	evdev.c \
 	evdev_kbd.c \
