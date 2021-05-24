@@ -33,6 +33,17 @@ int do_write(proc_t *p, int fd, uio_t *uio) {
 
   uio->uio_ioflags |= f->f_flags & IO_MASK;
   error = f->f_ops->fo_write(f, uio);
+  if (error) {
+    if (error == EPIPE) {
+      mtx_lock(&proc_lock);
+      // mutex_enter(&proc_lock);
+      kill(proc_t->p_pid, SIGPIPE)
+        // psignal(p, SIGPIPE);
+        // mutex_exit(&proc_lock);
+        mtx_unlock(&proc_lock);
+      error = -1;
+    }
+  }
   file_drop(f);
   return error;
 }

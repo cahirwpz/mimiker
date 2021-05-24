@@ -45,7 +45,8 @@ int test_pipe_parent_signaled(void) {
   wait_for_child_exit(child_pid, EXIT_SUCCESS);
 
   /* This is supposed to trigger SIGPIPE and return EPIPE */
-  assert(write(pipe_fd[1], "hello world\n", 12) == -1);
+  int write_ret = write(pipe_fd[1], "hello world\n", 12);
+  assert(write_ret == -1);
   assert(errno == EPIPE);
   assert(signal_delivered);
 
