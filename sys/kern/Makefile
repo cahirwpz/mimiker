@@ -18,6 +18,7 @@ SOURCES = \
 	dev_procstat.c \
 	devfs.c \
 	dtb.c \
+	event.c \
 	exception.c \
 	exec.c \
 	exec_elf.c \
@@ -80,7 +81,8 @@ SOURCES-LOCKDEP = \
 	lockdep.c
 
 SOURCES-KGPROF = \
-	kgprof.c
+	kgprof.c \
+	mcount.c
 
 FORMAT-EXCLUDE = sysent.h
 
@@ -94,3 +96,4 @@ sysent.h $(SYSCALL_H) $(SYSCALLARGS_H): syscalls.conf syscalls.master
 	$(TOPDIR)/sys/script/makesyscalls.sh $^
 
 kasan.o : CFLAGS_KASAN =
+mcount.o : CFLAGS_KGPROF =
