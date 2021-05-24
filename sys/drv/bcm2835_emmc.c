@@ -74,15 +74,15 @@
 static driver_t bcmemmc_driver;
 
 typedef struct bcmemmc_state {
-  resource_t *gpio;        /* GPIO resource (needed until we have a decent
-                            * way of setting up GPIO */
-  resource_t *emmc;        /* e.MMC controller registers */
-  resource_t *irq;         /* e.MMC controller interrupt */
-  condvar_t cv_intr;       /* Used to to wake up the thread on interrupt */
-  spin_t slock;            /* Lock */
-  uint64_t rca;            /* Relative Card Address */
-  uint64_t host_version;   /* Host specification version */
-  uint32_t intrs;          /* Received interrupts */
+  resource_t *gpio;      /* GPIO resource (needed until we have a decent
+                          * way of setting up GPIO */
+  resource_t *emmc;      /* e.MMC controller registers */
+  resource_t *irq;       /* e.MMC controller interrupt */
+  condvar_t cv_intr;     /* Used to to wake up the thread on interrupt */
+  spin_t slock;          /* Lock */
+  uint64_t rca;          /* Relative Card Address */
+  uint64_t host_version; /* Host specification version */
+  uint32_t intrs;        /* Received interrupts */
 } bcmemmc_state_t;
 
 #define b_in bus_read_4
@@ -193,8 +193,8 @@ static uint32_t bcmemmc_clk_approx_divisor(uint32_t clk, uint32_t f) {
   int32_t c2 = c1 + 1;
   int32_t c =
     abs((int32_t)f - (int32_t)clk / c1) < abs((int32_t)f - (int32_t)clk / c2)
-    ? c1
-    : c2;
+      ? c1
+      : c2;
   return (uint32_t)c;
 }
 
@@ -209,7 +209,7 @@ static void bcmemmc_clk_div(bcmemmc_state_t *state, uint32_t f) {
   uint32_t lo = (divisor & 0x00ff) << 8;
   uint32_t hi = (divisor & 0x0300) >> 2;
   b_out(emmc, BCMEMMC_CONTROL1,
-       (b_in(emmc, BCMEMMC_CONTROL1) & BCMEMMC_CLKDIV_MASK) | lo | hi);
+        (b_in(emmc, BCMEMMC_CONTROL1) & BCMEMMC_CLKDIV_MASK) | lo | hi);
   klog("e.MMC: clock set to %luHz / %lu (requested %luHz)", clk, divisor, f);
 }
 
@@ -221,8 +221,8 @@ static int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
   resource_t *emmc = state->emmc;
   int32_t cnt = 100000;
 
-  while ((b_in(emmc, BCMEMMC_STATUS) & (SR_CMD_INHIBIT | SR_DAT_INHIBIT))
-         && cnt--)
+  while ((b_in(emmc, BCMEMMC_STATUS) & (SR_CMD_INHIBIT | SR_DAT_INHIBIT)) &&
+         cnt--)
     delay(3);
   if (cnt <= 0) {
     klog("e.MMC ERROR: timeout waiting for inhibit flag");
