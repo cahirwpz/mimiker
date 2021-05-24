@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
 
   while ((n = read(evfd, buf, sizeof(buf))) >= 0) {
     /* Process received events. */
-    for (ssize_t i = 0; i < n; i++) {
+    for (size_t i = 0; i < n / sizeof(input_event_t); i++) {
       input_event_t *evp = &buf[i];
 
       /* We only care about keycodes. */
