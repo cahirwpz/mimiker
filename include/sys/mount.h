@@ -71,6 +71,7 @@ typedef struct mount {
   vfsops_t *mnt_vfsops;      /* Filesystem operations */
   vfsconf_t *mnt_vfc;        /* Link to filesystem info */
   vnode_t *mnt_vnodecovered; /* The vnode covered by this mount */
+  vnode_t *mnt_source;       /* The source of filesystem's underlying data */
 
   refcnt_t mnt_refcnt; /* Reference count */
   mtx_t mnt_mtx;
@@ -103,11 +104,12 @@ vfsconf_t *vfs_get_by_name(const char *name);
 /* Allocates and initializes a new mount struct, using filesystem vfc, covering
  * vnode v. Does not modify v. Does not insert new mount onto the all mounts
  * list. */
-mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc);
+mount_t *vfs_mount_alloc(vnode_t *vdst, vnode_t *vsrc, vfsconf_t *vfc);
 
-/* Mount a new instance of the filesystem vfc at the vnode v. Does not support
- * remounting. TODO: Additional filesystem-specific arguments. */
-int vfs_domount(vfsconf_t *vfc, vnode_t *v);
+/* Mount a new instance of the filesystem vfc at the vnode vdst. Does not
+ * support remounting. Use vsrc as a source for fs data if not NULL.
+ *TODO: Additional filesystem-specific arguments. */
+int vfs_domount(vfsconf_t *vfc, vnode_t *vdst, vnode_t *vsrc);
 
 #else /* !_KERNEL */
 #include <sys/cdefs.h>
