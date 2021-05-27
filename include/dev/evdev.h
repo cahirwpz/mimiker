@@ -71,8 +71,15 @@ void evdev_push_event(evdev_dev_t *evdev, uint16_t type, uint16_t code,
  * Utility functions.
  */
 
+/* Convert a USB keyboard modifier key number to an evdev-compatible keycode. */
+uint16_t evdev_mod2key(uint8_t modnum);
+
 /* Convert a USB keyboard scancode to a evdev-compatible keycode. */
 uint16_t evdev_hid2key(int scancode);
+
+/* A wrapper for the evdev_support_key function - marks all
+ * the USB HID-compatible keys as supported. */
+void evdev_hidkbd_support_all_known_keys(evdev_dev_t *evdev);
 
 /* Convert a AT keyboard scancode to a evdev-compatible keycode. The function is
  * stateful because of AT extended scan codes - some keys are encoded in two
@@ -80,13 +87,9 @@ uint16_t evdev_hid2key(int scancode);
  * function calls. */
 uint16_t evdev_scancode2key(int *statep, int scancode);
 
-/* A wrapper for the evdev_support_key function - marks all
- * the USB HID-compatible keys as supported. */
-void evdev_hid_support_all_known_keys(evdev_dev_t *evdev);
-
 /* A wrapper for the evdev_support_key function - marks all the AT-compatible
  * keys as supported. */
-void evdev_at_support_all_known_keys(evdev_dev_t *evdev);
+void evdev_atkbd_support_all_known_keys(evdev_dev_t *evdev);
 
 /*
  * Event reporting shortcuts.
