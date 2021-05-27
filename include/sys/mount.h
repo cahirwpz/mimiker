@@ -102,8 +102,8 @@ extern vnode_t *vfs_root_vnode;
 vfsconf_t *vfs_get_by_name(const char *name);
 
 /* Allocates and initializes a new mount struct, using filesystem vfc, covering
- * vnode v. Does not modify v. Does not insert new mount onto the all mounts
- * list. */
+ * vnode vdst. Does not modify vdst. Does not insert new mount onto the all
+ * mounts list. vsrc is a vnode used to read the filesystem if not NULL */
 mount_t *vfs_mount_alloc(vnode_t *vdst, vnode_t *vsrc, vfsconf_t *vfc);
 
 /* Mount a new instance of the filesystem vfc at the vnode vdst. Does not
