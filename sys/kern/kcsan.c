@@ -14,7 +14,7 @@
  */
 #define WATCHPOINT_NUM 32
 #define SKIP_COUNT 500
-#define WATCHPOINT_DELAY 10000
+#define WATCHPOINT_DELAY 5
 
 #define MAX_ENCODABLE_SIZE 8
 
@@ -29,9 +29,11 @@ static atomic_int skip_counter = SKIP_COUNT;
 
 static int kcsan_ready;
 
-static inline long encode_watchpoint(uintptr_t addr, size_t size, bool is_read) {
+static inline long encode_watchpoint(uintptr_t addr, size_t size,
+                                     bool is_read) {
   return (is_read ? WATCHPOINT_READ_BIT : 0) |
-         (((long) log2(size)) << WATCHPOINT_SIZE_SHIFT) | (addr & WATCHPOINT_ADDR_MASK);
+         (((long)log2(size)) << WATCHPOINT_SIZE_SHIFT) |
+         (addr & WATCHPOINT_ADDR_MASK);
 }
 
 static inline bool decode_watchpoint(long watchpoint, uintptr_t *addr,
@@ -62,7 +64,7 @@ static inline bool should_watch(void) {
 
 static inline void delay(int count) {
   for (int i = 0; i < count; i++) {
-    __asm__ volatile("nop");
+    thread_yield();
   }
 }
 
@@ -71,7 +73,7 @@ static inline void delay(int count) {
  * is found. Otherwise returns NULL.
  */
 static inline atomic_long *search_for_race(uintptr_t addr, size_t size,
-                                          bool is_read) {
+                                           bool is_read) {
   uintptr_t other_addr;
   size_t other_size;
   bool other_is_read;
@@ -97,7 +99,7 @@ static inline atomic_long *search_for_race(uintptr_t addr, size_t size,
 }
 
 static inline atomic_long *insert_watchpoint(uintptr_t addr, size_t size,
-                                            bool is_read) {
+                                             bool is_read) {
   int slot = watchpoint_slot(addr);
   atomic_long *watchpoint_p = &watchpoints[slot];
 
