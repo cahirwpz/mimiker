@@ -27,10 +27,4 @@ CLANG_ABIFLAGS += -msoft-float
 ifeq ($(KGPROF), 1)
 	CFLAGS_KGPROF = -finstrument-functions
 endif
-
-ifeq ($(KCSAN), 1)
-  # Added to files that are sanitized
-  CFLAGS_KCSAN = -fsanitize=thread \
-                  --param tsan-distinguish-volatile=1
-endif
 endif

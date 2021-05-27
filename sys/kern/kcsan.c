@@ -1,17 +1,12 @@
 #include <sys/mimiker.h>
 #include <sys/vm.h>
 #include <sys/thread.h>
-#include <machine/interrupt.h>
 #include <sys/klog.h>
 #include <sys/cpu.h>
 #include <sys/kcsan.h>
+#include <machine/kcsan.h>
 
-#define WATCHPOINT_READ_BIT (1 << 31)
-#define WATCHPOINT_SIZE_SHIFT 29
-#define WATCHPOINT_SIZE_MASK (~(WATCHPOINT_ADDR_MASK | WATCHPOINT_READ_BIT))
-#define WATCHPOINT_ADDR_MASK ((1 << WATCHPOINT_SIZE_SHIFT) - 1)
-
-#define WATCHPOINT_INVALID 0
+#define WATCHPOINT_INVALID 0L
 
 /*
  * These values were chosen rather arbitrarily, so feel free to modify them if
@@ -23,7 +18,7 @@
 
 #define MAX_ENCODABLE_SIZE 8
 
-static atomic_int watchpoints[WATCHPOINT_NUM];
+static atomic_long watchpoints[WATCHPOINT_NUM];
 
 /* Stats */
 static atomic_int kcsan_slot_taken_count;
@@ -34,18 +29,18 @@ static atomic_int skip_counter = SKIP_COUNT;
 
 static int kcsan_ready;
 
-static inline int encode_watchpoint(uintptr_t addr, size_t size, bool is_read) {
+static inline long encode_watchpoint(uintptr_t addr, size_t size, bool is_read) {
   return (is_read ? WATCHPOINT_READ_BIT : 0) |
-         (log2(size) << WATCHPOINT_SIZE_SHIFT) | (addr & WATCHPOINT_ADDR_MASK);
+         (((long) log2(size)) << WATCHPOINT_SIZE_SHIFT) | (addr & WATCHPOINT_ADDR_MASK);
 }
 
-static inline bool decode_watchpoint(int watchpoint, uintptr_t *addr,
+static inline bool decode_watchpoint(long watchpoint, uintptr_t *addr,
                                      size_t *size, bool *is_read) {
   if (watchpoint == WATCHPOINT_INVALID)
     return false;
 
   *addr = watchpoint & WATCHPOINT_ADDR_MASK;
-  *size = 1 << ((watchpoint & WATCHPOINT_SIZE_MASK) >> WATCHPOINT_SIZE_SHIFT);
+  *size = 1L << ((watchpoint & WATCHPOINT_SIZE_MASK) >> WATCHPOINT_SIZE_SHIFT);
   *is_read = (watchpoint & WATCHPOINT_READ_BIT) == WATCHPOINT_READ_BIT;
   return true;
 }
@@ -75,16 +70,16 @@ static inline void delay(int count) {
  * For a given memory access returns the conflicting watchpoint if the data race
  * is found. Otherwise returns NULL.
  */
-static inline atomic_int *search_for_race(uintptr_t addr, size_t size,
+static inline atomic_long *search_for_race(uintptr_t addr, size_t size,
                                           bool is_read) {
   uintptr_t other_addr;
   size_t other_size;
   bool other_is_read;
 
   int slot = watchpoint_slot(addr);
-  atomic_int *watchpoint_p = &watchpoints[slot];
+  atomic_long *watchpoint_p = &watchpoints[slot];
 
-  int encoded = atomic_load(watchpoint_p);
+  long encoded = atomic_load(watchpoint_p);
   if (!decode_watchpoint(encoded, &other_addr, &other_size, &other_is_read))
     return NULL;
 
@@ -101,13 +96,13 @@ static inline atomic_int *search_for_race(uintptr_t addr, size_t size,
   return NULL;
 }
 
-static inline atomic_int *insert_watchpoint(uintptr_t addr, size_t size,
+static inline atomic_long *insert_watchpoint(uintptr_t addr, size_t size,
                                             bool is_read) {
   int slot = watchpoint_slot(addr);
-  atomic_int *watchpoint_p = &watchpoints[slot];
+  atomic_long *watchpoint_p = &watchpoints[slot];
 
-  int encoded = encode_watchpoint(addr, size, is_read);
-  int expected = WATCHPOINT_INVALID;
+  long encoded = encode_watchpoint(addr, size, is_read);
+  long expected = WATCHPOINT_INVALID;
   if (!atomic_compare_exchange_strong(watchpoint_p, &expected, encoded))
     return NULL;
   return watchpoint_p;
@@ -134,7 +129,7 @@ static inline void setup_watchpoint(uintptr_t addr, size_t size, bool is_read) {
   /* Reset the counter. */
   atomic_store(&skip_counter, SKIP_COUNT);
 
-  atomic_int *watchpoint_p = insert_watchpoint(addr, size, is_read);
+  atomic_long *watchpoint_p = insert_watchpoint(addr, size, is_read);
   if (watchpoint_p == NULL) {
     atomic_fetch_add(&kcsan_slot_taken_count, 1);
     return;
@@ -171,7 +166,7 @@ static void kcsan_check(uintptr_t addr, size_t size, bool is_read) {
   if (addr < KERNEL_SPACE_BEGIN)
     return;
 
-  atomic_int *watchpoint = search_for_race(addr, size, is_read);
+  atomic_long *watchpoint = search_for_race(addr, size, is_read);
   if (__predict_true(watchpoint == NULL)) {
     if (should_watch())
       setup_watchpoint(addr, size, is_read);
@@ -253,6 +248,10 @@ void __tsan_init(void) {
 DEFINE_KCSAN_ATOMIC_OPS(8);
 DEFINE_KCSAN_ATOMIC_OPS(16);
 DEFINE_KCSAN_ATOMIC_OPS(32);
+
+#ifdef _LP64
+DEFINE_KCSAN_ATOMIC_OPS(64);
+#endif /* _LP64 */
 
 void init_kcsan(void) {
   kcsan_ready = 1;
