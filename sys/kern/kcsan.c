@@ -52,6 +52,8 @@ static inline bool decode_watchpoint(int watchpoint, uintptr_t *addr,
 
 static inline bool address_match(uintptr_t addr1, size_t size1, uintptr_t addr2,
                                  size_t size2) {
+  addr1 &= WATCHPOINT_ADDR_MASK;
+  addr2 &= WATCHPOINT_ADDR_MASK;
   return (addr1 < addr2 + size2) && (addr2 < addr1 + size1);
 }
 
