@@ -17,19 +17,8 @@
 #include <dev/evdev.h>
 #include <dev/usb.h>
 
+#define HIDKBD_NMODKEYS 8
 #define HIDKBD_NKEYCODES 6
-
-/* HID keyboard modifier keys indexes. */
-typedef enum {
-  HIDKBD_MK_LEFTCTRL,
-  HIDKBD_MK_LEFTSHIFT,
-  HIDKBD_MK_LEFTALT,
-  HIDKBD_MK_LEFTMETA,
-  HIDKBD_MK_RIGTHCTRL,
-  HIDKBD_MK_RIGHTSHIFT,
-  HIDKBD_MK_RIGHTALT,
-  HIDKBD_MK_RIGHTMETA,
-} __packed hidkbd_modkey_t;
 
 /* HID keyboard input report. */
 typedef struct hidkbd_in_report {
@@ -49,11 +38,6 @@ typedef struct hidkbd_state {
  * Evdev handling functions.
  */
 
-/* Convert a USB keyboard modifier key index to an evdev-compatible keycode. */
-static inline uint16_t evdev_mod2key(hidkbd_modkey_t modkey) {
-  return evdev_hid2key(modkey + 0xe0);
-}
-
 /* Create and setup a corresponding evdev device. */
 static void hidkbd_init_evdev(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
@@ -66,12 +50,12 @@ static void hidkbd_init_evdev(device_t *dev) {
 
   /* EV_SYN is required for every evdev device. */
   evdev_support_event(evdev, EV_SYN);
+
   evdev_support_event(evdev, EV_KEY);
+  evdev_hidkbd_support_all_known_keys(evdev);
   /* NOTE: we assume that the keyboard supports hardware key repetiton,
    * which isn't said to always be true. */
   evdev_support_event(evdev, EV_REP);
-  /* Mark all USB HID-compatible keys as supported. */
-  evdev_hid_support_all_known_keys(evdev);
 
   /* Bind `evdev` to `hidkbd` for future references. */
   hidkbd->evdev = evdev;
@@ -88,15 +72,15 @@ static void hidkbd_init_evdev(device_t *dev) {
 static void hidkbd_process_modkeys(hidkbd_state_t *hidkbd, uint8_t modkeys) {
   uint8_t prev_modkeys = hidkbd->prev_report.modifier_keys;
 
-  for (hidkbd_modkey_t i = HIDKBD_MK_LEFTCTRL; i <= HIDKBD_MK_RIGHTMETA; i++) {
+  for (size_t i = 0; i <= HIDKBD_NMODKEYS; i++) {
     uint8_t prev = prev_modkeys & (1 << i);
     uint8_t cur = modkeys & (1 << i);
 
-    if (prev == cur && !cur)
+    if (prev == cur)
       continue;
 
     uint16_t keycode = evdev_mod2key(i);
-    uint32_t value = cur ? 1 : 0;
+    int32_t value = cur ? 1 : 0;
     evdev_push_event(hidkbd->evdev, EV_KEY, keycode, value);
     evdev_sync(hidkbd->evdev);
   }
@@ -108,7 +92,7 @@ static void hidkbd_process_keycodes(hidkbd_state_t *hidkbd, uint8_t *keycodes) {
 
   for (int i = 0; i < HIDKBD_NKEYCODES; i++) {
     uint16_t keycode;
-    uint32_t value = 1;
+    int32_t value = 1;
 
     if (*prev_keycodes == *keycodes) {
       if (*keycodes == 0)
@@ -203,7 +187,7 @@ static int hidkbd_attach(device_t *dev) {
   if (usb_hid_set_idle(dev))
     return ENXIO;
 
-  /* We rely on the boot protocol. */
+  /* We rely on the boot protocol report layout. */
   if (usb_hid_set_boot_protocol(dev))
     return ENXIO;
 
