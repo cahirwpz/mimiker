@@ -4,7 +4,50 @@
 #include <sys/klog.h>
 #include <sys/cpu.h>
 #include <sys/kcsan.h>
-#include <machine/kcsan.h>
+
+/*
+ * When KCSAN is enabled, the code is instrumented to allow the monitoring of
+ * memory accesses. Specifically, each memory access will be augmented by a
+ * function call. The compiler distinguishes different memory accesses depending
+ * on the type of the variable: plain, volatile or atomic. In our implementation
+ * last two are discarded, because they don't meet the conditions of the
+ * previously defined data race.
+ *
+ * On every memory access KCSAN, basically do two things: checks for the already
+ * existing data race on that address and occasionally sets up a watchpoint. The
+ * second part is skipped (SKIP_COUNT - 1) out of SKIP_COUNT times; to do
+ * otherwise would slow the kernel to a point of complete unusability. On the
+ * SKIP_COUNT th time, though, KCSAN keeps an eye on the address for a period of
+ * time, looking for other accesses. While running in the context of the thread
+ * where the access was performed, KCSAN will set a "watchpoint", which is done
+ * by recording the address, the size of the data access, and whether the access
+ * was a write in a small table. This thread will then simply delay by yielding
+ * control to another thread.
+ *
+ * Note that, before deciding whether to ignore an access, KCSAN looks to see if
+ * there is already a watchpoint established for the address. If so, and if
+ * either the current access or the access that created the watchpoint is a
+ * write, then a race condition has been detected and a report will be sent to
+ * the system log.
+ *
+ * Meanwhile, the original thread is delaying after having set the watchpoint.
+ * At the end of the delay period, the watchpoint will be deleted and monitoring
+ * of that address stops. But before execution continues, the value at the
+ * accessed address will be checked; if it has changed since the watchpoint was
+ * set, a race condition is once again deemed to have occurred.
+ */
+
+/* If the architecture is 64 bit */
+#ifdef _LP64
+#define WATCHPOINT_READ_BIT (1L << 63)
+#define WATCHPOINT_SIZE_SHIFT 61
+#else /* _LP64 */
+#define WATCHPOINT_READ_BIT (1L << 31)
+#define WATCHPOINT_SIZE_SHIFT 29
+#endif /* _LP64 */
+
+#define WATCHPOINT_SIZE_MASK (~(WATCHPOINT_ADDR_MASK | WATCHPOINT_READ_BIT))
+#define WATCHPOINT_ADDR_MASK ((1L << WATCHPOINT_SIZE_SHIFT) - 1)
 
 #define WATCHPOINT_INVALID 0L
 
@@ -14,7 +57,6 @@
  */
 #define WATCHPOINT_NUM 32
 #define SKIP_COUNT 500
-#define WATCHPOINT_DELAY 5
 
 #define MAX_ENCODABLE_SIZE 8
 
@@ -24,7 +66,7 @@ static atomic_long watchpoints[WATCHPOINT_NUM];
 static atomic_int kcsan_slot_taken_count;
 static atomic_int kcsan_set_watchpoint_count;
 
-/* How many accesses should be skipped before we setup a watchpoint. */
+/* How many memory accesses should be skipped before we create a watchpoint. */
 static atomic_int skip_counter = SKIP_COUNT;
 
 static int kcsan_ready;
@@ -56,16 +98,6 @@ static inline bool address_match(uintptr_t addr1, size_t size1, uintptr_t addr2,
 
 static inline int watchpoint_slot(uintptr_t addr) {
   return (addr / PAGESIZE) % WATCHPOINT_NUM;
-}
-
-static inline bool should_watch(void) {
-  return atomic_fetch_sub(&skip_counter, 1) == 1;
-}
-
-static inline void delay(int count) {
-  for (int i = 0; i < count; i++) {
-    thread_yield();
-  }
 }
 
 /*
@@ -128,6 +160,10 @@ static inline uint64_t read_mem(uintptr_t addr, size_t size) {
 static inline void setup_watchpoint(uintptr_t addr, size_t size, bool is_read) {
   uint64_t prev_val = 0, new_val = 0;
 
+  /* Create a watchpoint if the counter reaches 0. */
+  if (atomic_fetch_sub(&skip_counter, 1) != 1)
+    return;
+
   /* Reset the counter. */
   atomic_store(&skip_counter, SKIP_COUNT);
 
@@ -140,7 +176,7 @@ static inline void setup_watchpoint(uintptr_t addr, size_t size, bool is_read) {
   atomic_fetch_add(&kcsan_set_watchpoint_count, 1);
 
   prev_val = read_mem(addr, size);
-  delay(WATCHPOINT_DELAY);
+  thread_yield();
   new_val = read_mem(addr, size);
 
   if (__predict_false(prev_val != new_val)) {
@@ -160,18 +196,20 @@ static void kcsan_check(uintptr_t addr, size_t size, bool is_read) {
   if (!kcsan_ready || cpu_intr_disabled() || preempt_disabled())
     return;
 
-  /* For the sake of simplicity, we consider only accesses of size
-   * 1, 2, 4, 8. */
-  if (size > MAX_ENCODABLE_SIZE || !powerof2(size))
+  /* Not every instrumented memory address is in the kernel space. For an
+   * example, initrd is outside of this range. */
+  if (addr < KERNEL_SPACE_BEGIN)
     return;
 
-  if (addr < KERNEL_SPACE_BEGIN)
+  /* For the sake of simplicity, we consider only accesses of size
+   * 1, 2, 4, 8. Accesses with other sizes can occur when for example structs
+   * are copied with a assignment statement. */
+  if (size > MAX_ENCODABLE_SIZE || !powerof2(size))
     return;
 
   atomic_long *watchpoint = search_for_race(addr, size, is_read);
   if (__predict_true(watchpoint == NULL)) {
-    if (should_watch())
-      setup_watchpoint(addr, size, is_read);
+    setup_watchpoint(addr, size, is_read);
   } else {
     panic("===========KernelConcurrencySanitizer===========\n"
           "* found data race on the variable %p\n"
@@ -182,6 +220,7 @@ static void kcsan_check(uintptr_t addr, size_t size, bool is_read) {
   }
 }
 
+/* Instrumentation of plain memory accesses */
 #define DEFINE_KCSAN_READ_WRITE(size)                                          \
   void __tsan_read##size(void *ptr) {                                          \
     kcsan_check((uintptr_t)ptr, size, true);                                   \
@@ -204,6 +243,11 @@ void __tsan_write_range(void *ptr, size_t size) {
   kcsan_check((uintptr_t)ptr, size, false);
 }
 
+/*
+ * We discard memory accesses on volatile variables, as they can be atomic on
+ * some architectures. And because of that they don't fulfill the requirements
+ * of a data race.
+ */
 #define DEFINE_KCSAN_VOLATILE_READ_WRITE(size)                                 \
   void __tsan_volatile_read##size(void *ptr) {                                 \
   }                                                                            \
@@ -216,6 +260,8 @@ DEFINE_KCSAN_VOLATILE_READ_WRITE(4);
 DEFINE_KCSAN_VOLATILE_READ_WRITE(8);
 DEFINE_KCSAN_VOLATILE_READ_WRITE(16);
 
+/* These functions aren't used KCSAN, but they have to be provied to the
+ * compiler. */
 void __tsan_func_entry(void *call_pc) {
 }
 void __tsan_func_exit(void) {
@@ -223,6 +269,10 @@ void __tsan_func_exit(void) {
 void __tsan_init(void) {
 }
 
+/*
+ * The compiler replaces all atomic operations to these functions. KCSAN doesn't
+ * use them, so we simply call the original ones.
+ */
 #define DEFINE_KCSAN_ATOMIC_OP(size, op)                                       \
   uint##size##_t __tsan_atomic##size##_##op(volatile uint##size##_t *a,        \
                                             uint##size##_t v, int mo) {        \
