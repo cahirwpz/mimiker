@@ -71,6 +71,6 @@ void set_kgprof_profrate(int profrate) {
   _gmonhdr.profrate = profrate;
 }
 
-timer_t *get_prof_timer(void) {
+timer_t *get_stat_timer(void) {
   return tm_reserve(NULL, TMF_PERIODIC);
 }
