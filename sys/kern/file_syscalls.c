@@ -35,13 +35,15 @@ int do_write(proc_t *p, int fd, uio_t *uio) {
   error = f->f_ops->fo_write(f, uio);
   if (error) {
     if (error == EPIPE) {
-      mtx_lock(&proc_lock);
-      // mutex_enter(&proc_lock);
-      kill(proc_t->p_pid, SIGPIPE);
-      // psignal(p, SIGPIPE);
-      // mutex_exit(&proc_lock);
-      mtx_unlock(&proc_lock);
-      error = -1;
+      // SCOPED_MTX_LOCK(&p->p_lock);
+      mtx_lock(&p->p_lock);
+      // FreeBSD: mutex_enter(&proc_lock);
+      sig_kill(p, &DEF_KSI_RAW(SIGPIPE));
+      // FreeBSD: psignal(p, SIGPIPE);
+      // SCOPED_MTX_UNLOCK(&p->p_lock);
+      mtx_unlock(&p->p_lock );
+      // Freebsd: mutex_exit(&proc_lock);
+      // error = -1;
     }
   }
   file_drop(f);
