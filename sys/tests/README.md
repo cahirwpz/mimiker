@@ -63,9 +63,47 @@ In order to make the test runnable one has to add one of these lines to
 
 One also needs to add a line
 
-* `CHECKRUN_TEST({name})` in `/bin/utest/main.c`.
-* `${filename}.c` in `bin/utest/Makefile`
+* `CHECKRUN_TEST({name})` in `/bin/utest/main.c`,
+* `${filename}.c` in `bin/utest/Makefile`.
 
+#### Creating tests
+
+Tests are supposed to return `0` or create kernel panic during execution.
+We achive that by usage of `assert` which when failed creates kernel panic.
+That implies that one should change parts of it's code looking like this that may not execute successfully and may look l
+
+```c
+pid_t child_pid;
+switch (child_pid = fork())
+{
+case -1: /* error */
+    perror("fork");
+    exit(EXIT_FAILURE);
+
+case 0:               
+    /* child */
+    ...
+
+default:               
+    /* parent */
+    ...
+}
+```
+
+to more like
+
+```c
+pid_t child_pid = fork();
+assert(child_pid >= 0);
+if (child_pid == 0) {
+  /* child */
+  ...
+}
+/* parent */
+...
+```
+
+the same goes with usage of every function that may not execute successfully.
 
 ### Flags
 
