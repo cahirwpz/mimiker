@@ -32,10 +32,11 @@ def gmon_write(path):
         size = calcsize(tos_rep)
         tos_array = unpack(tos_rep * int(gparam.tossize/size), memory)
 
-        fromindex = 0
+        fromindex = -1
         froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
         for from_val in froms_array:
             # Nothing has been called from this function
+            fromindex += 1
             if from_val == 0:
                 continue
             # Getting the calling function addres from encoded value
@@ -50,7 +51,6 @@ def gmon_write(path):
                 count = tos_array[toindex * tos_rep_len + 1]
                 toindex = tos_array[toindex * tos_rep_len + 2]
                 of.write(pack('IIi', frompc, selfpc, count))
-            fromindex += 1
 
 
 class Kgmon(SimpleCommand):
