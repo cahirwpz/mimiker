@@ -115,7 +115,7 @@ static int vfs_default_init(vfsconf_t *vfc) {
   return 0;
 }
 
-mount_t *vfs_mount_alloc(vnode_t *vdst, vnode_t *vsrc, vfsconf_t *vfc) {
+mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc) {
   mount_t *m = kmalloc(M_VFS, sizeof(mount_t), M_ZERO);
 
   m->mnt_vfc = vfc;
@@ -123,8 +123,7 @@ mount_t *vfs_mount_alloc(vnode_t *vdst, vnode_t *vsrc, vfsconf_t *vfc) {
   vfc->vfc_mountcnt++; /* TODO: vfc_mtx? */
   m->mnt_data = NULL;
 
-  m->mnt_vnodecovered = vdst;
-  m->mnt_source = vsrc;
+  m->mnt_vnodecovered = v;
 
   m->mnt_refcnt = 0;
   mtx_init(&m->mnt_mtx, 0);
@@ -143,10 +142,10 @@ int vfs_domount(vfsconf_t *vfc, vnode_t *vdst, vnode_t *vsrc) {
 
   /* TODO: Mark the vnode is in-progress of mounting? See VI_MOUNT in FreeBSD */
 
-  mount_t *m = vfs_mount_alloc(vdst, vsrc, vfc);
+  mount_t *m = vfs_mount_alloc(vdst, vfc);
 
   /* Mount the filesystem. */
-  if ((error = VFS_MOUNT(m)))
+  if ((error = VFS_MOUNT(m, vsrc)))
     return error;
 
   vdst->v_mountedhere = m;

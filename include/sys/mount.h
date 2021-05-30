@@ -34,7 +34,7 @@ typedef struct vfsconf vfsconf_t;
 typedef struct statvfs statvfs_t;
 
 /* VFS operations */
-typedef int vfs_mount_t(mount_t *m);
+typedef int vfs_mount_t(mount_t *m, vnode_t *vsrc);
 typedef int vfs_root_t(mount_t *m, vnode_t **vp);
 typedef int vfs_statvfs_t(mount_t *m, statvfs_t *sb);
 typedef int vfs_vget_t(mount_t *m, ino_t ino, vnode_t **vp);
@@ -71,7 +71,6 @@ typedef struct mount {
   vfsops_t *mnt_vfsops;      /* Filesystem operations */
   vfsconf_t *mnt_vfc;        /* Link to filesystem info */
   vnode_t *mnt_vnodecovered; /* The vnode covered by this mount */
-  vnode_t *mnt_source;       /* The source of filesystem's underlying data */
 
   refcnt_t mnt_refcnt; /* Reference count */
   mtx_t mnt_mtx;
@@ -79,8 +78,8 @@ typedef struct mount {
   void *mnt_data; /* Filesystem-specific arbitrary data */
 } mount_t;
 
-static inline int VFS_MOUNT(mount_t *m) {
-  return m->mnt_vfsops->vfs_mount(m);
+static inline int VFS_MOUNT(mount_t *m, vnode_t *vsrc) {
+  return m->mnt_vfsops->vfs_mount(m, vsrc);
 }
 
 static inline int VFS_ROOT(mount_t *m, vnode_t **vp) {
@@ -102,9 +101,9 @@ extern vnode_t *vfs_root_vnode;
 vfsconf_t *vfs_get_by_name(const char *name);
 
 /* Allocates and initializes a new mount struct, using filesystem vfc, covering
- * vnode vdst. Does not modify vdst. Does not insert new mount onto the all
- * mounts list. vsrc is a vnode used to read the filesystem if not NULL */
-mount_t *vfs_mount_alloc(vnode_t *vdst, vnode_t *vsrc, vfsconf_t *vfc);
+ * vnode v. Does not modify v. Does not insert new mount onto the all mounts
+ * list. */
+mount_t *vfs_mount_alloc(vnode_t *v, vfsconf_t *vfc);
 
 /* Mount a new instance of the filesystem vfc at the vnode vdst. Does not
  * support remounting. Use vsrc as a source for fs data if not NULL.
