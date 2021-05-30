@@ -6,7 +6,7 @@
 #include <sys/vm_object.h>
 #include <sys/vm_physmem.h>
 
-static POOL_DEFINE(P_VMOBJ, "vm_object", sizeof(vm_object_t), P_DEF_ALIGN);
+static POOL_DEFINE(P_VMOBJ, "vm_object", sizeof(vm_object_t));
 
 vm_object_t *vm_object_alloc(vm_pgr_type_t type) {
   vm_object_t *obj = pool_alloc(P_VMOBJ, M_ZERO);
