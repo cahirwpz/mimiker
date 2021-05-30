@@ -12,8 +12,11 @@ typedef enum {
 static int test_pool_alloc(palloc_test_t flag) {
   const int N = 50;
 
-  int size = 64;
-  pool_t *test = pool_create("test", size, P_DEF_ALIGN);
+  pool_args_t args = (pool_args_t){
+    .desc = "test",
+    .size = 64,
+  };
+  pool_t *test = pool_create(&args);
 
   for (int n = 1; n < N; n++) {
     void **item = kmalloc(M_TEST, sizeof(void *) * n, 0);

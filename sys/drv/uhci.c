@@ -61,8 +61,7 @@ typedef struct uhci_state {
 
 static POOL_DEFINE(P_TFR, "UHCI transfer buffers", UHCI_TFR_BUF_SIZE,
                    UHCI_ALIGNMENT);
-static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE,
-                   P_DEF_ALIGN);
+static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
 
 /*
  * How do we manage the UHCI frame list?

@@ -14,7 +14,7 @@
 #include <sys/kmem.h>
 #include <sys/context.h>
 
-static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t), P_DEF_ALIGN);
+static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));
 
 typedef TAILQ_HEAD(, thread) thread_list_t;
 

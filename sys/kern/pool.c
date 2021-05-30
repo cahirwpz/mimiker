@@ -14,6 +14,8 @@
 #include <bitstring.h>
 #include <sys/kasan.h>
 
+#define PI_ALIGNMENT sizeof(uint64_t)
+
 #define POOL_DEBUG 0
 
 #if defined(POOL_DEBUG) && POOL_DEBUG > 0
@@ -78,30 +80,24 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
   /*
    * Now we need to calculate maximum possible number of items of given `size`
    * in slab that occupies one page, taking into account space taken by:
-   *  - items: ntotal * (sizeof(pool_item_t) + size),
+   *  - items: ntotal * itemsize,
    *  - slab + bitmap: sizeof(slab_t) + bitstr_size(ntotal)
    * With:
    *  - usable = slabsize - sizeof(slab_t)
-   *  - itemsize = sizeof(pool_item_t) + size;
    * ... inequation looks as follow:
    * (1) ntotal * itemsize + (ntotal + 7) / 8 <= usable
    * (2) ntotal * 8 * itemsize + ntotal + 7 <= usable * 8
-   * (3) ntotal * (8 * itemsize + 1) <= usable * 8 + 7
-   * (4) ntotal <= (usable * 8 + 7) / (8 * itemisize + 1)
+   * (3) ntotal * (8 * itemsize + 1) <= usable * 8 - 7
+   * (4) ntotal <= (usable * 8 - 7) / (8 * itemisize + 1)
    */
   size_t usable = slabsize - sizeof(slab_t);
-  slab->ph_ntotal = (usable * 8 + 7) / (8 * slab->ph_itemsize + 1);
+  slab->ph_ntotal = (usable * 8 - 7) / (8 * slab->ph_itemsize + 1);
   slab->ph_nused = 0;
 
   assert(slab->ph_ntotal > 0);
 
   size_t header = sizeof(slab_t) + bitstr_size(slab->ph_ntotal);
-  void *slab_end = (void *)slab + slabsize;
   slab->ph_items = (void *)slab + align(header, pool->pp_alignment);
-
-  /* We might have lost a single item due to the alignment. */
-  if ((slab_end - slab->ph_items) / slab->ph_itemsize < slab->ph_ntotal)
-    slab->ph_ntotal--;
 
   bzero(slab->ph_bitmap, bitstr_size(slab->ph_ntotal));
 
@@ -247,9 +243,13 @@ static void pool_dtor(pool_t *pool) {
   klog("destroyed pool '%s' at %p", pool->pp_desc, pool);
 }
 
-static void pool_init(pool_t *pool, const char *desc, size_t size,
-                      size_t alignment) {
-  alignment = max(alignment, P_DEF_ALIGN);
+static void pool_init(pool_t *pool, pool_args_t *args) {
+  const char *desc = args->desc;
+  size_t size = args->size;
+  size_t alignment = max(args->alignment, PI_ALIGNMENT);
+  assert(desc);
+  assert(size);
+  assert(powerof2(alignment));
 
   pool_ctor(pool);
   pool->pp_desc = desc;
@@ -257,7 +257,7 @@ static void pool_init(pool_t *pool, const char *desc, size_t size,
 #if KASAN
   /* the alignment is within the redzone */
   pool->pp_itemsize = size;
-  pool->pp_redzone = align(size, alignment) - size + KASAN_POOL_REDZONE_SIZE;
+  pool->pp_redzone = align(size + KASAN_POOL_REDZONE_SIZE, alignment) - size;
 #else /* !KASAN */
   /* no redzone, we have to align the size itself */
   pool->pp_itemsize = align(size, alignment);
@@ -278,9 +278,9 @@ void pool_add_page(pool_t *pool, void *page, size_t size) {
   add_slab(pool, page, size);
 }
 
-pool_t *pool_create(const char *desc, size_t size, size_t alignment) {
+pool_t *pool_create(pool_args_t *args) {
   pool_t *pool = kmalloc(M_POOL, sizeof(pool_t), M_ZERO | M_NOWAIT);
-  pool_init(pool, desc, size, alignment);
+  pool_init(pool, args);
   return pool;
 }
 
