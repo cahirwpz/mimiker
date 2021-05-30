@@ -79,19 +79,18 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
   /*
    * Now we need to calculate maximum possible number of items of given `size`
    * in slab that occupies one page, taking into account space taken by:
-   *  - items: ntotal * (sizeof(pool_item_t) + size),
+   *  - items: ntotal * itemsize,
    *  - slab + bitmap: sizeof(slab_t) + bitstr_size(ntotal)
    * With:
    *  - usable = slabsize - sizeof(slab_t)
-   *  - itemsize = sizeof(pool_item_t) + size;
    * ... inequation looks as follow:
    * (1) ntotal * itemsize + (ntotal + 7) / 8 <= usable
    * (2) ntotal * 8 * itemsize + ntotal + 7 <= usable * 8
-   * (3) ntotal * (8 * itemsize + 1) <= usable * 8 + 7
-   * (4) ntotal <= (usable * 8 + 7) / (8 * itemisize + 1)
+   * (3) ntotal * (8 * itemsize + 1) <= usable * 8 - 7
+   * (4) ntotal <= (usable * 8 - 7) / (8 * itemisize + 1)
    */
   size_t usable = slabsize - sizeof(slab_t);
-  slab->ph_ntotal = (usable * 8 + 7) / (8 * slab->ph_itemsize + 1);
+  slab->ph_ntotal = (usable * 8 - 7) / (8 * slab->ph_itemsize + 1);
   slab->ph_nused = 0;
 
   assert(slab->ph_ntotal > 0);
