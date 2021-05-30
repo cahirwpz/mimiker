@@ -30,9 +30,8 @@ struct vm_map {
   mtx_t mtx; /* Mutex guarding vm_map structure and all its entries. */
 };
 
-static POOL_DEFINE(P_VM_MAP, "vm_map", sizeof(vm_map_t), P_DEF_ALIGN);
-static POOL_DEFINE(P_VM_MAPENT, "vm_map_entry", sizeof(vm_map_entry_t),
-                   P_DEF_ALIGN);
+static POOL_DEFINE(P_VM_MAP, "vm_map", sizeof(vm_map_t));
+static POOL_DEFINE(P_VM_MAPENT, "vm_map_entry", sizeof(vm_map_entry_t));
 
 static vm_map_t *kspace = &(vm_map_t){};
 

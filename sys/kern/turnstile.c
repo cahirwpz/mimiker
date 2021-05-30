@@ -74,7 +74,7 @@ void init_turnstile(void) {
   }
 }
 
-static POOL_DEFINE(P_TURNSTILE, "turnstile", sizeof(turnstile_t), P_DEF_ALIGN);
+static POOL_DEFINE(P_TURNSTILE, "turnstile", sizeof(turnstile_t));
 
 turnstile_t *turnstile_alloc(void) {
   turnstile_t *ts = pool_alloc(P_TURNSTILE, M_ZERO);

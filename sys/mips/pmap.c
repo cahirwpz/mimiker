@@ -30,8 +30,8 @@ typedef struct pv_entry {
   vaddr_t va;                      /* under this address */
 } pv_entry_t;
 
-static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t), P_DEF_ALIGN);
-static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t), P_DEF_ALIGN);
+static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
+static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 
 static const pte_t vm_prot_map[] = {
   [VM_PROT_NONE] = PTE_SW_NOEXEC,

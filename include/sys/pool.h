@@ -19,12 +19,15 @@ typedef struct pool pool_t;
 /*! \brief Called during kernel initialization. */
 void init_pool(void);
 
-/* Default pool item alignment. */
-#define P_DEF_ALIGN sizeof(uint64_t)
+/* Pool input parameters. */
+typedef struct pool_args {
+  const char *desc;
+  size_t size;
+  size_t alignment;
+} pool_args_t;
 
-/*! \brief Creates a pool of objects of given size
- * and with given alignment. */
-pool_t *pool_create(const char *desc, size_t size, size_t alignment);
+/*! \brief Creates a pool of objects of given size. */
+pool_t *pool_create(pool_args_t *args);
 
 /*! \brief Adds a slab of one page to the pool.
  *
@@ -52,7 +55,7 @@ void pool_free(pool_t *pool, void *ptr);
 #define POOL_DEFINE(NAME, ...)                                                 \
   struct pool *NAME;                                                           \
   static void __ctor_##NAME(void) {                                            \
-    NAME = pool_create(__VA_ARGS__);                                           \
+    NAME = pool_create(&(pool_args_t){__VA_ARGS__});                           \
   }                                                                            \
   SET_ENTRY(pool_ctor_table, __ctor_##NAME);
 

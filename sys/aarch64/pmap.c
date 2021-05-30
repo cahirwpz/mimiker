@@ -31,8 +31,13 @@ typedef struct pv_entry {
   vaddr_t va;                      /* under this address */
 } pv_entry_t;
 
-static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t), P_DEF_ALIGN);
-static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t), P_DEF_ALIGN);
+static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
+static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
+
+#define PA_MASK 0xfffffffff000
+#define ADDR_MASK 0x8ffffffff000
+#define DMAP_BASE 0xffffff8000000000 /* last 512GB */
+#define PHYS_TO_DMAP(x) ((intptr_t)(x) + DMAP_BASE)
 
 /*
  * This table describes which access bits need to be set in page table entry
@@ -86,6 +91,7 @@ static SPIN_DEFINE(asid_lock, 0);
  * pmap_t::mtx */
 static MTX_DEFINE(pv_list_lock, 0);
 
+#define PTE_FRAME_ADDR(pte) ((pte)&PA_MASK)
 #define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
 #define PG_DMAP_ADDR(pg) ((void *)((intptr_t)(pg)->paddr + DMAP_BASE))
 
