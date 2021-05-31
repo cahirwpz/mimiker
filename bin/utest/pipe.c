@@ -26,7 +26,8 @@ int test_pipe_parent_signaled(void) {
   signal(SIGPIPE, sigpipe_handler);
 
   /* creating pipe */
-  assert(pipe2(pipe_fd, 0) == 0);
+  int pipe2_ret = pipe2(pipe_fd, 0);
+  assert(pipe2_ret == 0);
 
   /* forking */
   pid_t child_pid = fork();
@@ -61,7 +62,8 @@ int test_pipe_child_signaled(void) {
   signal_setup(SIGUSR1);
 
   /* creating pipe */
-  assert(pipe2(pipe_fd, 0) == 0);
+  int pipe2_ret = pipe2(pipe_fd, 0);
+  assert(pipe2_ret == 0);
 
   /* forking */
   pid_t child_pid = fork();
