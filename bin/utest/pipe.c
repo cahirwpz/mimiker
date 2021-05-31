@@ -76,7 +76,8 @@ int test_pipe_child_signaled(void) {
     wait_for_signal(SIGUSR1); /* now we know that other end is closed */
 
     /* This is supposed to trigger SIGPIPE and return EPIPE */
-    assert(write(pipe_fd[1], "hello world\n", 12) == -1);
+    ssize_t write_ret = write(pipe_fd[1], "hello world\n", 12);
+    assert(write_ret == -1);
     assert(errno == EPIPE);
     assert(signal_delivered);
 
@@ -95,7 +96,8 @@ int test_pipe_child_signaled(void) {
    */
   int wstatus = 1;
   do {
-    assert(waitpid(child_pid, &wstatus, 0) == child_pid);
+    ssize_t waitpid_ret = waitpid(child_pid, &wstatus, 0);
+    assert(waitpid_ret == child_pid);
   } while (!WIFEXITED(wstatus));
 
   assert(WEXITSTATUS(wstatus) == EXIT_SUCCESS);
