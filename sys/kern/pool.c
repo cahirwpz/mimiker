@@ -88,7 +88,7 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
    * (1) ntotal * itemsize + (ntotal + 7) / 8 <= usable
    * (2) ntotal * 8 * itemsize + ntotal + 7 <= usable * 8
    * (3) ntotal * (8 * itemsize + 1) <= usable * 8 - 7
-   * (4) ntotal <= (usable * 8 - 7) / (8 * itemisize + 1)
+   * (4) ntotal <= (usable * 8 - 7) / (8 * itemsize + 1)
    */
   size_t usable = slabsize - sizeof(slab_t);
   slab->ph_ntotal = (usable * 8 - 7) / (8 * slab->ph_itemsize + 1);
@@ -243,7 +243,7 @@ static void pool_dtor(pool_t *pool) {
   klog("destroyed pool '%s' at %p", pool->pp_desc, pool);
 }
 
-static void pool_init(pool_t *pool, pool_args_t *args) {
+static void pool_init(pool_t *pool, pool_init_t *args) {
   const char *desc = args->desc;
   size_t size = args->size;
   size_t alignment = max(args->alignment, PI_ALIGNMENT);
@@ -278,7 +278,7 @@ void pool_add_page(pool_t *pool, void *page, size_t size) {
   add_slab(pool, page, size);
 }
 
-pool_t *pool_create(pool_args_t *args) {
+pool_t *_pool_create(pool_init_t *args) {
   pool_t *pool = kmalloc(M_POOL, sizeof(pool_t), M_ZERO | M_NOWAIT);
   pool_init(pool, args);
   return pool;
