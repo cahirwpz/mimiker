@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #include <signal.h>
 #include <string.h>
@@ -17,7 +18,8 @@ int test_pipe_blocking_flag_manipulation(void) {
   int pipe_fd[2];
 
   /* creating pipe */
-  assert(pipe2(pipe_fd, O_NONBLOCK) == 0);
+  int pipe_ret_val = pipe2(pipe_fd, O_NONBLOCK);
+  assert(pipe_ret_val == 0);
 
   /* check if flag is set */
   assert(fcntl(pipe_fd[0], F_GETFL) & O_NONBLOCK);
