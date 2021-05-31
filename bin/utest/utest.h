@@ -119,4 +119,6 @@ int test_tty_signals(void);
 
 int test_procstat(void);
 
+int test_pipe_blocking_flag_manipulation(void);
+
 #endif /* __UTEST_H__ */
