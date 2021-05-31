@@ -11,6 +11,8 @@ CLANG_ABIFLAGS := -target aarch64-elf
 ELFTYPE := elf64-littleaarch64
 ELFARCH := aarch64
 
+CPPFLAGS += -DSTRICT_ALIGNMENT=1
+
 ifeq ($(KERNEL), 1)
 	CFLAGS += -mcpu=cortex-a53+nofp -march=armv8-a+nofp -mgeneral-regs-only
 	ifeq ($(KASAN), 1)
