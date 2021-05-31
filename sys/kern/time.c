@@ -24,7 +24,7 @@ int do_clock_gettime(clockid_t clk, timespec_t *tp) {
   return 0;
 }
 
-static systime_t ts2hz(const timespec_t *ts) {
+systime_t ts2hz(const timespec_t *ts) {
   if (ts->tv_sec < 0 || (ts->tv_sec == 0 && ts->tv_nsec == 0))
     return 0;
 
@@ -294,4 +294,15 @@ int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
   kitimer_setup(p, itval);
 
   return 0;
+}
+
+static void mdelay_timeout(__unused void *arg) {
+  /* Nothing to do here. */
+}
+
+void mdelay(systime_t ms) {
+  callout_t callout;
+  callout_setup(&callout, mdelay_timeout, NULL);
+  callout_schedule(&callout, ms);
+  callout_drain(&callout);
 }

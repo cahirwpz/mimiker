@@ -71,6 +71,9 @@ jobs:
             sys/mimiker.elf
             sys/mimiker.img.gz
             sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            sys/dts/*.dtb
             initrd.cpio
 
   build_aarch64_clang:
