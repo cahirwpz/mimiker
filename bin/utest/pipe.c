@@ -15,7 +15,7 @@
 
 static sig_atomic_t signal_delivered;
 
-void sigpipe_handler(int signo) {
+static void sigpipe_handler(int signo) {
   signal_delivered = 1;
   return;
 }
@@ -45,7 +45,7 @@ int test_pipe_parent_signaled(void) {
   wait_for_child_exit(child_pid, EXIT_SUCCESS);
 
   /* This is supposed to trigger SIGPIPE and return EPIPE */
-  int write_ret = write(pipe_fd[1], "hello world\n", 12);
+  ssize_t write_ret = write(pipe_fd[1], "hello world\n", 12);
   assert(write_ret == -1);
   assert(errno == EPIPE);
   assert(signal_delivered);
