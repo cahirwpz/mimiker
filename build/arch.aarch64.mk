@@ -26,5 +26,5 @@ else
 endif
 
 ifeq ($(BOARD), rpi3)
-	KERNEL-IMAGE := mimiker.img.gz
+	KERNEL-IMAGES := mimiker.img mimiker.img.gz
 endif
