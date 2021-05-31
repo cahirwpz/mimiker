@@ -22,10 +22,6 @@ static inline bool ringbuf_full(ringbuf_t *buf) {
   return buf->count == buf->size;
 }
 
-static inline bool ringbuf_contains(ringbuf_t *buf, size_t n) {
-  return buf->count >= n;
-}
-
 void ringbuf_init(ringbuf_t *rb, void *buf, size_t size);
 bool ringbuf_putb(ringbuf_t *buf, uint8_t byte);
 /*! \brief Put exactly n bytes into buf if there's enough space. */
