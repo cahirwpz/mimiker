@@ -1,4 +1,3 @@
-
 # Onboarding note
 
 ## Project overview
@@ -20,7 +19,8 @@ system for Malta board and Raspberry Pi 3.
 
 ### More significant tools we use to run system
 
-* QEMU - virtual machine allowing us to run system
+* QEMU - system emulator allowing us to run MIPS and AArch64 guest code
+  on x86-64 hosts.
 * Tmux - terminal multiplexer, that allows us to access multiple terminals in
   one window
 * Korn Shell (`ksh`) - simple and only one shell that we already ported
