@@ -13,16 +13,33 @@
 #include "utest.h"
 #include "util.h"
 
-int test_pipe_parent_signaled(void) {
+int test_pipe_blocking_flag_manipulation(void) {
   int pipe_fd[2];
 
   /* creating pipe */
   assert(pipe2(pipe_fd, O_NONBLOCK) == 0);
 
-  /* forking */
-  pid_t child_pid = fork();
-  assert(child_pid >= 0);
+  /* check if flag is set */
+  assert(fcntl(pipe_fd[0], F_GETFL) & O_NONBLOCK);
+  assert(fcntl(pipe_fd[1], F_GETFL) & O_NONBLOCK);
 
-  if (child_pid == 0) { /* child */
-  }
+  /* unset same flag for read end */
+  int read_flagset_with_block;
+  assert(read_flagset_with_block = fcntl(pipe_fd[0], F_GETFL) > 0);
+  fcntl(pipe_fd[0], F_SETFL, read_flagset_with_block & ~O_NONBLOCK);
+  /* unset same flag for write end */
+  int write_flagset_with_block;
+  assert(write_flagset_with_block = fcntl(pipe_fd[1], F_GETFL) > 0);
+  fcntl(pipe_fd[1], F_SETFL, write_flagset_with_block & ~O_NONBLOCK);
+
+  /* check if flag is not set */
+  assert(!(fcntl(pipe_fd[0], F_GETFL) & O_NONBLOCK));
+  assert(!(fcntl(pipe_fd[1], F_GETFL) & O_NONBLOCK));
+
+  return 0;
 }
+
+// int main() {
+//   test_pipe_blocking_flag_manipulation();
+//   return 0;
+// }

@@ -181,3 +181,5 @@ UTEST_ADD_SIMPLE(tty_echo);
 UTEST_ADD_SIMPLE(tty_signals);
 
 UTEST_ADD_SIMPLE(procstat);
+
+UTEST_ADD_SIMPLE(pipe_blocking_flag_manipulation);
