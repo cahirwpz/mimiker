@@ -12,6 +12,7 @@ SOURCES = \
 	main.c \
 	misbehave.c \
 	mmap.c \
+	pipe.c \
 	pgrp.c \
 	procstat.c \
 	pty.c \
