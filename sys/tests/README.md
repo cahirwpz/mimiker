@@ -7,7 +7,7 @@ the command that is used by continuous integration. Some useful arguments are
 listed below:
 
 * `--infinite` - keep testing until some error is found.
-* `--non-interactive` - do not run interactive gdb session if tests fail.
+* `--non-interactive` - do not run interactive GDB session if tests fail.
 * `--thorough` - generate much more test seeds. Testing will take much more time.
 
 For greater control you can pass kernel arguments that control test runs. That
@@ -69,9 +69,8 @@ One also needs to add a line
 #### Creating tests
 
 Tests are supposed to return `0` or create kernel panic during execution.
-We achive that by usage of `assert` which when failed creates kernel panic.
-That implies that one should change parts of it's code looking like this that
-may not execute successfully and may look l
+We achieve that by usage of `assert` which when failed creates kernel panic.
+That implies that one should change parts of its code that may look like this
 
 ```c
 pid_t child_pid;
@@ -104,7 +103,21 @@ if (child_pid == 0) {
 ...
 ```
 
-the same goes with usage of every function that may not execute successfully.
+The same goes with usage of every function that may not execute successfully.
+
+Also watch out for `assert`, *it's a macro* which means that expression
+inside may be executed more than once. Hence, code below is absolutely **unacceptable**.
+
+```c
+pid_t child_pid;
+assert(child_pid = fork() >= 0);
+if (child_pid == 0) {
+  /* child */
+  ...
+}
+/* parent */
+...
+```
 
 ### Flags
 
