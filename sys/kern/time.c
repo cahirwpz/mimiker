@@ -300,7 +300,7 @@ static void mdelay_timeout(__unused void *arg) {
   /* Nothing to do here. */
 }
 
-void mdelay(useconds_t ms) {
+void mdelay(systime_t ms) {
   callout_t callout;
   callout_setup(&callout, mdelay_timeout, NULL);
   callout_schedule(&callout, ms);
