@@ -88,7 +88,7 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
    * (1) ntotal * itemsize + (ntotal + 7) / 8 <= usable
    * (2) ntotal * 8 * itemsize + ntotal + 7 <= usable * 8
    * (3) ntotal * (8 * itemsize + 1) <= usable * 8 - 7
-   * (4) ntotal <= (usable * 8 - 7) / (8 * itemisize + 1)
+   * (4) ntotal <= (usable * 8 - 7) / (8 * itemsize + 1)
    */
   size_t usable = slabsize - sizeof(slab_t);
   slab->ph_ntotal = (usable * 8 - 7) / (8 * slab->ph_itemsize + 1);
