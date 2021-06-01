@@ -24,12 +24,12 @@ jobs:
       - run: ./verify-pycodestyle.sh
 
   build_mips_gcc:
-    name: Build MIPS (GCC + KASAN)
+    name: Build MIPS (GCC + KASAN + LOCKDEP)
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v2
-      - run: make BOARD=malta KASAN=1
+      - run: make BOARD=malta KASAN=1 LOCKDEP=1
       - uses: actions/upload-artifact@v2
         with:
           name: "mips gcc kernel+ramdisk"
@@ -58,12 +58,12 @@ jobs:
             initrd.cpio
 
   build_aarch64_gcc:
-    name: Build AArch64 (GCC + KASAN)
+    name: Build AArch64 (GCC + KASAN + LOCKDEP)
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v2
-      - run: make KASAN=1 BOARD=rpi3
+      - run: make KASAN=1 BOARD=rpi3 LOCKDEP=1
       - uses: actions/upload-artifact@v2
         with:
           name: "aarch64 gcc kernel+ramdisk"
@@ -85,7 +85,7 @@ jobs:
       - run: make BOARD=rpi3 CLANG=1
 
   kernel_tests_mips_gcc:
-    name: Tests MIPS (GCC + KASAN)
+    name: Tests MIPS (GCC + KASAN + LOCKDEP)
     runs-on: self-hosted
     needs: build_mips_gcc
     steps:
@@ -96,7 +96,7 @@ jobs:
       - run: ./run_tests.py --board malta --timeout=80 --times=50
 
   kernel_tests_aarch64_gcc:
-    name: Tests AArch64 (GCC + KASAN)
+    name: Tests AArch64 (GCC + KASAN + LOCKDEP)
     runs-on: self-hosted
     needs: build_aarch64_gcc
     steps:
