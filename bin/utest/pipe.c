@@ -40,8 +40,3 @@ int test_pipe_blocking_flag_manipulation(void) {
 
   return 0;
 }
-
-// int main() {
-//   test_pipe_blocking_flag_manipulation();
-//   return 0;
-// }
