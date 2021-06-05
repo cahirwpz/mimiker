@@ -33,13 +33,12 @@ int do_write(proc_t *p, int fd, uio_t *uio) {
 
   uio->uio_ioflags |= f->f_flags & IO_MASK;
   error = f->f_ops->fo_write(f, uio);
-  if (error) {
-    if (error == EPIPE) {
-      proc_lock(p);
-      sig_kill(p, &DEF_KSI_RAW(SIGPIPE));
-      proc_unlock(p);
-    }
+  if (error == EPIPE) {
+    proc_lock(p);
+    sig_kill(p, &DEF_KSI_RAW(SIGPIPE));
+    proc_unlock(p);
   }
+
   file_drop(f);
   return error;
 }

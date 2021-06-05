@@ -16,8 +16,8 @@
 static sig_atomic_t signal_delivered;
 
 static void sigpipe_handler(int signo) {
+  assert(signo == SIGPIPE);
   signal_delivered = 1;
-  return;
 }
 
 int test_pipe_parent_signaled(void) {
