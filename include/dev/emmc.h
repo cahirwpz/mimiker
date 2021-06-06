@@ -153,8 +153,7 @@ typedef enum emmc_prop_id {
                                * controller is able to operate */
   EMMC_PROP_RW_RESP_LOW,      /* Low 64 bits of response register(s) */
   EMMC_PROP_RW_RESP_HI,       /* High 64 bits of response register(s) */
-  EMMC_PROP_RW_CLOCK_FREQ,    /* Clocking frequency (Hz)
-                               * (ETIMEDOUT on timeout, */
+  EMMC_PROP_RW_CLOCK_FREQ,    /* Clocking frequency (Hz) */
   EMMC_PROP_RW_BUSWIDTH,      /* Bus width, ie. no. of data lanes. */
   EMMC_PROP_RW_RCA,           /* Relative card address */
 } emmc_prop_id_t;

@@ -54,13 +54,16 @@
 
 /* This seems to be the default frequency of the clk_emmc.
  * Preferably, it should be somewhere between 50MHz and 100MHz, but changing
- * it requires messing around with Clock Manager, which at the moment is beyound
+ * it requires messing around with Clock Manager, which at the moment is beyond
  * the scope of this driver.
  */
 #define GPIO_CLK_EMMC_DEFAULT_FREQ 41666666
 
-/* Clock divisor mask for BCMEMMC_CONTROL1 */
-#define BCMEMMC_CLKDIV_MASK 0xffff003f
+/* (inverted) Clock divisor mask for BCMEMMC_CONTROL1 */
+#define BCMEMMC_CLKDIV_INVMASK 0xffff003f
+
+/* Initial clocking frequency for the e.MMC controller */
+#define BCMEMMC_INIT_FREQ 400000
 
 /* Flags for command register */
 #define CMD_TYPE_SUSPEND 0x00400000
@@ -74,5 +77,8 @@
 #define CMD_RESP136 0x00010000
 #define CMD_RESP48 0x00020000
 #define CMD_RESP48B 0x00030000
+
+/* Spooky GPIO stuff */
+#define GPHEN1 0x0068
 
 #endif

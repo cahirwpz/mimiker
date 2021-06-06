@@ -22,15 +22,13 @@
 #include <sys/bitops.h>
 #include <dev/bcm2835_emmcreg.h>
 
-static driver_t bcmemmc_driver;
-
 typedef struct bcmemmc_state {
   resource_t *gpio;      /* GPIO resource (needed until we have a decent
-                          * way of setting up GPIO */
+                          * way of setting up GPIO) */
   resource_t *emmc;      /* e.MMC controller registers */
   resource_t *irq;       /* e.MMC controller interrupt */
   condvar_t cv_intr;     /* Used to to wake up the thread on interrupt */
-  spin_t slock;          /* Lock */
+  spin_t lock;          /* Lock */
   uint64_t rca;          /* Relative Card Address */
   uint64_t host_version; /* Host specification version */
   uint32_t intrs;        /* Received interrupts */
@@ -43,9 +41,9 @@ typedef struct bcmemmc_state {
 
 /**
  * Delay function.
- * This just loops <delay> times in a way that the compiler
+ * This just loops `count` times in a way that the compiler
  * won't optimize away.
- * \param delay number of cycles to delay
+ * \param count number of cycles to delay
  */
 static void delay(int64_t count) {
   __asm__ volatile("1: subs %[count], %[count], #1; bne 1b"
@@ -53,10 +51,9 @@ static void delay(int64_t count) {
 }
 
 static inline uint32_t emmc_wait_flags_to_hwflags(emmc_wait_flags_t mask) {
-  uint32_t result = ((mask & EMMC_I_DATA_DONE) ? INT_DATA_DONE : 0) |
-                    ((mask & EMMC_I_READ_READY) ? INT_READ_RDY : 0) |
-                    ((mask & EMMC_I_WRITE_READY) ? INT_WRITE_RDY : 0);
-  return result;
+  return ((mask & EMMC_I_DATA_DONE) ? INT_DATA_DONE : 0) |
+         ((mask & EMMC_I_READ_READY) ? INT_READ_RDY : 0) |
+         ((mask & EMMC_I_WRITE_READY) ? INT_WRITE_RDY : 0);
 }
 
 /* Timeout when awaiting an interrupt */
@@ -64,7 +61,7 @@ static inline uint32_t emmc_wait_flags_to_hwflags(emmc_wait_flags_t mask) {
 #define BCMEMMC_BUSY_CYCLES 128
 
 /**
- * \brief Wait for (a set of) interrupt
+ * \brief Wait for the specified interrupts.
  * \param dev eMMC device
  * \param mask expected interrupts
  * \param clear additional interrupt bits to be cleared
@@ -75,7 +72,7 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
   resource_t *emmc = state->emmc;
   uint32_t m = 0;
 
-  WITH_SPIN_LOCK (&state->slock) {
+  WITH_SPIN_LOCK (&state->lock) {
   bcmemmc_restart_intr_wait:
     while (mask) {
       if (state->intrs & mask) {
@@ -91,7 +88,7 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
       }
       /* Sleep for a while if no interrupts have been received so far */
       if (!state->intrs) {
-        if (cv_wait_timed(&state->cv_intr, &state->slock, BCMEMMC_TIMEOUT)) {
+        if (cv_wait_timed(&state->cv_intr, &state->lock, BCMEMMC_TIMEOUT)) {
           b_out(emmc, BCMEMMC_INTERRUPT, 0xffffffff);
           return ETIMEDOUT;
         }
@@ -109,8 +106,6 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
 }
 
 static int bcmemmc_wait(device_t *cdev, emmc_wait_flags_t wflags) {
-  assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
-
   uint32_t mask = emmc_wait_flags_to_hwflags(wflags);
   return bcmemmc_intr_wait(cdev->parent, mask);
 }
@@ -118,55 +113,62 @@ static int bcmemmc_wait(device_t *cdev, emmc_wait_flags_t wflags) {
 static intr_filter_t bcmemmc_intr_filter(void *data) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)data;
   resource_t *emmc = state->emmc;
-  WITH_SPIN_LOCK (&state->slock) {
+  WITH_SPIN_LOCK (&state->lock) {
     uint32_t r = b_in(emmc, BCMEMMC_INTERRUPT);
     state->intrs = r;
     /* Interrupts need to be cleared manually */
     b_out(emmc, BCMEMMC_INTERRUPT, r);
-    /* Wake up the thread if all expected interrupts have been received */
+    /* Wake up the waiting thread if all expected intrs have been received */
     cv_signal(&state->cv_intr);
   }
   return IF_FILTERED;
 }
 
-/* Find a divisor that provides the best approximation */
-static uint32_t bcmemmc_clk_approx_divisor(uint32_t clk, uint32_t f) {
-  int32_t c1 = clk / f;
+/* Find a divisor that provides the best approximation.
+ * That is an integer `c` such as for every integer `c'` != `c`
+ * |`frq` - (`clk` / `c`)| <= |`frq` - (`clk` / `c'`)| */
+static uint32_t bcmemmc_clk_approx_divisor(uint32_t clk, uint32_t frq) {
+  int32_t c1 = clk / frq;
   if (c1 == 0)
     c1++;
   int32_t c2 = c1 + 1;
   int32_t c =
-    abs((int32_t)f - (int32_t)clk / c1) < abs((int32_t)f - (int32_t)clk / c2)
+    abs((int32_t)frq - (int32_t)clk / c1) <
+    abs((int32_t)frq - (int32_t)clk / c2)
       ? c1
       : c2;
   return (uint32_t)c;
 }
 
-static void bcmemmc_clk_div(bcmemmc_state_t *state, uint32_t f) {
+/* Set e.MMC clock's divisor to match frequency `frq` */
+static void bcmemmc_clk_div(bcmemmc_state_t *state, uint32_t frq) {
   resource_t *emmc = state->emmc;
 
   uint32_t clk = GPIO_CLK_EMMC_DEFAULT_FREQ;
-  uint32_t divisor = bcmemmc_clk_approx_divisor(clk, f);
+  uint32_t divisor = bcmemmc_clk_approx_divisor(clk, frq);
   uint32_t lo = (divisor & 0x00ff) << 8;
   uint32_t hi = (divisor & 0x0300) >> 2;
-  b_out(emmc, BCMEMMC_CONTROL1,
-        (b_in(emmc, BCMEMMC_CONTROL1) & BCMEMMC_CLKDIV_MASK) | lo | hi);
-  klog("e.MMC: clock set to %luHz / %lu (requested %luHz)", clk, divisor, f);
+  
+  uint32_t ctl1 = b_in(emmc, BCMEMMC_CONTROL1) & BCMEMMC_CLKDIV_INVMASK;
+  ctl1 |= lo | hi;
+  b_out(emmc, BCMEMMC_CONTROL1, ctl1);
+  klog("e.MMC: clock set to %luHz / %lu (requested %luHz)", clk, divisor, frq);
 }
 
 /**
  * set SD clock to frequency in Hz (approximately), divided mode
  */
-static int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
+static int32_t bcmemmc_clk(device_t *dev, uint32_t frq) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
   int32_t cnt = 100000;
 
+  /* TODO (mohr): Not sure if this is necessary. If the will run fine on a
+   * real hardware without it, it should be removed. */
   while ((b_in(emmc, BCMEMMC_STATUS) & (SR_CMD_INHIBIT | SR_DAT_INHIBIT)) &&
          cnt--)
     delay(3);
-  if (cnt <= 0) {
-    klog("e.MMC ERROR: timeout waiting for inhibit flag");
+  if (cnt < 0) {
     return ETIMEDOUT;
   }
 
@@ -174,14 +176,13 @@ static int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
   /* host_version <= HOST_SPEC_V2 needs a power-of-two divisor. It would require
    * a different calculation method. */
   assert(state->host_version > HOST_SPEC_V2);
-  bcmemmc_clk_div(state, f);
+  bcmemmc_clk_div(state, frq);
   b_set(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
 
   cnt = 10000;
   while (!(b_in(emmc, BCMEMMC_CONTROL1) & C1_CLK_STABLE) && cnt--)
     delay(30);
-  if (cnt <= 0) {
-    klog("ERROR: failed to get stable clock");
+  if (cnt < 0) {
     return ETIMEDOUT;
   }
 
@@ -190,7 +191,7 @@ static int32_t bcmemmc_clk(device_t *dev, uint32_t f) {
 
 /* This function might be (and probably is!) incomplete, but it does enough
  * to handle the current block device scenario */
-static uint32_t encode_cmd(emmc_cmd_t cmd) {
+static uint32_t bcemmc_encode_cmd(emmc_cmd_t cmd) {
   uint32_t code = (uint32_t)cmd.cmd_idx << 24;
 
   switch (cmd.exp_resp) {
@@ -264,7 +265,6 @@ static int bcmemmc_get_bus_width(bcmemmc_state_t *state) {
 }
 
 static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
-  assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   resource_t *emmc = state->emmc;
 
@@ -307,7 +307,6 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
 }
 
 static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
-  assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   resource_t *emmc = state->emmc;
 
@@ -347,6 +346,7 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
   }
 }
 
+/* Send encoded command */
 static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
                             emmc_resp_t *resp) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
@@ -371,29 +371,29 @@ static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
   return 0;
 }
 
+/* Send a command */
 static int bcmemmc_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
                        emmc_resp_t *resp) {
-  assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
 
   if (cmd.flags & EMMC_F_APP)
     bcmemmc_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, NULL);
 
-  uint32_t code = encode_cmd(cmd);
+  uint32_t code = bcemmc_encode_cmd(cmd);
   return bcmemmc_cmd_code(cdev->parent, code, arg, resp);
 }
 
 static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *read) {
-  assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
   resource_t *emmc = state->emmc;
+  uint32_t *data = buf;
 
   assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
 
   /* A very simple transfer */
   for (size_t i = 0; i < len / sizeof(uint32_t); i++)
-    ((uint32_t *)buf)[i] = b_in(emmc, BCMEMMC_DATA);
+    data[i] = b_in(emmc, BCMEMMC_DATA);
 
   /* TODO (mohr): check wether the transfer fully succeeded! */
   if (read)
@@ -403,16 +403,16 @@ static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *read) {
 
 static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
                          size_t *wrote) {
-  assert(cdev->parent && cdev->parent->driver == &bcmemmc_driver);
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
   resource_t *emmc = state->emmc;
+  const uint32_t *data = buf;
 
   assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
 
   /* A very simple transfer */
   for (size_t i = 0; i < len / sizeof(uint32_t); i++)
-    b_out(emmc, BCMEMMC_DATA, ((uint32_t *)buf)[i]);
+    b_out(emmc, BCMEMMC_DATA, data[i]);
 
   /* TODO (mohr): check wether the transfer fully succeeded! */
   if (wrote)
@@ -420,8 +420,10 @@ static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
   return 0;
 }
 
-#define GPHEN1 0x0068
-
+/* e.MMC requires some GPIO setup to work properly. This however is different
+ * than what is described in BCM2835 Peripherals datasheet. I don't know the
+ * reason why, but based on other drivers, looks like these particular setting
+ * are needed. */
 static void emmc_gpio_init(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *gpio = state->gpio;
@@ -450,10 +452,7 @@ static void emmc_gpio_init(device_t *dev) {
   bcm2835_gpio_set_pull(gpio, 53, 2);
 }
 
-#define BCMEMMC_INIT_FREQ 400000
-
 static int bcmemmc_init(device_t *dev) {
-  assert(dev->driver == (driver_t *)&bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
   int64_t r, cnt;
@@ -466,9 +465,9 @@ static int bcmemmc_init(device_t *dev) {
   b_set(emmc, BCMEMMC_CONTROL1, C1_SRST_HC);
   cnt = 10000;
   do {
-    delay(30); /* ! */
+    delay(30); /* TODO: Test it on hardware */
   } while ((b_in(emmc, BCMEMMC_CONTROL1) & C1_SRST_HC) && cnt--);
-  if (cnt <= 0) {
+  if (cnt < 0) {
     klog("ERROR: failed to reset EMMC");
     return ETIMEDOUT;
   }
@@ -494,13 +493,12 @@ static int bcmemmc_probe(device_t *dev) {
 DEVCLASS_DECLARE(emmc);
 
 static int bcmemmc_attach(device_t *dev) {
-  assert(dev->driver == (driver_t *)&bcmemmc_driver);
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
 
   state->gpio = device_take_memory(dev, 0, RF_ACTIVE);
   state->emmc = device_take_memory(dev, 1, RF_ACTIVE);
 
-  spin_init(&state->slock, 0);
+  spin_init(&state->lock, 0);
   cv_init(&state->cv_intr, "SD card response conditional variable");
 
   b_out(state->emmc, BCMEMMC_INTERRUPT, 0xff);
@@ -513,7 +511,7 @@ static int bcmemmc_attach(device_t *dev) {
   int init_res = bcmemmc_init(dev);
   if (init_res) {
     klog("e.MMC initialzation failed with code %d.", init_res);
-    return -1;
+    return ENXIO;
   }
 
   /* This is not a legitimate bus in a sense that it implements `DIF_BUS`, but
