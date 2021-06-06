@@ -5,6 +5,9 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/types.h>
+#include <sys/pool.h>
+#include <sys/dirent.h>
+#include <sys/libkern.h>
 
 static KMALLOC_DEFINE(M_EXT2, "ext2fs");
 
@@ -51,7 +54,17 @@ static KMALLOC_DEFINE(M_EXT2, "ext2fs");
 #define EXT2_ISGID 0002000  /* Set-gid. */
 #define EXT2_ISUID 0004000  /* Set-uid. */
 
-/* File types. */
+/* File types. (dirent) */
+#define EXT2_FT_UNKNOWN 0
+#define EXT2_FT_REG_FILE 1
+#define EXT2_FT_DIR 2
+#define EXT2_FT_CHRDEV 3
+#define EXT2_BLKDEV 4
+#define EXT2_FIFO 5
+#define EXT2_SOCK 6
+#define EXT2_SYMLINK 7
+
+/* File types (inode's i_mode field) */
 #define EXT2_IFMT 0170000   /* Mask of file type. */
 #define EXT2_IFIFO 0010000  /* Named pipe (fifo). */
 #define EXT2_IFCHR 0020000  /* Character device. */
@@ -60,6 +73,8 @@ static KMALLOC_DEFINE(M_EXT2, "ext2fs");
 #define EXT2_IFREG 0100000  /* Regular file. */
 #define EXT2_IFLNK 0120000  /* Symbolic link. */
 #define EXT2_IFSOCK 0140000 /* UNIX domain socket. */
+
+#define EXT2_I_MODE_FT_MASK 0xf000
 
 /*
  * File system super block.
@@ -178,6 +193,7 @@ typedef struct ext2_dirent {
 
 
 typedef struct ext2state {
+  vnode_t *src;
   /* Properties extracted from a superblock and block group descriptors. */
   size_t inodes_per_group;      /* number of i-nodes in block group */
   size_t blocks_per_group;      /* number of blocks in block group */
@@ -186,11 +202,20 @@ typedef struct ext2state {
   size_t inode_count;           /* number of i-nodes in the filesystem */
   size_t first_data_block;      /* first block managed by block bitmap */
   ext2_groupdesc_t *group_desc; /* block group descriptors in memory */
-} ext2state_t;
+} ext2_state_t;
+
+typedef TAILQ_HEAD(, vnode) vnode_list_t;
+
+typedef struct ext2_vndata {
+  ino_t inode;
+  mount_t *mount;
+  vnode_t *parent;
+  vnode_list_t children;  /* Holds pointers to currently active vnodes */
+} ext2_vndata_t;
 
 /* Reads block bitmap entry for `blkaddr`. Returns 0 if the block is free,
  * 1 if it's in use, and EINVAL if `blkaddr` is out of range. */
-int ext2_block_used(ext2state_t *state, uint32_t blkaddr) {
+static int ext2_block_used(ext2_state_t *state, uint32_t blkaddr) {
   if (blkaddr >= state->block_count)
     return EINVAL;
   int used = 0;
@@ -205,7 +230,7 @@ int ext2_block_used(ext2state_t *state, uint32_t blkaddr) {
 
 /* Reads i-node bitmap entry for `ino`. Returns 0 if the i-node is free,
  * 1 if it's in use, and EINVAL if `ino` value is out of range. */
-int ext2_inode_used(ext2state_t *state, uint32_t ino) {
+static int ext2_inode_used(ext2_state_t *state, uint32_t ino) {
   if (!ino || ino >= state->inode_count)
     return EINVAL;
   int used = 0;
@@ -228,7 +253,8 @@ int ext2_inode_used(ext2state_t *state, uint32_t ino) {
 
 /* Reads i-node identified by number `ino`.
  * Returns 0 on success. If i-node is not allocated returns ENOENT. */
-static int ext2_inode_read(ext2state_t *state, off_t ino, ext2_inode_t *inode) {
+static int ext2_inode_read(ext2_state_t *state, off_t ino,
+                           ext2_inode_t *inode) {
 #ifndef STUDENT
   if (!ext2_inode_used(state, ino))
     return ENOENT;
@@ -246,7 +272,7 @@ static int ext2_inode_read(ext2state_t *state, off_t ino, ext2_inode_t *inode) {
 }
 
 /* Returns block pointer `blkidx` from block of `blkaddr` address. */
-static uint32_t ext2_blkptr_read(ext2state_t *state, uint32_t blkaddr,
+static uint32_t ext2_blkptr_read(ext2_state_t *state, uint32_t blkaddr,
                                  uint32_t blkidx) {
   assert(blkidx < EXT2_BLK_POINTERS);
   void *blk = blk_get(state, 0, blkaddr);
@@ -257,7 +283,7 @@ static uint32_t ext2_blkptr_read(ext2state_t *state, uint32_t blkaddr,
   return blkptr;
 }
 
-long ext2_blkaddr_read(ext2state_t *state, uint32_t ino, uint32_t blkidx) {
+long ext2_blkaddr_read(ext2_state_t *state, uint32_t ino, uint32_t blkidx) {
   /* No translation for filesystem metadata blocks. */
   if (ino == 0)
     return blkidx;
@@ -291,13 +317,14 @@ long ext2_blkaddr_read(ext2state_t *state, uint32_t ino, uint32_t blkidx) {
   blkidx -= EXT2_BLK_POINTERS * EXT2_BLK_POINTERS;
   l1blkidx = blkidx / (EXT2_BLK_POINTERS * EXT2_BLK_POINTERS);
   blkidx %= EXT2_BLK_POINTERS * EXT2_BLK_POINTERS;
-  l2blkaddr = ext2_blkptr_read(state, inode.i_blocks[EXT2_NDADDR + 2], l1blkidx);
+  l2blkaddr =
+    ext2_blkptr_read(state, inode.i_blocks[EXT2_NDADDR + 2],l1blkidx);
   l3blkaddr = ext2_blkptr_read(state, l2blkaddr, blkidx / EXT2_BLK_POINTERS);
   return ext2_blkptr_read(state, l3blkaddr, blkidx % EXT2_BLK_POINTERS);
   return -1;
 }
 
-static int ext2_read(ext2state_t *state, ino_t ino, void *data, size_t pos,
+static int ext2_read(ext2_state_t *state, ino_t ino, void *data, size_t pos,
                      size_t len) {
   
   long off = pos % EXT2_BLKSIZE;
@@ -323,8 +350,11 @@ static int ext2_read(ext2state_t *state, ino_t ino, void *data, size_t pos,
 static int ext2_mount(mount_t *mp, vnode_t *src) {
   int error;
 
-  ext2state_t *state = kmalloc(M_EXT2, sizeof(ext2state_t), 0);
+  ext2_state_t *state = kmalloc(M_EXT2, sizeof(ext2_state_t), 0);
   mp->mnt_data = state;
+
+  vnode_hold(src);
+  state->src = src;
 
   ext2_superblock_t *sb = kmalloc(M_EXT2, sizeof(ext2_superblock_t), 0);
   ext2_read(state, 0, &sb, EXT2_SBOFF, sizeof(ext2_superblock_t));
@@ -385,10 +415,10 @@ static int ext2_mount(mount_t *mp, vnode_t *src) {
 
 /* Reads a directory entry at position stored in `off_p` from `ino` i-node that
  * is assumed to be a directory file. The entry is stored in `de` and
- * `de->de_name` must be NUL-terminated. Assumes that entry offset is 0 or was
+ * `de->de_name` must be NULL-terminated. Assumes that entry offset is 0 or was
  * set by previous call to `ext2_readdir`. Returns 1 on success, 0 if there are
  * no more entries to read. */
-int ext2_readdir(ext2state_t *state,uint32_t ino, uint32_t *off_p,
+int ext2_readdir(ext2_state_t *state,uint32_t ino, uint32_t *off_p,
                  ext2_dirent_t *de) {
   de->de_ino = 0;
   while (true) {
@@ -410,7 +440,7 @@ int ext2_readdir(ext2state_t *state,uint32_t ino, uint32_t *off_p,
 /* Read the target of a symbolic link identified by `ino` i-node into buffer
  * `buf` of size `buflen`. Returns 0 on success, EINVAL if the file is not a
  * symlink or read failed. */
-int ext2_readlink(ext2state_t *state, uint32_t ino, char *buf, size_t buflen) {
+int ext2_readlink(ext2_state_t *state, uint32_t ino, char *buf, size_t buflen) {
   int error;
 
   ext2_inode_t inode;
@@ -440,8 +470,8 @@ int ext2_readlink(ext2state_t *state, uint32_t ino, char *buf, size_t buflen) {
  * and its type in stored in `type_p`. On success returns 0, or EINVAL if `name`
  * is NULL or zero length, or ENOTDIR is `ino` file is not a directory, or
  * ENOENT if no entry was found. */
-int ext2_lookup(ext2state_t *state, uint32_t ino, const char *name,
-                uint32_t *ino_p, uint8_t *type_p) {
+static int ext2_lookup(ext2_state_t *state, uint32_t ino, const char *name,
+                       uint32_t *ino_p, uint8_t *type_p) {
   int error;
 
   if (name == NULL || !strlen(name))
@@ -468,6 +498,228 @@ int ext2_lookup(ext2state_t *state, uint32_t ino, const char *name,
 
   return ENOENT;
 }
+
+static vnodetype_t ext2_ino_type_to_vnode_type_lookup[] = {
+  [EXT2_FT_UNKNOWN] = V_NONE,
+  [EXT2_FT_REG_FILE] = V_REG,
+  [EXT2_FT_DIR] = V_DIR,
+  [EXT2_FT_CHRDEV] = V_REG,
+  [EXT2_BLKDEV] = V_REG,
+  [EXT2_FIFO] = V_REG,
+  [EXT2_SOCK] = V_REG,
+  [EXT2_SYMLINK] = V_LNK,
+};
+
+static vnodetype_t ext2_ino_type_to_vdir_type_lookup[] = {
+  [EXT2_FT_UNKNOWN] = DT_UNKNOWN,
+  [EXT2_FT_REG_FILE] = DT_REG,
+  [EXT2_FT_DIR] = DT_DIR,
+  [EXT2_FT_CHRDEV] = DT_CHR,
+  [EXT2_BLKDEV] = DT_BLK,
+  [EXT2_FIFO] = DT_FIFO,
+  [EXT2_SOCK] = DT_SOCK,
+  [EXT2_SYMLINK] = DT_LNK,
+};
+
+static vnodeops_t ext2_vops;
+
+static vnodetype_t ext2_inode_type_to_vnode_type(uint8_t ino_type) {
+  if (ino_type >= sizeof(ext2_ino_type_to_vnode_type_lookup) /
+      sizeof(vnodeops_t))
+    panic("Unrecognizable ext2 inode type");
+  return ext2_ino_type_to_vnode_type_lookup[ino_type];
+}
+
+/* Return a vnode for given inode, that is a child of `parent`. Use an already
+ * existing vnode, or create a new one if necessary. */
+static vnode_t *ext2_vnode_open(vnode_t *parent, uint32_t ino,
+                                vnodetype_t type) {
+  vnode_get(parent);
+  ext2_vndata_t *parent_data = parent->v_data;
+  vnode_t *child;
+  TAILQ_FOREACH(child, &parent_data->children, v_list) {
+    vnode_get(child);
+    ext2_vndata_t *child_data = child->v_data;
+    if (child_data->inode == ino) {
+      vnode_hold(child);
+      vnode_put(child);
+      vnode_put(parent);
+      return child;
+    }
+    vnode_put(child);
+  }
+  ext2_vndata_t *child_data = kmalloc(M_EXT2, sizeof(ext2_vndata_t), 0);
+  child_data->inode = ino;
+  child_data->mount = parent_data->mount;
+  child_data->parent = parent;
+  TAILQ_INIT(&child_data->children);
+  child = vnode_new(type, &ext2_vops, child_data);
+  TAILQ_INSERT_TAIL(&parent_data->children, child, v_list);
+  vnode_hold(parent);
+  vnode_put(parent);
+  return child;
+}
+
+static vnode_t *ext2_dirent_to_vnode(const ext2_dirent_t *de, vnode_t *parent) {
+  vnodetype_t vtype = ext2_ino_type_to_vnode_type(de->de_type);
+  return ext2_vnode_open(parent, de->de_ino, vtype);
+}
+
+static int ext2_lookup_vop(vnode_t *vdir, componentname_t *cn, vnode_t **res) {
+  int error;
+  ext2_vndata_t *vndata = vdir->v_data;
+  ext2_state_t *state = vndata->mount->mnt_data;
+
+  if (vdir->v_type != V_DIR)
+    return ENOTDIR;
+  
+  ext2_inode_t inode;
+  if ((error = ext2_inode_read(state, vndata->inode, &inode)))
+    return error;
+  
+  assert(inode.i_mode & EXT2_IFDIR);
+
+  ext2_dirent_t *de = kmalloc(M_EXT2, sizeof(ext2_dirent_t), 0);
+  uint32_t off = 0;
+  uint32_t ino;
+  uint8_t type;
+  while (ext2_readdir(state, vndata->inode, &off, de)) {
+    if (componentname_equal(cn, de->de_name)) {
+      *res = ext2_dirent_to_vnode(vdir, de);
+      kfree(M_EXT2, de);
+      return 0;
+    }
+  }
+
+  kfree(M_EXT2, de);
+  return ENOENT;
+}
+
+static uint8_t ext2_i_mode_to_d_type(uint16_t i_mode) {
+  return ext2_ino_type_to_vnode_type_lookup[i_mode];
+}
+
+/* Convert ext2 dirent to vfs dirent */
+static void ext2_convert_to_vfs_dirent(ext2_state_t *state, uint32_t parent_ino,
+                                       uint32_t my_ino,
+                                       const ext2_dirent_t *from,
+                                       dirent_t *to) {
+  const char *name;
+  ino_t fileno;
+  if (!strncmp(from->de_name, ".", max(from->de_namelen, 0))) {
+    fileno = my_ino;
+    name = ".";
+  } else if (!strncmp(from->de_name, "..", max(from->de_namelen, 0))) {
+    fileno = parent_ino;
+    name = "..";
+  } else {
+    fileno = from->de_ino;
+    name = from->de_name;
+  }
+
+  memcpy(to->d_name, name, from->de_namelen);
+  to->d_name[from->de_namelen] = '\0';
+
+  ext2_inode_t inode;
+  if (ext2_inode_read(state, fileno, &inode))
+    panic("Failed to read inode: 0x%x", fileno);
+  to->d_type = ext2_i_mode_to_d_type(inode.i_mode);
+}
+
+/* Hacky way to fake `.` and `..` entries */
+static int ext2_readdir_wdots(ext2_state_t *state, uint32_t ino,
+                              uint32_t *off_p, ext2_dirent_t *de) {
+  if (off_p == 0) {
+    de->de_ino = (unsigned)(-1);
+    strcpy(de->de_name, ".");
+    de->de_namelen = 1;
+    de->de_type = EXT2_FT_DIR;
+    de->de_reclen = 1;
+    return 1;
+  }
+  if (off_p == 1) {
+    de->de_ino = (unsigned)(-1);
+    strcpy(de->de_name, "..");
+    de->de_namelen = 1;
+    de->de_type = EXT2_FT_DIR;
+    de->de_reclen = 1;
+    return 1;
+  }
+  ext2_readdir(state, ino, off_p - 2, de);
+}
+
+/* Based on vfs_readdir. Unfortunately the generic routine was insufficient
+ * because it cannot allocate iterators. It just assumes all posible states
+ * exist somewhere in the memory. Also it assumes that filesystem's structure
+ * is persistent and won't change in the middle of execution, so it does not
+ * vnodes. */
+static int ext2_readdir_vop(vnode_t *v, uio_t *uio) {
+  vnode_lock(v);
+  
+  ext2_vndata_t *vndata = v->v_data;
+  ext2_state_t *state = vndata->mount->mnt_data;
+  dirent_t *dir;
+  int error;
+  off_t offset = 0;
+
+  /* Locate proper directory based on offset */
+  ext2_dirent_t *de = kmalloc(M_EXT2, sizeof(ext2_dirent_t), 0);
+  uint32_t off = 0;
+  while (ext2_readdir(state, vndata->inode, off, de)) {
+    if (offset + de->de_namelen > (unsigned)uio->uio_offset)
+      break;
+    off += de->de_reclen;
+  }
+
+  while (ext2_readdir_wdots(state, vndata->inode, off, &de)) {
+    unsigned reclen = _DIRENT_RECLEN(dir, de->de_namelen);
+    
+    if (uio->uio_resid < reclen)
+      break;
+    
+    dir = kmalloc(M_TEMP, reclen, M_ZERO);
+    dir->d_namlen = de->de_namelen;
+    dir->d_reclen = reclen;
+
+
+    uint32_t my_ino = vndata->inode;
+    uint32_t parent_ino = vndata->parent
+      ? ((ext2_vndata_t*)(vndata->parent->v_data))->inode
+      : vndata->inode;
+    ext2_convert_to_vfs_dirent(state, parent_ino, my_ino, de, dir);
+
+    error = uiomove(dir, reclen, uio);
+    kfree(M_TEMP, dir);
+    if (error) {
+      vnode_unlock(v);
+      return error;
+    }
+  }
+
+  vnode_unlock(v);
+
+  return 0;
+}
+
+static ext2_read_vop(vnode_t *v, uio_t *uio) {
+  ext2_vndata_t *vndata = v->v_data;
+  ext2_state_t *state = vndata->mount->mnt_data;
+
+  /* TODO: eeeeeetm... read stuff? */
+  size_t offset = vndata->inode * state->;
+
+  vnode_t *src = state->src;
+  vnode_lock(src);
+  VOP_READ(src, uio);
+  vnode_unlock(src);
+}
+
+static vnodeops_t ext2_vops = {
+  .v_lookup = ext2_lookup_vop,
+  .v_readdir = ext2_readdir_vop,
+  .v_open = vnode_open_generic,
+
+};
 
 static int ext2_root(mount_t *mp, vnode_t **vp) {
   panic("`ext2_root` is unimplemented!");
