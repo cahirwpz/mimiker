@@ -108,10 +108,12 @@ class VmMapSeg(UserCommand):
 
 
 def print_entry(ent):
-    table = TextTable(types='ttttttt', align='rrrrrrr')
-    table.header(['start', 'end', 'prot', 'flags', 'object', 'offset', 'amap'])
+    table = TextTable(types='tttttttt', align='rrrrrrrr')
+    table.header(['start', 'end', 'prot', 'flags', 'object', 'offset', 'amap',
+                  'amap offset'])
     table.add_row([ent['start'], ent['end'], ent['prot'], ent['flags'],
-                   ent['object'], ent['offset'], ent['aref']['ar_amap']])
+                   ent['object'], ent['offset'], ent['aref']['ar_amap'],
+                   ent['aref']['ar_pageoff']])
     print(table)
 
 
@@ -127,6 +129,8 @@ def print_addr_in_object(ent, address):
 
 
 def print_addr_in_amap(ent, address):
+    print('There is amap {} with offset {}'.format(
+        ent["aref"]["ar_amap"], ent["aref"]["ar_pageoff"]))
     aref_addr = ent['aref'].address
     offset = address - ent['start']
     anon_addr = gdb.parse_and_eval(f'vm_amap_lookup({aref_addr}, {offset})')
@@ -174,3 +178,28 @@ class VmAddress(UserCommand):
                     print_addr_in_amap(ent, address)
                 return
         print(f'Adress not found in process {pid} address space.')
+
+
+class VmAmap(UserCommand):
+    """Show amap that resides on given address."""
+
+    def __init__(self):
+        super().__init__('vm_amap')
+
+    def __call__(self, args):
+        print('"', args, '"')
+        address = int(args.strip(), 16)
+
+        amap = gdb.parse_and_eval(f'*(vm_amap_t *){address}')
+        print('Amap has {} references and uses {}/{} anons.'.format(
+            int(amap["am_ref"]), int(amap["am_nused"]), int(amap["am_nslot"])))
+
+        table = TextTable(types='tttt', align='rrrr')
+        table.header(['slot', 'anon', 'refs', 'page'])
+        for i in range(amap['am_nslot']):
+            anon_addr = amap['am_anon'][i]
+            if anon_addr == 0:
+                continue
+            anon = anon_addr.dereference()
+            table.add_row([i, anon_addr, anon['an_ref'], anon['an_page']])
+        print(table)

@@ -18,6 +18,8 @@ you can use following custom commands:
    addresses,
 * `vm_map` - list memory map of process of given pid (when number is given as argument)
   or of current process (when no argument is given)
+* `vm_address` - list all information about given address for process of given pid
+* `vm_amap` - list all information about amap at given address
 * `klog` - all log messages currently saved in the kernel,
 * `threads` - all existing threads,
 * `tlb` - Translation Lookaside Buffer with addresses and flags marking if page
