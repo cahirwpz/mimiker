@@ -178,8 +178,12 @@ void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
 static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
   if (src->object)
     vm_object_hold(src->object);
+  if (src->aref.ar_amap)
+    WITH_MTX_LOCK(&src->aref.ar_amap->am_lock)
+      vm_amap_hold(src->aref.ar_amap);
   vm_map_entry_t *new = vm_map_entry_alloc(src->object, src->start, src->end,
                                            src->prot, src->flags);
+  new->aref = src->aref;
   return new;
 }
 
@@ -502,8 +506,10 @@ obj_lookup:
 enter:
   /* Add new anon to amap. */
   if (new_anon) {
-    if (needs_copy)
+    if (needs_copy) {
       ent->aref = vm_amap_copy(&ent->aref, ent->end - ent->start);
+      ent->flags &= ~VM_ENT_NEEDSCPY;
+    }
 
     assert(ent->aref.ar_amap != NULL);
     vm_amap_add(&ent->aref, new_anon, offset);
