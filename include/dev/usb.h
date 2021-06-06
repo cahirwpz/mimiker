@@ -4,6 +4,10 @@
 #ifndef _DEV_USB_H_
 #define _DEV_USB_H_
 
+#include <sys/condvar.h>
+#include <sys/spinlock.h>
+#include <sys/device.h>
+
 /*
  * Constructs defined by the USB specification.
  */
@@ -16,13 +20,18 @@
 #define USB_PORT_ROOT_RESET_DELAY_SPEC 50 /* ms */
 #define USB_PORT_RESET_RECOVERY_SPEC 10   /* ms */
 
-typedef struct usb_device_request {
+#define USB_BUS_RESET_DELAY 100 /* ms */
+
+/*
+ * USB device request.
+ */
+typedef struct usb_dev_req {
   uint8_t bmRequestType;
   uint8_t bRequest;
   uint16_t wValue;
   uint16_t wIndex;
   uint16_t wLength;
-} __packed usb_device_request_t;
+} __packed usb_dev_req_t;
 
 #define UT_WRITE 0x00
 #define UT_READ 0x80
@@ -58,7 +67,10 @@ typedef struct usb_device_request {
 
 #define UV_MAKE(d, i) ((d) << 8 | (i))
 
-typedef struct usb_device_descriptor {
+/*
+ * USB device descriptor.
+ */
+typedef struct usb_dev_dsc {
   uint8_t bLength;
   uint8_t bDescriptorType;
   uint16_t bcdUSB;
@@ -74,27 +86,36 @@ typedef struct usb_device_descriptor {
   uint8_t iProduct;
   uint8_t iSerialNumber;
   uint8_t bNumConfigurations;
-} __packed usb_device_descriptor_t;
+} __packed usb_dev_dsc_t;
 
 #define US_DATASIZE 63
 
-typedef struct usb_string_descriptor {
+/*
+ * USB string descriptor.
+ */
+typedef struct usb_str_dsc {
   uint8_t bLength;
   uint8_t bDescriptorType;
   uint16_t bString[US_DATASIZE];
   uint8_t bUnused;
-} __packed usb_string_descriptor_t;
+} __packed usb_str_dsc_t;
 
-typedef struct usb_string_lang {
+/*
+ * USB string language descriptor.
+ */
+typedef struct usb_str_lang {
   uint8_t bLength;
   uint8_t bDescriptorType;
   uint16_t bData[US_DATASIZE];
-} __packed usb_string_lang_t;
+} __packed usb_str_lang_t;
 
 #define US_ENG_LID 0x0409
 #define US_ENG_STR "English (United States)"
 
-typedef struct usb_config_descriptor {
+/*
+ * USB configuration descriptor.
+ */
+typedef struct usb_cfg_dsc {
   uint8_t bLength;
   uint8_t bDescriptorType;
   uint16_t wTotalLength;
@@ -103,9 +124,12 @@ typedef struct usb_config_descriptor {
   uint8_t iConfiguration;
   uint8_t bmAttributes;
   uint8_t bMaxPower; /* max current in 2 mA units */
-} __packed usb_config_descriptor_t;
+} __packed usb_cfg_dsc_t;
 
-typedef struct usb_interface_descriptor {
+/*
+ * USB interface descriptor.
+ */
+typedef struct usb_if_dsc {
   uint8_t bLength;
   uint8_t bDescriptorType;
   uint8_t bInterfaceNumber;
@@ -115,7 +139,7 @@ typedef struct usb_interface_descriptor {
   uint8_t bInterfaceSubClass;
   uint8_t bInterfaceProtocol;
   uint8_t iInterface;
-} __packed usb_interface_descriptor_t;
+} __packed usb_if_dsc_t;
 
 /* Interface class codes */
 #define UICLASS_HID 0x03
@@ -127,14 +151,17 @@ typedef struct usb_interface_descriptor {
 #define UISUBCLASS_SCSI 6
 #define UIPROTO_MASS_BBB 80
 
-typedef struct usb_endpoint_descriptor {
+/*
+ * USB endpoint descriptor.
+ */
+typedef struct usb_endpt_dsc {
   uint8_t bLength;
   uint8_t bDescriptorType;
   uint8_t bEndpointAddress;
   uint8_t bmAttributes;
   uint16_t wMaxPacketSize;
   uint8_t bInterval;
-} __packed usb_endpoint_descriptor_t;
+} __packed usb_endpt_dsc_t;
 
 #define UE_ADDR 0x0f
 #define UE_DIR_IN 0x80  /* IN-token endpoint */
@@ -156,29 +183,59 @@ typedef struct usb_endpoint_descriptor {
 typedef enum usb_error {
   USB_ERR_STALLED = 1, /* STALL condition encountered */
   USB_ERR_OTHER = 2,   /* errors other than STALL */
-} usb_error_t;
+} __packed usb_error_t;
 
+/* Don't alter the following values! */
 typedef enum usb_transfer {
-  USB_TFR_NONE,
-  USB_TFR_CONTROL,
-  USB_TFR_INTERRUPT,
-  USB_TFR_BULK,
-} usb_transfer_t;
+  USB_TFR_NONE = 0,
+  USB_TFR_CONTROL = 1,
+  USB_TFR_ISOCHRONOUS = 2,
+  USB_TFR_BULK = 3,
+  USB_TFR_INTERRUPT = 4,
+} __packed usb_transfer_t;
 
 typedef enum usb_direction {
   USB_DIR_INPUT,
   USB_DIR_OUTPUT,
-} usb_direction_t;
+} __packed usb_direction_t;
+
+/* XXX: FTTB, we only handle low and full speed devices. */
+typedef enum usb_speed {
+  USB_SPD_LOW,
+  USB_SPD_FULL,
+} __packed usb_speed_t;
+
+typedef struct usb_endpt {
+  TAILQ_ENTRY(usb_endpt) link; /* entry on device's endpoint list */
+  uint16_t maxpkt;             /* max packet size */
+  uint8_t addr;                /* address within a device */
+  usb_transfer_t transfer;     /* transfer type */
+  usb_direction_t dir;         /* transfer direction */
+  uint8_t interval;            /* interval for polling data transfers */
+} usb_endpt_t;
+
+/* USB device software representation. */
+typedef struct usb_device {
+  TAILQ_HEAD(, usb_endpt) endpts; /* endpoints provided by the device */
+  usb_speed_t speed;              /* speed characteristic */
+  uint8_t addr;                   /* address of the device */
+  uint8_t ifnum;                  /* current interface number */
+  uint8_t class_code;             /* device class code */
+  uint8_t subclass_code;          /* device subclass code */
+  uint8_t protocol_code;          /* protocol code */
+  uint16_t vendor_id;             /* vendor ID */
+  uint16_t product_id;            /* product ID */
+} usb_device_t;
 
 /* USB buffer used for USB transfers. */
 typedef struct usb_buf {
-  ringbuf_t buf;           /* write source or read destination */
-  condvar_t cv;            /* wait for the transfer to complete */
-  spin_t lock;             /* buffer guard */
-  usb_error_t error;       /* errors encountered during transfer */
-  usb_transfer_t transfer; /* what kind of transfer is this ? */
-  usb_direction_t dir;     /* transfer direction */
-  uint16_t transfer_size;  /* size of the transfer */
+  condvar_t cv;           /* wait for the transfer to complete */
+  spin_t lock;            /* buffer guard */
+  usb_endpt_t *endpt;     /* device's endpoint we're talking with */
+  void *data;             /* data buffer */
+  int executed;           /* 1 - transfer has been executed, 0 otherwise */
+  uint16_t transfer_size; /* size of data to transfer in the data stage */
+  usb_error_t error;      /* errors encountered during transfer */
 } usb_buf_t;
 
 static inline usb_device_t *usb_device_of(device_t *dev) {
@@ -188,5 +245,188 @@ static inline usb_device_t *usb_device_of(device_t *dev) {
 static inline device_t *usb_bus_of(device_t *dev) {
   return dev->bus == DEV_BUS_USB ? dev->parent : TAILQ_FIRST(&dev->children);
 }
+
+/* Allocates a USB buffer. */
+usb_buf_t *usb_buf_alloc(void);
+
+/* Releases a previously allocated buffer. */
+void usb_buf_free(usb_buf_t *buf);
+
+/* Returns true if the transfer described by `buf` is periodic. */
+bool usb_buf_periodic(usb_buf_t *buf);
+
+/* Waits until the transfer described by `buf` completes, or until an error is
+ * encountered. If an error is returned, further information may be obtained
+ * through `buf::error`. */
+int usb_buf_wait(usb_buf_t *buf);
+
+/* When the transfer request finishes the `data` or `error` are available.
+ * We need to update `buf` to reflect that change.
+ * Only for host controller driver internal use! */
+void usb_buf_process(usb_buf_t *buf, void *data, usb_error_t error);
+
+/* Returns direction for the STATUS stage of a transfer.
+ * Only for host controller driver internal use! */
+usb_direction_t usb_status_dir(usb_direction_t dir, uint16_t transfer_size);
+
+/* Initializes the underlying USB bus of the host controller `hcdev`. */
+void usb_init(device_t *hcdev);
+
+/* Enumerates and configures all devices attached to root hub `hcdev`. */
+int usb_enumerate(device_t *hcdev);
+
+/*
+ * USB standard interface.
+ *
+ * The following interface provides basic USB transfers: control and data stage
+ * only transfers. If you need to create a new function that performs a new
+ * type of request, as specified by the standard, **avoid** adding it to
+ * `usb_methods`. Just write a new function that uses the interface.
+ */
+
+typedef void (*usb_control_transfer_t)(device_t *dev, usb_buf_t *buf,
+                                       void *data, usb_direction_t dir,
+                                       usb_dev_req_t *req);
+typedef void (*usb_data_transfer_t)(device_t *dev, usb_buf_t *buf, void *data,
+                                    uint16_t size, usb_transfer_t transfer,
+                                    usb_direction_t dir);
+
+typedef struct usb_methods {
+  usb_control_transfer_t control_transfer;
+  usb_data_transfer_t data_transfer;
+} usb_methods_t;
+
+static inline usb_methods_t *usb_methods(device_t *dev) {
+  return (usb_methods_t *)dev->driver->interfaces[DIF_USB];
+}
+
+/*
+ * Issues a control transfer asynchronously.
+ *
+ * Pass `buf` to `usb_buf_wait` to wait for the transfer to complete.
+ *
+ * Arguments:
+ *  - `dev`: device requesting the transfer
+ *  - `buf`: USB buffer used for transaction
+ *  - `data`: data to transfer, or destination address
+ *  - `dir`: transfer direction
+ *  - `req`: USB device request
+ */
+static inline void usb_control_transfer(device_t *dev, usb_buf_t *buf,
+                                        void *data, usb_direction_t dir,
+                                        usb_dev_req_t *req) {
+  usb_methods(dev->parent)->control_transfer(dev, buf, data, dir, req);
+}
+
+/*
+ * Issues a data stage only transfer asynchronously.
+ *
+ * Pass `buf` to `usb_buf_wait` to wait for the transfer to complete.
+ *
+ * Arguments:
+ *  - `dev`: device requesting the transfer
+ *  - `buf`: USB buffer used for transaction
+ *  - `data`: data to transfer, or destination address
+ *  - `size`: transfer size
+ *  - `transfer`: `USB_TFR_INTERRUPT` or `USB_TFR_BULK`
+ *  - `dir`: transfer direction
+ */
+static inline void usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
+                                     uint16_t size, usb_transfer_t transfer,
+                                     usb_direction_t dir) {
+  usb_methods(dev->parent)->data_transfer(dev, buf, data, size, transfer, dir);
+}
+
+/*
+ * USB standard requests.
+ *
+ * The following functions implement standard USB requests. Requests used for
+ * device identification and configuration aren't exposed since USB bus
+ * driver identifies and configures each device automatically during enumeration
+ * process. Consider adding a new function to the following set instead of using
+ * `usb_control_transfer` request directly.
+ */
+
+/*
+ * Unhalts device's endpoint.
+ *
+ * Used in recovery process.
+ *
+ * Arguments:
+ *  - `dev`: USB device
+ *  - `transfer` + `dir`: identifies device's endpoint
+ *
+ * Error codes:
+ *  - EINVAL: `transfer` + `dir` doesn't identify a `dev` endpoint
+ *  - EIO: an error has been encountered during the transfer
+ */
+int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
+                     usb_direction_t dir);
+
+/*
+ * USB HID specific standard requests.
+ *
+ * The following functions implement standard USB requests specific to
+ * HID device class.
+ */
+
+/*
+ * Tells a device to inhibit all reports until a report changes.
+ *
+ * Used in driver's configuration phase.
+ *
+ * Arguments:
+ *  - `dev`: USB device
+ *
+ * Error codes:
+ *  - EIO: an error has been encountered during the transfer
+ */
+int usb_hid_set_idle(device_t *dev);
+
+/*
+ * Sets device's report format to the boot interface report format.
+ *
+ * Used by drivers which don't implement HID descriptor parsing.
+ *
+ * Arguments:
+ *  - `dev`: USB device
+ *
+ * Error codes:
+ *  - EIO: an error has been encountered during the transfer
+ */
+int usb_hid_set_boot_protocol(device_t *dev);
+
+/*
+ * USB Bulk-Only specific standard requests.
+ *
+ * The following functions implements standard USB requests specific to
+ * devices which rely on the Bulk-Only protocol.
+ * (BBB refers Bulk/Bulk/Bulk for Command/Data/Status phases.)
+ */
+
+/*
+ * Retrives the maximum Logical Unit Number of a device.
+ *
+ * Arguments:
+ *  - `dev`: USB device
+ *  - `maxlun_p`: destination address
+ *
+ * Error codes:
+ *  - EIO: an error has been encountered during the transfer
+ */
+int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun_p);
+
+/*
+ * Resets USB mass storage device.
+ *
+ * Used in recovery process.
+ *
+ * Arguments:
+ *  - `dev`: USB device
+ *
+ * Error codes:
+ *  - EIO: an error has been encountered during the transfer
+ */
+int usb_bbb_reset(device_t *dev);
 
 #endif /* _DEV_USB_H_ */
