@@ -44,10 +44,8 @@ configure-stamp: patch-stamp
 		--disable-bzip2 \
 		--disable-tpm \
 		--disable-linux-aio \
-	    	--target-list=mipsel-softmmu,aarch64-softmmu,x86_64-softmmu
-		# --with-suffix=qemu-mimiker
-	sed -i -e '/qemu_.*dir=/s,/qemu,/qemu-mimiker,' \
-		qemu-build/config-host.mak
+	    	--target-list=mipsel-softmmu,aarch64-softmmu,x86_64-softmmu \
+		--with-suffix=qemu-mimiker
 	touch $@
 
 build: build-stamp

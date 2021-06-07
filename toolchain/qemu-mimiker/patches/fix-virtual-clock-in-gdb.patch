@@ -25,13 +25,13 @@ Index: qemu-mimiker/qemu-6.0.0/gdbstub.c
                  cpu_single_step(cpu, get_sstep_flags());
                  cpu_resume(cpu);
 -                flag = 1;
-+                s->resume_clock = true;
++                gdbserver_state.resume_clock = true;
                  break;
              case 'c':
                  trace_gdbstub_op_continue_cpu(cpu->cpu_index);
                  cpu_resume(cpu);
 -                flag = 1;
-+                s->resume_clock = true;
++                gdbserver_state.resume_clock = true;
                  break;
              default:
                  res = -1;
@@ -50,8 +50,8 @@ Index: qemu-mimiker/qemu-6.0.0/gdbstub.c
          }
      }
 +
-+    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, gdbserver_state->resume_clock);
-+    gdbserver_state->resume_clock = false;
++    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, gdbserver_state.resume_clock);
++    gdbserver_state.resume_clock = false;
  }
  
  /* Tell the remote gdb that the process has exited.  */
