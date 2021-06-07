@@ -2,8 +2,8 @@
 
 ## Project overview
 
-Mimiker is an experimental implementation of very simple UNIX-like operating
-system for Malta board and Raspberry Pi 3.
+Mimiker is an experimental implementation of a simple UNIX-like operating
+system for the Malta board and Raspberry Pi 3.
 
 ### Main project goals
 
@@ -29,7 +29,7 @@ system for Malta board and Raspberry Pi 3.
 
 When you turn on the system with `./launch` [script][1] system is being run in QEMU.
 Multiple terminals are connected to VM. Between these you can switch with Tmux.
-On one of them is klog (log with kernel messages). On the second one is GDB.
+One of them is klog (log with kernel messages), the second one is GDB.
 The other one there can be Korn Shell working in the system.
 
 ### Project file hierarchy
@@ -48,7 +48,7 @@ More information can be found in [`hier(7)`][2].
 * `etc/` system configuration files and scripts
 * `include/` folder with all the header files for code ran in User and Kernel
   Space. That one has most of the incoherences, because
-  everything here is compatible with NetBSD and standard C library.
+  everything here is compatible with NetBSD and the standard C library.
   * `include/dev/` description of hardware registers and struct definitions.
   Vast majority of contained files has been acquired from existing systems.
   Everything that concerns drivers are located here.
@@ -97,4 +97,3 @@ under GPL.
 [2]: https://man.netbsd.org/hier.7
 [3]: https://en.wikipedia.org/wiki/License_compatibility
 [4]: https://en.wikipedia.org/wiki/License_compatibility#/media/File:Floss-license-slide-image.svg
-
