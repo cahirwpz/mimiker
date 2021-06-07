@@ -1,7 +1,7 @@
 #ifndef _SYS_KGPROF_H_
 #define _SYS_KGPROF_H_
 
-#include <sys/timer.h>
+typedef struct timer timer_t;
 
 #if KGPROF
 timer_t *get_stat_timer(void);
