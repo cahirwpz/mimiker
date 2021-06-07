@@ -51,7 +51,6 @@
 #define HOST_SPEC_V2 1
 #define HOST_SPEC_V1 0
 
-
 /* This seems to be the default frequency of the clk_emmc.
  * Preferably, it should be somewhere between 50MHz and 100MHz, but changing
  * it requires messing around with Clock Manager, which at the moment is beyond

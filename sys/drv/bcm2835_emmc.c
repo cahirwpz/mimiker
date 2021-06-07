@@ -28,7 +28,7 @@ typedef struct bcmemmc_state {
   resource_t *emmc;      /* e.MMC controller registers */
   resource_t *irq;       /* e.MMC controller interrupt */
   condvar_t cv_intr;     /* Used to to wake up the thread on interrupt */
-  spin_t lock;          /* Lock */
+  spin_t lock;           /* Lock */
   uint64_t rca;          /* Relative Card Address */
   uint64_t host_version; /* Host specification version */
   uint32_t intrs;        /* Received interrupts */
@@ -132,11 +132,10 @@ static uint32_t bcmemmc_clk_approx_divisor(uint32_t clk, uint32_t frq) {
   if (c1 == 0)
     c1++;
   int32_t c2 = c1 + 1;
-  int32_t c =
-    abs((int32_t)frq - (int32_t)clk / c1) <
-    abs((int32_t)frq - (int32_t)clk / c2)
-      ? c1
-      : c2;
+  int32_t c = abs((int32_t)frq - (int32_t)clk / c1) <
+                  abs((int32_t)frq - (int32_t)clk / c2)
+                ? c1
+                : c2;
   return (uint32_t)c;
 }
 
@@ -148,12 +147,14 @@ static void bcmemmc_clk_div(bcmemmc_state_t *state, uint32_t frq) {
   uint32_t divisor = bcmemmc_clk_approx_divisor(clk, frq);
   uint32_t lo = (divisor & 0x00ff) << 8;
   uint32_t hi = (divisor & 0x0300) >> 2;
-  
+
   uint32_t ctl1 = b_in(emmc, BCMEMMC_CONTROL1) & BCMEMMC_CLKDIV_INVMASK;
   ctl1 |= lo | hi;
   b_out(emmc, BCMEMMC_CONTROL1, ctl1);
   klog("e.MMC: clock set to %luHz / %lu (requested %luHz)", clk, divisor, frq);
 }
+
+#define CLK_STABLE_TRIALS 10000
 
 /**
  * set SD clock to frequency in Hz (approximately), divided mode
@@ -179,7 +180,8 @@ static int32_t bcmemmc_clk(device_t *dev, uint32_t frq) {
   bcmemmc_clk_div(state, frq);
   b_set(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
 
-  cnt = 10000;
+  /* Wait until the clock becomes stable */
+  cnt = CLK_STABLE_TRIALS;
   while (!(b_in(emmc, BCMEMMC_CONTROL1) & C1_CLK_STABLE) && cnt--)
     delay(30);
   if (cnt < 0) {
