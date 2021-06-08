@@ -196,12 +196,16 @@ static void kcsan_check(uintptr_t addr, size_t size, bool is_read) {
   if (!kcsan_ready || cpu_intr_disabled() || preempt_disabled())
     return;
 
-  /* Not every instrumented memory address is in the kernel space. For an
-   * example, initrd is outside of this range. */
-  if (addr < KERNEL_SPACE_BEGIN)
-    return;
+    /* Every instrumented memory address must be in the kernel space range. */
+#ifdef __mips__
+  /* TODO(cahir) On MIPS architecture some accesses (namely to direct map) go
+   * through kseg0 which is between USER_SPACE_END and KERNEL_SPACE_BEGIN. */
+  assert(addr >= USER_SPACE_END);
+#else
+  assert(addr >= KERNEL_SPACE_BEGIN);
+#endif
 
-  /* For the sake of simplicity, we consider only accesses of size
+  /* TODO(jurb) For the sake of simplicity, we consider only accesses of size
    * 1, 2, 4, 8. Accesses with other sizes can occur when for example structs
    * are copied with a assignment statement. */
   if (size > MAX_ENCODABLE_SIZE || !powerof2(size))
