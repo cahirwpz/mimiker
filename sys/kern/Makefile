@@ -17,6 +17,7 @@ SOURCES = \
 	dev_null.c \
 	dev_procstat.c \
 	devfs.c \
+	dtb.c \
 	event.c \
 	exception.c \
 	exec.c \
