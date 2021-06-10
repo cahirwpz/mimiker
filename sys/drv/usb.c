@@ -260,6 +260,21 @@ static void _usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
  * USB standard requests.
  */
 
+/* Perform a standard USB request. */
+static int usb_send_req(device_t *dev, void *data, usb_direction_t dir,
+                        usb_dev_req_t *req, usb_error_t *uerr_p) {
+  usb_buf_t *buf = usb_buf_alloc();
+  assert(buf);
+
+  usb_control_transfer(dev, buf, data, dir, req);
+  int error = usb_buf_wait(buf);
+  if (uerr_p)
+    *uerr_p = buf->error;
+
+  usb_buf_free(buf);
+  return error;
+}
+
 /* Obtain device descriptor corresponding to device `dev`. */
 static int usb_get_dev_dsc(device_t *dev, usb_dev_dsc_t *devdsc) {
   usb_dev_req_t req = (usb_dev_req_t){
@@ -268,23 +283,16 @@ static int usb_get_dev_dsc(device_t *dev, usb_dev_dsc_t *devdsc) {
     .wValue = UV_MAKE(UDESC_DEVICE, 0),
     .wLength = sizeof(uint8_t),
   };
-  usb_buf_t *buf = usb_buf_alloc();
 
   /* The actual size of the descriptor is contained in the first byte,
    * hence we'll read it first. */
-  usb_control_transfer(dev, buf, devdsc, USB_DIR_INPUT, &req);
-  int error = usb_buf_wait(buf);
+  int error = usb_send_req(dev, devdsc, USB_DIR_INPUT, &req, NULL);
   if (error)
-    goto end;
+    return error;
 
   /* Get the whole descriptor. */
   req.wLength = devdsc->bLength;
-  usb_control_transfer(dev, buf, devdsc, USB_DIR_INPUT, &req);
-  error = usb_buf_wait(buf);
-
-end:
-  usb_buf_free(buf);
-  return error;
+  return usb_send_req(dev, devdsc, USB_DIR_INPUT, &req, NULL);
 }
 
 /* Assign the next available address in the USB bus to device `dev`. */
@@ -297,14 +305,14 @@ static int usb_set_addr(device_t *dev) {
     .bRequest = UR_SET_ADDRESS,
     .wValue = addr,
   };
-  usb_buf_t *buf = usb_buf_alloc();
-  usb_control_transfer(dev, buf, NULL, USB_DIR_OUTPUT, &req);
-  int error = usb_buf_wait(buf);
-  if (!error)
-    udev->addr = addr;
 
-  usb_buf_free(buf);
-  return error;
+  int error = usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
+  if (error)
+    return error;
+
+  udev->addr = addr;
+
+  return 0;
 }
 
 /*
@@ -353,22 +361,15 @@ static int usb_get_config(device_t *dev, usb_cfg_dsc_t *cfgdsc) {
     .wValue = UV_MAKE(UDESC_CONFIG, 0 /* the first configuration */),
     .wLength = sizeof(uint32_t),
   };
-  usb_buf_t *buf = usb_buf_alloc();
 
   /* First we'll read the total size of the configuration. */
-  usb_control_transfer(dev, buf, cfgdsc, USB_DIR_INPUT, &req);
-  int error = usb_buf_wait(buf);
+  int error = usb_send_req(dev, cfgdsc, USB_DIR_INPUT, &req, NULL);
   if (error)
-    goto end;
+    return error;
 
   /* Read the whole configuration. */
   req.wLength = cfgdsc->wTotalLength;
-  usb_control_transfer(dev, buf, cfgdsc, USB_DIR_INPUT, &req);
-  error = usb_buf_wait(buf);
-
-end:
-  usb_buf_free(buf);
-  return error;
+  return usb_send_req(dev, cfgdsc, USB_DIR_INPUT, &req, NULL);
 }
 
 /* Set device's configuration to the one identified
@@ -379,12 +380,7 @@ static int usb_set_config(device_t *dev, uint8_t val) {
     .bRequest = UR_SET_CONFIG,
     .wValue = val,
   };
-  usb_buf_t *buf = usb_buf_alloc();
-  usb_control_transfer(dev, buf, NULL, USB_DIR_OUTPUT, &req);
-  int error = usb_buf_wait(buf);
-
-  usb_buf_free(buf);
-  return error;
+  return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
 int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
@@ -400,12 +396,7 @@ int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
     .wValue = UF_ENDPOINT_HALT,
     .wIndex = endpt->addr,
   };
-  usb_buf_t *buf = usb_buf_alloc();
-  usb_control_transfer(dev, buf, NULL, USB_DIR_OUTPUT, &req);
-  int error = usb_buf_wait(buf);
-
-  usb_buf_free(buf);
-  return error;
+  return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
 /* Retreive deivice's string language descriptor. */
@@ -417,22 +408,15 @@ static int usb_get_str_lang_dsc(device_t *dev, usb_str_lang_t *langs) {
     .wIndex = USB_LANGUAGE_TABLE,
     .wLength = sizeof(uint8_t),
   };
-  usb_buf_t *buf = usb_buf_alloc();
 
   /* Size is contained in the first byte, so get it first. */
-  usb_control_transfer(dev, buf, langs, USB_DIR_INPUT, &req);
-  int error = usb_buf_wait(buf);
+  int error = usb_send_req(dev, langs, USB_DIR_INPUT, &req, NULL);
   if (error)
-    goto end;
+    return error;
 
   /* Read the whole language table. */
   req.wLength = langs->bLength;
-  usb_control_transfer(dev, buf, langs, USB_DIR_INPUT, &req);
-  error = usb_buf_wait(buf);
-
-end:
-  usb_buf_free(buf);
-  return error;
+  return usb_send_req(dev, langs, USB_DIR_INPUT, &req, NULL);
 }
 
 /* Fetch device's string descriptor identified by index `idx`. */
@@ -444,22 +428,15 @@ static int usb_get_str_dsc(device_t *dev, uint8_t idx, usb_str_dsc_t *strdsc) {
     .wIndex = US_ENG_LID,
     .wLength = sizeof(uint8_t),
   };
-  usb_buf_t *buf = usb_buf_alloc();
 
   /* Obtain size of the descriptor. */
-  usb_control_transfer(dev, buf, strdsc, USB_DIR_INPUT, &req);
-  int error = usb_buf_wait(buf);
+  int error = usb_send_req(dev, strdsc, USB_DIR_INPUT, &req, NULL);
   if (error)
-    goto end;
+    return error;
 
   /* Read the whole descriptor. */
   req.wLength = strdsc->bLength;
-  usb_control_transfer(dev, buf, strdsc, USB_DIR_INPUT, &req);
-  error = usb_buf_wait(buf);
-
-end:
-  usb_buf_free(buf);
-  return error;
+  return usb_send_req(dev, strdsc, USB_DIR_INPUT, &req, NULL);
 }
 
 /*
@@ -473,12 +450,7 @@ int usb_hid_set_idle(device_t *dev) {
     .bRequest = UR_SET_IDLE,
     .wIndex = udev->ifnum,
   };
-  usb_buf_t *buf = usb_buf_alloc();
-  usb_control_transfer(dev, buf, NULL, USB_DIR_OUTPUT, &req);
-  int error = usb_buf_wait(buf);
-
-  usb_buf_free(buf);
-  return error;
+  return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
 int usb_hid_set_boot_protocol(device_t *dev) {
@@ -488,12 +460,7 @@ int usb_hid_set_boot_protocol(device_t *dev) {
     .bRequest = UR_SET_PROTOCOL,
     .wIndex = udev->ifnum,
   };
-  usb_buf_t *buf = usb_buf_alloc();
-  usb_control_transfer(dev, buf, NULL, USB_DIR_OUTPUT, &req);
-  int error = usb_buf_wait(buf);
-
-  usb_buf_free(buf);
-  return error;
+  return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
 /*
@@ -508,21 +475,18 @@ int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun) {
     .wIndex = udev->ifnum,
     .wLength = sizeof(uint8_t),
   };
-  usb_buf_t *buf = usb_buf_alloc();
-  usb_control_transfer(dev, buf, maxlun, USB_DIR_INPUT, &req);
-  int error = usb_buf_wait(buf);
 
+  usb_error_t uerr;
+  int error = usb_send_req(dev, maxlun, USB_DIR_INPUT, &req, &uerr);
   if (!error)
-    goto end;
+    return 0;
 
   /* A STALL means maxlun = 0. */
-  if (buf->error == USB_ERR_STALLED) {
+  if (uerr == USB_ERR_STALLED) {
     *maxlun = 0;
     error = 0;
   }
 
-end:
-  usb_buf_free(buf);
   return error;
 }
 
@@ -533,12 +497,7 @@ int usb_bbb_reset(device_t *dev) {
     .bRequest = UR_BBB_RESET,
     .wIndex = udev->ifnum,
   };
-  usb_buf_t *buf = usb_buf_alloc();
-  usb_control_transfer(dev, buf, NULL, USB_DIR_OUTPUT, &req);
-  int error = usb_buf_wait(buf);
-
-  usb_buf_free(buf);
-  return error;
+  return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
 /*
