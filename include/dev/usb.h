@@ -278,10 +278,6 @@ int usb_buf_wait(usb_buf_t *buf);
  * Only for host controller driver internal use! */
 void usb_buf_process(usb_buf_t *buf, void *data, usb_error_t error);
 
-/* Returns direction for the STATUS stage of a transfer.
- * Only for host controller driver internal use! */
-usb_direction_t usb_status_dir(usb_direction_t dir, uint16_t transfer_size);
-
 /* Initializes the underlying USB bus of the host controller `hcdev`. */
 void usb_init(device_t *hcdev);
 

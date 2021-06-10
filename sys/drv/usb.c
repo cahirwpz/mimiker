@@ -239,8 +239,13 @@ static void _usb_control_transfer(device_t *dev, usb_buf_t *buf, void *data,
 
   usb_buf_prepare(buf, endpt, data, req->wLength);
 
+  /* Obtain the status stage direction. */
+  usb_direction_t status_dir = USB_DIR_OUTPUT;
+  if (dir == USB_DIR_OUTPUT || !req->wLength)
+    status_dir = USB_DIR_INPUT;
+
   /* The corresponding host controller implements the actual transfer. */
-  usbhc_control_transfer(dev, buf, req);
+  usbhc_control_transfer(dev, buf, req, status_dir);
 }
 
 static void _usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
@@ -498,16 +503,6 @@ int usb_bbb_reset(device_t *dev) {
     .wIndex = udev->ifnum,
   };
   return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
-}
-
-/*
- * Miscellaneous USB functions.
- */
-
-usb_direction_t usb_status_dir(usb_direction_t dir, uint16_t transfer_size) {
-  if (dir == USB_DIR_OUTPUT || !transfer_size)
-    return USB_DIR_INPUT;
-  return USB_DIR_OUTPUT;
 }
 
 /*
