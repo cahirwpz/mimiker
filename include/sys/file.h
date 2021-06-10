@@ -13,6 +13,7 @@ typedef struct vnode vnode_t;
 typedef struct stat stat_t;
 typedef struct uio uio_t;
 typedef struct proc proc_t;
+typedef struct knote knote_t;
 
 typedef int fo_read_t(file_t *f, uio_t *uio);
 typedef int fo_write_t(file_t *f, uio_t *uio);
@@ -20,6 +21,7 @@ typedef int fo_close_t(file_t *f);
 typedef int fo_seek_t(file_t *f, off_t offset, int whence, off_t *newoffp);
 typedef int fo_stat_t(file_t *f, stat_t *sb);
 typedef int fo_ioctl_t(file_t *f, u_long cmd, void *data);
+typedef int fo_kqfilter_t(file_t *f, knote_t *kn);
 
 typedef struct {
   fo_read_t *fo_read;
@@ -28,6 +30,7 @@ typedef struct {
   fo_seek_t *fo_seek;
   fo_stat_t *fo_stat;
   fo_ioctl_t *fo_ioctl;
+  fo_kqfilter_t *fo_kqfilter;
 } fileops_t;
 
 /* Put `nowrite` into `fo_write` if a file doesn't support writes. */
@@ -37,9 +40,10 @@ int nowrite(file_t *f, uio_t *uio);
 int noseek(file_t *f, off_t offset, int whence, off_t *newoffp);
 
 typedef enum filetype {
-  FT_VNODE = 1, /* regular file */
-  FT_PIPE = 2,  /* pipe */
-  FT_PTY = 3,   /* master side of a pseudoterminal */
+  FT_VNODE = 1,  /* regular file */
+  FT_PIPE = 2,   /* pipe */
+  FT_PTY = 3,    /* master side of a pseudoterminal */
+  FT_KQUEUE = 4, /* kqueue */
 } filetype_t;
 
 #define FF_READ 1  /* file can be read from */
@@ -69,31 +73,7 @@ void file_hold(file_t *f);
 /*! \brief Decrements refcounter and destroys file if it has reached 0. */
 void file_drop(file_t *f);
 
-static inline int FOP_READ(file_t *f, uio_t *uio) {
-  return f->f_ops->fo_read(f, uio);
-}
-
-static inline int FOP_WRITE(file_t *f, uio_t *uio) {
-  return f->f_ops->fo_write(f, uio);
-}
-
-static inline int FOP_CLOSE(file_t *f) {
-  return f->f_ops->fo_close(f);
-}
-
-static inline int FOP_SEEK(file_t *f, off_t offset, int whence,
-                           off_t *newoffp) {
-  return f->f_ops->fo_seek(f, offset, whence, newoffp);
-}
-
-static inline int FOP_STAT(file_t *f, stat_t *sb) {
-  return f->f_ops->fo_stat(f, sb);
-}
-
-static inline int FOP_IOCTL(file_t *f, u_long cmd, void *data) {
-  return f->f_ops->fo_ioctl(f, cmd, data);
-}
-
+/* File operations for files that lost identity. */
 extern fileops_t badfileops;
 
 /* Procedures called by system calls implementation. */
