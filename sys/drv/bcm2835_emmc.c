@@ -113,6 +113,8 @@ static intr_filter_t bcmemmc_intr_filter(void *data) {
   resource_t *emmc = state->emmc;
   WITH_SPIN_LOCK (&state->lock) {
     uint32_t r = b_in(emmc, BCMEMMC_INTERRUPT);
+    if (!r)
+      return IF_STRAY;
     state->intrs = r;
     /* Interrupts need to be cleared manually */
     b_out(emmc, BCMEMMC_INTERRUPT, r);
