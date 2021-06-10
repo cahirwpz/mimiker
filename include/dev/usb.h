@@ -233,7 +233,8 @@ typedef struct usb_buf {
   spin_t lock;            /* buffer guard */
   usb_endpt_t *endpt;     /* device's endpoint we're talking with */
   void *data;             /* data buffer */
-  int executed;           /* 1 - transfer has been executed, 0 otherwise */
+  void *priv;             /* buffer's private data (do not alter!) */
+  unsigned executed : 1;  /* 1 - transfer has been executed, 0 otherwise */
   uint16_t transfer_size; /* size of data to transfer in the data stage */
   usb_error_t error;      /* errors encountered during transfer */
 } usb_buf_t;

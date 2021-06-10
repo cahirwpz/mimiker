@@ -82,7 +82,16 @@ usb_buf_t *usb_buf_alloc(void) {
   return buf;
 }
 
+bool usb_buf_periodic(usb_buf_t *buf) {
+  usb_endpt_t *endpt = buf->endpt;
+  return endpt->transfer == USB_TFR_INTERRUPT && endpt->dir == USB_DIR_INPUT;
+}
+
 void usb_buf_free(usb_buf_t *buf) {
+  if (usb_buf_periodic(buf)) {
+    assert(buf->priv);
+    kfree(M_DEV, buf->priv);
+  }
   kfree(M_DEV, buf);
 }
 
@@ -91,6 +100,21 @@ static void usb_buf_prepare(usb_buf_t *buf, usb_endpt_t *endpt, void *data,
                             uint16_t transfer_size) {
   buf->endpt = endpt;
   buf->data = data;
+
+  /* Set the `priv` member. */
+  if (usb_buf_periodic(buf)) {
+    if (!buf->priv) {
+      buf->priv = kmalloc(M_DEV, transfer_size, M_WAITOK);
+    } else if (buf->transfer_size != transfer_size) {
+      kfree(M_DEV, buf->priv);
+      buf->priv = kmalloc(M_DEV, transfer_size, M_WAITOK);
+    }
+    assert(buf->priv);
+  } else if (buf->priv) {
+    kfree(M_DEV, buf->priv);
+    buf->priv = NULL;
+  }
+
   buf->executed = 0;
   buf->transfer_size = transfer_size;
   buf->error = 0; /* there is no error in the transaction yet */
@@ -107,6 +131,12 @@ int usb_buf_wait(usb_buf_t *buf) {
   if (buf->error)
     return EIO;
 
+  /* In case of periodic transfers, hand data to the user. */
+  if (usb_buf_periodic(buf)) {
+    assert(buf->priv);
+    memcpy(buf->data, buf->priv, buf->transfer_size);
+  }
+
   buf->executed = 0;
   return 0;
 }
@@ -119,18 +149,17 @@ void usb_buf_process(usb_buf_t *buf, void *data, usb_error_t error) {
     goto end;
   }
 
+  void *dst = buf->data;
   usb_endpt_t *endpt = buf->endpt;
-  if (endpt->dir == USB_DIR_INPUT)
-    memcpy(buf->data, data, buf->transfer_size);
+  if (endpt->dir == USB_DIR_INPUT) {
+    if (usb_buf_periodic(buf))
+      dst = buf->priv;
+    memcpy(dst, data, buf->transfer_size);
+  }
   buf->executed = 1;
 
 end:
   cv_signal(&buf->cv);
-}
-
-bool usb_buf_periodic(usb_buf_t *buf) {
-  usb_endpt_t *endpt = buf->endpt;
-  return endpt->transfer == USB_TFR_INTERRUPT && endpt->dir == USB_DIR_INPUT;
 }
 
 /*
@@ -242,7 +271,6 @@ static void _usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
                                uint16_t size, usb_transfer_t transfer,
                                usb_direction_t dir) {
   usb_device_t *udev = usb_device_of(dev);
-  /* XXX: add `transfer` argument. */
   usb_endpt_t *endpt = usb_dev_endpt(udev, transfer, dir);
   assert(endpt);
 
