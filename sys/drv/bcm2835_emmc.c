@@ -72,36 +72,35 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
   resource_t *emmc = state->emmc;
   uint32_t m = 0;
 
-  WITH_SPIN_LOCK (&state->lock) {
-  bcmemmc_restart_intr_wait:
-    while (mask) {
-      if (state->intrs & mask) {
-        m = mask;
-        mask &= ~state->intrs;
-        state->intrs &= ~m;
-        goto bcmemmc_restart_intr_wait;
-      }
-      /* Busy-wait for a while. Should be good enough if the card works fine */
-      for (int i = 0; i < BCMEMMC_BUSY_CYCLES; i++) {
-        if ((state->intrs = b_in(emmc, BCMEMMC_INTERRUPT)))
-          goto bcmemmc_restart_intr_wait;
-      }
-      /* Sleep for a while if no interrupts have been received so far */
-      if (!state->intrs) {
-        if (cv_wait_timed(&state->cv_intr, &state->lock, BCMEMMC_TIMEOUT)) {
-          b_out(emmc, BCMEMMC_INTERRUPT, 0xffffffff);
-          return ETIMEDOUT;
-        }
-      }
-      if (state->intrs & INT_ERROR_MASK) {
-        state->intrs = 0;
-        return EIO;
-      }
-      m = state->intrs;
-      mask &= ~state->intrs;
-      state->intrs &= ~m;
+  SCOPED_SPIN_LOCK(&state->lock);
+
+  while (mask) {
+    uint32_t intrs = state->intrs;
+    if (intrs & mask) {
+      state->intrs &= ~mask;
+      mask &= ~intrs;
+      continue;
+    }
+
+    /* Busy-wait for a while. Should be good enough if the card works fine */
+    for (int i = 0; i < BCMEMMC_BUSY_CYCLES; i++) {
+      if ((state->intrs = b_in(emmc, BCMEMMC_INTERRUPT)))
+          goto bcmemmc_intr_next;
+    }
+    
+    /* Sleep for a while if no interrupts have been received so far */
+    if (cv_wait_timed(&state->cv_intr, &state->lock, BCMEMMC_TIMEOUT)) {
+      b_out(emmc, BCMEMMC_INTERRUPT, 0xffffffff);
+      return ETIMEDOUT;
+    }
+
+bcmemmc_intr_next:
+    if (state->intrs & INT_ERROR_MASK) {
+      state->intrs = 0;
+      return EIO;
     }
   }
+  
   return 0;
 }
 
@@ -191,8 +190,7 @@ static int32_t bcmemmc_clk(device_t *dev, uint32_t frq) {
   return 0;
 }
 
-/* This function might be (and probably is!) incomplete, but it does enough
- * to handle the current block device scenario */
+/* Encode `cmd` to command an appropriate command register value */
 static uint32_t bcemmc_encode_cmd(emmc_cmd_t cmd) {
   uint32_t code = (uint32_t)cmd.cmd_idx << 24;
 
