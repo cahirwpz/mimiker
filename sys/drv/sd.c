@@ -56,6 +56,7 @@ static driver_t sd_block_device_driver;
     .cmd_idx = 6, .flags = EMMC_F_APP, .exp_resp = EMMCRESP_R1,                \
   }
 
+/* Custom response field extractors */
 #define SD_ACMD41_SD2_0_POLLRDY_ARG1 0x51ff8000
 #define SD_ACMD41_RESP_BUSY_OFFSET 31
 #define SD_ACMD41_RESP_BUSY_WIDTH 1
@@ -74,12 +75,15 @@ static driver_t sd_block_device_driver;
 #define SD_ACMD41_RESP_READ_CCS(r)                                             \
   EMMC_FMASK48((r), SD_ACMD41_RESP_CCS_OFFSET, SD_ACMD41_RESP_CCS_WIDTH)
 
-// SCR flags
+/* SCR flags */
 #define SCR_SD_BUS_WIDTH_4 0x00000400
 #define SCR_SUPP_SET_BLKCNT 0x02000000
 
 #define SD_BUSWIDTH_1 0x00
 #define SD_BUSWIDTH_4 0x02
+
+/* SD post-init clocking frequency */
+#define SD_CLK 25000000
 
 typedef enum sd_props {
   SD_SUPP_CCS = 1,
@@ -106,7 +110,6 @@ static int sd_init(device_t *dev) {
 
   emmc_resp_t response;
   uint64_t propv;
-  uint16_t trial_cnt;
   size_t of = 0;
   uint32_t scr[2];
   uint16_t rca;
@@ -121,25 +124,25 @@ static int sd_init(device_t *dev) {
   emmc_send_cmd(dev, EMMC_CMD(GO_IDLE), 0, NULL);
   if (emmc_get_prop(dev, EMMC_PROP_R_VOLTAGE_SUPPLY, &propv)) {
     klog("Unable to determine e.MMC controller's voltage supply.");
-    return -1;
+    return ENXIO;
   }
   uint8_t chkpat = ~propv + 1;
   if (emmc_set_prop(dev, EMMC_PROP_RW_RESP_LOW, chkpat - 1)) {
     klog("Unable to determine whether CMD8 responds.");
-    return -1;
+    return ENXIO;
   }
   emmc_send_cmd(dev, SD_CMD_SET_IF_COND, propv << 8 | chkpat, &response);
   if (SD_R7_CHKPAT(&response) != chkpat) {
     klog("SD 2.0 voltage supply is mismatched, or the card is at Version 1.x");
-    return -1;
+    return ENXIO;
   }
-  trial_cnt = 120;
-  /* Counter-intuitively, the busy bit is set ot 0 if the card is not ready */
+  /* Counter-intuitively, the busy bit is set to 0 if the card is not ready */
   SD_ACMD41_RESP_SET_BUSY(&response, 0);
+  uint16_t trial_cnt = 120; /* TODO (mohr): test it on a real hardware */
   while (trial_cnt & ~SD_ACMD41_RESP_READ_BUSY(&response)) {
     if (trial_cnt-- == 0) {
-      klog("Card timedout on ACMD41 polling.");
-      return -1;
+      klog("Card timed out on ACMD41 polling.");
+      return ENXIO;
     }
     emmc_send_cmd(dev, SD_CMD_SEND_OP_COND, SD_ACMD41_SD2_0_POLLRDY_ARG1,
                   &response);
@@ -159,7 +162,7 @@ static int sd_init(device_t *dev) {
   /* At this point we should have just enetered data transfer mode */
 
   if (emmc_set_prop(dev, EMMC_PROP_RW_CLOCK_FREQ, 25000000))
-    return -1;
+    return ENXIO;
 
   emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), rca << 16, NULL);
   emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 8);
@@ -167,16 +170,16 @@ static int sd_init(device_t *dev) {
   emmc_send_cmd(dev, SD_CMD_SEND_SCR, 0, NULL);
   if (emmc_wait(dev, EMMC_I_READ_READY)) {
     klog("SD card timed out when waiting for data (SD_CMD_SEND_SCR)");
-    return -1;
+    return ENXIO;
   }
   emmc_read(dev, scr, 64, &of);
   if (emmc_wait(dev, EMMC_I_DATA_DONE)) {
     klog("SD card timed out when waiting for end of transmission");
-    return -1;
+    return ENXIO;
   }
   if (of != 64) {
     klog("Failed to read SD Card's SCR");
-    return -1;
+    return ENXIO;
   }
 
   if (scr[0] & SCR_SUPP_SET_BLKCNT)
