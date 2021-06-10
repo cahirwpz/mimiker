@@ -321,32 +321,34 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
       reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
       reg = (reg & 0x0000ffff) | (var << 16);
       b_out(emmc, BCMEMMC_BLKSIZECNT, reg);
-      return 0;
+      break;
     case EMMC_PROP_RW_BLKSIZE:
       if (var & ~0x03ff)
-        return 0;
+        return EINVAL;
       reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
       reg = (reg & ~0x03ff) | var;
       b_out(emmc, BCMEMMC_BLKSIZECNT, reg);
-      return 0;
+      break;
     case EMMC_PROP_RW_RESP_LOW:
       b_out(emmc, BCMEMMC_RESP0, (uint32_t)var);
       b_out(emmc, BCMEMMC_RESP1, (uint32_t)(var >> 32));
-      return 0;
+      break;
     case EMMC_PROP_RW_RESP_HI:
       b_out(emmc, BCMEMMC_RESP2, (uint32_t)var);
       b_out(emmc, BCMEMMC_RESP3, (uint32_t)(var >> 32));
-      return 0;
+      break;
     case EMMC_PROP_RW_CLOCK_FREQ:
       return bcmemmc_clk(cdev->parent, var);
     case EMMC_PROP_RW_BUSWIDTH:
       return bcmemmc_set_bus_width(state, var);
     case EMMC_PROP_RW_RCA:
       state->rca = var;
-      return 0;
+      break;
     default:
       return ENODEV;
   }
+
+  return 0;
 }
 
 /* Send encoded command */
