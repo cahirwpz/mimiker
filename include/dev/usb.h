@@ -205,6 +205,16 @@ typedef enum usb_speed {
   USB_SPD_FULL,
 } __packed usb_speed_t;
 
+/* USB string kinds. */
+typedef enum usb_str {
+  USB_STR_MANUFACTURER,
+  USB_STR_PRODUCT,
+  USB_STR_SERIAL_NUMBER,
+  USB_STR_CONFIGURATION,
+  USB_STR_INTERFACE,
+  USB_STR_COUNT
+} usb_str_t;
+
 typedef struct usb_endpt {
   TAILQ_ENTRY(usb_endpt) link; /* entry on device's endpoint list */
   uint16_t maxpkt;             /* max packet size */
@@ -217,14 +227,16 @@ typedef struct usb_endpt {
 /* USB device software representation. */
 typedef struct usb_device {
   TAILQ_HEAD(, usb_endpt) endpts; /* endpoints provided by the device */
+  char *strs[USB_STR_COUNT];      /* strings provided by the device */
   usb_speed_t speed;              /* speed characteristic */
+  uint16_t vendor_id;             /* vendor ID */
+  uint16_t product_id;            /* product ID */
+  uint8_t eng_support : 1;        /* 1 - device supports US ENG, 0 otherwise */
   uint8_t addr;                   /* address of the device */
   uint8_t ifnum;                  /* current interface number */
   uint8_t class_code;             /* device class code */
   uint8_t subclass_code;          /* device subclass code */
   uint8_t protocol_code;          /* protocol code */
-  uint16_t vendor_id;             /* vendor ID */
-  uint16_t product_id;            /* product ID */
 } usb_device_t;
 
 /* USB buffer used for USB transfers. */
@@ -234,8 +246,8 @@ typedef struct usb_buf {
   usb_endpt_t *endpt;     /* device's endpoint we're talking with */
   void *data;             /* data buffer */
   void *priv;             /* buffer's private data (do not alter!) */
-  unsigned executed : 1;  /* 1 - transfer has been executed, 0 otherwise */
   uint16_t transfer_size; /* size of data to transfer in the data stage */
+  uint8_t executed : 1;   /* 1 - transfer has been executed, 0 otherwise */
   usb_error_t error;      /* errors encountered during transfer */
 } usb_buf_t;
 
