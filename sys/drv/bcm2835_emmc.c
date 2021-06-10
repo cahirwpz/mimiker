@@ -112,12 +112,12 @@ static intr_filter_t bcmemmc_intr_filter(void *data) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)data;
   resource_t *emmc = state->emmc;
   WITH_SPIN_LOCK (&state->lock) {
-    uint32_t r = b_in(emmc, BCMEMMC_INTERRUPT);
-    if (!r)
+    uint32_t intr = b_in(emmc, BCMEMMC_INTERRUPT);
+    if (!intr)
       return IF_STRAY;
-    state->intrs = r;
+    state->intrs = intr;
     /* Interrupts need to be cleared manually */
-    b_out(emmc, BCMEMMC_INTERRUPT, r);
+    b_out(emmc, BCMEMMC_INTERRUPT, intr);
     /* Wake up the waiting thread if all expected intrs have been received */
     cv_signal(&state->cv_intr);
   }
@@ -353,13 +353,13 @@ static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
 
-  uint32_t r = 0;
+  uint32_t error = 0;
 
   b_out(emmc, BCMEMMC_ARG1, arg);
   b_out(emmc, BCMEMMC_CMDTM, code);
-  if ((r = bcmemmc_intr_wait(dev, INT_CMD_DONE))) {
+  if ((error = bcmemmc_intr_wait(dev, INT_CMD_DONE))) {
     klog("ERROR: failed to send EMMC command %p", code);
-    return r;
+    return error;
   }
 
   if (resp) {
@@ -428,13 +428,13 @@ static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
 static void emmc_gpio_init(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *gpio = state->gpio;
-  int64_t r = 0;
+  uint32_t gphen1 = 0;
   /* GPIO_CD */
   bcm2835_gpio_function_select(gpio, 47, BCM2835_GPIO_ALT3);
   bcm2835_gpio_set_pull(gpio, 47, 2);
-  r = b_in(gpio, GPHEN1);
-  r |= 1 << 15;
-  b_out(gpio, GPHEN1, r);
+  gphen1 = b_in(gpio, GPHEN1);
+  gphen1 |= 1 << 15;
+  b_out(gpio, GPHEN1, gphen1);
 
   /* GPIO_CLK, GPIO_CMD */
   bcm2835_gpio_function_select(gpio, 48, BCM2835_GPIO_ALT3);
