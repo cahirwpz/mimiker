@@ -141,6 +141,8 @@ void usb_buf_process(usb_buf_t *buf, void *data, usb_error_t error) {
   void *dst = buf->data;
   usb_endpt_t *endpt = buf->endpt;
   if (endpt->dir == USB_DIR_INPUT) {
+    /* In case of periodic transfers, copy the data
+     * to the internal buffer first. */
     if (usb_buf_periodic(buf))
       dst = buf->priv;
     memcpy(dst, data, buf->transfer_size);
@@ -628,7 +630,7 @@ end:
 }
 
 /* Print information regarding device `dev`.
- * TODO: this function should be replaced with GDB python script. */
+ * TODO: this function should be replaced with a GDB python script. */
 static void usb_print_dev(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
 
@@ -713,11 +715,6 @@ end:
   return error;
 }
 
-/* Get the interface descriptor from a configuration descriptor. */
-static inline usb_if_dsc_t *usb_cfg_if_dsc(usb_cfg_dsc_t *cfgdsc) {
-  return (usb_if_dsc_t *)(cfgdsc + 1);
-}
-
 /* Return address of the first endpoint within interface `ifdsc`. */
 static usb_endpt_dsc_t *usb_if_endpt_dsc(usb_if_dsc_t *ifdsc) {
   void *addr = ifdsc + 1;
@@ -766,7 +763,7 @@ static int usb_configure(device_t *dev) {
   if ((error = usb_get_str(dev, USB_STR_CONFIGURATION, cfgdsc->iConfiguration)))
     return error;
 
-  usb_if_dsc_t *ifdsc = usb_cfg_if_dsc(cfgdsc);
+  usb_if_dsc_t *ifdsc = (usb_if_dsc_t *)(cfgdsc + 1);
 
   /* Fill device codes if necessarry. */
   if (!udev->class_code) {
