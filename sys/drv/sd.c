@@ -82,9 +82,9 @@ static driver_t sd_block_device_driver;
 #define SD_BUSWIDTH_4 0x02
 
 typedef enum sd_props {
-  SD_SUPP_CCS,
-  SD_SUPP_BLKCNT,
-  SD_SUPP_BUSWIDTH_4,
+  SD_SUPP_CCS = 1,
+  SD_SUPP_BLKCNT = 2,
+  SD_SUPP_BUSWIDTH_4 = 4,
 } sd_props_t;
 
 typedef struct sd_state {
