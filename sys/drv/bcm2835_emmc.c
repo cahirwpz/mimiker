@@ -274,37 +274,39 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
     case EMMC_PROP_RW_BLKCNT:
       reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
       *var = (reg & 0xffff0000) >> 16;
-      return 0;
+      break;
     case EMMC_PROP_RW_BLKSIZE:
       reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
       *var = reg & 0x03ff;
-      return 0;
+      break;
     case EMMC_PROP_R_MAXBLKSIZE:
       *var = 512;
-      return 0;
+      break;
     case EMMC_PROP_R_MAXBLKCNT:
       *var = 255;
-      return 0;
+      break;
     case EMMC_PROP_R_VOLTAGE_SUPPLY:
       *var = EMMC_VOLTAGE_WINDOW_LOW;
-      return 0;
+      break;
     case EMMC_PROP_RW_RESP_LOW:
       *var = (uint64_t)b_in(emmc, BCMEMMC_RESP0) |
              (uint64_t)b_in(emmc, BCMEMMC_RESP1) << 32;
-      return 0;
+      break;
     case EMMC_PROP_RW_RESP_HI:
       *var = (uint64_t)b_in(emmc, BCMEMMC_RESP2) |
              (uint64_t)b_in(emmc, BCMEMMC_RESP3) << 32;
-      return 0;
+      break;
     case EMMC_PROP_RW_BUSWIDTH:
       *var = bcmemmc_get_bus_width(state);
-      return 0;
+      break;
     case EMMC_PROP_RW_RCA:
       *var = state->rca;
-      return 0;
+      break;
     default:
       return ENODEV;
   }
+
+  return 0;
 }
 
 static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
