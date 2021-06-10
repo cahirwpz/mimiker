@@ -594,11 +594,11 @@ static void usb_print_dev(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
 
   klog("device address: %u", udev->addr);
-  klog("device class code: %x", udev->class_code);
-  klog("device subclass code: %x", udev->subclass_code);
-  klog("device protocol code: %x", udev->protocol_code);
-  klog("vendor ID: %x", udev->vendor_id);
-  klog("product ID: %x", udev->product_id);
+  klog("device class code: %#x", udev->class_code);
+  klog("device subclass code: %#x", udev->subclass_code);
+  klog("device protocol code: %#x", udev->protocol_code);
+  klog("vendor ID: %#x", udev->vendor_id);
+  klog("product ID: %#x", udev->product_id);
   klog("speed: %s", speed_info[udev->speed]);
 
   /* Print the provided string descriptors. */
@@ -612,7 +612,7 @@ static void usb_print_dev(device_t *dev) {
   usb_endpt_t *endpt;
   TAILQ_FOREACH (endpt, &udev->endpts, link) {
     klog("endpoint address: %u", endpt->addr);
-    klog("max packet size: %x", endpt->maxpkt);
+    klog("max packet size: %#x", endpt->maxpkt);
     klog("transfer type: %s", tfr_info[endpt->transfer]);
     klog("direction: %s", dir_info[endpt->dir]);
     if (endpt->interval)
