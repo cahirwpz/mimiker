@@ -70,7 +70,6 @@ static inline uint32_t emmc_wait_flags_to_hwflags(emmc_wait_flags_t mask) {
 static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
-  uint32_t m = 0;
 
   SCOPED_SPIN_LOCK(&state->lock);
 
