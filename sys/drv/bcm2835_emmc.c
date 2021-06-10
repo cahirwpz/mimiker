@@ -84,22 +84,22 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
     /* Busy-wait for a while. Should be good enough if the card works fine */
     for (int i = 0; i < BCMEMMC_BUSY_CYCLES; i++) {
       if ((state->intrs = b_in(emmc, BCMEMMC_INTERRUPT)))
-          goto bcmemmc_intr_next;
+        goto bcmemmc_intr_next;
     }
-    
+
     /* Sleep for a while if no interrupts have been received so far */
     if (cv_wait_timed(&state->cv_intr, &state->lock, BCMEMMC_TIMEOUT)) {
       b_out(emmc, BCMEMMC_INTERRUPT, 0xffffffff);
       return ETIMEDOUT;
     }
 
-bcmemmc_intr_next:
+  bcmemmc_intr_next:
     if (state->intrs & INT_ERROR_MASK) {
       state->intrs = 0;
       return EIO;
     }
   }
-  
+
   return 0;
 }
 
