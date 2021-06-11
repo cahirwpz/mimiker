@@ -12,7 +12,7 @@ system for the Malta board and Raspberry Pi 3.
 * keep User Space interface as compatible as possible with
   NetBSD. That way we'll be capable to run all programs designed for that
   system, we already are able to run a few of those. Consequence of that
-  is all User header files are the same as NetBSD's.
+  is all user header files are the same as NetBSD's.
 * We want kernel to be run on a modern architecture, we started with MIPS32,
   but currently we are switching to AArch64 (Raspberry Pi 3)
 * We love to KISS
