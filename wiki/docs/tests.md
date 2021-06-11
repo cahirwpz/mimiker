@@ -68,9 +68,9 @@ One also needs to add a line
 
 #### Creating tests
 
-Tests are supposed to return `0` or create kernel panic during execution.
-We achieve that by usage of `assert` which when failed creates kernel panic.
-That implies that one should change parts of its code that may look like this
+Tests are supposed to return `0` or create kernel panic during execution,
+that can be achieved by usage of `assert`. That implies that one should change
+parts of its code that may look like this
 
 ```c
 pid_t child_pid;
@@ -106,7 +106,8 @@ if (child_pid == 0) {
 The same goes with usage of every function that may not execute successfully.
 
 Also watch out for `assert`, *it's a macro* which means that expression
-inside may be executed more than once. Hence, code below is absolutely **unacceptable**.
+inside may be executed more than once. Hence, version of `fork` below is
+absolutely **unacceptable**.
 
 ```c
 pid_t child_pid;
