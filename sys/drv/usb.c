@@ -265,7 +265,8 @@ static void _usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
  * USB standard requests.
  */
 
-/* Perform a standard USB request. */
+/* Perform a standard USB request.
+ * NOTE: all standard requests are performed synchronously. */
 static int usb_send_req(device_t *dev, void *data, usb_direction_t dir,
                         usb_dev_req_t *req, usb_error_t *uerr_p) {
   usb_buf_t *buf = usb_buf_alloc();
