@@ -5,8 +5,9 @@
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
+#include <sys/malloc.h>
 #include <sys/pool.h>
-#include <sys/lock.h>
+#include <sys/mutex.h>
 
 static POOL_DEFINE(P_VCACHE, "vcache", sizeof(vnode_t));
 
@@ -17,12 +18,12 @@ typedef TAILQ_HEAD(vnode_list, vnode) vnode_list_t;
 
 static vnode_list_t vcache_free;
 static vnode_list_t vcache_buckets[VCACHE_BUCKET_CNT];
-static lock_t vcache_giant_lock;
+static mtx_t vcache_giant_lock;
 
 typedef size_t vcache_t; 
 
 static vcache_t vcache_hash(mount_t *mp, ino_t ino) {
-  return ((vcache_t)mp->mnt_vnodecovered >> 3 + ino) % VCACHE_BUCKET_CNT;
+  return (((vcache_t)mp->mnt_vnodecovered >> 3) + ino) % VCACHE_BUCKET_CNT;
 }
 
 /* XXX: this is taken from vfs_vnode.c */
@@ -40,6 +41,10 @@ static vnode_t *vcache_new_vnode(void) {
 }
 
 void vfs_vcache_init(void) {
+  TAILQ_INIT(&vcache_free);
+  for (size_t i = 0; i < VCACHE_BUCKET_CNT; i++)
+    TAILQ_INIT(&vcache_buckets[i]);
+
   for (size_t i = 0; i < VCACHE_INITIAL_FREE_CNT; i++)
    (void)vcache_new_vnode();
 
@@ -58,10 +63,10 @@ vnode_t *vfs_vcache_hashget(mount_t *mp, ino_t ino) {
 
   vnode_t *vn = NULL;
   TAILQ_FOREACH(vn, &vcache_buckets[bucket], v_cached) {
-    if (vn->v_mountedhere == mp && vn->ino == ino) {
+    if (vn->v_mount == mp && vn->ino == ino) {
       TAILQ_REMOVE(&vcache_free, vn, v_free);
       TAILQ_REMOVE(&vcache_buckets[bucket], vn, v_cached);
-      vnode_get(vn);
+      vnode_hold(vn);
       return vn;
     }
   }
@@ -74,7 +79,7 @@ vnode_t *vfs_vcache_hashget(mount_t *mp, ino_t ino) {
  * \param vn a vnode from vcache free list
  */
 void vfs_vcache_bind(vnode_t *vn) {
-  vcache_t bucket = vcache_hash(vn->v_mountedhere, vn->ino);
+  vcache_t bucket = vcache_hash(vn->v_mount, vn->ino);
   
   SCOPED_MTX_LOCK(&vcache_giant_lock);
 
@@ -99,7 +104,7 @@ vnode_t *vfs_vcache_new_vnode(void) {
   TAILQ_INSERT_TAIL(&vcache_free, vn, v_free);
 
   /* Remove it from its bucket (if present in any) */
-  vcache_t bucket = vcache_hash(vn->v_mountedhere, vn->ino);
+  vcache_t bucket = vcache_hash(vn->v_mount, vn->ino);
   vnode_t *bucket_node = NULL;
   TAILQ_FOREACH(bucket_node, &vcache_buckets[bucket], v_cached) {
     if (bucket_node == vn) {
@@ -119,6 +124,6 @@ void vfs_vcache_put(vnode_t *vn) {
   SCOPED_MTX_LOCK(&vcache_giant_lock);
 
   TAILQ_INSERT_TAIL(&vcache_free, vn, v_free);
-  vcache_t bucket = vcache_hash(vn->v_mountedhere, vn->ino);
+  vcache_t bucket = vcache_hash(vn->v_mount, vn->ino);
   TAILQ_INSERT_HEAD(&vcache_buckets[bucket], vn, v_cached);
 }
