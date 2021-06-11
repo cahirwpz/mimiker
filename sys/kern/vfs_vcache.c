@@ -104,6 +104,8 @@ vnode_t *vfs_vcache_new_vnode(void) {
   TAILQ_INSERT_TAIL(&vcache_free, vn, v_free);
 
   /* Remove it from its bucket (if present in any) */
+  if (!vn->v_mount)
+    return vn; /* vnode was not in a any bucket and cannot be hashed */
   vcache_t bucket = vcache_hash(vn->v_mount, vn->ino);
   vnode_t *bucket_node = NULL;
   TAILQ_FOREACH(bucket_node, &vcache_buckets[bucket], v_cached) {

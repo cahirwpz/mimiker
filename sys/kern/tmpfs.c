@@ -739,6 +739,7 @@ static int tmpfs_get_vnode(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp) {
     vn->v_mount = mp;
     vn->v_ops = &tmpfs_vnodeops;
     vn->v_type = tfn->tfn_type;
+    vn->v_data = tfn;
     vfs_vcache_bind(vn);
     vnode_hold(vn);
   }
