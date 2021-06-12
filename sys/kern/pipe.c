@@ -108,7 +108,7 @@ static int pipe_write(file_t *f, uio_t *uio) {
 
   /* Reading end is closed, no use in sending data there. */
   if (consumer->closed)
-    return ESPIPE;
+    return EPIPE;
 
   /* no write atomicity for now! */
   WITH_MTX_LOCK (&producer->mtx) {
