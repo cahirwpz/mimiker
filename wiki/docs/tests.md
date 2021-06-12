@@ -64,6 +64,7 @@ In order to make the test runnable one has to add one of these lines to
 One also needs to add a line
 
 * `CHECKRUN_TEST({name})` in `/bin/utest/main.c`,
+* `int test_{name}(void);` in `/bin/utest/utest.h`,
 * `${filename}.c` in `bin/utest/Makefile`.
 
 #### Creating tests
