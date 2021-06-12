@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
+
 #include <signal.h>
 #include <string.h>
 
@@ -14,29 +15,94 @@
 #include "utest.h"
 #include "util.h"
 
-int test_pipe_blocking_flag_manipulation(void) {
+static sig_atomic_t signal_delivered;
+
+static void sigpipe_handler(int signo) {
+  assert(signo == SIGPIPE);
+  signal_delivered = 1;
+}
+
+int test_pipe_parent_signaled(void) {
   int pipe_fd[2];
+  signal_delivered = 0;
+  signal(SIGPIPE, sigpipe_handler);
 
   /* creating pipe */
-  int pipe_ret_val = pipe2(pipe_fd, O_NONBLOCK);
-  assert(pipe_ret_val == 0);
+  int pipe2_ret = pipe2(pipe_fd, 0);
+  assert(pipe2_ret == 0);
 
-  /* check if flag is set */
-  assert(fcntl(pipe_fd[0], F_GETFL) & O_NONBLOCK);
-  assert(fcntl(pipe_fd[1], F_GETFL) & O_NONBLOCK);
+  /* forking */
+  pid_t child_pid = fork();
+  assert(child_pid >= 0);
 
-  /* unset same flag for read end */
-  int read_flagset_with_block;
-  assert(read_flagset_with_block = fcntl(pipe_fd[0], F_GETFL) > 0);
-  fcntl(pipe_fd[0], F_SETFL, read_flagset_with_block & ~O_NONBLOCK);
-  /* unset same flag for write end */
-  int write_flagset_with_block;
-  assert(write_flagset_with_block = fcntl(pipe_fd[1], F_GETFL) > 0);
-  fcntl(pipe_fd[1], F_SETFL, write_flagset_with_block & ~O_NONBLOCK);
+  if (child_pid == 0) { /* child */
+    close(pipe_fd[1]);  /* closing write end of pipe */
+    close(pipe_fd[0]);  /* closing read end of pipe */
+    exit(EXIT_SUCCESS);
+  }
 
-  /* check if flag is not set */
-  assert(!(fcntl(pipe_fd[0], F_GETFL) & O_NONBLOCK));
-  assert(!(fcntl(pipe_fd[1], F_GETFL) & O_NONBLOCK));
+  /* parent */
+  close(pipe_fd[0]); /* closing read end of pipe */
+
+  /* Sync with end of child execution */
+  wait_for_child_exit(child_pid, EXIT_SUCCESS);
+
+  /* This is supposed to trigger SIGPIPE and return EPIPE */
+  ssize_t write_ret = write(pipe_fd[1], "hello world\n", 12);
+  assert(write_ret == -1);
+  assert(errno == EPIPE);
+  assert(signal_delivered);
+
+  return 0;
+}
+
+int test_pipe_child_signaled(void) {
+  int pipe_fd[2];
+  signal_delivered = 0;
+
+  /* set up SIGUSR1 so it's not lethal for my child */
+  signal_setup(SIGUSR1);
+
+  /* creating pipe */
+  int pipe2_ret = pipe2(pipe_fd, 0);
+  assert(pipe2_ret == 0);
+
+  /* forking */
+  pid_t child_pid = fork();
+  assert(child_pid >= 0);
+
+  if (child_pid == 0) { /* child */
+    signal(SIGPIPE, sigpipe_handler);
+
+    close(pipe_fd[0]);        /* closing read end of pipe */
+    wait_for_signal(SIGUSR1); /* now we know that other end is closed */
+
+    /* This is supposed to trigger SIGPIPE and return EPIPE */
+    ssize_t write_ret = write(pipe_fd[1], "hello world\n", 12);
+    assert(write_ret == -1);
+    assert(errno == EPIPE);
+    assert(signal_delivered);
+
+    exit(EXIT_SUCCESS);
+  }
+
+  /* parent */
+  close(pipe_fd[1]); /* closing write end of pipe */
+  close(pipe_fd[0]); /* closing read end of pipe */
+
+  /* send SIGUSR1 informing that parent closed both ends of pipe */
+  kill(child_pid, SIGUSR1);
+
+  /* I really want child to finish, not just change it's state.
+   * so i don't use wait_for_child_exit
+   */
+  int wstatus = 1;
+  do {
+    ssize_t waitpid_ret = waitpid(child_pid, &wstatus, 0);
+    assert(waitpid_ret == child_pid);
+  } while (!WIFEXITED(wstatus));
+
+  assert(WEXITSTATUS(wstatus) == EXIT_SUCCESS);
 
   return 0;
 }

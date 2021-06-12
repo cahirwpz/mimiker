@@ -14,6 +14,7 @@ SOURCES = \
 	mmap.c \
 	pipe.c \
 	pgrp.c \
+	pipe.c \
 	procstat.c \
 	pty.c \
 	sbrk.c \
