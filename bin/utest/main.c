@@ -128,11 +128,9 @@ int main(int argc, char **argv) {
 
   CHECKRUN_TEST(pipe_parent_signaled);
   CHECKRUN_TEST(pipe_child_signaled);
-
   CHECKRUN_TEST(pipe_blocking_flag_manipulation);
   CHECKRUN_TEST(pipe_write_sleep);
   CHECKRUN_TEST(pipe_write_eagain);
-
   CHECKRUN_TEST(pipe_read_sleep);
   CHECKRUN_TEST(pipe_read_eagain);
   CHECKRUN_TEST(pipe_read_zero);
