@@ -122,7 +122,13 @@ int test_procstat(void);
 
 int test_pipe_parent_signaled(void);
 int test_pipe_child_signaled(void);
+
 int test_pipe_blocking_flag_manipulation(void);
+int test_pipe_write_sleep(void);
+int test_pipe_write_eagain(void);
 
+int test_pipe_read_sleep(void);
+int test_pipe_read_eagain(void);
+int test_pipe_read_zero(void);
 
-#endif /* __UTEST_H__ */
+#endif __UTEST_H__
