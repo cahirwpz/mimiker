@@ -131,4 +131,4 @@ int test_pipe_read_sleep(void);
 int test_pipe_read_eagain(void);
 int test_pipe_read_zero(void);
 
-#endif __UTEST_H__
+#endif /* __UTEST_H__ */
