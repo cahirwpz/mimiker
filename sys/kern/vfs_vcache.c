@@ -36,8 +36,21 @@ static vnode_t *vcache_new_vnode(void) {
   vnode_t *vn = pool_alloc(P_VCACHE, M_ZERO);
   vn->v_type = V_NONE;
   vnlock_init(&vn->v_lock);
-  TAILQ_INSERT_TAIL(&vcache_free, vn, v_free);
   return vn;
+}
+
+/* Remove vnode from its bucket (if present in any) */
+static void vcache_remove_unbuffer(vnode_t *vn) {
+  if (!vn->v_mount)
+    return; /* vnode was not in a any bucket and cannot be hashed */
+  vcache_t bucket = vcache_hash(vn->v_mount, vn->ino);
+  vnode_t *bucket_node = NULL;
+  TAILQ_FOREACH(bucket_node, &vcache_buckets[bucket], v_cached) {
+    if (bucket_node == vn) {
+      TAILQ_REMOVE(&vcache_buckets[bucket], vn, v_cached);
+      break;
+    }
+  }
 }
 
 void vfs_vcache_init(void) {
@@ -45,8 +58,10 @@ void vfs_vcache_init(void) {
   for (size_t i = 0; i < VCACHE_BUCKET_CNT; i++)
     TAILQ_INIT(&vcache_buckets[i]);
 
-  for (size_t i = 0; i < VCACHE_INITIAL_FREE_CNT; i++)
-   (void)vcache_new_vnode();
+  for (size_t i = 0; i < VCACHE_INITIAL_FREE_CNT; i++) {
+    vnode_t *vn = vcache_new_vnode();
+    TAILQ_INSERT_TAIL(&vcache_free, vn, v_free);
+  }
 
   mtx_init(&vcache_giant_lock, 0);
 }
@@ -87,40 +102,41 @@ void vfs_vcache_bind(vnode_t *vn) {
 }
 
 /**
- * \brief Get a new, vcached vnode
+ * \brief Get a new, vcached vnode with v_usecnt = 1
  */
 vnode_t *vfs_vcache_new_vnode(void) {
   SCOPED_MTX_LOCK(&vcache_giant_lock);
 
+   vnode_t *vn;
+
   /* Allocate new vnode if no free vnodes are available */
-  if (TAILQ_EMPTY(&vcache_free))
-    return vcache_new_vnode();
+  if (TAILQ_EMPTY(&vcache_free)) {
+    vn = vcache_new_vnode();
+    vn->v_usecnt = 1;
+    return vn;
+  }
 
   /* Get the Least Recently Used vnode */
-  vnode_t *vn = TAILQ_FIRST(&vcache_free);
-  
-  /* Make it the Most Recently Used vnode */
+  vn = TAILQ_FIRST(&vcache_free);
+
+  /* Reset some fields */
+  vn->v_usecnt = 1;
+  vn->v_mount = NULL;
+  vn->v_ops = NULL;
+  vn->v_data = NULL;
+
+  /* Remove it from free list */
   TAILQ_REMOVE(&vcache_free, vn, v_free);
-  TAILQ_INSERT_TAIL(&vcache_free, vn, v_free);
 
   /* Remove it from its bucket (if present in any) */
-  if (!vn->v_mount)
-    return vn; /* vnode was not in a any bucket and cannot be hashed */
-  vcache_t bucket = vcache_hash(vn->v_mount, vn->ino);
-  vnode_t *bucket_node = NULL;
-  TAILQ_FOREACH(bucket_node, &vcache_buckets[bucket], v_cached) {
-    if (bucket_node == vn) {
-      TAILQ_REMOVE(&vcache_buckets[bucket], vn, v_cached);
-      break;
-    }
-  }
+  vcache_remove_unbuffer(vn);
 
   return vn;
 }
 
 /**
  * \brief Return a vnode to vcache's free list
- * \param vn 
+ * \param vn vnode to be returned
  */
 void vfs_vcache_put(vnode_t *vn) {
   SCOPED_MTX_LOCK(&vcache_giant_lock);
