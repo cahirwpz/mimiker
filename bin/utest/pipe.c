@@ -162,7 +162,10 @@ int test_pipe_write_sleep(void) {
     sigaction(SIGALRM, &sa, NULL);
 
     int bytes_wrote;
-    long pipe_size = (long)fcntl(pipe_fd[1], F_GETPIPE_SZ);
+    long pipe_size;
+    int err = ioctl(pipe_fd[1], FIONREAD, &pipe_size);
+    assert(err == 0);
+    // long pipe_size = (long)fcntl(pipe_fd[1], F_GETPIPE_SZ);
     int page_size = getpagesize();
     char data[page_size];
 
@@ -176,7 +179,6 @@ int test_pipe_write_sleep(void) {
     }
     /* Starting timer */
     alarm(1);
-
     bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
 
     assert(bytes_wrote == -1);
@@ -195,7 +197,7 @@ int test_pipe_write_sleep(void) {
 int test_pipe_write_eagain(void) {
   int pipe_fd[2];
   pid_t child_pid;
-  int bytes_wrote;
+  int bytes_wrote = 0;
 
   /* creating pipe */
   int pipe2_ret = pipe2(pipe_fd, 0);
@@ -213,20 +215,18 @@ int test_pipe_write_eagain(void) {
     assert(previous_flagset > 0);
     fcntl(pipe_fd[1], F_SETFL, previous_flagset | O_NONBLOCK);
 
-    long pipe_size = (long)fcntl(pipe_fd[1], F_GETPIPE_SZ);
+    // long pipe_size = (long)fcntl(pipe_fd[1], LINUX_F_GETPIPE_SZ);
     int page_size = getpagesize();
     /* prepare varying data */
     char data[page_size];
     for (int i = 0; i < page_size; i++) {
       data[i] = i + '0';
     }
-    /* fill the pipe with data */
-    for (long i = 0; i < pipe_size; i += page_size) {
-      bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
-    }
 
     /* overflowing pipe */
-    bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
+    while (bytes_wrote >= 0) {
+      bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
+    }
     assert(bytes_wrote == -1);
     assert(errno == EAGAIN);
 
