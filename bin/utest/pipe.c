@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <ioctl.h>
 
 #include <signal.h>
 #include <string.h>
