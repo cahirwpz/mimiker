@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <ioctl.h>
 
 #include <signal.h>
 #include <string.h>
@@ -161,28 +162,31 @@ int test_pipe_write_sleep(void) {
 
     sigaction(SIGALRM, &sa, NULL);
 
-    int bytes_wrote;
-    long pipe_size;
-    int err = ioctl(pipe_fd[1], FIONREAD, &pipe_size);
-    assert(err == 0);
-    // long pipe_size = (long)fcntl(pipe_fd[1], F_GETPIPE_SZ);
     int page_size = getpagesize();
     char data[page_size];
 
     for (int i = 0; i < page_size; i++) {
       data[i] = i + '0';
     }
+    size_t bytes_wrote = 0;
+    alarm(5);
 
-    for (long i = 0; i < pipe_size; i += page_size) {
+    while (bytes_wrote >= 0) {
       bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
-      assert((long unsigned int)bytes_wrote == sizeof(data));
     }
-    /* Starting timer */
-    alarm(1);
-    bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
-
     assert(bytes_wrote == -1);
     assert(errno == EINTR);
+
+    // for (long i = 0; i < pipe_size; i += page_size) {
+    //   bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
+    //   assert((long unsigned int)bytes_wrote == sizeof(data));
+    // }
+    // /* Starting timer */
+
+    // bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
+
+    // assert(bytes_wrote == -1);
+    // assert(errno == EINTR);
 
     close(pipe_fd[1]); /* closing write end of pipe */
     exit(EXIT_SUCCESS);
