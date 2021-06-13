@@ -120,8 +120,6 @@ int test_tty_signals(void);
 
 int test_procstat(void);
 
-void test_pipe_handler(int signo);
-
 int test_pipe_parent_signaled(void);
 int test_pipe_child_signaled(void);
 
