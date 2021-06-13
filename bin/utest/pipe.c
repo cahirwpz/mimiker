@@ -16,18 +16,19 @@
 
 static sig_atomic_t signal_delivered;
 
-void handler(int signo) {
+void test_pipe_handler(int signo) {
   if (signo == SIGPIPE) {
     assert(signo == SIGPIPE);
     signal_delivered = 1;
-  } else if (signo == SIGALRM) {
+  }
+  if (signo == SIGALRM) {
   }
 }
 
 int test_pipe_parent_signaled(void) {
   int pipe_fd[2];
   signal_delivered = 0;
-  signal(SIGPIPE, handler);
+  signal(SIGPIPE, test_pipe_handler);
 
   /* creating pipe */
   int pipe2_ret = pipe2(pipe_fd, 0);
@@ -74,7 +75,7 @@ int test_pipe_child_signaled(void) {
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
-    signal(SIGPIPE, handler);
+    signal(SIGPIPE, test_pipe_handler);
 
     close(pipe_fd[0]);        /* closing read end of pipe */
     wait_for_signal(SIGUSR1); /* now we know that other end is closed */
@@ -155,7 +156,7 @@ int test_pipe_write_sleep(void) {
     close(pipe_fd[0]);  /* closing read end of pipe */
 
     struct sigaction sa = {
-      .sa_handler = handler,
+      .sa_handler = test_pipe_handler,
       .sa_flags = 0,
     };
 
@@ -167,7 +168,7 @@ int test_pipe_write_sleep(void) {
     for (int i = 0; i < page_size; i++) {
       data[i] = i + '0';
     }
-    size_t bytes_wrote = 0;
+    int bytes_wrote = 0;
     alarm(5);
 
     while (bytes_wrote >= 0) {
@@ -260,7 +261,7 @@ int test_pipe_read_sleep(void) {
     close(pipe_fd[1]);  /* closing write end of pipe */
 
     struct sigaction sa = {
-      .sa_handler = handler,
+      .sa_handler = test_pipe_handler,
       .sa_flags = 0,
     };
 
