@@ -177,7 +177,6 @@ int do_pipe2(proc_t *p, int fds[2], int flags) {
   file_t *file1 = make_pipe_file(producer);
 
   int error;
-  int cloexec_to_set = false;
 
   if (!(error = fdtab_install_file(p->p_fdtable, file0, 0, &fds[0]))) {
     if (!(error = fdtab_install_file(p->p_fdtable, file1, 0, &fds[1]))) {
