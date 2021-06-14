@@ -168,7 +168,7 @@ static file_t *make_pipe_file(pipe_end_t *end) {
   return file;
 }
 
-int do_pipe(proc_t *p, int fds[2]) {
+int do_pipe2(proc_t *p, int fds[2], int flags) {
   pipe_t *pipe = pipe_alloc();
   pipe_end_t *consumer = &pipe->end[0];
   pipe_end_t *producer = &pipe->end[1];
@@ -177,11 +177,17 @@ int do_pipe(proc_t *p, int fds[2]) {
   file_t *file1 = make_pipe_file(producer);
 
   int error;
+  int cloexec_to_set = false;
 
   if (!(error = fdtab_install_file(p->p_fdtable, file0, 0, &fds[0]))) {
     if (!(error = fdtab_install_file(p->p_fdtable, file1, 0, &fds[1]))) {
-      if (!(error = fd_set_cloexec(p->p_fdtable, fds[0], false)))
-        return fd_set_cloexec(p->p_fdtable, fds[1], false);
+      if (flags & O_NONBLOCK) {
+        file0->f_flags |= IO_NONBLOCK;
+        file1->f_flags |= IO_NONBLOCK;
+      }
+      int cloexec_to_set = flags & O_CLOEXEC;
+      if (!(error = fd_set_cloexec(p->p_fdtable, fds[0], cloexec_to_set)))
+        return fd_set_cloexec(p->p_fdtable, fds[1], cloexec_to_set);
       fdtab_close_fd(p->p_fdtable, fds[1]);
     }
     fdtab_close_fd(p->p_fdtable, fds[0]);
