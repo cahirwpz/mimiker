@@ -169,7 +169,7 @@ int test_pipe_write_sleep(void) {
       data[i] = i + '0';
     }
     int bytes_wrote = 0;
-    alarm(5);
+    alarm(1);
 
     while (bytes_wrote >= 0) {
       bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
