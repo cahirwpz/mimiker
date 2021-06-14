@@ -100,6 +100,7 @@ CONFIG = {
                 'options': [
                     '-machine', 'raspi3',
                     '-smp', '4',
+                    '-dtb', 'sys/dts/rpi3.dtb',
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [

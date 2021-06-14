@@ -24,6 +24,7 @@ SOURCES-MIPS = \
 	pit.c \
 	stdvga.c \
 	uart_cbus.c \
+	uhci.c \
 	usb.c
 
 SOURCES-AARCH64 = \
