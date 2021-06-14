@@ -84,6 +84,9 @@ SOURCES-KGPROF = \
 	kgprof.c \
 	mcount.c
 
+SOURCES-KCSAN = \
+	kcsan.c
+
 FORMAT-EXCLUDE = sysent.h
 
 include $(TOPDIR)/build/build.kern.mk
@@ -97,3 +100,4 @@ sysent.h $(SYSCALL_H) $(SYSCALLARGS_H): syscalls.conf syscalls.master
 
 kasan.o : CFLAGS_KASAN =
 mcount.o : CFLAGS_KGPROF =
+kcsan.o : CFLAGS_KCSAN =
