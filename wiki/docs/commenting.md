@@ -121,7 +121,3 @@ tm_trigger(&pit->timer);
 - `INFO(?a)`
 
 <!-- TODO(hadarai) add INFO example -->
-
-## General commenting guidelines
-
-<!-- to be done... -->
