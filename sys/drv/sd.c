@@ -14,82 +14,8 @@
 #include <sys/klog.h>
 #include <sys/vnode.h>
 #include <sys/devfs.h>
+#include <dev/sd.h>
 
-/* Must be a power of two */
-#define DEFAULT_BLKSIZE 512
-#define SD_KERNEL_BLOCKS 4 /* Number of blocks buffered in kernel memory */
-
-static driver_t sd_block_device_driver;
-
-/* The custom R7 response is handled just like R1 response, but has different
- * bitfields, same goes for R6 */
-#define SDRESP_R7 EMMCRESP_R1
-#define SD_R7_CHKPAT(resp) EMMC_FMASK48(resp, 0, 8)
-
-#define SDRESP_R6 EMMCRESP_R1
-#define SD_R6_RCA(resp) EMMC_FMASK48(resp, 16, 16)
-
-/* Custom commands */
-#define SD_CMD_SET_IF_COND                                                     \
-  (emmc_cmd_t) {                                                               \
-    .cmd_idx = 8, .flags = 0, .exp_resp = SDRESP_R7,                           \
-  }
-
-#define SD_CMD_SEND_OP_COND                                                    \
-  (emmc_cmd_t) {                                                               \
-    .cmd_idx = 41, .flags = EMMC_F_APP, .exp_resp = EMMCRESP_R1,               \
-  }
-
-#define SD_CMD_SEND_SCR                                                        \
-  (emmc_cmd_t) {                                                               \
-    .cmd_idx = 51, .flags = EMMC_F_APP | EMMC_F_DATA_READ,                     \
-    .exp_resp = EMMCRESP_R1,                                                   \
-  }
-
-#define SD_CMD_SEND_REL_ADDR                                                   \
-  (emmc_cmd_t) {                                                               \
-    .cmd_idx = 3, .flags = 0, .exp_resp = SDRESP_R6,                           \
-  }
-
-#define SD_CMD_SET_BUS_WIDTH                                                   \
-  (emmc_cmd_t) {                                                               \
-    .cmd_idx = 6, .flags = EMMC_F_APP, .exp_resp = EMMCRESP_R1,                \
-  }
-
-/* Custom response field extractors */
-#define SD_ACMD41_SD2_0_POLLRDY_ARG1 0x51ff8000
-#define SD_ACMD41_RESP_BUSY_OFFSET 31
-#define SD_ACMD41_RESP_BUSY_WIDTH 1
-#define SD_ACMD41_RESP_CCS_OFFSET 30
-#define SD_ACMD41_RESP_CCS_WIDTH 1
-#define SD_ACMD41_RESP_UHSII_OFFSET 29
-#define SD_ACMD41_RESP_UHSII_WIDTH 1
-#define SD_ACMD41_RESP_SW18A_OFFSET 24
-#define SD_ACMD41_RESP_SW18A_WIDTH 1
-
-#define SD_ACMD41_RESP_SET_BUSY(r, b)                                          \
-  EMMC_FMASK48_WR((r), SD_ACMD41_RESP_BUSY_OFFSET, SD_ACMD41_RESP_BUSY_WIDTH,  \
-                  (b))
-#define SD_ACMD41_RESP_READ_BUSY(r)                                            \
-  EMMC_FMASK48((r), SD_ACMD41_RESP_BUSY_OFFSET, SD_ACMD41_RESP_BUSY_WIDTH)
-#define SD_ACMD41_RESP_READ_CCS(r)                                             \
-  EMMC_FMASK48((r), SD_ACMD41_RESP_CCS_OFFSET, SD_ACMD41_RESP_CCS_WIDTH)
-
-/* SCR flags */
-#define SCR_SD_BUS_WIDTH_4 0x00000400
-#define SCR_SUPP_SET_BLKCNT 0x02000000
-
-#define SD_BUSWIDTH_1 0x00
-#define SD_BUSWIDTH_4 0x02
-
-/* SD post-init clocking frequency */
-#define SD_CLK 25000000
-
-typedef enum sd_props {
-  SD_SUPP_CCS = 1,
-  SD_SUPP_BLKCNT = 2,
-  SD_SUPP_BUSWIDTH_4 = 4,
-} sd_props_t;
 
 typedef struct sd_state {
   sd_props_t props;
@@ -162,7 +88,7 @@ static int sd_init(device_t *dev) {
   /* At this point we should have just enetered data transfer mode */
 
   if (emmc_set_prop(dev, EMMC_PROP_RW_CLOCK_FREQ, 25000000))
-    return ENXIO;
+    return EIO;
 
   emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), rca << 16, NULL);
   emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 8);
@@ -170,16 +96,16 @@ static int sd_init(device_t *dev) {
   emmc_send_cmd(dev, SD_CMD_SEND_SCR, 0, NULL);
   if (emmc_wait(dev, EMMC_I_READ_READY)) {
     klog("SD card timed out when waiting for data (SD_CMD_SEND_SCR)");
-    return ENXIO;
+    return EIO;
   }
   emmc_read(dev, scr, 64, &of);
   if (emmc_wait(dev, EMMC_I_DATA_DONE)) {
     klog("SD card timed out when waiting for end of transmission");
-    return ENXIO;
+    return EIO;
   }
   if (of != 64) {
     klog("Failed to read SD Card's SCR");
-    return ENXIO;
+    return EIO;
   }
 
   if (scr[0] & SCR_SUPP_SET_BLKCNT)
@@ -202,7 +128,6 @@ static int sd_init(device_t *dev) {
  * returns 0 on error.
  */
 int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
-  assert(dev->driver == (driver_t *)&sd_block_device_driver);
   sd_state_t *state = (sd_state_t *)dev->state;
 
   if (num < 1)
@@ -261,7 +186,6 @@ int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
  * returns 0 on error
  */
 int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num) {
-  assert(dev->driver == (driver_t *)&sd_block_device_driver);
   sd_state_t *state = (sd_state_t *)dev->state;
 
   uint32_t *buf = (uint32_t *)buffer;
@@ -365,10 +289,9 @@ static int sd_attach(device_t *dev) {
 static driver_t sd_block_device_driver = {
   .desc = "SD(SC/HC) block device driver",
   .size = sizeof(sd_state_t),
+  .pass = SECOND_PASS,
   .probe = sd_probe,
   .attach = sd_attach,
-  .pass = SECOND_PASS,
-  .interfaces = {},
 };
 
 DEVCLASS_ENTRY(emmc, sd_block_device_driver);

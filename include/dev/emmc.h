@@ -223,7 +223,7 @@ static inline int emmc_wait(device_t *dev, emmc_wait_flags_t wflags) {
  * \param len expected data length
  * \param n pointer for the number of read bytes or NULL
  * \return 0 on success, ENODATA if no new data can be read, EBUSY if device is
- * busy, EINVAL on incorrect data length (not a multiple of block size)
+ * busy
  */
 static inline int emmc_read(device_t *dev, void *buf, size_t len, size_t *n) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, read);
