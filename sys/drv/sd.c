@@ -73,9 +73,10 @@ static int sd_init(device_t *dev) {
     klog("SD 2.0 voltage supply is mismatched, or the card is at Version 1.x");
     return ENXIO;
   }
-  int trial_cnt = 120; /* XXX: Test on a real hardware */
+
   /* Counter-intuitively, the busy bit is set ot 0 if the card is not ready */
   SD_ACMD41_RESP_SET_BUSY(&response, 0);
+  int trial_cnt = 120; /* XXX: test it on a real hardware */
   while (trial_cnt & ~SD_ACMD41_RESP_READ_BUSY(&response)) {
     if (trial_cnt-- < 0) {
       klog("Card timedout on ACMD41 polling.");
@@ -142,32 +143,31 @@ static int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
 
   ASSIGN_OPTIONAL(read, 0);
 
+  TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num), error);
+  TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE), error);
+
   if (state->props & SD_SUPP_CCS) {
     /* Multiple block transfers either be terminated after a set amount of
      * block is transferred, or by sending CMD_STOP_TRANS command */
     if (num > 1 && (state->props & SD_SUPP_BLKCNT))
       TRY(emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, NULL), error);
-
-    TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num), error);
-    TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE), error);
+    
     if (num > 1) {
       TRY(emmc_send_cmd(dev, EMMC_CMD(READ_MULTIPLE_BLOCKS), lba, NULL), error);
     } else {
       TRY(emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba, NULL), error);
     }
     TRY(emmc_wait(dev, EMMC_I_READ_READY), error);
-  } else {
-    TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num), error);
-    TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE), error);
-  }
-
-  if (state->props & SD_SUPP_CCS) {
     TRY(emmc_read(dev, buf, num * DEFAULT_BLKSIZE, NULL), error);
-    TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
+    if ((num == 1) || (state->props & SD_SUPP_BLKCNT))
+      TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
     ASSIGN_OPTIONAL(read, num * DEFAULT_BLKSIZE);
   } else {
     for (uint32_t c = 0; c < num; c++) {
-      TRY(emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba + c, NULL), error);
+      /* See note no. 10 at page 222 of
+       * SD Physical Layer Simplified Specification V6.0 */
+      TRY(emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), (lba + c) * DEFAULT_BLKSIZE,
+                        NULL), error);
       TRY(emmc_read(dev, buf, DEFAULT_BLKSIZE, NULL), error);
       TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
       buf += DEFAULT_BLKSIZE / sizeof(uint32_t);
@@ -195,42 +195,24 @@ static int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
 
   ASSIGN_OPTIONAL(wrote, 0);
 
-  if (state->props & SD_SUPP_BLKCNT) {
-    if (num > 1 && (state->props & SD_SUPP_BLKCNT))
-      TRY(emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, NULL), error);
+  TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num), error);
+  TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE), error);
 
-    TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num), error);
-    TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE), error);
-
-    emmc_cmd_t wr_cmd =
-      num == 1 ? EMMC_CMD(WRITE_BLOCK) : EMMC_CMD(WRITE_MULTIPLE_BLOCKS);
-    TRY(emmc_send_cmd(dev, wr_cmd, lba, NULL), error);
-    TRY(emmc_wait(dev, EMMC_I_WRITE_READY), error);
-  } else {
-    TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num), error);
-    TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE), error);
-  }
-
-  if (state->props & SD_SUPP_CCS) {
-    TRY(emmc_write(dev, buf, num * DEFAULT_BLKSIZE, NULL), error);
-    TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
-    ASSIGN_OPTIONAL(wrote, num * DEFAULT_BLKSIZE);
-  } else {
-    for (uint32_t c = 0; c < num; c++) {
-      if (!(state->props & SD_SUPP_BLKCNT)) {
-        TRY(emmc_send_cmd(dev, EMMC_CMD(WRITE_BLOCK), lba + c, NULL), error);
-        TRY(emmc_wait(dev, EMMC_I_WRITE_READY), error);
-      }
-      TRY(emmc_write(dev, buf, DEFAULT_BLKSIZE, NULL), error);
-      TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
-      buf += 128;
-      ASSIGN_OPTIONAL(wrote, *wrote + DEFAULT_BLKSIZE);
+  for (uint32_t c = 0; c < num; c++) {
+    if (!(state->props & SD_SUPP_BLKCNT)) {
+      uint32_t addr = lba + c;
+      /* See note no. 10 at page 222 of
+       * SD Physical Layer Simplified Specification V6.0 */
+      if (!(state->props & SD_SUPP_CCS))
+        addr *= DEFAULT_BLKSIZE;
+      TRY(emmc_send_cmd(dev, EMMC_CMD(WRITE_BLOCK), addr, NULL), error);
+      TRY(emmc_wait(dev, EMMC_I_WRITE_READY), error);
     }
+    TRY(emmc_write(dev, buf, DEFAULT_BLKSIZE, NULL), error);
+    TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
+    buf += 128;
+    ASSIGN_OPTIONAL(wrote, *wrote + DEFAULT_BLKSIZE);
   }
-
-  if (num > 1 && (~state->props & SD_SUPP_BLKCNT) &&
-      (state->props & SD_SUPP_CCS))
-    TRY(emmc_send_cmd(dev, EMMC_CMD(STOP_TRANSMISSION), 0, NULL), error);
 
   return 0;
 }
