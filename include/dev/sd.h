@@ -40,7 +40,6 @@
     .cmd_idx = 6, .flags = EMMC_F_APP, .exp_resp = EMMCRESP_R1,                \
   }
 
-
 /* Custom response fields extractors */
 #define SD_ACMD41_SD2_0_POLLRDY_ARG1 0x51ff8000
 #define SD_ACMD41_RESP_BUSY_OFFSET 31

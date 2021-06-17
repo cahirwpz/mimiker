@@ -51,17 +51,17 @@ static int sd_init(device_t *dev) {
   emmc_send_cmd(dev, EMMC_CMD(GO_IDLE), 0, NULL);
   if (emmc_get_prop(dev, EMMC_PROP_R_VOLTAGE_SUPPLY, &propv)) {
     klog("Unable to determine e.MMC controller's voltage supply.");
-    return -1;
+    return ENXIO;
   }
   uint8_t chkpat = ~propv + 1;
   if (emmc_set_prop(dev, EMMC_PROP_RW_RESP_LOW, chkpat - 1)) {
     klog("Unable to determine whether CMD8 responds.");
-    return -1;
+    return ENXIO;
   }
   emmc_send_cmd(dev, SD_CMD_SET_IF_COND, propv << 8 | chkpat, &response);
   if (SD_R7_CHKPAT(&response) != chkpat) {
     klog("SD 2.0 voltage supply is mismatched, or the card is at Version 1.x");
-    return -1;
+    return ENXIO;
   }
   trial_cnt = 120;
   /* Counter-intuitively, the busy bit is set ot 0 if the card is not ready */
@@ -69,7 +69,7 @@ static int sd_init(device_t *dev) {
   while (trial_cnt & ~SD_ACMD41_RESP_READ_BUSY(&response)) {
     if (trial_cnt-- == 0) {
       klog("Card timedout on ACMD41 polling.");
-      return -1;
+      return ENXIO;
     }
     emmc_send_cmd(dev, SD_CMD_SEND_OP_COND, SD_ACMD41_SD2_0_POLLRDY_ARG1,
                   &response);
@@ -89,7 +89,7 @@ static int sd_init(device_t *dev) {
   /* At this point we should have just enetered data transfer mode */
 
   if (emmc_set_prop(dev, EMMC_PROP_RW_CLOCK_FREQ, 25000000))
-    return -1;
+    return EIO;
 
   emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), rca << 16, NULL);
   emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 8);
@@ -97,16 +97,16 @@ static int sd_init(device_t *dev) {
   emmc_send_cmd(dev, SD_CMD_SEND_SCR, 0, NULL);
   if (emmc_wait(dev, EMMC_I_READ_READY)) {
     klog("SD card timed out when waiting for data (SD_CMD_SEND_SCR)");
-    return -1;
+    return EIO;
   }
   emmc_read(dev, scr, 64, &of);
   if (emmc_wait(dev, EMMC_I_DATA_DONE)) {
     klog("SD card timed out when waiting for end of transmission");
-    return -1;
+    return EIO;
   }
   if (of != 64) {
     klog("Failed to read SD Card's SCR");
-    return -1;
+    return EIO;
   }
 
   if (scr[0] & SCR_SUPP_SET_BLKCNT)
@@ -290,10 +290,9 @@ static int sd_attach(device_t *dev) {
 static driver_t sd_block_device_driver = {
   .desc = "SD(SC/HC) block device driver",
   .size = sizeof(sd_state_t),
+  .pass = SECOND_PASS,
   .probe = sd_probe,
   .attach = sd_attach,
-  .pass = SECOND_PASS,
-  .interfaces = {},
 };
 
 DEVCLASS_ENTRY(emmc, sd_block_device_driver);
