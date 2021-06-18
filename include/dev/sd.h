@@ -72,4 +72,6 @@ typedef enum sd_props {
   SD_SUPP_BUSWIDTH_4 = 4,
 } sd_props_t;
 
+#define SD_CLOCK_FREQ 25000000
+
 #endif
