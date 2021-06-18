@@ -99,7 +99,7 @@ static int sd_init(device_t *dev) {
 
   /* At this point we should have just enetered data transfer mode */
 
-  if (emmc_set_prop(dev, EMMC_PROP_RW_CLOCK_FREQ, 25000000))
+  if (emmc_set_prop(dev, EMMC_PROP_RW_CLOCK_FREQ, SD_CLOCK_FREQ))
     klog("Failed to set e.MMC clock for SD card. Transfers might be slow.");
 
   TRY(emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), rca << 16, NULL), error);
@@ -130,6 +130,55 @@ static int sd_init(device_t *dev) {
   return 0;
 }
 
+/* Data read routine for CCS-enabled cards (>=SDHC) */
+static int sd_read_block_ccs(device_t *dev, uint32_t lba, void *buffer,
+                             uint32_t num, size_t *read) {
+  int error;
+  sd_state_t *state = (sd_state_t *)dev->state;
+  uint32_t *buf = (uint32_t *)buffer;
+
+  /* Multiple block transfers either be terminated after a set amount of
+   * block is transferred, or by sending CMD_STOP_TRANS command */
+  if (num > 1 && (state->props & SD_SUPP_BLKCNT))
+    TRY(emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, NULL), error);
+
+  if (num > 1) {
+    TRY(emmc_send_cmd(dev, EMMC_CMD(READ_MULTIPLE_BLOCKS), lba, NULL), error);
+  } else {
+    TRY(emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba, NULL), error);
+  }
+  TRY(emmc_wait(dev, EMMC_I_READ_READY), error);
+  TRY(emmc_read(dev, buf, num * DEFAULT_BLKSIZE, NULL), error);
+  if ((num == 1) || (state->props & SD_SUPP_BLKCNT))
+    TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
+  ASSIGN_OPTIONAL(read, num * DEFAULT_BLKSIZE);
+  if (num > 1 && (~state->props & SD_SUPP_BLKCNT))
+    TRY(emmc_send_cmd(dev, EMMC_CMD(STOP_TRANSMISSION), 0, NULL), error);
+  
+  return 0;
+}
+
+/* Data read routine for CCS-disabled cards (SDSC) */
+static int sd_read_noccs(device_t *dev, uint32_t lba, void *buffer,
+                         uint32_t num, size_t *read) {
+  int error;
+  sd_state_t *state = (sd_state_t *)dev->state;
+  uint32_t *buf = (uint32_t *)buffer;
+
+  for (uint32_t c = 0; c < num; c++) {
+    /* See note no. 10 at page 222 of
+      * SD Physical Layer Simplified Specification V6.0 */
+    TRY(emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), (lba + c) * DEFAULT_BLKSIZE,
+                      NULL), error);
+    TRY(emmc_read(dev, buf, DEFAULT_BLKSIZE, NULL), error);
+    TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
+    buf += DEFAULT_BLKSIZE / sizeof(uint32_t);
+    ASSIGN_OPTIONAL(read, *read + DEFAULT_BLKSIZE);
+  }
+
+  return 0;
+}
+
 /* Read blocks from sd card. Returns 0 on success. */
 static int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
                        size_t *read) {
@@ -147,42 +196,17 @@ static int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
   TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE), error);
 
   if (state->props & SD_SUPP_CCS) {
-    /* Multiple block transfers either be terminated after a set amount of
-     * block is transferred, or by sending CMD_STOP_TRANS command */
-    if (num > 1 && (state->props & SD_SUPP_BLKCNT))
-      TRY(emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, NULL), error);
-    
-    if (num > 1) {
-      TRY(emmc_send_cmd(dev, EMMC_CMD(READ_MULTIPLE_BLOCKS), lba, NULL), error);
-    } else {
-      TRY(emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba, NULL), error);
-    }
-    TRY(emmc_wait(dev, EMMC_I_READ_READY), error);
-    TRY(emmc_read(dev, buf, num * DEFAULT_BLKSIZE, NULL), error);
-    if ((num == 1) || (state->props & SD_SUPP_BLKCNT))
-      TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
-    ASSIGN_OPTIONAL(read, num * DEFAULT_BLKSIZE);
+    TRY(sd_read_block_ccs(dev, lba, buffer, num, read), error);
   } else {
-    for (uint32_t c = 0; c < num; c++) {
-      /* See note no. 10 at page 222 of
-       * SD Physical Layer Simplified Specification V6.0 */
-      TRY(emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), (lba + c) * DEFAULT_BLKSIZE,
-                        NULL), error);
-      TRY(emmc_read(dev, buf, DEFAULT_BLKSIZE, NULL), error);
-      TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
-      buf += DEFAULT_BLKSIZE / sizeof(uint32_t);
-      ASSIGN_OPTIONAL(read, *read + DEFAULT_BLKSIZE);
-    }
+    TRY(sd_read_block_noccs(dev, lba, buffer, num, read), error);
   }
-
-  if (num > 1 && (~state->props & SD_SUPP_BLKCNT) &&
-      (state->props & SD_SUPP_CCS))
-    TRY(emmc_send_cmd(dev, EMMC_CMD(STOP_TRANSMISSION), 0, NULL), error);
 
   return 0;
 }
 
+
 /* Write blocks to the sd card. Returns 0 on success. */
+/* TODO: Multi-block writes */
 static int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
                         size_t *wrote) {
   sd_state_t *state = (sd_state_t *)dev->state;
