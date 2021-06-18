@@ -433,21 +433,9 @@ static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
 
   klog("pipe2(%x, %d)", u_fdp, flags);
 
-  // if (flags) {
-  //   // if (mode & O_NONBLOCK)
-  //   //   fp->f_flags |= IO_NONBLOCK;
-
-  //   if ((flags & O_NONBLOCK) != 0) {
-
-  //     u_fdp->f_flags |= IO_NONBLOCK;
-  //     // fds[0]->f_flags |= IO_NONBLOCK;
-  //     // fds[1]->f_flags |= IO_NONBLOCK;
-
-  //   } else {
-  //     klog("sys_pipe2: non-zero and O_NONBLOCK flags not handled!");
-  //   }
-  // }
-
+  // only these two flags are handled
+  if (!(flags & O_NONBLOCK) || !(flags & O_CLOEXEC))
+    return error;
   if ((error = do_pipe2(p, fds, flags)))
     return error;
 

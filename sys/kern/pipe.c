@@ -122,7 +122,7 @@ static int pipe_write(file_t *f, uio_t *uio) {
       if (uio->uio_resid == 0)
         break;
       /* buffer is full so wait for some data to be consumed */
-      if (!&producer->nonfull && (f->f_flags & IO_NONBLOCK)) {
+      if (f->f_flags & IO_NONBLOCK) {
         return EAGAIN;
       }
       cv_wait(&producer->nonfull, &producer->mtx);
@@ -178,16 +178,16 @@ int do_pipe2(proc_t *p, int fds[2], int flags) {
 
   file_t *file0 = make_pipe_file(consumer);
   file_t *file1 = make_pipe_file(producer);
+  if (flags & O_NONBLOCK) {
+    file0->f_flags |= IO_NONBLOCK;
+    file1->f_flags |= IO_NONBLOCK;
+  }
 
+  int cloexec_to_set = flags & O_CLOEXEC;
   int error;
 
   if (!(error = fdtab_install_file(p->p_fdtable, file0, 0, &fds[0]))) {
     if (!(error = fdtab_install_file(p->p_fdtable, file1, 0, &fds[1]))) {
-      if (flags & O_NONBLOCK) {
-        file0->f_flags |= IO_NONBLOCK;
-        file1->f_flags |= IO_NONBLOCK;
-      }
-      int cloexec_to_set = flags & O_CLOEXEC;
       if (!(error = fd_set_cloexec(p->p_fdtable, fds[0], cloexec_to_set)))
         return fd_set_cloexec(p->p_fdtable, fds[1], cloexec_to_set);
       fdtab_close_fd(p->p_fdtable, fds[1]);
