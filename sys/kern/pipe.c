@@ -122,7 +122,7 @@ static int pipe_write(file_t *f, uio_t *uio) {
       if (uio->uio_resid == 0)
         break;
       /* buffer is full so wait for some data to be consumed */
-      if (!&producer->nonfull && (file0->f_flags & IO_NONBLOCK)) {
+      if (!&producer->nonfull && (f->f_flags & IO_NONBLOCK)) {
         return EAGAIN;
       }
       cv_wait(&producer->nonfull, &producer->mtx);
