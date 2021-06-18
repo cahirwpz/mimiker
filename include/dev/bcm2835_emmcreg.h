@@ -77,7 +77,4 @@
 #define CMD_RESP48 0x00020000
 #define CMD_RESP48B 0x00030000
 
-/* Spooky GPIO stuff */
-#define GPHEN1 0x0068
-
 #endif

@@ -138,7 +138,7 @@ typedef struct emmc_cmd {
 
 #define EMMC_BUSWIDTH_1 0x01 /* 1-bit bus */
 #define EMMC_BUSWIDTH_4 0x02 /* 4-bit bus */
-#define EMMC_BUSWIDTH_8 0x04 /* 8-bit but */
+#define EMMC_BUSWIDTH_8 0x04 /* 8-bit bus */
 
 /* R stands for "read"
  * W stands for "write" */

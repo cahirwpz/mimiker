@@ -196,8 +196,6 @@ static int rootdev_probe(device_t *bus) {
   return 1;
 }
 
-#define MMIO_BASE 0xFFFFFFFF3F000000
-
 DEVCLASS_DECLARE(emmc);
 
 static int rootdev_attach(device_t *bus) {
