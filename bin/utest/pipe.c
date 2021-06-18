@@ -232,7 +232,7 @@ int test_pipe_write_eagain(void) {
       bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
     }
     assert(bytes_wrote == -1);
-    assert(errno == EAGAIN);
+    assert(errno == EAGAIN); // teraz tu jestesmy
 
     close(pipe_fd[1]); /* closing write end of pipe */
     exit(EXIT_SUCCESS);
