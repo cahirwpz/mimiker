@@ -435,7 +435,8 @@ static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
 
   // only these two flags are handled
   if (!(flags & O_NONBLOCK) || !(flags & O_CLOEXEC))
-    return error;
+    return EINVAL;
+
   if ((error = do_pipe2(p, fds, flags)))
     return error;
 
