@@ -140,7 +140,7 @@ static uint32_t bcmemmc_clk_approx_divisor(uint32_t clk, uint32_t frq) {
 }
 
 /* Set e.MMC clock's divisor to match frequency `frq` */
-static void bcmemmc_clk_div(bcmemmc_state_t *state, uint32_t frq) {
+static void bcmemmc_clk_set_divisor(bcmemmc_state_t *state, uint32_t frq) {
   resource_t *emmc = state->emmc;
 
   uint32_t clk = GPIO_CLK_EMMC_DEFAULT_FREQ;
@@ -156,10 +156,8 @@ static void bcmemmc_clk_div(bcmemmc_state_t *state, uint32_t frq) {
 
 #define CLK_STABLE_TRIALS 10000
 
-/**
- * set SD clock to frequency in Hz (approximately), divided mode
- */
-static int32_t bcmemmc_clk(device_t *dev, uint32_t frq) {
+/* Set SD clock to frequency in Hz (approximately), divided mode */
+static int32_t bcmemmc_set_clk_freq(device_t *dev, uint32_t frq) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
   int32_t cnt = 100000;
@@ -169,15 +167,14 @@ static int32_t bcmemmc_clk(device_t *dev, uint32_t frq) {
   while ((b_in(emmc, BCMEMMC_STATUS) & (SR_CMD_INHIBIT | SR_DAT_INHIBIT)) &&
          cnt--)
     delay(3);
-  if (cnt < 0) {
+  if (cnt < 0)
     return ETIMEDOUT;
-  }
 
   b_clr(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
   /* host_version <= HOST_SPEC_V2 needs a power-of-two divisor. It would require
    * a different calculation method. */
   assert(state->host_version > HOST_SPEC_V2);
-  bcmemmc_clk_div(state, frq);
+  bcmemmc_clk_set_divisor(state, frq);
   b_set(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
 
   /* Wait until the clock becomes stable */
@@ -220,15 +217,12 @@ static uint32_t bcemmc_encode_cmd(emmc_cmd_t cmd) {
     default:
       break;
   }
-  if (cmd.flags & EMMC_F_DATA_READ) {
+  if (cmd.flags & EMMC_F_DATA_READ)
     code |= CMD_DATA_TRANSFER | CMD_DATA_READ;
-  }
-  if (cmd.flags & EMMC_F_DATA_WRITE) {
+  if (cmd.flags & EMMC_F_DATA_WRITE)
     code |= CMD_DATA_TRANSFER;
-  }
-  if (cmd.flags & EMMC_F_DATA_MULTI) {
+  if (cmd.flags & EMMC_F_DATA_MULTI)
     code |= CMD_DATA_MULTI;
-  }
   if (cmd.flags & EMMC_F_CHKIDX)
     code |= CMD_CHECKIDX;
   if (cmd.flags & EMMC_F_CHKCRC)
@@ -338,7 +332,7 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
       b_out(emmc, BCMEMMC_RESP3, (uint32_t)(var >> 32));
       break;
     case EMMC_PROP_RW_CLOCK_FREQ:
-      return bcmemmc_clk(cdev->parent, var);
+      return bcmemmc_set_clk_freq(cdev->parent, var);
     case EMMC_PROP_RW_BUSWIDTH:
       return bcmemmc_set_bus_width(state, var);
     case EMMC_PROP_RW_RCA:
@@ -352,8 +346,8 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
 }
 
 /* Send encoded command */
-static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
-                            emmc_resp_t *resp) {
+static int bcmemmc_cmd_send_encoded(device_t *dev, uint32_t code, uint32_t arg,
+                                    emmc_resp_t *resp) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
 
@@ -377,15 +371,15 @@ static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
 }
 
 /* Send a command */
-static int bcmemmc_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
-                       emmc_resp_t *resp) {
+static int bcmemmc_send_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
+                            emmc_resp_t *resp) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
 
   if (cmd.flags & EMMC_F_APP)
-    bcmemmc_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, NULL);
+    bcmemmc_send_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, NULL);
 
   uint32_t code = bcemmc_encode_cmd(cmd);
-  return bcmemmc_cmd_code(cdev->parent, code, arg, resp);
+  return bcmemmc_cmd_send_encoded(cdev->parent, code, arg, resp);
 }
 
 static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *read) {
@@ -480,7 +474,7 @@ static int bcmemmc_init(device_t *dev) {
   }
   b_set(emmc, BCMEMMC_CONTROL1, C1_CLK_INTLEN | C1_TOUNIT_MAX);
   /* Set clock to setup frequency. */
-  if ((r = bcmemmc_clk(dev, BCMEMMC_INIT_FREQ)))
+  if ((r = bcmemmc_set_clk_freq(dev, BCMEMMC_INIT_FREQ)))
     return r;
   b_out(emmc, BCMEMMC_INT_EN,
         INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY | INT_WRITE_RDY |
@@ -531,7 +525,7 @@ static int bcmemmc_attach(device_t *dev) {
 }
 
 static emmc_methods_t bcmemmc_emmc_if = {
-  .send_cmd = bcmemmc_cmd,
+  .send_cmd = bcmemmc_send_cmd,
   .wait = bcmemmc_wait,
   .read = bcmemmc_read,
   .write = bcmemmc_write,

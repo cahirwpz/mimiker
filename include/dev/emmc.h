@@ -193,8 +193,7 @@ static inline emmc_methods_t *emmc_methods(device_t *dev) {
  * \brief Send an e.MMC command
  * \param dev e.MMC controller device
  * \param cmd e.MMC command (described in JESD86-A441)
- * \param arg1 first argument
- * \param arg2 second argument
+ * \param arg command argument
  * \param resp pointer for response data to be written to or NULL
  * \return 0 on success EBUSY if device is busy, ETIMEDOUT on timeout, EIO
  * on internal error.

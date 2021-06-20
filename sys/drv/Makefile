@@ -30,7 +30,7 @@ SOURCES-AARCH64 = \
 	bcm2835_rootdev.c \
 	emmc.c \
 	pl011.c \
-	sd.c
+	emmc_dummy.c
 
 CPPFLAGS += -D_MACHDEP
 
