@@ -274,8 +274,7 @@ static void td_data(uhci_td_t *td, usb_device_t *udev, usb_endpt_t *endpt,
 
 /* Create a STATUS transfer descriptor. */
 static void td_status(uhci_td_t *td, usb_device_t *udev, usb_endpt_t *endpt,
-                      uint16_t transfer_size) {
-  usb_direction_t dir = usb_status_dir(endpt->dir, transfer_size);
+                      uint16_t transfer_size, usb_direction_t dir) {
   uint32_t token = td_data_token(udev->addr, endpt->addr, dir, 0, 1);
   /* A SETUP packet is always the last packet of a control transfer, thus
    * an Interrupt On Competion shuld be triggered at the end. */
@@ -605,7 +604,8 @@ static uhci_td_t *uhci_data_stage(usb_device_t *udev, usb_buf_t *buf,
 
 /* Issue a control transfer. */
 static void uhci_control_transfer(device_t *hcdev, device_t *dev,
-                                  usb_buf_t *buf, usb_dev_req_t *req) {
+                                  usb_buf_t *buf, usb_dev_req_t *req,
+                                  usb_direction_t status_dir) {
   assert(buf->transfer_size + sizeof(usb_dev_req_t) <= UHCI_DATA_BUF_SIZE);
 
   uhci_state_t *uhci = hcdev->state;
@@ -625,7 +625,7 @@ static void uhci_control_transfer(device_t *hcdev, device_t *dev,
   td = uhci_data_stage(udev, buf, td + 1, 1, qh->qh_data);
 
   /* Prepare a STATUS packet. */
-  td_status(td, udev, endpt, buf->transfer_size);
+  td_status(td, udev, endpt, buf->transfer_size, status_dir);
 
   uhci_schedule(uhci, qh, 0);
 }

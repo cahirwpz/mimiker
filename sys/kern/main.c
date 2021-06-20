@@ -26,6 +26,7 @@
 #include <sys/console.h>
 #include <sys/stat.h>
 #include <sys/lockdep.h>
+#include <sys/kcsan.h>
 #include <sys/kgprof.h>
 #include <sys/dtb.h>
 
@@ -112,6 +113,8 @@ __noreturn void kernel_init(void) {
   init_kgprof();
 
   klog("Kernel initialized!");
+
+  init_kcsan();
 
   pid_t init_pid;
   do_fork(start_init, NULL, &init_pid);
