@@ -2,7 +2,7 @@
 #include <sys/rman.h>
 #include <sys/bus.h>
 #include <dev/bcm2835reg.h>
-#include <dev/bcm2835_gpioreg.h>
+#include <dev/bcm2835_gpio.h>
 
 /*
  * \brief delay function
@@ -56,4 +56,18 @@ void bcm2835_gpio_set_pull(resource_t *r, unsigned pin,
   delay(150);
   bus_write_4(r, BCM2835_GPIO_GPPUD, BCM2838_GPIO_GPPUD_PULLOFF);
   bus_write_4(r, BCM2835_GPIO_GPPUDCLK(reg), 0);
+}
+
+void bcm2835_gpio_set_high_detect(resource_t *r, unsigned pin, bool enable) {
+  assert(pin < NGPIO_PIN);
+
+  unsigned mask = 1 << (pin % BCM2835_GPIO_GPHEN_PINS_PER_REGISTER);
+  unsigned reg = pin / BCM2835_GPIO_GPHEN_PINS_PER_REGISTER;
+
+  uint32_t val = bus_read_4(r, BCM2835_GPIO_GPHEN(reg));
+  if (enable)
+    val |= mask;
+  else
+    val &= ~mask;
+  bus_write_4(r, BCM2835_GPIO_GPHEN(reg), val);
 }

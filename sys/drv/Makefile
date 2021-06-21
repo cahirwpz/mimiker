@@ -30,7 +30,7 @@ SOURCES-AARCH64 = \
 	bcm2835_rootdev.c \
 	emmc.c \
 	pl011.c \
-	emmc_dummy.c
+	sdcard.c
 
 CPPFLAGS += -D_MACHDEP
 

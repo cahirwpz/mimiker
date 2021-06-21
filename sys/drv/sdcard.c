@@ -9,21 +9,21 @@
 /* Dummy driver that will never attach. Used to satisfy linker set
  * non-empty requirement */
 
-static int sd_probe(device_t *dev) {
+static int sdcard_probe(device_t *dev) {
   return 0;
 }
 
-static int sd_attach(device_t *dev) {
+static int sdcard_attach(device_t *dev) {
   return ENXIO;
 }
 
-static driver_t emmc_dummy_driver = {
+static driver_t sdcard_driver = {
   .desc = "SD(SC/HC) card driver",
   .size = 0,
-  .probe = sd_probe,
-  .attach = sd_attach,
+  .probe = sdcard_probe,
+  .attach = sdcard_attach,
   .pass = SECOND_PASS,
   .interfaces = {},
 };
 
-DEVCLASS_ENTRY(emmc, sd_card_driver);
+DEVCLASS_ENTRY(emmc, sdcard_driver);
