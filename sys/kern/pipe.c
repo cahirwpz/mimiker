@@ -88,7 +88,7 @@ static int pipe_read(file_t *f, uio_t *uio) {
     int should_i_eagain = f->f_flags & IO_NONBLOCK;
     klog("eagain suppose: %d\n", should_i_eagain);
     /* pipe empty, producer exists, NONBLOCK IO, return EAGAIN */
-    if (f->f_flags & IO_NONBLOCK) {
+    if (should_i_eagain) {
       return EAGAIN;
     }
     /* pipe empty, producer exists, BLOCKING IO, wait for data */
