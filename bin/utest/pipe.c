@@ -204,8 +204,8 @@ int test_pipe_write_eagain(void) {
   int bytes_wrote = 0;
 
   /* creating pipe */
-  // int pipe2_ret = pipe2(pipe_fd, 0);
-  int pipe2_ret = pipe2(pipe_fd, O_NONBLOCK);
+  int pipe2_ret = pipe2(pipe_fd, 0);
+  // int pipe2_ret = pipe2(pipe_fd, O_NONBLOCK);
   assert(pipe2_ret == 0);
 
   /* forking */
@@ -216,11 +216,10 @@ int test_pipe_write_eagain(void) {
     close(pipe_fd[0]); /* closing read end of pipe */
 
     // set only write as NONBLOCK
-    // int previous_flagset = fcntl(pipe_fd[1], F_GETFL);
-    // assert(previous_flagset > 0);
-    // fcntl(pipe_fd[1], F_SETFL, previous_flagset | O_NONBLOCK);
+    int previous_flagset = fcntl(pipe_fd[1], F_GETFL);
+    assert(previous_flagset > 0);
+    fcntl(pipe_fd[1], F_SETFL, previous_flagset | O_NONBLOCK);
 
-    // long pipe_size = (long)fcntl(pipe_fd[1], LINUX_F_GETPIPE_SZ);
     int page_size = getpagesize();
     /* prepare varying data */
     char data[page_size];
@@ -293,18 +292,9 @@ int test_pipe_read_eagain(void) {
   int bytes_wrote;
 
   /* creating pipe */
-  // int pipe2_ret = pipe2(pipe_fd, 0);
-  int pipe2_ret = pipe2(pipe_fd, O_NONBLOCK);
+  int pipe2_ret = pipe2(pipe_fd, 0);
+  // int pipe2_ret = pipe2(pipe_fd, O_NONBLOCK);
   assert(pipe2_ret == 0);
-
-  // int prev_flagset;
-  // prev_flagset = fcntl(pipe_fd[0], F_GETFL);
-  // fcntl(pipe_fd[0], F_SETFL, prev_flagset | O_NONBLOCK);
-
-  char buf;
-  bytes_wrote = read(pipe_fd[0], &buf, 1);
-  assert(errno == EAGAIN);
-  assert(bytes_wrote == -1);
 
   /* forking */
   child_pid = fork();
@@ -315,9 +305,9 @@ int test_pipe_read_eagain(void) {
     close(pipe_fd[1]); /* closing write end of pipe */
 
     /* set O_NONBLOCK flag for read end */
-    // int prev_flagset;
-    // prev_flagset = fcntl(pipe_fd[0], F_GETFL);
-    // fcntl(pipe_fd[0], F_SETFL, prev_flagset | O_NONBLOCK);
+    int prev_flagset;
+    prev_flagset = fcntl(pipe_fd[0], F_GETFL);
+    fcntl(pipe_fd[0], F_SETFL, prev_flagset | O_NONBLOCK);
 
     char buf;
     bytes_wrote = read(pipe_fd[0], &buf, 1);
