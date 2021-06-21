@@ -207,11 +207,6 @@ int test_pipe_write_eagain(void) {
   int pipe2_ret = pipe2(pipe_fd, O_NONBLOCK);
   assert(pipe2_ret == 0);
 
-  char buf;
-  bytes_wrote = read(pipe_fd[0], &buf, 1);
-  assert(errno == EAGAIN);
-  assert(bytes_wrote == -1);
-
   /* forking */
   child_pid = fork();
   assert(child_pid >= 0);
@@ -293,11 +288,6 @@ int test_pipe_read_eagain(void) {
   /* creating pipe */
   int pipe2_ret = pipe2(pipe_fd, O_NONBLOCK);
   assert(pipe2_ret == 0);
-
-  char buf;
-  bytes_wrote = read(pipe_fd[0], &buf, 1);
-  assert(errno == EAGAIN);
-  assert(bytes_wrote == -1);
 
   /* forking */
   child_pid = fork();
