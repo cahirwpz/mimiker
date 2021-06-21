@@ -86,7 +86,8 @@ static int pipe_read(file_t *f, uio_t *uio) {
     if (ringbuf_empty(&producer->buf) && producer->closed)
       return 0;
     int should_i_eagain = f->f_flags & IO_NONBLOCK;
-    klog("eagain suppose: %d\n", should_i_eagain);
+
+    // klog("eagain suppose: %d\n", should_i_eagain);
     /* pipe empty, producer exists, NONBLOCK IO, return EAGAIN */
     if (should_i_eagain) {
       return EAGAIN;
