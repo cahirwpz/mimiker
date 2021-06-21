@@ -114,6 +114,7 @@ static int pipe_write(file_t *f, uio_t *uio) {
   WITH_MTX_LOCK (&producer->mtx) {
     do {
       int res = ringbuf_write(&producer->buf, uio);
+      klog("");
       if (res)
         return res;
       /* notify consumer that new data is available */
@@ -122,6 +123,7 @@ static int pipe_write(file_t *f, uio_t *uio) {
       if (uio->uio_resid == 0)
         break;
       /* buffer is full so wait for some data to be consumed */
+
       if (f->f_flags & IO_NONBLOCK) {
         return EAGAIN;
       }
