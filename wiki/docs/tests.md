@@ -30,7 +30,7 @@ listed below:
   `repeat` specifies the number of times each test will be run. For example,
   `test=test1,test2 repeat=4` will run `test1` 4 times and then run `test2` 4 times.
 
-## Programming tests
+## Tests implementation
 
 ### Kernel tests
 
@@ -67,11 +67,11 @@ One also needs to add a line
 * `int test_{name}(void);` in `/bin/utest/utest.h`,
 * `${filename}.c` in `bin/utest/Makefile`.
 
-#### Creating tests
+### Creating tests
 
 Tests are supposed to return `0` or create kernel panic during execution,
-that can be achieved by usage of `assert`. That implies that one should change
-parts of its code that may look like this
+that can be achieved by the usage of `assert`. That implies that the test
+shouldn't look like the code bellow
 
 ```c
 pid_t child_pid;
@@ -91,7 +91,7 @@ default:
 }
 ```
 
-to more like
+but more like this one
 
 ```c
 pid_t child_pid = fork();
