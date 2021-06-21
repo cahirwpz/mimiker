@@ -86,7 +86,11 @@ static int pipe_read(file_t *f, uio_t *uio) {
     if (ringbuf_empty(&producer->buf) && producer->closed)
       return 0;
 
-    /* pipe empty, producer exists, wait for data */
+    /* pipe empty, producer exists, NONBLOCK IO, return EAGAIN */
+    if (f->flags & IO_NONBLOCK) {
+      return EAGAIN;
+    }
+    /* pipe empty, producer exists, BLOCKING IO, wait for data */
     while (ringbuf_empty(&producer->buf) && !producer->closed)
     // cv_wait(&producer->nonempty, &producer->mtx);
     {

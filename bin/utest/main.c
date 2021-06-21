@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(pipe_write_sleep);
   // CHECKRUN_TEST(pipe_write_eagain);
   CHECKRUN_TEST(pipe_read_sleep);
-  // CHECKRUN_TEST(pipe_read_eagain);
+  CHECKRUN_TEST(pipe_read_eagain);
   CHECKRUN_TEST(pipe_read_zero);
 
   printf("No user test \"%s\" available.\n", test_name);
