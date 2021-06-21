@@ -85,17 +85,13 @@ static int pipe_read(file_t *f, uio_t *uio) {
     /* pipe empty, no producers, return end-of-file */
     if (ringbuf_empty(&producer->buf) && producer->closed)
       return 0;
-    int should_i_eagain = f->f_flags & IO_NONBLOCK;
 
-    // klog("eagain suppose: %d\n", should_i_eagain);
-    /* pipe empty, producer exists, NONBLOCK IO, return EAGAIN */
-    if (should_i_eagain) {
+    /* pipe empty, producer exists, nonblocking IO, return EAGAIN */
+    if (f->f_flags & IO_NONBLOCK) {
       return EAGAIN;
     }
-    /* pipe empty, producer exists, BLOCKING IO, wait for data */
-    while (ringbuf_empty(&producer->buf) && !producer->closed)
-    // cv_wait(&producer->nonempty, &producer->mtx);
-    {
+    /* pipe empty, producer exists, blocking IO, wait for data */
+    while (ringbuf_empty(&producer->buf) && !producer->closed) {
       int error = cv_wait_intr(&producer->nonempty, &producer->mtx);
       if (error == EINTR)
         return error;

@@ -204,7 +204,8 @@ int test_pipe_write_eagain(void) {
   int bytes_wrote = 0;
 
   /* creating pipe */
-  int pipe2_ret = pipe2(pipe_fd, 0);
+  // int pipe2_ret = pipe2(pipe_fd, 0);
+  int pipe2_ret = pipe2(pipe_fd, O_NONBLOCK);
   assert(pipe2_ret == 0);
 
   /* forking */
@@ -214,10 +215,10 @@ int test_pipe_write_eagain(void) {
   if (child_pid == 0) {
     close(pipe_fd[0]); /* closing read end of pipe */
 
-    // set write as NONBLOCK
-    int previous_flagset = fcntl(pipe_fd[1], F_GETFL);
-    assert(previous_flagset > 0);
-    fcntl(pipe_fd[1], F_SETFL, previous_flagset | O_NONBLOCK);
+    // set only write as NONBLOCK
+    // int previous_flagset = fcntl(pipe_fd[1], F_GETFL);
+    // assert(previous_flagset > 0);
+    // fcntl(pipe_fd[1], F_SETFL, previous_flagset | O_NONBLOCK);
 
     // long pipe_size = (long)fcntl(pipe_fd[1], LINUX_F_GETPIPE_SZ);
     int page_size = getpagesize();
@@ -292,6 +293,7 @@ int test_pipe_read_eagain(void) {
   int bytes_wrote;
 
   /* creating pipe */
+  // int pipe2_ret = pipe2(pipe_fd, 0);
   int pipe2_ret = pipe2(pipe_fd, O_NONBLOCK);
   assert(pipe2_ret == 0);
 
@@ -327,12 +329,7 @@ int test_pipe_read_eagain(void) {
   }
 
   close(pipe_fd[0]); /* closing read end of pipe */
-  int status;
-  do {
-    assert(waitpid(child_pid, &status, 0) == child_pid);
-  } while (!WIFEXITED(status));
-  assert(WEXITSTATUS(status) == EXIT_SUCCESS);
-  // wait_for_child_exit(child_pid, EXIT_SUCCESS);
+  wait_for_child_exit(child_pid, EXIT_SUCCESS);
   close(pipe_fd[1]); /* closing write end of pipe */
   return 0;
 }
