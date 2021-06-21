@@ -121,7 +121,6 @@ static int pipe_write(file_t *f, uio_t *uio) {
   WITH_MTX_LOCK (&producer->mtx) {
     do {
       int res = ringbuf_write(&producer->buf, uio);
-      klog("ringbuf got me %d", res);
       if (res)
         return res;
       /* notify consumer that new data is available */
