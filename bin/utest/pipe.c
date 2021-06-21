@@ -295,6 +295,15 @@ int test_pipe_read_eagain(void) {
   int pipe2_ret = pipe2(pipe_fd, 0);
   assert(pipe2_ret == 0);
 
+  int prev_flagset;
+  prev_flagset = fcntl(pipe_fd[0], F_GETFL);
+  fcntl(pipe_fd[0], F_SETFL, prev_flagset | O_NONBLOCK);
+
+  char buf;
+  bytes_wrote = read(pipe_fd[0], &buf, 1);
+  assert(errno == EAGAIN);
+  assert(bytes_wrote == -1);
+
   /* forking */
   child_pid = fork();
   assert(child_pid >= 0);
@@ -318,7 +327,15 @@ int test_pipe_read_eagain(void) {
   }
 
   close(pipe_fd[0]); /* closing read end of pipe */
-  wait_for_child_exit(child_pid, EXIT_SUCCESS);
+  int status;
+  do {
+    assert(waitpid(pid, &status, 0) == pid);
+    assert(WIFEXITED(status));
+    assert(WEXITSTATUS(status) == exit_code);
+    /* code */
+  } while (status);
+
+  // wait_for_child_exit(child_pid, EXIT_SUCCESS);
   close(pipe_fd[1]); /* closing write end of pipe */
   return 0;
 }
