@@ -127,7 +127,9 @@ static int pipe_write(file_t *f, uio_t *uio) {
         return EAGAIN;
       }
       /* buffer is full so wait for some data to be consumed */
-      cv_wait_intr(&producer->nonfull, &producer->mtx);
+      int error = cv_wait_intr(&producer->nonfull, &producer->mtx);
+      if (error == EINTR)
+        return error;
     } while (!consumer->closed);
   }
 
