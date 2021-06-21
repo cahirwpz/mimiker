@@ -122,12 +122,12 @@ static int pipe_write(file_t *f, uio_t *uio) {
       /* nothing left to write? */
       if (uio->uio_resid == 0)
         break;
-      /* buffer is full so wait for some data to be consumed */
-
+      /* buffer is full so if we write in NONBLOCK then return with errno */
       if (f->f_flags & IO_NONBLOCK) {
         return EAGAIN;
       }
-      cv_wait(&producer->nonfull, &producer->mtx);
+      /* buffer is full so wait for some data to be consumed */
+      cv_wait_intr(&producer->nonfull, &producer->mtx);
     } while (!consumer->closed);
   }
 
