@@ -88,7 +88,12 @@ static int pipe_read(file_t *f, uio_t *uio) {
 
     /* pipe empty, producer exists, wait for data */
     while (ringbuf_empty(&producer->buf) && !producer->closed)
-      cv_wait(&producer->nonempty, &producer->mtx);
+    // cv_wait(&producer->nonempty, &producer->mtx);
+    {
+      int error = cv_wait_intr(&producer->nonempty, &producer->mtx);
+      if (error == EINTR)
+        return error;
+    }
 
     int res = ringbuf_read(&producer->buf, uio);
     if (res)

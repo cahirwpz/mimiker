@@ -189,5 +189,5 @@ UTEST_ADD_SIMPLE(pipe_blocking_flag_manipulation);
 UTEST_ADD_SIMPLE(pipe_write_sleep);
 // UTEST_ADD_SIMPLE(pipe_write_eagain);
 UTEST_ADD_SIMPLE(pipe_read_sleep);
-UTEST_ADD_SIMPLE(pipe_read_eagain);
+// UTEST_ADD_SIMPLE(pipe_read_eagain);
 UTEST_ADD_SIMPLE(pipe_read_zero);
