@@ -87,7 +87,7 @@ static int pipe_read(file_t *f, uio_t *uio) {
       return 0;
 
     /* pipe empty, producer exists, NONBLOCK IO, return EAGAIN */
-    if (f->flags & IO_NONBLOCK) {
+    if (f->f_flags & IO_NONBLOCK) {
       return EAGAIN;
     }
     /* pipe empty, producer exists, BLOCKING IO, wait for data */
