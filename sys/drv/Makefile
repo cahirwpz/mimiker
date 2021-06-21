@@ -4,13 +4,14 @@ TOPDIR = $(realpath ../..)
 
 SOURCES = \
 	dev_cons.c \
-	dev_vga.c \
 	uart.c
 
 SOURCES-MIPS = \
 	82371AB.c \
 	atkbdc.c \
 	cbus.c \
+	evdev.c \
+	evdev_kbd.c \
 	gt64120.c \
 	isa.c \
 	malta_rootdev.c \
@@ -21,7 +22,9 @@ SOURCES-MIPS = \
 	pci_ids.c \
 	pit.c \
 	stdvga.c \
-	uart_cbus.c
+	uart_cbus.c \
+	uhci.c \
+	usb.c
 
 SOURCES-AARCH64 = \
 	bcm2835_gpio.c \

@@ -108,7 +108,7 @@ static int pipe_write(file_t *f, uio_t *uio) {
 
   /* Reading end is closed, no use in sending data there. */
   if (consumer->closed)
-    return ESPIPE;
+    return EPIPE;
 
   /* no write atomicity for now! */
   WITH_MTX_LOCK (&producer->mtx) {
@@ -146,20 +146,18 @@ static int pipe_stat(file_t *f, stat_t *sb) {
   return EOPNOTSUPP;
 }
 
-static int pipe_seek(file_t *f, off_t offset, int whence, off_t *newoffp) {
-  return ESPIPE;
-}
-
 static int pipe_ioctl(file_t *f, u_long cmd, void *data) {
   return EOPNOTSUPP;
 }
 
-static fileops_t pipeops = {.fo_read = pipe_read,
-                            .fo_write = pipe_write,
-                            .fo_close = pipe_close,
-                            .fo_seek = pipe_seek,
-                            .fo_stat = pipe_stat,
-                            .fo_ioctl = pipe_ioctl};
+static fileops_t pipeops = {
+  .fo_read = pipe_read,
+  .fo_write = pipe_write,
+  .fo_close = pipe_close,
+  .fo_seek = noseek,
+  .fo_stat = pipe_stat,
+  .fo_ioctl = pipe_ioctl,
+};
 
 static file_t *make_pipe_file(pipe_end_t *end) {
   file_t *file = file_alloc();
