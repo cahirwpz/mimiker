@@ -329,12 +329,9 @@ int test_pipe_read_eagain(void) {
   close(pipe_fd[0]); /* closing read end of pipe */
   int status;
   do {
-    assert(waitpid(pid, &status, 0) == pid);
-    assert(WIFEXITED(status));
-    assert(WEXITSTATUS(status) == exit_code);
-    /* code */
-  } while (status);
-
+    assert(waitpid(child_pid, &status, 0) == child_pid);
+  } while (!WIFEXITED(status));
+  assert(WEXITSTATUS(status) == EXIT_SUCCESS);
   // wait_for_child_exit(child_pid, EXIT_SUCCESS);
   close(pipe_fd[1]); /* closing write end of pipe */
   return 0;
