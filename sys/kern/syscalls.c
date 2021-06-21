@@ -434,8 +434,6 @@ static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
   klog("pipe2(%x, %d)", u_fdp, flags);
 
   // only these two flags are handled
-  // if (flags && !(flags & O_NONBLOCK) && !(flags & O_CLOEXEC))
-  //   return EINVAL;
   if (!flags || (flags & O_NONBLOCK) || (flags & O_CLOEXEC) ||
       (flags & O_NONBLOCK & O_CLOEXEC)) {
 
