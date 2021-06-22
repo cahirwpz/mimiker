@@ -28,11 +28,11 @@ typedef struct bcmemmc_state {
                           * way of setting up GPIO) */
   resource_t *emmc;      /* e.MMC controller registers */
   resource_t *irq;       /* e.MMC controller interrupt */
-  condvar_t cv_intr;     /* Used to to wake up the thread on interrupt */
-  spin_t lock;           /* Lock */
+  condvar_t intr_recv;   /* Used to wake up a thread waiting for an interrupt */
+  spin_t lock;           /* Covers `pending`, `intr_recv` and `emmc`. */
   uint64_t rca;          /* Relative Card Address */
   uint64_t host_version; /* Host specification version */
-  uint32_t intrs;        /* Received interrupts (bitmask) */
+  volatile uint32_t pending; /* All interrupts received */
 } bcmemmc_state_t;
 
 #define b_in bus_read_4
@@ -57,12 +57,23 @@ static inline uint32_t emmc_wait_flags_to_hwflags(emmc_wait_flags_t mask) {
          ((mask & EMMC_I_WRITE_READY) ? INT_WRITE_RDY : 0);
 }
 
-/* Timeout when awaiting an interrupt */
-#define BCMEMMC_TIMEOUT 10000
-#define BCMEMMC_BUSY_CYCLES 128
+/* Returns new pending interrupts.
+ * All pending interrupts are stored in `bmcemmc_state_t::pending`. */
+static uint32_t bcmemmc_read_intr(bcmemmc_state_t *state) {
+  resource_t *emmc = state->emmc;
+  uint32_t newpend = b_in(emmc, BCMEMMC_INTERRUPT);
+  /* Pending interrupts need to be cleared manually. */
+  if (newpend) {
+    state->pending |= newpend;
+    b_out(emmc, BCMEMMC_INTERRUPT, newpend);
+  }
+  return newpend;
+}
+
+#define BCMEMMC_TIMEOUT 10000 /* Timeout when awaiting an interrupt */
 
 /**
- * \brief Wait for the specified interrupts.
+ * \brief Wait for all specified interrupts.
  * \param dev eMMC device
  * \param mask expected interrupts
  * \param clear additional interrupt bits to be cleared
@@ -72,55 +83,42 @@ static int bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
 
+  assert(mask != 0);
+
   SCOPED_SPIN_LOCK(&state->lock);
 
-  while (mask) {
-    uint32_t intrs = state->intrs;
-    if (intrs & mask) {
-      state->intrs &= ~mask;
-      mask &= ~intrs;
-      continue;
+  for (;;) {
+    (void)bcmemmc_read_intr(state);
+
+    if ((state->pending & mask) == mask) {
+      state->pending &= ~mask;
+      return 0;
     }
 
-    /* Busy-wait for a while. Should be good enough if the card works fine */
-    for (int i = 0; i < BCMEMMC_BUSY_CYCLES; i++) {
-      if ((state->intrs = b_in(emmc, BCMEMMC_INTERRUPT)))
-        goto bcmemmc_intr_next;
-    }
-
-    /* Sleep for a while if no interrupts have been received so far */
-    if (cv_wait_timed(&state->cv_intr, &state->lock, BCMEMMC_TIMEOUT)) {
-      b_out(emmc, BCMEMMC_INTERRUPT, 0xffffffff);
-      return ETIMEDOUT;
-    }
-
-  bcmemmc_intr_next:
-    if (state->intrs & INT_ERROR_MASK) {
-      state->intrs = 0;
+    if (state->pending & INT_ERROR_MASK) {
+      state->pending = 0;
       return EIO;
     }
-  }
 
-  return 0;
+    /* Sleep for a while if no interrupts have been received so far. */
+    if (cv_wait_timed(&state->intr_recv, &state->lock, BCMEMMC_TIMEOUT)) {
+      b_out(emmc, BCMEMMC_INTERRUPT, INT_ALL_MASK);
+      return ETIMEDOUT;
+    }
+  }
 }
 
 static int bcmemmc_wait(device_t *cdev, emmc_wait_flags_t wflags) {
-  uint32_t mask = emmc_wait_flags_to_hwflags(wflags);
-  return bcmemmc_intr_wait(cdev->parent, mask);
+  return bcmemmc_intr_wait(cdev->parent, emmc_wait_flags_to_hwflags(wflags));
 }
 
 static intr_filter_t bcmemmc_intr_filter(void *data) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)data;
-  resource_t *emmc = state->emmc;
   WITH_SPIN_LOCK (&state->lock) {
-    uint32_t intr = b_in(emmc, BCMEMMC_INTERRUPT);
-    if (!intr)
+    if (!bcmemmc_read_intr(state))
       return IF_STRAY;
-    state->intrs = intr;
-    /* Interrupts need to be cleared manually */
-    b_out(emmc, BCMEMMC_INTERRUPT, intr);
-    /* Wake up the waiting thread if all expected intrs have been received */
-    cv_signal(&state->cv_intr);
+    /* Wake up the thread if all expected interrupts have been received */
+    cv_signal(&state->intr_recv);
   }
   return IF_FILTERED;
 }
@@ -448,8 +446,7 @@ static int bcmemmc_init(device_t *dev) {
 
   state->host_version =
     (b_in(emmc, BCMEMMC_SLOTISR_VER) & HOST_SPEC_NUM) >> HOST_SPEC_NUM_SHIFT;
-  klog("e.MMC: GPIO set up");
-  /* Reset the card. */
+  /* Reset the controller. */
   b_out(emmc, BCMEMMC_CONTROL0, 0);
   b_set(emmc, BCMEMMC_CONTROL1, C1_SRST_HC);
   cnt = NSPINS;
@@ -458,19 +455,20 @@ static int bcmemmc_init(device_t *dev) {
       klog("ERROR: failed to reset EMMC");
       return ETIMEDOUT;
     }
-    delay(30); /* TODO: Test it on hardware */
+    delay(30); /* TODO(mohrcore): Test it on hardware */
   }
   b_set(emmc, BCMEMMC_CONTROL1, C1_CLK_INTLEN | C1_TOUNIT_MAX);
   /* Set clock to setup frequency. */
   int error = bcmemmc_set_clk_freq(dev, BCMEMMC_INIT_FREQ);
   if (error)
     return error;
+  /* Enable interrupts. */
   b_out(emmc, BCMEMMC_INT_EN,
         INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY | INT_WRITE_RDY |
-          INT_CMD_TIMEOUT | INT_DATA_TIMEOUT);
+          INT_CTO_ERR | INT_DTO_ERR);
   b_out(emmc, BCMEMMC_INT_MASK,
         INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY | INT_WRITE_RDY |
-          INT_CMD_TIMEOUT | INT_DATA_TIMEOUT);
+          INT_CTO_ERR | INT_DTO_ERR);
 
   return 0;
 }
@@ -488,12 +486,12 @@ static int bcmemmc_attach(device_t *dev) {
   state->emmc = device_take_memory(dev, 1, RF_ACTIVE);
 
   spin_init(&state->lock, 0);
-  cv_init(&state->cv_intr, "SD card response conditional variable");
+  cv_init(&state->intr_recv, "e.MMC command response wakeup");
 
-  b_out(state->emmc, BCMEMMC_INTERRUPT, 0xff);
+  b_out(state->emmc, BCMEMMC_INTERRUPT, INT_ALL_MASK);
   emmc_gpio_init(dev);
 
-  state->irq = device_take_irq(dev, 2, RF_ACTIVE);
+  state->irq = device_take_irq(dev, 0, RF_ACTIVE);
   bus_intr_setup(dev, state->irq, bcmemmc_intr_filter, NULL, state,
                  "e.MMC interrupt");
 
