@@ -437,8 +437,6 @@ static void emmc_gpio_init(device_t *dev) {
   bcm2835_gpio_set_pull(gpio, 53, BCM2838_GPIO_GPPUD_PULLDOWN);
 }
 
-#define BCMEMMC_INIT_FREQ 400000
-
 static int bcmemmc_init(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
