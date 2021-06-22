@@ -129,11 +129,11 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(pipe_parent_signaled);
   CHECKRUN_TEST(pipe_child_signaled);
   CHECKRUN_TEST(pipe_blocking_flag_manipulation);
-  CHECKRUN_TEST(pipe_write_sleep);
-  CHECKRUN_TEST(pipe_write_eagain);
-  CHECKRUN_TEST(pipe_read_sleep);
-  CHECKRUN_TEST(pipe_read_eagain);
-  CHECKRUN_TEST(pipe_read_zero);
+  CHECKRUN_TEST(pipe_write_interruptible_sleep);
+  CHECKRUN_TEST(pipe_write_errno_eagain);
+  CHECKRUN_TEST(pipe_read_interruptible_sleep);
+  CHECKRUN_TEST(pipe_read_errno_eagain);
+  CHECKRUN_TEST(pipe_read_return_zero);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;

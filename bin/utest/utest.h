@@ -124,11 +124,11 @@ int test_pipe_parent_signaled(void);
 int test_pipe_child_signaled(void);
 
 int test_pipe_blocking_flag_manipulation(void);
-int test_pipe_write_sleep(void);
-int test_pipe_write_eagain(void);
+int test_pipe_write_interruptible_sleep(void);
+int test_pipe_write_errno_eagain(void);
 
-int test_pipe_read_sleep(void);
-int test_pipe_read_eagain(void);
-int test_pipe_read_zero(void);
+int test_pipe_read_interruptible_sleep(void);
+int test_pipe_read_errno_eagain(void);
+int test_pipe_read_return_zero(void);
 
 #endif /* __UTEST_H__ */
