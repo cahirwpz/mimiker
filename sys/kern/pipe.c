@@ -181,7 +181,7 @@ static file_t *make_pipe_file(pipe_end_t *end) {
   return file;
 }
 
-int do_pipe(proc_t *p, int fds[2]) {
+int do_pipe2(proc_t *p, int fds[2]) {
   pipe_t *pipe = pipe_alloc();
   pipe_end_t *consumer = &pipe->end[0];
   pipe_end_t *producer = &pipe->end[1];
