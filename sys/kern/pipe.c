@@ -82,16 +82,14 @@ static int pipe_read(file_t *f, uio_t *uio) {
 
   /* no read atomicity for now! */
   WITH_MTX_LOCK (&producer->mtx) {
-
-    /* pipe empty, no producers, return end-of-file */
-    if (ringbuf_empty(&producer->buf) && producer->closed)
-      return 0;
-    /* pipe empty, producer exists, nonblocking IO, return EAGAIN */
-    if (f->f_flags & IO_NONBLOCK) {
-      return EAGAIN;
-    }
-    /* pipe empty, producer exists, wait for data */
-    while (ringbuf_empty(&producer->buf) && !producer->closed) {
+    while (ringbuf_empty(&producer->buf)) {
+      if (producer->closed)
+        /* pipe empty, no producers, return end-of-file */
+        return 0;
+      /* pipe empty, producer exists, nonblocking IO, return EAGAIN */
+      if (f->f_flags & IO_NONBLOCK) {
+        return EAGAIN;
+      }
       /* restart the syscall if we were interrupted by a signal */
       if (cv_wait_intr(&producer->nonempty, &producer->mtx))
         return ERESTARTSYS;
