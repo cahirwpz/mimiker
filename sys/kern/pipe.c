@@ -16,34 +16,6 @@
 
 typedef struct pipe pipe_t;
 
-// struct pipe_end {
-//    mtx_t mtx;          /*!< protects pipe end internals */
-//    pipe_t *pipe;       /*!< pointer back to pipe structure */
-//    bool closed;        /*!< true if this end is closed */
-//    condvar_t nonempty; /*!< used to wait data to appear in the buffer */
-//    condvar_t nonfull;  /*!< used to wait for free space in the buffer */
-//    ringbuf_t buf;      /*!< buffer belongs to writer end */
-//    pipe_end_t *other;  /*!< the other end of the pipe */
-
-// };
-//  struct pipe {
-//  mtx_t mtx;         /*!< protects reference counter */
-//    int refcnt;        /*!< pipe can be freed when reaches zero */
-//    pipe_end_t end[2]; /*!< both pipe ends */
-// };
-
-// struct pipe {
-//   mtx_t mtx;          /*!< protects pipe end internals */
-//   pipe_t *pipe;       /*!< pointer back to pipe structure */
-//   mtx_t refcnt_mtx;   /*!< protects reference counter */
-//   int refcnt;         /*!< pipe can be freed when reaches zero */
-//   bool closed;        /*!< true if this end is closed */
-//   condvar_t nonempty; /*!< used to wait data to appear in the buffer */
-//   condvar_t nonfull;  /*!< used to wait for free space in the buffer */
-//   ringbuf_t buf;      /*!< buffer belongs to writer end */
-//   pipe_t *other;      /*!< the other end of the pipe */
-// };
-
 struct pipe {
   mtx_t mtx; /*!< protects all other fields */
   /* Pipe can be freed when both ends are closed */
@@ -196,22 +168,17 @@ static file_t *make_pipe_file(pipe_t *pipe) {
 
 int do_pipe2(proc_t *p, int fds[2], int flags) {
   pipe_t *pipe = pipe_alloc();
-  // pipe_end_t *consumer = &pipe->end[0];
-  // pipe_end_t *producer = &pipe->end[1];
 
   file_t *file = make_pipe_file(pipe);
-  // file_t *file1 = make_pipe_file(producer);
 
   if (flags & O_NONBLOCK) {
     file->f_flags |= IO_NONBLOCK;
-    // file1->f_flags |= IO_NONBLOCK;
   }
 
   int cloexec_to_set = flags & O_CLOEXEC;
   int error;
 
   if (!(error = fdtab_install_file(p->p_fdtable, file, 0, &fds[0]))) {
-    // if (!(error = fdtab_install_file(p->p_fdtable, file1, 0, &fds[1]))) {
     if (!(error = fd_set_cloexec(p->p_fdtable, fds[0], cloexec_to_set))) {
       return fd_set_cloexec(p->p_fdtable, fds[1], cloexec_to_set);
       fdtab_close_fd(p->p_fdtable, fds[1]);
