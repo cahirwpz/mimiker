@@ -56,7 +56,6 @@ struct pipe {
 
 static POOL_DEFINE(P_PIPE, "pipe", sizeof(pipe_t));
 
-// static void pipe_end_setup(pipe_end_t *end, pipe_end_t *other) {
 static void pipe_setup(pipe_t *instance) {
   mtx_init(&instance->mtx, 0);
   instance->producer_closed = false;
@@ -70,7 +69,7 @@ static void pipe_setup(pipe_t *instance) {
 static pipe_t *pipe_alloc(void) {
   pipe_t *pipe = pool_alloc(P_PIPE, M_ZERO);
   mtx_init(&pipe->mtx, 0);
-  pipe_end_setup(pipe);
+  pipe_setup(pipe);
   return pipe;
 }
 
