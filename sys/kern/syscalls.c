@@ -436,7 +436,7 @@ static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
   if (flags)
     klog("sys_pipe2: non-zero flags not handled!");
 
-  if ((error = do_pipe(p, fds)))
+  if ((error = do_pipe2(p, fds)))
     return error;
 
   return copyout(fds, u_fdp, 2 * sizeof(int));
