@@ -71,6 +71,7 @@ static int pipe_read(file_t *f, uio_t *uio) {
       }
       /* restart the syscall if we were interrupted by a signal */
       if (cv_wait_intr(&pipe->nonempty, &pipe->mtx))
+
         return ERESTARTSYS;
     }
 
@@ -86,6 +87,7 @@ static int pipe_read(file_t *f, uio_t *uio) {
 
 static int pipe_write(file_t *f, uio_t *uio) {
   pipe_t *pipe = f->f_data;
+
   int res;
 
   assert(!pipe->producer_closed);

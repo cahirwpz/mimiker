@@ -5,7 +5,7 @@
 #include <sys/thread.h>
 #include <machine/vm_param.h>
 
-static gmonparam_t _gmonparam = {.state = GMON_PROF_NOT_INIT};
+gmonparam_t _gmonparam = {.state = GMON_PROF_NOT_INIT};
 static gmonhdr_t _gmonhdr = {.profrate = CLK_TCK};
 
 /* The macros description are provided in gmon.h */
@@ -47,6 +47,8 @@ void init_kgprof(void) {
 }
 
 void kgprof_tick(void) {
+  assert(intr_disabled());
+
   uintptr_t pc, instr;
   gmonparam_t *g = &_gmonparam;
   thread_t *td = thread_self();
