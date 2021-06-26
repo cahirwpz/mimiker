@@ -86,7 +86,7 @@ static int pipe_read(file_t *f, uio_t *uio) {
     if (ringbuf_empty(&producer->buf) && producer->closed)
       return 0;
 
-    if (f->flags & IO_NONBLOCK)
+    if (f->f_flags & IO_NONBLOCK)
       return EAGAIN;
     /* pipe empty, producer exists, wait for data */
     while (ringbuf_empty(&producer->buf) && !producer->closed) {
@@ -130,7 +130,7 @@ static int pipe_write(file_t *f, uio_t *uio) {
       if (uio->uio_resid == 0)
         return 0;
       /* buffer is full, so if we write in NONBLOCK then return with error */
-      if (f->flags & IO_NONBLOCK)
+      if (f->f_flags & IO_NONBLOCK)
         return EAGAIN;
       /* buffer is full, interruptly sleep while some data is consumed */
       if (cv_wait_intr(&producer->nonempty, &producer->mtx)) {
