@@ -86,15 +86,13 @@ static int pipe_read(file_t *f, uio_t *uio) {
     if (ringbuf_empty(&producer->buf) && producer->closed)
       return 0;
 
-    /* pipe empty, producer exists, nonblocking IO, return EAGAIN */
-    if (f->f_flags & IO_NONBLOCK) {
+    if (f->flags & IO_NONBLOCK)
       return EAGAIN;
-    }
-    /* pipe empty, producer exists, blocking IO, wait for data */
+    /* pipe empty, producer exists, wait for data */
     while (ringbuf_empty(&producer->buf) && !producer->closed) {
-      int error = cv_wait_intr(&producer->nonempty, &producer->mtx);
-      if (error == EINTR)
-        return error;
+      /* restart the syscall if we were interrupted by a signal */
+      if (cv_wait_intr(&producer->nonempty, &producer->mtx))
+        return ERESTARTSYS;
     }
 
     int res = ringbuf_read(&producer->buf, uio);
@@ -110,6 +108,7 @@ static int pipe_read(file_t *f, uio_t *uio) {
 static int pipe_write(file_t *f, uio_t *uio) {
   pipe_end_t *producer = f->f_data;
   pipe_end_t *consumer = producer->other;
+  int res;
 
   assert(!producer->closed);
 
@@ -117,29 +116,35 @@ static int pipe_write(file_t *f, uio_t *uio) {
   if (consumer->closed)
     return EPIPE;
 
+  size_t old_resid = uio->uio_resid;
+
   /* no write atomicity for now! */
   WITH_MTX_LOCK (&producer->mtx) {
     do {
-      int res = ringbuf_write(&producer->buf, uio);
+      res = ringbuf_write(&producer->buf, uio);
       if (res)
-        return res;
+        break;
       /* notify consumer that new data is available */
       cv_broadcast(&producer->nonempty);
       /* nothing left to write? */
       if (uio->uio_resid == 0)
-        break;
-      /* buffer is full so if we write in NONBLOCK then return with errno */
-      if (f->f_flags & IO_NONBLOCK) {
+        return 0;
+      /* buffer is full, so if we write in NONBLOCK then return with error */
+      if (f->flags & IO_NONBLOCK)
         return EAGAIN;
+      /* buffer is full, interruptly sleep while some data is consumed */
+      if (cv_wait_intr(&producer->nonempty, &producer->mtx)) {
+        res = ERESTARTSYS;
+        break;
       }
-      /* buffer is full so wait for some data to be consumed */
-      int error = cv_wait_intr(&producer->nonfull, &producer->mtx);
-      if (error == EINTR)
-        return error;
     } while (!consumer->closed);
   }
 
-  return 0;
+  /* don't report errors on partial writes */
+  if (uio->uio_resid < old_resid)
+    res = 0;
+
+  return res;
 }
 
 static int pipe_close(file_t *f) {
@@ -188,18 +193,19 @@ int do_pipe2(proc_t *p, int fds[2], int flags) {
 
   file_t *file0 = make_pipe_file(consumer);
   file_t *file1 = make_pipe_file(producer);
+
   if (flags & O_NONBLOCK) {
     file0->f_flags |= IO_NONBLOCK;
     file1->f_flags |= IO_NONBLOCK;
   }
 
-  int cloexec_to_set = flags & O_CLOEXEC;
+  int set_cloexec = flags & O_CLOEXEC;
   int error;
 
   if (!(error = fdtab_install_file(p->p_fdtable, file0, 0, &fds[0]))) {
     if (!(error = fdtab_install_file(p->p_fdtable, file1, 0, &fds[1]))) {
-      if (!(error = fd_set_cloexec(p->p_fdtable, fds[0], cloexec_to_set)))
-        return fd_set_cloexec(p->p_fdtable, fds[1], cloexec_to_set);
+      if (!(error = fd_set_cloexec(p->p_fdtable, fds[0], set_cloexec)))
+        return fd_set_cloexec(p->p_fdtable, fds[1], set_cloexec);
       fdtab_close_fd(p->p_fdtable, fds[1]);
     }
     fdtab_close_fd(p->p_fdtable, fds[0]);
