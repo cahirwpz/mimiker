@@ -128,9 +128,6 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
     assert(uio.uio_resid == 0);
   }
 
-  /* Zero the rest */
-  if (ph->p_filesz < ph->p_memsz)
-    bzero((uint8_t *)start + ph->p_filesz, ph->p_memsz - ph->p_filesz);
   /* Apply correct permissions */
   vm_prot_t prot = VM_PROT_NONE;
   if (ph->p_flags | PF_R)

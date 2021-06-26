@@ -87,8 +87,11 @@ static int pipe_read(file_t *f, uio_t *uio) {
       return 0;
 
     /* pipe empty, producer exists, wait for data */
-    while (ringbuf_empty(&producer->buf) && !producer->closed)
-      cv_wait(&producer->nonempty, &producer->mtx);
+    while (ringbuf_empty(&producer->buf) && !producer->closed) {
+      /* restart the syscall if we were interrupted by a signal */
+      if (cv_wait_intr(&producer->nonempty, &producer->mtx))
+        return ERESTARTSYS;
+    }
 
     int res = ringbuf_read(&producer->buf, uio);
     if (res)
@@ -103,30 +106,40 @@ static int pipe_read(file_t *f, uio_t *uio) {
 static int pipe_write(file_t *f, uio_t *uio) {
   pipe_end_t *producer = f->f_data;
   pipe_end_t *consumer = producer->other;
+  int res;
 
   assert(!producer->closed);
 
   /* Reading end is closed, no use in sending data there. */
   if (consumer->closed)
-    return ESPIPE;
+    return EPIPE;
+
+  size_t old_resid = uio->uio_resid;
 
   /* no write atomicity for now! */
   WITH_MTX_LOCK (&producer->mtx) {
     do {
-      int res = ringbuf_write(&producer->buf, uio);
+      res = ringbuf_write(&producer->buf, uio);
       if (res)
-        return res;
+        break;
       /* notify consumer that new data is available */
       cv_broadcast(&producer->nonempty);
       /* nothing left to write? */
       if (uio->uio_resid == 0)
-        break;
+        return 0;
       /* buffer is full so wait for some data to be consumed */
-      cv_wait(&producer->nonfull, &producer->mtx);
+      if (cv_wait_intr(&producer->nonempty, &producer->mtx)) {
+        res = ERESTARTSYS;
+        break;
+      }
     } while (!consumer->closed);
   }
 
-  return 0;
+  /* don't report errors on partial writes */
+  if (uio->uio_resid < old_resid)
+    res = 0;
+
+  return res;
 }
 
 static int pipe_close(file_t *f) {

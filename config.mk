@@ -4,7 +4,7 @@
 # build system for given platform.
 #
 
-CONFIG_OPTS := KASAN LOCKDEP KGPROF MIPS AARCH64
+CONFIG_OPTS := KASAN LOCKDEP KGPROF MIPS AARCH64 KCSAN
 
 BOARD ?= malta
 
@@ -26,3 +26,4 @@ CLANG ?= 0
 LOCKDEP ?= 0
 KASAN ?= 0
 KGPROF ?= 0
+KCSAN ?= 0
