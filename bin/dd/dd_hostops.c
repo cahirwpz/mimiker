@@ -28,12 +28,6 @@
 
 #include <sys/cdefs.h>
 
-#if 0
-#ifndef lint
-__RCSID("$NetBSD: dd_hostops.c,v 1.1 2011/02/04 19:42:12 pooka Exp $");
-#endif /* !lint */
-#endif
-
 #include <sys/types.h>
 #include <sys/ioctl.h>
 

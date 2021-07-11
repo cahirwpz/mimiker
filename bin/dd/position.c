@@ -35,16 +35,6 @@
 
 #include <sys/cdefs.h>
 
-#if 0
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)position.c	8.3 (Berkeley) 4/2/94";
-#else
-__RCSID("$NetBSD: position.c,v 1.18 2010/11/22 21:04:28 pooka Exp $");
-#endif
-#endif /* not lint */
-#endif
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
