@@ -8,11 +8,13 @@ SOURCES = \
 
 SOURCES-MIPS = \
 	82371AB.c \
+	atkbdc.c \
 	cbus.c \
 	evdev.c \
 	evdev_kbd.c \
-	evdev_m.c \
 	gt64120.c \
+	hidkbd.c \
+	hidm.c \
 	isa.c \
 	malta_rootdev.c \
 	ns16550.c \
@@ -23,12 +25,14 @@ SOURCES-MIPS = \
 	pit.c \
 	stdvga.c \
 	uart_cbus.c \
+	uhci.c \
+	usb.c \
+	umass.c
 
 SOURCES-AARCH64 = \
 	bcm2835_gpio.c \
 	bcm2835_rootdev.c \
-	pl011.c \
-	usb.c \
+	pl011.c
 
 CPPFLAGS += -D_MACHDEP
 
