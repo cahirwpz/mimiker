@@ -57,7 +57,7 @@ typedef struct uhci_state {
 #define UHCI_TFR_BUF_SIZE                                                      \
   (UHCI_DATA_BUF_SIZE / USB_MAX_IPACKET * UHCI_UNIT_SIZE)
 
-#define UHCI_MAX_NREQS 4 /* maximum number of scheduled request */
+#define UHCI_MAX_NREQS 8 /* maximum number of scheduled request */
 
 #define UHCI_DATA_POOL_SIZE (UHCI_MAX_NREQS * UHCI_DATA_BUF_SIZE)
 
@@ -447,11 +447,9 @@ static void uhci_init_mainqs(uhci_state_t *uhci) {
   /* Organize the main queues in a list. */
   for (int i = 0; i < UHCI_NMAINQS; i++) {
     qh_init_main(&mqs[i]);
-    qh_chain(&mqs[i], &mqs[i - 1]);
+    qh_chain(&mqs[i + 1], &mqs[i]);
     uhci->mainqs[i] = &mqs[i];
   }
-  /* Revise the boundary case. */
-  mqs[0].qh_h_next = UHCI_PTR_T;
 }
 
 /* Initialize the UHCI frame list. */
