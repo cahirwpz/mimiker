@@ -29,6 +29,7 @@
 typedef struct sd_state {
   sd_props_t props; /* SD Card's flags */
   void *block_buf;  /* A buffer for reading data into */
+  int initialized;
 } sd_state_t;
 
 static int sd_probe(device_t *dev) {
@@ -126,6 +127,8 @@ static int sd_init(device_t *dev) {
   klog("Card's feature support:\n* CCS: %s\n* SET_BLOCK_COUNT: %s",
        (state->props & SD_SUPP_CCS) ? "YES" : "NO",
        (state->props & SD_SUPP_BLKCNT) ? "YES" : "NO");
+  
+  state->initialized = 1;
 
   return 0;
 }
@@ -276,9 +279,19 @@ static int sd_dop_uio(devnode_t *d, uio_t *uio) {
   return 0;
 }
 
+static int sd_dop_open(devnode_t *dev, file_t *fp, int oflags) {
+  device_t *dev = fp->f_data;
+  sd_state_t *state = dev->data;
+
+  if (!state->initialized)
+    return sd_init(dev);
+  return 0;
+}
+
 static devops_t sd_devops = {
   .d_read = sd_dop_uio,
   .d_write = sd_dop_uio,
+  .d_open = sd_dop_open,
 };
 
 static int sd_attach(device_t *dev) {
