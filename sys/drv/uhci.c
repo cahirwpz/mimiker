@@ -57,7 +57,7 @@ typedef struct uhci_state {
 #define UHCI_TFR_BUF_SIZE                                                      \
   (UHCI_DATA_BUF_SIZE / USB_MAX_IPACKET * UHCI_UNIT_SIZE)
 
-#define UHCI_MAX_NREQS 16 /* maximum number of scheduled request */
+#define UHCI_MAX_NREQS 2 /* maximum number of scheduled request */
 
 #define UHCI_DATA_POOL_SIZE (UHCI_MAX_NREQS * UHCI_DATA_BUF_SIZE)
 
