@@ -12,6 +12,7 @@ SOURCES-MIPS = \
 	cbus.c \
 	evdev.c \
 	evdev_kbd.c \
+	evdev_m.c \
 	gt64120.c \
 	hidkbd.c \
 	hidm.c \
