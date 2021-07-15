@@ -431,16 +431,14 @@ static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
   int fds[2];
   int error;
 
-  klog("pipe2(%x, %d)", u_fdp, flags);
-
-  // only these two flags are handled
-  if (!flags || (flags & O_NONBLOCK) || (flags & O_CLOEXEC) ||
-      (flags & O_NONBLOCK & O_CLOEXEC)) {
-
-    if ((error = do_pipe2(p, fds, flags)))
-      return error;
-  } else
+  klog("pipe2(%x, %x)", u_fdp, flags);
+  if (flags & ~O_CLOEXEC & ~O_NONBLOCK) {
+    klog("sys_pipe2: unsupported flags: %x", flags);
     return EINVAL;
+  }
+
+  if ((error = do_pipe2(p, fds, flags)))
+    return error;
 
   return copyout(fds, u_fdp, 2 * sizeof(int));
 }
