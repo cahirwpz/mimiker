@@ -436,7 +436,6 @@ static int sys_pipe2(proc_t *p, pipe2_args_t *args, register_t *res) {
     klog("sys_pipe2: unsupported flags: %x", flags);
     return EINVAL;
   }
-
   if ((error = do_pipe2(p, fds, flags)))
     return error;
 

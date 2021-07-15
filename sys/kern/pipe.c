@@ -192,7 +192,6 @@ int do_pipe2(proc_t *p, int fds[2], int flags) {
   file_hold(reader);
   file_hold(writer);
 
-
   if (flags & O_NONBLOCK) {
     reader->f_flags |= IO_NONBLOCK;
     writer->f_flags |= IO_NONBLOCK;
