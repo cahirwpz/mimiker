@@ -139,7 +139,7 @@ void vfs_vcache_init(void);
 vnode_t *vfs_vcache_hashget(mount_t *mp, ino_t ino);
 vnode_t *vfs_vcache_new_vnode(void);
 void vfs_vcache_put(vnode_t *vn);
-void vfs_vcache_bind(vnode_t *vn);
+void vfs_vcache_invalidate(vnode_t *vn);
 
 #endif /* !_KERNEL */
 

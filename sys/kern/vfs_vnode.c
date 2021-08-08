@@ -66,7 +66,10 @@ void vnode_hold(vnode_t *v) {
 void vnode_drop(vnode_t *v) {
   if (refcnt_release(&v->v_usecnt)) {
     VOP_RECLAIM(v);
-    pool_free(P_VNODE, v);
+    if (!(v->v_flags & VF_CACHED))
+      pool_free(P_VNODE, v);
+    else
+      vfs_vcache_put(v);
   }
 }
 

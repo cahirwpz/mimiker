@@ -556,11 +556,10 @@ static int tmpfs_vop_reclaim(vnode_t *v) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
 
-  v->v_data = NULL;
-  vfs_vcache_put(v);
-
-  if (node->tfn_links == 0)
+  if (node->tfn_links == 0) {
+    /* vfs_vcache_invalidate(v); */
     tmpfs_free_node(tfm, node);
+  }
 
   return 0;
 }
@@ -735,12 +734,11 @@ static int tmpfs_get_vnode(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp) {
   vnode_t *vn = vfs_vcache_hashget(mp, tfn->tfn_ino);
   if (!vn) {
     vn = vfs_vcache_new_vnode();
-    vn->ino = tfn->tfn_ino;
+    vn->v_ino = tfn->tfn_ino;
     vn->v_mount = mp;
     vn->v_ops = &tmpfs_vnodeops;
     vn->v_type = tfn->tfn_type;
     vn->v_data = tfn;
-    vfs_vcache_bind(vn);
   }
 
   *vp = vn;

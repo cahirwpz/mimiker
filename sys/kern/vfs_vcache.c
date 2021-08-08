@@ -35,15 +35,32 @@ static void vnlock_init(vnlock_t *vl) {
 static vnode_t *vcache_new_vnode(void) {
   vnode_t *vn = pool_alloc(P_VCACHE, M_ZERO);
   vn->v_type = V_NONE;
+  vn->v_flags = VF_CACHED;
   vnlock_init(&vn->v_lock);
   return vn;
 }
 
+vnode_t *vcache_hashget(mount_t *mp, ino_t ino) {
+  vcache_t bucket = vcache_hash(mp, ino);
+
+  vnode_t *vn = NULL;
+  TAILQ_FOREACH(vn, &vcache_buckets[bucket], v_cached) {
+    if (vn->v_mount == mp && vn->v_ino == ino) {
+      TAILQ_REMOVE(&vcache_free, vn, v_free);
+      TAILQ_REMOVE(&vcache_buckets[bucket], vn, v_cached);
+      vnode_hold(vn);
+      return vn;
+    }
+  }
+
+  return NULL;
+}
+
 /* Remove vnode from its bucket (if present in any) */
-static void vcache_remove_unbuffer(vnode_t *vn) {
+void vfs_vcache_invalidate(vnode_t *vn) {
   if (!vn->v_mount)
     return; /* vnode was not in a any bucket and cannot be hashed */
-  vcache_t bucket = vcache_hash(vn->v_mount, vn->ino);
+  vcache_t bucket = vcache_hash(vn->v_mount, vn->v_ino);
   vnode_t *bucket_node = NULL;
   TAILQ_FOREACH(bucket_node, &vcache_buckets[bucket], v_cached) {
     if (bucket_node == vn) {
@@ -72,34 +89,22 @@ void vfs_vcache_init(void) {
  * \param ino inode to be used for vnode lookup
  */
 vnode_t *vfs_vcache_hashget(mount_t *mp, ino_t ino) {
-  vcache_t bucket = vcache_hash(mp, ino);
-
   SCOPED_MTX_LOCK(&vcache_giant_lock);
 
-  vnode_t *vn = NULL;
-  TAILQ_FOREACH(vn, &vcache_buckets[bucket], v_cached) {
-    if (vn->v_mount == mp && vn->ino == ino) {
-      TAILQ_REMOVE(&vcache_free, vn, v_free);
-      TAILQ_REMOVE(&vcache_buckets[bucket], vn, v_cached);
-      vnode_hold(vn);
-      return vn;
-    }
-  }
-
-  return NULL;
+  return vcache_hashget(mp, ino);
 }
 
 /**
  * \brief Bind a free vnode to a given inode
  * \param vn a vnode from vcache free list
  */
-void vfs_vcache_bind(vnode_t *vn) {
+/* void vfs_vcache_bind(vnode_t *vn) {
   vcache_t bucket = vcache_hash(vn->v_mount, vn->ino);
   
   SCOPED_MTX_LOCK(&vcache_giant_lock);
 
   TAILQ_INSERT_HEAD(&vcache_buckets[bucket], vn, v_cached);
-}
+} */
 
 /**
  * \brief Get a new, vcached vnode with v_usecnt = 1
@@ -107,10 +112,11 @@ void vfs_vcache_bind(vnode_t *vn) {
 vnode_t *vfs_vcache_new_vnode(void) {
   SCOPED_MTX_LOCK(&vcache_giant_lock);
 
-   vnode_t *vn;
+  vnode_t *vn;
 
   /* Allocate new vnode if no free vnodes are available */
   if (TAILQ_EMPTY(&vcache_free)) {
+    klog("Added a new vnode to vcache pool.");
     vn = vcache_new_vnode();
     vn->v_usecnt = 1;
     return vn;
@@ -119,17 +125,17 @@ vnode_t *vfs_vcache_new_vnode(void) {
   /* Get the Least Recently Used vnode */
   vn = TAILQ_FIRST(&vcache_free);
 
+  /* Remove it from free list */
+  TAILQ_REMOVE(&vcache_free, vn, v_free);
+
+  /* Remove it from its bucket (if present in any) */
+  vfs_vcache_invalidate(vn);
+
   /* Reset some fields */
   vn->v_usecnt = 1;
   vn->v_mount = NULL;
   vn->v_ops = NULL;
   vn->v_data = NULL;
-
-  /* Remove it from free list */
-  TAILQ_REMOVE(&vcache_free, vn, v_free);
-
-  /* Remove it from its bucket (if present in any) */
-  vcache_remove_unbuffer(vn);
 
   return vn;
 }
@@ -142,6 +148,6 @@ void vfs_vcache_put(vnode_t *vn) {
   SCOPED_MTX_LOCK(&vcache_giant_lock);
 
   TAILQ_INSERT_TAIL(&vcache_free, vn, v_free);
-  vcache_t bucket = vcache_hash(vn->v_mount, vn->ino);
+  vcache_t bucket = vcache_hash(vn->v_mount, vn->v_ino);
   TAILQ_INSERT_HEAD(&vcache_buckets[bucket], vn, v_cached);
 }
