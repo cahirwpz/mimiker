@@ -9,7 +9,7 @@
 #include <sys/timer.h>
 
 typedef struct mips_timer_state {
-  uint32_t sec;         /* seconds passed after timer initialization */
+  uint64_t sec;         /* seconds passed after timer initialization */
   uint32_t cntr_modulo; /* counter since initialization modulo its frequency */
   uint32_t period_cntr; /* number of counter ticks in a period */
   uint32_t last_count_lo;     /* used to detect counter overflow */
@@ -100,14 +100,15 @@ static int mips_timer_stop(timer_t *tm) {
 static bintime_t mips_timer_gettime(timer_t *tm) {
   device_t *dev = tm->tm_priv;
   mips_timer_state_t *state = dev->state;
-  uint32_t sec, ticks;
+  uint64_t sec, ticks;
   WITH_INTR_DISABLED {
     read_count(state);
     sec = state->sec;
     ticks = state->cntr_modulo;
   }
   bintime_t bt = bintime_mul(tm->tm_min_period, ticks);
-  bt.sec += sec;
+  assert(bt.sec == 0);
+  bt.sec = sec;
   return bt;
 }
 
