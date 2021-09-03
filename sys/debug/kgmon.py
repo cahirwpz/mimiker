@@ -35,6 +35,7 @@ def gmon_write(path):
         fromindex = -1
         froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
         for from_val in froms_array:
+            fromindex += 1
             # Nothing has been called from this function
             fromindex += 1
             if from_val == 0:
