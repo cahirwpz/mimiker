@@ -11,12 +11,12 @@ typedef struct pit_state {
   resource_t *irq_res;
   timer_t timer;
   bool noticed_overflow; /* noticed and handled the counter overflow */
-  uint16_t period_ticks; /* number of PIT ticks in full period */
+  uint16_t period_cntr;  /* number of counter ticks in a period */
   /* values since last counter read */
-  uint16_t prev_ticks16; /* number of ticks */
+  uint16_t prev_cntr16; /* number of counter ticks */
   /* values since initialization */
-  uint32_t ticks; /* number of ticks modulo TIMER_FREQ*/
-  uint32_t sec;   /* seconds */
+  uint32_t cntr_modulo; /* number of counter ticks modulo TIMER_FREQ*/
+  uint64_t sec;         /* seconds */
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
@@ -24,8 +24,8 @@ typedef struct pit_state {
 
 static inline void pit_set_frequency(pit_state_t *pit) {
   outb(TIMER_MODE, TIMER_SEL0 | TIMER_16BIT | TIMER_RATEGEN);
-  outb(TIMER_CNTR0, pit->period_ticks & 0xff);
-  outb(TIMER_CNTR0, pit->period_ticks >> 8);
+  outb(TIMER_CNTR0, pit->period_cntr & 0xff);
+  outb(TIMER_CNTR0, pit->period_cntr >> 8);
 }
 
 static inline uint16_t pit_get_counter(pit_state_t *pit) {
@@ -35,36 +35,36 @@ static inline uint16_t pit_get_counter(pit_state_t *pit) {
   count |= inb(TIMER_CNTR0) << 8;
 
   /* PIT counter counts from n to 1, we make it ascending from 0 to n-1*/
-  return pit->period_ticks - count;
+  return pit->period_cntr - count;
 }
 
-static inline void pit_incr_ticks(pit_state_t *pit, uint16_t ticks) {
-  pit->ticks += ticks;
-  if (pit->ticks >= TIMER_FREQ) {
-    pit->ticks -= TIMER_FREQ;
+static inline void pit_incr_cntr(pit_state_t *pit, uint16_t ticks) {
+  pit->cntr_modulo += ticks;
+  if (pit->cntr_modulo >= TIMER_FREQ) {
+    pit->cntr_modulo -= TIMER_FREQ;
     pit->sec++;
   }
 }
 
 static void pit_update_time(pit_state_t *pit) {
   assert(intr_disabled());
-  uint32_t last_ticks = pit->ticks;
-  uint32_t last_sec = pit->sec;
-  uint16_t now_ticks16 = pit_get_counter(pit);
-  uint16_t ticks_passed = now_ticks16 - pit->prev_ticks16;
-  if (pit->prev_ticks16 > now_ticks16) {
+  uint64_t last_sec = pit->sec;
+  uint32_t last_cntr = pit->cntr_modulo;
+  uint16_t now_cntr16 = pit_get_counter(pit);
+  uint16_t ticks_passed = now_cntr16 - pit->prev_cntr16;
+  if (pit->prev_cntr16 > now_cntr16) {
     pit->noticed_overflow = true;
-    ticks_passed += pit->period_ticks;
+    ticks_passed += pit->period_cntr;
   }
 
   /* We want to keep the last read counter value to detect possible future
    * overflows of our counter */
-  pit->prev_ticks16 = now_ticks16;
+  pit->prev_cntr16 = now_cntr16;
 
-  pit_incr_ticks(pit, ticks_passed);
+  pit_incr_cntr(pit, ticks_passed);
   assert(last_sec < pit->sec ||
-         (last_sec == pit->sec && last_ticks < pit->ticks));
-  assert(pit->ticks < TIMER_FREQ);
+         (last_sec == pit->sec && last_cntr < pit->cntr_modulo));
+  assert(pit->cntr_modulo < TIMER_FREQ);
 }
 
 static intr_filter_t pit_intr(void *data) {
@@ -72,14 +72,14 @@ static intr_filter_t pit_intr(void *data) {
 
   /* XXX: It's still possible for periods to be lost.
    * For example disabling interrupts for the whole period
-   * without calling pit_gettime will lose period_ticks.
-   * It is also possible that time suddenly jumps by period_ticks
+   * without calling pit_gettime will lose period_cntr.
+   * It is also possible that time suddenly jumps by period_cntr
    * due to the fact that pit_update_time() can't detect an overflow if
    * the current counter value is greater than the previous one, while
    * pit_intr() can thanks to the noticed_overflow flag. */
   pit_update_time(pit);
   if (!pit->noticed_overflow)
-    pit_incr_ticks(pit, pit->period_ticks);
+    pit_incr_cntr(pit, pit->period_cntr);
   tm_trigger(&pit->timer);
   /* It is set here to let us know in the next interrupt if we already
    * considered the overflow */
@@ -91,7 +91,7 @@ static device_t *device_of(timer_t *tm) {
   return tm->tm_priv;
 }
 
-static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
+static int pit_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
                            const bintime_t period) {
   assert(flags & TMF_PERIODIC);
   assert(!(flags & TMF_ONESHOT));
@@ -99,14 +99,14 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
 
-  uint32_t counter = bintime_mul(period, TIMER_FREQ).sec;
+  uint64_t counter = bintime_mul(period, TIMER_FREQ).sec;
   /* Maximal counter value which we can store in pit timer */
   assert(counter <= 0xFFFF);
 
   pit->sec = 0;
-  pit->ticks = 0;
-  pit->prev_ticks16 = 0;
-  pit->period_ticks = counter;
+  pit->cntr_modulo = 0;
+  pit->prev_cntr16 = 0;
+  pit->period_cntr = counter;
   pit->noticed_overflow = false;
 
   pit_set_frequency(pit);
@@ -115,24 +115,25 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   return 0;
 }
 
-static int timer_pit_stop(timer_t *tm) {
+static int pit_timer_stop(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
   bus_intr_teardown(dev, pit->irq_res);
   return 0;
 }
 
-static bintime_t timer_pit_gettime(timer_t *tm) {
+static bintime_t pit_timer_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  uint32_t sec, ticks;
+  uint64_t sec, cntr_modulo;
   WITH_INTR_DISABLED {
     pit_update_time(pit);
     sec = pit->sec;
-    ticks = pit->ticks;
+    cntr_modulo = pit->cntr_modulo;
   }
-  bintime_t bt = bintime_mul(tm->tm_min_period, ticks);
-  bt.sec += sec;
+  bintime_t bt = bintime_mul(tm->tm_min_period, cntr_modulo);
+  assert(bt.sec == 0);
+  bt.sec = sec;
   return bt;
 }
 
@@ -151,9 +152,9 @@ static int pit_attach(device_t *dev) {
     .tm_frequency = TIMER_FREQ,
     .tm_min_period = HZ2BT(TIMER_FREQ),
     .tm_max_period = bintime_mul(HZ2BT(TIMER_FREQ), 65536),
-    .tm_start = timer_pit_start,
-    .tm_stop = timer_pit_stop,
-    .tm_gettime = timer_pit_gettime,
+    .tm_start = pit_timer_start,
+    .tm_stop = pit_timer_stop,
+    .tm_gettime = pit_timer_gettime,
     .tm_priv = dev,
   };
 
