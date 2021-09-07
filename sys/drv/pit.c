@@ -125,7 +125,8 @@ static int pit_timer_stop(timer_t *tm) {
 static bintime_t pit_timer_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  uint64_t sec, ticks;
+  uint64_t sec;
+  uint32_t ticks;
   WITH_INTR_DISABLED {
     pit_update_time(pit);
     sec = pit->sec;
