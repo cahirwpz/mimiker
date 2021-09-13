@@ -7,6 +7,7 @@
 
 #include <signal.h>
 #include <string.h>
+#include <limits.h>
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -166,7 +167,7 @@ int test_pipe_write_interruptible_sleep(void) {
     char data[page_size];
 
     for (int i = 0; i < page_size; i++) {
-      data[i] = i + '0';
+      data[i] = (i + '0') % CHAR_MAX;
     }
     int bytes_wrote = 0;
     alarm(1);
@@ -207,7 +208,7 @@ int test_pipe_write_errno_eagain(void) {
     /* prepare varying data */
     char data[page_size];
     for (int i = 0; i < page_size; i++) {
-      data[i] = i + '0';
+      data[i] = (i + '0') % CHAR_MAX;
     }
 
     /* overflowing pipe */
