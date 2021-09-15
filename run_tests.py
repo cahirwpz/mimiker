@@ -48,7 +48,7 @@ if __name__ == '__main__':
         description='Automatically performs kernel tests.')
     parser.add_argument('--times', type=int, default=N_SIMPLE,
                         help='Run tests given number of times.')
-    parser.add_argument('--board', default='malta', choices=['malta', 'rpi3'],
+    parser.add_argument('--board', default='rpi3', choices=['malta', 'rpi3'],
                         help='Emulated board.')
     parser.add_argument('-T', '--timeout', type=int, default=DEFAULT_TIMEOUT,
                         help='Test-run will fail after n seconds.')

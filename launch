@@ -356,7 +356,7 @@ if __name__ == '__main__':
                         help='Test-run will fail after n seconds.')
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
-    parser.add_argument('-b', '--board', default='malta',
+    parser.add_argument('-b', '--board', default='rpi3',
                         choices=['malta', 'rpi3'], help='Emulated board.')
     args = parser.parse_args()
 
