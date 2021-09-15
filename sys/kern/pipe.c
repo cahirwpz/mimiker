@@ -131,12 +131,10 @@ static int pipe_close(file_t *f) {
   WITH_MTX_LOCK (&pipe->mtx) {
     /* If we're a reader, the file is read-only, otherwise it's write-only. */
     if (f->f_flags & FF_READ) {
-      assert(!pipe->reader_closed);
       pipe->reader_closed = true;
       /* Wake up writers so that they exit. */
       cv_broadcast(&pipe->nonfull);
     } else {
-      assert(!pipe->writer_closed);
       pipe->writer_closed = true;
       /* Wake up readers so that they exit. */
       cv_broadcast(&pipe->nonempty);
