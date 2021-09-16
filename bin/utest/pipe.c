@@ -22,8 +22,6 @@ static void handler(int signo) {
     assert(signo == SIGPIPE);
     signal_delivered = 1;
   }
-  if (signo == SIGALRM) {
-  }
 }
 
 int test_pipe_parent_signaled(void) {
