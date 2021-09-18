@@ -14,7 +14,11 @@ COPY . /root/mimiker
 RUN cd /root/mimiker/toolchain/gnu \
     && make -j $(nproc)  \
     && cd /root/mimiker/toolchain/qemu-mimiker \
-    && make -j $(nproc)
+    && make -j $(nproc) \
+    && mv /root/mimiker/toolchain/gnu/mipsel-mimiker-elf_1.5.2_amd64.deb /root/mipsel-mimiker-elf_1.5.2_amd64.deb \
+    && mv /root/mimiker/toolchain/gnu/aarch64-mimiker-elf_1.5.2_amd64.deb /root/aarch64-mimiker-elf_1.5.2_amd64.deb \
+    && mv /root/mimiker/toolchain/qemu-mimiker_6.0.0+mimiker1_amd64.deb /root/qemu-mimiker_6.0.0+mimiker1_amd64.deb \
+    && rm -rf /root/mimiker
 
 FROM debian:bullseye-backports
 
@@ -35,9 +39,9 @@ RUN apt-get -q update \
 # socat required by launch
 COPY requirements.txt .
 RUN pip3 install setuptools wheel && pip3 install -r requirements.txt
-COPY --from=builder /root/mimiker/toolchain/gnu/mipsel-mimiker-elf_1.5.2_amd64.deb .
-COPY --from=builder /root/mimiker/toolchain/gnu/aarch64-mimiker-elf_1.5.2_amd64.deb .
-COPY --from=builder /root/mimiker/toolchain/qemu-mimiker_6.0.0+mimiker1_amd64.deb .
+COPY --from=builder /root/mipsel-mimiker-elf_1.5.2_amd64.deb .
+COPY --from=builder /root/aarch64-mimiker-elf_1.5.2_amd64.deb .
+COPY --from=builder /root/qemu-mimiker_6.0.0+mimiker1_amd64.deb .
 RUN dpkg -i --force-all ./mipsel-mimiker-elf_1.5.2_amd64.deb \
     && dpkg -i --force-all ./aarch64-mimiker-elf_1.5.2_amd64.deb \
     && dpkg -i --force-all ./qemu-mimiker_6.0.0+mimiker1_amd64.deb \
