@@ -16,7 +16,7 @@ typedef struct pit_state {
   uint16_t prev_ticks16; /* number of ticks */
   /* values since initialization */
   uint32_t ticks; /* number of ticks modulo TIMER_FREQ*/
-  uint32_t sec;   /* seconds */
+  uint64_t sec;   /* seconds */
 } pit_state_t;
 
 #define inb(addr) bus_read_1(pit->regs, (addr))
@@ -48,8 +48,8 @@ static inline void pit_incr_ticks(pit_state_t *pit, uint16_t ticks) {
 
 static void pit_update_time(pit_state_t *pit) {
   assert(intr_disabled());
+  uint64_t last_sec = pit->sec;
   uint32_t last_ticks = pit->ticks;
-  uint32_t last_sec = pit->sec;
   uint16_t now_ticks16 = pit_get_counter(pit);
   uint16_t ticks_passed = now_ticks16 - pit->prev_ticks16;
   if (pit->prev_ticks16 > now_ticks16) {
@@ -91,7 +91,7 @@ static device_t *device_of(timer_t *tm) {
   return tm->tm_priv;
 }
 
-static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
+static int pit_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
                            const bintime_t period) {
   assert(flags & TMF_PERIODIC);
   assert(!(flags & TMF_ONESHOT));
@@ -99,7 +99,7 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
 
-  uint32_t counter = bintime_mul(period, TIMER_FREQ).sec;
+  uint64_t counter = bintime_mul(period, TIMER_FREQ).sec;
   /* Maximal counter value which we can store in pit timer */
   assert(counter <= 0xFFFF);
 
@@ -110,7 +110,7 @@ static int timer_pit_start(timer_t *tm, unsigned flags, const bintime_t start,
   return 0;
 }
 
-static int timer_pit_stop(timer_t *tm) {
+static int pit_timer_stop(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
 
@@ -119,17 +119,19 @@ static int timer_pit_stop(timer_t *tm) {
   return 0;
 }
 
-static bintime_t timer_pit_gettime(timer_t *tm) {
+static bintime_t pit_timer_gettime(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  uint32_t sec, ticks;
+  uint64_t sec;
+  uint32_t ticks;
   WITH_INTR_DISABLED {
     pit_update_time(pit);
     sec = pit->sec;
     ticks = pit->ticks;
   }
   bintime_t bt = bintime_mul(tm->tm_min_period, ticks);
-  bt.sec += sec;
+  assert(bt.sec == 0);
+  bt.sec = sec;
   return bt;
 }
 
@@ -152,9 +154,9 @@ static int pit_attach(device_t *dev) {
     .tm_frequency = TIMER_FREQ,
     .tm_min_period = HZ2BT(TIMER_FREQ),
     .tm_max_period = bintime_mul(HZ2BT(TIMER_FREQ), 65536),
-    .tm_start = timer_pit_start,
-    .tm_stop = timer_pit_stop,
-    .tm_gettime = timer_pit_gettime,
+    .tm_start = pit_timer_start,
+    .tm_stop = pit_timer_stop,
+    .tm_gettime = pit_timer_gettime,
     .tm_priv = dev,
   };
 
