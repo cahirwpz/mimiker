@@ -29,7 +29,7 @@ static void clock_cb(timer_t *tm, void *arg) {
 
 void init_clock(void) {
   clock = tm_reserve(NULL, TMF_PERIODIC);
-  profclock = get_stat_timer();
+  profclock = get_prof_timer();
   if (clock == NULL)
     panic("Missing suitable timer for maintenance of system clock!");
 
@@ -49,6 +49,6 @@ void init_clock(void) {
       set_kgprof_profrate(CLK_TCK);
       profclock = NULL;
     } else
-      klog("Statclock uses \'%s\' hardware timer.", profclock->tm_name);
+      klog("Profclock uses \'%s\' hardware timer.", profclock->tm_name);
   }
 }
