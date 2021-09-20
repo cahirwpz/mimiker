@@ -52,7 +52,7 @@ static void pit_update_time(pit_state_t *pit) {
   uint32_t last_cntr = pit->cntr_modulo;
   uint16_t now_cntr16 = pit_get_counter(pit);
   uint16_t ticks_passed = now_cntr16 - pit->prev_cntr16;
-  
+
   if (pit->prev_cntr16 > now_cntr16) {
     pit->noticed_overflow = true;
     ticks_passed += pit->period_cntr;
@@ -134,11 +134,11 @@ static bintime_t pit_timer_gettime(timer_t *tm) {
     sec = pit->sec;
     cntr_modulo = pit->cntr_modulo;
   }
-  
+
   bintime_t bt = bintime_mul(tm->tm_min_period, cntr_modulo);
   assert(bt.sec == 0);
   bt.sec = sec;
-  
+
   return bt;
 }
 
