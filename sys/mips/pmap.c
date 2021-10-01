@@ -186,18 +186,17 @@ static pde_t pmap_add_pde(pmap_t *pmap, vaddr_t vaddr) {
   assert(!is_valid_pde(PDE_OF(pmap, vaddr)));
 
   vm_page_t *pg = pmap_pagealloc();
-  pde_t pde = PTE_PFN((vaddr_t)PG_KSEG0_ADDR(pg)) | PTE_KERNEL;
-  PDE_OF(pmap, vaddr) = pde;
-
-  pte_t *pte = &PTE_OF(pde, vaddr & PDE_INDEX_MASK);
-  tlb_invalidate(PTE_VPN2((vaddr_t)pte) | PTE_ASID(pmap->asid));
-
+  pte_t *pt = PG_KSEG0_ADDR(pg);
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
-  klog("Page table for %08lx allocated at %08lx", vaddr & PDE_INDEX_MASK, pte);
+
+  pde_t pde = PTE_PFN((vaddr_t)pt) | PTE_KERNEL;
+  PDE_OF(pmap, vaddr) = pde;
+  klog("Page table for %08lx allocated at %08lx", vaddr & PDE_INDEX_MASK,
+       (uintptr_t)pt);
 
   /* Must initialize to PTE_GLOBAL, look at comment in update_wired_pde! */
   for (int i = 0; i < PT_ENTRIES; i++)
-    pte[i] = PTE_GLOBAL;
+    pt[i] = PTE_GLOBAL;
 
   return pde;
 }
