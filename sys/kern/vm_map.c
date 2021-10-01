@@ -108,7 +108,6 @@ static void vm_map_setup(vm_map_t *map) {
 void init_vm_map(void) {
   vm_map_setup(kspace);
   kspace->pmap = pmap_kernel();
-  vm_map_activate(kspace);
 }
 
 vm_map_t *vm_map_new(void) {
