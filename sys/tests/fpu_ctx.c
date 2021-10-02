@@ -58,7 +58,7 @@ asm(".set noreorder\n\t"
   __asm__ volatile("la $t0, fpregs\n\t"                                        \
                    "addu $t0, $t0, %[off]\n\t"                                 \
                    "swc1 $f" #n ", ($t0)"                                      \
-		   :: [off] "r" (n * FPREGSIZE)                                \
+                   :: [off] "r" (n * FPREGSIZE)                                \
                    : "$t0")
 
 #define __disable_fpu()                                                        \
