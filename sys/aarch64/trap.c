@@ -1,3 +1,4 @@
+#define KL_LOG KL_VM
 #include <sys/klog.h>
 #include <sys/context.h>
 #include <sys/mimiker.h>
@@ -8,10 +9,16 @@
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/errno.h>
-#include <sys/context.h>
+#include <sys/interrupt.h>
 #include <sys/cpu.h>
 #include <aarch64/armreg.h>
 #include <aarch64/pmap.h>
+
+/* Kernel exception reason. */
+typedef enum {
+  KEXC_TRAP,
+  KEXC_INTR,
+} kexc_reason_t;
 
 static __noreturn void kernel_oops(ctx_t *ctx) {
   panic("KERNEL PANIC!!!");
@@ -166,4 +173,24 @@ void kern_trap_handler(ctx_t *ctx) {
     default:
       kernel_oops(ctx);
   }
+}
+
+__no_profile void kern_exc_handler(ctx_t *ctx, kexc_reason_t reason) {
+  thread_t *td = thread_self();
+  assert(td->td_idnest == 0);
+  assert(cpu_intr_disabled());
+
+  /* Save the previous kernel exception frame pointer
+  * and set the pointer to the current frame. */
+  ctx_t *kframe_saved = td->td_kframe;
+  td->td_kframe = ctx;
+
+  if (reason == KEXC_TRAP) {
+    kern_trap_handler(ctx);
+  } else { 
+    assert(reason == KEXC_INTR);
+    intr_root_handler(ctx);
+  }
+
+  td->td_kframe = kframe_saved;
 }

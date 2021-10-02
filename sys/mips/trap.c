@@ -257,6 +257,11 @@ __no_profile void mips_exc_handler(ctx_t *ctx) {
   assert(td->td_idnest == 0);
   assert(cpu_intr_disabled());
 
+  /* Save the previous kernel exception frame pointer
+   * and set the pointer to the current frame. */
+  ctx_t *kframe_saved = td->td_kframe;
+  td->td_kframe = ctx;
+
   bool user_mode = user_mode_p(ctx);
 
   if (!user_mode) {
@@ -277,4 +282,6 @@ __no_profile void mips_exc_handler(ctx_t *ctx) {
   } else {
     intr_root_handler(ctx);
   }
+
+  td->td_kframe = kframe_saved;
 }
