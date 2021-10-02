@@ -91,6 +91,8 @@ typedef __greg_t __freg_t;
 /*
  * Floating point register state
  */
+#define _NFREG 32
+
 struct __fpregset {
   union {
     double __fp_dregs[16];
