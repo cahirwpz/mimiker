@@ -308,7 +308,7 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de);
 static blkptr_t *tmpfs_get_blk(tmpfs_node_t *v, size_t blkno);
 static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize);
 static int tmpfs_chtimes(vnode_t *v, timespec_t *atime, timespec_t *mtime,
-                         cred_t *cred);
+                         cred_t *cred, va_flags_t vaflags);
 static void tmpfs_update_time(tmpfs_node_t *v, tmpfs_time_type_t type);
 
 /* tmpfs readdir operations */
@@ -508,7 +508,8 @@ static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va, cred_t *cred) {
   }
 
   if (va->va_atime.tv_sec != VNOVAL || va->va_mtime.tv_sec != VNOVAL) {
-    if ((error = tmpfs_chtimes(v, &va->va_atime, &va->va_mtime, cred)))
+    if ((error = tmpfs_chtimes(v, &va->va_atime, &va->va_mtime, cred,
+                               va->va_flags)))
       return error;
   }
 
@@ -987,11 +988,10 @@ static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize) {
 }
 
 static int tmpfs_chtimes(vnode_t *v, timespec_t *atime, timespec_t *mtime,
-                         cred_t *cred) {
-  int err;
+                         cred_t *cred, va_flags_t vaflags) {
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
-  if ((err = cred_can_utime(v, node->tfn_uid, cred)))
-    return err;
+  if (!cred_can_utime(v, node->tfn_uid, cred, vaflags))
+    return EPERM;
 
   mtx_lock(&node->tfn_timelock);
   if (atime->tv_sec != VNOVAL)
