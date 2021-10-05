@@ -20,7 +20,7 @@ static vnode_list_t vcache_free;
 static vnode_list_t vcache_buckets[VCACHE_BUCKET_CNT];
 static mtx_t vcache_giant_lock;
 
-typedef size_t vcache_t; 
+typedef size_t vcache_t;
 
 static vcache_t vcache_hash(mount_t *mp, ino_t ino) {
   return (((vcache_t)mp->mnt_vnodecovered >> 3) + ino) % VCACHE_BUCKET_CNT;
@@ -44,7 +44,7 @@ vnode_t *vcache_hashget(mount_t *mp, ino_t ino) {
   vcache_t bucket = vcache_hash(mp, ino);
 
   vnode_t *vn = NULL;
-  TAILQ_FOREACH(vn, &vcache_buckets[bucket], v_cached) {
+  TAILQ_FOREACH (vn, &vcache_buckets[bucket], v_cached) {
     if (vn->v_mount == mp && vn->v_ino == ino) {
       TAILQ_REMOVE(&vcache_free, vn, v_free);
       TAILQ_REMOVE(&vcache_buckets[bucket], vn, v_cached);
@@ -62,7 +62,7 @@ void vfs_vcache_invalidate(vnode_t *vn) {
     return; /* vnode was not in a any bucket and cannot be hashed */
   vcache_t bucket = vcache_hash(vn->v_mount, vn->v_ino);
   vnode_t *bucket_node = NULL;
-  TAILQ_FOREACH(bucket_node, &vcache_buckets[bucket], v_cached) {
+  TAILQ_FOREACH (bucket_node, &vcache_buckets[bucket], v_cached) {
     if (bucket_node == vn) {
       TAILQ_REMOVE(&vcache_buckets[bucket], vn, v_cached);
       break;
@@ -100,7 +100,7 @@ vnode_t *vfs_vcache_hashget(mount_t *mp, ino_t ino) {
  */
 /* void vfs_vcache_bind(vnode_t *vn) {
   vcache_t bucket = vcache_hash(vn->v_mount, vn->ino);
-  
+
   SCOPED_MTX_LOCK(&vcache_giant_lock);
 
   TAILQ_INSERT_HEAD(&vcache_buckets[bucket], vn, v_cached);

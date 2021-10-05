@@ -508,8 +508,8 @@ static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va, cred_t *cred) {
   }
 
   if (va->va_atime.tv_sec != VNOVAL || va->va_mtime.tv_sec != VNOVAL) {
-    if ((error = tmpfs_chtimes(v, &va->va_atime, &va->va_mtime, cred,
-                               va->va_flags)))
+    if ((error =
+           tmpfs_chtimes(v, &va->va_atime, &va->va_mtime, cred, va->va_flags)))
       return error;
   }
 

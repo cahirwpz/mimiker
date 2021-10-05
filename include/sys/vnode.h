@@ -90,7 +90,7 @@ typedef struct {
 } vnlock_t;
 
 typedef enum vnode_flags {
-  VF_CACHED,  /* Use vcache subsystem when managing the vnode */
+  VF_CACHED, /* Use vcache subsystem when managing the vnode */
 } vnode_flags_t;
 
 typedef struct vnode {
