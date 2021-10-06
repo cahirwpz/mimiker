@@ -1,9 +1,9 @@
 Stop the VM upon receiving a SIGXCPU signal.
-Index: qemu-mimiker/qemu-6.0.0/gdbstub.c
+Index: qemu-mimiker/qemu-6.1.0/gdbstub.c
 ===================================================================
---- qemu-mimiker.orig/qemu-6.0.0/gdbstub.c
-+++ qemu-mimiker/qemu-6.0.0/gdbstub.c
-@@ -3406,6 +3406,15 @@ static void gdb_sigterm_handler(int sign
+--- qemu-mimiker.orig/qemu-6.1.0/gdbstub.c
++++ qemu-mimiker/qemu-6.1.0/gdbstub.c
+@@ -3400,6 +3400,15 @@ static void gdb_sigterm_handler(int sign
          vm_stop(RUN_STATE_PAUSED);
      }
  }
@@ -19,7 +19,7 @@ Index: qemu-mimiker/qemu-6.0.0/gdbstub.c
  #endif
  
  static void gdb_monitor_open(Chardev *chr, ChardevBackend *backend,
-@@ -3515,6 +3524,11 @@ int gdbserver_start(const char *device)
+@@ -3509,6 +3518,11 @@ int gdbserver_start(const char *device)
              act.sa_handler = gdb_sigterm_handler;
              sigaction(SIGINT, &act, NULL);
          }

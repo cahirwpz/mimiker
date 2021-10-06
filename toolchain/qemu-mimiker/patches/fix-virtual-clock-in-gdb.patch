@@ -1,9 +1,9 @@
 Stop virtual clock as soon as debug exception is triggered.
-Index: qemu-mimiker/qemu-6.0.0/gdbstub.c
+Index: qemu-mimiker/qemu-6.1.0/gdbstub.c
 ===================================================================
---- qemu-mimiker.orig/qemu-6.0.0/gdbstub.c
-+++ qemu-mimiker/qemu-6.0.0/gdbstub.c
-@@ -359,6 +359,7 @@ typedef struct GDBState {
+--- qemu-mimiker.orig/qemu-6.1.0/gdbstub.c
++++ qemu-mimiker/qemu-6.1.0/gdbstub.c
+@@ -358,6 +358,7 @@ typedef struct GDBState {
      char *socket_path;
      int running_state;
  #else
@@ -11,7 +11,7 @@ Index: qemu-mimiker/qemu-6.0.0/gdbstub.c
      CharBackend chr;
      Chardev *mon_chr;
  #endif
-@@ -502,8 +503,6 @@ static int gdb_continue_partial(char *ne
+@@ -510,8 +511,6 @@ static int gdb_continue_partial(char *ne
      }
      gdbserver_state.running_state = 1;
  #else
@@ -20,7 +20,7 @@ Index: qemu-mimiker/qemu-6.0.0/gdbstub.c
      if (!runstate_needs_reset()) {
          if (vm_prepare_start()) {
              return 0;
-@@ -518,12 +517,12 @@ static int gdb_continue_partial(char *ne
+@@ -526,12 +525,12 @@ static int gdb_continue_partial(char *ne
                  trace_gdbstub_op_stepping(cpu->cpu_index);
                  cpu_single_step(cpu, get_sstep_flags());
                  cpu_resume(cpu);
@@ -35,7 +35,7 @@ Index: qemu-mimiker/qemu-6.0.0/gdbstub.c
                  break;
              default:
                  res = -1;
-@@ -531,9 +530,6 @@ static int gdb_continue_partial(char *ne
+@@ -539,9 +538,6 @@ static int gdb_continue_partial(char *ne
              }
          }
      }
@@ -45,7 +45,7 @@ Index: qemu-mimiker/qemu-6.0.0/gdbstub.c
  #endif
      return res;
  }
-@@ -3074,6 +3070,9 @@ static void gdb_read_byte(uint8_t ch)
+@@ -3068,6 +3064,9 @@ static void gdb_read_byte(uint8_t ch)
              abort();
          }
      }
@@ -55,11 +55,11 @@ Index: qemu-mimiker/qemu-6.0.0/gdbstub.c
  }
  
  /* Tell the remote gdb that the process has exited.  */
-Index: qemu-mimiker/qemu-6.0.0/target/mips/op_helper.c
+Index: qemu-mimiker/qemu-6.1.0/target/mips/tcg/exception.c
 ===================================================================
---- qemu-mimiker.orig/qemu-6.0.0/target/mips/op_helper.c
-+++ qemu-mimiker/qemu-6.0.0/target/mips/op_helper.c
-@@ -42,6 +42,7 @@ void helper_raise_exception(CPUMIPSState
+--- qemu-mimiker.orig/qemu-6.1.0/target/mips/tcg/exception.c
++++ qemu-mimiker/qemu-6.1.0/target/mips/tcg/exception.c
+@@ -55,6 +55,7 @@ void helper_raise_exception(CPUMIPSState
  
  void helper_raise_exception_debug(CPUMIPSState *env)
  {

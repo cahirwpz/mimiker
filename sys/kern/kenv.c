@@ -2,7 +2,7 @@
 #include <sys/libkern.h>
 
 static char **_kenvp;
-static char **_kinit = (char * [2]){NULL, NULL};
+static char **_kinit = (char *[2]){NULL, NULL};
 
 void init_kenv(char **kenvp) {
   _kenvp = kenvp;

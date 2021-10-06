@@ -1,6 +1,6 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab list:
 
-VERSION = 1.5.2
+VERSION = 1.5.3
 
 # Libraries required to build the toolchain.
 ISL = isl-0.18
@@ -12,7 +12,7 @@ CLOOG = cloog-0.18.4
 # The toolchain is comprised of following packages:
 BINUTILS = binutils-2.37
 GCC = gcc-11.2.0
-GDB = gdb-10.2
+GDB = gdb-11.1
 
 ISL-URL = "http://isl.gforge.inria.fr/$(ISL).tar.xz"
 MPFR-URL = "ftp://ftp.gnu.org/gnu/mpfr/$(MPFR).tar.xz"

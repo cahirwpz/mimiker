@@ -161,7 +161,7 @@ int test_pipe_write_interruptible_sleep(void) {
 
     sigaction(SIGALRM, &sa, NULL);
 
-    int page_size = 4096; //based on implementation of getpagesize()
+    int page_size = 4096; // based on implementation of getpagesize()
     char data[page_size];
 
     for (int i = 0; i < page_size; i++) {
