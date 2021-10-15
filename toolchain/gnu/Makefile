@@ -166,7 +166,7 @@ $(SRCDIR)/$(ISL).tar.xz:
 
 isl-unpack: $(SRCDIR)/isl/.unpack
 $(SRCDIR)/isl/.unpack: $(SRCDIR)/$(ISL).tar.xz
-	$(CD) $(SRCDIR) && $(TAR) xJf $^ && $(MV)  $(ISL) isl
+	$(CD) $(SRCDIR) && $(TAR) xf $^ && $(MV)  $(ISL) isl
 	$(TOUCH) $@
 
 isl-configure: $(HOSTBUILD)/isl/.configure
