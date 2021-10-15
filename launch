@@ -425,7 +425,7 @@ if __name__ == '__main__':
         raise SystemExit('%s: file does not exist!' % getvar('config.kernel'))
 
     sim = QEMU() if getvar('config.simulator', failok=False) == 'qemu'\
-                 else RENODE()
+        else RENODE()
 
     # Create simulator launcher
     if args.test_run:
