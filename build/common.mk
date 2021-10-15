@@ -56,6 +56,7 @@ assym.h: genassym.cf
 
 %/assym.h: %/genassym.cf
 	@echo "[ASSYM] $(DSTPATH)"
+	@echo "CPPFLAGS = $(CPPFLAGS)"
 	$(GENASSYM) $(CC) $(ASSYM_CFLAGS) $(CFLAGS) $(CPPFLAGS) < $^ > $@
 
 include $(TOPDIR)/config.mk

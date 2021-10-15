@@ -41,13 +41,13 @@ int test_signal_send(void) {
   signal(SIGUSR2, sigusr2_handler);
   int pid = fork();
   if (pid == 0) {
-    printf("This is child (mypid = %d)\n", getpid());
+    printf("This is child (mypid = %d)\n", (int)getpid());
     /* Wait for signal. */
     while (1)
       sched_yield();
   }
 
-  printf("This is parent (childpid = %d, mypid = %d)\n", pid, getpid());
+  printf("This is parent (childpid = %d, mypid = %d)\n", pid, (int)getpid());
   kill(pid, SIGUSR2);
   int status;
   printf("Waiting for child...\n");

@@ -14,7 +14,7 @@ BINUTILS = binutils-2.37
 GCC = gcc-11.2.0
 GDB = gdb-11.1
 
-ISL-URL = "http://isl.gforge.inria.fr/$(ISL).tar.xz"
+ISL-URL = "https://gcc.gnu.org/pub/gcc/infrastructure/$(ISL).tar.bz2"
 MPFR-URL = "ftp://ftp.gnu.org/gnu/mpfr/$(MPFR).tar.xz"
 GMP-URL = "https://gmplib.org/download/gmp/$(GMP).tar.xz"
 MPC-URL = "https://ftp.gnu.org/gnu/mpc/$(MPC).tar.gz"
@@ -23,4 +23,4 @@ BINUTILS-URL = "https://ftp.gnu.org/gnu/binutils/$(BINUTILS).tar.xz"
 GCC-URL = "https://ftp.gnu.org/gnu/gcc/$(GCC)/$(GCC).tar.xz"
 GDB-URL = "https://ftp.gnu.org/gnu/gdb/$(GDB).tar.xz"
 
-TARGETS = mipsel aarch64
+TARGETS = riscv32

@@ -304,7 +304,7 @@ group(struct passwd *pw, int nflag)
 				(void)printf(fmt, gr->gr_name);
 			else
 				(void)printf(*fmt == ' ' ? " %u" : "%u",
-				    id);
+				    (unsigned)id);
 			fmt = " %s";
 		} else {
 			(void)printf(fmt, id);

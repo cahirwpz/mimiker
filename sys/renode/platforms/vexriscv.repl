@@ -1,0 +1,49 @@
+/* VexRiscv renode platform description. */
+
+/*
+ * RISC-V hart.
+ */
+cpu: CPU.VexRiscv @ sysbus
+    cpuType: "rv32gc"
+    hartId: 0
+    privilegeArchitecture: PrivilegeArchitecture.Priv1_10
+    timeProvider: clint
+
+/*
+ * Memory Map.
+ */
+rom: Memory.MappedMemory @ sysbus 0x0
+    size: 0x00008000
+
+sram: Memory.MappedMemory @ sysbus 0x10000000
+    size: 0x00008000
+
+emulator_ram: Memory.MappedMemory @ sysbus 0x20000000
+    size: 0x00004000
+
+ram: Memory.MappedMemory @ sysbus 0xc0000000
+    size: 0x30000000
+
+/* 0xf0000000 - 0xf0001000: unused. */
+
+uart0: UART.LiteX_UART @ sysbus 0xf0001000
+    IRQ -> plic@0
+
+/* 0xf0001000 - 0xf0010000: unused. */
+
+clint: IRQControllers.CoreLevelInterruptor @ sysbus 0xf0010000
+    frequency: 1000000
+    [0, 1] -> cpu@[3, 7]
+
+/* 0xf0020000 - 0xf1000000: unused */
+
+plic: IRQControllers.PlatformLevelInterruptController @ sysbus 0xf1000000
+    numberOfSources: 16
+    numberOfContexts: 2
+    prioritiesEnabled: false
+    [0, 1] -> cpu@[11, 9]
+
+/* 
+ * TODO: Manage unused ranges for additional peripherals
+ * including USB controller, eMMC controller, GPIO, etc.
+ */

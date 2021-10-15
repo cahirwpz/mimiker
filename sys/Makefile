@@ -4,7 +4,7 @@ TOPDIR = $(realpath ..)
 
 include $(TOPDIR)/config.mk
 
-SUBDIR = aarch64 drv dts kern libkern mips tests
+SUBDIR = aarch64 drv dts kern libkern mips riscv tests
 KLIB = no
 
 BUILD-FILES += $(KERNEL-IMAGES) mimiker.elf cscope.out etags tags
@@ -12,13 +12,22 @@ CLEAN-FILES += mimiker.elf.map
 
 include $(TOPDIR)/build/build.kern.mk
 
-LDFLAGS += -T $(TOPDIR)/sys/$(ARCH)/$(ARCH).ld
+LDFLAGS += -T $(TOPDIR)/sys/kernel.ld
 LDLIBS	= -Wl,--start-group \
 	    -Wl,--whole-archive $(KLIBLIST) -Wl,--no-whole-archive \
             -lgcc \
           -Wl,--end-group
 
-mimiker.elf: $(KLIBDEPS)
+kernel.ld: $(ARCH)/$(ARCH).ld
+	@echo "[CPP] $(DIR)$< -> $(DIR)$@"
+ifeq ($(CPPLDSCRIPT), 1)
+	$(CPP) $(CPPFLAGS) -I$(TOPDIR)/include $< | grep -v '^#' | \
+		grep -v '^$$' > $@
+else
+	$(CP) $< $@
+endif
+
+mimiker.elf: $(KLIBDEPS) kernel.ld
 	@echo "[LD] Linking kernel image: $@"
 	$(LD) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
 
@@ -48,4 +57,4 @@ etags tags:
 	$(CTAGS) --language-force=asm -aef etags $(SRCFILES_ASM)
 
 BUILD-FILES += cscope.out etags tags
-CLEAN-FILES += *.taghl
+CLEAN-FILES += *.taghl kernel.ld

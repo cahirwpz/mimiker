@@ -18,6 +18,10 @@
 #define TOO_MUCH 0x800000000000L
 #endif
 
+#ifdef __riscv
+#define TOO_MUCH 0x40000000
+#endif
+
 static int paging_on_demand_and_memory_protection_demo(void) {
   SCOPED_NO_PREEMPTION();
   proc_t *p = proc_self();

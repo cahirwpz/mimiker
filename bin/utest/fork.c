@@ -9,11 +9,11 @@
 int test_fork_wait(void) {
   int n = fork();
   if (n == 0) {
-    printf("This is child, my pid is %d!\n", getpid());
+    printf("This is child, my pid is %d!\n", (int)getpid());
     exit(42);
   } else {
-    printf("This is parent, my pid is %d, I was told child is %d!\n", getpid(),
-           n);
+    printf("This is parent, my pid is %d, I was told child is %d!\n",
+           (int)getpid(), n);
     int status, exitcode;
     int p = wait(&status);
     assert(WIFEXITED(status));

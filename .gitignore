@@ -13,6 +13,9 @@
 *.img
 *.img.gz
 
+# Kenrel linker script
+kernel.ld
+
 # Ramdisk
 *.cpio
 
@@ -48,6 +51,7 @@ assym.h
 tests/*_test_files
 
 # Downloads and source cache
+*.bin
 cache
 
 # Dynamically created sysroot

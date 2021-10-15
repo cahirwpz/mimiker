@@ -564,14 +564,14 @@ display(FTSENT *p, FTSENT *list)
 				    (user = user_from_uid(sp->st_uid, 0)) ==
 				    NULL) {
 					(void)snprintf(nuser, sizeof(nuser),
-					    "%u", sp->st_uid);
+					    "%u", (unsigned)sp->st_uid);
 					user = nuser;
 				}
 				if (f_numericonly ||
 				    (group = group_from_gid(sp->st_gid, 0)) ==
 				    NULL) {
 					(void)snprintf(ngroup, sizeof(ngroup),
-					    "%u", sp->st_gid);
+					    "%u", (unsigned)sp->st_gid);
 					group = ngroup;
 				}
 				if ((ulen = strlen(user)) > maxuser)
@@ -633,7 +633,7 @@ display(FTSENT *p, FTSENT *list)
 		(void)snprintf(buf, sizeof(buf), "%llu",
 		    (unsigned long long)maxinode);
 		d.s_inode = strlen(buf);
-		(void)snprintf(buf, sizeof(buf), "%u", maxnlink);
+		(void)snprintf(buf, sizeof(buf), "%u", (unsigned)maxnlink);
 		d.s_nlink = strlen(buf);
 		if (f_humanize) {
 			d.s_size = 4; /* min buf length for humanize_number */

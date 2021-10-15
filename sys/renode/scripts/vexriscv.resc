@@ -1,0 +1,23 @@
+$name="vexriscv"
+
+using sysbus
+
+mach create $name
+machine LoadPlatformDescription @sys/renode/platforms/vexriscv.repl
+
+### Launch script uses socket terminal integration for UARTs.
+
+$kernel=@sys/mimiker.img
+
+### VexRiscv BIOS aka emulator.
+$emulator=@sys/emulator.bin 
+
+macro reset
+"""
+    sysbus LoadBinary $kernel 0xc0000000
+    sysbus LoadBinary $emulator 0x20000000
+
+    cpu PC 0x20000000
+"""
+
+runMacro $reset

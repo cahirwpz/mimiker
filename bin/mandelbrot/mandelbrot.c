@@ -20,8 +20,8 @@ static void prepare_videomode(int vgafd) {
   struct fb_info fb_info;
 
   ioctl(vgafd, FBIOCGET_FBINFO, &fb_info);
-  printf("Current resolution: %dx%d, %d BPP\n", fb_info.width, fb_info.height,
-         fb_info.bpp);
+  printf("Current resolution: %ux%u, %u BPP\n", (unsigned)fb_info.width,
+         (unsigned)fb_info.height, (unsigned)fb_info.bpp);
 
   /* Write new configuration. */
   fb_info.width = WIDTH;
