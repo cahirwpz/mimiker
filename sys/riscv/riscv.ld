@@ -25,7 +25,9 @@ SECTIONS
     __eboot = ABSOLUTE(.);
   } : boot
 
-  .text KERNEL_SPACE_BEGIN + __eboot : AT(__eboot) ALIGN(4096)
+  HIDDEN(_boot_size = __eboot - __boot);
+
+  .text KERNEL_SPACE_BEGIN + _boot_size : AT(__eboot) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
     __text = ABSOLUTE(.);

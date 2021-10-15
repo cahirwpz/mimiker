@@ -23,4 +23,4 @@ BINUTILS-URL = "https://ftp.gnu.org/gnu/binutils/$(BINUTILS).tar.xz"
 GCC-URL = "https://ftp.gnu.org/gnu/gcc/$(GCC)/$(GCC).tar.xz"
 GDB-URL = "https://ftp.gnu.org/gnu/gdb/$(GDB).tar.xz"
 
-TARGETS = riscv32
+TARGETS = mipsel aarch64 riscv32
