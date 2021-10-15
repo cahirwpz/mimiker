@@ -28,6 +28,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+/* MODIFIED */
+
 #ifndef _RISCV_MCONTEXT_H_
 #define _RISCV_MCONTEXT_H_
 
@@ -40,8 +43,6 @@ union __fpreg {
   uint64_t u_u64;
   double u_d;
 };
-
-/* NOTE: FTTB, we're assuming 32 bits. */
 
 typedef uint32_t __greg_t;
 typedef __greg_t __gregset_t[_NGREG];

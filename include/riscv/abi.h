@@ -31,11 +31,7 @@
 #ifndef _RISCV_ABI_H_
 #define _RISCV_ABI_H
 
-#if defined(_LP64)
-#define SZREG 8
-#else
 #define SZREG 4
-#endif
 
 #define STACK_ALIGN 16
 

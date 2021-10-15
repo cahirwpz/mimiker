@@ -11,8 +11,6 @@ CLANG_ABIFLAGS := -target riscv32-elf
 ELFTYPE := elf32-littleriscv
 ELFARCH := riscv
 
-EMULATOR-BIN =
-
 ifeq ($(BOARD), vexriscv)
 	KERNEL_PHYS = 0xc0000000
 	KERNEL-IMAGES = mimiker.img
