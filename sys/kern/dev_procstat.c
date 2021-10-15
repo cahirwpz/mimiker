@@ -132,9 +132,8 @@ static void ps_entry_fill(ps_entry_t *pe, proc_t *p) {
  * returns length of written string
  */
 static int ps_entry_tostring(char *buf, ps_entry_t *pe) {
-  int r = snprintf(buf, MAX_P_STRING, "%u\t%u\t%u\t%u\t%u\t%c\t%s\n",
-                   (unsigned)pe->uid, (unsigned)pe->pid, (unsigned)pe->ppid,
-                   (unsigned)pe->pgrp, (unsigned)pe->sid,
+  int r = snprintf(buf, MAX_P_STRING, "%d\t%d\t%d\t%d\t%d\t%c\t%s\n", pe->uid,
+                   pe->pid, pe->ppid, pe->pgrp, pe->sid,
                    proc_state[pe->proc_state], pe->command);
 
   return min(r, MAX_P_STRING);

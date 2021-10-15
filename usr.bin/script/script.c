@@ -473,7 +473,7 @@ playback(FILE *fp)
 			break;
 		default:
 			errx(EXIT_FAILURE, "invalid direction %u",
-			    (unsigned)stamp.scr_direction);
+			    stamp.scr_direction);
 		}
 	}
 	(void)fclose(fp);

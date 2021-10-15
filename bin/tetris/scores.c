@@ -498,13 +498,13 @@ getscores(int *fdp)
 				doflip = 1;
 			} else {
 				warnx("Score file %s: Unknown endian tag %u",
-					_PATH_SCOREFILE, (unsigned)header.hsh_endiantag);
+					_PATH_SCOREFILE, header.hsh_endiantag);
 				goto sdfail;
 			}
 
 			if (header.hsh_version != HSH_VERSION) {
 				warnx("Score file %s: Unknown version code %u",
-					_PATH_SCOREFILE, (unsigned)header.hsh_version);
+					_PATH_SCOREFILE, header.hsh_version);
 				goto sdfail;
 			}
 
