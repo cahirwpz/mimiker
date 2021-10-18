@@ -48,13 +48,6 @@
   .weak alias;                                                                 \
   alias = sym
 
-/*
- * STRONG_ALIAS: create a strong alias.
- */
-#define STRONG_ALIAS(alias, sym)                                               \
-  .globl alias;                                                                \
-  alias = sym
-
 #define _ENTRY(x)                                                              \
   .globl _C_LABEL(x);                                                          \
   .align 4;                                                                    \
