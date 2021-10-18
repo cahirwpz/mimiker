@@ -1,11 +1,11 @@
 Allow GDB to perform address translation without modyfing TLB.
-Index: qemu-mimiker/qemu-6.1.0/target/mips/sysemu/physaddr.c
+Index: qemu-mimiker/qemu-6.0.0/target/mips/tlb_helper.c
 ===================================================================
---- qemu-mimiker.orig/qemu-6.1.0/target/mips/sysemu/physaddr.c
-+++ qemu-mimiker/qemu-6.1.0/target/mips/sysemu/physaddr.c
-@@ -242,15 +242,46 @@ int get_physical_address(CPUMIPSState *e
-     return ret;
- }
+--- qemu-mimiker.orig/qemu-6.0.0/target/mips/tlb_helper.c
++++ qemu-mimiker/qemu-6.0.0/target/mips/tlb_helper.c
+@@ -486,15 +486,46 @@ static void raise_mmu_exception(CPUMIPSS
+ 
+ #if !defined(CONFIG_USER_ONLY)
  
 +#define PDE_VADDR(addr) \
 +    ((((addr) <= USEG_LIMIT) ? 0xffffe000 : 0xfffff000) + PD_INDEX(addr))
