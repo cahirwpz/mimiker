@@ -571,7 +571,7 @@ display(FTSENT *p, FTSENT *list)
 				    (group = group_from_gid(sp->st_gid, 0)) ==
 				    NULL) {
 					(void)snprintf(ngroup, sizeof(ngroup),
-					    "%u", (unsigned)sp->st_gid);
+					    "%u", sp->st_gid);
 					group = ngroup;
 				}
 				if ((ulen = strlen(user)) > maxuser)
