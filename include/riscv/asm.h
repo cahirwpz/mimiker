@@ -41,18 +41,13 @@
 
 #define ___CONCAT(x, y) __CONCAT(x, y)
 
-#ifdef __PIC__
-#define PLT(x) x##@plt
-#else
-#define PLT(x) x
-#endif
-
 /*
  * WEAK_ALIAS: create a weak alias.
  */
 #define WEAK_ALIAS(alias, sym)                                                 \
   .weak alias;                                                                 \
   alias = sym
+
 /*
  * STRONG_ALIAS: create a strong alias.
  */
@@ -78,14 +73,6 @@
   .text;                                                                       \
   _ENTRY(x)
 #define END(x) .size _C_LABEL(x), .- _C_LABEL(x)
-
-/*
- * Macros to panic and printf from assembly language.
- */
-#define PANIC(msg)                                                             \
-  la a0, 9f;                                                                   \
-  call _C_LABEL(panic);                                                        \
-  MSG(msg)
 
 #define PRINTF(msg)                                                            \
   la a0, 9f;                                                                   \
