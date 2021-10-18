@@ -55,14 +55,6 @@
   .globl alias;                                                                \
   alias = sym
 
-/*
- * WARN_REFERENCES: create a warning if the specified symbol is referenced.
- */
-#define WARN_REFERENCES(sym, msg)                                              \
-  .pushsection __CONCAT(.gnu.warning., sym);                                   \
-  .ascii msg;                                                                  \
-  .popsection
-
 #define _ENTRY(x)                                                              \
   .globl _C_LABEL(x);                                                          \
   .align 4;                                                                    \
@@ -73,20 +65,6 @@
   .text;                                                                       \
   _ENTRY(x)
 #define END(x) .size _C_LABEL(x), .- _C_LABEL(x)
-
-#define PRINTF(msg)                                                            \
-  la a0, 9f;                                                                   \
-  call _C_LABEL(printf);                                                       \
-  MSG(msg)
-
-#define MSG(msg)                                                               \
-  .pushsection.rodata.str1 .8, "aMS", @progbits, 1;                            \
-  9 :.asciiz msg;                                                              \
-  .popsection
-
-#define ASMSTR(str)                                                            \
-  .asciiz str;                                                                 \
-  .align 3
 
 #define FP_L fld
 #define FP_S fsd
