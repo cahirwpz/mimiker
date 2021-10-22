@@ -1,9 +1,3 @@
-qemu-mimiker (6.1.0+mimiker1) unstable; urgency=medium
-
-  * Bump up version.
-
- -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Wed, 29 Sep 2021 10:53:53 +0200
-
 qemu-mimiker (6.0.0+mimiker1) unstable; urgency=medium
 
   * Bump up version.
