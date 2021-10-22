@@ -161,12 +161,12 @@ mpc-clean:
 
 ### Integer Set Library
 
-$(SRCDIR)/$(ISL).tar.xz:
+$(SRCDIR)/$(ISL).tar.bz2:
 	$(CURL) -o $@ $(ISL-URL)
 
 isl-unpack: $(SRCDIR)/isl/.unpack
-$(SRCDIR)/isl/.unpack: $(SRCDIR)/$(ISL).tar.xz
-	$(CD) $(SRCDIR) && $(TAR) xf $^ && $(MV)  $(ISL) isl
+$(SRCDIR)/isl/.unpack: $(SRCDIR)/$(ISL).tar.bz2
+	$(CD) $(SRCDIR) && $(TAR) xjf $^ && $(MV) $(ISL) isl
 	$(TOUCH) $@
 
 isl-configure: $(HOSTBUILD)/isl/.configure
