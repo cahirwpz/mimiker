@@ -22,7 +22,7 @@ AARCH64 := 1
 endif
 
 VERBOSE ?= 0
-CLANG ?= 0
+LLVM ?= 0
 LOCKDEP ?= 0
 KASAN ?= 0
 KGPROF ?= 0
