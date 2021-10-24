@@ -131,7 +131,11 @@ void thread_delete(thread_t *td) {
   pool_free(P_THREAD, td);
 }
 
-__no_profile thread_t *thread_self(void) {
+/*
+ * Instrumentation in this function would cause KCSAN to fall into an infinite
+ * recursion.
+ */
+__no_profile __no_kcsan_sanitize thread_t *thread_self(void) {
   return PCPU_GET(curthread);
 }
 

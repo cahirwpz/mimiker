@@ -219,6 +219,8 @@ int do_getitimer(proc_t *p, int which, struct itimerval *tval);
 int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
                  struct itimerval *oval);
 
+void mdelay(systime_t ms);
+
 #else /* _KERNEL */
 
 int nanosleep(const timespec_t *rqtp, timespec_t *rmtp);

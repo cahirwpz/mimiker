@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-FILES = group master.passwd .kshrc
+FILES = group master.passwd .kshrc shells
 INSTALL-FILES = $(addprefix $(SYSROOT)/etc/, $(FILES))
 
 all: build
