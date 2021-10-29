@@ -18,18 +18,23 @@ rom: Memory.MappedMemory @ sysbus 0x0
 sram: Memory.MappedMemory @ sysbus 0x10000000
     size: 0x00008000
 
-emulator_ram: Memory.MappedMemory @ sysbus 0x20000000
-    size: 0x00004000
+ram: Memory.MappedMemory @ sysbus 0x80000000
+    size: 0x40000000
 
-ram: Memory.MappedMemory @ sysbus 0xc0000000
-    size: 0x30000000
+/*
+ * LiteX CSR space.
+ */
 
-/* 0xf0000000 - 0xf0001000: unused. */
+soc_controller: Miscellaneous.LiteX_SoC_Controller @ sysbus 0xf0000000
 
 uart0: UART.LiteX_UART @ sysbus 0xf0001000
     IRQ -> plic@0
 
-/* 0xf0001000 - 0xf0010000: unused. */
+/* 0xf0002000 - 0xf0010000: unused. */
+
+/*
+ * Other peripherals.
+ */
 
 clint: IRQControllers.CoreLevelInterruptor @ sysbus 0xf0010000
     frequency: 1000000

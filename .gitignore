@@ -51,7 +51,6 @@ assym.h
 tests/*_test_files
 
 # Downloads and source cache
-*.bin
 cache
 
 # Dynamically created sysroot
