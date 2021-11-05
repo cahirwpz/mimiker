@@ -111,13 +111,5 @@ typedef struct ctx {
 /* Machine-dependent uc_flags */
 #define _UC_SETSTACK 0x00010000 /* see <sys/ucontext.h> */
 #define _UC_CLRSTACK 0x00020000 /* see <sys/ucontext.h> */
-#define _UC_TLSBASE 0x00080000  /* see <sys/ucontext.h> */
-
-#define _UC_MACHINE_SP(uc) ((uc)->uc_mcontext.__gregs[_REG_SP])
-#define _UC_MACHINE_FP(uc) ((uc)->uc_mcontext.__gregs[_REG_S0])
-#define _UC_MACHINE_PC(uc) ((uc)->uc_mcontext.__gregs[_REG_PC])
-#define _UC_MACHINE_INTRV(uc) ((uc)->uc_mcontext.__gregs[_REG_RV])
-
-#define _UC_MACHINE_SET_PC(uc, pc) _UC_MACHINE_PC(uc) = (pc)
 
 #endif /* !_RISCV_MCONTEXT_H_ */
