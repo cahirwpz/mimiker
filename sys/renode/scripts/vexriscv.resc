@@ -8,11 +8,11 @@ machine LoadPlatformDescription @sys/renode/platforms/vexriscv.repl
 ### Launch script uses socket terminal integration for UARTs.
 
 $kernel=@sys/mimiker.img
-$opensbi=@../opensbi-main/build/platform/litex/vexriscv/firmware/fw_jump.bin
+$opensbi=@../opensbi/build/platform/litex/vexriscv/firmware/fw_jump.bin
 
 macro reset
 """
-    sysbus LoadBinary $kernel 0x84000000
+    sysbus LoadBinary $kernel 0x80400000
     sysbus LoadBinary $opensbi 0x80000000
 
     cpu PC 0x80000000

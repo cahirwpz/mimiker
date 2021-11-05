@@ -41,13 +41,6 @@
 
 #define ___CONCAT(x, y) __CONCAT(x, y)
 
-/*
- * WEAK_ALIAS: create a weak alias.
- */
-#define WEAK_ALIAS(alias, sym)                                                 \
-  .weak alias;                                                                 \
-  alias = sym
-
 #define _ENTRY(x)                                                              \
   .globl _C_LABEL(x);                                                          \
   .align 4;                                                                    \

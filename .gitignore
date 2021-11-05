@@ -24,6 +24,7 @@ kernel.ld
 *.orig
 *.log
 *#
+core
 
 # Linker output
 *.map
