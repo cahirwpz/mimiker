@@ -58,9 +58,11 @@ CONFIG = {
         'board': {
             'malta': {
                 'kernel': 'sys/mimiker.elf',
+                'simulator': 'qemu'
             },
             'rpi3': {
                 'kernel': 'sys/mimiker.img.gz',
+                'simulator': 'qemu'
             },
         },
     },
@@ -89,8 +91,8 @@ CONFIG = {
                     '-object', 'filter-dump,id=net0,netdev=net0,file=rtl.pcap'
                 ],
                 'uarts': [
-                    dict(name='/dev/tty1', port=RandomPort(), raw=True),
-                    dict(name='/dev/tty2', port=RandomPort()),
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty1', port=RandomPort()),
                     dict(name='/dev/cons', port=RandomPort())
                 ]
             },
@@ -103,9 +105,16 @@ CONFIG = {
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [
-                    dict(name='/dev/cons', port=RandomPort(), raw=True)
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ]
             }
+        }
+    },
+    'renode': {
+        'options': {
+            '--console',
+        },
+        'board': {
         }
     },
     'gdb': {
@@ -128,7 +137,7 @@ CONFIG = {
             },
             'rpi3': {
                 'binary': 'aarch64-mimiker-elf-gdb'
-            }
+            },
         }
     }
 }
@@ -242,6 +251,34 @@ class QEMU(Launchable):
             self.options += getopts('qemu.network_options')
 
 
+class RENODE(Launchable):
+    def __init__(self):
+        super().__init__('renode', 'renode')
+
+        self.options = getopts('renode.options')
+
+        script = getvar('renode.script', failok=False)
+        self.options += [f'-e include @sys/renode/scripts/{script}']
+
+        uarts = getvar('renode.uarts')
+        for i in range(len(uarts)):
+            uart = uarts[i]
+            port = uart['port']
+            dev = f'uart{i}'
+            self.options += ['-e emulation CreateServerSocketTerminal ' +
+                             f'{port} "{dev}" False']
+            self.options += [f'-e connector Connect sysbus.{dev} {dev}']
+
+        if getvar('config.debug'):
+            gdbport = getvar('config.gdbport', failok=False)
+            self.options += [f'-e machine StartGdbServer {gdbport}']
+
+        if getvar('config.args'):
+            raise Exception('kernel args for renode must be passed via dtb')
+
+        self.options += ['-e start']
+
+
 class GDB(Launchable):
     def __init__(self):
         super().__init__('gdb', getvar('gdb.binary'))
@@ -274,12 +311,12 @@ def PostMortem(gdb):
 
 
 def TestRun(sim, dbg, timeout):
-    qemu = sim.spawn(cpulimit=timeout)
+    sim = sim.spawn(cpulimit=timeout)
     gdb = dbg.spawn(dimensions=(int(os.environ['LINES']),
                                 int(os.environ['COLUMNS'])))
 
     try:
-        # No need to wait for QEmu, GDB will terminate it!
+        # No need to wait for the simulator, GDB will terminate it!
         rc = gdb.expect_exact([pexpect.EOF, '(gdb) '], timeout=None)
 
         if rc == 1:
@@ -291,7 +328,7 @@ def TestRun(sim, dbg, timeout):
     except KeyboardInterrupt:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
         gdb.terminate()
-        qemu.terminate()
+        sim.terminate()
         rc = 3
     sys.exit(rc)
 
@@ -310,7 +347,7 @@ def DevelRun(sim, dbg):
                                  window_name=':0', window_command='sleep 1')
 
     uarts = [SOCAT(uart['name'], uart['port'], uart.get('raw', False))
-             for uart in getvar('qemu.uarts')]
+             for uart in getvar(f'{sim.name}.uarts')]
 
     try:
         sim.start(session)
@@ -320,12 +357,12 @@ def DevelRun(sim, dbg):
             dbg.start(session)
 
         session.kill_window(':0')
-        session.select_window(dbg.name if dbg else '/dev/tty1')
+        session.select_window(dbg.name if dbg else '/dev/tty0')
         session.attach_session()
     finally:
         server.kill_server()
 
-        # Give QEMU a chance to exit gracefully
+        # Give the simulator a chance to exit gracefully
         sim.stop()
 
 
@@ -343,7 +380,7 @@ if __name__ == '__main__':
     setup_terminal()
 
     parser = argparse.ArgumentParser(
-        description='Launch kernel in Malta board simulator.')
+        description='Launch kernel in a board simulator.')
     parser.add_argument('args', metavar='ARGS', type=str,
                         nargs=argparse.REMAINDER, help='Kernel arguments.')
     parser.add_argument('-d', '--debug', action='store_true',
@@ -357,7 +394,8 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
     parser.add_argument('-b', '--board', default='malta',
-                        choices=['malta', 'rpi3'], help='Emulated board.')
+                        choices=['malta', 'rpi3'],
+                        help='Emulated board.')
     args = parser.parse_args()
 
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
@@ -373,11 +411,12 @@ if __name__ == '__main__':
     if not os.path.isfile(getvar('config.kernel')):
         raise SystemExit('%s: file does not exist!' % getvar('config.kernel'))
 
+    sim = QEMU() if getvar('config.simulator', failok=False) == 'qemu'\
+        else RENODE()
+
     # Create simulator launcher
     if args.test_run:
-        setvar('qemu.uarts', [])
-
-    sim = QEMU()
+        setvar(f'{sim.name}.uarts', [])
 
     # Create debugger launcher
     if args.debug:
