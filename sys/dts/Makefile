@@ -2,8 +2,8 @@
 
 TOPDIR = $(realpath ../..)
 
-BUILD-FILES += $(BOARD).dtb
+BUILD-FILES += $(DTB)
 
-CLEAN-FILES += $(BOARD).dtb
+CLEAN-FILES += $(DTB)
 
 include $(TOPDIR)/build/build.kern.mk
