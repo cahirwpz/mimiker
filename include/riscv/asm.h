@@ -71,7 +71,7 @@
 #define PTR_SRL srl
 #define PTR_SRAI srai
 #define PTR_SRA sra
-#if _LP64
+#if __riscv_xlen == 64
 #define PTR_L ld
 #define PTR_S sd
 #define PTR_LR lr.d
@@ -94,7 +94,7 @@
 #define INT_SC sc.w
 #define INT_WORD .word
 #define INT_SCALESHIFT 2
-#ifdef _LP64
+#ifdef __riscv_xlen == 64
 #define INT_ADD addw
 #define INT_ADDI addwi
 #define INT_SUB subw
@@ -129,7 +129,7 @@
 #define LONG_SRL srl
 #define LONG_SRAI srai
 #define LONG_SRA sra
-#ifdef _LP64
+#ifdef __riscv_xlen == 64
 #define LONG_L ld
 #define LONG_S sd
 #define LONG_LR lr.d
@@ -153,7 +153,7 @@
 #define REG_SRL srl
 #define REG_SRAI srai
 #define REG_SRA sra
-#if _LP64
+#if __riscv_xlen == 64
 #define REG_L ld
 #define REG_S sd
 #define REG_LR lr.d
