@@ -89,8 +89,8 @@ CONFIG = {
                     '-object', 'filter-dump,id=net0,netdev=net0,file=rtl.pcap'
                 ],
                 'uarts': [
-                    dict(name='/dev/tty1', port=RandomPort(), raw=True),
-                    dict(name='/dev/tty2', port=RandomPort()),
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty1', port=RandomPort()),
                     dict(name='/dev/cons', port=RandomPort())
                 ]
             },
@@ -103,7 +103,7 @@ CONFIG = {
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [
-                    dict(name='/dev/cons', port=RandomPort(), raw=True)
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ]
             }
         }
@@ -320,7 +320,7 @@ def DevelRun(sim, dbg):
             dbg.start(session)
 
         session.kill_window(':0')
-        session.select_window(dbg.name if dbg else '/dev/tty1')
+        session.select_window(dbg.name if dbg else '/dev/tty0')
         session.attach_session()
     finally:
         server.kill_server()
