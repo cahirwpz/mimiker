@@ -13,7 +13,7 @@
 *.img
 *.img.gz
 
-# Kenrel linker script
+# Kernel linker script
 kernel.ld
 
 # Ramdisk
