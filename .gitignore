@@ -21,6 +21,7 @@
 *.orig
 *.log
 *#
+core
 
 # Linker output
 *.map
