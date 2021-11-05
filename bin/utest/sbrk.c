@@ -13,6 +13,10 @@
 #define TOO_MUCH 0x4000000000000000L
 #endif
 
+#ifdef __riscv
+#define TOO_MUCH 0x80000000
+#endif
+
 static void *sbrk_orig = NULL;
 
 /* Note that sbrk returns old brk value */

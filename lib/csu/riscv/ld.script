@@ -1,0 +1,77 @@
+OUTPUT_ARCH(riscv)
+ENTRY(_start)
+
+INPUT(crt0.o crt0-common.o -lc -lgcc -lm)
+
+PHDRS
+{
+  text   PT_LOAD FLAGS(5); /* read-only, executable */
+  rodata PT_LOAD FLAGS(4); /* read-only */
+  sdata  PT_LOAD FLAGS(6); /* read-write */
+  data   PT_LOAD FLAGS(6); /* read-write */
+  sbss   PT_LOAD FLAGS(6); /* read-write */
+  bss    PT_LOAD FLAGS(6); /* read-write */
+}
+
+SECTIONS
+{
+  .text 0x00400000 :
+  {
+    *(.text .text.*)
+    . = ALIGN(4096);
+  } : text
+
+  . = ALIGN(4096);
+  .rodata :
+  {
+    *(.rodata .rodata.*)
+    . = ALIGN(4);
+  } : rodata
+
+  . = ALIGN(4096);
+  .sdata :
+  {
+    HIDDEN(__sdata = .);
+    *(.sdata .sdata.*)
+    . = ALIGN(4);
+  } : sdata
+
+  . = ALIGN(4096);
+  .data :
+  {
+    HIDDEN(__data = .);
+    *(.data .data.*)
+    . = ALIGN(4);
+  } : data
+
+  . = ALIGN(4096);
+  .sbss :
+  {
+    *(.sbss .sbss.*)
+    *(.scommon)
+    . = ALIGN(4);
+  } : sbss
+
+  . = ALIGN(4096);
+  .bss :
+  {
+    *(.bss .bss.*)
+    *(.common)
+    . = ALIGN(4);
+    HIDDEN(__ebss = .);
+  } : bss
+
+  HIDDEN(_gp_off = 4K / 2);
+  __global_pointer$ = MIN(__sdata + _gp_off,
+                          MAX(__data + _gp_off, __ebss - _gp_off));
+
+  /DISCARD/ :
+  {
+    *(.comment)
+    *(.note .note.*)
+    *(.options)
+    *(.pdr)
+    *(.reginfo)
+    *(.gnu.attributes)
+  }
+}

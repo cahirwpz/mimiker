@@ -22,6 +22,11 @@
 #define BAD_ADDR_SPAN_LEN 0xfffe800000002000
 #endif
 
+#ifdef __riscv
+#define BAD_ADDR_SPAN 0x7fff0000
+#define BAD_ADDR_SPAN_LEN 0x20000
+#endif
+
 #define mmap_anon_priv(addr, length, prot)                                     \
   mmap((addr), (length), (prot), MAP_ANON | MAP_PRIVATE, -1, 0)
 

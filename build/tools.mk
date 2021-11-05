@@ -33,6 +33,7 @@ endif
 CC       = $(TARGET_CC)
 AS       = $(TARGET_CC)
 LD       = $(TARGET)-gcc $(GCC_ABIFLAGS) -g
+CPP      = $(TARGET)-cpp -E
 AR       = $(TARGET)-ar
 NM       = $(TARGET)-nm
 GDB      = $(TARGET)-gdb

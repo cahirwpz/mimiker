@@ -1,0 +1,75 @@
+#include "assym.h"
+
+/* Linker scripts are documented here:
+ * https://sourceware.org/binutils/docs/ld/Scripts.html */
+OUTPUT_FORMAT("elf32-littleriscv")
+OUTPUT_ARCH(riscv)
+ENTRY(_start)
+
+PHDRS
+{
+  /* The boot segment contains initial stac hence must be marked as writable. */
+  boot   PT_LOAD FLAGS(7); /* read-write, executable */
+  text   PT_LOAD FLAGS(5); /* read-only, executable */
+  rodata PT_LOAD FLAGS(4); /* read-only */
+  data   PT_LOAD FLAGS(6); /* read-write */
+}
+
+SECTIONS
+{
+  .boot KERNEL_PHYS : AT(KERNEL_PHYS) ALIGN(4096)
+  {
+    __boot = ABSOLUTE(.);
+    KEEP(riscv/riscv.ka:start.o)
+    *(.boot .boot.*)
+    . = ALIGN(4096);
+    __eboot = ABSOLUTE(.);
+  } : boot
+
+  .text : ALIGN(4096)
+  {
+    __kernel_start = ABSOLUTE(.);
+    __text = ABSOLUTE(.);
+    *(.text .text.*)
+    __etext = ABSOLUTE(.);
+    /* TODO: include KASAN constructors. */
+  } : text
+
+  .rodata :
+  {
+    *(.rodata .rodata.*)
+  } : rodata
+
+  .data : ALIGN(4096)
+  {
+    __data = ABSOLUTE(.);
+    *(.sdata .sdata.*)
+    *(.data .data.*)
+    __edata = ABSOLUTE(.);
+  } : data
+
+  .bss :
+  {
+    __bss = ABSOLUTE(.);
+    *(.sbss .scommon)
+    *(.bss .bss.*)
+    *(COMMON)
+    __ebss = ABSOLUTE(.);
+    __kernel_end = ABSOLUTE(.);
+  }
+
+  /* Provide global pointer for linker relaxations. */
+  HIDDEN(_gp_off = 4K / 2);
+  __global_pointer$ = MIN(__data + _gp_off, __ebss - _gp_off);
+
+  /* Sections to be discarded. */
+  /DISCARD/ :
+  {
+    *(.comment)
+    *(.gnu.attributes)
+    *(.note .note.*)
+    *(.options)
+    *(.pdr)
+    *(.reginfo)
+  }
+}
