@@ -137,7 +137,7 @@ CONFIG = {
             },
             'rpi3': {
                 'binary': 'aarch64-mimiker-elf-gdb'
-            },
+            }
         }
     }
 }
