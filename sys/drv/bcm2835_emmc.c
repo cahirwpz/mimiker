@@ -164,15 +164,6 @@ static int32_t bcmemmc_clk(device_t *dev, uint32_t frq) {
   resource_t *emmc = state->emmc;
   int32_t cnt = 100000;
 
-  /* TODO (mohr): Not sure if this is necessary. If the will run fine on a
-   * real hardware without it, it should be removed. */
-  while ((b_in(emmc, BCMEMMC_STATUS) & (SR_CMD_INHIBIT | SR_DAT_INHIBIT)) &&
-         cnt--)
-    delay(3);
-  if (cnt < 0) {
-    return ETIMEDOUT;
-  }
-
   b_clr(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
   /* host_version <= HOST_SPEC_V2 needs a power-of-two divisor. It would require
    * a different calculation method. */
@@ -381,6 +372,7 @@ static int bcmemmc_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
                        emmc_resp_t *resp) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
 
+  /* Application-specific command need to be prefixed with APP_CMD command. */
   if (cmd.flags & EMMC_F_APP)
     bcmemmc_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, NULL);
 
@@ -426,9 +418,9 @@ static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
 }
 
 /* e.MMC requires some GPIO setup to work properly. This however is different
- * than what is described in BCM2835 Peripherals datasheet. I don't know the
- * reason why, but based on other drivers, looks like these particular setting
- * are needed. */
+ * than what is described in BCM2835 Peripherals datasheet. 
+ * See: https://www.raspberrypi.org/app/uploads/2012/04/
+ *      Raspberry-Pi-Schematics-R1.0.pdf */
 static void emmc_gpio_init(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *gpio = state->gpio;

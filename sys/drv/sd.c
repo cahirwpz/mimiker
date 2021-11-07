@@ -159,10 +159,9 @@ static int sd_read_block_ccs(device_t *dev, uint32_t lba, void *buffer,
 }
 
 /* Data read routine for CCS-disabled cards (SDSC) */
-static int sd_read_noccs(device_t *dev, uint32_t lba, void *buffer,
+static int sd_read_block_noccs(device_t *dev, uint32_t lba, void *buffer,
                          uint32_t num, size_t *read) {
   int error;
-  sd_state_t *state = (sd_state_t *)dev->state;
   uint32_t *buf = (uint32_t *)buffer;
 
   for (uint32_t c = 0; c < num; c++) {
@@ -186,8 +185,7 @@ static int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
 
   if (num < 1)
     return EINVAL;
-
-  uint32_t *buf = (uint32_t *)buffer;
+  
   int error;
 
   ASSIGN_OPTIONAL(read, 0);
