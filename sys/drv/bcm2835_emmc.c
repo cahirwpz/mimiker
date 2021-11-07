@@ -48,7 +48,7 @@ typedef struct bcmemmc_state {
  */
 static void delay(int64_t count) {
   __asm__ volatile("1: subs %[count], %[count], #1; bne 1b"
-                   : [ count ] "+r"(count));
+                   : [count] "+r"(count));
 }
 
 static inline uint32_t emmc_wait_flags_to_hwflags(emmc_wait_flags_t mask) {
@@ -158,15 +158,6 @@ static int bcmemmc_set_clk_freq(device_t *dev, uint32_t frq) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
   int cnt;
-
-  /* TODO(mohrcore): Not sure if this is necessary. If the will run fine on
-   * a real hardware without it, it should be removed. */
-  cnt = NSPINS;
-  while (b_in(emmc, BCMEMMC_STATUS) & SR_INHIBIT) {
-    if (--cnt < 0)
-      return ETIMEDOUT;
-    delay(3);
-  }
 
   b_clr(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
   /* host_version <= HOST_SPEC_V2 needs a power-of-two divisor.
@@ -370,7 +361,20 @@ static int bcmemmc_send_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
   return 0;
 }
 
-static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *donep) {
+/* Send a command */
+static int bcmemmc_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
+                       emmc_resp_t *resp) {
+  bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
+
+  /* Application-specific command need to be prefixed with APP_CMD command. */
+  if (cmd.flags & EMMC_F_APP)
+    bcmemmc_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, NULL);
+
+  uint32_t code = bcemmc_encode_cmd(cmd);
+  return bcmemmc_cmd_code(cdev->parent, code, arg, resp);
+}
+
+static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *count) {
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
   resource_t *emmc = state->emmc;
@@ -383,13 +387,13 @@ static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *donep) {
     data[i] = b_in(emmc, BCMEMMC_DATA);
 
   /* TODO(mohrcore): check if the transfer fully succeeded! */
-  if (donep)
-    *donep = len;
+  if (count)
+    *count = len;
   return 0;
 }
 
 static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
-                         size_t *donep) {
+                         size_t *count) {
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
   resource_t *emmc = state->emmc;
@@ -402,15 +406,15 @@ static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
     b_out(emmc, BCMEMMC_DATA, data[i]);
 
   /* TODO(mohrcore): check wether the transfer fully succeeded! */
-  if (donep)
-    *donep = len;
+  if (count)
+    *count = len;
   return 0;
 }
 
 /* e.MMC requires some GPIO setup to work properly. This however is different
- * than what is described in BCM2835 Peripherals datasheet. I don't know the
- * reason why, but based on other drivers, looks like these particular setting
- * are needed. */
+ * than what is described in BCM2835 Peripherals datasheet.
+ * See: https://www.raspberrypi.org/app/uploads/2012/04/
+ *      Raspberry-Pi-Schematics-R1.0.pdf */
 static void emmc_gpio_init(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *gpio = state->gpio;
