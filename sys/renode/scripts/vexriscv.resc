@@ -7,7 +7,7 @@ machine LoadPlatformDescription @sys/renode/platforms/vexriscv.repl
 
 ### Launch script uses socket terminal integration for UARTs.
 
-$opensbi=@../opensbi/build/platform/litex/vexriscv/firmware/fw_jump.bin
+$opensbi=@../opensbi-new/build/platform/litex/vexriscv/firmware/fw_jump.bin
 $kernel=@sys/mimiker.img
 $dtb=@sys/dts/vexriscv.dtb
 $initrd=@initrd.cpio
