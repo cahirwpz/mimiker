@@ -13,9 +13,6 @@
 *.img
 *.img.gz
 
-# Kernel linker script
-kernel.ld
-
 # Ramdisk
 *.cpio
 
