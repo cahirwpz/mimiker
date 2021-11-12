@@ -12,8 +12,8 @@ CLEAN-FILES += mimiker.elf.map
 
 include $(TOPDIR)/build/build.kern.mk
 
-LDSCRIPT = $(TOPDIR)/sys/$(ARCH)/$(ARCH).ld
-LDFLAGS += -T $(LDSCRIPT)
+LDSCRIPT = $(ARCH)/$(ARCH).ld
+LDFLAGS += -T $(TOPDIR)/sys/$(LDSCRIPT)
 LDLIBS	= -Wl,--start-group \
 	    -Wl,--whole-archive $(KLIBLIST) -Wl,--no-whole-archive \
             -lgcc \
