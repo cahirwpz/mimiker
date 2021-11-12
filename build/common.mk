@@ -59,7 +59,7 @@ assym.h: genassym.cf
 	$(GENASSYM) $(CC) $(ASSYM_CFLAGS) $(CFLAGS) $(CPPFLAGS) < $^ > $@
 
 %.ld: %.ld.in
-	@echo "[CPP] $(DIR)$< -> $(DIR)$@"
+	@echo "[CPP] $(SRCPATH) -> $(DSTPATH)"
 	$(CPP) $(CPPFLAGS) -I$(TOPDIR)/include -P -o $@ $<
 
 include $(TOPDIR)/config.mk
