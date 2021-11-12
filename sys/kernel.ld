@@ -3,11 +3,12 @@ OUTPUT_ARCH(riscv)
 ENTRY(_start)
 PHDRS
 {
-  boot PT_LOAD FLAGS(7);
+  boot PT_LOAD FLAGS(5);
   text PT_LOAD FLAGS(5);
   rodata PT_LOAD FLAGS(4);
   data PT_LOAD FLAGS(6);
 }
+PROVIDE(__image_size = (__kernel_end - __kernel_start) + _boot_size);
 SECTIONS
 {
   .boot 0x80400000 : AT(0x80400000) ALIGN(4096)
@@ -18,7 +19,8 @@ SECTIONS
     . = ALIGN(4096);
     __eboot = ABSOLUTE(.);
   } : boot
-  .text : ALIGN(4096)
+  HIDDEN(_boot_size = __eboot - __boot);
+  .text -2147483648 + _boot_size : AT(__eboot) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
     __text = ABSOLUTE(.);

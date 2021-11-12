@@ -3,7 +3,7 @@
 #include <riscv/asm.h>
 #include "assym.h"
 
-#define INITSTACK_SIZE PAGESIZE
+#define INITSTACK_SIZE 512
 
 	.org 0x0
 	.section .boot
@@ -27,24 +27,11 @@ _ENTRY(_start)
 	seqz t0, a0
 	beqz t0, halt
 
-	/* Save pointer to dtb. */
-	mv s0, a1
-
 	/* Move to the initial stack. */
 	PTR_LA sp, initstack_end
 
 	mv a0, a1
 	call riscv_init
-
-	/* Restore dtb pointer. */
-	mv a0, s0
-
-	call board_stack
-
-	/* Move to thread0's stack. */
-	mv sp, a0
-
-	call board_init
 halt:
 	wfi
 	j halt

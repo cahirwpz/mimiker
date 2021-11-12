@@ -8,12 +8,13 @@ ENTRY(_start)
 
 PHDRS
 {
-  /* The boot segment contains initial stac hence must be marked as writable. */
-  boot   PT_LOAD FLAGS(7); /* read-write, executable */
+  boot   PT_LOAD FLAGS(5); /* read-only, executable */
   text   PT_LOAD FLAGS(5); /* read-only, executable */
   rodata PT_LOAD FLAGS(4); /* read-only */
   data   PT_LOAD FLAGS(6); /* read-write */
 }
+
+PROVIDE(__image_size = (__kernel_end - __kernel_start) + _boot_size);
 
 SECTIONS
 {
@@ -26,7 +27,9 @@ SECTIONS
     __eboot = ABSOLUTE(.);
   } : boot
 
-  .text : ALIGN(4096)
+  HIDDEN(_boot_size = __eboot - __boot);
+
+  .text KERNEL_SPACE_BEGIN + _boot_size : AT(__eboot) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
     __text = ABSOLUTE(.);

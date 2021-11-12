@@ -5,11 +5,23 @@
 	#size-cells = <0x01>;
 
 	chosen {
-		bootargs = "init=/bin/ksh";
+		bootargs = "klog-mask=0xffffffff init=/bin/ksh";
+		linux,initrd-start = <0x83000000>;
+		linux,initrd-end = <0x87000000>;
 	};
 
 	memory@0x80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <0x01>;
+		#size-cells = <0x01>;
+		ranges;
+
+		opensbi@80000000 {
+			reg = <0x80000000 0x80000>;
+		};
 	};
 };

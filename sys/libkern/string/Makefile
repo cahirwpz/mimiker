@@ -6,9 +6,25 @@ CPPFLAGS += -I$(TOPDIR)/lib/libc/string
 
 SRCDIR = $(TOPDIR)/lib/libc/string
 
-SOURCES = bcopy.S \
-	  memcpy.S \
-	  strlen.S \
+BCOPY_FORMAT = S
+MEMCPY_FORMAT = S
+STRLEN_FORMAT = S
+
+ifeq ($(wildcard $(SRCDIR)/$(ARCH)/bcopy.S),)
+	BCOPY_FORMAT = c
+endif
+
+ifeq ($(wildcard $(SRCDIR)/$(ARCH)/memcpy.S),)
+	MEMCPY_FORMAT = c
+endif
+
+ifeq ($(wildcard $(SRCDIR)/$(ARCH)/strlen.S),)
+	STRLEN_FORMAT = c
+endif
+
+SOURCES = bcopy.$(BCOPY_FORMAT) \
+	  memcpy.$(MEMCPY_FORMAT) \
+	  strlen.$(STRLEN_FORMAT) \
 	  bzero.c \
 	  memchr.c \
 	  memcmp.c \

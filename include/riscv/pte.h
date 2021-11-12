@@ -74,7 +74,8 @@ typedef uint32_t pn_t;       /* page number */
 #define PTE_V (1 << 0) /* Valid */
 #define PTE_RWX (PTE_R | PTE_W | PTE_X)
 #define PTE_RX (PTE_R | PTE_X)
-#define PTE_KERN (PTE_V | PTE_G)
+#define PTE_KERN (PTE_V | PTE_R | PTE_W | PTE_G | PTE_A | PTE_D)
+#define PTE_KERN_RO (PTE_V | PTE_R | PTE_G | PTE_A)
 
 #define PTE_PPN0_S 10
 #define PTE_PPN1_S 20

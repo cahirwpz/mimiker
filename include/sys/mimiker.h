@@ -136,6 +136,7 @@ extern char __etext[];
 #ifdef _MACHDEP
 /* Symbols defined by linker and used during kernel boot phase. */
 extern char __boot[];
+extern char __eboot[];
 extern char __data[];
 extern char __bss[];
 extern char __ebss[];

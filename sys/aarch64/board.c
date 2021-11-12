@@ -14,66 +14,27 @@
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
 
-/* Return offset of path at dtb or die. */
-static int dtb_offset(void *dtb, const char *path) {
-  int offset = fdt_path_offset(dtb, path);
-  if (offset < 0)
-    panic("Failed to find offset at dtb!");
-  return offset;
-}
-
-static uint32_t process_dtb_memsize(void *dtb) {
-  int offset = dtb_offset(dtb, "/memory@0");
-  int len;
-  const uint32_t *prop = fdt_getprop(dtb, offset, "reg", &len);
-  /* reg contains start (4 bytes) and end (4 bytes) */
-  if (prop == NULL || (size_t)len < 2 * sizeof(uint32_t))
-    panic("Failed to get memory size from dtb!");
-
-  return fdt32_to_cpu(prop[1]);
-}
-
-static int process_dtb_rd_start(void *dtb) {
-  int offset = dtb_offset(dtb, "/chosen");
-  int len;
-  const uint32_t *prop = fdt_getprop(dtb, offset, "linux,initrd-start", &len);
-  if (prop == NULL || (size_t)len < sizeof(uint32_t))
-    panic("Failed to get initrd-start from dtb!");
-
-  return fdt32_to_cpu(*prop);
-}
-
-static int process_dtb_rd_size(void *dtb) {
-  int offset = dtb_offset(dtb, "/chosen");
-  int len;
-  const uint32_t *prop = fdt_getprop(dtb, offset, "linux,initrd-end", &len);
-  if (prop == NULL || (size_t)len < sizeof(uint32_t))
-    panic("Failed to get initrd-start from dtb!");
-
-  return fdt32_to_cpu(*prop) - process_dtb_rd_start(dtb);
-}
-
-static const char *process_dtb_cmdline(void *dtb) {
-  int offset = dtb_offset(dtb, "/chosen");
-  const char *prop = fdt_getprop(dtb, offset, "bootargs", NULL);
-  if (prop == NULL)
-    panic("Failed to get cmdline from dtb!");
-
-  return prop;
-}
-
 static void process_dtb(char **tokens, kstack_t *stk, void *dtb) {
   if (fdt_check_header(dtb))
     panic("dtb incorrect header!");
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "memsize=%d", process_dtb_memsize(dtb));
+  uint32_t start, size;
+
+  /* Memory boundaries. */
+  dtb_mem(dtb, &start, &size);
+  snprintf(buf, sizeof(buf), "memsize=%u", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "rd_start=%d", process_dtb_rd_start(dtb));
+
+  /* Initrd boundaries. */
+  dtb_rd(dtb, &start, &size);
+  snprintf(buf, sizeof(buf), "rd_start=%d", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "rd_size=%d", process_dtb_rd_size(dtb));
+  snprintf(buf, sizeof(buf), "rd_size=%d", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  tokens = cmdline_extract_tokens(stk, process_dtb_cmdline(dtb), tokens);
+
+  /* Kernel cmdline. */
+  tokens = cmdline_extract_tokens(stk, dtb_cmdline(dtb), tokens);
   *tokens = NULL;
 }
 

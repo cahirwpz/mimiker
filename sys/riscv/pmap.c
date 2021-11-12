@@ -1,11 +1,12 @@
 #define KL_KOL KL_PMAP
+#include <sys/kenv.h>
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/pmap.h>
 #include <riscv/pmap.h>
 
 /* Kernel page directory. */
-static pd_entry_t *kernel_pde;
+static paddr_t kernel_pde;
 
 /* Physical memory start. */
 static paddr_t dmap_paddr_base;
@@ -41,26 +42,28 @@ void pmap_delete(pmap_t *pmap) {
   panic("Not implemented!\n");
 }
 
-int pmap_bootstrap(pd_entry_t *pde, paddr_t min_pa, size_t pm_size) {
-  /* Save bootstrap parameters. */
-  dmap_paddr_base = min_pa;
-  dmap_size = pm_size;
-  kernel_pde = pde;
+void pmap_bootstrap(paddr_t pd_pa, pd_entry_t *pd_va) {
+  /* Obtain basic parameters. */
+  dmap_paddr_base = kenv_get_ulong("mem_start");
+  dmap_size = kenv_get_ulong("mem_size");
+  kernel_pde = pd_pa;
 
-  if (!is_aligned(min_pa, L1_SIZE))
-    return 1;
+  /* Assume the physical memory starts at the beginning of a L0 region. */
+  assert(is_aligned(dmap_paddr_base, L0_SIZE));
 
-  /* Do we have enough virtual addresses? */
-  if (pm_size > DMAP_MAX_SIZE)
-    return 1;
+  /* We must have enough virtual addresses. */
+  assert(dmap_size <= DMAP_MAX_SIZE);
+
+  uint32_t min_pa = dmap_paddr_base;
+  uint32_t max_pa = min_pa + dmap_size;
+
+  /* We assume maximum physical address < 2^((sizeof(paddr_t) * 8)). */
+  assert(min_pa < max_pa);
 
   /* Build a direct map using 4MiB superpages. */
   size_t idx = L0_INDEX(DMAP_VADDR_BASE);
-  uint64_t max_pa = (uint64_t)min_pa + pm_size;
-  for (paddr_t pa = min_pa; pa < max_pa; pa += L1_SIZE, idx++)
-    pde[idx] = PA_TO_PTE(pa) | PTE_R | PTE_W | PTE_KERN;
-
-  return 0;
+  for (paddr_t pa = min_pa; pa < max_pa; pa += L0_SIZE, idx++)
+    pd_va[idx] = PA_TO_PTE(pa) | PTE_KERN;
 }
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
