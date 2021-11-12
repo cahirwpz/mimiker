@@ -73,7 +73,7 @@ void *board_stack(paddr_t dtb_pa, void *dtb_va) {
   /*
    * NOTE: when forking the init process, we will copy thread0's user context
    * to init's user context therefore `td_uctx` must point to a valid memory
-   * buffer. 
+   * buffer.
    */
   thread0.td_uctx = kstack_alloc_s(stk, mcontext_t);
 
