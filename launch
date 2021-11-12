@@ -311,24 +311,24 @@ def PostMortem(gdb):
 
 
 def TestRun(sim, dbg, timeout):
-    sim = sim.spawn(cpulimit=timeout)
-    gdb = dbg.spawn(dimensions=(int(os.environ['LINES']),
-                                int(os.environ['COLUMNS'])))
+    sim_proc = sim.spawn(cpulimit=timeout)
+    gdb_proc = dbg.spawn(dimensions=(int(os.environ['LINES']),
+                                     int(os.environ['COLUMNS'])))
 
     try:
         # No need to wait for the simulator, GDB will terminate it!
-        rc = gdb.expect_exact([pexpect.EOF, '(gdb) '], timeout=None)
+        rc = gdb_proc.expect_exact([pexpect.EOF, '(gdb) '], timeout=None)
 
         if rc == 1:
-            timed_out = b'Program received signal SIGINT' in gdb.before
-            PostMortem(gdb)
+            timed_out = b'Program received signal SIGINT' in gdb_proc.before
+            PostMortem(gdb_proc)
             print('Test run %s!' % ('timeout' if timed_out else 'failed'))
             if timed_out:
                 rc = 2
     except KeyboardInterrupt:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        gdb.terminate()
-        sim.terminate()
+        gdb_proc.terminate()
+        sim_proc.terminate()
         rc = 3
     sys.exit(rc)
 
