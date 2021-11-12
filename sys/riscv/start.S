@@ -1,4 +1,3 @@
-/* Based on locore.S from FreeBSD. */
 #include <riscv/abi.h>
 #include <riscv/asm.h>
 #include "assym.h"

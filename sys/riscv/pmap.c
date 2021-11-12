@@ -48,7 +48,7 @@ void pmap_bootstrap(paddr_t pd_pa, pd_entry_t *pd_va) {
   dmap_size = kenv_get_ulong("mem_size");
   kernel_pde = pd_pa;
 
-  /* Assume the physical memory starts at the beginning of a L0 region. */
+  /* Assume the physical memory starts at the beginning of an L0 region. */
   assert(is_aligned(dmap_paddr_base, L0_SIZE));
 
   /* We must have enough virtual addresses. */

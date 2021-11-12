@@ -81,7 +81,7 @@ static void rpi3_physmem(void) {
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
   paddr_t dtb_start = dtb_early_root();
-  paddr_t dtb_end = dtb_start + fdt_totalsize(PHYS_TO_DMAP(dtb_start));
+  paddr_t dtb_end = dtb_start + dtb_size();
 
   /* TODO(pj) if vm_physseg_plug* interface was more flexible,
    * we could do without following hack, please refer to issue #1129 */
