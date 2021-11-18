@@ -14,10 +14,10 @@ SOURCES-RISCV = \
 	start.S \
 	thread.c
 
-CLEAN-FILES += assym.h
+CLEAN-FILES += assym.h riscv.ld
 
 CPPFLAGS += -D_MACHDEP
 
 include $(TOPDIR)/build/build.kern.mk
 
-$(SOURCES-RISCV) riscv.ld: assym.h
+$(SOURCES-RISCV) riscv.ld.in: assym.h

@@ -110,6 +110,7 @@ CONFIG = {
                 'network_options': [],
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
+<<<<<<< HEAD
                 ]
             }
         }
@@ -123,6 +124,8 @@ CONFIG = {
                 'script': 'vexriscv.resc',
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort())
+=======
+>>>>>>> 617ff8c16f1674c0e5bd4ffd36e1ca3667a2798f
                 ]
             }
         }
