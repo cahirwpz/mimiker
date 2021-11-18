@@ -110,7 +110,6 @@ CONFIG = {
                 'network_options': [],
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
-<<<<<<< HEAD
                 ]
             }
         }
@@ -124,8 +123,6 @@ CONFIG = {
                 'script': 'vexriscv.resc',
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort())
-=======
->>>>>>> 617ff8c16f1674c0e5bd4ffd36e1ca3667a2798f
                 ]
             }
         }
@@ -142,7 +139,7 @@ CONFIG = {
         'extra-options': [],
         'post-options': [
             '-ex=source .gdbinit',
-            '-ex=continue',
+#            '-ex=continue',
         ],
         'board': {
             'malta': {
@@ -292,7 +289,7 @@ class RENODE(Launchable):
             gdbport = getvar('config.gdbport', failok=False)
             self.options += [f'-e machine StartGdbServer {gdbport}']
 
-        self.options += ['-e start']
+#        self.options += ['-e start']
 
 
 class GDB(Launchable):
