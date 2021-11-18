@@ -198,11 +198,11 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pd) {
 
   clear_bss();
 
-  void *sp = board_stack(dtb, (void *)BOOT_DTB_VADDR);
-
   /* Initialize klog before bootstrapping pmap. */
   init_kasan();
   init_klog();
+
+  void *sp = board_stack(dtb, (void *)BOOT_DTB_VADDR);
 
   pmap_bootstrap(pd, (pd_entry_t *)BOOT_PD_VADDR);
 

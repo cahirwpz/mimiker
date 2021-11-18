@@ -6,39 +6,36 @@ CPPFLAGS += -I$(TOPDIR)/lib/libc/string
 
 SRCDIR = $(TOPDIR)/lib/libc/string
 
-BCOPY_FORMAT = S
-MEMCPY_FORMAT = S
-STRLEN_FORMAT = S
+SOURCES = \
+	bzero.c \
+	memchr.c \
+	memcmp.c \
+	memset.c \
+	strchr.c \
+	strcmp.c \
+	strcspn.c \
+	strlcat.c \
+	strlcpy.c \
+	strncmp.c \
+	strncpy.c \
+	strnlen.c \
+	strrchr.c \
+	strsep.c \
+	strspn.c
 
-ifeq ($(wildcard $(SRCDIR)/$(ARCH)/bcopy.S),)
-	BCOPY_FORMAT = c
-endif
+SOURCES-AARCH64 = \
+	bcopy.S \
+	memcpy.S \
+	strlen.S
 
-ifeq ($(wildcard $(SRCDIR)/$(ARCH)/memcpy.S),)
-	MEMCPY_FORMAT = c
-endif
+SOURCES-MIPS = \
+	bcopy.S \
+	memcpy.S \
+	strlen.S
 
-ifeq ($(wildcard $(SRCDIR)/$(ARCH)/strlen.S),)
-	STRLEN_FORMAT = c
-endif
-
-SOURCES = bcopy.$(BCOPY_FORMAT) \
-	  memcpy.$(MEMCPY_FORMAT) \
-	  strlen.$(STRLEN_FORMAT) \
-	  bzero.c \
-	  memchr.c \
-	  memcmp.c \
-	  memset.c \
-	  strchr.c \
-	  strcmp.c \
-	  strcspn.c \
-	  strlcat.c \
-	  strlcpy.c \
-	  strncmp.c \
-	  strncpy.c \
-	  strnlen.c \
-	  strrchr.c \
-	  strsep.c \
-	  strspn.c
+SOURCES-RISCV = \
+	bcopy.c \
+	memcpy.c \
+	strlen.c
 
 include $(TOPDIR)/build/build.kern.mk

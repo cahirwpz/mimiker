@@ -139,7 +139,7 @@ CONFIG = {
         'extra-options': [],
         'post-options': [
             '-ex=source .gdbinit',
-#            '-ex=continue',
+            '-ex=continue',
         ],
         'board': {
             'malta': {
@@ -289,7 +289,7 @@ class RENODE(Launchable):
             gdbport = getvar('config.gdbport', failok=False)
             self.options += [f'-e machine StartGdbServer {gdbport}']
 
-#        self.options += ['-e start']
+        self.options += ['-e start']
 
 
 class GDB(Launchable):
