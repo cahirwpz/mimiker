@@ -13,6 +13,14 @@
 #include <riscv/mcontext.h>
 #include <riscv/vm_param.h>
 
+#define __wfi() __asm__ __volatile__("wfi")
+
+static void __noreturn halt(void) {
+  for (;;) {
+    __wfi();
+  }
+}
+
 static size_t count_args(void *dtb) {
   /*
    * NOTE: tokens: mem_start, mem_size, memrsvd_start, memrsvd_size,
@@ -56,7 +64,7 @@ static void process_args(char **tokens, kstack_t *stk, void *dtb) {
 
 void *board_stack(paddr_t dtb_pa, void *dtb_va) {
   if (fdt_check_header(dtb_va))
-    panic("dtb incorrect header!");
+    halt();
 
   dtb_early_init(dtb_pa, fdt_totalsize(dtb_va));
 
