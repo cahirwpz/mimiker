@@ -219,6 +219,7 @@ static vm_page_t *pm_take_page(size_t fl) {
 }
 
 vm_page_t *vm_page_alloc(size_t npages) {
+  assert(vm_boot_done);
   assert((npages > 0) && powerof2(npages));
 
   SCOPED_MTX_LOCK(&physmem_lock);

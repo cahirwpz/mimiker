@@ -18,13 +18,12 @@
 #define KSTACK_SIZE (KSTACK_PAGES * PAGESIZE)
 
 /* Size of boot memory allocation area. */
-#define BOOTMEM_PAGES 2
+#define BOOTMEM_PAGES 8
 #define BOOTMEM_SIZE (BOOTMEM_PAGES * PAGESIZE)
 
 #define RISCV_PHYSADDR(x)                                                      \
   ((paddr_t)((vaddr_t)(x) & ~KERNEL_SPACE_BEGIN) + KERNEL_PHYS)
 
-#define KERNEL_PHYS_END                                                        \
-  (RISCV_PHYSADDR(align((paddr_t)__ebss, PAGESIZE)) + BOOTMEM_SIZE)
+#define KERNEL_PHYS_END (align(RISCV_PHYSADDR(__ebss), PAGESIZE) + BOOTMEM_SIZE)
 
 #endif /* !_RISCV_VM_PARAM_H_ */

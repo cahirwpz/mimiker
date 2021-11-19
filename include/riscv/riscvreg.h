@@ -101,6 +101,7 @@
 #define SATP_MODE_M (0xfULL << SATP_MODE_S)
 #define SATP_MODE_SV39 (8ULL << SATP_MODE_S)
 #define SATP_MODE_SV48 (9ULL << SATP_MODE_S)
+#define MAX_ASID 0x01ff
 #else
 #define SATP_PPN_S 0
 #define SATP_PPN_M (0x3fffff << SATP_PPN_S)
@@ -109,6 +110,7 @@
 #define SATP_MODE_S 31
 #define SATP_MODE_M (0x1 << SATP_MODE_S)
 #define SATP_MODE_SV32 (1 << SATP_MODE_S)
+#define MAX_ASID 0xffff
 #endif
 
 #define XLEN __riscv_xlen

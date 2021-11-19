@@ -7,7 +7,7 @@
 	chosen {
 		bootargs = "klog-mask=0xffffffff init=/bin/ksh";
 		linux,initrd-start = <0x83000000>;
-		linux,initrd-end = <0x87000000>;
+		linux,initrd-end = <0x86000000>;
 	};
 
 	memory@0x80000000 {
