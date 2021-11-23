@@ -411,12 +411,13 @@ if __name__ == '__main__':
     if not os.path.isfile(getvar('config.kernel')):
         raise SystemExit('%s: file does not exist!' % getvar('config.kernel'))
 
-    sim = QEMU() if getvar('config.simulator', failok=False) == 'qemu'\
-        else RENODE()
+    sim_name = getvar('config.simulator', failok=False)
 
     # Create simulator launcher
     if args.test_run:
-        setvar(f'{sim.name}.uarts', [])
+        setvar(f'{sim_name}.uarts', [])
+
+    sim = QEMU() if sim_name == 'qemu' else RENODE()
 
     # Create debugger launcher
     if args.debug:
