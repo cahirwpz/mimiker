@@ -64,6 +64,10 @@ static resource_t *resource_list_find(device_t *dev, res_type_t type, int rid) {
   return NULL;
 }
 
+bool device_is_owner(device_t *dev, resource_t *r) {
+  return resource_list_find(dev, r->r_type, r->r_rid);
+}
+
 void device_add_resource(device_t *dev, res_type_t type, int rid,
                          rman_addr_t start, rman_addr_t end, size_t size,
                          rman_flags_t flags) {

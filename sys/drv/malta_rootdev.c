@@ -97,6 +97,12 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 }
 
 static void rootdev_release_resource(device_t *dev, resource_t *r) {
+  /*
+   * NOTE: device can only release resources it doesn't own
+   * (i.e. resources allocated dynamically using direct calls to
+   * `bus_alloc_resource`).
+   */
+  assert(!device_is_owner(dev, r));
   bus_deactivate_resource(dev, r);
   resource_release(r);
 }

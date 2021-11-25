@@ -96,6 +96,9 @@ int device_probe(device_t *dev);
 int device_attach(device_t *dev);
 int device_detach(device_t *dev);
 
+/*! \brief Does `dev` own resource `r`? */
+bool device_is_owner(device_t *dev, resource_t *r);
+
 /*! \brief Add a resource entry to resource list. */
 void device_add_resource(device_t *dev, res_type_t type, int rid,
                          rman_addr_t start, rman_addr_t end, size_t size,
