@@ -156,14 +156,12 @@ void intr_event_remove_handler(intr_handler_t *ih) {
 
 static intr_root_filter_t ir_filter;
 static device_t *ir_dev;
-static void *ir_arg;
 
-void intr_root_claim(intr_root_filter_t filter, device_t *dev, void *arg) {
+void intr_root_claim(intr_root_filter_t filter, device_t *dev) {
   assert(filter != NULL);
 
   ir_filter = filter;
   ir_dev = dev;
-  ir_arg = arg;
 }
 
 __no_profile void intr_root_handler(ctx_t *ctx) {
@@ -179,7 +177,7 @@ __no_profile void intr_root_handler(ctx_t *ctx) {
   /* Explicitely disallow switching out to another thread. */
   PCPU_SET(no_switch, true);
   if (ir_filter != NULL)
-    ir_filter(ctx, ir_dev, ir_arg);
+    ir_filter(ctx, ir_dev);
   PCPU_SET(no_switch, false);
 
   /* If filter routine requested a context switch it's now time to handle it. */
