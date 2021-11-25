@@ -199,10 +199,8 @@ int bus_activate_resource(device_t *dev, resource_t *r);
  */
 void bus_deactivate_resource(device_t *dev, resource_t *r);
 
-static inline void bus_release_resource(device_t *dev, resource_t *r) {
-  device_t *idev = BUS_METHOD_PROVIDER(dev, release_resource);
-  bus_methods(idev->parent)->release_resource(idev, r);
-}
+/*! \brief Deactivates resource on device behalf. */
+void bus_release_resource(device_t *dev, resource_t *r);
 
 int bus_generic_probe(device_t *bus);
 

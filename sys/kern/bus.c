@@ -132,6 +132,17 @@ void bus_deactivate_resource(device_t *dev, resource_t *r) {
   }
 }
 
+void bus_release_resource(device_t *dev, resource_t *r) {
+  /*
+   * NOTE: device can only release resources it doesn't own
+   * (i.e. resources allocated dynamically using direct calls to
+   * `bus_alloc_resource`).
+   */
+  assert(!device_is_owner(dev, r));
+  device_t *idev = BUS_METHOD_PROVIDER(dev, release_resource);
+  bus_methods(idev->parent)->release_resource(idev, r);
+}
+
 /* System-wide current pass number. */
 static drv_pass_t current_pass;
 
