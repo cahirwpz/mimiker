@@ -258,11 +258,9 @@ class RENODE(Launchable):
         self.options = getopts('renode.options')
 
         script = getvar('renode.script', failok=False)
-        self.options += [f'-e include @sys/renode/scripts/{script}']
+        self.options += [f'-e include @scripts/single-node/{script}']
 
-        uarts = getvar('renode.uarts')
-        for i in range(len(uarts)):
-            uart = uarts[i]
+        for i, uart in enumerate(getvar('renode.uarts')):
             port = uart['port']
             dev = f'uart{i}'
             self.options += ['-e emulation CreateServerSocketTerminal ' +
@@ -273,6 +271,8 @@ class RENODE(Launchable):
             gdbport = getvar('config.gdbport', failok=False)
             self.options += [f'-e machine StartGdbServer {gdbport}']
 
+        # TODO(MichalBlk): we should enable passing kernel args through
+        # the launch script by introducing parameterizable DTS files.
         if getvar('config.args'):
             raise Exception('kernel args for renode must be passed via dtb')
 
