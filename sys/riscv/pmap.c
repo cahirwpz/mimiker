@@ -7,6 +7,7 @@
 #include <sys/mimiker.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
+#include <sys/pool.h>
 #include <sys/pmap.h>
 #include <sys/spinlock.h>
 #include <sys/vm_physmem.h>
@@ -32,6 +33,8 @@ static pmap_t kernel_pmap;
 /* Bitmap of used ASIDs. */
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
 static SPIN_DEFINE(asid_lock, 0);
+
+static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 
 /*
  * The following table describes which access bits need to be set in page table
@@ -354,7 +357,15 @@ void init_pmap(void) {
 }
 
 pmap_t *pmap_new(void) {
-  panic("Not implemented!");
+  pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
+  pmap_setup(pmap);
+
+  vm_page_t *pg = pmap_pagealloc();
+  TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
+  pmap->pde = pg->paddr;
+  klog("Page directory table allocated at %p", pmap->pde);
+
+  return pmap;
 }
 
 void pmap_activate(pmap_t *pmap) {
@@ -382,7 +393,7 @@ void pmap_bootstrap(paddr_t pd_pa, pd_entry_t *pd_va) {
   /* We assume maximum physical address < 2^((sizeof(paddr_t) * 8)). */
   assert(dmap_paddr_base < dmap_paddr_end);
 
-  klog("physical memory range: %p - %p", dmap_paddr_base, dmap_paddr_end - 1);
+  klog("Physical memory range: %p - %p", dmap_paddr_base, dmap_paddr_end - 1);
 
   /* Build a direct map using 4MiB superpages. */
   size_t idx = L0_INDEX(DMAP_VADDR_BASE);

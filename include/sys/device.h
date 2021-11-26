@@ -23,6 +23,7 @@ typedef int (*d_detach_t)(device_t *dev);
 typedef enum {
   DIF_BUS,
   DIF_PCI_BUS,
+  DIF_IC,
   DIF_UART,
   DIF_EMMC,
   DIF_USBHC,
@@ -71,6 +72,7 @@ typedef enum {
 struct device {
   /* Device hierarchy. */
   device_t *parent; /* parent node (bus?) or null (root or pseudo-dev) */
+  device_t *ic;     /* device's interrupt controller */
   TAILQ_ENTRY(device) link; /* node on list of siblings */
   device_list_t children;   /* head of children devices */
 
@@ -79,6 +81,7 @@ struct device {
   driver_t *driver;
   devclass_t *devclass; /* (for buses) device class of children */
   int unit;
+  int node;                  /* FDT device node offset */
   void *instance;            /* used by bus driver to store data in children */
   void *state;               /* memory requested by driver for its state */
   resource_list_t resources; /* used by driver, assigned by parent bus */
@@ -91,6 +94,7 @@ static inline bool device_bus(device_t *dev) {
 
 device_t *device_alloc(int unit);
 device_t *device_add_child(device_t *parent, int unit);
+device_t *device_child_with_node(device_t *parent, int node);
 void device_remove_child(device_t *parent, device_t *dev);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);

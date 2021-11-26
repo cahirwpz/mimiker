@@ -134,9 +134,6 @@ extern bus_space_t *generic_bus_space;
 #define bus_space_map(t, a, s, hp) (*(t)->bs_map)((a), (s), (hp))
 
 struct bus_methods {
-  void (*intr_setup)(device_t *dev, resource_t *irq, ih_filter_t *filter,
-                     ih_service_t *service, void *arg, const char *name);
-  void (*intr_teardown)(device_t *dev, resource_t *irq);
   resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
                                 rman_addr_t start, rman_addr_t end, size_t size,
                                 rman_flags_t flags);
@@ -153,11 +150,6 @@ static inline bus_methods_t *bus_methods(device_t *dev) {
  * above `device_method_provider` in include/sys/device.c */
 #define BUS_METHOD_PROVIDER(dev, method)                                       \
   (device_method_provider((dev), DIF_BUS, offsetof(struct bus_methods, method)))
-
-void bus_intr_setup(device_t *dev, resource_t *irq, ih_filter_t *filter,
-                    ih_service_t *service, void *arg, const char *name);
-
-void bus_intr_teardown(device_t *dev, resource_t *irq);
 
 /*! \brief Allocates a resource of type \a type and size \a size between
  * \a start and \a end for a device \a dev.

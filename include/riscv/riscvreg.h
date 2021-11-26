@@ -39,7 +39,11 @@
 #ifndef _RISCV_RISCVREG_H_
 #define _RISCV_RISCVREG_H_
 
+#if __riscv_xlen == 64
 #define SCAUSE_INTR (1ul << 63)
+#else
+#define SCAUSE_INTR (1 << 31)
+#endif
 #define SCAUSE_CODE (~SCAUSE_INTR)
 #define SCAUSE_INST_MISALIGNED 0
 #define SCAUSE_INST_ACCESS_FAULT 1
@@ -60,8 +64,10 @@
 #define SSTATUS_UPIE (1 << 4)
 #define SSTATUS_SPIE (1 << 5)
 #define SSTATUS_SPIE_SHIFT 5
-#define SSTATUS_SPP (1 << 8)
 #define SSTATUS_SPP_SHIFT 8
+#define SSTATUS_SPP_USER (0 << SSTATUS_SPP_SHIFT)
+#define SSTATUS_SPP_SUPV (1 << SSTATUS_SPP_SHIFT)
+#define SSTATUS_SPP_MASK (1 << SSTATUS_SPP_SHIFT)
 #define SSTATUS_FS_SHIFT 13
 #define SSTATUS_FS_OFF (0x0 << SSTATUS_FS_SHIFT)
 #define SSTATUS_FS_INITIAL (0x1 << SSTATUS_FS_SHIFT)
@@ -179,5 +185,10 @@
 #else
 #define csr_read64(csr) ((uint64_t)csr_read(csr))
 #endif
+
+#define rdcycle() csr_read64(cycle)
+#define rdtime() csr_read64(time)
+#define rdinstret() csr_read64(instret)
+#define rdhpmcounter(n) csr_read64(hpmcounter##n)
 
 #endif /* !_RISCV_RISCVREG_H_ */

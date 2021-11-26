@@ -37,16 +37,16 @@ uart0: UART.LiteX_UART @ sysbus 0xf0001000
  */
 
 clint: IRQControllers.CoreLevelInterruptor @ sysbus 0xf0010000
-    frequency: 1000000
+    frequency: 100000000
     [0, 1] -> cpu@[3, 7]
 
 /* 0xf0020000 - 0xf1000000: unused */
 
 plic: IRQControllers.PlatformLevelInterruptController @ sysbus 0xf1000000
     numberOfSources: 16
-    numberOfContexts: 2
+    numberOfContexts: 1
     prioritiesEnabled: false
-    [0, 1] -> cpu@[11, 9]
+    [0] -> cpu@[9]
 
 /* 
  * TODO: Manage unused ranges for additional peripherals

@@ -28,6 +28,15 @@ void device_remove_child(device_t *parent, device_t *dev) {
   kfree(M_DEV, dev);
 }
 
+device_t *device_child_with_node(device_t *parent, int node) {
+  device_t *dev;
+  TAILQ_FOREACH (dev, &parent->children, link) {
+    if (dev->node == node)
+      return dev;
+  }
+  return NULL;
+}
+
 /* TODO: this routine should go over all drivers within a suitable class and
  * choose the best driver. For now the user is responsible for setting the
  * driver before calling `device_probe`. */
@@ -68,7 +77,11 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
                          rman_addr_t start, rman_addr_t end, size_t size,
                          rman_flags_t flags) {
   assert(!resource_list_find(dev, rid, type));
-  resource_t *r = bus_alloc_resource(dev, type, rid, start, end, size, flags);
+  resource_t *r;
+  if (type == RT_IRQ)
+    r = intr_alloc(dev, rid, start);
+  else
+    r = bus_alloc_resource(dev, type, rid, start, end, size, flags);
   assert(r);
   SLIST_INSERT_HEAD(&dev->resources, r, r_link);
 }
@@ -79,7 +92,7 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
   if (!r)
     return NULL;
 
-  if (flags & RF_ACTIVE)
+  if ((type != RT_IRQ) && (flags & RF_ACTIVE))
     bus_activate_resource(dev, r);
 
   return r;

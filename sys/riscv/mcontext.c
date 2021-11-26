@@ -2,7 +2,13 @@
 #include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/mimiker.h>
+#include <sys/pcpu.h>
 #include <riscv/mcontext.h>
+#include <riscv/riscvreg.h>
+
+#ifdef __riscv_c
+#error "Mimiker assumes four-byte instructions!"
+#endif
 
 #define __gp()                                                                 \
   ({                                                                           \
@@ -15,8 +21,20 @@ void ctx_init(ctx_t *ctx, void *pc, void *sp) {
   bzero(ctx, sizeof(ctx_t));
 
   _REG(ctx, GP) = __gp();
+  _REG(ctx, TP) = (register_t)_pcpu_data;
   _REG(ctx, PC) = (register_t)pc;
   _REG(ctx, SP) = (register_t)sp;
+
+  /*
+   * Supervisor status register:
+   *  - Make executable readable = FALSE
+   *  - Permit supervisor user memory access = FALSE
+   *  - Floating point extension state = OFF
+   *  - Supervisor previous privilege mode = SUPERVISOR
+   *  - Supervisor previous interrupt enabled = TRUE
+   *  - Supervisor interrupt enabled = FALSE
+   */
+  _REG(ctx, SR) = SSTATUS_FS_OFF | SSTATUS_SPP_SUPV | SSTATUS_SPIE;
 }
 
 void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg) {
@@ -40,15 +58,24 @@ void mcontext_init(mcontext_t *ctx, void *pc, void *sp) {
   bzero(ctx, sizeof(mcontext_t));
 
   /* NOTE: global pointer will be set by the csu library. */
-  _REG(ctx, GP) = (register_t)0;
   _REG(ctx, PC) = (register_t)pc;
   _REG(ctx, SP) = (register_t)sp;
+
+  /*
+   * Supervisor status register:
+   *  - Make executable readable = FALSE
+   *  - Permit supervisor user memory access = FALSE
+   *  - Floating point extension state = OFF
+   *  - Supervisor previous privilege mode = USER
+   *  - Supervisor previous interrupt enabled = TRUE
+   *  - Supervisor interrupt enabled = FALSE
+   */
+  _REG(ctx, SR) = SSTATUS_FS_OFF | SSTATUS_SPP_USER | SSTATUS_SPIE;
 }
 
 void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
   _REG(ctx, X10) = value;
   _REG(ctx, X11) = error;
-  /* XXX: we assume the C extension is not supported. */
   _REG(ctx, PC) += 4;
 }
 
@@ -57,7 +84,7 @@ void mcontext_restart_syscall(mcontext_t *ctx) {
 }
 
 __no_profile bool user_mode_p(ctx_t *ctx) {
-  panic("Not implemented!");
+  return (_REG(ctx, SR) & SSTATUS_SPP_MASK) == SSTATUS_SPP_USER;
 }
 
 long ctx_switch(thread_t *from, thread_t *to) {

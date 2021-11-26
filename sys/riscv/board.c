@@ -11,6 +11,7 @@
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 #include <riscv/mcontext.h>
+#include <riscv/sbi.h>
 #include <riscv/vm_param.h>
 
 #define __wfi() __asm__ __volatile__("wfi")
@@ -21,52 +22,52 @@ static void __noreturn halt(void) {
   }
 }
 
-static size_t count_args(void *dtb) {
+static size_t count_args(void) {
   /*
    * NOTE: tokens: mem_start, mem_size, memrsvd_start, memrsvd_size,
    * rd_start, rd_size, tokens in cmdline.
    */
   size_t ntokens = 8;
-  const char *cmdline = dtb_cmdline(dtb);
+  const char *cmdline = dtb_cmdline();
   ntokens += cmdline_count_tokens(cmdline);
   return ntokens;
 }
 
-static void process_args(char **tokens, kstack_t *stk, void *dtb) {
+static void process_args(char **tokens, kstack_t *stk) {
   char buf[32];
   uint32_t start, size;
 
   /* Memory boundaries. */
-  dtb_mem(dtb, &start, &size);
+  dtb_mem(&start, &size);
   snprintf(buf, sizeof(buf), "mem_start=%u", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
   snprintf(buf, sizeof(buf), "mem_size=%u", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
 
   /* Reserved memory boundaries. */
-  dtb_memrsvd(dtb, &start, &size);
+  dtb_memrsvd(&start, &size);
   snprintf(buf, sizeof(buf), "memrsvd_start=%u", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
   snprintf(buf, sizeof(buf), "memrsvd_size=%u", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
 
   /* Initrd memory boundaries. */
-  dtb_rd(dtb, &start, &size);
+  dtb_rd(&start, &size);
   snprintf(buf, sizeof(buf), "rd_start=%u", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
   snprintf(buf, sizeof(buf), "rd_size=%u", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
 
   /* Kernel cmdline. */
-  tokens = cmdline_extract_tokens(stk, dtb_cmdline(dtb), tokens);
+  tokens = cmdline_extract_tokens(stk, dtb_cmdline(), tokens);
   *tokens = NULL;
 }
 
-void *board_stack(paddr_t dtb_pa, void *dtb_va) {
-  if (fdt_check_header(dtb_va))
+void *board_stack(paddr_t dtb_pa, vaddr_t dtb_va) {
+  if (fdt_check_header((void *)dtb_va))
     halt();
 
-  dtb_early_init(dtb_pa, fdt_totalsize(dtb_va));
+  dtb_early_init(dtb_pa, dtb_va, fdt_totalsize(dtb_va));
 
   kstack_t *stk = &thread0.td_kstack;
 
@@ -77,9 +78,9 @@ void *board_stack(paddr_t dtb_pa, void *dtb_va) {
    */
   thread0.td_uctx = kstack_alloc_s(stk, mcontext_t);
 
-  size_t ntokens = count_args(dtb_va);
+  size_t ntokens = count_args();
   char **kenvp = kstack_alloc(stk, (ntokens + 2) * sizeof(char *));
-  process_args(kenvp, stk, dtb_va);
+  process_args(kenvp, stk);
   kstack_fix_bottom(stk);
 
   init_kenv(kenvp);
@@ -172,6 +173,7 @@ static void physmem_regions(void) {
 }
 
 void __noreturn board_init(void) {
+  sbi_init();
   physmem_regions();
   intr_enable();
   kernel_init();

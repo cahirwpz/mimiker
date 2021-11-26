@@ -10,6 +10,27 @@
 		linux,initrd-end = <0x86000000>;
 	};
 
+	cpus {
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+		timebase-frequency = <100000000>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "riscv";
+			riscv,isa = "rv32ima";
+			mmu-type = "riscv,sv32";
+			reg = <0x00>;
+			status = "okay";
+
+			hlic: interrupt-controller {
+				#interrupt-cells = <0x01>;
+				interrupt-controller;
+				compatible = "riscv,cpu-intc";
+			};
+		};
+	};
+
 	memory@0x80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>;
@@ -22,6 +43,28 @@
 
 		opensbi@80000000 {
 			reg = <0x80000000 0x80000>;
+		};
+	};
+
+	soc {
+		#address-cells = <0x01>;
+		#size-cells = <0x01>;
+		compatible = "simple-bus";
+		ranges;
+
+		clint@f0010000 {
+			compatible = "riscv,clint0";
+			interrupts-extended = <&hlic 1 &hlic 5>;
+			reg = <0xf0010000 0x10000>;
+		};
+
+		plic: interrupt-controller@f1000000 {
+			#interrupt-cells = <0x01>;
+			compatible = "riscv,plic0";
+			interrupt-controller;
+			interrupts-extended = <&hlic 9>;
+			reg = <0xf1000000 0x400000>;
+			riscv,ndev = <0x10>;
 		};
 	};
 };

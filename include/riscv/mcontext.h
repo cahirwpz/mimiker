@@ -36,7 +36,7 @@
 
 #include <sys/types.h>
 
-#define _NGREG 32 /* GR1-31, PC */
+#define _NGREG 35 /* GR1-31, PC, SR, TVAL, CAUSE */
 #define _NFREG 33 /* F0-31, FCSR */
 
 union __fpreg {
@@ -79,7 +79,11 @@ typedef union __fpreg __fregset_t[_NFREG];
 #define _REG_X29 28
 #define _REG_X30 29
 #define _REG_X31 30
+
 #define _REG_PC 31
+#define _REG_SR 32
+#define _REG_TVAL 33
+#define _REG_CAUSE 34
 
 #define _REG_RA _REG_X1
 #define _REG_SP _REG_X2

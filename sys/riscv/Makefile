@@ -10,6 +10,7 @@ SOURCES-RISCV = \
 	interrupt.c \
 	mcontext.c \
 	pmap.c \
+	sbi.c \
 	signal.c \
 	start.S \
 	thread.c \

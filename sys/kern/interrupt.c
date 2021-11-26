@@ -227,6 +227,22 @@ void intr_event_run_handlers(intr_event_t *ie) {
     klog("Spurious %s interrupt!", ie->ie_name);
 }
 
+void intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
+                ih_service_t *service, void *arg, const char *name) {
+  device_t *ic = dev->ic;
+  ic_methods(ic)->intr_setup(ic, dev, r, filter, service, arg, name);
+  if (r->r_handler)
+    resource_activate(r);
+}
+
+void intr_teardown(device_t *dev, resource_t *r) {
+  assert(resource_active(r));
+  device_t *ic = dev->ic;
+  ic_methods(ic)->intr_teardown(ic, dev, r);
+  r->r_handler = NULL;
+  resource_deactivate(r);
+}
+
 static void intr_thread(void *arg) {
   intr_event_t *ie = (intr_event_t *)arg;
 
