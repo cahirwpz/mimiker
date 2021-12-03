@@ -12,22 +12,14 @@ CLEAN-FILES += mimiker.elf.map
 
 include $(TOPDIR)/build/build.kern.mk
 
-LDFLAGS += -T $(TOPDIR)/sys/kernel.ld
+LDSCRIPT = $(ARCH)/$(ARCH).ld
+LDFLAGS += -T $(TOPDIR)/sys/$(LDSCRIPT)
 LDLIBS	= -Wl,--start-group \
 	    -Wl,--whole-archive $(KLIBLIST) -Wl,--no-whole-archive \
             -lgcc \
           -Wl,--end-group
 
-kernel.ld: $(ARCH)/$(ARCH).ld
-	@echo "[CPP] $(DIR)$< -> $(DIR)$@"
-ifeq ($(CPPLDSCRIPT), 1)
-	$(CPP) $(CPPFLAGS) -I$(TOPDIR)/include $< | grep -v '^#' | \
-		grep -v '^$$' > $@
-else
-	$(CP) $< $@
-endif
-
-mimiker.elf: $(KLIBDEPS) kernel.ld
+mimiker.elf: $(KLIBDEPS) $(LDSCRIPT)
 	@echo "[LD] Linking kernel image: $@"
 	$(LD) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
 
@@ -57,4 +49,4 @@ etags tags:
 	$(CTAGS) --language-force=asm -aef etags $(SRCFILES_ASM)
 
 BUILD-FILES += cscope.out etags tags
-CLEAN-FILES += *.taghl kernel.ld
+CLEAN-FILES += *.taghl
