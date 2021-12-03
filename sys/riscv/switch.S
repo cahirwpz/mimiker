@@ -58,6 +58,8 @@
 
 	load_reg a0, CTX_RV
 
+	load_csr sstatus, CTX_SR
+
 	PTR_ADDI sp, sp, CTX_SIZE
 .endm
 
