@@ -50,7 +50,14 @@
 #define ENTRY(x)                                                               \
   .text;                                                                       \
   _ENTRY(x)
+
 #define END(x) .size _C_LABEL(x), .- _C_LABEL(x)
+
+#define LOAD_GP                                                                \
+  .option push;                                                                \
+  .option norelax;                                                             \
+  PTR_LA gp, __global_pointer$;                                                \
+  .option pop
 
 #define FP_L fld
 #define FP_S fsd
