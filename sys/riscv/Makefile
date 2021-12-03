@@ -13,8 +13,10 @@ SOURCES-RISCV = \
 	sbi.c \
 	signal.c \
 	start.S \
+	switch.S \
 	thread.c \
-	tlb.c
+	tlb.c \
+	trap.c
 
 CLEAN-FILES += assym.h riscv.ld
 

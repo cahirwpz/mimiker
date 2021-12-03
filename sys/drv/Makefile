@@ -33,6 +33,7 @@ SOURCES-AARCH64 = \
 
 SOURCES-RISCV = \
 	clint.c \
+	liteuart.c \
 	plic.c \
 	riscv_rootdev.c
 

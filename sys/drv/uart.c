@@ -1,5 +1,6 @@
 #include <sys/spinlock.h>
 #include <sys/ringbuf.h>
+#include <sys/time.h>
 #include <dev/uart.h>
 #include <sys/uart_tty.h>
 
@@ -51,4 +52,11 @@ intr_filter_t uart_intr(void *data /* device_t* */) {
   }
 
   return res;
+}
+
+void uart_thread(void *data /* device_t* */) {
+  for (;;) {
+    (void)uart_intr(data);
+    mdelay(100);
+  }
 }

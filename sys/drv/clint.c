@@ -25,7 +25,7 @@ static intr_filter_t clint_timer_intr(void *data) {
 
   if (sip & SIP_STIP) {
     sbi_set_timer(rdtime() + clint->timer_step);
-    csr_clear(sip, SIP_STIP);
+    /* Root bus device will clear the interrupt. */
     return IF_FILTERED;
   }
 
@@ -37,7 +37,7 @@ static int clint_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
   device_t *dev = tm->tm_priv;
   clint_state_t *clint = dev->state;
 
-  clint->timer_step = bintime_mul(period, tm->tm_frequency).sec;
+  clint->timer_step = /*bintime_mul(period, tm->tm_frequency).sec*/ 0x10;
 
   intr_setup(dev, clint->timer_irq, clint_timer_intr, NULL, clint,
              "CLINT timer");

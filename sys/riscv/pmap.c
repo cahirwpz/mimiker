@@ -9,6 +9,7 @@
 #include <sys/pcpu.h>
 #include <sys/pool.h>
 #include <sys/pmap.h>
+#include <sys/sched.h>
 #include <sys/spinlock.h>
 #include <sys/vm_physmem.h>
 #include <riscv/pmap.h>
@@ -16,10 +17,13 @@
 #include <riscv/tlb.h>
 #include <riscv/vm_param.h>
 
+#define __sfence_vma() __asm __volatile("sfence.vma" ::: "memory")
+
 typedef struct pmap {
   mtx_t mtx;               /* protects all fields in this structure */
   asid_t asid;             /* address space identifier */
   paddr_t pde;             /* directory page table physical address */
+  paddr_t satp;            /* supervisor address translation and protection */
   vm_pagelist_t pte_pages; /* pages we allocate in page table */
 } pmap_t;
 
@@ -347,29 +351,44 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
 
 static void pmap_setup(pmap_t *pmap) {
   pmap->asid = alloc_asid();
+  pmap->satp = SATP_MODE_SV32 | (pmap->pde >> PAGE_SHIFT);
   mtx_init(&pmap->mtx, 0);
   TAILQ_INIT(&pmap->pte_pages);
 }
 
 void init_pmap(void) {
-  pmap_setup(&kernel_pmap);
   kernel_pmap.pde = kernel_pde;
+  pmap_setup(&kernel_pmap);
 }
 
 pmap_t *pmap_new(void) {
   pmap_t *pmap = pool_alloc(P_PMAP, M_ZERO);
+  vm_page_t *pg = pmap_pagealloc();
+  pmap->pde = pg->paddr;
   pmap_setup(pmap);
 
-  vm_page_t *pg = pmap_pagealloc();
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
-  pmap->pde = pg->paddr;
   klog("Page directory table allocated at %p", pmap->pde);
 
   return pmap;
 }
 
 void pmap_activate(pmap_t *pmap) {
-  panic("Not implemented!");
+  SCOPED_NO_PREEMPTION();
+
+  pmap_t *old = PCPU_GET(curpmap);
+  if (pmap == old)
+    return;
+
+  /* XXX: remove the following! */
+  void *kpd = (void *)phys_to_dmap(kernel_pmap.pde);
+  void *cpd = (void *)phys_to_dmap(pmap->pde);
+  memcpy(cpd, kpd, PAGESIZE);
+
+  csr_write(satp, pmap->satp);
+  PCPU_SET(curpmap, pmap);
+
+  __sfence_vma();
 }
 
 void pmap_delete(pmap_t *pmap) {

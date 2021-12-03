@@ -93,25 +93,14 @@ static void hlic_intr_release(device_t *ic, device_t *dev, resource_t *r) {
 static void hlic_intr_handler(ctx_t *ctx, device_t *bus, void *arg) {
   rootdev_t *rd = bus->state;
   unsigned long cause = _REG(ctx, CAUSE) & SCAUSE_CODE;
-  unsigned long clear = 0;
+  assert(cause < HLIC_NIRQS);
 
-  if (cause & (1 << HLIC_IRQ_EXTERNAL_SUPERVISOR)) {
-    intr_event_run_handlers(rd->intr_event[HLIC_IRQ_EXTERNAL_SUPERVISOR]);
-    clear |= 1 << HLIC_IRQ_EXTERNAL_SUPERVISOR;
-  }
+  intr_event_t *ie = rd->intr_event[cause];
+  if (!ie)
+    panic("Unknown HLIC interrupt %u!", cause);
 
-  if (cause & (1 << HLIC_IRQ_TIMER_SUPERVISOR)) {
-    intr_event_run_handlers(rd->intr_event[HLIC_IRQ_TIMER_SUPERVISOR]);
-    clear |= 1 << HLIC_IRQ_TIMER_SUPERVISOR;
-  }
-
-  if (cause & (1 << HLIC_IRQ_SOFTWARE_SUPERVISOR)) {
-    intr_event_run_handlers(rd->intr_event[HLIC_IRQ_SOFTWARE_SUPERVISOR]);
-    clear |= 1 << HLIC_IRQ_SOFTWARE_SUPERVISOR;
-  }
-
-  assert(clear);
-  csr_clear(sip, clear);
+  intr_event_run_handlers(ie);
+  csr_clear(sip, 1 << cause);
 }
 
 /*
@@ -120,8 +109,8 @@ static void hlic_intr_handler(ctx_t *ctx, device_t *bus, void *arg) {
 
 static int rootdev_activate_resource(device_t *dev, resource_t *r) {
   assert(r->r_type == RT_MEMORY);
-  return bus_space_map(r->r_bus_tag, resource_start(r), resource_size(r),
-                       &r->r_bus_handle);
+  return bus_space_map(r->r_bus_tag, resource_start(r),
+                       roundup(resource_size(r), PAGESIZE), &r->r_bus_handle);
 }
 
 static void rootdev_deactivate_resource(device_t *dev, resource_t *r) {
@@ -201,8 +190,17 @@ static int rootdev_attach(device_t *bus) {
 
   /* TODO(MichalBlk): discover devices using FDT. */
 
-  /* Create RISC-V CLINT device and assign resources to it. */
+  /* Create liteuart device and assign resources to it. */
   device_t *dev = device_add_child(bus, 0);
+  dev->ic = bus;
+  node = fdt_subnode_offset(dtb, soc_node, "serial");
+  assert(node >= 0);
+  dtb_reg(node, &prop, &len);
+  device_add_memory(dev, 0, fdt32_to_cpu(prop[0]), fdt32_to_cpu(prop[1]));
+  dev->node = node;
+
+  /* Create RISC-V CLINT device and assign resources to it. */
+  dev = device_add_child(bus, 1);
   dev->ic = bus;
   node = fdt_subnode_offset(dtb, soc_node, "clint");
   assert(node >= 0);
@@ -213,7 +211,7 @@ static int rootdev_attach(device_t *bus) {
   dev->node = node;
 
   /* Create RISC-V PLIC device and assign resources to it. */
-  dev = device_add_child(bus, 1);
+  dev = device_add_child(bus, 2);
   dev->ic = bus;
   node = fdt_subnode_offset(dtb, soc_node, "interrupt-controller");
   assert(node >= 0);

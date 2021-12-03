@@ -5,8 +5,8 @@
  */
 cpu: CPU.VexRiscv @ sysbus
     cpuType: "rv32ima"
-    hartId: 0
     privilegeArchitecture: PrivilegeArchitecture.Priv1_10
+    builtInIrqController: false
     timeProvider: clint
 
 /*
@@ -28,7 +28,6 @@ ram: Memory.MappedMemory @ sysbus 0x80000000
 soc_controller: Miscellaneous.LiteX_SoC_Controller @ sysbus 0xf0000000
 
 uart0: UART.LiteX_UART @ sysbus 0xf0001000
-    IRQ -> plic@0
 
 /* 0xf0002000 - 0xf0010000: unused. */
 
@@ -37,7 +36,7 @@ uart0: UART.LiteX_UART @ sysbus 0xf0001000
  */
 
 clint: IRQControllers.CoreLevelInterruptor @ sysbus 0xf0010000
-    frequency: 100000000
+    frequency: 1000000
     [0, 1] -> cpu@[3, 7]
 
 /* 0xf0020000 - 0xf1000000: unused */

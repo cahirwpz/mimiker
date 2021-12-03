@@ -74,8 +74,8 @@ void mcontext_init(mcontext_t *ctx, void *pc, void *sp) {
 }
 
 void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
-  _REG(ctx, X10) = value;
-  _REG(ctx, X11) = error;
+  _REG(ctx, A0) = value;
+  _REG(ctx, A1) = error;
   _REG(ctx, PC) += 4;
 }
 
@@ -85,10 +85,6 @@ void mcontext_restart_syscall(mcontext_t *ctx) {
 
 __no_profile bool user_mode_p(ctx_t *ctx) {
   return (_REG(ctx, SR) & SSTATUS_SPP_MASK) == SSTATUS_SPP_USER;
-}
-
-long ctx_switch(thread_t *from, thread_t *to) {
-  panic("Not implemented!");
 }
 
 int do_setcontext(thread_t *td, ucontext_t *uc) {

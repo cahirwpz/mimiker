@@ -63,7 +63,7 @@
 #define LOAD_GP                                                                \
   .option push;                                                                \
   .option norelax;                                                             \
-  la gp, __global_pointer$;                                                    \
+  PTR_LA gp, __global_pointer$;                                                \
   .option pop
 
 #define FP_L fld
