@@ -120,18 +120,11 @@ CONFIG = {
         },
         'board': {
             'vexriscv': {
-                'script': 'vexriscv.resc',
+                'script': 'litex_vexriscv_mimiker.resc',
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort())
                 ]
             }
-        }
-    },
-    'renode': {
-        'options': {
-            '--console',
-        },
-        'board': {
         }
     },
     'gdb': {
