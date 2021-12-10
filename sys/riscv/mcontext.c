@@ -1,8 +1,11 @@
 #include <sys/context.h>
+#include <sys/errno.h>
 #include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
+#include <sys/thread.h>
+#include <sys/ucontext.h>
 #include <riscv/mcontext.h>
 #include <riscv/riscvreg.h>
 
@@ -88,5 +91,16 @@ __no_profile bool user_mode_p(ctx_t *ctx) {
 }
 
 int do_setcontext(thread_t *td, ucontext_t *uc) {
-  panic("Not implemented!");
+  mcontext_t *from = &uc->uc_mcontext;
+  mcontext_t *to = td->td_uctx;
+
+  /* registers RA-PC */
+  if (uc->uc_flags & _UC_CPU) {
+    size_t gregsz = sizeof(__greg_t) * (_REG_PC - _REG_RA + 1);
+    memcpy(&_REG(to, RA), &_REG(from, RA), gregsz);
+  }
+
+  /* TODO(MichalBlk): handle FPE state. */
+
+  return EJUSTRETURN;
 }

@@ -1,5 +1,6 @@
 #define KL_LOG KL_PMAP
 #include <bitstring.h>
+#include <sys/errno.h>
 #include <sys/kasan.h>
 #include <sys/kenv.h>
 #include <sys/klog.h>
@@ -25,20 +26,19 @@ typedef struct pmap {
   paddr_t pde;             /* directory page table physical address */
   paddr_t satp;            /* supervisor address translation and protection */
   vm_pagelist_t pte_pages; /* pages we allocate in page table */
+  LIST_ENTRY(pmap) pmap_link;     /* link on `user_pmaps` */
+  TAILQ_HEAD(, pv_entry) pv_list; /* all pages mapped by this physical map */
 } pmap_t;
 
-/* Physical memory boundaries. */
-static paddr_t dmap_paddr_base;
-static paddr_t dmap_paddr_end;
-
-static paddr_t kernel_pde;
-static pmap_t kernel_pmap;
-
-/* Bitmap of used ASIDs. */
-static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
-static SPIN_DEFINE(asid_lock, 0);
+typedef struct pv_entry {
+  TAILQ_ENTRY(pv_entry) pmap_link; /* link on pmap::pv_list */
+  TAILQ_ENTRY(pv_entry) page_link; /* link on vm_page::pv_list */
+  pmap_t *pmap;                    /* page is mapped in this pmap */
+  vaddr_t va;                      /* under this address */
+} pv_entry_t;
 
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
+static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 
 /*
  * The following table describes which access bits need to be set in page table
@@ -75,7 +75,34 @@ static const pt_entry_t vm_prot_map[] = {
     PTE_D | PTE_X | PTE_W | PTE_R | pte_common,
 };
 
-#define PG_DMAP_ADDR(pg) ((void *)phys_to_dmap((pg)->paddr))
+/* Physical memory boundaries. */
+static paddr_t dmap_paddr_base;
+static paddr_t dmap_paddr_end;
+
+static paddr_t kernel_pde;
+static pmap_t kernel_pmap;
+
+/* Bitmap of used ASIDs. */
+static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
+static SPIN_DEFINE(asid_lock, 0);
+
+/*
+ * This lock is used to protect the vm_page::pv_list field.
+ * Order of acquiring locks:
+ *  - pv_list_lock
+ *  - pmap_t::mtx
+ */
+static MTX_DEFINE(pv_list_lock, 0);
+
+/*
+ * The list off all the user pmaps.
+ * Order of acquiring locks:
+ *  - `kernel_pmap->mtx`
+ *  - user_pmaps_lock
+ */
+static MTX_DEFINE(user_pmaps_lock, 0);
+static LIST_HEAD(, pmap) user_pmaps = LIST_HEAD_INITIALIZER(user_pmaps);
+
 #define PAGE_OFFSET(va) ((va) & (PAGESIZE - 1))
 
 /*
@@ -135,6 +162,10 @@ static inline vaddr_t phys_to_dmap(paddr_t addr) {
   return (vaddr_t)(addr - dmap_paddr_base) + DMAP_VADDR_BASE;
 }
 
+static inline vaddr_t pg_dmap_addr(vm_page_t *pg) {
+  return phys_to_dmap(pg->paddr);
+}
+
 static vm_page_t *pmap_pagealloc(void) {
   vm_page_t *pg = vm_page_alloc(1);
   pmap_zero_page(pg);
@@ -142,11 +173,11 @@ static vm_page_t *pmap_pagealloc(void) {
 }
 
 void pmap_zero_page(vm_page_t *pg) {
-  bzero(PG_DMAP_ADDR(pg), PAGESIZE);
+  bzero((void *)pg_dmap_addr(pg), PAGESIZE);
 }
 
 void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
-  memcpy(PG_DMAP_ADDR(dst), PG_DMAP_ADDR(src), PAGESIZE);
+  memcpy((void *)pg_dmap_addr(dst), (void *)pg_dmap_addr(src), PAGESIZE);
 }
 
 /*
@@ -165,7 +196,7 @@ static asid_t alloc_asid(void) {
   return free;
 }
 
-static __unused void free_asid(asid_t asid) {
+static void free_asid(asid_t asid) {
   klog("free_asid(%d)", asid);
   SCOPED_SPIN_LOCK(&asid_lock);
   bit_clear(asid_used, (unsigned)asid);
@@ -173,11 +204,45 @@ static __unused void free_asid(asid_t asid) {
 }
 
 /*
+ * Physical-to-virtual entries are managed for all pageable mappings.
+ */
+
+static void pv_add(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
+  assert(mtx_owned(&pv_list_lock));
+  pv_entry_t *pv = pool_alloc(P_PV, M_ZERO);
+  pv->pmap = pmap;
+  pv->va = va;
+  TAILQ_INSERT_TAIL(&pg->pv_list, pv, page_link);
+  TAILQ_INSERT_TAIL(&pmap->pv_list, pv, pmap_link);
+}
+
+static pv_entry_t *pv_find(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
+  assert(mtx_owned(&pv_list_lock));
+  pv_entry_t *pv;
+  TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
+    if (pv->pmap == pmap && pv->va == va)
+      return pv;
+  }
+  return NULL;
+}
+
+static void pv_remove(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
+  assert(mtx_owned(&pv_list_lock));
+  pv_entry_t *pv = pv_find(pmap, va, pg);
+  TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+  TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+  pool_free(P_PV, pv);
+}
+
+/*
  * Routines for accessing page table entries.
  */
 
 static paddr_t pmap_alloc_pde(pmap_t *pmap, vaddr_t va) {
+  assert(mtx_owned(&pmap->mtx));
+
   vm_page_t *pg = pmap_pagealloc();
+  assert(pg);
 
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
 
@@ -200,6 +265,10 @@ static pt_entry_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va) {
   return (pt_entry_t *)phys_to_dmap(pa) + L1_INDEX(va);
 }
 
+static inline pd_entry_t make_pde(paddr_t pa) {
+  return PA_TO_PTE(pa) | PTE_V;
+}
+
 static pt_entry_t make_pte(paddr_t pa, vm_prot_t prot, unsigned flags,
                            bool kernel) {
   pt_entry_t pte = PA_TO_PTE(pa) | vm_prot_map[prot];
@@ -210,7 +279,8 @@ static pt_entry_t make_pte(paddr_t pa, vm_prot_t prot, unsigned flags,
   const pt_entry_t mask_off = (kernel) ? 0 : PTE_D | PTE_A;
   pte &= ~mask_off;
 
-  /* TODO(MichalBlk): set PMA attributes according to cache flags. */
+  /* TODO(MichalBlk): set PMA attributes according to cache flags
+   * passed in `flags`. */
 
   return pte;
 }
@@ -221,17 +291,36 @@ static void pmap_write_pte(pmap_t *pmap, pt_entry_t *ptep, pt_entry_t pte,
   tlb_invalidate(va, pmap->asid);
 }
 
+/* Distribute new kernel L0 entry to all the user pmaps. */
+static void pmap_distribute_l0(pmap_t *pmap, vaddr_t va, pd_entry_t pde) {
+  if (pmap != pmap_kernel())
+    return;
+
+  SCOPED_MTX_LOCK(&user_pmaps_lock);
+
+  pmap_t *user_pmap;
+  LIST_FOREACH (user_pmap, &user_pmaps, pmap_link) {
+    pd_entry_t *l0 = (pd_entry_t *)phys_to_dmap(user_pmap->pde);
+    l0[L0_INDEX(va)] = pde;
+  }
+}
+
 /* Return PTE pointer for `va`. Allocate page table if needed. */
 static pt_entry_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
+  assert(mtx_owned(&pmap->mtx));
+
   pd_entry_t *pdep;
   paddr_t pa = pmap->pde;
 
   /* Level 0 */
   pdep = (pd_entry_t *)phys_to_dmap(pa) + L0_INDEX(va);
   if (!is_valid_pde(*pdep)) {
-    *pdep = PA_TO_PTE(pmap_alloc_pde(pmap, va)) | PTE_V;
+    pa = pmap_alloc_pde(pmap, va);
+    *pdep = make_pde(pa);
+    pmap_distribute_l0(pmap, va, *pdep);
+  } else {
+    pa = PTE_TO_PA(*pdep);
   }
-  pa = PTE_TO_PA(*pdep);
 
   /* Level 1 */
   return (pt_entry_t *)phys_to_dmap(pa) + L1_INDEX(va);
@@ -282,37 +371,52 @@ bool pmap_kextract(vaddr_t va, paddr_t *pap) {
  * Pageable (user & kernel) memory interface.
  */
 
-bool pmap_is_modified(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-bool pmap_is_referenced(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-void pmap_set_modified(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-void pmap_set_referenced(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-bool pmap_clear_modified(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-bool pmap_clear_referenced(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
                 unsigned flags) {
-  panic("Not implemented!");
+  paddr_t pa = pg->paddr;
+
+  assert(page_aligned_p(va));
+  assert(pmap_address_p(pmap, va));
+
+  klog("Enter virtual mapping %p for frame %p", va, pa);
+
+  bool kern_mapping = (pmap == pmap_kernel());
+  pt_entry_t pte = make_pte(pa, prot, flags, kern_mapping);
+
+  WITH_MTX_LOCK (&pv_list_lock) {
+    WITH_MTX_LOCK (&pmap->mtx) {
+      pv_entry_t *pv = pv_find(pmap, va, pg);
+      if (!pv)
+        pv_add(pmap, va, pg);
+      if (kern_mapping)
+        pg->flags |= PG_MODIFIED | PG_REFERENCED;
+      else
+        pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
+      pt_entry_t *ptep = pmap_ensure_pte(pmap, va);
+      pmap_write_pte(pmap, ptep, pte, va);
+    }
+  }
 }
 
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
-  panic("Not implemented!");
+  assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
+  assert(pmap_contains_p(pmap, start, end));
+
+  klog("Remove page mapping for address range %p - %p", start, end);
+
+  WITH_MTX_LOCK (&pv_list_lock) {
+    WITH_MTX_LOCK (&pmap->mtx) {
+      for (vaddr_t va = start; va < end; va += PAGESIZE) {
+        pt_entry_t *ptep = pmap_lookup_pte(pmap, va);
+        if (!ptep || !is_valid_pte(*ptep))
+          continue;
+        paddr_t pa = PTE_TO_PA(*ptep);
+        vm_page_t *pg = vm_page_find(pa);
+        pv_remove(pmap, va, pg);
+        pmap_write_pte(pmap, ptep, 0, va);
+      }
+    }
+  }
 }
 
 static bool pmap_extract_nolock(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
@@ -334,15 +438,124 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
 }
 
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
-  panic("Not implemented!");
+  assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
+  assert(pmap_contains_p(pmap, start, end));
+
+  klog("Change protection bits to %x for address range %p - %p", prot, start,
+       end);
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    for (vaddr_t va = start; va < end; va += PAGESIZE) {
+      pt_entry_t *ptep = pmap_lookup_pte(pmap, va);
+      if (!ptep || !is_valid_pte(*ptep))
+        continue;
+      pt_entry_t pte = (*ptep & ~PTE_RWX) | (vm_prot_map[prot] & PTE_RWX);
+      pmap_write_pte(pmap, ptep, pte, va);
+    }
+  }
 }
 
 void pmap_page_remove(vm_page_t *pg) {
-  panic("Not implemented!");
+  SCOPED_MTX_LOCK(&pv_list_lock);
+
+  while (!TAILQ_EMPTY(&pg->pv_list)) {
+    pv_entry_t *pv = TAILQ_FIRST(&pg->pv_list);
+    pmap_t *pmap = pv->pmap;
+    vaddr_t va = pv->va;
+    WITH_MTX_LOCK (&pmap->mtx) {
+      TAILQ_REMOVE(&pg->pv_list, pv, page_link);
+      TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+      pt_entry_t *ptep = pmap_lookup_pte(pmap, va);
+      assert(ptep);
+      pmap_write_pte(pmap, ptep, 0, va);
+    }
+    pool_free(P_PV, pv);
+  }
+}
+
+static void pmap_modify_flags(vm_page_t *pg, pt_entry_t set, pt_entry_t clr) {
+  SCOPED_MTX_LOCK(&pv_list_lock);
+
+  pv_entry_t *pv;
+  TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
+    pmap_t *pmap = pv->pmap;
+    vaddr_t va = pv->va;
+    WITH_MTX_LOCK (&pmap->mtx) {
+      pt_entry_t *ptep = pmap_lookup_pte(pmap, va);
+      assert(ptep);
+      pt_entry_t pte = *ptep;
+      pte |= set;
+      pte &= ~clr;
+      pmap_write_pte(pmap, ptep, pte, va);
+    }
+  }
+}
+
+bool pmap_is_modified(vm_page_t *pg) {
+  return pg->flags & PG_REFERENCED;
+}
+
+bool pmap_is_referenced(vm_page_t *pg) {
+  return pg->flags & PG_MODIFIED;
+}
+
+void pmap_set_modified(vm_page_t *pg) {
+  pg->flags |= PG_MODIFIED;
+  pmap_modify_flags(pg, PTE_D, 0);
+}
+
+void pmap_set_referenced(vm_page_t *pg) {
+  pg->flags |= PG_REFERENCED;
+  pmap_modify_flags(pg, PTE_A, 0);
+}
+
+bool pmap_clear_modified(vm_page_t *pg) {
+  bool prev = pmap_is_modified(pg);
+  pg->flags &= ~PG_MODIFIED;
+  pmap_modify_flags(pg, 0, PTE_D);
+  return prev;
+}
+
+bool pmap_clear_referenced(vm_page_t *pg) {
+  bool prev = pmap_is_referenced(pg);
+  pg->flags &= ~PG_REFERENCED;
+  pmap_modify_flags(pg, 0, PTE_A);
+  return prev;
 }
 
 int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
-  panic("Not implemented!");
+  paddr_t pa;
+
+  WITH_MTX_LOCK (&pmap->mtx) {
+    if (!pmap_extract_nolock(pmap, va, &pa))
+      return EFAULT;
+
+    pt_entry_t pte = *pmap_lookup_pte(pmap, va);
+
+    if ((prot & VM_PROT_READ) && !(pte & PTE_R))
+      return EACCES;
+
+    if ((prot & VM_PROT_WRITE) && !(pte & (PTE_W | PTE_R)))
+      return EACCES;
+
+    if ((prot & VM_PROT_EXEC) && !(pte & PTE_X))
+      return EACCES;
+  }
+
+  vm_page_t *pg = vm_page_find(pa);
+  assert(pg);
+
+  WITH_MTX_LOCK (&pv_list_lock) {
+    /* Kernel non-pageable memory? */
+    if (TAILQ_EMPTY(&pg->pv_list))
+      return EINVAL;
+  }
+
+  pmap_set_referenced(pg);
+  if (prot & VM_PROT_WRITE)
+    pmap_set_modified(pg);
+
+  return 0;
 }
 
 /*
@@ -350,10 +563,13 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
  */
 
 static void pmap_setup(pmap_t *pmap) {
+  assert(pmap->pde);
   pmap->asid = alloc_asid();
-  pmap->satp = SATP_MODE_SV32 | (pmap->pde >> PAGE_SHIFT);
+  pmap->satp = SATP_MODE_SV32 | ((paddr_t)pmap->asid << SATP_ASID_S) |
+               (pmap->pde >> PAGE_SHIFT);
   mtx_init(&pmap->mtx, 0);
   TAILQ_INIT(&pmap->pte_pages);
+  TAILQ_INIT(&pmap->pv_list);
 }
 
 void init_pmap(void) {
@@ -367,8 +583,18 @@ pmap_t *pmap_new(void) {
   pmap->pde = pg->paddr;
   pmap_setup(pmap);
 
+  /* Install kernel pagetables. */
+  WITH_MTX_LOCK (&kernel_pmap.mtx) {
+    memcpy((void *)phys_to_dmap(pmap->pde), (void *)phys_to_dmap(kernel_pde),
+           PAGESIZE);
+  }
+
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
   klog("Page directory table allocated at %p", pmap->pde);
+
+  WITH_MTX_LOCK (&user_pmaps_lock) {
+    LIST_INSERT_HEAD(&user_pmaps, pmap, pmap_link);
+  }
 
   return pmap;
 }
@@ -380,11 +606,6 @@ void pmap_activate(pmap_t *pmap) {
   if (pmap == old)
     return;
 
-  /* XXX: remove the following! */
-  void *kpd = (void *)phys_to_dmap(kernel_pmap.pde);
-  void *cpd = (void *)phys_to_dmap(pmap->pde);
-  memcpy(cpd, kpd, PAGESIZE);
-
   csr_write(satp, pmap->satp);
   PCPU_SET(curpmap, pmap);
 
@@ -392,7 +613,29 @@ void pmap_activate(pmap_t *pmap) {
 }
 
 void pmap_delete(pmap_t *pmap) {
-  panic("Not implemented!");
+  assert(pmap != pmap_kernel());
+
+  WITH_MTX_LOCK (&user_pmaps_lock) { LIST_REMOVE(pmap, pmap_link); }
+
+  while (!TAILQ_EMPTY(&pmap->pv_list)) {
+    pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
+    vm_page_t *pg;
+    paddr_t pa;
+    assert(pmap_extract_nolock(pmap, pv->va, &pa));
+    pg = vm_page_find(pa);
+    WITH_MTX_LOCK (&pv_list_lock) { TAILQ_REMOVE(&pg->pv_list, pv, page_link); }
+    TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
+    pool_free(P_PV, pv);
+  }
+
+  while (!TAILQ_EMPTY(&pmap->pte_pages)) {
+    vm_page_t *pg = TAILQ_FIRST(&pmap->pte_pages);
+    TAILQ_REMOVE(&pmap->pte_pages, pg, pageq);
+    vm_page_free(pg);
+  }
+
+  free_asid(pmap->asid);
+  pool_free(P_PMAP, pmap);
 }
 
 void pmap_bootstrap(paddr_t pd_pa, pd_entry_t *pd_va) {
@@ -420,8 +663,10 @@ void pmap_bootstrap(paddr_t pd_pa, pd_entry_t *pd_va) {
     pd_va[idx] = PA_TO_PTE(pa) | PTE_KERN;
 }
 
-/* Increase usable kernel virtual address space to at least maxkvaddr.
- * Allocate page table (level 1) if needed. */
+/*
+ * Increase usable kernel virtual address space to at least maxkvaddr.
+ * Allocate page table (level 1) if needed.
+ */
 void pmap_growkernel(vaddr_t maxkvaddr) {
   assert(mtx_owned(&vm_kernel_end_lock));
   assert(maxkvaddr > vm_kernel_end);

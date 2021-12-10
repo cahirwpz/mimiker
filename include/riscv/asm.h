@@ -41,13 +41,6 @@
 
 #define ___CONCAT(x, y) __CONCAT(x, y)
 
-/*
- * WEAK_ALIAS: create a weak alias.
- */
-#define WEAK_ALIAS(alias, sym)                                                 \
-  .weak alias;                                                                 \
-  alias = sym
-
 #define _ENTRY(x)                                                              \
   .globl _C_LABEL(x);                                                          \
   .align 4;                                                                    \
@@ -60,7 +53,7 @@
 
 #define END(x) .size _C_LABEL(x), .- _C_LABEL(x)
 
-#define LOAD_GP                                                                \
+#define LOAD_GP()                                                              \
   .option push;                                                                \
   .option norelax;                                                             \
   PTR_LA gp, __global_pointer$;                                                \
@@ -109,6 +102,7 @@
 #define INT_WORD .word
 #define INT_SCALESHIFT 2
 #if __riscv_xlen == 64
+#define INT_LU lwu
 #define INT_ADD addw
 #define INT_ADDI addwi
 #define INT_SUB subw
@@ -120,6 +114,7 @@
 #define INT_SRA srawi
 #define INT_SRAV sraw
 #else
+#define INT_LU lw
 #define INT_ADD add
 #define INT_ADDI addi
 #define INT_SUB sub

@@ -122,7 +122,7 @@ CONFIG = {
             'vexriscv': {
                 'script': 'vexriscv.resc',
                 'uarts': [
-                    dict(name='/dev/tty0', port=RandomPort())
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ]
             }
         }
@@ -279,9 +279,6 @@ class RENODE(Launchable):
             self.options += ['-e emulation CreateServerSocketTerminal ' +
                              f'{port} "{dev}" False']
             self.options += [f'-e connector Connect sysbus.{dev} {dev}']
-
-        if getvar('config.args'):
-            raise Exception('kernel args for renode must be passed via dtb')
 
         if getvar('config.debug'):
             gdbport = getvar('config.gdbport', failok=False)

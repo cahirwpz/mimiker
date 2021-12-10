@@ -17,7 +17,7 @@
  *  - all other registers remain in an undefined state
  */
 _ENTRY(_start)
-	LOAD_GP
+	LOAD_GP()
 
 	/* NOTE: In an actual SMP system, we could have multiple harts entering
 	 * the kernel simultaneously. In such case, we would have to choose

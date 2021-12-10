@@ -32,6 +32,7 @@
 
 .if \mode == 0
 	/* Load kernel's global pointer. */
+	save_reg gp, CTX_GP
 	LOAD_GP()
 
 	/* Load pcpu pointer. */
@@ -72,7 +73,7 @@
 	/* Store stack pointer. */
 .if \mode == 1
 	REG_LI t1, CTX_SIZE
-	REG_ADD t0, sp, t1
+	PTR_ADD t0, sp, t1
 	save_reg t0, CTX_SP
 .else
 	/* SSCRATCH should reflect we're in supervisor mode. */
@@ -93,6 +94,11 @@
  *  - 1: we came from kernelspace
  */
 .macro load_ctx mode
+.if \mode == 0
+	PTR_L t0, PCPU_CURTHREAD(tp)
+	PTR_L sp, TD_UCTX(t0)
+.endif
+
 	/* Restore status register.
 	 * NOTE: the SR has interrupts disabled. */
 	load_csr sstatus, CTX_SR
@@ -105,8 +111,8 @@
 	load_csr sscratch, CTX_SP
 
 	/* Restore user's TP and GP. */
-	load_reg tp, CTX_TP
 	load_reg gp, CTX_GP
+	load_reg tp, CTX_TP
 .endif
 
 	load_reg t0, CTX_T0
@@ -166,9 +172,14 @@ kern_exc_leave:
 END(cpu_exception_handler_supervisor)
 
 ENTRY(cpu_exception_handler_user)
-	# Not implemented!
+	save_ctx 0
+	mv a0, sp
+	call trap_handler	
 user_exc_leave:
-	j .
+	/* TODO(MichalBlk): restore FPE state if needed. */
+	load_ctx 0
+	csrrw sp, sscratch, sp
+	sret
 END(cpu_exception_handler_user)
 
 # vim: sw=8 ts=8 et

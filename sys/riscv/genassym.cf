@@ -1,13 +1,18 @@
 include <sys/pcpu.h>
 include <sys/thread.h>
 include <riscv/mcontext.h>
+include <riscv/riscvreg.h>
 include <riscv/vm_param.h>
 
+define USER_SPACE_END USER_SPACE_END
 define KERNEL_SPACE_BEGIN KERNEL_SPACE_BEGIN
 
 define TD_KCTX offsetof(thread_t, td_kctx)
+define TD_ONFAULT offsetof(thread_t, td_onfault)
+define TD_UCTX offsetof(thread_t, td_uctx)
 
 define PCPU_CURTHREAD offsetof(pcpu_t, curthread)
+define PCPU_CPY_CTX offsetof(pcpu_t, cpy_ctx)
 
 define CTX_RA offsetof(ctx_t, __gregs[_REG_RA])
 define CTX_SP offsetof(ctx_t, __gregs[_REG_SP])
