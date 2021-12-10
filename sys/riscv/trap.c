@@ -66,10 +66,12 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
     case SCAUSE_STORE_PAGE_FAULT:
       klog("Caused by reference to %lx!", _REG(ctx, TVAL));
       break;
+
     case SCAUSE_ILLEGAL_INSTRUCTION:
       uint32_t badinstr = *(uint32_t *)epc;
       klog("Illegal instruction %08x in kernel mode!", badinstr);
       break;
+
     case SCAUSE_BREAKPOINT:
       klog("No debbuger in kernel!");
       break;
@@ -240,6 +242,7 @@ static void kern_trap_handler(ctx_t *ctx) {
     case SCAUSE_STORE_PAGE_FAULT:
       page_fault_handler(ctx);
       break;
+
     default:
       kernel_oops(ctx);
   }
