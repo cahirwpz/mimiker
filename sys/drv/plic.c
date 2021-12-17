@@ -58,7 +58,7 @@ static void plic_intr_setup(device_t *ic, device_t *dev, resource_t *r,
                             void *arg, const char *name) {
   plic_state_t *plic = ic->state;
   unsigned irq = resource_start(r);
-  assert(irq < plic->nirqs);
+  assert(irq && irq < plic->nirqs);
 
   if (!plic->intr_event[irq])
     plic->intr_event[irq] = intr_event_create(
@@ -119,20 +119,16 @@ static int plic_attach(device_t *ic) {
   plic->nirqs = fdt32_to_cpu(*prop);
 
   /* We'll need interrupt event for each interrupt source. */
-  plic->intr_event = kmalloc(M_DEV, sizeof(intr_event_t *), M_WAITOK | M_ZERO);
+  plic->intr_event =
+    kmalloc(M_DEV, plic->nirqs * sizeof(intr_event_t *), M_WAITOK | M_ZERO);
   if (!plic->intr_event)
     return ENXIO;
 
   rman_init(&plic->rm, "PLIC interrupt sources");
-  rman_manage_region(&plic->rm, 0, plic->nirqs);
+  rman_manage_region(&plic->rm, 1, plic->nirqs);
 
   plic->mem = device_take_memory(ic, 0, RF_ACTIVE);
   assert(plic->mem);
-
-  plic->irq = device_take_irq(ic, 0, RF_ACTIVE);
-  assert(plic->irq);
-
-  intr_setup(ic, plic->irq, plic_intr_handler, NULL, ic, "PLIC");
 
   /*
    * In case the PLIC supports priorities, set each priority to 1
@@ -142,6 +138,11 @@ static int plic_attach(device_t *ic) {
     out32(PLIC_PRIORITY(irq), 1);
   }
   out32(PLIC_THRESHOLD, 0);
+
+  plic->irq = device_take_irq(ic, 0, RF_ACTIVE);
+  assert(plic->irq);
+
+  intr_setup(ic, plic->irq, plic_intr_handler, NULL, plic, "PLIC");
 
   return 0;
 }
@@ -153,7 +154,7 @@ static ic_methods_t plic_ic_if = {
   .intr_teardown = plic_intr_teardown,
 };
 
-static driver_t plic_driver = {
+driver_t plic_driver = {
   .desc = "RISC-V PLIC driver",
   .size = sizeof(plic_state_t),
   .pass = FIRST_PASS,

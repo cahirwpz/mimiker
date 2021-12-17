@@ -79,6 +79,18 @@ void dtb_reg(int node, const uint32_t **prop_p, int *len_p) {
     *len_p = len;
 }
 
+void dtb_intr(int node, const uint32_t **prop_p, int *len_p) {
+  int len;
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, "interrupts", &len);
+  if (!prop || (size_t)len < sizeof(uint32_t))
+    halt();
+
+  if (prop_p)
+    *prop_p = prop;
+  if (len_p)
+    *len_p = len;
+}
+
 void dtb_mem(uint32_t *start_p, uint32_t *size_p) {
   int offset = dtb_offset("/memory");
   const uint32_t *prop;

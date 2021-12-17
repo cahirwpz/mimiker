@@ -28,6 +28,7 @@
 
 typedef struct liteuart_state {
   resource_t *csrs;
+  resource_t *irq;
   thread_t *thread;
 } liteuart_state_t;
 
@@ -37,15 +38,17 @@ typedef struct liteuart_state {
 #define csr_read(csr) bus_read_4(liteuart->csrs, (csr))
 #define csr_write(csr, v) bus_write_4(liteuart->csrs, (csr), (v))
 
+#define csr_set(csr, b) csr_write((csr), csr_read((csr)) | (b))
+#define csr_clr(csr, b) csr_write((csr), csr_read((csr)) & ~(b))
+
 static bool liteuart_rx_ready(void *state) {
   liteuart_state_t *liteuart = state;
-  return csr_read(LITEUART_CSR_RXEMPTY) != 0;
+  return csr_read(LITEUART_CSR_RXEMPTY) == 0;
 }
 
 static uint8_t liteuart_getc(void *state) {
   liteuart_state_t *liteuart = state;
   uint8_t c = csr_read(LITEUART_CSR_RXTX);
-  csr_write(LITEUART_CSR_EV_PENDING, LITEUART_EV_TX | LITEUART_EV_RX);
   return c;
 }
 
@@ -56,15 +59,33 @@ static bool liteuart_tx_ready(void *state) {
 
 static void liteuart_putc(void *state, uint8_t c) {
   liteuart_state_t *liteuart = state;
-  return csr_write(LITEUART_CSR_RXTX, c);
+  csr_write(LITEUART_CSR_RXTX, c);
 }
 
-static void liteuart_tx_enable(void *state __unused) {
-  /* Nothing to do here. */
+static void liteuart_tx_enable(void *state) {
+  liteuart_state_t *liteuart = state;
+  csr_set(LITEUART_CSR_EV_ENABLE, LITEUART_EV_TX);
 }
 
-static void liteuart_tx_disable(void *state __unused) {
-  /* Nothing to do here. */
+static void liteuart_tx_disable(void *state) {
+  liteuart_state_t *liteuart = state;
+  csr_clr(LITEUART_CSR_EV_ENABLE, LITEUART_EV_TX);
+}
+
+static intr_filter_t liteuart_intr(void *data) {
+  device_t *dev = data;
+  uart_state_t *uart = dev->state;
+  liteuart_state_t *liteuart = uart->u_state;
+
+  uint32_t ev_pending = csr_read(LITEUART_CSR_EV_PENDING);
+
+  if (!(ev_pending & (LITEUART_EV_TX | LITEUART_EV_RX)))
+    return IF_STRAY;
+
+  intr_filter_t res = uart_intr(data);
+
+  csr_write(LITEUART_CSR_EV_PENDING, ev_pending);
+  return res;
 }
 
 static int liteuart_probe(device_t *dev) {
@@ -90,13 +111,16 @@ static int liteuart_attach(device_t *dev) {
   liteuart->csrs = device_take_memory(dev, 0, RF_ACTIVE);
   assert(liteuart->csrs);
 
-  /* Disable events. */
-  csr_write(LITEUART_CSR_EV_ENABLE, 0);
+  /* Clear pending events. */
+  csr_write(LITEUART_CSR_EV_PENDING, LITEUART_EV_TX | LITEUART_EV_RX);
 
-  /* Create a thread for polling. */
-  liteuart->thread = thread_create("liteuart poller", uart_thread, dev,
-                                   prio_ithread(PRIO_ITHRD_QTY - 1));
-  sched_add(liteuart->thread);
+  /* Enable events. */
+  csr_write(LITEUART_CSR_EV_ENABLE, LITEUART_EV_TX | LITEUART_EV_RX);
+
+  liteuart->irq = device_take_irq(dev, 0, RF_ACTIVE);
+  assert(liteuart->irq);
+
+  intr_setup(dev, liteuart->irq, liteuart_intr, NULL, dev, "liteuart");
 
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);

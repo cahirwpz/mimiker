@@ -53,6 +53,10 @@
 
 #define END(x) .size _C_LABEL(x), .- _C_LABEL(x)
 
+#define EXPORT(x)                                                              \
+  .globl _C_LABEL(x);                                                          \
+  _C_LABEL(x) :
+
 #define LOAD_GP()                                                              \
   .option push;                                                                \
   .option norelax;                                                             \

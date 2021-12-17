@@ -90,6 +90,4 @@ void uart_init(device_t *dev, const char *name, size_t buf_size, void *state,
 
 intr_filter_t uart_intr(void *data /* device_t* */);
 
-void uart_thread(void *data /* device_t* */);
-
 #endif /* _DEV_UART_H_ */

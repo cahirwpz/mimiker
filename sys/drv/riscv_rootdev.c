@@ -190,17 +190,8 @@ static int rootdev_attach(device_t *bus) {
 
   /* TODO(MichalBlk): discover devices using FDT. */
 
-  /* Create liteuart device and assign resources to it. */
-  device_t *dev = device_add_child(bus, 0);
-  dev->ic = bus;
-  node = fdt_subnode_offset(dtb, soc_node, "serial");
-  assert(node >= 0);
-  dtb_reg(node, &prop, &len);
-  device_add_memory(dev, 0, fdt32_to_cpu(prop[0]), fdt32_to_cpu(prop[1]));
-  dev->node = node;
-
   /* Create RISC-V CLINT device and assign resources to it. */
-  dev = device_add_child(bus, 1);
+  device_t *dev = device_add_child(bus, 1);
   dev->ic = bus;
   node = fdt_subnode_offset(dtb, soc_node, "clint");
   assert(node >= 0);
@@ -211,13 +202,29 @@ static int rootdev_attach(device_t *bus) {
   dev->node = node;
 
   /* Create RISC-V PLIC device and assign resources to it. */
-  dev = device_add_child(bus, 2);
-  dev->ic = bus;
+  device_t *plic = device_add_child(bus, 2);
+  plic->ic = bus;
   node = fdt_subnode_offset(dtb, soc_node, "interrupt-controller");
   assert(node >= 0);
   dtb_reg(node, &prop, &len);
+  device_add_memory(plic, 0, fdt32_to_cpu(prop[0]), fdt32_to_cpu(prop[1]));
+  device_add_irq(plic, 0, HLIC_IRQ_EXTERNAL_SUPERVISOR);
+  plic->node = node;
+
+  extern driver_t plic_driver;
+  plic->driver = &plic_driver;
+  assert(device_probe(plic));
+  assert(!device_attach(plic));
+
+  /* Create liteuart device and assign resources to it. */
+  dev = device_add_child(bus, 0);
+  dev->ic = plic;
+  node = fdt_subnode_offset(dtb, soc_node, "serial");
+  assert(node >= 0);
+  dtb_reg(node, &prop, &len);
   device_add_memory(dev, 0, fdt32_to_cpu(prop[0]), fdt32_to_cpu(prop[1]));
-  device_add_irq(dev, 0, HLIC_IRQ_EXTERNAL_SUPERVISOR);
+  dtb_intr(node, &prop, &len);
+  device_add_irq(dev, 0, fdt32_to_cpu(prop[0]));
   dev->node = node;
 
   return bus_generic_probe(bus);

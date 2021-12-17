@@ -56,22 +56,25 @@
 			device_type = "serial";
 			compatible = "litex,liteuart";
 			reg = <0xf0001000 0x100>;
+			interrupt-parent = <&plic>;
+			interrupts = <1>;
 			status = "okey";
 		};
 
 		clint@f0010000 {
 			compatible = "riscv,clint0";
+			/* XXX: there should be 3 and 7 ! */
 			interrupts-extended = <&hlic 1 &hlic 5>;
 			reg = <0xf0010000 0x10000>;
 		};
 
-		plic: interrupt-controller@f1000000 {
+		plic: interrupt-controller@f0c00000 {
 			#interrupt-cells = <0x01>;
 			compatible = "riscv,plic0";
 			interrupt-controller;
 			interrupts-extended = <&hlic 9>;
-			reg = <0xf1000000 0x400000>;
-			riscv,ndev = <0x10>;
+			reg = <0xf0c00000 0x400000>;
+			riscv,ndev = <0x20>;
 		};
 	};
 };

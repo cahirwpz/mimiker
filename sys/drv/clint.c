@@ -87,11 +87,17 @@ static uint32_t clint_frequency(void) {
   return fdt32_to_cpu(*prop);
 }
 
+static intr_filter_t clint_sw_intr(void *data) {
+  panic("Supervisor software interrupt!");
+}
+
 static int clint_attach(device_t *dev) {
   clint_state_t *clint = dev->state;
 
   clint->software_irq = device_take_irq(dev, 0, RF_ACTIVE);
   assert(clint->software_irq);
+
+  intr_setup(dev, clint->software_irq, clint_sw_intr, NULL, NULL, "SSI");
 
   clint->timer_irq = device_take_irq(dev, 1, RF_ACTIVE);
   assert(clint->timer_irq);

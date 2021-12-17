@@ -31,6 +31,9 @@ int dtb_offset(const char *path);
 /* Get region property of the given node. */
 void dtb_reg(int node, const uint32_t **prop_p, int *len_p);
 
+/* Get interrupts property of the given node. */
+void dtb_intr(int node, const uint32_t **prop_p, int *len_p);
+
 /* Get physical memory boundaries. */
 void dtb_mem(uint32_t *start_p, uint32_t *size_p);
 

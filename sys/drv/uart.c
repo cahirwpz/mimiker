@@ -53,10 +53,3 @@ intr_filter_t uart_intr(void *data /* device_t* */) {
 
   return res;
 }
-
-void uart_thread(void *data /* device_t* */) {
-  for (;;) {
-    (void)uart_intr(data);
-    mdelay(100);
-  }
-}

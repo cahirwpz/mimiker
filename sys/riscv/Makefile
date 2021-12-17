@@ -11,6 +11,7 @@ SOURCES-RISCV = \
 	mcontext.c \
 	pmap.c \
 	sbi.c \
+	sigcode.S \
 	signal.c \
 	start.S \
 	switch.S \
