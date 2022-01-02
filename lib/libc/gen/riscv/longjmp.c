@@ -52,6 +52,7 @@ void longjmp(jmp_buf env, int val) {
   _REG(&uc, S9) = _REG(sc_uc, S9);
   _REG(&uc, S10) = _REG(sc_uc, S10);
   _REG(&uc, S11) = _REG(sc_uc, S11);
+  _REG(&uc, PC) = _REG(sc_uc, PC);
 
   /* TODO(MichalBlk): copy FPE state. */
 

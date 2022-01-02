@@ -24,12 +24,16 @@ static intr_filter_t clint_timer_intr(void *data) {
   register_t sip = csr_read(sip);
 
   if (sip & SIP_STIP) {
-    sbi_set_timer(rdtime() + clint->timer_step);
+    tm_trigger(&clint->timer);
+
+    uint64_t prev = rdtime();
+    sbi_set_timer(prev + clint->timer_step);
+
     /* Root bus device will clear the interrupt. */
     return IF_FILTERED;
   }
 
-  return IF_FILTERED;
+  return IF_STRAY;
 }
 
 static int clint_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
@@ -37,12 +41,16 @@ static int clint_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
   device_t *dev = tm->tm_priv;
   clint_state_t *clint = dev->state;
 
-  clint->timer_step = /*bintime_mul(period, tm->tm_frequency).sec*/ 0x10;
+  clint->timer_step = bintime_mul(period, tm->tm_frequency).sec;
 
   intr_setup(dev, clint->timer_irq, clint_timer_intr, NULL, clint,
              "CLINT timer");
 
-  sbi_set_timer(rdtime() + clint->timer_step);
+  WITH_INTR_DISABLED {
+    uint64_t count = rdtime();
+    sbi_set_timer(count + clint->timer_step);
+  }
+
   return 0;
 }
 

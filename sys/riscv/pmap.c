@@ -371,6 +371,18 @@ bool pmap_kextract(vaddr_t va, paddr_t *pap) {
  * Pageable (user & kernel) memory interface.
  */
 
+static void pmap_set_init_flags(vm_page_t *pg, bool kernel) {
+  if (kernel) {
+    pg->flags |= PG_MODIFIED | PG_REFERENCED;
+  } else {
+#ifndef AUTO_DA_MGMT
+    pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
+#else
+    pg->flags |= PG_MODIFIED | PG_REFERENCED;
+#endif
+  }
+}
+
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
                 unsigned flags) {
   paddr_t pa = pg->paddr;
@@ -388,10 +400,7 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
       pv_entry_t *pv = pv_find(pmap, va, pg);
       if (!pv)
         pv_add(pmap, va, pg);
-      if (kern_mapping)
-        pg->flags |= PG_MODIFIED | PG_REFERENCED;
-      else
-        pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
+      pmap_set_init_flags(pg, kern_mapping);
       pt_entry_t *ptep = pmap_ensure_pte(pmap, va);
       pmap_write_pte(pmap, ptep, pte, va);
     }
@@ -473,6 +482,7 @@ void pmap_page_remove(vm_page_t *pg) {
   }
 }
 
+#ifndef AUTO_DA_MGMT
 static void pmap_modify_flags(vm_page_t *pg, pt_entry_t set, pt_entry_t clr) {
   SCOPED_MTX_LOCK(&pv_list_lock);
 
@@ -490,40 +500,62 @@ static void pmap_modify_flags(vm_page_t *pg, pt_entry_t set, pt_entry_t clr) {
     }
   }
 }
+#endif
 
 bool pmap_is_modified(vm_page_t *pg) {
-  return pg->flags & PG_REFERENCED;
+#ifndef AUTO_DA_MGMT
+  return pg->flags & PG_MODIFIED;
+#else
+  return true;
+#endif
 }
 
 bool pmap_is_referenced(vm_page_t *pg) {
-  return pg->flags & PG_MODIFIED;
+#ifndef AUTO_DA_MGMT
+  return pg->flags & PG_REFERENCED;
+#else
+  return true;
+#endif
 }
 
 void pmap_set_modified(vm_page_t *pg) {
+#ifndef AUTO_DA_MGMT
   pg->flags |= PG_MODIFIED;
   pmap_modify_flags(pg, PTE_D, 0);
+#endif
 }
 
 void pmap_set_referenced(vm_page_t *pg) {
+#ifndef AUTO_DA_MGMT
   pg->flags |= PG_REFERENCED;
   pmap_modify_flags(pg, PTE_A, 0);
+#endif
 }
 
 bool pmap_clear_modified(vm_page_t *pg) {
+#ifndef AUTO_DA_MGMT
   bool prev = pmap_is_modified(pg);
   pg->flags &= ~PG_MODIFIED;
   pmap_modify_flags(pg, 0, PTE_D);
   return prev;
+#else
+  return true;
+#endif
 }
 
 bool pmap_clear_referenced(vm_page_t *pg) {
+#ifndef AUTO_DA_MGMT
   bool prev = pmap_is_referenced(pg);
   pg->flags &= ~PG_REFERENCED;
   pmap_modify_flags(pg, 0, PTE_A);
   return prev;
+#else
+  return true;
+#endif
 }
 
 int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
+  const pt_entry_t write_mask = PTE_W | PTE_R;
   paddr_t pa;
 
   WITH_MTX_LOCK (&pmap->mtx) {
@@ -535,7 +567,7 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
     if ((prot & VM_PROT_READ) && !(pte & PTE_R))
       return EACCES;
 
-    if ((prot & VM_PROT_WRITE) && !(pte & (PTE_W | PTE_R)))
+    if ((prot & VM_PROT_WRITE) && (pte & write_mask) != write_mask)
       return EACCES;
 
     if ((prot & VM_PROT_EXEC) && !(pte & PTE_X))

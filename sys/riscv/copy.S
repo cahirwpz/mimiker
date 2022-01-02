@@ -63,7 +63,7 @@
 /*
  * Enable permit Supervisor User Memory access (SUM).
  */
-.macro sum_enable tmp
+.macro enter_user_access tmp
 	REG_LI \tmp, SSTATUS_SUM
 	csrs sstatus, \tmp
 .endm
@@ -71,7 +71,7 @@
 /*
  * Disable permit Supervisor User Memory access (SUM).
  */
-.macro sum_disable tmp
+.macro exit_user_access tmp
 	REG_LI \tmp, SSTATUS_SUM
 	csrc sstatus, \tmp
 .endm
@@ -80,7 +80,7 @@
 	PTR_L \td, PCPU_CURTHREAD(tp)
 	PTR_LA \tmp, \func
 	PTR_S \tmp, TD_ONFAULT(\td)
-	sum_enable \tmp
+	enter_user_access \tmp
 .endm
 
 .macro onfault_set_and_save tmp, td, func
@@ -89,7 +89,7 @@
 .endm
 
 .macro onfault_clr tmp, td
-	sum_disable \tmp
+	exit_user_access \tmp
 	PTR_L \td, PCPU_CURTHREAD(tp)
 	PTR_S zero, TD_ONFAULT(tp)
 .endm

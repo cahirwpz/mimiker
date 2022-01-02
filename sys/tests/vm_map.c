@@ -19,6 +19,7 @@
 #endif
 
 #ifdef __riscv
+#include <riscv/riscvreg.h>
 #define TOO_MUCH 0x40000000
 #endif
 
@@ -78,11 +79,19 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   vm_map_dump(umap);
   vm_map_dump(kmap);
 
+#ifdef __riscv
+  enter_user_access();
+#endif
+
   /* Start in paged on demand range, but end outside, to cause fault */
   for (int *ptr = (int *)start; ptr != (int *)end; ptr += 256) {
     klog("%p", ptr);
     *ptr = 0xfeedbabe;
   }
+
+#ifdef __riscv
+  exit_user_access();
+#endif
 
   vm_map_dump(umap);
   vm_map_dump(kmap);

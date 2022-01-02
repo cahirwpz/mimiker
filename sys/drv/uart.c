@@ -1,6 +1,5 @@
 #include <sys/spinlock.h>
 #include <sys/ringbuf.h>
-#include <sys/time.h>
 #include <dev/uart.h>
 #include <sys/uart_tty.h>
 

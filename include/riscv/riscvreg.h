@@ -191,4 +191,7 @@
 #define rdinstret() csr_read64(instret)
 #define rdhpmcounter(n) csr_read64(hpmcounter##n)
 
+#define enter_user_access() csr_set(sstatus, SSTATUS_SUM)
+#define exit_user_access() csr_clear(sstatus, SSTATUS_SUM)
+
 #endif /* !_RISCV_RISCVREG_H_ */

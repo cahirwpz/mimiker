@@ -15,6 +15,7 @@ ifeq ($(BOARD), vexriscv)
 	KERNEL_PHYS := 0x80400000
 	KERNEL-IMAGES := mimiker.img
 	DTB := vexriscv.dtb
+	CPPFLAGS += -DAUTO_DA_MGMT
 endif
 
 ifeq ($(KERNEL), 1)

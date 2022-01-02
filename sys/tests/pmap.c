@@ -6,6 +6,10 @@
 #include <sys/sched.h>
 #include <sys/kmem.h>
 
+#ifdef __riscv
+#include <riscv/riscvreg.h>
+#endif
+
 static vm_page_t *x_vm_page_alloc(size_t npages) {
   vm_page_t *pg = vm_page_alloc(npages);
   assert(pg != NULL);
@@ -143,6 +147,10 @@ static int test_user_pmap(void) {
   pmap_activate(pmap2);
   pmap_enter(pmap2, start, pg2, VM_PROT_READ | VM_PROT_WRITE, 0);
 
+#ifdef __riscv
+  enter_user_access();
+#endif
+
   volatile int *ptr = (int *)start;
   *ptr = 100;
   pmap_activate(pmap1);
@@ -151,6 +159,10 @@ static int test_user_pmap(void) {
   assert(*ptr == 100);
   pmap_activate(pmap1);
   assert(*ptr == 200);
+
+#ifdef __riscv
+  exit_user_access();
+#endif
 
   pmap_delete(pmap1);
   pmap_delete(pmap2);
@@ -177,24 +189,38 @@ static int test_rmbits(void) {
   pmap_activate(pmap);
   pmap_enter(pmap, (vaddr_t)ptr, pg, VM_PROT_READ | VM_PROT_WRITE, 0);
 
+#ifndef AUTO_DA_MGMT
   assert(!pmap_is_referenced(pg) && !pmap_is_modified(pg));
+#endif
+
+#ifdef __riscv
+  enter_user_access();
+#endif
 
   /* vm_page_alloc doesn't return zeroed pages, so we cannot assume any value */
   __unused int value = *ptr;
 
+#ifndef AUTO_DA_MGMT
   assert(pmap_is_referenced(pg) && !pmap_is_modified(pg));
-
   pmap_clear_referenced(pg);
+#endif
 
   *ptr = 100;
 
+#ifndef AUTO_DA_MGMT
   assert(pmap_is_referenced(pg) && pmap_is_modified(pg));
-
   pmap_clear_modified(pg);
+#endif
 
   assert(*ptr == 100);
 
+#ifndef AUTO_DA_MGMT
   assert(pmap_is_referenced(pg) && !pmap_is_modified(pg));
+#endif
+
+#ifdef __riscv
+  exit_user_access();
+#endif
 
   pmap_delete(pmap);
 

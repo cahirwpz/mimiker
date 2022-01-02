@@ -51,7 +51,9 @@ ENTRY(setjmp)
 	/* Restore jmpbuf and move to `_setjmp`. */
 	mv a0, s0
 	REG_L s0, CALLFRAME_S0(sp)
-	PTR_L ra, CALLFRAME_RA(ra)
+	PTR_L ra, CALLFRAME_RA(sp)
+	PTR_ADDI sp, sp, CALLFRAME_SIZ
+
 	j _C_LABEL(_setjmp)
 
 botch:
