@@ -108,9 +108,9 @@ static int sd_init(device_t *dev) {
 
   TRY(emmc_send_cmd(dev, SD_CMD_SEND_SCR, 0, NULL), error);
   TRY(emmc_wait(dev, EMMC_I_READ_READY), error);
-  TRY(emmc_read(dev, scr, 64, &of), error);
+  TRY(emmc_read(dev, scr, 8, &of), error);
   TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
-  if (of != 64) {
+  if (of != 8) {
     klog("Failed to read SD Card's SCR");
     return EIO;
   }
