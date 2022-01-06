@@ -66,10 +66,10 @@ static emmc_error_t bcemmc_decode_errors(uint32_t interrupts) {
 
   if (!(interrupts & INT_ERR))
     return e;
-   
+
   if (interrupts & INT_CTO_ERR)
     e |= EMMC_ERROR_CMD_TIMEOUT;
-  
+
   return e;
 }
 
@@ -515,7 +515,7 @@ static int bcmemmc_init(device_t *dev) {
 
   state->host_version =
     (b_in(emmc, BCMEMMC_SLOTISR_VER) & HOST_SPEC_NUM) >> HOST_SPEC_NUM_SHIFT;
-  
+
   /* Reset the card. */
   b_out(emmc, BCMEMMC_CONTROL0, 0);
   b_set(emmc, BCMEMMC_CONTROL1, C1_SRST_HC);

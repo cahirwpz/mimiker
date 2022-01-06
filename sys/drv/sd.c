@@ -169,21 +169,22 @@ static int sd_read_block_ccs(device_t *dev, uint32_t lba, void *buffer,
   ASSIGN_OPTIONAL(read, num * DEFAULT_BLKSIZE);
   if (num > 1 && (~state->props & SD_SUPP_BLKCNT))
     TRY(emmc_send_cmd(dev, EMMC_CMD(STOP_TRANSMISSION), 0, NULL), error);
-  
+
   return 0;
 }
 
 /* Data read routine for CCS-disabled cards (SDSC) */
 static int sd_read_block_noccs(device_t *dev, uint32_t lba, void *buffer,
-                         uint32_t num, size_t *read) {
+                               uint32_t num, size_t *read) {
   int error;
   uint32_t *buf = (uint32_t *)buffer;
 
   for (uint32_t c = 0; c < num; c++) {
     /* See note no. 10 at page 222 of
-      * SD Physical Layer Simplified Specification V6.0 */
+     * SD Physical Layer Simplified Specification V6.0 */
     TRY(emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), (lba + c) * DEFAULT_BLKSIZE,
-                      NULL), error);
+                      NULL),
+        error);
     TRY(emmc_read(dev, buf, DEFAULT_BLKSIZE, NULL), error);
     TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
     buf += DEFAULT_BLKSIZE / sizeof(uint32_t);
@@ -200,7 +201,7 @@ static int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
 
   if (num < 1)
     return EINVAL;
-  
+
   int error;
 
   ASSIGN_OPTIONAL(read, 0);
@@ -216,7 +217,6 @@ static int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
 
   return 0;
 }
-
 
 /* Write blocks to the sd card. Returns 0 on success. */
 /* TODO: Multi-block writes */
