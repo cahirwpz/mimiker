@@ -1,7 +1,6 @@
 #define KL_LOG KL_DEV
 
-/*
- * For detailed information on the controller, please refer to:
+/* For detailed information on the controller, please refer to:
  * https://cs140e.sergio.bz/docs/BCM2837-ARM-Peripherals.pdf
  */
 
@@ -57,11 +56,19 @@ static inline uint32_t emmc_wait_flags_to_hwflags(emmc_wait_flags_t mask) {
          ((mask & EMMC_I_WRITE_READY) ? INT_WRITE_RDY : 0);
 }
 
+/* Timeout when awaiting an interrupt */
+#define BCMEMMC_TIMEOUT 10000
+#define BCMEMMC_BUSY_CYCLES 128
+
 /* Returns new pending interrupts.
- * All pending interrupts are stored in `bmcemmc_state_t::pending`. */
+ * All pending interrupts are stored in `bmcemmc_state_t::pending`.
+ */
 static uint32_t bcmemmc_read_intr(bcmemmc_state_t *state) {
   resource_t *emmc = state->emmc;
-  uint32_t newpend = b_in(emmc, BCMEMMC_INTERRUPT);
+  uint32_t newpend;
+
+  newpend = b_in(emmc, BCMEMMC_INTERRUPT);
+
   /* Pending interrupts need to be cleared manually. */
   if (newpend) {
     state->pending |= newpend;
@@ -70,46 +77,70 @@ static uint32_t bcmemmc_read_intr(bcmemmc_state_t *state) {
   return newpend;
 }
 
-#define BCMEMMC_TIMEOUT 10000 /* Timeout when awaiting an interrupt */
+/**
+ * Go to sleep for limited time and wait for an interrupt, then read it in ISR.
+ * \return 0 if not interrupt was received, otherwise a mask of all received
+ * interrupts (including ones received before issueing this call if they weren't
+ * handled, ie. awaited for by using `bcmemmc_wait`/`bcmemmc_intr_wait`).
+ * \warning THIS FUNCTION NEEDS TO BE CALLED WITH `state->lock` LOCKED!
+ */
+static inline uint32_t bcmemmc_try_read_intr_blocking(bcmemmc_state_t *state) {
+  if (cv_wait_timed(&state->intr_recv, (lock_t)&state->lock, BCMEMMC_TIMEOUT))
+    return 0;
+  return state->pending;
+}
+
+/* Return 1 if there are any interrupts to be processed, 0 if not */
+static inline int bcmemmc_check_intr(bcmemmc_state_t *state) {
+  resource_t *emmc = state->emmc;
+  return (b_in(emmc, BCMEMMC_INTERRUPT) | state->pending) ? 1 : 0;
+}
 
 /**
- * \brief Wait for all specified interrupts.
+ * \brief Wait for the specified interrupts.
  * \param dev eMMC device
  * \param mask expected interrupts
  * \param clear additional interrupt bits to be cleared
  * \return 0 on success, EIO on internal error, ETIMEDOUT on device timeout.
+ * \warning This procedure may put the thread to sleep.
  */
-static int bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
+static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
-  resource_t *emmc = state->emmc;
 
   assert(mask != 0);
 
   SCOPED_SPIN_LOCK(&state->lock);
 
   for (;;) {
-    (void)bcmemmc_read_intr(state);
+    if (state->pending & INT_ERROR_MASK) {
+      state->pending = 0;
+      return EIO;
+    }
 
     if ((state->pending & mask) == mask) {
       state->pending &= ~mask;
       return 0;
     }
 
-    if (state->pending & INT_ERROR_MASK) {
-      state->pending = 0;
-      return EIO;
+    /* Busy-wait for a while. Should be good enough if the card works fine */
+    for (int i = 0; i < BCMEMMC_BUSY_CYCLES; i++) {
+      if (bcmemmc_check_intr(state)) {
+        (void)bcmemmc_read_intr(state);
+        continue;
+      }
     }
 
-    /* Sleep for a while if no interrupts have been received so far. */
-    if (cv_wait_timed(&state->intr_recv, &state->lock, BCMEMMC_TIMEOUT)) {
-      b_out(emmc, BCMEMMC_INTERRUPT, INT_ALL_MASK);
+    /* Sleep for a while if no new interrupts have been received so far */
+    if (!bcmemmc_try_read_intr_blocking(state))
       return ETIMEDOUT;
-    }
   }
+
+  return 0;
 }
 
 static int bcmemmc_wait(device_t *cdev, emmc_wait_flags_t wflags) {
-  return bcmemmc_intr_wait(cdev->parent, emmc_wait_flags_to_hwflags(wflags));
+  uint32_t mask = emmc_wait_flags_to_hwflags(wflags);
+  return bcmemmc_intr_wait(cdev->parent, mask);
 }
 
 static intr_filter_t bcmemmc_intr_filter(void *data) {
@@ -142,34 +173,40 @@ static void bcmemmc_clk_set_divisor(bcmemmc_state_t *state, uint32_t frq) {
 
   uint32_t clk = GPIO_CLK_EMMC_DEFAULT_FREQ;
   uint32_t divisor = bcmemmc_clk_approx_divisor(clk, frq);
+
+  /* The low and high bytes for clock divisor are swapped and shifted in
+   * BCMEMMC_CONTROL1 register, so we need to take that into account */
+  uint32_t lo = (divisor & 0x00ff) << 8;
+  uint32_t hi = (divisor & 0x0300) >> 2;
+
   uint32_t ctl1 = b_in(emmc, BCMEMMC_CONTROL1) & BCMEMMC_CLKDIV_INVMASK;
-
-  ctl1 |= (divisor << C1_CLK_FREQ8_SHIFT) & C1_CLK_FREQ8;
-  ctl1 |= ((divisor >> 8) << C1_CLK_FREQ_MS2_SHIFT) & C1_CLK_FREQ_MS2;
-
+  ctl1 |= lo | hi;
   b_out(emmc, BCMEMMC_CONTROL1, ctl1);
+
   klog("e.MMC: clock set to %luHz / %lu (requested %luHz)", clk, divisor, frq);
 }
 
-#define NSPINS 10000
+#define CLK_STABLE_TRIALS 10000
 
-/* Set SD clock to frequency in Hz (approximately), divided mode */
+/**
+ * set SD clock to frequency in Hz (approximately), divided mode
+ */
 static int bcmemmc_set_clk_freq(device_t *dev, uint32_t frq) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
-  int cnt;
+  int32_t cnt = 100000;
 
   b_clr(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
-  /* host_version <= HOST_SPEC_V2 needs a power-of-two divisor.
-   * It would require a different calculation method. */
+  /* host_version <= HOST_SPEC_V2 needs a power-of-two divisor. It would require
+   * a different calculation method. */
   assert(state->host_version > HOST_SPEC_V2);
   bcmemmc_clk_set_divisor(state, frq);
   b_set(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
 
   /* Wait until the clock becomes stable */
-  cnt = NSPINS;
+  cnt = CLK_STABLE_TRIALS;
   while (!(b_in(emmc, BCMEMMC_CONTROL1) & C1_CLK_STABLE)) {
-    if (--cnt < 0)
+    if (cnt-- < 0)
       return ETIMEDOUT;
     delay(30);
   }
@@ -255,12 +292,15 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   resource_t *emmc = state->emmc;
 
+  uint32_t reg = 0;
   switch (id) {
     case EMMC_PROP_RW_BLKCNT:
-      *var = (b_in(emmc, BCMEMMC_BLKSIZECNT) & BSC_BLKCNT) >> BSC_BLKCNT_SHIFT;
+      reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
+      *var = (reg & BSC_BLKCNT) >> BSC_BLKCNT_SHIFT;
       break;
     case EMMC_PROP_RW_BLKSIZE:
-      *var = b_in(emmc, BCMEMMC_BLKSIZECNT) & BSC_BLKSIZE;
+      reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
+      *var = reg & BSC_BLKSIZE;
       break;
     case EMMC_PROP_R_MAXBLKSIZE:
       *var = MAXBLKSIZE;
@@ -286,7 +326,7 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
       *var = state->rca;
       break;
     default:
-      return EINVAL;
+      return ENODEV;
   }
 
   return 0;
@@ -299,16 +339,20 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
   uint32_t reg = 0;
   switch (id) {
     case EMMC_PROP_RW_BLKCNT:
-      if (var >= 65536)
+      /* BLKCNT can be at most a 16-bit value */
+      if (var & ~0xffff)
         return EINVAL;
-      reg = b_in(emmc, BCMEMMC_BLKSIZECNT) & ~BSC_BLKCNT;
-      b_out(emmc, BCMEMMC_BLKSIZECNT, reg | (var << BSC_BLKCNT_SHIFT));
+      reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
+      reg = (reg & 0x0000ffff) | (var << 16);
+      b_out(emmc, BCMEMMC_BLKSIZECNT, reg);
       break;
     case EMMC_PROP_RW_BLKSIZE:
-      if (var >= 1024)
+      /* BLKSIZE can be at most 10-bit value */
+      if (var & ~0x03ff)
         return EINVAL;
-      reg = b_in(emmc, BCMEMMC_BLKSIZECNT) & ~BSC_BLKSIZE;
-      b_out(emmc, BCMEMMC_BLKSIZECNT, reg | var);
+      reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
+      reg = (reg & ~0x03ff) | var;
+      b_out(emmc, BCMEMMC_BLKSIZECNT, reg);
       break;
     case EMMC_PROP_RW_RESP_LOW:
       b_out(emmc, BCMEMMC_RESP0, (uint32_t)var);
@@ -326,27 +370,23 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
       state->rca = var;
       break;
     default:
-      return EINVAL;
+      return ENODEV;
   }
 
   return 0;
 }
 
-static int bcmemmc_send_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
+/* Send encoded command */
+static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
                             emmc_resp_t *resp) {
-  device_t *dev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
-  uint32_t code = bcmemmc_encode_cmd(cmd);
 
-  if (cmd.flags & EMMC_F_APP)
-    bcmemmc_send_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, NULL);
+  uint32_t error = 0;
 
   b_out(emmc, BCMEMMC_ARG1, arg);
   b_out(emmc, BCMEMMC_CMDTM, code);
-
-  int error = bcmemmc_intr_wait(dev, INT_CMD_DONE);
-  if (error) {
+  if ((error = bcmemmc_intr_wait(dev, INT_CMD_DONE))) {
     klog("ERROR: failed to send EMMC command %p", code);
     return error;
   }
@@ -362,52 +402,52 @@ static int bcmemmc_send_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
 }
 
 /* Send a command */
-static int bcmemmc_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
-                       emmc_resp_t *resp) {
+static int bcmemmc_send_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
+                            emmc_resp_t *resp) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
 
   /* Application-specific command need to be prefixed with APP_CMD command. */
   if (cmd.flags & EMMC_F_APP)
-    bcmemmc_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, NULL);
+    bcmemmc_send_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, NULL);
 
-  uint32_t code = bcemmc_encode_cmd(cmd);
+  uint32_t code = bcmemmc_encode_cmd(cmd);
   return bcmemmc_cmd_code(cdev->parent, code, arg, resp);
 }
 
-static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *count) {
+static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *read) {
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
   resource_t *emmc = state->emmc;
   uint32_t *data = buf;
 
-  assert(is_aligned(len, sizeof(uint32_t)));
+  assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
 
-  /* TODO(morhcore): should use DMA transfer if possible. */
+  /* A very simple transfer (should be replaced with DMA in the future) */
   for (size_t i = 0; i < len / sizeof(uint32_t); i++)
     data[i] = b_in(emmc, BCMEMMC_DATA);
 
-  /* TODO(mohrcore): check if the transfer fully succeeded! */
-  if (count)
-    *count = len;
+  /* TODO (mohrcore): check whether the transfer fully succeeded! */
+  if (read)
+    *read = len;
   return 0;
 }
 
 static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
-                         size_t *count) {
+                         size_t *wrote) {
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
   resource_t *emmc = state->emmc;
   const uint32_t *data = buf;
 
-  assert(is_aligned(len, sizeof(uint32_t)));
+  assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
 
-  /* TODO(morhcore): should use DMA transfer if possible. */
+  /* A very simple transfer (should be replaced with DMA in the future) */
   for (size_t i = 0; i < len / sizeof(uint32_t); i++)
     b_out(emmc, BCMEMMC_DATA, data[i]);
 
-  /* TODO(mohrcore): check wether the transfer fully succeeded! */
-  if (count)
-    *count = len;
+  /* TODO (mohr): check wether the transfer fully succeeded! */
+  if (wrote)
+    *wrote = len;
   return 0;
 }
 
@@ -441,6 +481,8 @@ static void emmc_gpio_init(device_t *dev) {
   bcm2835_gpio_set_pull(gpio, 53, BCM2838_GPIO_GPPUD_PULLDOWN);
 }
 
+#define BCMEMMC_INIT_FREQ 400000
+
 static int bcmemmc_init(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
@@ -448,29 +490,30 @@ static int bcmemmc_init(device_t *dev) {
 
   state->host_version =
     (b_in(emmc, BCMEMMC_SLOTISR_VER) & HOST_SPEC_NUM) >> HOST_SPEC_NUM_SHIFT;
-  /* Reset the controller. */
+  klog("e.MMC: GPIO set up");
+  /* Reset the card. */
   b_out(emmc, BCMEMMC_CONTROL0, 0);
   b_set(emmc, BCMEMMC_CONTROL1, C1_SRST_HC);
-  cnt = NSPINS;
-  while (b_in(emmc, BCMEMMC_CONTROL1) & C1_SRST_HC) {
-    if (--cnt < 0) {
-      klog("ERROR: failed to reset EMMC");
-      return ETIMEDOUT;
-    }
-    delay(30); /* TODO(mohrcore): Test it on hardware */
+  cnt = 10000;
+  do {
+    delay(30); /* TODO: Test it on hardware */
+  } while ((b_in(emmc, BCMEMMC_CONTROL1) & C1_SRST_HC) && cnt--);
+  if (cnt < 0) {
+    klog("ERROR: failed to reset EMMC");
+    return ETIMEDOUT;
   }
+
+  /* Set up clock. */
   b_set(emmc, BCMEMMC_CONTROL1, C1_CLK_INTLEN | C1_TOUNIT_MAX);
-  /* Set clock to setup frequency. */
   int error = bcmemmc_set_clk_freq(dev, BCMEMMC_INIT_FREQ);
   if (error)
     return error;
+
   /* Enable interrupts. */
-  b_out(emmc, BCMEMMC_INT_EN,
-        INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY | INT_WRITE_RDY |
-          INT_CTO_ERR | INT_DTO_ERR);
-  b_out(emmc, BCMEMMC_INT_MASK,
-        INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY | INT_WRITE_RDY |
-          INT_CTO_ERR | INT_DTO_ERR);
+  const uint32_t interrupts = INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY |
+                              INT_WRITE_RDY | INT_CTO_ERR | INT_DTO_ERR;
+  b_out(emmc, BCMEMMC_INT_EN, interrupts);
+  b_out(emmc, BCMEMMC_INT_MASK, interrupts);
 
   return 0;
 }
