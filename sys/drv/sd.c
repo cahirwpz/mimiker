@@ -45,10 +45,11 @@ static int sd_init(device_t *dev) {
   sd_state_t *state = (sd_state_t *)dev->state;
 
   emmc_resp_t response;
-  uint64_t propv;  /* Property's Value */
-  size_t of = 0;   /* Offset (Used only for checking the number of bytes read */
-  uint32_t scr[2]; /* SD Configuration Register */
-  uint16_t rca;    /* Relative Card Address */
+  uint64_t propv;                /* Property's Value */
+  size_t of = 0;                 /* Offset (Used only for checking the number of
+                                  * bytes read */
+  uint32_t scr[SD_SCR_WORD_CNT]; /* SD Configuration Register */
+  uint16_t rca;                  /* Relative Card Address */
 
   state->props = 0;
 
@@ -56,6 +57,8 @@ static int sd_init(device_t *dev) {
    * Simplified Specification, Version 6.0. See: page 30 */
 
   klog("Attaching SD/SDHC block device interface...");
+
+  TRY(emmc_set_prop(dev, EMMC_PROP_RW_RCA, 0), error);
 
   TRY(emmc_send_cmd(dev, EMMC_CMD(GO_IDLE), 0, NULL), error);
   if (emmc_get_prop(dev, EMMC_PROP_R_VOLTAGE_SUPPLY, &propv)) {
@@ -82,11 +85,23 @@ static int sd_init(device_t *dev) {
       klog("Card timedout on ACMD41 polling.");
       return ETIMEDOUT;
     }
-    TRY(emmc_send_cmd(dev, SD_CMD_SEND_OP_COND, SD_ACMD41_SD2_0_POLLRDY_ARG1,
-                      &response), error);
+    int e = emmc_send_cmd(dev, SD_CMD_SEND_OP_COND,
+                          SD_ACMD41_SD2_0_POLLRDY_ARG1, &response);
+    /* During this phase the controller may time out on some commands and
+     * it shouldn't be treated as a fatal error. It just means that the card
+     * is busy. */
+    if (e == EIO) {
+      int eprop = emmc_get_prop(dev, EMMC_PROP_R_ERRORS, &propv);
+      if ((eprop == ENODEV) || (propv == EMMC_ERROR_CMD_TIMEOUT))
+        continue;
+    } else if (e) {
+      return e;
+    }
   }
+
   if (SD_ACMD41_RESP_READ_CCS(&response))
     state->props |= SD_SUPP_CCS;
+
   klog("e.MMC device detected as %s",
        (state->props & SD_SUPP_CCS) ? high_cap_str : standard_cap_str);
 
@@ -108,9 +123,9 @@ static int sd_init(device_t *dev) {
 
   TRY(emmc_send_cmd(dev, SD_CMD_SEND_SCR, 0, NULL), error);
   TRY(emmc_wait(dev, EMMC_I_READ_READY), error);
-  TRY(emmc_read(dev, scr, 8, &of), error);
+  TRY(emmc_read(dev, scr, SD_SCR_WORD_CNT * sizeof(uint32_t), &of), error);
   TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
-  if (of != 8) {
+  if (of != SD_SCR_WORD_CNT * sizeof(uint32_t)) {
     klog("Failed to read SD Card's SCR");
     return EIO;
   }

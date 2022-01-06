@@ -240,7 +240,7 @@ static int rootdev_attach(device_t *bus) {
                     PAGESIZE);
   device_add_memory(dev, 1, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_EMMC_BASE),
                     PAGESIZE);
-  device_add_irq(dev, 2, BCM2835_INT_EMMC);
+  device_add_irq(dev, 0, BCM2835_INT_EMMC);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
 
