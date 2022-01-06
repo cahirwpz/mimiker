@@ -20,19 +20,38 @@
 #define BCMEMMC_CONTROL2 0x003C
 #define BCMEMMC_SLOTISR_VER 0x00FC
 
+/* BLKSIZECNT register fields */
+#define BSC_BLKCNT 0xffff0000
+#define BSC_BLKCNT_SHIFT 16
+#define BSC_BLKSIZE 0x000003ff
+
 /* STATUS register fields */
 #define SR_DAT_INHIBIT 0x00000002
 #define SR_CMD_INHIBIT 0x00000001
+#define SR_INHIBIT (SR_CMD_INHIBIT | SR_DAT_INHIBIT)
 
 /* INTERRUPT register fields */
-#define INT_DATA_TIMEOUT 0x00100000
-#define INT_CMD_TIMEOUT 0x00010000
-#define INT_READ_RDY 0x00000020
-#define INT_WRITE_RDY 0x00000010
-#define INT_DATA_DONE 0x00000002
-#define INT_CMD_DONE 0x00000001
+#define INT_ACMD_ERR 0x01000000  /* Auto command error */
+#define INT_DEND_ERR 0x00400000  /* End bit on data line not 1 */
+#define INT_DCRC_ERR 0x00200000  /* Data CRC error */
+#define INT_DTO_ERR 0x00100000   /* Timeout on data line */
+#define INT_CBAD_ERR 0x00080000  /* Incorrect command index in response */
+#define INT_CEND_ERR 0x00040000  /* End bit on command line not 1 */
+#define INT_CCRC_ERR 0x00020000  /* Command CRC error */
+#define INT_CTO_ERR 0x00010000   /* Timeout on command line */
+#define INT_ERR 0x00008000       /* An error has occured */
+#define INT_ENDBOOT 0x00004000   /* Boot operation has terminated */
+#define INT_BOOTACK 0x00002000   /* Boot acknowledge has been received */
+#define INT_RETUNE 0x00001000    /* Clock retune request was made */
+#define INT_CARD 0x00000100      /* Card made interrupt request */
+#define INT_READ_RDY 0x00000020  /* DATA register contains data to be read */
+#define INT_WRITE_RDY 0x00000010 /* Data can be written to DATA register */
+#define INT_BLOCK_GAP 0x00000004 /* Data transfer has stopped at block gap */
+#define INT_DATA_DONE 0x00000002 /* Data transfer has finished */
+#define INT_CMD_DONE 0x00000001  /* Command has finished */
 
-#define INT_ERROR_MASK 0x017E8000
+#define INT_ERROR_MASK 0x017F8000
+#define INT_ALL_MASK 0x017FF137
 
 /* CONTROL register fields */
 #define C0_HCTL_DWITDH 0x00000002
@@ -40,6 +59,10 @@
 
 #define C1_SRST_HC 0x01000000
 #define C1_TOUNIT_MAX 0x000e0000
+#define C1_CLK_FREQ8 0x0000ff00
+#define C1_CLK_FREQ8_SHIFT 8
+#define C1_CLK_FREQ_MS2 0x000000c0
+#define C1_CLK_FREQ_MS2_SHIFT 6
 #define C1_CLK_EN 0x00000004
 #define C1_CLK_STABLE 0x00000002
 #define C1_CLK_INTLEN 0x00000001
@@ -76,8 +99,5 @@
 #define CMD_RESP136 0x00010000
 #define CMD_RESP48 0x00020000
 #define CMD_RESP48B 0x00030000
-
-/* Spooky GPIO stuff */
-#define GPHEN1 0x0068
 
 #endif
