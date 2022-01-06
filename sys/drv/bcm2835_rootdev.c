@@ -168,7 +168,7 @@ static void bcm2835_intr_handle(bus_space_handle_t irq_base, bus_size_t offset,
   }
 }
 
-static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
+static void rootdev_intr_handler(ctx_t *ctx, device_t *dev) {
   assert(dev != NULL);
   rootdev_t *rd = dev->state;
 
@@ -219,7 +219,7 @@ static int rootdev_attach(device_t *bus) {
     kmem_map_contig(BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
                     BCM2835_ARM_SIZE, PMAP_NOCACHE);
 
-  intr_root_claim(rootdev_intr_handler, bus, NULL);
+  intr_root_claim(rootdev_intr_handler, bus);
 
   device_t *dev;
 

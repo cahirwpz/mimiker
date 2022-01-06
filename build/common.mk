@@ -58,6 +58,10 @@ assym.h: genassym.cf
 	@echo "[ASSYM] $(DSTPATH)"
 	$(GENASSYM) $(CC) $(ASSYM_CFLAGS) $(CFLAGS) $(CPPFLAGS) < $^ > $@
 
+%.ld: %.ld.in
+	@echo "[CPP] $(SRCPATH) -> $(DSTPATH)"
+	$(CPP) $(CPPFLAGS) -I$(TOPDIR)/include -P -o $@ $<
+
 include $(TOPDIR)/config.mk
 include $(TOPDIR)/build/arch.$(ARCH).mk
 include $(TOPDIR)/build/tools.mk
