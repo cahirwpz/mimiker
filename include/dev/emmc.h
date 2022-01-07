@@ -138,7 +138,11 @@ typedef struct emmc_cmd {
 
 #define EMMC_BUSWIDTH_1 0x01 /* 1-bit bus */
 #define EMMC_BUSWIDTH_4 0x02 /* 4-bit bus */
-#define EMMC_BUSWIDTH_8 0x04 /* 8-bit bus */
+#define EMMC_BUSWIDTH_8 0x04 /* 8-bit but */
+
+typedef uint64_t emmc_error_t;
+
+#define EMMC_ERROR_CMD_TIMEOUT 0x01
 
 /* R stands for "read"
  * W stands for "write" */
@@ -156,6 +160,7 @@ typedef enum emmc_prop_id {
   EMMC_PROP_RW_CLOCK_FREQ,    /* Clocking frequency (Hz) */
   EMMC_PROP_RW_BUSWIDTH,      /* Bus width, ie. no. of data lanes. */
   EMMC_PROP_RW_RCA,           /* Relative card address */
+  EMMC_PROP_R_ERRORS,         /* Last reported set of errors */
 } emmc_prop_id_t;
 typedef uint64_t emmc_prop_val_t;
 
@@ -193,7 +198,8 @@ static inline emmc_methods_t *emmc_methods(device_t *dev) {
  * \brief Send an e.MMC command
  * \param dev e.MMC controller device
  * \param cmd e.MMC command (described in JESD86-A441)
- * \param arg command argument
+ * \param arg1 first argument
+ * \param arg2 second argument
  * \param resp pointer for response data to be written to or NULL
  * \return 0 on success EBUSY if device is busy, ETIMEDOUT on timeout, EIO
  * on internal error.
@@ -222,7 +228,7 @@ static inline int emmc_wait(device_t *dev, emmc_wait_flags_t wflags) {
  * \param len expected data length
  * \param n pointer for the number of read bytes or NULL
  * \return 0 on success, ENODATA if no new data can be read, EBUSY if device is
- * busy, EINVAL on incorrect data length (not a multiple of block size)
+ * busy
  */
 static inline int emmc_read(device_t *dev, void *buf, size_t len, size_t *n) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, read);

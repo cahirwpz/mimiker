@@ -32,6 +32,7 @@ typedef struct bcmemmc_state {
   uint64_t rca;          /* Relative Card Address */
   uint64_t host_version; /* Host specification version */
   volatile uint32_t pending; /* All interrupts received */
+  emmc_error_t errors;
 } bcmemmc_state_t;
 
 #define b_in bus_read_4
@@ -59,6 +60,18 @@ static inline uint32_t emmc_wait_flags_to_hwflags(emmc_wait_flags_t mask) {
 /* Timeout when awaiting an interrupt */
 #define BCMEMMC_TIMEOUT 10000
 #define BCMEMMC_BUSY_CYCLES 128
+
+static emmc_error_t bcemmc_decode_errors(uint32_t interrupts) {
+  emmc_error_t e = 0;
+
+  if (!(interrupts & INT_ERR))
+    return e;
+
+  if (interrupts & INT_CTO_ERR)
+    e |= EMMC_ERROR_CMD_TIMEOUT;
+
+  return e;
+}
 
 /* Returns new pending interrupts.
  * All pending interrupts are stored in `bmcemmc_state_t::pending`.
@@ -100,7 +113,6 @@ static inline int bcmemmc_check_intr(bcmemmc_state_t *state) {
  * \brief Wait for the specified interrupts.
  * \param dev eMMC device
  * \param mask expected interrupts
- * \param clear additional interrupt bits to be cleared
  * \return 0 on success, EIO on internal error, ETIMEDOUT on device timeout.
  * \warning This procedure may put the thread to sleep.
  */
@@ -113,12 +125,17 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
 
   for (;;) {
     if (state->pending & INT_ERROR_MASK) {
+      klog("An error flag(s) has beem raised for e.MMC controller: 0x%x",
+           state->pending & INT_ERROR_MASK);
       state->pending = 0;
+
+      state->errors = bcemmc_decode_errors(state->pending);
       return EIO;
     }
 
     if ((state->pending & mask) == mask) {
       state->pending &= ~mask;
+      state->errors = 0;
       return 0;
     }
 
@@ -131,8 +148,10 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
     }
 
     /* Sleep for a while if no new interrupts have been received so far */
-    if (!bcmemmc_try_read_intr_blocking(state))
+    if (!bcmemmc_try_read_intr_blocking(state)) {
+      state->errors = 0;
       return ETIMEDOUT;
+    }
   }
 
   return 0;
@@ -325,6 +344,9 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
     case EMMC_PROP_RW_RCA:
       *var = state->rca;
       break;
+    case EMMC_PROP_R_ERRORS:
+      *var = state->errors;
+      break;
     default:
       return ENODEV;
   }
@@ -387,7 +409,7 @@ static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
   b_out(emmc, BCMEMMC_ARG1, arg);
   b_out(emmc, BCMEMMC_CMDTM, code);
   if ((error = bcmemmc_intr_wait(dev, INT_CMD_DONE))) {
-    klog("ERROR: failed to send EMMC command %p", code);
+    klog("ERROR: failed to send EMMC command %p (error %d)", code, error);
     return error;
   }
 
@@ -405,10 +427,13 @@ static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
 static int bcmemmc_send_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
                             emmc_resp_t *resp) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
+  int error = 0;
 
   /* Application-specific command need to be prefixed with APP_CMD command. */
   if (cmd.flags & EMMC_F_APP)
-    bcmemmc_send_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, NULL);
+    error = bcmemmc_send_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, NULL);
+  if (error)
+    return error;
 
   uint32_t code = bcmemmc_encode_cmd(cmd);
   return bcmemmc_cmd_code(cdev->parent, code, arg, resp);
@@ -490,7 +515,7 @@ static int bcmemmc_init(device_t *dev) {
 
   state->host_version =
     (b_in(emmc, BCMEMMC_SLOTISR_VER) & HOST_SPEC_NUM) >> HOST_SPEC_NUM_SHIFT;
-  klog("e.MMC: GPIO set up");
+
   /* Reset the card. */
   b_out(emmc, BCMEMMC_CONTROL0, 0);
   b_set(emmc, BCMEMMC_CONTROL1, C1_SRST_HC);
@@ -510,6 +535,7 @@ static int bcmemmc_init(device_t *dev) {
     return error;
 
   /* Enable interrupts. */
+  state->pending = 0;
   const uint32_t interrupts = INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY |
                               INT_WRITE_RDY | INT_CTO_ERR | INT_DTO_ERR;
   b_out(emmc, BCMEMMC_INT_EN, interrupts);
@@ -535,6 +561,7 @@ static int bcmemmc_attach(device_t *dev) {
 
   b_out(state->emmc, BCMEMMC_INTERRUPT, INT_ALL_MASK);
   emmc_gpio_init(dev);
+  klog("e.MMC: GPIO set up");
 
   state->irq = device_take_irq(dev, 0, RF_ACTIVE);
   bus_intr_setup(dev, state->irq, bcmemmc_intr_filter, NULL, state,
