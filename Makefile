@@ -41,7 +41,7 @@ test: sys-build initrd.cpio
 
 PHONY-TARGETS += setup test
 
-IMGVER = 1.8.1
+IMGVER = 1.8.4
 IMGNAME = cahirwpz/mimiker-ci
 
 docker-build:

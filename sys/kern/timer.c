@@ -99,10 +99,8 @@ int tm_release(timer_t *tm) {
   if (is_active(tm))
     return EBUSY;
 
-  WITH_MTX_LOCK (&timers_mtx) {
-    TAILQ_INSERT_TAIL(&timers, tm, tm_link);
+  WITH_MTX_LOCK (&timers_mtx)
     tm->tm_flags &= ~(TMF_INITIALIZED | TMF_RESERVED);
-  }
 
   return 0;
 }
