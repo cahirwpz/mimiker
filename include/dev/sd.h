@@ -51,6 +51,8 @@
 #define SD_ACMD41_RESP_SW18A_OFFSET 24
 #define SD_ACMD41_RESP_SW18A_WIDTH 1
 
+#define SD_SCR_WORD_CNT 2
+
 #define SD_ACMD41_RESP_SET_BUSY(r, b)                                          \
   EMMC_FMASK48_WR((r), SD_ACMD41_RESP_BUSY_OFFSET, SD_ACMD41_RESP_BUSY_WIDTH,  \
                   (b))
