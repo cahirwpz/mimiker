@@ -36,7 +36,7 @@
 
 #include <sys/types.h>
 
-#if defined __riscv_f || defined __riscv_d
+#if defined(__riscv_f) || defined(__riscv_d)
 #define FPE 1
 #else
 #define FPE 0
@@ -49,7 +49,7 @@ typedef union __fpreg {
 #ifdef __riscv_f
   uint32_t u_u32;
   float u_f;
-#else
+#elif defined(__riscv_d)
   uint64_t u_u64;
   double u_d;
 #endif

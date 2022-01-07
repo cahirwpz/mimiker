@@ -71,7 +71,7 @@
 #ifdef __riscv_f
 #define FP_L flw
 #define FP_S fsw
-#elif defined __riscv_d
+#elif defined(__riscv_d)
 #define FP_L fld
 #define FP_S fsd
 #endif
