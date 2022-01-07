@@ -304,8 +304,10 @@ static int bcmemmc_get_bus_width(bcmemmc_state_t *state) {
   return EMMC_BUSWIDTH_1;
 }
 
-#define MAXBLKSIZE 512 /* There are 10 bits available for setting block size */
-#define MAXBLKCNT  65535 /* There 16-bits available for setting block count */
+/* There are 10 bits available for setting block size */
+#define MAXBLKSIZE 512
+/* There 16 bits available for setting block count */
+#define MAXBLKCNT 65535
 
 static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
