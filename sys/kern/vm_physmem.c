@@ -34,6 +34,8 @@ static MTX_DEFINE(physmem_lock, LK_RECURSIVE);
 void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
 
+  klog("%s: %p - %p, used=%d", __func__, start, end, used);
+
   static vm_physseg_t freeseg[VM_PHYSSEG_NMAX];
   static unsigned freeseg_last = 0;
 

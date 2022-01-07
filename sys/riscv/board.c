@@ -115,7 +115,7 @@ static void physmem_regions(void) {
   paddr_t mem_end = mem_start + kenv_get_ulong("mem_size");
   paddr_t memrsvd_start = kenv_get_ulong("memrsvd_start");
   paddr_t memrsvd_end = memrsvd_start + kenv_get_ulong("memrsvd_size");
-  paddr_t kern_start = (paddr_t)__boot;
+  paddr_t kern_start = KERNEL_PHYS;
   paddr_t kern_end = KERNEL_PHYS_END;
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();

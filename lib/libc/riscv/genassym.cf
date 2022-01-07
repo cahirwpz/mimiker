@@ -24,8 +24,24 @@ define UC_FLAGS offsetof(ucontext_t, uc_flags)
 define UC_STACK offsetof(ucontext_t, uc_stack)
 
 define _UC_SIGMASK _UC_SIGMASK
+define _UC_CPU _UC_CPU
+define _UC_FPU _UC_FPU
 define _UC_STACK _UC_STACK
 
 define SS_FLAGS offsetof(stack_t, ss_flags)
 
 define SS_ONSTACK SS_ONSTACK
+
+define UC_FPREGS_FS0 offsetof(ucontext_t, uc_mcontext.__fregs[8])
+define UC_FPREGS_FS1 offsetof(ucontext_t, uc_mcontext.__fregs[9])
+define UC_FPREGS_FS2 offsetof(ucontext_t, uc_mcontext.__fregs[18])
+define UC_FPREGS_FS3 offsetof(ucontext_t, uc_mcontext.__fregs[19])
+define UC_FPREGS_FS4 offsetof(ucontext_t, uc_mcontext.__fregs[20])
+define UC_FPREGS_FS5 offsetof(ucontext_t, uc_mcontext.__fregs[21])
+define UC_FPREGS_FS6 offsetof(ucontext_t, uc_mcontext.__fregs[22])
+define UC_FPREGS_FS7 offsetof(ucontext_t, uc_mcontext.__fregs[23])
+define UC_FPREGS_FS8 offsetof(ucontext_t, uc_mcontext.__fregs[24])
+define UC_FPREGS_FS9 offsetof(ucontext_t, uc_mcontext.__fregs[25])
+define UC_FPREGS_FS10 offsetof(ucontext_t, uc_mcontext.__fregs[26])
+define UC_FPREGS_FS11 offsetof(ucontext_t, uc_mcontext.__fregs[27])
+define UC_FPREGS_FCSR offsetof(ucontext_t, uc_mcontext.__fregs[32])

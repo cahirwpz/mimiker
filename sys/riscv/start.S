@@ -34,7 +34,7 @@ _ENTRY(_start)
 halt:
 	wfi
 	j halt
-END(_start)
+_END(_start)
 
 	.section .boot.data
 

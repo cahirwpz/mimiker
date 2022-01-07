@@ -6,6 +6,8 @@
 #include <sys/types.h>
 
 #define _REG(ctx, n) ((ctx)->uc_mcontext.__gregs[_REG_##n])
+#define _FPREG(ctx, n) ((ctx)->uc_mcontext.__fregs[(n)])
+#define _FPCSR(ctx) _FPREG(ctx, _REG_FPCSR)
 
 void longjmp(jmp_buf env, int val) {
   ucontext_t *sc_uc = (ucontext_t *)env;
@@ -54,7 +56,16 @@ void longjmp(jmp_buf env, int val) {
   _REG(&uc, S11) = _REG(sc_uc, S11);
   _REG(&uc, PC) = _REG(sc_uc, PC);
 
-  /* TODO(MichalBlk): copy FPE state. */
+#ifndef __riscv_float_abi_soft
+  /* Copy FPE state. */
+  if (sc_uc->uc_flags & _UC_FPU) {
+    /* FP callee saved registers are: f8-9, f18-27. */
+    memcpy(&_FPREG(&uc, 8), &_FPREG(sc_uc, 8), (10 - 8) * sizeof(__fpreg_t));
+    memcpy(&_FPREG(&uc, 18), &_FPREG(sc_uc, 18), (28 - 18) * sizeof(__fpreg_t));
+    _FPCSR(&uc) = _FPCSR(sc_uc);
+    uc.uc_flags |= _UC_FPU;
+  }
+#endif
 
   setcontext(&uc);
 err:

@@ -12,7 +12,7 @@ ELFTYPE := elf32-littleriscv
 ELFARCH := riscv
 
 ifeq ($(BOARD), vexriscv)
-	KERNEL_PHYS := 0x80400000
+	KERNEL_PHYS := 0x40000000
 	KERNEL-IMAGES := mimiker.img
 	DTB := vexriscv.dtb
 	CPPFLAGS += -DAUTO_DA_MGMT

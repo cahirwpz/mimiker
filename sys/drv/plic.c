@@ -7,16 +7,26 @@
 #include <sys/klog.h>
 
 /* PLIC memory map. */
+#define PLIC_CTXNUM_SV 2
+
 #define PLIC_PRIORITY_BASE 0x000000
+
 #define PLIC_ENABLE_BASE 0x002000
+#define PLIC_ENABLE_STRIDE 0x80
+#define PLIC_ENABLE_BASE_SV                                                    \
+  (PLIC_ENABLE_BASE + PLIC_CTXNUM_SV * PLIC_ENABLE_STRIDE)
+
 #define PLIC_CONTEXT_BASE 0x200000
+#define PLIC_CONTEXT_STRIDE 0x1000
 #define PLIC_CONTEXT_THRESHOLD 0x0
 #define PLIC_CONTEXT_CLAIM 0x4
+#define PLIC_CONTEXT_BASE_SV                                                   \
+  (PLIC_CONTEXT_BASE + PLIC_CTXNUM_SV * PLIC_CONTEXT_STRIDE)
 
 #define PLIC_PRIORITY(n) (PLIC_PRIORITY_BASE + (n) * sizeof(uint32_t))
-#define PLIC_ENABLE(n) (PLIC_ENABLE_BASE + ((n) / 32) * sizeof(uint32_t))
-#define PLIC_THRESHOLD (PLIC_CONTEXT_BASE + PLIC_CONTEXT_THRESHOLD)
-#define PLIC_CLAIM (PLIC_CONTEXT_BASE + PLIC_CONTEXT_CLAIM)
+#define PLIC_ENABLE_SV(n) (PLIC_ENABLE_BASE_SV + ((n) / 32) * sizeof(uint32_t))
+#define PLIC_THRESHOLD_SV (PLIC_CONTEXT_BASE_SV + PLIC_CONTEXT_THRESHOLD)
+#define PLIC_CLAIM_SV (PLIC_CONTEXT_BASE_SV + PLIC_CONTEXT_CLAIM)
 
 typedef struct plic_state {
   rman_t rm;                 /* irq resource manager */
@@ -33,18 +43,18 @@ static void plic_intr_disable(intr_event_t *ie) {
   plic_state_t *plic = ie->ie_source;
   unsigned irq = ie->ie_irq;
 
-  uint32_t en = in32(PLIC_ENABLE(irq));
+  uint32_t en = in32(PLIC_ENABLE_SV(irq));
   en &= ~(1 << (irq % 32));
-  out32(PLIC_ENABLE(irq), en);
+  out32(PLIC_ENABLE_SV(irq), en);
 }
 
 static void plic_intr_enable(intr_event_t *ie) {
   plic_state_t *plic = ie->ie_source;
   unsigned irq = ie->ie_irq;
 
-  uint32_t en = in32(PLIC_ENABLE(irq));
+  uint32_t en = in32(PLIC_ENABLE_SV(irq));
   en |= 1 << (irq % 32);
-  out32(PLIC_ENABLE(irq), en);
+  out32(PLIC_ENABLE_SV(irq), en);
 }
 
 static const char *plic_intr_name(unsigned irq) {
@@ -88,11 +98,11 @@ static intr_filter_t plic_intr_handler(void *arg) {
   plic_state_t *plic = arg;
 
   /* Claim any pending interrupt. */
-  uint32_t irq = in32(PLIC_CLAIM);
+  uint32_t irq = in32(PLIC_CLAIM_SV);
   if (irq) {
     intr_event_run_handlers(plic->intr_event[irq]);
     /* Complete the interrupt. */
-    out32(PLIC_CLAIM, irq);
+    out32(PLIC_CLAIM_SV, irq);
     return IF_FILTERED;
   }
 
@@ -131,13 +141,13 @@ static int plic_attach(device_t *ic) {
   assert(plic->mem);
 
   /*
-   * In case the PLIC supports priorities, set each priority to 1
+   * In case PLIC supports priorities, set each priority to 1
    * and the threshold to 0.
    */
   for (unsigned irq = 0; irq < plic->nirqs; irq++) {
     out32(PLIC_PRIORITY(irq), 1);
   }
-  out32(PLIC_THRESHOLD, 0);
+  out32(PLIC_THRESHOLD_SV, 0);
 
   plic->irq = device_take_irq(ic, 0, RF_ACTIVE);
   assert(plic->irq);

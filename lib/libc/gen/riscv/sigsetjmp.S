@@ -30,8 +30,9 @@ END(sigsetjmp)
 
 ENTRY(siglongjmp)
 	/* Get sigmask flag. */
-	INT_LU t0, UC_FLAGS(a0)
-	andi t0, t0, _UC_SIGMASK
+	INT_L t0, UC_FLAGS(a0)
+	li t1, _UC_SIGMASK
+	and t0, t0, t1
 	bnez t0, 0f
 
 	/* Signal mask in not stored. Move to `_longjmp`. */

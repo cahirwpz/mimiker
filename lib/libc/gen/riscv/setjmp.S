@@ -38,13 +38,14 @@ ENTRY(setjmp)
 	bnez a0, botch
 
 	/* Extract onstack flag from obtained stack. */
-	INT_LU t0, UC_STACK + SS_FLAGS(s0)
-	andi t0, t0, SS_ONSTACK
+	INT_L t0, (UC_STACK + SS_FLAGS)(s0)
+	li t1, SS_ONSTACK
+	and t0, t0, t1
 	beqz t0, 0f
 
 	/* Set stack flag in `env`. */
-	INT_LU t0, UC_FLAGS(s0)
-	ori t0, t0, _UC_STACK
+	INT_L t0, UC_FLAGS(s0)
+	or t0, t0, t1
 	INT_S t0, UC_FLAGS(s0)
 
 0:

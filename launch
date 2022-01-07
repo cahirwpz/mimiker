@@ -139,7 +139,7 @@ CONFIG = {
         'extra-options': [],
         'post-options': [
             '-ex=source .gdbinit',
-            '-ex=continue',
+#            '-ex=continue',
         ],
         'board': {
             'malta': {
@@ -277,7 +277,7 @@ class RENODE(Launchable):
             port = uart['port']
             dev = f'uart{i}'
             self.options += ['-e emulation CreateServerSocketTerminal ' +
-                             f'{port} "{dev}" False']
+                              f'{port} "{dev}" False']
             self.options += [f'-e connector Connect sysbus.{dev} {dev}']
 
         if getvar('config.debug'):
@@ -287,7 +287,7 @@ class RENODE(Launchable):
         # TODO(MichalBlk): we should enable passing kernel args through
         # the launch script by introducing parameterizable DTS files.
 
-        self.options += ['-e start']
+#        self.options += ['-e start']
 
 
 class GDB(Launchable):
@@ -450,6 +450,8 @@ if __name__ == '__main__':
         if host_path is not None:
             extra = getvar('gdb.extra-options')
             extra.append(f'-ex=add-symbol-file {host_path} 0x400000')
+
+        extra.append(f'-ex=add-symbol-file ../opensbi-new/build/platform/litex/vexriscv/firmware/fw_jump.elf 0x40f00000')
 
         dbg = GDB()
     elif args.test_run:

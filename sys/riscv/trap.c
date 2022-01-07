@@ -173,6 +173,26 @@ static void syscall_handler(mcontext_t *uctx, syscall_result_t *result) {
   result->error = error;
 }
 
+#if FPE
+static bool fpu_handler(mcontext_t *uctx) {
+  thread_t *td = thread_self();
+
+  if (td->td_pflags & TDP_FPUINUSE)
+    return false;
+
+  /*
+   * May be a FPE trap. Enable FPE usage
+   * for this thread and try again.
+   */
+  bzero(uctx->__fregs, sizeof(__fregset_t));
+  _REG(uctx, SR) &= ~SSTATUS_FS_MASK;
+  _REG(uctx, SR) |= SSTATUS_FS_CLEAN;
+  td->td_pflags |= TDP_FPUINUSE;
+
+  return true;
+}
+#endif
+
 static void user_trap_handler(ctx_t *ctx) {
   /*
    * We came here from user-space, hence interrupts and preemption must
@@ -208,7 +228,10 @@ static void user_trap_handler(ctx_t *ctx) {
       break;
 
     case SCAUSE_ILLEGAL_INSTRUCTION:
-      /* TODO(MichalBlk): enable FPE if requested. */
+#if FPE
+      if (fpu_handler((mcontext_t *)ctx))
+        break;
+#endif
       sig_trap(ctx, SIGILL);
       break;
 

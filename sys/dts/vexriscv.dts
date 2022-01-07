@@ -6,14 +6,14 @@
 
 	chosen {
 		bootargs = "klog-mask=0xffffffff init=/bin/ksh";
-		linux,initrd-start = <0x83000000>;
-		linux,initrd-end = <0x86000000>;
+		linux,initrd-start = <0x42000000>;
+		linux,initrd-end = <0x45000000>;
 	};
 
 	cpus {
 		#address-cells = <0x01>;
 		#size-cells = <0x00>;
-		timebase-frequency = <1000000>;
+		timebase-frequency = <100000000>;
 
 		cpu@0 {
 			device_type = "cpu";
@@ -33,7 +33,7 @@
 
 	memory@0x80000000 {
 		device_type = "memory";
-		reg = <0x80000000 0x40000000>;
+		reg = <0x40000000 0x40000000>;
 	};
 
 	reserved-memory {
@@ -42,7 +42,7 @@
 		ranges;
 
 		opensbi@80000000 {
-			reg = <0x80000000 0x80000>;
+			reg = <0x40f00000 0x80000>;
 		};
 	};
 

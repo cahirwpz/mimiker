@@ -678,7 +678,7 @@ void pmap_bootstrap(paddr_t pd_pa, pd_entry_t *pd_va) {
   dmap_paddr_end = dmap_paddr_base + dmap_size;
   kernel_pde = pd_pa;
 
-  /* Assume the physical memory starts at the beginning of an L0 region. */
+  /* Assume the physical memory starts at the beginning of L0 region. */
   assert(is_aligned(dmap_paddr_base, L0_SIZE));
 
   /* We must have enough virtual addresses. */
@@ -688,6 +688,8 @@ void pmap_bootstrap(paddr_t pd_pa, pd_entry_t *pd_va) {
   assert(dmap_paddr_base < dmap_paddr_end);
 
   klog("Physical memory range: %p - %p", dmap_paddr_base, dmap_paddr_end - 1);
+
+  klog("DMAP range: %p - %p", DMAP_VADDR_BASE, DMAP_VADDR_BASE + dmap_size - 1);
 
   /* Build a direct map using 4MiB superpages. */
   size_t idx = L0_INDEX(DMAP_VADDR_BASE);
@@ -704,7 +706,7 @@ void pmap_growkernel(vaddr_t maxkvaddr) {
   assert(maxkvaddr > vm_kernel_end);
 
   maxkvaddr = roundup2(maxkvaddr, L0_SIZE);
-
+  assert(maxkvaddr <= DMAP_VADDR_BASE);
   pmap_t *pmap = pmap_kernel();
 
   WITH_MTX_LOCK (&pmap->mtx) {

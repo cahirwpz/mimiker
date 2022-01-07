@@ -47,11 +47,16 @@
   .type _C_LABEL(x), @function;                                                \
   _C_LABEL(x) :
 
+#define _END(x) .size x, .- x
+
 #define ENTRY(x)                                                               \
   .text;                                                                       \
-  _ENTRY(x)
+  _ENTRY(_C_LABEL(x));                                                         \
+  .cfi_startproc
 
-#define END(x) .size _C_LABEL(x), .- _C_LABEL(x)
+#define END(x)                                                                 \
+  .cfi_endproc;                                                                \
+  _END(_C_LABEL(x))
 
 #define EXPORT(x)                                                              \
   .globl _C_LABEL(x);                                                          \
@@ -63,8 +68,13 @@
   PTR_LA gp, __global_pointer$;                                                \
   .option pop
 
+#ifdef __riscv_f
+#define FP_L flw
+#define FP_S fsw
+#elif defined __riscv_d
 #define FP_L fld
 #define FP_S fsd
+#endif
 
 /*
  * These macros hide the use of rv32 and rv64 instructions from the
@@ -106,7 +116,6 @@
 #define INT_WORD .word
 #define INT_SCALESHIFT 2
 #if __riscv_xlen == 64
-#define INT_LU lwu
 #define INT_ADD addw
 #define INT_ADDI addwi
 #define INT_SUB subw
@@ -118,7 +127,6 @@
 #define INT_SRA srawi
 #define INT_SRAV sraw
 #else
-#define INT_LU lw
 #define INT_ADD add
 #define INT_ADDI addi
 #define INT_SUB sub

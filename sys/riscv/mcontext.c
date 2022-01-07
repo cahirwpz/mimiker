@@ -100,7 +100,11 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
     memcpy(&_REG(to, RA), &_REG(from, RA), gregsz);
   }
 
-  /* TODO(MichalBlk): handle FPE state. */
+#if FPE
+  /* FPE state */
+  if (uc->uc_flags & _UC_FPU)
+    memcpy(to->__fregs, from->__fregs, sizeof(__fregset_t));
+#endif
 
   return EJUSTRETURN;
 }
