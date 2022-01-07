@@ -36,6 +36,7 @@ static POOL_DEFINE(P_VM_MAPENT, "vm_map_entry", sizeof(vm_map_entry_t));
 static vm_map_t *kspace = &(vm_map_t){};
 
 void vm_map_activate(vm_map_t *map) {
+  assert(map != kspace);
   SCOPED_NO_PREEMPTION();
 
   PCPU_SET(uspace, map);
@@ -108,7 +109,6 @@ static void vm_map_setup(vm_map_t *map) {
 void init_vm_map(void) {
   vm_map_setup(kspace);
   kspace->pmap = pmap_kernel();
-  vm_map_activate(kspace);
 }
 
 vm_map_t *vm_map_new(void) {

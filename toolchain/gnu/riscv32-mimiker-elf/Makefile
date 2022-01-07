@@ -2,10 +2,10 @@
 
 TOPDIR = $(realpath ..)
 
-ARCH = amd64
-TARGET = x86_64-mimiker-elf
+ARCH = riscv32
+TARGET = riscv32-mimiker-elf
 
-GCC_EXTRA_CONF = --with-arch=x86-64 \
-		 --with-abi=m64
+GCC_EXTRA_CONF = --with-arch=rv32gc \
+		 --with-abi=ilp32d
 
 include $(TOPDIR)/target.mk

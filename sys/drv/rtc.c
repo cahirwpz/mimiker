@@ -36,7 +36,8 @@ typedef struct rtc_state {
  */
 
 static void boottime_init(tm_t *t) {
-  bintime_t bt = BINTIME(tm2sec(t));
+  time_t time = tm2sec(t);
+  bintime_t bt = BINTIME(time);
   tm_setclock(&bt);
 }
 

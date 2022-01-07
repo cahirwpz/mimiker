@@ -34,11 +34,6 @@ typedef struct pv_entry {
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 
-#define PA_MASK 0xfffffffff000
-#define ADDR_MASK 0x8ffffffff000
-#define DMAP_BASE 0xffffff8000000000 /* last 512GB */
-#define PHYS_TO_DMAP(x) ((intptr_t)(x) + DMAP_BASE)
-
 /*
  * This table describes which access bits need to be set in page table entry
  * for successful memory translation by MMU. Other configurations causes memory
@@ -91,7 +86,6 @@ static SPIN_DEFINE(asid_lock, 0);
  * pmap_t::mtx */
 static MTX_DEFINE(pv_list_lock, 0);
 
-#define PTE_FRAME_ADDR(pte) ((pte)&PA_MASK)
 #define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
 #define PG_DMAP_ADDR(pg) ((void *)((intptr_t)(pg)->paddr + DMAP_BASE))
 
@@ -99,19 +93,19 @@ static MTX_DEFINE(pv_list_lock, 0);
  * Helper functions.
  */
 static bool user_addr_p(vaddr_t addr) {
-  return (addr >= PMAP_USER_BEGIN) && (addr < PMAP_USER_END);
+  return (addr >= USER_SPACE_BEGIN) && (addr < USER_SPACE_END);
 }
 
 static bool kern_addr_p(vaddr_t addr) {
-  return (addr >= PMAP_KERNEL_BEGIN) && (addr < PMAP_KERNEL_END);
+  return (addr >= KERNEL_SPACE_BEGIN) && (addr < KERNEL_SPACE_END);
 }
 
 inline vaddr_t pmap_start(pmap_t *pmap) {
-  return pmap->asid ? PMAP_USER_BEGIN : PMAP_KERNEL_BEGIN;
+  return pmap->asid ? USER_SPACE_BEGIN : KERNEL_SPACE_BEGIN;
 }
 
 inline vaddr_t pmap_end(pmap_t *pmap) {
-  return pmap->asid ? PMAP_USER_END : PMAP_KERNEL_END;
+  return pmap->asid ? USER_SPACE_END : KERNEL_SPACE_END;
 }
 
 inline bool pmap_address_p(pmap_t *pmap, vaddr_t va) {
