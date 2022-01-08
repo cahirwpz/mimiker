@@ -1,5 +1,5 @@
-#include <sys/klog.h>
 #include <sys/context.h>
+#include <sys/klog.h>
 
 bool user_mode_p(ctx_t *ctx) {
   panic("Not implemented!");

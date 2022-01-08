@@ -47,20 +47,34 @@
   .type _C_LABEL(x), @function;                                                \
   _C_LABEL(x) :
 
+#define _END(x) .size x, .- x
+
 #define ENTRY(x)                                                               \
   .text;                                                                       \
-  _ENTRY(x)
+  _ENTRY(_C_LABEL(x));                                                         \
+  .cfi_startproc
 
-#define END(x) .size _C_LABEL(x), .- _C_LABEL(x)
+#define END(x)                                                                 \
+  .cfi_endproc;                                                                \
+  _END(_C_LABEL(x))
 
-#define LOAD_GP                                                                \
+#define EXPORT(x)                                                              \
+  .globl _C_LABEL(x);                                                          \
+  _C_LABEL(x) :
+
+#define LOAD_GP()                                                              \
   .option push;                                                                \
   .option norelax;                                                             \
   PTR_LA gp, __global_pointer$;                                                \
   .option pop
 
+#ifdef __riscv_f
+#define FP_L flw
+#define FP_S fsw
+#elif defined(__riscv_d)
 #define FP_L fld
 #define FP_S fsd
+#endif
 
 /*
  * These macros hide the use of rv32 and rv64 instructions from the

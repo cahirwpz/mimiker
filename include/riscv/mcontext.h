@@ -36,17 +36,28 @@
 
 #include <sys/types.h>
 
+#if defined(__riscv_f) || defined(__riscv_d)
+#define FPE 1
+#else
+#define FPE 0
+#endif
+
 #define _NGREG 35 /* GR1-31, PC, SR, TVAL, CAUSE */
 #define _NFREG 33 /* F0-31, FCSR */
 
-union __fpreg {
+typedef union __fpreg {
+#ifdef __riscv_f
+  uint32_t u_u32;
+  float u_f;
+#elif defined(__riscv_d)
   uint64_t u_u64;
   double u_d;
-};
+#endif
+} __fpreg_t;
 
 typedef uint32_t __greg_t;
 typedef __greg_t __gregset_t[_NGREG];
-typedef union __fpreg __fregset_t[_NFREG];
+typedef __fpreg_t __fregset_t[_NFREG];
 
 #define _REG_RA 0
 #define _REG_SP 1

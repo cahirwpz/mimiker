@@ -122,7 +122,7 @@ CONFIG = {
             'vexriscv': {
                 'script': 'litex_vexriscv_mimiker.resc',
                 'uarts': [
-                    dict(name='/dev/tty0', port=RandomPort())
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ]
             }
         }
@@ -286,8 +286,6 @@ class RENODE(Launchable):
 
         # TODO(MichalBlk): we should enable passing kernel args through
         # the launch script by introducing parameterizable DTS files.
-        if getvar('config.args'):
-            raise Exception('kernel args for renode must be passed via dtb')
 
         self.options += ['-e start']
 
