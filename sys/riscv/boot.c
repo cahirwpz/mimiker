@@ -50,7 +50,7 @@ __boot_text static __noreturn void halt(void) {
 }
 
 __boot_text static void bootmem_init(void) {
-  bootmem_brk = (void *)align((paddr_t)__ebss, PAGESIZE);
+  bootmem_brk = (void *)align(RISCV_PHYSADDR(__ebss), PAGESIZE);
   bootmem_end = bootmem_brk + BOOTMEM_SIZE;
 }
 
@@ -75,6 +75,12 @@ __boot_text static void map_kernel_image(pd_entry_t *pde) {
   /* Set appropriate page directory entry. */
   size_t idx = L0_INDEX((vaddr_t)__text);
   pde[idx] = PA_TO_PTE((paddr_t)pte) | PTE_V | PTE_G;
+
+  /* Allocate extra page tables for `vm_boot_alloc`. */
+  for (int i = 0; i < 4; i++) {
+    pde[idx + i + 1] =
+      PA_TO_PTE((paddr_t)bootmem_alloc(PAGESIZE)) | PTE_V | PTE_G;
+  }
 
   /*
    * Map successive kernel segments.
@@ -123,7 +129,7 @@ __boot_text static void map_pd(pd_entry_t *pde) {
   pte[pt_idx] = PA_TO_PTE((paddr_t)pde) | PTE_KERN;
 }
 
-static __noreturn void riscv_boot(paddr_t dtb, paddr_t pd);
+static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde);
 
 __boot_text __noreturn void riscv_init(paddr_t dtb) {
   /*
@@ -183,7 +189,7 @@ static void clear_bss(void) {
 /* Trap handler in direct mode. */
 void cpu_exception_handler(void);
 
-static __noreturn void riscv_boot(paddr_t dtb, paddr_t pd) {
+static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
   /*
    * Set initial register values.
    */
@@ -204,7 +210,7 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pd) {
   init_kasan();
   init_klog();
 
-  pmap_bootstrap(pd, (pd_entry_t *)BOOT_PD_VADDR);
+  pmap_bootstrap(pde, (pd_entry_t *)BOOT_PD_VADDR);
 
   /*
    * Switch to thread0's stack and perform `board_init`.

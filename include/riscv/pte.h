@@ -40,9 +40,12 @@
 #ifndef _RISCV_PTE_H_
 #define _RISCV_PTE_H_
 
+#include <stdint.h>
+
 typedef uint32_t pd_entry_t; /* page directory entry */
 typedef uint32_t pt_entry_t; /* page table entry */
 typedef uint32_t pn_t;       /* page number */
+typedef uint16_t asid_t;     /* address space identifier */
 
 /* Level 0 table, 4MiB per entry */
 #define L0_SHIFT 22

@@ -1,4 +1,4 @@
-#define KL_KOL KL_PMAP
+#define KL_LOG KL_PMAP
 #include <sys/kenv.h>
 #include <sys/klog.h>
 #include <sys/mimiker.h>

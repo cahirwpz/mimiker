@@ -26,9 +26,10 @@ paddr_t dtb_early_root(void) {
   return _dtb_root_pa + _dtb_offset;
 }
 
-void dtb_early_init(paddr_t dtb, size_t size) {
-  _dtb_root_pa = rounddown(dtb, PAGESIZE);
-  _dtb_offset = dtb - _dtb_root_pa;
+void dtb_early_init(paddr_t pa, vaddr_t va, size_t size) {
+  _dtb_root = (void *)va;
+  _dtb_root_pa = rounddown(pa, PAGESIZE);
+  _dtb_offset = pa - _dtb_root_pa;
   _dtb_size = size + _dtb_offset;
   _dtb_exact_size = size;
 }
@@ -58,21 +59,42 @@ static void __noreturn halt(void) {
 }
 
 /* Return offset of path at dtb or die. */
-static int dtb_offset(void *dtb, const char *path) {
-  int offset = fdt_path_offset(dtb, path);
+int dtb_offset(const char *path) {
+  int offset = fdt_path_offset(_dtb_root, path);
   if (offset < 0)
     halt();
   return offset;
 }
 
-void dtb_mem(void *dtb, uint32_t *start_p, uint32_t *size_p) {
-  int offset = dtb_offset(dtb, "/memory");
+void dtb_reg(int node, const uint32_t **prop_p, int *len_p) {
   int len;
-  const uint32_t *prop = fdt_getprop(dtb, offset, "reg", &len);
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, "reg", &len);
   /* reg contains start (4 bytes) and size (4 bytes) */
   if (prop == NULL || (size_t)len < 2 * sizeof(uint32_t))
     halt();
 
+  if (prop_p)
+    *prop_p = prop;
+  if (len_p)
+    *len_p = len;
+}
+
+void dtb_intr(int node, const uint32_t **prop_p, int *len_p) {
+  int len;
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, "interrupts", &len);
+  if (!prop || (size_t)len < sizeof(uint32_t))
+    halt();
+
+  if (prop_p)
+    *prop_p = prop;
+  if (len_p)
+    *len_p = len;
+}
+
+void dtb_mem(uint32_t *start_p, uint32_t *size_p) {
+  int offset = dtb_offset("/memory");
+  const uint32_t *prop;
+  dtb_reg(offset, &prop, NULL);
   *start_p = fdt32_to_cpu(prop[0]);
   *size_p = fdt32_to_cpu(prop[1]);
 }
@@ -80,40 +102,36 @@ void dtb_mem(void *dtb, uint32_t *start_p, uint32_t *size_p) {
 /*
  * NOTE: we assume there is a single reserved memory range.
  */
-void dtb_memrsvd(void *dtb, uint32_t *start_p, uint32_t *size_p) {
-  int node_off = dtb_offset(dtb, "reserved-memory");
-  int subnode_off = fdt_first_subnode(dtb, node_off);
+void dtb_memrsvd(uint32_t *start_p, uint32_t *size_p) {
+  int node_off = dtb_offset("reserved-memory");
+  int subnode_off = fdt_first_subnode(_dtb_root, node_off);
   if (subnode_off < 0)
     halt();
-
-  int len;
-  const uint32_t *prop = fdt_getprop(dtb, subnode_off, "reg", &len);
-  /* reg contains start (4 bytes) and size (4 bytes) */
-  if (prop == NULL || (size_t)len < 2 * sizeof(uint32_t))
-    halt();
-
+  const uint32_t *prop;
+  dtb_reg(subnode_off, &prop, NULL);
   *start_p = fdt32_to_cpu(prop[0]);
   *size_p = fdt32_to_cpu(prop[1]);
 }
 
-void dtb_rd(void *dtb, uint32_t *start_p, uint32_t *size_p) {
-  int offset = dtb_offset(dtb, "/chosen");
+void dtb_rd(uint32_t *start_p, uint32_t *size_p) {
+  int offset = dtb_offset("/chosen");
   int len;
 
-  const uint32_t *prop = fdt_getprop(dtb, offset, "linux,initrd-start", &len);
+  const uint32_t *prop =
+    fdt_getprop(_dtb_root, offset, "linux,initrd-start", &len);
   if (prop == NULL || (size_t)len < sizeof(uint32_t))
     halt();
   *start_p = fdt32_to_cpu(*prop);
 
-  prop = fdt_getprop(dtb, offset, "linux,initrd-end", &len);
+  prop = fdt_getprop(_dtb_root, offset, "linux,initrd-end", &len);
   if (prop == NULL || (size_t)len < sizeof(uint32_t))
     halt();
   *size_p = fdt32_to_cpu(*prop) - *start_p;
 }
 
-const char *dtb_cmdline(void *dtb) {
-  int offset = dtb_offset(dtb, "/chosen");
-  const char *prop = fdt_getprop(dtb, offset, "bootargs", NULL);
+const char *dtb_cmdline(void) {
+  int offset = dtb_offset("/chosen");
+  const char *prop = fdt_getprop(_dtb_root, offset, "bootargs", NULL);
   if (prop == NULL)
     halt();
 

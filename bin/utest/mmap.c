@@ -12,19 +12,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#ifdef __mips__
+#if __SIZEOF_POINTER__ == 4
 #define BAD_ADDR_SPAN 0x7fff0000
 #define BAD_ADDR_SPAN_LEN 0x20000
-#endif
-
-#ifdef __aarch64__
+#else
 #define BAD_ADDR_SPAN 0x00007fffffff0000L
 #define BAD_ADDR_SPAN_LEN 0xfffe800000002000
-#endif
-
-#ifdef __riscv
-#define BAD_ADDR_SPAN 0x7fff0000
-#define BAD_ADDR_SPAN_LEN 0x20000
 #endif
 
 #define mmap_anon_priv(addr, length, prot)                                     \

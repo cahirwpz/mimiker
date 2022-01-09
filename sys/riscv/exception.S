@@ -9,3 +9,5 @@ ENTRY(user_exc_leave)
 	# Not implemented!
 	j .
 END(user_exc_leave)
+
+# vim: sw=8 ts=8 et

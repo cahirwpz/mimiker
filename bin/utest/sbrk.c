@@ -5,16 +5,10 @@
 #include <unistd.h>
 #include <assert.h>
 
-#ifdef __mips__
+#if __SIZEOF_POINTER__ == 4
 #define TOO_MUCH 0x80000000
-#endif
-
-#ifdef __aarch64__
+#else
 #define TOO_MUCH 0x4000000000000000L
-#endif
-
-#ifdef __riscv
-#define TOO_MUCH 0x80000000
 #endif
 
 static void *sbrk_orig = NULL;

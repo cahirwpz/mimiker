@@ -36,58 +36,67 @@
 
 #include <sys/types.h>
 
-#define _NGREG 32 /* GR1-31, PC */
+#if defined(__riscv_f) || defined(__riscv_d)
+#define FPE 1
+#else
+#define FPE 0
+#endif
+
+#define _NGREG 35 /* GR1-31, PC, SR, TVAL, CAUSE */
 #define _NFREG 33 /* F0-31, FCSR */
 
-union __fpreg {
+typedef union __fpreg {
+#ifdef __riscv_f
+  uint32_t u_u32;
+  float u_f;
+#elif defined(__riscv_d)
   uint64_t u_u64;
   double u_d;
-};
+#endif
+} __fpreg_t;
 
 typedef uint32_t __greg_t;
 typedef __greg_t __gregset_t[_NGREG];
-typedef union __fpreg __fregset_t[_NFREG];
+typedef __fpreg_t __fregset_t[_NFREG];
 
-#define _REG_X1 0
-#define _REG_X2 1
-#define _REG_X3 2
-#define _REG_X4 3
-#define _REG_X5 4
-#define _REG_X6 5
-#define _REG_X7 6
-#define _REG_X8 7
-#define _REG_X9 8
-#define _REG_X10 9
-#define _REG_X11 10
-#define _REG_X12 11
-#define _REG_X13 12
-#define _REG_X14 13
-#define _REG_X15 14
-#define _REG_X16 15
-#define _REG_X17 16
-#define _REG_X18 17
-#define _REG_X19 18
-#define _REG_X20 19
-#define _REG_X21 20
-#define _REG_X22 21
-#define _REG_X23 22
-#define _REG_X24 23
-#define _REG_X25 24
-#define _REG_X26 25
-#define _REG_X27 26
-#define _REG_X28 27
-#define _REG_X29 28
-#define _REG_X30 29
-#define _REG_X31 30
+#define _REG_RA 0
+#define _REG_SP 1
+#define _REG_GP 2
+#define _REG_TP 3
+#define _REG_T0 4
+#define _REG_T1 5
+#define _REG_T2 6
+#define _REG_S0 7
+#define _REG_S1 8
+#define _REG_A0 9
+#define _REG_A1 10
+#define _REG_A2 11
+#define _REG_A3 12
+#define _REG_A4 13
+#define _REG_A5 14
+#define _REG_A6 15
+#define _REG_A7 16
+#define _REG_S2 17
+#define _REG_S3 18
+#define _REG_S4 19
+#define _REG_S5 20
+#define _REG_S6 21
+#define _REG_S7 22
+#define _REG_S8 23
+#define _REG_S9 24
+#define _REG_S10 25
+#define _REG_S11 26
+#define _REG_T3 27
+#define _REG_T4 28
+#define _REG_T5 29
+#define _REG_T6 30
+
 #define _REG_PC 31
+#define _REG_SR 32
+#define _REG_TVAL 33
+#define _REG_CAUSE 34
 
-#define _REG_RA _REG_X1
-#define _REG_SP _REG_X2
-#define _REG_GP _REG_X3
-#define _REG_TP _REG_X4
-#define _REG_S0 _REG_X8
-#define _REG_RV _REG_X10
-#define _REG_A0 _REG_X10
+#define _REG_RV _REG_A0
 
 #define _REG_F0 0
 #define _REG_FPCSR 32
@@ -111,13 +120,5 @@ typedef struct ctx {
 /* Machine-dependent uc_flags */
 #define _UC_SETSTACK 0x00010000 /* see <sys/ucontext.h> */
 #define _UC_CLRSTACK 0x00020000 /* see <sys/ucontext.h> */
-#define _UC_TLSBASE 0x00080000  /* see <sys/ucontext.h> */
-
-#define _UC_MACHINE_SP(uc) ((uc)->uc_mcontext.__gregs[_REG_SP])
-#define _UC_MACHINE_FP(uc) ((uc)->uc_mcontext.__gregs[_REG_S0])
-#define _UC_MACHINE_PC(uc) ((uc)->uc_mcontext.__gregs[_REG_PC])
-#define _UC_MACHINE_INTRV(uc) ((uc)->uc_mcontext.__gregs[_REG_RV])
-
-#define _UC_MACHINE_SET_PC(uc, pc) _UC_MACHINE_PC(uc) = (pc)
 
 #endif /* !_RISCV_MCONTEXT_H_ */

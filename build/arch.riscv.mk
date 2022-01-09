@@ -6,13 +6,13 @@
 #
 
 TARGET := riscv32-mimiker-elf
-GCC_ABIFLAGS :=
+GCC_ABIFLAGS := 
 CLANG_ABIFLAGS := -target riscv32-elf
 ELFTYPE := elf32-littleriscv
 ELFARCH := riscv
 
 ifeq ($(BOARD), vexriscv)
-	KERNEL_PHYS := 0x80400000
+	KERNEL_PHYS := 0x40000000
 	KERNEL-IMAGES := mimiker.img
 	DTB := vexriscv.dtb
 endif

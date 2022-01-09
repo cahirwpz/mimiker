@@ -1,5 +1,6 @@
 #include <riscv/abi.h>
 #include <riscv/asm.h>
+
 #include "assym.h"
 
 #define INITSTACK_SIZE 512
@@ -17,24 +18,25 @@
  *  - all other registers remain in an undefined state
  */
 _ENTRY(_start)
-	LOAD_GP
+	LOAD_GP()
 
-	/* NOTE: In an actual SMP system, we could have multiple harts entering
-	 * the kernel simultaneously. In such case, we would have to choose
-	 * the hart to perform the global startup. FTTB, we assume a single
-	 * hart of ID 0. */
-	seqz t0, a0
-	beqz t0, halt
+	/* 
+	 * NOTE: In an actual SMP system, we could have multiple harts
+	 * entering the kernel simultaneously. In such case,
+	 * we would have to choose the hart to perform the global startup.
+	 * FTTB, we assume a single hart of ID 0.
+	 */
+	bnez a0, halt
 
 	/* Move to the initial stack. */
 	PTR_LA sp, initstack_end
 
 	mv a0, a1
-	call riscv_init
+	tail riscv_init
 halt:
 	wfi
 	j halt
-END(_start)
+_END(_start)
 
 	.section .boot.data
 

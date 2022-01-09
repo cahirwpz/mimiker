@@ -11,7 +11,7 @@ PHDRS
 PROVIDE(__image_size = (__kernel_end - __kernel_start) + _boot_size);
 SECTIONS
 {
-  .boot 0x80400000 : AT(0x80400000) ALIGN(4096)
+  .boot 0x40000000 : AT(0x40000000) ALIGN(4096)
   {
     __boot = ABSOLUTE(.);
     KEEP(riscv/riscv.ka:start.o)

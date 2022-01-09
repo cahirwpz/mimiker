@@ -39,7 +39,11 @@
 #ifndef _RISCV_RISCVREG_H_
 #define _RISCV_RISCVREG_H_
 
+#if __riscv_xlen == 64
 #define SCAUSE_INTR (1ul << 63)
+#else
+#define SCAUSE_INTR (1 << 31)
+#endif
 #define SCAUSE_CODE (~SCAUSE_INTR)
 #define SCAUSE_INST_MISALIGNED 0
 #define SCAUSE_INST_ACCESS_FAULT 1
@@ -60,8 +64,10 @@
 #define SSTATUS_UPIE (1 << 4)
 #define SSTATUS_SPIE (1 << 5)
 #define SSTATUS_SPIE_SHIFT 5
-#define SSTATUS_SPP (1 << 8)
 #define SSTATUS_SPP_SHIFT 8
+#define SSTATUS_SPP_USER (0 << SSTATUS_SPP_SHIFT)
+#define SSTATUS_SPP_SUPV (1 << SSTATUS_SPP_SHIFT)
+#define SSTATUS_SPP_MASK (1 << SSTATUS_SPP_SHIFT)
 #define SSTATUS_FS_SHIFT 13
 #define SSTATUS_FS_OFF (0x0 << SSTATUS_FS_SHIFT)
 #define SSTATUS_FS_INITIAL (0x1 << SSTATUS_FS_SHIFT)
@@ -101,6 +107,7 @@
 #define SATP_MODE_M (0xfULL << SATP_MODE_S)
 #define SATP_MODE_SV39 (8ULL << SATP_MODE_S)
 #define SATP_MODE_SV48 (9ULL << SATP_MODE_S)
+#define MAX_ASID 0x01ff
 #else
 #define SATP_PPN_S 0
 #define SATP_PPN_M (0x3fffff << SATP_PPN_S)
@@ -109,6 +116,7 @@
 #define SATP_MODE_S 31
 #define SATP_MODE_M (0x1 << SATP_MODE_S)
 #define SATP_MODE_SV32 (1 << SATP_MODE_S)
+#define MAX_ASID 0xffff
 #endif
 
 #define XLEN __riscv_xlen
@@ -177,5 +185,13 @@
 #else
 #define csr_read64(csr) ((uint64_t)csr_read(csr))
 #endif
+
+#define rdcycle() csr_read64(cycle)
+#define rdtime() csr_read64(time)
+#define rdinstret() csr_read64(instret)
+#define rdhpmcounter(n) csr_read64(hpmcounter##n)
+
+#define enter_user_access() csr_set(sstatus, SSTATUS_SUM)
+#define exit_user_access() csr_clear(sstatus, SSTATUS_SUM)
 
 #endif /* !_RISCV_RISCVREG_H_ */
