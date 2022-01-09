@@ -2,8 +2,10 @@
 
 TOPDIR = $(realpath ../..)
 
-BUILD-FILES += rpi3.dtb
+DTB = $(BOARD).dtb
 
-CLEAN-FILES += rpi3.dtb
+BUILD-FILES += $(DTB)
+
+CLEAN-FILES += $(DTB)
 
 include $(TOPDIR)/build/build.kern.mk
