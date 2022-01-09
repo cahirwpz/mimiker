@@ -14,7 +14,6 @@ ELFARCH := riscv
 ifeq ($(BOARD), vexriscv)
 	KERNEL_PHYS := 0x40000000
 	KERNEL-IMAGES := mimiker.img
-	DTB := vexriscv.dtb
 endif
 
 ifeq ($(KERNEL), 1)

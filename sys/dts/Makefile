@@ -2,6 +2,8 @@
 
 TOPDIR = $(realpath ../..)
 
+DTB = $(BOARD).dtb
+
 BUILD-FILES += $(DTB)
 
 CLEAN-FILES += $(DTB)
