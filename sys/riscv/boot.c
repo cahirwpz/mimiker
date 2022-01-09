@@ -74,12 +74,11 @@ __boot_text static void map_kernel_image(pd_entry_t *pde) {
 
   /* Set appropriate page directory entry. */
   size_t idx = L0_INDEX((vaddr_t)__text);
-  pde[idx] = PA_TO_PTE((paddr_t)pte) | PTE_V | PTE_G;
+  pde[idx] = PA_TO_PTE((paddr_t)pte) | PTE_V;
 
   /* Allocate extra page tables for `vm_boot_alloc`. */
   for (int i = 0; i < 4; i++) {
-    pde[idx + i + 1] =
-      PA_TO_PTE((paddr_t)bootmem_alloc(PAGESIZE)) | PTE_V | PTE_G;
+    pde[idx + i + 1] = PA_TO_PTE((paddr_t)bootmem_alloc(PAGESIZE)) | PTE_V;
   }
 
   /*
