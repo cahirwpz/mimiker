@@ -2,6 +2,9 @@
 #
 # Common makefile which specifies RISC-V architecture specific settings.
 #
+# Explanation of specified options can be found here:
+#   https://gcc.gnu.org/onlinedocs/gcc/RISC-V-Options.html#RISC-V-Options
+#
 # Required common variables: KERNEL, BOARD.
 #
 
