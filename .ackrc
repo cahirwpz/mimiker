@@ -1,5 +1,6 @@
 --ignore-dir=toolchain/gnu/aarch64-mimiker-elf
 --ignore-dir=toolchain/gnu/mipsel-mimiker-elf
+--ignore-dir=toolchain/gnu/riscv32-mimiker-elf
 --ignore-dir=toolchain/qemu-mimiker
 --ignore-dir=sysroot
 --asm
