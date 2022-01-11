@@ -131,11 +131,4 @@ typedef struct ctx {
 #define _UC_SETSTACK 0x00020000
 #define _UC_CLRSTACK 0x00040000
 
-#define _UC_MACHINE_SP(uc) ((uc)->uc_mcontext.__gregs[_REG_SP])
-#define _UC_MACHINE_FP(uc) ((uc)->uc_mcontext.__gregs[_REG_FP])
-#define _UC_MACHINE_PC(uc) ((uc)->uc_mcontext.__gregs[_REG_PC])
-#define _UC_MACHINE_INTRV(uc) ((uc)->uc_mcontext.__gregs[_REG_RV])
-
-#define _UC_MACHINE_SET_PC(uc, pc) _UC_MACHINE_PC(uc) = (pc)
-
 #endif /* !_AARCH64_MCONTEXT_H_ */
