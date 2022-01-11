@@ -553,15 +553,21 @@ static int tmpfs_vop_rmdir(vnode_t *dv, vnode_t *v, componentname_t *cn) {
   return 0;
 }
 
+static int tmpfs_vop_inactive(vnode_t *v) {
+  tmpfs_node_t *node = TMPFS_NODE_OF(v);
+  
+  if (node->tfn_links == 0)
+    return vfs_vcache_detach(v);
+  return 0;
+}
+
 static int tmpfs_vop_reclaim(vnode_t *v) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
 
-  if (node->tfn_links == 0) {
-    /* vfs_vcache_invalidate(v); */
+  if (node->tfn_links == 0)
     tmpfs_free_node(tfm, node);
-  }
-
+  
   return 0;
 }
 
@@ -627,6 +633,7 @@ static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
                                     .v_mkdir = tmpfs_vop_mkdir,
                                     .v_rmdir = tmpfs_vop_rmdir,
                                     .v_access = vnode_access_generic,
+                                    .v_inactive = tmpfs_vop_inactive,
                                     .v_reclaim = tmpfs_vop_reclaim,
                                     .v_readlink = tmpfs_vop_readlink,
                                     .v_symlink = tmpfs_vop_symlink,
@@ -687,7 +694,7 @@ static void tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn) {
 
 /*
  * tmpfs_create_file: create a new file of specified type and adds it
- * into the parent directory.
+ * into the parent directory.tmpfs_create_file
  */
 static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vattr_t *va,
                              vnodetype_t ntype, componentname_t *cn) {

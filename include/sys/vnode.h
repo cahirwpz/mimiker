@@ -52,6 +52,7 @@ typedef int vnode_mkdir_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
 typedef int vnode_rmdir_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
 typedef int vnode_access_t(vnode_t *v, accmode_t mode, cred_t *cred);
 typedef int vnode_ioctl_t(vnode_t *v, u_long cmd, void *data, file_t *fp);
+typedef int vnode_inactive(vnode_t *v);
 typedef int vnode_reclaim_t(vnode_t *v);
 typedef int vnode_readlink_t(vnode_t *v, uio_t *uio);
 typedef int vnode_symlink_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
@@ -74,6 +75,7 @@ typedef struct vnodeops {
   vnode_rmdir_t *v_rmdir;
   vnode_access_t *v_access;
   vnode_ioctl_t *v_ioctl;
+  vnode_inactive *v_inactive;
   vnode_reclaim_t *v_reclaim;
   vnode_readlink_t *v_readlink;
   vnode_symlink_t *v_symlink;
@@ -199,6 +201,10 @@ static inline int VOP_ACCESS(vnode_t *v, mode_t mode, cred_t *cred) {
 
 static inline int VOP_IOCTL(vnode_t *v, u_long cmd, void *data, file_t *fp) {
   return VOP_CALL(ioctl, v, cmd, data, fp);
+}
+
+static inline int VOP_INACTIVE(vnode_t *v) {
+  return VOP_CALL(inactive, v);
 }
 
 static inline int VOP_RECLAIM(vnode_t *v) {

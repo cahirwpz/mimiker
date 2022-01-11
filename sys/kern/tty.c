@@ -1142,7 +1142,7 @@ static int tty_vn_open(vnode_t *v, int mode, file_t *fp) {
   return _tty_vn_open(v, mode, fp);
 }
 
-static int tty_vn_reclaim(vnode_t *v) {
+static int tty_vn_inactive(vnode_t *v) {
   tty_free(devfs_node_data(v));
   devfs_free(v->v_data);
   return 0;
@@ -1151,7 +1151,7 @@ static int tty_vn_reclaim(vnode_t *v) {
 static vnodeops_t tty_vnodeops = {
   .v_open = tty_vn_open,
   .v_close = tty_vn_close,
-  .v_reclaim = tty_vn_reclaim,
+  .v_inactive = tty_vn_inactive,
 };
 
 int tty_makedev(devfs_node_t *parent, const char *name, tty_t *tty) {

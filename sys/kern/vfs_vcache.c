@@ -56,10 +56,25 @@ vnode_t *vcache_hashget(mount_t *mp, ino_t ino) {
   return NULL;
 }
 
-/* Remove vnode from its bucket (if present in any) */
-void vfs_vcache_invalidate(vnode_t *vn) {
+/**
+ * \brief Detach vnode from a filesystem (if present in any).
+ *        This will cause the vnode to get reclaimed immeditially.
+ * \warning a vnode is detachable if and only if it's on freelist,
+ *          ie. it's usecnt is set to zero.
+ */
+int vfs_vcache_detach(vnode_t *vn) {
+  int error = 0;
+  /* Reclaim vnode (if supported) */
+  if (vn->v_data)
+    error = VOP_RECLAIM(vn);
+  if (error == ENOTSUP)
+    error = 0; 
+
+  /* Seting v_data to NULL marks the vnode as "detached" */
+  vn->v_data = NULL;
+
   if (!vn->v_mount)
-    return; /* vnode was not in a any bucket and cannot be hashed */
+    return error; /* vnode was not in a any bucket and cannot be hashed */
   vcache_t bucket = vcache_hash(vn->v_mount, vn->v_ino);
   vnode_t *bucket_node = NULL;
   TAILQ_FOREACH (bucket_node, &vcache_buckets[bucket], v_cached) {
@@ -68,6 +83,8 @@ void vfs_vcache_invalidate(vnode_t *vn) {
       break;
     }
   }
+
+  return error;
 }
 
 void vfs_vcache_init(void) {
@@ -110,6 +127,8 @@ vnode_t *vfs_vcache_hashget(mount_t *mp, ino_t ino) {
  * \brief Get a new, vcached vnode with v_usecnt = 1
  */
 vnode_t *vfs_vcache_new_vnode(void) {
+  int error = 0;
+
   SCOPED_MTX_LOCK(&vcache_giant_lock);
 
   vnode_t *vn;
@@ -129,25 +148,31 @@ vnode_t *vfs_vcache_new_vnode(void) {
   TAILQ_REMOVE(&vcache_free, vn, v_free);
 
   /* Remove it from its bucket (if present in any) */
-  vfs_vcache_invalidate(vn);
+  error = vfs_vcache_detach(vn);
+  assert(error == 0);
 
   /* Reset some fields */
   vn->v_usecnt = 1;
   vn->v_mount = NULL;
   vn->v_ops = NULL;
-  vn->v_data = NULL;
 
   return vn;
 }
 
 /**
- * \brief Return a vnode to vcache's free list
+ * \brief Return a vnode to vcache's free list.
  * \param vn vnode to be returned
+ * \warning vnode usecnt must be zero!
+ *          Freelist can't contain vnodes that are in use.
  */
-void vfs_vcache_put(vnode_t *vn) {
+void vfs_vcache_return(vnode_t *vn) {
+  assert(vn->v_usecnt == 0);
+
   SCOPED_MTX_LOCK(&vcache_giant_lock);
 
   TAILQ_INSERT_TAIL(&vcache_free, vn, v_free);
-  vcache_t bucket = vcache_hash(vn->v_mount, vn->v_ino);
-  TAILQ_INSERT_HEAD(&vcache_buckets[bucket], vn, v_cached);
+  if (vn->v_data) {
+    vcache_t bucket = vcache_hash(vn->v_mount, vn->v_ino);
+    TAILQ_INSERT_HEAD(&vcache_buckets[bucket], vn, v_cached);
+  }
 }
