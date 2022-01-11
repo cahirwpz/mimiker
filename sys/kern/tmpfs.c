@@ -555,7 +555,7 @@ static int tmpfs_vop_rmdir(vnode_t *dv, vnode_t *v, componentname_t *cn) {
 
 static int tmpfs_vop_inactive(vnode_t *v) {
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
-  
+
   if (node->tfn_links == 0)
     return vfs_vcache_detach(v);
   return 0;
@@ -567,7 +567,7 @@ static int tmpfs_vop_reclaim(vnode_t *v) {
 
   if (node->tfn_links == 0)
     tmpfs_free_node(tfm, node);
-  
+
   return 0;
 }
 

@@ -68,7 +68,7 @@ int vfs_vcache_detach(vnode_t *vn) {
   if (vn->v_data)
     error = VOP_RECLAIM(vn);
   if (error == ENOTSUP)
-    error = 0; 
+    error = 0;
 
   /* Seting v_data to NULL marks the vnode as "detached" */
   vn->v_data = NULL;
