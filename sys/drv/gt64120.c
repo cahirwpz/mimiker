@@ -428,10 +428,6 @@ static int gt_pci_activate_resource(device_t *dev, resource_t *r) {
   return 0;
 }
 
-static void gt_pci_deactivate_resource(device_t *dev, resource_t *r) {
-  /* TODO: unmap mapped memory. */
-}
-
 static int gt_pci_probe(device_t *d) {
   /* TODO(cahir) match device with driver on FDT basis */
   return d->unit == 1;
@@ -442,7 +438,6 @@ static bus_methods_t gt_pci_bus_if = {
   .intr_teardown = gt_pci_intr_teardown,
   .alloc_resource = gt_pci_alloc_resource,
   .activate_resource = gt_pci_activate_resource,
-  .deactivate_resource = gt_pci_deactivate_resource,
 };
 
 static pci_bus_methods_t gt_pci_pci_bus_if = {

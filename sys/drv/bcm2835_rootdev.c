@@ -278,16 +278,11 @@ static int rootdev_activate_resource(device_t *dev, resource_t *r) {
   return 0;
 }
 
-static void rootdev_deactivate_resource(device_t *dev, resource_t *r) {
-  /* TODO: unmap mapped resources. */
-}
-
 static bus_methods_t rootdev_bus_if = {
   .intr_setup = rootdev_intr_setup,
   .intr_teardown = rootdev_intr_teardown,
   .alloc_resource = rootdev_alloc_resource,
   .activate_resource = rootdev_activate_resource,
-  .deactivate_resource = rootdev_deactivate_resource,
 };
 
 driver_t rootdev_driver = {

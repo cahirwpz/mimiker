@@ -141,7 +141,6 @@ struct bus_methods {
                                 rman_addr_t start, rman_addr_t end, size_t size,
                                 rman_flags_t flags);
   int (*activate_resource)(device_t *dev, resource_t *r);
-  void (*deactivate_resource)(device_t *dev, resource_t *r);
 };
 
 static inline bus_methods_t *bus_methods(device_t *dev) {
@@ -188,15 +187,6 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
  * mark resource as activated if the method returned success.
  */
 int bus_activate_resource(device_t *dev, resource_t *r);
-
-/*! \brief Deactivates resource on device behalf.
- *
- * This is a wrapper that calls bus method `deactivate_resource`.
- *
- * It performs common tasks like: check if resource has been already deactivated
- * and mark resource as dactivated.
- */
-void bus_deactivate_resource(device_t *dev, resource_t *r);
 
 int bus_generic_probe(device_t *bus);
 

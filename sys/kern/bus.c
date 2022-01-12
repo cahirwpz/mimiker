@@ -123,15 +123,6 @@ int bus_activate_resource(device_t *dev, resource_t *r) {
   return error;
 }
 
-void bus_deactivate_resource(device_t *dev, resource_t *r) {
-  if (r->r_type != RT_IRQ) {
-    assert(resource_active(r));
-    device_t *idev = BUS_METHOD_PROVIDER(dev, deactivate_resource);
-    bus_methods(idev->parent)->deactivate_resource(idev, r);
-    resource_deactivate(r);
-  }
-}
-
 /* System-wide current pass number. */
 static drv_pass_t current_pass;
 
