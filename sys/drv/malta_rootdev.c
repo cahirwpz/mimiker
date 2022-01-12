@@ -96,11 +96,6 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
   return r;
 }
 
-static void rootdev_release_resource(device_t *dev, resource_t *r) {
-  bus_deactivate_resource(dev, r);
-  resource_release(r);
-}
-
 static int rootdev_activate_resource(device_t *dev, resource_t *r) {
   if (r->r_type == RT_MEMORY)
     return bus_space_map(r->r_bus_tag, resource_start(r), resource_size(r),
@@ -171,7 +166,6 @@ static bus_methods_t rootdev_bus_if = {
   .intr_setup = rootdev_intr_setup,
   .intr_teardown = rootdev_intr_teardown,
   .alloc_resource = rootdev_alloc_resource,
-  .release_resource = rootdev_release_resource,
   .activate_resource = rootdev_activate_resource,
   .deactivate_resource = rootdev_deactivate_resource,
 };

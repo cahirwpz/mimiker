@@ -405,11 +405,6 @@ static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
   return r;
 }
 
-static void gt_pci_release_resource(device_t *dev, resource_t *r) {
-  bus_deactivate_resource(dev, r);
-  resource_release(r);
-}
-
 static int gt_pci_activate_resource(device_t *dev, resource_t *r) {
   rman_addr_t start = resource_start(r);
 
@@ -446,7 +441,6 @@ static bus_methods_t gt_pci_bus_if = {
   .intr_setup = gt_pci_intr_setup,
   .intr_teardown = gt_pci_intr_teardown,
   .alloc_resource = gt_pci_alloc_resource,
-  .release_resource = gt_pci_release_resource,
   .activate_resource = gt_pci_activate_resource,
   .deactivate_resource = gt_pci_deactivate_resource,
 };

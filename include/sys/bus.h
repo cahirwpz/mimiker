@@ -140,7 +140,6 @@ struct bus_methods {
   resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
                                 rman_addr_t start, rman_addr_t end, size_t size,
                                 rman_flags_t flags);
-  void (*release_resource)(device_t *dev, resource_t *r);
   int (*activate_resource)(device_t *dev, resource_t *r);
   void (*deactivate_resource)(device_t *dev, resource_t *r);
 };
@@ -198,11 +197,6 @@ int bus_activate_resource(device_t *dev, resource_t *r);
  * and mark resource as dactivated.
  */
 void bus_deactivate_resource(device_t *dev, resource_t *r);
-
-static inline void bus_release_resource(device_t *dev, resource_t *r) {
-  device_t *idev = BUS_METHOD_PROVIDER(dev, release_resource);
-  bus_methods(idev->parent)->release_resource(idev, r);
-}
 
 int bus_generic_probe(device_t *bus);
 

@@ -68,17 +68,6 @@ static void intel_isa_deactivate_resource(device_t *dev, resource_t *r) {
   /* Neither IRQs in general or IOports on ISA require deactivation */
 }
 
-static void intel_isa_release_resource(device_t *dev, resource_t *r) {
-  if (r->r_type != RT_IOPORTS) {
-    assert(r->r_type == RT_IRQ);
-    device_t *idev = BUS_METHOD_PROVIDER(dev->parent, release_resource);
-    bus_methods(idev->parent)->release_resource(idev, r);
-    return;
-  }
-  bus_deactivate_resource(dev, r);
-  resource_release(r);
-}
-
 static int intel_isa_probe(device_t *d) {
   return d->unit == 0;
 }
@@ -126,7 +115,6 @@ static bus_methods_t intel_isa_bus_bus_if = {
   .alloc_resource = intel_isa_alloc_resource,
   .activate_resource = intel_isa_activate_resource,
   .deactivate_resource = intel_isa_deactivate_resource,
-  .release_resource = intel_isa_release_resource,
 };
 
 static driver_t intel_isa_bus = {
