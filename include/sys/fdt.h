@@ -137,6 +137,14 @@ static inline fdt32_t cpu_to_fdt32(uint32_t x) {
   return (fdt32_t)CPU_TO_FDT32(x);
 }
 
+static inline uint64_t fdt64_to_cpu(fdt64_t x) {
+  return (uint32_t)CPU_TO_FDT64(x);
+}
+
+static inline fdt64_t cpu_to_fdt64(uint64_t x) {
+  return (fdt64_t)CPU_TO_FDT64(x);
+}
+
 #undef CPU_TO_FDT64
 #undef CPU_TO_FDT32
 #undef CPU_TO_FDT16

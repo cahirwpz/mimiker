@@ -8,77 +8,37 @@
 #include <sys/context.h>
 #include <sys/interrupt.h>
 #include <sys/kasan.h>
-#include <sys/fdt.h>
 #include <sys/dtb.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
 
-/* Return offset of path at dtb or die. */
-static int dtb_offset(void *dtb, const char *path) {
-  int offset = fdt_path_offset(dtb, path);
-  if (offset < 0)
-    panic("Failed to find offset at dtb!");
-  return offset;
-}
-
-static uint32_t process_dtb_memsize(void *dtb) {
-  int offset = dtb_offset(dtb, "/memory@0");
-  int len;
-  const uint32_t *prop = fdt_getprop(dtb, offset, "reg", &len);
-  /* reg contains start (4 bytes) and end (4 bytes) */
-  if (prop == NULL || (size_t)len < 2 * sizeof(uint32_t))
-    panic("Failed to get memory size from dtb!");
-
-  return fdt32_to_cpu(prop[1]);
-}
-
-static int process_dtb_rd_start(void *dtb) {
-  int offset = dtb_offset(dtb, "/chosen");
-  int len;
-  const uint32_t *prop = fdt_getprop(dtb, offset, "linux,initrd-start", &len);
-  if (prop == NULL || (size_t)len < sizeof(uint32_t))
-    panic("Failed to get initrd-start from dtb!");
-
-  return fdt32_to_cpu(*prop);
-}
-
-static int process_dtb_rd_size(void *dtb) {
-  int offset = dtb_offset(dtb, "/chosen");
-  int len;
-  const uint32_t *prop = fdt_getprop(dtb, offset, "linux,initrd-end", &len);
-  if (prop == NULL || (size_t)len < sizeof(uint32_t))
-    panic("Failed to get initrd-start from dtb!");
-
-  return fdt32_to_cpu(*prop) - process_dtb_rd_start(dtb);
-}
-
-static const char *process_dtb_cmdline(void *dtb) {
-  int offset = dtb_offset(dtb, "/chosen");
-  const char *prop = fdt_getprop(dtb, offset, "bootargs", NULL);
-  if (prop == NULL)
-    panic("Failed to get cmdline from dtb!");
-
-  return prop;
-}
-
-static void process_dtb(char **tokens, kstack_t *stk, void *dtb) {
-  if (fdt_check_header(dtb))
-    panic("dtb incorrect header!");
-
+static void process_dtb(char **tokens, kstack_t *stk) {
   char buf[32];
-  snprintf(buf, sizeof(buf), "memsize=%d", process_dtb_memsize(dtb));
+  uint64_t start, size;
+
+  /* Memory boundaries. */
+  dtb_mem(&start, &size);
+  snprintf(buf, sizeof(buf), "memsize=%lu", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "rd_start=%d", process_dtb_rd_start(dtb));
+
+  /* Initrd boundaries. */
+  dtb_rd(&start, &size);
+  snprintf(buf, sizeof(buf), "rd_start=%lu", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "rd_size=%d", process_dtb_rd_size(dtb));
+  snprintf(buf, sizeof(buf), "rd_size=%lu", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  tokens = cmdline_extract_tokens(stk, process_dtb_cmdline(dtb), tokens);
+
+  /* Kernel cmdline. */
+  tokens = cmdline_extract_tokens(stk, dtb_cmdline(), tokens);
   *tokens = NULL;
 }
 
 void *board_stack(paddr_t dtb) {
-  dtb_early_init(dtb, fdt_totalsize(PHYS_TO_DMAP(dtb)));
+  init_kasan();
+  init_klog();
+
+  dtb_early_init(dtb, PHYS_TO_DMAP(dtb));
 
   kstack_t *stk = &thread0.td_kstack;
 
@@ -88,9 +48,16 @@ void *board_stack(paddr_t dtb) {
    * NOTE: memsize, rd_start, rd_size, cmdline + 2 = 6
    */
   char **kenvp = kstack_alloc(stk, 6 * sizeof(char *));
-  process_dtb(kenvp, stk, (void *)PHYS_TO_DMAP(dtb));
+  process_dtb(kenvp, stk);
   kstack_fix_bottom(stk);
   init_kenv(kenvp);
+
+  /* If klog-mask argument has been supplied, let's update the mask. */
+  const char *klog_mask = kenv_get("klog-mask");
+  if (klog_mask) {
+    unsigned mask = strtol(klog_mask, NULL, 16);
+    klog_setmask(mask);
+  }
 
   return stk->stk_ptr;
 }
@@ -119,8 +86,8 @@ static void rpi3_physmem(void) {
   paddr_t kern_end = (paddr_t)_bootmem_end;
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
-  paddr_t dtb_start = dtb_early_root();
-  paddr_t dtb_end = dtb_start + fdt_totalsize(PHYS_TO_DMAP(dtb_start));
+  paddr_t dtb_start = rounddown(dtb_early_root(), PAGESIZE);
+  paddr_t dtb_end = dtb_start + dtb_size();
 
   /* TODO(pj) if vm_physseg_plug* interface was more flexible,
    * we could do without following hack, please refer to issue #1129 */
@@ -150,8 +117,6 @@ static void rpi3_physmem(void) {
 }
 
 __noreturn void board_init(void) {
-  init_kasan();
-  init_klog();
   rpi3_physmem();
   intr_enable();
   kernel_init();
