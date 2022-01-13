@@ -14,8 +14,6 @@ PHDRS
   data   PT_LOAD FLAGS(6); /* read-write */
 }
 
-PROVIDE(__kernel_size = (__kernel_end - __kernel_start) + _boot_size);
-
 SECTIONS
 {
   .boot KERNEL_PHYS : AT(KERNEL_PHYS) ALIGN(4096)
@@ -46,8 +44,9 @@ SECTIONS
   .data : ALIGN(4096)
   {
     __data = ABSOLUTE(.);
-    *(.sdata .sdata.*)
     *(.data .data.*)
+    HIDDEN(__sdata = .);
+    *(.sdata .sdata.*)
     __edata = ABSOLUTE(.);
   } : data
 
@@ -63,7 +62,8 @@ SECTIONS
 
   /* Provide global pointer for linker relaxations. */
   HIDDEN(_gp_off = 4K / 2);
-  __global_pointer$ = MIN(__data + _gp_off, __ebss - _gp_off);
+  __global_pointer$ = MIN(__sdata + _gp_off,
+                          MAX(__data + _gp_off, __ebss - _gp_off));
 
   /* Sections to be discarded. */
   /DISCARD/ :
