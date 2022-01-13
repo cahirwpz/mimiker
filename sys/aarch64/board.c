@@ -8,38 +8,37 @@
 #include <sys/context.h>
 #include <sys/interrupt.h>
 #include <sys/kasan.h>
-#include <sys/fdt.h>
 #include <sys/dtb.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
 
-static void process_dtb(char **tokens, kstack_t *stk, void *dtb) {
-  if (fdt_check_header(dtb))
-    panic("dtb incorrect header!");
-
+static void process_dtb(char **tokens, kstack_t *stk) {
   char buf[32];
-  uint32_t start, size;
+  uint64_t start, size;
 
   /* Memory boundaries. */
-  dtb_mem(dtb, &start, &size);
-  snprintf(buf, sizeof(buf), "memsize=%u", start);
+  dtb_mem(&start, &size);
+  snprintf(buf, sizeof(buf), "memsize=%lu", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
 
   /* Initrd boundaries. */
-  dtb_rd(dtb, &start, &size);
-  snprintf(buf, sizeof(buf), "rd_start=%d", start);
+  dtb_rd(&start, &size);
+  snprintf(buf, sizeof(buf), "rd_start=%lu", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "rd_size=%d", size);
+  snprintf(buf, sizeof(buf), "rd_size=%lu", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
 
   /* Kernel cmdline. */
-  tokens = cmdline_extract_tokens(stk, dtb_cmdline(dtb), tokens);
+  tokens = cmdline_extract_tokens(stk, dtb_cmdline(), tokens);
   *tokens = NULL;
 }
 
 void *board_stack(paddr_t dtb) {
-  dtb_early_init(dtb, fdt_totalsize(PHYS_TO_DMAP(dtb)));
+  init_kasan();
+  init_klog();
+
+  dtb_early_init(dtb, PHYS_TO_DMAP(dtb));
 
   kstack_t *stk = &thread0.td_kstack;
 
@@ -49,9 +48,16 @@ void *board_stack(paddr_t dtb) {
    * NOTE: memsize, rd_start, rd_size, cmdline + 2 = 6
    */
   char **kenvp = kstack_alloc(stk, 6 * sizeof(char *));
-  process_dtb(kenvp, stk, (void *)PHYS_TO_DMAP(dtb));
+  process_dtb(kenvp, stk);
   kstack_fix_bottom(stk);
   init_kenv(kenvp);
+
+  /* If klog-mask argument has been supplied, let's update the mask. */
+  const char *klog_mask = kenv_get("klog-mask");
+  if (klog_mask) {
+    unsigned mask = strtol(klog_mask, NULL, 16);
+    klog_setmask(mask);
+  }
 
   return stk->stk_ptr;
 }
@@ -80,7 +86,7 @@ static void rpi3_physmem(void) {
   paddr_t kern_end = (paddr_t)_bootmem_end;
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
-  paddr_t dtb_start = dtb_early_root();
+  paddr_t dtb_start = rounddown(dtb_early_root(), PAGESIZE);
   paddr_t dtb_end = dtb_start + dtb_size();
 
   /* TODO(pj) if vm_physseg_plug* interface was more flexible,
@@ -111,8 +117,6 @@ static void rpi3_physmem(void) {
 }
 
 __noreturn void board_init(void) {
-  init_kasan();
-  init_klog();
   rpi3_physmem();
   intr_enable();
   kernel_init();

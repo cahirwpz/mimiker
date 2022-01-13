@@ -18,20 +18,24 @@ static void *_dtb_root = NULL;
 static paddr_t _dtb_root_pa = 0;
 /* rounded size of dtb */
 static size_t _dtb_size = 0;
-/* exact size of dtb */
-static size_t _dtb_exact_size = 0;
 
 paddr_t dtb_early_root(void) {
   assert(_dtb_root_pa != 0);
   return _dtb_root_pa + _dtb_offset;
 }
 
-void dtb_early_init(paddr_t pa, vaddr_t va, size_t size) {
+void dtb_early_init(paddr_t pa, vaddr_t va) {
+  void *dtb = (void *)va;
+
+  if (fdt_check_header(dtb))
+    panic("dtb incorrect header!");
+
+  size_t size = fdt_totalsize(dtb);
+
   _dtb_root = (void *)va;
   _dtb_root_pa = rounddown(pa, PAGESIZE);
   _dtb_offset = pa - _dtb_root_pa;
-  _dtb_size = size + _dtb_offset;
-  _dtb_exact_size = size;
+  _dtb_size = roundup(size + _dtb_offset, PAGESIZE);
 }
 
 void *dtb_root(void) {
@@ -40,100 +44,86 @@ void *dtb_root(void) {
 }
 
 size_t dtb_size(void) {
-  return _dtb_exact_size;
+  return _dtb_size;
 }
 
 void dtb_init(void) {
-  size_t dtb_size = roundup(_dtb_size, PAGESIZE);
   if (_dtb_root_pa != 0)
-    _dtb_root = (void *)kmem_map_contig(_dtb_root_pa, dtb_size, 0);
+    _dtb_root = (void *)kmem_map_contig(_dtb_root_pa, _dtb_size, 0);
 }
 
-/*
- * NOTE: the following functions will be called during bootstrap
- * before initializing the klog module.
- */
-static void __noreturn halt(void) {
-  for (;;)
-    ;
-}
-
-/* Return offset of path at dtb or die. */
-int dtb_offset(const char *path) {
+static int dtb_offset(const char *path) {
   int offset = fdt_path_offset(_dtb_root, path);
   if (offset < 0)
-    halt();
+    panic("Failed to find dtb offset for %s!");
   return offset;
 }
 
-void dtb_reg(int node, const uint32_t **prop_p, int *len_p) {
+static int dtb_addr_cells(int node) {
   int len;
-  const uint32_t *prop = fdt_getprop(_dtb_root, node, "reg", &len);
-  /* reg contains start (4 bytes) and size (4 bytes) */
-  if (prop == NULL || (size_t)len < 2 * sizeof(uint32_t))
-    halt();
-
-  if (prop_p)
-    *prop_p = prop;
-  if (len_p)
-    *len_p = len;
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, "#address-cells", &len);
+  /* #address-cells is a 4-byte property */
+  if (prop == NULL || (size_t)len != sizeof(uint32_t))
+    panic("Failed to retreive #address-cells property for node %d!", node);
+  return fdt32_to_cpu(*prop);
 }
 
-void dtb_intr(int node, const uint32_t **prop_p, int *len_p) {
-  int len;
-  const uint32_t *prop = fdt_getprop(_dtb_root, node, "interrupts", &len);
-  if (!prop || (size_t)len < sizeof(uint32_t))
-    halt();
-
-  if (prop_p)
-    *prop_p = prop;
-  if (len_p)
-    *len_p = len;
-}
-
-void dtb_mem(uint32_t *start_p, uint32_t *size_p) {
-  int offset = dtb_offset("/memory");
-  const uint32_t *prop;
-  dtb_reg(offset, &prop, NULL);
-  *start_p = fdt32_to_cpu(prop[0]);
-  *size_p = fdt32_to_cpu(prop[1]);
+static long dtb_to_cpu(const uint32_t *prop, int addr_cells) {
+  if (addr_cells == 1)
+    return fdt32_to_cpu(*prop);
+  assert(addr_cells == 2);
+  return fdt64_to_cpu(*(uint64_t *)prop);
 }
 
 /*
- * NOTE: we assume there is a single reserved memory range.
+ * XXX: FTTB, we consider only a single pair <addr size>.
  */
-void dtb_memrsvd(uint32_t *start_p, uint32_t *size_p) {
-  int node_off = dtb_offset("reserved-memory");
-  int subnode_off = fdt_first_subnode(_dtb_root, node_off);
-  if (subnode_off < 0)
-    halt();
-  const uint32_t *prop;
-  dtb_reg(subnode_off, &prop, NULL);
-  *start_p = fdt32_to_cpu(prop[0]);
-  *size_p = fdt32_to_cpu(prop[1]);
+void dtb_reg(int parent, int node, uint64_t *addr_p, uint64_t *size_p) {
+  int len;
+  const int addr_cells = dtb_addr_cells(parent);
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, "reg", &len);
+  if (prop == NULL || ((size_t)len % (2 * addr_cells * sizeof(uint32_t)) != 0))
+    panic("Invalid reg property in node %d (parent=%d)!", node, parent);
+
+  *addr_p = dtb_to_cpu(prop, addr_cells);
+  *size_p = dtb_to_cpu(prop + addr_cells, addr_cells);
 }
 
-void dtb_rd(uint32_t *start_p, uint32_t *size_p) {
-  int offset = dtb_offset("/chosen");
+uint64_t dtb_cell(int parent, int node, const char *name) {
   int len;
+  const int addr_cells = dtb_addr_cells(parent);
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
+  if (prop == NULL || ((size_t)len != addr_cells * sizeof(uint32_t)))
+    panic("Invalid %s property in node %d (parent=%d)!", name, node, parent);
+  return dtb_to_cpu(prop, addr_cells);
+}
 
-  const uint32_t *prop =
-    fdt_getprop(_dtb_root, offset, "linux,initrd-start", &len);
-  if (prop == NULL || (size_t)len < sizeof(uint32_t))
-    halt();
-  *start_p = fdt32_to_cpu(*prop);
+void dtb_mem(uint64_t *addr_p, uint64_t *size_p) {
+  int node = dtb_offset("/memory");
+  dtb_reg(DTB_ROOT_NODE, node, addr_p, size_p);
+}
 
-  prop = fdt_getprop(_dtb_root, offset, "linux,initrd-end", &len);
-  if (prop == NULL || (size_t)len < sizeof(uint32_t))
-    halt();
-  *size_p = fdt32_to_cpu(*prop) - *start_p;
+/*
+ * XXX: FTTB, we assume a single reserved memory range.
+ */
+void dtb_rsvdmem(uint64_t *addr_p, uint64_t *size_p) {
+  int node = dtb_offset("reserved-memory");
+  int subnode = fdt_first_subnode(_dtb_root, node);
+  if (subnode < 0)
+    panic("reserved-memory node doesn't contain any range!");
+  dtb_reg(node, subnode, addr_p, size_p);
+}
+
+void dtb_rd(uint64_t *addr_p, uint64_t *size_p) {
+  int node = dtb_offset("/chosen");
+  *addr_p = dtb_cell(DTB_ROOT_NODE, node, "linux,initrd-start");
+  *size_p = dtb_cell(DTB_ROOT_NODE, node, "linux,initrd-end") - *addr_p;
 }
 
 const char *dtb_cmdline(void) {
   int offset = dtb_offset("/chosen");
   const char *prop = fdt_getprop(_dtb_root, offset, "bootargs", NULL);
   if (prop == NULL)
-    halt();
-
+    panic("Invalid bootargs property!");
   return prop;
 }

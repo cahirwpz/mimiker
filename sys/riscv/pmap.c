@@ -5,14 +5,11 @@
 #include <sys/pmap.h>
 #include <riscv/pmap.h>
 
-/* Kernel page directory. */
-static paddr_t kernel_pde;
-
-/* Physical memory start. */
+/* Physical memory boundaries. */
 static paddr_t dmap_paddr_base;
+static paddr_t dmap_paddr_end;
 
-/* Physical memory size. */
-static size_t dmap_size;
+static paddr_t kernel_pde;
 
 bool pmap_address_p(pmap_t *pmap, vaddr_t va) {
   panic("Not implemented!\n");
@@ -42,28 +39,32 @@ void pmap_delete(pmap_t *pmap) {
   panic("Not implemented!\n");
 }
 
-void pmap_bootstrap(paddr_t pd_pa, pd_entry_t *pd_va) {
+void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va) {
+  uint32_t dmap_size = kenv_get_ulong("mem_size");
+
   /* Obtain basic parameters. */
   dmap_paddr_base = kenv_get_ulong("mem_start");
-  dmap_size = kenv_get_ulong("mem_size");
+  dmap_paddr_end = dmap_paddr_base + dmap_size;
   kernel_pde = pd_pa;
 
-  /* Assume the physical memory starts at the beginning of an L0 region. */
+  /* Assume physical memory starts at the beginning of L0 region. */
   assert(is_aligned(dmap_paddr_base, L0_SIZE));
 
   /* We must have enough virtual addresses. */
   assert(dmap_size <= DMAP_MAX_SIZE);
 
-  uint32_t min_pa = dmap_paddr_base;
-  uint32_t max_pa = min_pa + dmap_size;
+  /* We assume 32-bit physical address space. */
+  assert(dmap_paddr_base < dmap_paddr_end);
 
-  /* We assume maximum physical address < 2^((sizeof(paddr_t) * 8)). */
-  assert(min_pa < max_pa);
+  klog("Physical memory range: %p - %p", dmap_paddr_base, dmap_paddr_end - 1);
 
-  /* Build a direct map using 4MiB superpages. */
+  klog("dmap range: %p - %p", DMAP_VADDR_BASE, DMAP_VADDR_BASE + dmap_size - 1);
+
+  /* Build direct map using 4MiB superpages. */
+  pd_entry_t *pde = (void *)pd_va;
   size_t idx = L0_INDEX(DMAP_VADDR_BASE);
-  for (paddr_t pa = min_pa; pa < max_pa; pa += L0_SIZE, idx++)
-    pd_va[idx] = PA_TO_PTE(pa) | PTE_KERN;
+  for (paddr_t pa = dmap_paddr_base; pa < dmap_paddr_end; pa += L0_SIZE, idx++)
+    pde[idx] = PA_TO_PTE(pa) | PTE_KERN;
 }
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,

@@ -14,7 +14,7 @@ PHDRS
   data   PT_LOAD FLAGS(6); /* read-write */
 }
 
-PROVIDE(__image_size = (__kernel_end - __kernel_start) + _boot_size);
+PROVIDE(__kernel_size = (__kernel_end - __kernel_start) + _boot_size);
 
 SECTIONS
 {

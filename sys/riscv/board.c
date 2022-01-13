@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <sys/cmdline.h>
 #include <sys/dtb.h>
-#include <sys/fdt.h>
 #include <sys/initrd.h>
 #include <sys/interrupt.h>
 #include <sys/kenv.h>
@@ -13,48 +12,43 @@
 #include <riscv/mcontext.h>
 #include <riscv/vm_param.h>
 
-#define __wfi() __asm__ __volatile__("wfi")
-
-static void __noreturn halt(void) {
-  for (;;) {
-    __wfi();
-  }
-}
-
 static size_t count_args(void) {
   /*
-   * NOTE: tokens: mem_start, mem_size, memrsvd_start, memrsvd_size,
-   * rd_start, rd_size, tokens in cmdline.
+   * Tokens:
+   *   - mem_start, mem_size,
+   *   - rsvdmem_start, rsvdmem_size,
+   *   - rd_start, rd_size,
+   *   - tokens in cmdline.
    */
-  size_t ntokens = 8;
+  size_t ntokens = 6;
   const char *cmdline = dtb_cmdline();
   ntokens += cmdline_count_tokens(cmdline);
   return ntokens;
 }
 
-static void process_args(char **tokens, kstack_t *stk) {
+static void process_dtb(char **tokens, kstack_t *stk) {
   char buf[32];
-  uint32_t start, size;
+  uint64_t start, size;
 
   /* Memory boundaries. */
   dtb_mem(&start, &size);
-  snprintf(buf, sizeof(buf), "mem_start=%u", start);
+  snprintf(buf, sizeof(buf), "mem_start=%llu", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "mem_size=%u", size);
+  snprintf(buf, sizeof(buf), "mem_size=%llu", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
 
   /* Reserved memory boundaries. */
-  dtb_memrsvd(&start, &size);
-  snprintf(buf, sizeof(buf), "memrsvd_start=%u", start);
+  dtb_rsvdmem(&start, &size);
+  snprintf(buf, sizeof(buf), "rsvdmem_start=%llu", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "memrsvd_size=%u", size);
+  snprintf(buf, sizeof(buf), "rsvdmem_size=%llu", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
 
   /* Initrd memory boundaries. */
   dtb_rd(&start, &size);
-  snprintf(buf, sizeof(buf), "rd_start=%u", start);
+  snprintf(buf, sizeof(buf), "rd_start=%llu", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "rd_size=%u", size);
+  snprintf(buf, sizeof(buf), "rd_size=%llu", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
 
   /* Kernel cmdline. */
@@ -63,26 +57,37 @@ static void process_args(char **tokens, kstack_t *stk) {
 }
 
 void *board_stack(paddr_t dtb_pa, vaddr_t dtb_va) {
-  if (fdt_check_header((void *)dtb_va))
-    halt();
-
-  dtb_early_init(dtb_pa, dtb_va, fdt_totalsize(dtb_va));
+  dtb_early_init(dtb_pa, dtb_va);
 
   kstack_t *stk = &thread0.td_kstack;
 
   /*
    * NOTE: when forking the init process, we will copy thread0's user context
-   * to init's user context therefore `td_uctx` must point to a valid memory
-   * buffer.
+   * to init's user context, therefore `td_uctx` must point to valid memory.
    */
   thread0.td_uctx = kstack_alloc_s(stk, mcontext_t);
 
-  size_t ntokens = count_args();
-  char **kenvp = kstack_alloc(stk, (ntokens + 2) * sizeof(char *));
-  process_args(kenvp, stk);
+  /*
+   * NOTE: beside `count_args()` pointers for tokens,
+   * we need two additional pointers:
+   *   - one for init program name (see `_kinit`),
+   *   - one for NULL terminating init program argument vector
+   *     (kernel environment is terminated by `cmdline_extract_tokens()`).
+   */
+  const size_t nptrs = count_args() + 2;
+  char **kenvp = kstack_alloc(stk, nptrs * sizeof(char *));
+
+  process_dtb(kenvp, stk);
   kstack_fix_bottom(stk);
 
   init_kenv(kenvp);
+
+  /* If klog-mask argument has been supplied, let's update the mask. */
+  const char *klog_mask = kenv_get("klog-mask");
+  if (klog_mask) {
+    unsigned mask = strtol(klog_mask, NULL, 16);
+    klog_setmask(mask);
+  }
 
   return stk->stk_ptr;
 }
@@ -112,13 +117,13 @@ static int addr_range_cmp(const void *_lhs, const void *_rhs) {
 static void physmem_regions(void) {
   paddr_t mem_start = kenv_get_ulong("mem_start");
   paddr_t mem_end = mem_start + kenv_get_ulong("mem_size");
-  paddr_t memrsvd_start = kenv_get_ulong("memrsvd_start");
-  paddr_t memrsvd_end = memrsvd_start + kenv_get_ulong("memrsvd_size");
+  paddr_t rsvdmem_start = kenv_get_ulong("rsvdmem_start");
+  paddr_t rsvdmem_end = rsvdmem_start + kenv_get_ulong("rsvdmem_size");
   paddr_t kern_start = KERNEL_PHYS;
   paddr_t kern_end = KERNEL_PHYS_END;
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
-  paddr_t dtb_start = dtb_early_root();
+  paddr_t dtb_start = rounddown(dtb_early_root(), PAGESIZE);
   paddr_t dtb_end = dtb_start + dtb_size();
 
   assert(is_aligned(mem_start, PAGESIZE));
@@ -131,8 +136,8 @@ static void physmem_regions(void) {
   addr_range_t memory[] = {
     /* reserved memory */
     {
-      .start = START(memrsvd_start),
-      .end = END(memrsvd_end),
+      .start = START(rsvdmem_start),
+      .end = END(rsvdmem_end),
     },
     /* kernel image */
     {
@@ -151,7 +156,7 @@ static void physmem_regions(void) {
     },
   };
 
-  size_t nranges = sizeof(memory) / sizeof(addr_range_t);
+  const size_t nranges = sizeof(memory) / sizeof(addr_range_t);
   qsort(memory, nranges, sizeof(addr_range_t), addr_range_cmp);
 
   addr_range_t *range = &memory[0];
