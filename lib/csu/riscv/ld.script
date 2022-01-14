@@ -8,8 +8,6 @@ PHDRS
   text   PT_LOAD FLAGS(5); /* read-only, executable */
   rodata PT_LOAD FLAGS(4); /* read-only */
   data   PT_LOAD FLAGS(6); /* read-write */
-  sdata  PT_LOAD FLAGS(6); /* read-write */
-  sbss   PT_LOAD FLAGS(6); /* read-write */
   bss    PT_LOAD FLAGS(6); /* read-write */
 }
 
@@ -18,49 +16,30 @@ SECTIONS
   .text 0x00400000 :
   {
     *(.text .text.*)
-    . = ALIGN(4096);
   } : text
 
   . = ALIGN(4096);
   .rodata :
   {
     *(.rodata .rodata.*)
-    . = ALIGN(4);
   } : rodata
 
   . = ALIGN(4096);
   .data :
   {
-    HIDDEN(__data = .);
     *(.data .data.*)
-    . = ALIGN(4);
-  } : data
-
-  . = ALIGN(4096);
-  .sdata :
-  {
-    HIDDEN(__sdata = .);
     /* Load/store instruction offset in 12 bits (sign extended). */
     __global_pointer$ = . + 0x800;
     *(.sdata .sdata.*)
-    . = ALIGN(4);
-  } : sdata
-
-  . = ALIGN(4096);
-  .sbss :
-  {
     *(.sbss .sbss.*)
     *(.scommon)
-    . = ALIGN(4);
-  } : sbss
+  } : data
 
   . = ALIGN(4096);
   .bss :
   {
     *(.bss .bss.*)
     *(.common)
-    . = ALIGN(4);
-    HIDDEN(__ebss = .);
   } : bss
 
   /DISCARD/ :
