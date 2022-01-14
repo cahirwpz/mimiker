@@ -82,8 +82,9 @@ void dtb_reg(int parent, int node, unsigned long *addr_p,
              unsigned long *size_p) {
   int len;
   const int addr_cells = dtb_addr_cells(parent);
+  const size_t pair_size = 2 * addr_cells * sizeof(uint32_t);
   const uint32_t *prop = fdt_getprop(_dtb_root, node, "reg", &len);
-  if (prop == NULL || ((size_t)len % (2 * addr_cells * sizeof(uint32_t)) != 0))
+  if (prop == NULL || !is_aligned(len, pair_size))
     panic("Invalid reg property in node %d (parent=%d)!", node, parent);
 
   *addr_p = dtb_to_cpu(prop, addr_cells);
