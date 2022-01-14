@@ -185,7 +185,7 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   td->td_wchan = NULL;
   td->td_waitpt = NULL;
   td->td_sleepqueue = sq;
-  sched_wakeup(td, 0);
+  sched_wakeup(td);
 }
 
 /* Remove a thread from the sleep queue and resume it. */

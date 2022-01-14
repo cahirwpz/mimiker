@@ -102,7 +102,7 @@
         mtc0    k0, C0_STATUS
 
 #
-# long ctx_switch(thread_t *from, thread_t *to)
+# void ctx_switch(thread_t *from, thread_t *to)
 #
 NESTED(ctx_switch, CTX_SIZE, ra)
         # ctx_switch must be called with interrupts disabled
