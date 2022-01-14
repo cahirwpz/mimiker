@@ -40,6 +40,8 @@ SECTIONS
   .sdata :
   {
     HIDDEN(__sdata = .);
+    /* Load/store instruction offset in 12 bits (sign extended). */
+    __global_pointer$ = . + 0x800;
     *(.sdata .sdata.*)
     . = ALIGN(4);
   } : sdata
@@ -60,10 +62,6 @@ SECTIONS
     . = ALIGN(4);
     HIDDEN(__ebss = .);
   } : bss
-
-  HIDDEN(_gp_off = 4K / 2);
-  __global_pointer$ = MIN(__sdata + _gp_off,
-                          MAX(__data + _gp_off, __ebss - _gp_off));
 
   /DISCARD/ :
   {

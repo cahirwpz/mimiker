@@ -36,12 +36,6 @@
 
 #include <sys/types.h>
 
-#if defined(__riscv_f) || defined(__riscv_d)
-#define FPE 1
-#else
-#define FPE 0
-#endif
-
 #define _NGREG 35 /* GR1-31, PC, SR, TVAL, CAUSE */
 #define _NFREG 33 /* F0-31, FCSR */
 

@@ -1,6 +1,5 @@
 #include <riscv/asm.h>
 
-	.org 0x0
 	.section .boot
 
 _ENTRY(_start)
