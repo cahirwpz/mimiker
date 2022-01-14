@@ -54,7 +54,8 @@ SECTIONS
   .bss :
   {
     __bss = ABSOLUTE(.);
-    *(.sbss .scommon)
+    *(.sbss .sbss.*)
+    *(.scommon)
     *(.bss .bss.*)
     *(COMMON)
     __ebss = ABSOLUTE(.);
