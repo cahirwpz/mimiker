@@ -19,7 +19,7 @@ static void process_dtb(char **tokens, kstack_t *stk) {
 
   /* Memory boundaries. */
   dtb_mem(&start, &size);
-  snprintf(buf, sizeof(buf), "memsize=%lu", start);
+  snprintf(buf, sizeof(buf), "memsize=%lu", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
 
   /* Initrd boundaries. */
