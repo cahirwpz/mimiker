@@ -40,12 +40,11 @@
 #define _NFREG 33 /* F0-31, FCSR */
 
 typedef union __fpreg {
+  fpregister_t r;
 #ifdef __riscv_f
-  uint32_t u_u32;
-  float u_f;
+  float f;
 #elif defined(__riscv_d)
-  uint64_t u_u64;
-  double u_d;
+  double d;
 #endif
 } __fpreg_t;
 
