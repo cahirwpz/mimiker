@@ -68,17 +68,18 @@ static int dtb_addr_cells(int node) {
   return fdt32_to_cpu(*prop);
 }
 
-static long dtb_to_cpu(const uint32_t *prop, int addr_cells) {
+static unsigned long dtb_to_cpu(const uint32_t *prop, int addr_cells) {
   if (addr_cells == 1)
     return fdt32_to_cpu(*prop);
   assert(addr_cells == 2);
-  return fdt64_to_cpu(*(uint64_t *)prop);
+  return fdt64_to_cpu(*(unsigned long *)prop);
 }
 
 /*
  * XXX: FTTB, we consider only a single pair <addr size>.
  */
-void dtb_reg(int parent, int node, uint64_t *addr_p, uint64_t *size_p) {
+void dtb_reg(int parent, int node, unsigned long *addr_p,
+             unsigned long *size_p) {
   int len;
   const int addr_cells = dtb_addr_cells(parent);
   const uint32_t *prop = fdt_getprop(_dtb_root, node, "reg", &len);
@@ -89,7 +90,7 @@ void dtb_reg(int parent, int node, uint64_t *addr_p, uint64_t *size_p) {
   *size_p = dtb_to_cpu(prop + addr_cells, addr_cells);
 }
 
-uint64_t dtb_cell(int parent, int node, const char *name) {
+unsigned long dtb_cell(int parent, int node, const char *name) {
   int len;
   const int addr_cells = dtb_addr_cells(parent);
   const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
@@ -98,7 +99,7 @@ uint64_t dtb_cell(int parent, int node, const char *name) {
   return dtb_to_cpu(prop, addr_cells);
 }
 
-void dtb_mem(uint64_t *addr_p, uint64_t *size_p) {
+void dtb_mem(unsigned long *addr_p, unsigned long *size_p) {
   int node = dtb_offset("/memory");
   dtb_reg(DTB_ROOT_NODE, node, addr_p, size_p);
 }
@@ -106,7 +107,7 @@ void dtb_mem(uint64_t *addr_p, uint64_t *size_p) {
 /*
  * XXX: FTTB, we assume a single reserved memory range.
  */
-void dtb_rsvdmem(uint64_t *addr_p, uint64_t *size_p) {
+void dtb_rsvdmem(unsigned long *addr_p, unsigned long *size_p) {
   int node = dtb_offset("reserved-memory");
   int subnode = fdt_first_subnode(_dtb_root, node);
   if (subnode < 0)
@@ -114,7 +115,7 @@ void dtb_rsvdmem(uint64_t *addr_p, uint64_t *size_p) {
   dtb_reg(node, subnode, addr_p, size_p);
 }
 
-void dtb_rd(uint64_t *addr_p, uint64_t *size_p) {
+void dtb_rd(unsigned long *addr_p, unsigned long *size_p) {
   int node = dtb_offset("/chosen");
   *addr_p = dtb_cell(DTB_ROOT_NODE, node, "linux,initrd-start");
   *size_p = dtb_cell(DTB_ROOT_NODE, node, "linux,initrd-end") - *addr_p;
