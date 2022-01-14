@@ -32,14 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-#if !defined(_KERNEL) && !defined(_STANDALONE)
-#include <assert.h>
-#include <string.h>
-#else
-#include <sys/libkern.h>
-#endif
+#include <stddef.h>
 
 #if defined(_FORTIFY_SOURCE) || defined(_STANDALONE) || defined(_KERNEL)
 #undef bcopy
