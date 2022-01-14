@@ -10,11 +10,9 @@
 #include <sys/sched.h>
 #include <sys/proc.h>
 
-#ifdef __mips__
+#if __SIZEOF_POINTER__ == 4
 #define TOO_MUCH 0x40000000
-#endif
-
-#ifdef __aarch64__
+#else
 #define TOO_MUCH 0x800000000000L
 #endif
 
