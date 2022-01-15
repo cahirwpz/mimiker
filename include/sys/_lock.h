@@ -20,12 +20,6 @@ typedef enum {
    *
    * Interrupts are disabled upon acquiring a spin lock. */
   LK_TYPE_SPIN = 2,
-  /*!\var LK_TYPE_SLEEP
-   * \brief Type of sleeping locks.
-   *
-   * When a thread tries to acquire a sleeping lock that is owned by another
-   * thread, it will go to sleep on a sleepqueue. */
-  LK_TYPE_SLEEP = 3,
   /*!\var LK_RECURSIVE
    * \brief Flag indicating a recursive lock.
    *
@@ -58,10 +52,6 @@ static inline bool lk_spin_p(lock_t l) {
 
 static inline bool lk_block_p(lock_t l) {
   return lk_type(l) == LK_TYPE_BLOCK;
-}
-
-static inline bool lk_sleep_p(lock_t l) {
-  return lk_type(l) == LK_TYPE_SLEEP;
 }
 
 /* !\brief Predicates checking flags of a lock */
