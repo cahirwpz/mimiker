@@ -1,9 +1,6 @@
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
 #include <sys/kasan.h>
-#include <sys/kenv.h>
-#include <sys/klog.h>
-#include <sys/libkern.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
@@ -300,9 +297,7 @@ __boot_text static void enable_mmu(paddr_t pde) {
   _kernel_pmap_pde = pde;
 }
 
-__boot_text static __noreturn __used void aarch64_boot(paddr_t dtb);
-
-__boot_text __noreturn void aarch64_init(paddr_t dtb) {
+__boot_text void *aarch64_init(void) {
   drop_to_el1();
   configure_cpu();
   clear_bss();
@@ -311,41 +306,7 @@ __boot_text __noreturn void aarch64_init(paddr_t dtb) {
   _bootmem_end = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
 
   enable_mmu(build_page_table());
-
-  /*
-   * Temporary stack in VA.
-   * It's needed because in rpi3.c accesses to stack are instrumented
-   * and KASAN works only for virtual addresses.
-   * Stack instrumentation is done directly by GCC not by our code so
-   * we can't disable KASAN for that file in a simple way because we call
-   * functions from libkern.
-   */
-  void *sp = &_boot_stack[PAGESIZE];
-  __asm __volatile("mov x0, %0\n\t"
-                   "mov sp, %1\n\t"
-                   "B aarch64_boot" ::"r"(dtb),
-                   "r"(sp)
-                   : "x0");
-  __unreachable();
-}
-
-extern void *board_stack(paddr_t dtb);
-extern __noreturn void board_init(void);
-
-__boot_text static __noreturn __used void aarch64_boot(paddr_t dtb) {
-  init_kasan();
-  init_klog();
-
-  board_stack(dtb);
-
-  /* If klog-mask argument has been supplied, let's update the mask. */
-  const char *klog_mask = kenv_get("klog-mask");
-  if (klog_mask) {
-    unsigned mask = strtol(klog_mask, NULL, 16);
-    klog_setmask(mask);
-  }
-
-  board_init();
+  return &_boot_stack[PAGESIZE];
 }
 
 /* TODO(pj) Remove those after architecture split of gdb debug scripts. */

@@ -28,11 +28,31 @@ _ENTRY(_start)
         CMP     x3, #0
         BNE     .
 
+        /* Save pointer to dtb. */
+        mov     x19, x0
         /* Setup initial stack. */
         ADR     x3, __boot_stack_end
         MOV     sp, x3
 
-        B      aarch64_init
+        BL      aarch64_init
+        /* 
+         * Temporary stack in VA.
+         * It's needed because in rpi3.c accesses to stack are instrumented
+         * and KASAN works only for virtual addresses.
+         * Stack instrumentation is done directly by GCC not by our code so
+         * we can't disable KASAN for that file in a simple way because we call
+         * functions from libkern.
+         */
+        mov     sp, x0
+
+	BL init_klog
+
+        /* Restore dtb pointer. */
+        mov     x0, x19
+        BL      board_stack
+        MOV     sp, x0
+
+        B       board_init
 _END(_start)
 
         .section .boot.data
