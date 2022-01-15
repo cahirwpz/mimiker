@@ -49,7 +49,7 @@
  *
  *   - preparing bss,
  *
- *   - initializing kasan and klog,
+ *   - initializing klog,
  *
  *   - processing borad stack (this includes kernel environment setting),
  *
