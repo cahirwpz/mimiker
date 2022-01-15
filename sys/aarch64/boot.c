@@ -14,7 +14,7 @@
 #define __dsb(x) __asm__ volatile("DSB " x)
 #define __isb() __asm__ volatile("ISB")
 #define __eret() __asm__ volatile("ERET")
-#define __sp()                                                             \
+#define __sp()                                                                 \
   ({                                                                           \
     uint64_t __rv;                                                             \
     __asm __volatile("mov %0, sp" : "=r"(__rv));                               \
