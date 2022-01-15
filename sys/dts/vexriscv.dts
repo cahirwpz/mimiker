@@ -63,7 +63,7 @@
 
 		clint@f0010000 {
 			compatible = "riscv,clint0";
-			/* XXX: there should be 3 and 7 ! */
+			// should be 3 and 7 !
 			interrupts-extended = <&hlic 1 &hlic 5>;
 			reg = <0xf0010000 0x10000>;
 		};
