@@ -177,6 +177,7 @@ static void physmem_regions(void) {
 }
 
 void __noreturn board_init(void) {
+  init_kasan();
   /* TODO(MichalBlk): initialize SBI. */
   physmem_regions();
   intr_enable();

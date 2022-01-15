@@ -254,10 +254,6 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
 
   clear_bss();
 
-  /*
-   * Initialize first kernel submodules.
-   */
-  init_kasan();
   init_klog();
 
   void *sp = board_stack(dtb, BOOT_DTB_VADDR);
