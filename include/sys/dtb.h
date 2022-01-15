@@ -25,12 +25,25 @@ void dtb_early_init(paddr_t pa, vaddr_t va);
 /* Initialize dtb subsystem from MI code; nop if dtb is not supported. */
 void dtb_init(void);
 
-/* Get region property of the given node. */
+/* Read a single pair of the form <addr size>. */
+void dtb_pair(int parent, int node, const char *name, unsigned long *addr_p,
+              unsigned long *size_p);
+
+/* Read an address-only property (<addr>). */
+unsigned long dtb_addr(int parent, int node, const char *name);
+
+/* Read a single cell property (<value>). */
+unsigned dtb_cell(int node, const char *name);
+
+/* Read a property of the cpus node. */
+unsigned dtb_cpus_prop(const char *name);
+
+/* Read a string property. */
+const char *dtb_str(int node, const char *name);
+
+/* Get region property of `node`. */
 void dtb_reg(int parent, int node, unsigned long *addr_p,
              unsigned long *size_p);
-
-/* Get a single cell property. */
-unsigned long dtb_cell(int parent, int node, const char *name);
 
 /* Get physical memory boundaries. */
 void dtb_mem(unsigned long *addr_p, unsigned long *size_p);

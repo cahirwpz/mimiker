@@ -61,20 +61,77 @@ static int dtb_offset(const char *path) {
   return offset;
 }
 
-static int dtb_addr_cells(int node) {
+static int dtb_cell_count(int node, const char *name) {
   int len;
-  const uint32_t *prop = fdt_getprop(_dtb_root, node, "#address-cells", &len);
-  /* #address-cells is a 4-byte property */
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
   if (prop == NULL || (size_t)len != sizeof(uint32_t))
-    panic("Failed to retreive #address-cells property for node %d!", node);
+    panic("Failed to retreive %s propertu for node %d!", name, node);
   return fdt32_to_cpu(*prop);
 }
 
-static unsigned long dtb_to_cpu(const uint32_t *prop, int addr_cells) {
-  if (addr_cells == 1)
+static int dtb_addr_cells(int node) {
+  return dtb_cell_count(node, "#address-cells");
+}
+
+static int dtb_size_cells(int node) {
+  return dtb_cell_count(node, "#size-cells");
+}
+
+static unsigned long dtb_to_cpu(const uint32_t *prop, int cells) {
+  if (cells == 1)
     return fdt32_to_cpu(*prop);
-  assert(addr_cells == 2);
+  assert(cells == 2);
   return fdt64_to_cpu(*(unsigned long *)prop);
+}
+
+void dtb_pair(int parent, int node, const char *name, unsigned long *addr_p,
+              unsigned long *size_p) {
+  const int addr_cells = dtb_addr_cells(parent);
+  const int size_cells = dtb_size_cells(parent);
+  const size_t pair_size = (addr_cells + size_cells) * sizeof(uint32_t);
+
+  int len;
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
+  if (prop == NULL || !is_aligned(len, pair_size))
+    panic("Invalid %s property in node %d (parent=%d)!", name, node, parent);
+
+  *addr_p = dtb_to_cpu(prop, addr_cells);
+  *size_p = dtb_to_cpu(prop + addr_cells, size_cells);
+}
+
+unsigned long dtb_addr(int parent, int node, const char *name) {
+  const int addr_cells = dtb_addr_cells(parent);
+  const size_t prop_size = addr_cells * sizeof(uint32_t);
+
+  int len;
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
+  if (prop == NULL || (size_t)len != prop_size)
+    panic("Invalid %s property in node %d (parent=%d)!", name, node, parent);
+
+  return dtb_to_cpu(prop, addr_cells);
+}
+
+unsigned dtb_cell(int node, const char *name) {
+  int len;
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
+  if (prop == NULL || (size_t)len != sizeof(uint32_t))
+    panic("Invalid %s property in node %d!", name, node);
+  return fdt32_to_cpu(*prop);
+}
+
+unsigned dtb_cpus_prop(const char *name) {
+  int node = dtb_offset("cpus");
+  /* We assume that cpus properites are signle cell properties. */
+  assert(dtb_addr_cells(node) == 1);
+  assert(dtb_size_cells(node) == 0);
+  return dtb_cell(node, name);
+}
+
+const char *dtb_str(int node, const char *name) {
+  const char *prop = fdt_getprop(_dtb_root, node, name, NULL);
+  if (prop == NULL)
+    panic("Invalid %s property in node %d!", name, node);
+  return prop;
 }
 
 /*
@@ -82,28 +139,11 @@ static unsigned long dtb_to_cpu(const uint32_t *prop, int addr_cells) {
  */
 void dtb_reg(int parent, int node, unsigned long *addr_p,
              unsigned long *size_p) {
-  int len;
-  const int addr_cells = dtb_addr_cells(parent);
-  const size_t pair_size = 2 * addr_cells * sizeof(uint32_t);
-  const uint32_t *prop = fdt_getprop(_dtb_root, node, "reg", &len);
-  if (prop == NULL || !is_aligned(len, pair_size))
-    panic("Invalid reg property in node %d (parent=%d)!", node, parent);
-
-  *addr_p = dtb_to_cpu(prop, addr_cells);
-  *size_p = dtb_to_cpu(prop + addr_cells, addr_cells);
-}
-
-unsigned long dtb_cell(int parent, int node, const char *name) {
-  int len;
-  const int addr_cells = dtb_addr_cells(parent);
-  const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
-  if (prop == NULL || ((size_t)len != addr_cells * sizeof(uint32_t)))
-    panic("Invalid %s property in node %d (parent=%d)!", name, node, parent);
-  return dtb_to_cpu(prop, addr_cells);
+  return dtb_pair(parent, node, "reg", addr_p, size_p);
 }
 
 void dtb_mem(unsigned long *addr_p, unsigned long *size_p) {
-  int node = dtb_offset("/memory");
+  int node = dtb_offset("memory");
   dtb_reg(DTB_ROOT_NODE, node, addr_p, size_p);
 }
 
@@ -119,15 +159,12 @@ void dtb_rsvdmem(unsigned long *addr_p, unsigned long *size_p) {
 }
 
 void dtb_rd(unsigned long *addr_p, unsigned long *size_p) {
-  int node = dtb_offset("/chosen");
-  *addr_p = dtb_cell(DTB_ROOT_NODE, node, "linux,initrd-start");
-  *size_p = dtb_cell(DTB_ROOT_NODE, node, "linux,initrd-end") - *addr_p;
+  int node = dtb_offset("chosen");
+  *addr_p = dtb_addr(DTB_ROOT_NODE, node, "linux,initrd-start");
+  *size_p = dtb_addr(DTB_ROOT_NODE, node, "linux,initrd-end") - *addr_p;
 }
 
 const char *dtb_cmdline(void) {
-  int offset = dtb_offset("/chosen");
-  const char *prop = fdt_getprop(_dtb_root, offset, "bootargs", NULL);
-  if (prop == NULL)
-    panic("Invalid bootargs property!");
-  return prop;
+  int node = dtb_offset("chosen");
+  return dtb_str(node, "bootargs");
 }
