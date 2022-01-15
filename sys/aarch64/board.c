@@ -17,7 +17,7 @@ static void process_dtb(char **tokens, kstack_t *stk) {
   char buf[32];
   uint64_t start, size;
 
-  /* 
+  /*
    * Memory boundaries.
    * TODO: we assume that physical memory starts at fixed address 0.
    * This assumption should be removed and the memory boundaries
