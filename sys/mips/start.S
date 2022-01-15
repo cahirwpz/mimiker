@@ -33,7 +33,7 @@ LEAF(_start)
         jal     mips_init
         move    sp, v0                  # Set boot stack (already in kseg2)
 
-	LA      t0, init_klog
+        LA      t0, init_klog
         jalr    t0
         nop
 
