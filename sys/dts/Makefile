@@ -2,6 +2,13 @@
 
 TOPDIR = $(realpath ../..)
 
+DTS = $(BOARD).dts
+DTB = $(BOARD).dtb
+
+ifeq ($(wildcard $(DTS)),)
+	DTB = 
+endif
+
 BUILD-FILES += $(DTB)
 
 CLEAN-FILES += $(DTB)

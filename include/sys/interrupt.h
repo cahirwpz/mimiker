@@ -86,9 +86,9 @@ intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
 void intr_event_remove_handler(intr_handler_t *ih);
 void intr_event_run_handlers(intr_event_t *ie);
 
-typedef void (*intr_root_filter_t)(ctx_t *ctx, device_t *dev, void *arg);
+typedef void (*intr_root_filter_t)(ctx_t *ctx, device_t *dev);
 
-void intr_root_claim(intr_root_filter_t filter, device_t *dev, void *arg);
+void intr_root_claim(intr_root_filter_t filter, device_t *dev);
 void intr_root_handler(ctx_t *ctx) __no_profile;
 
 /*

@@ -35,9 +35,7 @@ typedef struct intr_handler {
   intr_event_t *ih_event;   /* event we are connected to */
   void *ih_argument;        /* argument to pass to filter/service routines */
   const char *ih_name;      /* name of the handler */
-  /* XXX: do we really need ih_prio? it has no real use cases so far... */
-  prio_t ih_prio;      /* handler's priority (sort key for ie_handlers) */
-  ih_flags_t ih_flags; /* refer to IH_* flags description above */
+  ih_flags_t ih_flags;      /* refer to IH_* flags description above */
 } intr_handler_t;
 
 static void intr_thread(void *arg);
@@ -91,20 +89,11 @@ static void ie_disable(intr_event_t *ie) {
 static void intr_event_insert_handler(intr_event_t *ie, intr_handler_t *ih) {
   SCOPED_SPIN_LOCK(&ie->ie_lock);
 
-  /* Add new handler according to it's priority */
-  intr_handler_t *it;
-  TAILQ_FOREACH (it, &ie->ie_handlers, ih_link)
-    if (ih->ih_prio > it->ih_prio)
-      break;
-
   /* Enable interrupt if this is the first handler. */
   if (TAILQ_EMPTY(&ie->ie_handlers))
     ie_enable(ie);
 
-  if (it)
-    TAILQ_INSERT_BEFORE(it, ih, ih_link);
-  else
-    TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_link);
+  TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_link);
 }
 
 static void intr_thread_maybe_attach(intr_event_t *ie, intr_handler_t *ih) {
@@ -131,7 +120,6 @@ intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
   ih->ih_event = ie;
   ih->ih_argument = arg;
   ih->ih_name = name;
-  ih->ih_prio = 0;
   ih->ih_flags = 0;
   intr_event_insert_handler(ie, ih);
   intr_thread_maybe_attach(ie, ih);
@@ -156,14 +144,12 @@ void intr_event_remove_handler(intr_handler_t *ih) {
 
 static intr_root_filter_t ir_filter;
 static device_t *ir_dev;
-static void *ir_arg;
 
-void intr_root_claim(intr_root_filter_t filter, device_t *dev, void *arg) {
+void intr_root_claim(intr_root_filter_t filter, device_t *dev) {
   assert(filter != NULL);
 
   ir_filter = filter;
   ir_dev = dev;
-  ir_arg = arg;
 }
 
 __no_profile void intr_root_handler(ctx_t *ctx) {
@@ -179,7 +165,7 @@ __no_profile void intr_root_handler(ctx_t *ctx) {
   /* Explicitely disallow switching out to another thread. */
   PCPU_SET(no_switch, true);
   if (ir_filter != NULL)
-    ir_filter(ctx, ir_dev, ir_arg);
+    ir_filter(ctx, ir_dev);
   PCPU_SET(no_switch, false);
 
   /* If filter routine requested a context switch it's now time to handle it. */
