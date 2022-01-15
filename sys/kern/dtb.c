@@ -5,6 +5,8 @@
 #include <sys/kmem.h>
 #include <sys/vm.h>
 
+#define DTB_ROOT_NODE 0
+
 /*
  * offset of dtb on first page that contains device tree blob
  *

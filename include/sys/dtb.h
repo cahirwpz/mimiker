@@ -3,8 +3,6 @@
 
 #include <sys/types.h>
 
-#define DTB_ROOT_NODE 0
-
 /*
  * NOTE: for dtb parser look at sys/fdt.h.
  */
