@@ -15,7 +15,7 @@
 
 static void process_dtb(char **tokens, kstack_t *stk) {
   char buf[32];
-  uint64_t start, size;
+  unsigned long start, size;
 
   /*
    * Memory boundaries.
@@ -40,9 +40,6 @@ static void process_dtb(char **tokens, kstack_t *stk) {
 }
 
 void *board_stack(paddr_t dtb) {
-  init_kasan();
-  init_klog();
-
   dtb_early_init(dtb, PHYS_TO_DMAP(dtb));
 
   kstack_t *stk = &thread0.td_kstack;
