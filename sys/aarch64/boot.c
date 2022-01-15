@@ -14,13 +14,12 @@
 #define __dsb(x) __asm__ volatile("DSB " x)
 #define __isb() __asm__ volatile("ISB")
 #define __eret() __asm__ volatile("ERET")
-#define __get_sp()                                                             \
+#define __sp()                                                             \
   ({                                                                           \
     uint64_t __rv;                                                             \
     __asm __volatile("mov %0, sp" : "=r"(__rv));                               \
     __rv;                                                                      \
   })
-#define __set_sp(v) __asm __volatile("mov sp, %0" ::"r"(v))
 
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data void *_bootmem_end;
@@ -75,7 +74,7 @@ __boot_text static void drop_to_el1(void) {
     WRITE_SPECIALREG(SCR_EL3, SCR_RW | SCR_NS);
 
     /* Prepare for jump into EL2. */
-    WRITE_SPECIALREG(SP_EL2, __get_sp());
+    WRITE_SPECIALREG(SP_EL2, __sp());
     WRITE_SPECIALREG(SPSR_EL3, PSR_DAIF | PSR_M_EL2h);
     WRITE_SPECIALREG(ELR_EL3, &&el2_entry);
     __isb();
@@ -110,7 +109,7 @@ el2_entry:
     WRITE_SPECIALREG(VBAR_EL2, hypervisor_vectors);
 
     /* Prepare for jump into EL1. */
-    WRITE_SPECIALREG(SP_EL1, __get_sp());
+    WRITE_SPECIALREG(SP_EL1, __sp());
     WRITE_SPECIALREG(SPSR_EL2, PSR_DAIF | PSR_M_EL1h);
     WRITE_SPECIALREG(ELR_EL2, &&el1_entry);
     __isb();
