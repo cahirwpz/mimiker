@@ -45,7 +45,7 @@ _ENTRY(_start)
          */
         mov     sp, x0
 
-	BL init_klog
+        BL      init_klog
 
         /* Restore dtb pointer. */
         mov     x0, x19
