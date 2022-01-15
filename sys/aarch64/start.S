@@ -34,23 +34,7 @@ _ENTRY(_start)
         ADR     x3, __boot_stack_end
         MOV     sp, x3
 
-        BL      aarch64_init
-        /* 
-         * Temporary stack in VA.
-         * It's needed because in rpi3.c accesses to stack are instrumented
-         * and KASAN works only for virtual addresses.
-         * Stack instrumentation is done directly by GCC not by our code so
-         * we can't disable KASAN for that file in a simple way because we call
-         * functions from libkern.
-         */
-        mov     sp, x0
-        /* Restore dtb pointer. */
-        mov     x0, x19
-
-        BL      board_stack
-        MOV     sp, x0
-
-        B       board_init
+        B      aarch64_init
 _END(_start)
 
         .section .boot.data

@@ -1,6 +1,9 @@
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
 #include <sys/kasan.h>
+#include <sys/kenv.h>
+#include <sys/klog.h>
+#include <sys/libkern.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
@@ -11,12 +14,13 @@
 #define __dsb(x) __asm__ volatile("DSB " x)
 #define __isb() __asm__ volatile("ISB")
 #define __eret() __asm__ volatile("ERET")
-#define __sp()                                                                 \
+#define __get_sp()                                                             \
   ({                                                                           \
     uint64_t __rv;                                                             \
     __asm __volatile("mov %0, sp" : "=r"(__rv));                               \
     __rv;                                                                      \
   })
+#define __set_sp(v) __asm __volatile("mov sp, %0" ::"r"(v))
 
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data void *_bootmem_end;
@@ -71,7 +75,7 @@ __boot_text static void drop_to_el1(void) {
     WRITE_SPECIALREG(SCR_EL3, SCR_RW | SCR_NS);
 
     /* Prepare for jump into EL2. */
-    WRITE_SPECIALREG(SP_EL2, __sp());
+    WRITE_SPECIALREG(SP_EL2, __get_sp());
     WRITE_SPECIALREG(SPSR_EL3, PSR_DAIF | PSR_M_EL2h);
     WRITE_SPECIALREG(ELR_EL3, &&el2_entry);
     __isb();
@@ -106,7 +110,7 @@ el2_entry:
     WRITE_SPECIALREG(VBAR_EL2, hypervisor_vectors);
 
     /* Prepare for jump into EL1. */
-    WRITE_SPECIALREG(SP_EL1, __sp());
+    WRITE_SPECIALREG(SP_EL1, __get_sp());
     WRITE_SPECIALREG(SPSR_EL2, PSR_DAIF | PSR_M_EL1h);
     WRITE_SPECIALREG(ELR_EL2, &&el1_entry);
     __isb();
@@ -297,7 +301,9 @@ __boot_text static void enable_mmu(paddr_t pde) {
   _kernel_pmap_pde = pde;
 }
 
-__boot_text void *aarch64_init(void) {
+__boot_text static __noreturn void aarch64_boot(paddr_t dtb);
+
+__boot_text __noreturn void aarch64_init(paddr_t dtb) {
   drop_to_el1();
   configure_cpu();
   clear_bss();
@@ -306,7 +312,37 @@ __boot_text void *aarch64_init(void) {
   _bootmem_end = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
 
   enable_mmu(build_page_table());
-  return &_boot_stack[PAGESIZE];
+
+  /*
+   * Temporary stack in VA.
+   * It's needed because in rpi3.c accesses to stack are instrumented
+   * and KASAN works only for virtual addresses.
+   * Stack instrumentation is done directly by GCC not by our code so
+   * we can't disable KASAN for that file in a simple way because we call
+   * functions from libkern.
+   */
+  __set_sp(&_boot_stack[PAGESIZE]);
+
+  aarch64_boot(dtb);
+}
+
+extern void *board_stack(paddr_t dtb);
+extern __noreturn void board_init(void);
+
+__boot_text static __noreturn void aarch64_boot(paddr_t dtb) {
+  init_kasan();
+  init_klog();
+
+  board_stack(dtb);
+
+  /* If klog-mask argument has been supplied, let's update the mask. */
+  const char *klog_mask = kenv_get("klog-mask");
+  if (klog_mask) {
+    unsigned mask = strtol(klog_mask, NULL, 16);
+    klog_setmask(mask);
+  }
+
+  board_init();
 }
 
 /* TODO(pj) Remove those after architecture split of gdb debug scripts. */
