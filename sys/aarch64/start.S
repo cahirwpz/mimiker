@@ -28,8 +28,6 @@ _ENTRY(_start)
         CMP     x3, #0
         BNE     .
 
-        /* Save pointer to dtb. */
-        mov     x19, x0
         /* Setup initial stack. */
         ADR     x3, __boot_stack_end
         MOV     sp, x3
