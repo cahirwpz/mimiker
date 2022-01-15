@@ -5,7 +5,6 @@
 
 #define INITSTACK_SIZE 512
 
-	.org 0x0
 	.section .boot
 /*
  * The following entry point is used when booting via SBI firmware.
