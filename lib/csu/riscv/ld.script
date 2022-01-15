@@ -28,7 +28,7 @@ SECTIONS
   .data :
   {
     *(.data .data.*)
-    /* Load/store instruction offset in 12 bits (sign extended). */
+    /* Load/store instruction offset is 12 bits (sign extended). */
     __global_pointer$ = . + 0x800;
     *(.sdata .sdata.*)
     *(.sbss .sbss.*)
