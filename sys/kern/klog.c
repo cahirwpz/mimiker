@@ -43,8 +43,7 @@ static const char *subsystems[] = {
 };
 
 void init_klog(void) {
-  const char *mask = kenv_get("klog-mask");
-  klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_DEFAULT_MASK;
+  klog.mask = KL_DEFAULT_MASK;
   klog.first = 0;
   klog.last = 0;
   klog.repeated = 0;
