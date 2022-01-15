@@ -301,7 +301,7 @@ __boot_text static void enable_mmu(paddr_t pde) {
   _kernel_pmap_pde = pde;
 }
 
-__boot_text static __noreturn void aarch64_boot(paddr_t dtb);
+__boot_text static __noreturn __used void aarch64_boot(paddr_t dtb);
 
 __boot_text __noreturn void aarch64_init(paddr_t dtb) {
   drop_to_el1();
@@ -321,15 +321,19 @@ __boot_text __noreturn void aarch64_init(paddr_t dtb) {
    * we can't disable KASAN for that file in a simple way because we call
    * functions from libkern.
    */
-  __set_sp(&_boot_stack[PAGESIZE]);
-
-  aarch64_boot(dtb);
+  void *sp = &_boot_stack[PAGESIZE];
+  __asm __volatile("mov x0, %0\n\t"
+                   "mov sp, %1\n\t"
+                   "B aarch64_boot" ::"r"(dtb),
+                   "r"(sp)
+                   : "x0");
+  __unreachable();
 }
 
 extern void *board_stack(paddr_t dtb);
 extern __noreturn void board_init(void);
 
-__boot_text static __noreturn void aarch64_boot(paddr_t dtb) {
+__boot_text static __noreturn __used void aarch64_boot(paddr_t dtb) {
   init_kasan();
   init_klog();
 
