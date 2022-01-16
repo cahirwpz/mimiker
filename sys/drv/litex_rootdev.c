@@ -90,7 +90,7 @@ static void hlic_intr_release(device_t *ic, device_t *dev, resource_t *r) {
   resource_release(r);
 }
 
-static void hlic_intr_handler(ctx_t *ctx, device_t *bus, void *arg) {
+static void hlic_intr_handler(ctx_t *ctx, device_t *bus) {
   rootdev_t *rd = bus->state;
   unsigned long cause = _REG(ctx, CAUSE) & SCAUSE_CODE;
   assert(cause < HLIC_NIRQS);
@@ -156,26 +156,11 @@ static int rootdev_probe(device_t *bus) {
 
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
-  void *dtb = dtb_root();
-  int soc_node = dtb_offset("soc");
-  int node, len;
-  const uint32_t *prop;
 
-  /* Obtain I/O space boundaries. */
-  paddr_t io_start = 0;
-  paddr_t io_end = 0;
-  int first = fdt_first_subnode(dtb, soc_node);
-  dtb_reg(first, &prop, NULL);
-  io_start = fdt32_to_cpu(*prop);
-  int last = -1;
-  for (node = first; node >= 0; node = fdt_next_subnode(dtb, node)) {
-    last = node;
-  }
-  dtb_reg(last, &prop, &len);
-  io_end = fdt32_to_cpu(prop[0]) + fdt32_to_cpu(prop[1]);
+  bus->node = dtb_soc_node();
 
   rman_init(&rd->mem_rm, "RISC-V I/O space");
-  rman_manage_region(&rd->mem_rm, io_start, io_end - io_start);
+  rman_manage_region(&rd->mem_rm, 0xf0000000, 0x10000000);
 
   /*
    * NOTE: supervisor can only control supervisor and user interrupts, however,
@@ -186,30 +171,31 @@ static int rootdev_attach(device_t *bus) {
   rman_manage_region(&rd->hlic_rm, HLIC_IRQ_TIMER_SUPERVISOR, 1);
   rman_manage_region(&rd->hlic_rm, HLIC_IRQ_EXTERNAL_SUPERVISOR, 1);
 
-  intr_root_claim(hlic_intr_handler, bus, NULL);
+  intr_root_claim(hlic_intr_handler, bus);
 
   /* TODO(MichalBlk): discover devices using FDT. */
+
+  unsigned long addr, size;
+  int node;
 
   /* Create RISC-V CLINT device and assign resources to it. */
   device_t *dev = device_add_child(bus, 1);
   dev->ic = bus;
-  node = fdt_subnode_offset(dtb, soc_node, "clint");
-  assert(node >= 0);
-  dtb_reg(node, &prop, &len);
-  device_add_memory(dev, 0, fdt32_to_cpu(prop[0]), fdt32_to_cpu(prop[1]));
+  node = dtb_bus_child_node(bus, "clint");
+  dev->node = node;
+  dtb_dev_reg(dev, &addr, &size);
+  device_add_memory(dev, 0, addr, size);
   device_add_irq(dev, 0, HLIC_IRQ_SOFTWARE_SUPERVISOR);
   device_add_irq(dev, 1, HLIC_IRQ_TIMER_SUPERVISOR);
-  dev->node = node;
 
   /* Create RISC-V PLIC device and assign resources to it. */
   device_t *plic = device_add_child(bus, 2);
   plic->ic = bus;
-  node = fdt_subnode_offset(dtb, soc_node, "interrupt-controller");
-  assert(node >= 0);
-  dtb_reg(node, &prop, &len);
-  device_add_memory(plic, 0, fdt32_to_cpu(prop[0]), fdt32_to_cpu(prop[1]));
-  device_add_irq(plic, 0, HLIC_IRQ_EXTERNAL_SUPERVISOR);
+  node = dtb_bus_child_node(bus, "interrupt-controller");
   plic->node = node;
+  dtb_dev_reg(plic, &addr, &size);
+  device_add_memory(plic, 0, addr, size);
+  device_add_irq(plic, 0, HLIC_IRQ_EXTERNAL_SUPERVISOR);
 
   extern driver_t plic_driver;
   plic->driver = &plic_driver;
@@ -219,13 +205,11 @@ static int rootdev_attach(device_t *bus) {
   /* Create liteuart device and assign resources to it. */
   dev = device_add_child(bus, 0);
   dev->ic = plic;
-  node = fdt_subnode_offset(dtb, soc_node, "serial");
-  assert(node >= 0);
-  dtb_reg(node, &prop, &len);
-  device_add_memory(dev, 0, fdt32_to_cpu(prop[0]), fdt32_to_cpu(prop[1]));
-  dtb_intr(node, &prop, &len);
-  device_add_irq(dev, 0, fdt32_to_cpu(prop[0]));
+  node = dtb_bus_child_node(bus, "serial");
   dev->node = node;
+  dtb_dev_reg(dev, &addr, &size);
+  device_add_memory(dev, 0, addr, size);
+  device_add_irq(dev, 0, 1);
 
   return bus_generic_probe(bus);
 }

@@ -70,7 +70,7 @@
 	.cfi_def_cfa_offset 0
 .endm
 
-#if FPE
+#if FPU
 .macro enable_sv_fpu tmp
 	li \tmp, SSTATUS_FS_INITIAL
 	csrs sstatus, \tmp
@@ -92,7 +92,7 @@
 
 .macro save_fpu_ctx dst, tmp
 	/*
-	 * Enable FPE usage in supervisor mode,
+	 * Enable FPU usage in supervisor mode,
 	 * so we can access registers.
 	 */
 	enable_sv_fpu \tmp
@@ -150,7 +150,7 @@ ENTRY(ctx_switch)
 	save_ctx t0
 	PTR_S sp, TD_KCTX(a0)
 
-#if FPE
+#if FPU
 	/* Read private thread flags. */
 	INT_L t1, TD_PFLAGS(a0)
 

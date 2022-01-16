@@ -75,24 +75,8 @@ static bintime_t clint_timer_gettime(timer_t *tm) {
  */
 
 static int clint_probe(device_t *dev) {
-  void *dtb = dtb_root();
-  const char *compatible = fdt_getprop(dtb, dev->node, "compatible", NULL);
-  if (!compatible)
-    return 0;
+  const char *compatible = dtb_dev_compatible(dev);
   return strcmp(compatible, "riscv,clint0") == 0;
-}
-
-static uint32_t clint_frequency(void) {
-  void *dtb = dtb_root();
-  int cpus_node = dtb_offset("cpus");
-  int len;
-
-  const uint32_t *prop =
-    fdt_getprop(dtb, cpus_node, "timebase-frequency", &len);
-  if (!prop || len != sizeof(uint32_t))
-    panic("Invalid timebase-frequency property!");
-
-  return fdt32_to_cpu(*prop);
 }
 
 static intr_filter_t clint_sw_intr(void *data) {
@@ -110,7 +94,7 @@ static int clint_attach(device_t *dev) {
   clint->timer_irq = device_take_irq(dev, 1, RF_ACTIVE);
   assert(clint->timer_irq);
 
-  uint32_t freq = clint_frequency();
+  uint32_t freq = dtb_cpus_prop("timebase-frequency");
 
   clint->timer = (timer_t){
     .tm_name = "RISC-V CLINT",

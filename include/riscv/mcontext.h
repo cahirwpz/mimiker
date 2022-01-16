@@ -36,22 +36,15 @@
 
 #include <sys/types.h>
 
-#if defined(__riscv_f) || defined(__riscv_d)
-#define FPE 1
-#else
-#define FPE 0
-#endif
-
 #define _NGREG 35 /* GR1-31, PC, SR, TVAL, CAUSE */
 #define _NFREG 33 /* F0-31, FCSR */
 
 typedef union __fpreg {
+  fpregister_t r;
 #ifdef __riscv_f
-  uint32_t u_u32;
-  float u_f;
+  float f;
 #elif defined(__riscv_d)
-  uint64_t u_u64;
-  double u_d;
+  double d;
 #endif
 } __fpreg_t;
 

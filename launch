@@ -63,13 +63,10 @@ CONFIG = {
             'rpi3': {
                 'kernel': 'sys/mimiker.img.gz',
                 'simulator': 'qemu'
-<<<<<<< HEAD
             },
             'vexriscv': {
                 'kernel': 'sys/mimiker.img',
                 'simulator': 'renode',
-=======
->>>>>>> 7578966cb63f8d231468a526e0d0ee04bda3ac13
             },
         },
     },
@@ -122,15 +119,12 @@ CONFIG = {
             '--console',
         },
         'board': {
-<<<<<<< HEAD
             'vexriscv': {
                 'script': 'litex_vexriscv_mimiker.resc',
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ]
             }
-=======
->>>>>>> 7578966cb63f8d231468a526e0d0ee04bda3ac13
         }
     },
     'gdb': {
@@ -235,7 +229,7 @@ class Launchable():
                 soft = cpulimit
             resource.setrlimit(resource.RLIMIT_CPU, (soft, hard))
 
-        return pexpect.spawn(self.cmd, self.options, timeout=100, dimensions=dimensions,
+        return pexpect.spawn(self.cmd, self.options, dimensions=dimensions,
                              preexec_fn=set_cpu_limit)
 
     def stop(self):
@@ -411,11 +405,7 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
     parser.add_argument('-b', '--board', default='malta',
-<<<<<<< HEAD
                         choices=['malta', 'rpi3', 'vexriscv'],
-=======
-                        choices=['malta', 'rpi3'],
->>>>>>> 7578966cb63f8d231468a526e0d0ee04bda3ac13
                         help='Emulated board.')
     args = parser.parse_args()
 

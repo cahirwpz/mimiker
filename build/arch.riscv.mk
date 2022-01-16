@@ -2,11 +2,14 @@
 #
 # Common makefile which specifies RISC-V architecture specific settings.
 #
+# Explanation of specified options can be found here:
+#   https://gcc.gnu.org/onlinedocs/gcc/RISC-V-Options.html#RISC-V-Options
+#
 # Required common variables: KERNEL, BOARD.
 #
 
 TARGET := riscv32-mimiker-elf
-GCC_ABIFLAGS :=
+GCC_ABIFLAGS := 
 CLANG_ABIFLAGS := -target riscv32-elf
 ELFTYPE := elf32-littleriscv
 ELFARCH := riscv
@@ -14,8 +17,7 @@ ELFARCH := riscv
 ifeq ($(BOARD), vexriscv)
 	KERNEL_PHYS := 0x40000000
 	KERNEL-IMAGES := mimiker.img
-	DTB := vexriscv.dtb
-	CPPFLAGS += -DAUTO_DA_MGMT
+	CPPFLAGS += -DFPU=1 -DAUTO_DA_MGMT
 endif
 
 ifeq ($(KERNEL), 1)

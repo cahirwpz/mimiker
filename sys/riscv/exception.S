@@ -159,7 +159,7 @@
 .endif
 .endm
 
-#if FPE
+#if FPU
 .macro enable_sv_fpu tmp
 	li \tmp, SSTATUS_FS_INITIAL
 	csrs sstatus, \tmp
@@ -260,7 +260,7 @@ user_exc_leave:
 	li t0, SSTATUS_SIE
 	csrc sstatus, t0
 
-#if FPE
+#if FPU
 	/* Read private thread flags. */
 	PTR_L t0, PCPU_CURTHREAD(tp)
 	INT_L t1, TD_PFLAGS(t0)

@@ -14,7 +14,7 @@ PHDRS
   data   PT_LOAD FLAGS(6); /* read-write */
 }
 
-PROVIDE(__image_size = (__kernel_end - __kernel_start) + _boot_size);
+PROVIDE(__kernel_size = _boot_size + (__kernel_end - __kernel_start));
 
 SECTIONS
 {
@@ -46,24 +46,23 @@ SECTIONS
   .data : ALIGN(4096)
   {
     __data = ABSOLUTE(.);
-    *(.sdata .sdata.*)
     *(.data .data.*)
+    /* Load/store instruction offset is 12 bits (sign extended). */
+    __global_pointer$ = . + 0x800;
+    *(.sdata .sdata.*)
     __edata = ABSOLUTE(.);
   } : data
 
   .bss :
   {
     __bss = ABSOLUTE(.);
-    *(.sbss .scommon)
+    *(.sbss .sbss.*)
+    *(.scommon)
     *(.bss .bss.*)
     *(COMMON)
     __ebss = ABSOLUTE(.);
     __kernel_end = ABSOLUTE(.);
   }
-
-  /* Provide global pointer for linker relaxations. */
-  HIDDEN(_gp_off = 4K / 2);
-  __global_pointer$ = MIN(__data + _gp_off, __ebss - _gp_off);
 
   /* Sections to be discarded. */
   /DISCARD/ :

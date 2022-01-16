@@ -168,6 +168,6 @@ int sbi_console_getchar(void);
 void sbi_shutdown(void);
 
 /* Initialize SBI module. */
-void sbi_init(void);
+void init_sbi(void);
 
 #endif /* !_RISCV_SBI_H_ */

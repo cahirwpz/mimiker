@@ -36,25 +36,25 @@ typedef struct plic_state {
   unsigned nirqs;            /* number of sources */
 } plic_state_t;
 
-#define in32(addr) bus_read_4(plic->mem, (addr))
-#define out32(addr, val) bus_write_4(plic->mem, (addr), (val))
+#define in4(addr) bus_read_4(plic->mem, (addr))
+#define out4(addr, val) bus_write_4(plic->mem, (addr), (val))
 
 static void plic_intr_disable(intr_event_t *ie) {
   plic_state_t *plic = ie->ie_source;
   unsigned irq = ie->ie_irq;
 
-  uint32_t en = in32(PLIC_ENABLE_SV(irq));
+  uint32_t en = in4(PLIC_ENABLE_SV(irq));
   en &= ~(1 << (irq % 32));
-  out32(PLIC_ENABLE_SV(irq), en);
+  out4(PLIC_ENABLE_SV(irq), en);
 }
 
 static void plic_intr_enable(intr_event_t *ie) {
   plic_state_t *plic = ie->ie_source;
   unsigned irq = ie->ie_irq;
 
-  uint32_t en = in32(PLIC_ENABLE_SV(irq));
+  uint32_t en = in4(PLIC_ENABLE_SV(irq));
   en |= 1 << (irq % 32);
-  out32(PLIC_ENABLE_SV(irq), en);
+  out4(PLIC_ENABLE_SV(irq), en);
 }
 
 static const char *plic_intr_name(unsigned irq) {
@@ -98,11 +98,11 @@ static intr_filter_t plic_intr_handler(void *arg) {
   plic_state_t *plic = arg;
 
   /* Claim any pending interrupt. */
-  uint32_t irq = in32(PLIC_CLAIM_SV);
+  uint32_t irq = in4(PLIC_CLAIM_SV);
   if (irq) {
     intr_event_run_handlers(plic->intr_event[irq]);
     /* Complete the interrupt. */
-    out32(PLIC_CLAIM_SV, irq);
+    out4(PLIC_CLAIM_SV, irq);
     return IF_FILTERED;
   }
 
@@ -110,10 +110,7 @@ static intr_filter_t plic_intr_handler(void *arg) {
 }
 
 static int plic_probe(device_t *ic) {
-  void *dtb = dtb_root();
-  const char *compatible = fdt_getprop(dtb, ic->node, "compatible", NULL);
-  if (!compatible)
-    return 0;
+  const char *compatible = dtb_dev_compatible(ic);
   return strcmp(compatible, "riscv,plic0") == 0;
 }
 
@@ -121,12 +118,7 @@ static int plic_attach(device_t *ic) {
   plic_state_t *plic = ic->state;
 
   /* Obtain the number of sources. */
-  int len;
-  void *dtb = dtb_root();
-  const uint32_t *prop = fdt_getprop(dtb, ic->node, "riscv,ndev", &len);
-  if (!prop || len != sizeof(uint32_t))
-    return ENXIO;
-  plic->nirqs = fdt32_to_cpu(*prop);
+  plic->nirqs = dtb_dev_cell(ic, "riscv,ndev");
 
   /* We'll need interrupt event for each interrupt source. */
   plic->intr_event =
@@ -145,9 +137,9 @@ static int plic_attach(device_t *ic) {
    * and the threshold to 0.
    */
   for (unsigned irq = 0; irq < plic->nirqs; irq++) {
-    out32(PLIC_PRIORITY(irq), 1);
+    out4(PLIC_PRIORITY(irq), 1);
   }
-  out32(PLIC_THRESHOLD_SV, 0);
+  out4(PLIC_THRESHOLD_SV, 0);
 
   plic->irq = device_take_irq(ic, 0, RF_ACTIVE);
   assert(plic->irq);

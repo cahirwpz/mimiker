@@ -36,11 +36,6 @@
 
 #define _C_LABEL(x) x
 
-#define __CONCAT(x, y) x##y
-#define __STRING(x) #x
-
-#define ___CONCAT(x, y) __CONCAT(x, y)
-
 #define _ENTRY(x)                                                              \
   .globl _C_LABEL(x);                                                          \
   .align 4;                                                                    \

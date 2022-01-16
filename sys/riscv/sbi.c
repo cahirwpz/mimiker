@@ -284,7 +284,7 @@ static void sbi_print_version(void) {
   klog("SBI Specification Version: %u.%u", major, minor);
 }
 
-void sbi_init(void) {
+void init_sbi(void) {
   sbi_ret_t sret;
 
   /*

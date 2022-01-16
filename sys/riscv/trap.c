@@ -173,7 +173,7 @@ static void syscall_handler(mcontext_t *uctx, syscall_result_t *result) {
   result->error = error;
 }
 
-#if FPE
+#if FPU
 static bool fpu_handler(mcontext_t *uctx) {
   thread_t *td = thread_self();
 
@@ -228,7 +228,7 @@ static void user_trap_handler(ctx_t *ctx) {
       break;
 
     case SCAUSE_ILLEGAL_INSTRUCTION:
-#if FPE
+#if FPU
       if (fpu_handler((mcontext_t *)ctx))
         break;
 #endif

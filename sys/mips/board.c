@@ -116,7 +116,6 @@ static void malta_physmem(void) {
 
 __noreturn void board_init(void) {
   init_kasan();
-  init_klog();
   init_mips_cpu();
   init_mips_tlb();
   malta_physmem();

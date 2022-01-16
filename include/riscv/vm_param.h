@@ -13,6 +13,7 @@
 #define PAGESIZE 4096
 
 #define VM_PHYSSEG_NMAX 16
+#define VM_PAGE_PDS 4
 
 #define KSTACK_PAGES 1
 #define KSTACK_SIZE (KSTACK_PAGES * PAGESIZE)
@@ -24,6 +25,7 @@
 #define RISCV_PHYSADDR(x)                                                      \
   ((paddr_t)((vaddr_t)(x) & ~KERNEL_SPACE_BEGIN) + KERNEL_PHYS)
 
-#define KERNEL_PHYS_END (align(RISCV_PHYSADDR(__ebss), PAGESIZE) + BOOTMEM_SIZE)
+#define KERNEL_IMG_END align(RISCV_PHYSADDR(__ebss), PAGESIZE)
+#define KERNEL_PHYS_END (KERNEL_IMG_END + BOOTMEM_SIZE)
 
 #endif /* !_RISCV_VM_PARAM_H_ */
