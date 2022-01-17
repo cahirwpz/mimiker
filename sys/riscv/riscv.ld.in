@@ -36,18 +36,26 @@ SECTIONS
     /* TODO: include KASAN constructors. */
   } : text
 
+  .eh_frame : { *(.eh_frame) }
+
+  /* We don't use linker relaxations base on `__global_pointer$`, thus small
+   * sections (.srodata / .sdata / .sbss) are merged into their large
+   * counterparts. This has neglible impact on code size, so why bother.
+   *
+   * Refer to following blog post to understand what linker relaxations are:
+   * https://www.sifive.com/blog/all-aboard-part-3-linker-relaxation-in-riscv-toolchain */
+
   .rodata :
   {
+    *(.srodata .srodata.*)
     *(.rodata .rodata.*)
   } : rodata
 
   .data : ALIGN(4096)
   {
     __data = ABSOLUTE(.);
-    *(.data .data.*)
-    /* Load/store instruction offset is 12 bits (sign extended). */
-    __global_pointer$ = . + 0x800;
     *(.sdata .sdata.*)
+    *(.data .data.*)
     __edata = ABSOLUTE(.);
   } : data
 
