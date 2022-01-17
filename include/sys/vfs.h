@@ -135,10 +135,41 @@ int vfs_maybe_descend(vnode_t **vp);
 /* Finds name of v-node in given directory. */
 int vfs_name_in_dir(vnode_t *dv, vnode_t *v, char *buf, size_t *lastp);
 
+/**
+ * \brief Initialize the vcache subsystem
+ */
 void vfs_vcache_init(void);
-vnode_t *vfs_vcache_hashget(mount_t *mp, ino_t ino);
-vnode_t *vfs_vcache_new_vnode(void);
+
+/**
+ * \brief Borrow a new vnode from vcache.
+ * \return a vnode with its use count initialized to 1.
+ */
+vnode_t *vfs_vcache_borrow_new(void);
+
+/**
+ * \brief Try acquiring a vnode for specified inode and mountpoint.
+ * \param mp mountpoint of the inode's filesystem
+ * \param ino inode to be used for vnode lookup
+ * \return requested vnodeor NULL if the vnode is not in vcache.
+ */
+vnode_t *vfs_vcache_reborrow(mount_t *mp, ino_t ino);
+
+/**
+ * \brief Return a vnode that's not longer in use to vcache.
+ * \param vn vnode to be returned
+ * \warning vnode use count must be zero!
+ *          Freelist can't contain vnodes that are in use.
+ */
 void vfs_vcache_return(vnode_t *vn);
+
+/**
+ * \brief Detach vnode from a filesystem (if present in any).
+ *        This will cause the vnode to get reclaimed immeditially.
+ * \warning a vnode is detachable if and only if it's on freelist,
+ *          ie. it's usecnt is set to zero.
+ * \return 0 on success, otherwise an error code from VOP_RECLAIM
+ *         (only if v_reclaim is implemented for that vnode)
+ */
 int vfs_vcache_detach(vnode_t *vn);
 
 #endif /* !_KERNEL */

@@ -17,11 +17,6 @@ static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
 
 static void vnlock_init(vnlock_t *vl);
 
-/* Actually, vnode management should be much more complex than this, because
-   this stub does not recycle vnodes, does not store them on a free list,
-   etc. So at some point we may need a more sophisticated memory management here
-   - but this will do for now. */
-
 vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
   vnode_t *v = pool_alloc(P_VNODE, M_ZERO);
   v->v_type = type;

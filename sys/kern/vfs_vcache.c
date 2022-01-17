@@ -1,3 +1,11 @@
+/* vcache
+ *
+ * This subsystem manages vnodes used by filesystems allowing them  to "borrow"
+ * a vnode whenever they need one and to return it later for cached storage.
+ * A filesystem can use vcache to manage its internal inode data by tying its
+ * lifetime to a vcached vnode.
+ */
+
 #define KL_LOG KL_VFS
 
 #include <sys/mimiker.h>
@@ -56,25 +64,19 @@ vnode_t *vcache_hashget(mount_t *mp, ino_t ino) {
   return NULL;
 }
 
-/**
- * \brief Detach vnode from a filesystem (if present in any).
- *        This will cause the vnode to get reclaimed immeditially.
- * \warning a vnode is detachable if and only if it's on freelist,
- *          ie. it's usecnt is set to zero.
- */
 int vfs_vcache_detach(vnode_t *vn) {
   int error = 0;
   /* Reclaim vnode (if supported) */
-  if (vn->v_data)
+  if (vn->v_data && vn->v_ops->v_reclaim)
     error = VOP_RECLAIM(vn);
-  if (error == ENOTSUP)
-    error = 0;
+  if (error)
+    return error;
 
   /* Seting v_data to NULL marks the vnode as "detached" */
   vn->v_data = NULL;
 
   if (!vn->v_mount)
-    return error; /* vnode was not in a any bucket and cannot be hashed */
+    return 0; /* vnode was not in a any bucket and cannot be hashed */
   vcache_t bucket = vcache_hash(vn->v_mount, vn->v_ino);
   vnode_t *bucket_node = NULL;
   TAILQ_FOREACH (bucket_node, &vcache_buckets[bucket], v_cached) {
@@ -84,7 +86,7 @@ int vfs_vcache_detach(vnode_t *vn) {
     }
   }
 
-  return error;
+  return 0;
 }
 
 void vfs_vcache_init(void) {
@@ -100,33 +102,13 @@ void vfs_vcache_init(void) {
   mtx_init(&vcache_giant_lock, 0);
 }
 
-/**
- * \brief Get a free vnode from a hashlist.
- * \param mp mountpoint of the inode's filesystem
- * \param ino inode to be used for vnode lookup
- */
-vnode_t *vfs_vcache_hashget(mount_t *mp, ino_t ino) {
+vnode_t *vfs_vcache_reborrow(mount_t *mp, ino_t ino) {
   SCOPED_MTX_LOCK(&vcache_giant_lock);
 
   return vcache_hashget(mp, ino);
 }
 
-/**
- * \brief Bind a free vnode to a given inode
- * \param vn a vnode from vcache free list
- */
-/* void vfs_vcache_bind(vnode_t *vn) {
-  vcache_t bucket = vcache_hash(vn->v_mount, vn->ino);
-
-  SCOPED_MTX_LOCK(&vcache_giant_lock);
-
-  TAILQ_INSERT_HEAD(&vcache_buckets[bucket], vn, v_cached);
-} */
-
-/**
- * \brief Get a new, vcached vnode with v_usecnt = 1
- */
-vnode_t *vfs_vcache_new_vnode(void) {
+vnode_t *vfs_vcache_borrow_new(void) {
   int error = 0;
 
   SCOPED_MTX_LOCK(&vcache_giant_lock);
@@ -159,12 +141,6 @@ vnode_t *vfs_vcache_new_vnode(void) {
   return vn;
 }
 
-/**
- * \brief Return a vnode to vcache's free list.
- * \param vn vnode to be returned
- * \warning vnode usecnt must be zero!
- *          Freelist can't contain vnodes that are in use.
- */
 void vfs_vcache_return(vnode_t *vn) {
   assert(vn->v_usecnt == 0);
 

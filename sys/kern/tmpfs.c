@@ -694,7 +694,7 @@ static void tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn) {
 
 /*
  * tmpfs_create_file: create a new file of specified type and adds it
- * into the parent directory.tmpfs_create_file
+ * into the parent directory.
  */
 static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vattr_t *va,
                              vnodetype_t ntype, componentname_t *cn) {
@@ -739,9 +739,9 @@ static void tmpfs_dir_attach(tmpfs_node_t *dnode, tmpfs_dirent_t *de,
  * tmpfs_get_vnode: get a v-node with usecnt incremented.
  */
 static int tmpfs_get_vnode(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp) {
-  vnode_t *vn = vfs_vcache_hashget(mp, tfn->tfn_ino);
+  vnode_t *vn = vfs_vcache_reborrow(mp, tfn->tfn_ino);
   if (!vn) {
-    vn = vfs_vcache_new_vnode();
+    vn = vfs_vcache_borrow_new();
     vn->v_ino = tfn->tfn_ino;
     vn->v_mount = mp;
     vn->v_ops = &tmpfs_vnodeops;
