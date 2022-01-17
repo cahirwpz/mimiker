@@ -174,7 +174,7 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
   }
 
   if (sig_pending(td)) {
-    WITH_SPIN_LOCK (td->td_lock)
+    WITH_THREAD_LOCK (td)
       td->td_flags |= TDF_NEEDSIGCHK;
   }
 
@@ -390,15 +390,15 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
   if (__sigismember(&td->td_sigmask, sig))
     return;
 
-  WITH_SPIN_LOCK (td->td_lock) {
+  WITH_THREAD_LOCK (td) {
     td->td_flags |= TDF_NEEDSIGCHK;
     /* If the thread is sleeping interruptibly (!), wake it up, so that it
      * continues execution and the signal gets delivered soon. */
     if (td_is_interruptible(td)) {
       /* XXX Maybe TDF_NEEDSIGCHK should be protected by a different lock? */
-      spin_unlock(td->td_lock);
+      thread_unlock(td);
       sleepq_abort(td); /* Locks & unlocks td_lock */
-      spin_lock(td->td_lock);
+      thread_lock(td);
     }
   }
 }
@@ -484,7 +484,7 @@ int sig_check(thread_t *td, ksiginfo_t *out) {
   }
 
   /* No pending signals, signal checking done. */
-  WITH_SPIN_LOCK (td->td_lock)
+  WITH_THREAD_LOCK (td)
     td->td_flags &= ~TDF_NEEDSIGCHK;
   return 0;
 }

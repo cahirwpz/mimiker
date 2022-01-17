@@ -25,12 +25,12 @@ void init_sched(void) {
 void sched_add(thread_t *td) {
   klog("Add thread %ld {%p} to scheduler", td->td_tid, td);
 
-  WITH_SPIN_LOCK (td->td_lock)
+  WITH_THREAD_LOCK (td)
     sched_wakeup(td, 0);
 }
 
 void sched_wakeup(thread_t *td, long reason) {
-  assert(spin_owned(td->td_lock));
+  assert(thread_owned(td));
   assert(td != thread_self());
   assert(!td_is_running(td));
 
@@ -57,7 +57,7 @@ void sched_wakeup(thread_t *td, long reason) {
  * \note Must be called with \a td_spin acquired!
  */
 static void sched_set_active_prio(thread_t *td, prio_t prio) {
-  assert(spin_owned(td->td_lock));
+  assert(thread_owned(td));
 
   if (prio_eq(td->td_prio, prio))
     return;
@@ -73,7 +73,7 @@ static void sched_set_active_prio(thread_t *td, prio_t prio) {
 }
 
 void sched_set_prio(thread_t *td, prio_t prio) {
-  assert(spin_owned(td->td_lock));
+  assert(thread_owned(td));
 
   td->td_base_prio = prio;
 
@@ -91,7 +91,7 @@ void sched_set_prio(thread_t *td, prio_t prio) {
 }
 
 void sched_lend_prio(thread_t *td, prio_t prio) {
-  assert(spin_owned(td->td_lock));
+  assert(thread_owned(td));
   assert(prio_lt(td->td_prio, prio));
 
   td->td_flags |= TDF_BORROWING;
@@ -99,7 +99,7 @@ void sched_lend_prio(thread_t *td, prio_t prio) {
 }
 
 void sched_unlend_prio(thread_t *td, prio_t prio) {
-  assert(spin_owned(td->td_lock));
+  assert(thread_owned(td));
 
   if (prio_le(prio, td->td_base_prio)) {
     td->td_flags &= ~TDF_BORROWING;
@@ -128,7 +128,7 @@ long sched_switch(void) {
   if (!sched_active)
     goto noswitch;
 
-  assert(spin_owned(td->td_lock));
+  assert(thread_owned(td));
   assert(!td_is_running(td));
 
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
@@ -161,13 +161,13 @@ long sched_switch(void) {
     panic("Switching context while interrupts are disabled is forbidden!");
 
   WITH_INTR_DISABLED {
-    spin_unlock(td->td_lock);
+    thread_unlock(td);
     return ctx_switch(td, newtd);
     /* XXX Right now all local variables belong to thread we switched to! */
   }
 
 noswitch:
-  spin_unlock(td->td_lock);
+  thread_unlock(td);
   return 0;
 }
 
@@ -177,7 +177,7 @@ void sched_clock(void) {
   thread_t *td = thread_self();
 
   if (td != PCPU_GET(idle_thread)) {
-    WITH_SPIN_LOCK (td->td_lock) {
+    WITH_THREAD_LOCK (td) {
       if (--td->td_slice <= 0)
         td->td_flags |= TDF_NEEDSWITCH | TDF_SLICEEND;
     }
@@ -198,7 +198,7 @@ __noreturn void sched_run(void) {
   sched_active = true;
 
   while (true) {
-    WITH_SPIN_LOCK (td->td_lock)
+    WITH_THREAD_LOCK (td)
       td->td_flags |= TDF_NEEDSWITCH;
   }
 }
@@ -209,12 +209,12 @@ void sched_maybe_preempt(void) {
 
   thread_t *td = thread_self();
 
-  spin_lock(td->td_lock);
+  thread_lock(td);
   if (td->td_flags & TDF_NEEDSWITCH) {
     td->td_state = TDS_READY;
     sched_switch();
   } else {
-    spin_unlock(td->td_lock);
+    thread_unlock(td);
   }
 }
 

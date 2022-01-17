@@ -48,7 +48,7 @@ ExperimentalAutoDetectBinPacking: false
 ForEachMacros:   [ TAILQ_FOREACH, SPLAY_FOREACH, RB_FOREACH, WITH_MTX_LOCK,
                    WITH_SPIN_LOCK, WITH_RW_LOCK, SET_FOREACH, LIST_FOREACH,
                    TAILQ_FOREACH_REVERSE, TAILQ_FOREACH_SAFE,
-                   LIST_FOREACH_SAFE, WITH_VM_MAP_LOCK ]
+                   LIST_FOREACH_SAFE, WITH_VM_MAP_LOCK, WITH_THREAD_LOCK ]
 IncludeCategories: 
   - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
     Priority:        2

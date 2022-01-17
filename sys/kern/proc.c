@@ -461,7 +461,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   TAILQ_INIT(CHILDREN(p));
   kitimer_init(p);
 
-  WITH_SPIN_LOCK (td->td_lock)
+  WITH_THREAD_LOCK (td)
     td->td_proc = p;
 
   return p;
@@ -835,17 +835,18 @@ void proc_stop(signo_t sig) {
     proc_wakeup_parent(p->p_parent);
     sig_child(p, CLD_STOPPED);
   }
-  WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
+  WITH_THREAD_LOCK (td)
+    td->td_flags |= TDF_STOPPING;
   proc_unlock(p);
   /* We're holding no locks here, so our process can be continued before we
    * actually stop the thread. This is why we need the TDF_STOPPING flag. */
-  spin_lock(td->td_lock);
+  thread_lock(td);
   if (td->td_flags & TDF_STOPPING) {
     td->td_flags &= ~TDF_STOPPING;
     td->td_state = TDS_STOPPED;
     sched_switch(); /* Releases td_lock. */
   } else {
-    spin_unlock(td->td_lock);
+    thread_unlock(td);
   }
   proc_lock(p);
   return;
@@ -864,5 +865,6 @@ void proc_continue(proc_t *p) {
   WITH_PROC_LOCK(p->p_parent) {
     proc_wakeup_parent(p->p_parent);
   }
-  WITH_SPIN_LOCK (td->td_lock) { thread_continue(td); }
+  WITH_THREAD_LOCK (td)
+    thread_continue(td);
 }

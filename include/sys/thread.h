@@ -214,6 +214,26 @@ void thread_reap(void);
  * Must be called with acquired td_lock. */
 void thread_continue(thread_t *td);
 
+/*
+ * Acquire td::td_lock
+ */
+void thread_lock(thread_t *td);
+
+/*
+ * Release td::td_lock
+ */
+void thread_unlock(thread_t *td);
+
+DEFINE_CLEANUP_FUNCTION(thread_t *, thread_unlock);
+
+#define WITH_THREAD_LOCK(td)                                                   \
+  WITH_STMT(thread_t, thread_lock, CLEANUP_FUNCTION(thread_unlock), td)
+
+/*
+ * Return true if td::td_lock is owned by caller.
+ */
+bool thread_owned(thread_t *td);
+
 /* Please use following functions to read state of a thread! */
 static inline bool td_is_ready(thread_t *td) {
   return td->td_state == TDS_READY;

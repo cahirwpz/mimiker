@@ -114,7 +114,7 @@ static __used sleepq_t *sleepq_lookup(void *wchan) {
 static void sq_enter(thread_t *td, sleepq_chain_t *sc, void *wchan,
                      const void *waitpt) {
   assert(sc_owned(sc));
-  assert(spin_owned(td->td_lock));
+  assert(thread_owned(td));
 
   klog("Thread %u goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
@@ -158,7 +158,7 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
        td->td_waitpt);
 
   assert(sc_owned(sc));
-  assert(spin_owned(td->td_lock));
+  assert(thread_owned(td));
 
   assert(td->td_wchan != NULL);
   assert(td->td_sleepqueue == NULL);
@@ -193,7 +193,7 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
                       int wakeup) {
   assert(sc_owned(sc));
 
-  WITH_SPIN_LOCK (td->td_lock) {
+  WITH_THREAD_LOCK (td) {
     if ((wakeup == EINTR) && (td->td_flags & TDF_SLPINTR)) {
       td->td_flags &= ~TDF_SLPTIMED; /* Not woken up by timeout. */
     } else if ((wakeup == ETIMEDOUT) && (td->td_flags & TDF_SLPTIMED)) {
@@ -281,7 +281,7 @@ void sleepq_wait(void *wchan, const void *waitpt) {
     waitpt = __caller(0);
 
   sleepq_chain_t *sc = sc_acquire(wchan);
-  spin_lock(td->td_lock);
+  thread_lock(td);
   td->td_state = TDS_SLEEPING;
   sq_enter(td, sc, wchan, waitpt);
 
@@ -300,11 +300,11 @@ int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
     waitpt = __caller(0);
 
   sleepq_chain_t *sc = sc_acquire(wchan);
-  spin_lock(td->td_lock);
+  thread_lock(td);
 
   /* If there are pending signals, interrupt the sleep immediately. */
   if ((td->td_flags & TDF_NEEDSIGCHK) && (timeout == 0)) {
-    spin_unlock(td->td_lock);
+    thread_unlock(td);
     sc_release(sc);
     return EINTR;
   }
@@ -321,7 +321,7 @@ int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
    *  - TDF_SLPINTR if sleep was aborted,
    *  - TDF_SLPTIMED if sleep has timed out. */
   int error = 0;
-  WITH_SPIN_LOCK (td->td_lock) {
+  WITH_THREAD_LOCK (td) {
     if (td->td_flags & TDF_SLPINTR) {
       error = EINTR;
     } else if (td->td_flags & TDF_SLPTIMED) {
