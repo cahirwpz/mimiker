@@ -64,6 +64,24 @@ vnode_t *vcache_hashget(mount_t *mp, ino_t ino) {
   return NULL;
 }
 
+static int vfs_vcache_remove_from_bucket(vnode_t *vn) {
+  if (!vn->v_mount)
+    return 0; /* vnode was not in a any bucket and cannot be hashed */
+  vcache_t bucket = vcache_hash(vn->v_mount, vn->v_ino);
+  vnode_t *bucket_node = NULL;
+
+  SCOPED_MTX_LOCK(&vcache_giant_lock);
+
+  TAILQ_FOREACH (bucket_node, &vcache_buckets[bucket], v_cached) {
+    if (bucket_node == vn) {
+      TAILQ_REMOVE(&vcache_buckets[bucket], vn, v_cached);
+      break;
+    }
+  }
+
+  return 0;
+}
+
 int vfs_vcache_detach(vnode_t *vn) {
   int error = 0;
   /* Reclaim vnode (if supported) */
@@ -74,17 +92,6 @@ int vfs_vcache_detach(vnode_t *vn) {
 
   /* Seting v_data to NULL marks the vnode as "detached" */
   vn->v_data = NULL;
-
-  if (!vn->v_mount)
-    return 0; /* vnode was not in a any bucket and cannot be hashed */
-  vcache_t bucket = vcache_hash(vn->v_mount, vn->v_ino);
-  vnode_t *bucket_node = NULL;
-  TAILQ_FOREACH (bucket_node, &vcache_buckets[bucket], v_cached) {
-    if (bucket_node == vn) {
-      TAILQ_REMOVE(&vcache_buckets[bucket], vn, v_cached);
-      break;
-    }
-  }
 
   return 0;
 }
@@ -132,6 +139,7 @@ vnode_t *vfs_vcache_borrow_new(void) {
   /* Remove it from its bucket (if present in any) */
   error = vfs_vcache_detach(vn);
   assert(error == 0);
+  vfs_vcache_remove_from_bucket(vn);
 
   /* Reset some fields */
   vn->v_usecnt = 1;
