@@ -48,6 +48,11 @@ static inline void __preempt_enable(void *data) {
  * The thread will be set runnable. */
 void sched_add(thread_t *td);
 
+/*
+ * Remove thread from scheduler.
+ */
+void sched_remove(thread_t *td);
+
 /*! \brief Wake up sleeping thread.
  *
  * \param reason is a value that will be returned by sched_switch.

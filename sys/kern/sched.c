@@ -25,8 +25,21 @@ void init_sched(void) {
 void sched_add(thread_t *td) {
   klog("Add thread %ld {%p} to scheduler", td->td_tid, td);
 
-  WITH_SPIN_LOCK (td->td_lock)
-    sched_wakeup(td, 0);
+  WITH_SPIN_LOCK (td->td_lock) {
+    if (!(td->td_flags & TDF_ONSCHED))
+      sched_wakeup(td, 0);
+    td->td_flags |= TDF_ONSCHED;
+  }
+}
+
+void sched_remove(thread_t *td) {
+  klog("Remove thread %u {%p} from scheduler", td->td_tid, td);
+
+  WITH_SPIN_LOCK (td->td_lock) {
+    if (td->td_flags & TDF_ONSCHED)
+      runq_remove(&runq, td);
+    td->td_flags &= ~TDF_ONSCHED;
+  }
 }
 
 void sched_wakeup(thread_t *td, long reason) {
@@ -140,7 +153,7 @@ long sched_switch(void) {
 
   if (td_is_ready(td)) {
     /* Idle threads need not to be inserted into the run queue. */
-    if (td != PCPU_GET(idle_thread))
+    if (td != PCPU_GET(idle_thread) && (td->td_flags & TDF_ONSCHED))
       runq_add(&runq, td);
   } else if (td_is_sleeping(td)) {
     /* Record when the thread fell asleep. */

@@ -68,6 +68,7 @@ typedef enum {
 /* TDF_SLP* flags are used internally by sleep queue */
 #define TDF_SLPINTR 0x00000040  /* sleep is interruptible */
 #define TDF_SLPTIMED 0x00000080 /* sleep with timeout */
+#define TDF_ONSCHED 0x00000100  /* added to scheduler */
 
 typedef enum {
   TDP_OLDSIGMASK = 0x01,  /* Pass td_oldsigmask as return mask to send_sig(). */
