@@ -32,7 +32,7 @@ SOURCES-AARCH64 = \
 	pl011.c
 
 SOURCES-RISCV = \
-	litex_rootdev.c
+	litex_riscv_rootdev.c
 
 CPPFLAGS += -D_MACHDEP
 

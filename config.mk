@@ -6,7 +6,7 @@
 
 CONFIG_OPTS := KASAN LOCKDEP KGPROF MIPS AARCH64 RISCV KCSAN
 
-BOARD ?= vexriscv
+BOARD ?= riscv-litex
 
 MIPS ?= 0
 AARCH64 ?= 0
@@ -22,7 +22,7 @@ ARCH := aarch64
 AARCH64 := 1
 endif
 
-ifeq ($(BOARD), vexriscv)
+ifeq ($(BOARD), litex-riscv)
 ARCH := riscv
 RISCV := 1
 endif
