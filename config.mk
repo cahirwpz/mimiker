@@ -6,7 +6,7 @@
 
 CONFIG_OPTS := KASAN LOCKDEP KGPROF MIPS AARCH64 RISCV KCSAN
 
-BOARD ?= riscv-litex
+BOARD ?= litex-riscv
 
 MIPS ?= 0
 AARCH64 ?= 0
