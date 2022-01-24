@@ -53,7 +53,7 @@ vnode_t *vcache_hashget(mount_t *mp, ino_t ino) {
 
   vnode_t *vn = NULL;
   TAILQ_FOREACH (vn, &vcache_buckets[bucket], v_cached) {
-    if (vn->v_mount == mp && vn->v_ino == ino) {
+    if ((vn->v_mount == mp) && (vn->v_ino == ino)) {
       TAILQ_REMOVE(&vcache_free, vn, v_free);
       TAILQ_REMOVE(&vcache_buckets[bucket], vn, v_cached);
       vnode_hold(vn);
@@ -69,8 +69,6 @@ static int vfs_vcache_remove_from_bucket(vnode_t *vn) {
     return 0; /* vnode was not in a any bucket and cannot be hashed */
   vcache_t bucket = vcache_hash(vn->v_mount, vn->v_ino);
   vnode_t *bucket_node = NULL;
-
-  SCOPED_MTX_LOCK(&vcache_giant_lock);
 
   TAILQ_FOREACH (bucket_node, &vcache_buckets[bucket], v_cached) {
     if (bucket_node == vn) {
