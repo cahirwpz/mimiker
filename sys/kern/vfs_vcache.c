@@ -17,8 +17,6 @@
 #include <sys/pool.h>
 #include <sys/mutex.h>
 
-static POOL_DEFINE(P_VCACHE, "vcache", sizeof(vnode_t));
-
 #define VCACHE_BUCKET_CNT 64
 #define VCACHE_INITIAL_FREE_CNT 128
 
@@ -41,7 +39,7 @@ static void vnlock_init(vnlock_t *vl) {
 }
 
 static vnode_t *vcache_new_vnode(void) {
-  vnode_t *vn = pool_alloc(P_VCACHE, M_ZERO);
+  vnode_t *vn = kmalloc(M_TEMP, sizeof(vnode_t), M_ZERO);
   vn->v_type = V_NONE;
   vn->v_flags = VF_CACHED;
   vnlock_init(&vn->v_lock);
