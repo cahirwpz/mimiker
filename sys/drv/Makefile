@@ -31,6 +31,9 @@ SOURCES-AARCH64 = \
 	bcm2835_rootdev.c \
 	pl011.c
 
+SOURCES-RISCV = \
+	litex_riscv_rootdev.c
+
 CPPFLAGS += -D_MACHDEP
 
 include $(TOPDIR)/build/build.kern.mk

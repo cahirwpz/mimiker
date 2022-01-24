@@ -105,7 +105,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   WITH_MTX_LOCK (&threads_lock)
     TAILQ_INSERT_TAIL(&all_threads, td, td_all);
 
-  klog("Thread %ld {%p} has been created", td->td_tid, td);
+  klog("Thread %u {%p} has been created", td->td_tid, td);
 
   return td;
 }
@@ -115,7 +115,7 @@ void thread_delete(thread_t *td) {
   assert(td->td_sleepqueue != NULL);
   assert(td->td_turnstile != NULL);
 
-  klog("Freeing up thread %ld {%p}", td->td_tid, td);
+  klog("Freeing up thread %u {%p}", td->td_tid, td);
 
   WITH_MTX_LOCK (&threads_lock)
     TAILQ_REMOVE(&all_threads, td, td_all);
@@ -145,7 +145,7 @@ __no_profile __no_kcsan_sanitize thread_t *thread_self(void) {
 __noreturn void thread_exit(void) {
   thread_t *td = thread_self();
 
-  klog("Thread %ld {%p} has finished", td->td_tid, td);
+  klog("Thread %u {%p} has finished", td->td_tid, td);
 
   /* Thread must not exit while having interrupts disabled! However, we can't
    * use assert here, because assert also calls thread_exit. Thus, in case this
@@ -180,7 +180,7 @@ __noreturn void thread_exit(void) {
 void thread_join(thread_t *otd) {
   thread_t *td = thread_self();
 
-  klog("Join %ld {%p} with %ld {%p}", td->td_tid, td, otd->td_tid, otd);
+  klog("Join %u {%p} with %u {%p}", td->td_tid, td, otd->td_tid, otd);
 
   WITH_SPIN_LOCK (otd->td_lock) {
     while (!td_is_dead(otd))
