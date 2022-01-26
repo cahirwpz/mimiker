@@ -14,7 +14,6 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
-#include <sys/pool.h>
 #include <sys/mutex.h>
 
 #define VCACHE_BUCKET_CNT 64
