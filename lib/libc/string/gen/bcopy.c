@@ -34,13 +34,12 @@
 
 #include <stddef.h>
 
-#if defined(_FORTIFY_SOURCE) || defined(_STANDALONE) || defined(_KERNEL)
+#if defined(_STANDALONE) || defined(_KERNEL)
 #undef bcopy
 #undef memcpy
 #undef memmove
 #endif
 
-#ifndef __OPTIMIZE_SIZE__
 /*
  * sizeof(word) MUST BE A POWER OF TWO
  * SO THAT wmask BELOW IS ALL ONES
@@ -137,48 +136,3 @@ done:
   return;
 #endif
 }
-#else /* __OPTIMIZE_SIZE__ */
-#if defined(MEMCOPY)
-/*
- * This is designed to be small, not fast.
- */
-void *memcpy(void *s1, const void *s2, size_t n) {
-  const char *f = s2;
-  char *t = s1;
-
-  while (n-- > 0)
-    *t++ = *f++;
-  return s1;
-}
-#elif defined(MEMMOVE)
-/*
- * This is designed to be small, not fast.
- */
-void *memmove(void *s1, const void *s2, size_t n) {
-  const char *f = s2;
-  char *t = s1;
-
-  if (f < t) {
-    f += n;
-    t += n;
-    while (n-- > 0)
-      *--t = *--f;
-  } else {
-    while (n-- > 0)
-      *t++ = *f++;
-  }
-  return s1;
-}
-#else
-/*
- * This is designed to be small, not fast.
- */
-void bcopy(const void *s2, void *s1, size_t n) {
-  const char *f = s2;
-  char *t = s1;
-
-  while (n-- > 0)
-    *t++ = *f++;
-}
-#endif
-#endif /* __OPTIMIZE_SIZE__ */
