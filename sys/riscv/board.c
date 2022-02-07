@@ -1,3 +1,4 @@
+#define KL_LOG KL_DEV
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/cmdline.h>
@@ -11,6 +12,7 @@
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 #include <riscv/mcontext.h>
+#include <riscv/riscvreg.h>
 #include <riscv/sbi.h>
 #include <riscv/vm_param.h>
 
@@ -83,13 +85,6 @@ void *board_stack(paddr_t dtb_pa, vaddr_t dtb_va) {
   kstack_fix_bottom(stk);
 
   init_kenv(kenvp);
-
-  /* If klog-mask argument has been supplied, let's update the mask. */
-  const char *klog_mask = kenv_get("klog-mask");
-  if (klog_mask) {
-    unsigned mask = strtol(klog_mask, NULL, 16);
-    klog_setmask(mask);
-  }
 
   return stk->stk_ptr;
 }
@@ -180,9 +175,11 @@ static void physmem_regions(void) {
 
 void __noreturn board_init(void) {
   init_kasan();
-  klog_update_mask();
+  klog_config();
   init_sbi();
   physmem_regions();
+  /* Disable each supervisor interrupt. */
+  csr_clear(sie, SIE_SEIE | SIE_STIE | SIE_SSIE);
   intr_enable();
   kernel_init();
 }

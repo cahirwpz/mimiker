@@ -7,7 +7,7 @@
 #include <sys/klog.h>
 
 /* PLIC memory map. */
-#define PLIC_CTXNUM_SV 2
+#define PLIC_CTXNUM_SV 1
 
 #define PLIC_PRIORITY_BASE 0x000000
 
@@ -99,6 +99,7 @@ static intr_filter_t plic_intr_handler(void *arg) {
 
   /* Claim any pending interrupt. */
   uint32_t irq = in4(PLIC_CLAIM_SV);
+
   if (irq) {
     intr_event_run_handlers(plic->intr_event[irq]);
     /* Complete the interrupt. */
@@ -111,7 +112,8 @@ static intr_filter_t plic_intr_handler(void *arg) {
 
 static int plic_probe(device_t *ic) {
   const char *compatible = dtb_dev_compatible(ic);
-  return strcmp(compatible, "riscv,plic0") == 0;
+  return strcmp(compatible, "riscv,plic0") == 0 ||
+         strcmp(compatible, "sifive,fu540-c000-plic") == 0;
 }
 
 static int plic_attach(device_t *ic) {

@@ -65,10 +65,10 @@ static void klog_entry_dump(klog_entry_t *entry) {
   kprintf("\n");
 }
 
-void klog_append(klog_origin_t origin, const char *file, unsigned line,
-                 const char *format, uintptr_t arg1, uintptr_t arg2,
-                 uintptr_t arg3, uintptr_t arg4, uintptr_t arg5,
-                 uintptr_t arg6) {
+void _klog_append(klog_origin_t origin, const char *file, unsigned line,
+                  const char *format, uintptr_t arg1, uintptr_t arg2,
+                  uintptr_t arg3, uintptr_t arg4, uintptr_t arg5,
+                  uintptr_t arg6) {
   if (!(KL_MASK(origin) & atomic_load(&klog.mask)))
     return;
 
@@ -123,11 +123,19 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
   }
 }
 
+void klog_append(klog_origin_t origin, const char *file, unsigned line,
+                 const char *format, uintptr_t arg1, uintptr_t arg2,
+                 uintptr_t arg3, uintptr_t arg4, uintptr_t arg5,
+                 uintptr_t arg6) {
+  _klog_append(origin, file, line, format, arg1, arg2, arg3, arg4, arg5, arg6);
+  //  klog_dump();
+}
+
 unsigned klog_setmask(unsigned newmask) {
   return atomic_exchange(&klog.mask, newmask);
 }
 
-void klog_update_mask(void) {
+void klog_config(void) {
   const char *mask_str = kenv_get("klog-mask");
   if (mask_str) {
     unsigned mask_val = strtol(mask_str, NULL, 16);

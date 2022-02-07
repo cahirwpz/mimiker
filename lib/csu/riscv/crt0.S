@@ -23,7 +23,7 @@ ENTRY(_start)
 	/* Grab argc from below stack. */
 	LONG_L a0, CALLFRAME_SIZ(sp)
 
-	/* Prepare argv pointing ar argument vector below stack. */
+	/* Prepare argv pointing at argument vector below stack. */
 	PTR_ADDI a1, sp, CALLFRAME_SIZ + SZREG
 
 	/* Prepare envp, it starts at argv + argc + 1. */

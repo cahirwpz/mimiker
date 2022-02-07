@@ -21,6 +21,8 @@ intr_filter_t uart_intr(void *data /* device_t* */) {
   tty_thread_t *ttd = &uart->u_ttd;
   intr_filter_t res = IF_STRAY;
 
+  klog("uart interrupt");
+
   WITH_SPIN_LOCK (&uart->u_lock) {
     /* data ready to be received? */
     if (uart_rx_ready(dev)) {

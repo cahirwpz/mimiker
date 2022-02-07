@@ -3,7 +3,7 @@
 
 ENTRY(__sc_missing)
 	/*
-	 * Behave as a syscall has returned ENOSYS.
+	 * Behave as if the syscall returned ENOSYS.
 	 */
 	REG_LI a0, -1
 	REG_LI a1, ENOSYS

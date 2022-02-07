@@ -48,8 +48,7 @@ static bool liteuart_rx_ready(void *state) {
 
 static uint8_t liteuart_getc(void *state) {
   liteuart_state_t *liteuart = state;
-  uint8_t c = csr_read(LITEUART_CSR_RXTX);
-  return c;
+  return csr_read(LITEUART_CSR_RXTX);
 }
 
 static bool liteuart_tx_ready(void *state) {

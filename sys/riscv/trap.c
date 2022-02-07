@@ -124,7 +124,6 @@ fault:
   if (td->td_onfault) {
     /* Handle copyin/copyout faults. */
     _REG(ctx, PC) = td->td_onfault;
-    td->td_onfault = 0;
   } else if (user_mode_p(ctx)) {
     /* Send a segmentation fault signal to the user program. */
     sig_trap(ctx, SIGSEGV);
@@ -232,6 +231,8 @@ static void user_trap_handler(ctx_t *ctx) {
       if (fpu_handler((mcontext_t *)ctx))
         break;
 #endif
+      void *epc = (void *)_REG(ctx, PC);
+      klog("%s at %p!", exceptions[code], epc);
       sig_trap(ctx, SIGILL);
       break;
 
@@ -272,8 +273,8 @@ static void kern_trap_handler(ctx_t *ctx) {
 }
 
 __no_profile void trap_handler(ctx_t *ctx) {
-  thread_t *td = thread_self();
-  assert(td->td_idnest == 0);
+  //  thread_t *td = thread_self();
+  //  assert(td->td_idnest == 0);
   assert(cpu_intr_disabled());
 
   bool user_mode = user_mode_p(ctx);

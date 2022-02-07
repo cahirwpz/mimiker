@@ -161,29 +161,30 @@ ENTRY(ctx_switch)
 	li t3, TDP_FPUINUSE
 	bne t2, t3, skip_fpu_save
 
+	/* Get UCTX pointer for `from` thread. */
+	PTR_L t4, TD_UCTX(a0)
+
 	/* Save the FPE context only if it's dirty. */
 	li t2, SSTATUS_FS_MASK
 	and t3, t0, t2
 	li t2, SSTATUS_FS_DIRTY
-	bne t3, t2, skip_fpu_save
-
-	/* Get UCTX pointer for `from` thread. */
-	PTR_L t3, TD_UCTX(a0)
+	bne t3, t2, set_ctxsaved
 
 	/* Mark FPE state clean. */
 	li t2, ~SSTATUS_FS_MASK
 	and t0, t0, t2
 	li t2, SSTATUS_FS_CLEAN
 	or t0, t0, t2
-	INT_S t0, CTX_SR(t3)
+	INT_S t0, CTX_SR(t4)
 
+set_ctxsaved:
 	/* Set TDP_FPUCTXSAVED flag. */
 	li t0, TDP_FPUCTXSAVED
 	or t1, t1, t0
 	INT_S t1, TD_PFLAGS(a0)
 
 	/* Save FP regs. */
-	save_fpu_ctx t3, t0 
+	save_fpu_ctx t4, t0 
 
 skip_fpu_save:
 #endif

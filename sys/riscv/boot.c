@@ -61,9 +61,10 @@
  * as it will be overwritten in `pmap_bootstrap` thus the temporary mappings
  * will be dropped.
  */
+#define KL_LOG KL_DEV
+#include <sys/console.h>
 
 #include <sys/fdt.h>
-#include <sys/kasan.h>
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
@@ -73,7 +74,7 @@
 #include <riscv/vm_param.h>
 
 #define BOOT_DTB_VADDR DMAP_VADDR_BASE
-#define BOOT_MAX_DTB_SIZE L0_SIZE
+#define BOOT_MAX_DTB_SIZE PAGESIZE
 
 #define BOOT_PD_VADDR (DMAP_VADDR_BASE + BOOT_MAX_DTB_SIZE)
 
@@ -165,15 +166,19 @@ __boot_text static void map_kernel_image(pd_entry_t *pde) {
 }
 
 __boot_text static void map_dtb(paddr_t dtb, pd_entry_t *pde) {
-  /* Assume that dbt will be covered by single superpage (4MiB). */
-  const size_t idx = L0_INDEX(BOOT_DTB_VADDR);
-  pde[idx] = PA_TO_PTE(dtb) | PTE_KERN;
+  /* Assume that dtb will be covered by single page. */
+  pt_entry_t *pte = bootmem_alloc(PAGESIZE);
+  const size_t idx0 = L0_INDEX(BOOT_DTB_VADDR);
+  const size_t idx1 = L1_INDEX(BOOT_DTB_VADDR);
+  pde[idx0] = PA_TO_PTE((paddr_t)pte) | PTE_V;
+  pte[idx1] = PA_TO_PTE(dtb) | PTE_KERN;
 }
 
 __boot_text static void map_pd(pd_entry_t *pde) {
-  /* For simplicity, we map the page directory using a superpage. */
-  const size_t idx = L0_INDEX(BOOT_PD_VADDR);
-  pde[idx] = PA_TO_PTE((paddr_t)pde) | PTE_KERN;
+  const size_t idx0 = L0_INDEX(BOOT_PD_VADDR);
+  const size_t idx1 = L1_INDEX(BOOT_PD_VADDR);
+  pt_entry_t *pte = (pd_entry_t *)PTE_TO_PA(pde[idx0]);
+  pte[idx1] = PA_TO_PTE((paddr_t)pde) | PTE_KERN;
 }
 
 __boot_text static void vm_page_ensure_pts(pd_entry_t *pde) {
@@ -217,7 +222,8 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
                    "csrw satp, %3\n\t"
                    "nop" /* triggers instruction fetch page fault */
                    :
-                   : "r"(dtb), "r"(pde), "r"(boot_sp), "r"(satp));
+                   : "r"(dtb), "r"(pde), "r"(boot_sp), "r"(satp)
+                   : "a0", "a1");
 
   __unreachable();
 }
@@ -255,6 +261,7 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
   clear_bss();
 
   init_klog();
+  init_cons();
 
   void *sp = board_stack(dtb, BOOT_DTB_VADDR);
 

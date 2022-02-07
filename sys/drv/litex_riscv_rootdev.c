@@ -100,7 +100,11 @@ static void hlic_intr_handler(ctx_t *ctx, device_t *bus) {
     panic("Unknown HLIC interrupt %u!", cause);
 
   intr_event_run_handlers(ie);
-  csr_clear(sip, 1 << cause);
+
+  if (cause != HLIC_IRQ_TIMER_SUPERVISOR &&
+      cause != HLIC_IRQ_EXTERNAL_SUPERVISOR) {
+    csr_clear(sip, ~(1 << cause));
+  }
 }
 
 /*

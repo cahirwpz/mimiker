@@ -45,34 +45,42 @@ static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
  * entry for successful memory translation by MMU. Other configurations cause
  * memory fault - see riscv/trap.c.
  *
- * +--------------+---+---+------+---+---+---+
- * |    access    | D | A | USER | X | W | R |
- * +==============+===+===+======+===+===+===+
- * | user read    | * | 1 | 1    | * | * | 1 |
- * +--------------+---+---+------+---+---+---+
- * | user write   | 1 | 1 | 1    | * | 1 | 1 |
- * +--------------+---+---+------+---+---+---+
- * | user exec    | * | 1 | 1    | 1 | * | * |
- * +--------------+---+---+------+---+---+---+
- * | kernel read  | * | 1 | 0    | * | * | 1 |
- * +--------------+---+---+------+---+---+---+
- * | kernel write | 1 | 1 | 0    | * | 1 | 1 |
- * +--------------+---+---+------+---+---+---+
- * | kernel exec  | * | 1 | 0    | 1 | * | * |
- * +--------------+---+---+------+---+---+---+
+ * +--------------+---+---+------+---+---+---+---+
+ * |    access    | D | A | USER | X | W | R | V |
+ * +==============+===+===+======+===+===+===+===+
+ * | user read    | * | 1 | 1    | * | * | 1 | 1 |
+ * +--------------+---+---+------+---+---+---+---+
+ * | user write   | 1 | 1 | 1    | * | 1 | 1 | 1 |
+ * +--------------+---+---+------+---+---+---+---+
+ * | user exec    | * | 1 | 1    | 1 | * | * | 1 |
+ * +--------------+---+---+------+---+---+---+---+
+ * | kernel read  | * | 1 | 0    | * | * | 1 | 1 |
+ * +--------------+---+---+------+---+---+---+---+
+ * | kernel write | 1 | 1 | 0    | * | 1 | 1 | 1 |
+ * +--------------+---+---+------+---+---+---+---+
+ * | kernel exec  | * | 1 | 0    | 1 | * | * | 1 |
+ * +--------------+---+---+------+---+---+---+---+
+ *
+ * However, the dirty (D) and accessed (A) bits may be managed automaticaly
+ * by hardware. In such case, setting of these bits is imperceptible from the
+ * perspective of the software. To be compliant with the other ports,
+ * we assume these bits to be unsupported and emulate them in software.
+ *
  */
 
 static const pt_entry_t pte_common = PTE_A | PTE_V;
 
 static const pt_entry_t vm_prot_map[] = {
-  [VM_PROT_READ] = PTE_R | pte_common,
-  [VM_PROT_WRITE] = PTE_D | PTE_W | PTE_R | pte_common,
-  [VM_PROT_READ | VM_PROT_WRITE] = PTE_D | PTE_W | PTE_R | pte_common,
-  [VM_PROT_EXEC] = PTE_V | pte_common,
-  [VM_PROT_READ | VM_PROT_EXEC] = PTE_X | PTE_R | pte_common,
-  [VM_PROT_WRITE | VM_PROT_EXEC] = PTE_D | PTE_X | PTE_W | PTE_R | pte_common,
+  [VM_PROT_READ] = PTE_SW_READ | PTE_R | pte_common,
+  [VM_PROT_WRITE] = PTE_SW_WRITE | PTE_D | PTE_W | PTE_R | pte_common,
+  [VM_PROT_READ | VM_PROT_WRITE] =
+    PTE_SW_WRITE | PTE_SW_READ | PTE_D | PTE_W | PTE_R | pte_common,
+  [VM_PROT_EXEC] = pte_common,
+  [VM_PROT_READ | VM_PROT_EXEC] = PTE_SW_READ | PTE_X | PTE_R | pte_common,
+  [VM_PROT_WRITE | VM_PROT_EXEC] =
+    PTE_SW_WRITE | PTE_D | PTE_X | PTE_W | PTE_R | pte_common,
   [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] =
-    PTE_D | PTE_X | PTE_W | PTE_R | pte_common,
+    PTE_SW_WRITE | PTE_SW_READ | PTE_D | PTE_X | PTE_W | PTE_R | pte_common,
 };
 
 /* Physical memory boundaries. */
@@ -114,7 +122,11 @@ static inline bool is_valid_pde(pd_entry_t pde) {
 }
 
 static inline bool is_valid_pte(pt_entry_t pte) {
-  return pte & PTE_V;
+  return pte != 0;
+}
+
+static inline bool is_leaf_pte(pt_entry_t pte) {
+  return pte & (PTE_X | PTE_W | PTE_R);
 }
 
 static bool user_addr_p(vaddr_t addr) {
@@ -257,9 +269,15 @@ static pt_entry_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va) {
 
   /* Level 0 */
   pdep = (pd_entry_t *)phys_to_dmap(pa) + L0_INDEX(va);
-  if (!is_valid_pde(*pdep))
+  pd_entry_t pde = *pdep;
+  if (!is_valid_pde(pde))
     return NULL;
-  pa = PTE_TO_PA(*pdep);
+
+  /* A direct map superpage? */
+  if (is_leaf_pte(pde))
+    return (pt_entry_t *)pdep;
+
+  pa = PTE_TO_PA(pde);
 
   /* Level 1 */
   return (pt_entry_t *)phys_to_dmap(pa) + L1_INDEX(va);
@@ -276,7 +294,7 @@ static pt_entry_t make_pte(paddr_t pa, vm_prot_t prot, unsigned flags,
   const pt_entry_t mask_on = (kernel) ? PTE_G : PTE_U;
   pte |= mask_on;
 
-  const pt_entry_t mask_off = (kernel) ? 0 : PTE_D | PTE_A;
+  const pt_entry_t mask_off = (kernel) ? 0 : PTE_D | PTE_A | PTE_W | PTE_V;
   pte &= ~mask_off;
 
   /* TODO(MichalBlk): set PMA attributes according to cache flags
@@ -372,15 +390,10 @@ bool pmap_kextract(vaddr_t va, paddr_t *pap) {
  */
 
 static void pmap_set_init_flags(vm_page_t *pg, bool kernel) {
-  if (kernel) {
+  if (kernel)
     pg->flags |= PG_MODIFIED | PG_REFERENCED;
-  } else {
-#ifndef AUTO_DA_MGMT
+  else
     pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
-#else
-    pg->flags |= PG_MODIFIED | PG_REFERENCED;
-#endif
-  }
 }
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
@@ -453,12 +466,15 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   klog("Change protection bits to %x for address range %p - %p", prot, start,
        end);
 
+  bool kern_mapping = (pmap == pmap_kernel());
+  const pt_entry_t mask_on = (kern_mapping) ? PTE_G : PTE_U;
+
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
       pt_entry_t *ptep = pmap_lookup_pte(pmap, va);
       if (!ptep || !is_valid_pte(*ptep))
         continue;
-      pt_entry_t pte = (*ptep & ~PTE_RWX) | (vm_prot_map[prot] & PTE_RWX);
+      pt_entry_t pte = (*ptep & ~PTE_PROT_MASK) | vm_prot_map[prot] | mask_on;
       pmap_write_pte(pmap, ptep, pte, va);
     }
   }
@@ -482,7 +498,6 @@ void pmap_page_remove(vm_page_t *pg) {
   }
 }
 
-#ifndef AUTO_DA_MGMT
 static void pmap_modify_flags(vm_page_t *pg, pt_entry_t set, pt_entry_t clr) {
   SCOPED_MTX_LOCK(&pv_list_lock);
 
@@ -500,62 +515,40 @@ static void pmap_modify_flags(vm_page_t *pg, pt_entry_t set, pt_entry_t clr) {
     }
   }
 }
-#endif
 
 bool pmap_is_modified(vm_page_t *pg) {
-#ifndef AUTO_DA_MGMT
   return pg->flags & PG_MODIFIED;
-#else
-  return true;
-#endif
 }
 
 bool pmap_is_referenced(vm_page_t *pg) {
-#ifndef AUTO_DA_MGMT
   return pg->flags & PG_REFERENCED;
-#else
-  return true;
-#endif
 }
 
 void pmap_set_modified(vm_page_t *pg) {
-#ifndef AUTO_DA_MGMT
   pg->flags |= PG_MODIFIED;
-  pmap_modify_flags(pg, PTE_D, 0);
-#endif
+  pmap_modify_flags(pg, PTE_D | PTE_W, 0);
 }
 
 void pmap_set_referenced(vm_page_t *pg) {
-#ifndef AUTO_DA_MGMT
   pg->flags |= PG_REFERENCED;
-  pmap_modify_flags(pg, PTE_A, 0);
-#endif
+  pmap_modify_flags(pg, PTE_A | PTE_V, 0);
 }
 
 bool pmap_clear_modified(vm_page_t *pg) {
-#ifndef AUTO_DA_MGMT
   bool prev = pmap_is_modified(pg);
   pg->flags &= ~PG_MODIFIED;
-  pmap_modify_flags(pg, 0, PTE_D);
+  pmap_modify_flags(pg, 0, PTE_D | PTE_W);
   return prev;
-#else
-  return true;
-#endif
 }
 
 bool pmap_clear_referenced(vm_page_t *pg) {
-#ifndef AUTO_DA_MGMT
   bool prev = pmap_is_referenced(pg);
   pg->flags &= ~PG_REFERENCED;
-  pmap_modify_flags(pg, 0, PTE_A);
+  pmap_modify_flags(pg, 0, PTE_A | PTE_V);
   return prev;
-#else
-  return true;
-#endif
 }
 
 int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
-  const pt_entry_t write_mask = PTE_W | PTE_R;
   paddr_t pa;
 
   WITH_MTX_LOCK (&pmap->mtx) {
@@ -564,10 +557,10 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
 
     pt_entry_t pte = *pmap_lookup_pte(pmap, va);
 
-    if ((prot & VM_PROT_READ) && !(pte & PTE_R))
+    if ((prot & VM_PROT_READ) && !(pte & PTE_SW_READ))
       return EACCES;
 
-    if ((prot & VM_PROT_WRITE) && (pte & write_mask) != write_mask)
+    if ((prot & VM_PROT_WRITE) && !(pte & PTE_SW_WRITE))
       return EACCES;
 
     if ((prot & VM_PROT_EXEC) && !(pte & PTE_X))
@@ -616,9 +609,10 @@ pmap_t *pmap_new(void) {
   pmap_setup(pmap);
 
   /* Install kernel pagetables. */
+  const size_t off = PAGESIZE / 2;
   WITH_MTX_LOCK (&kernel_pmap.mtx) {
-    memcpy((void *)phys_to_dmap(pmap->pde), (void *)phys_to_dmap(kernel_pde),
-           PAGESIZE);
+    memcpy((void *)phys_to_dmap(pmap->pde) + off,
+           (void *)phys_to_dmap(kernel_pde) + off, PAGESIZE / 2);
   }
 
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);

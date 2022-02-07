@@ -189,9 +189,7 @@ static int test_rmbits(void) {
   pmap_activate(pmap);
   pmap_enter(pmap, (vaddr_t)ptr, pg, VM_PROT_READ | VM_PROT_WRITE, 0);
 
-#ifndef AUTO_DA_MGMT
   assert(!pmap_is_referenced(pg) && !pmap_is_modified(pg));
-#endif
 
 #ifdef __riscv
   enter_user_access();
@@ -200,23 +198,17 @@ static int test_rmbits(void) {
   /* vm_page_alloc doesn't return zeroed pages, so we cannot assume any value */
   __unused int value = *ptr;
 
-#ifndef AUTO_DA_MGMT
   assert(pmap_is_referenced(pg) && !pmap_is_modified(pg));
   pmap_clear_referenced(pg);
-#endif
 
   *ptr = 100;
 
-#ifndef AUTO_DA_MGMT
   assert(pmap_is_referenced(pg) && pmap_is_modified(pg));
   pmap_clear_modified(pg);
-#endif
 
   assert(*ptr == 100);
 
-#ifndef AUTO_DA_MGMT
   assert(pmap_is_referenced(pg) && !pmap_is_modified(pg));
-#endif
 
 #ifdef __riscv
   exit_user_access();

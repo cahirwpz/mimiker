@@ -41,7 +41,7 @@ static unsigned long sbi_spec_version;
 static unsigned long sbi_impl_id;
 static unsigned long sbi_impl_version;
 
-static bool has_console_putchar_extension = false;
+static bool has_console_putchar_extension = true; // false;
 static bool has_console_getchar_extension = false;
 static bool has_shutdown_extension = false;
 static bool has_time_extension = false;

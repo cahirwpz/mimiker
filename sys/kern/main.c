@@ -82,7 +82,7 @@ __noreturn void kernel_init(void) {
   init_kmem();
   init_vm_map();
 
-  init_cons();
+  // init_cons();
 
   /* Make dispatcher & scheduler structures ready for use. */
   init_sleepq();

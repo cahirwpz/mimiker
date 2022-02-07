@@ -34,8 +34,9 @@ SOURCES-AARCH64 = \
 SOURCES-RISCV = \
 	clint.c \
 	plic.c \
+	sbi_console.c \
 	liteuart.c \
-	litex_rootdev.c
+	litex_riscv_rootdev.c
 
 CPPFLAGS += -D_MACHDEP
 

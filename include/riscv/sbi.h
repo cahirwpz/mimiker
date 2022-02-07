@@ -45,6 +45,8 @@
 #ifndef _RISCV_SBI_H_
 #define _RISCV_SBI_H_
 
+#include <stdint.h>
+
 /* SBI Specification Version */
 #define SBI_SPEC_VERS_MAJOR_OFFSET 24
 #define SBI_SPEC_VERS_MAJOR_MASK (0x7F << SBI_SPEC_VERS_MAJOR_OFFSET)

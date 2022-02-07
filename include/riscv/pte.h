@@ -64,9 +64,12 @@ typedef uint16_t asid_t;     /* address space identifier */
 #define L0_INDEX(va) (((va) >> L0_SHIFT) & Ln_ADDR_MASK)
 #define L1_INDEX(va) (((va) >> L1_SHIFT) & Ln_ADDR_MASK)
 
-/* Bits 9:8 are reserved for software */
-#define PTE_SW_MANAGED (1 << 9)
-#define PTE_SW_WIRED (1 << 8)
+/*
+ * Bits 9:8 are reserved for software.
+ */
+#define PTE_SW_WRITE (1 << 9)
+#define PTE_SW_READ (1 << 8)
+#define PTE_SW_FLAGS (PTE_SW_WRITE | PTE_SW_READ)
 #define PTE_D (1 << 7) /* Dirty */
 #define PTE_A (1 << 6) /* Accessed */
 #define PTE_G (1 << 5) /* Global */
@@ -77,8 +80,10 @@ typedef uint16_t asid_t;     /* address space identifier */
 #define PTE_V (1 << 0) /* Valid */
 #define PTE_RWX (PTE_R | PTE_W | PTE_X)
 #define PTE_RX (PTE_R | PTE_X)
-#define PTE_KERN (PTE_V | PTE_R | PTE_W | PTE_G | PTE_A | PTE_D)
+#define PTE_KERN                                                               \
+  (PTE_V | PTE_R | PTE_W | PTE_G | PTE_A | PTE_D | PTE_SW_READ | PTE_SW_WRITE)
 #define PTE_KERN_RO (PTE_V | PTE_R | PTE_G | PTE_A)
+#define PTE_PROT_MASK (PTE_KERN | PTE_X | PTE_U)
 
 #define PTE_PPN0_S 10
 #define PTE_PPN1_S 20
