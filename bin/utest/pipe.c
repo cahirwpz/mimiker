@@ -116,8 +116,11 @@ int test_pipe_blocking_flag_manipulation(void) {
   assert(pipe2_ret == 0);
 
   /* check if flag is set */
-  assert(fcntl(pipe_fd[0], F_GETFL) & O_NONBLOCK);
-  assert(fcntl(pipe_fd[1], F_GETFL) & O_NONBLOCK);
+  int is_flag_set;
+  is_flag_set = fcntl(pipe_fd[0], F_GETFL) & O_NONBLOCK;
+  assert(is_flag_set);
+  is_flag_set = fcntl(pipe_fd[1], F_GETFL) & O_NONBLOCK;
+  assert(is_flag_set);
 
   /* unset same flag for read end */
   int read_flagset_with_block = fcntl(pipe_fd[0], F_GETFL);
@@ -129,8 +132,12 @@ int test_pipe_blocking_flag_manipulation(void) {
   fcntl(pipe_fd[1], F_SETFL, write_flagset_with_block & ~O_NONBLOCK);
 
   /* check if flag is not set */
-  assert(!(fcntl(pipe_fd[0], F_GETFL) & O_NONBLOCK));
-  assert(!(fcntl(pipe_fd[1], F_GETFL) & O_NONBLOCK));
+
+  int is_flag_not_set;
+  is_flag_not_set = fcntl(pipe_fd[0], F_GETFL) & O_NONBLOCK;
+  assert(!is_flag_not_set);
+  is_flag_not_set = fcntl(pipe_fd[1], F_GETFL) & O_NONBLOCK;
+  assert(!is_flag_not_set);
 
   close(pipe_fd[0]);
   close(pipe_fd[1]);
