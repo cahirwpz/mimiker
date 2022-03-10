@@ -32,7 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/cdefs.h>
 #include <mips/asm.h>
 
 #include "mips/assym.h"

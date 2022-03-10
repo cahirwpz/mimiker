@@ -61,7 +61,7 @@ __noreturn void klog_assert(klog_origin_t origin, const char *file,
 
 unsigned klog_setmask(unsigned newmask);
 
-void klog_update_mask(void);
+void klog_config(void);
 
 /* Print all logs on screen. */
 void klog_dump(void);

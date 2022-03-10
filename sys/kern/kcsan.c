@@ -38,13 +38,13 @@
  */
 
 /* If the architecture is 64 bit */
-#ifdef _LP64
+#if __SIZEOF_POINTER__ == 8
 #define WATCHPOINT_READ_BIT (1L << 63)
 #define WATCHPOINT_SIZE_SHIFT 61
-#else /* _LP64 */
+#elif __SIZEOF_POINTER__ == 4
 #define WATCHPOINT_READ_BIT (1L << 31)
 #define WATCHPOINT_SIZE_SHIFT 29
-#endif /* _LP64 */
+#endif
 
 #define WATCHPOINT_SIZE_MASK (~(WATCHPOINT_ADDR_MASK | WATCHPOINT_READ_BIT))
 #define WATCHPOINT_ADDR_MASK ((1L << WATCHPOINT_SIZE_SHIFT) - 1)
