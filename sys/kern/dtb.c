@@ -34,7 +34,7 @@ void dtb_early_init(paddr_t pa, vaddr_t va) {
 
   size_t size = fdt_totalsize(dtb);
 
-  _dtb_root = (void *)va;
+  _dtb_root = dtb;
   _dtb_root_pa = rounddown(pa, PAGESIZE);
   _dtb_offset = pa - _dtb_root_pa;
   _dtb_size = roundup(size + _dtb_offset, PAGESIZE);
@@ -65,7 +65,7 @@ static int dtb_cell_count(int node, const char *name) {
   int len;
   const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
   if (prop == NULL || (size_t)len != sizeof(uint32_t))
-    panic("Failed to retreive %s propertu for node %d!", name, node);
+    panic("Failed to retreive %s property for node %d!", name, node);
   return fdt32_to_cpu(*prop);
 }
 
@@ -81,7 +81,7 @@ static unsigned long dtb_to_cpu(const uint32_t *prop, int cells) {
   if (cells == 1)
     return fdt32_to_cpu(*prop);
   assert(cells == 2);
-  return fdt64_to_cpu(*(unsigned long *)prop);
+  return fdt64_to_cpu(*(const uint64_t *)prop);
 }
 
 void dtb_pair(int parent, int node, const char *name, unsigned long *addr_p,
@@ -92,6 +92,10 @@ void dtb_pair(int parent, int node, const char *name, unsigned long *addr_p,
 
   int len;
   const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
+  /*
+   * NOTE: we will read only a single <addr size> pair,
+   * although the property can contain more such pairs.
+   */
   if (prop == NULL || !is_aligned(len, pair_size))
     panic("Invalid %s property in node %d (parent=%d)!", name, node, parent);
 
@@ -142,6 +146,9 @@ void dtb_reg(int parent, int node, unsigned long *addr_p,
   return dtb_pair(parent, node, "reg", addr_p, size_p);
 }
 
+/*
+ * XXX: FTTB, we assume a single physical memory range.
+ */
 void dtb_mem(unsigned long *addr_p, unsigned long *size_p) {
   int node = dtb_offset("memory");
   dtb_reg(DTB_ROOT_NODE, node, addr_p, size_p);
