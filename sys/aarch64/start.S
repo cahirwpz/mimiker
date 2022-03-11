@@ -44,11 +44,9 @@ _ENTRY(_start)
          * functions from libkern.
          */
         mov     sp, x0
-
-        BL      init_klog
-
         /* Restore dtb pointer. */
         mov     x0, x19
+
         BL      board_stack
         MOV     sp, x0
 

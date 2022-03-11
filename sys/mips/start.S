@@ -33,10 +33,6 @@ LEAF(_start)
         jal     mips_init
         move    sp, v0                  # Set boot stack (already in kseg2)
 
-        LA      t0, init_klog
-        jalr    t0
-        nop
-
         # From this point kernel sections are accessible through kseg2!
         move    a0, s0
         move    a1, s1

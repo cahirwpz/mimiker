@@ -28,7 +28,11 @@ typedef struct klog {
   int prev;
 } klog_t;
 
-static klog_t klog;
+static klog_t klog = (klog_t){
+  .mask = KL_DEFAULT_MASK,
+  .prev = -1,
+};
+
 static SPIN_DEFINE(klog_lock, LK_RECURSIVE);
 
 static const char *subsystems[] = {
@@ -43,11 +47,8 @@ static const char *subsystems[] = {
 };
 
 void init_klog(void) {
-  klog.mask = KL_DEFAULT_MASK;
-  klog.first = 0;
-  klog.last = 0;
-  klog.repeated = 0;
-  klog.prev = -1;
+  const char *mask = kenv_get("klog-mask");
+  klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_DEFAULT_MASK;
 }
 
 static inline unsigned next(unsigned i) {
@@ -125,14 +126,6 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
 
 unsigned klog_setmask(unsigned newmask) {
   return atomic_exchange(&klog.mask, newmask);
-}
-
-void klog_config(void) {
-  const char *mask_str = kenv_get("klog-mask");
-  if (mask_str) {
-    unsigned mask_val = strtol(mask_str, NULL, 16);
-    klog_setmask(mask_val);
-  }
 }
 
 void klog_dump(void) {
