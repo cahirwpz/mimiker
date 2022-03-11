@@ -10,6 +10,7 @@ python sys.path.append(os.path.join(os.getcwd(), 'sys'))
 python import debug
 
 # favorite set of breakpoints
+break board_init
 break kernel_init
 break halt
 

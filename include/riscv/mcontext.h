@@ -39,6 +39,7 @@
 #define _NGREG 35 /* GR1-31, PC, SR, TVAL, CAUSE */
 #define _NFREG 33 /* F0-31, FCSR */
 
+/* NOTE: the following struct will be empty if `FPU` = 0. */
 typedef union __fpreg {
   fpregister_t r;
 #ifdef __riscv_d
