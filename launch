@@ -64,7 +64,7 @@ CONFIG = {
                 'kernel': 'sys/mimiker.img.gz',
                 'simulator': 'qemu'
             },
-            'vexriscv': {
+            'litex-riscv': {
                 'kernel': 'sys/mimiker.img',
                 'simulator': 'renode',
             },
@@ -119,7 +119,7 @@ CONFIG = {
             '--console',
         },
         'board': {
-            'vexriscv': {
+            'litex-riscv': {
                 'script': 'litex_vexriscv_mimiker.resc',
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
@@ -148,7 +148,7 @@ CONFIG = {
             'rpi3': {
                 'binary': 'aarch64-mimiker-elf-gdb'
             },
-            'vexriscv': {
+            'litex-riscv': {
                 'binary': 'riscv32-mimiker-elf-gdb'
             },
         }
@@ -405,7 +405,7 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
     parser.add_argument('-b', '--board', default='malta',
-                        choices=['malta', 'rpi3', 'vexriscv'],
+                        choices=['malta', 'rpi3', 'litex-riscv'],
                         help='Emulated board.')
     args = parser.parse_args()
 

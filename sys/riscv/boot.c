@@ -7,7 +7,7 @@
  *
  *  The sole goal of the boot segment is to bring the kernel to the virtual
  *  address space. This involves the following tasks:
- *   - mapping kernel image (.text, .data, .bss) into VM,
+ *   - mapping kernel image (.text, .rodata, .data, .bss) into VM,
  *
  *   - temporarily mapping dtb into VM (as we will need to access it in the
  *     second stage of the boot process and we can't create the direct map
@@ -19,16 +19,16 @@
  *
  *   - preparing page tables for `vm_page_t` structs (we need to do so
  *     because the procedure that maps kernel virtual space allocated for the
- *     structs can't allocate pages on its own since buddy system isn't
- *     initialized at that point).
+ *     structs can't allocate physical pages on its own since buddy system isn't
+ *     initialized at that point),
  *
  *   - enabling MMU and moving to the second stage.
  *
  * Scheme used for the transition from the first stage to the second stage:
  *   - we don't map the boot segment into VM,
  *
- *   - we assume boot addresses don't overlap with the mapped image
- *     (thereby the attempt to fetch the first instruction
+ *   - we assume boot (physical) addresses don't overlap with the mapped image
+ *     (thereby an attempt to fetch the first instruction
  *     after enabling MMU will resault in an instruction fetch page fault),
  *
  *   - we temporarily set the trap vector to the address of `riscv_boot`,
@@ -37,15 +37,15 @@
  *       - set parameters for `riscv_boot`,
  *       - set SP to VM boot stack,
  *
- * The second satge performs all operations needed to accomplish
+ * The second stage performs all operations needed to accomplish
  * board initialization. This includes:
  *   - setting registers to obey kernel conventions:
  *       - thread pointer register ($tp) always points to the PCPU structure
  *         of the hart,
  *       - SSCRARCH register always contains 0 when the hart operates in
- *         supervisor mode, and kernel stack pointer when in user mode.
+ *         supervisor mode, and kernel stack pointer while in user mode.
  *
- *   - setting trap vector to kernel trap handling code,
+ *   - setting trap vector to trap handling routine,
  *
  *   - preparing bss,
  *
@@ -57,25 +57,28 @@
  *
  *   - moving to thread0's stack and advancing to board initialization.
  *
- * For initial mapping of dtb and kernel pd the dmap area is used
- * as it will be overwritten in `pmap_bootstrap` thus the temporary mappings
+ * For initial mapping of dtb and kernel PD the dmap area is used
+ * as it will be overwritten in `pmap_bootstrap` where the temporary mappings
  * will be dropped.
  */
-
-#include <sys/fdt.h>
-#include <sys/kasan.h>
+#define KL_LOG KL_DEV
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
 #include <riscv/abi.h>
 #include <riscv/pmap.h>
+#include <riscv/pte.h>
 #include <riscv/riscvreg.h>
 #include <riscv/vm_param.h>
 
 #define BOOT_DTB_VADDR DMAP_VADDR_BASE
-#define BOOT_MAX_DTB_SIZE L0_SIZE
+#define BOOT_MAX_DTB_SIZE PAGESIZE
 
 #define BOOT_PD_VADDR (DMAP_VADDR_BASE + BOOT_MAX_DTB_SIZE)
+
+static_assert(L0_INDEX(BOOT_DTB_VADDR) == L0_INDEX(BOOT_PD_VADDR),
+              "Temporary dtb and kernel page directory mappings "
+              "don't lie within the same page table!");
 
 #define __wfi() __asm__ volatile("wfi")
 #define __set_tp() __asm__ volatile("mv tp, %0" ::"r"(_pcpu_data) : "tp")
@@ -103,9 +106,8 @@ static alignas(STACK_ALIGN) uint8_t boot_stack[PAGESIZE];
  */
 
 __boot_text static __noreturn void halt(void) {
-  for (;;) {
+  for (;;)
     __wfi();
-  }
 }
 
 __boot_text static void bootmem_init(void) {
@@ -165,22 +167,28 @@ __boot_text static void map_kernel_image(pd_entry_t *pde) {
 }
 
 __boot_text static void map_dtb(paddr_t dtb, pd_entry_t *pde) {
-  /* Assume that dbt will be covered by single superpage (4MiB). */
-  const size_t idx = L0_INDEX(BOOT_DTB_VADDR);
-  pde[idx] = PA_TO_PTE(dtb) | PTE_KERN;
+  /* Assume that dtb will be covered by single page. */
+  pt_entry_t *pte = bootmem_alloc(PAGESIZE);
+  const size_t idx0 = L0_INDEX(BOOT_DTB_VADDR);
+  const size_t idx1 = L1_INDEX(BOOT_DTB_VADDR);
+  pde[idx0] = PA_TO_PTE((paddr_t)pte) | PTE_V;
+  pte[idx1] = PA_TO_PTE(dtb) | PTE_KERN;
 }
 
 __boot_text static void map_pd(pd_entry_t *pde) {
-  /* For simplicity, we map the page directory using a superpage. */
-  const size_t idx = L0_INDEX(BOOT_PD_VADDR);
-  pde[idx] = PA_TO_PTE((paddr_t)pde) | PTE_KERN;
+  /* NOTE: page table has already been allocated in `map_dtb`. */
+  const size_t idx0 = L0_INDEX(BOOT_PD_VADDR);
+  const size_t idx1 = L1_INDEX(BOOT_PD_VADDR);
+  pt_entry_t *pte = (pd_entry_t *)PTE_TO_PA(pde[idx0]);
+  pte[idx1] = PA_TO_PTE((paddr_t)pde) | PTE_KERN;
 }
 
 __boot_text static void vm_page_ensure_pts(pd_entry_t *pde) {
   const size_t idx = L0_INDEX((vaddr_t)__text);
 
   for (int i = 0; i < VM_PAGE_PDS; i++) {
-    pde[idx + i + 1] = PA_TO_PTE((paddr_t)bootmem_alloc(PAGESIZE)) | PTE_V;
+    paddr_t pt = (paddr_t)bootmem_alloc(PAGESIZE);
+    pde[idx + i + 1] = PA_TO_PTE(pt) | PTE_V;
   }
 }
 
@@ -217,7 +225,8 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
                    "csrw satp, %3\n\t"
                    "nop" /* triggers instruction fetch page fault */
                    :
-                   : "r"(dtb), "r"(pde), "r"(boot_sp), "r"(satp));
+                   : "r"(dtb), "r"(pde), "r"(boot_sp), "r"(satp)
+                   : "a0", "a1");
 
   __unreachable();
 }
@@ -248,7 +257,7 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
 
   /*
    * Set trap vector base address:
-   *  - MODE = Direct - All exceptions set PC to BASE
+   *  - MODE = Direct - all exceptions set PC to specified BASE
    */
   csr_write(stvec, cpu_exception_handler);
 

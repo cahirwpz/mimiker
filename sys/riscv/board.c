@@ -1,15 +1,18 @@
+#define KL_LOG KL_DEV
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/cmdline.h>
 #include <sys/dtb.h>
 #include <sys/initrd.h>
 #include <sys/interrupt.h>
+#include <sys/kasan.h>
 #include <sys/kenv.h>
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 #include <riscv/mcontext.h>
+#include <riscv/riscvreg.h>
 #include <riscv/vm_param.h>
 
 static size_t count_args(void) {
@@ -28,27 +31,27 @@ static size_t count_args(void) {
 
 static void process_dtb(char **tokens, kstack_t *stk) {
   char buf[32];
-  uint64_t start, size;
+  unsigned long start, size;
 
   /* Memory boundaries. */
   dtb_mem(&start, &size);
-  snprintf(buf, sizeof(buf), "mem_start=%llu", start);
+  snprintf(buf, sizeof(buf), "mem_start=%lu", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "mem_size=%llu", size);
+  snprintf(buf, sizeof(buf), "mem_size=%lu", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
 
   /* Reserved memory boundaries. */
   dtb_rsvdmem(&start, &size);
-  snprintf(buf, sizeof(buf), "rsvdmem_start=%llu", start);
+  snprintf(buf, sizeof(buf), "rsvdmem_start=%lu", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "rsvdmem_size=%llu", size);
+  snprintf(buf, sizeof(buf), "rsvdmem_size=%lu", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
 
   /* Initrd memory boundaries. */
   dtb_rd(&start, &size);
-  snprintf(buf, sizeof(buf), "rd_start=%llu", start);
+  snprintf(buf, sizeof(buf), "rd_start=%lu", start);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "rd_size=%llu", size);
+  snprintf(buf, sizeof(buf), "rd_size=%lu", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
 
   /* Kernel cmdline. */
@@ -70,9 +73,8 @@ void *board_stack(paddr_t dtb_pa, vaddr_t dtb_va) {
   /*
    * NOTE: beside `count_args()` pointers for tokens,
    * we need two additional pointers:
-   *   - one for init program name (see `_kinit`),
-   *   - one for NULL terminating init program argument vector
-   *     (kernel environment is terminated by `cmdline_extract_tokens()`).
+   *   - one to terminate the kernel environment vector,
+   *   - one to terminated the argument vector for the init program.
    */
   const size_t nptrs = count_args() + 2;
   char **kenvp = kstack_alloc(stk, nptrs * sizeof(char *));
@@ -81,13 +83,6 @@ void *board_stack(paddr_t dtb_pa, vaddr_t dtb_va) {
   kstack_fix_bottom(stk);
 
   init_kenv(kenvp);
-
-  /* If klog-mask argument has been supplied, let's update the mask. */
-  const char *klog_mask = kenv_get("klog-mask");
-  if (klog_mask) {
-    unsigned mask = strtol(klog_mask, NULL, 16);
-    klog_setmask(mask);
-  }
 
   return stk->stk_ptr;
 }
@@ -178,8 +173,11 @@ static void physmem_regions(void) {
 
 void __noreturn board_init(void) {
   init_kasan();
+  klog_config();
   /* TODO(MichalBlk): initialize SBI. */
   physmem_regions();
+  /* Disable each supervisor interrupt. */
+  csr_clear(sie, SIE_SEIE | SIE_STIE | SIE_SSIE);
   intr_enable();
   kernel_init();
 }

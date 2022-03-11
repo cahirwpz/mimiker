@@ -5,6 +5,8 @@
 #include <sys/kmem.h>
 #include <sys/vm.h>
 
+#define DTB_ROOT_NODE 0
+
 /*
  * offset of dtb on first page that contains device tree blob
  *
@@ -32,7 +34,7 @@ void dtb_early_init(paddr_t pa, vaddr_t va) {
 
   size_t size = fdt_totalsize(dtb);
 
-  _dtb_root = (void *)va;
+  _dtb_root = dtb;
   _dtb_root_pa = rounddown(pa, PAGESIZE);
   _dtb_offset = pa - _dtb_root_pa;
   _dtb_size = roundup(size + _dtb_offset, PAGESIZE);
@@ -59,54 +61,103 @@ static int dtb_offset(const char *path) {
   return offset;
 }
 
-static int dtb_addr_cells(int node) {
+static int dtb_cell_count(int node, const char *name) {
   int len;
-  const uint32_t *prop = fdt_getprop(_dtb_root, node, "#address-cells", &len);
-  /* #address-cells is a 4-byte property */
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
   if (prop == NULL || (size_t)len != sizeof(uint32_t))
-    panic("Failed to retreive #address-cells property for node %d!", node);
+    panic("Failed to retreive %s property for node %d!", name, node);
   return fdt32_to_cpu(*prop);
 }
 
-static long dtb_to_cpu(const uint32_t *prop, int addr_cells) {
-  if (addr_cells == 1)
+static int dtb_addr_cells(int node) {
+  return dtb_cell_count(node, "#address-cells");
+}
+
+static int dtb_size_cells(int node) {
+  return dtb_cell_count(node, "#size-cells");
+}
+
+static unsigned long dtb_to_cpu(const uint32_t *prop, int cells) {
+  if (cells == 1)
     return fdt32_to_cpu(*prop);
-  assert(addr_cells == 2);
-  return fdt64_to_cpu(*(uint64_t *)prop);
+  assert(cells == 2);
+  return fdt64_to_cpu(*(const uint64_t *)prop);
+}
+
+void dtb_pair(int parent, int node, const char *name, unsigned long *addr_p,
+              unsigned long *size_p) {
+  const int addr_cells = dtb_addr_cells(parent);
+  const int size_cells = dtb_size_cells(parent);
+  const size_t pair_size = (addr_cells + size_cells) * sizeof(uint32_t);
+
+  int len;
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
+  /*
+   * NOTE: we will read only a single <addr size> pair,
+   * although the property can contain more such pairs.
+   */
+  if (prop == NULL || !is_aligned(len, pair_size))
+    panic("Invalid %s property in node %d (parent=%d)!", name, node, parent);
+
+  *addr_p = dtb_to_cpu(prop, addr_cells);
+  *size_p = dtb_to_cpu(prop + addr_cells, size_cells);
+}
+
+unsigned long dtb_addr(int parent, int node, const char *name) {
+  const int addr_cells = dtb_addr_cells(parent);
+  const size_t prop_size = addr_cells * sizeof(uint32_t);
+
+  int len;
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
+  if (prop == NULL || (size_t)len != prop_size)
+    panic("Invalid %s property in node %d (parent=%d)!", name, node, parent);
+
+  return dtb_to_cpu(prop, addr_cells);
+}
+
+unsigned dtb_cell(int node, const char *name) {
+  int len;
+  const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
+  if (prop == NULL || (size_t)len != sizeof(uint32_t))
+    panic("Invalid %s property in node %d!", name, node);
+  return fdt32_to_cpu(*prop);
+}
+
+unsigned dtb_cpus_prop(const char *name) {
+  int node = dtb_offset("cpus");
+  /* We assume that cpus properites are signle cell properties. */
+  assert(dtb_addr_cells(node) == 1);
+  assert(dtb_size_cells(node) == 0);
+  return dtb_cell(node, name);
+}
+
+const char *dtb_str(int node, const char *name) {
+  const char *prop = fdt_getprop(_dtb_root, node, name, NULL);
+  if (prop == NULL)
+    panic("Invalid %s property in node %d!", name, node);
+  return prop;
 }
 
 /*
  * XXX: FTTB, we consider only a single pair <addr size>.
  */
-void dtb_reg(int parent, int node, uint64_t *addr_p, uint64_t *size_p) {
-  int len;
-  const int addr_cells = dtb_addr_cells(parent);
-  const uint32_t *prop = fdt_getprop(_dtb_root, node, "reg", &len);
-  if (prop == NULL || ((size_t)len % (2 * addr_cells * sizeof(uint32_t)) != 0))
-    panic("Invalid reg property in node %d (parent=%d)!", node, parent);
-
-  *addr_p = dtb_to_cpu(prop, addr_cells);
-  *size_p = dtb_to_cpu(prop + addr_cells, addr_cells);
+void dtb_reg(int parent, int node, unsigned long *addr_p,
+             unsigned long *size_p) {
+  return dtb_pair(parent, node, "reg", addr_p, size_p);
 }
 
-uint64_t dtb_cell(int parent, int node, const char *name) {
-  int len;
-  const int addr_cells = dtb_addr_cells(parent);
-  const uint32_t *prop = fdt_getprop(_dtb_root, node, name, &len);
-  if (prop == NULL || ((size_t)len != addr_cells * sizeof(uint32_t)))
-    panic("Invalid %s property in node %d (parent=%d)!", name, node, parent);
-  return dtb_to_cpu(prop, addr_cells);
-}
-
-void dtb_mem(uint64_t *addr_p, uint64_t *size_p) {
-  int node = dtb_offset("/memory");
+/*
+ * XXX: FTTB, we assume a single physical memory range.
+ */
+void dtb_mem(unsigned long *addr_p, unsigned long *size_p) {
+  int node = dtb_offset("memory");
   dtb_reg(DTB_ROOT_NODE, node, addr_p, size_p);
 }
 
 /*
  * XXX: FTTB, we assume a single reserved memory range.
  */
-void dtb_rsvdmem(uint64_t *addr_p, uint64_t *size_p) {
+void dtb_rsvdmem(unsigned long *addr_p, unsigned long *size_p) {
   int node = dtb_offset("reserved-memory");
   int subnode = fdt_first_subnode(_dtb_root, node);
   if (subnode < 0)
@@ -114,16 +165,13 @@ void dtb_rsvdmem(uint64_t *addr_p, uint64_t *size_p) {
   dtb_reg(node, subnode, addr_p, size_p);
 }
 
-void dtb_rd(uint64_t *addr_p, uint64_t *size_p) {
-  int node = dtb_offset("/chosen");
-  *addr_p = dtb_cell(DTB_ROOT_NODE, node, "linux,initrd-start");
-  *size_p = dtb_cell(DTB_ROOT_NODE, node, "linux,initrd-end") - *addr_p;
+void dtb_rd(unsigned long *addr_p, unsigned long *size_p) {
+  int node = dtb_offset("chosen");
+  *addr_p = dtb_addr(DTB_ROOT_NODE, node, "linux,initrd-start");
+  *size_p = dtb_addr(DTB_ROOT_NODE, node, "linux,initrd-end") - *addr_p;
 }
 
 const char *dtb_cmdline(void) {
-  int offset = dtb_offset("/chosen");
-  const char *prop = fdt_getprop(_dtb_root, offset, "bootargs", NULL);
-  if (prop == NULL)
-    panic("Invalid bootargs property!");
-  return prop;
+  int node = dtb_offset("chosen");
+  return dtb_str(node, "bootargs");
 }

@@ -22,7 +22,7 @@ ARCH := aarch64
 AARCH64 := 1
 endif
 
-ifeq ($(BOARD), vexriscv)
+ifeq ($(BOARD), litex-riscv)
 ARCH := riscv
 RISCV := 1
 endif

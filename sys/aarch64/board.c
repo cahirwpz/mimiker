@@ -15,9 +15,14 @@
 
 static void process_dtb(char **tokens, kstack_t *stk) {
   char buf[32];
-  uint64_t start, size;
+  unsigned long start, size;
 
-  /* Memory boundaries. */
+  /*
+   * Memory boundaries.
+   * TODO: we assume that physical memory starts at fixed address 0.
+   * This assumption should be removed and the memory boundaries
+   * should be read from dtb (thus `start` shouldn't be discarded).
+   */
   dtb_mem(&start, &size);
   snprintf(buf, sizeof(buf), "memsize=%lu", size);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
@@ -35,9 +40,6 @@ static void process_dtb(char **tokens, kstack_t *stk) {
 }
 
 void *board_stack(paddr_t dtb) {
-  init_kasan();
-  init_klog();
-
   dtb_early_init(dtb, PHYS_TO_DMAP(dtb));
 
   kstack_t *stk = &thread0.td_kstack;
@@ -51,13 +53,6 @@ void *board_stack(paddr_t dtb) {
   process_dtb(kenvp, stk);
   kstack_fix_bottom(stk);
   init_kenv(kenvp);
-
-  /* If klog-mask argument has been supplied, let's update the mask. */
-  const char *klog_mask = kenv_get("klog-mask");
-  if (klog_mask) {
-    unsigned mask = strtol(klog_mask, NULL, 16);
-    klog_setmask(mask);
-  }
 
   return stk->stk_ptr;
 }
@@ -117,6 +112,8 @@ static void rpi3_physmem(void) {
 }
 
 __noreturn void board_init(void) {
+  init_kasan();
+  klog_config();
   rpi3_physmem();
   intr_enable();
   kernel_init();

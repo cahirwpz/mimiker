@@ -41,10 +41,10 @@
 
 typedef union __fpreg {
   fpregister_t r;
-#ifdef __riscv_f
-  float f;
-#elif defined(__riscv_d)
+#ifdef __riscv_d
   double d;
+#elif defined(__riscv_f)
+  float f;
 #endif
 } __fpreg_t;
 
