@@ -28,7 +28,11 @@ typedef struct klog {
   int prev;
 } klog_t;
 
-static klog_t klog;
+static klog_t klog = (klog_t){
+  .mask = KL_DEFAULT_MASK,
+  .prev = -1,
+};
+
 static SPIN_DEFINE(klog_lock, LK_RECURSIVE);
 
 static const char *subsystems[] = {
@@ -41,14 +45,6 @@ static const char *subsystems[] = {
   [KL_FILESYS] = "filesys", [KL_TIME] = "time",       [KL_FILE] = "file",
   [KL_TTY] = "tty",         [KL_UNDEF] = "???",
 };
-
-void init_klog(void) {
-  klog.mask = KL_DEFAULT_MASK;
-  klog.first = 0;
-  klog.last = 0;
-  klog.repeated = 0;
-  klog.prev = -1;
-}
 
 static inline unsigned next(unsigned i) {
   return (i + 1) % KL_SIZE;

@@ -42,9 +42,6 @@ typedef enum {
 #define KL_LOG KL_UNDEF
 #endif
 
-/*! \brief Called during kernel initialization. */
-void init_klog(void);
-
 void klog_append(klog_origin_t origin, const char *file, unsigned line,
                  const char *fmt, uintptr_t arg1, uintptr_t arg2,
                  uintptr_t arg3, uintptr_t arg4, uintptr_t arg5, uintptr_t arg6)
