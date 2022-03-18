@@ -1,5 +1,5 @@
 #ifndef _RISCV_VM_PARAM_H_
-#define _RSICV_VM_PARAM_H_
+#define _RISCV_VM_PARAM_H_
 
 #define KERNEL_SPACE_BEGIN 0x80000000
 #define KERNEL_SPACE_END 0xffffffff

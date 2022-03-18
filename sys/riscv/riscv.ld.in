@@ -40,7 +40,6 @@ SECTIONS
 
   .rodata :
   {
-    *(.srodata .srodata.*)
     *(.rodata .rodata.*)
   } : rodata
 
@@ -66,7 +65,7 @@ SECTIONS
     *(.srodata .srodata.*)
     *(.sdata .sdata.*)
     __edata = ABSOLUTE(.);
-  }
+  } : data
 
   .bss :
   {
