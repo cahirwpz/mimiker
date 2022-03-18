@@ -116,7 +116,7 @@ static void sq_enter(thread_t *td, sleepq_chain_t *sc, void *wchan,
   assert(sc_owned(sc));
   assert(spin_owned(td->td_lock));
 
-  klog("Thread %ld goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
+  klog("Thread %u goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
   assert(td->td_wchan == NULL);
   assert(td->td_waitpt == NULL);
@@ -154,7 +154,7 @@ static void sq_enter(thread_t *td, sleepq_chain_t *sc, void *wchan,
 }
 
 static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
-  klog("Wakeup thread %ld from %p at pc=%p", td->td_tid, td->td_wchan,
+  klog("Wakeup thread %u from %p at pc=%p", td->td_tid, td->td_wchan,
        td->td_waitpt);
 
   assert(sc_owned(sc));

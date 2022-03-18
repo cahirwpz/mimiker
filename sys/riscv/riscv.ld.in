@@ -1,0 +1,91 @@
+#include "assym.h"
+
+/* Linker scripts are documented here:
+ * https://sourceware.org/binutils/docs/ld/Scripts.html */
+OUTPUT_FORMAT("elf32-littleriscv")
+OUTPUT_ARCH(riscv)
+ENTRY(_start)
+
+PHDRS
+{
+  boot   PT_LOAD FLAGS(5); /* read-only, executable */
+  text   PT_LOAD FLAGS(5); /* read-only, executable */
+  rodata PT_LOAD FLAGS(4); /* read-only */
+  data   PT_LOAD FLAGS(6); /* read-write */
+}
+
+SECTIONS
+{
+  .boot KERNEL_PHYS : AT(KERNEL_PHYS) ALIGN(4096)
+  {
+    __boot = ABSOLUTE(.);
+    KEEP(riscv/riscv.ka:start.o)
+    *(.boot .boot.*)
+    . = ALIGN(4096);
+    __eboot = ABSOLUTE(.);
+  } : boot
+
+  HIDDEN(_boot_size = __eboot - __boot);
+
+  .text KERNEL_SPACE_BEGIN + _boot_size : AT(__eboot) ALIGN(4096)
+  {
+    __kernel_start = ABSOLUTE(.);
+    __text = ABSOLUTE(.);
+    *(.text .text.*)
+    __etext = ABSOLUTE(.);
+    /* TODO: include KASAN constructors. */
+  } : text
+
+  .eh_frame : { *(.eh_frame) }
+
+  .rodata :
+  {
+    *(.rodata .rodata.*)
+  } : rodata
+
+  .data : ALIGN(4096)
+  {
+    __data = ABSOLUTE(.);
+    *(.data .data.*)
+  } : data
+
+  /* We use linker relaxations based on `__global_pointer$` for `.sdata`.
+   * For unknown reason `ld` cannot apply relaxation to `.sbss`.
+   * Relaxation is useless for code referring to `.srodata` since the data
+   * is too far away from `gp` to be addressed using only 12 bits. Thus small
+   * sections other than `.sdata` are merged into their large counterparts.
+   *
+   * Refer to following blog post to understand what linker relaxations are:
+   * https://www.sifive.com/blog/all-aboard-part-3-linker-relaxation-in-riscv-toolchain */
+
+  .sdata :
+  {
+    /* Load/store instruction offset is 12 bits (sign extended). */
+    __global_pointer$ = . + 0x800;
+    *(.srodata .srodata.*)
+    *(.sdata .sdata.*)
+    __edata = ABSOLUTE(.);
+  } : data
+
+  .bss :
+  {
+    __bss = ABSOLUTE(.);
+    *(.sbss .sbss.*)
+    *(.scommon)
+    *(.bss .bss.*)
+    *(COMMON)
+    __ebss = ABSOLUTE(.);
+    __kernel_end = ABSOLUTE(.);
+  }
+
+  /* Sections to be discarded. */
+  /DISCARD/ :
+  {
+    *(.comment)
+    *(.gnu.attributes)
+    *(.note .note.*)
+    *(.options)
+    *(.pdr)
+    *(.reginfo)
+  }
+}

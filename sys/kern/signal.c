@@ -503,7 +503,7 @@ void sig_post(ksiginfo_t *ksi) {
 
   assert(handler != SIG_IGN);
 
-  klog("Post signal %s (handler %p) to thread %lu in process PID(%d)",
+  klog("Post signal %s (handler %p) to thread %u in process PID(%d)",
        sig_name[sig], handler, td->td_tid, p->p_pid);
 
   sigset_t *return_mask;
