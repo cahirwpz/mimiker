@@ -8,7 +8,7 @@
 #include <sys/context.h>
 #include <sys/interrupt.h>
 #include <sys/kasan.h>
-#include <sys/fdt.h>
+#include <sys/libfdt.h>
 #include <sys/dtb.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
