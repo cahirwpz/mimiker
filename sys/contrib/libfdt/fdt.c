@@ -48,10 +48,12 @@
  *     OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  *     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "libfdt_env.h"
 
-#include <sys/libfdt.h>
+#include <fdt.h>
+#include <libfdt.h>
 
-#include <libfdt_internal.h>
+#include "libfdt_internal.h"
 
 int fdt_check_header(const void *fdt)
 {
@@ -82,7 +84,7 @@ const void *fdt_offset_ptr(const void *fdt, int offset, unsigned int len)
 		return NULL;
 
 	if (fdt_version(fdt) >= 0x11)
-		if (((offset + len) < (unsigned)offset)
+		if ((((unsigned)offset + len) < (unsigned)offset)
 		    || ((offset + len) > fdt_size_dt_struct(fdt)))
 			return NULL;
 
@@ -238,4 +240,15 @@ const char *fdt_find_string_(const char *strtab, int tabsize, const char *s)
 		if (memcmp(p, s, len) == 0)
 			return p;
 	return NULL;
+}
+
+int fdt_move(const void *fdt, void *buf, int bufsize)
+{
+	FDT_CHECK_HEADER(fdt);
+
+	if (fdt_totalsize(fdt) > (unsigned)bufsize)
+		return -FDT_ERR_NOSPACE;
+
+	memmove(buf, fdt, fdt_totalsize(fdt));
+	return 0;
 }

@@ -48,53 +48,92 @@
  *     OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  *     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "libfdt_env.h"
 
-#include <sys/libfdt.h>
+#include <fdt.h>
+#include <libfdt.h>
 
-#include <libfdt_internal.h>
+#include "libfdt_internal.h"
 
-struct fdt_errtabent {
-	const char *str;
-};
-
-#define FDT_ERRTABENT(val) \
-	[(val)] = { .str = #val, }
-
-static struct fdt_errtabent fdt_errtable[] = {
-	FDT_ERRTABENT(FDT_ERR_NOTFOUND),
-	FDT_ERRTABENT(FDT_ERR_EXISTS),
-	FDT_ERRTABENT(FDT_ERR_NOSPACE),
-
-	FDT_ERRTABENT(FDT_ERR_BADOFFSET),
-	FDT_ERRTABENT(FDT_ERR_BADPATH),
-	FDT_ERRTABENT(FDT_ERR_BADPHANDLE),
-	FDT_ERRTABENT(FDT_ERR_BADSTATE),
-
-	FDT_ERRTABENT(FDT_ERR_TRUNCATED),
-	FDT_ERRTABENT(FDT_ERR_BADMAGIC),
-	FDT_ERRTABENT(FDT_ERR_BADVERSION),
-	FDT_ERRTABENT(FDT_ERR_BADSTRUCTURE),
-	FDT_ERRTABENT(FDT_ERR_BADLAYOUT),
-	FDT_ERRTABENT(FDT_ERR_INTERNAL),
-	FDT_ERRTABENT(FDT_ERR_BADNCELLS),
-	FDT_ERRTABENT(FDT_ERR_BADVALUE),
-	FDT_ERRTABENT(FDT_ERR_BADOVERLAY),
-	FDT_ERRTABENT(FDT_ERR_NOPHANDLES),
-};
-#define FDT_ERRTABSIZE	(sizeof(fdt_errtable) / sizeof(fdt_errtable[0]))
-
-const char *fdt_strerror(int errval)
+int fdt_setprop_inplace_namelen_partial(void *fdt, int nodeoffset,
+					const char *name, int namelen,
+					uint32_t idx, const void *val,
+					int len)
 {
-	if (errval > 0)
-		return "<valid offset/length>";
-	else if (errval == 0)
-		return "<no error>";
-	else if (errval > -(int)FDT_ERRTABSIZE) {
-		const char *s = fdt_errtable[-errval].str;
+	void *propval;
+	int proplen;
 
-		if (s)
-			return s;
-	}
+	propval = fdt_getprop_namelen_w(fdt, nodeoffset, name, namelen,
+					&proplen);
+	if (!propval)
+		return proplen;
 
-	return "<unknown error>";
+	if ((unsigned)proplen < (len + idx))
+		return -FDT_ERR_NOSPACE;
+
+	memcpy((char *)propval + idx, val, len);
+	return 0;
+}
+
+int fdt_setprop_inplace(void *fdt, int nodeoffset, const char *name,
+			const void *val, int len)
+{
+	const void *propval;
+	int proplen;
+
+	propval = fdt_getprop(fdt, nodeoffset, name, &proplen);
+	if (!propval)
+		return proplen;
+
+	if (proplen != len)
+		return -FDT_ERR_NOSPACE;
+
+	return fdt_setprop_inplace_namelen_partial(fdt, nodeoffset, name,
+						   strlen(name), 0,
+						   val, len);
+}
+
+static void fdt_nop_region_(void *start, int len)
+{
+	fdt32_t *p;
+
+	for (p = start; (char *)p < ((char *)start + len); p++)
+		*p = cpu_to_fdt32(FDT_NOP);
+}
+
+int fdt_nop_property(void *fdt, int nodeoffset, const char *name)
+{
+	struct fdt_property *prop;
+	int len;
+
+	prop = fdt_get_property_w(fdt, nodeoffset, name, &len);
+	if (!prop)
+		return len;
+
+	fdt_nop_region_(prop, len + sizeof(*prop));
+
+	return 0;
+}
+
+int fdt_node_end_offset_(void *fdt, int offset)
+{
+	int depth = 0;
+
+	while ((offset >= 0) && (depth >= 0))
+		offset = fdt_next_node(fdt, offset, &depth);
+
+	return offset;
+}
+
+int fdt_nop_node(void *fdt, int nodeoffset)
+{
+	int endoffset;
+
+	endoffset = fdt_node_end_offset_(fdt, nodeoffset);
+	if (endoffset < 0)
+		return endoffset;
+
+	fdt_nop_region_(fdt_offset_ptr_w(fdt, nodeoffset, 0),
+			endoffset - nodeoffset);
+	return 0;
 }

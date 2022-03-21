@@ -4,7 +4,7 @@ TOPDIR = $(realpath ..)
 
 include $(TOPDIR)/config.mk
 
-SUBDIR = aarch64 drv dts kern libfdt libkern mips riscv tests
+SUBDIR = aarch64 contrib drv dts kern libkern mips riscv tests
 KLIB = no
 
 BUILD-FILES += $(KERNEL-IMAGES) mimiker.elf cscope.out etags tags

@@ -60,176 +60,173 @@ typedef uint32_t fdt32_t;
 typedef uint64_t fdt64_t;
 
 struct fdt_header {
-	fdt32_t magic;			 /* magic word FDT_MAGIC */
-	fdt32_t totalsize;		 /* total size of DT block */
-	fdt32_t off_dt_struct;		 /* offset to structure */
-	fdt32_t off_dt_strings;		 /* offset to strings */
-	fdt32_t off_mem_rsvmap;		 /* offset to memory reserve map */
-	fdt32_t version;		 /* format version */
-	fdt32_t last_comp_version;	 /* last compatible version */
+  fdt32_t magic;             /* magic word FDT_MAGIC */
+  fdt32_t totalsize;         /* total size of DT block */
+  fdt32_t off_dt_struct;     /* offset to structure */
+  fdt32_t off_dt_strings;    /* offset to strings */
+  fdt32_t off_mem_rsvmap;    /* offset to memory reserve map */
+  fdt32_t version;           /* format version */
+  fdt32_t last_comp_version; /* last compatible version */
 
-	/* version 2 fields below */
-	fdt32_t boot_cpuid_phys;	 /* Which physical CPU id we're
-					    booting on */
-	/* version 3 fields below */
-	fdt32_t size_dt_strings;	 /* size of the strings block */
+  /* version 2 fields below */
+  fdt32_t boot_cpuid_phys; /* Which physical CPU id we're
+                              booting on */
+  /* version 3 fields below */
+  fdt32_t size_dt_strings; /* size of the strings block */
 
-	/* version 17 fields below */
-	fdt32_t size_dt_struct;		 /* size of the structure block */
+  /* version 17 fields below */
+  fdt32_t size_dt_struct; /* size of the structure block */
 };
 
 struct fdt_reserve_entry {
-	fdt64_t address;
-	fdt64_t size;
+  fdt64_t address;
+  fdt64_t size;
 };
 
 struct fdt_node_header {
-	fdt32_t tag;
-	char name[0];
+  fdt32_t tag;
+  char name[0];
 };
 
 struct fdt_property {
-	fdt32_t tag;
-	fdt32_t len;
-	fdt32_t nameoff;
-	char data[0];
+  fdt32_t tag;
+  fdt32_t len;
+  fdt32_t nameoff;
+  char data[0];
 };
 
-#define FDT_MAGIC	0xd00dfeed	/* 4: version, 4: total size */
-#define FDT_TAGSIZE	sizeof(fdt32_t)
+#define FDT_MAGIC 0xd00dfeed /* 4: version, 4: total size */
+#define FDT_TAGSIZE sizeof(fdt32_t)
 
-#define FDT_BEGIN_NODE	0x1		/* Start node: full name */
-#define FDT_END_NODE	0x2		/* End node */
-#define FDT_PROP	0x3		/* Property: name off,
-					   size, content */
-#define FDT_NOP		0x4		/* nop */
-#define FDT_END		0x9
+#define FDT_BEGIN_NODE 0x1 /* Start node: full name */
+#define FDT_END_NODE 0x2   /* End node */
+#define FDT_PROP                                                               \
+  0x3               /* Property: name off,                                     \
+                       size, content */
+#define FDT_NOP 0x4 /* nop */
+#define FDT_END 0x9
 
-#define FDT_V1_SIZE	(7*sizeof(fdt32_t))
-#define FDT_V2_SIZE	(FDT_V1_SIZE + sizeof(fdt32_t))
-#define FDT_V3_SIZE	(FDT_V2_SIZE + sizeof(fdt32_t))
-#define FDT_V16_SIZE	FDT_V3_SIZE
-#define FDT_V17_SIZE	(FDT_V16_SIZE + sizeof(fdt32_t))
+#define FDT_V1_SIZE (7 * sizeof(fdt32_t))
+#define FDT_V2_SIZE (FDT_V1_SIZE + sizeof(fdt32_t))
+#define FDT_V3_SIZE (FDT_V2_SIZE + sizeof(fdt32_t))
+#define FDT_V16_SIZE FDT_V3_SIZE
+#define FDT_V17_SIZE (FDT_V16_SIZE + sizeof(fdt32_t))
 
-#define FDT_FIRST_SUPPORTED_VERSION	0x02
-#define FDT_LAST_SUPPORTED_VERSION	0x11
+#define FDT_FIRST_SUPPORTED_VERSION 0x02
+#define FDT_LAST_SUPPORTED_VERSION 0x11
 
 /* Error codes: informative error codes */
-#define FDT_ERR_NOTFOUND	1
-	/* FDT_ERR_NOTFOUND: The requested node or property does not exist */
-#define FDT_ERR_EXISTS		2
-	/* FDT_ERR_EXISTS: Attempted to create a node or property which
-	 * already exists */
-#define FDT_ERR_NOSPACE		3
-	/* FDT_ERR_NOSPACE: Operation needed to expand the device
-	 * tree, but its buffer did not have sufficient space to
-	 * contain the expanded tree. Use fdt_open_into() to move the
-	 * device tree to a buffer with more space. */
+#define FDT_ERR_NOTFOUND 1
+/* FDT_ERR_NOTFOUND: The requested node or property does not exist */
+#define FDT_ERR_EXISTS 2
+/* FDT_ERR_EXISTS: Attempted to create a node or property which
+ * already exists */
+#define FDT_ERR_NOSPACE 3
+/* FDT_ERR_NOSPACE: Operation needed to expand the device
+ * tree, but its buffer did not have sufficient space to
+ * contain the expanded tree. Use fdt_open_into() to move the
+ * device tree to a buffer with more space. */
 
 /* Error codes: codes for bad parameters */
-#define FDT_ERR_BADOFFSET	4
-	/* FDT_ERR_BADOFFSET: Function was passed a structure block
-	 * offset which is out-of-bounds, or which points to an
-	 * unsuitable part of the structure for the operation. */
-#define FDT_ERR_BADPATH		5
-	/* FDT_ERR_BADPATH: Function was passed a badly formatted path
-	 * (e.g. missing a leading / for a function which requires an
-	 * absolute path) */
-#define FDT_ERR_BADPHANDLE	6
-	/* FDT_ERR_BADPHANDLE: Function was passed an invalid phandle.
-	 * This can be caused either by an invalid phandle property
-	 * length, or the phandle value was either 0 or -1, which are
-	 * not permitted. */
-#define FDT_ERR_BADSTATE	7
-	/* FDT_ERR_BADSTATE: Function was passed an incomplete device
-	 * tree created by the sequential-write functions, which is
-	 * not sufficiently complete for the requested operation. */
+#define FDT_ERR_BADOFFSET 4
+/* FDT_ERR_BADOFFSET: Function was passed a structure block
+ * offset which is out-of-bounds, or which points to an
+ * unsuitable part of the structure for the operation. */
+#define FDT_ERR_BADPATH 5
+/* FDT_ERR_BADPATH: Function was passed a badly formatted path
+ * (e.g. missing a leading / for a function which requires an
+ * absolute path) */
+#define FDT_ERR_BADPHANDLE 6
+/* FDT_ERR_BADPHANDLE: Function was passed an invalid phandle.
+ * This can be caused either by an invalid phandle property
+ * length, or the phandle value was either 0 or -1, which are
+ * not permitted. */
+#define FDT_ERR_BADSTATE 7
+/* FDT_ERR_BADSTATE: Function was passed an incomplete device
+ * tree created by the sequential-write functions, which is
+ * not sufficiently complete for the requested operation. */
 
 /* Error codes: codes for bad device tree blobs */
-#define FDT_ERR_TRUNCATED	8
-	/* FDT_ERR_TRUNCATED: Structure block of the given device tree
-	 * ends without an FDT_END tag. */
-#define FDT_ERR_BADMAGIC	9
-	/* FDT_ERR_BADMAGIC: Given "device tree" appears not to be a
-	 * device tree at all - it is missing the flattened device
-	 * tree magic number. */
-#define FDT_ERR_BADVERSION	10
-	/* FDT_ERR_BADVERSION: Given device tree has a version which
-	 * can't be handled by the requested operation.  For
-	 * read-write functions, this may mean that fdt_open_into() is
-	 * required to convert the tree to the expected version. */
-#define FDT_ERR_BADSTRUCTURE	11
-	/* FDT_ERR_BADSTRUCTURE: Given device tree has a corrupt
-	 * structure block or other serious error (e.g. misnested
-	 * nodes, or subnodes preceding properties). */
-#define FDT_ERR_BADLAYOUT	12
-	/* FDT_ERR_BADLAYOUT: For read-write functions, the given
-	 * device tree has it's sub-blocks in an order that the
-	 * function can't handle (memory reserve map, then structure,
-	 * then strings).  Use fdt_open_into() to reorganize the tree
-	 * into a form suitable for the read-write operations. */
+#define FDT_ERR_TRUNCATED 8
+/* FDT_ERR_TRUNCATED: Structure block of the given device tree
+ * ends without an FDT_END tag. */
+#define FDT_ERR_BADMAGIC 9
+/* FDT_ERR_BADMAGIC: Given "device tree" appears not to be a
+ * device tree at all - it is missing the flattened device
+ * tree magic number. */
+#define FDT_ERR_BADVERSION 10
+/* FDT_ERR_BADVERSION: Given device tree has a version which
+ * can't be handled by the requested operation.  For
+ * read-write functions, this may mean that fdt_open_into() is
+ * required to convert the tree to the expected version. */
+#define FDT_ERR_BADSTRUCTURE 11
+/* FDT_ERR_BADSTRUCTURE: Given device tree has a corrupt
+ * structure block or other serious error (e.g. misnested
+ * nodes, or subnodes preceding properties). */
+#define FDT_ERR_BADLAYOUT 12
+/* FDT_ERR_BADLAYOUT: For read-write functions, the given
+ * device tree has it's sub-blocks in an order that the
+ * function can't handle (memory reserve map, then structure,
+ * then strings).  Use fdt_open_into() to reorganize the tree
+ * into a form suitable for the read-write operations. */
 
 /* "Can't happen" error indicating a bug in libfdt */
-#define FDT_ERR_INTERNAL	13
-	/* FDT_ERR_INTERNAL: libfdt has failed an internal assertion.
-	 * Should never be returned, if it is, it indicates a bug in
-	 * libfdt itself. */
+#define FDT_ERR_INTERNAL 13
+/* FDT_ERR_INTERNAL: libfdt has failed an internal assertion.
+ * Should never be returned, if it is, it indicates a bug in
+ * libfdt itself. */
 
 /* Errors in device tree content */
-#define FDT_ERR_BADNCELLS	14
-	/* FDT_ERR_BADNCELLS: Device tree has a #address-cells, #size-cells
-	 * or similar property with a bad format or value */
+#define FDT_ERR_BADNCELLS 14
+/* FDT_ERR_BADNCELLS: Device tree has a #address-cells, #size-cells
+ * or similar property with a bad format or value */
 
-#define FDT_ERR_BADVALUE	15
-	/* FDT_ERR_BADVALUE: Device tree has a property with an unexpected
-	 * value. For example: a property expected to contain a string list
-	 * is not NUL-terminated within the length of its value. */
+#define FDT_ERR_BADVALUE 15
+/* FDT_ERR_BADVALUE: Device tree has a property with an unexpected
+ * value. For example: a property expected to contain a string list
+ * is not NUL-terminated within the length of its value. */
 
-#define FDT_ERR_BADOVERLAY	16
-	/* FDT_ERR_BADOVERLAY: The device tree overlay, while
-	 * correctly structured, cannot be applied due to some
-	 * unexpected or missing value, property or node. */
+#define FDT_ERR_BADOVERLAY 16
+/* FDT_ERR_BADOVERLAY: The device tree overlay, while
+ * correctly structured, cannot be applied due to some
+ * unexpected or missing value, property or node. */
 
-#define FDT_ERR_NOPHANDLES	17
-	/* FDT_ERR_NOPHANDLES: The device tree doesn't have any
-	 * phandle available anymore without causing an overflow */
+#define FDT_ERR_NOPHANDLES 17
+/* FDT_ERR_NOPHANDLES: The device tree doesn't have any
+ * phandle available anymore without causing an overflow */
 
-#define FDT_ERR_MAX		17
+#define FDT_ERR_MAX 17
 
-#define EXTRACT_BYTE(x, n)	((unsigned long long)((uint8_t *)&x)[n])
+#define EXTRACT_BYTE(x, n) ((unsigned long long)((uint8_t *)&x)[n])
 #define CPU_TO_FDT16(x) ((EXTRACT_BYTE(x, 0) << 8) | EXTRACT_BYTE(x, 1))
-#define CPU_TO_FDT32(x) ((EXTRACT_BYTE(x, 0) << 24) | (EXTRACT_BYTE(x, 1) << 16) | \
-			 (EXTRACT_BYTE(x, 2) << 8) | EXTRACT_BYTE(x, 3))
-#define CPU_TO_FDT64(x) ((EXTRACT_BYTE(x, 0) << 56) | (EXTRACT_BYTE(x, 1) << 48) | \
-			 (EXTRACT_BYTE(x, 2) << 40) | (EXTRACT_BYTE(x, 3) << 32) | \
-			 (EXTRACT_BYTE(x, 4) << 24) | (EXTRACT_BYTE(x, 5) << 16) | \
-			 (EXTRACT_BYTE(x, 6) << 8) | EXTRACT_BYTE(x, 7))
+#define CPU_TO_FDT32(x)                                                        \
+  ((EXTRACT_BYTE(x, 0) << 24) | (EXTRACT_BYTE(x, 1) << 16) |                   \
+   (EXTRACT_BYTE(x, 2) << 8) | EXTRACT_BYTE(x, 3))
+#define CPU_TO_FDT64(x)                                                        \
+  ((EXTRACT_BYTE(x, 0) << 56) | (EXTRACT_BYTE(x, 1) << 48) |                   \
+   (EXTRACT_BYTE(x, 2) << 40) | (EXTRACT_BYTE(x, 3) << 32) |                   \
+   (EXTRACT_BYTE(x, 4) << 24) | (EXTRACT_BYTE(x, 5) << 16) |                   \
+   (EXTRACT_BYTE(x, 6) << 8) | EXTRACT_BYTE(x, 7))
 
-static inline uint16_t fdt16_to_cpu(fdt16_t x)
-{
-	return (uint16_t)CPU_TO_FDT16(x);
+static inline uint16_t fdt16_to_cpu(fdt16_t x) {
+  return (uint16_t)CPU_TO_FDT16(x);
 }
-static inline fdt16_t cpu_to_fdt16(uint16_t x)
-{
-	return (fdt16_t)CPU_TO_FDT16(x);
-}
-
-static inline uint32_t fdt32_to_cpu(fdt32_t x)
-{
-	return (uint32_t)CPU_TO_FDT32(x);
-}
-static inline fdt32_t cpu_to_fdt32(uint32_t x)
-{
-	return (fdt32_t)CPU_TO_FDT32(x);
+static inline fdt16_t cpu_to_fdt16(uint16_t x) {
+  return (fdt16_t)CPU_TO_FDT16(x);
 }
 
-static inline uint64_t fdt64_to_cpu(fdt64_t x)
-{
-	return (uint64_t)CPU_TO_FDT64(x);
+static inline uint32_t fdt32_to_cpu(fdt32_t x) {
+  return (uint32_t)CPU_TO_FDT32(x);
 }
-static inline fdt64_t cpu_to_fdt64(uint64_t x)
-{
-	return (fdt64_t)CPU_TO_FDT64(x);
+static inline fdt32_t cpu_to_fdt32(uint32_t x) {
+  return (fdt32_t)CPU_TO_FDT32(x);
+}
+
+static inline uint64_t fdt64_to_cpu(fdt64_t x) {
+  return (uint64_t)CPU_TO_FDT64(x);
+}
+static inline fdt64_t cpu_to_fdt64(uint64_t x) {
+  return (fdt64_t)CPU_TO_FDT64(x);
 }
 #undef CPU_TO_FDT64
 #undef CPU_TO_FDT32
@@ -295,33 +292,31 @@ int fdt_next_subnode(const void *fdt, int offset);
  * literal.
  *
  */
-#define fdt_for_each_subnode(node, fdt, parent)		\
-	for (node = fdt_first_subnode(fdt, parent);	\
-	     node >= 0;					\
-	     node = fdt_next_subnode(fdt, node))
+#define fdt_for_each_subnode(node, fdt, parent)                                \
+  for (node = fdt_first_subnode(fdt, parent); node >= 0;                       \
+       node = fdt_next_subnode(fdt, node))
 
 /**********************************************************************/
 /* General functions                                                  */
 /**********************************************************************/
-#define fdt_get_header(fdt, field) \
-	(fdt32_to_cpu(((const struct fdt_header *)(fdt))->field))
-#define fdt_magic(fdt)			(fdt_get_header(fdt, magic))
-#define fdt_totalsize(fdt)		(fdt_get_header(fdt, totalsize))
-#define fdt_off_dt_struct(fdt)		(fdt_get_header(fdt, off_dt_struct))
-#define fdt_off_dt_strings(fdt)		(fdt_get_header(fdt, off_dt_strings))
-#define fdt_off_mem_rsvmap(fdt)		(fdt_get_header(fdt, off_mem_rsvmap))
-#define fdt_version(fdt)		(fdt_get_header(fdt, version))
-#define fdt_last_comp_version(fdt)	(fdt_get_header(fdt, last_comp_version))
-#define fdt_boot_cpuid_phys(fdt)	(fdt_get_header(fdt, boot_cpuid_phys))
-#define fdt_size_dt_strings(fdt)	(fdt_get_header(fdt, size_dt_strings))
-#define fdt_size_dt_struct(fdt)		(fdt_get_header(fdt, size_dt_struct))
+#define fdt_get_header(fdt, field)                                             \
+  (fdt32_to_cpu(((const struct fdt_header *)(fdt))->field))
+#define fdt_magic(fdt) (fdt_get_header(fdt, magic))
+#define fdt_totalsize(fdt) (fdt_get_header(fdt, totalsize))
+#define fdt_off_dt_struct(fdt) (fdt_get_header(fdt, off_dt_struct))
+#define fdt_off_dt_strings(fdt) (fdt_get_header(fdt, off_dt_strings))
+#define fdt_off_mem_rsvmap(fdt) (fdt_get_header(fdt, off_mem_rsvmap))
+#define fdt_version(fdt) (fdt_get_header(fdt, version))
+#define fdt_last_comp_version(fdt) (fdt_get_header(fdt, last_comp_version))
+#define fdt_boot_cpuid_phys(fdt) (fdt_get_header(fdt, boot_cpuid_phys))
+#define fdt_size_dt_strings(fdt) (fdt_get_header(fdt, size_dt_strings))
+#define fdt_size_dt_struct(fdt) (fdt_get_header(fdt, size_dt_struct))
 
-#define fdt_set_hdr_(name) \
-	static inline void fdt_set_##name(void *fdt, uint32_t val) \
-	{ \
-		struct fdt_header *fdth = (struct fdt_header *)fdt; \
-		fdth->name = cpu_to_fdt32(val); \
-	}
+#define fdt_set_hdr_(name)                                                     \
+  static inline void fdt_set_##name(void *fdt, uint32_t val) {                 \
+    struct fdt_header *fdth = (struct fdt_header *)fdt;                        \
+    fdth->name = cpu_to_fdt32(val);                                            \
+  }
 fdt_set_hdr_(magic);
 fdt_set_hdr_(totalsize);
 fdt_set_hdr_(off_dt_struct);
@@ -426,7 +421,7 @@ int fdt_get_mem_rsv(const void *fdt, int n, uint64_t *address, uint64_t *size);
  * such as a full path.
  */
 int fdt_subnode_offset_namelen(const void *fdt, int parentoffset,
-			       const char *name, int namelen);
+                               const char *name, int namelen);
 
 /**
  * fdt_subnode_offset - find a subnode of a given node
@@ -578,10 +573,9 @@ int fdt_next_property_offset(const void *fdt, int offset);
  * iterator in the loop. The node variable can be constant or even a
  * literal.
  */
-#define fdt_for_each_property_offset(property, fdt, node)	\
-	for (property = fdt_first_property_offset(fdt, node);	\
-	     property >= 0;					\
-	     property = fdt_next_property_offset(fdt, property))
+#define fdt_for_each_property_offset(property, fdt, node)                      \
+  for (property = fdt_first_property_offset(fdt, node); property >= 0;         \
+       property = fdt_next_property_offset(fdt, property))
 
 /**
  * fdt_get_property_by_offset - retrieve the property at a given offset
@@ -611,8 +605,7 @@ int fdt_next_property_offset(const void *fdt, int offset);
  *		-FDT_ERR_TRUNCATED, standard meanings
  */
 const struct fdt_property *fdt_get_property_by_offset(const void *fdt,
-						      int offset,
-						      int *lenp);
+                                                      int offset, int *lenp);
 
 /**
  * fdt_get_property_namelen - find a property based on substring
@@ -626,9 +619,9 @@ const struct fdt_property *fdt_get_property_by_offset(const void *fdt,
  * characters of name for matching the property name.
  */
 const struct fdt_property *fdt_get_property_namelen(const void *fdt,
-						    int nodeoffset,
-						    const char *name,
-						    int namelen, int *lenp);
+                                                    int nodeoffset,
+                                                    const char *name,
+                                                    int namelen, int *lenp);
 
 /**
  * fdt_get_property - find a given property in a given node
@@ -659,7 +652,7 @@ const struct fdt_property *fdt_get_property_namelen(const void *fdt,
  *		-FDT_ERR_TRUNCATED, standard meanings
  */
 const struct fdt_property *fdt_get_property(const void *fdt, int nodeoffset,
-					    const char *name, int *lenp);
+                                            const char *name, int *lenp);
 
 /**
  * fdt_getprop_by_offset - retrieve the value of a property at a given offset
@@ -693,7 +686,7 @@ const struct fdt_property *fdt_get_property(const void *fdt, int nodeoffset,
  *		-FDT_ERR_TRUNCATED, standard meanings
  */
 const void *fdt_getprop_by_offset(const void *fdt, int offset,
-				  const char **namep, int *lenp);
+                                  const char **namep, int *lenp);
 
 /**
  * fdt_getprop_namelen - get property value based on substring
@@ -707,7 +700,7 @@ const void *fdt_getprop_by_offset(const void *fdt, int offset,
  * characters of name for matching the property name.
  */
 const void *fdt_getprop_namelen(const void *fdt, int nodeoffset,
-				const char *name, int namelen, int *lenp);
+                                const char *name, int namelen, int *lenp);
 
 /**
  * fdt_getprop - retrieve the value of a given property
@@ -737,8 +730,8 @@ const void *fdt_getprop_namelen(const void *fdt, int nodeoffset,
  *		-FDT_ERR_BADSTRUCTURE,
  *		-FDT_ERR_TRUNCATED, standard meanings
  */
-const void *fdt_getprop(const void *fdt, int nodeoffset,
-			const char *name, int *lenp);
+const void *fdt_getprop(const void *fdt, int nodeoffset, const char *name,
+                        int *lenp);
 
 /**
  * fdt_get_phandle - retrieve the phandle of a given node
@@ -763,8 +756,8 @@ uint32_t fdt_get_phandle(const void *fdt, int nodeoffset);
  * Identical to fdt_get_alias(), but only examine the first namelen
  * characters of name for matching the alias name.
  */
-const char *fdt_get_alias_namelen(const void *fdt,
-				  const char *name, int namelen);
+const char *fdt_get_alias_namelen(const void *fdt, const char *name,
+                                  int namelen);
 
 /**
  * fdt_get_alias - retrieve the path referenced by a given alias
@@ -838,7 +831,7 @@ int fdt_get_path(const void *fdt, int nodeoffset, char *buf, int buflen);
  *	-FDT_ERR_BADSTRUCTURE, standard meanings
  */
 int fdt_supernode_atdepth_offset(const void *fdt, int nodeoffset,
-				 int supernodedepth, int *nodedepth);
+                                 int supernodedepth, int *nodedepth);
 
 /**
  * fdt_node_depth - find the depth of a given node
@@ -923,8 +916,8 @@ int fdt_parent_offset(const void *fdt, int nodeoffset);
  *	-FDT_ERR_BADSTRUCTURE, standard meanings
  */
 int fdt_node_offset_by_prop_value(const void *fdt, int startoffset,
-				  const char *propname,
-				  const void *propval, int proplen);
+                                  const char *propname, const void *propval,
+                                  int proplen);
 
 /**
  * fdt_node_offset_by_phandle - find the node with a given phandle
@@ -970,7 +963,7 @@ int fdt_node_offset_by_phandle(const void *fdt, uint32_t phandle);
  *	-FDT_ERR_BADSTRUCTURE, standard meanings
  */
 int fdt_node_check_compatible(const void *fdt, int nodeoffset,
-			      const char *compatible);
+                              const char *compatible);
 
 /**
  * fdt_node_offset_by_compatible - find nodes with a given 'compatible' value
@@ -1007,7 +1000,7 @@ int fdt_node_check_compatible(const void *fdt, int nodeoffset,
  *	-FDT_ERR_BADSTRUCTURE, standard meanings
  */
 int fdt_node_offset_by_compatible(const void *fdt, int startoffset,
-				  const char *compatible);
+                                  const char *compatible);
 
 /**
  * fdt_stringlist_contains - check a string list property for a string
@@ -1055,7 +1048,7 @@ int fdt_stringlist_count(const void *fdt, int nodeoffset, const char *property);
  *                     the given string
  */
 int fdt_stringlist_search(const void *fdt, int nodeoffset, const char *property,
-			  const char *string);
+                          const char *string);
 
 /**
  * fdt_stringlist_get() - obtain the string at a given index in a string list
@@ -1082,8 +1075,7 @@ int fdt_stringlist_search(const void *fdt, int nodeoffset, const char *property,
  *     -FDT_ERR_NOTFOUND if the property does not exist
  */
 const char *fdt_stringlist_get(const void *fdt, int nodeoffset,
-			       const char *property, int index,
-			       int *lenp);
+                               const char *property, int index, int *lenp);
 
 /**********************************************************************/
 /* Read-only functions (addressing related)                           */
@@ -1098,7 +1090,7 @@ const char *fdt_stringlist_get(const void *fdt, int nodeoffset,
  * Implementations may support larger values, but in practice higher
  * values aren't used.
  */
-#define FDT_MAX_NCELLS		4
+#define FDT_MAX_NCELLS 4
 
 /**
  * fdt_address_cells - retrieve address size for a bus represented in the tree

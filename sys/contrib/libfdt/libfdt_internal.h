@@ -1,6 +1,8 @@
+#ifndef LIBFDT_INTERNAL_H
+#define LIBFDT_INTERNAL_H
 /*
  * libfdt - Flat Device Tree manipulation
- * Copyright (C) 2014 David Gibson <david@gibson.dropbear.id.au>
+ * Copyright (C) 2006 David Gibson, IBM Corporation.
  *
  * libfdt is dual licensed: you can use it either under the terms of
  * the GPL, or the BSD license, at your option.
@@ -48,47 +50,48 @@
  *     OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  *     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <sys/libkern.h>
 
-#include <sys/libfdt.h>
+#include <fdt.h>
 
-#include <libfdt_internal.h>
+#define FDT_ALIGN(x, a)		(((x) + (a) - 1) & ~((a) - 1))
+#define FDT_TAGALIGN(x)		(FDT_ALIGN((x), FDT_TAGSIZE))
 
-int fdt_address_cells(const void *fdt, int nodeoffset)
+#define FDT_CHECK_HEADER(fdt) \
+	{ \
+		int err_; \
+		if ((err_ = fdt_check_header(fdt)) != 0) \
+			return err_; \
+	}
+
+int fdt_check_node_offset_(const void *fdt, int offset);
+int fdt_check_prop_offset_(const void *fdt, int offset);
+const char *fdt_find_string_(const char *strtab, int tabsize, const char *s);
+int fdt_node_end_offset_(void *fdt, int nodeoffset);
+
+static inline const void *fdt_offset_ptr_(const void *fdt, int offset)
 {
-	const fdt32_t *ac;
-	int val;
-	int len;
-
-	ac = fdt_getprop(fdt, nodeoffset, "#address-cells", &len);
-	if (!ac)
-		return 2;
-
-	if (len != sizeof(*ac))
-		return -FDT_ERR_BADNCELLS;
-
-	val = fdt32_to_cpu(*ac);
-	if ((val <= 0) || (val > FDT_MAX_NCELLS))
-		return -FDT_ERR_BADNCELLS;
-
-	return val;
+	return (const char *)fdt + fdt_off_dt_struct(fdt) + offset;
 }
 
-int fdt_size_cells(const void *fdt, int nodeoffset)
+static inline void *fdt_offset_ptr_w_(void *fdt, int offset)
 {
-	const fdt32_t *sc;
-	int val;
-	int len;
-
-	sc = fdt_getprop(fdt, nodeoffset, "#size-cells", &len);
-	if (!sc)
-		return 2;
-
-	if (len != sizeof(*sc))
-		return -FDT_ERR_BADNCELLS;
-
-	val = fdt32_to_cpu(*sc);
-	if ((val < 0) || (val > FDT_MAX_NCELLS))
-		return -FDT_ERR_BADNCELLS;
-
-	return val;
+	return (void *)(uintptr_t)fdt_offset_ptr_(fdt, offset);
 }
+
+static inline const struct fdt_reserve_entry *fdt_mem_rsv_(const void *fdt, int n)
+{
+	const struct fdt_reserve_entry *rsv_table =
+		(const struct fdt_reserve_entry *)
+		((const char *)fdt + fdt_off_mem_rsvmap(fdt));
+
+	return rsv_table + n;
+}
+static inline struct fdt_reserve_entry *fdt_mem_rsv_w_(void *fdt, int n)
+{
+	return (void *)(uintptr_t)fdt_mem_rsv_(fdt, n);
+}
+
+#define FDT_SW_MAGIC		(~FDT_MAGIC)
+
+#endif /* LIBFDT_INTERNAL_H */
