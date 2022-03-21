@@ -26,10 +26,10 @@ void sched_add(thread_t *td) {
   klog("Add thread %ld {%p} to scheduler", td->td_tid, td);
 
   WITH_SPIN_LOCK (td->td_lock)
-    sched_wakeup(td, 0);
+    sched_wakeup(td);
 }
 
-void sched_wakeup(thread_t *td, long reason) {
+void sched_wakeup(thread_t *td) {
   assert(spin_owned(td->td_lock));
   assert(td != thread_self());
   assert(!td_is_running(td));
@@ -41,8 +41,6 @@ void sched_wakeup(thread_t *td, long reason) {
 
   td->td_state = TDS_READY;
   td->td_slice = SLICE;
-
-  ctx_set_retval(td->td_kctx, reason);
 
   runq_add(&runq, td);
 
@@ -122,7 +120,7 @@ static thread_t *sched_choose(void) {
   return td;
 }
 
-long sched_switch(void) {
+void sched_switch(void) {
   thread_t *td = thread_self();
 
   if (!sched_active)
@@ -162,13 +160,13 @@ long sched_switch(void) {
 
   WITH_INTR_DISABLED {
     spin_unlock(td->td_lock);
-    return ctx_switch(td, newtd);
+    ctx_switch(td, newtd);
+    return;
     /* XXX Right now all local variables belong to thread we switched to! */
   }
 
 noswitch:
   spin_unlock(td->td_lock);
-  return 0;
 }
 
 void sched_clock(void) {

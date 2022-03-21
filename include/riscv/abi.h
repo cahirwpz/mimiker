@@ -32,7 +32,7 @@
 /* MODIFIED */
 
 #ifndef _RISCV_ABI_H_
-#define _RISCV_ABI_H
+#define _RISCV_ABI_H_
 
 #define SZREG 4
 

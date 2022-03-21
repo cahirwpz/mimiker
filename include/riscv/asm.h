@@ -63,12 +63,12 @@
   PTR_LA gp, __global_pointer$;                                                \
   .option pop
 
-#ifdef __riscv_f
-#define FP_L flw
-#define FP_S fsw
-#elif defined(__riscv_d)
+#ifdef __riscv_d
 #define FP_L fld
 #define FP_S fsd
+#elif defined(__riscv_f)
+#define FP_L flw
+#define FP_S fsw
 #endif
 
 /*
