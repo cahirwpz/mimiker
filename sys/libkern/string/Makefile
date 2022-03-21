@@ -8,6 +8,7 @@ SRCDIR = $(TOPDIR)/lib/libc/string
 
 SOURCES = bcopy.S \
 	  memcpy.S \
+	  memmove.S \
 	  strlen.S \
 	  bzero.c \
 	  memchr.c \
