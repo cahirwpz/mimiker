@@ -167,7 +167,7 @@ int test_pipe_write_interruptible_sleep(void) {
 
     sigaction(SIGALRM, &sa, NULL);
 
-    int page_size = 4096; // based on implementation of getpagesize()
+    int page_size = getpagesize();
     char data[page_size];
 
     for (int i = 0; i < page_size; i++) {
@@ -211,6 +211,7 @@ int test_pipe_write_errno_eagain(void) {
     int page_size = getpagesize();
     /* prepare varying data */
     char data[page_size];
+
     for (int i = 0; i < page_size; i++) {
       data[i] = (i + '0') % CHAR_MAX;
     }
