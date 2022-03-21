@@ -218,6 +218,6 @@ void thread_continue(thread_t *td) {
     td->td_flags &= ~TDF_STOPPING;
   } else {
     assert(td_is_stopped(td));
-    sched_wakeup(td, 0);
+    sched_wakeup(td);
   }
 }

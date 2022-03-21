@@ -273,7 +273,7 @@ static void wakeup_blocked(td_queue_t *blocked_threads) {
       td->td_blocked = NULL;
       td->td_wchan = NULL;
       td->td_waitpt = NULL;
-      sched_wakeup(td, 0);
+      sched_wakeup(td);
     }
   }
 }

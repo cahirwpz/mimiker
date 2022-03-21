@@ -38,4 +38,6 @@ SOURCES = \
 OBJECTS += fake_dtb.o
 CPPFLAGS = -DKL_LOG=KL_TEST
 
+fdt.o : CPPFLAGS += -I$(TOPDIR)/sys/contrib/libfdt
+
 include $(TOPDIR)/build/build.kern.mk
