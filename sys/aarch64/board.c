@@ -8,11 +8,11 @@
 #include <sys/context.h>
 #include <sys/interrupt.h>
 #include <sys/kasan.h>
-#include <sys/libfdt.h>
 #include <sys/dtb.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
+#include <libfdt/libfdt.h>
 
 /* Return offset of path at dtb or die. */
 static int dtb_offset(void *dtb, const char *path) {
