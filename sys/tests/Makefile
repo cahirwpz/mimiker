@@ -7,8 +7,8 @@ SOURCES = \
 	callout.c \
 	crash.c \
 	devfs.c \
-	fdt.c \
 	kmem.c \
+	libfdt.c \
 	linker_set.c \
 	mutex.c \
 	physmem.c \
@@ -37,7 +37,5 @@ SOURCES = \
 
 OBJECTS += fake_dtb.o
 CPPFLAGS = -DKL_LOG=KL_TEST
-
-fdt.o : CPPFLAGS += -I$(TOPDIR)/sys/contrib/libfdt
 
 include $(TOPDIR)/build/build.kern.mk

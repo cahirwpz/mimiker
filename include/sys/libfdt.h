@@ -1,1 +1,0 @@
-../../sys/contrib/libfdt/libfdt.h

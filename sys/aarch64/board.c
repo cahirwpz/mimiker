@@ -23,7 +23,7 @@ static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
    */
   fdt_mem_reg_t mr[FDT_MAX_MEM_REGS];
   size_t cnt, size;
-  assert(fdt_get_mem(mr, &cnt, &size) == 0);
+  assert(FDT_get_mem(mr, &cnt, &size) == 0);
   assert(cnt == 1);
   snprintf(buf, buflen, "memsize=%lu", size);
   return cmdline_extract_tokens(stk, buf, tokens);
@@ -32,7 +32,7 @@ static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
 static char **process_dtb_initrd(char *buf, size_t buflen, char **tokens,
                                  kstack_t *stk) {
   fdt_mem_reg_t mr;
-  assert(fdt_get_chosen_initrd(&mr) == 0);
+  assert(FDT_get_chosen_initrd(&mr) == 0);
   snprintf(buf, buflen, "rd_start=%lu", mr.addr);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
   snprintf(buf, buflen, "rd_size=%lu", mr.size);
@@ -41,7 +41,7 @@ static char **process_dtb_initrd(char *buf, size_t buflen, char **tokens,
 
 static char **process_dtb_bootargs(char **tokens, kstack_t *stk) {
   const char *bootargs;
-  assert(fdt_get_chosen_bootargs(&bootargs) == 0);
+  assert(FDT_get_chosen_bootargs(&bootargs) == 0);
   return cmdline_extract_tokens(stk, bootargs, tokens);
 }
 
@@ -56,7 +56,7 @@ static void process_dtb(char **tokens, kstack_t *stk) {
 }
 
 void *board_stack(paddr_t dtb) {
-  fdt_early_init(dtb, PHYS_TO_DMAP(dtb));
+  FDT_early_init(dtb, PHYS_TO_DMAP(dtb));
 
   kstack_t *stk = &thread0.td_kstack;
 
@@ -98,7 +98,7 @@ static void rpi3_physmem(void) {
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
   paddr_t dtb_start, dtb_end;
-  fdt_blob_range(&dtb_start, &dtb_end);
+  FDT_blob_range(&dtb_start, &dtb_end);
 
   /* TODO(pj) if vm_physseg_plug* interface was more flexible,
    * we could do without following hack, please refer to issue #1129 */
