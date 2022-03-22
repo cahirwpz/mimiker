@@ -56,6 +56,7 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/libkern.h>
 #else
 #include <stddef.h>
 #include <stdint.h>

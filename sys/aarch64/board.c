@@ -12,6 +12,7 @@
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
+#include <libfdt/libfdt.h>
 
 static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
                               kstack_t *stk) {

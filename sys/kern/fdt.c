@@ -2,10 +2,10 @@
 #include <sys/fdt.h>
 #include <sys/klog.h>
 #include <sys/kmem.h>
-#include <sys/libfdt.h>
 #include <sys/libkern.h>
 #include <sys/mimiker.h>
 #include <sys/vm.h>
+#include <libfdt/libfdt.h>
 
 #define FDT_DEBUG 0
 

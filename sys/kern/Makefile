@@ -97,8 +97,6 @@ sysent.h $(SYSCALL_H) $(SYSCALLARGS_H): syscalls.conf syscalls.master
 	@echo "[MAKESYSCALLS] $(lastword $^) -> $@"
 	$(TOPDIR)/sys/script/makesyscalls.sh $^
 
-fdt.o : CPPFLAGS += -I$(TOPDIR)/sys/contrib/libfdt
-
 kasan.o : CFLAGS_KASAN =
 mcount.o : CFLAGS_KGPROF =
 kcsan.o : CFLAGS_KCSAN =

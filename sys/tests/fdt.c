@@ -1,6 +1,6 @@
 #include <sys/klog.h>
 #include <sys/ktest.h>
-#include <sys/libfdt.h>
+#include <libfdt/libfdt.h>
 
 #define BUF_SIZE 64
 
