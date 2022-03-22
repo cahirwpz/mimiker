@@ -23,7 +23,8 @@ static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
    */
   fdt_mem_reg_t mr[FDT_MAX_MEM_REGS];
   size_t cnt, size;
-  assert(FDT_get_mem(mr, &cnt, &size) == 0);
+  if (FDT_get_mem(mr, &cnt, &size))
+    panic("Failed to retrieve memort regions from DTB!");
   assert(cnt == 1);
   snprintf(buf, buflen, "memsize=%lu", size);
   return cmdline_extract_tokens(stk, buf, tokens);
@@ -32,7 +33,8 @@ static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
 static char **process_dtb_initrd(char *buf, size_t buflen, char **tokens,
                                  kstack_t *stk) {
   fdt_mem_reg_t mr;
-  assert(FDT_get_chosen_initrd(&mr) == 0);
+  if (FDT_get_chosen_initrd(&mr))
+    panic("Failed to retrieve initrd boundaries from DTB!");
   snprintf(buf, buflen, "rd_start=%lu", mr.addr);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
   snprintf(buf, buflen, "rd_size=%lu", mr.size);
@@ -41,7 +43,8 @@ static char **process_dtb_initrd(char *buf, size_t buflen, char **tokens,
 
 static char **process_dtb_bootargs(char **tokens, kstack_t *stk) {
   const char *bootargs;
-  assert(FDT_get_chosen_bootargs(&bootargs) == 0);
+  if (FDT_get_chosen_bootargs(&bootargs))
+    panic("Failed to retrive bootargs from DTB!");
   return cmdline_extract_tokens(stk, bootargs, tokens);
 }
 
