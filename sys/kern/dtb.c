@@ -1,9 +1,9 @@
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/dtb.h>
-#include <sys/fdt.h>
 #include <sys/kmem.h>
 #include <sys/vm.h>
+#include <libfdt/libfdt.h>
 
 /*
  * offset of dtb on first page that contains device tree blob

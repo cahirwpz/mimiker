@@ -93,19 +93,19 @@ static MTX_DEFINE(pv_list_lock, 0);
  * Helper functions.
  */
 static bool user_addr_p(vaddr_t addr) {
-  return (addr >= PMAP_USER_BEGIN) && (addr < PMAP_USER_END);
+  return (addr >= USER_SPACE_BEGIN) && (addr < USER_SPACE_END);
 }
 
 static bool kern_addr_p(vaddr_t addr) {
-  return (addr >= PMAP_KERNEL_BEGIN) && (addr < PMAP_KERNEL_END);
+  return (addr >= KERNEL_SPACE_BEGIN) && (addr < KERNEL_SPACE_END);
 }
 
 inline vaddr_t pmap_start(pmap_t *pmap) {
-  return pmap->asid ? PMAP_USER_BEGIN : PMAP_KERNEL_BEGIN;
+  return pmap->asid ? USER_SPACE_BEGIN : KERNEL_SPACE_BEGIN;
 }
 
 inline vaddr_t pmap_end(pmap_t *pmap) {
-  return pmap->asid ? PMAP_USER_END : PMAP_KERNEL_END;
+  return pmap->asid ? USER_SPACE_END : KERNEL_SPACE_END;
 }
 
 inline bool pmap_address_p(pmap_t *pmap, vaddr_t va) {

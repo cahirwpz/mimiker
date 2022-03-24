@@ -113,7 +113,7 @@ static void rootdev_deactivate_resource(device_t *dev, resource_t *r) {
   /* TODO: unmap mapped resources. */
 }
 
-static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
+static void rootdev_intr_handler(ctx_t *ctx, device_t *dev) {
   rootdev_t *rd = dev->state;
   unsigned pending = (_REG(ctx, CAUSE) & _REG(ctx, SR)) & CR_IP_MASK;
 
@@ -144,7 +144,7 @@ static int rootdev_attach(device_t *bus) {
   rman_init(&rd->irq, "MIPS interrupts");
   rman_manage_region(&rd->irq, 0, MIPS_NIRQ);
 
-  intr_root_claim(rootdev_intr_handler, bus, NULL);
+  intr_root_claim(rootdev_intr_handler, bus);
 
   /* Create MIPS timer device and assign resources to it. */
   device_t *dev = device_add_child(bus, 0);
