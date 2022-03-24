@@ -132,21 +132,21 @@ ssize_t FDT_getencprop(phandle_t node, const char *propname, pcell_t *buf,
   return ret;
 }
 
-int FDT_addrsize_cells(phandle_t node, int *addr_cells, int *size_cells) {
+int FDT_addrsize_cells(phandle_t node, int *addr_cellsp, int *size_cellsp) {
   const ssize_t cell_size = sizeof(pcell_t);
   pcell_t cell;
 
   /* Retrieve #address-cells. */
   if (FDT_getencprop(node, "#address-cells", &cell, cell_size) < cell_size)
     cell = FDT_DEF_ADDR_CELLS;
-  *addr_cells = (int)cell;
+  *addr_cellsp = (int)cell;
 
   /* Retrieve #size-cells. */
   if (FDT_getencprop(node, "#size-cells", &cell, cell_size) < cell_size)
     cell = FDT_DEF_SIZE_CELLS;
-  *size_cells = (int)cell;
+  *size_cellsp = (int)cell;
 
-  if (*addr_cells > FDT_MAX_ADDR_CELLS || *size_cells > FDT_MAX_SIZE_CELLS)
+  if (*addr_cellsp > FDT_MAX_ADDR_CELLS || *size_cellsp > FDT_MAX_SIZE_CELLS)
     return ERANGE;
   return 0;
 }
@@ -157,18 +157,18 @@ u_long FDT_data_get(pcell_t *data, int cells) {
   return fdt64_to_cpu(*(uint64_t *)data);
 }
 
-int FDT_data_to_res(pcell_t *data, int addr_cells, int size_cells, u_long *addr,
-                    u_long *size) {
+int FDT_data_to_res(pcell_t *data, int addr_cells, int size_cells,
+                    u_long *addrp, u_long *sizep) {
   /* Address portion. */
   if (addr_cells > FDT_MAX_ADDR_CELLS)
     return ERANGE;
-  *addr = FDT_data_get(data, addr_cells);
+  *addrp = FDT_data_get(data, addr_cells);
   data += addr_cells;
 
   /* Size portion. */
   if (size_cells > FDT_MAX_SIZE_CELLS)
     return ERANGE;
-  *size = FDT_data_get(data, size_cells);
+  *sizep = FDT_data_get(data, size_cells);
 
   return 0;
 }
@@ -185,9 +185,6 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
   if (err)
     return err;
 
-  if (addr_cells + size_cells > FDT_MAX_REG_CELLS)
-    return ERANGE;
-
   size_t cnt = 0;
   for (phandle_t child = FDT_child(rsv); child != FDT_NODEV;
        child = FDT_peer(child)) {
@@ -197,9 +194,8 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
       continue;
     if (FDT_getprop(child, "reg", reg, FDT_MAX_REG_CELLS) < 0)
       continue;
-    if ((err = FDT_data_to_res(reg, addr_cells, size_cells, &mrs[cnt].addr,
-                               &mrs[cnt].size)))
-      return err;
+    FDT_data_to_res(reg, addr_cells, size_cells, &mrs[cnt].addr,
+                    &mrs[cnt].size);
     cnt++;
   }
   *cntp = cnt;
