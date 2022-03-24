@@ -64,6 +64,8 @@ typedef int filt_event_t(knote_t *kn, long hint);
 
 /*
  * Callback methods for each filter type.
+ *
+ * `filt_event` is called WITH `kn_objlock` taken.
  */
 typedef struct filterops {
   filt_attach_t *filt_attach;
