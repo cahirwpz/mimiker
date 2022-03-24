@@ -62,7 +62,7 @@ phandle_t FDT_finddevice(const char *device);
 /*
  * Obtain the handle of the first child of device node `node`.
  *
- *  Returns:
+ * Returns:
  *  - `FDT_NODEV`: the node doesn't have any subnodes
  *  - otherwise: phandle of the first child
  */
@@ -71,7 +71,7 @@ phandle_t FDT_child(phandle_t node);
 /*
  * Obtain the handle of the next sibling of device node `node`.
  *
- *  Returns:
+ * Returns:
  *  - `FDT_NODEV`: the node doesn't have any siblings
  *  - otherwise: phandle of the peer
  */
@@ -80,7 +80,7 @@ phandle_t FDT_peer(phandle_t node);
 /*
  * Get the handle of the parent of device node `node`.
  *
- * Error codes:
+ * Returns
  *  - `FDT_NODEV`: the pointed node or FDT state is invalid
  *  - 0: `node` is the root node
  *  - otherwise: phandle of the parent node

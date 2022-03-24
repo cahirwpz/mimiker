@@ -24,7 +24,7 @@ static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
   fdt_mem_reg_t mr[FDT_MAX_MEM_REGS];
   size_t cnt, size;
   if (FDT_get_mem(mr, &cnt, &size))
-    panic("Failed to retrieve memort regions from DTB!");
+    panic("Failed to retrieve memory regions from DTB!");
   assert(cnt == 1);
   snprintf(buf, buflen, "memsize=%lu", size);
   return cmdline_extract_tokens(stk, buf, tokens);
@@ -44,13 +44,14 @@ static char **process_dtb_initrd(char *buf, size_t buflen, char **tokens,
 static char **process_dtb_bootargs(char **tokens, kstack_t *stk) {
   const char *bootargs;
   if (FDT_get_chosen_bootargs(&bootargs))
-    panic("Failed to retrive bootargs from DTB!");
+    panic("Failed to retrieve bootargs from DTB!");
   return cmdline_extract_tokens(stk, bootargs, tokens);
 }
 
 static void process_dtb(char **tokens, kstack_t *stk) {
   char buf[32];
 
+  /* TODO: process reserved memory regions. */
   tokens = process_dtb_mem(buf, sizeof(buf), tokens, stk);
   tokens = process_dtb_initrd(buf, sizeof(buf), tokens, stk);
   tokens = process_dtb_bootargs(tokens, stk);
