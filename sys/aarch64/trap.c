@@ -180,8 +180,6 @@ __no_profile void kern_exc_handler(ctx_t *ctx, kexc_reason_t reason) {
   assert(td->td_idnest == 0);
   assert(cpu_intr_disabled());
 
-  /* Save the previous kernel exception frame pointer
-   * and set the pointer to the current frame. */
   ctx_t *kframe_saved = td->td_kframe;
   td->td_kframe = ctx;
 

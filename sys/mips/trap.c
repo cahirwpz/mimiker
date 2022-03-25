@@ -268,8 +268,6 @@ __no_profile void mips_exc_handler(ctx_t *ctx) {
     register_t sp = mips32_get_sp();
     if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t))
       panic("Kernel stack overflow caught at $%08lx!", _REG(ctx, EPC));
-    /* Save the previous kernel exception frame pointer
-     * and set the pointer to the current frame. */
     kframe_saved = td->td_kframe;
     td->td_kframe = ctx;
   }
