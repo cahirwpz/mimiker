@@ -21,9 +21,9 @@ static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
    * This assumption should be removed and the memory boundaries
    * should be read from dtb (thus `mr` shouldn't be discarded).
    */
-  fdt_mem_reg_t mr[FDT_MAX_MEM_REGS];
+  fdt_mem_reg_t mrs[FDT_MAX_MEM_REGS];
   size_t cnt, size;
-  if (FDT_get_mem(mr, &cnt, &size))
+  if (FDT_get_mem(mrs, &cnt, &size))
     panic("Failed to retrieve memory regions from DTB!");
   assert(cnt == 1);
   snprintf(buf, buflen, "memsize=%lu", size);
