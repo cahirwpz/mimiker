@@ -42,8 +42,6 @@ void pmap_delete(pmap_t *pmap) {
 
 void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va) {
   uint32_t dmap_size = kenv_get_ulong("mem_size");
-
-  /* Obtain basic parameters. */
   dmap_paddr_base = kenv_get_ulong("mem_start");
   dmap_paddr_end = dmap_paddr_base + dmap_size;
   kernel_pde = pd_pa;

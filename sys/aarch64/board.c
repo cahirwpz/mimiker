@@ -8,40 +8,59 @@
 #include <sys/context.h>
 #include <sys/interrupt.h>
 #include <sys/kasan.h>
-#include <sys/dtb.h>
+#include <sys/fdt.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
 #include <libfdt/libfdt.h>
 
-static void process_dtb(char **tokens, kstack_t *stk) {
-  char buf[32];
-  unsigned long start, size;
-
+static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
+                              kstack_t *stk) {
   /*
-   * Memory boundaries.
    * TODO: we assume that physical memory starts at fixed address 0.
    * This assumption should be removed and the memory boundaries
-   * should be read from dtb (thus `start` shouldn't be discarded).
+   * should be read from dtb (thus `mr` shouldn't be discarded).
    */
-  dtb_mem(&start, &size);
-  snprintf(buf, sizeof(buf), "memsize=%lu", size);
-  tokens = cmdline_extract_tokens(stk, buf, tokens);
+  fdt_mem_reg_t mr[FDT_MAX_MEM_REGS];
+  size_t cnt, size;
+  if (FDT_get_mem(mr, &cnt, &size))
+    panic("Failed to retrieve memory regions from DTB!");
+  assert(cnt == 1);
+  snprintf(buf, buflen, "memsize=%lu", size);
+  return cmdline_extract_tokens(stk, buf, tokens);
+}
 
-  /* Initrd boundaries. */
-  dtb_rd(&start, &size);
-  snprintf(buf, sizeof(buf), "rd_start=%lu", start);
+static char **process_dtb_initrd(char *buf, size_t buflen, char **tokens,
+                                 kstack_t *stk) {
+  fdt_mem_reg_t mr;
+  if (FDT_get_chosen_initrd(&mr))
+    panic("Failed to retrieve initrd boundaries from DTB!");
+  snprintf(buf, buflen, "rd_start=%lu", mr.addr);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "rd_size=%lu", size);
-  tokens = cmdline_extract_tokens(stk, buf, tokens);
+  snprintf(buf, buflen, "rd_size=%lu", mr.size);
+  return cmdline_extract_tokens(stk, buf, tokens);
+}
 
-  /* Kernel cmdline. */
-  tokens = cmdline_extract_tokens(stk, dtb_cmdline(), tokens);
+static char **process_dtb_bootargs(char **tokens, kstack_t *stk) {
+  const char *bootargs;
+  if (FDT_get_chosen_bootargs(&bootargs))
+    panic("Failed to retrieve bootargs from DTB!");
+  return cmdline_extract_tokens(stk, bootargs, tokens);
+}
+
+static void process_dtb(char **tokens, kstack_t *stk) {
+  char buf[32];
+
+  /* TODO: process reserved memory regions. */
+  tokens = process_dtb_mem(buf, sizeof(buf), tokens, stk);
+  tokens = process_dtb_initrd(buf, sizeof(buf), tokens, stk);
+  tokens = process_dtb_bootargs(tokens, stk);
+
   *tokens = NULL;
 }
 
 void *board_stack(paddr_t dtb) {
-  dtb_early_init(dtb, PHYS_TO_DMAP(dtb));
+  FDT_early_init(dtb, PHYS_TO_DMAP(dtb));
 
   kstack_t *stk = &thread0.td_kstack;
 
@@ -82,8 +101,8 @@ static void rpi3_physmem(void) {
   paddr_t kern_end = (paddr_t)_bootmem_end;
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
-  paddr_t dtb_start = rounddown(dtb_early_root(), PAGESIZE);
-  paddr_t dtb_end = dtb_start + dtb_size();
+  paddr_t dtb_start, dtb_end;
+  FDT_get_blob_range(&dtb_start, &dtb_end);
 
   /* TODO(pj) if vm_physseg_plug* interface was more flexible,
    * we could do without following hack, please refer to issue #1129 */
