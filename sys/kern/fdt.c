@@ -76,7 +76,7 @@ phandle_t FDT_child(phandle_t node) {
 phandle_t FDT_peer(phandle_t node) {
   int peer = fdt_next_subnode(fdtp, node);
   if (peer < 0) {
-    /* There are no mode subnodes. */
+    /* There are no more subnodes. */
     return FDT_NODEV;
   }
   return (phandle_t)peer;
@@ -137,12 +137,12 @@ int FDT_addrsize_cells(phandle_t node, int *addr_cellsp, int *size_cellsp) {
   pcell_t cell;
 
   /* Retrieve #address-cells. */
-  if (FDT_getencprop(node, "#address-cells", &cell, cell_size) < cell_size)
+  if (FDT_getencprop(node, "#address-cells", &cell, cell_size) != cell_size)
     cell = FDT_DEF_ADDR_CELLS;
   *addr_cellsp = (int)cell;
 
   /* Retrieve #size-cells. */
-  if (FDT_getencprop(node, "#size-cells", &cell, cell_size) < cell_size)
+  if (FDT_getencprop(node, "#size-cells", &cell, cell_size) != cell_size)
     cell = FDT_DEF_SIZE_CELLS;
   *size_cellsp = (int)cell;
 
@@ -247,8 +247,9 @@ int FDT_get_chosen_initrd(fdt_mem_reg_t *mr) {
   if (chosen == FDT_NODEV)
     return ENXIO;
 
-  if (!FDT_hasprop(chosen, "linux,initrd-start") ||
-      !FDT_hasprop(chosen, "linux,initrd-end"))
+  if (!FDT_hasprop(chosen, "linux,initrd-start"))
+    return ENXIO;
+  if (!FDT_hasprop(chosen, "linux,initrd-end"))
     return ENXIO;
 
   pcell_t cell[2];
@@ -258,9 +259,10 @@ int FDT_get_chosen_initrd(fdt_mem_reg_t *mr) {
   /* Retrieve start addr. */
   const size_t start_size =
     FDT_getencprop(chosen, "linux,initrd-start", cell, sizeof(cell));
-  if ((cells = start_size / sizeof(pcell_t)) > FDT_MAX_ADDR_CELLS)
+  cells = start_size / sizeof(pcell_t);
+  if (cells > FDT_MAX_ADDR_CELLS)
     return ERANGE;
-  if (cells == 1)
+  else if (cells == 1)
     start = *(uint32_t *)cell;
   else
     start = *(uint64_t *)cell;
@@ -268,9 +270,10 @@ int FDT_get_chosen_initrd(fdt_mem_reg_t *mr) {
   /* Retrieve end addr. */
   const size_t end_size =
     FDT_getencprop(chosen, "linux,initrd-end", cell, sizeof(cell));
-  if ((cells = end_size / sizeof(pcell_t)) > FDT_MAX_ADDR_CELLS)
+  cells = end_size / sizeof(pcell_t);
+  if (cells > FDT_MAX_ADDR_CELLS)
     return ERANGE;
-  if (cells == 1)
+  else if (cells == 1)
     end = *(uint32_t *)cell;
   else
     end = *(uint64_t *)cell;
