@@ -14,12 +14,6 @@
 #include <aarch64/armreg.h>
 #include <aarch64/pmap.h>
 
-/* Kernel exception reason. */
-typedef enum kexc_reason {
-  KEXC_TRAP,
-  KEXC_INTR,
-} kexc_reason_t;
-
 static __noreturn void kernel_oops(ctx_t *ctx) {
   panic("KERNEL PANIC!!!");
 }
@@ -175,7 +169,7 @@ void kern_trap_handler(ctx_t *ctx) {
   }
 }
 
-__no_profile void kern_exc_handler(ctx_t *ctx, kexc_reason_t reason) {
+__no_profile void kern_exc_handler(ctx_t *ctx, bool intr) {
   thread_t *td = thread_self();
   assert(td->td_idnest == 0);
   assert(cpu_intr_disabled());
@@ -183,12 +177,10 @@ __no_profile void kern_exc_handler(ctx_t *ctx, kexc_reason_t reason) {
   ctx_t *kframe_saved = td->td_kframe;
   td->td_kframe = ctx;
 
-  if (reason == KEXC_TRAP) {
-    kern_trap_handler(ctx);
-  } else {
-    assert(reason == KEXC_INTR);
+  if (intr)
     intr_root_handler(ctx);
-  }
+  else
+    kern_trap_handler(ctx);
 
   td->td_kframe = kframe_saved;
 }
