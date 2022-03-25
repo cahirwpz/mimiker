@@ -59,6 +59,7 @@
  * as it will be overwritten in `pmap_bootstrap` where the temporary mappings
  * will be dropped.
  */
+#define KL_LOG KL_INIT
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>

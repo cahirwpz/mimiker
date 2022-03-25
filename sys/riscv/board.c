@@ -1,4 +1,4 @@
-#define KL_LOG KL_DEV
+#define KL_LOG KL_INIT
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/cmdline.h>
