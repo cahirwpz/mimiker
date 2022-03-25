@@ -45,7 +45,7 @@ void FDT_init(void);
  *  - `startp`: dst for the first address
  *  - `endp`: dst for the first address after the blob
  */
-void FDT_blob_range(paddr_t *startp, paddr_t *endp);
+void FDT_get_blob_range(paddr_t *startp, paddr_t *endp);
 
 /*
  * Find the package handle of a pointed device in the device tree.

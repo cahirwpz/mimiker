@@ -50,7 +50,7 @@ void FDT_init(void) {
     fdtp = (void *)kmem_map_contig(fdt_pa, fdt_size, 0);
 }
 
-void FDT_blob_range(paddr_t *startp, paddr_t *endp) {
+void FDT_get_blob_range(paddr_t *startp, paddr_t *endp) {
   *startp = fdt_pa;
   *endp = fdt_pa + fdt_size;
 }
