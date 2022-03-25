@@ -145,7 +145,8 @@ ENTRY(handle_kern_trap)
         .cfi_signal_frame
         save_ctx 1
         mov     x0, sp
-        bl      kern_trap_handler
+        ldr     x1, =0x0
+        bl      kern_exc_handler
 kern_exc_leave:
         load_ctx 1
         eret
@@ -155,7 +156,8 @@ ENTRY(handle_kern_intr)
         .cfi_signal_frame
         save_ctx 1
         mov     x0, sp
-        bl      intr_root_handler
+        ldr     x1, =0x1
+        bl      kern_exc_handler
         load_ctx 1
         eret
 END(handle_kern_intr)
