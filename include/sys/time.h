@@ -207,6 +207,8 @@ systime_t getsystime(void);
 
 timespec_t nanotime(void);
 
+systime_t ts2hz(const timespec_t *ts);
+
 int do_clock_gettime(clockid_t clk, timespec_t *tp);
 
 int do_clock_nanosleep(clockid_t clk, int flags, timespec_t *rqtp,
@@ -216,6 +218,8 @@ int do_getitimer(proc_t *p, int which, struct itimerval *tval);
 
 int do_setitimer(proc_t *p, int which, const struct itimerval *itval,
                  struct itimerval *oval);
+
+void mdelay(systime_t ms);
 
 #else /* _KERNEL */
 

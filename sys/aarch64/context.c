@@ -22,10 +22,6 @@ void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg) {
   _REG(ctx, X0) = arg;
 }
 
-void ctx_set_retval(ctx_t *ctx, long value) {
-  _REG(ctx, X0) = value;
-}
-
 register_t ctx_get_pc(ctx_t *ctx) {
   return _REG(ctx, PC);
 }
@@ -50,7 +46,7 @@ void mcontext_restart_syscall(mcontext_t *ctx) {
   _REG(ctx, PC) -= 4; /* TODO subtract 2 if in thumb mode */
 }
 
-bool user_mode_p(ctx_t *ctx) {
+__no_profile bool user_mode_p(ctx_t *ctx) {
   return (_REG(ctx, SPSR) & PSR_M_MASK) == PSR_M_EL0t;
 }
 

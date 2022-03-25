@@ -161,7 +161,7 @@ static int stdvga_write(vnode_t *v, uio_t *uio) {
   return uiomove_frombuf((void *)vga->mem->r_bus_handle, size, uio);
 }
 
-static int stdvga_ioctl(vnode_t *v, u_long cmd, void *data) {
+static int stdvga_ioctl(vnode_t *v, u_long cmd, void *data, file_t *fp) {
   stdvga_state_t *vga = devfs_node_data(v);
 
   if (cmd == FBIOCGET_FBINFO) {

@@ -174,6 +174,7 @@ void vattr_null(vattr_t *va) {
   va->va_uid = VNOVAL;
   va->va_gid = VNOVAL;
   va->va_size = VNOVAL;
+  va->va_flags = 0;
   va->va_atime.tv_sec = va->va_mtime.tv_sec = va->va_ctime.tv_sec = VNOVAL;
   va->va_atime.tv_nsec = va->va_mtime.tv_nsec = va->va_ctime.tv_nsec = VNOVAL;
 }
@@ -282,7 +283,7 @@ int default_vnioctl(file_t *f, u_long cmd, void *data) {
     case V_LNK:
       break;
     case V_DEV:
-      error = VOP_IOCTL(v, cmd, data);
+      error = VOP_IOCTL(v, cmd, data, f);
       break;
   }
 

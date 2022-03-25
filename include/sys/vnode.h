@@ -24,6 +24,11 @@ typedef struct cred cred_t;
  * vnodeops should not modify attributes set to VNOVAL. */
 #define VNOVAL (-1)
 
+/* Flags for vattr:va_flags. */
+typedef enum {
+  VA_UTIMES_NULL = 1, /* Utimes argument was null. */
+} va_flags_t;
+
 /* vnode access modes
  * VADMIN - owner of file (root has VADMIN to all files) */
 typedef enum { VEXEC = 1, VWRITE = 2, VREAD = 4, VADMIN = 8 } accmode_t;
@@ -46,7 +51,7 @@ typedef int vnode_mkdir_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
                           vnode_t **vp);
 typedef int vnode_rmdir_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
 typedef int vnode_access_t(vnode_t *v, accmode_t mode, cred_t *cred);
-typedef int vnode_ioctl_t(vnode_t *v, u_long cmd, void *data);
+typedef int vnode_ioctl_t(vnode_t *v, u_long cmd, void *data, file_t *fp);
 typedef int vnode_reclaim_t(vnode_t *v);
 typedef int vnode_readlink_t(vnode_t *v, uio_t *uio);
 typedef int vnode_symlink_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
@@ -113,6 +118,7 @@ typedef struct vattr {
   uid_t va_uid;        /* owner user id */
   gid_t va_gid;        /* owner group id */
   size_t va_size;      /* file size in bytes */
+  va_flags_t va_flags; /* additional flags */
   timespec_t va_atime; /* time of last access */
   timespec_t va_mtime; /* time of last data modification */
   timespec_t va_ctime; /* time of last file status change */
@@ -183,8 +189,8 @@ static inline int VOP_ACCESS(vnode_t *v, mode_t mode, cred_t *cred) {
   return VOP_CALL(access, v, mode, cred);
 }
 
-static inline int VOP_IOCTL(vnode_t *v, u_long cmd, void *data) {
-  return VOP_CALL(ioctl, v, cmd, data);
+static inline int VOP_IOCTL(vnode_t *v, u_long cmd, void *data, file_t *fp) {
+  return VOP_CALL(ioctl, v, cmd, data, fp);
 }
 
 static inline int VOP_RECLAIM(vnode_t *v) {

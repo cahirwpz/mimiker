@@ -1,0 +1,16 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <0x01>;
+	#size-cells = <0x01>;
+
+	memory@0 {
+		reg = <0x00 0x3c000000>;
+		device_type = "memory";
+	};
+
+	soc {
+		#address-cells = <0x01>;
+		#size-cells = <0x01>;
+	};
+};

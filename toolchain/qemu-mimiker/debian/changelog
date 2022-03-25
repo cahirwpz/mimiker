@@ -1,3 +1,9 @@
+qemu-mimiker (6.0.0+mimiker1) unstable; urgency=medium
+
+  * Bump up version.
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Mon, 07 Jun 2021 11:04:47 +0200
+
 qemu-mimiker (4.2.1+mimiker3) unstable; urgency=medium
 
   * Add system simulator for AMD64.

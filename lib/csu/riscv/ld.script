@@ -1,0 +1,66 @@
+OUTPUT_ARCH(riscv)
+ENTRY(_start)
+
+INPUT(crt0.o crt0-common.o -lc -lgcc -lm)
+
+PHDRS
+{
+  text   PT_LOAD FLAGS(5); /* read-only, executable */
+  rodata PT_LOAD FLAGS(4); /* read-only */
+  data   PT_LOAD FLAGS(6); /* read-write */
+  bss    PT_LOAD FLAGS(6); /* read-write */
+}
+
+SECTIONS
+{
+  .text 0x00400000 :
+  {
+    *(.text .text.*)
+  } : text
+
+  .eh_frame :
+  {
+    *(.eh_frame)
+  } : text
+
+  .rodata : ALIGN(4096)
+  {
+    *(.rodata .rodata.*)
+  } : rodata
+
+  .data : ALIGN(4096)
+  {
+    *(.data .data.*)
+  } : data
+
+  /* Refer to kernel linker script to understand relation between
+   * `__global_pointer$` and small sections (`.srodata`, `.sdata`, `.sbss`) */
+
+  .sdata :
+  {
+    /* Load/store instruction offset is 12 bits (sign extended). */
+    __global_pointer$ = . + 0x800;
+    *(.srodata .srodata.*)
+    *(.sdata .sdata.*)
+  }
+  
+  .bss : ALIGN(4096)
+  {
+    *(.sbss .sbss.*)
+    *(.scommon)
+    *(.bss .bss.*)
+    *(.common)
+  } : bss
+
+  /DISCARD/ :
+  {
+    *(.comment)
+    *(.note .note.*)
+    *(.options)
+    *(.pdr)
+    *(.reginfo)
+    *(.gnu.attributes)
+  }
+}
+
+/* vim: set ft=ld: */

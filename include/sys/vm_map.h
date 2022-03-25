@@ -65,6 +65,7 @@ vaddr_t vm_map_end(vm_map_t *map);
 /*! \brief Reports start & end addresses that are handled by the entry. */
 vaddr_t vm_map_entry_start(vm_map_entry_t *ent);
 vaddr_t vm_map_entry_end(vm_map_entry_t *ent);
+vm_map_entry_t *vm_map_entry_next(vm_map_entry_t *ent);
 
 /*! \brief Looks up a gap of \a length size in \a map.
  *
