@@ -13,6 +13,11 @@ int select(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
     struct kevent *events;
     int nevents = 0;
 
+    if (nfds < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
     if (timeout != NULL)
         tv2ts(timeout, &timeout_ts);
 
@@ -21,6 +26,12 @@ int select(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
         return -1;
 
     events = malloc(2 * nfds * sizeof(struct kevent));
+    if (!events) {
+        errno = ENOMEM;
+        ret = -1;
+        goto close_kq;
+    }
+
     for (int i = 0; i < nfds; i++) {
         if (readfds != NULL && FD_ISSET(i, readfds))
             EV_SET(&events[nevents++], i, EVFILT_READ, EV_ADD, 0, 0, 0);
@@ -50,7 +61,8 @@ int select(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
     }
 
 end:
-    close(kq);
     free(events);
+close_kq:
+    close(kq);
     return ret;
 }
