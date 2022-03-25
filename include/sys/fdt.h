@@ -121,7 +121,7 @@ int FDT_hasprop(phandle_t node, const char *propname);
  * `buflen` is specified in bytes not in cells.
  *
  * Returns:
- *  - >= 0: actual size of the property
+ *  - >= 0: actual size of the property in bytes
  *  - -1: the property does not exist in the pointed node
  */
 ssize_t FDT_getprop(phandle_t node, const char *propname, pcell_t *buf,
@@ -133,7 +133,6 @@ ssize_t FDT_getprop(phandle_t node, const char *propname, pcell_t *buf,
  *
  * `buflen` must be divisible by 4 (`sizeof(pcell_t)`),
  * otherwise -1 is returned.
- *
  */
 ssize_t FDT_getencprop(phandle_t node, const char *propname, pcell_t *buf,
                        size_t buflen);
