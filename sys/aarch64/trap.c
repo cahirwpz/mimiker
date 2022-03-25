@@ -15,7 +15,7 @@
 #include <aarch64/pmap.h>
 
 /* Kernel exception reason. */
-typedef enum {
+typedef enum kexc_reason {
   KEXC_TRAP,
   KEXC_INTR,
 } kexc_reason_t;
