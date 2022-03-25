@@ -42,7 +42,7 @@ void FDT_early_init(paddr_t pa, vaddr_t va) {
 
   fdt_pa = rounddown(pa, PAGESIZE);
   fdtp = fdt;
-  fdt_size = roundup(fdt_pa + totalsize, PAGESIZE);
+  fdt_size = roundup(totalsize, PAGESIZE);
 }
 
 void FDT_init(void) {
