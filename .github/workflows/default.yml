@@ -29,7 +29,7 @@ jobs:
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v2
-      - run: make BOARD=malta KASAN=1
+      - run: make BOARD=malta KASAN=1 LOCKDEP=1
       - uses: actions/upload-artifact@v2
         with:
           name: "mips gcc kernel+ramdisk"
@@ -63,7 +63,7 @@ jobs:
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v2
-      - run: make KASAN=1 BOARD=rpi3
+      - run: make KASAN=1 BOARD=rpi3 LOCKDEP=1
       - uses: actions/upload-artifact@v2
         with:
           name: "aarch64 gcc kernel+ramdisk"
@@ -71,6 +71,9 @@ jobs:
             sys/mimiker.elf
             sys/mimiker.img.gz
             sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            sys/dts/*.dtb
             initrd.cpio
 
   build_aarch64_clang:
