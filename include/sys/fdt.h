@@ -1,3 +1,12 @@
+/*
+ * Based on the following FreeBSD files:
+ *  - `sys/dev/fdt/fdt_common.c`,
+ *  - `sys/dev/ofw/openfirm.c`,
+ *  - `sys/dev/ofw/ofw_fdt.c`.
+ *
+ * More details regarding most presented functions can be found on appropriate
+ * FreeBSD manual pages.
+ */
 #ifndef _SYS_FDT_H_
 #define _SYS_FDT_H_
 
