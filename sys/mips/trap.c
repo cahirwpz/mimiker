@@ -257,12 +257,8 @@ __no_profile void mips_exc_handler(ctx_t *ctx) {
   assert(td->td_idnest == 0);
   assert(cpu_intr_disabled());
 
-  /* Save the previous kernel exception frame pointer
-   * and set the pointer to the current frame. */
-  ctx_t *kframe_saved = td->td_kframe;
-  td->td_kframe = ctx;
-
   bool user_mode = user_mode_p(ctx);
+  ctx_t *kframe_saved;
 
   if (!user_mode) {
     /* If there's not enough space on the stack to store another exception
@@ -272,6 +268,10 @@ __no_profile void mips_exc_handler(ctx_t *ctx) {
     register_t sp = mips32_get_sp();
     if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t))
       panic("Kernel stack overflow caught at $%08lx!", _REG(ctx, EPC));
+    /* Save the previous kernel exception frame pointer
+     * and set the pointer to the current frame. */
+    kframe_saved = td->td_kframe;
+    td->td_kframe = ctx;
   }
 
   if (exc_code(ctx)) {
@@ -283,5 +283,6 @@ __no_profile void mips_exc_handler(ctx_t *ctx) {
     intr_root_handler(ctx);
   }
 
-  td->td_kframe = kframe_saved;
+  if (!user_mode)
+    td->td_kframe = kframe_saved;
 }
