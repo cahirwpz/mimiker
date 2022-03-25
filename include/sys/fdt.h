@@ -72,7 +72,7 @@ phandle_t FDT_child(phandle_t node);
  * Obtain the handle of the next sibling of device node `node`.
  *
  * `FDT_child` and `FDT_peer` are used to iterate over all children
- * of a given device node. Here is examplary code:
+ * of a given device node. Here is example code:
  *
  *   for (phandle_t child = FDT_child(rsv); child != FDT_NODEV;
  *     child = FDT_peer(child)) {
