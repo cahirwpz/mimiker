@@ -49,8 +49,6 @@
  *
  *   - preparing bss,
  *
- *   - initializing klog,
- *
  *   - processing borad stack (this includes kernel environment setting),
  *
  *   - performing pmap bootstrap (this includes creating dmap),
@@ -61,7 +59,6 @@
  * as it will be overwritten in `pmap_bootstrap` where the temporary mappings
  * will be dropped.
  */
-#define KL_LOG KL_DEV
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
@@ -262,8 +259,6 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
   csr_write(stvec, cpu_exception_handler);
 
   clear_bss();
-
-  init_klog();
 
   void *sp = board_stack(dtb, BOOT_DTB_VADDR);
 

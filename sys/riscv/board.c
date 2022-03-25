@@ -173,7 +173,7 @@ static void physmem_regions(void) {
 
 void __noreturn board_init(void) {
   init_kasan();
-  klog_config();
+  init_klog();
   /* TODO(MichalBlk): initialize SBI. */
   physmem_regions();
   /* Disable each supervisor interrupt. */
