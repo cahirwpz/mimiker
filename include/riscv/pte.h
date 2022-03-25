@@ -79,8 +79,8 @@ typedef uint16_t asid_t;     /* address space identifier */
 #define PTE_RWX (PTE_R | PTE_W | PTE_X)
 #define PTE_RX (PTE_R | PTE_X)
 #define PTE_KERN                                                               \
-  (PTE_V | PTE_R | PTE_W | PTE_G | PTE_A | PTE_D | PTE_SW_READ | PTE_SW_WRITE)
-#define PTE_KERN_RO (PTE_V | PTE_R | PTE_G | PTE_A)
+  (PTE_SW_WRITE | PTE_SW_READ | PTE_D | PTE_A | PTE_G | PTE_W | PTE_R | PTE_V)
+#define PTE_KERN_RO (PTE_SW_READ | PTE_A | PTE_G | PTE_R | PTE_V)
 #define PTE_PROT_MASK (PTE_SW_FLAGS | PTE_D | PTE_A | PTE_RWX | PTE_V)
 
 #define PTE_PPN0_S 10
