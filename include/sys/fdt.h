@@ -95,7 +95,7 @@ phandle_t FDT_parent(phandle_t node);
  *  - >= 0: the actual length
  *  - -1: the property does not exist in the pointed node
  */
-ssize_t FDT_getptoplen(phandle_t node, const char *propname);
+ssize_t FDT_getproplen(phandle_t node, const char *propname);
 
 /*
  * Verify if node `node` has property specified by `propname`.
