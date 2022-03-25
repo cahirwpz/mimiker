@@ -1,9 +1,9 @@
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/dtb.h>
-#include <sys/fdt.h>
 #include <sys/kmem.h>
 #include <sys/vm.h>
+#include <libfdt/libfdt.h>
 
 #define DTB_ROOT_NODE 0
 
@@ -57,7 +57,7 @@ void dtb_init(void) {
 static int dtb_offset(const char *path) {
   int offset = fdt_path_offset(_dtb_root, path);
   if (offset < 0)
-    panic("Failed to find dtb offset for %s!");
+    panic("Failed to find dtb offset for %s!", path);
   return offset;
 }
 
@@ -150,7 +150,7 @@ void dtb_reg(int parent, int node, unsigned long *addr_p,
  * XXX: FTTB, we assume a single physical memory range.
  */
 void dtb_mem(unsigned long *addr_p, unsigned long *size_p) {
-  int node = dtb_offset("memory");
+  int node = dtb_offset("/memory");
   dtb_reg(DTB_ROOT_NODE, node, addr_p, size_p);
 }
 
@@ -158,7 +158,7 @@ void dtb_mem(unsigned long *addr_p, unsigned long *size_p) {
  * XXX: FTTB, we assume a single reserved memory range.
  */
 void dtb_rsvdmem(unsigned long *addr_p, unsigned long *size_p) {
-  int node = dtb_offset("reserved-memory");
+  int node = dtb_offset("/reserved-memory");
   int subnode = fdt_first_subnode(_dtb_root, node);
   if (subnode < 0)
     panic("reserved-memory node doesn't contain any range!");
@@ -166,12 +166,12 @@ void dtb_rsvdmem(unsigned long *addr_p, unsigned long *size_p) {
 }
 
 void dtb_rd(unsigned long *addr_p, unsigned long *size_p) {
-  int node = dtb_offset("chosen");
+  int node = dtb_offset("/chosen");
   *addr_p = dtb_addr(DTB_ROOT_NODE, node, "linux,initrd-start");
   *size_p = dtb_addr(DTB_ROOT_NODE, node, "linux,initrd-end") - *addr_p;
 }
 
 const char *dtb_cmdline(void) {
-  int node = dtb_offset("chosen");
+  int node = dtb_offset("/chosen");
   return dtb_str(node, "bootargs");
 }

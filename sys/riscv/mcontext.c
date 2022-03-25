@@ -37,7 +37,7 @@ void mcontext_restart_syscall(mcontext_t *ctx) {
   panic("Not implemented!");
 }
 
-long ctx_switch(thread_t *from, thread_t *to) {
+void ctx_switch(thread_t *from, thread_t *to) {
   panic("Not implemented!");
 }
 

@@ -12,6 +12,7 @@
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
+#include <libfdt/libfdt.h>
 
 static void process_dtb(char **tokens, kstack_t *stk) {
   char buf[32];
@@ -113,7 +114,7 @@ static void rpi3_physmem(void) {
 
 __noreturn void board_init(void) {
   init_kasan();
-  klog_config();
+  init_klog();
   rpi3_physmem();
   intr_enable();
   kernel_init();
