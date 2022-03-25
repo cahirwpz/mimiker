@@ -113,6 +113,7 @@ static bool evdev_client_empty(evdev_client_t *client) {
   return client->ec_buffer_head == client->ec_buffer_ready;
 }
 
+/* Returns the number of events that are ready to read. */
 static bool evdev_client_sizeq(evdev_client_t *client) {
   size_t size = client->ec_buffer_size;
   size_t ready = client->ec_buffer_ready;
@@ -337,7 +338,7 @@ static void evdev_soft_repeat(evdev_dev_t *evdev, uint16_t key, int32_t state) {
  * Device file interface implementation.
  */
 
-static void evdev_kqdetach(knote_t *kn) {
+static void evdev_kq_detach(knote_t *kn) {
   evdev_client_t *client = kn->kn_hook;
 
   WITH_MTX_LOCK (&client->ec_lock) {
@@ -345,7 +346,7 @@ static void evdev_kqdetach(knote_t *kn) {
   }
 }
 
-static int evdev_kqread(knote_t *kn, long hint) {
+static int evdev_kq_read(knote_t *kn, long hint) {
   evdev_client_t *client = kn->kn_hook;
   assert(mtx_owned(&client->ec_lock));
 
@@ -355,8 +356,8 @@ static int evdev_kqread(knote_t *kn, long hint) {
 
 static filterops_t evdev_filterops = {
   .filt_attach = NULL,
-  .filt_detach = evdev_kqdetach,
-  .filt_event = evdev_kqread,
+  .filt_detach = evdev_kq_detach,
+  .filt_event = evdev_kq_read,
 };
 
 static int evdev_read(file_t *f, uio_t *uio) {
@@ -476,6 +477,7 @@ static int evdev_ioctl(file_t *f, u_long cmd, void *data) {
   return EINVAL;
 }
 
+/* Called whenever a new knote is attached to this file. */
 static int evdev_kqfilter(file_t *f, knote_t *kn) {
   evdev_client_t *client = f->f_data;
 
