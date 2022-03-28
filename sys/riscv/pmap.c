@@ -41,9 +41,9 @@ void pmap_delete(pmap_t *pmap) {
 }
 
 void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va) {
-  uint32_t dmap_size = kenv_get_ulong("mem_size");
   dmap_paddr_base = kenv_get_ulong("mem_start");
-  dmap_paddr_end = dmap_paddr_base + dmap_size;
+  dmap_paddr_end = kenv_get_ulong("mem_end");
+  uint32_t dmap_size = dmap_paddr_end - dmap_paddr_base;
   kernel_pde = pd_pa;
 
   /* Assume physical memory starts at the beginning of L0 region. */

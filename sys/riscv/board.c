@@ -18,12 +18,11 @@
 static size_t count_args(void) {
   /*
    * Tokens:
-   *   - mem_start, mem_size,
+   *   - mem_start, mem_end,
    *   - rd_start, rd_size,
-   *   - tokens in cmdline,
-   *   - up to `FDT_MAX_RSV_MEM_REGS` (rsvdmem_start, rsvdmem_size) pairs.
+   *   - tokens in cmdline.
    */
-  size_t ntokens = FDT_MAX_RSV_MEM_REGS * 2 + 4;
+  size_t ntokens = 4;
   const char *cmdline;
   if (FDT_get_chosen_bootargs(&cmdline))
     panic("Failed to retrieve bootargs from DTB!");
@@ -40,23 +39,7 @@ static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
   assert(cnt == 1);
   snprintf(buf, buflen, "mem_start=%lu", mrs[0].addr);
   tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, buflen, "mem_size=%lu", mrs[0].size);
-  return cmdline_extract_tokens(stk, buf, tokens);
-}
-
-static char **process_dtb_reserved_mem(char *buf, size_t buflen, char **tokens,
-                                       kstack_t *stk) {
-  fdt_mem_reg_t mrs[FDT_MAX_RSV_MEM_REGS];
-  size_t cnt;
-  if (FDT_get_reserved_mem(mrs, &cnt))
-    panic("Failed to retrieve reserved memory regions from DTB!");
-  for (size_t i = 0; i < cnt; i++) {
-    snprintf(buf, buflen, "rsvmem%lu_start=%lu", i, mrs[i].addr);
-    tokens = cmdline_extract_tokens(stk, buf, tokens);
-    snprintf(buf, buflen, "rsvmem%lu_size=%lu", i, mrs[i].size);
-    tokens = cmdline_extract_tokens(stk, buf, tokens);
-  }
-  snprintf(buf, buflen, "rsvmem_cnt=%lu", cnt);
+  snprintf(buf, buflen, "mem_end=%lu", mrs[0].addr + mrs[0].size);
   return cmdline_extract_tokens(stk, buf, tokens);
 }
 
@@ -82,7 +65,6 @@ static void process_dtb(char **tokens, kstack_t *stk) {
   char buf[32];
 
   tokens = process_dtb_mem(buf, sizeof(buf), tokens, stk);
-  tokens = process_dtb_reserved_mem(buf, sizeof(buf), tokens, stk);
   tokens = process_dtb_initrd(buf, sizeof(buf), tokens, stk);
   tokens = process_dtb_bootargs(tokens, stk);
 
@@ -125,7 +107,45 @@ typedef struct {
 #define START(pa) rounddown((pa), PAGESIZE)
 #define END(pa) roundup((pa), PAGESIZE)
 
-static int addr_range_cmp(const void *_lhs, const void *_rhs) {
+static addr_range_t ar_get_kernel_img(void) {
+  return (addr_range_t){
+    .start = KERNEL_PHYS,
+    .end = KERNEL_PHYS_END,
+  };
+}
+
+static addr_range_t ar_get_initrd(void) {
+  paddr_t rd_start = kenv_get_ulong("rd_start");
+  paddr_t rd_end = rd_start + kenv_get_ulong("rd_size");
+  assert(rd_start && rd_end);
+  return (addr_range_t){
+    .start = START(rd_start),
+    .end = END(rd_end),
+  };
+}
+
+static addr_range_t ar_get_dtb(void) {
+  paddr_t dtb_start, dtb_end;
+  FDT_get_blob_range(&dtb_start, &dtb_end);
+  return (addr_range_t){
+    .start = dtb_start,
+    .end = dtb_end,
+  };
+}
+
+static size_t ar_get_reserved_mem(addr_range_t *ars) {
+  fdt_mem_reg_t mrs[FDT_MAX_RSV_MEM_REGS];
+  size_t cnt;
+  if (FDT_get_reserved_mem(mrs, &cnt))
+    panic("Failed to retrieve reserved memory regions from DTB!");
+  for (size_t i = 0; i < cnt; i++) {
+    ars[i].start = START(mrs[i].addr);
+    ars[i].end = END(mrs[i].addr + mrs[i].size);
+  }
+  return cnt;
+}
+
+static int ar_cmp(const void *_lhs, const void *_rhs) {
   const addr_range_t *lhs = _lhs;
   const addr_range_t *rhs = _rhs;
   int res = -1;
@@ -135,10 +155,7 @@ static int addr_range_cmp(const void *_lhs, const void *_rhs) {
     res = 1;
   }
 
-  // assert(lhs->end <= rhs->start);
-  if (lhs->end > rhs->start) {
-    panic("%lx > %lx", lhs->end, rhs->start);
-  }
+  assert(lhs->end <= rhs->start);
   return res;
 }
 
@@ -153,14 +170,7 @@ static int addr_range_cmp(const void *_lhs, const void *_rhs) {
 
 static void physmem_regions(void) {
   paddr_t mem_start = kenv_get_ulong("mem_start");
-  paddr_t mem_end = mem_start + kenv_get_ulong("mem_size");
-  paddr_t kern_start = KERNEL_PHYS;
-  paddr_t kern_end = KERNEL_PHYS_END;
-  paddr_t rd_start = ramdisk_get_start();
-  paddr_t rd_end = rd_start + ramdisk_get_size();
-  paddr_t dtb_start, dtb_end;
-  FDT_get_blob_range(&dtb_start, &dtb_end);
-
+  paddr_t mem_end = kenv_get_ulong("mem_end");
   assert(is_aligned(mem_start, PAGESIZE));
   assert(is_aligned(mem_end, PAGESIZE));
 
@@ -169,39 +179,14 @@ static void physmem_regions(void) {
    * is needed.
    */
   addr_range_t memory[MAX_PHYS_MEM_REGS] = {
-    /* kernel image */
-    {
-      .start = START(kern_start),
-      .end = END(kern_end),
-    },
-    /* initrd */
-    {
-      .start = START(rd_start),
-      .end = END(rd_end),
-    },
-    /* dtb */
-    {
-      .start = START(dtb_start),
-      .end = END(dtb_end),
-    },
+    ar_get_kernel_img(),
+    ar_get_initrd(),
+    ar_get_dtb(),
   };
-  const size_t rsvmem_cnt = kenv_get_ulong("rsvmem_cnt");
-  for (size_t i = 0; i < rsvmem_cnt; i++) {
-    char buf[64];
-    snprintf(buf, sizeof(buf), "rsvmem%lu_start", i);
-    paddr_t start = kenv_get_ulong(buf);
-    snprintf(buf, sizeof(buf), "rsvmem%lu_size", i);
-    paddr_t end = start + kenv_get_ulong(buf);
-    if (!start || !end)
-      panic("Invalid reserved memory range!");
-    memory[i + 3] = (addr_range_t){
-      .start = START(start),
-      .end = END(end),
-    };
-  }
+  const size_t rsvmem_cnt = ar_get_reserved_mem(&memory[3]);
 
   const size_t nranges = rsvmem_cnt + 3;
-  qsort(memory, nranges, sizeof(addr_range_t), addr_range_cmp);
+  qsort(memory, nranges, sizeof(addr_range_t), ar_cmp);
 
   addr_range_t *range = &memory[0];
 
