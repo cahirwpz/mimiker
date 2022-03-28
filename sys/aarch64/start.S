@@ -44,7 +44,6 @@ _ENTRY(_start)
          * functions from libkern.
          */
         mov     sp, x0
-
         /* Restore dtb pointer. */
         mov     x0, x19
 

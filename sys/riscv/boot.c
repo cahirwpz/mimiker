@@ -273,9 +273,7 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
   __unreachable();
 }
 
-/*
- * TODO(MichalBlk): remove those after architecture split of dbg debug
- * scripts.
+/* TODO(MichalBlk): remove those after architecture split of dbg debug scripts.
  */
 typedef struct {
 } tlbentry_t;
