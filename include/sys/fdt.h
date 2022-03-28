@@ -1,3 +1,12 @@
+/*
+ * Based on the following FreeBSD files:
+ *  - `sys/dev/fdt/fdt_common.c`,
+ *  - `sys/dev/ofw/openfirm.c`,
+ *  - `sys/dev/ofw/ofw_fdt.c`.
+ *
+ * More details regarding most presented functions can be found on appropriate
+ * FreeBSD manual pages.
+ */
 #ifndef _SYS_FDT_H_
 #define _SYS_FDT_H_
 
@@ -71,6 +80,14 @@ phandle_t FDT_child(phandle_t node);
 /*
  * Obtain the handle of the next sibling of device node `node`.
  *
+ * `FDT_child` and `FDT_peer` are used to iterate over all children
+ * of a given device node. Here is example code:
+ *
+ *   for (phandle_t child = FDT_child(rsv); child != FDT_NODEV;
+ *     child = FDT_peer(child)) {
+ *     ...
+ *   }
+ *
  * Returns:
  *  - `FDT_NODEV`: the node doesn't have any siblings
  *  - otherwise: phandle of the peer
@@ -95,7 +112,7 @@ phandle_t FDT_parent(phandle_t node);
  *  - >= 0: the actual length
  *  - -1: the property does not exist in the pointed node
  */
-ssize_t FDT_getptoplen(phandle_t node, const char *propname);
+ssize_t FDT_getproplen(phandle_t node, const char *propname);
 
 /*
  * Verify if node `node` has property specified by `propname`.
@@ -110,8 +127,10 @@ int FDT_hasprop(phandle_t node, const char *propname);
  * Copy maximum of `buflen` bytes from the value associated with the property
  * `propname` of the device node `node` into the memory specified by `buf`.
  *
+ * `buflen` is specified in bytes not in cells.
+ *
  * Returns:
- *  - >= 0: actual size of the property
+ *  - >= 0: actual size of the property in bytes
  *  - -1: the property does not exist in the pointed node
  */
 ssize_t FDT_getprop(phandle_t node, const char *propname, pcell_t *buf,
@@ -120,6 +139,9 @@ ssize_t FDT_getprop(phandle_t node, const char *propname, pcell_t *buf,
 /*
  * The same as `FDT_getprop` but the copied cells are converted
  * from big-endian to host byte order.
+ *
+ * `buflen` must be divisible by 4 (`sizeof(pcell_t)`),
+ * otherwise -1 is returned.
  */
 ssize_t FDT_getencprop(phandle_t node, const char *propname, pcell_t *buf,
                        size_t buflen);
