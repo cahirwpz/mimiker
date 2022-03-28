@@ -467,14 +467,15 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
        end);
 
   bool kern_mapping = (pmap == pmap_kernel());
-  const pt_entry_t mask_on = (kern_mapping) ? PTE_G : PTE_U;
+  const pt_entry_t mask_off = (kernel) ? 0 : PTE_D | PTE_A | PTE_W | PTE_V;
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
       pt_entry_t *ptep = pmap_lookup_pte(pmap, va);
       if (!ptep || !is_valid_pte(*ptep))
         continue;
-      pt_entry_t pte = (*ptep & ~PTE_PROT_MASK) | vm_prot_map[prot] | mask_on;
+      pt_entry_t pte = (*ptep & ~PTE_PROT_MASK) | vm_prot_map[prot];
+      pte &= ~mask_off;
       pmap_write_pte(pmap, ptep, pte, va);
     }
   }

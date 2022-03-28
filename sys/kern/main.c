@@ -105,14 +105,11 @@ __noreturn void kernel_init(void) {
 
   /* Mount filesystems (including devfs). */
   mount_fs();
-
   /* Some clocks has been found during device init process,
    * so it's high time to start system clock. */
   init_clock();
 
   init_kgprof();
-
-  klog("Kernel initialized!");
 
   init_kcsan();
 

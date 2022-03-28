@@ -39,7 +39,6 @@ static int mtimer_start(timer_t *tm, unsigned flags, const bintime_t start,
                         const bintime_t period) {
   device_t *dev = tm->tm_priv;
   clint_state_t *clint = dev->state;
-
   clint->mtimer_step = bintime_mul(period, tm->tm_frequency).sec;
 
   intr_setup(dev, clint->mtimer_irq, mtimer_intr, NULL, clint, "MTIMER");

@@ -65,7 +65,7 @@ static void klog_entry_dump(klog_entry_t *entry) {
   kprintf("\n");
 }
 
-void _klog_append(klog_origin_t origin, const char *file, unsigned line,
+void klog_append(klog_origin_t origin, const char *file, unsigned line,
                   const char *format, uintptr_t arg1, uintptr_t arg2,
                   uintptr_t arg3, uintptr_t arg4, uintptr_t arg5,
                   uintptr_t arg6) {
@@ -121,14 +121,6 @@ void _klog_append(klog_origin_t origin, const char *file, unsigned line,
     if (klog.first == klog.last)
       klog.first = next(klog.first);
   }
-}
-
-void klog_append(klog_origin_t origin, const char *file, unsigned line,
-                 const char *format, uintptr_t arg1, uintptr_t arg2,
-                 uintptr_t arg3, uintptr_t arg4, uintptr_t arg5,
-                 uintptr_t arg6) {
-  _klog_append(origin, file, line, format, arg1, arg2, arg3, arg4, arg5, arg6);
-  //  klog_dump();
 }
 
 unsigned klog_setmask(unsigned newmask) {

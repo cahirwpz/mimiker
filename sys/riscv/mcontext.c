@@ -79,7 +79,7 @@ void mcontext_init(mcontext_t *ctx, void *pc, void *sp) {
 void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
   _REG(ctx, A0) = value;
   _REG(ctx, A1) = error;
-  _REG(ctx, PC) += 4;
+  _REG(ctx, PC) += INSN_SIZE;
 }
 
 void mcontext_restart_syscall(mcontext_t *ctx) {
