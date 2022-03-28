@@ -26,16 +26,19 @@ SOURCES = \
 SOURCES-AARCH64 = \
 	bcopy.S \
 	memcpy.S \
+	memmove.S \
 	strlen.S
 
 SOURCES-MIPS = \
 	bcopy.S \
 	memcpy.S \
+	memmove.S \
 	strlen.S
 
 SOURCES-RISCV = \
 	bcopy.c \
 	memcpy.c \
+	memmove.c \
 	strlen.c
 
 include $(TOPDIR)/build/build.kern.mk

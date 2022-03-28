@@ -1,7 +1,7 @@
 #define KL_LOG KL_DEV
 #include <sys/bus.h>
 #include <sys/devclass.h>
-#include <sys/dtb.h>
+#include <sys/errno.h>
 #include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
@@ -161,7 +161,9 @@ static int rootdev_probe(device_t *bus) {
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
-  bus->node = dtb_soc_node();
+  bus->node = FDT_finddevice("/soc");
+  if (bus->node == FDT_NODEV)
+    return ENXIO;
 
   rman_init(&rd->mem_rm, "RISC-V I/O space");
   rman_manage_region(&rd->mem_rm, 0xf0000000, 0x10000000);
@@ -178,27 +180,27 @@ static int rootdev_attach(device_t *bus) {
   intr_root_claim(hlic_intr_handler, bus);
 
   /* TODO(MichalBlk): discover devices using FDT. */
-
-  unsigned long addr, size;
-  int node;
+  phandle_t node;
 
   /* Create RISC-V CLINT device and assign resources to it. */
   device_t *dev = device_add_child(bus, 1);
   dev->ic = bus;
-  node = dtb_bus_child_node(bus, "clint");
+  node = FDT_finddevice("/soc/clint");
+  if (node == FDT_NODEV)
+    return ENXIO;
   dev->node = node;
-  dtb_dev_reg(dev, &addr, &size);
-  device_add_memory(dev, 0, addr, size);
+  device_add_memory(dev, 0, 0xf0010000, 0x10000);
   device_add_irq(dev, 0, HLIC_IRQ_SOFTWARE_SUPERVISOR);
   device_add_irq(dev, 1, HLIC_IRQ_TIMER_SUPERVISOR);
 
   /* Create RISC-V PLIC device and assign resources to it. */
   device_t *plic = device_add_child(bus, 2);
   plic->ic = bus;
-  node = dtb_bus_child_node(bus, "interrupt-controller");
+  node = FDT_finddevice("/soc/interrupt-controller");
+  if (node == FDT_NODEV)
+    return ENXIO;
   plic->node = node;
-  dtb_dev_reg(plic, &addr, &size);
-  device_add_memory(plic, 0, addr, size);
+  device_add_memory(plic, 0, 0xf0c00000, 0x400000);
   device_add_irq(plic, 0, HLIC_IRQ_EXTERNAL_SUPERVISOR);
 
   extern driver_t plic_driver;
@@ -209,10 +211,11 @@ static int rootdev_attach(device_t *bus) {
   /* Create liteuart device and assign resources to it. */
   dev = device_add_child(bus, 0);
   dev->ic = plic;
-  node = dtb_bus_child_node(bus, "serial");
+  node = FDT_finddevice("/soc/serial");
+  if (node == FDT_NODEV)
+    return ENXIO;
   dev->node = node;
-  dtb_dev_reg(dev, &addr, &size);
-  device_add_memory(dev, 0, addr, size);
+  device_add_memory(dev, 0, 0xf0001000, 0x100);
   device_add_irq(dev, 0, 1);
 
   return bus_generic_probe(bus);

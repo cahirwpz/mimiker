@@ -34,5 +34,4 @@ endif
 
 ifeq ($(BOARD), rpi3)
 	KERNEL-IMAGES := mimiker.img mimiker.img.gz
-	DTB := rpi3.dtb
 endif

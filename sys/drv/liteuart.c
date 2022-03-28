@@ -1,7 +1,6 @@
 #define KL_LOG KL_DEV
 #include <sys/bus.h>
 #include <sys/devclass.h>
-#include <sys/dtb.h>
 #include <sys/fdt.h>
 #include <sys/klog.h>
 #include <sys/sched.h>
@@ -88,11 +87,10 @@ static intr_filter_t liteuart_intr(void *data) {
 }
 
 static int liteuart_probe(device_t *dev) {
-  void *dtb = dtb_root();
-  const char *compatible = fdt_getprop(dtb, dev->node, "compatible", NULL);
-  if (!compatible)
+  char compat[64];
+  if (FDT_getprop(dev->node, "compatible", (void *)compat, sizeof(compat)) < 0)
     return 0;
-  return strcmp(compatible, "litex,liteuart") == 0;
+  return strcmp(compat, "litex,liteuart") == 0;
 }
 
 static int liteuart_attach(device_t *dev) {

@@ -17,7 +17,6 @@ ELFARCH := riscv
 ifeq ($(BOARD), litex-riscv)
 	KERNEL_PHYS := 0x40000000
 	KERNEL-IMAGES := mimiker.img
-	GCC_ABIFLAGS := -march=rv32ima -mabi=ilp32
 	CPPFLAGS += -DFPU=0
 endif
 

@@ -18,26 +18,36 @@ SECTIONS
     *(.text .text.*)
   } : text
 
-  . = ALIGN(4096);
-  .rodata :
+  .eh_frame :
+  {
+    *(.eh_frame)
+  } : text
+
+  .rodata : ALIGN(4096)
   {
     *(.rodata .rodata.*)
   } : rodata
 
-  . = ALIGN(4096);
-  .data :
+  .data : ALIGN(4096)
   {
     *(.data .data.*)
-    /* Load/store instruction offset is 12 bits (sign extended). */
-    __global_pointer$ = . + 0x800;
-    *(.sdata .sdata.*)
-    *(.sbss .sbss.*)
-    *(.scommon)
   } : data
 
-  . = ALIGN(4096);
-  .bss :
+  /* Refer to kernel linker script to understand relation between
+   * `__global_pointer$` and small sections (`.srodata`, `.sdata`, `.sbss`) */
+
+  .sdata :
   {
+    /* Load/store instruction offset is 12 bits (sign extended). */
+    __global_pointer$ = . + 0x800;
+    *(.srodata .srodata.*)
+    *(.sdata .sdata.*)
+  }
+  
+  .bss : ALIGN(4096)
+  {
+    *(.sbss .sbss.*)
+    *(.scommon)
     *(.bss .bss.*)
     *(.common)
   } : bss
@@ -52,3 +62,5 @@ SECTIONS
     *(.gnu.attributes)
   }
 }
+
+/* vim: set ft=ld: */

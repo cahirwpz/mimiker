@@ -1,10 +1,10 @@
 #define KL_LOG KL_DEV
 #include <sys/devclass.h>
-#include <sys/dtb.h>
 #include <sys/errno.h>
 #include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
+#include <sys/libkern.h>
 
 /* PLIC memory map. */
 #define PLIC_CTXNUM_SV 1
@@ -111,16 +111,20 @@ static intr_filter_t plic_intr_handler(void *arg) {
 }
 
 static int plic_probe(device_t *ic) {
-  const char *compatible = dtb_dev_compatible(ic);
-  return strcmp(compatible, "riscv,plic0") == 0 ||
-         strcmp(compatible, "sifive,fu540-c000-plic") == 0;
+  char compat[64];
+  if (FDT_getprop(ic->node, "compatible", (void *)compat, sizeof(compat)) < 0)
+    return 0;
+  return strcmp(compat, "riscv,plic0") == 0 ||
+         strcmp(compat, "sifive,fu540-c000-plic") == 0;
 }
 
 static int plic_attach(device_t *ic) {
   plic_state_t *plic = ic->state;
 
   /* Obtain the number of sources. */
-  plic->nirqs = dtb_dev_cell(ic, "riscv,ndev");
+  if (FDT_getencprop(ic->node, "riscv,ndev", (void *)&plic->nirqs,
+                     sizeof(uint32_t)) != sizeof(uint32_t))
+    return ENXIO;
 
   /* We'll need interrupt event for each interrupt source. */
   plic->intr_event =

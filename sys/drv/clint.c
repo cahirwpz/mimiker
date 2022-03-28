@@ -1,9 +1,10 @@
 #define KL_LOG KL_TIME
 #include <sys/devclass.h>
-#include <sys/dtb.h>
+#include <sys/errno.h>
 #include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
+#include <sys/libkern.h>
 #include <sys/timer.h>
 #include <riscv/riscvreg.h>
 #include <riscv/sbi.h>
@@ -72,8 +73,10 @@ static bintime_t mtimer_gettime(timer_t *tm) {
  */
 
 static int clint_probe(device_t *dev) {
-  const char *compatible = dtb_dev_compatible(dev);
-  return strcmp(compatible, "riscv,clint0") == 0;
+  char compat[64];
+  if (FDT_getprop(dev->node, "compatible", (void *)compat, sizeof(compat)) < 0)
+    return 0;
+  return strcmp(compat, "riscv,clint0") == 0;
 }
 
 static intr_filter_t mswi_intr(void *data) {
@@ -91,7 +94,14 @@ static int clint_attach(device_t *dev) {
   clint->mtimer_irq = device_take_irq(dev, 1, RF_ACTIVE);
   assert(clint->mtimer_irq);
 
-  uint32_t freq = dtb_cpus_prop("timebase-frequency");
+  phandle_t cpus = FDT_finddevice("/cpus");
+  if (cpus == FDT_NODEV)
+    return ENXIO;
+
+  uint32_t freq;
+  if (FDT_getencprop(cpus, "timebase-frequency", (void *)&freq,
+                     sizeof(uint32_t)) != sizeof(uint32_t))
+    return ENXIO;
 
   clint->mtimer = (timer_t){
     .tm_name = "RISC-V CLINT",

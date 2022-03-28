@@ -467,7 +467,8 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
        end);
 
   bool kern_mapping = (pmap == pmap_kernel());
-  const pt_entry_t mask_off = (kernel) ? 0 : PTE_D | PTE_A | PTE_W | PTE_V;
+  const pt_entry_t mask_off =
+    (kern_mapping) ? 0 : PTE_D | PTE_A | PTE_W | PTE_V;
 
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
@@ -666,11 +667,9 @@ void pmap_delete(pmap_t *pmap) {
 }
 
 void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va) {
-  uint32_t dmap_size = kenv_get_ulong("mem_size");
-
-  /* Obtain basic parameters. */
   dmap_paddr_base = kenv_get_ulong("mem_start");
-  dmap_paddr_end = dmap_paddr_base + dmap_size;
+  dmap_paddr_end = kenv_get_ulong("mem_end");
+  uint32_t dmap_size = dmap_paddr_end - dmap_paddr_base;
   kernel_pde = pd_pa;
 
   /* Assume physical memory starts at the beginning of L0 region. */

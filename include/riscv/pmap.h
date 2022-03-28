@@ -1,8 +1,6 @@
 #ifndef _RISCV_PMAP_H_
 #define _RISCV_PMAP_H_
 
-#include <riscv/pte.h>
-
 /*
  * Direct map.
  */

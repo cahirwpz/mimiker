@@ -38,6 +38,8 @@ SECTIONS
     /* TODO: include KASAN constructors. */
   } : text
 
+  .eh_frame : { *(.eh_frame) }
+
   .rodata :
   {
     *(.rodata .rodata.*)
@@ -47,8 +49,22 @@ SECTIONS
   {
     __data = ABSOLUTE(.);
     *(.data .data.*)
+  } : data
+
+  /* We use linker relaxations based on `__global_pointer$` for `.sdata`.
+   * For unknown reason `ld` cannot apply relaxation to `.sbss`.
+   * Relaxation is useless for code referring to `.srodata` since the data
+   * is too far away from `gp` to be addressed using only 12 bits. Thus small
+   * sections other than `.sdata` are merged into their large counterparts.
+   *
+   * Refer to following blog post to understand what linker relaxations are:
+   * https://www.sifive.com/blog/all-aboard-part-3-linker-relaxation-in-riscv-toolchain */
+
+  .sdata :
+  {
     /* Load/store instruction offset is 12 bits (sign extended). */
     __global_pointer$ = . + 0x800;
+    *(.srodata .srodata.*)
     *(.sdata .sdata.*)
     __edata = ABSOLUTE(.);
   } : data

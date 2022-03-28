@@ -28,15 +28,6 @@ void device_remove_child(device_t *parent, device_t *dev) {
   kfree(M_DEV, dev);
 }
 
-device_t *device_child_with_node(device_t *parent, int node) {
-  device_t *dev;
-  TAILQ_FOREACH (dev, &parent->children, link) {
-    if (dev->node == node)
-      return dev;
-  }
-  return NULL;
-}
-
 /* TODO: this routine should go over all drivers within a suitable class and
  * choose the best driver. For now the user is responsible for setting the
  * driver before calling `device_probe`. */

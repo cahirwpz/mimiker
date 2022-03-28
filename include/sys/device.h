@@ -4,6 +4,7 @@
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/linker_set.h>
+#include <sys/fdt.h>
 #include <sys/rman.h>
 
 typedef struct devclass devclass_t;
@@ -81,7 +82,7 @@ struct device {
   driver_t *driver;
   devclass_t *devclass; /* (for buses) device class of children */
   int unit;
-  int node;                  /* FDT device node offset */
+  phandle_t node;            /* FDT device node offset */
   void *instance;            /* used by bus driver to store data in children */
   void *state;               /* memory requested by driver for its state */
   resource_list_t resources; /* used by driver, assigned by parent bus */
@@ -94,7 +95,6 @@ static inline bool device_bus(device_t *dev) {
 
 device_t *device_alloc(int unit);
 device_t *device_add_child(device_t *parent, int unit);
-device_t *device_child_with_node(device_t *parent, int node);
 void device_remove_child(device_t *parent, device_t *dev);
 int device_probe(device_t *dev);
 int device_attach(device_t *dev);
