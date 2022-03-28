@@ -9,18 +9,18 @@
  *  address space. This involves the following tasks:
  *   - mapping kernel image (.text, .rodata, .data, .bss) into VM,
  *
- *   - temporarily mapping dtb into VM (as we will need to access it in the
+ *   - temporarily mapping DTB into VM (as we will need to access it in the
  *     second stage of the boot process and we can't create the direct map
  *     before knowing the physical memory boundaries which are contained in the
- *     dtb itself),
+ *     DTB itself),
  *
  *   - temoprarily mapping kernel page directory into VM (because there is
  *     no direct map to access it in the usual fashion),
  *
  *   - preparing page tables for `vm_page_t` structs (we need to do so
  *     because the procedure that maps kernel virtual space allocated for the
- *     structs can't allocate physical pages on its own since buddy system isn't
- *     initialized at that point),
+ *     structs can't allocate physical pages on its own since
+ *     the buddy system isn't initialized at that point),
  *
  *   - enabling MMU and moving to the second stage.
  *
@@ -35,12 +35,12 @@
  *
  *   - before enabling MMU we:
  *       - set parameters for `riscv_boot`,
- *       - set SP to VM boot stack,
+ *       - set SP to VM boot stack.
  *
  * The second stage performs all operations needed to accomplish
  * board initialization. This includes:
  *   - setting registers to obey kernel conventions:
- *       - thread pointer register ($tp) always points to the PCPU structure
+ *       - thread pointer register (`$tp`) always points to the PCPU structure
  *         of the hart,
  *       - SSCRARCH register always contains 0 when the hart operates in
  *         supervisor mode, and kernel stack pointer while in user mode.
@@ -55,7 +55,7 @@
  *
  *   - moving to thread0's stack and advancing to board initialization.
  *
- * For initial mapping of dtb and kernel PD the dmap area is used
+ * For initial mapping of DTB and kernel PD the dmap area is used
  * as it will be overwritten in `pmap_bootstrap` where the temporary mappings
  * will be dropped.
  */
@@ -75,7 +75,7 @@
 #define BOOT_PD_VADDR (DMAP_VADDR_BASE + BOOT_MAX_DTB_SIZE)
 
 static_assert(L0_INDEX(BOOT_DTB_VADDR) == L0_INDEX(BOOT_PD_VADDR),
-              "Temporary dtb and kernel page directory mappings "
+              "Temporary DTB and kernel page directory mappings "
               "don't lie within the same page table!");
 
 #define __wfi() __asm__ volatile("wfi")
@@ -165,7 +165,7 @@ __boot_text static void map_kernel_image(pd_entry_t *pde) {
 }
 
 __boot_text static void map_dtb(paddr_t dtb, pd_entry_t *pde) {
-  /* Assume that dtb will be covered by single page. */
+  /* Assume that DTB will be covered by single page. */
   pt_entry_t *pte = bootmem_alloc(PAGESIZE);
   const size_t idx0 = L0_INDEX(BOOT_DTB_VADDR);
   const size_t idx1 = L1_INDEX(BOOT_DTB_VADDR);
