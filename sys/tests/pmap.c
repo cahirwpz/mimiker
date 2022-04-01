@@ -7,7 +7,7 @@
 #include <sys/kmem.h>
 
 #ifdef __riscv
-#include <riscv/riscvreg.h>
+#include <riscv/cpufunc.h>
 #endif
 
 static vm_page_t *x_vm_page_alloc(size_t npages) {

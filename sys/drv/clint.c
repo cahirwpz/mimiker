@@ -6,7 +6,7 @@
 #include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/timer.h>
-#include <riscv/riscvreg.h>
+#include <riscv/cpufunc.h>
 #include <riscv/sbi.h>
 
 typedef struct clint_state {

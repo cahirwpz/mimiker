@@ -41,11 +41,10 @@
  * Documentation available at
  * https://github.com/riscv/riscv-sbi-doc/blob/master/riscv-sbi.adoc
  */
-
 #ifndef _RISCV_SBI_H_
 #define _RISCV_SBI_H_
 
-#include <stdint.h>
+#include <sys/types.h>
 
 /* SBI Specification Version */
 #define SBI_SPEC_VERS_MAJOR_OFFSET 24
@@ -108,6 +107,15 @@
 #define SBI_HSM_STATUS_START_PENDING 2
 #define SBI_HSM_STATUS_STOP_PENDING 3
 
+/* System Reset (SRST) Extension */
+#define SBI_EXT_ID_SRST 0x53525354
+#define SBI_SRST_SYSTEM_RESET 0
+#define SBI_SRST_TYPE_SHUTDOWN 0
+#define SBI_SRST_TYPE_COLD_REBOOT 1
+#define SBI_SRST_TYPE_WARM_REBOOT 2
+#define SBI_SRST_REASON_NONE 0
+#define SBI_SRST_REASON_SYSTEM_FAILURE 1
+
 /* Legacy Extensions */
 #define SBI_SET_TIMER 0
 #define SBI_CONSOLE_PUTCHAR 1
@@ -119,35 +127,28 @@
 #define SBI_REMOTE_SFENCE_VMA_ASID 7
 #define SBI_SHUTDOWN 8
 
-/* SBI Implementation-Specific Definitions */
-#define OPENSBI_VERSION_MAJOR_OFFSET 16
-#define OPENSBI_VERSION_MINOR_MASK 0xFFFF
+long sbi_probe_extension(long id);
 
-long sbi_probe_extension(unsigned long id);
-
-/* Timer extension functions. */
+/* TIME extension functions. */
 void sbi_set_timer(uint64_t val);
 
 /* IPI extension functions. */
-void sbi_send_ipi(const unsigned long *hart_mask);
+void sbi_send_ipi(const u_long *hart_mask);
 
 /* RFENCE extension functions. */
-void sbi_remote_fence_i(const unsigned long *hart_mask);
-void sbi_remote_sfence_vma(const unsigned long *hart_mask, unsigned long start,
-                           unsigned long size);
-void sbi_remote_sfence_vma_asid(const unsigned long *hart_mask,
-                                unsigned long start, unsigned long size,
-                                unsigned long asid);
+void sbi_remote_fence_i(const u_long *hart_mask);
+void sbi_remote_sfence_vma(const u_long *hart_mask, u_long start, u_long size);
+void sbi_remote_sfence_vma_asid(const u_long *hart_mask, u_long start,
+                                u_long size, u_long asid);
 
 /* Hart State Management extension functions. */
 
 /*
- * Start execution on the specified hart at physical address start_addr. The
- * register a0 will contain the hart's ID, and a1 will contain the value of
- * priv.
+ * Start execution on the specified hart at physical address `start_addr`.
+ * The register a0 will contain the hart's ID, and a1 will contain
+ * the value of priv.
  */
-int sbi_hsm_hart_start(unsigned long hart, unsigned long start_addr,
-                       unsigned long priv);
+int sbi_hsm_hart_start(u_long hart, u_long start_addr, u_long priv);
 
 /*
  * Stop execution on the current hart. Interrupts should be disabled, or this
@@ -162,12 +163,23 @@ void sbi_hsm_hart_stop(void);
  *  - SBI_HSM_STATUS_START_PENDING
  *  - SBI_HSM_STATUS_STOP_PENDING
  */
-int sbi_hsm_hart_status(unsigned long hart);
+int sbi_hsm_hart_status(u_long hart);
+
+/* System Reset extension functions. */
+
+/*
+ * Reset the system based on the following `type` and `reason` chosen from:
+ *  - SBI_SRST_TYPE_SHUTDOWN
+ *  - SBI_SRST_TYPE_COLD_REBOOT
+ *  - SBI_SRST_TYPE_WARM_REBOOT
+ *  - SBI_SRST_REASON_NONE
+ *  - SBI_SRST_REASON_SYSTEM_FAILURE
+ */
+void sbi_system_reset(u_long reset_type, u_long reset_reason);
 
 /* Legacy extension functions. */
 void sbi_console_putchar(int ch);
 int sbi_console_getchar(void);
-void sbi_shutdown(void);
 
 /* Initialize SBI module. */
 void init_sbi(void);

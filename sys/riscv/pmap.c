@@ -14,11 +14,9 @@
 #include <sys/spinlock.h>
 #include <sys/vm_physmem.h>
 #include <riscv/pmap.h>
-#include <riscv/riscvreg.h>
+#include <riscv/cpufunc.h>
 #include <riscv/tlb.h>
 #include <riscv/vm_param.h>
-
-#define __sfence_vma() __asm __volatile("sfence.vma" ::: "memory")
 
 typedef struct pmap {
   mtx_t mtx;               /* protects all fields in this structure */
@@ -634,7 +632,7 @@ void pmap_activate(pmap_t *pmap) {
   if (pmap == old)
     return;
 
-  csr_write(satp, pmap->satp);
+  __set_satp(pmap->satp);
   PCPU_SET(curpmap, pmap);
 
   __sfence_vma();

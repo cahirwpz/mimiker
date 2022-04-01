@@ -17,8 +17,7 @@
 #endif
 
 #ifdef __riscv
-#include <riscv/riscvreg.h>
-#define TOO_MUCH 0x40000000
+#include <riscv/cpufunc.h>
 #endif
 
 static int paging_on_demand_and_memory_protection_demo(void) {

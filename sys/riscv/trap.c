@@ -8,15 +8,8 @@
 #include <sys/sysent.h>
 #include <sys/thread.h>
 #include <sys/vm_map.h>
+#include <riscv/cpufunc.h>
 #include <riscv/mcontext.h>
-#include <riscv/riscvreg.h>
-
-#define __sp()                                                                 \
-  ({                                                                           \
-    uint64_t __rv;                                                             \
-    __asm __volatile("mv %0, sp" : "=r"(__rv));                                \
-    __rv;                                                                      \
-  })
 
 /* clang-format off */
 static const char *const exceptions[] = {

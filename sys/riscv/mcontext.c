@@ -6,19 +6,12 @@
 #include <sys/pcpu.h>
 #include <sys/thread.h>
 #include <sys/ucontext.h>
+#include <riscv/cpufunc.h>
 #include <riscv/mcontext.h>
-#include <riscv/riscvreg.h>
 
 #ifdef __riscv_c
 #error "Mimiker assumes four-byte instructions!"
 #endif
-
-#define __gp()                                                                 \
-  ({                                                                           \
-    register_t __rv;                                                           \
-    __asm __volatile("mv %0, gp" : "=r"(__rv));                                \
-    __rv;                                                                      \
-  })
 
 void ctx_init(ctx_t *ctx, void *pc, void *sp) {
   bzero(ctx, sizeof(ctx_t));

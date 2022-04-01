@@ -66,6 +66,7 @@
 #include <riscv/abi.h>
 #include <riscv/pmap.h>
 #include <riscv/pte.h>
+#include <riscv/cpufunc.h>
 #include <riscv/riscvreg.h>
 #include <riscv/vm_param.h>
 
@@ -77,10 +78,6 @@
 static_assert(L0_INDEX(BOOT_DTB_VADDR) == L0_INDEX(BOOT_PD_VADDR),
               "Temporary DTB and kernel page directory mappings "
               "don't lie within the same page table!");
-
-#define __wfi() __asm__ volatile("wfi")
-#define __set_tp() __asm__ volatile("mv tp, %0" ::"r"(_pcpu_data) : "tp")
-#define __sfence_vma() __asm__ volatile("sfence.vma" ::: "memory")
 
 /*
  * Bare memory boot data.
