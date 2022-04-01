@@ -47,6 +47,8 @@
  *
  *   - setting trap vector to trap handling routine,
  *
+ *   - clearing any pending supervisor interrupts and disabling them afterwards,
+ *
  *   - preparing bss,
  *
  *   - processing borad stack (this includes kernel environment setting),
@@ -254,6 +256,13 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
    *  - MODE = Direct - all exceptions set PC to specified BASE
    */
   csr_write(stvec, cpu_exception_handler);
+
+  /*
+   * NOTE: respective interrupts will be enabled by appropriate device drivers
+   * while registering an interrupt handling routine.
+   */
+  csr_clear(sie, SIP_SEIP | SIP_STIP | SIP_SSIP);
+  csr_clear(sie, SIE_SEIE | SIE_STIE | SIE_SSIE);
 
   clear_bss();
 

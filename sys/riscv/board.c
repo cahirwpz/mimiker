@@ -202,8 +202,6 @@ void __noreturn board_init(void) {
   init_klog();
   /* TODO(MichalBlk): initialize SBI. */
   physmem_regions();
-  /* Disable each supervisor interrupt. */
-  csr_clear(sie, SIE_SEIE | SIE_STIE | SIE_SSIE);
   intr_enable();
   kernel_init();
 }
