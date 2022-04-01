@@ -110,7 +110,7 @@ typedef struct {
 
 static addr_range_t ar_get_kernel_img(void) {
   return (addr_range_t){
-    .start = KERNEL_PHYS,
+    .start = (paddr_t)__eboot,
     .end = KERNEL_PHYS_END,
   };
 }
