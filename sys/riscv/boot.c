@@ -127,6 +127,25 @@ __boot_text static void *bootmem_alloc(size_t bytes) {
   return addr;
 }
 
+__boot_text static void *alloc_pts(void) {
+  /* Allocate kernel page directory.*/
+  pd_entry_t *pde = bootmem_alloc(PAGESIZE);
+
+  /*
+   * !HACK!
+   * See 4th point of bare memory boot description
+   * at the top of this file for details.
+   */
+  const size_t idx = L0_INDEX((vaddr_t)__text);
+
+  for (int i = 0; i < VM_PAGE_PDS; i++) {
+    paddr_t pt = (paddr_t)bootmem_alloc(PAGESIZE);
+    pde[idx + i + 1] = PA_TO_PTE(pt) | PTE_V;
+  }
+
+  return pde;
+}
+
 __boot_text static void map_kernel_image(pd_entry_t *pde) {
   extern char __kernel_size[];
 
@@ -179,15 +198,6 @@ __boot_text static void map_pd(pd_entry_t *pde) {
   pte[idx1] = PA_TO_PTE((paddr_t)pde) | PTE_KERN;
 }
 
-__boot_text static void vm_page_ensure_pts(pd_entry_t *pde) {
-  const size_t idx = L0_INDEX((vaddr_t)__text);
-
-  for (int i = 0; i < VM_PAGE_PDS; i++) {
-    paddr_t pt = (paddr_t)bootmem_alloc(PAGESIZE);
-    pde[idx + i + 1] = PA_TO_PTE(pt) | PTE_V;
-  }
-}
-
 static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde);
 
 __boot_text __noreturn void riscv_init(paddr_t dtb) {
@@ -197,12 +207,11 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
   bootmem_init();
 
   /* Create kernel page directory. */
-  pd_entry_t *pde = bootmem_alloc(PAGESIZE);
+  pd_entry_t *pde = alloc_pts();
 
   map_kernel_image(pde);
   map_dtb(dtb, pde);
   map_pd(pde);
-  vm_page_ensure_pts(pde);
 
   /* Temporarily set the trap vector. */
   csr_write(stvec, riscv_boot);
