@@ -107,7 +107,7 @@ typedef struct {
 #define END(pa) roundup((pa), PAGESIZE)
 
 static void ar_get_kernel_img(addr_range_t *ar) {
-  ar->start = KERNEL_PHYS;
+  ar->start = (paddr_t)__eboot;
   ar->end = KERNEL_PHYS_END;
 }
 
