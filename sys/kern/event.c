@@ -41,8 +41,8 @@ typedef struct kqueue {
 } kqueue_t;
 
 /* Returns a hash bucket for a given object */
-static inline knlist_t *kq_gethash(kqueue_t *kq, void *obj) {
-  return &kq->kq_knhash[((unsigned long)obj) % KN_HASHSIZE];
+static inline knlist_t *kq_get_hashbucket(kqueue_t *kq, void *obj) {
+  return &kq->kq_knhash[((uintptr_t)obj) % KN_HASHSIZE];
 }
 
 static kqueue_t *kqueue_create(void) {
@@ -70,8 +70,8 @@ static void kqueue_drain(kqueue_t *kq) {
 
 static void kqueue_destroy(kqueue_t *kq) {
   kqueue_drain(kq);
-  mtx_destroy(&kq->kq_lock);
   cv_destroy(&kq->kq_cv);
+  mtx_destroy(&kq->kq_lock);
   kfree(M_DEV, kq);
 }
 
@@ -93,7 +93,7 @@ static filterops_t *sys_kfilters[EVFILT_SYSCOUNT] = {
 };
 
 static filterops_t *filt_getops(uint32_t filter) {
-  if (filter > EVFILT_SYSCOUNT)
+  if (filter >= EVFILT_SYSCOUNT)
     return NULL;
   return sys_kfilters[filter];
 }
@@ -126,12 +126,14 @@ static int kqueue_ioctl(file_t *f, u_long cmd, void *data) {
   return EOPNOTSUPP;
 }
 
-static fileops_t kqueueops = {.fo_read = kqueue_read,
-                              .fo_write = kqueue_write,
-                              .fo_close = kqueue_close,
-                              .fo_stat = kqueue_stat,
-                              .fo_seek = kqueue_seek,
-                              .fo_ioctl = kqueue_ioctl};
+static fileops_t kqueueops = {
+  .fo_read = kqueue_read,
+  .fo_write = kqueue_write,
+  .fo_close = kqueue_close,
+  .fo_stat = kqueue_stat,
+  .fo_seek = kqueue_seek,
+  .fo_ioctl = kqueue_ioctl,
+};
 
 static int kqueue_get_obj(proc_t *p, kevent_t *kev, void **obj) {
   if (kev->filter == EVFILT_READ || kev->filter == EVFILT_WRITE)
@@ -150,7 +152,7 @@ static void knote_drop_obj(knote_t *kn) {
 /* Drops an already detached knote. */
 static void knote_drop_detached(knote_t *kn) {
   kqueue_t *kq = kn->kn_kq;
-  knlist_t *knote_list = kq_gethash(kq, kn->kn_obj);
+  knlist_t *knote_list = kq_get_hashbucket(kq, kn->kn_obj);
   SLIST_REMOVE(knote_list, kn, knote, kn_hashlink);
 
   WITH_MTX_LOCK (&kq->kq_lock) {
@@ -183,7 +185,7 @@ static int kqueue_register(kqueue_t *kq, kevent_t *kev, void *obj) {
     return EINVAL;
 
   /* Find an existing knote to use for this kevent. */
-  knlist_t *knote_list = kq_gethash(kq, obj);
+  knlist_t *knote_list = kq_get_hashbucket(kq, obj);
   SLIST_FOREACH(kn, knote_list, kn_hashlink) {
     if (kev->filter == kn->kn_kevent.filter && kn->kn_obj == obj)
       break;
@@ -217,21 +219,21 @@ static int kqueue_register(kqueue_t *kq, kevent_t *kev, void *obj) {
   /* `kn_objlock` must be taken to access kn_kevent.udata and
    * to call filt_event.
    */
-  mtx_lock(kn->kn_objlock);
 
-  /*
-   * The user may change some filter values after the
-   * initial EV_ADD, but doing so will not reset any
-   * filter which have already been triggered.
-   */
-  kn->kn_kevent.udata = kev->udata;
+  WITH_MTX_LOCK (kn->kn_objlock) {
+    /*
+     * The user may change some filter values after the
+     * initial EV_ADD, but doing so will not reset any
+     * filter which have already been triggered.
+     */
+    kn->kn_kevent.udata = kev->udata;
 
-  event = kn->kn_filtops->filt_event(kn, 0);
-  WITH_MTX_LOCK (&kq->kq_lock) {
-    if (event && (kn->kn_status & KN_QUEUED) == 0)
-      knote_enqueue(kn);
+    event = kn->kn_filtops->filt_event(kn, 0);
+    WITH_MTX_LOCK (&kq->kq_lock) {
+      if (event && (kn->kn_status & KN_QUEUED) == 0)
+        knote_enqueue(kn);
+    }
   }
-  mtx_unlock(kn->kn_objlock);
 
   return 0;
 }
