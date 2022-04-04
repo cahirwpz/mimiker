@@ -301,10 +301,10 @@ static int kqueue_scan(kqueue_t *kq, kevent_t *eventlist, size_t nevents,
      * order. `kn_objlock` must be taken before `kq_lock`.
      */
     mtx_unlock(&kq->kq_lock);
-    mtx_lock(kn->kn_objlock);
-    event = kn->kn_filtops->filt_event(kn, 0);
+    WITH_MTX_LOCK (kn->kn_objlock) {
+      event = kn->kn_filtops->filt_event(kn, 0);
+    }
     mtx_lock(&kq->kq_lock);
-    mtx_unlock(kn->kn_objlock);
 
     /* Make sure that the event is still active. */
     if (event == 0) {
