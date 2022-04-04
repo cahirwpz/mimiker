@@ -88,8 +88,7 @@ static int arm_timer_attach(device_t *dev) {
   tm_register(&state->timer);
   tm_select(&state->timer);
 
-  bus_intr_setup(dev, state->irq_res, arm_timer_intr, NULL, dev,
-                 "ARM CPU timer");
+  intr_setup(dev, state->irq_res, arm_timer_intr, NULL, dev, "ARM CPU timer");
 
   return 0;
 }

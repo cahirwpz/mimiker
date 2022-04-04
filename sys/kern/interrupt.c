@@ -7,6 +7,7 @@
 #include <sys/pcpu.h>
 #include <sys/sleepq.h>
 #include <sys/sched.h>
+#include <sys/device.h>
 
 static KMALLOC_DEFINE(M_INTR, "interrupt events & handlers");
 
@@ -211,6 +212,40 @@ void intr_event_run_handlers(intr_event_t *ie) {
 
   if (ie_status == IF_STRAY)
     klog("Spurious %s interrupt!", ie->ie_name);
+}
+
+static inline ic_methods_t *ic_methods(device_t *dev) {
+  return (ic_methods_t *)dev->driver->interfaces[DIF_IC];
+}
+
+resource_t *intr_alloc(device_t *dev, int rid, unsigned irq,
+                       rman_flags_t flags) {
+  device_t *ic = dev->ic;
+  return ic_methods(ic)->intr_alloc(ic, dev, rid, irq, flags);
+}
+
+void intr_release(device_t *dev, resource_t *r) {
+  assert(r->r_type == RT_IRQ);
+  device_t *ic = dev->ic;
+  ic_methods(ic)->intr_release(ic, dev, r);
+}
+
+void intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
+                ih_service_t *service, void *arg, const char *name) {
+  assert(r->r_type == RT_IRQ);
+  device_t *ic = dev->ic;
+  ic_methods(ic)->intr_setup(ic, dev, r, filter, service, arg, name);
+  if (r->r_handler)
+    resource_activate(r);
+}
+
+void intr_teardown(device_t *dev, resource_t *r) {
+  assert(r->r_type == RT_IRQ);
+  assert(resource_active(r));
+  device_t *ic = dev->ic;
+  ic_methods(ic)->intr_teardown(ic, dev, r);
+  r->r_handler = NULL;
+  resource_deactivate(r);
 }
 
 static void intr_thread(void *arg) {

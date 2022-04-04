@@ -821,7 +821,7 @@ static int uhci_attach(device_t *dev) {
   /* Setup host controller's interrupt. */
   uhci->irq = device_take_irq(dev, 0, RF_ACTIVE);
   assert(uhci->irq);
-  bus_intr_setup(dev, uhci->irq, uhci_isr, NULL, uhci, "UHCI");
+  intr_setup(dev, uhci->irq, uhci_isr, NULL, uhci, "UHCI");
 
   /* Turn on the IOC and error interrupts. */
   set16(UHCI_INTR, UHCI_INTR_TOCRCIE | UHCI_INTR_IOCE);
@@ -835,7 +835,7 @@ static int uhci_attach(device_t *dev) {
   /* Detect and configure attached devices. */
   int error = usb_enumerate(dev);
   if (error)
-    bus_intr_teardown(dev, uhci->irq);
+    intr_teardown(dev, uhci->irq);
   return error;
 }
 

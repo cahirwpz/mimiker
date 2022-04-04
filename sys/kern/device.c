@@ -68,7 +68,11 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
                          rman_addr_t start, rman_addr_t end, size_t size,
                          rman_flags_t flags) {
   assert(!resource_list_find(dev, rid, type));
-  resource_t *r = bus_alloc_resource(dev, type, rid, start, end, size, flags);
+  resource_t *r;
+  if (type == RT_IRQ)
+    r = intr_alloc(dev, rid, start, flags);
+  else
+    r = bus_alloc_resource(dev, type, rid, start, end, size, flags);
   assert(r);
   SLIST_INSERT_HEAD(&dev->resources, r, r_link);
 }
@@ -79,7 +83,7 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
   if (!r)
     return NULL;
 
-  if (flags & RF_ACTIVE)
+  if ((type != RT_IRQ) && flags & RF_ACTIVE)
     bus_activate_resource(dev, r);
 
   return r;
