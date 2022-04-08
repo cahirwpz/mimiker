@@ -3,7 +3,6 @@
 
 #ifdef __ASSEMBLER__
 
-#include <sys/errno.h>
 #include <sys/syscall.h>
 #include <riscv/asm.h>
 
