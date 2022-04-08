@@ -14,26 +14,26 @@ ENTRY(setjmp)
 
 	/* 
 	 * Save current signalmask at `ucontext::uc_sigmask`.
-	 * int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+	 * `int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);`
 	 * 
 	 * If `set` is NULL, then the signal mask is unchanged (i.e., `how` is
 	 * ignored), but the current value of the signal mask is nevertheless
 	 * returned in `oldset` (if it is not NULL).
 	 */
 	mv	a1, zero
- 	PTR_ADDI	a2, s0, UC_MASK	/* &env->uc_sigmask */
+ 	PTR_ADDI	a2, s0, UC_MASK	/* `&env->uc_sigmask` */
 	call	_C_LABEL(sigprocmask)
 	bnez	a0, botch
 
 	/* 
 	 * Save `stack_t` at `ucontext::uc_stack`.
-	 * int sigaltstack(const stack_t *ss, stack_t *old_ss);
+	 * `int sigaltstack(const stack_t *ss, stack_t *old_ss);`
 	 *
 	 * By specifying `ss` as NULL, and `old_ss` as a non-NULL value, one can
 	 * obtain the current settings for the alternate signal stack without
 	 * changing them.
 	 */
-	PTR_ADDI	a1, s0, UC_STACK	/* &env->uc_stack */
+	PTR_ADDI	a1, s0, UC_STACK	/* `&env->uc_stack` */
 	call	_C_LABEL(sigaltstack)
 	bnez	a0, botch
 
