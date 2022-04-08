@@ -19,13 +19,13 @@ void longjmp(jmp_buf env, int val) {
   if (!_REG(sc_uc, SP))
     goto err;
 
-  /* Ensure non-zero return vaule. */
+  /* Ensure non-zero return value. */
   val = val ? val : 1;
 
   /*
-   * Set _UC_{SET,CLR}STACK according to SS_ONSTACK.
+   * Set `_UC_{SET,CLR}STACK` according to `SS_ONSTACK`.
    *
-   * Restore the signal mask with sigprocmask() instead of _UC_SIGMASK,
+   * Restore the signal mask with sigprocmask() instead of `_UC_SIGMASK`,
    * since libpthread may want to interpose on signal handling.
    */
   uc.uc_flags =
