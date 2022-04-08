@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ucontext.h>
-#include <sys/types.h>
 
 #define _REG(ctx, n) ((ctx)->uc_mcontext.__gregs[_REG_##n])
 #define _FPREG(ctx, n) ((ctx)->uc_mcontext.__fregs[(n)])
