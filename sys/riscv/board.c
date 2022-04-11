@@ -1,6 +1,4 @@
 #define KL_LOG KL_INIT
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/cmdline.h>
 #include <sys/fdt.h>
 #include <sys/initrd.h>
@@ -10,6 +8,7 @@
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/thread.h>
+#include <sys/types.h>
 #include <sys/vm_physmem.h>
 #include <riscv/mcontext.h>
 #include <riscv/riscvreg.h>
@@ -108,30 +107,24 @@ typedef struct {
 #define START(pa) rounddown((pa), PAGESIZE)
 #define END(pa) roundup((pa), PAGESIZE)
 
-static addr_range_t ar_get_kernel_img(void) {
-  return (addr_range_t){
-    .start = (paddr_t)__eboot,
-    .end = KERNEL_PHYS_END,
-  };
+static void ar_get_kernel_img(addr_range_t *ar) {
+  ar->start = (paddr_t)__eboot;
+  ar->end = KERNEL_PHYS_END;
 }
 
-static addr_range_t ar_get_initrd(void) {
+static void ar_get_initrd(addr_range_t *ar) {
   paddr_t rd_start = kenv_get_ulong("rd_start");
   paddr_t rd_end = rd_start + kenv_get_ulong("rd_size");
   assert(rd_start && rd_end);
-  return (addr_range_t){
-    .start = START(rd_start),
-    .end = END(rd_end),
-  };
+  ar->start = START(rd_start);
+  ar->end = END(rd_end);
 }
 
-static addr_range_t ar_get_dtb(void) {
+static void ar_get_dtb(addr_range_t *ar) {
   paddr_t dtb_start, dtb_end;
   FDT_get_blob_range(&dtb_start, &dtb_end);
-  return (addr_range_t){
-    .start = dtb_start,
-    .end = dtb_end,
-  };
+  ar->start = dtb_start;
+  ar->end = dtb_end;
 }
 
 static size_t ar_get_reserved_mem(addr_range_t *ars) {
@@ -179,11 +172,10 @@ static void physmem_regions(void) {
    * NOTE: please refer to issue #1129 to see why the following workaround
    * is needed.
    */
-  addr_range_t memory[MAX_PHYS_MEM_REGS] = {
-    ar_get_kernel_img(),
-    ar_get_initrd(),
-    ar_get_dtb(),
-  };
+  addr_range_t memory[MAX_PHYS_MEM_REGS];
+  ar_get_kernel_img(&memory[0]);
+  ar_get_initrd(&memory[1]);
+  ar_get_dtb(&memory[2]);
   const size_t rsvmem_cnt = ar_get_reserved_mem(&memory[3]);
 
   const size_t nranges = rsvmem_cnt + 3;
@@ -211,8 +203,6 @@ void __noreturn board_init(void) {
   init_klog();
   physmem_regions();
   init_sbi();
-  /* Disable each supervisor interrupt. */
-  csr_clear(sie, SIE_SEIE | SIE_STIE | SIE_SSIE);
   intr_enable();
   kernel_init();
 }
