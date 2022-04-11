@@ -168,7 +168,7 @@ int test_pipe_write_interruptible_sleep(void) {
     sigaction(SIGALRM, &sa, NULL);
 
     int page_size = getpagesize();
-    char data[page_size];
+    char *data = malloc(page_size * sizeof(char));
 
     for (int i = 0; i < page_size; i++) {
       data[i] = (i + '0') % CHAR_MAX;
@@ -183,6 +183,7 @@ int test_pipe_write_interruptible_sleep(void) {
     assert(errno == EINTR);
 
     close(pipe_fd[1]); /* closing write end of pipe */
+    free(data);
     exit(EXIT_SUCCESS);
   }
 
@@ -210,7 +211,7 @@ int test_pipe_write_errno_eagain(void) {
 
     int page_size = getpagesize();
     /* prepare varying data */
-    char data[page_size];
+    char *data = malloc(page_size * sizeof(char));
 
     for (int i = 0; i < page_size; i++) {
       data[i] = (i + '0') % CHAR_MAX;
@@ -224,6 +225,7 @@ int test_pipe_write_errno_eagain(void) {
     assert(errno == EAGAIN);
 
     close(pipe_fd[1]); /* closing write end of pipe */
+    free(data);
     exit(EXIT_SUCCESS);
   }
 
