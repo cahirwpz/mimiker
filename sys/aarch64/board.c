@@ -133,7 +133,7 @@ static void rpi3_physmem(void) {
 
 __noreturn void board_init(void) {
   init_kasan();
-  klog_update_mask();
+  init_klog();
   rpi3_physmem();
   intr_enable();
   kernel_init();

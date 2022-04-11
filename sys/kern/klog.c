@@ -128,14 +128,6 @@ unsigned klog_setmask(unsigned newmask) {
   return atomic_exchange(&klog.mask, newmask);
 }
 
-void klog_config(void) {
-  const char *mask_str = kenv_get("klog-mask");
-  if (mask_str) {
-    unsigned mask_val = strtol(mask_str, NULL, 16);
-    klog_setmask(mask_val);
-  }
-}
-
 void klog_dump(void) {
   klog_entry_t entry;
 
