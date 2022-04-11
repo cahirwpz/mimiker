@@ -25,9 +25,9 @@
   ENTRY(name);                                                                 \
   REG_LI a7, num;                                                              \
   ecall;                                                                       \
-  bnez a1, 0f;                                                                 \
+  bnez a1, 1f;                                                                 \
   ret;                                                                         \
-  0 : j _C_LABEL(__sc_error);                                                  \
+  1 : j _C_LABEL(__sc_error);                                                  \
   END(name)
 
 #endif /* !__ASSEMBLER__ */

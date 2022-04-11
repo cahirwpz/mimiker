@@ -1,6 +1,5 @@
 include <signal.h>
 include <ucontext.h>
-include <sys/types.h>
 
 define UC_GREGS_RA offsetof(ucontext_t, uc_mcontext.__gregs[_REG_RA])
 define UC_GREGS_SP offsetof(ucontext_t, uc_mcontext.__gregs[_REG_SP])
