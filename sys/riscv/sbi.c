@@ -73,7 +73,7 @@ static sbi_ret_t sbi_call(u_long ext, u_long func, u_long arg0, u_long arg1,
                    : "=r"(error), "=r"(value)
                    : "r"(arg0), "r"(arg1), "r"(arg2), "r"(arg3), "r"(arg4),
                      "r"(func), "r"(ext)
-                   : "a0", "a1", "a2", "a3", "a4", "a5", "a7", "memory");
+                   : "a0", "a1", "a2", "a3", "a4", "a6", "a7", "memory");
   return (sbi_ret_t){
     .error = error,
     .value = value,
