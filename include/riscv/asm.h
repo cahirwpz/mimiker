@@ -112,15 +112,15 @@
 #define INT_SCALESHIFT 2
 #if __riscv_xlen == 64
 #define INT_ADD addw
-#define INT_ADDI addwi
+#define INT_ADDI addiw
 #define INT_SUB subw
-#define INT_SUBI subwi
-#define INT_SLL sllwi
-#define INT_SLLV sllw
-#define INT_SRL srlwi
-#define INT_SRLV srlw
-#define INT_SRA srawi
-#define INT_SRAV sraw
+#define INT_SUBI subiw
+#define INT_SLLI slliw
+#define INT_SLL sllw
+#define INT_SRLI srliw
+#define INT_SRL srlw
+#define INT_SRAI sraiw
+#define INT_SRA sraw
 #else
 #define INT_ADD add
 #define INT_ADDI addi
