@@ -8,17 +8,31 @@
 # Required common variables: KERNEL, BOARD.
 #
 
-TARGET := riscv32-mimiker-elf
-GCC_ABIFLAGS := 
-CLANG_ABIFLAGS := -target riscv32-elf
-ELFTYPE := elf32-littleriscv
+TARGET := riscv$(XLEN)-mimiker-elf
+ELFTYPE := elf$(XLEN)-littleriscv
 ELFARCH := riscv
 
 ifeq ($(BOARD), litex-riscv)
+	EXT := ima
+	ABI := ilp32
 	KERNEL_PHYS := 0x40000000
 	KERNEL-IMAGES := mimiker.img
-	CPPFLAGS += -DFPU=1
+	CPPFLAGS += -DFPU=0
 endif
+
+ifeq ($(BOARD), fu540)
+	EXT := g
+	ABI := lp64d
+	KERNEL_PHYS := 0x80200000
+	KERNEL-IMAGES := mimiker.img
+	CPPFLAGS += -DFPU=1
+ifeq ($(CLANG), 1)
+	CPPFLAGS += -D__riscv_d -D__riscv_f
+endif
+endif
+
+GCC_ABIFLAGS += -march=rv$(XLEN)$(EXT) -mabi=$(ABI) 
+CLANG_ABIFLAGS += -target riscv$(XLEN)-elf -march=rv$(XLEN)$(EXT) -mabi=$(ABI)
 
 ifeq ($(KERNEL), 1)
 	CFLAGS += -mcmodel=medany

@@ -1,0 +1,20 @@
+#ifndef _RISCV_PMAP_H_
+#define _RISCV_PMAP_H_
+
+/*
+ * Direct map.
+ */
+#if __riscv_xlen == 64
+#define DMAP_VADDR_BASE 0xffffffe000000000L
+#define DMAP_MAX_SIZE 0x2000000000L
+#else
+#define DMAP_VADDR_BASE 0xc0000000
+#define DMAP_MAX_SIZE 0x40000000
+#endif
+
+#define RISCV_PHYSADDR(x)                                                      \
+  ((paddr_t)((vaddr_t)(x) & ~KERNEL_SPACE_BEGIN) + KERNEL_PHYS)
+
+void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va);
+
+#endif /* !_RISCV_PMAP_H_ */

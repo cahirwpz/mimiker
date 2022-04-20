@@ -68,6 +68,10 @@ CONFIG = {
                 'kernel': 'sys/mimiker.img',
                 'simulator': 'renode',
             },
+            'fu540': {
+                'kernel': 'sys/mimiker.elf',
+                'simulator': 'qemu'
+            },
         },
     },
     'qemu': {
@@ -111,6 +115,21 @@ CONFIG = {
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ]
+            },
+            'fu540': {
+                'binary': 'qemu-mimiker-riscv64',
+                'options': [
+                    '-machine', 'sifive_u',
+                    '-smp', '5',
+                    '-m', '1G',
+#                    '-bios', 'fw_jump.elf',
+                    '-monitor', 'stdio',
+                ],
+                'network_options': [],
+                'uarts': [
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty1', port=RandomPort(), raw=True)
+                ]
             }
         }
     },
@@ -133,11 +152,16 @@ CONFIG = {
             '-ex=set confirm no',
             '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
             '-ex=set tcp connect-timeout 30',
-            '-ex=target remote localhost:{gdbport}',
+            '-ex=target extended-remote localhost:{gdbport}',
             '--silent',
         ],
         'extra-options': [],
         'post-options': [
+            '-ex=add-inferior',
+            '-ex=inferior 2',
+            '-ex=file sys/mimiker.elf',
+            '-ex=attach 2',
+            '-ex=set schedule-multiple on',
             '-ex=source .gdbinit',
             '-ex=continue',
         ],
@@ -151,10 +175,21 @@ CONFIG = {
             'litex-riscv': {
                 'binary': 'riscv32-mimiker-elf-gdb'
             },
+            'fu540': {
+                'binary': 'riscv64-mimiker-elf-gdb'
+            },
         }
     }
 }
 
+BOOTARGS_DTS_TEMPLATE = """
+/dts-v1/;
+/plugin/;
+
+&{{/chosen}} {{
+    bootargs = "{}";
+}};
+"""
 
 def setboard(name):
     setvar('board', name)
@@ -284,8 +319,19 @@ class RENODE(Launchable):
             gdbport = getvar('config.gdbport', failok=False)
             self.options += [f'-e machine StartGdbServer {gdbport}']
 
-        # TODO(MichalBlk): we should enable passing kernel args through
-        # the launch script by introducing parameterizable DTS files.
+        with open('bootargs.dts', 'w') as bootargs_dts_file:
+            bootargs_dts_file.write(
+                BOOTARGS_DTS_TEMPLATE.format(' '.join(getvar('config.args')))
+            )
+        subprocess.check_call(
+            'dtc -O dtb -o bootargs.dtbo bootargs.dts', shell=True
+        )
+        dtb = os.path.join('sys/dts/', '{}.dtb'.format(getvar('board')))
+        subprocess.check_call(
+            'fdtoverlay -i {} -o {} bootargs.dtbo'.format(dtb, dtb), shell=True
+        )
+        os.remove('bootargs.dts')
+        os.remove('bootargs.dtbo')
 
         self.options += ['-e start']
 
@@ -294,9 +340,11 @@ class GDB(Launchable):
     def __init__(self):
         super().__init__('gdb', getvar('gdb.binary'))
 
-        self.options += getopts(
+        self.options = getopts(
                 'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
-        self.options.append(getvar('config.elf'))
+        #elf = getvar('config.elf')
+        #self.options.append(f'file {elf}')
+        #print(self.options)
 
 
 class SOCAT(Launchable):
@@ -405,7 +453,7 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
     parser.add_argument('-b', '--board', default='malta',
-                        choices=['malta', 'rpi3', 'litex-riscv'],
+                        choices=['malta', 'rpi3', 'litex-riscv', 'fu540'],
                         help='Emulated board.')
     args = parser.parse_args()
 

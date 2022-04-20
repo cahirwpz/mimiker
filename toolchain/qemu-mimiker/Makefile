@@ -44,7 +44,7 @@ configure-stamp: patch-stamp
 		--disable-bzip2 \
 		--disable-tpm \
 		--disable-linux-aio \
-	    	--target-list=mipsel-softmmu,aarch64-softmmu \
+	    	--target-list=riscv64-softmmu \
 		--with-suffix=qemu-mimiker
 	touch $@
 
@@ -57,8 +57,7 @@ install: install-stamp
 install-stamp: build-stamp
 	cd qemu-build && make install DESTDIR=$(PWD)/debian/tmp
 	cd $(PWD)/debian/tmp && \
-	mv usr/bin/qemu-system-mipsel usr/bin/qemu-mimiker-mipsel && \
-	mv usr/bin/qemu-system-aarch64 usr/bin/qemu-mimiker-aarch64 && \
+	mv usr/bin/qemu-system-riscv64 usr/bin/qemu-mimiker-riscv64 && \
 	touch $@
 
 binary: binary-stamp

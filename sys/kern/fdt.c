@@ -45,9 +45,14 @@ void FDT_early_init(paddr_t pa, vaddr_t va) {
   fdt_size = roundup(totalsize, PAGESIZE);
 }
 
-void FDT_init(void) {
-  if (fdt_pa)
-    fdtp = (void *)kmem_map_contig(fdt_pa, fdt_size, 0);
+paddr_t FDT_get_physaddr(void) {
+  assert(fdt_pa);
+  return fdt_pa;
+}
+
+void FDT_changeroot(void *root) {
+  assert(fdtp);
+  fdtp = root;
 }
 
 void FDT_get_blob_range(paddr_t *startp, paddr_t *endp) {
@@ -260,23 +265,27 @@ int FDT_get_chosen_initrd(fdt_mem_reg_t *mr) {
   const size_t start_size =
     FDT_getencprop(chosen, "linux,initrd-start", cell, sizeof(cell));
   cells = start_size / sizeof(pcell_t);
-  if (cells > FDT_MAX_ADDR_CELLS)
+  if (cells > FDT_MAX_ADDR_CELLS) {
     return ERANGE;
-  else if (cells == 1)
+  } else if (cells == 1) {
     start = *(uint32_t *)cell;
-  else
-    start = *(uint64_t *)cell;
+  } else {
+    uint64_t *startp = (uint64_t *)cell;
+    start = *startp;
+  }
 
   /* Retrieve end addr. */
   const size_t end_size =
     FDT_getencprop(chosen, "linux,initrd-end", cell, sizeof(cell));
   cells = end_size / sizeof(pcell_t);
-  if (cells > FDT_MAX_ADDR_CELLS)
+  if (cells > FDT_MAX_ADDR_CELLS) {
     return ERANGE;
-  else if (cells == 1)
+  } else if (cells == 1) {
     end = *(uint32_t *)cell;
-  else
-    end = *(uint64_t *)cell;
+  } else {
+    uint64_t *endp = (uint64_t *)cell;
+    end = *endp;
+  }
 
   *mr = (fdt_mem_reg_t){
     .addr = start,

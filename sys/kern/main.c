@@ -82,7 +82,7 @@ __noreturn void kernel_init(void) {
   init_kmem();
   init_vm_map();
 
-  init_cons();
+  // init_cons();
 
   /* Make dispatcher & scheduler structures ready for use. */
   init_sleepq();
@@ -96,7 +96,6 @@ __noreturn void kernel_init(void) {
   preempt_enable();
 
   /* [FIRST_PASS] Initialize first timer and console devices. */
-  FDT_init();
   init_devices();
 
   init_vfs();
@@ -105,14 +104,11 @@ __noreturn void kernel_init(void) {
 
   /* Mount filesystems (including devfs). */
   mount_fs();
-
   /* Some clocks has been found during device init process,
    * so it's high time to start system clock. */
   init_clock();
 
   init_kgprof();
-
-  klog("Kernel initialized!");
 
   init_kcsan();
 

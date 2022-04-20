@@ -32,7 +32,17 @@ SOURCES-AARCH64 = \
 	pl011.c
 
 SOURCES-RISCV = \
-	litex_riscv_rootdev.c
+	clint.c \
+	liteuart.c \
+	plic.c \
+	sbi_console.c \
+	sifive_uart.c
+
+ifeq ($(BOARD), litex-riscv)
+SOURCES-RISCV += litex_riscv_rootdev.c
+else ifeq ($(BOARD), fu540)
+SOURCES-RISCV += fu540_rootdev.c
+endif
 
 CPPFLAGS += -D_MACHDEP
 

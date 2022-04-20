@@ -4,6 +4,7 @@
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/linker_set.h>
+#include <sys/fdt.h>
 #include <sys/rman.h>
 
 typedef struct devclass devclass_t;
@@ -23,6 +24,7 @@ typedef int (*d_detach_t)(device_t *dev);
 typedef enum {
   DIF_BUS,
   DIF_PCI_BUS,
+  DIF_IC,
   DIF_UART,
   DIF_EMMC,
   DIF_USBHC,
@@ -71,6 +73,7 @@ typedef enum {
 struct device {
   /* Device hierarchy. */
   device_t *parent; /* parent node (bus?) or null (root or pseudo-dev) */
+  device_t *ic;     /* device's interrupt controller */
   TAILQ_ENTRY(device) link; /* node on list of siblings */
   device_list_t children;   /* head of children devices */
 
@@ -79,6 +82,7 @@ struct device {
   driver_t *driver;
   devclass_t *devclass; /* (for buses) device class of children */
   int unit;
+  phandle_t node;            /* FDT device node offset */
   void *instance;            /* used by bus driver to store data in children */
   void *state;               /* memory requested by driver for its state */
   resource_list_t resources; /* used by driver, assigned by parent bus */

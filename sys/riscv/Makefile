@@ -3,15 +3,25 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES-RISCV = \
+	board.c \
 	boot.c \
 	copy.S \
 	exception.S \
 	interrupt.c \
 	mcontext.c \
 	pmap.c \
+	sbi.c \
+	sigcode.S \
 	signal.c \
 	start.S \
-	thread.c
+	switch.S \
+	thread.c \
+	tlb.c \
+	trap.c
+
+CFLAGS.start.S = -mcmodel=medany
+CFLAGS.boot.c = -mcmodel=medany
+CFLAGS.board.c = -mcmodel=medany
 
 CLEAN-FILES += assym.h riscv.ld
 

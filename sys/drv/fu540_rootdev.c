@@ -166,7 +166,7 @@ static int rootdev_attach(device_t *bus) {
     return ENXIO;
 
   rman_init(&rd->mem_rm, "RISC-V I/O space");
-  rman_manage_region(&rd->mem_rm, 0xf0000000, 0x10000000);
+  rman_manage_region(&rd->mem_rm, 0x00000000, 0x30000000);
 
   /*
    * NOTE: supervisor can only control supervisor and user interrupts, however,
@@ -189,7 +189,7 @@ static int rootdev_attach(device_t *bus) {
   if (node == FDT_NODEV)
     return ENXIO;
   dev->node = node;
-  device_add_memory(dev, 0, 0xf0010000, 0x10000);
+  device_add_memory(dev, 0, 0x02000000, 0x10000);
   device_add_irq(dev, 0, HLIC_IRQ_SOFTWARE_SUPERVISOR);
   device_add_irq(dev, 1, HLIC_IRQ_TIMER_SUPERVISOR);
 
@@ -200,7 +200,7 @@ static int rootdev_attach(device_t *bus) {
   if (node == FDT_NODEV)
     return ENXIO;
   plic->node = node;
-  device_add_memory(plic, 0, 0xf0c00000, 0x400000);
+  device_add_memory(plic, 0, 0x0c000000, 0x4000000);
   device_add_irq(plic, 0, HLIC_IRQ_EXTERNAL_SUPERVISOR);
 
   extern driver_t plic_driver;
@@ -215,8 +215,8 @@ static int rootdev_attach(device_t *bus) {
   if (node == FDT_NODEV)
     return ENXIO;
   dev->node = node;
-  device_add_memory(dev, 0, 0xf0001000, 0x100);
-  device_add_irq(dev, 0, 1);
+  device_add_memory(dev, 0, 0x10010000, 0x1000);
+  device_add_irq(dev, 0, 4);
 
   return bus_generic_probe(bus);
 }
