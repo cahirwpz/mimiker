@@ -134,21 +134,21 @@ static void rootdev_disable_irq(intr_event_t *ie) {
   }
 }
 
-static resource_t *rootdev_alloc_intr(device_t *ic, device_t *dev, int rid,
+static resource_t *rootdev_alloc_intr(device_t *pic, device_t *dev, int rid,
                                       unsigned irq, rman_flags_t flags) {
-  rootdev_t *rd = ic->state;
+  rootdev_t *rd = pic->state;
   rman_t *rman = &rd->irq_rm;
   return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
 }
 
-static void rootdev_release_intr(device_t *ic, device_t *dev, resource_t *r) {
+static void rootdev_release_intr(device_t *pic, device_t *dev, resource_t *r) {
   resource_release(r);
 }
 
-static void rootdev_setup_intr(device_t *ic, device_t *dev, resource_t *r,
+static void rootdev_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                                ih_filter_t *filter, ih_service_t *service,
                                void *arg, const char *name) {
-  rootdev_t *rd = ic->state;
+  rootdev_t *rd = pic->state;
   int irq = resource_start(r);
   assert(irq < NIRQ);
 
@@ -160,7 +160,7 @@ static void rootdev_setup_intr(device_t *ic, device_t *dev, resource_t *r,
     intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
-static void rootdev_teardown_intr(device_t *ic, device_t *dev,
+static void rootdev_teardown_intr(device_t *pic, device_t *dev,
                                   resource_t *irq) {
   intr_event_remove_handler(irq->r_handler);
 }

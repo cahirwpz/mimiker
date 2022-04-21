@@ -218,21 +218,21 @@ static const char *gt_pci_intr_name[IO_ICUSIZE] = {
 };
 /* clang-format on */
 
-static resource_t *gt_pci_alloc_intr(device_t *ic, device_t *dev, int rid,
+static resource_t *gt_pci_alloc_intr(device_t *pic, device_t *dev, int rid,
                                      unsigned irq, rman_flags_t flags) {
-  gt_pci_state_t *gtpci = ic->state;
+  gt_pci_state_t *gtpci = pic->state;
   rman_t *rman = &gtpci->irq_rman;
   return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
 }
 
-static void gt_pci_release_intr(device_t *ic, device_t *dev, resource_t *r) {
+static void gt_pci_release_intr(device_t *pic, device_t *dev, resource_t *r) {
   resource_release(r);
 }
 
-static void gt_pci_setup_intr(device_t *ic, device_t *dev, resource_t *r,
+static void gt_pci_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                               ih_filter_t *filter, ih_service_t *service,
                               void *arg, const char *name) {
-  gt_pci_state_t *gtpci = ic->state;
+  gt_pci_state_t *gtpci = pic->state;
   int irq = resource_start(r);
   assert(irq < IO_ICUSIZE);
 
@@ -244,7 +244,8 @@ static void gt_pci_setup_intr(device_t *ic, device_t *dev, resource_t *r,
     intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg, name);
 }
 
-static void gt_pci_teardown_intr(device_t *ic, device_t *dev, resource_t *irq) {
+static void gt_pci_teardown_intr(device_t *pic, device_t *dev,
+                                 resource_t *irq) {
   intr_event_remove_handler(irq->r_handler);
 }
 

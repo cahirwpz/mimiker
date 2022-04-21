@@ -95,13 +95,14 @@ void intr_root_handler(ctx_t *ctx) __no_profile;
  * Interrupt controller interface.
  */
 
-typedef resource_t *(*pic_alloc_intr_t)(device_t *ic, device_t *dev, int rid,
+typedef resource_t *(*pic_alloc_intr_t)(device_t *pic, device_t *dev, int rid,
                                         unsigned irq, rman_flags_t flags);
-typedef void (*pic_release_intr_t)(device_t *ic, device_t *dev, resource_t *r);
-typedef void (*pic_setup_intr_t)(device_t *ic, device_t *dev, resource_t *r,
+typedef void (*pic_release_intr_t)(device_t *pic, device_t *dev, resource_t *r);
+typedef void (*pic_setup_intr_t)(device_t *pic, device_t *dev, resource_t *r,
                                  ih_filter_t *filter, ih_service_t *service,
                                  void *arg, const char *name);
-typedef void (*pic_teardown_intr_t)(device_t *ic, device_t *dev, resource_t *r);
+typedef void (*pic_teardown_intr_t)(device_t *pic, device_t *dev,
+                                    resource_t *r);
 
 typedef struct pic_methods {
   pic_alloc_intr_t alloc_intr;
