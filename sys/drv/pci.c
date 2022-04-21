@@ -102,7 +102,7 @@ void pci_bus_enumerate(device_t *pcib) {
       device_t *dev = device_add_child(pcib, -1);
       pci_device_t *pcid = kmalloc(M_DEV, sizeof(pci_device_t), M_ZERO);
 
-      dev->ic = pcib;
+      dev->pic = pcib;
       dev->bus = DEV_BUS_PCI;
       dev->instance = pcid;
 

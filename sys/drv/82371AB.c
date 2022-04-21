@@ -83,28 +83,28 @@ static int intel_isa_attach(device_t *isab) {
 
   /* atkbdc keyboard device */
   dev = device_add_child(isab, 0);
-  dev->ic = isab->ic;
+  dev->pic = isab->pic;
   dev->bus = DEV_BUS_ISA;
   device_add_ioports(dev, 0, IO_KBD, IO_KBDSIZE);
   device_add_irq(dev, 0, 1);
 
   /* ns16550 uart device */
   dev = device_add_child(isab, 1);
-  dev->ic = isab->ic;
+  dev->pic = isab->pic;
   dev->bus = DEV_BUS_ISA;
   device_add_ioports(dev, 0, IO_COM1, IO_COMSIZE);
   device_add_irq(dev, 0, 4);
 
   /* rtc device */
   dev = device_add_child(isab, 2);
-  dev->ic = isab->ic;
+  dev->pic = isab->pic;
   dev->bus = DEV_BUS_ISA;
   device_add_ioports(dev, 0, IO_RTC, IO_RTCSIZE);
   device_add_irq(dev, 0, 8);
 
   /* i8254 timer device */
   dev = device_add_child(isab, 3);
-  dev->ic = isab->ic;
+  dev->pic = isab->pic;
   dev->bus = DEV_BUS_ISA;
   device_add_ioports(dev, 0, IO_TIMER1, IO_TMRSIZE);
   device_add_irq(dev, 0, 0);

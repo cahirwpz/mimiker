@@ -218,18 +218,18 @@ static const char *gt_pci_intr_name[IO_ICUSIZE] = {
 };
 /* clang-format on */
 
-static resource_t *gt_pci_intr_alloc(device_t *ic, device_t *dev, int rid,
+static resource_t *gt_pci_alloc_intr(device_t *ic, device_t *dev, int rid,
                                      unsigned irq, rman_flags_t flags) {
   gt_pci_state_t *gtpci = ic->state;
   rman_t *rman = &gtpci->irq_rman;
   return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
 }
 
-static void gt_pci_intr_release(device_t *ic, device_t *dev, resource_t *r) {
+static void gt_pci_release_intr(device_t *ic, device_t *dev, resource_t *r) {
   resource_release(r);
 }
 
-static void gt_pci_intr_setup(device_t *ic, device_t *dev, resource_t *r,
+static void gt_pci_setup_intr(device_t *ic, device_t *dev, resource_t *r,
                               ih_filter_t *filter, ih_service_t *service,
                               void *arg, const char *name) {
   gt_pci_state_t *gtpci = ic->state;
@@ -244,7 +244,7 @@ static void gt_pci_intr_setup(device_t *ic, device_t *dev, resource_t *r,
     intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg, name);
 }
 
-static void gt_pci_intr_teardown(device_t *ic, device_t *dev, resource_t *irq) {
+static void gt_pci_teardown_intr(device_t *ic, device_t *dev, resource_t *irq) {
   intr_event_remove_handler(irq->r_handler);
 }
 
@@ -340,8 +340,8 @@ static int gt_pci_attach(device_t *pcib) {
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
   gtpci->irq_res = device_take_irq(pcib, 0, RF_ACTIVE);
-  intr_setup(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
-             "GT64120 main irq");
+  pic_setup_intr(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
+                 "GT64120 main irq");
 
   pci_bus_enumerate(pcib);
 
@@ -349,7 +349,7 @@ static int gt_pci_attach(device_t *pcib) {
 
   /* ISA Bridge */
   dev = device_add_child(pcib, 0);
-  dev->ic = pcib;
+  dev->pic = pcib;
   dev->bus = DEV_BUS_PCI;
   dev->devclass = &DEVCLASS(isa);
   device_add_ioports(dev, 0, IO_ISABEGIN, IO_ISAEND + 1);
@@ -453,11 +453,11 @@ static bus_methods_t gt_pci_bus_if = {
   .deactivate_resource = gt_pci_deactivate_resource,
 };
 
-static ic_methods_t gt_ic_if = {
-  .intr_alloc = gt_pci_intr_alloc,
-  .intr_release = gt_pci_intr_release,
-  .intr_setup = gt_pci_intr_setup,
-  .intr_teardown = gt_pci_intr_teardown,
+static pic_methods_t gt_pic_if = {
+  .alloc_intr = gt_pci_alloc_intr,
+  .release_intr = gt_pci_release_intr,
+  .setup_intr = gt_pci_setup_intr,
+  .teardown_intr = gt_pci_teardown_intr,
 };
 
 static pci_bus_methods_t gt_pci_pci_bus_if = {
@@ -476,7 +476,7 @@ static driver_t gt_pci_bus = {
   .interfaces =
     {
       [DIF_BUS] = &gt_pci_bus_if,
-      [DIF_IC] = &gt_ic_if,
+      [DIF_PIC] = &gt_pic_if,
       [DIF_PCI_BUS] = &gt_pci_pci_bus_if,
     },
 };

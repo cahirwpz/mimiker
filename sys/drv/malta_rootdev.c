@@ -37,18 +37,18 @@ static const char *rootdev_intr_name[MIPS_NIRQ] = {
 };
 /* clang-format on */
 
-static resource_t *rootdev_intr_alloc(device_t *ic, device_t *dev, int rid,
+static resource_t *rootdev_alloc_intr(device_t *ic, device_t *dev, int rid,
                                       unsigned irq, rman_flags_t flags) {
   rootdev_t *rd = ic->state;
   rman_t *rman = &rd->irq;
   return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
 }
 
-static void rootdev_intr_release(device_t *ic, device_t *dev, resource_t *r) {
+static void rootdev_release_intr(device_t *ic, device_t *dev, resource_t *r) {
   resource_release(r);
 }
 
-static void rootdev_intr_setup(device_t *ic, device_t *dev, resource_t *r,
+static void rootdev_setup_intr(device_t *ic, device_t *dev, resource_t *r,
                                ih_filter_t *filter, ih_service_t *service,
                                void *arg, const char *name) {
   rootdev_t *rd = ic->state;
@@ -63,7 +63,7 @@ static void rootdev_intr_setup(device_t *ic, device_t *dev, resource_t *r,
     intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
-static void rootdev_intr_teardown(device_t *ic, device_t *dev,
+static void rootdev_teardown_intr(device_t *ic, device_t *dev,
                                   resource_t *irq) {
   intr_event_remove_handler(irq->r_handler);
 
@@ -151,12 +151,12 @@ static int rootdev_attach(device_t *bus) {
 
   /* Create MIPS timer device and assign resources to it. */
   device_t *dev = device_add_child(bus, 0);
-  dev->ic = bus;
+  dev->pic = bus;
   device_add_irq(dev, 0, MIPS_HWINT5);
 
   /* Create GT PCI device and assign resources to it. */
   dev = device_add_child(bus, 1);
-  dev->ic = bus;
+  dev->pic = bus;
   dev->devclass = &DEVCLASS(pci);
   /* PCI I/O memory. */
   device_add_memory(dev, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_SIZE);
@@ -179,11 +179,11 @@ static bus_methods_t rootdev_bus_if = {
   .deactivate_resource = rootdev_deactivate_resource,
 };
 
-static ic_methods_t rootdev_ic_if = {
-  .intr_alloc = rootdev_intr_alloc,
-  .intr_release = rootdev_intr_release,
-  .intr_setup = rootdev_intr_setup,
-  .intr_teardown = rootdev_intr_teardown,
+static pic_methods_t rootdev_pic_if = {
+  .alloc_intr = rootdev_alloc_intr,
+  .release_intr = rootdev_release_intr,
+  .setup_intr = rootdev_setup_intr,
+  .teardown_intr = rootdev_teardown_intr,
 };
 
 driver_t rootdev_driver = {
@@ -195,7 +195,7 @@ driver_t rootdev_driver = {
   .interfaces =
     {
       [DIF_BUS] = &rootdev_bus_if,
-      [DIF_IC] = &rootdev_ic_if,
+      [DIF_PIC] = &rootdev_pic_if,
     },
 };
 

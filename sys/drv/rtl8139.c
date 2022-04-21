@@ -82,7 +82,7 @@ static int rtl8139_attach(device_t *dev) {
     err = ENXIO;
     goto fail;
   }
-  intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
+  pic_setup_intr(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
 
   /* TODO: introduce ring buffer */
 

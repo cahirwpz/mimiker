@@ -214,36 +214,36 @@ void intr_event_run_handlers(intr_event_t *ie) {
     klog("Spurious %s interrupt!", ie->ie_name);
 }
 
-static inline ic_methods_t *ic_methods(device_t *dev) {
-  return (ic_methods_t *)dev->driver->interfaces[DIF_IC];
+static inline pic_methods_t *pic_methods(device_t *dev) {
+  return (pic_methods_t *)dev->driver->interfaces[DIF_PIC];
 }
 
-resource_t *intr_alloc(device_t *dev, int rid, unsigned irq,
-                       rman_flags_t flags) {
-  device_t *ic = dev->ic;
-  return ic_methods(ic)->intr_alloc(ic, dev, rid, irq, flags);
+resource_t *pic_alloc_intr(device_t *dev, int rid, unsigned irq,
+                           rman_flags_t flags) {
+  device_t *pic = dev->pic;
+  return pic_methods(pic)->alloc_intr(pic, dev, rid, irq, flags);
 }
 
-void intr_release(device_t *dev, resource_t *r) {
+void pic_release_intr(device_t *dev, resource_t *r) {
   assert(r->r_type == RT_IRQ);
-  device_t *ic = dev->ic;
-  ic_methods(ic)->intr_release(ic, dev, r);
+  device_t *pic = dev->pic;
+  pic_methods(pic)->release_intr(pic, dev, r);
 }
 
-void intr_setup(device_t *dev, resource_t *r, ih_filter_t *filter,
-                ih_service_t *service, void *arg, const char *name) {
+void pic_setup_intr(device_t *dev, resource_t *r, ih_filter_t *filter,
+                    ih_service_t *service, void *arg, const char *name) {
   assert(r->r_type == RT_IRQ);
-  device_t *ic = dev->ic;
-  ic_methods(ic)->intr_setup(ic, dev, r, filter, service, arg, name);
+  device_t *pic = dev->pic;
+  pic_methods(pic)->setup_intr(pic, dev, r, filter, service, arg, name);
   if (r->r_handler)
     resource_activate(r);
 }
 
-void intr_teardown(device_t *dev, resource_t *r) {
+void pic_teardown_intr(device_t *dev, resource_t *r) {
   assert(r->r_type == RT_IRQ);
   assert(resource_active(r));
-  device_t *ic = dev->ic;
-  ic_methods(ic)->intr_teardown(ic, dev, r);
+  device_t *pic = dev->pic;
+  pic_methods(pic)->teardown_intr(pic, dev, r);
   r->r_handler = NULL;
   resource_deactivate(r);
 }
