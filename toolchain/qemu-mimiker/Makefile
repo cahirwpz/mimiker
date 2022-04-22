@@ -44,7 +44,7 @@ configure-stamp: patch-stamp
 		--disable-bzip2 \
 		--disable-tpm \
 		--disable-linux-aio \
-	    	--target-list=mipsel-softmmu,aarch64-softmmu \
+	    	--target-list=mipsel-softmmu,aarch64-softmmu,riscv64-softmmu \
 		--with-suffix=qemu-mimiker
 	touch $@
 
