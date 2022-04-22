@@ -1,8 +1,10 @@
 #define KL_LOG KL_PMAP
+#include <sys/fdt.h>
 #include <sys/kenv.h>
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/pmap.h>
+#include <riscv/cpufunc.h>
 #include <riscv/pmap.h>
 #include <riscv/pte.h>
 
@@ -28,6 +30,11 @@ vaddr_t pmap_end(pmap_t *pmap) {
   panic("Not implemented!");
 }
 
+static inline vaddr_t phys_to_dmap(paddr_t addr) {
+  assert(addr >= dmap_paddr_base && addr < dmap_paddr_end);
+  return (vaddr_t)(addr - dmap_paddr_base) + DMAP_VADDR_BASE;
+}
+
 void init_pmap(void) {
   panic("Not implemented!");
 }
@@ -43,7 +50,7 @@ void pmap_delete(pmap_t *pmap) {
 void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va) {
   dmap_paddr_base = kenv_get_ulong("mem_start");
   dmap_paddr_end = kenv_get_ulong("mem_end");
-  uint32_t dmap_size = dmap_paddr_end - dmap_paddr_base;
+  size_t dmap_size = dmap_paddr_end - dmap_paddr_base;
   kernel_pde = pd_pa;
 
   /* Assume physical memory starts at the beginning of L0 region. */
@@ -52,18 +59,23 @@ void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va) {
   /* We must have enough virtual addresses. */
   assert(dmap_size <= DMAP_MAX_SIZE);
 
-  /* We assume 32-bit physical address space. */
+  /* For RV32 we assume 32-bit physical address space. */
   assert(dmap_paddr_base < dmap_paddr_end);
 
   klog("Physical memory range: %p - %p", dmap_paddr_base, dmap_paddr_end - 1);
 
   klog("dmap range: %p - %p", DMAP_VADDR_BASE, DMAP_VADDR_BASE + dmap_size - 1);
 
-  /* Build direct map using 4MiB superpages. */
+  /* Build direct map using superpages. */
   pd_entry_t *pde = (void *)pd_va;
   size_t idx = L0_INDEX(DMAP_VADDR_BASE);
   for (paddr_t pa = dmap_paddr_base; pa < dmap_paddr_end; pa += L0_SIZE, idx++)
     pde[idx] = PA_TO_PTE(pa) | PTE_KERN;
+
+  __sfence_vma();
+
+  void *fdtp = (void *)phys_to_dmap(FDT_get_physaddr());
+  FDT_changeroot(fdtp);
 }
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,

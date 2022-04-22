@@ -11,8 +11,11 @@
 #include <sys/types.h>
 #include <sys/vm_physmem.h>
 #include <riscv/mcontext.h>
+#include <riscv/pmap.h>
 #include <riscv/riscvreg.h>
 #include <riscv/vm_param.h>
+
+#define KERNEL_PHYS_END (align(RISCV_PHYSADDR(__ebss), PAGESIZE) + BOOTMEM_SIZE)
 
 static size_t count_args(void) {
   /*

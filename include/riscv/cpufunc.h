@@ -9,7 +9,7 @@
 
 #define __sp()                                                                 \
   ({                                                                           \
-    uint64_t __rv;                                                             \
+    register_t __rv;                                                           \
     __asm __volatile("mv %0, sp" : "=r"(__rv));                                \
     __rv;                                                                      \
   })

@@ -91,4 +91,10 @@ typedef uint16_t asid_t;     /* address space identifier */
 #define PA_TO_PTE(pa) (((pa) >> PAGE_SHIFT) << PTE_PPN0_S)
 #define PTE_TO_PA(pte) (((pte) >> PTE_PPN0_S) << PAGE_SHIFT)
 
+#define VALID_PDE_P(pde) (((pde)&PTE_V) != 0)
+
+#define VALID_PTE_P(pte) ((pte) != 0)
+
+#define LEAF_PTE_P(pte) (((pte) & (PTE_X | PTE_W | PTE_R)) != 0)
+
 #endif /* !_RISCV_PTE_H_ */
