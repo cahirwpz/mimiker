@@ -17,7 +17,8 @@
 
 #define FDT_MAX_REG_CELLS (FDT_MAX_ADDR_CELLS + FDT_MAX_SIZE_CELLS)
 
-static paddr_t fdt_pa;  /* FDT blob physical address */
+static paddr_t fdt_pa;  /* FDT blob physical address (`PAGESIZE`-aligned) */
+static size_t fdt_off;  /* FDT blob offset within the first page */
 static void *fdtp;      /* FDT blob virtual memory pointer */
 static size_t fdt_size; /* FDT blob size (rounded to `PAGESIZE`) */
 
@@ -41,13 +42,20 @@ void FDT_early_init(paddr_t pa, vaddr_t va) {
   const size_t totalsize = fdt_totalsize(fdt);
 
   fdt_pa = rounddown(pa, PAGESIZE);
+  fdt_off = fdt_pa - pa;
   fdtp = fdt;
-  fdt_size = roundup(totalsize, PAGESIZE);
+  paddr_t fdt_end = roundup(pa + totalsize, PAGESIZE);
+  fdt_size = fdt_end - fdt_pa;
 }
 
-void FDT_init(void) {
-  if (fdt_pa)
-    fdtp = (void *)kmem_map_contig(fdt_pa, fdt_size, 0);
+paddr_t FDT_get_physaddr(void) {
+  assert(fdt_pa);
+  return fdt_pa + fdt_off;
+}
+
+void FDT_changeroot(void *root) {
+  assert(fdtp);
+  fdtp = root;
 }
 
 void FDT_get_blob_range(paddr_t *startp, paddr_t *endp) {
@@ -260,23 +268,27 @@ int FDT_get_chosen_initrd(fdt_mem_reg_t *mr) {
   const size_t start_size =
     FDT_getencprop(chosen, "linux,initrd-start", cell, sizeof(cell));
   cells = start_size / sizeof(pcell_t);
-  if (cells > FDT_MAX_ADDR_CELLS)
+  if (cells > FDT_MAX_ADDR_CELLS) {
     return ERANGE;
-  else if (cells == 1)
+  } else if (cells == 1) {
     start = *(uint32_t *)cell;
-  else
-    start = *(uint64_t *)cell;
+  } else {
+    uint64_t *startp = (uint64_t *)cell;
+    start = *startp;
+  }
 
   /* Retrieve end addr. */
   const size_t end_size =
     FDT_getencprop(chosen, "linux,initrd-end", cell, sizeof(cell));
   cells = end_size / sizeof(pcell_t);
-  if (cells > FDT_MAX_ADDR_CELLS)
+  if (cells > FDT_MAX_ADDR_CELLS) {
     return ERANGE;
-  else if (cells == 1)
+  } else if (cells == 1) {
     end = *(uint32_t *)cell;
-  else
-    end = *(uint64_t *)cell;
+  } else {
+    uint64_t *endp = (uint64_t *)cell;
+    end = *endp;
+  }
 
   *mr = (fdt_mem_reg_t){
     .addr = start,

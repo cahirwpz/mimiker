@@ -96,7 +96,6 @@ __noreturn void kernel_init(void) {
   preempt_enable();
 
   /* [FIRST_PASS] Initialize first timer and console devices. */
-  FDT_init();
   init_devices();
 
   init_vfs();

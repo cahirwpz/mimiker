@@ -41,11 +41,14 @@ typedef struct fdt_mem_reg {
 void FDT_early_init(paddr_t pa, vaddr_t va);
 
 /*
- * Final FDT initialization.
- *
- * Called during MI kernel bootstrap.
+ * Obtain the physical address of the FDT blob.
  */
-void FDT_init(void);
+paddr_t FDT_get_physaddr(void);
+
+/*
+ * Change the internal root FDT pointer.
+ */
+void FDT_changeroot(void *root);
 
 /*
  * Obtain physical memory boundaries of the FDT blob.
