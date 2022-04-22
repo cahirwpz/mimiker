@@ -165,12 +165,6 @@ __boot_text static void alloc_pts(void) {
 }
 
 __boot_text static void map_kernel_image(void) {
-  extern char __kernel_size[];
-
-  /* Assume that kernel image will be covered by single PDE (4MiB). */
-  if ((size_t)__kernel_size > L0_SIZE)
-    halt();
-
   /* Read-only segment - sections: .text and .rodata. */
   map((vaddr_t)__text, __data - __text, RISCV_PHYSADDR(__text),
       PTE_X | PTE_KERN_RO);

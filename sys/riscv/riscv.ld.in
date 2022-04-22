@@ -14,8 +14,6 @@ PHDRS
   data   PT_LOAD FLAGS(6); /* read-write */
 }
 
-PROVIDE(__kernel_size = _boot_size + (__kernel_end - __kernel_start));
-
 SECTIONS
 {
   .boot KERNEL_PHYS : AT(KERNEL_PHYS) ALIGN(4096)
