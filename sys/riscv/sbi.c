@@ -25,7 +25,16 @@
  * SUCH DAMAGE.
  */
 
-/* MODIFIED */
+/*
+ * MODIFIED
+ *
+ * We make the following assumptions based on OpenSBI v1.0-44-g9cd95e1:
+ *  - the TIMER, IPI, RFENCE, HSM, and LEGACY extensions are always supported,
+ *  - the SRST extension support is platform-dependent.
+ *
+ * If the newest OpenSBI version introduces any changes to the aforementioned
+ * assumptions, the code should be appropriately modified.
+ */
 
 #include <sys/klog.h>
 #include <sys/mimiker.h>
@@ -45,20 +54,16 @@ static u_long sbi_spec_version;
 static u_long sbi_impl_id;
 static u_long sbi_impl_version;
 
-static bool has_time_extension = false;
-static bool has_ipi_extension = false;
-static bool has_rfnc_extension = false;
 static bool has_srst_extension = false;
-static bool has_console_putchar_extension = false;
-static bool has_console_getchar_extension = false;
 
 /* Hardware implementation info. */
 static u_long mvendorid; /* CPU's JEDEC vendor ID */
 static u_long marchid;
 static u_long mimpid;
 
-static sbi_ret_t sbi_call(u_long ext, u_long func, u_long arg0, u_long arg1,
-                          u_long arg2, u_long arg3, u_long arg4) {
+static inline sbi_ret_t sbi_call(u_long ext, u_long func, u_long arg0,
+                                 u_long arg1, u_long arg2, u_long arg3,
+                                 u_long arg4) {
   u_long error, value;
   __asm __volatile("mv a0, %2\n\t"
                    "mv a1, %3\n\t"
@@ -124,14 +129,7 @@ static sbi_ret_t sbi_get_mimpid(void) {
  */
 
 int sbi_set_timer(uint64_t val) {
-  sbi_ret_t ret;
-
-  /* Use the TIME legacy replacement extension, if available. */
-  if (has_time_extension)
-    ret = SBI_CALL1(SBI_EXT_ID_TIME, SBI_TIME_SET_TIMER, val);
-  else
-    ret = SBI_CALL1(SBI_SET_TIMER, 0, val);
-
+  sbi_ret_t ret = SBI_CALL1(SBI_EXT_ID_TIME, SBI_TIME_SET_TIMER, val);
   return (int)ret.error;
 }
 
@@ -141,11 +139,7 @@ int sbi_set_timer(uint64_t val) {
 
 /* NOTE: this request cannot fail. */
 void sbi_send_ipi(const u_long *hart_mask) {
-  /* Use the IPI legacy replacement extension, if available. */
-  if (has_ipi_extension)
-    (void)SBI_CALL2(SBI_EXT_ID_IPI, SBI_IPI_SEND_IPI, *hart_mask, 0);
-  else
-    (void)SBI_CALL1(SBI_SEND_IPI, 0, (u_long)hart_mask);
+  (void)SBI_CALL2(SBI_EXT_ID_IPI, SBI_IPI_SEND_IPI, *hart_mask, 0);
 }
 
 /*
@@ -154,38 +148,19 @@ void sbi_send_ipi(const u_long *hart_mask) {
 
 /* NOTE: this request cannot fail. */
 void sbi_remote_fence_i(const u_long *hart_mask) {
-  /* Use the RFENCE legacy replacement extension, if available. */
-  if (has_rfnc_extension)
-    (void)SBI_CALL2(SBI_EXT_ID_RFNC, SBI_RFNC_REMOTE_FENCE_I, *hart_mask, 0);
-  else
-    (void)SBI_CALL1(SBI_REMOTE_FENCE_I, 0, (u_long)hart_mask);
+  (void)SBI_CALL2(SBI_EXT_ID_RFNC, SBI_RFNC_REMOTE_FENCE_I, *hart_mask, 0);
 }
 
 int sbi_remote_sfence_vma(const u_long *hart_mask, u_long start, u_long size) {
-  sbi_ret_t ret;
-
-  /* Use the RFENCE legacy replacement extension, if available. */
-  if (has_rfnc_extension)
-    ret = SBI_CALL4(SBI_EXT_ID_RFNC, SBI_RFNC_REMOTE_SFENCE_VMA, *hart_mask, 0,
-                    start, size);
-  else
-    ret = SBI_CALL3(SBI_REMOTE_SFENCE_VMA, 0, (u_long)hart_mask, start, size);
-
+  sbi_ret_t ret = SBI_CALL4(SBI_EXT_ID_RFNC, SBI_RFNC_REMOTE_SFENCE_VMA,
+                            *hart_mask, 0, start, size);
   return (int)ret.error;
 }
 
 int sbi_remote_sfence_vma_asid(const u_long *hart_mask, u_long start,
                                u_long size, u_long asid) {
-  sbi_ret_t ret;
-
-  /* Use the RFENCE legacy replacement extension, if available. */
-  if (has_rfnc_extension)
-    ret = SBI_CALL5(SBI_EXT_ID_RFNC, SBI_RFNC_REMOTE_SFENCE_VMA_ASID,
-                    *hart_mask, 0, start, size, asid);
-  else
-    ret = SBI_CALL4(SBI_REMOTE_SFENCE_VMA_ASID, 0, (u_long)hart_mask, start,
-                    size, asid);
-
+  sbi_ret_t ret = SBI_CALL5(SBI_EXT_ID_RFNC, SBI_RFNC_REMOTE_SFENCE_VMA_ASID,
+                            *hart_mask, 0, start, size, asid);
   return (int)ret.error;
 }
 
@@ -227,19 +202,15 @@ void sbi_system_reset(u_long reset_type, u_long reset_reason) {
  */
 
 void sbi_console_putchar(int ch) {
-  if (has_console_putchar_extension)
-    (void)SBI_CALL1(SBI_CONSOLE_PUTCHAR, 0, ch);
+  (void)SBI_CALL1(SBI_CONSOLE_PUTCHAR, 0, ch);
 }
 
 int sbi_console_getchar(void) {
-  if (has_console_getchar_extension) {
-    /*
-     * XXX: The "error" is returned here because legacy SBI functions
-     * continue to return their value in a0.
-     */
-    return (int)(SBI_CALL0(SBI_CONSOLE_GETCHAR, 0).error);
-  }
-  return -1;
+  /*
+   * XXX: The "error" is returned here because legacy SBI functions
+   * continue to return their value in a0.
+   */
+  return (int)(SBI_CALL0(SBI_CONSOLE_GETCHAR, 0).error);
 }
 
 /*
@@ -307,38 +278,23 @@ void init_sbi(void) {
   klog("Machine architecture ID: 0x%lx", marchid);
   klog("Machine implementation ID: 0x%lx", mimpid);
 
-  /* Probe for extensions. */
-  if (sbi_probe_extension(SBI_EXT_ID_TIME) != 0)
-    has_time_extension = true;
-  if (sbi_probe_extension(SBI_EXT_ID_IPI) != 0)
-    has_ipi_extension = true;
-  if (sbi_probe_extension(SBI_EXT_ID_RFNC) != 0)
-    has_rfnc_extension = true;
+  /* Probe for the SRST extension. */
   if (sbi_probe_extension(SBI_EXT_ID_SRST) != 0)
     has_srst_extension = true;
-
-  /* Probe for legacy console extensions. */
-  if (sbi_probe_extension(SBI_CONSOLE_PUTCHAR) != 0)
-    has_console_putchar_extension = true;
-  if (sbi_probe_extension(SBI_CONSOLE_GETCHAR) != 0)
-    has_console_getchar_extension = true;
 
   /*
    * Ensure the required extensions are implemented.
    */
-  if (!has_time_extension && !sbi_probe_extension(SBI_SET_TIMER))
-    panic("SBI doesn't implement sbi_set_timer()");
-  if (!has_ipi_extension && !sbi_probe_extension(SBI_SEND_IPI))
-    panic("SBI doesn't implement sbi_send_ipi()");
-  if (!has_rfnc_extension && !sbi_probe_extension(SBI_REMOTE_FENCE_I))
-    panic("SBI doesn't implement sbi_remote_fence_i()");
-  if (!has_rfnc_extension && !sbi_probe_extension(SBI_REMOTE_SFENCE_VMA))
-    panic("SBI doesn't implement sbi_remote_sfence_vma()");
-  if (!has_rfnc_extension && sbi_probe_extension(SBI_REMOTE_SFENCE_VMA_ASID))
-    panic("SBI doesn't implement sbi_remote_sfence_vma_asid()");
+  if (!sbi_probe_extension(SBI_EXT_ID_TIME))
+    panic("SBI doesn't implement the TIME extension");
+  if (!sbi_probe_extension(SBI_EXT_ID_IPI))
+    panic("SBI doesn't implement the IPI extension");
+  if (!sbi_probe_extension(SBI_EXT_ID_RFNC))
+    panic("SBI doesn't implement the RFNC extension");
   if (!sbi_probe_extension(SBI_EXT_ID_HSM))
     panic("SBI doesn't implement the HSM extension");
-  if (!has_srst_extension && !sbi_probe_extension(SBI_SHUTDOWN))
+  if (!sbi_probe_extension(SBI_EXT_ID_SRST) &&
+      !sbi_probe_extension(SBI_SHUTDOWN))
     panic("SBI doesn't implement a shutdown or reset extension");
 
   sbi_print_version();
