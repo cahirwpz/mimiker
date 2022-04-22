@@ -22,6 +22,7 @@ typedef int (*d_detach_t)(device_t *dev);
 /* Update this section if you add any new driver interface */
 typedef enum {
   DIF_BUS,
+  DIF_PIC,
   DIF_PCI_BUS,
   DIF_UART,
   DIF_EMMC,
@@ -71,6 +72,7 @@ typedef enum {
 struct device {
   /* Device hierarchy. */
   device_t *parent; /* parent node (bus?) or null (root or pseudo-dev) */
+  device_t *pic;    /* device's interrupt controller */
   TAILQ_ENTRY(device) link; /* node on list of siblings */
   device_list_t children;   /* head of children devices */
 
