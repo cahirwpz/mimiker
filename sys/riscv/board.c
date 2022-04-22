@@ -203,7 +203,7 @@ static void physmem_regions(void) {
 void __noreturn board_init(void) {
   init_kasan();
   init_klog();
-  /* TODO(MichalBlk): initialize SBI. */
+  init_sbi();
   physmem_regions();
   intr_enable();
   kernel_init();
