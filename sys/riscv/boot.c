@@ -137,7 +137,7 @@ __boot_text static pt_entry_t *ensure_pte(vaddr_t va) {
   pdep = (pd_entry_t *)PTE_TO_PA(*pdep);
 
   /* Level 1 */
-  return (pt_entry_t *)(pdep + L1_INDEX(va));
+  return (pt_entry_t *)pdep + L1_INDEX(va);
 }
 
 __boot_text static void map(vaddr_t va, size_t size, paddr_t pa, u_long flags) {
