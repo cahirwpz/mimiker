@@ -3,6 +3,7 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES-RISCV = \
+	board.c \
 	boot.c \
 	copy.S \
 	exception.S \
