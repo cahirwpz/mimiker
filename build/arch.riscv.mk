@@ -9,16 +9,19 @@
 #
 
 TARGET := riscv32-mimiker-elf
-GCC_ABIFLAGS := 
-CLANG_ABIFLAGS := -target riscv32-elf
 ELFTYPE := elf32-littleriscv
 ELFARCH := riscv
 
 ifeq ($(BOARD), litex-riscv)
+	EXT := ima
+	ABI := ilp32
 	KERNEL_PHYS := 0x40000000
 	KERNEL-IMAGES := mimiker.img
 	CPPFLAGS += -DFPU=0
 endif
+
+GCC_ABIFLAGS += -march=rv32$(EXT) -mabi=$(ABI) 
+CLANG_ABIFLAGS += -target riscv32-elf -march=rv32$(EXT) -mabi=$(ABI)
 
 ifeq ($(KERNEL), 1)
 	CFLAGS += -mcmodel=medany

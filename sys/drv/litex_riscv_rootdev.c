@@ -59,10 +59,10 @@ static void hlic_intr_enable(intr_event_t *ie) {
   csr_set(sie, 1 << irq);
 }
 
-static void hlic_intr_setup(device_t *ic, device_t *dev, resource_t *r,
+static void hlic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                             ih_filter_t *filter, ih_service_t *service,
                             void *arg, const char *name) {
-  rootdev_t *rd = ic->state;
+  rootdev_t *rd = pic->state;
   unsigned irq = resource_start(r);
   assert(irq < HLIC_NIRQS);
 
@@ -74,19 +74,19 @@ static void hlic_intr_setup(device_t *ic, device_t *dev, resource_t *r,
     intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
-static void hlic_intr_teardown(device_t *ic, device_t *dev, resource_t *r) {
+static void hlic_teardown_intr(device_t *pic, device_t *dev, resource_t *r) {
   intr_event_remove_handler(r->r_handler);
 }
 
-static resource_t *hlic_intr_alloc(device_t *ic, device_t *dev, int rid,
-                                   unsigned irq) {
-  rootdev_t *rd = ic->state;
+static resource_t *hlic_alloc_intr(device_t *pic, device_t *dev, int rid,
+                                   unsigned irq, rman_flags_t flags) {
+  rootdev_t *rd = pic->state;
   rman_t *rman = &rd->hlic_rm;
 
-  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, 0);
+  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
 }
 
-static void hlic_intr_release(device_t *ic, device_t *dev, resource_t *r) {
+static void hlic_release_intr(device_t *pic, device_t *dev, resource_t *r) {
   resource_release(r);
 }
 
@@ -184,7 +184,7 @@ static int rootdev_attach(device_t *bus) {
 
   /* Create RISC-V CLINT device and assign resources to it. */
   device_t *dev = device_add_child(bus, 1);
-  dev->ic = bus;
+  dev->pic = bus;
   node = FDT_finddevice("/soc/clint");
   if (node == FDT_NODEV)
     return ENXIO;
@@ -195,7 +195,7 @@ static int rootdev_attach(device_t *bus) {
 
   /* Create RISC-V PLIC device and assign resources to it. */
   device_t *plic = device_add_child(bus, 2);
-  plic->ic = bus;
+  plic->pic = bus;
   node = FDT_finddevice("/soc/interrupt-controller");
   if (node == FDT_NODEV)
     return ENXIO;
@@ -210,7 +210,7 @@ static int rootdev_attach(device_t *bus) {
 
   /* Create liteuart device and assign resources to it. */
   dev = device_add_child(bus, 0);
-  dev->ic = plic;
+  dev->pic = plic;
   node = FDT_finddevice("/soc/serial");
   if (node == FDT_NODEV)
     return ENXIO;
@@ -221,11 +221,11 @@ static int rootdev_attach(device_t *bus) {
   return bus_generic_probe(bus);
 }
 
-static ic_methods_t hlic_ic_if = {
-  .intr_alloc = hlic_intr_alloc,
-  .intr_release = hlic_intr_release,
-  .intr_setup = hlic_intr_setup,
-  .intr_teardown = hlic_intr_teardown,
+static pic_methods_t hlic_pic_if = {
+  .alloc_intr = hlic_alloc_intr,
+  .release_intr = hlic_release_intr,
+  .setup_intr = hlic_setup_intr,
+  .teardown_intr = hlic_teardown_intr,
 };
 
 static bus_methods_t rootdev_bus_if = {
@@ -243,7 +243,7 @@ driver_t rootdev_driver = {
   .attach = rootdev_attach,
   .interfaces =
     {
-      [DIF_IC] = &hlic_ic_if,
+      [DIF_PIC] = &hlic_pic_if,
       [DIF_BUS] = &rootdev_bus_if,
     },
 };

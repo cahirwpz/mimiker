@@ -1,4 +1,5 @@
 #define KL_LOG KL_DEV
+#include <sys/bus.h>
 #include <sys/devclass.h>
 #include <sys/errno.h>
 #include <sys/fdt.h>
@@ -63,10 +64,10 @@ static const char *plic_intr_name(unsigned irq) {
   return kstrndup(M_STR, buf, sizeof(buf));
 }
 
-static void plic_intr_setup(device_t *ic, device_t *dev, resource_t *r,
+static void plic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                             ih_filter_t *filter, ih_service_t *service,
                             void *arg, const char *name) {
-  plic_state_t *plic = ic->state;
+  plic_state_t *plic = pic->state;
   unsigned irq = resource_start(r);
   assert(irq && irq < plic->nirqs);
 
@@ -78,19 +79,19 @@ static void plic_intr_setup(device_t *ic, device_t *dev, resource_t *r,
     intr_event_add_handler(plic->intr_event[irq], filter, service, arg, name);
 }
 
-static void plic_intr_teardown(device_t *ic, device_t *dev, resource_t *r) {
+static void plic_teardown_intr(device_t *pic, device_t *dev, resource_t *r) {
   intr_event_remove_handler(r->r_handler);
 }
 
-static resource_t *plic_intr_alloc(device_t *ic, device_t *dev, int rid,
-                                   unsigned irq) {
-  plic_state_t *plic = ic->state;
+static resource_t *plic_alloc_intr(device_t *pic, device_t *dev, int rid,
+                                   unsigned irq, rman_flags_t flags) {
+  plic_state_t *plic = pic->state;
   rman_t *rman = &plic->rm;
 
-  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, 0);
+  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
 }
 
-static void plic_intr_release(device_t *ic, device_t *dev, resource_t *r) {
+static void plic_release_intr(device_t *pic, device_t *dev, resource_t *r) {
   resource_release(r);
 }
 
@@ -110,19 +111,19 @@ static intr_filter_t plic_intr_handler(void *arg) {
   return IF_STRAY;
 }
 
-static int plic_probe(device_t *ic) {
+static int plic_probe(device_t *pic) {
   char compat[64];
-  if (FDT_getprop(ic->node, "compatible", (void *)compat, sizeof(compat)) < 0)
+  if (FDT_getprop(pic->node, "compatible", (void *)compat, sizeof(compat)) < 0)
     return 0;
   return strcmp(compat, "riscv,plic0") == 0 ||
          strcmp(compat, "sifive,fu540-c000-plic") == 0;
 }
 
-static int plic_attach(device_t *ic) {
-  plic_state_t *plic = ic->state;
+static int plic_attach(device_t *pic) {
+  plic_state_t *plic = pic->state;
 
   /* Obtain the number of sources. */
-  if (FDT_getencprop(ic->node, "riscv,ndev", (void *)&plic->nirqs,
+  if (FDT_getencprop(pic->node, "riscv,ndev", (void *)&plic->nirqs,
                      sizeof(uint32_t)) != sizeof(uint32_t))
     return ENXIO;
 
@@ -135,7 +136,7 @@ static int plic_attach(device_t *ic) {
   rman_init(&plic->rm, "PLIC interrupt sources");
   rman_manage_region(&plic->rm, 1, plic->nirqs);
 
-  plic->mem = device_take_memory(ic, 0, RF_ACTIVE);
+  plic->mem = device_take_memory(pic, 0, RF_ACTIVE);
   assert(plic->mem);
 
   /*
@@ -147,19 +148,19 @@ static int plic_attach(device_t *ic) {
   }
   out4(PLIC_THRESHOLD_SV, 0);
 
-  plic->irq = device_take_irq(ic, 0, RF_ACTIVE);
+  plic->irq = device_take_irq(pic, 0, RF_ACTIVE);
   assert(plic->irq);
 
-  intr_setup(ic, plic->irq, plic_intr_handler, NULL, plic, "PLIC");
+  pic_setup_intr(pic, plic->irq, plic_intr_handler, NULL, plic, "PLIC");
 
   return 0;
 }
 
-static ic_methods_t plic_ic_if = {
-  .intr_alloc = plic_intr_alloc,
-  .intr_release = plic_intr_release,
-  .intr_setup = plic_intr_setup,
-  .intr_teardown = plic_intr_teardown,
+static pic_methods_t plic_pic_if = {
+  .alloc_intr = plic_alloc_intr,
+  .release_intr = plic_release_intr,
+  .setup_intr = plic_setup_intr,
+  .teardown_intr = plic_teardown_intr,
 };
 
 driver_t plic_driver = {
@@ -170,7 +171,7 @@ driver_t plic_driver = {
   .attach = plic_attach,
   .interfaces =
     {
-      [DIF_IC] = &plic_ic_if,
+      [DIF_PIC] = &plic_pic_if,
     },
 };
 

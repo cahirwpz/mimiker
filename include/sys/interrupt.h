@@ -5,7 +5,7 @@
 #include <sys/queue.h>
 #include <sys/spinlock.h>
 #include <sys/priority.h>
-#include <sys/bus.h>
+#include <sys/rman.h>
 
 typedef struct ctx ctx_t;
 typedef struct device device_t;
@@ -95,38 +95,65 @@ void intr_root_handler(ctx_t *ctx) __no_profile;
  * Interrupt controller interface.
  */
 
-typedef resource_t *(*intr_alloc_t)(device_t *ic, device_t *dev, int rid,
-                                    unsigned irq);
-typedef void (*intr_release_t)(device_t *ic, device_t *dev, resource_t *r);
-typedef void (*intr_setup_t)(device_t *ic, device_t *dev, resource_t *r,
-                             ih_filter_t *filter, ih_service_t *service,
-                             void *arg, const char *name);
-typedef void (*intr_teardown_t)(device_t *ic, device_t *dev, resource_t *r);
+typedef resource_t *(*pic_alloc_intr_t)(device_t *pic, device_t *dev, int rid,
+                                        unsigned irq, rman_flags_t flags);
+typedef void (*pic_release_intr_t)(device_t *pic, device_t *dev, resource_t *r);
+typedef void (*pic_setup_intr_t)(device_t *pic, device_t *dev, resource_t *r,
+                                 ih_filter_t *filter, ih_service_t *service,
+                                 void *arg, const char *name);
+typedef void (*pic_teardown_intr_t)(device_t *pic, device_t *dev,
+                                    resource_t *r);
 
-typedef struct ic_methods {
-  intr_alloc_t intr_alloc;
-  intr_release_t intr_release;
-  intr_setup_t intr_setup;
-  intr_teardown_t intr_teardown;
-} ic_methods_t;
+typedef struct pic_methods {
+  pic_alloc_intr_t alloc_intr;
+  pic_release_intr_t release_intr;
+  pic_setup_intr_t setup_intr;
+  pic_teardown_intr_t teardown_intr;
+} pic_methods_t;
 
-static inline ic_methods_t *ic_methods(device_t *dev) {
-  return (ic_methods_t *)dev->driver->interfaces[DIF_IC];
-}
+/*
+ * Allocate an interrupt resource.
+ *
+ * Arguments:
+ *  - `dev`: requesting device
+ *  - `rid`: unique resource ID that will be assigned to allocated resource
+ *  - `irq`: interrupt request line number
+ *  - `flags`: resource manager flags
+ */
+resource_t *pic_alloc_intr(device_t *dev, int rid, unsigned irq,
+                           rman_flags_t flags);
 
-static inline resource_t *intr_alloc(device_t *dev, int rid, unsigned irq) {
-  device_t *ic = dev->ic;
-  return ic_methods(ic)->intr_alloc(ic, dev, rid, irq);
-}
+/*
+ * Release allocated interrupt resource.
+ *
+ * Arguments:
+ *  - `dev`: requesting device
+ *  - `r`: interrupt resource to release
+ */
+void pic_release_intr(device_t *dev, resource_t *r);
 
-static inline void intr_release(device_t *dev, resource_t *r) {
-  device_t *ic = dev->ic;
-  ic_methods(ic)->intr_release(ic, dev, r);
-}
+/*
+ * Register a new interrupt source for interrupt identified by `irq`.
+ *
+ * Arguments:
+ *  - `dev`: requesting device
+ *  - `irq`: interrupt resource
+ *  - `filter`: filter function called within interrupted context
+ *  - `service`: optional service function called within interrupt
+ *    thread context
+ *  - `arg`: argument passed to both filter and service routines
+ *  - `name`: description of the interrupt source
+ */
+void pic_setup_intr(device_t *dev, resource_t *irq, ih_filter_t *filter,
+                    ih_service_t *service, void *arg, const char *name);
 
-void intr_setup(device_t *dev, resource_t *irq, ih_filter_t *filter,
-                ih_service_t *service, void *arg, const char *name);
-
-void intr_teardown(device_t *dev, resource_t *r);
+/*
+ * Remove specified interrupt source.
+ *
+ * Arguments:
+ *  - `dev`: requesting device
+ *  - `r`: interrupt resource
+ */
+void pic_teardown_intr(device_t *dev, resource_t *r);
 
 #endif /* !_SYS_INTERRUPT_H_ */

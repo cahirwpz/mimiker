@@ -117,7 +117,7 @@ static int liteuart_attach(device_t *dev) {
   liteuart->irq = device_take_irq(dev, 0, RF_ACTIVE);
   assert(liteuart->irq);
 
-  intr_setup(dev, liteuart->irq, liteuart_intr, NULL, dev, "liteuart");
+  pic_setup_intr(dev, liteuart->irq, liteuart_intr, NULL, dev, "liteuart");
 
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);

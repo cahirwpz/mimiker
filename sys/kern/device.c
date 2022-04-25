@@ -70,7 +70,7 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
   assert(!resource_list_find(dev, rid, type));
   resource_t *r;
   if (type == RT_IRQ)
-    r = intr_alloc(dev, rid, start);
+    r = pic_alloc_intr(dev, rid, start, flags);
   else
     r = bus_alloc_resource(dev, type, rid, start, end, size, flags);
   assert(r);

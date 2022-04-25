@@ -42,7 +42,7 @@ static int mtimer_start(timer_t *tm, unsigned flags, const bintime_t start,
   clint_state_t *clint = dev->state;
   clint->mtimer_step = bintime_mul(period, tm->tm_frequency).sec;
 
-  intr_setup(dev, clint->mtimer_irq, mtimer_intr, NULL, clint, "MTIMER");
+  pic_setup_intr(dev, clint->mtimer_irq, mtimer_intr, NULL, clint, "MTIMER");
 
   WITH_INTR_DISABLED {
     uint64_t count = rdtime();
@@ -55,7 +55,7 @@ static int mtimer_start(timer_t *tm, unsigned flags, const bintime_t start,
 static int mtimer_stop(timer_t *tm) {
   device_t *dev = tm->tm_priv;
   clint_state_t *clint = dev->state;
-  intr_teardown(dev, clint->mtimer_irq);
+  pic_teardown_intr(dev, clint->mtimer_irq);
   return 0;
 }
 
@@ -89,7 +89,7 @@ static int clint_attach(device_t *dev) {
   clint->mswi_irq = device_take_irq(dev, 0, RF_ACTIVE);
   assert(clint->mswi_irq);
 
-  intr_setup(dev, clint->mswi_irq, mswi_intr, NULL, NULL, "SSI");
+  pic_setup_intr(dev, clint->mswi_irq, mswi_intr, NULL, NULL, "SSI");
 
   clint->mtimer_irq = device_take_irq(dev, 1, RF_ACTIVE);
   assert(clint->mtimer_irq);

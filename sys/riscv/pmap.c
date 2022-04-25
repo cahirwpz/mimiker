@@ -1,6 +1,7 @@
 #define KL_LOG KL_PMAP
 #include <bitstring.h>
 #include <sys/errno.h>
+#include <sys/fdt.h>
 #include <sys/kasan.h>
 #include <sys/kenv.h>
 #include <sys/klog.h>
@@ -13,8 +14,8 @@
 #include <sys/sched.h>
 #include <sys/spinlock.h>
 #include <sys/vm_physmem.h>
-#include <riscv/pmap.h>
 #include <riscv/cpufunc.h>
+#include <riscv/pmap.h>
 #include <riscv/tlb.h>
 #include <riscv/vm_param.h>
 

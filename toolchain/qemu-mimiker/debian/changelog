@@ -1,3 +1,9 @@
+qemu-mimiker (6.0.0+mimiker2) unstable; urgency=medium
+
+  * Add system simulator for 64-bit RISC-V.
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Wed, 20 Apr 2022 13:31:33 +0200
+
 qemu-mimiker (6.0.0+mimiker1) unstable; urgency=medium
 
   * Bump up version.

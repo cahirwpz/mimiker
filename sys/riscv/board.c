@@ -11,9 +11,12 @@
 #include <sys/types.h>
 #include <sys/vm_physmem.h>
 #include <riscv/mcontext.h>
+#include <riscv/pmap.h>
 #include <riscv/riscvreg.h>
 #include <riscv/sbi.h>
 #include <riscv/vm_param.h>
+
+#define KERNEL_PHYS_END (align(RISCV_PHYSADDR(__ebss), PAGESIZE) + BOOTMEM_SIZE)
 
 static size_t count_args(void) {
   /*
@@ -201,8 +204,8 @@ static void physmem_regions(void) {
 void __noreturn board_init(void) {
   init_kasan();
   init_klog();
-  physmem_regions();
   init_sbi();
+  physmem_regions();
   intr_enable();
   kernel_init();
 }
