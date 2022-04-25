@@ -94,7 +94,7 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
   }
 
 #if FPU
-  /* FPE state */
+  /* FPU state */
   if (uc->uc_flags & _UC_FPU)
     memcpy(to->__fregs, from->__fregs, sizeof(__fregset_t));
 #endif
