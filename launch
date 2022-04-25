@@ -139,7 +139,7 @@ CONFIG = {
         'extra-options': [],
         'post-options': [
             '-ex=source .gdbinit',
-            '-ex=continue',
+#            '-ex=continue',
         ],
         'board': {
             'malta': {
@@ -306,7 +306,7 @@ class RENODE(Launchable):
         os.remove('bootargs.dts')
         os.remove('bootargs.dtbo')
 
-        self.options += ['-e start']
+      #  self.options += ['-e start']
 
 
 class GDB(Launchable):

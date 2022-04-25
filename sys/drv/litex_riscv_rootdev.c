@@ -200,7 +200,7 @@ static int rootdev_attach(device_t *bus) {
   if (node == FDT_NODEV)
     return ENXIO;
   plic->node = node;
-  device_add_memory(plic, 0, 0xf0c00000, 0x400000);
+  device_add_memory(plic, 0, 0xf0c00000, 0x4000000);
   device_add_irq(plic, 0, HLIC_IRQ_EXTERNAL_SUPERVISOR);
 
   extern driver_t plic_driver;

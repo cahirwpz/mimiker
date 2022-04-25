@@ -115,18 +115,6 @@ static LIST_HEAD(, pmap) user_pmaps = LIST_HEAD_INITIALIZER(user_pmaps);
  * Helper functions.
  */
 
-static inline bool is_valid_pde(pd_entry_t pde) {
-  return pde & PTE_V;
-}
-
-static inline bool is_valid_pte(pt_entry_t pte) {
-  return pte != 0;
-}
-
-static inline bool is_leaf_pte(pt_entry_t pte) {
-  return pte & (PTE_X | PTE_W | PTE_R);
-}
-
 static bool user_addr_p(vaddr_t addr) {
   return addr >= USER_SPACE_BEGIN && addr < USER_SPACE_END;
 }
@@ -262,23 +250,23 @@ static paddr_t pmap_alloc_pde(pmap_t *pmap, vaddr_t va) {
 }
 
 static pt_entry_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va) {
-  pd_entry_t *pdep;
-  paddr_t pa = pmap->pde;
+  pd_entry_t *pdep = (pd_entry_t *)phys_to_dmap(pmap->pde);
+  pt_entry_t pte;
 
   /* Level 0 */
-  pdep = (pd_entry_t *)phys_to_dmap(pa) + L0_INDEX(va);
-  pd_entry_t pde = *pdep;
-  if (!is_valid_pde(pde))
+  pdep += L0_INDEX(va);
+  pte = *pdep;
+  if (!VALID_PDE_P(pte))
     return NULL;
 
   /* A direct map superpage? */
-  if (is_leaf_pte(pde))
+  if (LEAF_PTE_P(pte))
     return (pt_entry_t *)pdep;
 
-  pa = PTE_TO_PA(pde);
+  pdep = (pd_entry_t *)phys_to_dmap(PTE_TO_PA(pte));
 
   /* Level 1 */
-  return (pt_entry_t *)phys_to_dmap(pa) + L1_INDEX(va);
+  return (pt_entry_t *)pdep + L1_INDEX(va);
 }
 
 static inline pd_entry_t make_pde(paddr_t pa) {
@@ -325,21 +313,18 @@ static void pmap_distribute_l0(pmap_t *pmap, vaddr_t va, pd_entry_t pde) {
 static pt_entry_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
   assert(mtx_owned(&pmap->mtx));
 
-  pd_entry_t *pdep;
-  paddr_t pa = pmap->pde;
+  pd_entry_t *pdep = (pd_entry_t *)phys_to_dmap(pmap->pde);
 
   /* Level 0 */
-  pdep = (pd_entry_t *)phys_to_dmap(pa) + L0_INDEX(va);
-  if (!is_valid_pde(*pdep)) {
-    pa = pmap_alloc_pde(pmap, va);
-    *pdep = make_pde(pa);
+  pdep += L0_INDEX(va);
+  if (!VALID_PDE_P(*pdep)) {
+    *pdep = make_pde(pmap_alloc_pde(pmap, va));
     pmap_distribute_l0(pmap, va, *pdep);
-  } else {
-    pa = PTE_TO_PA(*pdep);
   }
+  pdep = (pd_entry_t *)phys_to_dmap(PTE_TO_PA(*pdep));
 
   /* Level 1 */
-  return (pt_entry_t *)phys_to_dmap(pa) + L1_INDEX(va);
+  return (pt_entry_t *)pdep + L1_INDEX(va);
 }
 
 /*
@@ -428,7 +413,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
     WITH_MTX_LOCK (&pmap->mtx) {
       for (vaddr_t va = start; va < end; va += PAGESIZE) {
         pt_entry_t *ptep = pmap_lookup_pte(pmap, va);
-        if (!ptep || !is_valid_pte(*ptep))
+        if (!ptep || !VALID_PTE_P(*ptep))
           continue;
         paddr_t pa = PTE_TO_PA(*ptep);
         vm_page_t *pg = vm_page_find(pa);
@@ -444,7 +429,7 @@ static bool pmap_extract_nolock(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
     return false;
 
   pt_entry_t *ptep = pmap_lookup_pte(pmap, va);
-  if (ptep == NULL || !is_valid_pte(*ptep))
+  if (ptep == NULL || !VALID_PTE_P(*ptep))
     return false;
 
   paddr_t pa = PTE_TO_PA(*ptep);
@@ -471,7 +456,7 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   WITH_MTX_LOCK (&pmap->mtx) {
     for (vaddr_t va = start; va < end; va += PAGESIZE) {
       pt_entry_t *ptep = pmap_lookup_pte(pmap, va);
-      if (!ptep || !is_valid_pte(*ptep))
+      if (!ptep || !VALID_PTE_P(*ptep))
         continue;
       pt_entry_t pte = (*ptep & ~PTE_PROT_MASK) | vm_prot_map[prot];
       pte &= ~mask_off;
