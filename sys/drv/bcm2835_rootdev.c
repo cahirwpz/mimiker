@@ -247,6 +247,7 @@ static int rootdev_attach(device_t *bus) {
 
   /* EMMC */
   dev = device_add_child(bus, 3);
+  dev->pic = bus;
   dev->devclass = &DEVCLASS(emmc);
   /* Due to the lack of proper GPIO routines, the driver uses a workaround that
    * requires the GPIO memory to be passed to it as a resource */
