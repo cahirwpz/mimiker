@@ -34,6 +34,9 @@ SOURCES-AARCH64 = \
 	pl011.c \
 	sdcard.c
 
+SOURCES-RISCV = \
+	litex_riscv_rootdev.c
+
 CPPFLAGS += -D_MACHDEP
 
 include $(TOPDIR)/build/build.kern.mk

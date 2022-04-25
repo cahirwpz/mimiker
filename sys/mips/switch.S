@@ -27,7 +27,6 @@
         SAVE_REG_CFI(ra, PC, sp);                                              \
         SAVE_REG_CFI(fp, FP, sp);                                              \
         SAVE_REG_CFI(gp, GP, sp);                                              \
-        SAVE_REG(zero, V0, sp);                                                \
         SAVE_REG_CFI(s0, S0, sp);                                              \
         SAVE_REG_CFI(s1, S1, sp);                                              \
         SAVE_REG_CFI(s2, S2, sp);                                              \
@@ -77,7 +76,6 @@
         LOAD_REG(ra, PC, sp);                                                  \
         LOAD_REG(fp, FP, sp);                                                  \
         LOAD_REG(gp, GP, sp);                                                  \
-        LOAD_REG(v0, V0, sp);                                                  \
         LOAD_REG(s0, S0, sp);                                                  \
         LOAD_REG(s1, S1, sp);                                                  \
         LOAD_REG(s2, S2, sp);                                                  \
@@ -102,7 +100,7 @@
         mtc0    k0, C0_STATUS
 
 #
-# long ctx_switch(thread_t *from, thread_t *to)
+# void ctx_switch(thread_t *from, thread_t *to)
 #
 NESTED(ctx_switch, CTX_SIZE, ra)
         # ctx_switch must be called with interrupts disabled

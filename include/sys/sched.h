@@ -50,10 +50,9 @@ void sched_add(thread_t *td);
 
 /*! \brief Wake up sleeping thread.
  *
- * \param reason is a value that will be returned by sched_switch.
  * \note Must be called with \a td_spin acquired!
  */
-void sched_wakeup(thread_t *td, long reason);
+void sched_wakeup(thread_t *td);
 
 /*! \brief Lend a priority to a thread.
  *
@@ -95,11 +94,10 @@ void sched_clock(void);
  * must be different from TDS_RUNNING. \a sched_switch will modify thread's
  * field to reflect the change in state.
  *
- * \returns a value that was passed to sched_wakeup
  * \note Must be called with \a td_lock acquired, which will be unlocked after
  *       procedure returns!
  */
-long sched_switch(void);
+void sched_switch(void);
 
 /*! \brief Switch out to another thread if you shouldn't be running anymore.
  *
