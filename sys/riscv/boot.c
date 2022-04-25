@@ -106,11 +106,6 @@ __boot_text static __noreturn void halt(void) {
     __wfi();
 }
 
-__boot_text static void bootmem_init(void) {
-  bootmem_brk = (void *)KERNEL_PHYS_IMG_END;
-  bootmem_end = (void *)KERNEL_PHYS_END;
-}
-
 /*
  * Allocate and clear pages in physical memory just after kernel image end.
  * The argument will be aligned to `PAGESIZE`.
@@ -140,7 +135,8 @@ __boot_text static pt_entry_t *ensure_pte(vaddr_t va) {
   return (pt_entry_t *)pdep + L1_INDEX(va);
 }
 
-__boot_text static void map(vaddr_t va, size_t size, paddr_t pa, u_long flags) {
+__boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
+                                     u_long flags) {
   if (!is_aligned(size, PAGESIZE))
     halt();
 
@@ -150,7 +146,17 @@ __boot_text static void map(vaddr_t va, size_t size, paddr_t pa, u_long flags) {
   }
 }
 
-__boot_text static void alloc_pts(void) {
+static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde);
+
+__boot_text __noreturn void riscv_init(paddr_t dtb) {
+  if (!((paddr_t)__eboot < (vaddr_t)__kernel_start ||
+        (vaddr_t)__kernel_end < (paddr_t)__boot))
+    halt();
+
+  /* Initialize boot memory allocator. */
+  bootmem_brk = (void *)KERNEL_PHYS_IMG_END;
+  bootmem_end = (void *)KERNEL_PHYS_END;
+
   /* Allocate kernel page directory.*/
   kernel_pde = bootmem_alloc(PAGESIZE);
 
@@ -161,47 +167,26 @@ __boot_text static void alloc_pts(void) {
    */
   vaddr_t va = roundup(KERNEL_VIRT_IMG_END, L0_SIZE);
   for (int i = 0; i < VM_PAGE_PDS; i++)
-    ensure_pte(va + i * L0_SIZE);
-}
+    (void)ensure_pte(va + i * L0_SIZE);
 
-__boot_text static void map_kernel_image(void) {
-  /* Read-only segment - sections: .text and .rodata. */
-  map((vaddr_t)__text, __data - __text, RISCV_PHYSADDR(__text),
-      PTE_X | PTE_KERN_RO);
+  /* Kernel read-only segment - sections: .text and .rodata. */
+  early_kenter((vaddr_t)__text, __data - __text, RISCV_PHYSADDR(__text),
+               PTE_X | PTE_KERN_RO);
 
-  /* Read-write segment - sections: .data and .bss. */
-  map((vaddr_t)__data, KERNEL_VIRT_IMG_END - (vaddr_t)__data,
-      RISCV_PHYSADDR(__data), PTE_KERN);
+  /* Kernel read-write segment - sections: .data and .bss. */
+  early_kenter((vaddr_t)__data, KERNEL_VIRT_IMG_END - (vaddr_t)__data,
+               RISCV_PHYSADDR(__data), PTE_KERN);
 
   /*
    * NOTE: we don't have to map the boot allocation area as the allocated
    * data will only be accessed using physical addresses (see pmap).
    */
-}
 
-__boot_text static void map_dtb(paddr_t dtb) {
-  /* Assume that DTB will be covered by single L1 page directory. */
-  map(BOOT_DTB_VADDR, L1_SIZE, rounddown(dtb, PAGESIZE), PTE_KERN);
-}
+  /* DTB - assume that DTB will be covered by single L1 page directory. */
+  early_kenter(BOOT_DTB_VADDR, L1_SIZE, rounddown(dtb, PAGESIZE), PTE_KERN);
 
-__boot_text static void map_pd(void) {
-  map(BOOT_PD_VADDR, PAGESIZE, (paddr_t)kernel_pde, PTE_KERN);
-}
-
-static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde);
-
-__boot_text __noreturn void riscv_init(paddr_t dtb) {
-  if (!((paddr_t)__eboot < (vaddr_t)__kernel_start ||
-        (vaddr_t)__kernel_end < (paddr_t)__boot))
-    halt();
-
-  bootmem_init();
-
-  alloc_pts();
-
-  map_kernel_image();
-  map_dtb(dtb);
-  map_pd();
+  /* Kernel page directory table. */
+  early_kenter(BOOT_PD_VADDR, PAGESIZE, (paddr_t)kernel_pde, PTE_KERN);
 
   /* Temporarily set the trap vector. */
   csr_write(stvec, riscv_boot);
