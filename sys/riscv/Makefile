@@ -3,12 +3,15 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES-RISCV = \
+	board.c \
 	boot.c \
 	copy.S \
 	exception.S \
 	interrupt.c \
 	mcontext.c \
 	pmap.c \
+	sbi.c \
+	sigcode.S \
 	signal.c \
 	start.S \
 	thread.c
