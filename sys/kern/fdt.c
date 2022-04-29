@@ -315,21 +315,42 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
 }
 
 int FDT_get_mem(fdt_mem_reg_t *mrs, size_t *cntp, size_t *sizep) {
+  pcell_t reg[FDT_MAX_REG_CELLS * FDT_MAX_MEM_REGS];
+
   phandle_t mem = FDT_finddevice("/memory");
   if (mem == FDT_NODEV)
     return ENXIO;
 
-  int err = FDT_get_reg(mem, mrs, cntp);
+  int addr_cells, size_cells;
+  int err = FDT_addrsize_cells(FDT_parent(mem), &addr_cells, &size_cells);
   if (err)
     return err;
 
+  const ssize_t reg_len = FDT_getproplen(mem, "reg");
+  if (reg_len <= 0 || (size_t)reg_len > sizeof(reg))
+    return ERANGE;
+
+  if (FDT_getprop(mem, "reg", reg, reg_len) <= 0)
+    return ENXIO;
+
+  const int tuple_cells = addr_cells + size_cells;
+  const size_t tuple_size = sizeof(pcell_t) * tuple_cells;
+  const size_t ntuples = reg_len / tuple_size;
   size_t mem_size = 0;
-  for (size_t i = 0; i < *cntp; i++)
+  pcell_t *regp = reg;
+
+  for (size_t i = 0; i < ntuples; i++) {
+    if ((err = FDT_data_to_res(regp, addr_cells, size_cells, &mrs[i].addr,
+                               &mrs[i].size)))
+      return err;
+    regp += tuple_cells;
     mem_size += mrs[i].size;
+  }
   if (!mem_size)
     return ERANGE;
 
   *sizep = mem_size;
+  *cntp = ntuples;
   return 0;
 }
 
