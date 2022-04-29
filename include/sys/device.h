@@ -6,6 +6,7 @@
 #include <sys/linker_set.h>
 #include <sys/rman.h>
 
+typedef uint32_t phandle_t;
 typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;
@@ -63,6 +64,7 @@ struct driver {
 
 typedef enum {
   DEV_BUS_NONE,
+  DEV_BUS_SIMPLEBUS,
   DEV_BUS_PCI,
   DEV_BUS_ISA,
   DEV_BUS_EMMC,
@@ -81,6 +83,7 @@ struct device {
   driver_t *driver;
   devclass_t *devclass; /* (for buses) device class of children */
   int unit;
+  phandle_t node;            /* FDT device node offset */
   void *instance;            /* used by bus driver to store data in children */
   void *state;               /* memory requested by driver for its state */
   resource_list_t resources; /* used by driver, assigned by parent bus */

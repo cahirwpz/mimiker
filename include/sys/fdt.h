@@ -13,7 +13,7 @@
 #include <sys/types.h>
 
 #define FDT_MAX_RSV_MEM_REGS 16
-#define FDT_MAX_MEM_REGS 16
+#define FDT_MAX_REG_TUPLES 16
 
 typedef uint32_t phandle_t;
 typedef uint32_t pcell_t;
@@ -149,6 +149,17 @@ ssize_t FDT_getprop(phandle_t node, const char *propname, pcell_t *buf,
 ssize_t FDT_getencprop(phandle_t node, const char *propname, pcell_t *buf,
                        size_t buflen);
 
+ssize_t FDT_getprop_alloc_multi(phandle_t node, const char *propname, int elsz,
+                                void **buf);
+
+ssize_t FDT_getencprop_alloc_multi(phandle_t node, const char *propname,
+                                   int elsz, void **buf);
+
+ssize_t FDT_searchencprop(phandle_t node, const char *propname, pcell_t *buf,
+                          size_t len);
+
+void FDT_free(void *buf);
+
 /*
  * Obtain the "#address-cells" and "#size-cells" properties
  * of device node `node`.
@@ -163,6 +174,8 @@ ssize_t FDT_getencprop(phandle_t node, const char *propname, pcell_t *buf,
  *     that cannot be handled by the FDT module
  */
 int FDT_addrsize_cells(phandle_t node, int *addr_cellsp, int *size_cellsp);
+
+int FDT_intr_cells(phandle_t node, int *intr_cellsp);
 
 /*
  * Convert a 32- or 64-bit value contained in cell buffer `data`
@@ -191,6 +204,28 @@ u_long FDT_data_get(pcell_t *data, int cells);
 int FDT_data_to_res(pcell_t *data, int addr_cells, int size_cells,
                     u_long *addrp, u_long *sizep);
 
+int FDT_get_reg(phandle_t node, fdt_mem_reg_t *mrs, size_t *cntp);
+
+/*
+ * Obtain region property of device node `node`.
+ *
+ * The FDT module handles regions consisting of up to `FDT_MAX_REG_TUPLES`
+ * (addr, size) touples.
+ * It is assumed that the length of provided memory region buffer `mrs`
+ * is at least `FDT_MAX_REG_TUPLES`.
+ *
+ * Arguments:
+ *  - `mrs`: FDT memory region buffer. This will be populated by the call.
+ *  - `cntp`: The number of memory regions contained in the FDT.
+ *  - `sizep`: Total size of all physical memory regions.
+ *
+ * Returns:
+ *  - 0: success
+ *  - `ENXIO`: the device node does not contain a region property
+ *  - `ERANGE`: the region property is too big
+ */
+int FDT_get_mem(fdt_mem_reg_t *mrs, size_t *cntp, size_t *sizep);
+
 /*
  * Obtain reserved memory regions of the FDT.
  *
@@ -213,9 +248,9 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp);
 /*
  * Obtain physical memory regions of the FDT.
  *
- * The FDT module handles up to `FDT_MAX_MEM_REGS` reserved memory regions.
+ * The FDT module handles up to `FDT_MAX_REG_TUPLES` memory regions.
  * It is assumed that the length of provided memory region buffer `mrs`
- * is at least `FDT_MAX_MEM_REGS`.
+ * is at least `FDT_MAX_REG_TUPLES`.
  *
  * Arguments:
  *  - `mrs`: FDT memory region buffer. This will be populated by the call.
@@ -225,8 +260,8 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp);
  * Returns:
  *  - 0: success
  *  - `ENXIO`: the "/memory" device node could not be found or it does not
- *    contend a region property
- *  - `ERANGE`: the region property is too big or  the totalsize of
+ *    contain a region property
+ *  - `ERANGE`: the region property is too big or the totalsize of
  *    physical memory is zero
  */
 int FDT_get_mem(fdt_mem_reg_t *mrs, size_t *cntp, size_t *sizep);
@@ -259,5 +294,7 @@ int FDT_get_chosen_initrd(fdt_mem_reg_t *mr);
  *    is not included
  */
 int FDT_get_chosen_bootargs(const char **bootargsp);
+
+int FDT_is_compatible(phandle_t node, const char *compatible);
 
 #endif /* !_SYS_FDT_H_ */
