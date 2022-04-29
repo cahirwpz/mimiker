@@ -261,7 +261,7 @@ int FDT_get_reg(phandle_t node, fdt_mem_reg_t *mrs, size_t *cntp) {
   pcell_t *reg;
 
   ssize_t ntuples =
-    FDT_getencprop_alloc_multi(node, "reg", tuple_size, (void **)&reg);
+    FDT_getprop_alloc_multi(node, "reg", tuple_size, (void **)&reg);
   if (ntuples == -1)
     return ENXIO;
 
@@ -286,7 +286,7 @@ end:
 }
 
 int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
-  pcell_t reg[FDT_MAX_REG_TUPLES];
+  pcell_t reg[FDT_MAX_REG_CELLS];
 
   phandle_t rsv = FDT_finddevice("/reserved-memory");
   if (rsv == FDT_NODEV)
@@ -315,7 +315,7 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
 }
 
 int FDT_get_mem(fdt_mem_reg_t *mrs, size_t *cntp, size_t *sizep) {
-  pcell_t reg[FDT_MAX_REG_CELLS * FDT_MAX_MEM_REGS];
+  pcell_t reg[FDT_MAX_REG_CELLS * FDT_MAX_REG_TUPLES];
 
   phandle_t mem = FDT_finddevice("/memory");
   if (mem == FDT_NODEV)

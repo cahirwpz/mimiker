@@ -8,7 +8,6 @@
 
 typedef struct simplebus {
   device_list_t pending_ics;
-  phandle_t node;
   rman_addr_t io_start;
   rman_addr_t io_end;
   rman_t mem_rm;
@@ -31,7 +30,7 @@ static int sb_read_io_map(device_t *bus) {
   sb->io_start = RMAN_ADDR_MAX;
   sb->io_end = 0;
 
-  for (phandle_t node = FDT_child(sb->node); node != FDT_NODEV;
+  for (phandle_t node = FDT_child(bus->node); node != FDT_NODEV;
        node = FDT_peer(node)) {
     if ((err = FDT_get_reg(node, mrs, &cnt)))
       return err;
@@ -67,6 +66,8 @@ static phandle_t sb_find_iparent(phandle_t node) {
 static device_t *sb_find_pic(device_t *bus, device_t *dev) {
   simplebus_t *sb = bus->state;
   phandle_t iparent = sb_find_iparent(dev->node);
+  if (iparent == FDT_NODEV)
+    return NULL;
 
   device_t *cpu_ic = bus->parent;
   if (dev->node == cpu_ic->node)
@@ -148,12 +149,9 @@ static int sb_intr_to_rl(device_t *dev) {
         err = ERANGE;
         goto end;
       }
-      int irqnum = pic_intr_map(dev, &intr[i], icells);
-      if (irqnum < 0) {
-        err = ENXIO;
-        goto end;
-      }
-      device_add_irq(dev, i, irqnum);
+      int irqnum = pic_map_intr(dev, &intr[i], icells);
+      if (irqnum >= 0)
+        device_add_irq(dev, i, irqnum);
     }
   }
 
@@ -166,7 +164,7 @@ static int sb_discover_ics(device_t *bus) {
   simplebus_t *sb = bus->state;
   int err = 0;
 
-  for (phandle_t node = FDT_child(sb->node); node != FDT_NODEV;
+  for (phandle_t node = FDT_child(bus->node); node != FDT_NODEV;
        node = FDT_peer(node)) {
     if (!FDT_hasprop(node, "interrupt-controller"))
       continue;
@@ -175,7 +173,11 @@ static int sb_discover_ics(device_t *bus) {
   }
 
   device_t *ic;
-  TAILQ_FOREACH (ic, &sb->pending_ics, link) { ic->pic = sb_find_pic(bus, ic); }
+  TAILQ_FOREACH (ic, &sb->pending_ics, link) {
+    ic->pic = sb_find_pic(bus, ic);
+    if (!ic->pic)
+      return ENXIO;
+  }
 
   while (!TAILQ_EMPTY(&sb->pending_ics)) {
     device_t *next;
@@ -236,18 +238,14 @@ static void sb_deactivate_resource(device_t *dev, resource_t *r) {
 }
 
 static int sb_probe(device_t *bus) {
-  simplebus_t *sb = bus->state;
-
-  sb->node = FDT_finddevice("soc");
-  if (sb->node == FDT_NODEV)
-    return 0;
-
-  return FDT_is_compatible(sb->node, "simple-bus");
+  return FDT_is_compatible(bus->node, "simple-bus");
 }
 
 static int sb_attach(device_t *bus) {
   simplebus_t *sb = bus->state;
   int err = 0;
+
+  TAILQ_INIT(&sb->pending_ics);
 
   if ((err = sb_read_io_map(bus)))
     return err;
@@ -261,7 +259,7 @@ static int sb_attach(device_t *bus) {
   assert(TAILQ_EMPTY(&sb->pending_ics));
 
   int unit = sb->nics;
-  for (phandle_t node = FDT_child(sb->node); node != FDT_NODEV;
+  for (phandle_t node = FDT_child(bus->node); node != FDT_NODEV;
        node = FDT_peer(node)) {
     device_t *dev = sb_new_child(node, unit++);
     TAILQ_INSERT_TAIL(&bus->children, dev, link);
@@ -269,6 +267,8 @@ static int sb_attach(device_t *bus) {
     if (FDT_hasprop(node, "interrupts") ||
         FDT_hasprop(node, "interrupts-extended")) {
       dev->pic = sb_find_pic(bus, dev);
+      if (!dev->pic)
+        return ENXIO;
       sb_intr_to_rl(dev);
     }
   }
