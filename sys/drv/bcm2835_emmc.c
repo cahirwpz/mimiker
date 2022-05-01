@@ -125,7 +125,7 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
 
   for (;;) {
     if (state->pending & INT_ERROR_MASK) {
-      klog("An error flag(s) has beem raised for e.MMC controller: 0x%x",
+      klog("e.MMC: An error flag(s) has beem raised for e.MMC controller: 0x%x",
            state->pending & INT_ERROR_MASK);
       state->pending = 0;
 
@@ -213,7 +213,7 @@ static void bcmemmc_clk_set_divisor(bcmemmc_state_t *state, uint32_t frq) {
 static int bcmemmc_set_clk_freq(device_t *dev, uint32_t frq) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
-  int32_t cnt = 100000;
+  int32_t cnt = CLK_STABLE_TRIALS;
 
   b_clr(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
   /* host_version <= HOST_SPEC_V2 needs a power-of-two divisor. It would require
@@ -223,7 +223,6 @@ static int bcmemmc_set_clk_freq(device_t *dev, uint32_t frq) {
   b_set(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
 
   /* Wait until the clock becomes stable */
-  cnt = CLK_STABLE_TRIALS;
   while (!(b_in(emmc, BCMEMMC_CONTROL1) & C1_CLK_STABLE)) {
     if (cnt-- < 0)
       return ETIMEDOUT;
@@ -411,7 +410,8 @@ static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
   b_out(emmc, BCMEMMC_ARG1, arg);
   b_out(emmc, BCMEMMC_CMDTM, code);
   if ((error = bcmemmc_intr_wait(dev, INT_CMD_DONE))) {
-    klog("ERROR: failed to send EMMC command %p (error %d)", code, error);
+    klog("e.MMC: ERROR: failed to send EMMC command %p (error %d)", code,
+         error);
     return error;
   }
 
@@ -513,7 +513,6 @@ static void emmc_gpio_init(device_t *dev) {
 static int bcmemmc_init(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
-  int cnt;
 
   state->host_version =
     (b_in(emmc, BCMEMMC_SLOTISR_VER) & HOST_SPEC_NUM) >> HOST_SPEC_NUM_SHIFT;
@@ -521,14 +520,6 @@ static int bcmemmc_init(device_t *dev) {
   /* Reset the card. */
   b_out(emmc, BCMEMMC_CONTROL0, 0);
   b_set(emmc, BCMEMMC_CONTROL1, C1_SRST_HC);
-  cnt = 10000;
-  do {
-    delay(30); /* TODO: Test it on hardware */
-  } while ((b_in(emmc, BCMEMMC_CONTROL1) & C1_SRST_HC) && cnt--);
-  if (cnt < 0) {
-    klog("ERROR: failed to reset EMMC");
-    return ETIMEDOUT;
-  }
 
   /* Set up clock. */
   b_set(emmc, BCMEMMC_CONTROL1, C1_CLK_INTLEN | C1_TOUNIT_MAX);
