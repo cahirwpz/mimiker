@@ -52,6 +52,7 @@ CONFIG = {
         'gdbport': RandomPort(),
         'graphics': False,
         'network': False,
+        'storage': [],
         'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
         'args': [],
@@ -98,7 +99,8 @@ CONFIG = {
                     dict(name='/dev/tty0', port=RandomPort(), raw=True),
                     dict(name='/dev/tty1', port=RandomPort()),
                     dict(name='/dev/cons', port=RandomPort())
-                ]
+                ],
+                'drives': {}
             },
             'rpi3': {
                 'binary': 'qemu-mimiker-aarch64',
@@ -110,7 +112,10 @@ CONFIG = {
                 'network_options': [],
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
-                ]
+                ],
+                'drives': {
+                    'sd': dict(idx=0, iface='sd', format='qcow2')
+                }
             }
         }
     },
@@ -262,6 +267,16 @@ class QEMU(Launchable):
             self.options += ['-display', 'none']
         if getvar('config.network'):
             self.options += getopts('qemu.network_options')
+        
+        drives = getvar('qemu.drives')
+        for drive_file_def in getvar('config.storage'):
+            splitted = drive_file_def.split(':', maxsplit=1)
+            if len(splitted) != 2:
+                raise Exception('Invalid drive definition format.')
+            drive = drives.get(splitted[0])
+            if drive is None:
+                raise Exception(f'Drive {splitted[0]} is not defined for the selected platform.')            
+            self.options += ['-drive'] + [f'if={drive["iface"]},index={drive["idx"]},format={drive["format"]},file={splitted[1]}']
 
 
 class RENODE(Launchable):
@@ -407,6 +422,9 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--board', default='malta',
                         choices=['malta', 'rpi3', 'litex-riscv'],
                         help='Emulated board.')
+    parser.add_argument('-s', '--storage', type=str,
+                        action='append', default=[],
+                        help='Path to qcow2 image of a drive')
     args = parser.parse_args()
 
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
@@ -417,6 +435,7 @@ if __name__ == '__main__':
     setvar('config.graphics', args.graphics)
     setvar('config.args', args.args)
     setvar('config.network', args.network)
+    setvar('config.storage', args.storage)
 
     # Check if the kernel file is available
     if not os.path.isfile(getvar('config.kernel')):
