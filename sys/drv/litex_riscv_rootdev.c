@@ -5,6 +5,7 @@
 #include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
+#include <dev/simplebus.h>
 #include <riscv/mcontext.h>
 #include <riscv/riscvreg.h>
 
@@ -107,6 +108,27 @@ static void hlic_intr_handler(ctx_t *ctx, device_t *bus) {
   }
 }
 
+static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
+                         int icells) {
+  if (icells != 1)
+    return -1;
+
+  unsigned irq = *intr;
+
+  /* Software interrupts. */
+  if (irq == HLIC_IRQ_EXTERNAL_SUPERVISOR || irq == HLIC_IRQ_TIMER_SUPERVISOR ||
+      irq == HLIC_IRQ_SOFTWARE_SUPERVISOR)
+    return irq;
+
+  /* Machine interrupts. */
+  if (irq == HLIC_IRQ_TIMER_MACHINE)
+    return HLIC_IRQ_TIMER_SUPERVISOR;
+  if (irq == HLIC_IRQ_SOFTWARE_MACHINE)
+    return HLIC_IRQ_SOFTWARE_SUPERVISOR;
+
+  return -1;
+}
+
 /*
  * Root bus.
  */
@@ -160,10 +182,7 @@ static int rootdev_probe(device_t *bus) {
 
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
-
-  bus->node = FDT_finddevice("/soc");
-  if (bus->node == FDT_NODEV)
-    return ENXIO;
+  bus->node = 0;
 
   rman_init(&rd->mem_rm, "RISC-V I/O space");
   rman_manage_region(&rd->mem_rm, 0xf0000000, 0x10000000);
@@ -179,44 +198,28 @@ static int rootdev_attach(device_t *bus) {
 
   intr_root_claim(hlic_intr_handler, bus);
 
-  /* TODO(MichalBlk): discover devices using FDT. */
   phandle_t node;
+  device_t *plic;
+  int unit = 0;
+  int err;
 
-  /* Create RISC-V CLINT device and assign resources to it. */
-  device_t *dev = device_add_child(bus, 1);
-  dev->pic = bus;
-  node = FDT_finddevice("/soc/clint");
-  if (node == FDT_NODEV)
+  /* PLIC */
+  if ((node = FDT_finddevice("/soc/interrupt-controller")) == FDT_NODEV)
     return ENXIO;
-  dev->node = node;
-  device_add_memory(dev, 0, 0xf0010000, 0x10000);
-  device_add_irq(dev, 0, HLIC_IRQ_SOFTWARE_SUPERVISOR);
-  device_add_irq(dev, 1, HLIC_IRQ_TIMER_SUPERVISOR);
+  if (!(err = simplebus_add_child(bus, node, unit++, bus, &plic)))
+    return err;
 
-  /* Create RISC-V PLIC device and assign resources to it. */
-  device_t *plic = device_add_child(bus, 2);
-  plic->pic = bus;
-  node = FDT_finddevice("/soc/interrupt-controller");
-  if (node == FDT_NODEV)
+  /* CLINT */
+  if ((node = FDT_finddevice("/soc/clint")) == FDT_NODEV)
     return ENXIO;
-  plic->node = node;
-  device_add_memory(plic, 0, 0xf0c00000, 0x4000000);
-  device_add_irq(plic, 0, HLIC_IRQ_EXTERNAL_SUPERVISOR);
+  if (!(err = simplebus_add_child(bus, node, unit++, bus, NULL)))
+    return err;
 
-  extern driver_t plic_driver;
-  plic->driver = &plic_driver;
-  assert(device_probe(plic));
-  assert(!device_attach(plic));
-
-  /* Create liteuart device and assign resources to it. */
-  dev = device_add_child(bus, 0);
-  dev->pic = plic;
-  node = FDT_finddevice("/soc/serial");
-  if (node == FDT_NODEV)
+  /* UART */
+  if ((node = FDT_finddevice("/soc/serial")) == FDT_NODEV)
     return ENXIO;
-  dev->node = node;
-  device_add_memory(dev, 0, 0xf0001000, 0x100);
-  device_add_irq(dev, 0, 1);
+  if (!(err = simplebus_add_child(bus, node, unit++, plic, NULL)))
+    return err;
 
   return bus_generic_probe(bus);
 }
@@ -226,6 +229,7 @@ static pic_methods_t hlic_pic_if = {
   .release_intr = hlic_release_intr,
   .setup_intr = hlic_setup_intr,
   .teardown_intr = hlic_teardown_intr,
+  .map_intr = hlic_map_intr,
 };
 
 static bus_methods_t rootdev_bus_if = {

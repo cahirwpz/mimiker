@@ -87,10 +87,7 @@ static intr_filter_t liteuart_intr(void *data) {
 }
 
 static int liteuart_probe(device_t *dev) {
-  char compat[64];
-  if (FDT_getprop(dev->node, "compatible", (void *)compat, sizeof(compat)) < 0)
-    return 0;
-  return strcmp(compat, "litex,liteuart") == 0;
+  return FDT_is_compatible(dev->node, "litex,liteuart");
 }
 
 static int liteuart_attach(device_t *dev) {

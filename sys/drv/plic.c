@@ -34,7 +34,7 @@ typedef struct plic_state {
   resource_t *mem;           /* PLIC memory resource */
   resource_t *irq;           /* PLIC irq resource */
   intr_event_t **intr_event; /* interrupt events */
-  unsigned nirqs;            /* number of sources */
+  unsigned ndev;             /* number of sources */
 } plic_state_t;
 
 #define in4(addr) bus_read_4(plic->mem, (addr))
@@ -64,12 +64,24 @@ static const char *plic_intr_name(unsigned irq) {
   return kstrndup(M_STR, buf, sizeof(buf));
 }
 
+static resource_t *plic_alloc_intr(device_t *pic, device_t *dev, int rid,
+                                   unsigned irq, rman_flags_t flags) {
+  plic_state_t *plic = pic->state;
+  rman_t *rman = &plic->rm;
+
+  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
+}
+
+static void plic_release_intr(device_t *pic, device_t *dev, resource_t *r) {
+  resource_release(r);
+}
+
 static void plic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                             ih_filter_t *filter, ih_service_t *service,
                             void *arg, const char *name) {
   plic_state_t *plic = pic->state;
   unsigned irq = resource_start(r);
-  assert(irq && irq < plic->nirqs);
+  assert(irq && irq < plic->ndev);
 
   if (!plic->intr_event[irq])
     plic->intr_event[irq] = intr_event_create(
@@ -83,16 +95,15 @@ static void plic_teardown_intr(device_t *pic, device_t *dev, resource_t *r) {
   intr_event_remove_handler(r->r_handler);
 }
 
-static resource_t *plic_alloc_intr(device_t *pic, device_t *dev, int rid,
-                                   unsigned irq, rman_flags_t flags) {
+static int plic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
+                         int icells) {
   plic_state_t *plic = pic->state;
-  rman_t *rman = &plic->rm;
-
-  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
-}
-
-static void plic_release_intr(device_t *pic, device_t *dev, resource_t *r) {
-  resource_release(r);
+  if (icells != 1)
+    return -1;
+  unsigned irq = *intr;
+  if (!irq || irq > plic->ndev)
+    return -1;
+  return irq;
 }
 
 static intr_filter_t plic_intr_handler(void *arg) {
@@ -112,29 +123,26 @@ static intr_filter_t plic_intr_handler(void *arg) {
 }
 
 static int plic_probe(device_t *pic) {
-  char compat[64];
-  if (FDT_getprop(pic->node, "compatible", (void *)compat, sizeof(compat)) < 0)
-    return 0;
-  return strcmp(compat, "riscv,plic0") == 0 ||
-         strcmp(compat, "sifive,fu540-c000-plic") == 0;
+  return FDT_is_compatible(pic->node, "riscv,plic0") ||
+         FDT_is_compatible(pic->node, "sifive,fu540-c000-plic");
 }
 
 static int plic_attach(device_t *pic) {
   plic_state_t *plic = pic->state;
 
   /* Obtain the number of sources. */
-  if (FDT_getencprop(pic->node, "riscv,ndev", (void *)&plic->nirqs,
+  if (FDT_getencprop(pic->node, "riscv,ndev", (void *)&plic->ndev,
                      sizeof(uint32_t)) != sizeof(uint32_t))
     return ENXIO;
 
   /* We'll need interrupt event for each interrupt source. */
   plic->intr_event =
-    kmalloc(M_DEV, plic->nirqs * sizeof(intr_event_t *), M_WAITOK | M_ZERO);
+    kmalloc(M_DEV, plic->ndev * sizeof(intr_event_t *), M_WAITOK | M_ZERO);
   if (!plic->intr_event)
     return ENXIO;
 
   rman_init(&plic->rm, "PLIC interrupt sources");
-  rman_manage_region(&plic->rm, 1, plic->nirqs);
+  rman_manage_region(&plic->rm, 1, plic->ndev);
 
   plic->mem = device_take_memory(pic, 0, RF_ACTIVE);
   assert(plic->mem);
@@ -143,7 +151,7 @@ static int plic_attach(device_t *pic) {
    * In case PLIC supports priorities, set each priority to 1
    * and the threshold to 0.
    */
-  for (unsigned irq = 0; irq < plic->nirqs; irq++) {
+  for (unsigned irq = 0; irq < plic->ndev; irq++) {
     out4(PLIC_PRIORITY(irq), 1);
   }
   out4(PLIC_THRESHOLD_SV, 0);
@@ -161,6 +169,7 @@ static pic_methods_t plic_pic_if = {
   .release_intr = plic_release_intr,
   .setup_intr = plic_setup_intr,
   .teardown_intr = plic_teardown_intr,
+  .map_intr = plic_map_intr,
 };
 
 driver_t plic_driver = {

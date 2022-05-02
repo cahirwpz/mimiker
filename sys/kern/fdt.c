@@ -154,8 +154,8 @@ ssize_t FDT_getencprop(phandle_t node, const char *propname, pcell_t *buf,
 }
 
 ssize_t FDT_getprop_alloc_multi(phandle_t node, const char *propname, int elsz,
-                                void **buf) {
-  void *abuf = NULL;
+                                void **bufp) {
+  void *buf = NULL;
   int rv = -1;
 
   int len = FDT_getproplen(node, propname);
@@ -163,27 +163,27 @@ ssize_t FDT_getprop_alloc_multi(phandle_t node, const char *propname, int elsz,
     goto end;
 
   if (len) {
-    abuf = kmalloc(M_DEV, len, M_WAITOK);
-    if (FDT_getprop(node, propname, abuf, len) == -1) {
-      FDT_free(abuf);
-      abuf = NULL;
+    buf = kmalloc(M_DEV, len, M_WAITOK);
+    if (FDT_getprop(node, propname, buf, len) == -1) {
+      FDT_free(buf);
+      buf = NULL;
       goto end;
     }
   }
   rv = len / elsz;
 
 end:
-  *buf = abuf;
+  *bufp = buf;
   return rv;
 }
 
 ssize_t FDT_getencprop_alloc_multi(phandle_t node, const char *propname,
-                                   int elsz, void **buf) {
-  ssize_t rv = FDT_getprop_alloc_multi(node, propname, elsz, buf);
+                                   int elsz, void **bufp) {
+  ssize_t rv = FDT_getprop_alloc_multi(node, propname, elsz, bufp);
   if (rv == -1)
     return -1;
 
-  FDT_decode(*buf, (rv * elsz) / sizeof(pcell_t));
+  FDT_decode(*bufp, (rv * elsz) / sizeof(pcell_t));
 
   return rv;
 }

@@ -149,15 +149,28 @@ ssize_t FDT_getprop(phandle_t node, const char *propname, pcell_t *buf,
 ssize_t FDT_getencprop(phandle_t node, const char *propname, pcell_t *buf,
                        size_t buflen);
 
+/*
+ * Copy the value of property `porpname` of device node `node`
+ * into a newly allocated area returned via `bufp`.
+ *
+ * `propname` must be a property consisting of elements each of `elsz` bytes.
+ *
+ * Returns:
+ *  - >= 0: number of elements composing `propname`
+ *  - -1: the property does not exist or its length is not divisible by `elsz`
+ */
 ssize_t FDT_getprop_alloc_multi(phandle_t node, const char *propname, int elsz,
-                                void **buf);
-
+                                void **bufp);
+/*
+ * The same as `FDT_getprop_alloc_multi` but the copied cells are converted
+ * from big-endian to host byte order.
+ */
 ssize_t FDT_getencprop_alloc_multi(phandle_t node, const char *propname,
-                                   int elsz, void **buf);
+                                   int elsz, void **bufp);
 
-ssize_t FDT_searchencprop(phandle_t node, const char *propname, pcell_t *buf,
-                          size_t len);
-
+/*
+ * Free memory allocated by an `FDT_*alloc*` function.
+ */
 void FDT_free(void *buf);
 
 /*
@@ -175,6 +188,17 @@ void FDT_free(void *buf);
  */
 int FDT_addrsize_cells(phandle_t node, int *addr_cellsp, int *size_cellsp);
 
+/*
+ * Obtain the "#interrupt-cells" property of device node `node`.
+ *
+ * Arguments:
+ *  - `intr_cellsp`: dst for the property value
+ *
+ * Returns
+ *  - 0: success
+ *  - `ERANGE`: "#interrupt-cells" specifies a value
+ *     that cannot be handled by the FDT module
+ */
 int FDT_intr_cells(phandle_t node, int *intr_cellsp);
 
 /*
@@ -293,6 +317,16 @@ int FDT_get_chosen_initrd(fdt_mem_reg_t *mr);
  */
 int FDT_get_chosen_bootargs(const char **bootargsp);
 
+/*
+ * Check whether device node `node` is compatible
+ * with device specified by `compatible`.
+ *
+ * All compatible strings of the device are examined.
+ *
+ * Return:
+ *  - 0: no match
+ *  - 1: match
+ */
 int FDT_is_compatible(phandle_t node, const char *compatible);
 
 #endif /* !_SYS_FDT_H_ */
