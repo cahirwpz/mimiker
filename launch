@@ -273,12 +273,14 @@ class QEMU(Launchable):
             try:
                 drive, path = storage.split(':', maxsplit=1)
             except ValueError:
-                raise RuntimeError(
+                raise SystemExit(
                         f'Invalid storage definition: {storage}.')
+            if not os.path.isfile(path):
+                raise SystemExit('{path}: file does not exist!')
             drive_def = drives.get(drive)
             if not drive_def:
-                raise RuntimeError(f'Drive {drive} is not defined for the '
-                                   'selected platform.')
+                raise SystemExit(f'Drive {drive} is not defined for the '
+                                 'selected platform.')
             self.options += ['-drive', drive_def.format(path=path)]
 
 
