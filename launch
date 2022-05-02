@@ -64,6 +64,10 @@ CONFIG = {
                 'kernel': 'sys/mimiker.img.gz',
                 'simulator': 'qemu'
             },
+            'litex-riscv': {
+                'kernel': 'sys/mimiker.img',
+                'simulator': 'renode',
+            },
         },
     },
     'qemu': {
@@ -115,6 +119,12 @@ CONFIG = {
             '--console',
         },
         'board': {
+            'litex-riscv': {
+                'script': 'litex_vexriscv_mimiker.resc',
+                'uarts': [
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True)
+                ]
+            }
         }
     },
     'gdb': {
@@ -137,7 +147,10 @@ CONFIG = {
             },
             'rpi3': {
                 'binary': 'aarch64-mimiker-elf-gdb'
-            }
+            },
+            'litex-riscv': {
+                'binary': 'riscv32-mimiker-elf-gdb'
+            },
         }
     }
 }
@@ -273,8 +286,6 @@ class RENODE(Launchable):
 
         # TODO(MichalBlk): we should enable passing kernel args through
         # the launch script by introducing parameterizable DTS files.
-        if getvar('config.args'):
-            raise Exception('kernel args for renode must be passed via dtb')
 
         self.options += ['-e start']
 
@@ -394,7 +405,7 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
     parser.add_argument('-b', '--board', default='malta',
-                        choices=['malta', 'rpi3'],
+                        choices=['malta', 'rpi3', 'litex-riscv'],
                         help='Emulated board.')
     args = parser.parse_args()
 
