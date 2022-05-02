@@ -199,11 +199,11 @@ static int rootdev_attach(device_t *bus) {
   intr_root_claim(hlic_intr_handler, bus);
 
   phandle_t node;
-  device_t *plic;
   int unit = 0;
   int err;
 
   /* PLIC */
+  device_t *plic;
   if ((node = FDT_finddevice("/soc/interrupt-controller")) == FDT_NODEV)
     return ENXIO;
   if (!(err = simplebus_add_child(bus, node, unit++, bus, &plic)))
