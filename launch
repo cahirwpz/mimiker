@@ -276,7 +276,7 @@ class QEMU(Launchable):
                 raise SystemExit(
                         f'Invalid storage definition: {storage}.')
             if not os.path.isfile(path):
-                raise SystemExit('{path}: file does not exist!')
+                raise SystemExit(f'{path}: file does not exist!')
             drive_def = drives.get(drive)
             if not drive_def:
                 raise SystemExit(f'Drive {drive} is not defined for the '
