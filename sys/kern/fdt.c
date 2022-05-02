@@ -1,8 +1,11 @@
+#define KL_LOG KL_DEV
+#include <sys/device.h>
 #include <sys/errno.h>
 #include <sys/fdt.h>
 #include <sys/klog.h>
 #include <sys/kmem.h>
 #include <sys/libkern.h>
+#include <sys/malloc.h>
 #include <sys/mimiker.h>
 #include <sys/vm.h>
 #include <libfdt/libfdt.h>
@@ -16,6 +19,8 @@
 #define FDT_MAX_SIZE_CELLS 2
 
 #define FDT_MAX_REG_CELLS (FDT_MAX_ADDR_CELLS + FDT_MAX_SIZE_CELLS)
+
+#define FDT_DEF_INTR_CELLS 1
 
 static paddr_t fdt_pa;  /* FDT blob physical address (`PAGESIZE`-aligned) */
 static size_t fdt_off;  /* FDT blob offset within the first page */
@@ -99,6 +104,15 @@ phandle_t FDT_parent(phandle_t node) {
   return (phandle_t)parent;
 }
 
+static void FDT_decode(pcell_t *cell, int cells) {
+  for (int i = 0; i < cells; i++)
+    cell[i] = be32toh(cell[i]);
+}
+
+void FDT_free(void *buf) {
+  kfree(M_DEV, buf);
+}
+
 ssize_t FDT_getproplen(phandle_t node, const char *propname) {
   int len;
   const void *prop = fdt_getprop(fdtp, node, propname, &len);
@@ -130,14 +144,58 @@ ssize_t FDT_getencprop(phandle_t node, const char *propname, pcell_t *buf,
   if (buflen % 4)
     return -1;
 
-  ssize_t ret = FDT_getprop(node, propname, buf, buflen);
-  if (ret < 0)
+  ssize_t rv = FDT_getprop(node, propname, buf, buflen);
+  if (rv < 0)
     return -1;
 
-  for (size_t i = 0; i < buflen / sizeof(uint32_t); i++)
-    buf[i] = be32toh(buf[i]);
+  FDT_decode(buf, buflen / sizeof(pcell_t));
 
-  return ret;
+  return rv;
+}
+
+ssize_t FDT_getprop_alloc_multi(phandle_t node, const char *propname, int elsz,
+                                void **buf) {
+  void *abuf = NULL;
+  int rv = -1;
+
+  int len = FDT_getproplen(node, propname);
+  if ((len == -1) || (len % elsz))
+    goto end;
+
+  if (len) {
+    abuf = kmalloc(M_DEV, len, M_WAITOK);
+    if (FDT_getprop(node, propname, abuf, len) == -1) {
+      FDT_free(abuf);
+      abuf = NULL;
+      goto end;
+    }
+  }
+  rv = len / elsz;
+
+end:
+  *buf = abuf;
+  return rv;
+}
+
+ssize_t FDT_getencprop_alloc_multi(phandle_t node, const char *propname,
+                                   int elsz, void **buf) {
+  ssize_t rv = FDT_getprop_alloc_multi(node, propname, elsz, buf);
+  if (rv == -1)
+    return -1;
+
+  FDT_decode(*buf, (rv * elsz) / sizeof(pcell_t));
+
+  return rv;
+}
+
+ssize_t FDT_searchencprop(phandle_t node, const char *propname, pcell_t *buf,
+                          size_t len) {
+  for (; node != FDT_NODEV; node = FDT_parent(node)) {
+    ssize_t rv = FDT_getencprop(node, propname, buf, len);
+    if (rv != -1)
+      return rv;
+  }
+  return -1;
 }
 
 int FDT_addrsize_cells(phandle_t node, int *addr_cellsp, int *size_cellsp) {
@@ -156,6 +214,17 @@ int FDT_addrsize_cells(phandle_t node, int *addr_cellsp, int *size_cellsp) {
 
   if (*addr_cellsp > FDT_MAX_ADDR_CELLS || *size_cellsp > FDT_MAX_SIZE_CELLS)
     return ERANGE;
+  return 0;
+}
+
+int FDT_intr_cells(phandle_t node, int *intr_cellsp) {
+  pcell_t icells;
+  if (FDT_searchencprop(node, "#interrupt-cells", &icells, sizeof(pcell_t)) !=
+      sizeof(pcell_t))
+    icells = FDT_DEF_INTR_CELLS;
+  if (icells < 1)
+    return ERANGE;
+  *intr_cellsp = icells;
   return 0;
 }
 
@@ -181,6 +250,41 @@ int FDT_data_to_res(pcell_t *data, int addr_cells, int size_cells,
   return 0;
 }
 
+int FDT_get_reg(phandle_t node, fdt_mem_reg_t *mrs, size_t *cntp) {
+  int addr_cells, size_cells;
+  int err = FDT_addrsize_cells(FDT_parent(node), &addr_cells, &size_cells);
+  if (err)
+    return err;
+
+  int tuple_cells = addr_cells + size_cells;
+  size_t tuple_size = sizeof(pcell_t) * tuple_cells;
+  pcell_t *reg;
+
+  ssize_t ntuples =
+    FDT_getprop_alloc_multi(node, "reg", tuple_size, (void **)&reg);
+  if (ntuples == -1)
+    return ENXIO;
+
+  if (ntuples > FDT_MAX_REG_TUPLES) {
+    err = ERANGE;
+    goto end;
+  }
+
+  pcell_t *regp = reg;
+
+  for (int i = 0; i < ntuples; i++) {
+    if ((err = FDT_data_to_res(regp, addr_cells, size_cells, &mrs[i].addr,
+                               &mrs[i].size)))
+      return err;
+    regp += tuple_cells;
+  }
+
+end:
+  *cntp = ntuples;
+  FDT_free(reg);
+  return err;
+}
+
 int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
   pcell_t reg[FDT_MAX_REG_CELLS];
 
@@ -196,7 +300,7 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
   size_t cnt = 0;
   for (phandle_t child = FDT_child(rsv); child != FDT_NODEV;
        child = FDT_peer(child)) {
-    if (cnt == FDT_MAX_MEM_REGS)
+    if (cnt == FDT_MAX_RSV_MEM_REGS)
       return ERANGE;
     if (FDT_hasprop(child, "no-map"))
       continue;
@@ -211,7 +315,7 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
 }
 
 int FDT_get_mem(fdt_mem_reg_t *mrs, size_t *cntp, size_t *sizep) {
-  pcell_t reg[FDT_MAX_REG_CELLS * FDT_MAX_MEM_REGS];
+  pcell_t reg[FDT_MAX_REG_CELLS * FDT_MAX_REG_TUPLES];
 
   phandle_t mem = FDT_finddevice("/memory");
   if (mem == FDT_NODEV)
@@ -309,5 +413,24 @@ int FDT_get_chosen_bootargs(const char **bootargsp) {
     return ENXIO;
   }
   *bootargsp = prop;
+  return 0;
+}
+
+int FDT_is_compatible(phandle_t node, const char *compatible) {
+  int len;
+  const void *prop = fdt_getprop(fdtp, node, "compatible", &len);
+  if (!prop) {
+    FDT_perror(len);
+    return 0;
+  }
+
+  size_t inlen = strlen(compatible);
+  while (len > 0) {
+    size_t curlen = strlen(prop);
+    if ((curlen == inlen) && !strncmp(prop, compatible, inlen))
+      return 1;
+    prop += curlen + 1;
+    len -= curlen + 1;
+  }
   return 0;
 }
