@@ -7,6 +7,7 @@
 #include <sys/fdt.h>
 #include <sys/rman.h>
 
+typedef uint32_t phandle_t;
 typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;

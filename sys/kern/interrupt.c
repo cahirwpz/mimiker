@@ -248,6 +248,11 @@ void pic_teardown_intr(device_t *dev, resource_t *r) {
   resource_deactivate(r);
 }
 
+int pic_map_intr(device_t *dev, phandle_t *intr, int icells) {
+  device_t *pic = dev->pic;
+  return pic_methods(pic)->map_intr(pic, dev, intr, icells);
+}
+
 static void intr_thread(void *arg) {
   intr_event_t *ie = (intr_event_t *)arg;
 
