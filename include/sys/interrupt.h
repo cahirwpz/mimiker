@@ -9,6 +9,7 @@
 
 typedef struct ctx ctx_t;
 typedef struct device device_t;
+typedef uint32_t phandle_t;
 
 /*! \brief Disables hardware interrupts.
  *
@@ -103,12 +104,15 @@ typedef void (*pic_setup_intr_t)(device_t *pic, device_t *dev, resource_t *r,
                                  void *arg, const char *name);
 typedef void (*pic_teardown_intr_t)(device_t *pic, device_t *dev,
                                     resource_t *r);
+typedef int (*pic_map_intr_t)(device_t *pic, device_t *dev, phandle_t *intr,
+                              int icells);
 
 typedef struct pic_methods {
   pic_alloc_intr_t alloc_intr;
   pic_release_intr_t release_intr;
   pic_setup_intr_t setup_intr;
   pic_teardown_intr_t teardown_intr;
+  pic_map_intr_t map_intr;
 } pic_methods_t;
 
 /*
@@ -155,5 +159,7 @@ void pic_setup_intr(device_t *dev, resource_t *irq, ih_filter_t *filter,
  *  - `r`: interrupt resource
  */
 void pic_teardown_intr(device_t *dev, resource_t *r);
+
+int pic_map_intr(device_t *dev, phandle_t *intr, int icells);
 
 #endif /* !_SYS_INTERRUPT_H_ */
