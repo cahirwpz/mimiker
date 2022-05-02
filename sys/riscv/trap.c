@@ -60,10 +60,11 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
       klog("Caused by reference to %lx!", _REG(ctx, TVAL));
       break;
 
-    case SCAUSE_ILLEGAL_INSTRUCTION:
+    case SCAUSE_ILLEGAL_INSTRUCTION: {
       uint32_t badinstr = *(uint32_t *)epc;
       klog("Illegal instruction %08x in kernel mode!", badinstr);
       break;
+    }
 
     case SCAUSE_BREAKPOINT:
       klog("No debbuger in kernel!");
@@ -219,7 +220,7 @@ static void user_trap_handler(ctx_t *ctx) {
       syscall_handler((mcontext_t *)ctx, &result);
       break;
 
-    case SCAUSE_ILLEGAL_INSTRUCTION:
+    case SCAUSE_ILLEGAL_INSTRUCTION: {
 #if FPU
       if (fpu_handler((mcontext_t *)ctx))
         break;
@@ -228,6 +229,7 @@ static void user_trap_handler(ctx_t *ctx) {
       klog("%s at %p!", exceptions[code], epc);
       sig_trap(ctx, SIGILL);
       break;
+    }
 
     case SCAUSE_BREAKPOINT:
       sig_trap(ctx, SIGTRAP);
@@ -266,11 +268,12 @@ static void kern_trap_handler(ctx_t *ctx) {
 }
 
 __no_profile void trap_handler(ctx_t *ctx) {
-  //  thread_t *td = thread_self();
-  //  assert(td->td_idnest == 0);
+  thread_t *td = thread_self();
+  assert(td->td_idnest == 0);
   assert(cpu_intr_disabled());
 
   bool user_mode = user_mode_p(ctx);
+  ctx_t *kframe_saved;
 
   if (!user_mode) {
     /* If there's not enough space on the stack to store another exception
@@ -280,6 +283,8 @@ __no_profile void trap_handler(ctx_t *ctx) {
     register_t sp = __sp();
     if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t))
       panic("Kernel stack overflow caught at %p!", _REG(ctx, PC));
+    kframe_saved = td->td_kframe;
+    td->td_kframe = ctx;
   }
 
   if (ctx_interrupt(ctx)) {
@@ -290,4 +295,7 @@ __no_profile void trap_handler(ctx_t *ctx) {
     else
       kern_trap_handler(ctx);
   }
+
+  if (!user_mode)
+    td->td_kframe = kframe_saved;
 }
