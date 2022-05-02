@@ -9,7 +9,7 @@
 #include <riscv/mcontext.h>
 #include <riscv/riscvreg.h>
 
-typedef enum {
+typedef enum hlic_irq {
   HLIC_IRQ_SOFTWARE_USER,
   HLIC_IRQ_SOFTWARE_SUPERVISOR,
   HLIC_IRQ_SOFTWARE_HYPERVISOR,
@@ -26,7 +26,7 @@ typedef enum {
 } hlic_irq_t;
 
 typedef struct rootdev {
-  rman_t mem_rm;                        /* memory resource manager*/
+  rman_t mem_rm;                        /* memory resource manager */
   rman_t hlic_rm;                       /* HLIC resource manager */
   intr_event_t *intr_event[HLIC_NIRQS]; /* HLIC interrupt events */
 } rootdev_t;
@@ -93,12 +93,12 @@ static void hlic_release_intr(device_t *pic, device_t *dev, resource_t *r) {
 
 static void hlic_intr_handler(ctx_t *ctx, device_t *bus) {
   rootdev_t *rd = bus->state;
-  unsigned long cause = _REG(ctx, CAUSE) & SCAUSE_CODE;
+  u_long cause = _REG(ctx, CAUSE) & SCAUSE_CODE;
   assert(cause < HLIC_NIRQS);
 
   intr_event_t *ie = rd->intr_event[cause];
   if (!ie)
-    panic("Unknown HLIC interrupt %u!", cause);
+    panic("Unknown HLIC interrupt %lx!", cause);
 
   intr_event_run_handlers(ie);
 
@@ -197,6 +197,11 @@ static int rootdev_attach(device_t *bus) {
   rman_manage_region(&rd->hlic_rm, HLIC_IRQ_EXTERNAL_SUPERVISOR, 1);
 
   intr_root_claim(hlic_intr_handler, bus);
+
+  /*
+   * Device enumeration.
+   * TODO: this should be performed by a simplebus enumeration.
+   */
 
   phandle_t node;
   int unit = 0;
