@@ -211,19 +211,19 @@ static int rootdev_attach(device_t *bus) {
   device_t *plic;
   if ((node = FDT_finddevice("/soc/interrupt-controller")) == FDT_NODEV)
     return ENXIO;
-  if (!(err = simplebus_add_child(bus, node, unit++, bus, &plic)))
+  if ((err = simplebus_add_child(bus, node, unit++, bus, &plic)))
     return err;
 
   /* CLINT */
   if ((node = FDT_finddevice("/soc/clint")) == FDT_NODEV)
     return ENXIO;
-  if (!(err = simplebus_add_child(bus, node, unit++, bus, NULL)))
+  if ((err = simplebus_add_child(bus, node, unit++, bus, NULL)))
     return err;
 
   /* UART */
   if ((node = FDT_finddevice("/soc/serial")) == FDT_NODEV)
     return ENXIO;
-  if (!(err = simplebus_add_child(bus, node, unit++, plic, NULL)))
+  if ((err = simplebus_add_child(bus, node, unit++, plic, NULL)))
     return err;
 
   return bus_generic_probe(bus);
