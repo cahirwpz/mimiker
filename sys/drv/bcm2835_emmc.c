@@ -564,7 +564,7 @@ static int bcmemmc_attach(device_t *dev) {
   klog("e.MMC: GPIO set up");
 
   state->irq = device_take_irq(dev, 0, RF_ACTIVE);
-  bus_intr_setup(dev, state->irq, bcmemmc_intr_filter, NULL, state,
+  pic_setup_intr(dev, state->irq, bcmemmc_intr_filter, NULL, state,
                  "e.MMC interrupt");
 
   int error = bcmemmc_init(dev);
