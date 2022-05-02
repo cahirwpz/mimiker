@@ -188,16 +188,6 @@ ssize_t FDT_getencprop_alloc_multi(phandle_t node, const char *propname,
   return rv;
 }
 
-ssize_t FDT_searchencprop(phandle_t node, const char *propname, pcell_t *buf,
-                          size_t len) {
-  for (; node != FDT_NODEV; node = FDT_parent(node)) {
-    ssize_t rv = FDT_getencprop(node, propname, buf, len);
-    if (rv != -1)
-      return rv;
-  }
-  return -1;
-}
-
 int FDT_addrsize_cells(phandle_t node, int *addr_cellsp, int *size_cellsp) {
   const ssize_t cell_size = sizeof(pcell_t);
   pcell_t cell;
