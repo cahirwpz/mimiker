@@ -114,7 +114,7 @@ CONFIG = {
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ],
                 'drives': {
-                    'sd': dict(idx=0, iface='sd', format='qcow2')
+                    'sd': 'if=sd,index=0,format=qcow2,file={path}'
                 }
             }
         }
@@ -267,16 +267,19 @@ class QEMU(Launchable):
             self.options += ['-display', 'none']
         if getvar('config.network'):
             self.options += getopts('qemu.network_options')
-        
+
         drives = getvar('qemu.drives')
-        for drive_file_def in getvar('config.storage'):
-            splitted = drive_file_def.split(':', maxsplit=1)
-            if len(splitted) != 2:
-                raise Exception('Invalid drive definition format.')
-            drive = drives.get(splitted[0])
-            if drive is None:
-                raise Exception(f'Drive {splitted[0]} is not defined for the selected platform.')            
-            self.options += ['-drive'] + [f'if={drive["iface"]},index={drive["idx"]},format={drive["format"]},file={splitted[1]}']
+        for storage in getvar('config.storage'):
+            try:
+                drive, path = storage.split(':', maxsplit=1)
+            except ValueError:
+                raise RuntimeError(
+                        f'Invalid storage definition: {storage}.')
+            drive_def = drives.get(drive)
+            if not drive_def:
+                raise RuntimeError(f'Drive {drive} is not defined for the '
+                                   'selected platform.')
+            self.options += ['-drive', drive_def.format(path=path)]
 
 
 class RENODE(Launchable):
@@ -424,7 +427,8 @@ if __name__ == '__main__':
                         help='Emulated board.')
     parser.add_argument('-s', '--storage', type=str,
                         action='append', default=[],
-                        help='Path to qcow2 image of a drive')
+                        help='Drive description in following format: '
+                             '"storage_device:path_to_image"')
     args = parser.parse_args()
 
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
