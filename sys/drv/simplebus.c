@@ -65,6 +65,7 @@ static int sb_get_interrupts(device_t *dev, fdt_intr_t *intrs, size_t *cntp) {
   }
 
   for (int i = 0; i < ntuples * icells; i += icells, intrs++) {
+    memset(intrs->tuple, 0, sizeof(intrs->tuple));
     memcpy(intrs->tuple, &tuples[i], icells);
     intrs->icells = icells;
     intrs->node = iparent;
@@ -91,6 +92,11 @@ static int sb_get_interrupts_extended(device_t *dev, fdt_intr_t *intrs,
   size_t ntuples = 0;
   int err = 0, icells;
   for (int i = 0; i < ncells; i += icells, intrs++) {
+    if (ntuples > FDT_MAX_INTRS) {
+      err = ERANGE;
+      goto end;
+    }
+
     /* TODO: at this point we should find the interrupt parent
      * based on the phandle encoded in the current tuple.
      * FTTB, we assume that each device has at most one interrupt controller. */
@@ -104,6 +110,7 @@ static int sb_get_interrupts_extended(device_t *dev, fdt_intr_t *intrs,
       goto end;
     }
 
+    memset(intrs->tuple, 0, sizeof(intrs->tuple));
     memcpy(intrs->tuple, &cells[i], icells);
     intrs->icells = icells;
     intrs->node = iparent;
@@ -143,7 +150,7 @@ static int sb_intr_to_rl(device_t *dev) {
 
   if (FDT_hasprop(node, "interrupts"))
     err = sb_get_interrupts(dev, intrs, &nintrs);
-  else if (FDT_hasprop(node, "interrutps-extended"))
+  else if (FDT_hasprop(node, "interrupts-extended"))
     err = sb_get_interrupts_extended(dev, intrs, &nintrs);
   else
     return 0;
