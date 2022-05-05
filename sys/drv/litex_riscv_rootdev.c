@@ -47,11 +47,18 @@ static const char *hlic_intr_name[HLIC_NIRQS] = {
 };
 
 static hlic_irq_t hlic_intr_map[HLIC_NIRQS] = {
+  [HLIC_IRQ_SOFTWARE_USER] = -1,
   [HLIC_IRQ_SOFTWARE_SUPERVISOR] = HLIC_IRQ_SOFTWARE_SUPERVISOR,
+  [HLIC_IRQ_SOFTWARE_HYPERVISOR] = -1,
   [HLIC_IRQ_SOFTWARE_MACHINE] = HLIC_IRQ_SOFTWARE_SUPERVISOR,
+  [HLIC_IRQ_TIMER_USER] = -1,
   [HLIC_IRQ_TIMER_SUPERVISOR] = HLIC_IRQ_TIMER_SUPERVISOR,
+  [HLIC_IRQ_TIMER_HYPERVISOR] = -1,
   [HLIC_IRQ_TIMER_MACHINE] = HLIC_IRQ_TIMER_SUPERVISOR,
   [HLIC_IRQ_EXTERNAL_SUPERVISOR] = HLIC_IRQ_EXTERNAL_SUPERVISOR,
+  [HLIC_IRQ_EXTERNAL_USER] = -1,
+  [HLIC_IRQ_EXTERNAL_HYPERVISOR] = -1,
+  [HLIC_IRQ_EXTERNAL_MACHINE] = -1,
 };
 
 /*
@@ -66,6 +73,18 @@ static void hlic_intr_disable(intr_event_t *ie) {
 static void hlic_intr_enable(intr_event_t *ie) {
   unsigned irq = ie->ie_irq;
   csr_set(sie, 1 << irq);
+}
+
+static resource_t *hlic_alloc_intr(device_t *pic, device_t *dev, int rid,
+                                   unsigned irq, rman_flags_t flags) {
+  rootdev_t *rd = pic->state;
+  rman_t *rman = &rd->hlic_rm;
+
+  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
+}
+
+static void hlic_release_intr(device_t *pic, device_t *dev, resource_t *r) {
+  resource_release(r);
 }
 
 static void hlic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
@@ -85,18 +104,6 @@ static void hlic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
 
 static void hlic_teardown_intr(device_t *pic, device_t *dev, resource_t *r) {
   intr_event_remove_handler(r->r_handler);
-}
-
-static resource_t *hlic_alloc_intr(device_t *pic, device_t *dev, int rid,
-                                   unsigned irq, rman_flags_t flags) {
-  rootdev_t *rd = pic->state;
-  rman_t *rman = &rd->hlic_rm;
-
-  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
-}
-
-static void hlic_release_intr(device_t *pic, device_t *dev, resource_t *r) {
-  resource_release(r);
 }
 
 static void hlic_intr_handler(ctx_t *ctx, device_t *bus) {
@@ -123,8 +130,7 @@ static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
   unsigned irq = *intr;
   if (irq > HLIC_NIRQS)
     return -1;
-  int hlic_irq = hlic_intr_map[irq];
-  return !hlic_irq ? -1 : hlic_irq;
+  return hlic_intr_map[irq];
 }
 
 /*
