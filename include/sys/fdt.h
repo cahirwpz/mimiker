@@ -247,26 +247,6 @@ int FDT_data_to_res(pcell_t *data, int addr_cells, int size_cells,
                     u_long *addrp, u_long *sizep);
 
 /*
- * Obtain region property of device node `node`.
- *
- * The FDT module handles regions consisting of up to `FDT_MAX_REG_TUPLES`
- * (addr, size) touples.
- * It is assumed that the length of provided memory region buffer `mrs`
- * is at least `FDT_MAX_REG_TUPLES`.
- *
- * Arguments:
- *  - `mrs`: FDT memory region buffer. This will be populated by the call.
- *  - `cntp`: The number of memory regions contained in the FDT.
- *  - `sizep`: Total size of all physical memory regions.
- *
- * Returns:
- *  - 0: success
- *  - `ENXIO`: the device node does not contain a region property
- *  - `ERANGE`: the region property is too big
- */
-int FDT_get_reg(phandle_t node, fdt_mem_reg_t *mrs, size_t *cntp);
-
-/*
  * Obtain reserved memory regions of the FDT.
  *
  * The FDT module handles up to `FDT_MAX_RSV_MEM_REGS` reserved memory regions.
