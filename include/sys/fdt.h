@@ -14,6 +14,8 @@
 
 #define FDT_MAX_RSV_MEM_REGS 16
 #define FDT_MAX_REG_TUPLES 16
+#define FDT_MAX_ICELLS 3
+#define FDT_MAX_INTRS 8
 
 typedef uint32_t phandle_t;
 typedef uint32_t pcell_t;
@@ -27,6 +29,15 @@ typedef struct fdt_mem_reg {
   u_long addr;
   u_long size;
 } fdt_mem_reg_t;
+
+/*
+ * FDT interrupt resource.
+ */
+typedef struct fdt_intr {
+  pcell_t tuple[FDT_MAX_ICELLS];
+  int icells;
+  phandle_t node;
+} fdt_intr_t;
 
 /*
  * Early FDT initialization.
@@ -150,6 +161,13 @@ ssize_t FDT_getencprop(phandle_t node, const char *propname, pcell_t *buf,
                        size_t buflen);
 
 /*
+ * Like `FDT_getencprop` but if `node` doesn't contain `propname`,
+ * the function looks for its closest ancestor equipped with the property.
+ */
+ssize_t FDT_searchencprop(phandle_t node, const char *propname, pcell_t *buf,
+                          size_t len);
+
+/*
  * Copy the value of property `porpname` of device node `node`
  * into a newly allocated area returned via `bufp`.
  *
@@ -227,26 +245,6 @@ u_long FDT_data_get(pcell_t *data, int cells);
  */
 int FDT_data_to_res(pcell_t *data, int addr_cells, int size_cells,
                     u_long *addrp, u_long *sizep);
-
-/*
- * Obtain region property of device node `node`.
- *
- * The FDT module handles regions consisting of up to `FDT_MAX_REG_TUPLES`
- * (addr, size) touples.
- * It is assumed that the length of provided memory region buffer `mrs`
- * is at least `FDT_MAX_REG_TUPLES`.
- *
- * Arguments:
- *  - `mrs`: FDT memory region buffer. This will be populated by the call.
- *  - `cntp`: The number of memory regions contained in the FDT.
- *  - `sizep`: Total size of all physical memory regions.
- *
- * Returns:
- *  - 0: success
- *  - `ENXIO`: the device node does not contain a region property
- *  - `ERANGE`: the region property is too big
- */
-int FDT_get_reg(phandle_t node, fdt_mem_reg_t *mrs, size_t *cntp);
 
 /*
  * Obtain reserved memory regions of the FDT.
