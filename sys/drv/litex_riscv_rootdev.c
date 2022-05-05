@@ -46,6 +46,14 @@ static const char *hlic_intr_name[HLIC_NIRQS] = {
   [HLIC_IRQ_EXTERNAL_MACHINE] = "machine external",
 };
 
+static hlic_irq_t hlic_intr_map[HLIC_NIRQS] = {
+  [HLIC_IRQ_SOFTWARE_SUPERVISOR] = HLIC_IRQ_SOFTWARE_SUPERVISOR,
+  [HLIC_IRQ_SOFTWARE_MACHINE] = HLIC_IRQ_SOFTWARE_SUPERVISOR,
+  [HLIC_IRQ_TIMER_SUPERVISOR] = HLIC_IRQ_TIMER_SUPERVISOR,
+  [HLIC_IRQ_TIMER_MACHINE] = HLIC_IRQ_TIMER_SUPERVISOR,
+  [HLIC_IRQ_EXTERNAL_SUPERVISOR] = HLIC_IRQ_EXTERNAL_SUPERVISOR,
+};
+
 /*
  * Hart-Level Interrupt Controller.
  */
@@ -102,10 +110,9 @@ static void hlic_intr_handler(ctx_t *ctx, device_t *bus) {
 
   intr_event_run_handlers(ie);
 
-  if (cause != HLIC_IRQ_TIMER_SUPERVISOR &&
-      cause != HLIC_IRQ_EXTERNAL_SUPERVISOR) {
+  /* Supervisor software interrupts are cleared directly through SIP. */
+  if (cause == HLIC_IRQ_SOFTWARE_SUPERVISOR)
     csr_clear(sip, ~(1 << cause));
-  }
 }
 
 static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
@@ -114,19 +121,10 @@ static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
     return -1;
 
   unsigned irq = *intr;
-
-  /* Software interrupts. */
-  if (irq == HLIC_IRQ_EXTERNAL_SUPERVISOR || irq == HLIC_IRQ_TIMER_SUPERVISOR ||
-      irq == HLIC_IRQ_SOFTWARE_SUPERVISOR)
-    return irq;
-
-  /* Machine interrupts. */
-  if (irq == HLIC_IRQ_TIMER_MACHINE)
-    return HLIC_IRQ_TIMER_SUPERVISOR;
-  if (irq == HLIC_IRQ_SOFTWARE_MACHINE)
-    return HLIC_IRQ_SOFTWARE_SUPERVISOR;
-
-  return -1;
+  if (irq > HLIC_NIRQS)
+    return -1;
+  int hlic_irq = hlic_intr_map[irq];
+  return !hlic_irq ? -1 : hlic_irq;
 }
 
 /*
