@@ -9,7 +9,8 @@
 
 typedef struct ctx ctx_t;
 typedef struct device device_t;
-typedef uint32_t phandle_t;
+typedef struct fdt_intr fdt_intr_t;
+typedef uint32_t pcell_t;
 
 /*! \brief Disables hardware interrupts.
  *
@@ -104,7 +105,7 @@ typedef void (*pic_setup_intr_t)(device_t *pic, device_t *dev, resource_t *r,
                                  void *arg, const char *name);
 typedef void (*pic_teardown_intr_t)(device_t *pic, device_t *dev,
                                     resource_t *r);
-typedef int (*pic_map_intr_t)(device_t *pic, device_t *dev, phandle_t *intr,
+typedef int (*pic_map_intr_t)(device_t *pic, device_t *dev, pcell_t *intr,
                               int icells);
 
 typedef struct pic_methods {
@@ -160,6 +161,14 @@ void pic_setup_intr(device_t *dev, resource_t *irq, ih_filter_t *filter,
  */
 void pic_teardown_intr(device_t *dev, resource_t *r);
 
-int pic_map_intr(device_t *dev, phandle_t *intr, int icells);
+/*
+ * Map FDT interrupt resource of device `dev`
+ * into an interrupt controller-specific interrupt number.
+ *
+ * Returns:
+ *  - >= 0: PIC-specific interrupt number to identify PIC interrupt resource
+ *  - -1: the FDT interrupt resource is invalid
+ */
+int pic_map_intr(device_t *dev, fdt_intr_t *intr);
 
 #endif /* !_SYS_INTERRUPT_H_ */
