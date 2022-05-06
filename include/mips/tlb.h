@@ -82,12 +82,6 @@ void init_mips_tlb(void);
  * implementation we aren't going to use other page size than 4KiB.
  */
 
-/* Probes the TLB for an entry matching hi, and if present invalidates it. */
-void tlb_invalidate(tlbhi_t hi);
-
-/* Invalidate all TLB entries with given ASID (save wired). */
-void tlb_invalidate_asid(tlbhi_t asid);
-
 /* Writes the TLB entry specified by @i or random entry if TLBI_RANDOM. */
 void tlb_write(unsigned i, tlbentry_t *e);
 

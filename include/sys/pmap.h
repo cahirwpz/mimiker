@@ -79,4 +79,9 @@ pmap_t *pmap_user(void);
 
 void pmap_growkernel(vaddr_t maxkvaddr);
 
+/*
+ * Direct map.
+ */
+vaddr_t phys_to_dmap(paddr_t addr);
+
 #endif /* !_SYS_PMAP_H_ */

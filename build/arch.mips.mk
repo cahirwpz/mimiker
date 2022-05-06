@@ -27,4 +27,5 @@ CLANG_ABIFLAGS += -msoft-float
 ifeq ($(KGPROF), 1)
 	CFLAGS_KGPROF = -finstrument-functions
 endif
+	CPPFLAGS += -DADDR_TRANSLATION_DEPTH=2
 endif

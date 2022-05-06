@@ -28,6 +28,7 @@ ifeq ($(KERNEL), 1)
 		       --param asan-stack=1 \
 		       --param asan-instrument-allocas=1
 	endif
+	CPPFLAGS += -DADDR_TRANSLATION_DEPTH=4
 else
 	CFLAGS += -mcpu=cortex-a53 -march=armv8-a
 endif

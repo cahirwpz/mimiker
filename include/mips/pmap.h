@@ -7,10 +7,13 @@
 
 #ifndef __ASSEMBLER__
 #include <sys/types.h>
+#include <mips/mips.h>
+#include <mips/tlb.h>
 
 typedef uint8_t asid_t;
 typedef uint32_t pte_t;
 typedef uint32_t pde_t;
+
 #endif /* __ASSEMBLER__ */
 
 #include <mips/vm_param.h>
@@ -43,5 +46,18 @@ static_assert(PT_ENTRIES == 1 << 10,
  * UPD_BASE must begin at 8KiB boundary. */
 #define UPD_BASE (KERNEL_SPACE_END + PAGESIZE * 0)
 #define KPD_BASE (KERNEL_SPACE_END + PAGESIZE * 1)
+
+#define PMAP_MD_FIELDS                                                         \
+  struct {}
+
+#define DMAP_BASE MIPS_KSEG0_START
+
+#define PTE_SET_ON_REFERENCED PTE_VALID
+#define PTE_CLR_ON_REFERENCED 0
+
+#define PTE_SET_ON_MODIFIED PTE_DIRTY
+#define PTE_CLR_ON_MODIFIED 0
+
+#define GROWKERNEL_STRIDE (PAGESIZE * PAGESIZE / sizeof(pte_t))
 
 #endif /* !_MIPS_PMAP_H_ */

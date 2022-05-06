@@ -1,16 +1,14 @@
 #include <mips/m32c0.h>
-#include <mips/mips.h>
 #include <mips/pmap.h>
-#include <mips/tlb.h>
 #include <sys/mimiker.h>
 #include <sys/vm.h>
 #include <sys/kasan.h>
+#include <sys/_pmap.h>
 #include <mips/kasan.h>
 
 /* Last address in kseg0 used by kernel for boot allocation. */
 __boot_data void *_bootmem_end;
-/* Pointer to kernel page directory allocated in kseg0. */
-extern pde_t *_kernel_pmap_pde;
+
 /* The boot stack is used before we switch out to thread0. */
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
@@ -134,7 +132,9 @@ __boot_text void *mips_init(void) {
   mips32_tlbwi();
 
   /* Since variables are in kseg2 we cannot initialize them earlier. */
-  _kernel_pmap_pde = pde;
+  dmap_paddr_base = 0;
+  dmap_paddr_end = MIPS_KSEG1_START - MIPS_KSEG0_START;
+  kernel_pde = (paddr_t)pde;
 #if KASAN
   _kasan_sanitized_end = KASAN_MD_SANITIZED_START + kasan_sanitized_size;
 #endif /* !KASAN */
