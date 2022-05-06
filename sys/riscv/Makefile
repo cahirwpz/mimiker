@@ -15,7 +15,6 @@ SOURCES-RISCV = \
 	signal.c \
 	start.S \
 	switch.S \
-	thread.c \
 	tlb.c \
 	trap.c
 
