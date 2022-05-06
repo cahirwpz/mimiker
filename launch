@@ -52,6 +52,7 @@ CONFIG = {
         'gdbport': RandomPort(),
         'graphics': False,
         'network': False,
+        'storage': '',
         'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
         'args': [],
@@ -98,7 +99,7 @@ CONFIG = {
                     dict(name='/dev/tty0', port=RandomPort(), raw=True),
                     dict(name='/dev/tty1', port=RandomPort()),
                     dict(name='/dev/cons', port=RandomPort())
-                ]
+                ],
             },
             'rpi3': {
                 'binary': 'qemu-mimiker-aarch64',
@@ -110,7 +111,8 @@ CONFIG = {
                 'network_options': [],
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
-                ]
+                ],
+                'drive': 'if=sd,index=0,format=qcow2,file={path}',
             }
         }
     },
@@ -263,6 +265,15 @@ class QEMU(Launchable):
         if getvar('config.network'):
             self.options += getopts('qemu.network_options')
 
+        storage = getvar('config.storage')
+        if not os.path.isfile(storage):
+            raise SystemExit(f'{storage}: file does not exist!')
+        drive = getvar('qemu.drive', failok=True)
+        if not drive:
+            raise SystemExit('Default drive is not defined for the '
+                             'selected platform.')
+        self.options += ['-drive', drive.format(path=storage)]
+
 
 class RENODE(Launchable):
     def __init__(self):
@@ -407,6 +418,9 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--board', default='malta',
                         choices=['malta', 'rpi3', 'litex-riscv'],
                         help='Emulated board.')
+    parser.add_argument('-s', '--storage', type=str,
+                        help='QCOW2 image to be attached as a default storage '
+                             'device for given platform.')
     args = parser.parse_args()
 
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
@@ -417,6 +431,7 @@ if __name__ == '__main__':
     setvar('config.graphics', args.graphics)
     setvar('config.args', args.args)
     setvar('config.network', args.network)
+    setvar('config.storage', args.storage)
 
     # Check if the kernel file is available
     if not os.path.isfile(getvar('config.kernel')):
