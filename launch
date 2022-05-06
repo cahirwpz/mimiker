@@ -52,7 +52,7 @@ CONFIG = {
         'gdbport': RandomPort(),
         'graphics': False,
         'network': False,
-        'storage': [],
+        'storage': '',
         'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
         'args': [],
@@ -100,7 +100,6 @@ CONFIG = {
                     dict(name='/dev/tty1', port=RandomPort()),
                     dict(name='/dev/cons', port=RandomPort())
                 ],
-                'drives': {}
             },
             'rpi3': {
                 'binary': 'qemu-mimiker-aarch64',
@@ -113,9 +112,7 @@ CONFIG = {
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ],
-                'drives': {
-                    'sd': 'if=sd,index=0,format=qcow2,file={path}'
-                }
+                'drive': 'if=sd,index=0,format=qcow2,file={path}',
             }
         }
     },
@@ -268,20 +265,14 @@ class QEMU(Launchable):
         if getvar('config.network'):
             self.options += getopts('qemu.network_options')
 
-        drives = getvar('qemu.drives')
-        for storage in getvar('config.storage'):
-            try:
-                drive, path = storage.split(':', maxsplit=1)
-            except ValueError:
-                raise SystemExit(
-                        f'Invalid storage definition: {storage}.')
-            if not os.path.isfile(path):
-                raise SystemExit(f'{path}: file does not exist!')
-            drive_def = drives.get(drive)
-            if not drive_def:
-                raise SystemExit(f'Drive {drive} is not defined for the '
-                                 'selected platform.')
-            self.options += ['-drive', drive_def.format(path=path)]
+        storage = getvar('config.storage')
+        if not os.path.isfile(storage):
+            raise SystemExit(f'{storage}: file does not exist!')
+        drive = getvar('qemu.drive', failok=True)
+        if not drive:
+            raise SystemExit('Default drive is not defined for the '
+                             'selected platform.')
+        self.options += ['-drive', drive.format(path=storage)]
 
 
 class RENODE(Launchable):
@@ -428,9 +419,8 @@ if __name__ == '__main__':
                         choices=['malta', 'rpi3', 'litex-riscv'],
                         help='Emulated board.')
     parser.add_argument('-s', '--storage', type=str,
-                        action='append', default=[],
-                        help='Drive description in following format: '
-                             '"storage_device:path_to_image"')
+                        help='QCOW2 image to be attached as a default storage '
+                             'device for given platform.')
     args = parser.parse_args()
 
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
