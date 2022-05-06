@@ -68,7 +68,7 @@ static int sb_get_interrupts(device_t *dev, fdt_intr_t *intrs, size_t *cntp) {
     memset(intrs->tuple, 0, sizeof(intrs->tuple));
     memcpy(intrs->tuple, &tuples[i], icells);
     intrs->icells = icells;
-    intrs->node = iparent;
+    intrs->iparent = iparent;
   }
 
 end:
@@ -113,7 +113,7 @@ static int sb_get_interrupts_extended(device_t *dev, fdt_intr_t *intrs,
     memset(intrs->tuple, 0, sizeof(intrs->tuple));
     memcpy(intrs->tuple, &cells[i], icells);
     intrs->icells = icells;
-    intrs->node = iparent;
+    intrs->iparent = iparent;
     ntuples++;
   }
 
