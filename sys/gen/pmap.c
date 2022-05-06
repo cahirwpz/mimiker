@@ -172,11 +172,10 @@ static paddr_t pmap_alloc_pde(pmap_t *pmap, vaddr_t va) {
   assert(mtx_owned(&pmap->mtx));
 
   vm_page_t *pg = pmap_pagealloc();
-  assert(pg);
 
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
 
-  klog("Page table for %p allocated at %p", va, pg->paddr);
+  klog("Page table for %p allocated at %p", (void *)va, pg->paddr);
 
   return pg->paddr;
 }
@@ -559,10 +558,9 @@ void pmap_delete(pmap_t *pmap) {
 
   while (!TAILQ_EMPTY(&pmap->pv_list)) {
     pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);
-    vm_page_t *pg;
     paddr_t pa;
     assert(pmap_extract_nolock(pmap, pv->va, &pa));
-    pg = vm_page_find(pa);
+    vm_page_t *pg = vm_page_find(pa);
     WITH_MTX_LOCK (&pv_list_lock)
       TAILQ_REMOVE(&pg->pv_list, pv, page_link);
     TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
