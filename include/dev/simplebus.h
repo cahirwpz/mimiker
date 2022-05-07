@@ -1,7 +1,7 @@
 #ifndef _DEV_SIMPLEBUS_H_
 #define _DEV_SIMPLEBUS_H_
 
-typedef struct device device_t;
+#include <sys/device.h>
 
 /*
  * Add a simplebus-attached device.
