@@ -250,41 +250,6 @@ int FDT_data_to_res(pcell_t *data, int addr_cells, int size_cells,
   return 0;
 }
 
-int FDT_get_reg(phandle_t node, fdt_mem_reg_t *mrs, size_t *cntp) {
-  int addr_cells, size_cells;
-  int err = FDT_addrsize_cells(FDT_parent(node), &addr_cells, &size_cells);
-  if (err)
-    return err;
-
-  int tuple_cells = addr_cells + size_cells;
-  size_t tuple_size = sizeof(pcell_t) * tuple_cells;
-  pcell_t *reg;
-
-  ssize_t ntuples =
-    FDT_getprop_alloc_multi(node, "reg", tuple_size, (void **)&reg);
-  if (ntuples == -1)
-    return ENXIO;
-
-  if (ntuples > FDT_MAX_REG_TUPLES) {
-    err = ERANGE;
-    goto end;
-  }
-
-  pcell_t *regp = reg;
-
-  for (int i = 0; i < ntuples; i++) {
-    if ((err = FDT_data_to_res(regp, addr_cells, size_cells, &mrs[i].addr,
-                               &mrs[i].size)))
-      return err;
-    regp += tuple_cells;
-  }
-
-end:
-  *cntp = ntuples;
-  FDT_free(reg);
-  return err;
-}
-
 int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
   pcell_t reg[FDT_MAX_REG_CELLS];
 
