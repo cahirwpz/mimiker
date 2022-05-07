@@ -207,27 +207,17 @@ static int rootdev_attach(device_t *bus) {
    * TODO: this should be performed by a simplebus enumeration.
    */
 
-  phandle_t node;
   int unit = 0;
   int err;
-
-  /* PLIC */
   device_t *plic;
-  if ((node = FDT_finddevice("/soc/interrupt-controller")) == FDT_NODEV)
-    return ENXIO;
-  if ((err = simplebus_add_child(bus, node, unit++, bus, &plic)))
+
+  if ((err = simplebus_add_child(bus, "/soc/interrupt-controller" , unit++, bus, &plic)))
     return err;
 
-  /* CLINT */
-  if ((node = FDT_finddevice("/soc/clint")) == FDT_NODEV)
-    return ENXIO;
-  if ((err = simplebus_add_child(bus, node, unit++, bus, NULL)))
+  if ((err = simplebus_add_child(bus, "/soc/clint", unit++, bus, NULL)))
     return err;
 
-  /* UART */
-  if ((node = FDT_finddevice("/soc/serial")) == FDT_NODEV)
-    return ENXIO;
-  if ((err = simplebus_add_child(bus, node, unit++, plic, NULL)))
+  if ((err = simplebus_add_child(bus, "/soc/serial", unit++, plic, NULL)))
     return err;
 
   return bus_generic_probe(bus);
