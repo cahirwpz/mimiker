@@ -172,8 +172,12 @@ end:
   return 0;
 }
 
-int simplebus_add_child(device_t *bus, phandle_t node, int unit, device_t *pic,
-                        device_t **devp) {
+int simplebus_add_child(device_t *bus, const char *path, int unit,
+                        device_t *pic, device_t **devp) {
+  phandle_t node;
+  if ((node = FDT_finddevice(path)) == FDT_NODEV)
+    return ENXIO;
+
   device_t *dev = device_add_child(bus, unit);
   dev->node = node;
   dev->pic = pic;
