@@ -144,37 +144,33 @@ ssize_t FDT_getencprop(phandle_t node, const char *propname, pcell_t *buf,
   if (buflen % 4)
     return -1;
 
-  ssize_t rv = FDT_getprop(node, propname, buf, buflen);
-  if (rv < 0)
+  ssize_t ret = FDT_getprop(node, propname, buf, buflen);
+  if (ret < 0)
     return -1;
 
   FDT_decode(buf, buflen / sizeof(pcell_t));
 
-  return rv;
+  return ret;
 }
 
 ssize_t FDT_getprop_alloc_multi(phandle_t node, const char *propname, int elsz,
                                 void **bufp) {
-  void *buf = NULL;
-  int rv = -1;
-
   int len = FDT_getproplen(node, propname);
   if ((len == -1) || (len % elsz))
-    goto end;
+    return -1;
+
+  void *buf = NULL;
 
   if (len) {
     buf = kmalloc(M_DEV, len, M_WAITOK);
     if (FDT_getprop(node, propname, buf, len) == -1) {
       FDT_free(buf);
-      buf = NULL;
-      goto end;
+      return -1;
     }
   }
-  rv = len / elsz;
 
-end:
   *bufp = buf;
-  return rv;
+  return len / elsz;
 }
 
 ssize_t FDT_getencprop_alloc_multi(phandle_t node, const char *propname,
