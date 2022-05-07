@@ -65,10 +65,9 @@ static int sb_get_interrupts(device_t *dev, fdt_intr_t *intrs, size_t *cntp) {
   }
 
   for (int i = 0; i < ntuples * icells; i += icells, intrs++) {
-    memset(intrs->tuple, 0, sizeof(intrs->tuple));
     memcpy(intrs->tuple, &tuples[i], icells);
     intrs->icells = icells;
-    intrs->node = iparent;
+    intrs->iparent = iparent;
   }
 
 end:
@@ -110,10 +109,9 @@ static int sb_get_interrupts_extended(device_t *dev, fdt_intr_t *intrs,
       goto end;
     }
 
-    memset(intrs->tuple, 0, sizeof(intrs->tuple));
     memcpy(intrs->tuple, &cells[i], icells);
     intrs->icells = icells;
-    intrs->node = iparent;
+    intrs->iparent = iparent;
     ntuples++;
   }
 
@@ -125,17 +123,20 @@ end:
 
 /* TODO: handle ranges property. */
 static int sb_region_to_rl(device_t *dev) {
-  fdt_mem_reg_t mrs[FDT_MAX_REG_TUPLES];
-  size_t cnt;
+  fdt_mem_reg_t *mrs = kmalloc(
+    M_DEV, FDT_MAX_REG_TUPLES * sizeof(fdt_mem_reg_t), M_WAITOK | M_ZERO);
 
+  size_t cnt;
   int err = sb_get_region(dev, mrs, &cnt);
   if (err)
-    return err;
+    goto end;
 
   for (size_t i = 0; i < cnt; i++)
     device_add_memory(dev, i, mrs[i].addr, mrs[i].size);
 
-  return 0;
+end:
+  kfree(M_DEV, mrs);
+  return err;
 }
 
 static int sb_intr_to_rl(device_t *dev) {
@@ -143,20 +144,21 @@ static int sb_intr_to_rl(device_t *dev) {
   assert(pic);
   assert(pic->driver);
 
-  fdt_intr_t intrs[FDT_MAX_INTRS];
+  fdt_intr_t *intrs =
+    kmalloc(M_DEV, FDT_MAX_INTRS * sizeof(fdt_intr_t), M_WAITOK | M_ZERO);
   phandle_t node = dev->node;
   size_t nintrs;
-  int err;
+  int err = 0;
 
   if (FDT_hasprop(node, "interrupts"))
     err = sb_get_interrupts(dev, intrs, &nintrs);
   else if (FDT_hasprop(node, "interrupts-extended"))
     err = sb_get_interrupts_extended(dev, intrs, &nintrs);
   else
-    return 0;
+    goto end;
 
   if (err)
-    return err;
+    goto end;
 
   int rid = 0;
   for (size_t i = 0; i < nintrs; i++) {
@@ -165,6 +167,8 @@ static int sb_intr_to_rl(device_t *dev) {
       device_add_irq(dev, rid++, irqnum);
   }
 
+end:
+  kfree(M_DEV, intrs);
   return 0;
 }
 
