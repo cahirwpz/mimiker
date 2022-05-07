@@ -128,7 +128,7 @@ static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
     return -1;
 
   unsigned irq = *intr;
-  if (irq > HLIC_NIRQS)
+  if (irq >= HLIC_NIRQS)
     return -1;
   return hlic_intr_map[irq];
 }
