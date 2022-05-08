@@ -211,7 +211,8 @@ static int rootdev_attach(device_t *bus) {
   int err;
   device_t *plic;
 
-  if ((err = simplebus_add_child(bus, "/soc/interrupt-controller" , unit++, bus, &plic)))
+  if ((err = simplebus_add_child(bus, "/soc/interrupt-controller", unit++, bus,
+                                 &plic)))
     return err;
 
   if ((err = simplebus_add_child(bus, "/soc/clint", unit++, bus, NULL)))
