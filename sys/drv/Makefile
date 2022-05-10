@@ -33,6 +33,7 @@ SOURCES-AARCH64 = \
 	pl011.c
 
 SOURCES-RISCV = \
+	clint.c \
 	litex_riscv_rootdev.c \
 	plic.c
 
