@@ -1,3 +1,93 @@
+include <sys/pcpu.h>
+include <sys/thread.h>
+include <riscv/mcontext.h>
+include <riscv/riscvreg.h>
 include <riscv/vm_param.h>
 
+define FPU FPU
+
+define USER_SPACE_END USER_SPACE_END
 define KERNEL_SPACE_BEGIN KERNEL_SPACE_BEGIN
+
+define TD_KCTX offsetof(thread_t, td_kctx)
+define TD_UCTX offsetof(thread_t, td_uctx)
+define TD_ONFAULT offsetof(thread_t, td_onfault)
+define TD_PFLAGS offsetof(thread_t, td_pflags)
+
+define TDP_FPUCTXSAVED TDP_FPUCTXSAVED
+define TDP_FPUINUSE TDP_FPUINUSE
+
+define PCPU_CURTHREAD offsetof(pcpu_t, curthread)
+
+define CTX_RA offsetof(ctx_t, __gregs[_REG_RA])
+define CTX_SP offsetof(ctx_t, __gregs[_REG_SP])
+define CTX_GP offsetof(ctx_t, __gregs[_REG_GP])
+define CTX_TP offsetof(ctx_t, __gregs[_REG_TP])
+define CTX_T0 offsetof(ctx_t, __gregs[_REG_T0])
+define CTX_T1 offsetof(ctx_t, __gregs[_REG_T1])
+define CTX_T2 offsetof(ctx_t, __gregs[_REG_T2])
+define CTX_S0 offsetof(ctx_t, __gregs[_REG_S0])
+define CTX_S1 offsetof(ctx_t, __gregs[_REG_S1])
+define CTX_A0 offsetof(ctx_t, __gregs[_REG_A0])
+define CTX_A1 offsetof(ctx_t, __gregs[_REG_A1])
+define CTX_A2 offsetof(ctx_t, __gregs[_REG_A2])
+define CTX_A3 offsetof(ctx_t, __gregs[_REG_A3])
+define CTX_A4 offsetof(ctx_t, __gregs[_REG_A4])
+define CTX_A5 offsetof(ctx_t, __gregs[_REG_A5])
+define CTX_A6 offsetof(ctx_t, __gregs[_REG_A6])
+define CTX_A7 offsetof(ctx_t, __gregs[_REG_A7])
+define CTX_S2 offsetof(ctx_t, __gregs[_REG_S2])
+define CTX_S3 offsetof(ctx_t, __gregs[_REG_S3])
+define CTX_S4 offsetof(ctx_t, __gregs[_REG_S4])
+define CTX_S5 offsetof(ctx_t, __gregs[_REG_S5])
+define CTX_S6 offsetof(ctx_t, __gregs[_REG_S6])
+define CTX_S7 offsetof(ctx_t, __gregs[_REG_S7])
+define CTX_S8 offsetof(ctx_t, __gregs[_REG_S8])
+define CTX_S9 offsetof(ctx_t, __gregs[_REG_S9])
+define CTX_S10 offsetof(ctx_t, __gregs[_REG_S10])
+define CTX_S11 offsetof(ctx_t, __gregs[_REG_S11])
+define CTX_T3 offsetof(ctx_t, __gregs[_REG_T3])
+define CTX_T4 offsetof(ctx_t, __gregs[_REG_T4])
+define CTX_T5 offsetof(ctx_t, __gregs[_REG_T5])
+define CTX_T6 offsetof(ctx_t, __gregs[_REG_T6])
+define CTX_RV offsetof(ctx_t, __gregs[_REG_RV])
+define CTX_PC offsetof(ctx_t, __gregs[_REG_PC])
+define CTX_SR offsetof(ctx_t, __gregs[_REG_SR])
+define CTX_TVAL offsetof(ctx_t, __gregs[_REG_TVAL])
+define CTX_CAUSE offsetof(ctx_t, __gregs[_REG_CAUSE])
+
+define FPU_CTX_F0 offsetof(mcontext_t, __fregs[0])
+define FPU_CTX_F1 offsetof(mcontext_t, __fregs[1])
+define FPU_CTX_F2 offsetof(mcontext_t, __fregs[2])
+define FPU_CTX_F3 offsetof(mcontext_t, __fregs[3])
+define FPU_CTX_F4 offsetof(mcontext_t, __fregs[4])
+define FPU_CTX_F5 offsetof(mcontext_t, __fregs[5])
+define FPU_CTX_F6 offsetof(mcontext_t, __fregs[6])
+define FPU_CTX_F7 offsetof(mcontext_t, __fregs[7])
+define FPU_CTX_F8 offsetof(mcontext_t, __fregs[8])
+define FPU_CTX_F9 offsetof(mcontext_t, __fregs[9])
+define FPU_CTX_F10 offsetof(mcontext_t, __fregs[10])
+define FPU_CTX_F11 offsetof(mcontext_t, __fregs[11])
+define FPU_CTX_F12 offsetof(mcontext_t, __fregs[12])
+define FPU_CTX_F13 offsetof(mcontext_t, __fregs[13])
+define FPU_CTX_F14 offsetof(mcontext_t, __fregs[14])
+define FPU_CTX_F15 offsetof(mcontext_t, __fregs[15])
+define FPU_CTX_F16 offsetof(mcontext_t, __fregs[16])
+define FPU_CTX_F17 offsetof(mcontext_t, __fregs[17])
+define FPU_CTX_F18 offsetof(mcontext_t, __fregs[18])
+define FPU_CTX_F19 offsetof(mcontext_t, __fregs[19])
+define FPU_CTX_F20 offsetof(mcontext_t, __fregs[20])
+define FPU_CTX_F21 offsetof(mcontext_t, __fregs[21])
+define FPU_CTX_F22 offsetof(mcontext_t, __fregs[22])
+define FPU_CTX_F23 offsetof(mcontext_t, __fregs[23])
+define FPU_CTX_F24 offsetof(mcontext_t, __fregs[24])
+define FPU_CTX_F25 offsetof(mcontext_t, __fregs[25])
+define FPU_CTX_F26 offsetof(mcontext_t, __fregs[26])
+define FPU_CTX_F27 offsetof(mcontext_t, __fregs[27])
+define FPU_CTX_F28 offsetof(mcontext_t, __fregs[28])
+define FPU_CTX_F29 offsetof(mcontext_t, __fregs[29])
+define FPU_CTX_F30 offsetof(mcontext_t, __fregs[30])
+define FPU_CTX_F31 offsetof(mcontext_t, __fregs[31])
+define FPU_CTX_FCSR offsetof(mcontext_t, __fregs[32])
+
+define CTX_SIZE sizeof(ctx_t)
