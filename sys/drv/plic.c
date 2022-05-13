@@ -65,9 +65,7 @@ static void plic_intr_enable(intr_event_t *ie) {
 }
 
 static const char *plic_intr_name(unsigned irq) {
-  char buf[32];
-  snprintf(buf, sizeof(buf), "PLIC source %u", irq);
-  return kstrndup(M_STR, buf, sizeof(buf));
+  return kasprintf("PLIC source %u", irq);
 }
 
 static resource_t *plic_alloc_intr(device_t *pic, device_t *dev, int rid,
