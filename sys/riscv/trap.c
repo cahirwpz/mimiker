@@ -164,6 +164,16 @@ static void syscall_handler(mcontext_t *uctx, syscall_result_t *result) {
   result->error = error;
 }
 
+/*
+ * NOTE: for each thread, dirty FPE context has to be saved
+ * during each ctx switch. To decrease the cost of this procedure
+ * we disable FPU for each new thread and enable it only when actually
+ * requested by the thread. Such request resolves to an illegal instruction
+ * exception. Thereby, each time an illegal instruction exception occurs,
+ * we check wheter it is an FPU request issued by the thread
+ * or an unhanled opcode.
+ * The check and FPU enablement is performed by `fpu_handler`.
+ */
 static bool fpu_handler(mcontext_t *uctx) {
   if (!FPU)
     return false;
@@ -174,7 +184,7 @@ static bool fpu_handler(mcontext_t *uctx) {
     return false;
 
   /*
-   * May be a FPE trap. Enable FPE usage
+   * May be an FPE trap. Enable FPE usage
    * for this thread and try again.
    */
   memset(uctx->__fregs, 0, sizeof(__fregset_t));
