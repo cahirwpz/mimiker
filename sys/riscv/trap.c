@@ -33,16 +33,16 @@ __no_profile static inline bool ctx_interrupt(ctx_t *ctx) {
   return _REG(ctx, CAUSE) & SCAUSE_INTR;
 }
 
-__no_profile static inline unsigned ctx_code(ctx_t *ctx) {
+__no_profile static inline u_long ctx_code(ctx_t *ctx) {
   return _REG(ctx, CAUSE) & SCAUSE_CODE;
 }
 
-__no_profile static inline unsigned ctx_intr_enabled(ctx_t *ctx) {
+__no_profile static inline bool ctx_intr_enabled(ctx_t *ctx) {
   return _REG(ctx, SR) & SSTATUS_SPIE;
 }
 
 static __noreturn void kernel_oops(ctx_t *ctx) {
-  unsigned code = ctx_code(ctx);
+  u_long code = ctx_code(ctx);
   void *epc = (void *)_REG(ctx, PC);
 
   klog("%s at %p!", exceptions[code], epc);
@@ -78,7 +78,7 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
 static void page_fault_handler(ctx_t *ctx) {
   thread_t *td = thread_self();
 
-  unsigned code = ctx_code(ctx);
+  u_long code = ctx_code(ctx);
   void *epc = (void *)_REG(ctx, PC);
   vaddr_t vaddr = _REG(ctx, TVAL);
 
@@ -196,7 +196,7 @@ static void user_trap_handler(ctx_t *ctx) {
   assert(!intr_disabled() && !preempt_disabled());
 
   syscall_result_t result;
-  unsigned code = ctx_code(ctx);
+  u_long code = ctx_code(ctx);
 
   switch (code) {
     case SCAUSE_INST_PAGE_FAULT:
