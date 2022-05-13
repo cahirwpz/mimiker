@@ -36,6 +36,7 @@
 
 #include <sys/libkern.h>
 #include <sys/console.h>
+#include <sys/malloc.h>
 #include <limits.h>
 
 /*
@@ -110,6 +111,27 @@ vsnprintf(char *buf, size_t size, const char *cfmt, va_list ap)
 		*(arg.buf)++ = 0;
 
 	return (retval);
+}
+
+char *
+kasprintf(const char *fmt, ...)
+{
+	va_list ap, aq;
+	unsigned len;
+	char *p;
+
+	va_start(ap, fmt);
+
+	va_copy(aq, ap);
+	len = vsnprintf(NULL, 0, fmt, aq);
+	va_end(aq);
+
+	p = kmalloc(M_STR, len + 1, M_WAITOK);
+	vsnprintf(p, len + 1, fmt, ap);
+
+	va_end(ap);
+
+	return p;
 }
 
 static void
