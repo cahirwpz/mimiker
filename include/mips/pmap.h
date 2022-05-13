@@ -47,6 +47,12 @@ static_assert(PT_ENTRIES == 1 << 10,
 #define UPD_BASE (KERNEL_SPACE_END + PAGESIZE * 0)
 #define KPD_BASE (KERNEL_SPACE_END + PAGESIZE * 1)
 
+#define PAGE_TABLE_DEPTH 2
+
+#ifndef __ASSEMBLER__
+
+#include <stdbool.h>
+
 #define PMAP_MD_FIELDS                                                         \
   struct {}
 
@@ -59,5 +65,43 @@ static_assert(PT_ENTRIES == 1 << 10,
 #define PTE_CLR_ON_MODIFIED 0
 
 #define GROWKERNEL_STRIDE (PAGESIZE * PAGESIZE / sizeof(pte_t))
+
+/*
+ * Page directory.
+ */
+
+static inline bool pde_valid_p(pde_t pde) {
+  return pde & PDE_VALID;
+}
+
+static inline paddr_t pde2pa(pde_t pde) {
+  return PTE_FRAME_ADDR(pde);
+}
+
+/*
+ * Page table.
+ */
+
+static inline bool pte_valid_p(pte_t pte) {
+  return PTE_FRAME_ADDR(pte) != 0;
+}
+
+static inline bool pte_readable(pte_t pte) {
+  return pte & PTE_SW_READ;
+}
+
+static inline bool pte_writable(pte_t pte) {
+  return pte & PTE_SW_WRITE;
+}
+
+static inline bool pte_executable(pte_t pte) {
+  return !(pte & PTE_SW_NOEXEC);
+}
+
+static inline paddr_t pte2pa(pte_t pte) {
+  return PTE_FRAME_ADDR(pte);
+}
+
+#endif /* __ASSEMBLER__ */
 
 #endif /* !_MIPS_PMAP_H_ */

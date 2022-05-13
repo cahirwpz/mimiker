@@ -56,62 +56,30 @@ static pde_t pd_lvl_masks[] = {
  * Translation structure.
  */
 
-inline size_t l0_index(vaddr_t va) {
-  return L0_INDEX(va);
-}
-
-inline size_t l1_index(vaddr_t va) {
-  return L1_INDEX(va);
-}
-
-inline size_t l2_index(vaddr_t va) {
-  return L2_INDEX(va);
-}
-
-inline size_t l3_index(vaddr_t va) {
-  return L3_INDEX(va);
+size_t pt_index(unsigned lvl, vaddr_t va) {
+  if (lvl == 0)
+    return L0_INDEX(va);
+  if (lvl == 1)
+    return L1_INDEX(va);
+  if (lvl == 2)
+    return L2_INDEX(va);
+  if (lvl == 3)
+    return L3_INDEX(va);
+  panic("Invalid page table level (lvl=%u)!", lvl);
 }
 
 /*
  * Page directory.
  */
 
-inline bool pde_valid_p(pde_t pde) {
-  return PTE_FRAME_ADDR(pde) != 0UL;
-}
-
-inline pde_t pde_make(paddr_t pa, unsigned lvl) {
-  assert(lvl < ADDR_TRANSLATION_DEPTH - 1);
+pde_t pde_make(unsigned lvl, paddr_t pa) {
+  assert(lvl < PAGE_TABLE_DEPTH - 1);
   return pa | pd_lvl_masks[lvl];
-}
-
-inline paddr_t pde2pa(pde_t pde) {
-  return PTE_FRAME_ADDR(pde);
-}
-
-void kernel_pd_change_notif(pmap_t *pmap, vaddr_t va, pde_t pde) {
-  /* Nothing to be done here. */
 }
 
 /*
  * Page table.
  */
-
-inline bool pte_valid_p(pte_t pte) {
-  return PTE_FRAME_ADDR(pte) != 0UL;
-}
-
-inline bool pte_readable(pte_t pte) {
-  return pte & ATTR_SW_READ;
-}
-
-inline bool pte_writable(pte_t pte) {
-  return pte & ATTR_SW_WRITE;
-}
-
-inline bool pte_executable(pte_t pte) {
-  return !(pte & ATTR_SW_NOEXEC);
-}
 
 pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel) {
   pte_t pte = pa | vm_prot_map[prot];
@@ -127,12 +95,8 @@ pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel) {
   return pte | ATTR_IDX(ATTR_NORMAL_MEM_WB);
 }
 
-inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
+pte_t pte_protect(pte_t pte, vm_prot_t prot) {
   return vm_prot_map[prot] | (pte & (~ATTR_AP_MASK & ~ATTR_XN));
-}
-
-inline paddr_t pte2pa(pte_t pte) {
-  return PTE_FRAME_ADDR(pte);
 }
 
 /*

@@ -4,8 +4,6 @@
 #include <sys/_pmap.h>
 #include <mips/tlb.h>
 
-#define PTE_FRAME_ADDR(pte) (PTE_PFN_OF(pte) * PAGESIZE)
-
 static const pte_t vm_prot_map[] = {
   [VM_PROT_NONE] = PTE_SW_NOEXEC,
   [VM_PROT_READ] = PTE_VALID | PTE_SW_READ | PTE_SW_NOEXEC,
@@ -23,53 +21,26 @@ static const pte_t vm_prot_map[] = {
  * Translation structure.
  */
 
-inline size_t l0_index(vaddr_t va) {
-  return PDE_INDEX(va);
-}
-
-inline size_t l1_index(vaddr_t va) {
-  return PTE_INDEX(va);
+size_t pt_index(unsigned lvl, vaddr_t va) {
+  if (lvl == 0)
+    return PDE_INDEX(va);
+  if (lvl == 1)
+    return PTE_INDEX(va);
+  panic("Invalid page table level (lvl=%u)!", lvl);
 }
 
 /*
  * Page directory.
  */
 
-inline bool pde_valid_p(pde_t pde) {
-  return pde & PDE_VALID;
-}
-
-inline pde_t pde_make(paddr_t pa, unsigned lvl __unused) {
+pde_t pde_make(unsigned lvl, paddr_t pa) {
+  assert(lvl < PAGE_TABLE_DEPTH - 1);
   return PTE_PFN(phys_to_dmap(pa)) | PTE_KERNEL;
-}
-
-inline paddr_t pde2pa(pde_t pde) {
-  return PTE_FRAME_ADDR(pde);
-}
-
-void kernel_pd_change_notif(pmap_t *pmap, vaddr_t va, pde_t pde) {
-  /* Nothing to be done here. */
 }
 
 /*
  * Page table.
  */
-
-inline bool pte_valid_p(pte_t pte) {
-  return PTE_FRAME_ADDR(pte) != 0;
-}
-
-inline bool pte_readable(pte_t pte) {
-  return pte & PTE_SW_READ;
-}
-
-inline bool pte_writable(pte_t pte) {
-  return pte & PTE_SW_WRITE;
-}
-
-inline bool pte_executable(pte_t pte) {
-  return !(pte & PTE_SW_NOEXEC);
-}
 
 pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel) {
   pte_t pte = PTE_PFN(pa) | vm_prot_map[prot];
@@ -89,12 +60,8 @@ pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel) {
   return pte;
 }
 
-inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
+pte_t pte_protect(pte_t pte, vm_prot_t prot) {
   return (pte & ~PTE_PROT_MASK) | vm_prot_map[prot];
-}
-
-inline paddr_t pte2pa(pte_t pte) {
-  return PTE_FRAME_ADDR(pte);
 }
 
 /*

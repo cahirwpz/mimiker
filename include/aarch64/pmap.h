@@ -1,6 +1,7 @@
 #ifndef _AARCH64_PMAP_H_
 #define _AARCH64_PMAP_H_
 
+#include <stdbool.h>
 #include <aarch64/pte.h>
 
 /* Number of page directory entries. */
@@ -24,6 +25,8 @@
 #define PA_MASK 0xfffffffff000
 #define PTE_FRAME_ADDR(pte) ((pte)&PA_MASK)
 
+#define PAGE_TABLE_DEPTH 4
+
 #define PMAP_MD_FIELDS                                                         \
   struct {}
 
@@ -35,6 +38,43 @@
 
 #define GROWKERNEL_STRIDE L2_SIZE
 
+/*
+ * Page directory.
+ */
+
+static inline bool pde_valid_p(pde_t pde) {
+  return PTE_FRAME_ADDR(pde) != 0UL;
+}
+
+static inline paddr_t pde2pa(pde_t pde) {
+  return PTE_FRAME_ADDR(pde);
+}
+
+/*
+ * Page table.
+ */
+
+static inline bool pte_valid_p(pte_t pte) {
+  return PTE_FRAME_ADDR(pte) != 0UL;
+}
+
+static inline bool pte_readable(pte_t pte) {
+  return pte & ATTR_SW_READ;
+}
+
+static inline bool pte_writable(pte_t pte) {
+  return pte & ATTR_SW_WRITE;
+}
+
+static inline bool pte_executable(pte_t pte) {
+  return !(pte & ATTR_SW_NOEXEC);
+}
+
+static inline paddr_t pte2pa(pte_t pte) {
+  return PTE_FRAME_ADDR(pte);
+}
+
+/* MD pmap bootstrap. */
 void pmap_bootstrap(paddr_t pd_pa);
 
 #endif /* !_AARCH64_PMAP_H_ */

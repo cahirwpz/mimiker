@@ -14,8 +14,11 @@
 
 #define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
 
-static_assert((ADDR_TRANSLATION_DEPTH > 1) && (ADDR_TRANSLATION_DEPTH < 5),
-              "Invalid depth of the address translation structure!");
+#ifndef PAGE_TABLE_DEPTH
+#error "Page table depth undefined!"
+#endif
+
+static_assert(PAGE_TABLE_DEPTH, "Page table depth defined to 0!");
 
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
 static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
@@ -184,38 +187,16 @@ static pte_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va) {
   paddr_t pa = pmap->pde;
   pde_t *pdep;
 
-  /* Level 0 */
-  pdep = (pde_t *)phys_to_dmap(pa) + l0_index(va);
-  if (!pde_valid_p(*pdep))
-    return NULL;
+  for (unsigned lvl = 0;; lvl++) {
+    pdep = (pde_t *)phys_to_dmap(pa) + pt_index(lvl, va);
+    if (lvl == PAGE_TABLE_DEPTH - 1)
+      return (pte_t *)pdep;
+    if (!pde_valid_p(*pdep))
+      return NULL;
+    pa = pde2pa(*pdep);
+  }
 
-  pa = pde2pa(*pdep);
-
-  /* Level 1 */
-  pdep = (pde_t *)phys_to_dmap(pa) + l1_index(va);
-#if ADDR_TRANSLATION_DEPTH == 2
-  return (pte_t *)pdep;
-#else
-  if (!pde_valid_p(*pdep))
-    return NULL;
-
-  pa = pde2pa(*pdep);
-
-  /* Level 2 */
-  pdep = (pde_t *)phys_to_dmap(pa) + l2_index(va);
-#if ADDR_TRANSLATION_DEPTH == 3
-  return (pte_t *)pdep;
-#else
-  if (!pde_valid_p(*pdep))
-    return NULL;
-
-  pa = pde2pa(*pdep);
-
-  /* Level 3 */
-  pdep = (pde_t *)phys_to_dmap(pa) + l3_index(va);
-  return (pte_t *)pdep;
-#endif
-#endif
+  __unreachable();
 }
 
 static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte, vaddr_t va) {
@@ -230,46 +211,19 @@ static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
   paddr_t pa = pmap->pde;
   pde_t *pdep;
 
-  /* Level 0 */
-  pdep = (pde_t *)phys_to_dmap(pa) + l0_index(va);
-  if (!pde_valid_p(*pdep)) {
-    pa = pmap_alloc_pde(pmap, va);
-    *pdep = pde_make(pa, 0);
-    if (pmap == pmap_kernel())
-      kernel_pd_change_notif(pmap, va, *pdep);
-  } else {
-    pa = pde2pa(*pdep);
+  for (unsigned lvl = 0;; lvl++) {
+    pdep = (pde_t *)phys_to_dmap(pa) + pt_index(lvl, va);
+    if (lvl == PAGE_TABLE_DEPTH - 1)
+      return (pte_t *)pdep;
+    if (!pde_valid_p(*pdep)) {
+      pa = pmap_alloc_pde(pmap, va);
+      *pdep = pde_make(lvl, pa);
+    } else {
+      pa = pde2pa(*pdep);
+    }
   }
 
-  /* Level 1 */
-  pdep = (pde_t *)phys_to_dmap(pa) + l1_index(va);
-#if ADDR_TRANSLATION_DEPTH == 2
-  return (pte_t *)pdep;
-#else
-  if (!pde_valid_p(*pdep)) {
-    pa = pmap_alloc_pde(pmap, va);
-    *pdep = pde_make(pa, 1);
-  } else {
-    pa = pde2pa(*pdep);
-  }
-
-  /* Level 2 */
-  pdep = (pde_t *)phys_to_dmap(pa) + l2_index(va);
-#if ADDR_TRANSLATION_DEPTH == 3
-  return (pte_t *)pdep;
-#else
-  if (!pde_valid_p(*pdep)) {
-    pa = pmap_alloc_pde(pmap, va);
-    *pdep = pde_make(pa, 2);
-  } else {
-    pa = pde2pa(*pdep);
-  }
-
-  /* Level 3 */
-  pdep = (pde_t *)phys_to_dmap(pa) + l3_index(va);
-  return (pte_t *)pdep;
-#endif
-#endif
+  __unreachable();
 }
 
 /*
