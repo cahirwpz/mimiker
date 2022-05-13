@@ -4,6 +4,7 @@ TOPDIR = $(realpath ../..)
 
 SOURCES = \
 	dev_cons.c \
+	simplebus.c \
 	uart.c \
 	usb.c
 
@@ -32,6 +33,7 @@ SOURCES-AARCH64 = \
 	pl011.c
 
 SOURCES-RISCV = \
+	clint.c \
 	litex_riscv_rootdev.c
 
 CPPFLAGS += -D_MACHDEP

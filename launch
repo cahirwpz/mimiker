@@ -266,13 +266,14 @@ class QEMU(Launchable):
             self.options += getopts('qemu.network_options')
 
         storage = getvar('config.storage')
-        if not os.path.isfile(storage):
-            raise SystemExit(f'{storage}: file does not exist!')
-        drive = getvar('qemu.drive', failok=True)
-        if not drive:
-            raise SystemExit('Default drive is not defined for the '
-                             'selected platform.')
-        self.options += ['-drive', drive.format(path=storage)]
+        if storage:
+            if not os.path.isfile(storage):
+                raise SystemExit(f'{storage}: file does not exist!')
+            drive = getvar('qemu.drive', failok=True)
+            if not drive:
+                raise SystemExit('Default drive is not defined for the '
+                                 'selected platform.')
+            self.options += ['-drive', drive.format(path=storage)]
 
 
 class RENODE(Launchable):
