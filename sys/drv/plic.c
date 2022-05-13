@@ -115,14 +115,14 @@ static intr_filter_t plic_intr_handler(void *arg) {
   /* Claim any pending interrupt. */
   uint32_t irq = in4(PLIC_CLAIM_SV);
 
-  if (irq) {
-    intr_event_run_handlers(plic->intr_event[irq]);
-    /* Complete the interrupt. */
-    out4(PLIC_CLAIM_SV, irq);
-    return IF_FILTERED;
-  }
+  if (!irq)
+    panic("Asserted reserved PLIC interrupt!");
 
-  return IF_STRAY;
+  intr_event_run_handlers(plic->intr_event[irq]);
+  /* Complete the interrupt. */
+  out4(PLIC_CLAIM_SV, irq);
+
+  return IF_FILTERED;
 }
 
 static int plic_probe(device_t *pic) {
