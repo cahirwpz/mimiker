@@ -7,6 +7,12 @@
 #include <sys/klog.h>
 #include <sys/libkern.h>
 
+/*
+ * Details of the operation of PLIC as well as the memory layout
+ * can be found in the official specification which is maintained on github:
+ *   https://github.com/riscv/riscv-plic-spec
+ */
+
 /* PLIC memory map. */
 #define PLIC_CTXNUM_SV 1
 
