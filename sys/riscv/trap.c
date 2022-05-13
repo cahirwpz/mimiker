@@ -138,7 +138,6 @@ static_assert(SYS_MAXSYSARGS <= FUNC_MAXREGARGS - 1,
               "Syscall args don't fit in registers!");
 
 static void syscall_handler(mcontext_t *uctx, syscall_result_t *result) {
-  /* TODO: eventually we should have a platform-independent syscall handler. */
   register_t args[SYS_MAXSYSARGS];
   register_t code = _REG(uctx, A7);
 
