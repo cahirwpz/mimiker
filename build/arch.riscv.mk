@@ -17,7 +17,9 @@ ifeq ($(BOARD), litex-riscv)
 	ABI := ilp32
 	KERNEL_PHYS := 0x40000000
 	KERNEL-IMAGES := mimiker.img
+ifeq ($(KERNEL), 1)
 	CPPFLAGS += -DFPU=0
+endif
 endif
 
 GCC_ABIFLAGS += -march=rv32$(EXT) -mabi=$(ABI) 
@@ -25,6 +27,6 @@ CLANG_ABIFLAGS += -target riscv32-elf -march=rv32$(EXT) -mabi=$(ABI)
 
 ifeq ($(KERNEL), 1)
 	CFLAGS += -mcmodel=medany
-	CPPFLAGS += -DKERNEL_PHYS=$(KERNEL_PHYS)
+	CPPFLAGS += -DKERNEL_PHYS=$(KERNEL_PHYS) -DSUM=0
 	CPPLDSCRIPT := 1
 endif
