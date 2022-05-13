@@ -16,6 +16,10 @@
 #define TOO_MUCH 0x800000000000L
 #endif
 
+#ifdef __riscv
+#include <riscv/cpufunc.h>
+#endif
+
 static int paging_on_demand_and_memory_protection_demo(void) {
   SCOPED_NO_PREEMPTION();
   proc_t *p = proc_self();
@@ -72,11 +76,19 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   vm_map_dump(umap);
   vm_map_dump(kmap);
 
+#ifdef __riscv
+  enter_user_access();
+#endif
+
   /* Start in paged on demand range, but end outside, to cause fault */
   for (int *ptr = (int *)start; ptr != (int *)end; ptr += 256) {
     klog("%p", ptr);
     *ptr = 0xfeedbabe;
   }
+
+#ifdef __riscv
+  exit_user_access();
+#endif
 
   vm_map_dump(umap);
   vm_map_dump(kmap);

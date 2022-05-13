@@ -36,7 +36,7 @@ typedef struct fdt_mem_reg {
 typedef struct fdt_intr {
   pcell_t tuple[FDT_MAX_ICELLS];
   int icells;
-  phandle_t node;
+  phandle_t iparent;
 } fdt_intr_t;
 
 /*
