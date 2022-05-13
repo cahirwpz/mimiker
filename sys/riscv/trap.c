@@ -44,6 +44,7 @@ __no_profile static inline bool ctx_intr_enabled(ctx_t *ctx) {
 static __noreturn void kernel_oops(ctx_t *ctx) {
   u_long code = ctx_code(ctx);
   void *epc = (void *)_REG(ctx, PC);
+  uint32_t badinstr = *(uint32_t *)epc;
 
   klog("%s at %p!", exceptions[code], epc);
 
@@ -60,11 +61,9 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
       klog("Caused by reference to %lx!", _REG(ctx, TVAL));
       break;
 
-    case SCAUSE_ILLEGAL_INSTRUCTION: {
-      uint32_t badinstr = *(uint32_t *)epc;
+    case SCAUSE_ILLEGAL_INSTRUCTION:
       klog("Illegal instruction %08x in kernel mode!", badinstr);
       break;
-    }
 
     case SCAUSE_BREAKPOINT:
       klog("No debbuger in kernel!");
@@ -166,8 +165,10 @@ static void syscall_handler(mcontext_t *uctx, syscall_result_t *result) {
   result->error = error;
 }
 
-#if FPU
 static bool fpu_handler(mcontext_t *uctx) {
+  if (!FPU)
+    return false;
+
   thread_t *td = thread_self();
 
   if (td->td_pflags & TDP_FPUINUSE)
@@ -184,7 +185,6 @@ static bool fpu_handler(mcontext_t *uctx) {
 
   return true;
 }
-#endif
 
 static void user_trap_handler(ctx_t *ctx) {
   /*
@@ -197,6 +197,7 @@ static void user_trap_handler(ctx_t *ctx) {
 
   syscall_result_t result;
   u_long code = ctx_code(ctx);
+  void *epc = (void *)_REG(ctx, PC);
 
   switch (code) {
     case SCAUSE_INST_PAGE_FAULT:
@@ -220,16 +221,12 @@ static void user_trap_handler(ctx_t *ctx) {
       syscall_handler((mcontext_t *)ctx, &result);
       break;
 
-    case SCAUSE_ILLEGAL_INSTRUCTION: {
-#if FPU
+    case SCAUSE_ILLEGAL_INSTRUCTION:
       if (fpu_handler((mcontext_t *)ctx))
         break;
-#endif
-      void *epc = (void *)_REG(ctx, PC);
       klog("%s at %p!", exceptions[code], epc);
       sig_trap(ctx, SIGILL);
       break;
-    }
 
     case SCAUSE_BREAKPOINT:
       sig_trap(ctx, SIGTRAP);
