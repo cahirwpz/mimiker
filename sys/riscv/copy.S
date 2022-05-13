@@ -4,13 +4,35 @@
 
 #include "assym.h"
 
+/*
+ * Enable permit Supervisor User Memory access (SUM).
+ */
+.macro enter_user_access tmp
+#if SUM
+	REG_LI \tmp, SSTATUS_SUM
+	csrs sstatus, \tmp
+#endif
+.endm
+
+/*
+ * Disable permit Supervisor User Memory access (SUM).
+ */
+.macro exit_user_access tmp
+#if SUM
+	REG_LI \tmp, SSTATUS_SUM
+	csrc sstatus, \tmp
+#endif
+.endm
+
 .macro onfault_set tmp, td, func
 	PTR_L	\td, PCPU_CURTHREAD(tp)
 	PTR_LA	\tmp, \func
 	PTR_S	\tmp, TD_ONFAULT(\td)
+	enter_user_access \tmp
 .endm
 
 .macro onfault_clr tmp, td
+	exit_user_access \tmp
 	PTR_L	\td, PCPU_CURTHREAD(tp)
 	PTR_S	zero, TD_ONFAULT(tp)
 .endm
