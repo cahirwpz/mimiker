@@ -151,7 +151,7 @@ static void syscall_handler(mcontext_t *uctx, syscall_result_t *result) {
   sysent_t *se = &sysent[code];
   size_t nargs = se->nargs;
 
-  assert(nargs <= SYS_MAXSYSCALL);
+  assert(nargs <= SYS_MAXSYSARGS);
 
   thread_t *td = thread_self();
   register_t retval = 0;
