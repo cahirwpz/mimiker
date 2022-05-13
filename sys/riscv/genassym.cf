@@ -16,7 +16,6 @@ define TDP_FPUCTXSAVED TDP_FPUCTXSAVED
 define TDP_FPUINUSE TDP_FPUINUSE
 
 define PCPU_CURTHREAD offsetof(pcpu_t, curthread)
-define PCPU_CPY_CTX offsetof(pcpu_t, cpy_ctx)
 
 define CTX_RA offsetof(ctx_t, __gregs[_REG_RA])
 define CTX_SP offsetof(ctx_t, __gregs[_REG_SP])
