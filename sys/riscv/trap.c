@@ -177,7 +177,7 @@ static bool fpu_handler(mcontext_t *uctx) {
    * May be a FPE trap. Enable FPE usage
    * for this thread and try again.
    */
-  bzero(uctx->__fregs, sizeof(__fregset_t));
+  memset(uctx->__fregs, 0, sizeof(__fregset_t));
   _REG(uctx, SR) &= ~SSTATUS_FS_MASK;
   _REG(uctx, SR) |= SSTATUS_FS_CLEAN;
   td->td_pflags |= TDP_FPUINUSE;
