@@ -84,6 +84,23 @@ jobs:
       - uses: actions/checkout@v2
       - run: make BOARD=rpi3 CLANG=1
 
+  build_riscv32_clang:
+    name: Build RISC-V 32 (Clang)
+    runs-on: self-hosted
+    needs: [verify_c_style, verify_py_style]
+    steps:
+      - uses: actions/checkout@v2
+      - run: make BOARD=litex-riscv CLANG=1
+      - uses: actions/upload-artifact@v2
+        with:
+          name: "riscv32 clang kernel+ramdisk"
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            initrd.cpio
+
   kernel_tests_mips_gcc:
     name: Tests MIPS (GCC + KASAN)
     runs-on: self-hosted
