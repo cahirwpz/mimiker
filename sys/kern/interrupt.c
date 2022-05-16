@@ -64,13 +64,15 @@ intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
                                 ie_action_t *enable, const char *name) {
   intr_event_t *ie = kmalloc(M_INTR, sizeof(intr_event_t), M_WAITOK | M_ZERO);
   ie->ie_irq = irq;
-  ie->ie_name = name;
   spin_init(&ie->ie_lock, LK_RECURSIVE);
   ie->ie_enable = enable;
   ie->ie_disable = disable;
   ie->ie_source = source;
   ie->ie_ithread = NULL;
   TAILQ_INIT(&ie->ie_handlers);
+
+  strncpy(ie->ie_name, name, IENAMELEN);
+  ie->ie_name[IENAMELEN - 1] = 0;
 
   WITH_MTX_LOCK (&all_ievents_mtx)
     TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_link);
