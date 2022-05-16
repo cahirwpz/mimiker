@@ -74,7 +74,6 @@
 	SAVE_CSR(sstatus, CTX_SR, t0);
 	SAVE_CSR(stval, CTX_TVAL, t0);
 	SAVE_CSR(scause, CTX_CAUSE, t0);
->>>>>>> e42872e29194a3500ae66a1c05a8b9356a076f2d
 .endm
 
 /* 

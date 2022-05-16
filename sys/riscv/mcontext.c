@@ -31,6 +31,9 @@ void ctx_init(ctx_t *ctx, void *pc, void *sp) {
    *  - Supervisor interrupt enabled = FALSE
    */
   _REG(ctx, SR) = SSTATUS_FS_OFF | SSTATUS_SPP_SUPV | SSTATUS_SPIE;
+#if !SUM
+  _REG(ctx, SR) |= SSTATUS_SUM;
+#endif
 }
 
 void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg) {
@@ -67,6 +70,9 @@ void mcontext_init(mcontext_t *ctx, void *pc, void *sp) {
    *  - Supervisor interrupt enabled = FALSE
    */
   _REG(ctx, SR) = SSTATUS_FS_OFF | SSTATUS_SPP_USER | SSTATUS_SPIE;
+#if !SUM
+  _REG(ctx, SR) |= SSTATUS_SUM;
+#endif
 }
 
 void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
