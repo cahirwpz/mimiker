@@ -7,10 +7,13 @@
 
 #ifndef __ASSEMBLER__
 #include <sys/types.h>
+#include <mips/mips.h>
+#include <mips/tlb.h>
 
 typedef uint8_t asid_t;
 typedef uint32_t pte_t;
 typedef uint32_t pde_t;
+
 #endif /* __ASSEMBLER__ */
 
 #include <mips/vm_param.h>
@@ -43,5 +46,78 @@ static_assert(PT_ENTRIES == 1 << 10,
  * UPD_BASE must begin at 8KiB boundary. */
 #define UPD_BASE (KERNEL_SPACE_END + PAGESIZE * 0)
 #define KPD_BASE (KERNEL_SPACE_END + PAGESIZE * 1)
+
+#ifndef __ASSEMBLER__
+
+#include <stdbool.h>
+#include <sys/klog.h>
+
+#define PAGE_TABLE_DEPTH 2
+
+#define DMAP_BASE MIPS_KSEG0_START
+
+#define PTE_SET_ON_REFERENCED PTE_VALID
+#define PTE_CLR_ON_REFERENCED 0
+
+#define PTE_SET_ON_MODIFIED PTE_DIRTY
+#define PTE_CLR_ON_MODIFIED 0
+
+#define GROWKERNEL_STRIDE (PAGESIZE * PAGESIZE / sizeof(pte_t))
+
+typedef struct pmap_md {
+} pmap_md_t;
+
+/*
+ * Translation structure.
+ */
+
+static inline size_t pt_index(unsigned lvl, vaddr_t va) {
+  assert(lvl < PAGE_TABLE_DEPTH);
+  if (lvl == 0)
+    return PDE_INDEX(va);
+  return PTE_INDEX(va);
+}
+
+/*
+ * Page directory.
+ */
+
+static inline bool pde_valid_p(pde_t pde) {
+  return pde & PDE_VALID;
+}
+
+static inline paddr_t pde2pa(pde_t pde) {
+  return PTE_FRAME_ADDR(pde);
+}
+
+/*
+ * Page table.
+ */
+
+static inline bool pte_valid_p(pte_t pte) {
+  return PTE_FRAME_ADDR(pte) != 0;
+}
+
+static inline bool pte_readable(pte_t pte) {
+  return pte & PTE_SW_READ;
+}
+
+static inline bool pte_writable(pte_t pte) {
+  return pte & PTE_SW_WRITE;
+}
+
+static inline bool pte_executable(pte_t pte) {
+  return !(pte & PTE_SW_NOEXEC);
+}
+
+static inline pte_t pte_empty(bool kernel) {
+  return kernel ? PTE_GLOBAL : 0;
+}
+
+static inline paddr_t pte2pa(pte_t pte) {
+  return PTE_FRAME_ADDR(pte);
+}
+
+#endif /* __ASSEMBLER__ */
 
 #endif /* !_MIPS_PMAP_H_ */
