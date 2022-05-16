@@ -30,10 +30,9 @@ typedef struct pv_entry {
 
 /*
  * Each target must implement the following interface
- * along with a handful of macros:
+ * along with the `pmap_md_t` struct and a handful of macros:
  *
  *  - `PAGE_TABLE_DEPTH`: depth of the address translation structure
- *  - `PMAP_MD_FIELDS`: machine-dependent fields of the pmap structure
  *  - `DMAP_BASE`: virtual address of the beginning of DMAP
  *  - `MAX_ASID`: maximum possible ASID
  *  - `PTE_SET_ON_REFERENCED`: PTE bits to set while marking a page
