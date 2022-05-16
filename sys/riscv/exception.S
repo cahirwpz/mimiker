@@ -147,7 +147,7 @@
 	ENABLE_SV_FPU(\tmp);
 
 	/* Restore registers. */
-	load_fcsr \src, \tmp
+	LOAD_FCSR(\src, \tmp);
 
 	LOAD_FPU_REG(f0, FPU_CTX_F0, \src);
 	LOAD_FPU_REG(f1, FPU_CTX_F1, \src);
