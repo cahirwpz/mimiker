@@ -3,133 +3,96 @@
 
 #include "assym.h"
 
-.macro save_reg reg, offset
-	REG_S	\reg, (\offset)(sp)
-.endm
-
-.macro save_reg_cfi reg, offset
-	save_reg \reg, \offset
-	.cfi_rel_offset	\reg, \offset
-.endm
-
-.macro load_reg reg, offset
-	REG_L	\reg, (\offset)(sp)
-.endm
-
-.macro load_csr csr, offset, tmp
-	load_reg \tmp, \offset
-	csrw	\csr, \tmp
-.endm
-
 .macro save_ctx sr
 	PTR_ADDI	sp, sp, -CTX_SIZE
 	.cfi_def_cfa_offset	CTX_SIZE
 
-	save_reg \sr, CTX_SR
+	SAVE_REG(\sr, CTX_SR);
 
-	save_reg_cfi ra, CTX_PC
+	SAVE_REG_CFI(ra, CTX_PC);
 
-	save_reg_cfi s0, CTX_S0
-	save_reg_cfi s1, CTX_S1
-	save_reg_cfi s2, CTX_S2
-	save_reg_cfi s3, CTX_S3
-	save_reg_cfi s4, CTX_S4
-	save_reg_cfi s5, CTX_S5
-	save_reg_cfi s6, CTX_S6
-	save_reg_cfi s7, CTX_S7
-	save_reg_cfi s8, CTX_S8
-	save_reg_cfi s9, CTX_S9
-	save_reg_cfi s10, CTX_S10
-	save_reg_cfi s11, CTX_S11
+	SAVE_REG_CFI(s0, CTX_S0);
+	SAVE_REG_CFI(s1, CTX_S1);
+	SAVE_REG_CFI(s2, CTX_S2);
+	SAVE_REG_CFI(s3, CTX_S3);
+	SAVE_REG_CFI(s4, CTX_S4);
+	SAVE_REG_CFI(s5, CTX_S5);
+	SAVE_REG_CFI(s6, CTX_S6);
+	SAVE_REG_CFI(s7, CTX_S7);
+	SAVE_REG_CFI(s8, CTX_S8);
+	SAVE_REG_CFI(s9, CTX_S9);
+	SAVE_REG_CFI(s10, CTX_S10);
+	SAVE_REG_CFI(s11, CTX_S11);
 .endm
 
 .macro load_ctx tmp
-	load_reg ra, CTX_PC
+	LOAD_REG(ra, CTX_PC);
 
-	load_reg s0, CTX_S0
-	load_reg s1, CTX_S1
-	load_reg s2, CTX_S2
-	load_reg s3, CTX_S3
-	load_reg s4, CTX_S4
-	load_reg s5, CTX_S5
-	load_reg s6, CTX_S6
-	load_reg s7, CTX_S7
-	load_reg s8, CTX_S8
-	load_reg s9, CTX_S9
-	load_reg s10, CTX_S10
-	load_reg s11, CTX_S11
+	LOAD_REG(s0, CTX_S0);
+	LOAD_REG(s1, CTX_S1);
+	LOAD_REG(s2, CTX_S2);
+	LOAD_REG(s3, CTX_S3);
+	LOAD_REG(s4, CTX_S4);
+	LOAD_REG(s5, CTX_S5);
+	LOAD_REG(s6, CTX_S6);
+	LOAD_REG(s7, CTX_S7);
+	LOAD_REG(s8, CTX_S8);
+	LOAD_REG(s9, CTX_S9);
+	LOAD_REG(s10, CTX_S10);
+	LOAD_REG(s11, CTX_S11);
 
-	load_csr sstatus, CTX_SR, \tmp
+	LOAD_CSR(sstatus, CTX_SR, \tmp);
 
 	PTR_ADDI	sp, sp, CTX_SIZE
 	.cfi_def_cfa_offset	0
 .endm
 
 #if FPU
-.macro enable_sv_fpu tmp
-	li	\tmp, SSTATUS_FS_INITIAL
-	csrs	sstatus, \tmp
-.endm
-
-.macro disable_sv_fpu tmp
-	li	\tmp, SSTATUS_FS_MASK
-	csrc	sstatus, \tmp
-.endm
-
-.macro save_fpu_reg reg, offset, dst
-	FP_S	\reg, (\offset)(\dst)
-.endm
-
-.macro save_fcsr dst, tmp
-	frcsr	\tmp
-	REG_S	\tmp, (FPU_CTX_FCSR)(\dst)
-.endm
-
 .macro save_fpu_ctx dst, tmp
 	/*
 	 * Enable FPU usage in supervisor mode,
 	 * so we can access registers.
 	 */
-	enable_sv_fpu \tmp
+	ENABLE_SV_FPU(\tmp
 
 	/* Store registers. */
-	save_fcsr \dst, \tmp
-	save_fpu_reg f0, FPU_CTX_F0, \dst
-	save_fpu_reg f1, FPU_CTX_F1, \dst
-	save_fpu_reg f2, FPU_CTX_F2, \dst
-	save_fpu_reg f3, FPU_CTX_F3, \dst
-	save_fpu_reg f4, FPU_CTX_F4, \dst
-	save_fpu_reg f5, FPU_CTX_F5, \dst
-	save_fpu_reg f6, FPU_CTX_F6, \dst
-	save_fpu_reg f7, FPU_CTX_F7, \dst
-	save_fpu_reg f8, FPU_CTX_F8, \dst
-	save_fpu_reg f9, FPU_CTX_F9, \dst
-	save_fpu_reg f10, FPU_CTX_F10, \dst
-	save_fpu_reg f11, FPU_CTX_F11, \dst
-	save_fpu_reg f12, FPU_CTX_F12, \dst
-	save_fpu_reg f13, FPU_CTX_F13, \dst
-	save_fpu_reg f14, FPU_CTX_F14, \dst
-	save_fpu_reg f15, FPU_CTX_F15, \dst
-	save_fpu_reg f16, FPU_CTX_F16, \dst
-	save_fpu_reg f17, FPU_CTX_F17, \dst
-	save_fpu_reg f18, FPU_CTX_F18, \dst
-	save_fpu_reg f19, FPU_CTX_F19, \dst
-	save_fpu_reg f20, FPU_CTX_F20, \dst
-	save_fpu_reg f21, FPU_CTX_F21, \dst
-	save_fpu_reg f22, FPU_CTX_F22, \dst
-	save_fpu_reg f23, FPU_CTX_F23, \dst
-	save_fpu_reg f24, FPU_CTX_F24, \dst
-	save_fpu_reg f25, FPU_CTX_F25, \dst
-	save_fpu_reg f26, FPU_CTX_F26, \dst
-	save_fpu_reg f27, FPU_CTX_F27, \dst
-	save_fpu_reg f28, FPU_CTX_F28, \dst
-	save_fpu_reg f29, FPU_CTX_F29, \dst
-	save_fpu_reg f30, FPU_CTX_F30, \dst
-	save_fpu_reg f31, FPU_CTX_F31, \dst
+	SAVE_FCSR(\dst, \tmp);
+	SAVE_FPU_REG(f0, FPU_CTX_F0, \dst);
+	SAVE_FPU_REG(f1, FPU_CTX_F1, \dst);
+	SAVE_FPU_REG(f2, FPU_CTX_F2, \dst);
+	SAVE_FPU_REG(f3, FPU_CTX_F3, \dst);
+	SAVE_FPU_REG(f4, FPU_CTX_F4, \dst);
+	SAVE_FPU_REG(f5, FPU_CTX_F5, \dst);
+	SAVE_FPU_REG(f6, FPU_CTX_F6, \dst);
+	SAVE_FPU_REG(f7, FPU_CTX_F7, \dst);
+	SAVE_FPU_REG(f8, FPU_CTX_F8, \dst);
+	SAVE_FPU_REG(f9, FPU_CTX_F9, \dst);
+	SAVE_FPU_REG(f10, FPU_CTX_F10, \dst);
+	SAVE_FPU_REG(f11, FPU_CTX_F11, \dst);
+	SAVE_FPU_REG(f12, FPU_CTX_F12, \dst);
+	SAVE_FPU_REG(f13, FPU_CTX_F13, \dst);
+	SAVE_FPU_REG(f14, FPU_CTX_F14, \dst);
+	SAVE_FPU_REG(f15, FPU_CTX_F15, \dst);
+	SAVE_FPU_REG(f16, FPU_CTX_F16, \dst);
+	SAVE_FPU_REG(f17, FPU_CTX_F17, \dst);
+	SAVE_FPU_REG(f18, FPU_CTX_F18, \dst);
+	SAVE_FPU_REG(f19, FPU_CTX_F19, \dst);
+	SAVE_FPU_REG(f20, FPU_CTX_F20, \dst);
+	SAVE_FPU_REG(f21, FPU_CTX_F21, \dst);
+	SAVE_FPU_REG(f22, FPU_CTX_F22, \dst);
+	SAVE_FPU_REG(f23, FPU_CTX_F23, \dst);
+	SAVE_FPU_REG(f24, FPU_CTX_F24, \dst);
+	SAVE_FPU_REG(f25, FPU_CTX_F25, \dst);
+	SAVE_FPU_REG(f26, FPU_CTX_F26, \dst);
+	SAVE_FPU_REG(f27, FPU_CTX_F27, \dst);
+	SAVE_FPU_REG(f28, FPU_CTX_F28, \dst);
+	SAVE_FPU_REG(f29, FPU_CTX_F29, \dst);
+	SAVE_FPU_REG(f30, FPU_CTX_F30, \dst);
+	SAVE_FPU_REG(f31, FPU_CTX_F31, \dst);
 
-	disable_sv_fpu \tmp
+	DISABLE_SV_FPU(\tmp);
 .endm
-#endif
+#endif /* FPU */
 
 /*
  * long ctx_switch(thread_t *from, thread_t *to)
@@ -182,7 +145,7 @@ set_ctxsaved:
 	save_fpu_ctx t4, t0 
 
 skip_fpu_save:
-#endif
+#endif /* FPU */
 	/* Switch stack pointer to `to` thread. */
 	PTR_L	sp, TD_KCTX(a1)
 
