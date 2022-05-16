@@ -59,7 +59,7 @@ static inline size_t pt_index(unsigned lvl, vaddr_t va) {
  */
 
 static inline bool pde_valid_p(pde_t pde) {
-  return PTE_FRAME_ADDR(pde) != 0UL;
+  return PTE_FRAME_ADDR(pde) != 0;
 }
 
 static inline paddr_t pde2pa(pde_t pde) {
@@ -71,7 +71,7 @@ static inline paddr_t pde2pa(pde_t pde) {
  */
 
 static inline bool pte_valid_p(pte_t pte) {
-  return PTE_FRAME_ADDR(pte) != 0UL;
+  return PTE_FRAME_ADDR(pte) != 0;
 }
 
 static inline bool pte_readable(pte_t pte) {
