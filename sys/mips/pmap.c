@@ -18,24 +18,15 @@ static const pte_t vm_prot_map[] = {
 };
 
 /*
- * Translation structure.
- */
-
-size_t pt_index(unsigned lvl, vaddr_t va) {
-  if (lvl == 0)
-    return PDE_INDEX(va);
-  if (lvl == 1)
-    return PTE_INDEX(va);
-  panic("Invalid page table level (lvl=%u)!", lvl);
-}
-
-/*
  * Page directory.
  */
 
 pde_t pde_make(unsigned lvl, paddr_t pa) {
   assert(lvl < PAGE_TABLE_DEPTH - 1);
-  return PTE_PFN(phys_to_dmap(pa)) | PTE_KERNEL;
+  pde_t *pde = (pde_t *)phys_to_dmap(pa);
+  for (int i = 0; i < PT_ENTRIES; i++)
+    pde[i] = PTE_GLOBAL;
+  return PTE_PFN((paddr_t)pde) | PTE_KERNEL;
 }
 
 /*

@@ -46,35 +46,17 @@ static const pte_t vm_prot_map[] = {
     ATTR_AP_RW | ATTR_SW_READ | ATTR_SW_WRITE | ATTR_AF | pte_common,
 };
 
-static pde_t pd_lvl_masks[] = {
-  [0] = L0_TABLE,
-  [1] = L1_TABLE,
-  [2] = L2_TABLE,
-};
-
-/*
- * Translation structure.
- */
-
-size_t pt_index(unsigned lvl, vaddr_t va) {
-  if (lvl == 0)
-    return L0_INDEX(va);
-  if (lvl == 1)
-    return L1_INDEX(va);
-  if (lvl == 2)
-    return L2_INDEX(va);
-  if (lvl == 3)
-    return L3_INDEX(va);
-  panic("Invalid page table level (lvl=%u)!", lvl);
-}
-
 /*
  * Page directory.
  */
 
 pde_t pde_make(unsigned lvl, paddr_t pa) {
   assert(lvl < PAGE_TABLE_DEPTH - 1);
-  return pa | pd_lvl_masks[lvl];
+  if (lvl == 0)
+    return pa | L0_TABLE;
+  if (lvl == 1)
+    return pa | L1_TABLE;
+  return pa | L2_TABLE;
 }
 
 /*
@@ -106,7 +88,7 @@ pte_t pte_protect(pte_t pte, vm_prot_t prot) {
 void pmap_md_activate(pmap_t *umap) {
   uint64_t tcr = READ_SPECIALREG(TCR_EL1);
 
-  if (!umap) {
+  if (umap == NULL) {
     WRITE_SPECIALREG(TCR_EL1, tcr | TCR_EPD0);
   } else {
     uint64_t ttbr0 = ((uint64_t)umap->asid << ASID_SHIFT) | umap->pde;

@@ -27,11 +27,6 @@ typedef struct pmap pmap_t;
 #define PMAP_WRITE_BACK (3 << PMAP_CACHE_SHIFT)
 #define PMAP_CACHE_MASK (7 << PMAP_CACHE_SHIFT)
 
-bool pmap_address_p(pmap_t *pmap, vaddr_t va);
-bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end);
-vaddr_t pmap_start(pmap_t *pmap);
-vaddr_t pmap_end(pmap_t *pmap);
-
 void init_pmap(void);
 
 pmap_t *pmap_new(void);

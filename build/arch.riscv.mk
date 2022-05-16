@@ -18,7 +18,7 @@ ifeq ($(BOARD), litex-riscv)
 	KERNEL_PHYS := 0x40000000
 	KERNEL-IMAGES := mimiker.img
 ifeq ($(KERNEL), 1)
-	CPPFLAGS += -DFPU=0 -DADDR_TRANSLATION_DEPTH=2
+	CPPFLAGS += -DFPU=0
 endif
 endif
 

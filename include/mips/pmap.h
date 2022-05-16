@@ -47,14 +47,12 @@ static_assert(PT_ENTRIES == 1 << 10,
 #define UPD_BASE (KERNEL_SPACE_END + PAGESIZE * 0)
 #define KPD_BASE (KERNEL_SPACE_END + PAGESIZE * 1)
 
-#define PAGE_TABLE_DEPTH 2
-
 #ifndef __ASSEMBLER__
 
 #include <stdbool.h>
+#include <sys/klog.h>
 
-#define PMAP_MD_FIELDS                                                         \
-  struct {}
+#define PAGE_TABLE_DEPTH 2
 
 #define DMAP_BASE MIPS_KSEG0_START
 
@@ -65,6 +63,20 @@ static_assert(PT_ENTRIES == 1 << 10,
 #define PTE_CLR_ON_MODIFIED 0
 
 #define GROWKERNEL_STRIDE (PAGESIZE * PAGESIZE / sizeof(pte_t))
+
+typedef struct pmap_md {
+} pmap_md_t;
+
+/*
+ * Translation structure.
+ */
+
+static inline size_t pt_index(unsigned lvl, vaddr_t va) {
+  assert(lvl < PAGE_TABLE_DEPTH);
+  if (lvl == 0)
+    return PDE_INDEX(va);
+  return PTE_INDEX(va);
+}
 
 /*
  * Page directory.
@@ -96,6 +108,10 @@ static inline bool pte_writable(pte_t pte) {
 
 static inline bool pte_executable(pte_t pte) {
   return !(pte & PTE_SW_NOEXEC);
+}
+
+static inline pte_t pte_empty(bool kernel) {
+  return kernel ? PTE_GLOBAL : 0;
 }
 
 static inline paddr_t pte2pa(pte_t pte) {

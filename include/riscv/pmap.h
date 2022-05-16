@@ -1,6 +1,8 @@
 #ifndef _RISCV_PMAP_H_
 #define _RISCV_PMAP_H_
 
+#include <stdbool.h>
+#include <sys/klog.h>
 #include <riscv/pte.h>
 #include <riscv/riscvreg.h>
 
@@ -8,8 +10,7 @@
  * TODO: implement generic pmap interface.
  */
 
-#define PMAP_MD_FIELDS                                                         \
-  struct {}
+#define PAGE_TABLE_DEPTH 2
 
 #define PTE_SET_ON_REFERENCED 0
 #define PTE_CLR_ON_REFERENCED 0
@@ -18,6 +19,57 @@
 #define PTE_CLR_ON_MODIFIED 0
 
 #define GROWKERNEL_STRIDE 0
+
+typedef struct pmap_md {
+} pmap_md_t;
+
+/*
+ * Translation structure.
+ */
+
+static inline size_t pt_index(unsigned lvl, vaddr_t va) {
+  panic("Not implemented!");
+}
+
+/*
+ * Page directory.
+ */
+
+static inline bool pde_valid_p(pde_t pde) {
+  panic("Not implemented!");
+}
+
+static inline paddr_t pde2pa(pde_t pde) {
+  panic("Not implemented!");
+}
+
+/*
+ * Page table.
+ */
+
+static inline bool pte_valid_p(pte_t pte) {
+  panic("Not implemented!");
+}
+
+static inline bool pte_readable(pte_t pte) {
+  panic("Not implemented!");
+}
+
+static inline bool pte_writable(pte_t pte) {
+  panic("Not implemented!");
+}
+
+static inline bool pte_executable(pte_t pte) {
+  panic("Not implemented!");
+}
+
+static inline pte_t pte_empty(bool kernel) {
+  panic("Not implemented!");
+}
+
+static inline paddr_t pte2pa(pte_t pte) {
+  panic("Not implemented!");
+}
 
 /*
  * Direct map.

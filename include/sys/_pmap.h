@@ -18,7 +18,7 @@ typedef struct pmap {
   TAILQ_HEAD(, pv_entry) pv_list; /* all pages mapped by this physical map */
 
   /* Machine-dependent part */
-  PMAP_MD_FIELDS;
+  pmap_md_t md;
 } pmap_t;
 
 typedef struct pv_entry {
@@ -66,7 +66,7 @@ extern paddr_t kernel_pde;
  * Translation structure.
  */
 
-size_t pt_index(unsigned lvl, vaddr_t va);
+static inline size_t pt_index(unsigned lvl, vaddr_t va);
 
 /*
  * Page directory.
@@ -84,6 +84,7 @@ static inline bool pte_valid_p(pte_t pte);
 static inline bool pte_readable(pte_t pte);
 static inline bool pte_writable(pte_t pte);
 static inline bool pte_executable(pte_t pte);
+static inline pte_t pte_empty(bool kernel);
 static inline paddr_t pte2pa(pte_t pte);
 pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel);
 pte_t pte_protect(pte_t pte, vm_prot_t prot);

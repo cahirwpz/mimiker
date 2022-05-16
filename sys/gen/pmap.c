@@ -14,10 +14,6 @@
 
 #define PAGE_OFFSET(x) ((x) & (PAGESIZE - 1))
 
-#ifndef PAGE_TABLE_DEPTH
-#error "Page table depth undefined!"
-#endif
-
 static_assert(PAGE_TABLE_DEPTH, "Page table depth defined to 0!");
 
 static POOL_DEFINE(P_PMAP, "pmap", sizeof(pmap_t));
@@ -54,19 +50,19 @@ static bool kern_addr_p(vaddr_t addr) {
   return addr >= KERNEL_SPACE_BEGIN && addr < KERNEL_SPACE_END;
 }
 
-inline vaddr_t pmap_start(pmap_t *pmap) {
+static vaddr_t pmap_start(pmap_t *pmap) {
   return pmap->asid ? USER_SPACE_BEGIN : KERNEL_SPACE_BEGIN;
 }
 
-inline vaddr_t pmap_end(pmap_t *pmap) {
+static vaddr_t pmap_end(pmap_t *pmap) {
   return pmap->asid ? USER_SPACE_END : KERNEL_SPACE_END;
 }
 
-inline bool pmap_address_p(pmap_t *pmap, vaddr_t va) {
+static bool pmap_address_p(pmap_t *pmap, vaddr_t va) {
   return va >= pmap_start(pmap) && va < pmap_end(pmap);
 }
 
-inline bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
+static bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
   return start >= pmap_start(pmap) && end <= pmap_end(pmap);
 }
 
@@ -86,7 +82,7 @@ pmap_t *pmap_lookup(vaddr_t addr) {
   return NULL;
 }
 
-inline vaddr_t phys_to_dmap(paddr_t addr) {
+vaddr_t phys_to_dmap(paddr_t addr) {
   /* TODO: remove the following `if` and uncomment the assertion
    * that follows when MIPS support is finally removed.
    * assert(addr >= dmap_paddr_base && addr < dmap_paddr_end); */
@@ -95,7 +91,7 @@ inline vaddr_t phys_to_dmap(paddr_t addr) {
   return (vaddr_t)(addr - dmap_paddr_base) + DMAP_BASE;
 }
 
-static inline vaddr_t pg_dmap_addr(vm_page_t *pg) {
+static vaddr_t pg_dmap_addr(vm_page_t *pg) {
   return phys_to_dmap(pg->paddr);
 }
 
@@ -106,7 +102,7 @@ static vm_page_t *pmap_pagealloc(void) {
 }
 
 void pmap_zero_page(vm_page_t *pg) {
-  bzero((void *)pg_dmap_addr(pg), PAGESIZE);
+  memset((void *)pg_dmap_addr(pg), 0, PAGESIZE);
 }
 
 void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
@@ -258,7 +254,7 @@ void pmap_kremove(vaddr_t va, size_t size) {
     for (size_t off = 0; off < size; off += PAGESIZE) {
       pte_t *ptep = pmap_lookup_pte(pmap, va + off);
       assert(ptep);
-      pmap_write_pte(pmap, ptep, 0, va + off);
+      pmap_write_pte(pmap, ptep, pte_empty(true), va + off);
     }
   }
 }
@@ -308,6 +304,8 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
 
   klog("Remove page mapping for address range %p - %p", start, end);
 
+  bool kern_mapping = (pmap == pmap_kernel());
+
   WITH_MTX_LOCK (&pv_list_lock) {
     WITH_MTX_LOCK (&pmap->mtx) {
       for (vaddr_t va = start; va < end; va += PAGESIZE) {
@@ -317,7 +315,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
         paddr_t pa = pte2pa(*ptep);
         vm_page_t *pg = vm_page_find(pa);
         pv_remove(pmap, va, pg);
-        pmap_write_pte(pmap, ptep, 0, va);
+        pmap_write_pte(pmap, ptep, pte_empty(kern_mapping), va);
       }
     }
   }

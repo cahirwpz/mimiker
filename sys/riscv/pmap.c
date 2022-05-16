@@ -6,34 +6,10 @@
 #include <riscv/cpufunc.h>
 
 /*
- * Translation structure.
- */
-
-inline size_t l0_index(vaddr_t va) {
-  panic("Not implemented!");
-}
-
-inline size_t l1_index(vaddr_t va) {
-  panic("Not implemented!");
-}
-
-/*
  * Page directory.
  */
 
-inline bool pde_valid_p(pde_t pde) {
-  panic("Not implemented!");
-}
-
-inline pde_t pde_make(paddr_t pa, unsigned lvl) {
-  panic("Not implemented!");
-}
-
-inline paddr_t pde2pa(pde_t pde) {
-  panic("Not implemented!");
-}
-
-void kernel_pd_change_notif(pmap_t *pmap, vaddr_t va, pde_t pde) {
+pde_t pde_make(unsigned lvl, paddr_t pa) {
   panic("Not implemented!");
 }
 
@@ -41,31 +17,11 @@ void kernel_pd_change_notif(pmap_t *pmap, vaddr_t va, pde_t pde) {
  * Page table.
  */
 
-inline bool pte_valid_p(pte_t pte) {
-  panic("Not implemented!");
-}
-
-inline bool pte_readable(pte_t pte) {
-  panic("Not implemented!");
-}
-
-inline bool pte_writable(pte_t pte) {
-  panic("Not implemented!");
-}
-
-inline bool pte_executable(pte_t pte) {
-  panic("Not implemented!");
-}
-
 pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel) {
   panic("Not implemented!");
 }
 
 inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
-  panic("Not implemented!");
-}
-
-inline paddr_t pte2pa(pte_t pte) {
   panic("Not implemented!");
 }
 

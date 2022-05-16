@@ -105,3 +105,6 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
 void ctx_switch(thread_t *from, thread_t *to) {
   panic("Not implemented!");
 }
+
+void kern_exc_leave(void) {
+}
