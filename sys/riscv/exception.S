@@ -32,8 +32,8 @@
 	SAVE_REG_CFI(t4, CTX_T4);
 	SAVE_REG_CFI(t5, CTX_T5);
 	/* XXX: we don't provide the CFI directive for $t6 as
-	 * GDB from toolchain 1.5.3 has faulty frame info implementation
-	 * which confuses this register with PC. */
+	 * (GCC 12.1.0, Binutils 2.38, GDB 12.1)  has faulty frame info
+	 * implementation which confuses this register with PC. */
 	SAVE_REG(t6, CTX_T6);
 
 	SAVE_REG_CFI(s0, CTX_S0);
