@@ -53,7 +53,7 @@
 	 * Enable FPU usage in supervisor mode,
 	 * so we can access registers.
 	 */
-	ENABLE_SV_FPU(\tmp
+	ENABLE_SV_FPU(\tmp);
 
 	/* Store registers. */
 	SAVE_FCSR(\dst, \tmp);
