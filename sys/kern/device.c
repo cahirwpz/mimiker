@@ -43,7 +43,14 @@ int device_probe(device_t *dev) {
 int device_attach(device_t *dev) {
   assert(dev->driver != NULL);
   d_attach_t attach = dev->driver->attach;
-  return attach ? attach(dev) : ENODEV;
+  int err = ENODEV;
+  if (attach != NULL) {
+    err = attach(dev);
+    if (!err)
+      return 0;
+  }
+  kfree(M_DEV, dev->state);
+  return err;
 }
 
 int device_detach(device_t *dev) {
