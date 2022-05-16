@@ -55,7 +55,7 @@ static int sb_get_interrupts(device_t *dev, fdt_intr_t *intrs, size_t *cntp) {
   pcell_t *tuples;
   int ntuples =
     FDT_getencprop_alloc_multi(node, "interrupts", icells, (void **)&tuples);
-  if (ntuples < 0)
+  if (ntuples == -1)
     return ENXIO;
   if (!ntuples)
     return 0;
@@ -83,7 +83,7 @@ static int sb_get_interrupts_extended(device_t *dev, fdt_intr_t *intrs,
   pcell_t *cells;
   int ncells = FDT_getencprop_alloc_multi(node, "interrupts-extended",
                                           sizeof(pcell_t), (void **)&cells);
-  if (ncells < 0)
+  if (ncells == -1)
     return ENXIO;
   if (!ncells)
     return 0;
@@ -172,8 +172,12 @@ end:
   return 0;
 }
 
-int simplebus_add_child(device_t *bus, phandle_t node, int unit, device_t *pic,
-                        device_t **devp) {
+int simplebus_add_child(device_t *bus, const char *path, int unit,
+                        device_t *pic, device_t **devp) {
+  phandle_t node;
+  if ((node = FDT_finddevice(path)) == FDT_NODEV)
+    return ENXIO;
+
   device_t *dev = device_add_child(bus, unit);
   dev->node = node;
   dev->pic = pic;

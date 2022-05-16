@@ -7,6 +7,12 @@
 #include <sys/klog.h>
 #include <sys/libkern.h>
 
+/*
+ * Details of the operation of PLIC as well as the memory layout
+ * can be found in the official specification which is maintained on github:
+ *   https://github.com/riscv/riscv-plic-spec
+ */
+
 /* PLIC memory map. */
 #define PLIC_CTXNUM_SV 1
 
@@ -59,9 +65,7 @@ static void plic_intr_enable(intr_event_t *ie) {
 }
 
 static const char *plic_intr_name(unsigned irq) {
-  char buf[32];
-  snprintf(buf, sizeof(buf), "PLIC source %u", irq);
-  return kstrndup(M_STR, buf, sizeof(buf));
+  return kasprintf("PLIC source %u", irq);
 }
 
 static resource_t *plic_alloc_intr(device_t *pic, device_t *dev, int rid,
@@ -98,11 +102,14 @@ static void plic_teardown_intr(device_t *pic, device_t *dev, resource_t *r) {
 static int plic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
                          int icells) {
   plic_state_t *plic = pic->state;
+
   if (icells != 1)
     return -1;
+
   unsigned irq = *intr;
   if (!irq || irq > plic->ndev)
     return -1;
+
   return irq;
 }
 
@@ -112,14 +119,14 @@ static intr_filter_t plic_intr_handler(void *arg) {
   /* Claim any pending interrupt. */
   uint32_t irq = in4(PLIC_CLAIM_SV);
 
-  if (irq) {
-    intr_event_run_handlers(plic->intr_event[irq]);
-    /* Complete the interrupt. */
-    out4(PLIC_CLAIM_SV, irq);
-    return IF_FILTERED;
-  }
+  if (!irq)
+    panic("Asserted reserved PLIC interrupt!");
 
-  return IF_STRAY;
+  intr_event_run_handlers(plic->intr_event[irq]);
+  /* Complete the interrupt. */
+  out4(PLIC_CLAIM_SV, irq);
+
+  return IF_FILTERED;
 }
 
 static int plic_probe(device_t *pic) {

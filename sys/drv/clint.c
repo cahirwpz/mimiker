@@ -17,7 +17,7 @@ typedef struct clint_state {
 } clint_state_t;
 
 /*
- * MTIMER.
+ * MTIMER device.
  */
 
 static intr_filter_t mtimer_intr(void *data) {
@@ -69,15 +69,19 @@ static bintime_t mtimer_gettime(timer_t *tm) {
 }
 
 /*
+ * MSWI device.
+ */
+
+static intr_filter_t mswi_intr(void *data) {
+  panic("Supervisor software interrupt!");
+}
+
+/*
  * CLINT driver interface.
  */
 
 static int clint_probe(device_t *dev) {
   return FDT_is_compatible(dev->node, "riscv,clint0");
-}
-
-static intr_filter_t mswi_intr(void *data) {
-  panic("Supervisor software interrupt!");
 }
 
 static int clint_attach(device_t *dev) {

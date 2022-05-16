@@ -33,17 +33,18 @@ __no_profile static inline bool ctx_interrupt(ctx_t *ctx) {
   return _REG(ctx, CAUSE) & SCAUSE_INTR;
 }
 
-__no_profile static inline unsigned ctx_code(ctx_t *ctx) {
+__no_profile static inline u_long ctx_code(ctx_t *ctx) {
   return _REG(ctx, CAUSE) & SCAUSE_CODE;
 }
 
-__no_profile static inline unsigned ctx_intr_enabled(ctx_t *ctx) {
+__no_profile static inline bool ctx_intr_enabled(ctx_t *ctx) {
   return _REG(ctx, SR) & SSTATUS_SPIE;
 }
 
 static __noreturn void kernel_oops(ctx_t *ctx) {
-  unsigned code = ctx_code(ctx);
+  u_long code = ctx_code(ctx);
   void *epc = (void *)_REG(ctx, PC);
+  uint32_t badinstr = *(uint32_t *)epc;
 
   klog("%s at %p!", exceptions[code], epc);
 
@@ -60,11 +61,9 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
       klog("Caused by reference to %lx!", _REG(ctx, TVAL));
       break;
 
-    case SCAUSE_ILLEGAL_INSTRUCTION: {
-      uint32_t badinstr = *(uint32_t *)epc;
+    case SCAUSE_ILLEGAL_INSTRUCTION:
       klog("Illegal instruction %08x in kernel mode!", badinstr);
       break;
-    }
 
     case SCAUSE_BREAKPOINT:
       klog("No debbuger in kernel!");
@@ -78,7 +77,7 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
 static void page_fault_handler(ctx_t *ctx) {
   thread_t *td = thread_self();
 
-  unsigned code = ctx_code(ctx);
+  u_long code = ctx_code(ctx);
   void *epc = (void *)_REG(ctx, PC);
   vaddr_t vaddr = _REG(ctx, TVAL);
 
@@ -139,7 +138,6 @@ static_assert(SYS_MAXSYSARGS <= FUNC_MAXREGARGS - 1,
               "Syscall args don't fit in registers!");
 
 static void syscall_handler(mcontext_t *uctx, syscall_result_t *result) {
-  /* TODO: eventually we should have a platform-independent syscall handler. */
   register_t args[SYS_MAXSYSARGS];
   register_t code = _REG(uctx, A7);
 
@@ -153,7 +151,7 @@ static void syscall_handler(mcontext_t *uctx, syscall_result_t *result) {
   sysent_t *se = &sysent[code];
   size_t nargs = se->nargs;
 
-  assert(nargs <= SYS_MAXSYSCALL);
+  assert(nargs <= SYS_MAXSYSARGS);
 
   thread_t *td = thread_self();
   register_t retval = 0;
@@ -166,25 +164,36 @@ static void syscall_handler(mcontext_t *uctx, syscall_result_t *result) {
   result->error = error;
 }
 
-#if FPU
+/*
+ * NOTE: for each thread, dirty FPE context has to be saved
+ * during each ctx switch. To decrease the cost of this procedure
+ * we disable FPU for each new thread and enable it only when actually
+ * requested by the thread. Such request resolves to an illegal instruction
+ * exception. Thereby, each time an illegal instruction exception occurs,
+ * we check wheter it is an FPU request issued by the thread
+ * or an unhanled opcode.
+ * The check and FPU enablement is performed by `fpu_handler`.
+ */
 static bool fpu_handler(mcontext_t *uctx) {
+  if (!FPU)
+    return false;
+
   thread_t *td = thread_self();
 
   if (td->td_pflags & TDP_FPUINUSE)
     return false;
 
   /*
-   * May be a FPE trap. Enable FPE usage
+   * May be an FPE trap. Enable FPE usage
    * for this thread and try again.
    */
-  bzero(uctx->__fregs, sizeof(__fregset_t));
+  memset(uctx->__fregs, 0, sizeof(__fregset_t));
   _REG(uctx, SR) &= ~SSTATUS_FS_MASK;
   _REG(uctx, SR) |= SSTATUS_FS_CLEAN;
   td->td_pflags |= TDP_FPUINUSE;
 
   return true;
 }
-#endif
 
 static void user_trap_handler(ctx_t *ctx) {
   /*
@@ -196,7 +205,8 @@ static void user_trap_handler(ctx_t *ctx) {
   assert(!intr_disabled() && !preempt_disabled());
 
   syscall_result_t result;
-  unsigned code = ctx_code(ctx);
+  u_long code = ctx_code(ctx);
+  void *epc = (void *)_REG(ctx, PC);
 
   switch (code) {
     case SCAUSE_INST_PAGE_FAULT:
@@ -220,16 +230,12 @@ static void user_trap_handler(ctx_t *ctx) {
       syscall_handler((mcontext_t *)ctx, &result);
       break;
 
-    case SCAUSE_ILLEGAL_INSTRUCTION: {
-#if FPU
+    case SCAUSE_ILLEGAL_INSTRUCTION:
       if (fpu_handler((mcontext_t *)ctx))
         break;
-#endif
-      void *epc = (void *)_REG(ctx, PC);
       klog("%s at %p!", exceptions[code], epc);
       sig_trap(ctx, SIGILL);
       break;
-    }
 
     case SCAUSE_BREAKPOINT:
       sig_trap(ctx, SIGTRAP);
