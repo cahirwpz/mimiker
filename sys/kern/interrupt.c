@@ -71,8 +71,7 @@ intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
   ie->ie_ithread = NULL;
   TAILQ_INIT(&ie->ie_handlers);
 
-  strncpy(ie->ie_name, name, IENAMELEN);
-  ie->ie_name[IENAMELEN - 1] = 0;
+  strlcpy(ie->ie_name, name, IENAMELEN);
 
   WITH_MTX_LOCK (&all_ievents_mtx)
     TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_link);
