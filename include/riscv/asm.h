@@ -79,7 +79,6 @@
   LOAD_REG(tmp, offset);                                                       \
   csrw csr, tmp
 
-#if FPU
 #define ENABLE_SV_FPU(tmp)                                                     \
   li tmp, SSTATUS_FS_INITIAL;                                                  \
   csrs sstatus, tmp
@@ -99,7 +98,6 @@
 #define LOAD_FCSR(src, tmp)                                                    \
   REG_L tmp, (FPU_CTX_FCSR)(src);                                              \
   fscsr tmp
-#endif /* FPU */
 
 #ifdef __riscv_d
 #define FP_L fld
