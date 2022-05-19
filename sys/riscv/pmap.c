@@ -118,10 +118,9 @@ void pmap_md_setup(pmap_t *pmap) {
     memcpy((void *)phys_to_dmap(pmap->pde) + off,
            (void *)phys_to_dmap(kernel_pde) + off, PAGESIZE / 2);
   }
-
-  WITH_MTX_LOCK (&user_pmaps_lock) {
+//sfence?
+  WITH_MTX_LOCK (&user_pmaps_lock)
     LIST_INSERT_HEAD(&user_pmaps, pmap, md.pmap_link);
-  }
 }
 
 void pmap_md_delete(pmap_t *pmap) {
