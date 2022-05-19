@@ -47,7 +47,6 @@
 	.cfi_def_cfa_offset	0
 .endm
 
-#if FPU
 .macro save_fpu_ctx dst, tmp
 	/*
 	 * Enable FPU usage in supervisor mode,
@@ -92,7 +91,6 @@
 
 	DISABLE_SV_FPU(\tmp);
 .endm
-#endif /* FPU */
 
 /*
  * long ctx_switch(thread_t *from, thread_t *to)
@@ -146,6 +144,7 @@ set_ctxsaved:
 
 skip_fpu_save:
 #endif /* FPU */
+
 	/* Switch stack pointer to `to` thread. */
 	PTR_L	sp, TD_KCTX(a1)
 
