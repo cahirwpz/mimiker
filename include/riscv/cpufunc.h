@@ -30,12 +30,12 @@
 #define rdinstret() csr_read64(instret)
 #define rdhpmcounter(n) csr_read64(hpmcounter##n)
 
-#if SUM
+#if TRAP_USER_ACCESS
 #define enter_user_access() csr_set(sstatus, SSTATUS_SUM)
 #define exit_user_access() csr_clear(sstatus, SSTATUS_SUM)
 #else
 #define enter_user_access()
 #define exit_user_access()
-#endif
+#endif /* TRAP_USER_ACCESS */
 
 #endif /* !_RISCV_CPUFUNC_H_ */
