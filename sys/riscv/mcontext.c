@@ -24,16 +24,16 @@ void ctx_init(ctx_t *ctx, void *pc, void *sp) {
   /*
    * Supervisor status register:
    *  - Make executable readable = FALSE
-   *  - Permit supervisor user memory access = FALSE
+   *  - Permit supervisor user memory access = !TRAP_USER_ACCESS
    *  - Floating point extension state = OFF
    *  - Supervisor previous privilege mode = SUPERVISOR
    *  - Supervisor previous interrupt enabled = TRUE
    *  - Supervisor interrupt enabled = FALSE
    */
   _REG(ctx, SR) = SSTATUS_FS_OFF | SSTATUS_SPP_SUPV | SSTATUS_SPIE;
-#if !SUM
+#if !TRAP_USER_ACCESS
   _REG(ctx, SR) |= SSTATUS_SUM;
-#endif
+#endif /* !TRAP_USER_ACCESS */
 }
 
 void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg) {
@@ -63,16 +63,16 @@ void mcontext_init(mcontext_t *ctx, void *pc, void *sp) {
   /*
    * Supervisor status register:
    *  - Make executable readable = FALSE
-   *  - Permit supervisor user memory access = FALSE
+   *  - Permit supervisor user memory access = !TRAP_USER_ACCESS
    *  - Floating point extension state = OFF
    *  - Supervisor previous privilege mode = USER
    *  - Supervisor previous interrupt enabled = TRUE
    *  - Supervisor interrupt enabled = FALSE
    */
   _REG(ctx, SR) = SSTATUS_FS_OFF | SSTATUS_SPP_USER | SSTATUS_SPIE;
-#if !SUM
+#if !TRAP_USER_ACCESS
   _REG(ctx, SR) |= SSTATUS_SUM;
-#endif
+#endif /* !TRAP_USER_ACCESS */
 }
 
 void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
