@@ -39,20 +39,21 @@ static SPIN_DEFINE(asid_lock, 0);
 static MTX_DEFINE(pv_list_lock, 0);
 
 /*
- * Some architecures provide a separate page directory for kernel address space
- * and another for user address space translation. On the other hand,
- * some architectures use only a single translation structure for both kernel
- * and user addresses. Such architectures need to broadcast any changes in
- * the top page directory of the kernel among all user page directories.
+ * Some architectures provide a separate active page directory for kernel
+ * address space, whereas other architecutres use a single translation structure
+ * for both kernel and user addresses. In such architecures, the physical map
+ * of a user process must contain the entire page directory of the kernel.
+ * This requires broadcasting any changes in the top page directory
+ * of the kernel among all user physical maps.
  *
  * Order of acquiring locks:
  *  - `kernel_pmap->mtx`
  *  - `user_pmaps_lock`
  */
-#if SINGLE_PD
+#if SHARED_KERNEL_PD
 static MTX_DEFINE(user_pmaps_lock, 0);
 static LIST_HEAD(, pmap) user_pmaps = LIST_HEAD_INITIALIZER(user_pmaps);
-#endif /* SINGLE_PD */
+#endif /* !SHARED_KERNEL_PD */
 
 /*
  * Helper functions.
@@ -213,7 +214,7 @@ static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte, vaddr_t va) {
   tlb_invalidate(va, pmap->asid);
 }
 
-#if SINGLE_PD
+#if SHARED_KERNEL_PD
 static void broadcast_kernel_top_pde(unsigned idx, pde_t pde) {
   SCOPED_MTX_LOCK(&user_pmaps_lock);
 
@@ -223,7 +224,7 @@ static void broadcast_kernel_top_pde(unsigned idx, pde_t pde) {
     pdep[idx] = pde;
   }
 }
-#endif /* SINGLE_PD */
+#endif /* !SHARED_KERNEL_PD */
 
 /* Return PTE pointer for `va`. Allocate page table if needed. */
 static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
@@ -236,10 +237,10 @@ static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
     if (!pde_valid_p(*pdep)) {
       pa = pmap_alloc_pde(pmap, va);
       *pdep = pde_make(lvl, pa);
-#if SINGLE_PD
+#if SHARED_KERNEL_PD
       if (lvl == 0 && pmap == pmap_kernel())
         broadcast_kernel_top_pde(pt_index(0, va), *pdep);
-#endif /* SIGNLE_PD */
+#endif /* !SHARED_KERNEL_PD */
     } else {
       pa = pte_frame((pte_t)*pdep);
     }
@@ -492,7 +493,7 @@ static void pmap_setup(pmap_t *pmap) {
   mtx_init(&pmap->mtx, 0);
   TAILQ_INIT(&pmap->pv_list);
 
-#if SINGLE_PD
+#if SHARED_KERNEL_PD
   /* Install kernel pagetables. */
   pmap_t *kmap = pmap_kernel();
   size_t off = PAGESIZE / 2;
@@ -503,7 +504,7 @@ static void pmap_setup(pmap_t *pmap) {
 
   WITH_MTX_LOCK (&user_pmaps_lock)
     LIST_INSERT_HEAD(&user_pmaps, pmap, pmap_link);
-#endif /* SINGLE_PD */
+#endif /* !SHARED_KERNEL_PD */
 
   pmap_md_setup(pmap);
 }
@@ -539,10 +540,10 @@ void pmap_delete(pmap_t *pmap) {
 
   pmap_md_delete(pmap);
 
-#if SINGLE_PD
+#if SHARED_KERNEL_PD
   WITH_MTX_LOCK (&user_pmaps_lock)
     LIST_REMOVE(pmap, pmap_link);
-#endif /* SINGLE_PD */
+#endif /* !SHARED_KERNEL_PD */
 
   while (!TAILQ_EMPTY(&pmap->pv_list)) {
     pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);

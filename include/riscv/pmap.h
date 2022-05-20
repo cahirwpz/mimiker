@@ -18,7 +18,7 @@
   ((paddr_t)((vaddr_t)(x) & ~KERNEL_SPACE_BEGIN) + KERNEL_PHYS)
 
 #define PAGE_TABLE_DEPTH 2
-#define SINGLE_PD 1
+#define SHARED_KERNEL_PD 1
 
 #define PTE_SET_ON_REFERENCED (PTE_A | PTE_V)
 #define PTE_CLR_ON_REFERENCED 0

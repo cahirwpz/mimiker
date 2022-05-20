@@ -16,7 +16,7 @@ typedef struct pmap {
   paddr_t pde;                    /* directory page table physical address */
   vm_pagelist_t pte_pages;        /* pages we allocate in page table */
   TAILQ_HEAD(, pv_entry) pv_list; /* all pages mapped by this physical map */
-#if SINGLE_PD
+#if SHARED_KERNEL_PD
   LIST_ENTRY(pmap) pmap_link; /* link on `user_pmaps` */
 #endif
 
@@ -36,8 +36,8 @@ typedef struct pv_entry {
  * along with the `pmap_md_t` struct and a handful of macros:
  *
  *  - `PAGE_TABLE_DEPTH`: depth of the address translation structure
- *  - `SIGNLE_PD`: 1 - the architecture provides only a single page directory
- *    shared by both kernel and user
+ *  - `SHARED_KERNEL_PD`: 1 - the architecutre provides only a single active
+ *    page directory used for both kernel and user address translation
  *  - `DMAP_BASE`: virtual address of the beginning of DMAP
  *  - `MAX_ASID`: maximum possible ASID
  *  - `PTE_SET_ON_REFERENCED`: PTE bits to set while marking a page

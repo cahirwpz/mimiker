@@ -43,10 +43,9 @@ pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel) {
   else
     pte &= ~(PTE_VALID | PTE_DIRTY);
 
-  unsigned cacheflags = flags & PMAP_CACHE_MASK;
-  if (cacheflags == PMAP_NOCACHE)
+  if (flags & PMAP_NOCACHE)
     pte |= PTE_CACHE_UNCACHED;
-  else if (cacheflags == PMAP_WRITE_THROUGH)
+  else if (flags & PMAP_WRITE_THROUGH)
     pte |= PTE_CACHE_WRITE_THROUGH;
   else
     pte |= PTE_CACHE_WRITE_BACK;
