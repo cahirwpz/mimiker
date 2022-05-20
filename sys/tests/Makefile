@@ -7,9 +7,8 @@ SOURCES = \
 	callout.c \
 	crash.c \
 	devfs.c \
-	fdt.c \
-	fpu_ctx.c \
 	kmem.c \
+	libfdt.c \
 	linker_set.c \
 	mutex.c \
 	physmem.c \
