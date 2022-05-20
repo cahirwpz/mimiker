@@ -417,7 +417,6 @@ bool pmap_clear_modified(vm_page_t *pg) {
 }
 
 int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
-  assert(pmap != pmap_kernel());
   paddr_t pa;
 
   WITH_MTX_LOCK (&pmap->mtx) {
