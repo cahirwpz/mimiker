@@ -186,12 +186,4 @@
 #define csr_read64(csr) ((uint64_t)csr_read(csr))
 #endif
 
-#define rdcycle() csr_read64(cycle)
-#define rdtime() csr_read64(time)
-#define rdinstret() csr_read64(instret)
-#define rdhpmcounter(n) csr_read64(hpmcounter##n)
-
-#define enter_user_access() csr_set(sstatus, SSTATUS_SUM)
-#define exit_user_access() csr_clear(sstatus, SSTATUS_SUM)
-
 #endif /* !_RISCV_RISCVREG_H_ */
