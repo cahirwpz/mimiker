@@ -39,6 +39,22 @@ static SPIN_DEFINE(asid_lock, 0);
 static MTX_DEFINE(pv_list_lock, 0);
 
 /*
+ * Some architecures provide a separate page directory for kernel address space
+ * and another for user address space translation. On the other hand,
+ * some architectures use only a single translation structure for both kernel
+ * and user addresses. Such architectures need to broadcast any changes in
+ * the top page directory of the kernel among all user page directories.
+ *
+ * Order of acquiring locks:
+ *  - `kernel_pmap->mtx`
+ *  - `user_pmaps_lock`
+ */
+#if SINGLE_PD
+static MTX_DEFINE(user_pmaps_lock, 0);
+static LIST_HEAD(, pmap) user_pmaps = LIST_HEAD_INITIALIZER(user_pmaps);
+#endif /* SINGLE_PD */
+
+/*
  * Helper functions.
  */
 
@@ -197,6 +213,18 @@ static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte, vaddr_t va) {
   tlb_invalidate(va, pmap->asid);
 }
 
+#if SINGLE_PD
+static void broadcast_kernel_top_pde(unsigned idx, pde_t pde) {
+  SCOPED_MTX_LOCK(&user_pmaps_lock);
+
+  pmap_t *user_pmap;
+  LIST_FOREACH (user_pmap, &user_pmaps, pmap_link) {
+    pde_t *pdep = (pde_t *)phys_to_dmap(user_pmap->pde);
+    pdep[idx] = pde;
+  }
+}
+#endif /* SINGLE_PD */
+
 /* Return PTE pointer for `va`. Allocate page table if needed. */
 static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
   assert(mtx_owned(&pmap->mtx));
@@ -208,8 +236,10 @@ static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
     if (!pde_valid_p(*pdep)) {
       pa = pmap_alloc_pde(pmap, va);
       *pdep = pde_make(lvl, pa);
+#if SINGLE_PD
       if (lvl == 0 && pmap == pmap_kernel())
         broadcast_kernel_top_pde(pt_index(0, va), *pdep);
+#endif /* SIGNLE_PD */
     } else {
       pa = pte_frame((pte_t)*pdep);
     }
@@ -461,6 +491,20 @@ static void pmap_setup(pmap_t *pmap) {
   pmap->asid = alloc_asid();
   mtx_init(&pmap->mtx, 0);
   TAILQ_INIT(&pmap->pv_list);
+
+#if SINGLE_PD
+  /* Install kernel pagetables. */
+  pmap_t *kmap = pmap_kernel();
+  size_t off = PAGESIZE / 2;
+  WITH_MTX_LOCK (&kmap->mtx) {
+    memcpy((void *)phys_to_dmap(pmap->pde) + off,
+           (void *)phys_to_dmap(kmap->pde) + off, PAGESIZE / 2);
+  }
+
+  WITH_MTX_LOCK (&user_pmaps_lock)
+    LIST_INSERT_HEAD(&user_pmaps, pmap, pmap_link);
+#endif /* SINGLE_PD */
+
   pmap_md_setup(pmap);
 }
 
@@ -494,6 +538,11 @@ void pmap_delete(pmap_t *pmap) {
   assert(pmap != pmap_kernel());
 
   pmap_md_delete(pmap);
+
+#if SINGLE_PD
+  WITH_MTX_LOCK (&user_pmaps_lock)
+    LIST_REMOVE(pmap, pmap_link);
+#endif /* SINGLE_PD */
 
   while (!TAILQ_EMPTY(&pmap->pv_list)) {
     pv_entry_t *pv = TAILQ_FIRST(&pmap->pv_list);

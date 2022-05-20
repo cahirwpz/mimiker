@@ -49,30 +49,11 @@ static const pte_t vm_prot_map[] = {
 };
 
 /*
- * The list off all the user pmaps.
- * Order of acquiring locks:
- *  - `kernel_pmap->mtx`
- *  - `user_pmaps_lock`
- */
-static MTX_DEFINE(user_pmaps_lock, 0);
-static LIST_HEAD(, pmap) user_pmaps = LIST_HEAD_INITIALIZER(user_pmaps);
-
-/*
  * Page directory.
  */
 
 pde_t pde_make(unsigned lvl, paddr_t pa) {
   return PA_TO_PTE(pa) | PTE_V;
-}
-
-void broadcast_kernel_top_pde(unsigned idx, pde_t pde) {
-  SCOPED_MTX_LOCK(&user_pmaps_lock);
-
-  pmap_t *user_pmap;
-  LIST_FOREACH (user_pmap, &user_pmaps, md.pmap_link) {
-    pde_t *pdep = (pde_t *)phys_to_dmap(user_pmap->pde);
-    pdep[idx] = pde;
-  }
 }
 
 /*
@@ -110,22 +91,10 @@ void pmap_md_activate(pmap_t *umap) {
 void pmap_md_setup(pmap_t *pmap) {
   pmap->md.satp = SATP_MODE_SV32 | ((paddr_t)pmap->asid << SATP_ASID_S) |
                   (pmap->pde >> PAGE_SHIFT);
-
-  /* Install kernel pagetables. */
-  pmap_t *kmap = pmap_kernel();
-  const size_t off = PAGESIZE / 2;
-  WITH_MTX_LOCK (&kmap->mtx) {
-    memcpy((void *)phys_to_dmap(pmap->pde) + off,
-           (void *)phys_to_dmap(kernel_pde) + off, PAGESIZE / 2);
-  }
-
-  WITH_MTX_LOCK (&user_pmaps_lock)
-    LIST_INSERT_HEAD(&user_pmaps, pmap, md.pmap_link);
 }
 
 void pmap_md_delete(pmap_t *pmap) {
-  WITH_MTX_LOCK (&user_pmaps_lock)
-    LIST_REMOVE(pmap, md.pmap_link);
+  /* Nothing to be done here. */
 }
 
 /*
