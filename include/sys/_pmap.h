@@ -72,20 +72,17 @@ static inline size_t pt_index(unsigned lvl, vaddr_t va);
  */
 
 static inline bool pde_valid_p(pde_t pde);
-static inline paddr_t pde2pa(pde_t pde);
 pde_t pde_make(unsigned lvl, paddr_t pa);
-void kernel_pd_change_notif(vaddr_t va, pde_t pde);
+void broadcast_kernel_top_pde(unsigned idx, pde_t pde);
 
 /*
  * Page table.
  */
 
 static inline bool pte_valid_p(pte_t pte);
-static inline bool pte_readable(pte_t pte);
-static inline bool pte_writable(pte_t pte);
-static inline bool pte_executable(pte_t pte);
+static inline bool pte_access(pte_t pte, vm_prot_t prot);
 static inline pte_t pte_empty(bool kernel);
-static inline paddr_t pte2pa(pte_t pte);
+static inline paddr_t pte_frame(pte_t pte);
 pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel);
 pte_t pte_protect(pte_t pte, vm_prot_t prot);
 

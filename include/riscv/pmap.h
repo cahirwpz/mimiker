@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <sys/klog.h>
 #include <sys/pmap.h>
+#include <sys/vm.h>
 #include <riscv/pte.h>
 #include <riscv/riscvreg.h>
 
@@ -50,10 +51,6 @@ static inline bool pde_valid_p(pde_t pde) {
   return pde & PTE_V;
 }
 
-static inline paddr_t pde2pa(pde_t pde) {
-  return PTE_TO_PA(pde);
-}
-
 /*
  * Page table.
  */
@@ -62,23 +59,24 @@ static inline bool pte_valid_p(pte_t pte) {
   return pte != 0;
 }
 
-static inline bool pte_readable(pte_t pte) {
-  return pte & PTE_SW_READ;
-}
-
-static inline bool pte_writable(pte_t pte) {
-  return pte & PTE_SW_WRITE;
-}
-
-static inline bool pte_executable(pte_t pte) {
-  return pte & PTE_X;
+static inline bool pte_access(pte_t pte, vm_prot_t prot) {
+  switch (prot) {
+    case VM_PROT_READ:
+      return pte & PTE_SW_READ;
+    case VM_PROT_WRITE:
+      return pte & PTE_SW_WRITE;
+    case VM_PROT_EXEC:
+      return pte & PTE_X;
+    default:
+      panic("Invalid pte_access invocation (prot=%x)", prot);
+  }
 }
 
 static inline pte_t pte_empty(bool kernel) {
   return 0;
 }
 
-static inline paddr_t pte2pa(pte_t pte) {
+static inline paddr_t pte_frame(pte_t pte) {
   return PTE_TO_PA(pte);
 }
 

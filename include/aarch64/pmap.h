@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <sys/klog.h>
+#include <sys/vm.h>
 #include <aarch64/pte.h>
 
 /* Number of page directory entries. */
@@ -44,7 +45,6 @@ typedef struct pmap_md {
  */
 
 static inline size_t pt_index(unsigned lvl, vaddr_t va) {
-  assert(lvl < PAGE_TABLE_DEPTH);
   if (lvl == 0)
     return L0_INDEX(va);
   if (lvl == 1)
@@ -59,11 +59,7 @@ static inline size_t pt_index(unsigned lvl, vaddr_t va) {
  */
 
 static inline bool pde_valid_p(pde_t pde) {
-  return PTE_FRAME_ADDR(pde) != 0UL;
-}
-
-static inline paddr_t pde2pa(pde_t pde) {
-  return PTE_FRAME_ADDR(pde);
+  return PTE_FRAME_ADDR(pde) != 0;
 }
 
 /*
@@ -71,26 +67,27 @@ static inline paddr_t pde2pa(pde_t pde) {
  */
 
 static inline bool pte_valid_p(pte_t pte) {
-  return PTE_FRAME_ADDR(pte) != 0UL;
+  return PTE_FRAME_ADDR(pte) != 0;
 }
 
-static inline bool pte_readable(pte_t pte) {
-  return pte & ATTR_SW_READ;
-}
-
-static inline bool pte_writable(pte_t pte) {
-  return pte & ATTR_SW_WRITE;
-}
-
-static inline bool pte_executable(pte_t pte) {
-  return !(pte & ATTR_SW_NOEXEC);
+static inline bool pte_access(pte_t pte, vm_prot_t prot) {
+  switch (prot) {
+    case VM_PROT_READ:
+      return pte & ATTR_SW_READ;
+    case VM_PROT_WRITE:
+      return pte & ATTR_SW_WRITE;
+    case VM_PROT_EXEC:
+      return !(pte & ATTR_SW_NOEXEC);
+    default:
+      panic("Invalid pte_access invocation (prot=%x)", prot);
+  }
 }
 
 static inline pte_t pte_empty(bool kernel) {
   return 0;
 }
 
-static inline paddr_t pte2pa(pte_t pte) {
+static inline paddr_t pte_frame(pte_t pte) {
   return PTE_FRAME_ADDR(pte);
 }
 

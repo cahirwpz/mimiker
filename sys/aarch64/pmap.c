@@ -51,12 +51,15 @@ static const pte_t vm_prot_map[] = {
  */
 
 pde_t pde_make(unsigned lvl, paddr_t pa) {
-  assert(lvl < PAGE_TABLE_DEPTH - 1);
   if (lvl == 0)
     return pa | L0_TABLE;
   if (lvl == 1)
     return pa | L1_TABLE;
   return pa | L2_TABLE;
+}
+
+void broadcast_kernel_top_pde(unsigned idx, pde_t pde) {
+  /* Nothing to be done here. */
 }
 
 /*
@@ -97,11 +100,11 @@ void pmap_md_activate(pmap_t *umap) {
   }
 }
 
-void pmap_md_setup(pmap_t *pmap __unused) {
+void pmap_md_setup(pmap_t *pmap) {
   /* Nothing to be done here. */
 }
 
-void pmap_md_delete(pmap_t *pmap __unused) {
+void pmap_md_delete(pmap_t *pmap) {
   /* Nothing to be done here. */
 }
 

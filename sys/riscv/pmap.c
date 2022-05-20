@@ -65,13 +65,13 @@ pde_t pde_make(unsigned lvl, paddr_t pa) {
   return PA_TO_PTE(pa) | PTE_V;
 }
 
-void kernel_pd_change_notif(vaddr_t va, pde_t pde) {
+void broadcast_kernel_top_pde(unsigned idx, pde_t pde) {
   SCOPED_MTX_LOCK(&user_pmaps_lock);
 
   pmap_t *user_pmap;
   LIST_FOREACH (user_pmap, &user_pmaps, md.pmap_link) {
-    pde_t *l0 = (pde_t *)phys_to_dmap(user_pmap->pde);
-    l0[L0_INDEX(va)] = pde;
+    pde_t *pdep = (pde_t *)phys_to_dmap(user_pmap->pde);
+    pdep[idx] = pde;
   }
 }
 
@@ -118,7 +118,7 @@ void pmap_md_setup(pmap_t *pmap) {
     memcpy((void *)phys_to_dmap(pmap->pde) + off,
            (void *)phys_to_dmap(kernel_pde) + off, PAGESIZE / 2);
   }
-  // sfence?
+
   WITH_MTX_LOCK (&user_pmaps_lock)
     LIST_INSERT_HEAD(&user_pmaps, pmap, md.pmap_link);
 }

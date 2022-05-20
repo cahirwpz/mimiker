@@ -22,11 +22,14 @@ static const pte_t vm_prot_map[] = {
  */
 
 pde_t pde_make(unsigned lvl, paddr_t pa) {
-  assert(lvl < PAGE_TABLE_DEPTH - 1);
   pde_t *pde = (pde_t *)phys_to_dmap(pa);
   for (int i = 0; i < PT_ENTRIES; i++)
     pde[i] = PTE_GLOBAL;
   return PTE_PFN((paddr_t)pde) | PTE_KERNEL;
+}
+
+void broadcast_kernel_top_pde(unsigned idx, pde_t pde) {
+  /* Nothing to be done here. */
 }
 
 /*
@@ -83,6 +86,6 @@ void pmap_md_setup(pmap_t *pmap) {
   pmap->pde = (paddr_t)MIPS_PHYS_TO_KSEG0(pmap->pde);
 }
 
-void pmap_md_delete(pmap_t *pmap __unused) {
+void pmap_md_delete(pmap_t *pmap) {
   /* Nothing to be done here. */
 }

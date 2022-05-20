@@ -180,19 +180,16 @@ static paddr_t pmap_alloc_pde(pmap_t *pmap, vaddr_t va) {
 }
 
 static pte_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va) {
-  paddr_t pa = pmap->pde;
-  pde_t *pdep;
+  pde_t *pdep = (pde_t *)phys_to_dmap(pmap->pde) + pt_index(0, va);
 
-  for (unsigned lvl = 0;; lvl++) {
-    pdep = (pde_t *)phys_to_dmap(pa) + pt_index(lvl, va);
-    if (lvl == PAGE_TABLE_DEPTH - 1)
-      return (pte_t *)pdep;
+  for (unsigned lvl = 1; lvl < PAGE_TABLE_DEPTH; lvl++) {
     if (!pde_valid_p(*pdep))
       return NULL;
-    pa = pde2pa(*pdep);
+    paddr_t pa = pte_frame((pte_t)*pdep);
+    pdep = (pde_t *)phys_to_dmap(pa) + pt_index(lvl, va);
   }
 
-  __unreachable();
+  return (pte_t *)pdep;
 }
 
 static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte, vaddr_t va) {
@@ -204,24 +201,22 @@ static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte, vaddr_t va) {
 static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
   assert(mtx_owned(&pmap->mtx));
 
-  paddr_t pa = pmap->pde;
-  pde_t *pdep;
+  pde_t *pdep = (pde_t *)phys_to_dmap(pmap->pde) + pt_index(0, va);
 
-  for (unsigned lvl = 0;; lvl++) {
-    pdep = (pde_t *)phys_to_dmap(pa) + pt_index(lvl, va);
-    if (lvl == PAGE_TABLE_DEPTH - 1)
-      return (pte_t *)pdep;
+  for (unsigned lvl = 0; lvl < PAGE_TABLE_DEPTH - 1; lvl++) {
+    paddr_t pa;
     if (!pde_valid_p(*pdep)) {
       pa = pmap_alloc_pde(pmap, va);
       *pdep = pde_make(lvl, pa);
       if (lvl == 0 && pmap == pmap_kernel())
-        kernel_pd_change_notif(va, *pdep);
+        broadcast_kernel_top_pde(pt_index(0, va), *pdep);
     } else {
-      pa = pde2pa(*pdep);
+      pa = pte_frame((pte_t)*pdep);
     }
+    pdep = (pde_t *)phys_to_dmap(pa) + pt_index(lvl + 1, va);
   }
 
-  __unreachable();
+  return (pte_t *)pdep;
 }
 
 /*
@@ -266,18 +261,13 @@ bool pmap_kextract(vaddr_t va, paddr_t *pap) {
 }
 
 /*
- * Pageable (user & kernel) memory interface.
+ * Pageable user memory interface.
  */
-
-static void pmap_set_init_flags(vm_page_t *pg, bool kernel) {
-  if (kernel)
-    pg->flags |= PG_MODIFIED | PG_REFERENCED;
-  else
-    pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
-}
 
 void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
                 unsigned flags) {
+  assert(pmap != pmap_kernel());
+
   paddr_t pa = pg->paddr;
 
   assert(page_aligned_p(va));
@@ -285,15 +275,14 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
 
   klog("Enter virtual mapping %p for frame %p", va, pa);
 
-  bool kern_mapping = (pmap == pmap_kernel());
-  pte_t pte = pte_make(pa, prot, flags, kern_mapping);
+  pte_t pte = pte_make(pa, prot, flags, false);
 
   WITH_MTX_LOCK (&pv_list_lock) {
     WITH_MTX_LOCK (&pmap->mtx) {
       pv_entry_t *pv = pv_find(pmap, va, pg);
       if (!pv)
         pv_add(pmap, va, pg);
-      pmap_set_init_flags(pg, kern_mapping);
+      pg->flags &= ~(PG_MODIFIED | PG_REFERENCED);
       pte_t *ptep = pmap_ensure_pte(pmap, va);
       pmap_write_pte(pmap, ptep, pte, va);
     }
@@ -301,12 +290,11 @@ void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
 }
 
 void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
+  assert(pmap != pmap_kernel());
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(pmap_contains_p(pmap, start, end));
 
   klog("Remove page mapping for address range %p - %p", start, end);
-
-  bool kern_mapping = (pmap == pmap_kernel());
 
   WITH_MTX_LOCK (&pv_list_lock) {
     WITH_MTX_LOCK (&pmap->mtx) {
@@ -314,10 +302,10 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
         pte_t *ptep = pmap_lookup_pte(pmap, va);
         if (!ptep || !pte_valid_p(*ptep))
           continue;
-        paddr_t pa = pte2pa(*ptep);
+        paddr_t pa = pte_frame(*ptep);
         vm_page_t *pg = vm_page_find(pa);
         pv_remove(pmap, va, pg);
-        pmap_write_pte(pmap, ptep, pte_empty(kern_mapping), va);
+        pmap_write_pte(pmap, ptep, pte_empty(false), va);
       }
     }
   }
@@ -331,7 +319,7 @@ static bool pmap_extract_nolock(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   if (ptep == NULL || !pte_valid_p(*ptep))
     return false;
 
-  paddr_t pa = pte2pa(*ptep);
+  paddr_t pa = pte_frame(*ptep);
   *pap = pa | PAGE_OFFSET(va);
   return true;
 }
@@ -342,6 +330,7 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
 }
 
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+  assert(pmap != pmap_kernel());
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
   assert(pmap_contains_p(pmap, start, end));
 
@@ -365,13 +354,14 @@ void pmap_page_remove(vm_page_t *pg) {
   while (!TAILQ_EMPTY(&pg->pv_list)) {
     pv_entry_t *pv = TAILQ_FIRST(&pg->pv_list);
     pmap_t *pmap = pv->pmap;
+    assert(pmap != pmap_kernel());
     vaddr_t va = pv->va;
     WITH_MTX_LOCK (&pmap->mtx) {
       TAILQ_REMOVE(&pg->pv_list, pv, page_link);
       TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
       pte_t *ptep = pmap_lookup_pte(pmap, va);
       assert(ptep);
-      pmap_write_pte(pmap, ptep, 0, va);
+      pmap_write_pte(pmap, ptep, pte_empty(false), va);
     }
     pool_free(P_PV, pv);
   }
@@ -383,6 +373,7 @@ static void pmap_modify_flags(vm_page_t *pg, pte_t set, pte_t clr) {
   pv_entry_t *pv;
   TAILQ_FOREACH (pv, &pg->pv_list, page_link) {
     pmap_t *pmap = pv->pmap;
+    assert(pmap != pmap_kernel());
     vaddr_t va = pv->va;
     WITH_MTX_LOCK (&pmap->mtx) {
       pte_t *ptep = pmap_lookup_pte(pmap, va);
@@ -436,24 +427,18 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
 
     pte_t pte = *pmap_lookup_pte(pmap, va);
 
-    if ((prot & VM_PROT_READ) && !pte_readable(pte))
+    if ((prot & VM_PROT_READ) && !pte_access(pte, VM_PROT_READ))
       return EACCES;
 
-    if ((prot & VM_PROT_WRITE) && !pte_writable(pte))
+    if ((prot & VM_PROT_WRITE) && !pte_access(pte, VM_PROT_WRITE))
       return EACCES;
 
-    if ((prot & VM_PROT_EXEC) && !pte_executable(pte))
+    if ((prot & VM_PROT_EXEC) && !pte_access(pte, VM_PROT_EXEC))
       return EACCES;
   }
 
   vm_page_t *pg = vm_page_find(pa);
   assert(pg);
-
-  WITH_MTX_LOCK (&pv_list_lock) {
-    /* Kernel non-pageable memory? */
-    if (TAILQ_EMPTY(&pg->pv_list))
-      return EINVAL;
-  }
 
   pmap_set_referenced(pg);
   if (prot & VM_PROT_WRITE)
