@@ -21,6 +21,7 @@
  */
 
 #define PAGE_TABLE_DEPTH 2
+#define SINGLE_PD 1
 
 #define PTE_SET_ON_REFERENCED 0
 #define PTE_CLR_ON_REFERENCED 0
