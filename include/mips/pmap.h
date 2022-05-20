@@ -54,6 +54,7 @@ static_assert(PT_ENTRIES == 1 << 10,
 #include <sys/vm.h>
 
 #define PAGE_TABLE_DEPTH 2
+#define SINGLE_PD 0
 
 #define DMAP_BASE MIPS_KSEG0_START
 
