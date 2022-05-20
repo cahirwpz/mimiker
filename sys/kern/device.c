@@ -34,16 +34,20 @@ void device_remove_child(device_t *parent, device_t *dev) {
 int device_probe(device_t *dev) {
   assert(dev->driver != NULL);
   d_probe_t probe = dev->driver->probe;
-  int found = probe ? probe(dev) : 0;
-  if (found)
-    dev->state = kmalloc(M_DEV, dev->driver->size, M_ZERO);
-  return found;
+  return probe ? probe(dev) : 0;
 }
 
 int device_attach(device_t *dev) {
   assert(dev->driver != NULL);
   d_attach_t attach = dev->driver->attach;
-  return attach ? attach(dev) : ENODEV;
+  if (attach == NULL)
+    return ENODEV;
+  dev->state = kmalloc(M_DEV, dev->driver->size, M_ZERO);
+  int err = attach(dev);
+  if (!err)
+    return 0;
+  kfree(M_DEV, dev->state);
+  return err;
 }
 
 int device_detach(device_t *dev) {

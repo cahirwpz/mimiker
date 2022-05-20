@@ -68,10 +68,9 @@ pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel) {
     pte |= ATTR_AP_USER;
     pte &= ~ATTR_AF;
   }
-  unsigned cacheflags = flags & PMAP_CACHE_MASK;
-  if (cacheflags == PMAP_NOCACHE)
+  if (flags & PMAP_NOCACHE)
     return pte | ATTR_IDX(ATTR_NORMAL_MEM_NC);
-  if (cacheflags == PMAP_WRITE_THROUGH)
+  if (flags & PMAP_WRITE_THROUGH)
     return pte | ATTR_IDX(ATTR_NORMAL_MEM_WT);
   return pte | ATTR_IDX(ATTR_NORMAL_MEM_WB);
 }

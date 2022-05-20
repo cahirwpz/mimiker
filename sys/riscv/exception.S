@@ -138,7 +138,6 @@
 .endif
 .endm
 
-#if FPU
 .macro load_fpu_ctx src, tmp
 	/*
 	 * Enable FPE usage in supervisor mode,
@@ -184,7 +183,6 @@
 
 	DISABLE_SV_FPU(\tmp);
 .endm
-#endif /* FPU */
 
 	.global cpu_exception_handler
 	.global user_exc_leave
@@ -249,7 +247,8 @@ user_exc_leave:
 	load_fpu_ctx t0, t1
 
 skip_fpu_restore:
-#endif
+#endif /* FPU */
+
 	load_ctx 0
 	csrrw	sp, sscratch, sp
 	sret
