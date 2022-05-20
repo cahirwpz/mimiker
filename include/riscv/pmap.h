@@ -3,8 +3,18 @@
 
 #include <stdbool.h>
 #include <sys/klog.h>
+#include <sys/vm.h>
 #include <riscv/pte.h>
 #include <riscv/riscvreg.h>
+
+/*
+ * Direct map.
+ */
+#define DMAP_BASE 0xc0000000
+#define DMAP_MAX_SIZE 0x40000000
+
+#define RISCV_PHYSADDR(x)                                                      \
+  ((paddr_t)((vaddr_t)(x) & ~KERNEL_SPACE_BEGIN) + KERNEL_PHYS)
 
 /*
  * TODO: implement generic pmap interface.
@@ -39,10 +49,6 @@ static inline bool pde_valid_p(pde_t pde) {
   panic("Not implemented!");
 }
 
-static inline paddr_t pde2pa(pde_t pde) {
-  panic("Not implemented!");
-}
-
 /*
  * Page table.
  */
@@ -51,15 +57,7 @@ static inline bool pte_valid_p(pte_t pte) {
   panic("Not implemented!");
 }
 
-static inline bool pte_readable(pte_t pte) {
-  panic("Not implemented!");
-}
-
-static inline bool pte_writable(pte_t pte) {
-  panic("Not implemented!");
-}
-
-static inline bool pte_executable(pte_t pte) {
+static inline bool pte_access(pte_t pte, vm_prot_t prot) {
   panic("Not implemented!");
 }
 
@@ -67,19 +65,11 @@ static inline pte_t pte_empty(bool kernel) {
   panic("Not implemented!");
 }
 
-static inline paddr_t pte2pa(pte_t pte) {
+static inline paddr_t pte_frame(pte_t pte) {
   panic("Not implemented!");
 }
 
-/*
- * Direct map.
- */
-#define DMAP_BASE 0xc0000000
-#define DMAP_MAX_SIZE 0x40000000
-
-#define RISCV_PHYSADDR(x)                                                      \
-  ((paddr_t)((vaddr_t)(x) & ~KERNEL_SPACE_BEGIN) + KERNEL_PHYS)
-
+/* MD pmap bootstrap. */
 void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va);
 
 #endif /* !_RISCV_PMAP_H_ */
