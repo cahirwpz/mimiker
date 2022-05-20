@@ -8,20 +8,20 @@
  * Enable permit Supervisor User Memory access (SUM).
  */
 .macro enter_user_access tmp
-#if SUM
+#if TRAP_USER_ACCESS
 	REG_LI \tmp, SSTATUS_SUM
 	csrs sstatus, \tmp
-#endif
+#endif /* TRAP_USER_ACCESS */
 .endm
 
 /*
  * Disable permit Supervisor User Memory access (SUM).
  */
 .macro exit_user_access tmp
-#if SUM
+#if TRAP_USER_ACCESS
 	REG_LI \tmp, SSTATUS_SUM
 	csrc sstatus, \tmp
-#endif
+#endif /* TRAP_USER_ACCESS */
 .endm
 
 .macro onfault_set tmp, td, func
