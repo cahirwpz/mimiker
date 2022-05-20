@@ -4,8 +4,6 @@ include <riscv/mcontext.h>
 include <riscv/riscvreg.h>
 include <riscv/vm_param.h>
 
-define FPU FPU
-
 define USER_SPACE_END USER_SPACE_END
 define KERNEL_SPACE_BEGIN KERNEL_SPACE_BEGIN
 
