@@ -37,7 +37,6 @@ typedef struct pmap_md {
  */
 
 static inline size_t pt_index(unsigned lvl, vaddr_t va) {
-  assert(lvl < PAGE_TABLE_DEPTH);
   if (lvl == 0)
     return L0_INDEX(va);
   return L1_INDEX(va);

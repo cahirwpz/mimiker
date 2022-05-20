@@ -63,10 +63,10 @@ pde_t pde_make(unsigned lvl, paddr_t pa) {
 pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel) {
   pte_t pte = PA_TO_PTE(pa) | vm_prot_map[prot];
 
-  const pte_t mask_on = (kernel) ? PTE_G : PTE_U;
+  const pte_t mask_on = kernel ? PTE_G : PTE_U;
   pte |= mask_on;
 
-  const pte_t mask_off = (kernel) ? 0 : PTE_D | PTE_A | PTE_W | PTE_V;
+  const pte_t mask_off = kernel ? 0 : PTE_D | PTE_A | PTE_W | PTE_V;
   pte &= ~mask_off;
 
   /* TODO(MichalBlk): if the target board supports PMA setting,
