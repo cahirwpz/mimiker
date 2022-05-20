@@ -7,7 +7,7 @@
 include $(TOPDIR)/build/flags.mk
 
 CFLAGS   += -fno-builtin -nostdinc -nostdlib -ffreestanding
-CPPFLAGS += -I$(TOPDIR)/include -D_KERNEL
+CPPFLAGS += -I$(TOPDIR)/include -I$(TOPDIR)/sys/contrib -D_KERNEL
 CPPFLAGS += -DLOCKDEP=$(LOCKDEP) -DKASAN=$(KASAN) -DKGPROF=$(KGPROF) -DKCSAN=$(KCSAN)
 LDFLAGS  += -nostdlib
 

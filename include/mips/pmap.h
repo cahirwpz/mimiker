@@ -41,12 +41,7 @@ static_assert(PT_ENTRIES == 1 << 10,
 
 /* Base addresses of active user and kernel page directory tables.
  * UPD_BASE must begin at 8KiB boundary. */
-#define UPD_BASE (PMAP_KERNEL_END + PAGESIZE * 0)
-#define KPD_BASE (PMAP_KERNEL_END + PAGESIZE * 1)
-
-#define PMAP_KERNEL_BEGIN 0xc0000000 /* kseg2 & kseg3 */
-#define PMAP_KERNEL_END 0xffffe000
-#define PMAP_USER_BEGIN 0x00001000
-#define PMAP_USER_END 0x80000000
+#define UPD_BASE (KERNEL_SPACE_END + PAGESIZE * 0)
+#define KPD_BASE (KERNEL_SPACE_END + PAGESIZE * 1)
 
 #endif /* !_MIPS_PMAP_H_ */

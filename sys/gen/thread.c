@@ -1,6 +1,4 @@
 #include <sys/thread.h>
-#include <sys/context.h>
-#include <mips/mcontext.h>
 
 extern __noreturn void thread_exit(void);
 extern __noreturn void kern_exc_leave(void);
@@ -19,7 +17,7 @@ void thread_entry_setup(thread_t *td, entry_fn_t target, void *arg) {
   ctx_t *kctx = kstack_alloc_s(stk, ctx_t);
 
   td->td_uctx = uctx;
-  td->td_kframe = kframe;
+  td->td_kframe = NULL;
   td->td_kctx = kctx;
 
   /* Initialize registers in order to switch to kframe context. */

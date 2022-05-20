@@ -40,6 +40,7 @@ int toascii(int);
 int snprintf(char *buf, size_t size, const char *fmt, ...)
   __attribute__((format(printf, 3, 4)));
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap);
+char *kasprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 int sscanf(const char *str, const char *fmt, ...)
   __attribute__((format(scanf, 2, 3)));
 int vsscanf(const char *str, char const *fmt, va_list ap);
@@ -60,6 +61,7 @@ void bzero(void *b, size_t length);
 void *memchr(const void *s, int c, size_t n);
 int memcmp(const void *s1, const void *s2, size_t n);
 void *memcpy(void *s1, const void *s2, size_t n);
+void *memmove(void *dst, const void *src, size_t n);
 void *memset(void *dst, int c, size_t n);
 char *strchr(const char *s, int c);
 int strcmp(const char *s1, const char *s2);
