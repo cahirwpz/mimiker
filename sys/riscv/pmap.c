@@ -109,7 +109,7 @@ void pmap_md_activate(pmap_t *umap) {
 
 void pmap_md_setup(pmap_t *pmap) {
   pmap->md.satp = SATP_MODE_SV32 | ((paddr_t)pmap->asid << SATP_ASID_S) |
-               (pmap->pde >> PAGE_SHIFT);
+                  (pmap->pde >> PAGE_SHIFT);
 
   /* Install kernel pagetables. */
   pmap_t *kmap = pmap_kernel();
@@ -118,13 +118,13 @@ void pmap_md_setup(pmap_t *pmap) {
     memcpy((void *)phys_to_dmap(pmap->pde) + off,
            (void *)phys_to_dmap(kernel_pde) + off, PAGESIZE / 2);
   }
-//sfence?
+  // sfence?
   WITH_MTX_LOCK (&user_pmaps_lock)
     LIST_INSERT_HEAD(&user_pmaps, pmap, md.pmap_link);
 }
 
 void pmap_md_delete(pmap_t *pmap) {
-  WITH_MTX_LOCK (&user_pmaps_lock) 
+  WITH_MTX_LOCK (&user_pmaps_lock)
     LIST_REMOVE(pmap, md.pmap_link);
 }
 

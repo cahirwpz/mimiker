@@ -27,8 +27,8 @@
 #define GROWKERNEL_STRIDE L0_SIZE
 
 typedef struct pmap_md {
-  paddr_t satp;            /* supervisor address translation and protection */
-  LIST_ENTRY(pmap) pmap_link;     /* link on `user_pmaps` */
+  paddr_t satp; /* supervisor address translation and protection */
+  LIST_ENTRY(pmap) pmap_link; /* link on `user_pmaps` */
 } pmap_md_t;
 
 /*
@@ -71,7 +71,7 @@ static inline bool pte_writable(pte_t pte) {
 }
 
 static inline bool pte_executable(pte_t pte) {
-  return !(pte & PTE_X);
+  return pte & PTE_X;
 }
 
 static inline pte_t pte_empty(bool kernel) {
