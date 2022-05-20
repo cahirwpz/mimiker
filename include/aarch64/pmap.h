@@ -28,7 +28,7 @@
 #define PTE_FRAME_ADDR(pte) ((pte)&PA_MASK)
 
 #define PAGE_TABLE_DEPTH 4
-#define SINGLE_PD 0
+#define SHARED_KERNEL_PD 0
 
 #define PTE_SET_ON_REFERENCED ATTR_AF
 #define PTE_CLR_ON_REFERENCED 0
