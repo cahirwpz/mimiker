@@ -263,13 +263,11 @@ void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
   klog("Enter unmanaged mapping from %p to %p", va, pa);
 
   pte_t pte = pte_make(pa, prot, flags, true);
-  /* NOTE: the existance of the corresponding PTE
-   * should be ensured by `pmap_growkernel`. */
-  pte_t *ptep = pmap_lookup_pte(pmap, va);
-  assert(ptep);
 
-  WITH_MTX_LOCK (&pmap->mtx)
+  WITH_MTX_LOCK (&pmap->mtx) {
+    pte_t *ptep = pmap_ensure_pte(pmap, va);
     pmap_write_pte(pmap, ptep, pte, va);
+  }
 }
 
 void pmap_kremove(vaddr_t va, size_t size) {
