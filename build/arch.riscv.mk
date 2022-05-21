@@ -27,6 +27,6 @@ CLANG_ABIFLAGS += -target riscv32-elf -march=rv32$(EXT) -mabi=$(ABI)
 
 ifeq ($(KERNEL), 1)
 	CFLAGS += -mcmodel=medany
-	CPPFLAGS += -DKERNEL_PHYS=$(KERNEL_PHYS) -DSUM=0
+	CPPFLAGS += -DKERNEL_PHYS=$(KERNEL_PHYS)
 	CPPLDSCRIPT := 1
 endif

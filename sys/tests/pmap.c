@@ -199,11 +199,13 @@ static int test_rmbits(void) {
   __unused int value = *ptr;
 
   assert(pmap_is_referenced(pg) && !pmap_is_modified(pg));
+
   pmap_clear_referenced(pg);
 
   *ptr = 100;
 
   assert(pmap_is_referenced(pg) && pmap_is_modified(pg));
+
   pmap_clear_modified(pg);
 
   assert(*ptr == 100);
