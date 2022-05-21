@@ -58,6 +58,10 @@ pde_t pde_make(unsigned lvl, paddr_t pa) {
   return pa | L2_TABLE;
 }
 
+void broadcast_kernel_top_pde(unsigned idx, pde_t pde) {
+  /* Nothing to be done here. */
+}
+
 /*
  * Page table.
  */
