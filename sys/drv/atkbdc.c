@@ -195,7 +195,7 @@ static int atkbdc_attach(device_t *dev) {
   assert(atkbdc->regs != NULL);
 
   atkbdc->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
-  bus_intr_setup(dev, atkbdc->irq_res, atkbdc_intr, NULL, atkbdc,
+  pic_setup_intr(dev, atkbdc->irq_res, atkbdc_intr, NULL, atkbdc,
                  "AT keyboard controller");
 
   /* Enable interrupt */

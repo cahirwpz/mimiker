@@ -9,7 +9,7 @@ ENTRY(sigcode)
 	/* Just in case `sigreturn` fails. */
 	ebreak
 
-/* `esigcode` is used just to compute size of the following code. */
+/* `esigcode` is used just to compute the size of `sigcode`. */
 EXPORT(esigcode)
 END(sigcode)
 

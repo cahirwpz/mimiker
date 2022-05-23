@@ -130,16 +130,16 @@
 long sbi_probe_extension(long id);
 
 /* TIME extension functions. */
-void sbi_set_timer(uint64_t val);
+int sbi_set_timer(uint64_t val);
 
 /* IPI extension functions. */
 void sbi_send_ipi(const u_long *hart_mask);
 
 /* RFENCE extension functions. */
 void sbi_remote_fence_i(const u_long *hart_mask);
-void sbi_remote_sfence_vma(const u_long *hart_mask, u_long start, u_long size);
-void sbi_remote_sfence_vma_asid(const u_long *hart_mask, u_long start,
-                                u_long size, u_long asid);
+int sbi_remote_sfence_vma(const u_long *hart_mask, u_long start, u_long size);
+int sbi_remote_sfence_vma_asid(const u_long *hart_mask, u_long start,
+                               u_long size, u_long asid);
 
 /* Hart State Management extension functions. */
 
@@ -154,7 +154,7 @@ int sbi_hsm_hart_start(u_long hart, u_long start_addr, u_long priv);
  * Stop execution on the current hart. Interrupts should be disabled, or this
  * function may return.
  */
-void sbi_hsm_hart_stop(void);
+int sbi_hsm_hart_stop(void);
 
 /*
  * Get the execution status of the specified hart. The status will be one of:
@@ -177,7 +177,7 @@ int sbi_hsm_hart_status(u_long hart);
  */
 void sbi_system_reset(u_long reset_type, u_long reset_reason);
 
-/* Legacy extension functions. */
+/* Console legacy extensions functions. */
 void sbi_console_putchar(int ch);
 int sbi_console_getchar(void);
 

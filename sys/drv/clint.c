@@ -17,7 +17,7 @@ typedef struct clint_state {
 } clint_state_t;
 
 /*
- * MTIMER.
+ * MTIMER device.
  */
 
 static intr_filter_t mtimer_intr(void *data) {
@@ -42,7 +42,7 @@ static int mtimer_start(timer_t *tm, unsigned flags, const bintime_t start,
   clint_state_t *clint = dev->state;
   clint->mtimer_step = bintime_mul(period, tm->tm_frequency).sec;
 
-  intr_setup(dev, clint->mtimer_irq, mtimer_intr, NULL, clint, "MTIMER");
+  pic_setup_intr(dev, clint->mtimer_irq, mtimer_intr, NULL, clint, "MTIMER");
 
   WITH_INTR_DISABLED {
     uint64_t count = rdtime();
@@ -55,7 +55,7 @@ static int mtimer_start(timer_t *tm, unsigned flags, const bintime_t start,
 static int mtimer_stop(timer_t *tm) {
   device_t *dev = tm->tm_priv;
   clint_state_t *clint = dev->state;
-  intr_teardown(dev, clint->mtimer_irq);
+  pic_teardown_intr(dev, clint->mtimer_irq);
   return 0;
 }
 
@@ -69,30 +69,31 @@ static bintime_t mtimer_gettime(timer_t *tm) {
 }
 
 /*
- * CLINT driver interface.
+ * MSWI device.
  */
-
-static int clint_probe(device_t *dev) {
-  char compat[64];
-  if (FDT_getprop(dev->node, "compatible", (void *)compat, sizeof(compat)) < 0)
-    return 0;
-  return strcmp(compat, "riscv,clint0") == 0;
-}
 
 static intr_filter_t mswi_intr(void *data) {
   panic("Supervisor software interrupt!");
 }
 
+/*
+ * CLINT driver interface.
+ */
+
+static int clint_probe(device_t *dev) {
+  return FDT_is_compatible(dev->node, "riscv,clint0");
+}
+
 static int clint_attach(device_t *dev) {
   clint_state_t *clint = dev->state;
 
-  clint->mswi_irq = device_take_irq(dev, 0, RF_ACTIVE);
+  clint->mtimer_irq = device_take_irq(dev, 0, RF_ACTIVE);
+  assert(clint->mtimer_irq);
+
+  clint->mswi_irq = device_take_irq(dev, 1, RF_ACTIVE);
   assert(clint->mswi_irq);
 
-  intr_setup(dev, clint->mswi_irq, mswi_intr, NULL, NULL, "SSI");
-
-  clint->mtimer_irq = device_take_irq(dev, 1, RF_ACTIVE);
-  assert(clint->mtimer_irq);
+  pic_setup_intr(dev, clint->mswi_irq, mswi_intr, NULL, NULL, "SSI");
 
   phandle_t cpus = FDT_finddevice("/cpus");
   if (cpus == FDT_NODEV)

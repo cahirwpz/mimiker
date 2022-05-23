@@ -15,13 +15,8 @@ SOURCES-RISCV = \
 	signal.c \
 	start.S \
 	switch.S \
-	thread.c \
 	tlb.c \
 	trap.c
-
-CFLAGS.start.S = -mcmodel=medany
-CFLAGS.boot.c = -mcmodel=medany
-CFLAGS.board.c = -mcmodel=medany
 
 CLEAN-FILES += assym.h riscv.ld
 

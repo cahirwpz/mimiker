@@ -1,10 +1,17 @@
 #define KL_LOG KL_DEV
+#include <sys/bus.h>
 #include <sys/devclass.h>
 #include <sys/errno.h>
 #include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/libkern.h>
+
+/*
+ * Details of the operation of PLIC as well as the memory layout
+ * can be found in the official specification which is maintained on github:
+ *   https://github.com/riscv/riscv-plic-spec
+ */
 
 /* PLIC memory map. */
 #if __riscv_xlen == 64
@@ -37,7 +44,7 @@ typedef struct plic_state {
   resource_t *mem;           /* PLIC memory resource */
   resource_t *irq;           /* PLIC irq resource */
   intr_event_t **intr_event; /* interrupt events */
-  unsigned nirqs;            /* number of sources */
+  unsigned ndev;             /* number of sources */
 } plic_state_t;
 
 #define in4(addr) bus_read_4(plic->mem, (addr))
@@ -62,17 +69,27 @@ static void plic_intr_enable(intr_event_t *ie) {
 }
 
 static const char *plic_intr_name(unsigned irq) {
-  char buf[32];
-  snprintf(buf, sizeof(buf), "PLIC source %u", irq);
-  return kstrndup(M_STR, buf, sizeof(buf));
+  return kasprintf("PLIC source %u", irq);
 }
 
-static void plic_intr_setup(device_t *ic, device_t *dev, resource_t *r,
+static resource_t *plic_alloc_intr(device_t *pic, device_t *dev, int rid,
+                                   unsigned irq, rman_flags_t flags) {
+  plic_state_t *plic = pic->state;
+  rman_t *rman = &plic->rm;
+
+  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
+}
+
+static void plic_release_intr(device_t *pic, device_t *dev, resource_t *r) {
+  resource_release(r);
+}
+
+static void plic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                             ih_filter_t *filter, ih_service_t *service,
                             void *arg, const char *name) {
-  plic_state_t *plic = ic->state;
+  plic_state_t *plic = pic->state;
   unsigned irq = resource_start(r);
-  assert(irq && irq < plic->nirqs);
+  assert(irq && irq < plic->ndev);
 
   if (!plic->intr_event[irq])
     plic->intr_event[irq] = intr_event_create(
@@ -82,20 +99,22 @@ static void plic_intr_setup(device_t *ic, device_t *dev, resource_t *r,
     intr_event_add_handler(plic->intr_event[irq], filter, service, arg, name);
 }
 
-static void plic_intr_teardown(device_t *ic, device_t *dev, resource_t *r) {
+static void plic_teardown_intr(device_t *pic, device_t *dev, resource_t *r) {
   intr_event_remove_handler(r->r_handler);
 }
 
-static resource_t *plic_intr_alloc(device_t *ic, device_t *dev, int rid,
-                                   unsigned irq) {
-  plic_state_t *plic = ic->state;
-  rman_t *rman = &plic->rm;
+static int plic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
+                         int icells) {
+  plic_state_t *plic = pic->state;
 
-  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, 0);
-}
+  if (icells != 1)
+    return -1;
 
-static void plic_intr_release(device_t *ic, device_t *dev, resource_t *r) {
-  resource_release(r);
+  unsigned irq = *intr;
+  if (!irq || irq > plic->ndev)
+    return -1;
+
+  return irq;
 }
 
 static intr_filter_t plic_intr_handler(void *arg) {
@@ -104,66 +123,64 @@ static intr_filter_t plic_intr_handler(void *arg) {
   /* Claim any pending interrupt. */
   uint32_t irq = in4(PLIC_CLAIM_SV);
 
-  if (irq) {
-    intr_event_run_handlers(plic->intr_event[irq]);
-    /* Complete the interrupt. */
-    out4(PLIC_CLAIM_SV, irq);
-    return IF_FILTERED;
-  }
+  if (!irq)
+    panic("Asserted reserved PLIC interrupt!");
 
-  return IF_STRAY;
+  intr_event_run_handlers(plic->intr_event[irq]);
+  /* Complete the interrupt. */
+  out4(PLIC_CLAIM_SV, irq);
+
+  return IF_FILTERED;
 }
 
-static int plic_probe(device_t *ic) {
-  char compat[64];
-  if (FDT_getprop(ic->node, "compatible", (void *)compat, sizeof(compat)) < 0)
-    return 0;
-  return strcmp(compat, "riscv,plic0") == 0 ||
-         strcmp(compat, "sifive,fu540-c000-plic") == 0;
+static int plic_probe(device_t *pic) {
+  return FDT_is_compatible(pic->node, "riscv,plic0") ||
+         FDT_is_compatible(pic->node, "sifive,fu540-c000-plic");
 }
 
-static int plic_attach(device_t *ic) {
-  plic_state_t *plic = ic->state;
+static int plic_attach(device_t *pic) {
+  plic_state_t *plic = pic->state;
 
   /* Obtain the number of sources. */
-  if (FDT_getencprop(ic->node, "riscv,ndev", (void *)&plic->nirqs,
+  if (FDT_getencprop(pic->node, "riscv,ndev", (void *)&plic->ndev,
                      sizeof(uint32_t)) != sizeof(uint32_t))
     return ENXIO;
 
   /* We'll need interrupt event for each interrupt source. */
   plic->intr_event =
-    kmalloc(M_DEV, plic->nirqs * sizeof(intr_event_t *), M_WAITOK | M_ZERO);
+    kmalloc(M_DEV, plic->ndev * sizeof(intr_event_t *), M_WAITOK | M_ZERO);
   if (!plic->intr_event)
     return ENXIO;
 
   rman_init(&plic->rm, "PLIC interrupt sources");
-  rman_manage_region(&plic->rm, 1, plic->nirqs);
+  rman_manage_region(&plic->rm, 1, plic->ndev);
 
-  plic->mem = device_take_memory(ic, 0, RF_ACTIVE);
+  plic->mem = device_take_memory(pic, 0, RF_ACTIVE);
   assert(plic->mem);
 
   /*
    * In case PLIC supports priorities, set each priority to 1
    * and the threshold to 0.
    */
-  for (unsigned irq = 0; irq < plic->nirqs; irq++) {
+  for (unsigned irq = 0; irq < plic->ndev; irq++) {
     out4(PLIC_PRIORITY(irq), 1);
   }
   out4(PLIC_THRESHOLD_SV, 0);
 
-  plic->irq = device_take_irq(ic, 0, RF_ACTIVE);
+  plic->irq = device_take_irq(pic, 0, RF_ACTIVE);
   assert(plic->irq);
 
-  intr_setup(ic, plic->irq, plic_intr_handler, NULL, plic, "PLIC");
+  pic_setup_intr(pic, plic->irq, plic_intr_handler, NULL, plic, "PLIC");
 
   return 0;
 }
 
-static ic_methods_t plic_ic_if = {
-  .intr_alloc = plic_intr_alloc,
-  .intr_release = plic_intr_release,
-  .intr_setup = plic_intr_setup,
-  .intr_teardown = plic_intr_teardown,
+static pic_methods_t plic_pic_if = {
+  .alloc_intr = plic_alloc_intr,
+  .release_intr = plic_release_intr,
+  .setup_intr = plic_setup_intr,
+  .teardown_intr = plic_teardown_intr,
+  .map_intr = plic_map_intr,
 };
 
 driver_t plic_driver = {
@@ -174,7 +191,7 @@ driver_t plic_driver = {
   .attach = plic_attach,
   .interfaces =
     {
-      [DIF_IC] = &plic_ic_if,
+      [DIF_PIC] = &plic_pic_if,
     },
 };
 

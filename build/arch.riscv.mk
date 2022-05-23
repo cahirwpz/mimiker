@@ -17,7 +17,9 @@ ifeq ($(BOARD), litex-riscv)
 	ABI := ilp32
 	KERNEL_PHYS := 0x40000000
 	KERNEL-IMAGES := mimiker.img
+ifeq ($(KERNEL), 1)
 	CPPFLAGS += -DFPU=0
+endif
 endif
 
 ifeq ($(BOARD), fu540)
@@ -25,7 +27,9 @@ ifeq ($(BOARD), fu540)
 	ABI := lp64d
 	KERNEL_PHYS := 0x80200000
 	KERNEL-IMAGES := mimiker.img
+ifeq ($(KERNEL), 1)
 	CPPFLAGS += -DFPU=1
+endif
 ifeq ($(CLANG), 1)
 	CPPFLAGS += -D__riscv_d -D__riscv_f
 endif

@@ -5,10 +5,11 @@
 #include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
+#include <dev/simplebus.h>
 #include <riscv/mcontext.h>
 #include <riscv/riscvreg.h>
 
-typedef enum {
+typedef enum hlic_irq {
   HLIC_IRQ_SOFTWARE_USER,
   HLIC_IRQ_SOFTWARE_SUPERVISOR,
   HLIC_IRQ_SOFTWARE_HYPERVISOR,
@@ -25,7 +26,7 @@ typedef enum {
 } hlic_irq_t;
 
 typedef struct rootdev {
-  rman_t mem_rm;                        /* memory resource manager*/
+  rman_t mem_rm;                        /* memory resource manager */
   rman_t hlic_rm;                       /* HLIC resource manager */
   intr_event_t *intr_event[HLIC_NIRQS]; /* HLIC interrupt events */
 } rootdev_t;
@@ -45,6 +46,21 @@ static const char *hlic_intr_name[HLIC_NIRQS] = {
   [HLIC_IRQ_EXTERNAL_MACHINE] = "machine external",
 };
 
+static hlic_irq_t hlic_intr_map[HLIC_NIRQS] = {
+  [HLIC_IRQ_SOFTWARE_USER] = -1,
+  [HLIC_IRQ_SOFTWARE_SUPERVISOR] = HLIC_IRQ_SOFTWARE_SUPERVISOR,
+  [HLIC_IRQ_SOFTWARE_HYPERVISOR] = -1,
+  [HLIC_IRQ_SOFTWARE_MACHINE] = HLIC_IRQ_SOFTWARE_SUPERVISOR,
+  [HLIC_IRQ_TIMER_USER] = -1,
+  [HLIC_IRQ_TIMER_SUPERVISOR] = HLIC_IRQ_TIMER_SUPERVISOR,
+  [HLIC_IRQ_TIMER_HYPERVISOR] = -1,
+  [HLIC_IRQ_TIMER_MACHINE] = HLIC_IRQ_TIMER_SUPERVISOR,
+  [HLIC_IRQ_EXTERNAL_SUPERVISOR] = HLIC_IRQ_EXTERNAL_SUPERVISOR,
+  [HLIC_IRQ_EXTERNAL_USER] = -1,
+  [HLIC_IRQ_EXTERNAL_HYPERVISOR] = -1,
+  [HLIC_IRQ_EXTERNAL_MACHINE] = -1,
+};
+
 /*
  * Hart-Level Interrupt Controller.
  */
@@ -59,10 +75,22 @@ static void hlic_intr_enable(intr_event_t *ie) {
   csr_set(sie, 1 << irq);
 }
 
-static void hlic_intr_setup(device_t *ic, device_t *dev, resource_t *r,
+static resource_t *hlic_alloc_intr(device_t *pic, device_t *dev, int rid,
+                                   unsigned irq, rman_flags_t flags) {
+  rootdev_t *rd = pic->state;
+  rman_t *rman = &rd->hlic_rm;
+
+  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
+}
+
+static void hlic_release_intr(device_t *pic, device_t *dev, resource_t *r) {
+  resource_release(r);
+}
+
+static void hlic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                             ih_filter_t *filter, ih_service_t *service,
                             void *arg, const char *name) {
-  rootdev_t *rd = ic->state;
+  rootdev_t *rd = pic->state;
   unsigned irq = resource_start(r);
   assert(irq < HLIC_NIRQS);
 
@@ -74,37 +102,35 @@ static void hlic_intr_setup(device_t *ic, device_t *dev, resource_t *r,
     intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
-static void hlic_intr_teardown(device_t *ic, device_t *dev, resource_t *r) {
+static void hlic_teardown_intr(device_t *pic, device_t *dev, resource_t *r) {
   intr_event_remove_handler(r->r_handler);
-}
-
-static resource_t *hlic_intr_alloc(device_t *ic, device_t *dev, int rid,
-                                   unsigned irq) {
-  rootdev_t *rd = ic->state;
-  rman_t *rman = &rd->hlic_rm;
-
-  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, 0);
-}
-
-static void hlic_intr_release(device_t *ic, device_t *dev, resource_t *r) {
-  resource_release(r);
 }
 
 static void hlic_intr_handler(ctx_t *ctx, device_t *bus) {
   rootdev_t *rd = bus->state;
-  unsigned long cause = _REG(ctx, CAUSE) & SCAUSE_CODE;
+  u_long cause = _REG(ctx, CAUSE) & SCAUSE_CODE;
   assert(cause < HLIC_NIRQS);
 
   intr_event_t *ie = rd->intr_event[cause];
   if (!ie)
-    panic("Unknown HLIC interrupt %u!", cause);
+    panic("Unknown HLIC interrupt %lx!", cause);
 
   intr_event_run_handlers(ie);
 
-  if (cause != HLIC_IRQ_TIMER_SUPERVISOR &&
-      cause != HLIC_IRQ_EXTERNAL_SUPERVISOR) {
+  /* Supervisor software interrupts are cleared directly through SIP. */
+  if (cause == HLIC_IRQ_SOFTWARE_SUPERVISOR)
     csr_clear(sip, ~(1 << cause));
-  }
+}
+
+static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
+                         int icells) {
+  if (icells != 1)
+    return -1;
+
+  unsigned irq = *intr;
+  if (irq >= HLIC_NIRQS)
+    return -1;
+  return hlic_intr_map[irq];
 }
 
 /*
@@ -160,10 +186,7 @@ static int rootdev_probe(device_t *bus) {
 
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
-
-  bus->node = FDT_finddevice("/soc");
-  if (bus->node == FDT_NODEV)
-    return ENXIO;
+  bus->node = 0;
 
   rman_init(&rd->mem_rm, "RISC-V I/O space");
   rman_manage_region(&rd->mem_rm, 0xf0000000, 0x10000000);
@@ -179,53 +202,34 @@ static int rootdev_attach(device_t *bus) {
 
   intr_root_claim(hlic_intr_handler, bus);
 
-  /* TODO(MichalBlk): discover devices using FDT. */
-  phandle_t node;
+  /*
+   * Device enumeration.
+   * TODO: this should be performed by a simplebus enumeration.
+   */
 
-  /* Create RISC-V CLINT device and assign resources to it. */
-  device_t *dev = device_add_child(bus, 1);
-  dev->ic = bus;
-  node = FDT_finddevice("/soc/clint");
-  if (node == FDT_NODEV)
-    return ENXIO;
-  dev->node = node;
-  device_add_memory(dev, 0, 0xf0010000, 0x10000);
-  device_add_irq(dev, 0, HLIC_IRQ_SOFTWARE_SUPERVISOR);
-  device_add_irq(dev, 1, HLIC_IRQ_TIMER_SUPERVISOR);
+  int unit = 0;
+  int err;
+  device_t *plic;
 
-  /* Create RISC-V PLIC device and assign resources to it. */
-  device_t *plic = device_add_child(bus, 2);
-  plic->ic = bus;
-  node = FDT_finddevice("/soc/interrupt-controller");
-  if (node == FDT_NODEV)
-    return ENXIO;
-  plic->node = node;
-  device_add_memory(plic, 0, 0xf0c00000, 0x400000);
-  device_add_irq(plic, 0, HLIC_IRQ_EXTERNAL_SUPERVISOR);
+  if ((err = simplebus_add_child(bus, "/soc/interrupt-controller", unit++, bus,
+                                 &plic)))
+    return err;
 
-  extern driver_t plic_driver;
-  plic->driver = &plic_driver;
-  assert(device_probe(plic));
-  assert(!device_attach(plic));
+  if ((err = simplebus_add_child(bus, "/soc/clint", unit++, bus, NULL)))
+    return err;
 
-  /* Create liteuart device and assign resources to it. */
-  dev = device_add_child(bus, 0);
-  dev->ic = plic;
-  node = FDT_finddevice("/soc/serial");
-  if (node == FDT_NODEV)
-    return ENXIO;
-  dev->node = node;
-  device_add_memory(dev, 0, 0xf0001000, 0x100);
-  device_add_irq(dev, 0, 1);
+  if ((err = simplebus_add_child(bus, "/soc/serial", unit++, plic, NULL)))
+    return err;
 
   return bus_generic_probe(bus);
 }
 
-static ic_methods_t hlic_ic_if = {
-  .intr_alloc = hlic_intr_alloc,
-  .intr_release = hlic_intr_release,
-  .intr_setup = hlic_intr_setup,
-  .intr_teardown = hlic_intr_teardown,
+static pic_methods_t hlic_pic_if = {
+  .alloc_intr = hlic_alloc_intr,
+  .release_intr = hlic_release_intr,
+  .setup_intr = hlic_setup_intr,
+  .teardown_intr = hlic_teardown_intr,
+  .map_intr = hlic_map_intr,
 };
 
 static bus_methods_t rootdev_bus_if = {
@@ -243,7 +247,7 @@ driver_t rootdev_driver = {
   .attach = rootdev_attach,
   .interfaces =
     {
-      [DIF_IC] = &hlic_ic_if,
+      [DIF_PIC] = &hlic_pic_if,
       [DIF_BUS] = &rootdev_bus_if,
     },
 };

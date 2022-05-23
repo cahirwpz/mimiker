@@ -10,7 +10,7 @@
 #include <riscv/mcontext.h>
 
 #ifdef __riscv_c
-//#error "Mimiker assumes four-byte instructions!"
+#error "Mimiker assumes four-byte instructions!"
 #endif
 
 void ctx_init(ctx_t *ctx, void *pc, void *sp) {
@@ -24,13 +24,16 @@ void ctx_init(ctx_t *ctx, void *pc, void *sp) {
   /*
    * Supervisor status register:
    *  - Make executable readable = FALSE
-   *  - Permit supervisor user memory access = FALSE
+   *  - Permit supervisor user memory access = !TRAP_USER_ACCESS
    *  - Floating point extension state = OFF
    *  - Supervisor previous privilege mode = SUPERVISOR
    *  - Supervisor previous interrupt enabled = TRUE
    *  - Supervisor interrupt enabled = FALSE
    */
   _REG(ctx, SR) = SSTATUS_FS_OFF | SSTATUS_SPP_SUPV | SSTATUS_SPIE;
+#if !TRAP_USER_ACCESS
+  _REG(ctx, SR) |= SSTATUS_SUM;
+#endif /* !TRAP_USER_ACCESS */
 }
 
 void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg) {
@@ -60,13 +63,16 @@ void mcontext_init(mcontext_t *ctx, void *pc, void *sp) {
   /*
    * Supervisor status register:
    *  - Make executable readable = FALSE
-   *  - Permit supervisor user memory access = FALSE
+   *  - Permit supervisor user memory access = !TRAP_USER_ACCESS
    *  - Floating point extension state = OFF
    *  - Supervisor previous privilege mode = USER
    *  - Supervisor previous interrupt enabled = TRUE
    *  - Supervisor interrupt enabled = FALSE
    */
   _REG(ctx, SR) = SSTATUS_FS_OFF | SSTATUS_SPP_USER | SSTATUS_SPIE;
+#if !TRAP_USER_ACCESS
+  _REG(ctx, SR) |= SSTATUS_SUM;
+#endif /* !TRAP_USER_ACCESS */
 }
 
 void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
@@ -94,7 +100,7 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
   }
 
 #if FPU
-  /* FPE state */
+  /* FPU state */
   if (uc->uc_flags & _UC_FPU)
     memcpy(to->__fregs, from->__fregs, sizeof(__fregset_t));
 #endif

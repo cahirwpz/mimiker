@@ -4,6 +4,7 @@
 #include <sys/fdt.h>
 #include <sys/klog.h>
 #include <sys/sched.h>
+#include <sys/thread.h>
 #include <dev/uart.h>
 
 /*
@@ -85,10 +86,7 @@ static intr_filter_t liteuart_intr(void *data) {
 }
 
 static int liteuart_probe(device_t *dev) {
-  char compat[64];
-  if (FDT_getprop(dev->node, "compatible", (void *)compat, sizeof(compat)) < 0)
-    return 0;
-  return strcmp(compat, "litex,liteuart") == 0;
+  return FDT_is_compatible(dev->node, "litex,liteuart");
 }
 
 static int liteuart_attach(device_t *dev) {
@@ -115,7 +113,7 @@ static int liteuart_attach(device_t *dev) {
   liteuart->irq = device_take_irq(dev, 0, RF_ACTIVE);
   assert(liteuart->irq);
 
-  intr_setup(dev, liteuart->irq, liteuart_intr, NULL, dev, "liteuart");
+  pic_setup_intr(dev, liteuart->irq, liteuart_intr, NULL, dev, "liteuart");
 
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);

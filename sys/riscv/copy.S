@@ -5,127 +5,91 @@
 #include "assym.h"
 
 /*
- * NOTE: RISC-V uses generic implementation of libc string routines,
- * thereby cannot make any assumptions regarding its usage of registers
- * nor stack.
- */
-
-.macro save_reg reg, offset
-	REG_S \reg, (\offset)(sp)
-.endm
-
-.macro load_reg reg, offset
-	REG_L \reg, (\offset)(sp)
-.endm
-
-.macro ctx_save
-	PTR_ADDI sp, sp, -CTX_SIZE
-
-	save_reg ra, CTX_RA
-
-	save_reg s0, CTX_S0
-	save_reg s1, CTX_S1
-	save_reg s2, CTX_S2
-	save_reg s3, CTX_S3
-	save_reg s4, CTX_S4
-	save_reg s5, CTX_S5
-	save_reg s6, CTX_S6
-	save_reg s7, CTX_S7
-	save_reg s8, CTX_S8
-	save_reg s9, CTX_S9
-	save_reg s10, CTX_S10
-	save_reg s11, CTX_S11
-
-	PTR_S sp, PCPU_CPY_CTX(tp)
-.endm
-
-.macro ctx_load
-	PTR_L sp, PCPU_CPY_CTX(tp)
-
-	load_reg ra, CTX_RA
-
-	load_reg s0, CTX_S0
-	load_reg s1, CTX_S1
-	load_reg s2, CTX_S2
-	load_reg s3, CTX_S3
-	load_reg s4, CTX_S4
-	load_reg s5, CTX_S5
-	load_reg s6, CTX_S6
-	load_reg s7, CTX_S7
-	load_reg s8, CTX_S8
-	load_reg s9, CTX_S9
-	load_reg s10, CTX_S10
-	load_reg s11, CTX_S11
-
-	PTR_ADDI sp, sp, CTX_SIZE
-.endm
-
-/*
  * Enable permit Supervisor User Memory access (SUM).
  */
 .macro enter_user_access tmp
+#if TRAP_USER_ACCESS
 	REG_LI \tmp, SSTATUS_SUM
 	csrs sstatus, \tmp
+#endif /* TRAP_USER_ACCESS */
 .endm
 
 /*
  * Disable permit Supervisor User Memory access (SUM).
  */
 .macro exit_user_access tmp
+#if TRAP_USER_ACCESS
 	REG_LI \tmp, SSTATUS_SUM
 	csrc sstatus, \tmp
+#endif /* TRAP_USER_ACCESS */
 .endm
 
 .macro onfault_set tmp, td, func
-	PTR_L \td, PCPU_CURTHREAD(tp)
-	PTR_LA \tmp, \func
-	PTR_S \tmp, TD_ONFAULT(\td)
+	PTR_L	\td, PCPU_CURTHREAD(tp)
+	PTR_LA	\tmp, \func
+	PTR_S	\tmp, TD_ONFAULT(\td)
 	enter_user_access \tmp
-.endm
-
-.macro onfault_set_and_save tmp, td, func
-	ctx_save
-	onfault_set \tmp, \td, \func
 .endm
 
 .macro onfault_clr tmp, td
 	exit_user_access \tmp
-	PTR_L \td, PCPU_CURTHREAD(tp)
-	PTR_S zero, TD_ONFAULT(tp)
-.endm
-
-.macro onfault_clr_and_load tmp, td
-	onfault_clr \tmp, \td
-	ctx_load
+	PTR_L	\td, PCPU_CURTHREAD(tp)
+	PTR_S	zero, TD_ONFAULT(tp)
 .endm
 
 /*
- * int copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *lencopied)
+ * copycommon - common copy routine
  *
- * Copy a null terminated string from the user address space into
- * the kernel address space.
+ * a0 - Source address
+ * a1 - Destination address
+ * a2 - Size of copy
+ *
+ * Taken from `FreeBSD/sys/riscv/riscv/copyinout.S`.
  */
-ENTRY(copyinstr)
-	/* len > 0 */
-	bnez a2, 0f
-	mv a0, zero
-	ret
+.macro copycommon
+	REG_LI	t2, XLEN_BYTES
+	blt	a2, t2, 4f		/* Byte-copy if len < XLEN_BYTES */
 
-0:	
-	/* (uintptr_t)udaddr < (uintptr_t)(udaddr + len) */
-	PTR_ADD t0, a0, a2
-	bgeu a0, t0, reterr
+	/*
+	 * Compare lower bits of src and dest.
+	 * If they are aligned with each other, we can do word copy.
+	 */
+	andi	t0, a0, (XLEN_BYTES-1)	/* Low bits of src */
+	andi	t1, a1, (XLEN_BYTES-1)	/* Low bits of dest */
+	bne	t0, t1, 4f		/* Misaligned. Go to byte copy */
+	beqz	t0, 2f			/* Already word-aligned, skip ahead */
 
-	/* (uintptr_t)(udaddr + len) <= USER_SPACE_END */
-	REG_LI t1, USER_SPACE_END
-	bgtu t0, t1, reterr
+	/* Byte copy until the first word-aligned address. */
+1:	lb	a4, 0(a0)		/* Load byte from src */
+	PTR_ADDI	a0, a0, 1
+	sb	a4, 0(a1)		/* Store byte in dest */
+	PTR_ADDI	a1, a1, 1
+	LONG_ADDI	a2, a2, -1	/* len-- */
+	andi	t0, a0, (XLEN_BYTES-1)
+	bnez	t0, 1b
+	j	3f
 
-	onfault_set_and_save t0, t1, copyerr
-	call copystr
-	onfault_clr_and_load t0, t1
+	/* Copy words. */
+2:	LONG_L	a4, 0(a0)			/* Load word from src */
+	PTR_ADDI	a0, a0, XLEN_BYTES
+	LONG_S	a4, 0(a1)			/* Store word in dest */
+	PTR_ADDI	a1, a1, XLEN_BYTES
+	LONG_ADDI	a2, a2, -XLEN_BYTES	/* len -= XLEN_BYTES */
+3:	bgeu	a2, t2, 2b			/* Again if len >= XLEN_BYTES */
 
-	ret
-END(copyinstr)
+	/* Check if we're finished. */
+	beqz	a2, 5f
+
+	/* Copy any remaining bytes. */
+4:	lb	a4, 0(a0)		/* Load byte from src */
+	PTR_ADDI	a0, a0, 1
+	sb	a4, 0(a1)		/* Store byte in dest */
+	PTR_ADDI	a1, a1, 1
+	LONG_ADDI	a2, a2, -1	/* len-- */
+	bnez	a2, 4b
+
+5:
+	.endm
 
 /*
  * int copyin(const void *udaddr, void *kaddr, size_t len)
@@ -134,22 +98,21 @@ END(copyinstr)
  */
 ENTRY(copyin)
 	/* len > 0 */
-	beqz a2, 0f
+	beqz	a2, 1f
 
 	/* (uintptr_t)udaddr < (uintptr_t)(udaddr + len) */
-	PTR_ADD t0, a0, a2
-	bgeu a0, t0, reterr
+	PTR_ADD	t0, a0, a2
+	bgeu	a0, t0, copyerr
 
 	/* (uintptr_t)(udaddr + len) <= USER_SPACE_END */
-	REG_LI t1, USER_SPACE_END
-	bgtu t0, t1, reterr
+	REG_LI	t1, USER_SPACE_END
+	bgtu	t0, t1, copyerr
 
-	onfault_set_and_save t0, t1, copyerr
-	call bcopy
-	onfault_clr_and_load t0, t1
+	onfault_set t0, t1, copyerr
+	copycommon
+	onfault_clr t0, t1
 
-0:
-	mv a0, zero
+1:	mv	a0, zero
 	ret
 END(copyin)
 
@@ -160,29 +123,72 @@ END(copyin)
  */
 ENTRY(copyout)
 	/* len > 0 */
-	beqz a2, 0f
+	beqz	a2, 1f
 
 	/* (uintptr_t)udaddr < (uintptr_t)(udaddr + len) */
-	PTR_ADD t0, a1, a2
-	bgeu a1, t0, reterr
+	PTR_ADD	t0, a1, a2
+	bgeu	a1, t0, copyerr
 
 	/* (uintptr_t)(udaddr + len) <= USER_SPACE_END */
-	REG_LI t1, USER_SPACE_END
-	bgtu t0, t1, reterr
+	REG_LI	t1, USER_SPACE_END
+	bgtu	t0, t1, copyerr
 
-	onfault_set_and_save t0, t1, copyerr
-	call bcopy
-	onfault_clr_and_load t0, t1
+	onfault_set t0, t1, copyerr
+	copycommon
+	onfault_clr t0, t1
 
-0:
-	mv a0, zero
+1:	mv	a0, zero
 	ret
 END(copyout)
 
+/*
+ * int copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *lencopied)
+ *
+ * Copy a null terminated string from the user address space into
+ * the kernel address space.
+ *
+ * Taken from `FreeBSD/sys/riscv/riscv/copyinout.S`.
+ */
+ENTRY(copyinstr)
+	mv	a5, zero		/* count = 0 */
+
+	/* len > 0 */
+	beqz	a2, 3f
+
+	/* (uintptr_t)udaddr < (uintptr_t)(udaddr + len) */
+	PTR_ADD	t0, a0, a2
+	bgeu	a0, t0, copyerr
+
+	/* (uintptr_t)(udaddr + len) <= USER_SPACE_END */
+	REG_LI	t1, USER_SPACE_END
+	bgtu	t0, t1, copyerr
+
+	onfault_set t0, t1, copyerr
+
+1:	lb	a4, 0(a0)		/* Load from uaddr */
+	PTR_ADDI	a0, a0, 1
+	sb	a4, 0(a1)		/* Store in kaddr */
+	PTR_ADDI	a1, a1, 1
+	beqz	a4, 2f
+	LONG_ADDI	a2, a2, -1	/* len-- */
+	LONG_ADDI	a5, a5, 1	/* count++ */
+	bnez	a2, 1b
+
+2:	onfault_clr t0, t1
+
+3:	beqz	a3, 4f			/* Check if done != NULL */
+	LONG_ADDI	a5, a5, 1	/* count++ */
+	LONG_S	a5, 0(a3)		/* done = count */
+
+4:	mv	a0, zero		/* return 0 */
+	beqz	a4, 5f
+	REG_LI	a0, ENAMETOOLONG
+
+5:	ret
+END(copyinstr)
+
 ENTRY(copyerr)
-	ctx_load
-reterr:
-	REG_LI a0, EFAULT
+	REG_LI	a0, EFAULT
 	ret
 END(copyerr)
 
@@ -191,10 +197,10 @@ END(copyerr)
  */
 ENTRY(try_load_word)
 	onfault_set t0, t1, fault
-	INT_L t2, (a0)
+	INT_L	t2, (a0)
 	onfault_clr t0, t1
-	INT_S t2, (a1)
-	REG_LI a0, 1
+	INT_S	t2, (a1)
+	REG_LI	a0, 1
 	ret
 END(try_load_word)
 
@@ -203,14 +209,14 @@ END(try_load_word)
  */
 ENTRY(try_store_word)
 	onfault_set t0, t1, fault
-	INT_S a1, (a0)
+	INT_S	a1, (a0)
 	onfault_clr t0, t1
-	REG_LI a0, 1
+	REG_LI	a0, 1
 	ret
 END(try_store_word)
 
 ENTRY(fault)
-	mv a0, zero
+	mv	a0, zero
 	ret
 END(fault)
 

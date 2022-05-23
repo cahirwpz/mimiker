@@ -33,7 +33,11 @@ _ENTRY(_start)
 	 * we would have to choose the hart to perform the global startup.
 	 * FTTB, we assume a single hart of ID 0.
 	 */
+<<<<<<< HEAD
 	//bnez a0, halt
+=======
+	bnez a0, halt
+>>>>>>> 9d9e5a9eae0b42bbd731a3b632bca830dbea6a83
 
 	/* Move to the initial stack. */
 	PTR_LA sp, initstack_end

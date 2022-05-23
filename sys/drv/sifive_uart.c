@@ -127,7 +127,7 @@ static int sfuart_attach(device_t *dev) {
   sfuart->irq = device_take_irq(dev, 0, RF_ACTIVE);
   assert(sfuart->irq);
 
-  intr_setup(dev, sfuart->irq, uart_intr, NULL, dev, "SiFive UART");
+  pic_setup_intr(dev, sfuart->irq, uart_intr, NULL, dev, "SiFive UART");
 
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);

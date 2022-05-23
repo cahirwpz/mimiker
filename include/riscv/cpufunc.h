@@ -9,7 +9,7 @@
 
 #define __sp()                                                                 \
   ({                                                                           \
-    uint64_t __rv;                                                             \
+    register_t __rv;                                                           \
     __asm __volatile("mv %0, sp" : "=r"(__rv));                                \
     __rv;                                                                      \
   })
@@ -30,7 +30,12 @@
 #define rdinstret() csr_read64(instret)
 #define rdhpmcounter(n) csr_read64(hpmcounter##n)
 
+#if TRAP_USER_ACCESS
 #define enter_user_access() csr_set(sstatus, SSTATUS_SUM)
 #define exit_user_access() csr_clear(sstatus, SSTATUS_SUM)
+#else
+#define enter_user_access()
+#define exit_user_access()
+#endif /* TRAP_USER_ACCESS */
 
 #endif /* !_RISCV_CPUFUNC_H_ */

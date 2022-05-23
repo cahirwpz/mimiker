@@ -35,7 +35,7 @@ static size_t count_args(void) {
 
 static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
                               kstack_t *stk) {
-  fdt_mem_reg_t mrs[FDT_MAX_MEM_REGS];
+  fdt_mem_reg_t mrs[FDT_MAX_REG_TUPLES];
   size_t cnt, size;
   if (FDT_get_mem(mrs, &cnt, &size))
     panic("Failed to retrieve memory regions from DTB!");
@@ -205,8 +205,8 @@ static void physmem_regions(void) {
 void __noreturn board_init(void) {
   init_kasan();
   init_klog();
-  physmem_regions();
   init_sbi();
+  physmem_regions();
   intr_enable();
   kernel_init();
 }
