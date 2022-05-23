@@ -26,7 +26,6 @@ typedef enum {
   DIF_BUS,
   DIF_PIC,
   DIF_PCI_BUS,
-  DIF_IC,
   DIF_UART,
   DIF_EMMC,
   DIF_USBHC,

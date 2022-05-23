@@ -99,7 +99,6 @@ __boot_data static vaddr_t _data;
 __boot_data static uint8_t *_boot_stack;
 __boot_data static vaddr_t _ebss;
 __boot_data static vaddr_t _kernel_end;
-__boot_data static size_t _kernel_size;
 
 /*
  * Virtual memory boot data.
@@ -149,7 +148,6 @@ __boot_text static void set_boot_syms(void) {
   _boot_stack = (uint8_t *)syms[5];
   _ebss = (vaddr_t)syms[6];
   _kernel_end = (vaddr_t)syms[7];
-  _kernel_size = (size_t)syms[8];
 #else
   _kernel_start = (vaddr_t)__kernel_start;
   _text = (vaddr_t)__text;
@@ -158,7 +156,6 @@ __boot_text static void set_boot_syms(void) {
   _boot_stack = (uint8_t *)boot_stack;
   _ebss = (vaddr_t)__ebss;
   _kernel_end = (vaddr_t)__kernel_end;
-  _kernel_size = (size_t)__kernel_size;
 #endif
 }
 

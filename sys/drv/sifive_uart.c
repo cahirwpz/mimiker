@@ -51,7 +51,6 @@ typedef struct sfuart_state {
 #define SFUART_BUFSIZE 128
 
 static bool sfuart_rx_ready(void *state) {
-  klog(__func__);
   sfuart_state_t *sfuart = state;
   uint32_t data = in(SFUART_RXDATA);
   if (data & SFUART_RXDATA_EMPTY)
@@ -62,7 +61,6 @@ static bool sfuart_rx_ready(void *state) {
 }
 
 static uint8_t sfuart_getc(void *state) {
-  klog(__func__);
   sfuart_state_t *sfuart = state;
   if (sfuart->buffered) {
     sfuart->buffered = false;
@@ -72,34 +70,27 @@ static uint8_t sfuart_getc(void *state) {
 }
 
 static bool sfuart_tx_ready(void *state) {
-  klog(__func__);
   sfuart_state_t *sfuart = state;
   return !(in(SFUART_TXDATA)&SFUART_TXDATA_FULL);
 }
 
 static void sfuart_putc(void *state, uint8_t c) {
-  klog(__func__);
   sfuart_state_t *sfuart = state;
   out(SFUART_TXDATA, c);
 }
 
 static void sfuart_tx_enable(void *state) {
-  klog(__func__);
   sfuart_state_t *sfuart = state;
   set(SFUART_IRQ_ENABLE, SFUART_IRQ_ENABLE_TXWM);
 }
 
 static void sfuart_tx_disable(void *state) {
-  klog(__func__);
   sfuart_state_t *sfuart = state;
   clr(SFUART_IRQ_ENABLE, SFUART_IRQ_ENABLE_TXWM);
 }
 
 static int sfuart_probe(device_t *dev) {
-  char compat[64];
-  if (FDT_getprop(dev->node, "compatible", (void *)compat, sizeof(compat)) < 0)
-    return 0;
-  return strcmp(compat, "sifive,uart0") == 0;
+  return FDT_is_compatible(dev->node, "sifive,uart0");
 }
 
 static int sfuart_attach(device_t *dev) {
