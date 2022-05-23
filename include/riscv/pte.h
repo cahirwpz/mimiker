@@ -43,11 +43,11 @@
 #include <stdint.h>
 
 #if __riscv_xlen == 64
-typedef uint64_t pd_entry_t; /* page directory entry */
-typedef uint64_t pt_entry_t; /* page table entry */
+typedef uint64_t pde_t; /* page directory entry */
+typedef uint64_t pte_t; /* page table entry */
 #else
-typedef uint32_t pd_entry_t; /* page directory entry */
-typedef uint32_t pt_entry_t; /* page table entry */
+typedef uint32_t pde_t; /* page directory entry */
+typedef uint32_t pte_t; /* page table entry */
 #endif
 
 typedef uint16_t asid_t; /* address space identifier */
@@ -78,11 +78,7 @@ typedef uint16_t asid_t; /* address space identifier */
 #define L2_SIZE (1 << L2_SHIFT)
 #define L2_OFFSET (L2_SIZE - 1)
 #define L2_INDEX(va) (((va) >> L2_SHIFT) & Ln_ADDR_MASK)
-
-#define PTE_INDEX L2_INDEX
-#else
-#define PTE_INDEX L1_INDEX
-#endif
+#endif /* !L2_SHIFT */
 
 /* Bits 9:8 are reserved for software. */
 #define PTE_SW_WRITE (1 << 9)

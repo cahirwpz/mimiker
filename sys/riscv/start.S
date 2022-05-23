@@ -31,13 +31,8 @@ _ENTRY(_start)
 	 * NOTE: In an actual SMP system, we could have multiple harts
 	 * entering the kernel simultaneously. In such case,
 	 * we would have to choose the hart to perform the global startup.
-	 * FTTB, we assume a single hart of ID 0.
+	 * FTTB, we assume a single hart entering the kernel.
 	 */
-<<<<<<< HEAD
-	//bnez a0, halt
-=======
-	bnez a0, halt
->>>>>>> 9d9e5a9eae0b42bbd731a3b632bca830dbea6a83
 
 	/* Move to the initial stack. */
 	PTR_LA sp, initstack_end

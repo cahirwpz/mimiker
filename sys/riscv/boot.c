@@ -62,21 +62,22 @@
  * will be dropped.
  */
 #define KL_LOG KL_INIT
+#include <sys/fdt.h>
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
+#include <sys/pmap.h>
 #include <riscv/abi.h>
 #include <riscv/cpufunc.h>
 #include <riscv/pmap.h>
-#include <riscv/pte.h>
 #include <riscv/vm_param.h>
 
 #define KERNEL_VIRT_IMG_END align(_ebss, PAGESIZE)
 #define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(_ebss), PAGESIZE)
 #define KERNEL_PHYS_END (KERNEL_PHYS_IMG_END + BOOTMEM_SIZE)
 
-#define BOOT_DTB_VADDR DMAP_VADDR_BASE
-#define BOOT_PD_VADDR (DMAP_VADDR_BASE + GROWKERNEL_STRIDE)
+#define BOOT_DTB_VADDR DMAP_BASE
+#define BOOT_PD_VADDR (DMAP_BASE + GROWKERNEL_STRIDE)
 
 /*
  * Bare memory boot data.
@@ -88,7 +89,7 @@ __boot_data static void *bootmem_brk;
 /* End of boot memory allocation area. */
 __boot_data static void *bootmem_end;
 
-__boot_data static pd_entry_t *kernel_pde;
+__boot_data static pde_t *kernel_pde;
 
 /* Boot symbols. */
 __boot_data static vaddr_t _kernel_start;
@@ -106,8 +107,11 @@ __boot_data static size_t _kernel_size;
 
 /* NOTE: the boot stack is used before we switch out to `thread0`. */
 #define __bss_boot_stack __section(".bss.boot_stack")
-static __bss_boot_stack
-  __used alignas(STACK_ALIGN) uint8_t boot_stack[PAGESIZE];
+__bss_boot_stack static __used alignas(STACK_ALIGN) uint8_t
+  boot_stack[PAGESIZE];
+
+/* Kernel symbols. */
+paddr_t _eboot;
 
 /*
  * Bare memory boot functions.
@@ -158,18 +162,30 @@ __boot_text static void set_boot_syms(void) {
 #endif
 }
 
-__boot_text static pt_entry_t *ensure_pte(vaddr_t va) {
-  pd_entry_t *pdep = kernel_pde + pt_index(0, va);
+__boot_text static size_t ealry_pt_index(unsigned lvl, vaddr_t va) {
+  if (lvl == 0)
+    return L0_INDEX(va);
+#if __riscv_xlen == 32
+  return L1_INDEX(va);
+#else
+  if (lvl == 1)
+    return L1_INDEX(va);
+  return L2_INDEX(va);
+#endif
+}
+
+__boot_text static pte_t *ensure_pte(vaddr_t va) {
+  pde_t *pdep = kernel_pde + ealry_pt_index(0, va);
 
   for (unsigned lvl = 0; lvl < PAGE_TABLE_DEPTH - 1; lvl++) {
     paddr_t pa;
-    if (!pde_valid_p(*pdep)) {
+    if (!VALID_PDE_P(*pdep)) {
       pa = (paddr_t)bootmem_alloc(PAGESIZE);
       *pdep = PA_TO_PTE(pa) | PTE_V;
     } else {
-      pa = pte_frame((pte_t)*pdep);
+      pa = (paddr_t)PTE_TO_PA(*pdep);
     }
-    pdep = (pde_t *)pa + pt_index(lvl + 1, va);
+    pdep = (pde_t *)pa + ealry_pt_index(lvl + 1, va);
   }
 
   return (pte_t *)pdep;
@@ -181,14 +197,14 @@ __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
     halt();
 
   for (size_t off = 0; off < size; off += PAGESIZE) {
-    pt_entry_t *ptep = ensure_pte(va + off);
+    pte_t *ptep = ensure_pte(va + off);
     *ptep = PA_TO_PTE(pa + off) | flags;
   }
 }
 
-static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde);
-
 __boot_text __noreturn void riscv_init(paddr_t dtb) {
+  set_boot_syms();
+
   if (!((paddr_t)__eboot < _kernel_start || _kernel_end < (paddr_t)__boot))
     halt();
 
@@ -230,7 +246,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
   early_kenter(BOOT_PD_VADDR, PAGESIZE, (paddr_t)kernel_pde, PTE_KERN);
 
   /* Temporarily set the trap vector. */
-  csr_write(stvec, riscv_boot);
+  csr_write(stvec, _riscv_boot);
 
   /*
    * Move to VM boot stage.
@@ -241,7 +257,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
   const paddr_t satp = SATP_MODE_SV32 | ((paddr_t)kernel_pde >> PAGE_SHIFT);
 #endif
 
-  void *boot_sp = &boot_stack[PAGESIZE];
+  void *boot_sp = &_boot_stack[PAGESIZE];
 
   __sfence_vma();
 
@@ -249,7 +265,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
                    "mv a1, %1\n\t"
                    "mv sp, %2\n\t"
                    "csrw satp, %3\n\t"
-                   "nop" /* triggers instruction fetch page fault */
+                   "ebreak" /* triggers instruction fetch page fault */
                    :
                    : "r"(dtb), "r"(kernel_pde), "r"(boot_sp), "r"(satp)
                    : "a0", "a1");
@@ -260,6 +276,16 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
 /*
  * Virtual memory boot functions.
  */
+
+static void set_kernel_syms(void) {
+#if __riscv_xlen == 64
+  extern char __kernel_syms[];
+  uintptr_t *syms = (uintptr_t *)__kernel_syms;
+  _eboot = (paddr_t)syms[0];
+#else
+  _eboot = (paddr_t)__eboot;
+#endif
+}
 
 static void clear_bss(void) {
   long *ptr = (long *)__bss;
@@ -274,7 +300,9 @@ extern void cpu_exception_handler(void);
 extern void *board_stack(paddr_t dtb_pa, vaddr_t dtb_va);
 extern void __noreturn board_init(void);
 
-static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
+#define __text_riscv_boot __section(".text.riscv_boot")
+__text_riscv_boot static __noreturn __used void riscv_boot(paddr_t dtb,
+                                                           paddr_t pde) {
   /*
    * Set initial register values.
    */
@@ -294,12 +322,17 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
   csr_clear(sie, SIP_SEIP | SIP_STIP | SIP_SSIP);
   csr_clear(sie, SIE_SEIE | SIE_STIE | SIE_SSIE);
 
+  set_kernel_syms();
+
   clear_bss();
 
   vaddr_t dtb_va = BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
   void *sp = board_stack(dtb, dtb_va);
 
   pmap_bootstrap(pde, BOOT_PD_VADDR);
+
+  void *fdtp = (void *)phys_to_dmap(FDT_get_physaddr());
+  FDT_changeroot(fdtp);
 
   /*
    * Switch to thread0's stack and perform `board_init`.

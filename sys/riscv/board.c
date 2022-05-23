@@ -12,7 +12,6 @@
 #include <sys/vm_physmem.h>
 #include <riscv/mcontext.h>
 #include <riscv/pmap.h>
-#include <riscv/riscvreg.h>
 #include <riscv/sbi.h>
 #include <riscv/vm_param.h>
 

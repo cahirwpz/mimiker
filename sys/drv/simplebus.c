@@ -53,8 +53,8 @@ static int sb_get_interrupts(device_t *dev, fdt_intr_t *intrs, size_t *cntp) {
     return err;
 
   pcell_t *tuples;
-  int ntuples =
-    FDT_getencprop_alloc_multi(node, "interrupts", icells, (void **)&tuples);
+  int ntuples = FDT_getencprop_alloc_multi(
+    node, "interrupts", icells * sizeof(pcell_t), (void **)&tuples);
   if (ntuples == -1)
     return ENXIO;
   if (!ntuples)
