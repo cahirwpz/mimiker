@@ -96,7 +96,6 @@ static int sfuart_probe(device_t *dev) {
 static int sfuart_attach(device_t *dev) {
   sfuart_state_t *sfuart =
     kmalloc(M_DEV, sizeof(sfuart_state_t), M_WAITOK | M_ZERO);
-  assert(sfuart);
 
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
