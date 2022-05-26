@@ -21,7 +21,7 @@ static const pte_t vm_prot_map[] = {
  * Page directory.
  */
 
-pde_t pde_make(unsigned lvl, paddr_t pa) {
+pde_t pde_make(int lvl, paddr_t pa) {
   pde_t *pde = (pde_t *)phys_to_dmap(pa);
   for (int i = 0; i < PT_ENTRIES; i++)
     pde[i] = PTE_GLOBAL;
@@ -36,9 +36,9 @@ void broadcast_kernel_top_pde(unsigned idx, pde_t pde) {
  * Page table.
  */
 
-pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel) {
+pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags) {
   pte_t pte = PTE_PFN(pa) | vm_prot_map[prot];
-  if (kernel)
+  if (flags & _PMAP_KERNEL)
     pte |= PTE_GLOBAL;
   else
     pte &= ~(PTE_VALID | PTE_DIRTY);
@@ -61,6 +61,12 @@ pte_t pte_protect(pte_t pte, vm_prot_t prot) {
  * Physical map management.
  */
 
+void pmap_md_setup(pmap_t *pmap) {
+  if (pmap == pmap_kernel())
+    return;
+  pmap->pde = (paddr_t)MIPS_PHYS_TO_KSEG0(pmap->pde);
+}
+
 void pmap_md_activate(pmap_t *umap) {
   pmap_t *kmap = pmap_kernel();
 
@@ -79,12 +85,17 @@ void pmap_md_activate(pmap_t *umap) {
   mips32_setentryhi(umap ? umap->asid : 0);
 }
 
-void pmap_md_setup(pmap_t *pmap) {
-  if (pmap == pmap_kernel())
-    return;
-  pmap->pde = (paddr_t)MIPS_PHYS_TO_KSEG0(pmap->pde);
+void pmap_md_bootstrap(pde_t *pd __unused) {
+  dmap_paddr_base = 0;
+  dmap_paddr_end = MIPS_KSEG1_START - MIPS_KSEG0_START;
 }
 
-void pmap_md_delete(pmap_t *pmap) {
-  /* Nothing to be done here. */
+/*
+ * Direct map.
+ */
+
+void *phys_to_dmap(paddr_t addr) {
+  if (addr >= DMAP_BASE)
+    return (void *)addr;
+  return (void *)(addr - dmap_paddr_base) + DMAP_BASE;
 }

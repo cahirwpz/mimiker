@@ -49,19 +49,41 @@ static const pte_t vm_prot_map[] = {
 };
 
 /*
+ * The list of all the user pmaps.
+ * Order of acquiring locks:
+ *  - `pmap_kernel()->mtx`
+ *  - `user_pmaps_lock`
+ */
+static MTX_DEFINE(user_pmaps_lock, 0);
+static LIST_HEAD(, pmap) user_pmaps = LIST_HEAD_INITIALIZER(user_pmaps);
+
+/*
  * Page directory.
  */
 
-pde_t pde_make(unsigned lvl, paddr_t pa) {
+pde_t pde_make(int lvl, paddr_t pa) {
   return PA_TO_PTE(pa) | PTE_V;
+}
+
+void broadcast_kernel_top_pde(vaddr_t va, pde_t pde) {
+  SCOPED_MTX_LOCK(&user_pmaps_lock);
+
+  size_t idx = L0_INDEX(va);
+
+  pmap_t *user_pmap;
+  LIST_FOREACH (user_pmap, &user_pmaps, md.pmap_link) {
+    pde_t *pdep = (pde_t *)phys_to_dmap(user_pmap->pde);
+    pdep[idx] = pde;
+  }
 }
 
 /*
  * Page table.
  */
 
-pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel) {
+pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags) {
   pte_t pte = PA_TO_PTE(pa) | vm_prot_map[prot];
+  bool kernel = flags & _PMAP_KERNEL;
 
   const pte_t mask_on = kernel ? PTE_G : PTE_U;
   pte |= mask_on;
@@ -91,21 +113,28 @@ void pmap_md_activate(pmap_t *umap) {
 void pmap_md_setup(pmap_t *pmap) {
   pmap->md.satp = SATP_MODE_SV32 | ((paddr_t)pmap->asid << SATP_ASID_S) |
                   (pmap->pde >> PAGE_SHIFT);
+
+  /* Install kernel pagetables. */
+  pmap_t *kmap = pmap_kernel();
+  size_t halfpage = PAGESIZE / 2;
+  WITH_MTX_LOCK (&kmap->mtx) {
+    memcpy((void *)phys_to_dmap(pmap->pde) + halfpage,
+           (void *)phys_to_dmap(kmap->pde) + halfpage, halfpage);
+  }
+
+  WITH_MTX_LOCK (&user_pmaps_lock)
+    LIST_INSERT_HEAD(&user_pmaps, pmap, md.pmap_link);
 }
 
 void pmap_md_delete(pmap_t *pmap) {
-  /* Nothing to be done here. */
+  WITH_MTX_LOCK (&user_pmaps_lock)
+    LIST_REMOVE(pmap, md.pmap_link);
 }
 
-/*
- * Bootstrap.
- */
-
-void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va) {
+void pmap_md_bootstrap(pde_t *pd) {
   dmap_paddr_base = kenv_get_ulong("mem_start");
   dmap_paddr_end = kenv_get_ulong("mem_end");
   size_t dmap_size = dmap_paddr_end - dmap_paddr_base;
-  kernel_pde = pd_pa;
 
   /* Assume physical memory starts at the beginning of L0 region. */
   assert(is_aligned(dmap_paddr_base, L0_SIZE));
@@ -121,10 +150,18 @@ void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va) {
   klog("dmap range: %p - %p", DMAP_BASE, DMAP_BASE + dmap_size - 1);
 
   /* Build direct map using superpages. */
-  pde_t *pde = (void *)pd_va;
   size_t idx = L0_INDEX(DMAP_BASE);
   for (paddr_t pa = dmap_paddr_base; pa < dmap_paddr_end; pa += L0_SIZE, idx++)
-    pde[idx] = PA_TO_PTE(pa) | PTE_KERN;
+    pd[idx] = PA_TO_PTE(pa) | PTE_KERN;
 
   __sfence_vma();
+}
+
+/*
+ * Direct map.
+ */
+
+void *phys_to_dmap(paddr_t addr) {
+  assert((addr >= dmap_paddr_base) && (addr < dmap_paddr_end));
+  return (void *)(addr - dmap_paddr_base) + DMAP_BASE;
 }

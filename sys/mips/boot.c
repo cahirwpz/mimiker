@@ -1,9 +1,9 @@
 #include <mips/m32c0.h>
 #include <mips/pmap.h>
 #include <sys/mimiker.h>
+#include <sys/pmap.h>
 #include <sys/vm.h>
 #include <sys/kasan.h>
-#include <sys/_pmap.h>
 #include <mips/kasan.h>
 
 /* Last address in kseg0 used by kernel for boot allocation. */
@@ -131,10 +131,7 @@ __boot_text void *mips_init(void) {
   mips32_setindex(0);
   mips32_tlbwi();
 
-  /* Since variables are in kseg2 we cannot initialize them earlier. */
-  dmap_paddr_base = 0;
-  dmap_paddr_end = MIPS_KSEG1_START - MIPS_KSEG0_START;
-  kernel_pde = (paddr_t)pde;
+  pmap_bootstrap((paddr_t)pde, pde);
 #if KASAN
   _kasan_sanitized_end = KASAN_MD_SANITIZED_START + kasan_sanitized_size;
 #endif /* !KASAN */
