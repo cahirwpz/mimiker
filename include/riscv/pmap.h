@@ -47,7 +47,7 @@ static inline size_t pt_index(unsigned lvl, vaddr_t va) {
  */
 
 static inline bool pde_valid_p(pde_t pde) {
-  return pde & PTE_V;
+  return VALID_PDE_P(pde);
 }
 
 /*
@@ -55,7 +55,7 @@ static inline bool pde_valid_p(pde_t pde) {
  */
 
 static inline bool pte_valid_p(pte_t pte) {
-  return pte != 0;
+  return VALID_PTE_P(pte);
 }
 
 static inline bool pte_access(pte_t pte, vm_prot_t prot) {
