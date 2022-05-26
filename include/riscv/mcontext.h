@@ -49,7 +49,11 @@ typedef union __fpreg {
 #endif
 } __fpreg_t;
 
+#if __riscv_xlen == 64
+typedef uint64_t __greg_t;
+#else
 typedef uint32_t __greg_t;
+#endif
 typedef __greg_t __gregset_t[_NGREG];
 typedef __fpreg_t __fregset_t[_NFREG];
 

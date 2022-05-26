@@ -21,13 +21,13 @@ ENTRY(_start)
 	LOAD_GP()
 
 	/* Grab `argc` from below stack. */
-	LONG_L	a0, CALLFRAME_SIZ(sp)
+	INT_L	a0, CALLFRAME_SIZ(sp)
 
 	/* Prepare `argv` pointing at argument vector below stack. */
 	PTR_ADDI	a1, sp, CALLFRAME_SIZ + SZREG
 
 	/* Prepare `envp`, it starts at `argv` + `argc` + 1. */
-	LONG_ADDI	t0, a0, 1	/* argv is NULL terminated */
+	INT_ADDI	t0, a0, 1	/* argv is NULL terminated */
 	LONG_SLLI	t0, t0, LONG_SCALESHIFT
 	PTR_ADD	a2, a1, t0
 
