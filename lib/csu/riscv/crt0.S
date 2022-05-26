@@ -32,7 +32,7 @@ ENTRY(_start)
 	PTR_ADD	a2, a1, t0
 
 	/* Jump to start in `crt0-common.c`. */
-	j _C_LABEL(___start)
+	j	_C_LABEL(___start)
 END(_start)
 
 # vim: sw=8 ts=8 et
