@@ -50,7 +50,7 @@ static const pte_t vm_prot_map[] = {
  * Page directory.
  */
 
-pde_t pde_make(unsigned lvl, paddr_t pa) {
+pde_t pde_make(int lvl, paddr_t pa) {
   if (lvl == 0)
     return pa | L0_TABLE;
   if (lvl == 1)
@@ -62,9 +62,9 @@ pde_t pde_make(unsigned lvl, paddr_t pa) {
  * Page table.
  */
 
-pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel) {
+pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags) {
   pte_t pte = pa | vm_prot_map[prot];
-  if (!kernel) {
+  if (!(flags & _PMAP_KERNEL)) {
     pte |= ATTR_AP_USER;
     pte &= ~ATTR_AF;
   }
@@ -95,20 +95,16 @@ void pmap_md_activate(pmap_t *umap) {
   }
 }
 
-void pmap_md_setup(pmap_t *pmap) {
-  /* Nothing to be done here. */
-}
-
-void pmap_md_delete(pmap_t *pmap) {
-  /* Nothing to be done here. */
+void pmap_md_bootstrap(pde_t *pd __unused) {
+  dmap_paddr_base = 0;
+  dmap_paddr_end = DMAP_SIZE;
 }
 
 /*
- * Bootstrap.
+ * Direct map.
  */
 
-void pmap_bootstrap(paddr_t pd_pa) {
-  dmap_paddr_base = 0;
-  dmap_paddr_end = DMAP_SIZE;
-  kernel_pde = pd_pa;
+void *phys_to_dmap(paddr_t addr) {
+  assert((addr >= dmap_paddr_base) && (addr < dmap_paddr_end));
+  return (void *)(addr - dmap_paddr_base) + DMAP_BASE;
 }

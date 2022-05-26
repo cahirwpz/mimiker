@@ -28,7 +28,9 @@
 #define PTE_FRAME_ADDR(pte) ((pte)&PA_MASK)
 
 #define PAGE_TABLE_DEPTH 4
-#define SHARED_KERNEL_PD 0
+
+#define PTE_KERNEL_EMPTY 0
+#define PTE_USER_EMPTY 0
 
 #define PTE_SET_ON_REFERENCED ATTR_AF
 #define PTE_CLR_ON_REFERENCED 0
@@ -38,37 +40,41 @@
 
 #define GROWKERNEL_STRIDE L2_SIZE
 
+typedef struct pmap pmap_t;
+
 typedef struct pmap_md {
 } pmap_md_t;
-
-/*
- * Translation structure.
- */
-
-static inline size_t pt_index(unsigned lvl, vaddr_t va) {
-  if (lvl == 0)
-    return L0_INDEX(va);
-  if (lvl == 1)
-    return L1_INDEX(va);
-  if (lvl == 2)
-    return L2_INDEX(va);
-  return L3_INDEX(va);
-}
 
 /*
  * Page directory.
  */
 
-static inline bool pde_valid_p(pde_t pde) {
-  return PTE_FRAME_ADDR(pde) != 0;
+static inline bool pde_valid_p(pde_t *pdep) {
+  return pdep && PTE_FRAME_ADDR(*pdep) != 0;
+}
+
+void *phys_to_dmap(paddr_t addr);
+
+static inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
+  pde_t *pde = phys_to_dmap(pd_pa);
+  if (lvl == 0)
+    return pde + L0_INDEX(va);
+  if (lvl == 1)
+    return pde + L1_INDEX(va);
+  if (lvl == 2)
+    return pde + L2_INDEX(va);
+  return pde + L3_INDEX(va);
+}
+
+static inline void broadcast_kernel_top_pde(vaddr_t va, pde_t pde) {
 }
 
 /*
  * Page table.
  */
 
-static inline bool pte_valid_p(pte_t pte) {
-  return PTE_FRAME_ADDR(pte) != 0;
+static inline bool pte_valid_p(pte_t *ptep) {
+  return ptep && (PTE_FRAME_ADDR(*ptep) != 0);
 }
 
 static inline bool pte_access(pte_t pte, vm_prot_t prot) {
@@ -84,15 +90,18 @@ static inline bool pte_access(pte_t pte, vm_prot_t prot) {
   }
 }
 
-static inline pte_t pte_empty(bool kernel) {
-  return 0;
-}
-
 static inline paddr_t pte_frame(pte_t pte) {
   return PTE_FRAME_ADDR(pte);
 }
 
-/* MD pmap bootstrap. */
-void pmap_bootstrap(paddr_t pd_pa);
+/*
+ * Physical map management.
+ */
+
+static inline void pmap_md_setup(pmap_t *pmap) {
+}
+
+static inline void pmap_md_delete(pmap_t *pmap) {
+}
 
 #endif /* !_AARCH64_PMAP_H_ */

@@ -1,5 +1,6 @@
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
+#include <sys/pmap.h>
 #include <sys/kasan.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
@@ -292,7 +293,7 @@ __boot_text static void enable_mmu(paddr_t pde) {
                                 SCTLR_SA0);
   __isb();
 
-  pmap_bootstrap(pde);
+  pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
 }
 
 __boot_text void *aarch64_init(void) {

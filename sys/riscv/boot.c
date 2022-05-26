@@ -226,7 +226,7 @@ static void clear_bss(void) {
 /* Trap handler in direct mode. */
 extern void cpu_exception_handler(void);
 
-extern void *board_stack(paddr_t dtb_pa, vaddr_t dtb_va);
+extern void *board_stack(paddr_t dtb_pa, void *dtb_va);
 extern void __noreturn board_init(void);
 
 static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
@@ -251,10 +251,10 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
 
   clear_bss();
 
-  vaddr_t dtb_va = BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
+  void *dtb_va = (void *)BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
   void *sp = board_stack(dtb, dtb_va);
 
-  pmap_bootstrap(pde, BOOT_PD_VADDR);
+  pmap_bootstrap(pde, (void *)BOOT_PD_VADDR);
 
   void *fdtp = (void *)phys_to_dmap(FDT_get_physaddr());
   FDT_changeroot(fdtp);

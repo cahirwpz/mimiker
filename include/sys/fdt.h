@@ -49,7 +49,7 @@ typedef struct fdt_intr {
  *  - `pa`: FDT physical address
  *  - `va`: FDT kernel virtual address
  */
-void FDT_early_init(paddr_t pa, vaddr_t va);
+void FDT_early_init(paddr_t pa, void *va);
 
 /*
  * Obtain the physical address of the FDT blob.

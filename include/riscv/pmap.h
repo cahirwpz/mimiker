@@ -21,7 +21,9 @@
  */
 
 #define PAGE_TABLE_DEPTH 2
-#define SHARED_KERNEL_PD 1
+
+#define PTE_KERNEL_EMPTY 0
+#define PTE_USER_EMPTY 0
 
 #define PTE_SET_ON_REFERENCED 0
 #define PTE_CLR_ON_REFERENCED 0
@@ -31,22 +33,20 @@
 
 #define GROWKERNEL_STRIDE 0
 
+typedef struct pmap pmap_t;
+
 typedef struct pmap_md {
 } pmap_md_t;
-
-/*
- * Translation structure.
- */
-
-static inline size_t pt_index(unsigned lvl, vaddr_t va) {
-  panic("Not implemented!");
-}
 
 /*
  * Page directory.
  */
 
-static inline bool pde_valid_p(pde_t pde) {
+static inline bool pde_valid_p(pde_t *pdep) {
+  panic("Not implemented!");
+}
+
+static inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
   panic("Not implemented!");
 }
 
@@ -54,7 +54,7 @@ static inline bool pde_valid_p(pde_t pde) {
  * Page table.
  */
 
-static inline bool pte_valid_p(pte_t pte) {
+static inline bool pte_valid_p(pte_t *ptep) {
   panic("Not implemented!");
 }
 
@@ -62,15 +62,8 @@ static inline bool pte_access(pte_t pte, vm_prot_t prot) {
   panic("Not implemented!");
 }
 
-static inline pte_t pte_empty(bool kernel) {
-  panic("Not implemented!");
-}
-
 static inline paddr_t pte_frame(pte_t pte) {
   panic("Not implemented!");
 }
-
-/* MD pmap bootstrap. */
-void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va);
 
 #endif /* !_RISCV_PMAP_H_ */
