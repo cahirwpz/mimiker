@@ -157,15 +157,6 @@ CONFIG = {
     }
 }
 
-BOOTARGS_DTS_TEMPLATE = """
-/dts-v1/;
-/plugin/;
-
-&{{/chosen}} {{
-    bootargs = "{}";
-}};
-"""
-
 
 def setboard(name):
     setvar('board', name)
@@ -305,21 +296,10 @@ class RENODE(Launchable):
             gdbport = getvar('config.gdbport', failok=False)
             self.options += [f'-e machine StartGdbServer {gdbport}']
 
-        with open('bootargs.dts', 'w') as bootargs_dts_file:
-            bootargs_dts_file.write(
-                BOOTARGS_DTS_TEMPLATE.format(' '.join(getvar('config.args')))
-            )
-        subprocess.check_call(
-            'dtc -O dtb -o bootargs.dtbo bootargs.dts', shell=True
-        )
-        dtb = os.path.join('sys/dts/', '{}.dtb'.format(getvar('board')))
-        subprocess.check_call(
-            'fdtoverlay -i {} -o {} bootargs.dtbo'.format(dtb, dtb), shell=True
-        )
-        os.remove('bootargs.dts')
-        os.remove('bootargs.dtbo')
+        # TODO(MichalBlk): we should enable passing kernel args through
+        # the launch script by introducing parameterizable DTS files.
 
-        self.options += ['-e start']
+        #self.options += ['-e start']
 
 
 class GDB(Launchable):
