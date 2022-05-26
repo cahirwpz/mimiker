@@ -1,7 +1,8 @@
 #ifndef _RISCV_INT_MWGWTYPES_H_
 #define _RISCV_INT_MWGWTYPES_H_
 
-/* XXX: gcc defines these as (unsigned) long int, which confuses printf. */
+/* XXX: for RV32 gcc defines these as (unsigned) long int,
+ * which confuses printf. */
 #undef __INT32_TYPE__
 #undef __UINT32_TYPE__
 
