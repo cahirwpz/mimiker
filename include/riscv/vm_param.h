@@ -11,6 +11,10 @@
 #define USER_STACK_TOP 0x0000003fffff0000L
 #define USER_STACK_SIZE 0x800000 /* grows down up to that size limit */
 
+/* KASAN shadow map */
+#define KASAN_SHADOW_START 0xffffffd800000000L
+#define KASAN_MAX_SHADOW_SIZE (0xcL << 30) /* 12 GB */
+
 #define VM_PAGE_PDS 32
 #define KSTACK_PAGES 2
 #define BOOTMEM_PAGES 40
@@ -24,9 +28,13 @@
 #define USER_STACK_TOP 0x7f800000
 #define USER_STACK_SIZE 0x800000 /* grows down up to that size limit */
 
+/* KASAN shadow map */
+#define KASAN_SHADOW_START 0xa0000000
+#define KASAN_MAX_SHADOW_SIZE (1 << 26) /* 64 MB */
+
 #define VM_PAGE_PDS 4
 #define KSTACK_PAGES 1
-#define BOOTMEM_PAGES 8
+#define BOOTMEM_PAGES 650
 #endif
 
 #define PAGESIZE 4096
