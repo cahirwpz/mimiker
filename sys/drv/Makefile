@@ -36,7 +36,8 @@ SOURCES-RISCV = \
 	clint.c \
 	liteuart.c \
 	litex_riscv_rootdev.c \
-	plic.c
+	plic.c \
+	sifive_uart.c
 
 CPPFLAGS += -D_MACHDEP
 
