@@ -22,6 +22,8 @@
  *     structs can't allocate physical pages on its own since
  *     the buddy system isn't initialized at that point),
  *
+ *   - Preparing KASAN shadow memory for the mapped area,
+ *
  *   - enabling MMU and moving to the second stage.
  *
  * Scheme used for the transition from the first stage to the second stage:
@@ -62,18 +64,29 @@
  * will be dropped.
  */
 #define KL_LOG KL_INIT
+#include <sys/fdt.h>
+#include <sys/kasan.h>
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
+#include <sys/pmap.h>
 #include <riscv/abi.h>
 #include <riscv/cpufunc.h>
 #include <riscv/pmap.h>
 #include <riscv/pte.h>
-#include <riscv/vm_param.h>
 
 #define KERNEL_VIRT_IMG_END align((vaddr_t)__ebss, PAGESIZE)
 #define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(__ebss), PAGESIZE)
 #define KERNEL_PHYS_END (KERNEL_PHYS_IMG_END + BOOTMEM_SIZE)
+
+#if KASAN
+#define BOOT_KASAN_SANITIZED_SIZE                                              \
+  ((roundup(KERNEL_VIRT_IMG_END, L0_SIZE) - KASAN_SANITIZED_START) +           \
+   VM_PAGE_PDS * L0_SIZE)
+
+#define BOOT_KASAN_SHADOW_SIZE                                                 \
+  (BOOT_KASAN_SANITIZED_SIZE / KASAN_SHADOW_SCALE_SIZE)
+#endif /* !KASAN */
 
 #define BOOT_DTB_VADDR DMAP_VADDR_BASE
 #define BOOT_PD_VADDR (DMAP_VADDR_BASE + L0_SIZE)
@@ -188,6 +201,13 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
   /* Kernel page directory table. */
   early_kenter(BOOT_PD_VADDR, PAGESIZE, (paddr_t)kernel_pde, PTE_KERN);
 
+#if KASAN
+  paddr_t shadow_mem = (paddr_t)bootmem_alloc(BOOT_KASAN_SHADOW_SIZE);
+
+  early_kenter(KASAN_SHADOW_START, BOOT_KASAN_SHADOW_SIZE, shadow_mem,
+               PTE_KERN);
+#endif /* !KASAN */
+
   /* Temporarily set the trap vector. */
   csr_write(stvec, riscv_boot);
 
@@ -225,7 +245,7 @@ static void clear_bss(void) {
 /* Trap handler in direct mode. */
 extern void cpu_exception_handler(void);
 
-extern void *board_stack(paddr_t dtb_pa, vaddr_t dtb_va);
+extern void *board_stack(paddr_t dtb_pa, void *dtb_va);
 extern void __noreturn board_init(void);
 
 static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
@@ -250,7 +270,11 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
 
   clear_bss();
 
-  vaddr_t dtb_va = BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
+#if KASAN
+  _kasan_sanitized_end = KASAN_SANITIZED_START + BOOT_KASAN_SANITIZED_SIZE;
+#endif
+
+  void *dtb_va = (void *)BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
   void *sp = board_stack(dtb, dtb_va);
 
   pmap_bootstrap(pde, BOOT_PD_VADDR);
