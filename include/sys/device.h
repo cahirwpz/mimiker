@@ -4,6 +4,7 @@
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/linker_set.h>
+#include <sys/fdt.h>
 #include <sys/rman.h>
 
 typedef uint32_t phandle_t;

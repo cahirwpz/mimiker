@@ -10,19 +10,16 @@
 #include <sys/vm.h>
 #include <machine/pmap.h>
 
-typedef struct pmap {
+struct pmap {
   mtx_t mtx;                      /* protects all fields in this structure */
   asid_t asid;                    /* address space identifier */
   paddr_t pde;                    /* directory page table physical address */
   vm_pagelist_t pte_pages;        /* pages we allocate in page table */
   TAILQ_HEAD(, pv_entry) pv_list; /* all pages mapped by this physical map */
-#if SHARED_KERNEL_PD
-  LIST_ENTRY(pmap) pmap_link; /* link on `user_pmaps` */
-#endif
 
   /* Machine-dependent part */
   pmap_md_t md;
-} pmap_t;
+};
 
 typedef struct pv_entry {
   TAILQ_ENTRY(pv_entry) pmap_link; /* link on `pmap::pv_list` */
@@ -32,14 +29,20 @@ typedef struct pv_entry {
 } pv_entry_t;
 
 /*
+ * Machine dependent flags passed to `pmap_kenter` and `pmap_enter`.
+ */
+
+#define _PMAP_KERNEL (1 << 24)
+
+/*
  * Each target must implement the following interface
  * along with the `pmap_md_t` struct and a handful of macros:
  *
  *  - `PAGE_TABLE_DEPTH`: depth of the address translation structure
- *  - `SHARED_KERNEL_PD`: 1 - the architecutre provides only a single active
- *    page directory used for both kernel and user address translation
  *  - `DMAP_BASE`: virtual address of the beginning of DMAP
  *  - `MAX_ASID`: maximum possible ASID
+ *  - `PTE_KERNEL_EMPTY`: PTE value used for kernel empty page table entries
+ *  - `PTE_USER_EMPTY`: PTE value used for user empty page table entries
  *  - `PTE_SET_ON_REFERENCED`: PTE bits to set while marking a page
  *    as referenced
  *  - `PTE_CLR_ON_REFERENCED`: PTE bits to clear while marking a page
@@ -64,38 +67,42 @@ typedef struct pv_entry {
 extern paddr_t dmap_paddr_base;
 extern paddr_t dmap_paddr_end;
 
-extern paddr_t kernel_pde;
-
-/*
- * Translation structure.
- */
-
-static inline size_t pt_index(unsigned lvl, vaddr_t va);
-
 /*
  * Page directory.
  */
 
-static inline bool pde_valid_p(pde_t pde);
-pde_t pde_make(unsigned lvl, paddr_t pa);
+static inline bool pde_valid_p(pde_t *pdep);
+pde_t pde_make(int lvl, paddr_t pa);
+static inline pde_t *pde_ptr(paddr_t pd, int lvl, vaddr_t va);
+
+/*
+ * Some architectures may require broadcasting changes in the top page directory
+ * of the kernel. This function is called whenever such a change occurs.
+ */
+void broadcast_kernel_top_pde(vaddr_t va, pde_t pde);
 
 /*
  * Page table.
  */
 
-static inline bool pte_valid_p(pte_t pte);
+static inline bool pte_valid_p(pte_t *ptep);
 static inline bool pte_access(pte_t pte, vm_prot_t prot);
-static inline pte_t pte_empty(bool kernel);
 static inline paddr_t pte_frame(pte_t pte);
-pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags, bool kernel);
+pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags);
 pte_t pte_protect(pte_t pte, vm_prot_t prot);
 
 /*
  * Physical map management.
  */
 
+void pmap_md_bootstrap(pde_t *pd);
 void pmap_md_setup(pmap_t *pmap);
 void pmap_md_activate(pmap_t *pmap);
 void pmap_md_delete(pmap_t *pmap);
+
+/*
+ * Direct map.
+ */
+void *phys_to_dmap(paddr_t addr);
 
 #endif /* !_SYS__PMAP_H_ */

@@ -19,6 +19,9 @@ ifeq ($(BOARD), litex-riscv)
 	KERNEL-IMAGES := mimiker.img
 ifeq ($(KERNEL), 1)
 	CPPFLAGS += -DFPU=0
+	ifeq ($(KASAN), 1)
+	CFLAGS_KASAN += -fasan-shadow-offset=0x90000000
+	endif
 endif
 endif
 
@@ -29,6 +32,9 @@ ifeq ($(BOARD), fu540)
 	KERNEL-IMAGES := mimiker.img
 ifeq ($(KERNEL), 1)
 	CPPFLAGS += -DFPU=1
+	ifeq ($(KASAN), 1)
+	CFLAGS_KASAN += -fasan-shadow-offset=0xdfffffe000000000
+	endif
 endif
 ifeq ($(CLANG), 1)
 	CPPFLAGS += -D__riscv_d -D__riscv_f
@@ -42,4 +48,10 @@ ifeq ($(KERNEL), 1)
 	CFLAGS += -mcmodel=medany
 	CPPFLAGS += -DKERNEL_PHYS=$(KERNEL_PHYS)
 	CPPLDSCRIPT := 1
+	ifeq ($(KASAN), 1)
+	CFLAGS_KASAN += -fsanitize=kernel-address \
+		       --param asan-globals=1 \
+		       --param asan-stack=1 \
+		       --param asan-instrument-allocas=1
+	endif
 endif

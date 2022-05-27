@@ -193,6 +193,7 @@ BOOTARGS_DTS_TEMPLATE = """
 }};
 """
 
+
 def setboard(name):
     setvar('board', name)
     # go over top-level configuration variables
