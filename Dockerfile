@@ -12,9 +12,11 @@ RUN apt-get install -y --no-install-recommends \
 # socat & tmux required by launch
 COPY requirements.txt .
 RUN pip3 install setuptools wheel && pip3 install -r requirements.txt
-RUN curl -O https://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.5.3_amd64.deb && \
-    dpkg -i mipsel-mimiker-elf_1.5.3_amd64.deb && rm -f mipsel-mimiker-elf_1.5.3_amd64.deb
-RUN curl -O https://mimiker.ii.uni.wroc.pl/download/aarch64-mimiker-elf_1.5.3_amd64.deb && \
-    dpkg -i aarch64-mimiker-elf_1.5.3_amd64.deb && rm -f aarch64-mimiker-elf_1.5.3_amd64.deb
+RUN curl -O https://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.5.4_amd64.deb && \
+    dpkg -i mipsel-mimiker-elf_1.5.4_amd64.deb && rm -f mipsel-mimiker-elf_1.5.4_amd64.deb
+RUN curl -O https://mimiker.ii.uni.wroc.pl/download/aarch64-mimiker-elf_1.5.4_amd64.deb && \
+    dpkg -i aarch64-mimiker-elf_1.5.4_amd64.deb && rm -f aarch64-mimiker-elf_1.5.4_amd64.deb
+RUN curl -O https://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.5.4_amd64.deb && \
+    dpkg -i riscv32-mimiker-elf_1.5.4_amd64.deb && rm -f mipsel-mimiker-elf_1.5.4_amd64.deb
 RUN curl -O https://mimiker.ii.uni.wroc.pl/download/qemu-mimiker_6.0.0+mimiker1_amd64.deb && \
     dpkg -i qemu-mimiker_6.0.0+mimiker1_amd64.deb && rm -f qemu-mimiker_6.0.0+mimiker1_amd64.deb
