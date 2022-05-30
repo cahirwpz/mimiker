@@ -11,9 +11,11 @@ SOURCES-RISCV = \
 	mcontext.c \
 	pmap.c \
 	sbi.c \
+	sigcode.S \
 	signal.c \
 	start.S \
-	thread.c
+	switch.S \
+	trap.c
 
 CLEAN-FILES += assym.h riscv.ld
 

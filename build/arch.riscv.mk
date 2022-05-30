@@ -13,11 +13,13 @@ ELFTYPE := elf32-littleriscv
 ELFARCH := riscv
 
 ifeq ($(BOARD), litex-riscv)
-	EXT := ima
+	EXT := ima_zicsr_zifence
 	ABI := ilp32
 	KERNEL_PHYS := 0x40000000
 	KERNEL-IMAGES := mimiker.img
+ifeq ($(KERNEL), 1)
 	CPPFLAGS += -DFPU=0
+endif
 endif
 
 GCC_ABIFLAGS += -march=rv32$(EXT) -mabi=$(ABI) 

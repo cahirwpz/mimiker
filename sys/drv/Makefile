@@ -4,6 +4,7 @@ TOPDIR = $(realpath ../..)
 
 SOURCES = \
 	dev_cons.c \
+	simplebus.c \
 	uart.c \
 	usb.c
 
@@ -35,7 +36,11 @@ SOURCES-AARCH64 = \
 	sdcard.c
 
 SOURCES-RISCV = \
-	litex_riscv_rootdev.c
+	clint.c \
+	liteuart.c \
+	litex_riscv_rootdev.c \
+	plic.c \
+	sifive_uart.c
 
 CPPFLAGS += -D_MACHDEP
 

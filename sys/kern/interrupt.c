@@ -8,6 +8,7 @@
 #include <sys/sleepq.h>
 #include <sys/sched.h>
 #include <sys/device.h>
+#include <sys/fdt.h>
 
 static KMALLOC_DEFINE(M_INTR, "interrupt events & handlers");
 
@@ -246,6 +247,14 @@ void pic_teardown_intr(device_t *dev, resource_t *r) {
   pic_methods(pic)->teardown_intr(pic, dev, r);
   r->r_handler = NULL;
   resource_deactivate(r);
+}
+
+int pic_map_intr(device_t *dev, fdt_intr_t *intr) {
+  /* TODO: we should pick the interrupt controller based on the `node`
+   * member of `fdt_intr_t`. However, FTTB we assume that each device
+   * has at most one interrupt controller. */
+  device_t *pic = dev->pic;
+  return pic_methods(pic)->map_intr(pic, dev, intr->tuple, intr->icells);
 }
 
 static void intr_thread(void *arg) {
