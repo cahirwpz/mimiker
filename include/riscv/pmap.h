@@ -27,8 +27,8 @@
 
 #define PAGE_TABLE_DEPTH 2
 
-#define PTE_KERNEL_EMPTY 0
-#define PTE_USER_EMPTY 0
+#define PTE_EMPTY_KERNEL 0
+#define PTE_EMPTY_USER 0
 
 #define PTE_SET_ON_REFERENCED 0
 #define PTE_CLR_ON_REFERENCED 0
@@ -59,15 +59,15 @@ static inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
  * Page table.
  */
 
+static inline paddr_t pte_frame(pte_t pte) {
+  panic("Not implemented!");
+}
+
 static inline bool pte_valid_p(pte_t *ptep) {
   panic("Not implemented!");
 }
 
 static inline bool pte_access(pte_t pte, vm_prot_t prot) {
-  panic("Not implemented!");
-}
-
-static inline paddr_t pte_frame(pte_t pte) {
   panic("Not implemented!");
 }
 

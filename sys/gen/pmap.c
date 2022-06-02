@@ -197,17 +197,15 @@ static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
 
   pde_t *pdep = pde_ptr(pmap->pde, 0, va);
 
-  for (int lvl = 0; lvl < PAGE_TABLE_DEPTH - 1; lvl++) {
+  for (int lvl = 1; lvl < PAGE_TABLE_DEPTH; lvl++) {
     paddr_t pa;
     if (!pde_valid_p(pdep)) {
       pa = pmap_alloc_pde(pmap, va);
-      *pdep = pde_make(lvl, pa);
-      if (lvl == 0 && pmap == pmap_kernel())
-        broadcast_kernel_top_pde(va, *pdep);
+      *pdep = pde_make(lvl - 1, pa);
     } else {
       pa = pte_frame((pte_t)*pdep);
     }
-    pdep = pde_ptr(pa, lvl + 1, va);
+    pdep = pde_ptr(pa, lvl, va);
   }
 
   return (pte_t *)pdep;
@@ -245,7 +243,7 @@ void pmap_kremove(vaddr_t va, size_t size) {
     for (size_t off = 0; off < size; off += PAGESIZE) {
       pte_t *ptep = pmap_lookup_pte(pmap, va + off);
       assert(ptep);
-      pmap_write_pte(pmap, ptep, PTE_KERNEL_EMPTY, va + off);
+      pmap_write_pte(pmap, ptep, PTE_EMPTY_KERNEL, va + off);
     }
   }
 }
@@ -299,7 +297,7 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
         paddr_t pa = pte_frame(*ptep);
         vm_page_t *pg = vm_page_find(pa);
         pv_remove(pmap, va, pg);
-        pmap_write_pte(pmap, ptep, PTE_USER_EMPTY, va);
+        pmap_write_pte(pmap, ptep, PTE_EMPTY_USER, va);
       }
     }
   }
@@ -355,7 +353,7 @@ void pmap_page_remove(vm_page_t *pg) {
       TAILQ_REMOVE(&pmap->pv_list, pv, pmap_link);
       pte_t *ptep = pmap_lookup_pte(pmap, va);
       assert(ptep);
-      pmap_write_pte(pmap, ptep, PTE_USER_EMPTY, va);
+      pmap_write_pte(pmap, ptep, PTE_EMPTY_USER, va);
     }
     pool_free(P_PV, pv);
   }

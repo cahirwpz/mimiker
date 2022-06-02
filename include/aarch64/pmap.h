@@ -29,8 +29,8 @@
 
 #define PAGE_TABLE_DEPTH 4
 
-#define PTE_KERNEL_EMPTY 0
-#define PTE_USER_EMPTY 0
+#define PTE_EMPTY_KERNEL 0
+#define PTE_EMPTY_USER 0
 
 #define PTE_SET_ON_REFERENCED ATTR_AF
 #define PTE_CLR_ON_REFERENCED 0
@@ -66,15 +66,16 @@ static inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
   return pde + L3_INDEX(va);
 }
 
-static inline void broadcast_kernel_top_pde(vaddr_t va, pde_t pde) {
-}
-
 /*
  * Page table.
  */
 
+static inline paddr_t pte_frame(pte_t pte) {
+  return PTE_FRAME_ADDR(pte);
+}
+
 static inline bool pte_valid_p(pte_t *ptep) {
-  return ptep && (PTE_FRAME_ADDR(*ptep) != 0);
+  return ptep && (pte_frame(*ptep) != 0);
 }
 
 static inline bool pte_access(pte_t pte, vm_prot_t prot) {
@@ -88,10 +89,6 @@ static inline bool pte_access(pte_t pte, vm_prot_t prot) {
     default:
       panic("Invalid pte_access invocation (prot=%x)", prot);
   }
-}
-
-static inline paddr_t pte_frame(pte_t pte) {
-  return PTE_FRAME_ADDR(pte);
 }
 
 /*
