@@ -34,9 +34,7 @@ DEFINE_CLEANUP_FUNCTION(vm_map_t *, vm_map_unlock);
 void vm_map_activate(vm_map_t *map);
 void vm_map_switch(thread_t *td);
 
-vm_map_t *vm_map_user(void);
-vm_map_t *vm_map_kernel(void);
-vm_map_t *vm_map_lookup(vaddr_t addr);
+vm_map_t *vm_map_cur(void);
 
 vm_map_t *vm_map_new(void);
 void vm_map_delete(vm_map_t *vm_map);
@@ -53,14 +51,6 @@ void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot);
 
 /*! \brief Insert given \a entry into the \a map. */
 int vm_map_insert(vm_map_t *map, vm_map_entry_t *entry, vm_flags_t flags);
-
-/*! \brief Can address \a addr be mapped by this \a map? */
-bool vm_map_address_p(vm_map_t *map, vaddr_t addr);
-bool vm_map_contains_p(vm_map_t *map, vaddr_t start, vaddr_t end);
-
-/*! \brief Reports start & end addresses that are handled by the map. */
-vaddr_t vm_map_start(vm_map_t *map);
-vaddr_t vm_map_end(vm_map_t *map);
 
 /*! \brief Reports start & end addresses that are handled by the entry. */
 vaddr_t vm_map_entry_start(vm_map_entry_t *ent);

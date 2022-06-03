@@ -75,11 +75,8 @@ static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
   if (error == EACCES || error == EINVAL)
     goto fault;
 
-  vm_map_t *vmap = vm_map_lookup(vaddr);
-  if (!vmap) {
-    klog("No virtual address space defined for %lx!", vaddr);
-    goto fault;
-  }
+  vm_map_t *vmap = vm_map_cur();
+
   if (vm_page_fault(vmap, vaddr, access) == 0)
     return;
 

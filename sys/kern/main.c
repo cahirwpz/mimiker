@@ -80,7 +80,6 @@ __noreturn void kernel_init(void) {
   init_pool();
   init_vmem();
   init_kmem();
-  init_vm_map();
 
   init_cons();
 
