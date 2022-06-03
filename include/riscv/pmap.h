@@ -66,7 +66,6 @@ static inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
     return pde + L1_INDEX(va);
   return pde + L2_INDEX(va);
 #endif
-
 }
 
 /*

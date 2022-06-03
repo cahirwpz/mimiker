@@ -80,11 +80,12 @@
 #define KERNEL_PHYS_END (KERNEL_PHYS_IMG_END + BOOTMEM_SIZE)
 
 #if KASAN
-#define BOOT_KASAN_SANITIZED_SIZE \
-    ((roundup(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) - KASAN_SANITIZED_START) + VM_PAGE_PDS * GROWKERNEL_STRIDE)
+#define BOOT_KASAN_SANITIZED_SIZE                                              \
+  ((roundup(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) - KASAN_SANITIZED_START) + \
+   VM_PAGE_PDS * GROWKERNEL_STRIDE)
 
-#define BOOT_KASAN_SHADOW_SIZE \
-     (BOOT_KASAN_SANITIZED_SIZE / KASAN_SHADOW_SCALE_SIZE)
+#define BOOT_KASAN_SHADOW_SIZE                                                 \
+  (BOOT_KASAN_SANITIZED_SIZE / KASAN_SHADOW_SCALE_SIZE)
 #endif /* !KASAN */
 
 #define BOOT_DTB_VADDR DMAP_BASE
@@ -256,7 +257,8 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
 #if KASAN
   paddr_t shadow_mem = (paddr_t)bootmem_alloc(BOOT_KASAN_SHADOW_SIZE);
 
-  early_kenter(KASAN_SHADOW_START, BOOT_KASAN_SHADOW_SIZE, shadow_mem, PTE_KERN);
+  early_kenter(KASAN_SHADOW_START, BOOT_KASAN_SHADOW_SIZE, shadow_mem,
+               PTE_KERN);
 #endif /* !KASAN */
 
   /* Temporarily set the trap vector. */
@@ -341,8 +343,11 @@ __text_riscv_boot static __noreturn __used void riscv_boot(paddr_t dtb,
   clear_bss();
 
 #if KASAN
-  _kasan_sanitized_end = KASAN_SANITIZED_START + 
-    ((roundup(align((vaddr_t)__ebss, PAGESIZE), GROWKERNEL_STRIDE) - KASAN_SANITIZED_START) + VM_PAGE_PDS * GROWKERNEL_STRIDE);
+  _kasan_sanitized_end =
+    KASAN_SANITIZED_START +
+    ((roundup(align((vaddr_t)__ebss, PAGESIZE), GROWKERNEL_STRIDE) -
+      KASAN_SANITIZED_START) +
+     VM_PAGE_PDS * GROWKERNEL_STRIDE);
 #endif
 
   void *dtb_va = (void *)BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));

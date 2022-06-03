@@ -36,7 +36,6 @@ SOURCES-RISCV = \
 	clint.c \
 	liteuart.c \
 	plic.c \
-	sbi_console.c \
 	sifive_uart.c
 
 ifeq ($(BOARD), litex-riscv)
