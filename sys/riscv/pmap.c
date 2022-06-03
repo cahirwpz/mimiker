@@ -65,18 +65,6 @@ pde_t pde_make(int lvl, paddr_t pa) {
   return PA_TO_PTE(pa) | PTE_V;
 }
 
-void pmap_broadcast_kernel_top_pde(vaddr_t va, pde_t pde) {
-  SCOPED_MTX_LOCK(&user_pmaps_lock);
-
-  size_t idx = L0_INDEX(va);
-
-  pmap_t *user_pmap;
-  LIST_FOREACH (user_pmap, &user_pmaps, md.pmap_link) {
-    pde_t *pdep = (pde_t *)phys_to_dmap(user_pmap->pde);
-    pdep[idx] = pde;
-  }
-}
-
 /*
  * Page table.
  */
@@ -106,6 +94,14 @@ inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
  */
 
 void pmap_md_activate(pmap_t *umap) {
+  /* Update kernel page directory entries within the pmap. */
+  pmap_t *kmap = pmap_kernel();
+  size_t halfpage = PAGESIZE / 2;
+  WITH_MTX_LOCK (&kmap->mtx) {
+    memcpy((void *)phys_to_dmap(umap->pde) + halfpage,
+           (void *)phys_to_dmap(kmap->pde) + halfpage, halfpage);
+  }
+
   __set_satp(umap->md.satp);
   __sfence_vma();
 }
@@ -113,14 +109,6 @@ void pmap_md_activate(pmap_t *umap) {
 void pmap_md_setup(pmap_t *pmap) {
   pmap->md.satp = SATP_MODE_SV32 | ((paddr_t)pmap->asid << SATP_ASID_S) |
                   (pmap->pde >> PAGE_SHIFT);
-
-  /* Install kernel pagetables. */
-  pmap_t *kmap = pmap_kernel();
-  size_t halfpage = PAGESIZE / 2;
-  WITH_MTX_LOCK (&kmap->mtx) {
-    memcpy((void *)phys_to_dmap(pmap->pde) + halfpage,
-           (void *)phys_to_dmap(kmap->pde) + halfpage, halfpage);
-  }
 
   WITH_MTX_LOCK (&user_pmaps_lock)
     LIST_INSERT_HEAD(&user_pmaps, pmap, md.pmap_link);
