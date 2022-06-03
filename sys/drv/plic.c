@@ -135,6 +135,7 @@ static intr_filter_t plic_intr_handler(void *arg) {
 
 static int plic_probe(device_t *pic) {
   return FDT_is_compatible(pic->node, "riscv,plic0") ||
+         FDT_is_compatible(pic->node, "sifive,plic-1.0.0") ||
          FDT_is_compatible(pic->node, "sifive,fu540-c000-plic");
 }
 
