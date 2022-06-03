@@ -37,18 +37,16 @@ static inline void FDT_panic(int err) {
   panic("FDT operation failed: %s", fdt_strerror(err));
 }
 
-void FDT_early_init(paddr_t pa, vaddr_t va) {
-  void *fdt = (void *)va;
-
-  int err = fdt_check_header(fdt);
+void FDT_early_init(paddr_t pa, void *va) {
+  int err = fdt_check_header(va);
   if (err < 0)
     FDT_panic(err);
 
-  const size_t totalsize = fdt_totalsize(fdt);
+  const size_t totalsize = fdt_totalsize(va);
 
   fdt_pa = rounddown(pa, PAGESIZE);
   fdt_off = fdt_pa - pa;
-  fdtp = fdt;
+  fdtp = va;
   paddr_t fdt_end = roundup(pa + totalsize, PAGESIZE);
   fdt_size = fdt_end - fdt_pa;
 }

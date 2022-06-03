@@ -15,6 +15,7 @@ SOURCES-RISCV = \
 	signal.c \
 	start.S \
 	switch.S \
+	tlb.c \
 	trap.c
 
 CLEAN-FILES += assym.h riscv.ld

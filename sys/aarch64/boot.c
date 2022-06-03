@@ -1,10 +1,10 @@
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
+#include <sys/pmap.h>
 #include <sys/kasan.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
-#include <aarch64/pte.h>
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
@@ -19,8 +19,7 @@
 
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data void *_bootmem_end;
-/* Kernel page directory entries. */
-extern paddr_t _kernel_pmap_pde;
+
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
@@ -293,7 +292,7 @@ __boot_text static void enable_mmu(paddr_t pde) {
                                 SCTLR_SA0);
   __isb();
 
-  _kernel_pmap_pde = pde;
+  pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
 }
 
 __boot_text void *aarch64_init(void) {

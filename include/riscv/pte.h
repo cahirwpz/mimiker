@@ -43,11 +43,11 @@
 #include <stdint.h>
 
 #if __riscv_xlen == 64
-typedef uint64_t pd_entry_t; /* page directory entry */
-typedef uint64_t pt_entry_t; /* page table entry */
+typedef uint64_t pde_t; /* page directory entry */
+typedef uint64_t pte_t; /* page table entry */
 #else
-typedef uint32_t pd_entry_t; /* page directory entry */
-typedef uint32_t pt_entry_t; /* page table entry */
+typedef uint32_t pde_t; /* page directory entry */
+typedef uint32_t pte_t; /* page table entry */
 #endif
 
 typedef uint16_t asid_t; /* address space identifier */

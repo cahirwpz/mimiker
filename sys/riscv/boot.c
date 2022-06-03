@@ -73,7 +73,6 @@
 #include <riscv/abi.h>
 #include <riscv/cpufunc.h>
 #include <riscv/pmap.h>
-#include <riscv/pte.h>
 
 #define KERNEL_VIRT_IMG_END align((vaddr_t)__ebss, PAGESIZE)
 #define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(__ebss), PAGESIZE)
@@ -81,15 +80,16 @@
 
 #if KASAN
 #define BOOT_KASAN_SANITIZED_SIZE                                              \
-  ((roundup(KERNEL_VIRT_IMG_END, L0_SIZE) - KASAN_SANITIZED_START) +           \
-   VM_PAGE_PDS * L0_SIZE)
+  roundup2(roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) +                  \
+             (VM_PAGE_PDS * GROWKERNEL_STRIDE) - KASAN_SANITIZED_START,        \
+           PAGESIZE * KASAN_SHADOW_SCALE_SIZE)
 
 #define BOOT_KASAN_SHADOW_SIZE                                                 \
   (BOOT_KASAN_SANITIZED_SIZE / KASAN_SHADOW_SCALE_SIZE)
 #endif /* !KASAN */
 
-#define BOOT_DTB_VADDR DMAP_VADDR_BASE
-#define BOOT_PD_VADDR (DMAP_VADDR_BASE + L0_SIZE)
+#define BOOT_DTB_VADDR DMAP_BASE
+#define BOOT_PD_VADDR (DMAP_BASE + GROWKERNEL_STRIDE)
 
 /*
  * Bare memory boot data.
@@ -101,7 +101,7 @@ __boot_data static void *bootmem_brk;
 /* End of boot memory allocation area. */
 __boot_data static void *bootmem_end;
 
-__boot_data static pd_entry_t *kernel_pde;
+__boot_data static pde_t *kernel_pde;
 
 /*
  * Virtual memory boot data.
@@ -135,17 +135,17 @@ __boot_text static void *bootmem_alloc(size_t bytes) {
   return addr;
 }
 
-__boot_text static pt_entry_t *ensure_pte(vaddr_t va) {
-  pd_entry_t *pdep = kernel_pde;
+__boot_text static pte_t *ensure_pte(vaddr_t va) {
+  pde_t *pdep = kernel_pde;
 
   /* Level 0 */
   pdep += L0_INDEX(va);
   if (!VALID_PTE_P(*pdep))
     *pdep = PA_TO_PTE((paddr_t)bootmem_alloc(PAGESIZE)) | PTE_V;
-  pdep = (pd_entry_t *)PTE_TO_PA(*pdep);
+  pdep = (pde_t *)PTE_TO_PA(*pdep);
 
   /* Level 1 */
-  return (pt_entry_t *)pdep + L1_INDEX(va);
+  return (pte_t *)pdep + L1_INDEX(va);
 }
 
 __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
@@ -154,7 +154,7 @@ __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
     halt();
 
   for (size_t off = 0; off < size; off += PAGESIZE) {
-    pt_entry_t *ptep = ensure_pte(va + off);
+    pte_t *ptep = ensure_pte(va + off);
     *ptep = PA_TO_PTE(pa + off) | flags;
   }
 }
@@ -178,9 +178,9 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
    * See 4th point of bare memory boot description
    * at the top of this file for details.
    */
-  vaddr_t va = roundup(KERNEL_VIRT_IMG_END, L0_SIZE);
+  vaddr_t va = roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE);
   for (int i = 0; i < VM_PAGE_PDS; i++)
-    (void)ensure_pte(va + i * L0_SIZE);
+    (void)ensure_pte(va + i * GROWKERNEL_STRIDE);
 
   /* Kernel read-only segment - sections: .text and .rodata. */
   early_kenter((vaddr_t)__text, __data - __text, RISCV_PHYSADDR(__text),
@@ -195,8 +195,10 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
    * data will only be accessed using physical addresses (see pmap).
    */
 
-  /* DTB - assume that DTB will be covered by single L1 page directory. */
-  early_kenter(BOOT_DTB_VADDR, L1_SIZE, rounddown(dtb, PAGESIZE), PTE_KERN);
+  /* DTB - assume that DTB will be covered by a single last level page
+   * directory. */
+  early_kenter(BOOT_DTB_VADDR, GROWKERNEL_STRIDE, rounddown(dtb, PAGESIZE),
+               PTE_KERN);
 
   /* Kernel page directory table. */
   early_kenter(BOOT_PD_VADDR, PAGESIZE, (paddr_t)kernel_pde, PTE_KERN);
@@ -277,7 +279,10 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
   void *dtb_va = (void *)BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
   void *sp = board_stack(dtb, dtb_va);
 
-  pmap_bootstrap(pde, BOOT_PD_VADDR);
+  pmap_bootstrap(pde, (void *)BOOT_PD_VADDR);
+
+  void *fdtp = (void *)phys_to_dmap(FDT_get_physaddr());
+  FDT_changeroot(fdtp);
 
   /*
    * Switch to thread0's stack and perform `board_init`.
