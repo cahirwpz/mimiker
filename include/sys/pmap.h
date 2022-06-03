@@ -7,21 +7,23 @@
 typedef struct pmap pmap_t;
 
 /*
- * Machine independent flags passed to `pmap_kenter` and `pmap_enter`.
+ * Flags passed to `pmap_kenter` and `pmap_enter`.
  *
  * PMAP flags layout:
  *
  *    31  ...  24 23  ...  0
  *      MD flags    MI flags
  *
- * Machine dependent flags are defined in `include/sys/_pmap.h`.
- *
  * NOTE: permissions are passed using `vm_prot_t`.
  */
 
+/* Machine-independent flags */
 #define PMAP_NOCACHE 1
 #define PMAP_WRITE_THROUGH 2
 #define PMAP_WRITE_BACK 4
+
+/* Machine-dependent flags */
+#define _PMAP_KERNEL (1 << 24)
 
 __long_call void pmap_bootstrap(paddr_t pd_pa, void *pd);
 void init_pmap(void);

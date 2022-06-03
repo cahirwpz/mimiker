@@ -65,7 +65,7 @@ pde_t pde_make(int lvl, paddr_t pa) {
   return PA_TO_PTE(pa) | PTE_V;
 }
 
-void broadcast_kernel_top_pde(vaddr_t va, pde_t pde) {
+void pmap_broadcast_kernel_top_pde(vaddr_t va, pde_t pde) {
   SCOPED_MTX_LOCK(&user_pmaps_lock);
 
   size_t idx = L0_INDEX(va);
