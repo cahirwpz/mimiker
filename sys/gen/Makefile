@@ -4,7 +4,8 @@ TOPDIR = $(realpath ../..)
 
 SOURCES = \
 	pmap.c \
-	thread.c
+	thread.c \
+	trap.c
 
 CPPFLAGS += -D_MACHDEP
 

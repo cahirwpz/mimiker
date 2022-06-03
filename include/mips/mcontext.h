@@ -77,6 +77,9 @@
 #define _REG_SR 35
 #define _REG_BADVADDR 36
 
+/* Convenient aliases. */
+#define _REG_PC _REG_EPC
+
 /* Make sure this is signed; we need pointers to be sign-extended. */
 typedef long __greg_t;
 

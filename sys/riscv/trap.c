@@ -1,15 +1,11 @@
 #define KL_LOG KL_VM
-#include <sys/context.h>
 #include <sys/cpu.h>
-#include <sys/errno.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
-#include <sys/pmap.h>
 #include <sys/sysent.h>
 #include <sys/thread.h>
-#include <sys/vm_map.h>
+#include <sys/_trap.h>
 #include <riscv/cpufunc.h>
-#include <riscv/mcontext.h>
 
 /* clang-format off */
 static const char *const exceptions[] = {
@@ -29,6 +25,10 @@ static const char *const exceptions[] = {
 };
 /* clang-format on */
 
+const char *exc_str(u_long exc_code) {
+  return exceptions[exc_code];
+}
+
 __no_profile static inline bool ctx_interrupt(ctx_t *ctx) {
   return _REG(ctx, CAUSE) & SCAUSE_INTR;
 }
@@ -41,12 +41,12 @@ __no_profile static inline bool ctx_intr_enabled(ctx_t *ctx) {
   return _REG(ctx, SR) & SSTATUS_SPIE;
 }
 
-static __noreturn void kernel_oops(ctx_t *ctx) {
+__noreturn void kernel_oops(ctx_t *ctx) {
   u_long code = ctx_code(ctx);
   void *epc = (void *)_REG(ctx, PC);
   uint32_t badinstr = *(uint32_t *)epc;
 
-  klog("%s at %p!", exceptions[code], epc);
+  klog("%s at %p!", exc_str(code), epc);
 
   switch (code) {
     case SCAUSE_INST_MISALIGNED:
@@ -72,58 +72,6 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
   klog("HINT: Type 'info line *%p' into gdb to find faulty code line", epc);
 
   panic("KERNEL PANIC!!!");
-}
-
-static void page_fault_handler(ctx_t *ctx) {
-  thread_t *td = thread_self();
-
-  u_long code = ctx_code(ctx);
-  void *epc = (void *)_REG(ctx, PC);
-  vaddr_t vaddr = _REG(ctx, TVAL);
-
-  klog("%s at %p, caused by reference to %lx!", exceptions[code], epc, vaddr);
-
-  pmap_t *pmap = pmap_lookup(vaddr);
-  if (!pmap) {
-    klog("No physical map defined for %lx address!", vaddr);
-    goto fault;
-  }
-
-  vm_prot_t access;
-  if (code == SCAUSE_INST_PAGE_FAULT)
-    access = VM_PROT_EXEC;
-  else if (code == SCAUSE_LOAD_PAGE_FAULT)
-    access = VM_PROT_READ;
-  else
-    access = VM_PROT_WRITE;
-
-  int error = pmap_emulate_bits(pmap, vaddr, access);
-  if (!error)
-    return;
-
-  if (error == EACCES || error == EINVAL)
-    goto fault;
-
-  vm_map_t *vmap = vm_map_lookup(vaddr);
-  if (!vmap) {
-    klog("No virtual address space defined for %lx!", vaddr);
-    goto fault;
-  }
-
-  if (!vm_page_fault(vmap, vaddr, access))
-    return;
-
-fault:
-  if (td->td_onfault) {
-    /* Handle copyin/copyout faults. */
-    _REG(ctx, PC) = td->td_onfault;
-  } else if (user_mode_p(ctx)) {
-    /* Send a segmentation fault signal to the user program. */
-    sig_trap(ctx, SIGSEGV);
-  } else {
-    /* Panic when kernel-mode thread uses wrong pointer. */
-    kernel_oops(ctx);
-  }
 }
 
 /*
@@ -195,6 +143,14 @@ static bool fpu_handler(mcontext_t *uctx) {
   return true;
 }
 
+static vm_prot_t exc_access(u_long exc_code) {
+  if (exc_code == SCAUSE_INST_PAGE_FAULT)
+    return VM_PROT_EXEC;
+  else if (exc_code == SCAUSE_LOAD_PAGE_FAULT)
+    return VM_PROT_READ;
+  return VM_PROT_WRITE;
+}
+
 static void user_trap_handler(ctx_t *ctx) {
   /*
    * We came here from user-space, hence interrupts and preemption must
@@ -212,7 +168,7 @@ static void user_trap_handler(ctx_t *ctx) {
     case SCAUSE_INST_PAGE_FAULT:
     case SCAUSE_LOAD_PAGE_FAULT:
     case SCAUSE_STORE_PAGE_FAULT:
-      page_fault_handler(ctx);
+      page_fault_handler(ctx, code, _REG(ctx, TVAL), exc_access(code));
       break;
 
       /* Access fault */
@@ -233,7 +189,7 @@ static void user_trap_handler(ctx_t *ctx) {
     case SCAUSE_ILLEGAL_INSTRUCTION:
       if (fpu_handler((mcontext_t *)ctx))
         break;
-      klog("%s at %p!", exceptions[code], epc);
+      klog("%s at %p!", exc_str(code), epc);
       sig_trap(ctx, SIGILL);
       break;
 
@@ -261,11 +217,13 @@ static void kern_trap_handler(ctx_t *ctx) {
   if (ctx_intr_enabled(ctx))
     cpu_intr_enable();
 
-  switch (ctx_code(ctx)) {
+  u_long code = ctx_code(ctx);
+
+  switch (code) {
     case SCAUSE_INST_PAGE_FAULT:
     case SCAUSE_LOAD_PAGE_FAULT:
     case SCAUSE_STORE_PAGE_FAULT:
-      page_fault_handler(ctx);
+      page_fault_handler(ctx, code, _REG(ctx, TVAL), exc_access(code));
       break;
 
     default:
