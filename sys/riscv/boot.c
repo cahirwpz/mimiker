@@ -76,7 +76,6 @@
 
 #define KERNEL_VIRT_IMG_END align((vaddr_t)__ebss, PAGESIZE)
 #define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(__ebss), PAGESIZE)
-#define KERNEL_PHYS_END (KERNEL_PHYS_IMG_END + BOOTMEM_SIZE)
 
 #if KASAN
 #define BOOT_KASAN_SANITIZED_SIZE                                              \
@@ -97,9 +96,6 @@
 
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data static void *bootmem_brk;
-
-/* End of boot memory allocation area. */
-__boot_data static void *bootmem_end;
 
 __boot_data static pde_t *kernel_pde;
 
@@ -126,9 +122,6 @@ __boot_text static __noreturn void halt(void) {
 __boot_text static void *bootmem_alloc(size_t bytes) {
   long *addr = bootmem_brk;
   bootmem_brk += align(bytes, PAGESIZE);
-
-  if (bootmem_brk > bootmem_end)
-    halt();
 
   for (size_t i = 0; i < bytes / sizeof(long); i++)
     addr[i] = 0;
@@ -159,7 +152,7 @@ __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
   }
 }
 
-static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde);
+static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end);
 
 __boot_text __noreturn void riscv_init(paddr_t dtb) {
   if (!((paddr_t)__eboot < (vaddr_t)__kernel_start ||
@@ -168,7 +161,6 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
 
   /* Initialize boot memory allocator. */
   bootmem_brk = (void *)KERNEL_PHYS_IMG_END;
-  bootmem_end = (void *)KERNEL_PHYS_END;
 
   /* Allocate kernel page directory.*/
   kernel_pde = bootmem_alloc(PAGESIZE);
@@ -223,12 +215,14 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
 
   __asm __volatile("mv a0, %0\n\t"
                    "mv a1, %1\n\t"
-                   "mv sp, %2\n\t"
-                   "csrw satp, %3\n\t"
+                   "mv a2, %2\n\t"
+                   "mv sp, %3\n\t"
+                   "csrw satp, %4\n\t"
                    "nop" /* triggers instruction fetch page fault */
                    :
-                   : "r"(dtb), "r"(kernel_pde), "r"(boot_sp), "r"(satp)
-                   : "a0", "a1");
+                   : "r"(dtb), "r"(kernel_pde), "r"(bootmem_brk), "r"(boot_sp),
+                     "r"(satp)
+                   : "a0", "a1", "a2");
 
   __unreachable();
 }
@@ -250,7 +244,7 @@ extern void cpu_exception_handler(void);
 extern void *board_stack(paddr_t dtb_pa, void *dtb_va);
 extern void __noreturn board_init(void);
 
-static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
+static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
   /*
    * Set initial register values.
    */
@@ -271,6 +265,9 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
   csr_clear(sie, SIE_SEIE | SIE_STIE | SIE_SSIE);
 
   clear_bss();
+
+  extern paddr_t kern_phys_end;
+  kern_phys_end = kern_end;
 
 #if KASAN
   _kasan_sanitized_end = KASAN_SANITIZED_START + BOOT_KASAN_SANITIZED_SIZE;
