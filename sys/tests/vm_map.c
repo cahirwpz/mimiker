@@ -24,7 +24,7 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   SCOPED_NO_PREEMPTION();
   proc_t *p = proc_self();
 
-  vm_map_t *orig = vm_map_cur();
+  vm_map_t *orig = vm_map_user();
   /* XXX: We can't guarantee that we won't switch to another process,
    * so we need to store the temporary userspace map in our process.
    * This is fine as long as there are no concurrent threads in our
@@ -38,7 +38,7 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   klog("Kernel physical map : %08lx-%08lx", pmap_start(kpmap), pmap_end(kpmap));
   klog("User physical map   : %08lx-%08lx", pmap_start(upmap), pmap_end(upmap));
 
-  vm_map_t *umap = vm_map_cur();
+  vm_map_t *umap = vm_map_user();
 
   vaddr_t pre_start = 0x1000000;
   vaddr_t start = 0x1001000;
@@ -105,7 +105,7 @@ static int findspace_demo(void) {
    * restored while switching back. */
   SCOPED_NO_PREEMPTION();
 
-  vm_map_t *orig = vm_map_cur();
+  vm_map_t *orig = vm_map_user();
 
   vm_map_t *umap = vm_map_new();
   vm_map_activate(umap);

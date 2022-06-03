@@ -34,7 +34,7 @@ DEFINE_CLEANUP_FUNCTION(vm_map_t *, vm_map_unlock);
 void vm_map_activate(vm_map_t *map);
 void vm_map_switch(thread_t *td);
 
-vm_map_t *vm_map_cur(void);
+vm_map_t *vm_map_user(void);
 
 vm_map_t *vm_map_new(void);
 void vm_map_delete(vm_map_t *vm_map);

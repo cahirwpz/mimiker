@@ -49,7 +49,7 @@ typedef struct uio {
   UIO_SINGLE(op, NULL, offset, buf, buflen)
 
 #define UIO_SINGLE_USER(op, offset, buf, buflen)                               \
-  UIO_SINGLE(op, vm_map_cur(), offset, buf, buflen)
+  UIO_SINGLE(op, vm_map_user(), offset, buf, buflen)
 
 #define UIO_VECTOR(op, vm_map, iov, iovcnt, len)                               \
   (uio_t) {                                                                    \
@@ -62,7 +62,7 @@ typedef struct uio {
   UIO_VECTOR(op, NULL, iov, iovcnt, len)
 
 #define UIO_VECTOR_USER(op, iov, iovcnt, len)                                  \
-  UIO_VECTOR(op, vm_map_cur(), iov, iovcnt, len)
+  UIO_VECTOR(op, vm_map_user(), iov, iovcnt, len)
 
 int uiomove(void *buf, size_t n, uio_t *uio);
 void uio_save(const uio_t *uio, uiostate_t *save);

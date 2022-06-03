@@ -12,7 +12,7 @@ static int copyin_vmspace(vm_map_t *vm, const void *restrict udaddr,
     return 0;
   }
 
-  if (vm == vm_map_cur())
+  if (vm == vm_map_user())
     return copyin(udaddr, kaddr, len);
 
   panic("copyin on non-active vm maps is not supported");
@@ -25,7 +25,7 @@ static int copyout_vmspace(vm_map_t *vm, const void *restrict kaddr,
     return 0;
   }
 
-  if (vm == vm_map_cur())
+  if (vm == vm_map_user())
     return copyout(kaddr, udaddr, len);
 
   panic("copyout on non-active vm maps is not supported");

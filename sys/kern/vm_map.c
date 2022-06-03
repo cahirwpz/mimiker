@@ -54,7 +54,7 @@ void vm_map_unlock(vm_map_t *map) {
   mtx_unlock(&map->mtx);
 }
 
-vm_map_t *vm_map_cur(void) {
+vm_map_t *vm_map_user(void) {
   return PCPU_GET(uspace);
 }
 
