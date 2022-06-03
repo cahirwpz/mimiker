@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 #include <sys/klog.h>
-#include <sys/pmap.h>
 #include <sys/vm.h>
 #include <riscv/pte.h>
 #include <riscv/riscvreg.h>
@@ -30,8 +29,8 @@
 #define GROWKERNEL_STRIDE L0_SIZE
 #endif
 
-#define PTE_KERNEL_EMPTY 0
-#define PTE_USER_EMPTY 0
+#define PTE_EMPTY_KERNEL 0
+#define PTE_EMPTY_USER 0
 
 #define PTE_SET_ON_REFERENCED (PTE_A | PTE_V)
 #define PTE_CLR_ON_REFERENCED 0
@@ -51,8 +50,10 @@ typedef struct pmap_md {
  */
 
 static inline bool pde_valid_p(pde_t *pdep) {
-  return pdep && (*pdep & PTE_V);
+  return pdep && VALID_PDE_P(*pdep);
 }
+
+void *phys_to_dmap(paddr_t addr);
 
 static inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
   pde_t *pde = phys_to_dmap(pd_pa);
@@ -72,8 +73,12 @@ static inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
  * Page table.
  */
 
+static inline paddr_t pte_frame(pte_t pte) {
+  return PTE_TO_PA(pte);
+}
+
 static inline bool pte_valid_p(pte_t *ptep) {
-  return ptep && (*ptep != 0);
+  return ptep && VALID_PTE_P(*ptep);
 }
 
 static inline bool pte_access(pte_t pte, vm_prot_t prot) {
@@ -87,10 +92,6 @@ static inline bool pte_access(pte_t pte, vm_prot_t prot) {
     default:
       panic("Invalid pte_access invocation (prot=%x)", prot);
   }
-}
-
-static inline paddr_t pte_frame(pte_t pte) {
-  return PTE_TO_PA(pte);
 }
 
 #endif /* !_RISCV_PMAP_H_ */

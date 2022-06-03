@@ -29,20 +29,14 @@ typedef struct pv_entry {
 } pv_entry_t;
 
 /*
- * Machine dependent flags passed to `pmap_kenter` and `pmap_enter`.
- */
-
-#define _PMAP_KERNEL (1 << 24)
-
-/*
  * Each target must implement the following interface
  * along with the `pmap_md_t` struct and a handful of macros:
  *
  *  - `PAGE_TABLE_DEPTH`: depth of the address translation structure
  *  - `DMAP_BASE`: virtual address of the beginning of DMAP
  *  - `MAX_ASID`: maximum possible ASID
- *  - `PTE_KERNEL_EMPTY`: PTE value used for kernel empty page table entries
- *  - `PTE_USER_EMPTY`: PTE value used for user empty page table entries
+ *  - `PTE_EMPTY_KERNEL`: PTE value used for kernel empty page table entries
+ *  - `PTE_EMPTY_USER`: PTE value used for user empty page table entries
  *  - `PTE_SET_ON_REFERENCED`: PTE bits to set while marking a page
  *    as referenced
  *  - `PTE_CLR_ON_REFERENCED`: PTE bits to clear while marking a page
@@ -79,15 +73,15 @@ static inline pde_t *pde_ptr(paddr_t pd, int lvl, vaddr_t va);
  * Some architectures may require broadcasting changes in the top page directory
  * of the kernel. This function is called whenever such a change occurs.
  */
-void broadcast_kernel_top_pde(vaddr_t va, pde_t pde);
+void pmap_broadcast_kernel_top_pde(vaddr_t va, pde_t pde);
 
 /*
  * Page table.
  */
 
+static inline paddr_t pte_frame(pte_t pte);
 static inline bool pte_valid_p(pte_t *ptep);
 static inline bool pte_access(pte_t pte, vm_prot_t prot);
-static inline paddr_t pte_frame(pte_t pte);
 pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags);
 pte_t pte_protect(pte_t pte, vm_prot_t prot);
 
