@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 #include <sys/klog.h>
-#include <sys/pmap.h>
 #include <sys/vm.h>
 #include <riscv/pte.h>
 #include <riscv/riscvreg.h>
@@ -49,6 +48,8 @@ typedef struct pmap_md {
 static inline bool pde_valid_p(pde_t *pdep) {
   return pdep && VALID_PDE_P(*pdep);
 }
+
+void *phys_to_dmap(paddr_t addr);
 
 static inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
   pde_t *pde = phys_to_dmap(pd_pa);
