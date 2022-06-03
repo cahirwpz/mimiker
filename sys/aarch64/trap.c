@@ -2,19 +2,14 @@
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/thread.h>
-#include <sys/vm_physmem.h>
+#include <sys/pmap.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/interrupt.h>
 #include <sys/cpu.h>
-#include <sys/_trap.h>
 #include <aarch64/armreg.h>
 
-const char *exc_str(u_long exc_code) {
-  return NULL;
-}
-
-__noreturn void kernel_oops(ctx_t *ctx) {
+static __noreturn void kernel_oops(ctx_t *ctx) {
   panic("KERNEL PANIC!!!");
 }
 
@@ -74,7 +69,9 @@ void user_trap_handler(mcontext_t *uctx) {
     case EXCP_INSN_ABORT:
     case EXCP_DATA_ABORT_L:
     case EXCP_DATA_ABORT:
-      page_fault_handler(ctx, exc_code, far, exc_access(exc_code, esr));
+      klog("%x at $%lx, caused by reference to $%lx!", exc_code, _REG(ctx, PC),
+           far);
+      pmap_page_fault_handler(ctx, far, exc_access(exc_code, esr));
       break;
 
     case EXCP_SVC64:
@@ -123,7 +120,10 @@ void kern_trap_handler(ctx_t *ctx) {
   switch (exc_code) {
     case EXCP_INSN_ABORT:
     case EXCP_DATA_ABORT:
-      page_fault_handler(ctx, exc_code, far, exc_access(exc_code, esr));
+      klog("%x at $%lx, caused by reference to $%lx!", exc_code, _REG(ctx, PC),
+           far);
+      if (pmap_page_fault_handler(ctx, far, exc_access(exc_code, esr)))
+        kernel_oops(ctx);
       break;
 
     default:

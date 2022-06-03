@@ -1,10 +1,11 @@
 #define KL_LOG KL_VM
 #include <sys/cpu.h>
+#include <sys/errno.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
+#include <sys/pmap.h>
 #include <sys/sysent.h>
 #include <sys/thread.h>
-#include <sys/_trap.h>
 #include <riscv/cpufunc.h>
 
 /* clang-format off */
@@ -25,10 +26,6 @@ static const char *const exceptions[] = {
 };
 /* clang-format on */
 
-const char *exc_str(u_long exc_code) {
-  return exceptions[exc_code];
-}
-
 __no_profile static inline bool ctx_interrupt(ctx_t *ctx) {
   return _REG(ctx, CAUSE) & SCAUSE_INTR;
 }
@@ -41,12 +38,12 @@ __no_profile static inline bool ctx_intr_enabled(ctx_t *ctx) {
   return _REG(ctx, SR) & SSTATUS_SPIE;
 }
 
-__noreturn void kernel_oops(ctx_t *ctx) {
+static __noreturn void kernel_oops(ctx_t *ctx) {
   u_long code = ctx_code(ctx);
   void *epc = (void *)_REG(ctx, PC);
   uint32_t badinstr = *(uint32_t *)epc;
 
-  klog("%s at %p!", exc_str(code), epc);
+  klog("%s at %p!", exceptions[code], epc);
 
   switch (code) {
     case SCAUSE_INST_MISALIGNED:
@@ -163,12 +160,15 @@ static void user_trap_handler(ctx_t *ctx) {
   syscall_result_t result;
   u_long code = ctx_code(ctx);
   void *epc = (void *)_REG(ctx, PC);
+  vaddr_t vaddr = _REG(ctx, TVAL);
 
   switch (code) {
     case SCAUSE_INST_PAGE_FAULT:
     case SCAUSE_LOAD_PAGE_FAULT:
     case SCAUSE_STORE_PAGE_FAULT:
-      page_fault_handler(ctx, code, _REG(ctx, TVAL), exc_access(code));
+      klog("%s at %p, caused by reference to %lx!", exceptions[code], epc,
+           vaddr);
+      pmap_page_fault_handler(ctx, vaddr, exc_access(code));
       break;
 
       /* Access fault */
@@ -189,7 +189,7 @@ static void user_trap_handler(ctx_t *ctx) {
     case SCAUSE_ILLEGAL_INSTRUCTION:
       if (fpu_handler((mcontext_t *)ctx))
         break;
-      klog("%s at %p!", exc_str(code), epc);
+      klog("%s at %p!", exceptions[code], epc);
       sig_trap(ctx, SIGILL);
       break;
 
@@ -218,12 +218,17 @@ static void kern_trap_handler(ctx_t *ctx) {
     cpu_intr_enable();
 
   u_long code = ctx_code(ctx);
+  void *epc = (void *)_REG(ctx, PC);
+  vaddr_t vaddr = _REG(ctx, TVAL);
 
-  switch (code) {
+  switch (ctx_code(ctx)) {
     case SCAUSE_INST_PAGE_FAULT:
     case SCAUSE_LOAD_PAGE_FAULT:
     case SCAUSE_STORE_PAGE_FAULT:
-      page_fault_handler(ctx, code, _REG(ctx, TVAL), exc_access(code));
+      klog("%s at %p, caused by reference to %lx!", exceptions[code], epc,
+           vaddr);
+      if (pmap_page_fault_handler(ctx, vaddr, exc_access(code)))
+        kernel_oops(ctx);
       break;
 
     default:

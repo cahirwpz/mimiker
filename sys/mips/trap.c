@@ -1,15 +1,17 @@
 #define KL_LOG KL_VM
 #include <sys/klog.h>
+#include <sys/errno.h>
 #include <sys/interrupt.h>
 #include <sys/cpu.h>
+#include <sys/context.h>
 #include <mips/tlb.h>
+#include <sys/pmap.h>
 #include <sys/sysent.h>
 #include <sys/thread.h>
 #include <sys/vm_map.h>
 #include <sys/vm_physmem.h>
-#include <sys/_trap.h>
 
-__no_profile static inline u_long exc_code(ctx_t *ctx) {
+__no_profile static inline unsigned exc_code(ctx_t *ctx) {
   return (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
 }
 
@@ -89,14 +91,10 @@ static const char *const exceptions[32] = {
 };
 /* clang-format on */
 
-const char *exc_str(u_long exc_code) {
-  return exceptions[exc_code];
-}
+static __noreturn void kernel_oops(ctx_t *ctx) {
+  unsigned code = exc_code(ctx);
 
-__noreturn void kernel_oops(ctx_t *ctx) {
-  u_long code = exc_code(ctx);
-
-  klog("%s at $%08lx!", exc_str(code), _REG(ctx, EPC));
+  klog("%s at $%08lx!", exceptions[code], _REG(ctx, EPC));
   switch (code) {
     case EXC_ADEL:
     case EXC_ADES:
@@ -138,13 +136,16 @@ static void user_trap_handler(ctx_t *ctx) {
 
   int cp_id;
   syscall_result_t result;
-  u_long code = exc_code(ctx);
+  unsigned int code = exc_code(ctx);
+  vaddr_t vaddr = _REG(ctx, BADVADDR);
 
   switch (code) {
     case EXC_MOD:
     case EXC_TLBL:
     case EXC_TLBS:
-      page_fault_handler(ctx, code, _REG(ctx, BADVADDR), exc_access(code));
+      klog("%s at $%lx, caused by reference to $%lx!", exceptions[code],
+           _REG(ctx, EPC), vaddr);
+      pmap_page_fault_handler(ctx, vaddr, exc_access(code));
       break;
 
     /*
@@ -201,12 +202,16 @@ static void kern_trap_handler(ctx_t *ctx) {
     cpu_intr_enable();
 
   u_long code = exc_code(ctx);
+  vaddr_t vaddr = _REG(ctx, BADVADDR);
 
   switch (code) {
     case EXC_MOD:
     case EXC_TLBL:
     case EXC_TLBS:
-      page_fault_handler(ctx, code, _REG(ctx, BADVADDR), exc_access(code));
+      klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
+           _REG(ctx, EPC), vaddr);
+      if (pmap_page_fault_handler(ctx, vaddr, exc_access(code)))
+        kernel_oops(ctx);
       break;
 
     default:

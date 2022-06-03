@@ -1,5 +1,6 @@
 #define KL_LOG KL_PMAP
 #include <bitstring.h>
+#include <sys/context.h>
 #include <sys/errno.h>
 #include <sys/kasan.h>
 #include <sys/klog.h>
@@ -8,6 +9,7 @@
 #include <sys/pool.h>
 #include <sys/pmap.h>
 #include <sys/sched.h>
+#include <sys/vm_map.h>
 #include <sys/vm_physmem.h>
 #include <sys/_pmap.h>
 #include <sys/_tlb.h>
@@ -43,10 +45,6 @@ static inline pde_t page_offset(vaddr_t addr) {
   return addr & (PAGESIZE - 1);
 }
 
-static bool user_addr_p(vaddr_t addr) {
-  return addr >= USER_SPACE_BEGIN && addr < USER_SPACE_END;
-}
-
 static bool kern_addr_p(vaddr_t addr) {
   return addr >= KERNEL_SPACE_BEGIN && addr < KERNEL_SPACE_END;
 }
@@ -74,14 +72,6 @@ inline pmap_t *pmap_kernel(void) {
 
 inline pmap_t *pmap_user(void) {
   return PCPU_GET(curpmap);
-}
-
-pmap_t *pmap_lookup(vaddr_t addr) {
-  if (kern_addr_p(addr))
-    return pmap_kernel();
-  if (user_addr_p(addr))
-    return pmap_user();
-  return NULL;
 }
 
 static void *pg_dmap_addr(vm_page_t *pg) {
@@ -410,7 +400,19 @@ bool pmap_clear_modified(vm_page_t *pg) {
   return prev;
 }
 
-int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
+/*
+ * For address user virtual address `va` (must not cross two pages)
+ * check if access with `prot` permission would succeed and emulate
+ * referenced & modified bits.
+ *
+ * Returns:
+ *  - 0: if the access should be permitted
+ *  - EFAULT: if `va` is not mapped by provided pmap
+ *  - EACCESS: if `va` mapping has been found to have insufficient permissions
+ */
+static int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
+  assert(!kern_addr_p(va));
+
   paddr_t pa;
 
   WITH_MTX_LOCK (&pmap->mtx) {
@@ -429,9 +431,6 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
       return EACCES;
   }
 
-  if (kern_addr_p(va))
-    return EINVAL;
-
   vm_page_t *pg = vm_page_find(pa);
   assert(pg);
 
@@ -440,6 +439,41 @@ int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
     pmap_set_modified(pg);
 
   return 0;
+}
+
+int pmap_page_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access) {
+  thread_t *td = thread_self();
+  int error = EINVAL;
+
+  if (kern_addr_p(vaddr))
+    goto fault;
+
+  pmap_t *pmap = pmap_user();
+  assert(pmap);
+
+  if (!(error = pmap_emulate_bits(pmap, vaddr, access)))
+    return 0;
+
+  if (error == EACCES)
+    goto fault;
+
+  vm_map_t *vmap = vm_map_user();
+  assert(vmap);
+
+  if (!(error = vm_page_fault(vmap, vaddr, access)))
+    return 0;
+
+fault:
+  if (td->td_onfault) {
+    /* Handle copyin/copyout faults. */
+    ctx_set_pc(ctx, td->td_onfault);
+    return 0;
+  }
+  if (user_mode_p(ctx)) {
+    /* Send a segmentation fault signal to the user program. */
+    sig_trap(ctx, SIGSEGV);
+  }
+  return error;
 }
 
 /*
