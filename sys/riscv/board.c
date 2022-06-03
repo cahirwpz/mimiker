@@ -12,7 +12,6 @@
 #include <sys/vm_physmem.h>
 #include <riscv/mcontext.h>
 #include <riscv/pmap.h>
-#include <riscv/riscvreg.h>
 #include <riscv/sbi.h>
 #include <riscv/vm_param.h>
 
@@ -74,7 +73,7 @@ static void process_dtb(char **tokens, kstack_t *stk) {
   *tokens = NULL;
 }
 
-void *board_stack(paddr_t dtb_pa, vaddr_t dtb_va) {
+void *board_stack(paddr_t dtb_pa, void *dtb_va) {
   FDT_early_init(dtb_pa, dtb_va);
 
   kstack_t *stk = &thread0.td_kstack;
