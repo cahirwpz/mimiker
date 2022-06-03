@@ -70,12 +70,6 @@ pde_t pde_make(int lvl, paddr_t pa);
 static inline pde_t *pde_ptr(paddr_t pd, int lvl, vaddr_t va);
 
 /*
- * Some architectures may require broadcasting changes in the top page directory
- * of the kernel. This function is called whenever such a change occurs.
- */
-void pmap_broadcast_kernel_top_pde(vaddr_t va, pde_t pde);
-
-/*
  * Page table.
  */
 

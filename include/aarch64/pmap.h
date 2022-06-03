@@ -66,9 +66,6 @@ static inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
   return pde + L3_INDEX(va);
 }
 
-static inline void pmap_broadcast_kernel_top_pde(vaddr_t va, pde_t pde) {
-}
-
 /*
  * Page table.
  */

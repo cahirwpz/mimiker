@@ -202,8 +202,6 @@ static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
     if (!pde_valid_p(pdep)) {
       pa = pmap_alloc_pde(pmap, va);
       *pdep = pde_make(lvl - 1, pa);
-      if (lvl == 0 && pmap == pmap_kernel())
-        pmap_broadcast_kernel_top_pde(va, *pdep);
     } else {
       pa = pte_frame((pte_t)*pdep);
     }

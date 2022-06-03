@@ -15,7 +15,7 @@
 #include <riscv/sbi.h>
 #include <riscv/vm_param.h>
 
-#define KERNEL_PHYS_END (align(RISCV_PHYSADDR(__ebss), PAGESIZE) + BOOTMEM_SIZE)
+paddr_t kern_phys_end;
 
 static size_t count_args(void) {
   /*
@@ -110,8 +110,9 @@ typedef struct {
 #define END(pa) roundup((pa), PAGESIZE)
 
 static void ar_get_kernel_img(addr_range_t *ar) {
+  assert(kern_phys_end);
   ar->start = (paddr_t)__eboot;
-  ar->end = KERNEL_PHYS_END;
+  ar->end = kern_phys_end;
 }
 
 static void ar_get_initrd(addr_range_t *ar) {
