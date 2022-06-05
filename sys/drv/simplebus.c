@@ -7,6 +7,59 @@
 #include <sys/klog.h>
 #include <sys/libkern.h>
 
+static int sb_soc_addr_to_cpu_addr(u_long soc_addr, u_long *cpu_addr_p) {
+  phandle_t node = FDT_finddevice("/soc");
+  if (node == FDT_NODEV)
+    return ENXIO;
+
+  int soc_addr_cells, soc_size_cells;
+  int err = FDT_addrsize_cells(node, &soc_addr_cells, &soc_size_cells);
+  if (err)
+    return err;
+
+  int cpu_addr_cells, cpu_size_cells;
+  if ((err = FDT_addrsize_cells(0, &cpu_addr_cells, &cpu_size_cells)))
+    return err;
+
+  int tuple_cells = soc_addr_cells + cpu_addr_cells + soc_size_cells;
+  size_t tuple_size = sizeof(pcell_t) * tuple_cells;
+  pcell_t *tuples;
+
+  ssize_t ntuples =
+    FDT_getprop_alloc_multi(node, "ranges", tuple_size, (void **)&tuples);
+  if (ntuples == -1)
+    return ENXIO;
+
+  if (!ntuples) {
+    *cpu_addr_p = soc_addr;
+    return 0;
+  }
+
+  for (int i = 0; i < ntuples; i++) {
+    pcell_t *tuple = &tuples[i * tuple_cells];
+
+    u_long range_soc_addr = FDT_data_get(tuple, soc_addr_cells);
+    tuple += soc_addr_cells;
+
+    u_long range_cpu_addr = FDT_data_get(tuple, cpu_addr_cells);
+    tuple += cpu_addr_cells;
+
+    u_long range_size = FDT_data_get(tuple, soc_size_cells);
+    tuple += soc_size_cells;
+
+    if (soc_addr >= range_soc_addr && soc_addr <= range_soc_addr + range_size) {
+      u_long off = soc_addr - range_soc_addr;
+      *cpu_addr_p = range_cpu_addr + off;
+      goto end;
+    }
+  }
+  err = EINVAL;
+
+end:
+  FDT_free(tuples);
+  return err;
+}
+
 static int sb_get_region(device_t *dev, fdt_mem_reg_t *mrs, size_t *cntp) {
   phandle_t node = dev->node;
 
@@ -34,6 +87,8 @@ static int sb_get_region(device_t *dev, fdt_mem_reg_t *mrs, size_t *cntp) {
     fdt_mem_reg_t *mr = &mrs[i];
     if ((err = FDT_data_to_res(tuple, addr_cells, size_cells, &mr->addr,
                                &mrs->size)))
+      goto end;
+    if ((err = sb_soc_addr_to_cpu_addr(mr->addr, &mr->addr)))
       goto end;
   }
 
