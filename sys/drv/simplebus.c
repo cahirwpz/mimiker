@@ -52,20 +52,24 @@ static int sb_get_interrupts(device_t *dev, fdt_intr_t *intrs, size_t *cntp) {
   if (err)
     return err;
 
+  size_t tuple_size = sizeof(pcell_t) * icells;
   pcell_t *tuples;
-  int ntuples = FDT_getencprop_alloc_multi(
-    node, "interrupts", icells * sizeof(pcell_t), (void **)&tuples);
+
+  int ntuples = FDT_getencprop_alloc_multi(node, "interrupts", tuple_size,
+                                           (void **)&tuples);
   if (ntuples == -1)
     return ENXIO;
+
   if (!ntuples)
     return 0;
-  if (icells > ntuples) {
+
+  if (ntuples > FDT_MAX_INTRS) {
     err = ERANGE;
     goto end;
   }
 
   for (int i = 0; i < ntuples * icells; i += icells, intrs++) {
-    memcpy(intrs->tuple, &tuples[i], icells);
+    memcpy(intrs->tuple, &tuples[i], tuple_size);
     intrs->icells = icells;
     intrs->iparent = iparent;
   }
@@ -90,7 +94,7 @@ static int sb_get_interrupts_extended(device_t *dev, fdt_intr_t *intrs,
 
   size_t ntuples = 0;
   int err = 0, icells;
-  for (int i = 0; i < ncells; i += icells, intrs++) {
+  for (int i = 0; i < ncells; i += icells, intrs++, ntuples++) {
     if (ntuples > FDT_MAX_INTRS) {
       err = ERANGE;
       goto end;
@@ -109,10 +113,10 @@ static int sb_get_interrupts_extended(device_t *dev, fdt_intr_t *intrs,
       goto end;
     }
 
-    memcpy(intrs->tuple, &cells[i], icells);
+    size_t tuple_size = sizeof(pcell_t) * icells;
+    memcpy(intrs->tuple, &cells[i], tuple_size);
     intrs->icells = icells;
     intrs->iparent = iparent;
-    ntuples++;
   }
 
 end:
@@ -123,6 +127,9 @@ end:
 
 /* TODO: handle ranges property. */
 static int sb_region_to_rl(device_t *dev) {
+  if (!FDT_hasprop(dev->node, "reg"))
+    return 0;
+
   fdt_mem_reg_t *mrs = kmalloc(
     M_DEV, FDT_MAX_REG_TUPLES * sizeof(fdt_mem_reg_t), M_WAITOK | M_ZERO);
 
