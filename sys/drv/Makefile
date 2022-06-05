@@ -29,6 +29,7 @@ SOURCES-MIPS = \
 
 SOURCES-AARCH64 = \
 	bcm2835_gpio.c \
+	bcm2835_pic.c \
 	bcm2835_rootdev.c \
 	pl011.c
 
