@@ -1,5 +1,9 @@
-MIPS documentation
+MIPS architecture
 ---
+
+Development of MIPS architecture has
+[ended](https://www.eejournal.com/article/wait-what-mips-becomes-risc-v/) in
+2021. We're in process of replacing MIPS with RISC-V.
 
 * [MIPS® Architecture For Programmers Volume II-A: The MIPS32® Instruction Set](http://mimiker.ii.uni.wroc.pl/documents/MD00086-2B-MIPS32BIS-AFP-6.06.pdf)
 * [MIPS® Architecture For Programmers Volume III: The MIPS32® and microMIPS32™ Privileged Resource Architecture](http://mimiker.ii.uni.wroc.pl/documents/MD00090-2B-MIPS32PRA-AFP-06.02.pdf)
@@ -10,8 +14,12 @@ MIPS documentation
 * [MIPS® YAMON™ Reference Manual](http://mimiker.ii.uni.wroc.pl/documents/MD00009-2B-YAMON-RFM-02.20.pdf)
 * [MIPS ABI Project](https://dmz-portal.mips.com/wiki/MIPS_ABI_Project)
 
-Malta system documentation
+Malta system
 ---
+
+[Malta](https://www.linux-mips.org/wiki/MIPS_Malta) is PC-like system based on
+MIPS CPU. This was a first target architecture for Mimiker. It's well supported
+by QEmu.
 
 * [MIPS® Malta™-R Development Platform User’s Manual](http://mimiker.ii.uni.wroc.pl/documents/MD00627-2B-MALTA_R-USM-01.01.pdf)
 * [Galileo GT–64120 System Controller](http://doc.chipfind.ru/pdf/marvell/gt64120.pdf)
