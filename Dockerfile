@@ -20,4 +20,3 @@ RUN curl -O https://mimiker.ii.uni.wroc.pl/download/riscv32-mimiker-elf_latest_a
     dpkg -i riscv32-mimiker-elf_latest_amd64.deb && rm -f riscv32-mimiker-elf_latest_amd64.deb
 RUN curl -O https://mimiker.ii.uni.wroc.pl/download/qemu-mimiker_latest_amd64.deb && \
     dpkg -i qemu-mimiker_latest_amd64.deb && rm -f qemu-mimiker_latest_amd64.deb
-
