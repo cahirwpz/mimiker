@@ -8,22 +8,29 @@
 #include <sys/thread.h>
 #include <sys/ktest.h>
 #include <sys/sched.h>
+#include <sys/proc.h>
 
-#ifdef __mips__
+#if __SIZEOF_POINTER__ == 4
 #define TOO_MUCH 0x40000000
-#endif
-
-#ifdef __aarch64__
+#else
 #define TOO_MUCH 0x800000000000L
 #endif
 
+#ifdef __riscv
+#include <riscv/cpufunc.h>
+#endif
+
 static int paging_on_demand_and_memory_protection_demo(void) {
-  /* This test mustn't be preempted since PCPU's user-space vm_map will not be
-   * restored while switching back. */
   SCOPED_NO_PREEMPTION();
+  proc_t *p = proc_self();
 
   vm_map_t *orig = vm_map_user();
-  vm_map_activate(vm_map_new());
+  /* XXX: We can't guarantee that we won't switch to another process,
+   * so we need to store the temporary userspace map in our process.
+   * This is fine as long as there are no concurrent threads in our
+   * process that use p_uspace or read/write any userspace addresses. */
+  p->p_uspace = vm_map_new();
+  vm_map_activate(p->p_uspace);
 
   vm_map_t *kmap = vm_map_kernel();
   vm_map_t *umap = vm_map_user();
@@ -69,11 +76,19 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   vm_map_dump(umap);
   vm_map_dump(kmap);
 
+#ifdef __riscv
+  enter_user_access();
+#endif
+
   /* Start in paged on demand range, but end outside, to cause fault */
   for (int *ptr = (int *)start; ptr != (int *)end; ptr += 256) {
     klog("%p", ptr);
     *ptr = 0xfeedbabe;
   }
+
+#ifdef __riscv
+  exit_user_access();
+#endif
 
   vm_map_dump(umap);
   vm_map_dump(kmap);
@@ -81,6 +96,7 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   vm_map_delete(umap);
 
   /* Restore original vm_map */
+  p->p_uspace = orig;
   vm_map_activate(orig);
 
   return KTEST_SUCCESS;

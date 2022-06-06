@@ -128,7 +128,7 @@ static int pl011_attach(device_t *dev) {
   bus_write_4(r, PL011COM_IMSC, PL011_INT_RX);
 
   pl011->irq = device_take_irq(dev, 0, RF_ACTIVE);
-  bus_intr_setup(dev, pl011->irq, uart_intr, NULL, dev, "PL011 UART");
+  pic_setup_intr(dev, pl011->irq, uart_intr, NULL, dev, "PL011 UART");
 
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);

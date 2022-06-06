@@ -290,10 +290,10 @@ static size_t cpio_dirent_namlen(vnode_t *v, void *it) {
   return strlen(((cpio_node_t *)it)->c_name);
 }
 
-static const unsigned ft2dt[16] = {[C_FIFO] = DT_FIFO, [C_CHR] = DT_CHR,
-                                   [C_DIR] = DT_DIR,   [C_BLK] = DT_BLK,
-                                   [C_REG] = DT_REG,   [C_CTG] = DT_UNKNOWN,
-                                   [C_LNK] = DT_LNK,   [C_SOCK] = DT_SOCK};
+static const unsigned ft2dt[16] = {
+  [C_FIFO] = DT_FIFO, [C_CHR] = DT_CHR,  [C_DIR] = DT_DIR,
+  [C_BLK] = DT_BLK,   [C_REG] = DT_REG,  [C_CTG] = DT_UNKNOWN,
+  [C_LNK] = DT_LNK,   [C_SOCK] = DT_SOCK};
 
 static void cpio_to_dirent(vnode_t *v, void *it, dirent_t *dir) {
   assert(it != NULL);

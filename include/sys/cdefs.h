@@ -1,8 +1,6 @@
 #ifndef _SYS_CDEFS_H_
 #define _SYS_CDEFS_H_
 
-#include <machine/cdefs.h>
-
 /*
  * To be used when an empty body is required like:
  *
@@ -80,6 +78,12 @@
 #define __no_profile __no_instrument_function
 #else
 #define __no_profile
+#endif
+
+#ifdef KCSAN
+#define __no_kcsan_sanitize __no_sanitize
+#else
+#define __no_kcsan_sanitize
 #endif
 
 /* Clang introduces support for the fallthrough attribute in C2x. */

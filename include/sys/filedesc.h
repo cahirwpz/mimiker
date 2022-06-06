@@ -16,11 +16,14 @@ void fdtab_drop(fdtab_t *fdt);
 fdtab_t *fdtab_create(void);
 /* Allocates a new descriptor table making it a copy of an existing one. */
 fdtab_t *fdtab_copy(fdtab_t *fdt);
-/* Assign a file structure to a new descriptor with number >= minfd. */
+/* Assign a file structure to a new descriptor with number >= minfd.
+ * Increments reference counter of `f` file. */
 int fdtab_install_file(fdtab_t *fdt, file_t *f, int minfd, int *fdp);
-/* Assign a file structure to a certain descriptor number. */
+/* Assign a file structure to a certain descriptor number.
+ * Increments reference counter of `f` file. */
 int fdtab_install_file_at(fdtab_t *fdt, file_t *f, int fd);
-/* Extracts a reference to file from descriptor table for given number. */
+/* Extracts a reference to file from descriptor table for given number.
+ * Increments reference counter of `f` file on success. */
 int fdtab_get_file(fdtab_t *fdt, int fd, int flags, file_t **fp);
 /* Closes a file descriptor.
  * If it was the last reference to a file, the file is closed as well. */
