@@ -4,10 +4,17 @@
 #if KASAN
 
 #include <sys/types.h>
+#include <machine/vm_param.h>
+
+#define KASAN_SANITIZED_START KERNEL_SPACE_BEGIN
 
 /* This variable marks the top end of the virtual address range
  * for which shadow memory has been allocated. */
 extern vaddr_t _kasan_sanitized_end;
+
+/* Part of internal compiler interface */
+#define KASAN_SHADOW_SCALE_SHIFT 3
+#define KASAN_SHADOW_SCALE_SIZE (1 << KASAN_SHADOW_SCALE_SHIFT)
 
 /* The following codes are part of internal compiler interface:
  * https://github.com/gcc-mirror/gcc/blob/master/libsanitizer/asan/asan_internal.h
