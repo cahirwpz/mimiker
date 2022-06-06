@@ -62,21 +62,21 @@
  * will be dropped.
  */
 #define KL_LOG KL_INIT
+#include <sys/fdt.h>
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
+#include <sys/pmap.h>
 #include <riscv/abi.h>
 #include <riscv/cpufunc.h>
 #include <riscv/pmap.h>
-#include <riscv/pte.h>
 #include <riscv/vm_param.h>
 
 #define KERNEL_VIRT_IMG_END align((vaddr_t)__ebss, PAGESIZE)
 #define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(__ebss), PAGESIZE)
-#define KERNEL_PHYS_END (KERNEL_PHYS_IMG_END + BOOTMEM_SIZE)
 
-#define BOOT_DTB_VADDR DMAP_VADDR_BASE
-#define BOOT_PD_VADDR (DMAP_VADDR_BASE + L0_SIZE)
+#define BOOT_DTB_VADDR DMAP_BASE
+#define BOOT_PD_VADDR (DMAP_BASE + L0_SIZE)
 
 /*
  * Bare memory boot data.
@@ -85,10 +85,7 @@
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data static void *bootmem_brk;
 
-/* End of boot memory allocation area. */
-__boot_data static void *bootmem_end;
-
-__boot_data static pd_entry_t *kernel_pde;
+__boot_data static pde_t *kernel_pde;
 
 /*
  * Virtual memory boot data.
@@ -114,25 +111,22 @@ __boot_text static void *bootmem_alloc(size_t bytes) {
   long *addr = bootmem_brk;
   bootmem_brk += align(bytes, PAGESIZE);
 
-  if (bootmem_brk > bootmem_end)
-    halt();
-
   for (size_t i = 0; i < bytes / sizeof(long); i++)
     addr[i] = 0;
   return addr;
 }
 
-__boot_text static pt_entry_t *ensure_pte(vaddr_t va) {
-  pd_entry_t *pdep = kernel_pde;
+__boot_text static pte_t *ensure_pte(vaddr_t va) {
+  pde_t *pdep = kernel_pde;
 
   /* Level 0 */
   pdep += L0_INDEX(va);
   if (!VALID_PTE_P(*pdep))
     *pdep = PA_TO_PTE((paddr_t)bootmem_alloc(PAGESIZE)) | PTE_V;
-  pdep = (pd_entry_t *)PTE_TO_PA(*pdep);
+  pdep = (pde_t *)PTE_TO_PA(*pdep);
 
   /* Level 1 */
-  return (pt_entry_t *)pdep + L1_INDEX(va);
+  return (pte_t *)pdep + L1_INDEX(va);
 }
 
 __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
@@ -141,12 +135,12 @@ __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
     halt();
 
   for (size_t off = 0; off < size; off += PAGESIZE) {
-    pt_entry_t *ptep = ensure_pte(va + off);
+    pte_t *ptep = ensure_pte(va + off);
     *ptep = PA_TO_PTE(pa + off) | flags;
   }
 }
 
-static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde);
+static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end);
 
 __boot_text __noreturn void riscv_init(paddr_t dtb) {
   if (!((paddr_t)__eboot < (vaddr_t)__kernel_start ||
@@ -155,7 +149,6 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
 
   /* Initialize boot memory allocator. */
   bootmem_brk = (void *)KERNEL_PHYS_IMG_END;
-  bootmem_end = (void *)KERNEL_PHYS_END;
 
   /* Allocate kernel page directory.*/
   kernel_pde = bootmem_alloc(PAGESIZE);
@@ -201,12 +194,14 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
 
   __asm __volatile("mv a0, %0\n\t"
                    "mv a1, %1\n\t"
-                   "mv sp, %2\n\t"
-                   "csrw satp, %3\n\t"
+                   "mv a2, %2\n\t"
+                   "mv sp, %3\n\t"
+                   "csrw satp, %4\n\t"
                    "nop" /* triggers instruction fetch page fault */
                    :
-                   : "r"(dtb), "r"(kernel_pde), "r"(boot_sp), "r"(satp)
-                   : "a0", "a1");
+                   : "r"(dtb), "r"(kernel_pde), "r"(bootmem_brk), "r"(boot_sp),
+                     "r"(satp)
+                   : "a0", "a1", "a2");
 
   __unreachable();
 }
@@ -225,10 +220,10 @@ static void clear_bss(void) {
 /* Trap handler in direct mode. */
 extern void cpu_exception_handler(void);
 
-extern void *board_stack(paddr_t dtb_pa, vaddr_t dtb_va);
+extern void *board_stack(paddr_t dtb_pa, void *dtb_va);
 extern void __noreturn board_init(void);
 
-static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
+static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
   /*
    * Set initial register values.
    */
@@ -250,10 +245,16 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde) {
 
   clear_bss();
 
-  vaddr_t dtb_va = BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
+  extern paddr_t kern_phys_end;
+  kern_phys_end = kern_end;
+
+  void *dtb_va = (void *)BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
   void *sp = board_stack(dtb, dtb_va);
 
-  pmap_bootstrap(pde, BOOT_PD_VADDR);
+  pmap_bootstrap(pde, (void *)BOOT_PD_VADDR);
+
+  void *fdtp = (void *)phys_to_dmap(FDT_get_physaddr());
+  FDT_changeroot(fdtp);
 
   /*
    * Switch to thread0's stack and perform `board_init`.

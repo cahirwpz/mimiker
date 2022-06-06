@@ -12,11 +12,10 @@
 #include <sys/vm_physmem.h>
 #include <riscv/mcontext.h>
 #include <riscv/pmap.h>
-#include <riscv/riscvreg.h>
 #include <riscv/sbi.h>
 #include <riscv/vm_param.h>
 
-#define KERNEL_PHYS_END (align(RISCV_PHYSADDR(__ebss), PAGESIZE) + BOOTMEM_SIZE)
+paddr_t kern_phys_end;
 
 static size_t count_args(void) {
   /*
@@ -35,7 +34,7 @@ static size_t count_args(void) {
 
 static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
                               kstack_t *stk) {
-  fdt_mem_reg_t mrs[FDT_MAX_MEM_REGS];
+  fdt_mem_reg_t mrs[FDT_MAX_REG_TUPLES];
   size_t cnt, size;
   if (FDT_get_mem(mrs, &cnt, &size))
     panic("Failed to retrieve memory regions from DTB!");
@@ -74,7 +73,7 @@ static void process_dtb(char **tokens, kstack_t *stk) {
   *tokens = NULL;
 }
 
-void *board_stack(paddr_t dtb_pa, vaddr_t dtb_va) {
+void *board_stack(paddr_t dtb_pa, void *dtb_va) {
   FDT_early_init(dtb_pa, dtb_va);
 
   kstack_t *stk = &thread0.td_kstack;
@@ -111,8 +110,9 @@ typedef struct {
 #define END(pa) roundup((pa), PAGESIZE)
 
 static void ar_get_kernel_img(addr_range_t *ar) {
+  assert(kern_phys_end);
   ar->start = (paddr_t)__eboot;
-  ar->end = KERNEL_PHYS_END;
+  ar->end = kern_phys_end;
 }
 
 static void ar_get_initrd(addr_range_t *ar) {
