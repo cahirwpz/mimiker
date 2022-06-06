@@ -18,9 +18,12 @@
 #include <dev/bcm2835_gpioreg.h>
 #include <dev/plcomreg.h>
 #include <dev/bcm2835_gpio.h>
+#include <sys/fdt.h>
 
 #define UART0_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE)
 #define UART_BUFSIZE 128
+
+#define PL011_FDT_COMPATIBLE "uart,pl011"
 
 static inline void set4(resource_t *r, int o, uint32_t v) {
   bus_write_4(r, o, bus_read_4(r, o) | v);
@@ -66,9 +69,20 @@ static void pl011_tx_disable(void *state) {
 }
 
 static int pl011_probe(device_t *dev) {
-  /* (pj) so far we don't have better way to associate driver with device for
-   * buses which do not automatically enumerate their children. */
-  return (dev->unit == 1);
+  ssize_t len = FDT_getproplen(dev->node, "compatible");
+  if (len < 0) {
+    klog("Warning: %s missing `compatible` property", __func__);
+    return 0;
+  }
+  
+  char *buf = kmalloc(M_DEV, len + 1, M_ZERO);
+
+  FDT_getprop(dev->node, "compatible", (pcell_t*)buf, len + 1);
+  int success = !strcmp(buf, PL011_FDT_COMPATIBLE);
+
+  kfree(M_DEV, buf);
+
+  return success;
 }
 
 static int pl011_attach(device_t *dev) {
