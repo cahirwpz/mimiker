@@ -12,5 +12,10 @@
 	soc {
 		#address-cells = <0x01>;
 		#size-cells = <0x01>;
+
+		uart0@7e201000 {
+			compatible = "uart,pl011";
+			reg = <0x3f201000 0x90>;
+		};
 	};
 };

@@ -6,6 +6,7 @@
 #include <dev/bcm2835reg.h>
 #include <sys/kmem.h>
 #include <sys/pmap.h>
+#include <dev/simplebus.h>
 
 /*
  * located at BCM2836_ARM_LOCAL_BASE
@@ -209,6 +210,7 @@ static int rootdev_probe(device_t *bus) {
 }
 
 static int rootdev_attach(device_t *bus) {
+  int err;
   rootdev_t *rd = bus->state;
 
   rman_init(&rd->rm, "ARM and BCM2835 space");
@@ -230,17 +232,16 @@ static int rootdev_attach(device_t *bus) {
   intr_root_claim(rootdev_intr_handler, bus);
 
   device_t *dev;
+  int unit = 0;
 
   /* Create ARM timer device and assign resources to it. */
-  dev = device_add_child(bus, 0);
+  dev = device_add_child(bus, unit++);
   dev->pic = bus;
   device_add_irq(dev, 0, BCM2836_INT_CNTPNSIRQ_CPUN(0));
 
   /* Create PL011 UART device and assign resources to it. */
-  dev = device_add_child(bus, 1);
-  dev->pic = bus;
-  device_add_memory(dev, 0, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE),
-                    BCM2835_UART0_SIZE);
+  if ((err = simplebus_add_child(bus, "/soc/uart0", unit++, bus, &dev)))
+    return err;
   device_add_irq(dev, 0, BCM2835_INT_UART0);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
