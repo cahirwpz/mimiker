@@ -75,7 +75,7 @@ static void bcm2835_pic_release_intr(device_t *pic, device_t *dev,
   resource_release(r);
 }
 
-const char *bcm2835_pic_intr_name(unsigned irq) {
+static const char *bcm2835_pic_intr_name(unsigned irq) {
   const char *type = "BASIC";
   if (irq < BCM2835_INT_GPU1BASE)
     type = "GPU0";
@@ -166,7 +166,7 @@ static int bcm2835_pic_probe(device_t *pic) {
 static int bcm2835_pic_attach(device_t *pic) {
   bcm2835_pic_state_t *bcm2835_pic = pic->state;
 
-  rman_init(&bcm2835_pic->rm, "BCM2835 pic interrupt sources");
+  rman_init(&bcm2835_pic->rm, "BCM2835 PIC interrupt sources");
   rman_manage_region(&bcm2835_pic->rm, 0, BCM2835_NIRQ);
 
   bcm2835_pic->mem = device_take_memory(pic, 0, RF_ACTIVE);
@@ -176,7 +176,7 @@ static int bcm2835_pic_attach(device_t *pic) {
   assert(bcm2835_pic->irq);
 
   pic_setup_intr(pic, bcm2835_pic->irq, bcm2835_pic_intr_handler, NULL,
-                 bcm2835_pic, "BCM2835 pic");
+                 bcm2835_pic, "BCM2835 PIC");
 
   return 0;
 }
@@ -190,7 +190,7 @@ static pic_methods_t bcm2835_pic_if = {
 };
 
 static driver_t bcm2835_pic_driver = {
-  .desc = "BCM2835 pic driver",
+  .desc = "BCM2835 PIC driver",
   .size = sizeof(bcm2835_pic_state_t),
   .pass = FIRST_PASS,
   .probe = bcm2835_pic_probe,
