@@ -98,8 +98,8 @@ void pmap_md_activate(pmap_t *umap) {
   pmap_t *kmap = pmap_kernel();
   size_t halfpage = PAGESIZE / 2;
   WITH_MTX_LOCK (&kmap->mtx) {
-    memcpy((void *)phys_to_dmap(umap->pde) + halfpage,
-           (void *)phys_to_dmap(kmap->pde) + halfpage, halfpage);
+    memcpy(phys_to_dmap(umap->pde) + halfpage,
+           phys_to_dmap(kmap->pde) + halfpage, halfpage);
   }
 
   __set_satp(umap->md.satp);
