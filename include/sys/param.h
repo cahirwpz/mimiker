@@ -45,7 +45,7 @@
  *	}
  *
  */
-#define ALIGNBYTES __ALIGNBYTES
+#define ALIGNBYTES (sizeof(long long) - 1)
 #ifndef ALIGN
 #define ALIGN(p) (((uintptr_t)(p) + ALIGNBYTES) & ~ALIGNBYTES)
 #endif

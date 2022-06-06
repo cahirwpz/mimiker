@@ -19,9 +19,6 @@ void ctx_init(ctx_t *ctx, void *pc, void *sp);
 /*! \brief Set args and return address for context that calls a procedure. */
 void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg);
 
-/*! \brief Sets a value that will be returned by ctx_switch. */
-void ctx_set_retval(ctx_t *ctx, long value);
-
 /*! \brief Gets program counter from context. */
 register_t ctx_get_pc(ctx_t *ctx);
 
@@ -45,10 +42,9 @@ void mcontext_restart_syscall(mcontext_t *ctx);
  * context stored in @to. It does not return immediatelly, it returns
  * only when the @from context is resumed.
  *
- * \returns a value set by \a ctx_set_retval or 0 otherwise.
  * \note must be called with interrupts disabled!
  */
-long ctx_switch(thread_t *from, thread_t *to);
+void ctx_switch(thread_t *from, thread_t *to);
 
 /* Implementation of setcontext syscall. */
 int do_setcontext(thread_t *td, ucontext_t *uc);
