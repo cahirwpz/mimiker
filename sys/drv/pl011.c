@@ -74,10 +74,10 @@ static int pl011_probe(device_t *dev) {
     klog("Warning: %s missing `compatible` property", __func__);
     return 0;
   }
-  
+
   char *buf = kmalloc(M_DEV, len + 1, M_ZERO);
 
-  FDT_getprop(dev->node, "compatible", (pcell_t*)buf, len + 1);
+  FDT_getprop(dev->node, "compatible", (pcell_t *)buf, len + 1);
   int success = !strcmp(buf, PL011_FDT_COMPATIBLE);
 
   kfree(M_DEV, buf);
