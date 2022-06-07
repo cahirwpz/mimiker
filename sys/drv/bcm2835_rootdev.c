@@ -134,10 +134,21 @@ static void rootdev_disable_irq(intr_event_t *ie) {
   }
 }
 
-static void rootdev_intr_setup(device_t *dev, resource_t *r,
+static resource_t *rootdev_alloc_intr(device_t *pic, device_t *dev, int rid,
+                                      unsigned irq, rman_flags_t flags) {
+  rootdev_t *rd = pic->state;
+  rman_t *rman = &rd->irq_rm;
+  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
+}
+
+static void rootdev_release_intr(device_t *pic, device_t *dev, resource_t *r) {
+  resource_release(r);
+}
+
+static void rootdev_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                                ih_filter_t *filter, ih_service_t *service,
                                void *arg, const char *name) {
-  rootdev_t *rd = dev->parent->state;
+  rootdev_t *rd = pic->state;
   int irq = resource_start(r);
   assert(irq < NIRQ);
 
@@ -149,7 +160,8 @@ static void rootdev_intr_setup(device_t *dev, resource_t *r,
     intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
-static void rootdev_intr_teardown(device_t *dev, resource_t *irq) {
+static void rootdev_teardown_intr(device_t *pic, device_t *dev,
+                                  resource_t *irq) {
   intr_event_remove_handler(irq->r_handler);
 }
 
@@ -168,7 +180,7 @@ static void bcm2835_intr_handle(bus_space_handle_t irq_base, bus_size_t offset,
   }
 }
 
-static void rootdev_intr_handler(ctx_t *ctx, device_t *dev, void *arg) {
+static void rootdev_intr_handler(ctx_t *ctx, device_t *dev) {
   assert(dev != NULL);
   rootdev_t *rd = dev->state;
 
@@ -196,6 +208,8 @@ static int rootdev_probe(device_t *bus) {
   return 1;
 }
 
+DEVCLASS_DECLARE(emmc);
+
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
@@ -215,19 +229,34 @@ static int rootdev_attach(device_t *bus) {
     kmem_map_contig(BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_ARM_BASE),
                     BCM2835_ARM_SIZE, PMAP_NOCACHE);
 
-  intr_root_claim(rootdev_intr_handler, bus, NULL);
+  intr_root_claim(rootdev_intr_handler, bus);
 
   device_t *dev;
 
   /* Create ARM timer device and assign resources to it. */
   dev = device_add_child(bus, 0);
+  dev->pic = bus;
   device_add_irq(dev, 0, BCM2836_INT_CNTPNSIRQ_CPUN(0));
 
   /* Create PL011 UART device and assign resources to it. */
   dev = device_add_child(bus, 1);
+  dev->pic = bus;
   device_add_memory(dev, 0, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE),
                     BCM2835_UART0_SIZE);
   device_add_irq(dev, 0, BCM2835_INT_UART0);
+
+  /* EMMC */
+  dev = device_add_child(bus, 3);
+  dev->pic = bus;
+  dev->devclass = &DEVCLASS(emmc);
+  /* Due to the lack of proper GPIO routines, the driver uses a workaround that
+   * requires the GPIO memory to be passed to it as a resource */
+  /* TODO: Mak a proper GPIO interface and driver */
+  device_add_memory(dev, 0, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_GPIO_BASE),
+                    PAGESIZE);
+  device_add_memory(dev, 1, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_EMMC_BASE),
+                    PAGESIZE);
+  device_add_irq(dev, 0, BCM2835_INT_EMMC);
 
   /* TODO: replace raw resource assignments by parsing FDT file. */
 
@@ -239,27 +268,18 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
                                           rman_addr_t end, size_t size,
                                           rman_flags_t flags) {
   rootdev_t *rd = dev->parent->state;
-  size_t alignment = 0;
-  rman_t *rman = NULL;
+  rman_t *rman = &rd->rm;
+  size_t alignment = PAGESIZE;
 
-  if (type == RT_MEMORY) {
-    alignment = PAGESIZE;
-    rman = &rd->rm;
-  } else if (type == RT_IRQ) {
-    rman = &rd->irq_rm;
-  } else {
-    panic("Resource type not handled!");
-  }
+  assert(type == RT_MEMORY);
 
   resource_t *r =
     rman_reserve_resource(rman, type, rid, start, end, size, alignment, flags);
   if (!r)
     return NULL;
 
-  if (type == RT_MEMORY) {
-    r->r_bus_tag = rootdev_bus_space;
-    r->r_bus_handle = resource_start(r);
-  }
+  r->r_bus_tag = rootdev_bus_space;
+  r->r_bus_handle = resource_start(r);
 
   if (flags & RF_ACTIVE) {
     if (bus_activate_resource(dev, r)) {
@@ -272,28 +292,34 @@ static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
 }
 
 static void rootdev_release_resource(device_t *dev, resource_t *r) {
+  assert(r->r_type == RT_MEMORY);
   bus_deactivate_resource(dev, r);
   resource_release(r);
 }
 
 static int rootdev_activate_resource(device_t *dev, resource_t *r) {
-  if (r->r_type == RT_MEMORY)
-    return bus_space_map(r->r_bus_tag, resource_start(r), resource_size(r),
-                         &r->r_bus_handle);
-  return 0;
+  assert(r->r_type == RT_MEMORY);
+  return bus_space_map(r->r_bus_tag, resource_start(r), resource_size(r),
+                       &r->r_bus_handle);
 }
 
 static void rootdev_deactivate_resource(device_t *dev, resource_t *r) {
+  assert(r->r_type == RT_MEMORY);
   /* TODO: unmap mapped resources. */
 }
 
 static bus_methods_t rootdev_bus_if = {
-  .intr_setup = rootdev_intr_setup,
-  .intr_teardown = rootdev_intr_teardown,
   .alloc_resource = rootdev_alloc_resource,
   .release_resource = rootdev_release_resource,
   .activate_resource = rootdev_activate_resource,
   .deactivate_resource = rootdev_deactivate_resource,
+};
+
+static pic_methods_t rootdev_pic_if = {
+  .alloc_intr = rootdev_alloc_intr,
+  .release_intr = rootdev_release_intr,
+  .setup_intr = rootdev_setup_intr,
+  .teardown_intr = rootdev_teardown_intr,
 };
 
 driver_t rootdev_driver = {
@@ -305,6 +331,7 @@ driver_t rootdev_driver = {
   .interfaces =
     {
       [DIF_BUS] = &rootdev_bus_if,
+      [DIF_PIC] = &rootdev_pic_if,
     },
 };
 

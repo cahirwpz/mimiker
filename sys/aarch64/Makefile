@@ -15,7 +15,6 @@ SOURCES-AARCH64 = \
 	start.S \
 	switch.S \
 	timer.c \
-	thread.c \
 	tlb.c \
 	trap.c
 
