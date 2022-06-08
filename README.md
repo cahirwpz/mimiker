@@ -1,7 +1,7 @@
 # Mimiker: Unix-like system for education and research purposes
 
-Mimiker's main goal is to deliver complete operating system – kernel and a
-set of userspace programs, that constitutes a minimal Unix-like system.
+Mimiker's main goal is to deliver minimal Unix-like operating system, i.e.
+the kernel and a set of userspace programs.
 
 Kernel design is heavily inspired by FreeBSD & NetBSD systems with some ideas
 taken from Linux, Plan9 and other OSes. We spend a lot of time reading source
@@ -24,3 +24,29 @@ platforms small.
 
 If you'd like to get involved in the project please read our
 [Wiki](https://github.com/cahirwpz/mimiker/wiki) to find out more!
+
+## Where we are?
+
+Mimiker is real-time operating system, since the kernel is preemptible and our
+mutexes support priority inheritance. We minimize work done in interupt context
+by delegating it to interrupt threads instead of running it using soft
+interrupts. All kernel memory is wired (i.e. non-swappable), so you don't have
+to worry about choosing right locks when accessing kernel memory, unlike
+in FreeBSD.
+
+Mimiker has nice set of debugging tools: gdb scripts written in Python, Kernel
+Address Sanitizer, Lock dependency validator, Kernel Concurrency Sanitizer.
+
+We have support for profiling using gprof!
+
+## What we're proud of ?
+
+Mimiker supports:
+ * job control => ksh
+ * POSIX terminal, hence it can run [tetris](https://mimiker.ii.uni.wroc.pl/resources/tetris.gif)
+ * pseudoterminals => script
+ * flat device tree
+
+## Where are we going ?
+
+There's plenty of work to be done. Please refer to our roadmap!
