@@ -13,11 +13,13 @@
 
 /* KASAN shadow map */
 #define KASAN_SHADOW_START 0xffffffd800000000L
-#define KASAN_MAX_SHADOW_SIZE (0xcL << 30) /* 12 GB */
+#define KASAN_MAX_SHADOW_SIZE (0x8L << 30) /* 8 GB */
 
 #define VM_PAGE_PDS 32
 #define KSTACK_PAGES 2
-#else
+
+#else /* __riscv_xlen == 32 */
+
 #define KERNEL_SPACE_BEGIN 0x80000000
 #define KERNEL_SPACE_END 0xffffffff
 
