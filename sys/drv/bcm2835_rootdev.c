@@ -54,7 +54,7 @@ static void rootdev_release_intr(device_t *pic, device_t *dev, resource_t *r) {
 }
 
 static const char *rootdev_intr_name(int irq) {
-  return kasprintf("PLIC source %d", irq);
+  return kasprintf("ARM local interrupt source %d", irq);
 }
 
 static void rootdev_setup_intr(device_t *pic, device_t *dev, resource_t *r,
