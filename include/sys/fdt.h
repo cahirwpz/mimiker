@@ -15,7 +15,7 @@
 #define FDT_MAX_RSV_MEM_REGS 16
 #define FDT_MAX_REG_TUPLES 16
 #define FDT_MAX_ICELLS 3
-#define FDT_MAX_INTRS 8
+#define FDT_MAX_INTRS 16
 
 typedef uint32_t phandle_t;
 typedef uint32_t pcell_t;

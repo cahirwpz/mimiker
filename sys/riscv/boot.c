@@ -77,7 +77,6 @@
 #define KERNEL_VIRT_IMG_END align((vaddr_t)__ebss, PAGESIZE)
 #define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(__ebss), PAGESIZE)
 
-#if KASAN
 #define BOOT_KASAN_SANITIZED_SIZE                                              \
   roundup2(roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) +                  \
              (VM_PAGE_PDS * GROWKERNEL_STRIDE) - KASAN_SANITIZED_START,        \
@@ -85,7 +84,6 @@
 
 #define BOOT_KASAN_SHADOW_SIZE                                                 \
   (BOOT_KASAN_SANITIZED_SIZE / KASAN_SHADOW_SCALE_SIZE)
-#endif /* !KASAN */
 
 #define BOOT_DTB_VADDR DMAP_BASE
 #define BOOT_PD_VADDR (DMAP_BASE + GROWKERNEL_STRIDE)
