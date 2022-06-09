@@ -4,7 +4,6 @@
 #include <sys/pmap.h>
 #include <sys/vm.h>
 #include <sys/kasan.h>
-#include <mips/kasan.h>
 
 /* Last address in kseg0 used by kernel for boot allocation. */
 __boot_data void *_bootmem_end;
@@ -101,9 +100,9 @@ __boot_text void *mips_init(void) {
   /* The loop below where we map the shadow pages depends on
    * kasan_shadow_size % SUPERPAGESIZE == 0 for correctness. */
   size_t kasan_sanitized_size = roundup2(
-    va - KASAN_MD_SANITIZED_START, SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
+    va - KASAN_SANITIZED_START, SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
   size_t kasan_shadow_size = kasan_sanitized_size / KASAN_SHADOW_SCALE_SIZE;
-  va = KASAN_MD_SHADOW_START;
+  va = KASAN_SHADOW_START;
   /* Allocate physical memory for shadow area */
   paddr_t pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
   /* How many PDEs should we use? */
@@ -133,7 +132,7 @@ __boot_text void *mips_init(void) {
 
   pmap_bootstrap((paddr_t)pde, pde);
 #if KASAN
-  _kasan_sanitized_end = KASAN_MD_SANITIZED_START + kasan_sanitized_size;
+  _kasan_sanitized_end = KASAN_SANITIZED_START + kasan_sanitized_size;
 #endif /* !KASAN */
 
   /* Return the end of boot stack (grows downwards on MIPS) as new sp.
