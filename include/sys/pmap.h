@@ -71,7 +71,7 @@ pmap_t *pmap_user(void);
  *    sufficient permissions
  *  - `EFAULT`: indicates a pager fault
  */
-int pmap_page_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access);
+int pmap_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access);
 
 void pmap_growkernel(vaddr_t maxkvaddr);
 

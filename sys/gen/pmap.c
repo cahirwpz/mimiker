@@ -441,7 +441,7 @@ static int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
   return 0;
 }
 
-int pmap_page_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access) {
+int pmap_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access) {
   thread_t *td = thread_self();
   int error = EINVAL;
 

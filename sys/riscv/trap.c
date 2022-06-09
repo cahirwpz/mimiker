@@ -168,7 +168,7 @@ static void user_trap_handler(ctx_t *ctx) {
     case SCAUSE_STORE_PAGE_FAULT:
       klog("%s at %p, caused by reference to %lx!", exceptions[code], epc,
            vaddr);
-      pmap_page_fault_handler(ctx, vaddr, exc_access(code));
+      pmap_fault_handler(ctx, vaddr, exc_access(code));
       break;
 
       /* Access fault */
@@ -227,7 +227,7 @@ static void kern_trap_handler(ctx_t *ctx) {
     case SCAUSE_STORE_PAGE_FAULT:
       klog("%s at %p, caused by reference to %lx!", exceptions[code], epc,
            vaddr);
-      if (pmap_page_fault_handler(ctx, vaddr, exc_access(code)))
+      if (pmap_fault_handler(ctx, vaddr, exc_access(code)))
         kernel_oops(ctx);
       break;
 

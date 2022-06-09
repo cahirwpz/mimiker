@@ -71,7 +71,7 @@ void user_trap_handler(mcontext_t *uctx) {
     case EXCP_DATA_ABORT:
       klog("%x at $%lx, caused by reference to $%lx!", exc_code, _REG(ctx, PC),
            far);
-      pmap_page_fault_handler(ctx, far, exc_access(exc_code, esr));
+      pmap_fault_handler(ctx, far, exc_access(exc_code, esr));
       break;
 
     case EXCP_SVC64:
@@ -122,7 +122,7 @@ void kern_trap_handler(ctx_t *ctx) {
     case EXCP_DATA_ABORT:
       klog("%x at $%lx, caused by reference to $%lx!", exc_code, _REG(ctx, PC),
            far);
-      if (pmap_page_fault_handler(ctx, far, exc_access(exc_code, esr)))
+      if (pmap_fault_handler(ctx, far, exc_access(exc_code, esr)))
         kernel_oops(ctx);
       break;
 

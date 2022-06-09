@@ -145,7 +145,7 @@ static void user_trap_handler(ctx_t *ctx) {
     case EXC_TLBS:
       klog("%s at $%lx, caused by reference to $%lx!", exceptions[code],
            _REG(ctx, EPC), vaddr);
-      pmap_page_fault_handler(ctx, vaddr, exc_access(code));
+      pmap_fault_handler(ctx, vaddr, exc_access(code));
       break;
 
     /*
@@ -210,7 +210,7 @@ static void kern_trap_handler(ctx_t *ctx) {
     case EXC_TLBS:
       klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
            _REG(ctx, EPC), vaddr);
-      if (pmap_page_fault_handler(ctx, vaddr, exc_access(code)))
+      if (pmap_fault_handler(ctx, vaddr, exc_access(code)))
         kernel_oops(ctx);
       break;
 
