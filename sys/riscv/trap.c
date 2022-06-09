@@ -105,7 +105,6 @@ static void page_fault_handler(ctx_t *ctx) {
     goto fault;
 
   vm_map_t *vmap = vm_map_user();
-  assert(vmap);
 
   if (!vm_page_fault(vmap, vaddr, access))
     return;

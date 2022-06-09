@@ -55,7 +55,9 @@ void vm_map_unlock(vm_map_t *map) {
 }
 
 vm_map_t *vm_map_user(void) {
-  return PCPU_GET(uspace);
+  vm_map_t *map = PCPU_GET(uspace);
+  assert(map);
+  return map;
 }
 
 vaddr_t vm_map_entry_start(vm_map_entry_t *ent) {
@@ -70,7 +72,7 @@ inline vm_map_entry_t *vm_map_entry_next(vm_map_entry_t *ent) {
   return TAILQ_NEXT(ent, link);
 }
 
-static bool vm_map_contains_p(vaddr_t start, vaddr_t end) {
+static bool userspace_p(vaddr_t start, vaddr_t end) {
   return USER_SPACE_BEGIN <= start && end <= USER_SPACE_END;
 }
 
@@ -292,7 +294,7 @@ int vm_map_alloc_entry(vm_map_t *map, vaddr_t addr, size_t length,
   if (length == 0)
     return EINVAL;
 
-  if (addr != 0 && !vm_map_contains_p(addr, addr + length))
+  if (addr != 0 && !userspace_p(addr, addr + length))
     return EINVAL;
 
   /* Create object with a pager that supplies cleared pages on page fault. */
