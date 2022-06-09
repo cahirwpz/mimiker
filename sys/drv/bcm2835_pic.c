@@ -16,6 +16,7 @@
  * 32 basic interrupts -- 0x200 offset from address; 64 in table
  */
 
+/* NOTE: the values of the following enum must not be modified! */
 typedef enum bcm2835_intrtype {
   BCM2835_INTRTYPE_BASIC,
   BCM2835_INTRTYPE_GPU0,
@@ -110,16 +111,16 @@ static int bcm2835_pic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
   if (icells != 2)
     return -1;
 
-  /* Interrupt tuples are of the form `<intrtype relirq>`. */
+  /* Interrupt tuples are of the form `<intrtype irq_offset>`. */
   bcm2835_intrtype_t type = intr[0];
-  unsigned relirq = intr[1];
+  unsigned irq_off = intr[1];
 
   if (type >= BCM2835_INTRTYPE_CNT)
     return -1;
-  if (relirq >= BCM2835_NIRQPERTYPE)
+  if (irq_off >= BCM2835_NIRQPERTYPE)
     return -1;
 
-  unsigned irq = relirq;
+  unsigned irq = irq_off;
   if (type == BCM2835_INTRTYPE_GPU1)
     irq += BCM2835_NIRQPERTYPE;
   else if (type == BCM2835_INTRTYPE_BASIC)
@@ -145,18 +146,17 @@ static int bcm2835_pic_handle_intrtype(bcm2835_pic_state_t *bcm2835_pic,
 
 static intr_filter_t bcm2835_pic_intr_handler(void *arg) {
   bcm2835_pic_state_t *bcm2835_pic = arg;
-  int valid = 0;
 
-  valid |= bcm2835_pic_handle_intrtype(bcm2835_pic, BCM2835_INTC_IRQ1PENDING,
-                                       bcm2835_pic->intr_event);
-  valid |=
+  int gpu0_intr = bcm2835_pic_handle_intrtype(
+    bcm2835_pic, BCM2835_INTC_IRQ1PENDING, bcm2835_pic->intr_event);
+  int gpu1_intr =
     bcm2835_pic_handle_intrtype(bcm2835_pic, BCM2835_INTC_IRQ2PENDING,
                                 &bcm2835_pic->intr_event[BCM2835_INT_GPU1BASE]);
-  valid |= bcm2835_pic_handle_intrtype(
+  int basic_intr = bcm2835_pic_handle_intrtype(
     bcm2835_pic, BCM2835_INTC_IRQBPENDING,
     &bcm2835_pic->intr_event[BCM2835_INT_BASICBASE]);
 
-  return valid ? IF_FILTERED : IF_STRAY;
+  return (gpu0_intr || gpu1_intr || basic_intr) ? IF_FILTERED : IF_STRAY;
 }
 
 static int bcm2835_pic_probe(device_t *pic) {
