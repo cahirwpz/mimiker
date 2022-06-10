@@ -49,15 +49,6 @@ static const pte_t vm_prot_map[] = {
 };
 
 /*
- * The list of all the user pmaps.
- * Order of acquiring locks:
- *  - `pmap_kernel()->mtx`
- *  - `user_pmaps_lock`
- */
-static MTX_DEFINE(user_pmaps_lock, 0);
-static LIST_HEAD(, pmap) user_pmaps = LIST_HEAD_INITIALIZER(user_pmaps);
-
-/*
  * Page directory.
  */
 
@@ -115,14 +106,6 @@ void pmap_md_setup(pmap_t *pmap) {
   pmap->md.satp = SATP_MODE_SV32 | ((paddr_t)pmap->asid << SATP_ASID_S) |
                   (pmap->pde >> PAGE_SHIFT);
   pmap->md.generation = (pmap == pmap_kernel());
-
-  WITH_MTX_LOCK (&user_pmaps_lock)
-    LIST_INSERT_HEAD(&user_pmaps, pmap, md.pmap_link);
-}
-
-void pmap_md_delete(pmap_t *pmap) {
-  WITH_MTX_LOCK (&user_pmaps_lock)
-    LIST_REMOVE(pmap, md.pmap_link);
 }
 
 void pmap_md_bootstrap(pde_t *pd) {
@@ -153,16 +136,10 @@ void pmap_md_bootstrap(pde_t *pd) {
 
 void pmap_md_growkernel(vaddr_t maxkvaddr) {
   pmap_t *kmap = pmap_kernel();
-  SCOPED_MTX_LOCK(&kmap->mtx);
 
-  assert(kmap->md.generation);
-
-  if (++kmap->md.generation == 0) {
-    pmap_t *umap;
-    WITH_MTX_LOCK (&user_pmaps_lock)
-      LIST_FOREACH (umap, &user_pmaps, md.pmap_link)
-        umap->md.generation = 0;
-    kmap->md.generation = 1;
+  WITH_MTX_LOCK (&kmap->mtx) {
+    kmap->md.generation++;
+    assert(kmap->md.generation);
   }
 }
 

@@ -37,8 +37,8 @@
 typedef struct pmap pmap_t;
 
 typedef struct pmap_md {
-  paddr_t satp;      /* supervisor address translation and protection */
-  u_long generation; /* current generation number */
+  paddr_t satp;     /* supervisor address translation and protection */
+  u_int generation; /* current generation number */
   LIST_ENTRY(pmap) pmap_link; /* link on `user_pmaps` */
 } pmap_md_t;
 
@@ -82,6 +82,13 @@ static inline bool pte_access(pte_t pte, vm_prot_t prot) {
     default:
       panic("Invalid pte_access invocation (prot=%x)", prot);
   }
+}
+
+/*
+ * Physical map management.
+ */
+
+static inline void pmap_md_delete(pmap_t *pmap) {
 }
 
 #endif /* !_RISCV_PMAP_H_ */
