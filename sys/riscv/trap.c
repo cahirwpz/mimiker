@@ -104,11 +104,7 @@ static void page_fault_handler(ctx_t *ctx) {
   if (error == EACCES || error == EINVAL)
     goto fault;
 
-  vm_map_t *vmap = vm_map_lookup(vaddr);
-  if (!vmap) {
-    klog("No virtual address space defined for %lx!", vaddr);
-    goto fault;
-  }
+  vm_map_t *vmap = vm_map_user();
 
   if (!vm_page_fault(vmap, vaddr, access))
     return;
