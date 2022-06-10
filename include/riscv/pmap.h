@@ -36,7 +36,7 @@
 #define PTE_SET_ON_MODIFIED 0
 #define PTE_CLR_ON_MODIFIED 0
 
-#define GROWKERNEL_STRIDE 0
+#define GROWKERNEL_STRIDE L0_SIZE
 
 typedef struct pmap pmap_t;
 
