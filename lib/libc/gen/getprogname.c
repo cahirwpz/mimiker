@@ -37,7 +37,7 @@
 #include <sys/cdefs.h>
 #include <stdlib.h>
 
-const char *__progname;
+extern const char *__progname;
 
 const char *getprogname(void) {
   return (__progname);

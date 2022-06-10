@@ -64,7 +64,7 @@ void init_sleepq(void) {
 
   for (int i = 0; i < SC_TABLESIZE; i++) {
     sleepq_chain_t *sc = &sleepq_chains[i];
-    sc->sc_lock = SPIN_INITIALIZER(0);
+    spin_init(&sc->sc_lock, 0);
     TAILQ_INIT(&sc->sc_queues);
   }
 }
@@ -116,7 +116,7 @@ static void sq_enter(thread_t *td, sleepq_chain_t *sc, void *wchan,
   assert(sc_owned(sc));
   assert(spin_owned(td->td_lock));
 
-  klog("Thread %ld goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
+  klog("Thread %u goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
   assert(td->td_wchan == NULL);
   assert(td->td_waitpt == NULL);
@@ -154,7 +154,7 @@ static void sq_enter(thread_t *td, sleepq_chain_t *sc, void *wchan,
 }
 
 static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
-  klog("Wakeup thread %ld from %p at pc=%p", td->td_tid, td->td_wchan,
+  klog("Wakeup thread %u from %p at pc=%p", td->td_tid, td->td_wchan,
        td->td_waitpt);
 
   assert(sc_owned(sc));
@@ -185,7 +185,7 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
   td->td_wchan = NULL;
   td->td_waitpt = NULL;
   td->td_sleepqueue = sq;
-  sched_wakeup(td, 0);
+  sched_wakeup(td);
 }
 
 /* Remove a thread from the sleep queue and resume it. */
@@ -309,9 +309,10 @@ int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
     return EINTR;
   }
 
-  if (timeout > 0)
-    callout_setup_relative(&td->td_slpcallout, timeout, (timeout_t)sq_timeout,
-                           td);
+  if (timeout > 0) {
+    callout_setup(&td->td_slpcallout, (timeout_t)sq_timeout, td);
+    callout_schedule(&td->td_slpcallout, timeout);
+  }
 
   td->td_flags |= (timeout > 0) ? TDF_SLPTIMED : TDF_SLPINTR;
   sq_enter(td, sc, wchan, waitpt);

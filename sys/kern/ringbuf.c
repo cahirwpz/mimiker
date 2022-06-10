@@ -60,6 +60,23 @@ bool ringbuf_getnb(ringbuf_t *buf, uint8_t *data, size_t n) {
   return true;
 }
 
+bool ringbuf_moveb(ringbuf_t *src, ringbuf_t *dst) {
+  uint8_t byte;
+  if (src->count == 0 || dst->count == dst->size)
+    return false;
+  ringbuf_getb(src, &byte);
+  ringbuf_putb(dst, byte);
+  return true;
+}
+
+bool ringbuf_movenb(ringbuf_t *src, ringbuf_t *dst, size_t n) {
+  if (src->count < n || dst->count + n > dst->size)
+    return false;
+  for (size_t i = 0; i < n; i++)
+    ringbuf_moveb(src, dst);
+  return true;
+}
+
 int ringbuf_read(ringbuf_t *buf, uio_t *uio) {
   assert(uio->uio_op == UIO_READ);
   /* repeat when used space is split into two parts */

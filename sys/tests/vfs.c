@@ -61,7 +61,7 @@ static int test_vfs(void) {
 
   /* Perform a READ test on /dev/zero, cleaning buffer. */
   uio = UIO_SINGLE_KERNEL(UIO_READ, 0, buffer, sizeof(buffer));
-  res = VOP_READ(dev_zero, &uio, 0);
+  res = VOP_READ(dev_zero, &uio);
   assert(res == 0);
   assert(buffer[1] == 0 && buffer[10] == 0);
   assert(uio.uio_resid == 0);
@@ -69,7 +69,7 @@ static int test_vfs(void) {
   /* Now write some data to /dev/null */
   assert(dev_null != 0);
   uio = UIO_SINGLE_KERNEL(UIO_WRITE, 0, buffer, sizeof(buffer));
-  res = VOP_WRITE(dev_null, &uio, 0);
+  res = VOP_WRITE(dev_null, &uio);
   assert(res == 0);
   assert(uio.uio_resid == 0);
 
@@ -80,7 +80,7 @@ static int test_vfs(void) {
   char *str = "Some string for testing UART write\n";
 
   uio = UIO_SINGLE_KERNEL(UIO_WRITE, 0, str, strlen(str));
-  res = VOP_WRITE(dev_cons, &uio, 0);
+  res = VOP_WRITE(dev_cons, &uio);
   assert(res == 0);
 
   return KTEST_SUCCESS;

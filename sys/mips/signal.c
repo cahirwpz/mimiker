@@ -28,7 +28,7 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   uc.uc_sigmask = *mask;
 
   register_t sc_code = sig_stack_push(uctx, sigcode, esigcode - sigcode);
-  register_t sc_info = sig_stack_push(uctx, ksi, sizeof(ksiginfo_t));
+  register_t sc_info = sig_stack_push(uctx, &ksi->ksi_info, sizeof(siginfo_t));
   register_t sc_uctx = sig_stack_push(uctx, &uc, sizeof(ucontext_t));
 
   /* Prepare user context so that on return to usermode the handler gets
@@ -42,9 +42,9 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi) {
   _REG(uctx, A1) = sc_info;
   _REG(uctx, A2) = sc_uctx;
   /* The calling convention is such that the callee may write to the address
-   * pointed by sp before extending the stack - so we need to set it 1 word
-   * before the stored context! */
-  _REG(uctx, SP) -= sizeof(intptr_t *);
+   * pointed by sp before extending the stack - so we need to set it at least
+   * 1 word before the stored context! */
+  _REG(uctx, SP) -= STACK_ALIGN;
   /* Also, make sure that sigcode runs when the handler exits. */
   _REG(uctx, RA) = sc_code;
 

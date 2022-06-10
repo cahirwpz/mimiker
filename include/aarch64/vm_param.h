@@ -2,6 +2,7 @@
 #define _AARCH64_VM_PARAM_H_
 
 #define PAGESIZE 4096
+#define SUPERPAGESIZE (1 << 21) /* 2 MB */
 
 #define KERNEL_SPACE_BEGIN 0xffff000000000000L
 #define KERNEL_SPACE_END 0xffffffffffffffffL
@@ -12,6 +13,13 @@
 #define USER_STACK_TOP 0x00007fffffff0000L
 #define USER_STACK_SIZE 0x800000 /* grows down up to that size limit */
 
+/* KASAN shadow memory */
+#define KASAN_SHADOW_START 0xffffff0000000000
+#define KASAN_MAX_SHADOW_SIZE (1ULL << 30) /* 1 GB */
+
 #define VM_PHYSSEG_NMAX 16
+
+#define KSTACK_PAGES 2
+#define KSTACK_SIZE (KSTACK_PAGES * PAGESIZE)
 
 #endif /* !_AARCH64_VM_PARAM_H_ */

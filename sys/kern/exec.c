@@ -227,7 +227,7 @@ fail:
 }
 
 static int open_executable(const char *path, vnode_t **vn_p, cred_t *cred) {
-  vnode_t *vn = *vn_p;
+  vnode_t *vn;
   int error;
 
   klog("Loading program '%s'", path);
@@ -252,7 +252,7 @@ static int open_executable(const char *path, vnode_t **vn_p, cred_t *cred) {
 
 typedef struct exec_vmspace {
   vm_map_t *uspace;
-  vm_segment_t *sbrk;
+  vm_map_entry_t *sbrk;
   vaddr_t sbrk_end;
 } exec_vmspace_t;
 
@@ -271,7 +271,7 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
   p->p_sbrk_end = 0;
   sbrk_attach(p);
 
-  /* Create a stack segment. As for now, the stack size is fixed and
+  /* Create a stack map entry. As for now, the stack size is fixed and
    * will not grow on-demand. Also, the stack info should be saved
    * into the thread structure.
    * Generally, the stack should begin at a high address (0x80000000),
@@ -285,10 +285,10 @@ static void enter_new_vmspace(proc_t *p, exec_vmspace_t *saved,
   /* FTTB stack has to be executable since kernel copies sigcode onto stack
    * when context is set to signal handler code. This code is run when user
    * returns from signal handler. */
-  vm_segment_t *stack_seg = vm_segment_alloc(
+  vm_map_entry_t *stack_ent = vm_map_entry_alloc(
     stack_obj, USER_STACK_TOP - USER_STACK_SIZE, USER_STACK_TOP,
-    VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC, VM_SEG_PRIVATE);
-  int error = vm_map_insert(p->p_uspace, stack_seg, VM_FIXED);
+    VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC, VM_ENT_PRIVATE);
+  int error = vm_map_insert(p->p_uspace, stack_ent, VM_FIXED);
   assert(error == 0);
 
   vm_map_activate(p->p_uspace);
@@ -321,6 +321,28 @@ static bool check_setid(vnode_t *vn, uid_t *uid, gid_t *gid) {
     *gid = attr.va_gid;
 
   return (*uid != (uid_t)-1) || (*gid != (gid_t)-1);
+}
+
+static char *pargs_create(exec_args_t *args) {
+  char *pargs = kmalloc(M_STR, PARGS_MAX, M_ZERO);
+  size_t used = 0;
+  size_t left = PARGS_MAX;
+
+  for (size_t i = 1; used + 1 < PARGS_MAX && i < args->argc; i++) {
+    size_t wanted = strlcpy(pargs + used, args->argv[i], left);
+
+    /* calculate how much we have copied (without terminating null byte) */
+    used += min(wanted, left - 1);
+    left = PARGS_MAX - used;
+
+    /* add space between args if there is space and it is not last argument*/
+    if (left > 1 && i + 1 < args->argc) {
+      pargs[used++] = ' ';
+      left--;
+    }
+  }
+
+  return pargs;
 }
 
 /* XXX We assume process may only have a single thread. But if there were more
@@ -382,6 +404,9 @@ static int _do_execve(exec_args_t *args) {
   /* Prepare program stack, which includes storing program args. */
   if ((error = exec_args_copyout(args, &stack_top)))
     goto fail;
+
+  kfree(M_STR, p->p_args);
+  p->p_args = pargs_create(args);
 
   fdtab_onexec(p->p_fdtable);
 

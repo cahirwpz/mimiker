@@ -699,6 +699,7 @@ static int vfs_utimens(vnode_t *v, timespec_t times[2], cred_t *cred) {
 
   if (times == NULL) {
     va.va_atime = va.va_mtime = nanotime();
+    va.va_flags = VA_UTIMES_NULL;
   } else {
     va.va_atime = times[0];
     va.va_mtime = times[1];
@@ -707,7 +708,7 @@ static int vfs_utimens(vnode_t *v, timespec_t times[2], cred_t *cred) {
   return VOP_SETATTR(v, &va, cred);
 }
 
-int do_futimens(proc_t *p, int fd, timespec_t times[2]) {
+int do_futimens(proc_t *p, int fd, timespec_t *times) {
   int error;
   file_t *f;
 
@@ -722,7 +723,7 @@ int do_futimens(proc_t *p, int fd, timespec_t times[2]) {
   return error;
 }
 
-int do_utimensat(proc_t *p, int fd, char *path, timespec_t times[2], int flag) {
+int do_utimensat(proc_t *p, int fd, char *path, timespec_t *times, int flag) {
   int error;
   uint32_t vnrflags = 0;
 

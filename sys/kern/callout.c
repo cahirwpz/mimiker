@@ -8,6 +8,7 @@
 #include <sys/thread.h>
 #include <sys/sched.h>
 #include <sys/interrupt.h>
+#include <sys/time.h>
 
 /* Note: If the difference in time between ticks is greater than the number of
    buckets, some callouts may be called out-of-order! */
@@ -20,6 +21,10 @@
 #define callout_is_pending(c) ((c)->c_flags & CALLOUT_PENDING)
 #define callout_set_pending(c) ((c)->c_flags |= CALLOUT_PENDING)
 #define callout_clear_pending(c) ((c)->c_flags &= ~CALLOUT_PENDING)
+
+#define callout_is_stopped(c) ((c)->c_flags & CALLOUT_STOPPED)
+#define callout_set_stopped(c) ((c)->c_flags |= CALLOUT_STOPPED)
+#define callout_clear_stopped(c) ((c)->c_flags &= ~CALLOUT_STOPPED)
 
 /*
   Every event is inside one of CALLOUT_BUCKETS buckets.
@@ -62,16 +67,21 @@ static void callout_thread(void *arg) {
 
     /* Execute callout's function. */
     elem->c_func(elem->c_arg);
-    callout_clear_active(elem);
-    /* Wake threads that wait for execution of this callout in callout_drain. */
-    sleepq_broadcast(elem);
+
+    WITH_SPIN_LOCK (&ci.lock) {
+      callout_clear_active(elem);
+      /* Only notify waiters if the callout isn't already pending
+       * due to a reschedule. */
+      if (!callout_is_pending(elem))
+        sleepq_broadcast(elem);
+    }
   }
 }
 
 void init_callout(void) {
   bzero(&ci, sizeof(ci));
 
-  ci.lock = SPIN_INITIALIZER(0);
+  spin_init(&ci.lock, 0);
 
   for (int i = 0; i < CALLOUT_BUCKETS; i++)
     TAILQ_INIT(ci_list(i));
@@ -83,37 +93,50 @@ void init_callout(void) {
   sched_add(td);
 }
 
-static void _callout_setup(callout_t *handle, systime_t time, timeout_t fn,
-                           void *arg) {
+void callout_setup(callout_t *co, timeout_t fn, void *arg) {
+  bzero(co, sizeof(callout_t));
+  co->c_func = fn;
+  co->c_arg = arg;
+}
+
+static void _callout_schedule(callout_t *co, systime_t tm) {
   assert(spin_owned(&ci.lock));
-  assert(!callout_is_pending(handle));
-  assert(!callout_is_active(handle));
+  assert(!callout_is_pending(co));
 
-  int index = time % CALLOUT_BUCKETS;
+  callout_set_pending(co);
 
-  bzero(handle, sizeof(callout_t));
-  handle->c_time = time;
-  handle->c_func = fn;
-  handle->c_arg = arg;
-  handle->c_index = index;
-  callout_set_pending(handle);
+  int idx = tm % CALLOUT_BUCKETS;
 
-  klog("Add callout {%p} with wakeup at %ld.", handle, handle->c_time);
-  TAILQ_INSERT_TAIL(ci_list(index), handle, c_link);
+  co->c_time = tm;
+  co->c_index = idx;
+
+  klog("Add callout {%p} with wakeup at %ld.", co, tm);
+  TAILQ_INSERT_TAIL(ci_list(idx), co, c_link);
 }
 
-void callout_setup(callout_t *handle, systime_t time, timeout_t fn, void *arg) {
+void callout_schedule_abs(callout_t *co, systime_t tm) {
   SCOPED_SPIN_LOCK(&ci.lock);
+  assert(!callout_is_active(co));
+  callout_clear_stopped(co);
 
-  _callout_setup(handle, time, fn, arg);
+  _callout_schedule(co, tm);
 }
 
-void callout_setup_relative(callout_t *handle, systime_t time, timeout_t fn,
-                            void *arg) {
+void callout_schedule(callout_t *co, systime_t tm) {
   SCOPED_SPIN_LOCK(&ci.lock);
+  assert(!callout_is_active(co));
+  callout_clear_stopped(co);
 
-  systime_t now = getsystime();
-  _callout_setup(handle, now + time, fn, arg);
+  _callout_schedule(co, getsystime() + tm);
+}
+
+bool callout_reschedule(callout_t *c, systime_t tm) {
+  SCOPED_SPIN_LOCK(&ci.lock);
+  assert(callout_is_active(c));
+  if (callout_is_stopped(c))
+    return false;
+  _callout_schedule(c, tm);
+  return true;
 }
 
 bool callout_stop(callout_t *handle) {
@@ -121,18 +144,23 @@ bool callout_stop(callout_t *handle) {
 
   klog("Remove callout {%p} at %ld.", handle, handle->c_time);
 
+  callout_set_stopped(handle);
+
   if (callout_is_pending(handle)) {
     callout_clear_pending(handle);
     TAILQ_REMOVE(ci_list(handle->c_index), handle, c_link);
-    return true;
+    /* A callout may be observed to be both active and pending if it rescheduled
+     * itself but hasn't finished executing yet.
+     * If that's the case, we must make the caller wait for its completion in
+     * callout_drain(). */
   }
 
-  return false;
+  return !callout_is_active(handle);
 }
 
 /*
- * Process all timeouted callouts from queues between last position and current
- * position and delegate them to callout thread.
+ * Process all timeouted callouts from queues between last position and
+ * current position and delegate them to callout thread.
  */
 void callout_process(systime_t time) {
   unsigned int last_bucket;
@@ -179,12 +207,10 @@ void callout_process(systime_t time) {
 }
 
 bool callout_drain(callout_t *handle) {
-  WITH_INTR_DISABLED {
-    if (callout_is_pending(handle) || callout_is_active(handle)) {
-      sleepq_wait(handle, NULL);
-      return true;
-    }
-  }
-
-  return false;
+  SCOPED_INTR_DISABLED();
+  if (!callout_is_pending(handle) && !callout_is_active(handle))
+    return false;
+  while (callout_is_pending(handle) || callout_is_active(handle))
+    sleepq_wait(handle, NULL);
+  return true;
 }

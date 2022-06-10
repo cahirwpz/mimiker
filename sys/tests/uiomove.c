@@ -20,7 +20,7 @@ static int test_uiomove(void) {
 
   /* Perform WRITE to buffer1, using text as data. */
   uio.uio_op = UIO_WRITE;
-  uio.uio_vmspace = vm_map_kernel();
+  uio.uio_vmspace = NULL;
   iov[0].iov_base = (char *)text;
   iov[0].iov_len = 8;
   iov[1].iov_base = (char *)text + 20;
@@ -29,6 +29,7 @@ static int test_uiomove(void) {
   iov[2].iov_len = 12;
   uio.uio_iovcnt = 3;
   uio.uio_iov = &iov[0];
+  uio.uio_iovoff = 0;
   uio.uio_offset = 5;
   uio.uio_resid = 8 + 5 + 12;
 
@@ -39,7 +40,7 @@ static int test_uiomove(void) {
 
   /* Now, perform a READ from text, using buffer2 as data. */
   uio.uio_op = UIO_READ;
-  uio.uio_vmspace = vm_map_kernel();
+  uio.uio_vmspace = NULL;
   iov[0].iov_base = buffer2;
   iov[0].iov_len = 8;
   iov[1].iov_base = buffer2 + 12;
@@ -48,9 +49,21 @@ static int test_uiomove(void) {
   iov[2].iov_len = 10;
   uio.uio_iovcnt = 3;
   uio.uio_iov = &iov[0];
+  uio.uio_iovoff = 0;
   uio.uio_offset = 0;
   uio.uio_resid = 8 + 7 + 10;
 
+  uiostate_t save;
+  uio_save(&uio, &save);
+  res = uiomove((char *)text, strlen(text), &uio);
+  assert(res == 0);
+  buffer2[37] = 0; /* Manually null-terminate */
+  res = strcmp(buffer2, "Example ====string ========with data ");
+  assert(res == 0);
+
+  /* Roll back and redo the read and check that the result is the same. */
+  uio_restore(&uio, &save);
+  memset(buffer2, '=', sizeof(buffer2));
   res = uiomove((char *)text, strlen(text), &uio);
   assert(res == 0);
   buffer2[37] = 0; /* Manually null-terminate */

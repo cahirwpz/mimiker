@@ -1,0 +1,3 @@
+#!/bin/ksh
+echo "euid   pid    ppid    pgrp   session  state    command"
+cat /dev/procstat

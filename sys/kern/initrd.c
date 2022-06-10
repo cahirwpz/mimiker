@@ -242,7 +242,7 @@ static int initrd_vnode_lookup(vnode_t *vdir, componentname_t *cn,
   return ENOENT;
 }
 
-static int initrd_vnode_read(vnode_t *v, uio_t *uio, int ioflag) {
+static int initrd_vnode_read(vnode_t *v, uio_t *uio) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
   return uiomove_frombuf(cn->c_data, cn->c_size, uio);
 }
@@ -264,7 +264,7 @@ static int initrd_vnode_getattr(vnode_t *v, vattr_t *va) {
 
 static int initrd_vnode_readlink(vnode_t *v, uio_t *uio) {
   cpio_node_t *cn = (cpio_node_t *)v->v_data;
-  return uiomove_frombuf(cn->c_data, MIN((size_t)cn->c_size, uio->uio_resid),
+  return uiomove_frombuf(cn->c_data, min((size_t)cn->c_size, uio->uio_resid),
                          uio);
 }
 
@@ -290,10 +290,10 @@ static size_t cpio_dirent_namlen(vnode_t *v, void *it) {
   return strlen(((cpio_node_t *)it)->c_name);
 }
 
-static const unsigned ft2dt[16] = {[C_FIFO] = DT_FIFO, [C_CHR] = DT_CHR,
-                                   [C_DIR] = DT_DIR,   [C_BLK] = DT_BLK,
-                                   [C_REG] = DT_REG,   [C_CTG] = DT_UNKNOWN,
-                                   [C_LNK] = DT_LNK,   [C_SOCK] = DT_SOCK};
+static const unsigned ft2dt[16] = {
+  [C_FIFO] = DT_FIFO, [C_CHR] = DT_CHR,  [C_DIR] = DT_DIR,
+  [C_BLK] = DT_BLK,   [C_REG] = DT_REG,  [C_CTG] = DT_UNKNOWN,
+  [C_LNK] = DT_LNK,   [C_SOCK] = DT_SOCK};
 
 static void cpio_to_dirent(vnode_t *v, void *it, dirent_t *dir) {
   assert(it != NULL);

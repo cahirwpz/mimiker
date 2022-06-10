@@ -11,3 +11,5 @@ Packages required to build:
  * zlib1g-dev
 
 Just issue `make` and you'll get a Debian package in parent directory.
+
+*IMPORTANT!* If you update the package please change `debian/changelog` as well.

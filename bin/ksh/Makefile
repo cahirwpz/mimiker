@@ -26,4 +26,6 @@ emacs.out: emacs.c
 	./emacs-gen.sh $(CURDIR)/emacs.c > emacs.out.tmp \
 	    && mv emacs.out.tmp emacs.out
 
+history.CFLAGS += -Wno-stringop-overflow
+
 include $(TOPDIR)/build/build.prog.mk

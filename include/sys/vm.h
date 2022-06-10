@@ -5,10 +5,15 @@
 #include <sys/queue.h>
 #include <machine/vm_param.h>
 
+#ifdef _KERNEL
+
+typedef struct mtx mtx_t;
+
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
 
 /* Real kernel end in kernel virtual address space. */
-extern void *vm_kernel_end;
+extern atomic_vaddr_t vm_kernel_end;
+extern mtx_t vm_kernel_end_lock;
 
 typedef enum {
   PG_ALLOCATED = 0x01,  /* page has been allocated */
@@ -23,8 +28,6 @@ typedef enum {
   VM_PROT_WRITE = 2, /* can write page */
   VM_PROT_EXEC = 4   /* can execute page */
 } vm_prot_t;
-
-#define VM_PROT_MASK (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC)
 
 typedef enum {
   VM_FILE = 0x0000,    /* map from file (default) */
@@ -46,15 +49,13 @@ typedef uintptr_t vm_offset_t;
 /* Field marking and corresponding locks:
  * (@) pv_list_lock (in pmap.c)
  * (P) physmem_lock (in vm_physmem.c)
- * (O) vm_object::mtx */
+ * (O) vm_object::vo_lock */
 
 struct vm_page {
   union {
-    TAILQ_ENTRY(vm_page) freeq; /* (P) list of free pages for buddy system */
-    TAILQ_ENTRY(vm_page) pageq; /* used to group allocated pages */
-    struct {
-      TAILQ_ENTRY(vm_page) list;
-    } obj;        /* (O) list of pages in vm_object */
+    TAILQ_ENTRY(vm_page) freeq;    /* (P) list of free pages for buddy system */
+    TAILQ_ENTRY(vm_page) pageq;    /* used to group allocated pages */
+    TAILQ_ENTRY(vm_page) objpages; /* (O) list of pages in vm_object */
     slab_t *slab; /* active when page is used by pool allocator */
   };
   TAILQ_HEAD(, pv_entry) pv_list; /* (@) where this page is mapped? */
@@ -67,5 +68,7 @@ struct vm_page {
 
 int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags);
 int do_munmap(vaddr_t addr, size_t length);
+
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_VM_H_ */

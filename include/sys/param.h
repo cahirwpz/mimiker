@@ -10,9 +10,14 @@
 #define NGROUPS NGROUPS_MAX             /* max number groups */
 #define MAXLOGNAME (LOGIN_NAME_MAX - 1) /* max login name length */
 
-/* Macros for min/max. */
+#ifndef _KERNEL
+/*
+ * Macros for min/max.
+ * Note: We have already defined safe version of these macros for kernel.
+ */
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
 
 #define MAXPHYS (64 * 1024) /* max raw I/O transfer size */
 
@@ -40,7 +45,7 @@
  *	}
  *
  */
-#define ALIGNBYTES __ALIGNBYTES
+#define ALIGNBYTES (sizeof(long long) - 1)
 #ifndef ALIGN
 #define ALIGN(p) (((uintptr_t)(p) + ALIGNBYTES) & ~ALIGNBYTES)
 #endif

@@ -21,7 +21,7 @@ int cred_cansignal(proc_t *target, cred_t *cred) {
 }
 
 int proc_cansignal(proc_t *target, signo_t sig) {
-  assert(mtx_owned(all_proc_mtx));
+  assert(mtx_owned(&all_proc_mtx));
   assert(mtx_owned(&target->p_lock));
 
   proc_t *p = proc_self();
@@ -123,9 +123,16 @@ check:
   return (mode & granted) == mode ? 0 : EACCES;
 }
 
-int cred_can_utime(vnode_t *vn, uid_t f_owner, cred_t *cred) {
-  if (f_owner == cred->cr_euid)
-    return 0;
+bool cred_can_utime(vnode_t *vn, uid_t f_owner, cred_t *cred,
+                    va_flags_t vaflags) {
+  /* owner and root can change times */
+  if (f_owner == cred->cr_euid || cred->cr_euid == 0)
+    return true;
 
-  return VOP_ACCESS(vn, VWRITE, cred);
+  /* any other user can change times only to current time... */
+  if ((vaflags & VA_UTIMES_NULL) == 0)
+    return false;
+
+  /* and only when he has write permission */
+  return VOP_ACCESS(vn, VWRITE, cred) == 0;
 }

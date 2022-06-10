@@ -69,7 +69,7 @@ static void turnstile_ctor(turnstile_t *ts) {
 void init_turnstile(void) {
   for (int i = 0; i < TC_TABLESIZE; i++) {
     turnstile_chain_t *tc = &turnstile_chains[i];
-    tc->tc_lock = SPIN_INITIALIZER(0);
+    spin_init(&tc->tc_lock, 0);
     LIST_INIT(&tc->tc_turnstiles);
   }
 }
@@ -273,7 +273,7 @@ static void wakeup_blocked(td_queue_t *blocked_threads) {
       td->td_blocked = NULL;
       td->td_wchan = NULL;
       td->td_waitpt = NULL;
-      sched_wakeup(td, 0);
+      sched_wakeup(td);
     }
   }
 }

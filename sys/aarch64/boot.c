@@ -1,10 +1,10 @@
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
+#include <sys/pmap.h>
+#include <sys/kasan.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
-#include <aarch64/pte.h>
-#include <aarch64/atags.h>
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
@@ -19,9 +19,8 @@
 
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data void *_bootmem_end;
-/* Kernel page directory entries. */
-paddr_t _kernel_pmap_pde;
-alignas(PAGESIZE) uint8_t _atags[PAGESIZE];
+
+static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
@@ -128,18 +127,6 @@ __boot_text static void clear_bss(void) {
 /* Create direct map of whole physical memory located at DMAP_BASE virtual
  * address. We will use this mapping later in pmap module. */
 
-/* XXX Raspberry PI 3 specific! */
-#define DMAP_SIZE 0x3c000000
-#define DMAP_BASE 0xffffff8000000000 /* last 512GB */
-
-#define DMAP_L3_ENTRIES max(1, DMAP_SIZE / PAGESIZE)
-#define DMAP_L2_ENTRIES max(1, DMAP_L3_ENTRIES / PT_ENTRIES)
-#define DMAP_L1_ENTRIES max(1, DMAP_L2_ENTRIES / PT_ENTRIES)
-
-#define DMAP_L1_SIZE roundup(DMAP_L1_ENTRIES * sizeof(pde_t), PAGESIZE)
-#define DMAP_L2_SIZE roundup(DMAP_L2_ENTRIES * sizeof(pde_t), PAGESIZE)
-#define DMAP_L3_SIZE roundup(DMAP_L3_ENTRIES * sizeof(pte_t), PAGESIZE)
-
 __boot_text static paddr_t build_page_table(void) {
   /* l0 entry is 512GB */
   volatile pde_t *l0 = bootmem_alloc(PAGESIZE);
@@ -199,6 +186,45 @@ __boot_text static paddr_t build_page_table(void) {
 
   l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
 
+#if KASAN /* Prepare KASAN shadow mappings */
+  /* XXX we add 2 * SUPERPAGESIZE to account for future allocations made with
+   * vm_boot_alloc() which can't extend the shadow map, as the VM system isn't
+   * fully initialized yet. */
+  size_t kasan_sanitized_size =
+    2 * SUPERPAGESIZE + roundup2(va - KASAN_SANITIZED_START,
+                                 SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
+  size_t kasan_shadow_size = kasan_sanitized_size / KASAN_SHADOW_SCALE_SIZE;
+  vaddr_t kasan_shadow_end = KASAN_SHADOW_START + kasan_shadow_size;
+  va = KASAN_SHADOW_START;
+  /* XXX _kasan_sanitized_end is at a high address which is not mapped yet,
+   * so we access it using its physical address instead. */
+  *(vaddr_t *)AARCH64_PHYSADDR(&_kasan_sanitized_end) =
+    KASAN_SANITIZED_START + kasan_sanitized_size;
+  /* Allocate physical memory for shadow area */
+  pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
+
+  while (va < kasan_shadow_end) {
+    if (l0[L0_INDEX(va)] == 0)
+      l0[L0_INDEX(va)] = (pde_t)bootmem_alloc(PAGESIZE) | L0_TABLE;
+
+    pde_t *l1k = (pde_t *)PTE_FRAME_ADDR(l0[L0_INDEX(va)]);
+    if (l1k[L1_INDEX(va)] == 0)
+      l1k[L1_INDEX(va)] = (pde_t)bootmem_alloc(PAGESIZE) | L1_TABLE;
+
+    pde_t *l2k = (pde_t *)PTE_FRAME_ADDR(l1k[L1_INDEX(va)]);
+    if (l2k[L2_INDEX(va)] == 0)
+      l2k[L2_INDEX(va)] = (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
+
+    pde_t *l3k = (pde_t *)PTE_FRAME_ADDR(l2k[L2_INDEX(va)]);
+
+    for (int j = 0; va < kasan_shadow_end && j < PT_ENTRIES; j++) {
+      l3k[L3_INDEX(va)] = pa | ATTR_AP_RW | ATTR_XN | pte_default;
+      va += PAGESIZE;
+      pa += PAGESIZE;
+    }
+  }
+#endif /* KASAN */
+
   return (paddr_t)l0;
 }
 
@@ -254,39 +280,31 @@ __boot_text static void enable_mmu(paddr_t pde) {
   WRITE_SPECIALREG(tcr_el1, tcr);
 
   /* --- more magic bits
-   * M -- MMU enable for EL1 and EL0 stage 1 address translation.
-   * I -- SP must be aligned to 16.
-   * C -- Cacheability control, for data accesses.
+   * M   - MMU enable for EL1 and EL0 stage 1 address translation.
+   * I   - Cacheability control.
+   * C   - Cacheability control, for data accesses.
+   * A   - Alignment check.
+   * SA  - SP alignment check - EL1.
+   * SA0 - SP alignment check - EL0.
+   *
    */
-  WRITE_SPECIALREG(sctlr_el1, SCTLR_M | SCTLR_I | SCTLR_C);
+  WRITE_SPECIALREG(sctlr_el1, SCTLR_M | SCTLR_I | SCTLR_C | SCTLR_A | SCTLR_SA |
+                                SCTLR_SA0);
   __isb();
 
-  _kernel_pmap_pde = pde;
+  pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
 }
 
-__boot_text static void atags_copy(atag_tag_t *atags) {
-  uint8_t *dst = (uint8_t *)AARCH64_PHYSADDR(_atags);
-
-  atag_tag_t *tag;
-  ATAG_FOREACH(tag, atags) {
-    size_t size = ATAG_SIZE(tag);
-    uint8_t *src = (uint8_t *)tag;
-    for (size_t i = 0; i < size; i++)
-      *dst++ = *src++;
-  }
-}
-
-__boot_text void *aarch64_init(atag_tag_t *atags) {
+__boot_text void *aarch64_init(void) {
   drop_to_el1();
   configure_cpu();
   clear_bss();
 
   /* Set end address of kernel for boot allocation purposes. */
   _bootmem_end = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
-  atags_copy(atags);
 
   enable_mmu(build_page_table());
-  return _atags;
+  return &_boot_stack[PAGESIZE];
 }
 
 /* TODO(pj) Remove those after architecture split of gdb debug scripts. */

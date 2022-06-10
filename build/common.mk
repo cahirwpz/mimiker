@@ -1,7 +1,19 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
+#
+# Common makefile used throughout the mimiker build system.  It defines basic
+# mimiker specific recipes and the structure of the build system itself. 
+#
+# The following make variables are set by the including makefile:
+# - SRCDIR: Source directory path relative to $(TOPDIR). This may be used
+#   to build some sources outside the cwd (current working directory).
+#   Defaults to cwd.
+# - SOURCES_C: C sources to format at the current recursion level
+#   (besides format-here).
+# - SOURCES_H: C headers to format at the current recursion level
+#   (besides format-here).
+#
 
-SYSROOT  = $(TOPDIR)/sysroot
-CACHEDIR = $(TOPDIR)/cache
+SYSROOT = $(TOPDIR)/sysroot
 DIR = $(patsubst $(TOPDIR)/%,%,$(CURDIR)/)
 
 # Pass "VERBOSE=1" at command line to display command being invoked by GNU Make
@@ -18,11 +30,13 @@ DSTPATH = $(DIR)$@
 # Define our own recipes
 %.S: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
-	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CPPFLAGS) $(WFLAGS) -S -o $@ $(realpath $<)
+	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CPPFLAGS) $(WFLAGS) -S -o $@ \
+	      $(realpath $<)
 
 %.o: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
-	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CFLAGS_KASAN) $(CPPFLAGS) $(WFLAGS) -c -o $@ $(realpath $<)
+	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CFLAGS_KASAN) $(CFLAGS_KCSAN) $(CFLAGS_KGPROF) $(CPPFLAGS) $(WFLAGS) \
+	      -c -o $@ $(realpath $<)
 
 %.o: %.S
 	@echo "[AS] $(SRCPATH) -> $(DSTPATH)"
@@ -44,13 +58,17 @@ assym.h: genassym.cf
 	@echo "[ASSYM] $(DSTPATH)"
 	$(GENASSYM) $(CC) $(ASSYM_CFLAGS) $(CFLAGS) $(CPPFLAGS) < $^ > $@
 
+%.ld: %.ld.in
+	@echo "[CPP] $(SRCPATH) -> $(DSTPATH)"
+	$(CPP) $(CPPFLAGS) -I$(TOPDIR)/include -P -o $@ $<
+
 include $(TOPDIR)/config.mk
 include $(TOPDIR)/build/arch.$(ARCH).mk
 include $(TOPDIR)/build/tools.mk
 
 SRCDIR ?= .
 
-vpath %.c $(SRCDIR)
+vpath %.c $(SRCDIR) $(SRCDIR)/$(ARCH)
 vpath %.S $(SRCDIR)/$(ARCH)
 
 # Recursive rules for subdirectories
@@ -97,7 +115,7 @@ clean: clean-recursive clean-here
 	$(RM) -v *~
 distclean: distclean-recursive distclean-here
 
-FORMAT-FILES = $(filter-out $(FORMAT-EXCLUDE),$(SOURCES_C) $(SOURCES_H))
+FORMAT-FILES = $(filter-out $(FORMAT-EXCLUDE),$(SOURCES_ALL_C) $(SOURCES_H))
 FORMAT-RECURSE ?= format-recursive
 
 format: $(FORMAT-RECURSE) format-here

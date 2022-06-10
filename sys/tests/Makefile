@@ -7,8 +7,8 @@ SOURCES = \
 	callout.c \
 	crash.c \
 	devfs.c \
-	fdt.c \
 	kmem.c \
+	libfdt.c \
 	linker_set.c \
 	mutex.c \
 	physmem.c \
@@ -17,7 +17,6 @@ SOURCES = \
 	producer_consumer.c \
 	resizable_fdt.c \
 	ringbuf.c \
-	rwlock.c \
 	sched.c \
 	sleepq.c \
 	sleepq_abort.c \

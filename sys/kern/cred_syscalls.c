@@ -178,16 +178,17 @@ int do_setreuid(proc_t *p, uid_t ruid, uid_t euid) {
 
   /* if ruid is set
    * or euid is set to value other than current suid or ruid(and of course euid)
-   * then suid is set to current euid
+   * then suid is set to new euid
    *
    * when we don't set ruid and euid we also don't set suid
    * (the last condition in or)
    */
+  uid_t new_suid = euid == (uid_t)-1 ? cur_euid : euid;
   if (ruid == (uid_t)-1 && (euid == cur_ruid || euid == cur_euid ||
                             euid == cur_suid || euid == (uid_t)-1))
-    cur_euid = -1;
+    new_suid = -1;
 
-  error = change_resuid(&p->p_cred, ruid, euid, cur_euid);
+  error = change_resuid(&p->p_cred, ruid, euid, new_suid);
 
 end:
   proc_unlock(p);
@@ -233,16 +234,17 @@ int do_setregid(proc_t *p, gid_t rgid, gid_t egid) {
 
   /* if rgid is set
    * or egid is set to value other than current sgid or rgid(and of course egid)
-   * then sgid is set to current egid
+   * then sgid is set to new egid
    *
    * when we don't set rgid and egid we also don't set sgid
    * (the last condition in or)
    */
+  gid_t new_sgid = egid == (gid_t)-1 ? cur_egid : egid;
   if (rgid == (gid_t)-1 && (egid == cur_rgid || egid == cur_egid ||
                             egid == cur_sgid || egid == (gid_t)-1))
-    cur_egid = -1;
+    new_sgid = -1;
 
-  error = change_resgid(&p->p_cred, rgid, egid, cur_egid);
+  error = change_resgid(&p->p_cred, rgid, egid, new_sgid);
 
 end:
   proc_unlock(p);

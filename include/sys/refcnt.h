@@ -1,7 +1,10 @@
 #ifndef _SYS_REFCNT_H_
 #define _SYS_REFCNT_H_
 
+#include <stdbool.h>
+#include <stdatomic.h>
 #include <sys/klog.h>
+#include <limits.h>
 
 typedef atomic_uint refcnt_t;
 

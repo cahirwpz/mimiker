@@ -3,6 +3,7 @@
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/devfs.h>
+#include <sys/cred.h>
 
 static int test_devfs(void) {
   vnode_t *v, *v2;

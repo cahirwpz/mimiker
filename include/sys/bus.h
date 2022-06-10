@@ -1,7 +1,7 @@
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
-#include <machine/bus_defs.h>
+#include <sys/bus_defs.h>
 #include <sys/device.h>
 #include <sys/interrupt.h>
 
@@ -134,9 +134,6 @@ extern bus_space_t *generic_bus_space;
 #define bus_space_map(t, a, s, hp) (*(t)->bs_map)((a), (s), (hp))
 
 struct bus_methods {
-  void (*intr_setup)(device_t *dev, resource_t *irq, ih_filter_t *filter,
-                     ih_service_t *service, void *arg, const char *name);
-  void (*intr_teardown)(device_t *dev, resource_t *irq);
   resource_t *(*alloc_resource)(device_t *dev, res_type_t type, int rid,
                                 rman_addr_t start, rman_addr_t end, size_t size,
                                 rman_flags_t flags);
@@ -145,17 +142,14 @@ struct bus_methods {
   void (*deactivate_resource)(device_t *dev, resource_t *r);
 };
 
-#define BUS_METHODS(dev) (*(bus_methods_t *)(dev)->driver->interfaces[DIF_BUS])
+static inline bus_methods_t *bus_methods(device_t *dev) {
+  return dev->driver->interfaces[DIF_BUS];
+}
 
 /* As for now this actually returns a child of the bus, see a comment
  * above `device_method_provider` in include/sys/device.c */
 #define BUS_METHOD_PROVIDER(dev, method)                                       \
   (device_method_provider((dev), DIF_BUS, offsetof(struct bus_methods, method)))
-
-void bus_intr_setup(device_t *dev, resource_t *irq, ih_filter_t *filter,
-                    ih_service_t *service, void *arg, const char *name);
-
-void bus_intr_teardown(device_t *dev, resource_t *irq);
 
 /*! \brief Allocates a resource of type \a type and size \a size between
  * \a start and \a end for a device \a dev.
@@ -175,8 +169,8 @@ static inline resource_t *bus_alloc_resource(device_t *dev, res_type_t type,
                                              rman_addr_t end, size_t size,
                                              rman_flags_t flags) {
   device_t *idev = BUS_METHOD_PROVIDER(dev, alloc_resource);
-  return BUS_METHODS(idev->parent)
-    .alloc_resource(idev, type, rid, start, end, size, flags);
+  return bus_methods(idev->parent)
+    ->alloc_resource(idev, type, rid, start, end, size, flags);
 }
 
 /*! \brief Activates resource for a device.
@@ -199,7 +193,7 @@ void bus_deactivate_resource(device_t *dev, resource_t *r);
 
 static inline void bus_release_resource(device_t *dev, resource_t *r) {
   device_t *idev = BUS_METHOD_PROVIDER(dev, release_resource);
-  BUS_METHODS(idev->parent).release_resource(idev, r);
+  bus_methods(idev->parent)->release_resource(idev, r);
 }
 
 int bus_generic_probe(device_t *bus);

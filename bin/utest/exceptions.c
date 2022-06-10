@@ -4,6 +4,8 @@
 #include <sys/wait.h>
 #include <sys/signal.h>
 #include <stdlib.h>
+#include <setjmp.h>
+#include <signal.h>
 
 #include <stdio.h>
 
@@ -61,3 +63,39 @@ int test_syscall_in_bds(void) {
 }
 
 #endif /* !__mips__ */
+
+#ifdef __aarch64__
+
+int test_exc_unknown_instruction(void) {
+  asm volatile(".long 0x00110011");
+  return 0;
+}
+
+int test_exc_msr_instruction(void) {
+  asm volatile("msr spsr_el1, %0" ::"r"(1ULL));
+  return 0;
+}
+
+int test_exc_mrs_instruction(void) {
+  long x;
+  asm volatile("mrs %0, spsr_el1" : "=r"(x));
+  return 0;
+}
+
+static sigjmp_buf jump_buffer;
+static void sigtrap_handler(int signo) {
+  siglongjmp(jump_buffer, 42);
+  assert(0); /* Shouldn't reach here. */
+}
+
+int test_exc_brk(void) {
+  signal(SIGTRAP, sigtrap_handler);
+  if (sigsetjmp(jump_buffer, 1) != 42) {
+    asm volatile("brk 0");
+    assert(0); /* Shouldn't reach here. */
+  }
+  signal(SIGTRAP, SIG_DFL);
+  return 0;
+}
+
+#endif /* !__aarch64__ */

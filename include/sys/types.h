@@ -52,6 +52,7 @@ typedef __builtin_va_list __va_list;
 
 /* address types */
 typedef uintptr_t vaddr_t; /* virtual address */
+typedef _Atomic(uintptr_t) atomic_vaddr_t;
 typedef uintptr_t paddr_t; /* physical address */
 
 /* quads */

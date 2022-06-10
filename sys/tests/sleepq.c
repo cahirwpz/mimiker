@@ -27,8 +27,10 @@ static int test_sleepq_sync(void) {
   wakeups = 0;
 
   callout_t callout[N];
-  bzero(callout, sizeof(callout_t) * N);
   thread_t *td[K];
+
+  for (int i = 0; i < N; i++)
+    callout_setup(&callout[i], wake_threads_up, NULL);
 
   /* Create the threads before setting up the callouts so that not a single
    * wake-up will be lost! */
@@ -39,7 +41,7 @@ static int test_sleepq_sync(void) {
   }
 
   for (int i = 0; i < N; i++)
-    callout_setup_relative(&callout[i], i + 1, wake_threads_up, NULL);
+    callout_schedule(&callout[i], i + 1);
 
   for (int i = 0; i < K; i++)
     thread_join(td[i]);

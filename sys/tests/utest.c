@@ -61,6 +61,7 @@ static int utest_generic(const char *name, int status_success) {
   UTEST_ADD(name, MAKE_STATUS_SIG_TERM(sig), 0)
 
 UTEST_ADD_SIMPLE(mmap);
+UTEST_ADD_SIMPLE(munmap);
 UTEST_ADD_SIGNAL(munmap_sigsegv, SIGSEGV);
 UTEST_ADD_SIMPLE(mmap_prot_none);
 UTEST_ADD_SIMPLE(mmap_prot_read);
@@ -140,6 +141,14 @@ UTEST_ADD_SIGNAL(exc_integer_overflow, SIGFPE);
 UTEST_ADD_SIMPLE(exc_sigsys);
 #endif
 
+#ifdef __aarch64__
+UTEST_ADD_SIGNAL(exc_unknown_instruction, SIGILL);
+UTEST_ADD_SIGNAL(exc_msr_instruction, SIGILL);
+UTEST_ADD_SIGNAL(exc_mrs_instruction, SIGILL);
+
+UTEST_ADD_SIMPLE(exc_brk);
+#endif
+
 UTEST_ADD_SIMPLE(getcwd);
 /* XXX UTEST_ADD_SIMPLE(syscall_in_bds); */
 
@@ -157,6 +166,7 @@ UTEST_ADD_SIMPLE(session_login_name);
 UTEST_ADD_SIMPLE(gettimeofday);
 #endif
 UTEST_ADD_SIMPLE(nanosleep);
+UTEST_ADD_SIMPLE(itimer);
 
 UTEST_ADD_SIMPLE(get_set_uid);
 UTEST_ADD_SIMPLE(get_set_gid);
@@ -170,3 +180,8 @@ UTEST_ADD_SIMPLE(pty_simple);
 UTEST_ADD_SIMPLE(tty_canon);
 UTEST_ADD_SIMPLE(tty_echo);
 UTEST_ADD_SIMPLE(tty_signals);
+
+UTEST_ADD_SIMPLE(procstat);
+
+UTEST_ADD_SIMPLE(pipe_parent_signaled);
+UTEST_ADD_SIMPLE(pipe_child_signaled);

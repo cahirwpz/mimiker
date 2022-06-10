@@ -12,8 +12,11 @@ CPPFLAGS = -I$(CURDIR) \
 	   -I$(CURDIR)/stdlib \
 	   -D_LIBC -DNO_FENV_H
 
+
 SUBLIBS = cdb citrus gdtoa gen locale misc regex quad \
 	  stdio stdlib string sys termios time
+
+include $(TOPDIR)/config.mk
 
 SOURCES = $(foreach dir, $(SUBLIBS), \
             $(wildcard $(dir)/*.[cS]) $(wildcard $(dir)/$(ARCH)/*.[cS]))

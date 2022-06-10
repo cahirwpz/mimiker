@@ -17,7 +17,9 @@ int do_read(proc_t *p, int fd, uio_t *uio) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_READ, &f)))
     return error;
-  error = FOP_READ(f, uio);
+
+  uio->uio_ioflags |= f->f_flags & IO_MASK;
+  error = f->f_ops->fo_read(f, uio);
   file_drop(f);
   return error;
 }
@@ -28,19 +30,26 @@ int do_write(proc_t *p, int fd, uio_t *uio) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, FF_WRITE, &f)))
     return error;
-  error = FOP_WRITE(f, uio);
+
+  uio->uio_ioflags |= f->f_flags & IO_MASK;
+  error = f->f_ops->fo_write(f, uio);
+  if (error == EPIPE) {
+    proc_lock(p);
+    sig_kill(p, &DEF_KSI_RAW(SIGPIPE));
+    proc_unlock(p);
+  }
+
   file_drop(f);
   return error;
 }
 
 int do_lseek(proc_t *p, int fd, off_t offset, int whence, off_t *newoffp) {
-  /* TODO: RW file flag! For now we just file_get_read */
   file_t *f;
   int error;
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  error = FOP_SEEK(f, offset, whence, newoffp);
+  error = f->f_ops->fo_seek(f, offset, whence, newoffp);
   file_drop(f);
   return error;
 }
@@ -51,7 +60,7 @@ int do_fstat(proc_t *p, int fd, stat_t *sb) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  error = FOP_STAT(f, sb);
+  error = f->f_ops->fo_stat(f, sb);
   file_drop(f);
   return error;
 }
@@ -122,14 +131,18 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
         if (f->f_flags & FF_WRITE)
           flags |= O_WRONLY;
       }
-      if (f->f_flags & FF_APPEND)
+      if (f->f_flags & IO_APPEND)
         flags |= O_APPEND;
+      if (f->f_flags & IO_NONBLOCK)
+        flags |= O_NONBLOCK;
       *resp = flags;
       break;
 
     case F_SETFL:
       if (arg & O_APPEND)
-        flags |= FF_APPEND;
+        flags |= IO_APPEND;
+      if (arg & O_NONBLOCK)
+        flags |= IO_NONBLOCK;
       f->f_flags = flags;
       break;
 
@@ -148,7 +161,7 @@ int do_ioctl(proc_t *p, int fd, u_long cmd, void *data) {
 
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
-  error = FOP_IOCTL(f, cmd, data);
+  error = f->f_ops->fo_ioctl(f, cmd, data);
   file_drop(f);
   if (error == EPASSTHROUGH)
     error = ENOTTY;

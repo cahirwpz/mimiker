@@ -1,3 +1,11 @@
+# vim: tabstop=8 shiftwidth=8 noexpandtab:
+#
+# This is a common makefile used to establish the implementation of the basic
+# tools used throughout the build system.
+#
+# The following make variables are set by the including makefile:
+# - TARGET, {CLANG,GCC}_ABIFLAGS: Set by arch.*.mk files.
+
 ifndef ARCH
   $(error ARCH variable not defined. Have you included config.mk?)
 endif
@@ -25,6 +33,7 @@ endif
 CC       = $(TARGET_CC)
 AS       = $(TARGET_CC)
 LD       = $(TARGET)-gcc $(GCC_ABIFLAGS) -g
+CPP      = $(TARGET)-cpp
 AR       = $(TARGET)-ar
 NM       = $(TARGET)-nm
 GDB      = $(TARGET)-gdb
