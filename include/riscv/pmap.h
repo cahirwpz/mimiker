@@ -39,7 +39,6 @@ typedef struct pmap pmap_t;
 typedef struct pmap_md {
   paddr_t satp;     /* supervisor address translation and protection */
   u_int generation; /* current generation number */
-  LIST_ENTRY(pmap) pmap_link; /* link on `user_pmaps` */
 } pmap_md_t;
 
 /*
