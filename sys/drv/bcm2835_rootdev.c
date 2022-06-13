@@ -142,7 +142,7 @@ static int rootdev_attach(device_t *bus) {
    */
 
   int unit = 0;
-  device_t *bcm2835_pic, *sdhci;
+  device_t *bcm2835_pic, *emmc;
 
   if ((err = simplebus_add_child(bus, "/soc/intc", unit++, bus, &bcm2835_pic)))
     return err;
@@ -159,9 +159,9 @@ static int rootdev_attach(device_t *bus) {
     return err;
 
   if ((err =
-         simplebus_add_child(bus, "/soc/sdhci", unit++, bcm2835_pic, &sdhci)))
+         simplebus_add_child(bus, "/soc/emmc", unit++, bcm2835_pic, &emmc)))
     return err;
-  sdhci->devclass = &DEVCLASS(emmc);
+  emmc->devclass = &DEVCLASS(emmc);
 
   return bus_generic_probe(bus);
 }

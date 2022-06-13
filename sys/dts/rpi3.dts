@@ -51,8 +51,12 @@
 		gpio: gpio@7e200000 {
 			compatible = "bcm2835,rpi3-gpio";
 			reg = <0x7e200000 0x100>;
-			//interupts = <0 0>;
 
+			/* e.MMC requires some GPIO setup to work properly. This however
+		     * differs from what is described in BCM2835 Peripherals datasheet.
+		     * See: https://www.raspberrypi.org/app/uploads/2012/04/
+		     *      Raspberry-Pi-Schematics-R1.0.pdf
+		     */
 			emmc {
 				pins = <47 48 49 50 51 52 53>;
 				function = <3>;
@@ -67,13 +71,8 @@
 			interrupts = <2 25>;
 		};
 
-		/* e.MMC requires some GPIO setup to work properly. This however
-		 * differs from what is described in BCM2835 Peripherals datasheet.
-		 * See: https://www.raspberrypi.org/app/uploads/2012/04/
-		 *      Raspberry-Pi-Schematics-R1.0.pdf
-		 */
-		sdhci: sdhci@7e300000 {
-			compatible = "brcm,bcm2835-sdhci";
+		emmc: emmc@7e300000 {
+			compatible = "brcm,bcm2835-emmc";
 			reg = <0x7e300000 0x100>;
 			interrupts = <2 30>;
 		};

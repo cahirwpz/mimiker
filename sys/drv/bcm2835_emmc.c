@@ -34,6 +34,8 @@ typedef struct bcmemmc_state {
   emmc_error_t errors;
 } bcmemmc_state_t;
 
+#define FDT_COMPATIBLE "brcm,bcm2835-emmc"
+
 #define b_in bus_read_4
 #define b_out bus_write_4
 #define b_clr(mem, reg, b) b_out((mem), (reg), b_in((mem), (reg)) & ~(b))
@@ -507,7 +509,7 @@ static int bcmemmc_init(device_t *dev) {
 }
 
 static int bcmemmc_probe(device_t *dev) {
-  return FDT_is_compatible(dev->node, "brcm,bcm2835-sdhci");
+  return FDT_is_compatible(dev->node, FDT_COMPATIBLE);
 }
 
 DEVCLASS_DECLARE(emmc);
