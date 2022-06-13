@@ -16,12 +16,7 @@
 #include <sys/devfs.h>
 #include <dev/sd.h>
 
-#define TRY(expr, error_var)                                                   \
-  if (((error_var) = (expr)))                                                  \
-  return error_var
-#define TRYN(expr, error_var)                                                  \
-  if (((error_var) = (expr)))                                                  \
-  return -error_var
+
 #define ASSIGN_OPTIONAL(ptr, val)                                              \
   if ((ptr))                                                                   \
   *(ptr) = (val)
@@ -41,7 +36,7 @@ static const char high_cap_str[] = "Ver 2.0 or later, High Capacity or Extended"
                                    " Capacity SD Memory Card";
 
 static int sd_init(device_t *dev) {
-  int error;
+  int err = 0;
   sd_state_t *state = (sd_state_t *)dev->state;
 
   emmc_resp_t response;
@@ -58,9 +53,12 @@ static int sd_init(device_t *dev) {
 
   klog("Attaching SD/SDHC block device interface...");
 
-  TRY(emmc_set_prop(dev, EMMC_PROP_RW_RCA, 0), error);
+  if ((err = emmc_set_prop(dev, EMMC_PROP_RW_RCA, 0)))
+    return err;
 
-  TRY(emmc_send_cmd(dev, EMMC_CMD(GO_IDLE), 0, NULL), error);
+  if ((err = emmc_send_cmd(dev, EMMC_CMD(GO_IDLE), 0, NULL)))
+    return err;
+
   if (emmc_get_prop(dev, EMMC_PROP_R_VOLTAGE_SUPPLY, &propv)) {
     klog("Unable to determine e.MMC controller's voltage supply.");
     return ENXIO;
@@ -70,8 +68,7 @@ static int sd_init(device_t *dev) {
     klog("Unable to determine whether CMD8 responds.");
     return ENXIO;
   }
-  TRY(emmc_send_cmd(dev, SD_CMD_SET_IF_COND, propv << 8 | chkpat, &response),
-      error);
+  err |= emmc_send_cmd(dev, SD_CMD_SET_IF_COND, propv << 8 | chkpat, &response);
   if (SD_R7_CHKPAT(&response) != chkpat) {
     klog("SD 2.0 voltage supply is mismatched, or the card is at Version 1.x");
     return ENXIO;
@@ -107,24 +104,38 @@ static int sd_init(device_t *dev) {
 
   /* Let's assume there's no voltage switching needed */
 
-  TRY(emmc_send_cmd(dev, EMMC_CMD(ALL_SEND_CID), 0, NULL), error);
-  TRY(emmc_send_cmd(dev, SD_CMD_SEND_REL_ADDR, 0, &response), error);
+  if ((err = emmc_send_cmd(dev, EMMC_CMD(ALL_SEND_CID), 0, NULL)))
+    return err;
+  if ((err = emmc_send_cmd(dev, SD_CMD_SEND_REL_ADDR, 0, &response)))
+    return err;
   rca = SD_R6_RCA(&response);
-  TRY(emmc_set_prop(dev, EMMC_PROP_RW_RCA, rca), error);
+  if ((err = emmc_set_prop(dev, EMMC_PROP_RW_RCA, rca)))
+    return err;
+
+  if (err)
+    return err;
 
   /* At this point we should have just enetered data transfer mode */
 
   if (emmc_set_prop(dev, EMMC_PROP_RW_CLOCK_FREQ, SD_CLOCK_FREQ))
     klog("Failed to set e.MMC clock for SD card. Transfers might be slow.");
+  
+  if ((err = emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), rca << 16, NULL)))
+    return err;
+  if ((err = emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 8)))
+    return err;
+  if ((err = emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, 1)))
+    return err;
 
-  TRY(emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), rca << 16, NULL), error);
-  TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 8), error);
-  TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, 1), error);
+  if ((err = emmc_send_cmd(dev, SD_CMD_SEND_SCR, 0, NULL)))
+    return err;
+  if ((err = emmc_wait(dev, EMMC_I_READ_READY)))
+    return err;
+  if ((err = emmc_read(dev, scr, SD_SCR_WORD_CNT * sizeof(uint32_t), &of)))
+    return err;
+  if ((err = emmc_wait(dev, EMMC_I_DATA_DONE)))
+    return err;
 
-  TRY(emmc_send_cmd(dev, SD_CMD_SEND_SCR, 0, NULL), error);
-  TRY(emmc_wait(dev, EMMC_I_READ_READY), error);
-  TRY(emmc_read(dev, scr, SD_SCR_WORD_CNT * sizeof(uint32_t), &of), error);
-  TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
   if (of != SD_SCR_WORD_CNT * sizeof(uint32_t)) {
     klog("Failed to read SD Card's SCR");
     return EIO;
@@ -134,64 +145,75 @@ static int sd_init(device_t *dev) {
     state->props |= SD_SUPP_BLKCNT;
   if (scr[0] & SCR_SD_BUS_WIDTH_4) {
     state->props |= SD_SUPP_BUSWIDTH_4;
-    TRY(emmc_send_cmd(dev, SD_CMD_SET_BUS_WIDTH, SD_BUSWIDTH_4, NULL), error);
-    TRY(emmc_set_prop(dev, EMMC_PROP_RW_BUSWIDTH, EMMC_BUSWIDTH_4), error);
+    if ((err = emmc_send_cmd(dev, SD_CMD_SET_BUS_WIDTH, SD_BUSWIDTH_4, NULL)))
+      return err;
+    if ((err = emmc_set_prop(dev, EMMC_PROP_RW_BUSWIDTH, EMMC_BUSWIDTH_4)))
+      return err;
   }
 
   klog("Card's feature support:\n* CCS: %s\n* SET_BLOCK_COUNT: %s",
        (state->props & SD_SUPP_CCS) ? "YES" : "NO",
        (state->props & SD_SUPP_BLKCNT) ? "YES" : "NO");
 
-  return 0;
+  return err;
 }
 
 /* Data read routine for CCS-enabled cards (>=SDHC) */
 static int sd_read_block_ccs(device_t *dev, uint32_t lba, void *buffer,
                              uint32_t num, size_t *read) {
-  int error;
+  int err = 0;
   sd_state_t *state = (sd_state_t *)dev->state;
   uint32_t *buf = (uint32_t *)buffer;
 
   /* Multiple block transfers either be terminated after a set amount of
    * block is transferred, or by sending CMD_STOP_TRANS command */
   if (num > 1 && (state->props & SD_SUPP_BLKCNT))
-    TRY(emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, NULL), error);
+    if ((err = emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, NULL)))
+      return err;
 
   if (num > 1) {
-    TRY(emmc_send_cmd(dev, EMMC_CMD(READ_MULTIPLE_BLOCKS), lba, NULL), error);
+    if ((err = emmc_send_cmd(dev, EMMC_CMD(READ_MULTIPLE_BLOCKS), lba, NULL)))
+      return err;
   } else {
-    TRY(emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba, NULL), error);
+    if ((err = emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba, NULL)))
+      return err;
   }
-  TRY(emmc_wait(dev, EMMC_I_READ_READY), error);
-  TRY(emmc_read(dev, buf, num * DEFAULT_BLKSIZE, NULL), error);
+  if ((err = emmc_wait(dev, EMMC_I_READ_READY)))
+    return err;
+  if ((err = emmc_read(dev, buf, num * DEFAULT_BLKSIZE, NULL)))
+    return err;
   if ((num == 1) || (state->props & SD_SUPP_BLKCNT))
-    TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
+    if ((err = emmc_wait(dev, EMMC_I_DATA_DONE)))
+      return err;
   ASSIGN_OPTIONAL(read, num * DEFAULT_BLKSIZE);
   if (num > 1 && (~state->props & SD_SUPP_BLKCNT))
-    TRY(emmc_send_cmd(dev, EMMC_CMD(STOP_TRANSMISSION), 0, NULL), error);
+    if ((err = emmc_send_cmd(dev, EMMC_CMD(STOP_TRANSMISSION), 0, NULL)))
+      return err;
 
-  return 0;
+  return err;
 }
 
 /* Data read routine for CCS-disabled cards (SDSC) */
 static int sd_read_block_noccs(device_t *dev, uint32_t lba, void *buffer,
                                uint32_t num, size_t *read) {
-  int error;
+  int err = 0;
   uint32_t *buf = (uint32_t *)buffer;
 
   for (uint32_t c = 0; c < num; c++) {
     /* See note no. 10 at page 222 of
      * SD Physical Layer Simplified Specification V6.0 */
-    TRY(emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), (lba + c) * DEFAULT_BLKSIZE,
-                      NULL),
-        error);
-    TRY(emmc_read(dev, buf, DEFAULT_BLKSIZE, NULL), error);
-    TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
+    if ((err = emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK),
+                            (lba + c) * DEFAULT_BLKSIZE, NULL)))
+      return err;
+    if ((err = emmc_read(dev, buf, DEFAULT_BLKSIZE, NULL)))
+      return err;
+    if ((err = emmc_wait(dev, EMMC_I_DATA_DONE)))
+      return err;
     buf += DEFAULT_BLKSIZE / sizeof(uint32_t);
     ASSIGN_OPTIONAL(read, *read + DEFAULT_BLKSIZE);
   }
 
-  return 0;
+  return err;
 }
 
 /* Read blocks from sd card. Returns 0 on success. */
@@ -202,20 +224,24 @@ static int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
   if (num < 1)
     return EINVAL;
 
-  int error;
+  int err = 0;
 
   ASSIGN_OPTIONAL(read, 0);
 
-  TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num), error);
-  TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE), error);
+  if ((emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num)))
+    return err;
+  if ((emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE)))
+    return err;
 
   if (state->props & SD_SUPP_CCS) {
-    TRY(sd_read_block_ccs(dev, lba, buffer, num, read), error);
+    if ((err = sd_read_block_ccs(dev, lba, buffer, num, read)))
+      return err;
   } else {
-    TRY(sd_read_block_noccs(dev, lba, buffer, num, read), error);
+    if ((err = sd_read_block_noccs(dev, lba, buffer, num, read)))
+      return err;
   }
 
-  return 0;
+  return err;
 }
 
 /* Write blocks to the sd card. Returns 0 on success. */
@@ -225,15 +251,17 @@ static int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
   sd_state_t *state = (sd_state_t *)dev->state;
 
   uint32_t *buf = (uint32_t *)buffer;
-  int error;
+  int err = 0;
 
   if (num < 1)
     return EINVAL;
 
   ASSIGN_OPTIONAL(wrote, 0);
 
-  TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num), error);
-  TRY(emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE), error);
+  if ((emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num)))
+    return err;
+  if ((emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE)))
+    return err;
 
   for (uint32_t c = 0; c < num; c++) {
     if (!(state->props & SD_SUPP_BLKCNT)) {
@@ -242,16 +270,20 @@ static int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
        * SD Physical Layer Simplified Specification V6.0 */
       if (!(state->props & SD_SUPP_CCS))
         addr *= DEFAULT_BLKSIZE;
-      TRY(emmc_send_cmd(dev, EMMC_CMD(WRITE_BLOCK), addr, NULL), error);
-      TRY(emmc_wait(dev, EMMC_I_WRITE_READY), error);
+      if ((emmc_send_cmd(dev, EMMC_CMD(WRITE_BLOCK), addr, NULL)))
+        return err;
+      if ((emmc_wait(dev, EMMC_I_WRITE_READY)))
+        return err;
     }
-    TRY(emmc_write(dev, buf, DEFAULT_BLKSIZE, NULL), error);
-    TRY(emmc_wait(dev, EMMC_I_DATA_DONE), error);
+    if ((err = emmc_write(dev, buf, DEFAULT_BLKSIZE, NULL)))
+      return err;
+    if ((err = emmc_wait(dev, EMMC_I_DATA_DONE)))
+      return err;
     buf += 128;
     ASSIGN_OPTIONAL(wrote, *wrote + DEFAULT_BLKSIZE);
   }
 
-  return 0;
+  return err;
 }
 
 static inline int sd_check_uio(uio_t *uio) {
@@ -268,9 +300,10 @@ typedef int (*sd_transfer_t)(device_t *dev, uint32_t lba, void *buffer,
 static int sd_dop_uio(devnode_t *d, uio_t *uio) {
   device_t *dev = d->data;
   sd_state_t *state = (sd_state_t *)dev->state;
-  int error;
+  int err;
 
-  TRY(sd_check_uio(uio), error);
+  if ((err = sd_check_uio(uio)))
+    return err;
 
   uint32_t lba = uio->uio_offset / DEFAULT_BLKSIZE;
   uint32_t blk_cnt = uio->uio_resid / DEFAULT_BLKSIZE;
@@ -280,8 +313,10 @@ static int sd_dop_uio(devnode_t *d, uio_t *uio) {
   for (uint32_t blocks_left = blk_cnt; blocks_left;
        blocks_left -= SD_KERNEL_BLOCKS) {
     uint32_t num = min(blocks_left, (uint32_t)SD_KERNEL_BLOCKS);
-    TRY(transfer(dev, lba, state->block_buf, num, NULL), error);
-    TRYN(uiomove_frombuf(state->block_buf, num * DEFAULT_BLKSIZE, uio), error);
+    if ((err = transfer(dev, lba, state->block_buf, num, NULL)))
+      return err;
+    if ((err = uiomove_frombuf(state->block_buf, num * DEFAULT_BLKSIZE, uio)))
+      return err;
     if (num < SD_KERNEL_BLOCKS)
       break;
   }
@@ -295,16 +330,23 @@ static devops_t sd_devops = {
 };
 
 static int sd_attach(device_t *dev) {
-  int error;
+  int err = 0;
   sd_state_t *state = (sd_state_t *)dev->state;
 
   state->block_buf = kmalloc(M_DEV, SD_KERNEL_BLOCKS * DEFAULT_BLKSIZE, 0);
 
-  TRY(sd_init(dev), error);
+  if ((err = sd_init(dev)))
+    goto sd_attach_fail;
 
-  TRY(devfs_makedev_new(NULL, "sd_card", &sd_devops, dev, NULL), error);
+  if ((err = devfs_makedev_new(NULL, "sd_card", &sd_devops, dev, NULL)))
+    goto sd_attach_fail;
 
-  return 0;
+  return err;
+
+sd_attach_fail:
+  kfree(M_DEV, state->block_buf);
+
+  return err;
 }
 
 static driver_t sd_block_device_driver = {

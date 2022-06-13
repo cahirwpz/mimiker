@@ -140,6 +140,10 @@ typedef struct emmc_cmd {
 #define EMMC_BUSWIDTH_4 0x02 /* 4-bit bus */
 #define EMMC_BUSWIDTH_8 0x04 /* 8-bit but */
 
+typedef uint64_t emmc_error_t;
+
+#define EMMC_ERROR_CMD_TIMEOUT 0x01
+
 /* R stands for "read"
  * W stands for "write" */
 typedef enum emmc_prop_id {
@@ -153,10 +157,10 @@ typedef enum emmc_prop_id {
                                * controller is able to operate */
   EMMC_PROP_RW_RESP_LOW,      /* Low 64 bits of response register(s) */
   EMMC_PROP_RW_RESP_HI,       /* High 64 bits of response register(s) */
-  EMMC_PROP_RW_CLOCK_FREQ,    /* Clocking frequency (Hz)
-                               * (ETIMEDOUT on timeout, */
+  EMMC_PROP_RW_CLOCK_FREQ,    /* Clocking frequency (Hz) */
   EMMC_PROP_RW_BUSWIDTH,      /* Bus width, ie. no. of data lanes. */
   EMMC_PROP_RW_RCA,           /* Relative card address */
+  EMMC_PROP_R_ERRORS,         /* Last reported set of errors */
 } emmc_prop_id_t;
 typedef uint64_t emmc_prop_val_t;
 

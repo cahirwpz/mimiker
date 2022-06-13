@@ -1,3 +1,4 @@
+#define KL_LOG KL_VM
 #include <sys/klog.h>
 #include <sys/context.h>
 #include <sys/mimiker.h>
@@ -8,7 +9,7 @@
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/errno.h>
-#include <sys/context.h>
+#include <sys/interrupt.h>
 #include <sys/cpu.h>
 #include <aarch64/armreg.h>
 #include <aarch64/pmap.h>
@@ -74,11 +75,8 @@ static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
   if (error == EACCES || error == EINVAL)
     goto fault;
 
-  vm_map_t *vmap = vm_map_lookup(vaddr);
-  if (!vmap) {
-    klog("No virtual address space defined for %lx!", vaddr);
-    goto fault;
-  }
+  vm_map_t *vmap = vm_map_user();
+
   if (vm_page_fault(vmap, vaddr, access) == 0)
     return;
 
@@ -166,4 +164,20 @@ void kern_trap_handler(ctx_t *ctx) {
     default:
       kernel_oops(ctx);
   }
+}
+
+__no_profile void kern_exc_handler(ctx_t *ctx, bool intr) {
+  thread_t *td = thread_self();
+  assert(td->td_idnest == 0);
+  assert(cpu_intr_disabled());
+
+  ctx_t *kframe_saved = td->td_kframe;
+  td->td_kframe = ctx;
+
+  if (intr)
+    intr_root_handler(ctx);
+  else
+    kern_trap_handler(ctx);
+
+  td->td_kframe = kframe_saved;
 }

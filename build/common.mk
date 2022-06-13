@@ -68,7 +68,7 @@ include $(TOPDIR)/build/tools.mk
 
 SRCDIR ?= .
 
-vpath %.c $(SRCDIR)
+vpath %.c $(SRCDIR) $(SRCDIR)/$(ARCH)
 vpath %.S $(SRCDIR)/$(ARCH)
 
 # Recursive rules for subdirectories

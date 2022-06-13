@@ -146,11 +146,7 @@ static void tlb_exception_handler(ctx_t *ctx) {
   if (error == EACCES || error == EINVAL)
     goto fault;
 
-  vm_map_t *vmap = vm_map_lookup(vaddr);
-  if (!vmap) {
-    klog("No virtual address space defined for %08lx!", vaddr);
-    goto fault;
-  }
+  vm_map_t *vmap = vm_map_user();
 
   if (vm_page_fault(vmap, vaddr, access) == 0)
     return;
@@ -258,6 +254,7 @@ __no_profile void mips_exc_handler(ctx_t *ctx) {
   assert(cpu_intr_disabled());
 
   bool user_mode = user_mode_p(ctx);
+  ctx_t *kframe_saved;
 
   if (!user_mode) {
     /* If there's not enough space on the stack to store another exception
@@ -267,6 +264,8 @@ __no_profile void mips_exc_handler(ctx_t *ctx) {
     register_t sp = mips32_get_sp();
     if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t))
       panic("Kernel stack overflow caught at $%08lx!", _REG(ctx, EPC));
+    kframe_saved = td->td_kframe;
+    td->td_kframe = ctx;
   }
 
   if (exc_code(ctx)) {
@@ -277,4 +276,7 @@ __no_profile void mips_exc_handler(ctx_t *ctx) {
   } else {
     intr_root_handler(ctx);
   }
+
+  if (!user_mode)
+    td->td_kframe = kframe_saved;
 }

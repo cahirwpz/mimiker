@@ -24,10 +24,6 @@ void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg) {
   _REG(ctx, A0) = arg;
 }
 
-void ctx_set_retval(ctx_t *ctx, long value) {
-  _REG(ctx, V0) = (register_t)value;
-}
-
 register_t ctx_get_pc(ctx_t *ctx) {
   return _REG(ctx, EPC);
 }

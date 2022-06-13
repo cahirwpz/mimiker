@@ -7,32 +7,29 @@
 typedef struct pmap pmap_t;
 
 /*
- * Flags passed to pmap_enter may contain VM_PROT_* read/write/execute
- * permissions. This information may be used to seed modified/referenced
- * information for the page being mapped, possibly avoiding redundant faults
- * on platforms that track modified/referenced information in software
- * like some MIPS and AArch64 processors.
+ * Flags passed to `pmap_kenter` and `pmap_enter`.
  *
- * 00000ccc 00000000 00000000 00000ppp
+ * PMAP flags layout:
  *
- * (c) cache bits
- * (p) protection bits
+ *    31  ...  24 23  ...  0
+ *      MD flags    MI flags
+ *
+ * NOTE: permissions are passed using `vm_prot_t`.
  */
 
-#define PMAP_PROT_MASK VM_PROT_MASK
-#define PMAP_CACHE_SHIFT 24
+/* Machine-independent flags */
+#define PMAP_NOCACHE 1
+#define PMAP_WRITE_THROUGH 2
+#define PMAP_WRITE_BACK 4
 
-#define PMAP_NOCACHE (1 << PMAP_CACHE_SHIFT)
-#define PMAP_WRITE_THROUGH (2 << PMAP_CACHE_SHIFT)
-#define PMAP_WRITE_BACK (3 << PMAP_CACHE_SHIFT)
-#define PMAP_CACHE_MASK (7 << PMAP_CACHE_SHIFT)
+/* Machine-dependent flags */
+#define _PMAP_KERNEL (1 << 24)
 
-bool pmap_address_p(pmap_t *pmap, vaddr_t va);
-bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end);
+__long_call void pmap_bootstrap(paddr_t pd_pa, void *pd);
+void init_pmap(void);
+
 vaddr_t pmap_start(pmap_t *pmap);
 vaddr_t pmap_end(pmap_t *pmap);
-
-void init_pmap(void);
 
 pmap_t *pmap_new(void);
 void pmap_delete(pmap_t *pmap);
@@ -78,5 +75,10 @@ pmap_t *pmap_kernel(void);
 pmap_t *pmap_user(void);
 
 void pmap_growkernel(vaddr_t maxkvaddr);
+
+/*
+ * Direct map.
+ */
+void *phys_to_dmap(paddr_t addr);
 
 #endif /* !_SYS_PMAP_H_ */
