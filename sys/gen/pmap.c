@@ -467,6 +467,7 @@ fault:
   if (td->td_onfault) {
     /* Handle copyin/copyout faults. */
     ctx_set_pc(ctx, td->td_onfault);
+    td->td_onfault = 0;
     return 0;
   }
   if (user_mode_p(ctx)) {

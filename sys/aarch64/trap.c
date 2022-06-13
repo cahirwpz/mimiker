@@ -44,10 +44,11 @@ static void syscall_handler(register_t code, ctx_t *ctx,
 
 static vm_prot_t exc_access(u_long exc_code, register_t esr) {
   vm_prot_t access = VM_PROT_READ;
-  if (exc_code == EXCP_INSN_ABORT || exc_code == EXCP_INSN_ABORT_L)
+  if (exc_code == EXCP_INSN_ABORT || exc_code == EXCP_INSN_ABORT_L) {
     access |= VM_PROT_EXEC;
-  else if (esr & ISS_DATA_WnR)
+  } else if (esr & ISS_DATA_WnR) {
     access |= VM_PROT_WRITE;
+  }
   return access;
 }
 
