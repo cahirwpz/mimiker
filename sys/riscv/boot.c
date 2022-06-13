@@ -77,7 +77,6 @@
 #define KERNEL_VIRT_IMG_END align((vaddr_t)__ebss, PAGESIZE)
 #define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(__ebss), PAGESIZE)
 
-#if KASAN
 #define BOOT_KASAN_SANITIZED_SIZE                                              \
   roundup2(roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) +                  \
              (VM_PAGE_PDS * GROWKERNEL_STRIDE) - KASAN_SANITIZED_START,        \
@@ -85,7 +84,6 @@
 
 #define BOOT_KASAN_SHADOW_SIZE                                                 \
   (BOOT_KASAN_SANITIZED_SIZE / KASAN_SHADOW_SCALE_SIZE)
-#endif /* !KASAN */
 
 #define BOOT_DTB_VADDR DMAP_BASE
 #define BOOT_PD_VADDR (DMAP_BASE + GROWKERNEL_STRIDE)
@@ -218,7 +216,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
                    "mv a2, %2\n\t"
                    "mv sp, %3\n\t"
                    "csrw satp, %4\n\t"
-                   "nop" /* triggers instruction fetch page fault */
+                   "ebreak"
                    :
                    : "r"(dtb), "r"(kernel_pde), "r"(bootmem_brk), "r"(boot_sp),
                      "r"(satp)
@@ -266,12 +264,12 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
 
   clear_bss();
 
+  extern paddr_t kern_phys_end;
+  kern_phys_end = kern_end;
+
 #if KASAN
   _kasan_sanitized_end = KASAN_SANITIZED_START + BOOT_KASAN_SANITIZED_SIZE;
 #endif
-
-  extern paddr_t kern_phys_end;
-  kern_phys_end = kern_end;
 
   void *dtb_va = (void *)BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
   void *sp = board_stack(dtb, dtb_va);

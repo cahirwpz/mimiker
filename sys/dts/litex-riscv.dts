@@ -90,7 +90,7 @@
 		};
 
 		interrupt-controller@f0c00000 {
-			compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
+			compatible = "sifive,fu540-c000-plic\0sifive,plic-1.0.0";
 			reg = <0xf0c00000 0x400000>;
 			#address-cells = <0x00>;
 			#interrupt-cells = <0x01>;

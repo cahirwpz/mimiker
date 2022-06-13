@@ -51,11 +51,11 @@ static bool kern_addr_p(vaddr_t addr) {
   return addr >= KERNEL_SPACE_BEGIN && addr < KERNEL_SPACE_END;
 }
 
-static vaddr_t pmap_start(pmap_t *pmap) {
+vaddr_t pmap_start(pmap_t *pmap) {
   return pmap->asid ? USER_SPACE_BEGIN : KERNEL_SPACE_BEGIN;
 }
 
-static vaddr_t pmap_end(pmap_t *pmap) {
+vaddr_t pmap_end(pmap_t *pmap) {
   return pmap->asid ? USER_SPACE_END : KERNEL_SPACE_END;
 }
 
@@ -228,6 +228,7 @@ void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
   WITH_MTX_LOCK (&pmap->mtx) {
     pte_t *ptep = pmap_ensure_pte(pmap, va);
     pmap_write_pte(pmap, ptep, pte, va);
+    assert(page_aligned_p(pte_frame(*ptep)));
   }
 }
 
@@ -538,6 +539,8 @@ void pmap_growkernel(vaddr_t maxkvaddr) {
    * `kasan_grow`.
    */
   kasan_grow(maxkvaddr);
+
+  pmap_md_growkernel(maxkvaddr);
 
   vm_kernel_end = maxkvaddr;
 }
