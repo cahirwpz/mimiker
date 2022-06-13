@@ -49,11 +49,11 @@ static bool kern_addr_p(vaddr_t addr) {
   return addr >= KERNEL_SPACE_BEGIN && addr < KERNEL_SPACE_END;
 }
 
-static vaddr_t pmap_start(pmap_t *pmap) {
+vaddr_t pmap_start(pmap_t *pmap) {
   return pmap->asid ? USER_SPACE_BEGIN : KERNEL_SPACE_BEGIN;
 }
 
-static vaddr_t pmap_end(pmap_t *pmap) {
+vaddr_t pmap_end(pmap_t *pmap) {
   return pmap->asid ? USER_SPACE_END : KERNEL_SPACE_END;
 }
 
@@ -458,7 +458,6 @@ int pmap_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access) {
     goto fault;
 
   vm_map_t *vmap = vm_map_user();
-  assert(vmap);
 
   if (!(error = vm_page_fault(vmap, vaddr, access)))
     return 0;

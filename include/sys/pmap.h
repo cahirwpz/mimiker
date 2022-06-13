@@ -29,6 +29,9 @@ typedef struct pmap pmap_t;
 __long_call void pmap_bootstrap(paddr_t pd_pa, void *pd);
 void init_pmap(void);
 
+vaddr_t pmap_start(pmap_t *pmap);
+vaddr_t pmap_end(pmap_t *pmap);
+
 pmap_t *pmap_new(void);
 void pmap_delete(pmap_t *pmap);
 

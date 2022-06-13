@@ -141,11 +141,14 @@ static bool fpu_handler(mcontext_t *uctx) {
 }
 
 static vm_prot_t exc_access(u_long exc_code) {
-  if (exc_code == SCAUSE_INST_PAGE_FAULT)
-    return VM_PROT_EXEC;
-  else if (exc_code == SCAUSE_LOAD_PAGE_FAULT)
-    return VM_PROT_READ;
-  return VM_PROT_WRITE;
+  switch (exc_code) {
+    case SCAUSE_INST_PAGE_FAULT:
+      return VM_PROT_EXEC;
+    case SCAUSE_LOAD_PAGE_FAULT:
+      return VM_PROT_READ;
+    default:
+      return VM_PROT_WRITE;
+  }
 }
 
 static void user_trap_handler(ctx_t *ctx) {
