@@ -573,5 +573,7 @@ void pmap_growkernel(vaddr_t maxkvaddr) {
    */
   kasan_grow(maxkvaddr);
 
+  pmap_md_growkernel(maxkvaddr);
+
   vm_kernel_end = maxkvaddr;
 }
