@@ -13,7 +13,7 @@ ELFTYPE := elf32-littleriscv
 ELFARCH := riscv
 
 ifeq ($(BOARD), litex-riscv)
-	EXT := ima_zicsr_zifencei
+	EXT := ima_zicsr_zifence
 	ABI := ilp32
 	KERNEL_PHYS := 0x40000000
 	KERNEL-IMAGES := mimiker.img
