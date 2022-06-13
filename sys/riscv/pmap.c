@@ -84,19 +84,22 @@ inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
  * Physical map management.
  */
 
+static void update_kernel_pd(pmap_t *umap) {
+  pmap_t *kmap = pmap_kernel();
+
+  size_t halfpage = PAGESIZE / 2;
+  memcpy(phys_to_dmap(umap->pde) + halfpage, phys_to_dmap(kmap->pde) + halfpage,
+         halfpage);
+
+  umap->md.generation = kmap->md.generation;
+}
+
 void pmap_md_activate(pmap_t *umap) {
   pmap_t *kmap = pmap_kernel();
   assert(kmap->md.generation);
 
-  if (umap->md.generation < kmap->md.generation) {
-    /* Update kernel page directory entries within the pmap. */
-    size_t halfpage = PAGESIZE / 2;
-    WITH_MTX_LOCK (&kmap->mtx) {
-      memcpy(phys_to_dmap(umap->pde) + halfpage,
-             phys_to_dmap(kmap->pde) + halfpage, halfpage);
-    }
-    umap->md.generation = kmap->md.generation;
-  }
+  if (umap->md.generation < kmap->md.generation)
+    update_kernel_pd(umap);
 
   __set_satp(umap->md.satp);
   __sfence_vma();
@@ -136,10 +139,16 @@ void pmap_md_bootstrap(pde_t *pd) {
 
 void pmap_md_growkernel(vaddr_t maxkvaddr) {
   pmap_t *kmap = pmap_kernel();
+  pmap_t *umap = pmap_user();
 
   WITH_MTX_LOCK (&kmap->mtx) {
     kmap->md.generation++;
     assert(kmap->md.generation);
+    if (umap) {
+      WITH_MTX_LOCK (&umap->mtx)
+        update_kernel_pd(umap);
+      __sfence_vma();
+    }
   }
 }
 
