@@ -29,6 +29,7 @@ static void rootdev_enable_irq(intr_event_t *ie) {
   unsigned irq = ie->ie_irq;
   assert(irq < BCM2836_INT_NLOCAL);
 
+  /* TODO: fix needed for SMP. */
   uint32_t irqctrl = in4(BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0));
   out4(BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0), irqctrl | (1 << irq));
 }
@@ -38,6 +39,7 @@ static void rootdev_disable_irq(intr_event_t *ie) {
   unsigned irq = ie->ie_irq;
   assert(irq < BCM2836_INT_NLOCAL);
 
+  /* TODO: fix needed for SMP. */
   uint32_t irqctrl = in4(BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0));
   out4(BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0), irqctrl & ~(1 << irq));
 }
@@ -80,6 +82,7 @@ static void rootdev_teardown_intr(device_t *pic, device_t *dev,
 static void rootdev_intr_handler(ctx_t *ctx, device_t *dev) {
   rootdev_t *rd = dev->state;
   intr_event_t **events = rd->intr_event;
+  /* TODO: fix needed for SMP. */
   uint32_t pending = in4(BCM2836_LOCAL_INTC_IRQPENDINGN(0));
 
   while (pending) {
@@ -157,7 +160,7 @@ static int rootdev_attach(device_t *bus) {
   sdhci->devclass = &DEVCLASS(emmc);
   /* Due to the lack of proper GPIO routines, the driver uses a workaround that
    * requires the GPIO memory to be passed to it as a resource */
-  /* TODO: Mak a proper GPIO interface and driver */
+  /* TODO: Mark a proper GPIO interface and driver */
   device_add_memory(
     sdhci, 1, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_GPIO_BASE), PAGESIZE);
 

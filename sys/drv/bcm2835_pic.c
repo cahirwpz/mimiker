@@ -120,6 +120,11 @@ static int bcm2835_pic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
   if (irq_off >= BCM2835_NIRQPERTYPE)
     return -1;
 
+  /*
+   * We need to translate the relative interrupt source number
+   * to an absolute one. See the comment at the top of this file for
+   * the absolute layout of the interrupt sources.
+   */
   unsigned irq = irq_off;
   if (type == BCM2835_INTRTYPE_GPU1)
     irq += BCM2835_NIRQPERTYPE;
