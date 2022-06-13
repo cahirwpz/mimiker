@@ -90,8 +90,8 @@ void bcm2835_gpio_set_high_detect(resource_t *r, unsigned pin, bool enable) {
 
 int bcm2835_gpio_configure_pin(device_t *dev, uint32_t pin, uint32_t fsel,
                                uint32_t pull, uint32_t intr_detect) {
-  bcm2835_gpio_t* gpio = (bcm2835_gpio_t*)dev->state;
-  
+  bcm2835_gpio_t *gpio = (bcm2835_gpio_t *)dev->state;
+
   bcm2835_gpio_function_select(gpio->gpio, pin, (bcm2835_gpio_func_t)fsel);
   bcm2835_gpio_set_pull(gpio->gpio, pin, (bcm2838_gpio_gppud_t)pull);
   bcm2835_gpio_set_high_detect(gpio->gpio, pin, intr_detect);
@@ -103,17 +103,14 @@ int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
   int result = 0;
   uint32_t *pin_cfgs, *function_cfgs, *pull_cfgs, *intr_detect_cfgs;
 
-  ssize_t pin_cnt =
-    FDT_getprop_alloc_multi(node, "pins", sizeof(*pin_cfgs), (void**)&pin_cfgs);
-  ssize_t function_cnt =
-    FDT_getprop_alloc_multi(node, "function", sizeof(*function_cfgs),
-                            (void**)&function_cfgs);
-  ssize_t pull_cnt =
-    FDT_getprop_alloc_multi(node, "pull", sizeof(*pull_cfgs),
-                            (void**)&pull_cfgs);
-  ssize_t intr_detect_cnt =
-    FDT_getprop_alloc_multi(node, "intr_detect", sizeof(*intr_detect_cfgs),
-                            (void**)&intr_detect_cfgs);
+  ssize_t pin_cnt = FDT_getprop_alloc_multi(node, "pins", sizeof(*pin_cfgs),
+                                            (void **)&pin_cfgs);
+  ssize_t function_cnt = FDT_getprop_alloc_multi(
+    node, "function", sizeof(*function_cfgs), (void **)&function_cfgs);
+  ssize_t pull_cnt = FDT_getprop_alloc_multi(node, "pull", sizeof(*pull_cfgs),
+                                             (void **)&pull_cfgs);
+  ssize_t intr_detect_cnt = FDT_getprop_alloc_multi(
+    node, "intr_detect", sizeof(*intr_detect_cfgs), (void **)&intr_detect_cfgs);
 
   if (pin_cnt == FDT_PINS_INVAL) {
     klog("Warning: GPIO FDT entry with no pins property");
@@ -126,11 +123,10 @@ int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
     uint32_t fsel =
       i < function_cnt ? function_cfgs[i] : function_cfgs[function_cnt - 1];
     uint32_t pull = i < pull_cnt ? pull_cfgs[i] : pull_cfgs[pull_cnt - 1];
-    uint32_t intr_detect =
-      i < intr_detect_cnt
-      ? intr_detect_cfgs[i]
-      : intr_detect_cfgs[intr_detect_cnt - 1];
-    
+    uint32_t intr_detect = i < intr_detect_cnt
+                             ? intr_detect_cfgs[i]
+                             : intr_detect_cfgs[intr_detect_cnt - 1];
+
     bcm2835_gpio_configure_pin(dev, pin, fsel, pull, intr_detect);
   }
 
@@ -151,7 +147,7 @@ int bcm2835_gpio_probe(device_t *dev) {
 
 int bcm2835_gpio_attach(device_t *dev) {
   int err;
-  bcm2835_gpio_t* gpio = (bcm2835_gpio_t*)dev->state;
+  bcm2835_gpio_t *gpio = (bcm2835_gpio_t *)dev->state;
 
   gpio->gpio = device_take_memory(dev, 0, RF_ACTIVE);
 
@@ -161,15 +157,13 @@ int bcm2835_gpio_attach(device_t *dev) {
     if ((err = bcm2835_gpio_read_fdt_entry(dev, node)))
       return err;
   }
-  
+
   return 0;
 }
 
-driver_t gpio_driver = {
-  .desc = "BCM2835 RPi3 GPIO driver",
-  .size = sizeof(bcm2835_gpio_t),
-  .pass = FIRST_PASS,
-  .probe = bcm2835_gpio_probe,
-  .attach = bcm2835_gpio_attach,
-  .interfaces = {}
-};
+driver_t gpio_driver = {.desc = "BCM2835 RPi3 GPIO driver",
+                        .size = sizeof(bcm2835_gpio_t),
+                        .pass = FIRST_PASS,
+                        .probe = bcm2835_gpio_probe,
+                        .attach = bcm2835_gpio_attach,
+                        .interfaces = {}};

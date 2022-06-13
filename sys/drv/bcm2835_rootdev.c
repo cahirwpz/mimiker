@@ -150,16 +150,14 @@ static int rootdev_attach(device_t *bus) {
   if ((err = simplebus_add_child(bus, "/timer", unit++, bus, NULL)))
     return err;
 
-  if ((err =
-         simplebus_add_child(bus, "/soc/gpio", unit++, bcm2835_pic, NULL)))
+  if ((err = simplebus_add_child(bus, "/soc/gpio", unit++, bcm2835_pic, NULL)))
     return err;
 
   if ((err =
          simplebus_add_child(bus, "/soc/serial", unit++, bcm2835_pic, NULL)))
     return err;
 
-  if ((err =
-         simplebus_add_child(bus, "/soc/emmc", unit++, bcm2835_pic, &emmc)))
+  if ((err = simplebus_add_child(bus, "/soc/emmc", unit++, bcm2835_pic, &emmc)))
     return err;
   emmc->devclass = &DEVCLASS(emmc);
 
