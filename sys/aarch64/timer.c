@@ -5,6 +5,7 @@
 #include <sys/interrupt.h>
 #include <sys/bus.h>
 #include <sys/devclass.h>
+#include <sys/fdt.h>
 
 #define CNTCTL_ENABLE 1
 #define CNTCTL_DISABLE 0
@@ -59,9 +60,7 @@ static intr_filter_t arm_timer_intr(void *data /* device_t* */) {
 }
 
 static int arm_timer_probe(device_t *dev) {
-  /* (cahir) so far we don't have better way to associate driver with device for
-   * buses which do not automatically enumerate their children. */
-  return (dev->unit == 0);
+  return FDT_is_compatible(dev->node, "arm,armv7-timer");
 }
 
 static int arm_timer_attach(device_t *dev) {
@@ -83,7 +82,7 @@ static int arm_timer_attach(device_t *dev) {
     .tm_max_period = bintime_mul(HZ2BT(freq), 1LL << 30),
   };
 
-  state->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
+  state->irq_res = device_take_irq(dev, 1, RF_ACTIVE);
 
   tm_register(&state->timer);
   tm_select(&state->timer);
