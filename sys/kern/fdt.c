@@ -1,8 +1,11 @@
+#define KL_LOG KL_DEV
+#include <sys/device.h>
 #include <sys/errno.h>
 #include <sys/fdt.h>
 #include <sys/klog.h>
 #include <sys/kmem.h>
 #include <sys/libkern.h>
+#include <sys/malloc.h>
 #include <sys/mimiker.h>
 #include <sys/vm.h>
 #include <libfdt/libfdt.h>
@@ -17,7 +20,10 @@
 
 #define FDT_MAX_REG_CELLS (FDT_MAX_ADDR_CELLS + FDT_MAX_SIZE_CELLS)
 
-static paddr_t fdt_pa;  /* FDT blob physical address */
+#define FDT_DEF_INTR_CELLS 1
+
+static paddr_t fdt_pa;  /* FDT blob physical address (`PAGESIZE`-aligned) */
+static size_t fdt_off;  /* FDT blob offset within the first page */
 static void *fdtp;      /* FDT blob virtual memory pointer */
 static size_t fdt_size; /* FDT blob size (rounded to `PAGESIZE`) */
 
@@ -31,23 +37,28 @@ static inline void FDT_panic(int err) {
   panic("FDT operation failed: %s", fdt_strerror(err));
 }
 
-void FDT_early_init(paddr_t pa, vaddr_t va) {
-  void *fdt = (void *)va;
-
-  int err = fdt_check_header(fdt);
+void FDT_early_init(paddr_t pa, void *va) {
+  int err = fdt_check_header(va);
   if (err < 0)
     FDT_panic(err);
 
-  const size_t totalsize = fdt_totalsize(fdt);
+  const size_t totalsize = fdt_totalsize(va);
 
   fdt_pa = rounddown(pa, PAGESIZE);
-  fdtp = fdt;
-  fdt_size = roundup(totalsize, PAGESIZE);
+  fdt_off = fdt_pa - pa;
+  fdtp = va;
+  paddr_t fdt_end = roundup(pa + totalsize, PAGESIZE);
+  fdt_size = fdt_end - fdt_pa;
 }
 
-void FDT_init(void) {
-  if (fdt_pa)
-    fdtp = (void *)kmem_map_contig(fdt_pa, fdt_size, 0);
+paddr_t FDT_get_physaddr(void) {
+  assert(fdt_pa);
+  return fdt_pa + fdt_off;
+}
+
+void FDT_changeroot(void *root) {
+  assert(fdtp);
+  fdtp = root;
 }
 
 void FDT_get_blob_range(paddr_t *startp, paddr_t *endp) {
@@ -91,6 +102,15 @@ phandle_t FDT_parent(phandle_t node) {
   return (phandle_t)parent;
 }
 
+static void FDT_decode(pcell_t *cell, int cells) {
+  for (int i = 0; i < cells; i++)
+    cell[i] = be32toh(cell[i]);
+}
+
+void FDT_free(void *buf) {
+  kfree(M_DEV, buf);
+}
+
 ssize_t FDT_getproplen(phandle_t node, const char *propname) {
   int len;
   const void *prop = fdt_getprop(fdtp, node, propname, &len);
@@ -126,10 +146,50 @@ ssize_t FDT_getencprop(phandle_t node, const char *propname, pcell_t *buf,
   if (ret < 0)
     return -1;
 
-  for (size_t i = 0; i < buflen / sizeof(uint32_t); i++)
-    buf[i] = be32toh(buf[i]);
+  FDT_decode(buf, buflen / sizeof(pcell_t));
 
   return ret;
+}
+
+ssize_t FDT_getprop_alloc_multi(phandle_t node, const char *propname, int elsz,
+                                void **bufp) {
+  int len = FDT_getproplen(node, propname);
+  if ((len == -1) || (len % elsz))
+    return -1;
+
+  void *buf = NULL;
+
+  if (len) {
+    buf = kmalloc(M_DEV, len, M_WAITOK);
+    if (FDT_getprop(node, propname, buf, len) == -1) {
+      FDT_free(buf);
+      return -1;
+    }
+  }
+
+  *bufp = buf;
+  return len / elsz;
+}
+
+ssize_t FDT_getencprop_alloc_multi(phandle_t node, const char *propname,
+                                   int elsz, void **bufp) {
+  ssize_t rv = FDT_getprop_alloc_multi(node, propname, elsz, bufp);
+  if (rv == -1)
+    return -1;
+
+  FDT_decode(*bufp, (rv * elsz) / sizeof(pcell_t));
+
+  return rv;
+}
+
+ssize_t FDT_searchencprop(phandle_t node, const char *propname, pcell_t *buf,
+                          size_t len) {
+  for (; node != FDT_NODEV; node = FDT_parent(node)) {
+    ssize_t rv = FDT_getencprop(node, propname, buf, len);
+    if (rv != -1)
+      return rv;
+  }
+  return -1;
 }
 
 int FDT_addrsize_cells(phandle_t node, int *addr_cellsp, int *size_cellsp) {
@@ -148,6 +208,17 @@ int FDT_addrsize_cells(phandle_t node, int *addr_cellsp, int *size_cellsp) {
 
   if (*addr_cellsp > FDT_MAX_ADDR_CELLS || *size_cellsp > FDT_MAX_SIZE_CELLS)
     return ERANGE;
+  return 0;
+}
+
+int FDT_intr_cells(phandle_t node, int *intr_cellsp) {
+  pcell_t icells;
+  if (FDT_searchencprop(node, "#interrupt-cells", &icells, sizeof(pcell_t)) !=
+      sizeof(pcell_t))
+    icells = FDT_DEF_INTR_CELLS;
+  if (icells < 1)
+    return ERANGE;
+  *intr_cellsp = icells;
   return 0;
 }
 
@@ -188,7 +259,7 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
   size_t cnt = 0;
   for (phandle_t child = FDT_child(rsv); child != FDT_NODEV;
        child = FDT_peer(child)) {
-    if (cnt == FDT_MAX_MEM_REGS)
+    if (cnt == FDT_MAX_RSV_MEM_REGS)
       return ERANGE;
     if (FDT_hasprop(child, "no-map"))
       continue;
@@ -203,7 +274,7 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
 }
 
 int FDT_get_mem(fdt_mem_reg_t *mrs, size_t *cntp, size_t *sizep) {
-  pcell_t reg[FDT_MAX_REG_CELLS * FDT_MAX_MEM_REGS];
+  pcell_t reg[FDT_MAX_REG_CELLS * FDT_MAX_REG_TUPLES];
 
   phandle_t mem = FDT_finddevice("/memory");
   if (mem == FDT_NODEV)
@@ -260,23 +331,27 @@ int FDT_get_chosen_initrd(fdt_mem_reg_t *mr) {
   const size_t start_size =
     FDT_getencprop(chosen, "linux,initrd-start", cell, sizeof(cell));
   cells = start_size / sizeof(pcell_t);
-  if (cells > FDT_MAX_ADDR_CELLS)
+  if (cells > FDT_MAX_ADDR_CELLS) {
     return ERANGE;
-  else if (cells == 1)
+  } else if (cells == 1) {
     start = *(uint32_t *)cell;
-  else
-    start = *(uint64_t *)cell;
+  } else {
+    uint64_t *startp = (uint64_t *)cell;
+    start = *startp;
+  }
 
   /* Retrieve end addr. */
   const size_t end_size =
     FDT_getencprop(chosen, "linux,initrd-end", cell, sizeof(cell));
   cells = end_size / sizeof(pcell_t);
-  if (cells > FDT_MAX_ADDR_CELLS)
+  if (cells > FDT_MAX_ADDR_CELLS) {
     return ERANGE;
-  else if (cells == 1)
+  } else if (cells == 1) {
     end = *(uint32_t *)cell;
-  else
-    end = *(uint64_t *)cell;
+  } else {
+    uint64_t *endp = (uint64_t *)cell;
+    end = *endp;
+  }
 
   *mr = (fdt_mem_reg_t){
     .addr = start,
@@ -297,5 +372,24 @@ int FDT_get_chosen_bootargs(const char **bootargsp) {
     return ENXIO;
   }
   *bootargsp = prop;
+  return 0;
+}
+
+int FDT_is_compatible(phandle_t node, const char *compatible) {
+  int len;
+  const void *prop = fdt_getprop(fdtp, node, "compatible", &len);
+  if (!prop) {
+    FDT_perror(len);
+    return 0;
+  }
+
+  size_t inlen = strlen(compatible);
+  while (len > 0) {
+    size_t curlen = strlen(prop);
+    if ((curlen == inlen) && !strncmp(prop, compatible, inlen))
+      return 1;
+    prop += curlen + 1;
+    len -= curlen + 1;
+  }
   return 0;
 }

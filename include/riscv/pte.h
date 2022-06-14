@@ -42,26 +42,43 @@
 
 #include <stdint.h>
 
-typedef uint32_t pd_entry_t; /* page directory entry */
-typedef uint32_t pt_entry_t; /* page table entry */
-typedef uint16_t asid_t;     /* address space identifier */
+#if __riscv_xlen == 64
+typedef uint64_t pde_t; /* page directory entry */
+typedef uint64_t pte_t; /* page table entry */
+#else
+typedef uint32_t pde_t; /* page directory entry */
+typedef uint32_t pte_t; /* page table entry */
+#endif
 
-/* Level 0 table, 4MiB per entry */
-#define L0_SHIFT 22
-#define L0_SIZE (1 << L0_SHIFT)
-#define L0_OFFSET (L0_SIZE - 1)
+typedef uint16_t asid_t; /* address space identifier */
 
-/* Level 1 table, 4096B per entry */
-#define L1_SHIFT 12
-#define L1_SIZE (1 << L1_SHIFT)
-#define L1_OFFSET (L1_SIZE - 1)
-
+#if __riscv_xlen == 64
+#define L0_SHIFT 30 /* level 0 table, 1GiB per entry */
+#define L1_SHIFT 21 /* level 1 table, 2MiB per entry */
+#define L2_SHIFT 12 /* level 2 table, 4096B per entry */
+#define Ln_ENTRIES_SHIFT 9
+#else
+#define L0_SHIFT 22 /* level 0 table, 4MiB per entry */
+#define L1_SHIFT 12 /* level 1 table, 4096B per entry */
 #define Ln_ENTRIES_SHIFT 10
+#endif
+
 #define Ln_ENTRIES (1 << Ln_ENTRIES_SHIFT)
 #define Ln_ADDR_MASK (Ln_ENTRIES - 1)
 
+#define L0_SIZE (1 << L0_SHIFT)
+#define L0_OFFSET (L0_SIZE - 1)
 #define L0_INDEX(va) (((va) >> L0_SHIFT) & Ln_ADDR_MASK)
+
+#define L1_SIZE (1 << L1_SHIFT)
+#define L1_OFFSET (L1_SIZE - 1)
 #define L1_INDEX(va) (((va) >> L1_SHIFT) & Ln_ADDR_MASK)
+
+#ifdef L2_SHIFT
+#define L2_SIZE (1 << L2_SHIFT)
+#define L2_OFFSET (L2_SIZE - 1)
+#define L2_INDEX(va) (((va) >> L2_SHIFT) & Ln_ADDR_MASK)
+#endif /* !L2_SHIFT */
 
 /* Bits 9:8 are reserved for software. */
 #define PTE_SW_WRITE (1 << 9)
@@ -83,12 +100,15 @@ typedef uint16_t asid_t;     /* address space identifier */
 #define PTE_PROT_MASK (PTE_SW_FLAGS | PTE_D | PTE_A | PTE_RWX | PTE_V)
 
 #define PTE_PPN0_S 10
-#define PTE_PPN1_S 20
-#define PTE_SIZE 4
-
 #define PAGE_SHIFT 12
 
 #define PA_TO_PTE(pa) (((pa) >> PAGE_SHIFT) << PTE_PPN0_S)
 #define PTE_TO_PA(pte) (((pte) >> PTE_PPN0_S) << PAGE_SHIFT)
+
+#define VALID_PDE_P(pde) (((pde)&PTE_V) != 0)
+
+#define VALID_PTE_P(pte) ((pte) != 0)
+
+#define LEAF_PTE_P(pte) (((pte) & (PTE_X | PTE_W | PTE_R)) != 0)
 
 #endif /* !_RISCV_PTE_H_ */

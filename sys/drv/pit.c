@@ -112,14 +112,14 @@ static int pit_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
 
   pit_set_frequency(pit);
 
-  bus_intr_setup(dev, pit->irq_res, pit_intr, NULL, pit, "i8254 timer");
+  pic_setup_intr(dev, pit->irq_res, pit_intr, NULL, pit, "i8254 timer");
   return 0;
 }
 
 static int pit_timer_stop(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  bus_intr_teardown(dev, pit->irq_res);
+  pic_teardown_intr(dev, pit->irq_res);
   return 0;
 }
 

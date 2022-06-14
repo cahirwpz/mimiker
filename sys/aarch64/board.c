@@ -9,6 +9,7 @@
 #include <sys/interrupt.h>
 #include <sys/kasan.h>
 #include <sys/fdt.h>
+#include <sys/pmap.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
@@ -21,7 +22,7 @@ static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
    * This assumption should be removed and the memory boundaries
    * should be read from dtb (thus `mr` shouldn't be discarded).
    */
-  fdt_mem_reg_t mrs[FDT_MAX_MEM_REGS];
+  fdt_mem_reg_t mrs[FDT_MAX_REG_TUPLES];
   size_t cnt, size;
   if (FDT_get_mem(mrs, &cnt, &size))
     panic("Failed to retrieve memory regions from DTB!");
@@ -60,7 +61,7 @@ static void process_dtb(char **tokens, kstack_t *stk) {
 }
 
 void *board_stack(paddr_t dtb) {
-  FDT_early_init(dtb, PHYS_TO_DMAP(dtb));
+  FDT_early_init(dtb, phys_to_dmap(dtb));
 
   kstack_t *stk = &thread0.td_kstack;
 

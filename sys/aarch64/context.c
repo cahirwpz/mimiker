@@ -26,6 +26,10 @@ register_t ctx_get_pc(ctx_t *ctx) {
   return _REG(ctx, PC);
 }
 
+void ctx_set_pc(ctx_t *ctx, uintptr_t addr) {
+  _REG(ctx, PC) = addr;
+}
+
 void mcontext_copy(mcontext_t *to, mcontext_t *from) {
   memcpy(to, from, sizeof(mcontext_t));
 }
