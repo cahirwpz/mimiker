@@ -186,7 +186,10 @@ static int rootdev_probe(device_t *bus) {
 
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
-  bus->node = 0;
+
+  bus->node = FDT_finddevice("/cpus/cpu/interrupt-controller");
+  if (bus->node == FDT_NODEV)
+    return ENXIO;
 
   rman_init(&rd->mem_rm, "RISC-V I/O space");
   rman_manage_region(&rd->mem_rm, 0xf0000000, 0x10000000);
@@ -253,7 +256,3 @@ driver_t rootdev_driver = {
 };
 
 DEVCLASS_CREATE(root);
-
-/* XXX: We need at least one device in each devclass for the kernel to link
- * successfully. FTTB, let's just put `rootdev_driver` in `root` dc. */
-DEVCLASS_ENTRY(root, rootdev_driver);

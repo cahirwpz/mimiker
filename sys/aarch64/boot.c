@@ -1,11 +1,10 @@
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
+#include <sys/pmap.h>
 #include <sys/kasan.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
-#include <aarch64/pte.h>
-#include <aarch64/kasan.h>
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
@@ -20,8 +19,7 @@
 
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data void *_bootmem_end;
-/* Kernel page directory entries. */
-extern paddr_t _kernel_pmap_pde;
+
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
@@ -193,15 +191,15 @@ __boot_text static paddr_t build_page_table(void) {
    * vm_boot_alloc() which can't extend the shadow map, as the VM system isn't
    * fully initialized yet. */
   size_t kasan_sanitized_size =
-    2 * SUPERPAGESIZE + roundup2(va - KASAN_MD_SANITIZED_START,
+    2 * SUPERPAGESIZE + roundup2(va - KASAN_SANITIZED_START,
                                  SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
   size_t kasan_shadow_size = kasan_sanitized_size / KASAN_SHADOW_SCALE_SIZE;
-  vaddr_t kasan_shadow_end = KASAN_MD_SHADOW_START + kasan_shadow_size;
-  va = KASAN_MD_SHADOW_START;
+  vaddr_t kasan_shadow_end = KASAN_SHADOW_START + kasan_shadow_size;
+  va = KASAN_SHADOW_START;
   /* XXX _kasan_sanitized_end is at a high address which is not mapped yet,
    * so we access it using its physical address instead. */
   *(vaddr_t *)AARCH64_PHYSADDR(&_kasan_sanitized_end) =
-    KASAN_MD_SANITIZED_START + kasan_sanitized_size;
+    KASAN_SANITIZED_START + kasan_sanitized_size;
   /* Allocate physical memory for shadow area */
   pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
 
@@ -294,7 +292,7 @@ __boot_text static void enable_mmu(paddr_t pde) {
                                 SCTLR_SA0);
   __isb();
 
-  _kernel_pmap_pde = pde;
+  pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
 }
 
 __boot_text void *aarch64_init(void) {

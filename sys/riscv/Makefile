@@ -13,7 +13,10 @@ SOURCES-RISCV = \
 	sbi.c \
 	sigcode.S \
 	signal.c \
-	start.S
+	start.S \
+	switch.S \
+	tlb.c \
+	trap.c
 
 CLEAN-FILES += assym.h riscv.ld
 
@@ -22,3 +25,5 @@ CPPFLAGS += -D_MACHDEP
 include $(TOPDIR)/build/build.kern.mk
 
 $(SOURCES-RISCV) riscv.ld.in: assym.h
+
+boot.o : CFLAGS_KASAN =
