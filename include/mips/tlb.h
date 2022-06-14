@@ -59,6 +59,7 @@ typedef struct {
 #define PTE_CACHE(cache) (((cache) << PTE_CACHE_SHIFT) & PTE_CACHE_MASK)
 #define PTE_PFN_OF(pte) (((pte)&PTE_PFN_MASK) >> PTE_PFN_SHIFT)
 #define PTE_CACHE_OF(pte) (((cache)&PTE_CACHE_MASK) >> PTE_CACHE_MASK)
+#define PTE_FRAME_ADDR(pte) (PTE_PFN_OF(pte) * PAGESIZE)
 
 #define PTE_LO_INDEX_MASK 0x00001000
 #define PTE_LO_INDEX_SHIFT 12
@@ -81,12 +82,6 @@ void init_mips_tlb(void);
  * so intuitively these functions shall specify PageMask. However in current
  * implementation we aren't going to use other page size than 4KiB.
  */
-
-/* Probes the TLB for an entry matching hi, and if present invalidates it. */
-void tlb_invalidate(tlbhi_t hi);
-
-/* Invalidate all TLB entries with given ASID (save wired). */
-void tlb_invalidate_asid(tlbhi_t asid);
 
 /* Writes the TLB entry specified by @i or random entry if TLBI_RANDOM. */
 void tlb_write(unsigned i, tlbentry_t *e);

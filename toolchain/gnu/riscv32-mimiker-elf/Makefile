@@ -5,7 +5,7 @@ TOPDIR = $(realpath ..)
 ARCH = riscv32
 TARGET = riscv32-mimiker-elf
 
-GCC_EXTRA_CONF = --with-arch=rv32gc \
-		 --with-abi=ilp32d
+GCC_EXTRA_CONF = --with-arch=rv32ima_zicsr_zifencei \
+		 --with-abi=ilp32
 
 include $(TOPDIR)/target.mk

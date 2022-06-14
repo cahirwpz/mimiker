@@ -1,18 +1,13 @@
 #define KL_LOG KL_VM
 #include <sys/klog.h>
-#include <sys/context.h>
 #include <sys/mimiker.h>
 #include <sys/thread.h>
 #include <sys/pmap.h>
-#include <sys/vm_physmem.h>
-#include <sys/vm_map.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
-#include <sys/errno.h>
 #include <sys/interrupt.h>
 #include <sys/cpu.h>
 #include <aarch64/armreg.h>
-#include <aarch64/pmap.h>
 
 static __noreturn void kernel_oops(ctx_t *ctx) {
   panic("KERNEL PANIC!!!");
@@ -47,52 +42,14 @@ static void syscall_handler(register_t code, ctx_t *ctx,
   result->error = error;
 }
 
-static void abort_handler(ctx_t *ctx, register_t esr, vaddr_t vaddr,
-                          bool usermode) {
-  uint32_t exception = ESR_ELx_EXCEPTION(esr);
-  thread_t *td = thread_self();
-
-  klog("%x at $%lx, caused by reference to $%lx!", exception, _REG(ctx, PC),
-       vaddr);
-
-  pmap_t *pmap = pmap_lookup(vaddr);
-  if (!pmap) {
-    klog("No physical map defined for %lx address!", vaddr);
-    goto fault;
-  }
-
+static vm_prot_t exc_access(u_long exc_code, register_t esr) {
   vm_prot_t access = VM_PROT_READ;
-  if (exception == EXCP_INSN_ABORT || exception == EXCP_INSN_ABORT_L) {
+  if (exc_code == EXCP_INSN_ABORT || exc_code == EXCP_INSN_ABORT_L) {
     access |= VM_PROT_EXEC;
   } else if (esr & ISS_DATA_WnR) {
     access |= VM_PROT_WRITE;
   }
-
-  int error = pmap_emulate_bits(pmap, vaddr, access);
-  if (error == 0)
-    return;
-
-  if (error == EACCES || error == EINVAL)
-    goto fault;
-
-  vm_map_t *vmap = vm_map_lookup(vaddr);
-  if (!vmap) {
-    klog("No virtual address space defined for %lx!", vaddr);
-    goto fault;
-  }
-  if (vm_page_fault(vmap, vaddr, access) == 0)
-    return;
-
-fault:
-  if (td->td_onfault) {
-    _REG(ctx, PC) = td->td_onfault;
-    td->td_onfault = 0;
-  } else if (usermode) {
-    /* Send a segmentation fault signal to the user program. */
-    sig_trap(ctx, SIGSEGV);
-  } else {
-    kernel_oops(ctx);
-  }
+  return access;
 }
 
 void user_trap_handler(mcontext_t *uctx) {
@@ -113,7 +70,9 @@ void user_trap_handler(mcontext_t *uctx) {
     case EXCP_INSN_ABORT:
     case EXCP_DATA_ABORT_L:
     case EXCP_DATA_ABORT:
-      abort_handler(ctx, esr, far, true);
+      klog("%x at $%lx, caused by reference to $%lx!", exc_code, _REG(ctx, PC),
+           far);
+      pmap_fault_handler(ctx, far, exc_access(exc_code, esr));
       break;
 
     case EXCP_SVC64:
@@ -153,15 +112,19 @@ void user_trap_handler(mcontext_t *uctx) {
 void kern_trap_handler(ctx_t *ctx) {
   register_t esr = READ_SPECIALREG(esr_el1);
   register_t far = READ_SPECIALREG(far_el1);
+  register_t exc_code = ESR_ELx_EXCEPTION(esr);
 
   /* If interrupts were enabled before we trapped, then turn them on here. */
   if ((_REG(ctx, SPSR) & PSR_I) == 0)
     cpu_intr_enable();
 
-  switch (ESR_ELx_EXCEPTION(esr)) {
+  switch (exc_code) {
     case EXCP_INSN_ABORT:
     case EXCP_DATA_ABORT:
-      abort_handler(ctx, esr, far, false);
+      klog("%x at $%lx, caused by reference to $%lx!", exc_code, _REG(ctx, PC),
+           far);
+      if (pmap_fault_handler(ctx, far, exc_access(exc_code, esr)))
+        kernel_oops(ctx);
       break;
 
     default:

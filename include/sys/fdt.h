@@ -15,7 +15,7 @@
 #define FDT_MAX_RSV_MEM_REGS 16
 #define FDT_MAX_REG_TUPLES 16
 #define FDT_MAX_ICELLS 3
-#define FDT_MAX_INTRS 8
+#define FDT_MAX_INTRS 16
 
 typedef uint32_t phandle_t;
 typedef uint32_t pcell_t;
@@ -49,7 +49,7 @@ typedef struct fdt_intr {
  *  - `pa`: FDT physical address
  *  - `va`: FDT kernel virtual address
  */
-void FDT_early_init(paddr_t pa, vaddr_t va);
+void FDT_early_init(paddr_t pa, void *va);
 
 /*
  * Obtain the physical address of the FDT blob.
