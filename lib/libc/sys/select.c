@@ -18,8 +18,14 @@ int select(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
         return -1;
     }
 
-    if (timeout != NULL)
+    if (timeout != NULL) {
+        if (timeout->tv_sec < 0 || timeout->tv_usec < 0 || timeout->tv_usec >= 1000000) {
+            errno = EINVAL;
+            return -1;
+        }
+
         tv2ts(timeout, &timeout_ts);
+    }
 
     kq = kqueue();
     if (kq < 0)
