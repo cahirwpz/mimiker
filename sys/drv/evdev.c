@@ -114,7 +114,7 @@ static bool evdev_client_empty(evdev_client_t *client) {
 }
 
 /* Returns the number of events that are ready to read. */
-static bool evdev_client_sizeq(evdev_client_t *client) {
+static int evdev_client_sizeq(evdev_client_t *client) {
   size_t size = client->ec_buffer_size;
   size_t ready = client->ec_buffer_ready;
   size_t head = client->ec_buffer_head;
