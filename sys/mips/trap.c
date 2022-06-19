@@ -123,46 +123,8 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
   panic("KERNEL PANIC!!!");
 }
 
-static void tlb_exception_handler(ctx_t *ctx) {
-  thread_t *td = thread_self();
-
-  int code = exc_code(ctx);
-  vaddr_t vaddr = _REG(ctx, BADVADDR);
-
-  klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
-       _REG(ctx, EPC), vaddr);
-
-  pmap_t *pmap = pmap_lookup(vaddr);
-  if (!pmap) {
-    klog("No physical map defined for %08lx address!", vaddr);
-    goto fault;
-  }
-
-  vm_prot_t access = (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
-  int error = pmap_emulate_bits(pmap, vaddr, access);
-  if (error == 0)
-    return;
-
-  if (error == EACCES || error == EINVAL)
-    goto fault;
-
-  vm_map_t *vmap = vm_map_user();
-
-  if (vm_page_fault(vmap, vaddr, access) == 0)
-    return;
-
-fault:
-  if (td->td_onfault) {
-    /* handle copyin / copyout faults */
-    _REG(ctx, EPC) = td->td_onfault;
-    td->td_onfault = 0;
-  } else if (user_mode_p(ctx)) {
-    /* Send a segmentation fault signal to the user program. */
-    sig_trap(ctx, SIGSEGV);
-  } else {
-    /* Panic when kernel-mode thread uses wrong pointer. */
-    kernel_oops(ctx);
-  }
+static vm_prot_t exc_access(u_long code) {
+  return (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
 }
 
 static void user_trap_handler(ctx_t *ctx) {
@@ -175,12 +137,15 @@ static void user_trap_handler(ctx_t *ctx) {
   int cp_id;
   syscall_result_t result;
   unsigned int code = exc_code(ctx);
+  vaddr_t vaddr = _REG(ctx, BADVADDR);
 
   switch (code) {
     case EXC_MOD:
     case EXC_TLBL:
     case EXC_TLBS:
-      tlb_exception_handler(ctx);
+      klog("%s at $%lx, caused by reference to $%lx!", exceptions[code],
+           _REG(ctx, EPC), vaddr);
+      pmap_fault_handler(ctx, vaddr, exc_access(code));
       break;
 
     /*
@@ -236,11 +201,17 @@ static void kern_trap_handler(ctx_t *ctx) {
   if (_REG(ctx, SR) & SR_IE)
     cpu_intr_enable();
 
-  switch (exc_code(ctx)) {
+  u_long code = exc_code(ctx);
+  vaddr_t vaddr = _REG(ctx, BADVADDR);
+
+  switch (code) {
     case EXC_MOD:
     case EXC_TLBL:
     case EXC_TLBS:
-      tlb_exception_handler(ctx);
+      klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
+           _REG(ctx, EPC), vaddr);
+      if (pmap_fault_handler(ctx, vaddr, exc_access(code)))
+        kernel_oops(ctx);
       break;
 
     default:

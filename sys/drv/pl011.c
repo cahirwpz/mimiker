@@ -12,6 +12,7 @@
 #include <sys/interrupt.h>
 #include <sys/ringbuf.h>
 #include <sys/tty.h>
+#include <sys/fdt.h>
 #include <dev/uart.h>
 #include <sys/uart_tty.h>
 #include <dev/bcm2835reg.h>
@@ -66,9 +67,8 @@ static void pl011_tx_disable(void *state) {
 }
 
 static int pl011_probe(device_t *dev) {
-  /* (pj) so far we don't have better way to associate driver with device for
-   * buses which do not automatically enumerate their children. */
-  return (dev->unit == 1);
+  return FDT_is_compatible(dev->node, "arm,pl011") ||
+         FDT_is_compatible(dev->node, "arm,primecell");
 }
 
 static int pl011_attach(device_t *dev) {
