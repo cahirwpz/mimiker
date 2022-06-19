@@ -6,7 +6,6 @@
 #include <sys/mutex.h>
 #include <sys/pmap.h>
 #include <sys/vm_physmem.h>
-#include <sys/kasan.h>
 
 #define FREELIST(page) (&freelist[log2((page)->size)])
 #define PAGECOUNT(page) (pagecount[log2((page)->size)])
@@ -60,17 +59,8 @@ MTX_DEFINE(vm_kernel_end_lock, 0);
 static void *vm_boot_alloc(size_t n) {
   assert(!vm_boot_done);
 
-  void *begin = align((void *)vm_kernel_end, sizeof(long));
-  void *end = align(begin + n, PAGESIZE);
-#if KASAN
-  /* We're not ready to call kasan_grow() yet, so this function could
-   * potentially make vm_kernel_end go past _kernel_sanitized_end, which could
-   * lead to KASAN referencing unmapped addresses in the shadow map, causing
-   * a panic. Make sure that doesn't happen.
-   * If this assertion fails, more shadow memory must be allocated when
-   * initializing KASAN.*/
-  assert((vaddr_t)end <= _kasan_sanitized_end);
-#endif
+  n = roundup2(n, PAGESIZE);
+  assert(n);
 
   vm_physseg_t *seg = TAILQ_FIRST(&seglist);
 
@@ -79,20 +69,15 @@ static void *vm_boot_alloc(size_t n) {
 
   assert(seg != NULL);
 
-  for (void *va = align(begin, PAGESIZE); va < end; va += PAGESIZE) {
-    paddr_t pa = seg->start;
-    seg->start += PAGESIZE;
-    if (--seg->npages == 0) {
-      TAILQ_REMOVE(&seglist, seg, seglink);
-      seg = TAILQ_FIRST(&seglist);
-    }
+  void *va = phys_to_dmap(seg->start);
 
-    pmap_kenter((vaddr_t)va, pa, VM_PROT_READ | VM_PROT_WRITE, 0);
+  for (size_t i = 0; i < n / PAGESIZE; i++) {
+    seg->start += PAGESIZE;
+    seg->npages--;
+    assert(seg->npages);
   }
 
-  vm_kernel_end += n;
-
-  return begin;
+  return va;
 }
 
 static void vm_boot_finish(void) {

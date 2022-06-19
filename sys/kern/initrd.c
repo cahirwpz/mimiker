@@ -13,6 +13,7 @@
 #include <sys/linker_set.h>
 #include <sys/dirent.h>
 #include <sys/kenv.h>
+#include <sys/pmap.h>
 
 typedef uint32_t cpio_dev_t;
 typedef uint32_t cpio_ino_t;
@@ -130,8 +131,7 @@ static const char *basename(const char *path) {
 }
 
 static void read_cpio_archive(void) {
-  void *tape =
-    (void *)kmem_map_contig(ramdisk_get_start(), ramdisk_get_size(), 0);
+  void *tape = phys_to_dmap(ramdisk_get_start());
 
   while (true) {
     cpio_node_t *node = cpio_node_alloc();

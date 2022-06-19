@@ -34,7 +34,7 @@
 #define KASAN_MAX_SHADOW_SIZE (1 << 26) /* 64 MB */
 
 #define VM_PAGE_PDS 4
-#define KSTACK_PAGES 2
+#define KSTACK_PAGES 1
 #endif
 
 #define PAGESIZE 4096
