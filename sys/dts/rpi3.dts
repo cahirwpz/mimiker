@@ -48,6 +48,19 @@
 			interrupts = <8 4>;
 		};
 
+		gpio: gpio@7e200000 {
+			compatible = "bcm2835,rpi3-gpio";
+			reg = <0x7e200000 0x100>;
+			interupts = <0 0>;
+
+			emmc {
+				pins = <47 48 49 50 51 52 53>;
+				function = <3>;
+				pull = <2>;
+				intr_detect = <1 0>;
+			};
+		};
+
 		uart0: serial@7e201000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x7e201000 0x200>;
