@@ -7,6 +7,7 @@
 #include <dev/bcm2835_gpio.h>
 #include <sys/fdt.h>
 #include <sys/errno.h>
+#include <sys/devclass.h>
 
 /*
  * \brief delay function
@@ -103,13 +104,13 @@ int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
   int result = 0;
   uint32_t *pin_cfgs, *function_cfgs, *pull_cfgs, *intr_detect_cfgs;
 
-  ssize_t pin_cnt = FDT_getprop_alloc_multi(node, "pins", sizeof(*pin_cfgs),
+  ssize_t pin_cnt = FDT_getencprop_alloc_multi(node, "pins", sizeof(*pin_cfgs),
                                             (void **)&pin_cfgs);
-  ssize_t function_cnt = FDT_getprop_alloc_multi(
+  ssize_t function_cnt = FDT_getencprop_alloc_multi(
     node, "function", sizeof(*function_cfgs), (void **)&function_cfgs);
-  ssize_t pull_cnt = FDT_getprop_alloc_multi(node, "pull", sizeof(*pull_cfgs),
+  ssize_t pull_cnt = FDT_getencprop_alloc_multi(node, "pull", sizeof(*pull_cfgs),
                                              (void **)&pull_cfgs);
-  ssize_t intr_detect_cnt = FDT_getprop_alloc_multi(
+  ssize_t intr_detect_cnt = FDT_getencprop_alloc_multi(
     node, "intr_detect", sizeof(*intr_detect_cfgs), (void **)&intr_detect_cfgs);
 
   if (pin_cnt == FDT_PINS_INVAL) {
@@ -142,7 +143,7 @@ bcm2835_gpio_read_fdt_entry_cleanup:
 }
 
 int bcm2835_gpio_probe(device_t *dev) {
-  return FDT_is_compatible(dev->node, "bcm2835,rpi3-gpio");
+  return FDT_is_compatible(dev->node, "brcm,rpi3-gpio");
 }
 
 int bcm2835_gpio_attach(device_t *dev) {
@@ -167,3 +168,5 @@ driver_t gpio_driver = {.desc = "BCM2835 RPi3 GPIO driver",
                         .probe = bcm2835_gpio_probe,
                         .attach = bcm2835_gpio_attach,
                         .interfaces = {}};
+
+DEVCLASS_ENTRY(root, gpio_driver);

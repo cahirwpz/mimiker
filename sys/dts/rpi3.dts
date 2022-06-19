@@ -49,7 +49,7 @@
 		};
 
 		gpio: gpio@7e200000 {
-			compatible = "bcm2835,rpi3-gpio";
+			compatible = "brcm,rpi3-gpio";
 			reg = <0x7e200000 0x100>;
 
 			/* e.MMC requires some GPIO setup to work properly. This however
