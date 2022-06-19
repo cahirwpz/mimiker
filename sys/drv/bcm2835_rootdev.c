@@ -151,6 +151,10 @@ static int rootdev_attach(device_t *bus) {
     return err;
 
   if ((err =
+         simplebus_add_child(bus, "/soc/gpio", unit++, bcm2835_pic, NULL)))
+    return err;
+
+  if ((err =
          simplebus_add_child(bus, "/soc/serial", unit++, bcm2835_pic, NULL)))
     return err;
 
@@ -158,11 +162,6 @@ static int rootdev_attach(device_t *bus) {
          simplebus_add_child(bus, "/soc/sdhci", unit++, bcm2835_pic, &sdhci)))
     return err;
   sdhci->devclass = &DEVCLASS(emmc);
-  /* Due to the lack of proper GPIO routines, the driver uses a workaround that
-   * requires the GPIO memory to be passed to it as a resource */
-  /* TODO: Mark a proper GPIO interface and driver */
-  device_add_memory(
-    sdhci, 1, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_GPIO_BASE), PAGESIZE);
 
   return bus_generic_probe(bus);
 }
