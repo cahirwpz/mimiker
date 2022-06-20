@@ -66,9 +66,6 @@ static inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
   return pde + L3_INDEX(va);
 }
 
-static inline void pmap_broadcast_kernel_top_pde(vaddr_t va, pde_t pde) {
-}
-
 /*
  * Page table.
  */
@@ -102,6 +99,9 @@ static inline void pmap_md_setup(pmap_t *pmap) {
 }
 
 static inline void pmap_md_delete(pmap_t *pmap) {
+}
+
+static inline void pmap_md_growkernel(vaddr_t maxkvaddr) {
 }
 
 #endif /* !_AARCH64_PMAP_H_ */

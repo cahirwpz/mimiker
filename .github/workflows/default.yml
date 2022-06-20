@@ -47,15 +47,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: make BOARD=malta CLANG=1
-      - uses: actions/upload-artifact@v2
-        with:
-          name: "mips clang kernel+ramdisk"
-          path: |
-            sys/mimiker.elf
-            sys/mimiker.elf.map
-            bin/*/*.uelf
-            usr.bin/*/*.uelf
-            initrd.cpio
 
   build_aarch64_gcc:
     name: Build AArch64 (GCC + KASAN)
@@ -63,7 +54,7 @@ jobs:
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v2
-      - run: make KASAN=1 BOARD=rpi3 LOCKDEP=1
+      - run: make BOARD=rpi3 KASAN=1 LOCKDEP=1
       - uses: actions/upload-artifact@v2
         with:
           name: "aarch64 gcc kernel+ramdisk"
@@ -83,6 +74,31 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: make BOARD=rpi3 CLANG=1
+
+  build_rv32_gcc:
+    name: Build RISC-V 32-bit (GCC + KASAN)
+    runs-on: self-hosted
+    needs: [verify_c_style, verify_py_style]
+    steps:
+      - uses: actions/checkout@v2
+      - run: make BOARD=litex-riscv KASAN=1 LOCKDEP=1
+      - uses: actions/upload-artifact@v2
+        with:
+          name: "riscv32 gcc kernel+ramdisk"
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            initrd.cpio
+
+  build_rv32_clang:
+    name: Build RISC-V 32-bit (Clang)
+    runs-on: self-hosted
+    needs: [verify_c_style, verify_py_style]
+    steps:
+      - uses: actions/checkout@v2
+      - run: make BOARD=litex-riscv CLANG=1
 
   kernel_tests_mips_gcc:
     name: Tests MIPS (GCC + KASAN)

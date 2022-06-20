@@ -17,12 +17,7 @@
  *   - temoprarily mapping kernel page directory into VM (because there is
  *     no direct map to access it in the usual fashion),
  *
- *   - (HACK) preparing page tables for `vm_page_t` structs (we need to do so
- *     because the procedure that maps kernel virtual space allocated for the
- *     structs can't allocate physical pages on its own since
- *     the buddy system isn't initialized at that point),
- *
- *   - Preparing KASAN shadow memory for the mapped area,
+ *   - preparing KASAN shadow memory for the mapped area,
  *
  *   - enabling MMU and moving to the second stage.
  *
@@ -45,7 +40,7 @@
  *       - thread pointer register (`$tp`) always points to the PCPU structure
  *         of the hart,
  *       - SSCRARCH register always contains 0 when the hart operates in
- *         supervisor mode, and kernel stack pointer while in user mode.
+ *        supervisor mode, and kernel stack pointer while in user mode.
  *
  *   - setting trap vector to trap handling routine,
  *
@@ -73,20 +68,17 @@
 #include <riscv/abi.h>
 #include <riscv/cpufunc.h>
 #include <riscv/pmap.h>
-#include <riscv/vm_param.h>
 
 #define KERNEL_VIRT_IMG_END align(_ebss, PAGESIZE)
 #define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(_ebss), PAGESIZE)
-#define KERNEL_PHYS_END (KERNEL_PHYS_IMG_END + BOOTMEM_SIZE)
 
-#if KASAN
 #define BOOT_KASAN_SANITIZED_SIZE                                              \
-  ((roundup(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) - KASAN_SANITIZED_START) + \
-   VM_PAGE_PDS * GROWKERNEL_STRIDE)
+  roundup2(roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) -                  \
+             KASAN_SANITIZED_START,                                            \
+           PAGESIZE * KASAN_SHADOW_SCALE_SIZE)
 
 #define BOOT_KASAN_SHADOW_SIZE                                                 \
   (BOOT_KASAN_SANITIZED_SIZE / KASAN_SHADOW_SCALE_SIZE)
-#endif /* !KASAN */
 
 #define BOOT_DTB_VADDR DMAP_BASE
 #define BOOT_PD_VADDR (DMAP_BASE + GROWKERNEL_STRIDE)
@@ -97,9 +89,6 @@
 
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data static void *bootmem_brk;
-
-/* End of boot memory allocation area. */
-__boot_data static void *bootmem_end;
 
 __boot_data static pde_t *kernel_pde;
 
@@ -140,9 +129,6 @@ __boot_text static __noreturn void halt(void) {
 __boot_text static void *bootmem_alloc(size_t bytes) {
   long *addr = bootmem_brk;
   bootmem_brk += align(bytes, PAGESIZE);
-
-  if (bootmem_brk > bootmem_end)
-    halt();
 
   for (size_t i = 0; i < bytes / sizeof(long); i++)
     addr[i] = 0;
@@ -219,19 +205,9 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
 
   /* Initialize boot memory allocator. */
   bootmem_brk = (void *)KERNEL_PHYS_IMG_END;
-  bootmem_end = (void *)KERNEL_PHYS_END;
 
   /* Allocate kernel page directory.*/
   kernel_pde = bootmem_alloc(PAGESIZE);
-
-  /*
-   * !HACK!
-   * See 4th point of bare memory boot description
-   * at the top of this file for details.
-   */
-  vaddr_t va = roundup(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE);
-  for (int i = 0; i < VM_PAGE_PDS; i++)
-    (void)ensure_pte(va + i * GROWKERNEL_STRIDE);
 
   /* Kernel read-only segment - sections: .text and .rodata. */
   early_kenter(_text, _data - _text, RISCV_PHYSADDR(_text),
@@ -279,12 +255,14 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
 
   __asm __volatile("mv a0, %0\n\t"
                    "mv a1, %1\n\t"
-                   "mv sp, %2\n\t"
-                   "csrw satp, %3\n\t"
+                   "mv a2, %2\n\t"
+                   "mv sp, %3\n\t"
+                   "csrw satp, %4\n\t"
                    "ebreak" /* triggers instruction fetch page fault */
                    :
-                   : "r"(dtb), "r"(kernel_pde), "r"(boot_sp), "r"(satp)
-                   : "a0", "a1");
+                   : "r"(dtb), "r"(kernel_pde), "r"(bootmem_brk), "r"(boot_sp),
+                     "r"(satp)
+                   : "a0", "a1", "a2");
 
   __unreachable();
 }
@@ -317,8 +295,8 @@ extern void *board_stack(paddr_t dtb_pa, void *dtb_va);
 extern void __noreturn board_init(void);
 
 #define __text_riscv_boot __section(".text.riscv_boot")
-__text_riscv_boot static __noreturn __used void riscv_boot(paddr_t dtb,
-                                                           paddr_t pde) {
+__text_riscv_boot static __noreturn __used void
+riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
   /*
    * Set initial register values.
    */
@@ -341,6 +319,9 @@ __text_riscv_boot static __noreturn __used void riscv_boot(paddr_t dtb,
   set_kernel_syms();
 
   clear_bss();
+
+  extern paddr_t kern_phys_end;
+  kern_phys_end = kern_end;
 
 #if KASAN
   _kasan_sanitized_end =

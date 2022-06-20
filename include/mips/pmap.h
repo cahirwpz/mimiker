@@ -115,14 +115,14 @@ static inline bool pte_access(pte_t pte, vm_prot_t prot) {
   }
 }
 
-static inline void pmap_broadcast_kernel_top_pde(vaddr_t va, pde_t pde) {
-}
-
 /*
  * Physical map management.
  */
 
 static inline void pmap_md_delete(pmap_t *pmap) {
+}
+
+static inline void pmap_md_growkernel(vaddr_t maxkvaddr) {
 }
 
 #endif /* __ASSEMBLER__ */

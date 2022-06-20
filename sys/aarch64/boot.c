@@ -5,7 +5,6 @@
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
-#include <aarch64/pte.h>
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
@@ -147,13 +146,6 @@ __boot_text static paddr_t build_page_table(void) {
   l1[L1_INDEX(va)] = (pde_t)l2 | L1_TABLE;
   l2[L2_INDEX(va)] = (pde_t)l3 | L2_TABLE;
 
-  /* TODO(pj) imitate pmap_growkernel from NetBSD */
-  l2[L2_INDEX(0)] = (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
-  for (int i = 0; i < 32; i++) {
-    l2[L2_INDEX(0xffff000000400000 + i * PAGESIZE * PT_ENTRIES)] =
-      (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
-  }
-
   const pte_t pte_default =
     L3_PAGE | ATTR_AF | ATTR_SH_IS | ATTR_IDX(ATTR_NORMAL_MEM_WB);
 
@@ -188,12 +180,8 @@ __boot_text static paddr_t build_page_table(void) {
   l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
 
 #if KASAN /* Prepare KASAN shadow mappings */
-  /* XXX we add 2 * SUPERPAGESIZE to account for future allocations made with
-   * vm_boot_alloc() which can't extend the shadow map, as the VM system isn't
-   * fully initialized yet. */
-  size_t kasan_sanitized_size =
-    2 * SUPERPAGESIZE + roundup2(va - KASAN_SANITIZED_START,
-                                 SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
+  size_t kasan_sanitized_size = roundup2(
+    va - KASAN_SANITIZED_START, SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
   size_t kasan_shadow_size = kasan_sanitized_size / KASAN_SHADOW_SCALE_SIZE;
   vaddr_t kasan_shadow_end = KASAN_SHADOW_START + kasan_shadow_size;
   va = KASAN_SHADOW_START;

@@ -49,32 +49,11 @@ static const pte_t vm_prot_map[] = {
 };
 
 /*
- * The list of all the user pmaps.
- * Order of acquiring locks:
- *  - `pmap_kernel()->mtx`
- *  - `user_pmaps_lock`
- */
-static MTX_DEFINE(user_pmaps_lock, 0);
-static LIST_HEAD(, pmap) user_pmaps = LIST_HEAD_INITIALIZER(user_pmaps);
-
-/*
  * Page directory.
  */
 
 pde_t pde_make(int lvl, paddr_t pa) {
   return PA_TO_PTE(pa) | PTE_V;
-}
-
-void pmap_broadcast_kernel_top_pde(vaddr_t va, pde_t pde) {
-  SCOPED_MTX_LOCK(&user_pmaps_lock);
-
-  size_t idx = L0_INDEX(va);
-
-  pmap_t *user_pmap;
-  LIST_FOREACH (user_pmap, &user_pmaps, md.pmap_link) {
-    pde_t *pdep = (pde_t *)phys_to_dmap(user_pmap->pde);
-    pdep[idx] = pde;
-  }
 }
 
 /*
@@ -105,7 +84,23 @@ inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
  * Physical map management.
  */
 
+static void update_kernel_pd(pmap_t *umap) {
+  pmap_t *kmap = pmap_kernel();
+
+  size_t halfpage = PAGESIZE / 2;
+  memcpy(phys_to_dmap(umap->pde) + halfpage, phys_to_dmap(kmap->pde) + halfpage,
+         halfpage);
+
+  umap->md.generation = kmap->md.generation;
+}
+
 void pmap_md_activate(pmap_t *umap) {
+  pmap_t *kmap = pmap_kernel();
+  assert(kmap->md.generation);
+
+  if (umap->md.generation < kmap->md.generation)
+    update_kernel_pd(umap);
+
   __set_satp(umap->md.satp);
   __sfence_vma();
 }
@@ -118,22 +113,7 @@ void pmap_md_setup(pmap_t *pmap) {
   pmap->md.satp = SATP_MODE_SV32 | ((paddr_t)pmap->asid << SATP_ASID_S) |
                   (pmap->pde >> PAGE_SHIFT);
 #endif
-
-  /* Install kernel pagetables. */
-  pmap_t *kmap = pmap_kernel();
-  size_t halfpage = PAGESIZE / 2;
-  WITH_MTX_LOCK (&kmap->mtx) {
-    memcpy((void *)phys_to_dmap(pmap->pde) + halfpage,
-           (void *)phys_to_dmap(kmap->pde) + halfpage, halfpage);
-  }
-
-  WITH_MTX_LOCK (&user_pmaps_lock)
-    LIST_INSERT_HEAD(&user_pmaps, pmap, md.pmap_link);
-}
-
-void pmap_md_delete(pmap_t *pmap) {
-  WITH_MTX_LOCK (&user_pmaps_lock)
-    LIST_REMOVE(pmap, md.pmap_link);
+  pmap->md.generation = (pmap == pmap_kernel());
 }
 
 void pmap_md_bootstrap(pde_t *pd) {
@@ -160,6 +140,21 @@ void pmap_md_bootstrap(pde_t *pd) {
     pd[idx] = PA_TO_PTE(pa) | PTE_KERN;
 
   __sfence_vma();
+}
+
+void pmap_md_growkernel(vaddr_t maxkvaddr) {
+  pmap_t *kmap = pmap_kernel();
+  pmap_t *umap = pmap_user();
+
+  WITH_MTX_LOCK (&kmap->mtx) {
+    kmap->md.generation++;
+    assert(kmap->md.generation);
+    if (umap) {
+      WITH_MTX_LOCK (&umap->mtx)
+        update_kernel_pd(umap);
+      __sfence_vma();
+    }
+  }
 }
 
 /*
