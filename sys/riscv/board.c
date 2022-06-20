@@ -111,7 +111,8 @@ typedef struct {
 
 static void ar_get_kernel_img(addr_range_t *ar) {
   assert(kern_phys_end);
-  ar->start = (paddr_t)__eboot;
+  extern paddr_t _eboot;
+  ar->start = _eboot;
   ar->end = kern_phys_end;
 }
 

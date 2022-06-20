@@ -20,6 +20,18 @@ SECTIONS
     __boot = ABSOLUTE(.);
     KEEP(riscv/riscv.ka:start.o)
     *(.boot .boot.*)
+#if __riscv_xlen == 64
+    . = ALIGN(8);
+    __boot_syms = ABSOLUTE(.);
+    QUAD(__global_pointer$);
+    QUAD(__kernel_start);
+    QUAD(__text);
+    QUAD(__riscv_boot);
+    QUAD(__data);
+    QUAD(__boot_stack);
+    QUAD(__ebss);
+    QUAD(__kernel_end);
+#endif
     . = ALIGN(4096);
     __eboot = ABSOLUTE(.);
   } : boot
@@ -30,6 +42,8 @@ SECTIONS
   {
     __kernel_start = ABSOLUTE(.);
     __text = ABSOLUTE(.);
+    __riscv_boot = ABSOLUTE(.);
+    *(.text.riscv_boot)
     *(.text .text.*)
     __etext = ABSOLUTE(.);
     /* Constructors are used by KASAN to initialize global redzones */
@@ -49,6 +63,11 @@ SECTIONS
   {
     __data = ABSOLUTE(.);
     *(.data .data.*)
+#if __riscv_xlen == 64
+    . = ALIGN(8);
+    __kernel_syms = ABSOLUTE(.);
+    QUAD(__eboot);
+#endif
   } : data
 
   /* We use linker relaxations based on `__global_pointer$` for `.sdata`.
@@ -62,6 +81,7 @@ SECTIONS
 
   .sdata :
   {
+    . = ALIGN(8);
     /* Load/store instruction offset is 12 bits (sign extended). */
     __global_pointer$ = . + 0x800;
     *(.srodata .srodata.*)
@@ -72,6 +92,8 @@ SECTIONS
   .bss :
   {
     __bss = ABSOLUTE(.);
+    __boot_stack = ABSOLUTE(.);
+    *(.bss.boot_stack)
     *(.sbss .sbss.*)
     *(.scommon)
     *(.bss .bss.*)

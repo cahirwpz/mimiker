@@ -17,15 +17,22 @@
  *  - all other registers remain in an undefined state
  */
 _ENTRY(_start)
+#if __riscv_xlen == 64
+	.option push
+	.option norelax
+	PTR_LA t0, __boot_syms
+	PTR_L gp, (t0)
+	.option pop
+#else
 	LOAD_GP()
+#endif
 
 	/* 
 	 * NOTE: In an actual SMP system, we could have multiple harts
 	 * entering the kernel simultaneously. In such case,
 	 * we would have to choose the hart to perform the global startup.
-	 * FTTB, we assume a single hart of ID 0.
+	 * FTTB, we assume a single hart entering the kernel.
 	 */
-	bnez a0, halt
 
 	/* Move to the initial stack. */
 	PTR_LA sp, initstack_end
