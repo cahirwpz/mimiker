@@ -87,6 +87,7 @@ void pmap_md_bootstrap(pde_t *pd);
 void pmap_md_setup(pmap_t *pmap);
 void pmap_md_activate(pmap_t *pmap);
 void pmap_md_delete(pmap_t *pmap);
+void pmap_md_growkernel(vaddr_t maxkvaddr);
 
 /*
  * Direct map.
