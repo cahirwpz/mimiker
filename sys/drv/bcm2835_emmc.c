@@ -73,6 +73,15 @@ static emmc_error_t bcemmc_decode_errors(uint32_t interrupts) {
   return e;
 }
 
+static inline int ret_error(bcmemmc_state_t *state, int err) {
+  state->errors |= EMMC_ERROR_INTERNAL;
+  return err;
+}
+
+static inline int should_nop(bcmemmc_state_t *state) {
+  return state->errors & EMMC_ERROR_INTERNAL;
+}
+
 /* Returns new pending interrupts.
  * All pending interrupts are stored in `bmcemmc_state_t::pending`.
  */
@@ -120,6 +129,9 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
 
   assert(mask != 0);
+
+  if (should_nop(state))
+    return ENXIO;
 
   SCOPED_SPIN_LOCK(&state->lock);
 
@@ -312,6 +324,9 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   resource_t *emmc = state->emmc;
 
+  if (should_nop(state))
+    return ENXIO;
+
   uint32_t reg = 0;
   switch (id) {
     case EMMC_PROP_RW_BLKCNT:
@@ -348,8 +363,11 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
     case EMMC_PROP_R_ERRORS:
       *var = state->errors;
       break;
+    case EMMC_PROP_W_CLR_ERRORS:
+      state->errors = 0;
+      break;
     default:
-      return ENODEV;
+      return ret_error(state, ENODEV);
   }
 
   return 0;
@@ -358,6 +376,9 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
 static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   resource_t *emmc = state->emmc;
+
+  if (should_nop(state))
+    return ENXIO;
 
   uint32_t reg = 0;
   switch (id) {
@@ -393,7 +414,7 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
       state->rca = var;
       break;
     default:
-      return ENODEV;
+      return ret_error(state, ENODEV);
   }
 
   return 0;
@@ -431,11 +452,14 @@ static int bcmemmc_send_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   int error = 0;
 
+  if (should_nop(state))
+    return ENXIO;
+
   /* Application-specific command need to be prefixed with APP_CMD command. */
   if (cmd.flags & EMMC_F_APP)
     error = bcmemmc_send_cmd(cdev, EMMC_CMD(APP_CMD), state->rca << 16, NULL);
   if (error)
-    return error;
+    return ret_error(state, error);
 
   uint32_t code = bcmemmc_encode_cmd(cmd);
   return bcmemmc_cmd_code(cdev->parent, code, arg, resp);
@@ -467,6 +491,9 @@ static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
   const uint32_t *data = buf;
 
   assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
+
+  if (should_nop(state))
+    return ENXIO;
 
   /* A very simple transfer (should be replaced with DMA in the future) */
   for (size_t i = 0; i < len / sizeof(uint32_t); i++)
