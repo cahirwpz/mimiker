@@ -54,10 +54,14 @@
 			interrupts = <2 25>;
 		};
 
-		sdhci: sdhci@7e300000 {
-			compatible = "brcm,bcm2835-sdhci";
+		emmc: emmc@7e300000 {
+			compatible = "brcm,bcm2835-emmc";
 			reg = <0x7e300000 0x100>;
 			interrupts = <2 30>;
+
+			sd {
+				compatible = "mimiker,sd";
+			}
 		};
 
 		usb: usb@7e980000 {
