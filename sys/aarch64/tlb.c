@@ -1,4 +1,4 @@
-#include <aarch64/tlb.h>
+#include <aarch64/pmap.h>
 
 #define ASID_TO_PTE(x) ((uint64_t)(x) << ASID_SHIFT)
 

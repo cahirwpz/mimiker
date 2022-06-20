@@ -13,6 +13,7 @@ SOURCES = \
 	misbehave.c \
 	mmap.c \
 	pgrp.c \
+	pipe.c \
 	procstat.c \
 	pty.c \
 	sbrk.c \
