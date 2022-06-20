@@ -89,8 +89,9 @@ void bcm2835_gpio_set_high_detect(resource_t *r, unsigned pin, bool enable) {
   bus_write_4(r, BCM2835_GPIO_GPHEN(reg), val);
 }
 
-int bcm2835_gpio_configure_pin(device_t *dev, uint32_t pin, uint32_t fsel,
-                               uint32_t pull, uint32_t intr_detect) {
+static int bcm2835_gpio_configure_pin(device_t *dev, uint32_t pin,
+                                      uint32_t fsel, uint32_t pull,
+                                      uint32_t intr_detect) {
   bcm2835_gpio_t *gpio = (bcm2835_gpio_t *)dev->state;
 
   bcm2835_gpio_function_select(gpio->gpio, pin, (bcm2835_gpio_func_t)fsel);
@@ -100,16 +101,16 @@ int bcm2835_gpio_configure_pin(device_t *dev, uint32_t pin, uint32_t fsel,
   return 0;
 }
 
-int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
+static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
   int result = 0;
   uint32_t *pin_cfgs, *function_cfgs, *pull_cfgs, *intr_detect_cfgs;
 
   ssize_t pin_cnt = FDT_getencprop_alloc_multi(node, "pins", sizeof(*pin_cfgs),
-                                            (void **)&pin_cfgs);
+                                               (void **)&pin_cfgs);
   ssize_t function_cnt = FDT_getencprop_alloc_multi(
     node, "function", sizeof(*function_cfgs), (void **)&function_cfgs);
-  ssize_t pull_cnt = FDT_getencprop_alloc_multi(node, "pull", sizeof(*pull_cfgs),
-                                             (void **)&pull_cfgs);
+  ssize_t pull_cnt = FDT_getencprop_alloc_multi(
+    node, "pull", sizeof(*pull_cfgs), (void **)&pull_cfgs);
   ssize_t intr_detect_cnt = FDT_getencprop_alloc_multi(
     node, "intr_detect", sizeof(*intr_detect_cfgs), (void **)&intr_detect_cfgs);
 
@@ -142,11 +143,11 @@ bcm2835_gpio_read_fdt_entry_cleanup:
   return result;
 }
 
-int bcm2835_gpio_probe(device_t *dev) {
+static int bcm2835_gpio_probe(device_t *dev) {
   return FDT_is_compatible(dev->node, "brcm,rpi3-gpio");
 }
 
-int bcm2835_gpio_attach(device_t *dev) {
+static int bcm2835_gpio_attach(device_t *dev) {
   int err;
   bcm2835_gpio_t *gpio = (bcm2835_gpio_t *)dev->state;
 
