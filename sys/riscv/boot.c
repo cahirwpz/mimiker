@@ -87,6 +87,10 @@
  * Bare memory boot data.
  */
 
+#define __text_riscv_boot __section(".text.riscv_boot")
+__text_riscv_boot static __noreturn __used void
+riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end);
+
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data static void *bootmem_brk;
 
@@ -295,7 +299,6 @@ extern void cpu_exception_handler(void);
 extern void *board_stack(paddr_t dtb_pa, void *dtb_va);
 extern void __noreturn board_init(void);
 
-#define __text_riscv_boot __section(".text.riscv_boot")
 __text_riscv_boot static __noreturn __used void
 riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
   /*
