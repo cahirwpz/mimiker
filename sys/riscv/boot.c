@@ -251,6 +251,8 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
 
   clear_bss();
 
+  init_cons();
+
   extern paddr_t kern_phys_end;
   kern_phys_end = kern_end;
 

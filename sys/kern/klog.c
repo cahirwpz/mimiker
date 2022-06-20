@@ -122,6 +122,8 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
     if (klog.first == klog.last)
       klog.first = next(klog.first);
   }
+
+  klog_dump();
 }
 
 unsigned klog_setmask(unsigned newmask) {

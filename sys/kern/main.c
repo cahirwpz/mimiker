@@ -111,9 +111,6 @@ __noreturn void kernel_init(void) {
 
   init_kcsan();
 
-  int copyerr(void);
-  copyerr();
-
   pid_t init_pid;
   do_fork(start_init, NULL, &init_pid);
   assert(init_pid == 1);
