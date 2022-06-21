@@ -546,8 +546,11 @@ DEVCLASS_DECLARE(emmc);
 static int bcmemmc_attach(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
 
-  state->gpio = device_take_memory(dev, 0, RF_ACTIVE);
-  state->emmc = device_take_memory(dev, 1, RF_ACTIVE);
+  state->emmc = device_take_memory(dev, 0, RF_ACTIVE);
+  assert(state->emmc);
+
+  state->gpio = device_take_memory(dev, 1, RF_ACTIVE);
+  assert(state->gpio);
 
   spin_init(&state->lock, 0);
   cv_init(&state->intr_recv, "e.MMC command response wakeup");

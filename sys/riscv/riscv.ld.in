@@ -2,7 +2,6 @@
 
 /* Linker scripts are documented here:
  * https://sourceware.org/binutils/docs/ld/Scripts.html */
-OUTPUT_FORMAT("elf32-littleriscv")
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
@@ -33,7 +32,10 @@ SECTIONS
     __text = ABSOLUTE(.);
     *(.text .text.*)
     __etext = ABSOLUTE(.);
-    /* TODO: include KASAN constructors. */
+    /* Constructors are used by KASAN to initialize global redzones */
+    __CTOR_LIST__ = ABSOLUTE(.);
+    *(.ctors)
+    __CTOR_END__ = ABSOLUTE(.);
   } : text
 
   .eh_frame : { *(.eh_frame) }

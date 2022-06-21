@@ -22,6 +22,9 @@ void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg);
 /*! \brief Gets program counter from context. */
 register_t ctx_get_pc(ctx_t *ctx);
 
+/*! \brief Sets program counter within specified context to provided value. */
+void ctx_set_pc(ctx_t *ctx, uintptr_t addr);
+
 /*! \brief Copy user exception ctx. */
 void mcontext_copy(mcontext_t *to, mcontext_t *from);
 
