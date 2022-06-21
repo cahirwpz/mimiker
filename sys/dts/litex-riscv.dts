@@ -1,136 +1,125 @@
+
 /dts-v1/;
 
 / {
-	#address-cells = <0x01>;
-	#size-cells = <0x01>;
+        #address-cells = <1>;
+        #size-cells = <1>;
 
-	chosen {
-		bootargs = "init=/bin/ksh";
-		linux,initrd-start = <0x42000000>;
-		linux,initrd-end = <0x45000000>;
-	};
 
-	cpus {
-		#address-cells = <0x01>;
-		#size-cells = <0x00>;
-		timebase-frequency = <0x5f5e100>;
+        chosen {
+            linux,initrd-start = <0x42000000>;
+            linux,initrd-end = <0x45000000>;
+        };
 
-		cpu@0 {
-			device_type = "cpu";
-			compatible = "riscv";
-			riscv,isa = "rv32ima";
-			mmu-type = "riscv,sv32";
-			reg = <0x00>;
-			clock-frequency = <0x5f5e100>;
-			status = "okay";
-			d-cache-size = <0x1000>;
-			d-cache-sets = <0x01>;
-			d-cache-block-size = <0x40>;
-			i-cache-size = <0x1000>;
-			i-cache-sets = <0x01>;
-			i-cache-block-size = <0x40>;
-			d-tlb-size = <0x04>;
-			d-tlb-sets = <0x04>;
-			i-tlb-size = <0x04>;
-			i-tlb-sets = <0x04>;
-			phandle = <0x03>;
+        cpus {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            timebase-frequency = <100000000>;
 
-			interrupt-controller {
-				#interrupt-cells = <0x01>;
-				interrupt-controller;
-				compatible = "riscv,cpu-intc";
-				phandle = <0x02>;
-			};
-		};
-	};
+            CPU0: cpu@0 {
+                device_type = "cpu";
+                compatible = "riscv";
+                riscv,isa = "rv32ima";
+                mmu-type = "riscv,sv32";
+                reg = <0>;
+                clock-frequency = <100000000>;
+                status = "okay";
+                
+                d-cache-size = <4096>;
+                d-cache-sets = <1>;
+                d-cache-block-size = <64>;
 
-	memory@40000000 {
-		device_type = "memory";
-		reg = <0x40000000 0x10000000>;
-	};
+                i-cache-size = <4096>;
+                i-cache-sets = <1>;
+                i-cache-block-size = <64>;
 
-	reserved-memory {
-		#address-cells = <0x01>;
-		#size-cells = <0x01>;
-		ranges;
+                
+                d-tlb-size = <4>;
+                d-tlb-sets = <4>;
 
-		opensbi@40f00000 {
-			reg = <0x40f00000 0x80000>;
-		};
-	};
+                i-tlb-size = <4>;
+                i-tlb-sets = <4>;
 
-	clocks {
+                hlic: interrupt-controller {
+                    #interrupt-cells = <0x00000001>;
+                    interrupt-controller;
+                    compatible = "riscv,cpu-intc";
+                };
+            };
+        };
 
-		litex_sys_clk {
-			#clock-cells = <0x00>;
-			compatible = "fixed-clock";
-			clock-frequency = <0x5f5e100>;
-			phandle = <0x04>;
-		};
-	};
+        memory@40000000 {
+            device_type = "memory";
+            reg = <0x40000000 0x10000000>;
+        };
 
-	soc {
-		#address-cells = <0x01>;
-		#size-cells = <0x01>;
-		compatible = "simple-bus";
-		interrupt-parent = <0x01>;
-		ranges;
+        reserved-memory {
+            #address-cells = <1>;
+            #size-cells = <1>;
+            ranges;
 
-		soc_controller@f0000000 {
-			compatible = "litex,soc-controller";
-			reg = <0xf0000000 0x0c>;
-			status = "okay";
-			phandle = <0x05>;
-		};
+            opensbi@40f00000 {
+                reg = <0x40f00000 0x80000>;
+            };
+        };
 
-		clint@f0010000 {
-			reg = <0xf0010000 0x10000>;
-			interrupts-extended = <0x02 0x03 0x02 0x07>;
-			compatible = "riscv,clint0";
-		};
+        clocks {
+            sys_clk: litex_sys_clk {
+                #clock-cells = <0>;
+                compatible = "fixed-clock";
+                clock-frequency = <100000000>;
+            };
+        };
 
-		interrupt-controller@f0c00000 {
-			compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
-			reg = <0xf0c00000 0x400000>;
-			#address-cells = <0x00>;
-			#interrupt-cells = <0x01>;
-			interrupt-controller;
-			interrupts-extended = <0x02 0x0b 0x02 0x09>;
-			riscv,ndev = <0x20>;
-			phandle = <0x01>;
-		};
+        soc {
+            #address-cells = <1>;
+            #size-cells = <1>;
+            compatible = "simple-bus";
+            interrupt-parent = <&plic>;
+            ranges;
 
-		serial@f0001000 {
-			compatible = "litex,liteuart";
-			reg = <0xf0001000 0x100>;
-			interrupts = <0x01>;
-			status = "okay";
-			phandle = <0x06>;
-		};
+            soc_ctrl0: soc_controller@f0000000 {
+                compatible = "litex,soc-controller";
+                reg = <0xf0000000 0xc>;
+                status = "okay";
+            };
 
-		gpio@f0002800 {
-			compatible = "litex,gpio";
-			reg = <0xf0002800 0x04>;
-			gpio-controller;
-			#gpio-cells = <0x02>;
-			litex,direction = "out";
-			status = "okay";
-			litex,ngpio = <0x04>;
-			phandle = <0x07>;
-		};
-	};
+            clint@f0010000 {
+                reg = <0xf0010000 0x10000>;
+                interrupts= <3>, <7>;
+                compatible = "riscv,clint0";
+            };
 
-	aliases {
-		serial0 = "/soc/serial@f0001000";
-	};
+            plic: interrupt-controller@f0c00000 {
+                compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
+                reg = <0xf0c00000 0x400000>;
+                #address-cells = <0>;
+                #interrupt-cells = <1>;
+                interrupt-controller;
+                interrupts-extended = <&hlic 11>, <&hlic 9>;
+                riscv,ndev = <32>;
+            };
 
-	__symbols__ {
-		CPU0 = "/cpus/cpu@0";
-		L0 = "/cpus/cpu@0/interrupt-controller";
-		sys_clk = "/clocks/litex_sys_clk";
-		soc_ctrl0 = "/soc/soc_controller@f0000000";
-		intc0 = "/soc/interrupt-controller@f0c00000";
-		liteuart0 = "/soc/serial@f0001000";
-		leds = "/soc/gpio@f0002800";
-	};
+            liteuart0: serial@f0001000 {
+                compatible = "litex,liteuart";
+                reg = <0xf0001000 0x100>;
+                interrupts = <1>;
+                status = "okay";
+            };
+
+            gpio@f0002800 {
+                compatible = "litex,gpio";
+                reg = <0xf0002800 0x4>;
+                gpio-controller;
+                #gpio-cells = <2>;
+                litex,ngpio = <4>;
+                litex,direction = "out";
+                status = "okay";
+            };
+
+        };
+
+        aliases {
+                serial0 = &liteuart0;
+        };
 };
