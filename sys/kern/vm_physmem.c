@@ -59,7 +59,6 @@ static void *vm_boot_alloc(size_t n) {
   assert(!vm_boot_done);
 
   n = roundup2(n, PAGESIZE);
-  assert(n);
 
   vm_physseg_t *seg = TAILQ_FIRST(&seglist);
 
@@ -70,11 +69,9 @@ static void *vm_boot_alloc(size_t n) {
 
   void *va = phys_to_dmap(seg->start);
 
-  for (size_t i = 0; i < n / PAGESIZE; i++) {
-    seg->start += PAGESIZE;
-    seg->npages--;
-    assert(seg->npages);
-  }
+  seg->start += n;
+  seg->npages -= n / PAGESIZE;
+  assert(seg->npages);
 
   return va;
 }
