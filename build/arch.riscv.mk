@@ -29,7 +29,7 @@ ifeq ($(KERNEL), 1)
 endif
 endif
 
-ifeq ($(BOARD), fu540)
+ifeq ($(BOARD), sifive_u)
 	EXT := g
 	ABI := lp64d
 	KERNEL_PHYS := 0x80200000

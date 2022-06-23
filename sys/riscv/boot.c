@@ -40,7 +40,7 @@
  *       - thread pointer register (`$tp`) always points to the PCPU structure
  *         of the hart,
  *       - SSCRARCH register always contains 0 when the hart operates in
- *        supervisor mode, and kernel stack pointer while in user mode.
+ *         supervisor mode, and kernel stack pointer while in user mode.
  *
  *   - setting trap vector to trap handling routine,
  *
@@ -122,19 +122,6 @@ __boot_text static __noreturn void halt(void) {
     __wfi();
 }
 
-/*
- * Allocate and clear pages in physical memory just after kernel image end.
- * The argument will be aligned to `PAGESIZE`.
- */
-__boot_text static void *bootmem_alloc(size_t bytes) {
-  long *addr = bootmem_brk;
-  bootmem_brk += align(bytes, PAGESIZE);
-
-  for (size_t i = 0; i < bytes / sizeof(long); i++)
-    addr[i] = 0;
-  return addr;
-}
-
 __boot_text static void set_boot_syms(void) {
 #if __riscv_xlen == 64
   extern char __boot_syms[];
@@ -157,22 +144,36 @@ __boot_text static void set_boot_syms(void) {
 #endif
 }
 
-__boot_text static size_t ealry_pt_index(unsigned lvl, vaddr_t va) {
+/*
+ * Allocate and clear pages in physical memory just after kernel image end.
+ * The argument will be aligned to `PAGESIZE`.
+ */
+__boot_text static void *bootmem_alloc(size_t bytes) {
+  long *addr = bootmem_brk;
+  bootmem_brk += align(bytes, PAGESIZE);
+
+  for (size_t i = 0; i < bytes / sizeof(long); i++)
+    addr[i] = 0;
+  return addr;
+}
+
+__boot_text static pde_t *early_pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
+  pde_t *pde = (pde_t *)pd_pa;
   if (lvl == 0)
-    return L0_INDEX(va);
+    return pde + L0_INDEX(va);
 #if __riscv_xlen == 32
-  return L1_INDEX(va);
+  return pde + L1_INDEX(va);
 #else
   if (lvl == 1)
-    return L1_INDEX(va);
-  return L2_INDEX(va);
+    return pde + L1_INDEX(va);
+  return pde + L2_INDEX(va);
 #endif
 }
 
 __boot_text static pte_t *ensure_pte(vaddr_t va) {
-  pde_t *pdep = kernel_pde + ealry_pt_index(0, va);
+  pde_t *pdep = early_pde_ptr((paddr_t)kernel_pde, 0, va);
 
-  for (unsigned lvl = 0; lvl < PAGE_TABLE_DEPTH - 1; lvl++) {
+  for (unsigned lvl = 1; lvl < PAGE_TABLE_DEPTH; lvl++) {
     paddr_t pa;
     if (!VALID_PDE_P(*pdep)) {
       pa = (paddr_t)bootmem_alloc(PAGESIZE);
@@ -180,7 +181,7 @@ __boot_text static pte_t *ensure_pte(vaddr_t va) {
     } else {
       pa = (paddr_t)PTE_TO_PA(*pdep);
     }
-    pdep = (pde_t *)pa + ealry_pt_index(lvl + 1, va);
+    pdep = early_pde_ptr(pa, lvl, va);
   }
 
   return (pte_t *)pdep;
@@ -326,9 +327,8 @@ riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
 #if KASAN
   _kasan_sanitized_end =
     KASAN_SANITIZED_START +
-    ((roundup(align((vaddr_t)__ebss, PAGESIZE), GROWKERNEL_STRIDE) -
-      KASAN_SANITIZED_START) +
-     VM_PAGE_PDS * GROWKERNEL_STRIDE);
+    (roundup(align((vaddr_t)__ebss, PAGESIZE), GROWKERNEL_STRIDE) -
+     KASAN_SANITIZED_START);
 #endif
 
   void *dtb_va = (void *)BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));

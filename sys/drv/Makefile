@@ -44,8 +44,8 @@ SOURCES-RISCV = \
 
 ifeq ($(BOARD), litex-riscv)
 SOURCES-RISCV += litex_riscv_rootdev.c
-else ifeq ($(BOARD), fu540)
-SOURCES-RISCV += fu540_rootdev.c
+else ifeq ($(BOARD), sifive_u)
+SOURCES-RISCV += sifive_u_rootdev.c
 endif
 
 CPPFLAGS += -D_MACHDEP

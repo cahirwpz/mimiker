@@ -69,7 +69,7 @@ CONFIG = {
                 'kernel': 'sys/mimiker.img',
                 'simulator': 'renode',
             },
-            'fu540': {
+            'sifive_u': {
                 'kernel': 'sys/mimiker.elf',
                 'simulator': 'qemu'
             },
@@ -118,7 +118,7 @@ CONFIG = {
                 ],
                 'drive': 'if=sd,index=0,format=qcow2,file={path}',
             },
-            'fu540': {
+            'sifive_u': {
                 'binary': 'qemu-mimiker-riscv64',
                 'options': [
                     '-machine', 'sifive_u',
@@ -177,7 +177,7 @@ CONFIG = {
             'litex-riscv': {
                 'binary': 'riscv32-mimiker-elf-gdb'
             },
-            'fu540': {
+            'sifive_u': {
                 'binary': 'riscv64-mimiker-elf-gdb'
             },
         }
@@ -466,7 +466,7 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
     parser.add_argument('-b', '--board', default='malta',
-                        choices=['malta', 'rpi3', 'litex-riscv', 'fu540'],
+                        choices=['malta', 'rpi3', 'litex-riscv', 'sifive_u'],
                         help='Emulated board.')
     parser.add_argument('-s', '--storage', type=str,
                         help='QCOW2 image to be attached as a default storage '

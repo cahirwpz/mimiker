@@ -28,7 +28,7 @@ RISCV := 1
 XLEN := 32
 endif
 
-ifeq ($(BOARD), fu540)
+ifeq ($(BOARD), sifive_u)
 ARCH := riscv
 RISCV := 1
 XLEN := 64
