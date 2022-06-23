@@ -15,6 +15,9 @@
 #include <riscv/sbi.h>
 #include <riscv/vm_param.h>
 
+#define RISCV_PHYSADDR(x)                                                      \
+  ((paddr_t)((vaddr_t)(x) & ~KERNEL_SPACE_BEGIN) + KERNEL_PHYS)
+
 paddr_t kern_phys_end;
 
 static size_t count_args(void) {
@@ -111,8 +114,7 @@ typedef struct {
 
 static void ar_get_kernel_img(addr_range_t *ar) {
   assert(kern_phys_end);
-  extern paddr_t _eboot;
-  ar->start = _eboot;
+  ar->start = RISCV_PHYSADDR(__kernel_start);
   ar->end = kern_phys_end;
 }
 

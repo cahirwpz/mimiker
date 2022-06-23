@@ -17,7 +17,7 @@
  *   - temoprarily mapping kernel page directory into VM (because there is
  *     no direct map to access it in the usual fashion),
  *
- *   - preparing KASAN shadow memory for the mapped area,
+ *   - Preparing KASAN shadow memory for the mapped area,
  *
  *   - enabling MMU and moving to the second stage.
  *
@@ -69,8 +69,19 @@
 #include <riscv/cpufunc.h>
 #include <riscv/pmap.h>
 
-#define KERNEL_VIRT_IMG_END align(_ebss, PAGESIZE)
-#define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(_ebss), PAGESIZE)
+extern char __riscv_boot_pa[];
+extern char __boot_stack_pa[];
+extern char __kernel_start_pa[];
+extern char __text_pa[];
+extern char __data_pa[];
+extern char __ebss_pa[];
+extern char __kernel_end_pa[];
+
+#define RISCV_VIRTADDR(x)                                                      \
+  ((vaddr_t)((paddr_t)(x)-KERNEL_PHYS) | KERNEL_SPACE_BEGIN)
+
+#define KERNEL_VIRT_IMG_END align(RISCV_VIRTADDR(__ebss_pa), PAGESIZE)
+#define KERNEL_PHYS_IMG_END align((paddr_t)__ebss_pa, PAGESIZE)
 
 #define BOOT_KASAN_SANITIZED_SIZE                                              \
   roundup2(roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) -                  \
@@ -87,35 +98,20 @@
  * Bare memory boot data.
  */
 
-#define __text_riscv_boot __section(".text.riscv_boot")
-__text_riscv_boot static __noreturn __used void
-riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end);
-
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data static void *bootmem_brk;
 
 __boot_data static pde_t *kernel_pde;
 
-/* Boot symbols. */
-__boot_data static vaddr_t _kernel_start;
-__boot_data static vaddr_t _text;
-__boot_data static vaddr_t _riscv_boot;
-__boot_data static vaddr_t _data;
-__boot_data static uint8_t *_boot_stack;
-__boot_data static vaddr_t _ebss;
-__boot_data static vaddr_t _kernel_end;
-
 /*
  * Virtual memory boot data.
  */
 
-/* NOTE: the boot stack is used before we switch out to `thread0`. */
 #define __bss_boot_stack __section(".bss.boot_stack")
+
+/* NOTE: the boot stack is used before we switch out to `thread0`. */
 __bss_boot_stack static __used alignas(STACK_ALIGN) uint8_t
   boot_stack[PAGESIZE];
-
-/* Kernel symbols. */
-paddr_t _eboot;
 
 /*
  * Bare memory boot functions.
@@ -124,28 +120,6 @@ paddr_t _eboot;
 __boot_text static __noreturn void halt(void) {
   for (;;)
     __wfi();
-}
-
-__boot_text static void set_boot_syms(void) {
-#if __riscv_xlen == 64
-  extern char __boot_syms[];
-  uintptr_t *syms = (uintptr_t *)__boot_syms;
-  _kernel_start = (vaddr_t)syms[1];
-  _text = (vaddr_t)syms[2];
-  _riscv_boot = (vaddr_t)syms[3];
-  _data = (vaddr_t)syms[4];
-  _boot_stack = (uint8_t *)syms[5];
-  _ebss = (vaddr_t)syms[6];
-  _kernel_end = (vaddr_t)syms[7];
-#else
-  _kernel_start = (vaddr_t)__kernel_start;
-  _text = (vaddr_t)__text;
-  _riscv_boot = (vaddr_t)riscv_boot;
-  _data = (vaddr_t)__data;
-  _boot_stack = (uint8_t *)boot_stack;
-  _ebss = (vaddr_t)__ebss;
-  _kernel_end = (vaddr_t)__kernel_end;
-#endif
 }
 
 /*
@@ -203,9 +177,8 @@ __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
 }
 
 __boot_text __noreturn void riscv_init(paddr_t dtb) {
-  set_boot_syms();
-
-  if (!((paddr_t)__eboot < _kernel_start || _kernel_end < (paddr_t)__boot))
+  if (!((paddr_t)__eboot < RISCV_VIRTADDR(__kernel_start_pa) ||
+        RISCV_VIRTADDR(__kernel_end_pa) < (paddr_t)__boot))
     halt();
 
   /* Initialize boot memory allocator. */
@@ -214,21 +187,22 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
   /* Allocate kernel page directory.*/
   kernel_pde = bootmem_alloc(PAGESIZE);
 
+  const vaddr_t text = RISCV_VIRTADDR(__text_pa);
+  const vaddr_t data = RISCV_VIRTADDR(__data_pa);
+
   /* Kernel read-only segment - sections: .text and .rodata. */
-  early_kenter(_text, _data - _text, RISCV_PHYSADDR(_text),
-               PTE_X | PTE_KERN_RO);
+  early_kenter(text, data - text, (paddr_t)__text_pa, PTE_X | PTE_KERN_RO);
 
   /* Kernel read-write segment - sections: .data and .bss. */
-  early_kenter(_data, KERNEL_VIRT_IMG_END - _data, RISCV_PHYSADDR(_data),
-               PTE_KERN);
+  early_kenter(data, KERNEL_VIRT_IMG_END - data, (paddr_t)__data_pa, PTE_KERN);
 
   /*
    * NOTE: we don't have to map the boot allocation area as the allocated
    * data will only be accessed using physical addresses (see pmap).
    */
 
-  /* DTB - assume that DTB will be covered
-   * by single last level page directory. */
+  /* DTB - assume that DTB will be covered by a single last level page
+   * directory. */
   early_kenter(BOOT_DTB_VADDR, GROWKERNEL_STRIDE, rounddown(dtb, PAGESIZE),
                PTE_KERN);
 
@@ -243,7 +217,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
 #endif /* !KASAN */
 
   /* Temporarily set the trap vector. */
-  csr_write(stvec, _riscv_boot);
+  csr_write(stvec, RISCV_VIRTADDR(__riscv_boot_pa));
 
   /*
    * Move to VM boot stage.
@@ -254,7 +228,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
   const paddr_t satp = SATP_MODE_SV32 | ((paddr_t)kernel_pde >> PAGE_SHIFT);
 #endif
 
-  void *boot_sp = &_boot_stack[PAGESIZE];
+  void *boot_sp = (void *)RISCV_VIRTADDR(__boot_stack_pa) + PAGESIZE;
 
   __sfence_vma();
 
@@ -263,7 +237,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
                    "mv a2, %2\n\t"
                    "mv sp, %3\n\t"
                    "csrw satp, %4\n\t"
-                   "ebreak" /* triggers instruction fetch page fault */
+                   "nop" /* triggers instruction fetch page fault */
                    :
                    : "r"(dtb), "r"(kernel_pde), "r"(bootmem_brk), "r"(boot_sp),
                      "r"(satp)
@@ -275,16 +249,6 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
 /*
  * Virtual memory boot functions.
  */
-
-static void set_kernel_syms(void) {
-#if __riscv_xlen == 64
-  extern char __kernel_syms[];
-  uintptr_t *syms = (uintptr_t *)__kernel_syms;
-  _eboot = (paddr_t)syms[0];
-#else
-  _eboot = (paddr_t)__eboot;
-#endif
-}
 
 static void clear_bss(void) {
   long *ptr = (long *)__bss;
@@ -298,6 +262,8 @@ extern void cpu_exception_handler(void);
 
 extern void *board_stack(paddr_t dtb_pa, void *dtb_va);
 extern void __noreturn board_init(void);
+
+#define __text_riscv_boot __section(".text.riscv_boot")
 
 __text_riscv_boot static __noreturn __used void
 riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
@@ -320,18 +286,13 @@ riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
   csr_clear(sie, SIP_SEIP | SIP_STIP | SIP_SSIP);
   csr_clear(sie, SIE_SEIE | SIE_STIE | SIE_SSIE);
 
-  set_kernel_syms();
-
   clear_bss();
 
   extern paddr_t kern_phys_end;
   kern_phys_end = kern_end;
 
 #if KASAN
-  _kasan_sanitized_end =
-    KASAN_SANITIZED_START +
-    (roundup(align((vaddr_t)__ebss, PAGESIZE), GROWKERNEL_STRIDE) -
-     KASAN_SANITIZED_START);
+  _kasan_sanitized_end = KASAN_SANITIZED_START + BOOT_KASAN_SANITIZED_SIZE;
 #endif
 
   void *dtb_va = (void *)BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
