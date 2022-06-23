@@ -13,8 +13,30 @@
  *   https://github.com/riscv/riscv-plic-spec
  */
 
-/* PLIC memory map. */
+/*
+ * NOTE: FTTB, we designate a single HART to handle interrupts from all
+ * peripheral-level devices.
+ *
+ * For the 32-bit platform, the handling HART is the first one:
+ *   - ctx0 - machine mode
+ *   - ctx1 - supervisor mode
+ *
+ * For the 64-bit platform, the handling HART is the first application HART:
+ *   - monitoring code:
+ *     - ctx0 - machine mode
+ *   - application core 0:
+ *     - ctx0 - machine mode
+ *     - ctx1 - supervisor mode
+ *   ...
+ */
+
+#if __riscv_xlen == 64
+#define PLIC_CTXNUM_SV 2
+#else
 #define PLIC_CTXNUM_SV 1
+#endif
+
+/* PLIC memory map. */
 
 #define PLIC_PRIORITY_BASE 0x000000
 
@@ -131,6 +153,7 @@ static intr_filter_t plic_intr_handler(void *arg) {
 
 static int plic_probe(device_t *pic) {
   return FDT_is_compatible(pic->node, "riscv,plic0") ||
+         FDT_is_compatible(pic->node, "sifive,plic-1.0.0") ||
          FDT_is_compatible(pic->node, "sifive,fu540-c000-plic");
 }
 
