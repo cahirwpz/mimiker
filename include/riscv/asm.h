@@ -199,6 +199,7 @@
 
 #define REG_LI li
 #define REG_ADD add
+#define REG_SUB sub
 #define REG_SLLI slli
 #define REG_SLL sll
 #define REG_SRLI srli
