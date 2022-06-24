@@ -8,7 +8,6 @@
 
         chosen {
             linux,initrd-start = <0x42000000>;
-            linux,initrd-end = <0x45000000>;
         };
 
         cpus {
@@ -63,14 +62,6 @@
             };
         };
 
-        clocks {
-            sys_clk: litex_sys_clk {
-                #clock-cells = <0>;
-                compatible = "fixed-clock";
-                clock-frequency = <100000000>;
-            };
-        };
-
         soc {
             #address-cells = <1>;
             #size-cells = <1>;
@@ -104,16 +95,6 @@
                 compatible = "litex,liteuart";
                 reg = <0xf0001000 0x100>;
                 interrupts = <1>;
-                status = "okay";
-            };
-
-            gpio@f0002800 {
-                compatible = "litex,gpio";
-                reg = <0xf0002800 0x4>;
-                gpio-controller;
-                #gpio-cells = <2>;
-                litex,ngpio = <4>;
-                litex,direction = "out";
                 status = "okay";
             };
         };
