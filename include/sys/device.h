@@ -64,6 +64,7 @@ struct driver {
 
 typedef enum {
   DEV_BUS_NONE,
+  DEV_BUS_SIMPLEBUS,
   DEV_BUS_PCI,
   DEV_BUS_ISA,
   DEV_BUS_EMMC,
@@ -83,6 +84,7 @@ struct device {
   devclass_t *devclass; /* (for buses) device class of children */
   int unit;
   phandle_t node;            /* FDT device node offset */
+  pcell_t handle;            /* FDT handle of the device */
   void *instance;            /* used by bus driver to store data in children */
   void *state;               /* memory requested by driver for its state */
   resource_list_t resources; /* used by driver, assigned by parent bus */

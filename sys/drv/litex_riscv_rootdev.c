@@ -5,7 +5,7 @@
 #include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
-#include <dev/simplebus.h>
+#include <dev/fdt_dev.h>
 #include <riscv/mcontext.h>
 #include <riscv/riscvreg.h>
 
@@ -191,9 +191,6 @@ static int rootdev_attach(device_t *bus) {
   if (bus->node == FDT_NODEV)
     return ENXIO;
 
-  rman_init(&rd->mem_rm, "RISC-V I/O space");
-  rman_manage_region(&rd->mem_rm, 0xf0000000, 0x10000000);
-
   /*
    * NOTE: supervisor can only control supervisor and user interrupts, however,
    * we don't support user-level trap extension.
@@ -205,23 +202,8 @@ static int rootdev_attach(device_t *bus) {
 
   intr_root_claim(hlic_intr_handler, bus);
 
-  /*
-   * Device enumeration.
-   * TODO: this should be performed by a simplebus enumeration.
-   */
-
-  int unit = 0;
-  int err;
-  device_t *plic;
-
-  if ((err = simplebus_add_child(bus, "/soc/interrupt-controller", unit++, bus,
-                                 &plic)))
-    return err;
-
-  if ((err = simplebus_add_child(bus, "/soc/clint", unit++, bus, NULL)))
-    return err;
-
-  if ((err = simplebus_add_child(bus, "/soc/serial", unit++, plic, NULL)))
+  int err = simplebus_enumerate(bus, &rd->mem_rm);
+  if (err)
     return err;
 
   return bus_generic_probe(bus);
