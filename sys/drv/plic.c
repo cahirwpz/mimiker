@@ -14,20 +14,18 @@
  */
 
 /*
+ * For the VexRiscv hardware platform we assume a single HART
+ * with two PLIC contexts:
+ *  - ctx0 - machine mode
+ *  - ctx1 - supervisor mode
+ *
+ * The organization of PLIC contexts for SiFive Unleashed can be found
+ * in the official manual (chapter 10):
+ *  -
+ * https://sifive.cdn.prismic.io/sifive/d3ed5cd0-6e74-46b2-a12d-72b06706513e_fu540-c000-manual-v1p4.pdf
+ *
  * NOTE: FTTB, we designate a single HART to handle interrupts from all
  * peripheral-level devices.
- *
- * For the 32-bit platform, the handling HART is the first one:
- *   - ctx0 - machine mode
- *   - ctx1 - supervisor mode
- *
- * For the 64-bit platform, the handling HART is the first application HART:
- *   - monitoring code:
- *     - ctx0 - machine mode
- *   - application core 0:
- *     - ctx0 - machine mode
- *     - ctx1 - supervisor mode
- *   ...
  */
 
 #if __riscv_xlen == 64
