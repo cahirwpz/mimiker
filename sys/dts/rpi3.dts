@@ -61,7 +61,7 @@
 
 			sd {
 				compatible = "mimiker,sd";
-			}
+			};
 		};
 
 		usb: usb@7e980000 {

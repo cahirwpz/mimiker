@@ -18,10 +18,6 @@
 #include <sys/fdt.h>
 
 
-#define ASSIGN_OPTIONAL(ptr, val)                                              \
-  if ((ptr))                                                                   \
-  *(ptr) = (val)
-
 typedef struct sd_state {
   sd_props_t props; /* SD Card's flags */
   void *block_buf;  /* A buffer for reading data into */
@@ -172,7 +168,7 @@ static int sd_read_block_ccs(device_t *dev, uint32_t lba, void *buffer,
   if (num > 1)
     emmc_send_cmd(dev, EMMC_CMD(READ_MULTIPLE_BLOCKS), lba, NULL);
   else
-    emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba, NULL)''
+    emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba, NULL);
   
   emmc_wait(dev, EMMC_I_READ_READY);
 
@@ -183,7 +179,10 @@ static int sd_read_block_ccs(device_t *dev, uint32_t lba, void *buffer,
     return err;
   if ((num == 1) || (state->props & SD_SUPP_BLKCNT))
     emmc_wait(dev, EMMC_I_DATA_DONE);
-  ASSIGN_OPTIONAL(read, num * DEFAULT_BLKSIZE);
+  
+  if (read)
+    *read = num * DEFAULT_BLKSIZE;
+  
   if (num > 1 && (~state->props & SD_SUPP_BLKCNT))
     emmc_send_cmd(dev, EMMC_CMD(STOP_TRANSMISSION), 0, NULL);
   
@@ -209,7 +208,8 @@ static int sd_read_block_noccs(device_t *dev, uint32_t lba, void *buffer,
       return err;
     emmc_wait(dev, EMMC_I_DATA_DONE);
     buf += DEFAULT_BLKSIZE / sizeof(uint32_t);
-    ASSIGN_OPTIONAL(read, *read + DEFAULT_BLKSIZE);
+    if (read)
+      *read = *read + DEFAULT_BLKSIZE;
   }
 
   return sd_sanity_check(dev);
@@ -225,7 +225,8 @@ static int sd_read_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
 
   int err = 0;
 
-  ASSIGN_OPTIONAL(read, 0);
+  if (read)
+    *read = 0;
 
   emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num);
   emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE);
@@ -253,7 +254,8 @@ static int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
   if (num < 1)
     return EINVAL;
 
-  ASSIGN_OPTIONAL(wrote, 0);
+  if (wrote)
+    *wrote = 0;
 
   emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, num);
   emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, DEFAULT_BLKSIZE);
@@ -276,7 +278,8 @@ static int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
       return err;
     emmc_wait(dev, EMMC_I_DATA_DONE);
     buf += 128;
-    ASSIGN_OPTIONAL(wrote, *wrote + DEFAULT_BLKSIZE);
+    if (wrote)
+      *wrote = *wrote + DEFAULT_BLKSIZE;
   }
 
   return err;
