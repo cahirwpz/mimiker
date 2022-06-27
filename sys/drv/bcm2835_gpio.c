@@ -28,9 +28,6 @@ static void delay(int64_t count) {
 #define NGPIO_PIN 54
 #define FDT_PINS_INVAL (-1)
 
-typedef uint32_t gpio_function_t;
-typedef uint32_t gpio_pull_t;
-
 #define BCM2835_PULL_NONE 0
 #define BCM2835_PULL_DOWN 1
 #define BCM2835_PULL_UP 2
