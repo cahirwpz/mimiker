@@ -7,6 +7,8 @@
 #include <sys/priority.h>
 #include <sys/rman.h>
 
+#define IENAMELEN 32
+
 typedef struct ctx ctx_t;
 typedef struct device device_t;
 typedef struct fdt_intr fdt_intr_t;
@@ -75,7 +77,7 @@ typedef struct intr_event {
   ie_action_t *ie_disable; /* called before ithread delegation (mask irq) */
   ie_action_t *ie_enable;  /* called after ithread delagation (unmask irq) */
   void *ie_source;         /* additional argument for actions */
-  const char *ie_name;     /* individual event name */
+  char ie_name[IENAMELEN]; /* individual event name */
   unsigned ie_irq;         /* physical interrupt request line number */
   thread_t *ie_ithread;    /* associated interrupt thread */
 } intr_event_t;
