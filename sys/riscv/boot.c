@@ -216,6 +216,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
                    "mv a2, %2\n\t"
                    "mv sp, %3\n\t"
                    "csrw satp, %4\n\t"
+                   "sfence.vma\n\t"
                    "nop" /* triggers instruction fetch page fault */
                    :
                    : "r"(dtb), "r"(kernel_pde), "r"(bootmem_brk), "r"(boot_sp),
