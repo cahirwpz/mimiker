@@ -8,8 +8,8 @@
 # Required common variables: KERNEL, BOARD.
 #
 
-TARGET := riscv32-mimiker-elf
-ELFTYPE := elf32-littleriscv
+TARGET := riscv$(XLEN)-mimiker-elf
+ELFTYPE := elf$(XLEN)-littleriscv
 ELFARCH := riscv
 
 ifeq ($(BOARD), litex-riscv)
@@ -23,21 +23,38 @@ ifeq ($(BOARD), litex-riscv)
 	KERNEL-IMAGES := mimiker.img
 ifeq ($(KERNEL), 1)
 	CPPFLAGS += -DFPU=0
+	ifeq ($(KASAN), 1)
+		CFLAGS_KASAN += -fasan-shadow-offset=0x90000000
+	endif
 endif
 endif
 
-GCC_ABIFLAGS += -march=rv32$(EXT) -mabi=$(ABI) 
-CLANG_ABIFLAGS += -target riscv32-elf -march=rv32$(EXT) -mabi=$(ABI)
+ifeq ($(BOARD), sifive_u)
+	EXT := g
+	ABI := lp64d
+	KERNEL_PHYS := 0x80200000
+ifeq ($(KERNEL), 1)
+	CPPFLAGS += -DFPU=1
+	ifeq ($(KASAN), 1)
+		CFLAGS_KASAN += -fasan-shadow-offset=0xdfffffe000000000
+	endif
+endif
+ifeq ($(CLANG), 1)
+	CPPFLAGS += -D__riscv_d -D__riscv_f
+endif
+endif
+
+GCC_ABIFLAGS += -march=rv$(XLEN)$(EXT) -mabi=$(ABI) 
+CLANG_ABIFLAGS += -target riscv$(XLEN)-elf -march=rv$(XLEN)$(EXT) -mabi=$(ABI)
 
 ifeq ($(KERNEL), 1)
 	CFLAGS += -mcmodel=medany
 	CPPFLAGS += -DKERNEL_PHYS=$(KERNEL_PHYS)
 	CPPLDSCRIPT := 1
 	ifeq ($(KASAN), 1)
-	CFLAGS_KASAN = -fsanitize=kernel-address \
-		       -fasan-shadow-offset=0x90000000 \
-		       --param asan-globals=1 \
-		       --param asan-stack=1 \
-		       --param asan-instrument-allocas=1
+		CFLAGS_KASAN += -fsanitize=kernel-address \
+				--param asan-globals=1 \
+				--param asan-stack=1 \
+				--param asan-instrument-allocas=1
 	endif
 endif
