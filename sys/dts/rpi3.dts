@@ -53,15 +53,22 @@
 			reg = <0x7e200000 0x100>;
 
 			/* e.MMC requires some GPIO setup to work properly. This however
-		     * differs from what is described in BCM2835 Peripherals datasheet.
-		     * See: https://www.raspberrypi.org/app/uploads/2012/04/
-		     *      Raspberry-Pi-Schematics-R1.0.pdf
-		     */
+			 * differs from what is described in BCM2835 Peripherals datasheet.
+			 * See: https://www.raspberrypi.org/app/uploads/2012/04/
+			 *      Raspberry-Pi-Schematics-R1.0.pdf
+			 */
 			emmc {
 				pins = <47 48 49 50 51 52 53>;
-				function = <3>;
+				function = <7>;
 				pull = <2>;
 				intr_detect = <1 0>;
+			};
+
+			pl011 {
+				pins = <14 15>;
+				function = <4>;
+				pull = <0>;
+				intr_detect = <0>;
 			};
 		};
 

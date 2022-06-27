@@ -89,21 +89,10 @@ void bcm2835_gpio_set_high_detect(resource_t *r, unsigned pin, bool enable) {
   bus_write_4(r, BCM2835_GPIO_GPHEN(reg), val);
 }
 
-static int bcm2835_gpio_configure_pin(device_t *dev, uint32_t pin,
-                                      uint32_t fsel, uint32_t pull,
-                                      uint32_t intr_detect) {
-  bcm2835_gpio_t *gpio = (bcm2835_gpio_t *)dev->state;
-
-  bcm2835_gpio_function_select(gpio->gpio, pin, (bcm2835_gpio_func_t)fsel);
-  bcm2835_gpio_set_pull(gpio->gpio, pin, (bcm2838_gpio_gppud_t)pull);
-  bcm2835_gpio_set_high_detect(gpio->gpio, pin, intr_detect);
-
-  return 0;
-}
-
 static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
   int result = 0;
   uint32_t *pin_cfgs, *function_cfgs, *pull_cfgs, *intr_detect_cfgs;
+  bcm2835_gpio_t *gpio = (bcm2835_gpio_t *)dev->state;
 
   ssize_t pin_cnt = FDT_getencprop_alloc_multi(node, "pins", sizeof(*pin_cfgs),
                                                (void **)&pin_cfgs);
@@ -117,7 +106,7 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
   if (pin_cnt == FDT_PINS_INVAL) {
     klog("Warning: GPIO FDT entry with no pins property");
     result = EINVAL;
-    goto bcm2835_gpio_read_fdt_entry_cleanup;
+    goto cleanup;
   }
 
   for (ssize_t i = 0; i < pin_cnt; i++) {
@@ -129,10 +118,16 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
                              ? intr_detect_cfgs[i]
                              : intr_detect_cfgs[intr_detect_cnt - 1];
 
-    bcm2835_gpio_configure_pin(dev, pin, fsel, pull, intr_detect);
+    assert(fsel <= BCM2835_GPIO_ALT3);
+    assert(pull <= BCM2838_GPIO_GPPUD_PULLDOWN);
+    assert(fsel <= BCM2835_GPIO_ALT3);
+    assert(intr_detect <= 1);
+    bcm2835_gpio_function_select(gpio->gpio, pin, (bcm2835_gpio_func_t)fsel);
+    bcm2835_gpio_set_pull(gpio->gpio, pin, (bcm2838_gpio_gppud_t)pull);
+    bcm2835_gpio_set_high_detect(gpio->gpio, pin, intr_detect);
   }
 
-bcm2835_gpio_read_fdt_entry_cleanup:
+cleanup:
   if (pin_cnt > 0)
     FDT_free(pin_cfgs);
   if (function_cnt > 0)
