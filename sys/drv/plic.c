@@ -13,8 +13,28 @@
  *   https://github.com/riscv/riscv-plic-spec
  */
 
-/* PLIC memory map. */
+/*
+ * For the VexRiscv hardware platform we assume a single HART
+ * with two PLIC contexts:
+ *  - ctx0 - machine mode
+ *  - ctx1 - supervisor mode
+ *
+ * The organization of PLIC contexts for SiFive Unleashed can be found
+ * in the official manual (chapter 10):
+ *  -
+ * https://sifive.cdn.prismic.io/sifive/d3ed5cd0-6e74-46b2-a12d-72b06706513e_fu540-c000-manual-v1p4.pdf
+ *
+ * NOTE: FTTB, we designate a single HART to handle interrupts from all
+ * peripheral-level devices.
+ */
+
+#if __riscv_xlen == 64
+#define PLIC_CTXNUM_SV 2
+#else
 #define PLIC_CTXNUM_SV 1
+#endif
+
+/* PLIC memory map. */
 
 #define PLIC_PRIORITY_BASE 0x000000
 
@@ -131,6 +151,7 @@ static intr_filter_t plic_intr_handler(void *arg) {
 
 static int plic_probe(device_t *pic) {
   return FDT_is_compatible(pic->node, "riscv,plic0") ||
+         FDT_is_compatible(pic->node, "sifive,plic-1.0.0") ||
          FDT_is_compatible(pic->node, "sifive,fu540-c000-plic");
 }
 

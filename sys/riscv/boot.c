@@ -22,6 +22,8 @@
  *     structs can't allocate physical pages on its own since
  *     the buddy system isn't initialized at that point),
  *
+ *   - Preparing KASAN shadow memory for the mapped area,
+ *
  *   - enabling MMU and moving to the second stage.
  *
  * Scheme used for the transition from the first stage to the second stage:
@@ -63,6 +65,7 @@
  */
 #define KL_LOG KL_INIT
 #include <sys/fdt.h>
+#include <sys/kasan.h>
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
@@ -70,13 +73,20 @@
 #include <riscv/abi.h>
 #include <riscv/cpufunc.h>
 #include <riscv/pmap.h>
-#include <riscv/vm_param.h>
 
 #define KERNEL_VIRT_IMG_END align((vaddr_t)__ebss, PAGESIZE)
 #define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(__ebss), PAGESIZE)
 
+#define BOOT_KASAN_SANITIZED_SIZE                                              \
+  roundup2(roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) +                  \
+             (VM_PAGE_PDS * GROWKERNEL_STRIDE) - KASAN_SANITIZED_START,        \
+           PAGESIZE * KASAN_SHADOW_SCALE_SIZE)
+
+#define BOOT_KASAN_SHADOW_SIZE                                                 \
+  (BOOT_KASAN_SANITIZED_SIZE / KASAN_SHADOW_SCALE_SIZE)
+
 #define BOOT_DTB_VADDR DMAP_BASE
-#define BOOT_PD_VADDR (DMAP_BASE + L0_SIZE)
+#define BOOT_PD_VADDR (DMAP_BASE + GROWKERNEL_STRIDE)
 
 /*
  * Bare memory boot data.
@@ -158,9 +168,9 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
    * See 4th point of bare memory boot description
    * at the top of this file for details.
    */
-  vaddr_t va = roundup(KERNEL_VIRT_IMG_END, L0_SIZE);
+  vaddr_t va = roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE);
   for (int i = 0; i < VM_PAGE_PDS; i++)
-    (void)ensure_pte(va + i * L0_SIZE);
+    (void)ensure_pte(va + i * GROWKERNEL_STRIDE);
 
   /* Kernel read-only segment - sections: .text and .rodata. */
   early_kenter((vaddr_t)__text, __data - __text, RISCV_PHYSADDR(__text),
@@ -175,11 +185,20 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
    * data will only be accessed using physical addresses (see pmap).
    */
 
-  /* DTB - assume that DTB will be covered by single L1 page directory. */
-  early_kenter(BOOT_DTB_VADDR, L1_SIZE, rounddown(dtb, PAGESIZE), PTE_KERN);
+  /* DTB - assume that DTB will be covered by a single last level page
+   * directory. */
+  early_kenter(BOOT_DTB_VADDR, GROWKERNEL_STRIDE, rounddown(dtb, PAGESIZE),
+               PTE_KERN);
 
   /* Kernel page directory table. */
   early_kenter(BOOT_PD_VADDR, PAGESIZE, (paddr_t)kernel_pde, PTE_KERN);
+
+#if KASAN
+  paddr_t shadow_mem = (paddr_t)bootmem_alloc(BOOT_KASAN_SHADOW_SIZE);
+
+  early_kenter(KASAN_SHADOW_START, BOOT_KASAN_SHADOW_SIZE, shadow_mem,
+               PTE_KERN);
+#endif /* !KASAN */
 
   /* Temporarily set the trap vector. */
   csr_write(stvec, riscv_boot);
@@ -197,6 +216,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
                    "mv a2, %2\n\t"
                    "mv sp, %3\n\t"
                    "csrw satp, %4\n\t"
+                   "sfence.vma\n\t"
                    "nop" /* triggers instruction fetch page fault */
                    :
                    : "r"(dtb), "r"(kernel_pde), "r"(bootmem_brk), "r"(boot_sp),
@@ -247,6 +267,10 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
 
   extern paddr_t kern_phys_end;
   kern_phys_end = kern_end;
+
+#if KASAN
+  _kasan_sanitized_end = KASAN_SANITIZED_START + BOOT_KASAN_SANITIZED_SIZE;
+#endif
 
   void *dtb_va = (void *)BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
   void *sp = board_stack(dtb, dtb_va);

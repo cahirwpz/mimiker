@@ -122,6 +122,9 @@ static inline bool pte_access(pte_t pte, vm_prot_t prot) {
 static inline void pmap_md_delete(pmap_t *pmap) {
 }
 
+static inline void pmap_md_growkernel(vaddr_t maxkvaddr) {
+}
+
 #endif /* __ASSEMBLER__ */
 
 #endif /* !_MIPS_PMAP_H_ */
