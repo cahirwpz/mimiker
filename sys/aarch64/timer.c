@@ -5,7 +5,7 @@
 #include <sys/interrupt.h>
 #include <sys/bus.h>
 #include <sys/devclass.h>
-#include <sys/fdt.h>
+#include <dev/fdt_dev.h>
 
 #define CNTCTL_ENABLE 1
 #define CNTCTL_DISABLE 0
@@ -60,7 +60,7 @@ static intr_filter_t arm_timer_intr(void *data /* device_t* */) {
 }
 
 static int arm_timer_probe(device_t *dev) {
-  return FDT_is_compatible(dev->node, "arm,armv7-timer");
+  return FDT_dev_is_compatible(dev, "arm,armv7-timer");
 }
 
 static int arm_timer_attach(device_t *dev) {

@@ -1,10 +1,10 @@
 #define KL_LOG KL_DEV
 #include <sys/bus.h>
 #include <sys/devclass.h>
-#include <sys/fdt.h>
 #include <sys/klog.h>
 #include <sys/sched.h>
 #include <sys/thread.h>
+#include <dev/fdt_dev.h>
 #include <dev/uart.h>
 
 /*
@@ -87,7 +87,7 @@ static intr_filter_t liteuart_intr(void *data) {
 }
 
 static int liteuart_probe(device_t *dev) {
-  return FDT_is_compatible(dev->node, "litex,liteuart");
+  return FDT_dev_is_compatible(dev, "litex,liteuart");
 }
 
 static int liteuart_attach(device_t *dev) {
@@ -143,4 +143,4 @@ static driver_t liteuart_driver = {
     },
 };
 
-DEVCLASS_ENTRY(root, liteuart_driver);
+DEVCLASS_ENTRY(simplebus, liteuart_driver);

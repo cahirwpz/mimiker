@@ -316,6 +316,16 @@ int FDT_get_chosen_initrd(fdt_mem_reg_t *mr);
 int FDT_get_chosen_bootargs(const char **bootargsp);
 
 /*
+ * Obtain the phandle identifying the interrupt controller
+ * of device node `node`.
+ *
+ * Returns:
+ *  - `FDT_NODEV`: the phandle could not be determined
+ *  - != `FDT_NODEV`: the phandle of the interrupt parent
+ */
+pcell_t FDT_get_iparent_phandle(phandle_t node);
+
+/*
  * Check whether device node `node` is compatible
  * with device specified by `compatible`.
  *

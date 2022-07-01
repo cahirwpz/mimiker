@@ -12,11 +12,11 @@
 #include <sys/interrupt.h>
 #include <sys/ringbuf.h>
 #include <sys/tty.h>
-#include <sys/fdt.h>
 #include <dev/uart.h>
 #include <sys/uart_tty.h>
 #include <dev/bcm2835reg.h>
 #include <dev/bcm2835_gpioreg.h>
+#include <dev/fdt_dev.h>
 #include <dev/plcomreg.h>
 #include <dev/bcm2835_gpio.h>
 
@@ -67,8 +67,8 @@ static void pl011_tx_disable(void *state) {
 }
 
 static int pl011_probe(device_t *dev) {
-  return FDT_is_compatible(dev->node, "arm,pl011") ||
-         FDT_is_compatible(dev->node, "arm,primecell");
+  return FDT_dev_is_compatible(dev, "arm,pl011") ||
+         FDT_dev_is_compatible(dev, "arm,primecell");
 }
 
 static int pl011_attach(device_t *dev) {
@@ -157,4 +157,4 @@ static driver_t pl011_driver = {
     },
 };
 
-DEVCLASS_ENTRY(root, pl011_driver);
+DEVCLASS_ENTRY(simplebus, pl011_driver);

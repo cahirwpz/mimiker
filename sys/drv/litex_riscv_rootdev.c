@@ -26,7 +26,6 @@ typedef enum hlic_irq {
 } hlic_irq_t;
 
 typedef struct rootdev {
-  rman_t mem_rm;                        /* memory resource manager */
   rman_t hlic_rm;                       /* HLIC resource manager */
   intr_event_t *intr_event[HLIC_NIRQS]; /* HLIC interrupt events */
 } rootdev_t;
@@ -137,58 +136,16 @@ static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
  * Root bus.
  */
 
-static int rootdev_activate_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_MEMORY);
-  return bus_space_map(r->r_bus_tag, resource_start(r),
-                       roundup(resource_size(r), PAGESIZE), &r->r_bus_handle);
-}
-
-static void rootdev_deactivate_resource(device_t *dev, resource_t *r) {
-  /* TODO: unmap mapped resources. */
-}
-
-static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
-                                          int rid, rman_addr_t start,
-                                          rman_addr_t end, size_t size,
-                                          rman_flags_t flags) {
-  rootdev_t *rd = dev->parent->state;
-  rman_t *rman = &rd->mem_rm;
-  size_t alignment = PAGESIZE;
-
-  assert(type == RT_MEMORY);
-
-  resource_t *r =
-    rman_reserve_resource(rman, type, rid, start, end, size, alignment, flags);
-  if (!r)
-    return NULL;
-
-  r->r_bus_tag = generic_bus_space;
-  r->r_bus_handle = resource_start(r);
-
-  if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, r)) {
-      resource_release(r);
-      return NULL;
-    }
-  }
-
-  return r;
-}
-
-static void rootdev_release_resource(device_t *dev, resource_t *r) {
-  bus_deactivate_resource(dev, r);
-  resource_release(r);
-}
-
-static int rootdev_probe(device_t *bus) {
-  return 1;
-}
-
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
+  int err = 0;
 
   bus->node = FDT_finddevice("/cpus/cpu/interrupt-controller");
   if (bus->node == FDT_NODEV)
+    return ENXIO;
+
+  if (FDT_getencprop(bus->node, "phandle", &bus->phandle, sizeof(pcell_t)) !=
+      sizeof(pcell_t))
     return ENXIO;
 
   /*
@@ -202,8 +159,7 @@ static int rootdev_attach(device_t *bus) {
 
   intr_root_claim(hlic_intr_handler, bus);
 
-  int err = simplebus_enumerate(bus, &rd->mem_rm);
-  if (err)
+  if ((err = FDT_dev_add_device_by_path(bus, "/soc", 0);
     return err;
 
   return bus_generic_probe(bus);
@@ -217,13 +173,6 @@ static pic_methods_t hlic_pic_if = {
   .map_intr = hlic_map_intr,
 };
 
-static bus_methods_t rootdev_bus_if = {
-  .alloc_resource = rootdev_alloc_resource,
-  .release_resource = rootdev_release_resource,
-  .activate_resource = rootdev_activate_resource,
-  .deactivate_resource = rootdev_deactivate_resource,
-};
-
 driver_t rootdev_driver = {
   .desc = "RISC-V root bus driver",
   .size = sizeof(rootdev_t),
@@ -233,7 +182,6 @@ driver_t rootdev_driver = {
   .interfaces =
     {
       [DIF_PIC] = &hlic_pic_if,
-      [DIF_BUS] = &rootdev_bus_if,
     },
 };
 

@@ -375,6 +375,22 @@ int FDT_get_chosen_bootargs(const char **bootargsp) {
   return 0;
 }
 
+pcell_t FDT_get_iparent_phandle(phandle_t node) {
+  pcell_t phandle;
+
+  /* XXX: FTTB, we assume that each device
+   * has at most one interrupt controller. */
+  if (FDT_getencprop(node, "interrupts-extended", &phandle, sizeof(pcell_t)) >=
+      (ssize_t)sizeof(pcell_t))
+    return phandle;
+
+  if (FDT_searchencprop(node, "interrupt-parent", &phandle, sizeof(pcell_t)) ==
+      sizeof(pcell_t))
+    return phandle;
+
+  return FDT_NODEV;
+}
+
 int FDT_is_compatible(phandle_t node, const char *compatible) {
   int len;
   const void *prop = fdt_getprop(fdtp, node, "compatible", &len);

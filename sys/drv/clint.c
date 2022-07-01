@@ -1,11 +1,11 @@
 #define KL_LOG KL_TIME
 #include <sys/devclass.h>
 #include <sys/errno.h>
-#include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/timer.h>
+#include <dev/fdt_dev.h>
 #include <riscv/cpufunc.h>
 #include <riscv/sbi.h>
 
@@ -81,17 +81,17 @@ static intr_filter_t mswi_intr(void *data) {
  */
 
 static int clint_probe(device_t *dev) {
-  return FDT_is_compatible(dev->node, "riscv,clint0");
+  return FDT_dev_is_compatible(dev, "riscv,clint0");
 }
 
 static int clint_attach(device_t *dev) {
   clint_state_t *clint = dev->state;
 
-  clint->mtimer_irq = device_take_irq(dev, 0, RF_ACTIVE);
-  assert(clint->mtimer_irq);
-
-  clint->mswi_irq = device_take_irq(dev, 1, RF_ACTIVE);
+  clint->mswi_irq = device_take_irq(dev, 0, RF_ACTIVE);
   assert(clint->mswi_irq);
+
+  clint->mtimer_irq = device_take_irq(dev, 1, RF_ACTIVE);
+  assert(clint->mtimer_irq);
 
   pic_setup_intr(dev, clint->mswi_irq, mswi_intr, NULL, NULL, "SSI");
 
@@ -129,4 +129,4 @@ static driver_t clint_driver = {
   .attach = clint_attach,
 };
 
-DEVCLASS_ENTRY(root, clint_driver);
+DEVCLASS_ENTRY(simplebus, clint_driver);

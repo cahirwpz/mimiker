@@ -2,11 +2,11 @@
 #include <sys/bus.h>
 #include <sys/devclass.h>
 #include <sys/errno.h>
-#include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/libkern.h>
 #include <dev/bcm2835reg.h>
+#include <dev/fdt_dev.h>
 
 /*
  * located at BCM2835_ARMICU_BASE
@@ -165,7 +165,7 @@ static intr_filter_t bcm2835_pic_intr_handler(void *arg) {
 }
 
 static int bcm2835_pic_probe(device_t *pic) {
-  return FDT_is_compatible(pic->node, "brcm,bcm2836-armctrl-ic");
+  return FDT_dev_is_compatible(pic, "brcm,bcm2836-armctrl-ic");
 }
 
 static int bcm2835_pic_attach(device_t *pic) {
@@ -206,4 +206,4 @@ static driver_t bcm2835_pic_driver = {
     },
 };
 
-DEVCLASS_ENTRY(root, bcm2835_pic_driver);
+DEVCLASS_ENTRY(simplebus, bcm2835_pic_driver);

@@ -5,6 +5,7 @@ TOPDIR = $(realpath ../..)
 SOURCES = \
 	dev_cons.c \
 	fdt_dev.c \
+	simplebus.c \
 	uart.c \
 	usb.c
 

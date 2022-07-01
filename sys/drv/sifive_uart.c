@@ -1,10 +1,10 @@
 #define KL_LOG KL_DEV
 #include <sys/bus.h>
 #include <sys/devclass.h>
-#include <sys/fdt.h>
 #include <sys/klog.h>
 #include <sys/sched.h>
 #include <sys/thread.h>
+#include <dev/fdt_dev.h>
 #include <dev/uart.h>
 
 #define SFUART_TXDATA 0x00
@@ -90,7 +90,7 @@ static void sfuart_tx_disable(void *state) {
 }
 
 static int sfuart_probe(device_t *dev) {
-  return FDT_is_compatible(dev->node, "sifive,uart0");
+  return FDT_dev_is_compatible(dev, "sifive,uart0");
 }
 
 static int sfuart_attach(device_t *dev) {
@@ -146,4 +146,4 @@ static driver_t sfuart_driver = {
     },
 };
 
-DEVCLASS_ENTRY(root, sfuart_driver);
+DEVCLASS_ENTRY(simplebus, sfuart_driver);

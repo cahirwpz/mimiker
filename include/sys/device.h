@@ -7,6 +7,7 @@
 #include <sys/rman.h>
 
 typedef uint32_t phandle_t;
+typedef uint32_t pcell_t;
 typedef struct devclass devclass_t;
 typedef struct device device_t;
 typedef struct driver driver_t;
@@ -84,7 +85,7 @@ struct device {
   devclass_t *devclass; /* (for buses) device class of children */
   int unit;
   phandle_t node;            /* FDT device node offset */
-  pcell_t handle;            /* FDT handle of the device */
+  pcell_t phandle;           /* FDT handle of the device */
   void *instance;            /* used by bus driver to store data in children */
   void *state;               /* memory requested by driver for its state */
   resource_list_t resources; /* used by driver, assigned by parent bus */

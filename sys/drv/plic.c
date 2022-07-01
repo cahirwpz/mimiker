@@ -2,10 +2,10 @@
 #include <sys/bus.h>
 #include <sys/devclass.h>
 #include <sys/errno.h>
-#include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/libkern.h>
+#include <dev/fdt_dev.h>
 
 /*
  * Details of the operation of PLIC as well as the memory layout
@@ -130,8 +130,8 @@ static intr_filter_t plic_intr_handler(void *arg) {
 }
 
 static int plic_probe(device_t *pic) {
-  return FDT_is_compatible(pic->node, "riscv,plic0") ||
-         FDT_is_compatible(pic->node, "sifive,fu540-c000-plic");
+  return FDT_dev_is_compatible(pic, "riscv,plic0") ||
+         FDT_dev_is_compatible(pic, "sifive,fu540-c000-plic");
 }
 
 static int plic_attach(device_t *pic) {
@@ -191,4 +191,4 @@ driver_t plic_driver = {
     },
 };
 
-DEVCLASS_ENTRY(root, plic_driver);
+DEVCLASS_ENTRY(simplebus, plic_driver);

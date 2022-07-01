@@ -1,44 +1,77 @@
 #define KL_LOG KL_DEV
 #include <sys/bus.h>
-#include <sys/device.h>
 #include <sys/errno.h>
 #include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
 #include <sys/libkern.h>
+#include <dev/fdt_dev.h>
 
-static device_list_t sb_pending_ics = TAILQ_HEAD_INITIALIZER(sb_pending_ics);
-static int sb_unit;
-static phandle_t sb_node;
-static int sb_soc_addr_cells, sb_soc_size_cells;
-static int sb_cpu_addr_cells, sb_cpu_size_cells;
+int FDT_dev_is_compatible(device_t *dev, const char *compatible) {
+  return FDT_is_compatible(dev->node, compatible);
+}
 
-static device_t *sb_new_child(phandle_t node, int unit) {
-  device_t *dev = device_alloc(unit);
-  dev->bus = DEV_BUS_SIMPLEBUS;
-  dev->node = node;
-  if (FDT_getencprop(node, "phandle", &dev->handle,
-                     sizeof(pcell_t)) != sizeof(pcell_t)) {
-    if (FDT_hasprop(node, "interrupt-controller"))
-      panic("Interrupt controller without a phandle property!");
-    return NULL;
-  }
+static bool FDT_dev_is_simplebus(device_t *dev) {
+  return dev->node == FDT_finddevice("/soc");
+}
+
+static device_t *FDT_dev_get_rootdev(device_t *dev) {
+  while (dev->parent)
+    dev = dev->parent;
   return dev;
 }
 
-static void sb_remove_pending_ic(device_t *ic) {
-  assert(ic->bus == DEV_BUS_SIMPLEBUS);
-  TAILQ_REMOVE(&sb_pending_ics, ic, link);
-  kfree(M_DEV, ic);
+static device_t *FDT_dev_get_simplebus(device_t *rootdev) {
+  device_t *dev;
+  TAILQ_FOREACH (dev, &rootdev->children, link) {
+    if (FDT_dev_is_simplebus(dev))
+      return dev;
+  }
+  return NULL;
 }
 
-static int sb_soc_addr_to_cpu_addr(u_long soc_addr, u_long *cpu_addr_p) {
-  int tuple_cells = sb_soc_addr_cells + sb_cpu_addr_cells + sb_soc_size_cells;
+static device_t *FDT_dev_new_device(device_t *bus, phandle_t node, int unit) {
+  device_t *dev = device_add_child(bus, unit);
+  dev->node = node;
+
+  if (FDT_dev_is_simplebus(bus))
+    dev->bus = DEV_BUS_SIMPLEBUS;
+
+  dev->phandle = FDT_NODEV;
+
+  if (FDT_getencprop(node, "phandle", &dev->phandle, sizeof(pcell_t)) ==
+      sizeof(pcell_t))
+    return dev;
+
+  /* We assume that each interrupt controller has a `phandle` property. */
+  if (FDT_hasprop(node, "interrupt-controller")) {
+    device_remove_child(bus, dev);
+    return NULL;
+  }
+
+  return dev;
+}
+
+static int FDT_dev_soc_addr_to_cpu_addr(u_long soc_addr, u_long *cpu_addr_p) {
+  phandle_t node = FDT_finddevice("/soc");
+  if (node == FDT_NODEV)
+    return ENXIO;
+
+  int soc_addr_cells, soc_size_cells;
+  int err = FDT_addrsize_cells(node, &soc_addr_cells, &soc_size_cells);
+  if (err)
+    return err;
+
+  int cpu_addr_cells, cpu_size_cells;
+  if ((err = FDT_addrsize_cells(0, &cpu_addr_cells, &cpu_size_cells)))
+    return err;
+
+  int tuple_cells = soc_addr_cells + cpu_addr_cells + soc_size_cells;
   size_t tuple_size = sizeof(pcell_t) * tuple_cells;
   pcell_t *tuples;
 
   ssize_t ntuples =
-    FDT_getprop_alloc_multi(sb_node, "ranges", tuple_size, (void **)&tuples);
+    FDT_getprop_alloc_multi(node, "ranges", tuple_size, (void **)&tuples);
   if (ntuples == -1)
     return ENXIO;
 
@@ -47,19 +80,17 @@ static int sb_soc_addr_to_cpu_addr(u_long soc_addr, u_long *cpu_addr_p) {
     return 0;
   }
 
-  int err = 0;
-
   for (int i = 0; i < ntuples; i++) {
     pcell_t *tuple = &tuples[i * tuple_cells];
 
-    u_long range_soc_addr = FDT_data_get(tuple, sb_soc_addr_cells);
-    tuple += sb_soc_addr_cells;
+    u_long range_soc_addr = FDT_data_get(tuple, soc_addr_cells);
+    tuple += soc_addr_cells;
 
-    u_long range_cpu_addr = FDT_data_get(tuple, sb_cpu_addr_cells);
-    tuple += sb_cpu_addr_cells;
+    u_long range_cpu_addr = FDT_data_get(tuple, cpu_addr_cells);
+    tuple += cpu_addr_cells;
 
-    u_long range_size = FDT_data_get(tuple, sb_soc_size_cells);
-    tuple += sb_soc_size_cells;
+    u_long range_size = FDT_data_get(tuple, soc_size_cells);
+    tuple += soc_size_cells;
 
     if (soc_addr >= range_soc_addr && soc_addr <= range_soc_addr + range_size) {
       u_long off = soc_addr - range_soc_addr;
@@ -74,7 +105,9 @@ end:
   return err;
 }
 
-static int sb_get_region(phandle_t node, fdt_mem_reg_t *mrs, size_t *cntp) {
+int FDT_dev_get_region(device_t *dev, fdt_mem_reg_t *mrs, size_t *cntp) {
+  phandle_t node = dev->node;
+
   int addr_cells, size_cells;
   int err = FDT_addrsize_cells(FDT_parent(node), &addr_cells, &size_cells);
   if (err)
@@ -100,7 +133,9 @@ static int sb_get_region(phandle_t node, fdt_mem_reg_t *mrs, size_t *cntp) {
     if ((err = FDT_data_to_res(tuple, addr_cells, size_cells, &mr->addr,
                                &mrs->size)))
       goto end;
-    if ((err = sb_soc_addr_to_cpu_addr(mr->addr, &mr->addr)))
+    if (!FDT_dev_is_simplebus(dev->parent))
+      continue;
+    if ((err = FDT_dev_soc_addr_to_cpu_addr(mr->addr, &mr->addr)))
       goto end;
   }
 
@@ -110,7 +145,8 @@ end:
   return err;
 }
 
-static int sb_get_interrupts(device_t *dev, fdt_intr_t *intrs, size_t *cntp) {
+static int FDT_dev_get_interrupts(device_t *dev, fdt_intr_t *intrs,
+                                  size_t *cntp) {
   phandle_t node = dev->node;
   phandle_t iparent = dev->pic->node;
 
@@ -147,8 +183,8 @@ end:
   return err;
 }
 
-static int sb_get_interrupts_extended(device_t *dev, fdt_intr_t *intrs,
-                                      size_t *cntp) {
+static int FDT_dev_get_interrupts_extended(device_t *dev, fdt_intr_t *intrs,
+                                           size_t *cntp) {
   phandle_t node = dev->node;
 
   pcell_t *cells;
@@ -192,15 +228,17 @@ end:
   return err;
 }
 
-static int sb_region_to_rl(device_t *dev) {
-  if (!FDT_hasprop(dev->node, "reg"))
+static int FDT_dev_region_to_rl(device_t *dev) {
+  phandle_t node = dev->node;
+
+  if (!FDT_hasprop(node, "reg"))
     return 0;
 
   fdt_mem_reg_t *mrs = kmalloc(
     M_DEV, FDT_MAX_REG_TUPLES * sizeof(fdt_mem_reg_t), M_WAITOK | M_ZERO);
 
   size_t cnt;
-  int err = sb_get_region(dev->node, mrs, &cnt);
+  int err = FDT_dev_get_region(dev, mrs, &cnt);
   if (err)
     return err;
 
@@ -211,23 +249,26 @@ static int sb_region_to_rl(device_t *dev) {
   return 0;
 }
 
-static int sb_intr_to_rl(device_t *dev) {
+static int FDT_dev_intr_to_rl(device_t *dev) {
+  phandle_t node = dev->node;
+
+  if (!FDT_hasprop(node, "interrupts") &&
+      !FDT_hasprop(node, "interrupts-extended"))
+    return 0;
+
   device_t *pic = dev->pic;
   assert(pic);
   assert(pic->driver);
 
   fdt_intr_t *intrs =
     kmalloc(M_DEV, FDT_MAX_INTRS * sizeof(fdt_intr_t), M_WAITOK | M_ZERO);
-  phandle_t node = dev->node;
   size_t nintrs;
   int err = 0;
 
   if (FDT_hasprop(node, "interrupts"))
-    err = sb_get_interrupts(dev, intrs, &nintrs);
-  else if (FDT_hasprop(node, "interrupts-extended"))
-    err = sb_get_interrupts_extended(dev, intrs, &nintrs);
+    err = FDT_dev_get_interrupts(dev, intrs, &nintrs);
   else
-    goto end;
+    err = FDT_dev_get_interrupts_extended(dev, intrs, &nintrs);
 
   if (err)
     goto end;
@@ -244,151 +285,56 @@ end:
   return err;
 }
 
-static int sb_discover_io_map(rman_addr_t *startp, rman_addr_t *endp) {
-  fdt_mem_reg_t *mrs = kmalloc(
-    M_DEV, FDT_MAX_REG_TUPLES * sizeof(fdt_mem_reg_t), M_WAITOK | M_ZERO);
+static device_t *FDT_dev_find_pic(device_t *dev, device_t *rootdev) {
+  phandle_t node = dev->node;
 
-  rman_addr_t start = RMAN_ADDR_MAX;
-  rman_addr_t end = 0;
-  int err = 0;
-
-  for (phandle_t node = FDT_child(sb_node); node != FDT_NODEV;
-       node = FDT_peer(node)) {
-    size_t cnt;
-    if ((err = sb_get_region(node, mrs, &cnt)))
-      goto end;
-
-    for (size_t i = 0; i < cnt; i++) {
-      u_long reg_start = mrs[i].addr;
-      u_long reg_end = mrs[i].addr + mrs[i].size;
-      assert(reg_start < reg_end);
-      if (reg_start < start)
-        start = reg_start;
-      if (reg_end > end)
-        end = reg_end;
-    }
-  }
-
-  assert((start != RMAN_ADDR_MAX) && end && (start < end));
-  *startp = start;
-  *endp = end;
-
-end:
-  kfree(M_DEV, mrs);
-  return err;
-}
-
-static phandle_t sb_find_iparent(phandle_t node) {
-  phandle_t iparent;
-
-  /* XXX: FTTB, we assume that each device
-   * has at most one interrupt controller. */
-  if (FDT_getencprop(node, "interrupts-extended", &iparent,
-                     sizeof(phandle_t)) >= (ssize_t)sizeof(phandle_t))
-    return iparent;
-
-  if (FDT_searchencprop(node, "interrupt-parent", &iparent,
-                        sizeof(phandle_t)) == sizeof(phandle_t))
-    return iparent;
-
-  for (; node != FDT_NODEV; node = FDT_peer(node))
-    if (FDT_hasprop(node, "interrupt-controller"))
-      break;
-  return node;
-}
-
-static device_t *sb_find_pic(device_t *rootdev, phandle_t node) {
-  phandle_t iparent = sb_find_iparent(node);
-  if (iparent == FDT_NODEV)
+  pcell_t iparent_phandle = FDT_get_iparent_phandle(node);
+  if (iparent_phandle == FDT_NODEV)
     return NULL;
 
-  if (iparent == rootdev->node)
+  if (iparent_phandle == rootdev->phandle)
     return rootdev;
 
-  device_list_t *list = &sb_pending_ics;
-  if (TAILQ_EMPTY(list))
-    list = &rootdev->children;
+  device_t *sb = FDT_dev_get_simplebus(rootdev);
+  if (!sb)
+    return NULL;
 
-  device_t *dev;
-  TAILQ_FOREACH (dev, list, link) {
-    if (dev->node == iparent)
-      return dev;
+  device_t *pic;
+  TAILQ_FOREACH (pic, &sb->children, link) {
+    if (iparent_phandle == pic->phandle)
+      return pic;
   }
   return NULL;
 }
 
-static int sb_discover_ics(device_t *rootdev) {
-  int nics = 0;
-
-  for (phandle_t node = FDT_child(sb_node); node != FDT_NODEV;
-       node = FDT_peer(node)) {
-    if (!FDT_hasprop(node, "interrupt-controller"))
-      continue;
-    device_t *dev = sb_new_child(node, nics++);
-    TAILQ_INSERT_TAIL(&sb_pending_ics, dev, link);
-  }
-
-  sb_unit = nics;
-
-  device_t *ic;
-  TAILQ_FOREACH (ic, &sb_pending_ics, link) {
-    ic->pic = sb_find_pic(rootdev, ic->node);
-    if (!ic->pic)
-      return ENXIO;
-  }
-
+int FDT_dev_add_device_by_node(device_t *bus, phandle_t node, int unit) {
   int err = 0;
 
-  while (!TAILQ_EMPTY(&sb_pending_ics)) {
-    device_t *next;
-    TAILQ_FOREACH_SAFE (ic, &sb_pending_ics, link, next) {
-      if (!ic->pic->driver)
-        continue;
-
-      TAILQ_REMOVE(&sb_pending_ics, ic, link);
-      TAILQ_INSERT_TAIL(&rootdev->children, ic, link);
-
-      if ((err = sb_region_to_rl(ic)))
-        return err;
-      if ((err = sb_intr_to_rl(ic)))
-        return err;
-
-      if ((err = bus_generic_probe(rootdev)))
-        return err;
-    }
-  }
-  return 0;
-}
-
-int FDT_add_child(device_t *rootdev, const char *path) {
-  phandle_t node;
-  if ((node = FDT_finddevice(path)) == FDT_NODEV)
+  device_t *dev = FDT_dev_new_device(bus, node, unit);
+  if (!dev)
     return ENXIO;
 
-  int err = 0;
+  device_t *rootdev = FDT_dev_get_rootdev(bus);
 
-  device_t *dev = device_add_child(rootdev, sb_unit++);
-  dev->node = node;
-
-  if (FDT_getencprop(node, "phandle", &dev->handle,
-                     sizeof(pcell_t)) != sizeof(pcell_t)) {
-    if (FDT_hasprop(node, "interrupt-controller"))
-      panic("Interrupt controller without a phandle property!");
-    return NULL;
+  if (FDT_hasprop(node, "interrupts") ||
+      FDT_hasprop(node, "interrupts-extended")) {
+    dev->pic = FDT_dev_find_pic(dev, rootdev);
+    if (!dev->pic) {
+      err = ENXIO;
+      goto end;
+    }
   }
 
-  dev->pic = sb_find_pic(rootdev, node);
-  if (!dev->pic) {
-    err = ENXIO;
-    goto end;
+  bool is_simplebus = FDT_dev_region_to_rl(dev);
+
+  if (!is_simplebus) {
+    if ((err = FDT_dev_region_to_rl(dev)))
+      goto end;
+    if ((err = FDT_dev_intr_to_rl(dev)))
+      goto end;
   }
 
-  if ((err = sb_region_to_rl(dev)))
-    goto end;
-  if ((err = sb_intr_to_rl(dev)))
-    goto end;
-
-  if (FDT_hasprop(node, "interrupt-controller")) {
+  if (is_simplebus || FDT_hasprop(node, "interrupt-controller")) {
     err = bus_generic_probe(bus);
   }
 
@@ -398,71 +344,10 @@ end:
   return err;
 }
 
-int simplebus_enumerate(device_t *rootdev, rman_t *rm) {
-  int err;
-
-  sb_node = FDT_finddevice("/soc");
-  if (sb_node == FDT_NODEV)
+int FDT_dev_add_device_by_path(device_t *bus, const char *path, int unit) {
+  phandle_t node;
+  if ((node = FDT_finddevice(path)) == FDT_NODEV)
     return ENXIO;
 
-  if ((err =
-         FDT_addrsize_cells(sb_node, &sb_soc_addr_cells, &sb_soc_size_cells)))
-    return err;
-
-  if ((err = FDT_addrsize_cells(0, &sb_cpu_addr_cells, &sb_cpu_size_cells)))
-    return err;
-
-  rman_addr_t start, end;
-
-  if ((err = sb_discover_io_map(&start, &end)))
-    return err;
-
-  klog("Simplebus memory region: %lx - %lx", start, end);
-
-  rman_init(rm, "I/O region");
-  rman_manage_region(rm, start, end - start);
-
-  if ((err = sb_discover_ics(rootdev)))
-    return err;
-
-  assert(TAILQ_EMPTY(&sb_pending_ics));
-
-  for (phandle_t node = FDT_child(sb_node); node != FDT_NODEV;
-       node = FDT_peer(node)) {
-    device_t *dev = sb_new_child(node, sb_unit++);
-
-    TAILQ_INSERT_TAIL(&rootdev->children, dev, link);
-
-    if (FDT_hasprop(node, "interrupts") ||
-        FDT_hasprop(node, "interrupts-extended")) {
-      dev->pic = sb_find_pic(rootdev, dev->node);
-      if (!dev->pic) {
-        err = ENXIO;
-        break;
-      }
-    }
-
-    if ((err = sb_region_to_rl(dev)))
-      break;
-    if ((err = sb_intr_to_rl(dev)))
-      break;
-  }
-
-  if (!err)
-    return 0;
-
-  while (!TAILQ_EMPTY(&sb_pending_ics)) {
-    device_t *ic, *next;
-    TAILQ_FOREACH_SAFE (ic, &rootdev->children, link, next)
-      sb_remove_pending_ic(ic);
-  }
-
-  while (!TAILQ_EMPTY(&rootdev->children)) {
-    device_t *dev, *next;
-    TAILQ_FOREACH_SAFE (dev, &rootdev->children, link, next) {
-      if (dev->bus == DEV_BUS_SIMPLEBUS)
-        device_remove_child(rootdev, dev);
-    }
-  }
-  return err;
+  return FDT_dev_add_device_by_node(bus, node, unit);
 }
