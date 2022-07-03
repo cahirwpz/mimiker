@@ -17,15 +17,14 @@
  *  - all other registers remain in an undefined state
  */
 _ENTRY(_start)
-#if __riscv_xlen == 64
-	.option push
-	.option norelax
-	PTR_LA t0, __boot_syms
-	PTR_L gp, (t0)
+	.option push;
+	.option norelax;
+	PTR_LA	gp, __global_pointer$_pa;
+	REG_LI	t0, KERNEL_SPACE_BEGIN
+	REG_LI	t1, KERNEL_PHYS
+	REG_SUB	gp, gp, t1
+	or  gp, gp, t0
 	.option pop
-#else
-	LOAD_GP()
-#endif
 
 	/* 
 	 * NOTE: In an actual SMP system, we could have multiple harts

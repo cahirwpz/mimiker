@@ -186,10 +186,17 @@ static int rootdev_probe(device_t *bus) {
 
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
-  bus->node = 0;
+
+  bus->node = FDT_finddevice("/cpus/cpu/interrupt-controller");
+  if (bus->node == FDT_NODEV)
+    return ENXIO;
 
   rman_init(&rd->mem_rm, "RISC-V I/O space");
+#if __riscv_xlen == 64
   rman_manage_region(&rd->mem_rm, 0x00000000, 0x30000000);
+#else
+  rman_manage_region(&rd->mem_rm, 0xf0000000, 0x10000000);
+#endif
 
   /*
    * NOTE: supervisor can only control supervisor and user interrupts, however,
