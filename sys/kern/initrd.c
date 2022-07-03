@@ -2,7 +2,6 @@
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
-#include <sys/kmem.h>
 #include <sys/libkern.h>
 #include <cpio.h>
 #include <sys/initrd.h>

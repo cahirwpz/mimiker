@@ -106,8 +106,13 @@ void pmap_md_activate(pmap_t *umap) {
 }
 
 void pmap_md_setup(pmap_t *pmap) {
+#if __riscv_xlen == 64
+  pmap->md.satp = SATP_MODE_SV39 | ((paddr_t)pmap->asid << SATP_ASID_S) |
+                  (pmap->pde >> PAGE_SHIFT);
+#else
   pmap->md.satp = SATP_MODE_SV32 | ((paddr_t)pmap->asid << SATP_ASID_S) |
                   (pmap->pde >> PAGE_SHIFT);
+#endif
   pmap->md.generation = (pmap == pmap_kernel());
 }
 

@@ -18,5 +18,7 @@ RUN curl -O https://mimiker.ii.uni.wroc.pl/download/aarch64-mimiker-elf_latest_a
     dpkg -i aarch64-mimiker-elf_latest_amd64.deb && rm -f aarch64-mimiker-elf_latest_amd64.deb
 RUN curl -O https://mimiker.ii.uni.wroc.pl/download/riscv32-mimiker-elf_latest_amd64.deb && \
     dpkg -i riscv32-mimiker-elf_latest_amd64.deb && rm -f riscv32-mimiker-elf_latest_amd64.deb
+RUN curl -O https://mimiker.ii.uni.wroc.pl/download/riscv64-mimiker-elf_latest_amd64.deb && \
+    dpkg -i riscv64-mimiker-elf_latest_amd64.deb && rm -f riscv64-mimiker-elf_latest_amd64.deb
 RUN curl -O https://mimiker.ii.uni.wroc.pl/download/qemu-mimiker_latest_amd64.deb && \
     dpkg -i qemu-mimiker_latest_amd64.deb && rm -f qemu-mimiker_latest_amd64.deb
