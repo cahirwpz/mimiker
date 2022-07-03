@@ -22,8 +22,8 @@ _ENTRY(_start)
 	PTR_LA	gp, __global_pointer$_pa;
 	REG_LI	t0, KERNEL_SPACE_BEGIN
 	REG_LI	t1, KERNEL_PHYS
-	REG_SUB	t0, t0, t1
-	PTR_ADD	gp, gp, t0
+	REG_SUB	gp, gp, t1
+	or  gp, gp, t0
 	.option pop
 
 	/* 
