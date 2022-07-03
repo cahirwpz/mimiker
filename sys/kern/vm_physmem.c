@@ -71,7 +71,6 @@ static void *vm_boot_alloc(size_t n) {
 
   seg->start += n;
   seg->npages -= n / PAGESIZE;
-  assert(seg->npages);
 
   return va;
 }
