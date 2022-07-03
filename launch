@@ -119,12 +119,11 @@ CONFIG = {
                 'drive': 'if=sd,index=0,format=qcow2,file={path}',
             },
             'sifive_u': {
-                'binary': 'qemu-mimiker-riscv64',
+                'binary': 'qemu-system-riscv64',
                 'options': [
                     '-machine', 'sifive_u',
                     '-smp', '5',
                     '-m', '1G',
-#                    '-bios', 'fw_jump.elf',
                     '-monitor', 'stdio',
                 ],
                 'network_options': [],
@@ -357,7 +356,6 @@ class GDB(Launchable):
                 'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
         #elf = getvar('config.elf')
         #self.options.append(f'file {elf}')
-        #print(self.options)
 
 
 class SOCAT(Launchable):
