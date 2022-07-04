@@ -3,7 +3,12 @@
 
 #include <stdint.h>
 
+#if __riscv_xlen == 64
+typedef int64_t register_t;
+#else
 typedef int32_t register_t;
+#endif
+
 #ifdef __riscv_d
 typedef int64_t fpregister_t;
 #elif defined(__riscv_f)

@@ -24,13 +24,16 @@ void ctx_init(ctx_t *ctx, void *pc, void *sp) {
   /*
    * Supervisor status register:
    *  - Make executable readable = FALSE
-   *  - Permit supervisor user memory access = FALSE
+   *  - Permit supervisor user memory access = !TRAP_USER_ACCESS
    *  - Floating point extension state = OFF
    *  - Supervisor previous privilege mode = SUPERVISOR
    *  - Supervisor previous interrupt enabled = TRUE
    *  - Supervisor interrupt enabled = FALSE
    */
   _REG(ctx, SR) = SSTATUS_FS_OFF | SSTATUS_SPP_SUPV | SSTATUS_SPIE;
+#if !TRAP_USER_ACCESS
+  _REG(ctx, SR) |= SSTATUS_SUM;
+#endif /* !TRAP_USER_ACCESS */
 }
 
 void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg) {
@@ -44,6 +47,10 @@ void ctx_set_retval(ctx_t *ctx, long value) {
 
 register_t ctx_get_pc(ctx_t *ctx) {
   return _REG(ctx, PC);
+}
+
+void ctx_set_pc(ctx_t *ctx, uintptr_t addr) {
+  _REG(ctx, PC) = addr;
 }
 
 void mcontext_copy(mcontext_t *to, mcontext_t *from) {
@@ -60,13 +67,16 @@ void mcontext_init(mcontext_t *ctx, void *pc, void *sp) {
   /*
    * Supervisor status register:
    *  - Make executable readable = FALSE
-   *  - Permit supervisor user memory access = FALSE
+   *  - Permit supervisor user memory access = !TRAP_USER_ACCESS
    *  - Floating point extension state = OFF
    *  - Supervisor previous privilege mode = USER
    *  - Supervisor previous interrupt enabled = TRUE
    *  - Supervisor interrupt enabled = FALSE
    */
   _REG(ctx, SR) = SSTATUS_FS_OFF | SSTATUS_SPP_USER | SSTATUS_SPIE;
+#if !TRAP_USER_ACCESS
+  _REG(ctx, SR) |= SSTATUS_SUM;
+#endif /* !TRAP_USER_ACCESS */
 }
 
 void mcontext_set_retval(mcontext_t *ctx, register_t value, register_t error) {
@@ -100,8 +110,4 @@ int do_setcontext(thread_t *td, ucontext_t *uc) {
 #endif
 
   return EJUSTRETURN;
-}
-
-void ctx_switch(thread_t *from, thread_t *to) {
-  panic("Not implemented!");
 }

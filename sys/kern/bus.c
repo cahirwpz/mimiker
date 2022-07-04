@@ -7,7 +7,12 @@
 
 int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p) {
-  *handle_p = kmem_map_contig(addr, size, PMAP_NOCACHE);
+  bus_addr_t pg_start = rounddown2(addr, PAGESIZE);
+  bus_addr_t pg_end = roundup2(addr + size, PAGESIZE);
+  bus_size_t off = addr & (PAGESIZE - 1);
+
+  vaddr_t va = kmem_map_contig(pg_start, pg_end - pg_start, PMAP_NOCACHE);
+  *handle_p = va + off;
   return 0;
 }
 

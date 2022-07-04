@@ -63,6 +63,42 @@
   PTR_LA gp, __global_pointer$;                                                \
   .option pop
 
+#define SAVE_REG(reg, offset) REG_S reg, (offset)(sp)
+
+#define SAVE_REG_CFI(reg, offset)                                              \
+  SAVE_REG(reg, offset);                                                       \
+  .cfi_rel_offset reg, offset
+
+#define SAVE_CSR(csr, offset, tmp)                                             \
+  csrr tmp, csr;                                                               \
+  SAVE_REG(tmp, offset)
+
+#define LOAD_REG(reg, offset) REG_L reg, (offset)(sp)
+
+#define LOAD_CSR(csr, offset, tmp)                                             \
+  LOAD_REG(tmp, offset);                                                       \
+  csrw csr, tmp
+
+#define ENABLE_SV_FPU(tmp)                                                     \
+  li tmp, SSTATUS_FS_INITIAL;                                                  \
+  csrs sstatus, tmp
+
+#define DISABLE_SV_FPU(tmp)                                                    \
+  li tmp, SSTATUS_FS_MASK;                                                     \
+  csrc sstatus, tmp
+
+#define SAVE_FPU_REG(reg, offset, dst) FP_S reg, (offset)(dst)
+
+#define SAVE_FCSR(dst, tmp)                                                    \
+  frcsr tmp;                                                                   \
+  REG_S tmp, (FPU_CTX_FCSR)(dst)
+
+#define LOAD_FPU_REG(reg, offset, src) FP_L reg, (offset)(src)
+
+#define LOAD_FCSR(src, tmp)                                                    \
+  REG_L tmp, (FPU_CTX_FCSR)(src);                                              \
+  fscsr tmp
+
 #ifdef __riscv_d
 #define FP_L fld
 #define FP_S fsd

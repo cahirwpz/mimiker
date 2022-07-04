@@ -9,6 +9,7 @@
 #include <sys/interrupt.h>
 #include <sys/kasan.h>
 #include <sys/fdt.h>
+#include <sys/pmap.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
@@ -60,7 +61,7 @@ static void process_dtb(char **tokens, kstack_t *stk) {
 }
 
 void *board_stack(paddr_t dtb) {
-  FDT_early_init(dtb, PHYS_TO_DMAP(dtb));
+  FDT_early_init(dtb, phys_to_dmap(dtb));
 
   kstack_t *stk = &thread0.td_kstack;
 

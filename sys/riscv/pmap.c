@@ -1,57 +1,125 @@
 #define KL_LOG KL_PMAP
-#include <sys/fdt.h>
 #include <sys/kenv.h>
 #include <sys/klog.h>
-#include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/pmap.h>
+#include <sys/_pmap.h>
 #include <riscv/cpufunc.h>
-#include <riscv/pmap.h>
-#include <riscv/pte.h>
 
-/* Physical memory boundaries. */
-static paddr_t dmap_paddr_base;
-static paddr_t dmap_paddr_end;
+/*
+ * The following table describes which bits need to be set in page table
+ * entry for successful memory translation by MMU. Other configurations cause
+ * memory fault - see `riscv/trap.c`.
+ *
+ * +--------------+---+---+------+---+---+---+---+
+ * |    access    | D | A | USER | X | W | R | V |
+ * +==============+===+===+======+===+===+===+===+
+ * | user read    | * | 1 | 1    | * | * | 1 | 1 |
+ * +--------------+---+---+------+---+---+---+---+
+ * | user write   | 1 | 1 | 1    | * | 1 | 1 | 1 |
+ * +--------------+---+---+------+---+---+---+---+
+ * | user exec    | * | 1 | 1    | 1 | * | * | 1 |
+ * +--------------+---+---+------+---+---+---+---+
+ * | kernel read  | * | 1 | 0    | * | * | 1 | 1 |
+ * +--------------+---+---+------+---+---+---+---+
+ * | kernel write | 1 | 1 | 0    | * | 1 | 1 | 1 |
+ * +--------------+---+---+------+---+---+---+---+
+ * | kernel exec  | * | 1 | 0    | 1 | * | * | 1 |
+ * +--------------+---+---+------+---+---+---+---+
+ *
+ * The dirty (D) and accessed (A) bits may be managed automaticaly
+ * by hardware. In such case, setting of these bits is imperceptible from the
+ * perspective of the software. To be compliant with the other ports,
+ * we assume these bits to be unsupported and emulate them in software.
+ */
 
-static paddr_t kernel_pde;
+static const pte_t pte_common = PTE_A | PTE_V;
 
-bool pmap_address_p(pmap_t *pmap, vaddr_t va) {
-  panic("Not implemented!");
+static const pte_t vm_prot_map[] = {
+  [VM_PROT_READ] = PTE_SW_READ | PTE_R | pte_common,
+  [VM_PROT_WRITE] = PTE_SW_WRITE | PTE_D | PTE_W | PTE_R | pte_common,
+  [VM_PROT_READ | VM_PROT_WRITE] =
+    PTE_SW_WRITE | PTE_SW_READ | PTE_D | PTE_W | PTE_R | pte_common,
+  [VM_PROT_EXEC] = pte_common,
+  [VM_PROT_READ | VM_PROT_EXEC] = PTE_SW_READ | PTE_X | PTE_R | pte_common,
+  [VM_PROT_WRITE | VM_PROT_EXEC] =
+    PTE_SW_WRITE | PTE_D | PTE_X | PTE_W | PTE_R | pte_common,
+  [VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC] =
+    PTE_SW_WRITE | PTE_SW_READ | PTE_D | PTE_X | PTE_W | PTE_R | pte_common,
+};
+
+/*
+ * Page directory.
+ */
+
+pde_t pde_make(int lvl, paddr_t pa) {
+  return PA_TO_PTE(pa) | PTE_V;
 }
 
-bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
-  panic("Not implemented!");
+/*
+ * Page table.
+ */
+
+pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags) {
+  pte_t pte = PA_TO_PTE(pa) | vm_prot_map[prot];
+  bool kernel = flags & _PMAP_KERNEL;
+
+  const pte_t mask_on = kernel ? PTE_G : PTE_U;
+  pte |= mask_on;
+
+  const pte_t mask_off = kernel ? 0 : PTE_D | PTE_A | PTE_W | PTE_V;
+  pte &= ~mask_off;
+
+  /* TODO(MichalBlk): if the target board supports PMA setting,
+   * set the attributes according to cache flags passed in `flags`. */
+
+  return pte;
 }
 
-vaddr_t pmap_start(pmap_t *pmap) {
-  panic("Not implemented!");
+inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
+  return (pte & ~PTE_PROT_MASK) | vm_prot_map[prot];
 }
 
-vaddr_t pmap_end(pmap_t *pmap) {
-  panic("Not implemented!");
+/*
+ * Physical map management.
+ */
+
+static void update_kernel_pd(pmap_t *umap) {
+  pmap_t *kmap = pmap_kernel();
+
+  size_t halfpage = PAGESIZE / 2;
+  memcpy(phys_to_dmap(umap->pde) + halfpage, phys_to_dmap(kmap->pde) + halfpage,
+         halfpage);
+
+  umap->md.generation = kmap->md.generation;
 }
 
-static inline vaddr_t phys_to_dmap(paddr_t addr) {
-  assert(addr >= dmap_paddr_base && addr < dmap_paddr_end);
-  return (vaddr_t)(addr - dmap_paddr_base) + DMAP_VADDR_BASE;
+void pmap_md_activate(pmap_t *umap) {
+  pmap_t *kmap = pmap_kernel();
+  assert(kmap->md.generation);
+
+  if (umap->md.generation < kmap->md.generation)
+    update_kernel_pd(umap);
+
+  __set_satp(umap->md.satp);
+  __sfence_vma();
 }
 
-void init_pmap(void) {
-  panic("Not implemented!");
+void pmap_md_setup(pmap_t *pmap) {
+#if __riscv_xlen == 64
+  pmap->md.satp = SATP_MODE_SV39 | ((paddr_t)pmap->asid << SATP_ASID_S) |
+                  (pmap->pde >> PAGE_SHIFT);
+#else
+  pmap->md.satp = SATP_MODE_SV32 | ((paddr_t)pmap->asid << SATP_ASID_S) |
+                  (pmap->pde >> PAGE_SHIFT);
+#endif
+  pmap->md.generation = (pmap == pmap_kernel());
 }
 
-pmap_t *pmap_new(void) {
-  panic("Not implemented!");
-}
-
-void pmap_delete(pmap_t *pmap) {
-  panic("Not implemented!");
-}
-
-void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va) {
+void pmap_md_bootstrap(pde_t *pd) {
   dmap_paddr_base = kenv_get_ulong("mem_start");
   dmap_paddr_end = kenv_get_ulong("mem_end");
   size_t dmap_size = dmap_paddr_end - dmap_paddr_base;
-  kernel_pde = pd_pa;
 
   /* Assume physical memory starts at the beginning of L0 region. */
   assert(is_aligned(dmap_paddr_base, L0_SIZE));
@@ -64,105 +132,36 @@ void pmap_bootstrap(paddr_t pd_pa, vaddr_t pd_va) {
 
   klog("Physical memory range: %p - %p", dmap_paddr_base, dmap_paddr_end - 1);
 
-  klog("dmap range: %p - %p", DMAP_VADDR_BASE, DMAP_VADDR_BASE + dmap_size - 1);
+  klog("dmap range: %p - %p", DMAP_BASE, DMAP_BASE + dmap_size - 1);
 
   /* Build direct map using superpages. */
-  pd_entry_t *pde = (void *)pd_va;
-  size_t idx = L0_INDEX(DMAP_VADDR_BASE);
+  size_t idx = L0_INDEX(DMAP_BASE);
   for (paddr_t pa = dmap_paddr_base; pa < dmap_paddr_end; pa += L0_SIZE, idx++)
-    pde[idx] = PA_TO_PTE(pa) | PTE_KERN;
+    pd[idx] = PA_TO_PTE(pa) | PTE_KERN;
 
   __sfence_vma();
-
-  void *fdtp = (void *)phys_to_dmap(FDT_get_physaddr());
-  FDT_changeroot(fdtp);
 }
 
-void pmap_enter(pmap_t *pmap, vaddr_t va, vm_page_t *pg, vm_prot_t prot,
-                unsigned flags) {
-  panic("Not implemented!");
+void pmap_md_growkernel(vaddr_t maxkvaddr) {
+  pmap_t *kmap = pmap_kernel();
+  pmap_t *umap = pmap_user();
+
+  WITH_MTX_LOCK (&kmap->mtx) {
+    kmap->md.generation++;
+    assert(kmap->md.generation);
+    if (umap) {
+      WITH_MTX_LOCK (&umap->mtx)
+        update_kernel_pd(umap);
+      __sfence_vma();
+    }
+  }
 }
 
-bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
-  panic("Not implemented!");
-}
+/*
+ * Direct map.
+ */
 
-void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
-  panic("Not implemented!");
-}
-
-void pmap_kenter(vaddr_t va, paddr_t pa, vm_prot_t prot, unsigned flags) {
-  panic("Not implemented!");
-}
-
-bool pmap_kextract(vaddr_t va, paddr_t *pap) {
-  panic("Not implemented!");
-}
-
-void pmap_kremove(vaddr_t va, size_t size) {
-  panic("Not implemented!");
-}
-
-void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
-  panic("Not implemented!");
-}
-
-void pmap_page_remove(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-void pmap_zero_page(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
-  panic("Not implemented!");
-}
-
-bool pmap_clear_modified(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-bool pmap_clear_referenced(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-bool pmap_is_modified(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-bool pmap_is_referenced(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-void pmap_set_referenced(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-void pmap_set_modified(vm_page_t *pg) {
-  panic("Not implemented!");
-}
-
-int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
-  panic("Not implemented!");
-}
-
-void pmap_activate(pmap_t *pmap) {
-  panic("Not implemented!");
-}
-
-pmap_t *pmap_lookup(vaddr_t va) {
-  panic("Not implemented!");
-}
-
-pmap_t *pmap_kernel(void) {
-  panic("Not implemented!");
-}
-
-pmap_t *pmap_user(void) {
-  panic("Not implemented!");
-}
-
-void pmap_growkernel(vaddr_t maxkvaddr) {
-  panic("Not implemented!");
+void *phys_to_dmap(paddr_t addr) {
+  assert((addr >= dmap_paddr_base) && (addr < dmap_paddr_end));
+  return (void *)(addr - dmap_paddr_base) + DMAP_BASE;
 }

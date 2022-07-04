@@ -13,8 +13,28 @@
  *   https://github.com/riscv/riscv-plic-spec
  */
 
-/* PLIC memory map. */
+/*
+ * For the VexRiscv hardware platform we assume a single HART
+ * with two PLIC contexts:
+ *  - ctx0 - machine mode
+ *  - ctx1 - supervisor mode
+ *
+ * The organization of PLIC contexts for SiFive Unleashed can be found
+ * in the official manual (chapter 10):
+ *  -
+ * https://sifive.cdn.prismic.io/sifive/d3ed5cd0-6e74-46b2-a12d-72b06706513e_fu540-c000-manual-v1p4.pdf
+ *
+ * NOTE: FTTB, we designate a single HART to handle interrupts from all
+ * peripheral-level devices.
+ */
+
+#if __riscv_xlen == 64
+#define PLIC_CTXNUM_SV 2
+#else
 #define PLIC_CTXNUM_SV 1
+#endif
+
+/* PLIC memory map. */
 
 #define PLIC_PRIORITY_BASE 0x000000
 
@@ -64,10 +84,6 @@ static void plic_intr_enable(intr_event_t *ie) {
   out4(PLIC_ENABLE_SV(irq), en);
 }
 
-static const char *plic_intr_name(unsigned irq) {
-  return kasprintf("PLIC source %u", irq);
-}
-
 static resource_t *plic_alloc_intr(device_t *pic, device_t *dev, int rid,
                                    unsigned irq, rman_flags_t flags) {
   plic_state_t *plic = pic->state;
@@ -87,9 +103,12 @@ static void plic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
   unsigned irq = resource_start(r);
   assert(irq && irq < plic->ndev);
 
+  char buf[32];
+  snprintf(buf, sizeof(buf), "PLIC source %u", irq);
+
   if (!plic->intr_event[irq])
-    plic->intr_event[irq] = intr_event_create(
-      plic, irq, plic_intr_disable, plic_intr_enable, plic_intr_name(irq));
+    plic->intr_event[irq] =
+      intr_event_create(plic, irq, plic_intr_disable, plic_intr_enable, buf);
 
   r->r_handler =
     intr_event_add_handler(plic->intr_event[irq], filter, service, arg, name);
@@ -131,6 +150,7 @@ static intr_filter_t plic_intr_handler(void *arg) {
 
 static int plic_probe(device_t *pic) {
   return FDT_is_compatible(pic->node, "riscv,plic0") ||
+         FDT_is_compatible(pic->node, "sifive,plic-1.0.0") ||
          FDT_is_compatible(pic->node, "sifive,fu540-c000-plic");
 }
 

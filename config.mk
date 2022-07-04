@@ -25,6 +25,13 @@ endif
 ifeq ($(BOARD), litex-riscv)
 ARCH := riscv
 RISCV := 1
+XLEN := 32
+endif
+
+ifeq ($(BOARD), sifive_u)
+ARCH := riscv
+RISCV := 1
+XLEN := 64
 endif
 
 VERBOSE ?= 0
@@ -33,3 +40,4 @@ LOCKDEP ?= 0
 KASAN ?= 0
 KGPROF ?= 0
 KCSAN ?= 0
+TRAP_USER_ACCESS ?= 0
