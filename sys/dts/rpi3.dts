@@ -10,8 +10,8 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-        chosen {
-        };
+	chosen {
+	};
 
 	memory@0 {
 		reg = <0x00 0x3c000000>;
