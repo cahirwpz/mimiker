@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 
+from contextlib import redirect_stdout
+
 
 TMUX_CONF = './.tmux.conf'
 MIN_PORT = 24000
@@ -397,28 +399,25 @@ def setup_terminal():
 
 
 def prepare_dtb():
-    dts = os.path.join('sys/dts/', '{}.dts'.format(getvar('board')))
+    bootargs = ' '.join(getvar('config.args'))
+    board = getvar('board')
+    dts = f'sys/dts/{board}.dts'
     if not os.path.isfile(dts):
         return
 
     try:
-        with open('launch.dts', 'w') as launch_dts:
-            with open('sys/dts/launch.dts', 'r') as launch_tmpl_dts:
-                s = launch_tmpl_dts.read()
-                args = ' '.join(getvar('config.args'))
-                launch_dts.write(s.replace('BOOTARGS', args))
+        with open('launch.dts', mode='w') as tmp:
+            with redirect_stdout(tmp):
+                print(f'/include/ "{dts}"')
+                print('&{/chosen} {')
+                print(f'  bootargs = "{bootargs}";')
+                print('};')
 
         subprocess.check_call(
-            'dtc -O dtb -o launch.dtbo launch.dts', shell=True
-        )
-        dtb = os.path.join('sys/dts/', '{}.dtb'.format(getvar('board')))
-        subprocess.check_call(
-            'fdtoverlay -i {} -o {} launch.dtbo'.format(dtb, dtb), shell=True
-        )
+            f'dtc -O dtb -o launch.dtb {tmp.name}', shell=True)
     finally:
         try:
             os.remove('launch.dts')
-            os.remove('launch.dtbo')
         except OSError:
             pass
 
