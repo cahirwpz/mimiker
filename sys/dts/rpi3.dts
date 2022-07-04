@@ -13,7 +13,7 @@
 	chosen {
 	};
 
-	memory@1 {
+	memory@0 {
 		reg = <0x00 0x3c000000>;
 		device_type = "memory";
 	};
@@ -25,7 +25,7 @@
 		always-on;
 	};
 
-	soc@0 {
+	soc@1 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
