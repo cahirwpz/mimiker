@@ -17,11 +17,6 @@
  *   - temoprarily mapping kernel page directory into VM (because there is
  *     no direct map to access it in the usual fashion),
  *
- *   - (HACK) preparing page tables for `vm_page_t` structs (we need to do so
- *     because the procedure that maps kernel virtual space allocated for the
- *     structs can't allocate physical pages on its own since
- *     the buddy system isn't initialized at that point),
- *
  *   - Preparing KASAN shadow memory for the mapped area,
  *
  *   - enabling MMU and moving to the second stage.
@@ -74,12 +69,23 @@
 #include <riscv/cpufunc.h>
 #include <riscv/pmap.h>
 
-#define KERNEL_VIRT_IMG_END align((vaddr_t)__ebss, PAGESIZE)
-#define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(__ebss), PAGESIZE)
+extern char __riscv_boot_pa[];
+extern char __boot_stack_pa[];
+extern char __kernel_start_pa[];
+extern char __text_pa[];
+extern char __data_pa[];
+extern char __ebss_pa[];
+extern char __kernel_end_pa[];
+
+#define RISCV_VIRTADDR(x)                                                      \
+  ((vaddr_t)((paddr_t)(x)-KERNEL_PHYS) | KERNEL_SPACE_BEGIN)
+
+#define KERNEL_VIRT_IMG_END align(RISCV_VIRTADDR(__ebss_pa), PAGESIZE)
+#define KERNEL_PHYS_IMG_END align((paddr_t)__ebss_pa, PAGESIZE)
 
 #define BOOT_KASAN_SANITIZED_SIZE                                              \
-  roundup2(roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) +                  \
-             (VM_PAGE_PDS * GROWKERNEL_STRIDE) - KASAN_SANITIZED_START,        \
+  roundup2(roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) -                  \
+             KASAN_SANITIZED_START,                                            \
            PAGESIZE * KASAN_SHADOW_SCALE_SIZE)
 
 #define BOOT_KASAN_SHADOW_SIZE                                                 \
@@ -101,8 +107,11 @@ __boot_data static pde_t *kernel_pde;
  * Virtual memory boot data.
  */
 
+#define __bss_boot_stack __section(".bss.boot_stack")
+
 /* NOTE: the boot stack is used before we switch out to `thread0`. */
-static alignas(STACK_ALIGN) uint8_t boot_stack[PAGESIZE];
+__bss_boot_stack static __used alignas(STACK_ALIGN) uint8_t
+  boot_stack[PAGESIZE];
 
 /*
  * Bare memory boot functions.
@@ -126,17 +135,34 @@ __boot_text static void *bootmem_alloc(size_t bytes) {
   return addr;
 }
 
+__boot_text static pde_t *early_pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
+  pde_t *pde = (pde_t *)pd_pa;
+  if (lvl == 0)
+    return pde + L0_INDEX(va);
+#if __riscv_xlen == 32
+  return pde + L1_INDEX(va);
+#else
+  if (lvl == 1)
+    return pde + L1_INDEX(va);
+  return pde + L2_INDEX(va);
+#endif
+}
+
 __boot_text static pte_t *ensure_pte(vaddr_t va) {
-  pde_t *pdep = kernel_pde;
+  pde_t *pdep = early_pde_ptr((paddr_t)kernel_pde, 0, va);
 
-  /* Level 0 */
-  pdep += L0_INDEX(va);
-  if (!VALID_PTE_P(*pdep))
-    *pdep = PA_TO_PTE((paddr_t)bootmem_alloc(PAGESIZE)) | PTE_V;
-  pdep = (pde_t *)PTE_TO_PA(*pdep);
+  for (unsigned lvl = 1; lvl < PAGE_TABLE_DEPTH; lvl++) {
+    paddr_t pa;
+    if (!VALID_PDE_P(*pdep)) {
+      pa = (paddr_t)bootmem_alloc(PAGESIZE);
+      *pdep = PA_TO_PTE(pa) | PTE_V;
+    } else {
+      pa = (paddr_t)PTE_TO_PA(*pdep);
+    }
+    pdep = early_pde_ptr(pa, lvl, va);
+  }
 
-  /* Level 1 */
-  return (pte_t *)pdep + L1_INDEX(va);
+  return (pte_t *)pdep;
 }
 
 __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
@@ -150,11 +176,9 @@ __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
   }
 }
 
-static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end);
-
 __boot_text __noreturn void riscv_init(paddr_t dtb) {
-  if (!((paddr_t)__eboot < (vaddr_t)__kernel_start ||
-        (vaddr_t)__kernel_end < (paddr_t)__boot))
+  if (!((paddr_t)__eboot < RISCV_VIRTADDR(__kernel_start_pa) ||
+        RISCV_VIRTADDR(__kernel_end_pa) < (paddr_t)__boot))
     halt();
 
   /* Initialize boot memory allocator. */
@@ -163,22 +187,14 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
   /* Allocate kernel page directory.*/
   kernel_pde = bootmem_alloc(PAGESIZE);
 
-  /*
-   * !HACK!
-   * See 4th point of bare memory boot description
-   * at the top of this file for details.
-   */
-  vaddr_t va = roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE);
-  for (int i = 0; i < VM_PAGE_PDS; i++)
-    (void)ensure_pte(va + i * GROWKERNEL_STRIDE);
+  const vaddr_t text = RISCV_VIRTADDR(__text_pa);
+  const vaddr_t data = RISCV_VIRTADDR(__data_pa);
 
   /* Kernel read-only segment - sections: .text and .rodata. */
-  early_kenter((vaddr_t)__text, __data - __text, RISCV_PHYSADDR(__text),
-               PTE_X | PTE_KERN_RO);
+  early_kenter(text, data - text, (paddr_t)__text_pa, PTE_X | PTE_KERN_RO);
 
   /* Kernel read-write segment - sections: .data and .bss. */
-  early_kenter((vaddr_t)__data, KERNEL_VIRT_IMG_END - (vaddr_t)__data,
-               RISCV_PHYSADDR(__data), PTE_KERN);
+  early_kenter(data, KERNEL_VIRT_IMG_END - data, (paddr_t)__data_pa, PTE_KERN);
 
   /*
    * NOTE: we don't have to map the boot allocation area as the allocated
@@ -201,13 +217,18 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
 #endif /* !KASAN */
 
   /* Temporarily set the trap vector. */
-  csr_write(stvec, riscv_boot);
+  csr_write(stvec, RISCV_VIRTADDR(__riscv_boot_pa));
 
   /*
    * Move to VM boot stage.
    */
+#if __riscv_xlen == 64
+  const paddr_t satp = SATP_MODE_SV39 | ((paddr_t)kernel_pde >> PAGE_SHIFT);
+#else
   const paddr_t satp = SATP_MODE_SV32 | ((paddr_t)kernel_pde >> PAGE_SHIFT);
-  void *boot_sp = &boot_stack[PAGESIZE];
+#endif
+
+  void *boot_sp = (void *)RISCV_VIRTADDR(__boot_stack_pa) + PAGESIZE;
 
   __sfence_vma();
 
@@ -216,6 +237,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
                    "mv a2, %2\n\t"
                    "mv sp, %3\n\t"
                    "csrw satp, %4\n\t"
+                   "sfence.vma\n\t"
                    "nop" /* triggers instruction fetch page fault */
                    :
                    : "r"(dtb), "r"(kernel_pde), "r"(bootmem_brk), "r"(boot_sp),
@@ -242,7 +264,10 @@ extern void cpu_exception_handler(void);
 extern void *board_stack(paddr_t dtb_pa, void *dtb_va);
 extern void __noreturn board_init(void);
 
-static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
+#define __text_riscv_boot __section(".text.riscv_boot")
+
+__text_riscv_boot static __noreturn __used void
+riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
   /*
    * Set initial register values.
    */

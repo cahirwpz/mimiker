@@ -16,7 +16,6 @@ LDSCRIPT = $(ARCH)/$(ARCH).ld
 LDFLAGS += -T $(TOPDIR)/sys/$(LDSCRIPT)
 LDLIBS	= -Wl,--start-group \
 	    -Wl,--whole-archive $(KLIBLIST) -Wl,--no-whole-archive \
-            -lgcc \
           -Wl,--end-group
 
 mimiker.elf: $(KLIBDEPS) $(LDSCRIPT)

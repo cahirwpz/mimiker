@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ../..)
 
-SUBDIR = ctype quad stdio stdlib string
+SUBDIR = builtins ctype stdio stdlib string
 FORMAT-RECURSE = no
 
 SOURCES = copystr.c
