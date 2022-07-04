@@ -32,6 +32,8 @@
 #pragma warning(disable : 4700)
 #endif
 
+#pragma GCC diagnostic ignored "-Wuninitialized"
+
 COMPILER_RT_ABI su_int __fixunsxfsi(long double a) {
   long_double_bits fb;
   fb.f = a;
