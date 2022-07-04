@@ -258,7 +258,7 @@ class QEMU(Launchable):
             port = uart['port']
             self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
-        if getvar('config.args'):
+        if getvar('board') == 'malta' and getvar('config.args'):
             self.options += ['-append', ' '.join(getvar('config.args'))]
         if getvar('config.debug'):
             self.options += ['-S']
