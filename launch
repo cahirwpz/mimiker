@@ -158,11 +158,6 @@ CONFIG = {
         ],
         'extra-options': [],
         'post-options': [
-            '-ex=add-inferior',
-            '-ex=inferior 2',
-            '-ex=file sys/mimiker.elf',
-            '-ex=attach 2',
-            '-ex=set schedule-multiple on',
             '-ex=source .gdbinit',
             '-ex=continue',
         ],
@@ -177,7 +172,14 @@ CONFIG = {
                 'binary': 'riscv32-mimiker-elf-gdb'
             },
             'sifive_u': {
-                'binary': 'riscv64-mimiker-elf-gdb'
+                'binary': 'riscv64-mimiker-elf-gdb',
+                'extra-options': [
+                    '-ex=add-inferior',
+                    '-ex=inferior 2',
+                    '-ex=file sys/mimiker.elf',
+                    '-ex=attach 2',
+                    '-ex=set schedule-multiple on',
+                ],
             },
         }
     }
@@ -354,8 +356,8 @@ class GDB(Launchable):
 
         self.options = getopts(
                 'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
-        #elf = getvar('config.elf')
-        #self.options.append(f'file {elf}')
+        if getvar('board') != 'sifive_u':
+            self.options.append(getvar('config.elf'))
 
 
 class SOCAT(Launchable):
