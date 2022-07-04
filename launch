@@ -119,7 +119,7 @@ CONFIG = {
                 'drive': 'if=sd,index=0,format=qcow2,file={path}',
             },
             'sifive_u': {
-                'binary': 'qemu-system-riscv64',
+                'binary': 'qemu-mimiker-riscv64',
                 'options': [
                     '-machine', 'sifive_u',
                     '-smp', '5',
