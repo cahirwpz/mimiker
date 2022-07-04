@@ -69,6 +69,10 @@ CONFIG = {
                 'kernel': 'sys/mimiker.img',
                 'simulator': 'renode',
             },
+            'sifive_u': {
+                'kernel': 'sys/mimiker.elf',
+                'simulator': 'qemu'
+            },
         },
     },
     'qemu': {
@@ -113,7 +117,21 @@ CONFIG = {
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ],
                 'drive': 'if=sd,index=0,format=qcow2,file={path}',
-            }
+            },
+            'sifive_u': {
+                'binary': 'qemu-mimiker-riscv64',
+                'options': [
+                    '-machine', 'sifive_u',
+                    '-smp', '5',
+                    '-m', '1G',
+                    '-monitor', 'stdio',
+                ],
+                'network_options': [],
+                'uarts': [
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty1', port=RandomPort(), raw=True)
+                ]
+            },
         }
     },
     'renode': {
@@ -152,6 +170,16 @@ CONFIG = {
             },
             'litex-riscv': {
                 'binary': 'riscv32-mimiker-elf-gdb'
+            },
+            'sifive_u': {
+                'binary': 'riscv64-mimiker-elf-gdb',
+                'extra-options': [
+                    '-ex=add-inferior',
+                    '-ex=inferior 2',
+                    '-ex=file sys/mimiker.elf',
+                    '-ex=attach 2',
+                    '-ex=set schedule-multiple on',
+                ],
             },
         }
     }
@@ -308,7 +336,8 @@ class GDB(Launchable):
 
         self.options += getopts(
                 'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
-        self.options.append(getvar('config.elf'))
+        if getvar('board') != 'sifive_u':
+            self.options.append(getvar('config.elf'))
 
 
 class SOCAT(Launchable):
@@ -417,7 +446,7 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
     parser.add_argument('-b', '--board', default='malta',
-                        choices=['malta', 'rpi3', 'litex-riscv'],
+                        choices=['malta', 'rpi3', 'litex-riscv', 'sifive_u'],
                         help='Emulated board.')
     parser.add_argument('-s', '--storage', type=str,
                         help='QCOW2 image to be attached as a default storage '
