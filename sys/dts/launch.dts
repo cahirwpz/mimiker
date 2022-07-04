@@ -1,0 +1,7 @@
+
+/dts-v1/;
+/plugin/;
+
+&{/chosen} {
+	bootargs = "BOOTARGS";
+};

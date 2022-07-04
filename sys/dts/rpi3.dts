@@ -10,6 +10,9 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+        chosen {
+        };
+
 	memory@0 {
 		reg = <0x00 0x3c000000>;
 		device_type = "memory";
