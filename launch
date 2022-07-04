@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 
+from contextlib import redirect_stdout
+
 
 TMUX_CONF = './.tmux.conf'
 MIN_PORT = 24000
@@ -110,7 +112,7 @@ CONFIG = {
                 'options': [
                     '-machine', 'raspi3',
                     '-smp', '4',
-                    '-dtb', 'sys/dts/rpi3.dtb',
+                    '-dtb', 'launch.dtb',
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [
@@ -293,7 +295,7 @@ class QEMU(Launchable):
             port = uart['port']
             self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
-        if getvar('config.args'):
+        if getvar('board') == 'malta' and getvar('config.args'):
             self.options += ['-append', ' '.join(getvar('config.args'))]
         if getvar('config.debug'):
             self.options += ['-S']
@@ -332,20 +334,6 @@ class RENODE(Launchable):
         if getvar('config.debug'):
             gdbport = getvar('config.gdbport', failok=False)
             self.options += [f'-e machine StartGdbServer {gdbport}']
-
-        with open('bootargs.dts', 'w') as bootargs_dts_file:
-            bootargs_dts_file.write(
-                BOOTARGS_DTS_TEMPLATE.format(' '.join(getvar('config.args')))
-            )
-        subprocess.check_call(
-            'dtc -O dtb -o bootargs.dtbo bootargs.dts', shell=True
-        )
-        dtb = os.path.join('sys/dts/', '{}.dtb'.format(getvar('board')))
-        subprocess.check_call(
-            'fdtoverlay -i {} -o {} bootargs.dtbo'.format(dtb, dtb), shell=True
-        )
-        os.remove('bootargs.dts')
-        os.remove('bootargs.dtbo')
 
         self.options += ['-e start']
 
@@ -448,6 +436,30 @@ def setup_terminal():
         subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
 
 
+def prepare_dtb():
+    bootargs = ' '.join(getvar('config.args'))
+    board = getvar('board')
+    dts = f'sys/dts/{board}.dts'
+    if not os.path.isfile(dts):
+        return
+
+    try:
+        with open('launch.dts', mode='w') as tmp:
+            with redirect_stdout(tmp):
+                print(f'/include/ "{dts}"')
+                print('&{/chosen} {')
+                print(f'  bootargs = "{bootargs}";')
+                print('};')
+
+        subprocess.check_call(
+            f'dtc -O dtb -o launch.dtb {tmp.name}', shell=True)
+    finally:
+        try:
+            os.remove('launch.dts')
+        except OSError:
+            pass
+
+
 if __name__ == '__main__':
     setup_terminal()
 
@@ -486,6 +498,8 @@ if __name__ == '__main__':
     # Check if the kernel file is available
     if not os.path.isfile(getvar('config.kernel')):
         raise SystemExit('%s: file does not exist!' % getvar('config.kernel'))
+
+    prepare_dtb()
 
     sim_name = getvar('config.simulator', failok=False)
 
