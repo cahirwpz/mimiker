@@ -157,15 +157,6 @@ CONFIG = {
     }
 }
 
-BOOTARGS_DTS_TEMPLATE = """
-/dts-v1/;
-/plugin/;
-
-&{{/chosen}} {{
-    bootargs = "{}";
-}};
-"""
-
 
 def setboard(name):
     setvar('board', name)
@@ -305,20 +296,6 @@ class RENODE(Launchable):
             gdbport = getvar('config.gdbport', failok=False)
             self.options += [f'-e machine StartGdbServer {gdbport}']
 
-        with open('bootargs.dts', 'w') as bootargs_dts_file:
-            bootargs_dts_file.write(
-                BOOTARGS_DTS_TEMPLATE.format(' '.join(getvar('config.args')))
-            )
-        subprocess.check_call(
-            'dtc -O dtb -o bootargs.dtbo bootargs.dts', shell=True
-        )
-        dtb = os.path.join('sys/dts/', '{}.dtb'.format(getvar('board')))
-        subprocess.check_call(
-            'fdtoverlay -i {} -o {} bootargs.dtbo'.format(dtb, dtb), shell=True
-        )
-        os.remove('bootargs.dts')
-        os.remove('bootargs.dtbo')
-
         self.options += ['-e start']
 
 
@@ -419,6 +396,33 @@ def setup_terminal():
         subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
 
 
+def prepare_dtb():
+    dts = os.path.join('sys/dts/', '{}.dts'.format(getvar('board')))
+    if not os.path.isfile(dts):
+        return
+
+    try:
+        with open('launch.dts', 'w') as launch_dts:
+            with open('sys/dts/launch.dts', 'r') as launch_tmpl_dts:
+                s = launch_tmpl_dts.read()
+                args = ' '.join(getvar('config.args'))
+                launch_dts.write(s.replace('BOOTARGS', args))
+
+        subprocess.check_call(
+            'dtc -O dtb -o launch.dtbo launch.dts', shell=True
+        )
+        dtb = os.path.join('sys/dts/', '{}.dtb'.format(getvar('board')))
+        subprocess.check_call(
+            'fdtoverlay -i {} -o {} launch.dtbo'.format(dtb, dtb), shell=True
+        )
+    finally:
+        try:
+            os.remove('launch.dts')
+            os.remove('launch.dtbo')
+        except OSError:
+            pass
+
+
 if __name__ == '__main__':
     setup_terminal()
 
@@ -457,6 +461,8 @@ if __name__ == '__main__':
     # Check if the kernel file is available
     if not os.path.isfile(getvar('config.kernel')):
         raise SystemExit('%s: file does not exist!' % getvar('config.kernel'))
+
+    prepare_dtb()
 
     sim_name = getvar('config.simulator', failok=False)
 
