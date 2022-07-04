@@ -21,6 +21,8 @@
 #include <sys/errno.h>
 #include <sys/bitops.h>
 #include <dev/bcm2835_emmcreg.h>
+#include <sys/fdt.h>
+#include <dev/simplebus.h>
 
 typedef struct bcmemmc_state {
   resource_t *gpio;      /* GPIO resource (needed until we have a decent
@@ -571,10 +573,12 @@ static int bcmemmc_attach(device_t *dev) {
 
   /* This is not a legitimate bus in a sense that it implements `DIF_BUS`, but
    * it should work nevertheless */
-  device_t *child = device_add_child(dev, 0);
+  phandle_t child_node = FDT_child(dev->node);
+  if (child_node == FDT_NODEV)
+    return 0;
+  device_t *child;
+  simplebus_add_child_node(dev, child_node, 0, dev->pic, &child);
   child->bus = DEV_BUS_EMMC;
-  child->devclass = &DEVCLASS(emmc);
-  child->unit = 0;
 
   return bus_generic_probe(dev);
 }
