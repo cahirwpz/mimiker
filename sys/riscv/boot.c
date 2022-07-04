@@ -17,11 +17,6 @@
  *   - temoprarily mapping kernel page directory into VM (because there is
  *     no direct map to access it in the usual fashion),
  *
- *   - (HACK) preparing page tables for `vm_page_t` structs (we need to do so
- *     because the procedure that maps kernel virtual space allocated for the
- *     structs can't allocate physical pages on its own since
- *     the buddy system isn't initialized at that point),
- *
  *   - Preparing KASAN shadow memory for the mapped area,
  *
  *   - enabling MMU and moving to the second stage.
@@ -78,8 +73,8 @@
 #define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(__ebss), PAGESIZE)
 
 #define BOOT_KASAN_SANITIZED_SIZE                                              \
-  roundup2(roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) +                  \
-             (VM_PAGE_PDS * GROWKERNEL_STRIDE) - KASAN_SANITIZED_START,        \
+  roundup2(roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) -                  \
+             KASAN_SANITIZED_START,                                            \
            PAGESIZE * KASAN_SHADOW_SCALE_SIZE)
 
 #define BOOT_KASAN_SHADOW_SIZE                                                 \
@@ -162,15 +157,6 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
 
   /* Allocate kernel page directory.*/
   kernel_pde = bootmem_alloc(PAGESIZE);
-
-  /*
-   * !HACK!
-   * See 4th point of bare memory boot description
-   * at the top of this file for details.
-   */
-  vaddr_t va = roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE);
-  for (int i = 0; i < VM_PAGE_PDS; i++)
-    (void)ensure_pte(va + i * GROWKERNEL_STRIDE);
 
   /* Kernel read-only segment - sections: .text and .rodata. */
   early_kenter((vaddr_t)__text, __data - __text, RISCV_PHYSADDR(__text),
