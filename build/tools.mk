@@ -7,28 +7,22 @@
 # - TARGET, {CLANG,GCC}_ABIFLAGS: Set by arch.*.mk files.
 
 ifndef ARCH
-	$(error ARCH variable not defined. Have you included config.mk?)
-endif
-
-GCC_FOUND = $(shell which $(TARGET)-gcc > /dev/null; echo $$?)
-ifneq ($(GCC_FOUND), 0)
-	$(error $(TARGET)-gcc compiler not found - please refer to README.md!)
+  $(error ARCH variable not defined. Have you included config.mk?)
 endif
 
 # Pass "LLVM=1" at command line to switch to llvm toolchain.
 ifeq ($(LLVM), 1)
 
-CLANG_FOUND = $(shell which clang > /dev/null; echo $$?)
-ifneq ($(CLANG_FOUND), 0)
-	$(error clang compiler not found - please refer to README.md!)
+ifneq ($(shell which clang > /dev/null; echo $$?), 0)
+  $(error clang compiler not found - please refer to README.md!)
 endif
-LLD_FOUND = $(shell which lld > /dev/null; echo $$?)
-ifneq ($(LLD_FOUND), 0)
-	$(error lld linker not found)
+
+ifneq ($(shell which lld > /dev/null; echo $$?), 0)
+  $(error lld linker not found)
 endif
-LLVM_FOUND = $(shell which llvm-ar > /dev/null; echo $$?)
-ifneq ($(LLVM_FOUND), 0)
-	$(error llvm toolchain not found)
+
+ifneq ($(shell which llvm-ar > /dev/null; echo $$?), 0)
+  $(error llvm toolchain not found)
 endif
 
 CC	= clang $(CLANG_ABIFLAGS) -g
@@ -49,6 +43,11 @@ STRIP	= llvm-strip
 ASSYM_CFLAGS += -no-integrated-as
 
 else
+
+ifneq ($(shell which $(TARGET)-gcc > /dev/null; echo $$?), 0)
+  $(error $(TARGET)-gcc compiler not found - please refer to README.md!)
+endif
+
 CC	= $(TARGET)-gcc $(GCC_ABIFLAGS) -g
 CPP	= $(CC) -E
 AS	= $(CC)
