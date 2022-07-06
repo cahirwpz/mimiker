@@ -114,7 +114,7 @@ static bool evdev_client_empty(evdev_client_t *client) {
 }
 
 /* Returns the number of events that are ready to read. */
-static int evdev_client_sizeq(evdev_client_t *client) {
+static int evdev_client_queue_size(evdev_client_t *client) {
   size_t size = client->ec_buffer_size;
   size_t ready = client->ec_buffer_ready;
   size_t head = client->ec_buffer_head;
@@ -350,7 +350,7 @@ static int evdev_kq_read(knote_t *kn, long hint) {
   evdev_client_t *client = kn->kn_hook;
   assert(mtx_owned(&client->ec_lock));
 
-  kn->kn_kevent.data = evdev_client_sizeq(client) * sizeof(input_event_t);
+  kn->kn_kevent.data = evdev_client_queue_size(client) * sizeof(input_event_t);
   return !evdev_client_empty(client);
 }
 
@@ -495,13 +495,15 @@ static int evdev_kqfilter(file_t *f, knote_t *kn) {
   return 0;
 }
 
-static fileops_t evdev_fileops = {.fo_read = evdev_read,
-                                  .fo_write = nowrite,
-                                  .fo_close = default_vnclose,
-                                  .fo_seek = noseek,
-                                  .fo_stat = default_vnstat,
-                                  .fo_ioctl = evdev_ioctl,
-                                  .fo_kqfilter = evdev_kqfilter};
+static fileops_t evdev_fileops = {
+  .fo_read = evdev_read,
+  .fo_write = nowrite,
+  .fo_close = default_vnclose,
+  .fo_seek = noseek,
+  .fo_stat = default_vnstat,
+  .fo_ioctl = evdev_ioctl,
+  .fo_kqfilter = evdev_kqfilter,
+};
 
 static int evdev_open(vnode_t *v, int mode, file_t *fp) {
   evdev_dev_t *evdev = devfs_node_data(v);
