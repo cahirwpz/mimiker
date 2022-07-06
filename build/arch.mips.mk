@@ -1,4 +1,4 @@
-# vim: tabstop=8 shiftwidth=8 noexpandtab:
+# vim: tabstop=2 shiftwidth=2 noexpandtab:
 #
 # Common makefile which specifies MIPS architecture specific settings.
 #
@@ -10,7 +10,11 @@ TARGET := mipsel-mimiker-elf
 GCC_ABIFLAGS := -mips32r2 -EL -G 0
 CLANG_ABIFLAGS := -target $(TARGET) -march=mips32r2 -mno-abicalls \
 		  -modd-spreg -G 0 -D__ELF__=1
-ELFTYPE := elf32-littlemips 
+ifeq ($(LLVM), 1)
+  ELFTYPE := elf32-tradlittlemips
+else
+  ELFTYPE := elf32-littlemips
+endif
 ELFARCH := mips
 
 ifeq ($(KERNEL), 1)
