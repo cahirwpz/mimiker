@@ -28,7 +28,7 @@ endif
 CC	= clang $(CLANG_ABIFLAGS) -g
 CPP	= $(CC) -E
 AS	= $(CC)
-LD	= $(CC) -B /usr/bin -fuse-ld=lld
+LD	= ld.lld
 AR	= llvm-ar
 NM	= llvm-nm
 RANLIB	= llvm-ranlib
