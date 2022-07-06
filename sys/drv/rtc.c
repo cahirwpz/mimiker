@@ -102,7 +102,7 @@ static int rtc_attach(device_t *dev) {
   assert(rtc->regs != NULL);
 
   rtc->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
-  bus_intr_setup(dev, rtc->irq_res, rtc_intr, NULL, rtc, "RTC periodic timer");
+  pic_setup_intr(dev, rtc->irq_res, rtc_intr, NULL, rtc, "RTC periodic timer");
 
   /* Configure how the time is presented through registers. */
   rtc_setb(rtc->regs, MC_REGB, MC_REGB_BINARY | MC_REGB_24HR);

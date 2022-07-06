@@ -6,7 +6,7 @@
 #
 
 TARGET := aarch64-mimiker-elf
-GCC_ABIFLAGS :=
+GCC_ABIFLAGS := -mno-outline-atomics
 CLANG_ABIFLAGS := -target $(TARGET)
 ELFTYPE := elf64-littleaarch64
 ELFARCH := aarch64

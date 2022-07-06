@@ -56,7 +56,11 @@
  * Flags used during conversion.
  */
 #define LONG 0x0001       /* l: long or double */
+#ifdef __SIZEOF_INT128__
 #define LONGDBL 0x0002    /* L: long double */
+#else
+#define LONGDBL 0
+#endif
 #define SHORT 0x0004      /* h: short */
 #define SUPPRESS 0x0008   /* *: suppress assignment */
 #define POINTER 0x0010    /* p: void * (as hex) */
