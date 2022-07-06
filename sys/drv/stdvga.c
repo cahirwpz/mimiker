@@ -16,7 +16,8 @@ typedef struct fb_color fb_color_t;
 typedef struct fb_palette fb_palette_t;
 typedef struct fb_info fb_info_t;
 
-#define FB_SIZE(vga) ((vga)->fb_info.width * (vga)->fb_info.height * ((vga)->fb_info.bpp / 8))
+#define FB_SIZE(vga)                                                           \
+  ((vga)->fb_info.width * (vga)->fb_info.height * ((vga)->fb_info.bpp / 8))
 #define FB_PTR(vga) ((void *)vga->mem->r_bus_handle)
 
 #define VGA_PALETTE_SIZE 256
