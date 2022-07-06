@@ -49,7 +49,7 @@ ifneq ($(shell which $(TARGET)-gcc > /dev/null; echo $$?), 0)
 endif
 
 CC	= $(TARGET)-gcc $(GCC_ABIFLAGS) -g
-CPP	= $(CC) -E
+CPP	= $(TARGET)-cpp
 AS	= $(CC)
 LD	= $(TARGET)-ld
 AR	= $(TARGET)-ar
