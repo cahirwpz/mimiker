@@ -6,6 +6,7 @@
 #include <sys/libkern.h>
 #include <sys/errno.h>
 #include <sys/fb.h>
+#include <sys/fcntl.h>
 #include <sys/devfs.h>
 #include <sys/devclass.h>
 #include <sys/vnode.h>
@@ -139,6 +140,9 @@ static int stdvga_set_fbinfo(stdvga_state_t *vga, fb_info_t *fb_info) {
 
 static int stdvga_open(devnode_t *dev, file_t *fp, int oflags) {
   stdvga_state_t *vga = dev->data;
+
+  if ((oflags & O_ACCMODE) != O_WRONLY)
+    return EACCES;
 
   /* Disallow opening the file more than once. */
   int expected = 0;
