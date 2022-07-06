@@ -63,7 +63,7 @@ static int fun(float re, float im) {
 }
 
 int main(void) {
-  int vgafd = open("/dev/vga", O_RDWR, 0);
+  int vgafd = open("/dev/vga", O_WRONLY, 0);
   if (vgafd < 0) {
     printf("can't open /dev/vga file\n");
     return 1;
