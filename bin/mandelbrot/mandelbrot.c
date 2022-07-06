@@ -103,6 +103,9 @@ int main(void) {
 
   display_image(vgafd);
 
+  puts("Press CTRL+C to exit.");
+  pause();
+
   close(vgafd);
 
   return 0;
