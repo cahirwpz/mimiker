@@ -231,7 +231,7 @@ static int sb_intr_to_rl(device_t *dev) {
 
 end:
   kfree(M_DEV, intrs);
-  return 0;
+  return err;
 }
 
 int simplebus_add_child(device_t *bus, const char *path, int unit,
