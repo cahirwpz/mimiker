@@ -40,6 +40,7 @@ int toascii(int);
 int snprintf(char *buf, size_t size, const char *fmt, ...)
   __attribute__((format(printf, 3, 4)));
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap);
+char *kasprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 int sscanf(const char *str, const char *fmt, ...)
   __attribute__((format(scanf, 2, 3)));
 int vsscanf(const char *str, char const *fmt, va_list ap);
@@ -69,7 +70,6 @@ size_t strlcat(char *dst, const char *src, size_t dsize);
 size_t strlcpy(char *dst, const char *src, size_t dsize);
 size_t strlen(const char *str);
 int strncmp(const char *s1, const char *s2, size_t n);
-char *strncpy(char *dst, const char *src, size_t n);
 size_t strnlen(const char *str, size_t maxlen);
 char *strrchr(const char *s, int c);
 char *strsep(char **stringp, const char *delim);

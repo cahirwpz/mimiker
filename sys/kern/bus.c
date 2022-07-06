@@ -7,7 +7,12 @@
 
 int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p) {
-  *handle_p = kmem_map_contig(addr, size, PMAP_NOCACHE);
+  bus_addr_t pg_start = rounddown2(addr, PAGESIZE);
+  bus_addr_t pg_end = roundup2(addr + size, PAGESIZE);
+  bus_size_t off = addr & (PAGESIZE - 1);
+
+  vaddr_t va = kmem_map_contig(pg_start, pg_end - pg_start, PMAP_NOCACHE);
+  *handle_p = va + off;
   return 0;
 }
 
@@ -95,22 +100,6 @@ bus_space_t *generic_bus_space = &(bus_space_t){
   .bs_write_region_2 = generic_bs_write_region_2,
   .bs_write_region_4 = generic_bs_write_region_4,
 };
-
-void bus_intr_setup(device_t *dev, resource_t *irq, ih_filter_t *filter,
-                    ih_service_t *service, void *arg, const char *name) {
-  device_t *idev = BUS_METHOD_PROVIDER(dev, intr_setup);
-  bus_methods(idev->parent)->intr_setup(idev, irq, filter, service, arg, name);
-  if (irq->r_handler)
-    resource_activate(irq);
-}
-
-void bus_intr_teardown(device_t *dev, resource_t *irq) {
-  assert(resource_active(irq));
-  device_t *idev = BUS_METHOD_PROVIDER(dev, intr_teardown);
-  bus_methods(idev->parent)->intr_teardown(idev, irq);
-  irq->r_handler = NULL;
-  resource_deactivate(irq);
-}
 
 int bus_activate_resource(device_t *dev, resource_t *r) {
   if (resource_active(r) || r->r_type == RT_IRQ)

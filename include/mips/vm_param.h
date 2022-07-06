@@ -10,6 +10,10 @@
 #define USER_STACK_TOP 0x7f800000
 #define USER_STACK_SIZE 0x800000 /* grows down up to that size limit */
 
+/* KASAN shadow memory */
+#define KASAN_SHADOW_START 0xF0000000
+#define KASAN_MAX_SHADOW_SIZE (1 << 24) /* 16 MB */
+
 #define PAGESIZE 4096
 #define SUPERPAGESIZE (1 << 22) /* 4 MB */
 

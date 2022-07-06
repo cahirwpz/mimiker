@@ -2,7 +2,6 @@
 
 /* Linker scripts are documented here:
  * https://sourceware.org/binutils/docs/ld/Scripts.html */
-OUTPUT_FORMAT("elf32-littleriscv")
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
@@ -30,10 +29,17 @@ SECTIONS
   .text KERNEL_SPACE_BEGIN + _boot_size : AT(__eboot) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
+    __kernel_start_pa = LOADADDR(.text);
     __text = ABSOLUTE(.);
+    __text_pa = LOADADDR(.text);
+    __riscv_boot_pa = LOADADDR(.text);
+    *(.text.riscv_boot)
     *(.text .text.*)
     __etext = ABSOLUTE(.);
-    /* TODO: include KASAN constructors. */
+    /* Constructors are used by KASAN to initialize global redzones */
+    __CTOR_LIST__ = ABSOLUTE(.);
+    *(.ctors)
+    __CTOR_END__ = ABSOLUTE(.);
   } : text
 
   .eh_frame : { *(.eh_frame) }
@@ -46,6 +52,7 @@ SECTIONS
   .data : ALIGN(4096)
   {
     __data = ABSOLUTE(.);
+    __data_pa = LOADADDR(.data);
     *(.data .data.*)
   } : data
 
@@ -62,6 +69,7 @@ SECTIONS
   {
     /* Load/store instruction offset is 12 bits (sign extended). */
     __global_pointer$ = . + 0x800;
+    __global_pointer$_pa = LOADADDR(.sdata) + 0x800;
     *(.srodata .srodata.*)
     *(.sdata .sdata.*)
     __edata = ABSOLUTE(.);
@@ -70,12 +78,16 @@ SECTIONS
   .bss :
   {
     __bss = ABSOLUTE(.);
+    __boot_stack_pa = LOADADDR(.bss);
+    *(.bss.boot_stack)
     *(.sbss .sbss.*)
     *(.scommon)
     *(.bss .bss.*)
     *(COMMON)
     __ebss = ABSOLUTE(.);
+    __ebss_pa = LOADADDR(.bss) + SIZEOF(.bss);
     __kernel_end = ABSOLUTE(.);
+    __kernel_end_pa = LOADADDR(.bss) + SIZEOF(.bss);
   }
 
   /* Sections to be discarded. */

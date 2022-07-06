@@ -7,6 +7,8 @@
 #include <sys/pcpu.h>
 #include <sys/sleepq.h>
 #include <sys/sched.h>
+#include <sys/device.h>
+#include <sys/fdt.h>
 
 static KMALLOC_DEFINE(M_INTR, "interrupt events & handlers");
 
@@ -62,13 +64,14 @@ intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
                                 ie_action_t *enable, const char *name) {
   intr_event_t *ie = kmalloc(M_INTR, sizeof(intr_event_t), M_WAITOK | M_ZERO);
   ie->ie_irq = irq;
-  ie->ie_name = name;
   spin_init(&ie->ie_lock, LK_RECURSIVE);
   ie->ie_enable = enable;
   ie->ie_disable = disable;
   ie->ie_source = source;
   ie->ie_ithread = NULL;
   TAILQ_INIT(&ie->ie_handlers);
+
+  strlcpy(ie->ie_name, name, IENAMELEN);
 
   WITH_MTX_LOCK (&all_ievents_mtx)
     TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_link);
@@ -211,6 +214,48 @@ void intr_event_run_handlers(intr_event_t *ie) {
 
   if (ie_status == IF_STRAY)
     klog("Spurious %s interrupt!", ie->ie_name);
+}
+
+static inline pic_methods_t *pic_methods(device_t *dev) {
+  return (pic_methods_t *)dev->driver->interfaces[DIF_PIC];
+}
+
+resource_t *pic_alloc_intr(device_t *dev, int rid, unsigned irq,
+                           rman_flags_t flags) {
+  device_t *pic = dev->pic;
+  return pic_methods(pic)->alloc_intr(pic, dev, rid, irq, flags);
+}
+
+void pic_release_intr(device_t *dev, resource_t *r) {
+  assert(r->r_type == RT_IRQ);
+  device_t *pic = dev->pic;
+  pic_methods(pic)->release_intr(pic, dev, r);
+}
+
+void pic_setup_intr(device_t *dev, resource_t *r, ih_filter_t *filter,
+                    ih_service_t *service, void *arg, const char *name) {
+  assert(r->r_type == RT_IRQ);
+  device_t *pic = dev->pic;
+  pic_methods(pic)->setup_intr(pic, dev, r, filter, service, arg, name);
+  if (r->r_handler)
+    resource_activate(r);
+}
+
+void pic_teardown_intr(device_t *dev, resource_t *r) {
+  assert(r->r_type == RT_IRQ);
+  assert(resource_active(r));
+  device_t *pic = dev->pic;
+  pic_methods(pic)->teardown_intr(pic, dev, r);
+  r->r_handler = NULL;
+  resource_deactivate(r);
+}
+
+int pic_map_intr(device_t *dev, fdt_intr_t *intr) {
+  /* TODO: we should pick the interrupt controller based on the `node`
+   * member of `fdt_intr_t`. However, FTTB we assume that each device
+   * has at most one interrupt controller. */
+  device_t *pic = dev->pic;
+  return pic_methods(pic)->map_intr(pic, dev, intr->tuple, intr->icells);
 }
 
 static void intr_thread(void *arg) {

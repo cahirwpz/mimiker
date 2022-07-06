@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 
+from contextlib import redirect_stdout
+
 
 TMUX_CONF = './.tmux.conf'
 MIN_PORT = 24000
@@ -52,6 +54,7 @@ CONFIG = {
         'gdbport': RandomPort(),
         'graphics': False,
         'network': False,
+        'storage': '',
         'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
         'args': [],
@@ -98,19 +101,20 @@ CONFIG = {
                     dict(name='/dev/tty0', port=RandomPort(), raw=True),
                     dict(name='/dev/tty1', port=RandomPort()),
                     dict(name='/dev/cons', port=RandomPort())
-                ]
+                ],
             },
             'rpi3': {
                 'binary': 'qemu-mimiker-aarch64',
                 'options': [
                     '-machine', 'raspi3',
                     '-smp', '4',
-                    '-dtb', 'sys/dts/rpi3.dtb',
+                    '-dtb', 'launch.dtb',
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
-                ]
+                ],
+                'drive': 'if=sd,index=0,format=qcow2,file={path}',
             }
         }
     },
@@ -254,7 +258,7 @@ class QEMU(Launchable):
             port = uart['port']
             self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
-        if getvar('config.args'):
+        if getvar('board') == 'malta' and getvar('config.args'):
             self.options += ['-append', ' '.join(getvar('config.args'))]
         if getvar('config.debug'):
             self.options += ['-S']
@@ -262,6 +266,16 @@ class QEMU(Launchable):
             self.options += ['-display', 'none']
         if getvar('config.network'):
             self.options += getopts('qemu.network_options')
+
+        storage = getvar('config.storage')
+        if storage:
+            if not os.path.isfile(storage):
+                raise SystemExit(f'{storage}: file does not exist!')
+            drive = getvar('qemu.drive', failok=True)
+            if not drive:
+                raise SystemExit('Default drive is not defined for the '
+                                 'selected platform.')
+            self.options += ['-drive', drive.format(path=storage)]
 
 
 class RENODE(Launchable):
@@ -283,9 +297,6 @@ class RENODE(Launchable):
         if getvar('config.debug'):
             gdbport = getvar('config.gdbport', failok=False)
             self.options += [f'-e machine StartGdbServer {gdbport}']
-
-        # TODO(MichalBlk): we should enable passing kernel args through
-        # the launch script by introducing parameterizable DTS files.
 
         self.options += ['-e start']
 
@@ -387,6 +398,30 @@ def setup_terminal():
         subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
 
 
+def prepare_dtb():
+    bootargs = ' '.join(getvar('config.args'))
+    board = getvar('board')
+    dts = f'sys/dts/{board}.dts'
+    if not os.path.isfile(dts):
+        return
+
+    try:
+        with open('launch.dts', mode='w') as tmp:
+            with redirect_stdout(tmp):
+                print(f'/include/ "{dts}"')
+                print('&{/chosen} {')
+                print(f'  bootargs = "{bootargs}";')
+                print('};')
+
+        subprocess.check_call(
+            f'dtc -O dtb -o launch.dtb {tmp.name}', shell=True)
+    finally:
+        try:
+            os.remove('launch.dts')
+        except OSError:
+            pass
+
+
 if __name__ == '__main__':
     setup_terminal()
 
@@ -407,6 +442,9 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--board', default='malta',
                         choices=['malta', 'rpi3', 'litex-riscv'],
                         help='Emulated board.')
+    parser.add_argument('-s', '--storage', type=str,
+                        help='QCOW2 image to be attached as a default storage '
+                             'device for given platform.')
     args = parser.parse_args()
 
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
@@ -417,10 +455,13 @@ if __name__ == '__main__':
     setvar('config.graphics', args.graphics)
     setvar('config.args', args.args)
     setvar('config.network', args.network)
+    setvar('config.storage', args.storage)
 
     # Check if the kernel file is available
     if not os.path.isfile(getvar('config.kernel')):
         raise SystemExit('%s: file does not exist!' % getvar('config.kernel'))
+
+    prepare_dtb()
 
     sim_name = getvar('config.simulator', failok=False)
 

@@ -63,6 +63,42 @@
   PTR_LA gp, __global_pointer$;                                                \
   .option pop
 
+#define SAVE_REG(reg, offset) REG_S reg, (offset)(sp)
+
+#define SAVE_REG_CFI(reg, offset)                                              \
+  SAVE_REG(reg, offset);                                                       \
+  .cfi_rel_offset reg, offset
+
+#define SAVE_CSR(csr, offset, tmp)                                             \
+  csrr tmp, csr;                                                               \
+  SAVE_REG(tmp, offset)
+
+#define LOAD_REG(reg, offset) REG_L reg, (offset)(sp)
+
+#define LOAD_CSR(csr, offset, tmp)                                             \
+  LOAD_REG(tmp, offset);                                                       \
+  csrw csr, tmp
+
+#define ENABLE_SV_FPU(tmp)                                                     \
+  li tmp, SSTATUS_FS_INITIAL;                                                  \
+  csrs sstatus, tmp
+
+#define DISABLE_SV_FPU(tmp)                                                    \
+  li tmp, SSTATUS_FS_MASK;                                                     \
+  csrc sstatus, tmp
+
+#define SAVE_FPU_REG(reg, offset, dst) FP_S reg, (offset)(dst)
+
+#define SAVE_FCSR(dst, tmp)                                                    \
+  frcsr tmp;                                                                   \
+  REG_S tmp, (FPU_CTX_FCSR)(dst)
+
+#define LOAD_FPU_REG(reg, offset, src) FP_L reg, (offset)(src)
+
+#define LOAD_FCSR(src, tmp)                                                    \
+  REG_L tmp, (FPU_CTX_FCSR)(src);                                              \
+  fscsr tmp
+
 #ifdef __riscv_d
 #define FP_L fld
 #define FP_S fsd
@@ -112,15 +148,15 @@
 #define INT_SCALESHIFT 2
 #if __riscv_xlen == 64
 #define INT_ADD addw
-#define INT_ADDI addwi
+#define INT_ADDI addiw
 #define INT_SUB subw
-#define INT_SUBI subwi
-#define INT_SLL sllwi
-#define INT_SLLV sllw
-#define INT_SRL srlwi
-#define INT_SRLV srlw
-#define INT_SRA srawi
-#define INT_SRAV sraw
+#define INT_SUBI subiw
+#define INT_SLLI slliw
+#define INT_SLL sllw
+#define INT_SRLI srliw
+#define INT_SRL srlw
+#define INT_SRAI sraiw
+#define INT_SRA sraw
 #else
 #define INT_ADD add
 #define INT_ADDI addi
@@ -163,6 +199,7 @@
 
 #define REG_LI li
 #define REG_ADD add
+#define REG_SUB sub
 #define REG_SLLI slli
 #define REG_SLL sll
 #define REG_SRLI srli

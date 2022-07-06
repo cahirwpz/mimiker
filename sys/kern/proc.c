@@ -815,7 +815,7 @@ int do_setlogin(const char *name) {
     return EINVAL;
 
   WITH_MTX_LOCK (&all_proc_mtx)
-    strncpy(p->p_pgrp->pg_session->s_login, name, LOGIN_NAME_MAX);
+    strlcpy(p->p_pgrp->pg_session->s_login, name, LOGIN_NAME_MAX);
 
   return 0;
 }

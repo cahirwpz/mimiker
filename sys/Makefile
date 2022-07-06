@@ -4,7 +4,7 @@ TOPDIR = $(realpath ..)
 
 include $(TOPDIR)/config.mk
 
-SUBDIR = aarch64 contrib drv dts kern libkern mips riscv tests
+SUBDIR = aarch64 contrib drv dts gen kern libkern mips riscv tests
 KLIB = no
 
 BUILD-FILES += $(KERNEL-IMAGES) mimiker.elf cscope.out etags tags
@@ -16,7 +16,6 @@ LDSCRIPT = $(ARCH)/$(ARCH).ld
 LDFLAGS += -T $(TOPDIR)/sys/$(LDSCRIPT)
 LDLIBS	= -Wl,--start-group \
 	    -Wl,--whole-archive $(KLIBLIST) -Wl,--no-whole-archive \
-            -lgcc \
           -Wl,--end-group
 
 mimiker.elf: $(KLIBDEPS) $(LDSCRIPT)
