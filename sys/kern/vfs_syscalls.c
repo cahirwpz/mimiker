@@ -699,6 +699,7 @@ static int vfs_utimens(vnode_t *v, timespec_t times[2], cred_t *cred) {
 
   if (times == NULL) {
     va.va_atime = va.va_mtime = nanotime();
+    va.va_flags = VA_UTIMES_NULL;
   } else {
     va.va_atime = times[0];
     va.va_mtime = times[1];

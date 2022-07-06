@@ -15,7 +15,7 @@ package:
 	       -e 's#%{TARGET}#$(TARGET)#g' \
 	       -e 's#%{DATE}#$(shell date -R)#g' \
 	       -e 's#%{VERSION}#$(VERSION)#g' \
-	       `find debian -type f`
+	       `find debian -maxdepth 1 -type f`
 	fakeroot ./debian/rules binary
 
 .PHONY: all clean package
@@ -110,7 +110,11 @@ gdb/.configure: gcc/.install
 		--prefix=$(PREFIX) \
 		--datarootdir=$(PREFIX)/$(TARGET)/share \
 		--with-sysroot=$(PREFIX)/$(TARGET) \
+		--with-libgmp-prefix=$(HOSTDIR) \
+		--with-gmp=$(HOSTDIR) \
 		--with-isl=$(HOSTDIR) \
+		--with-mpc=$(HOSTDIR) \
+		--with-mpfr=$(HOSTDIR) \
 		--disable-binutils \
 		--disable-gas \
 		--disable-ld \
