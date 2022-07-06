@@ -45,7 +45,7 @@ endif
 endif
 
 GCC_ABIFLAGS += -march=rv$(XLEN)$(EXT) -mabi=$(ABI) 
-CLANG_ABIFLAGS += -target riscv$(XLEN)-elf -march=rv$(XLEN)$(EXT) -mabi=$(ABI)
+CLANG_ABIFLAGS += -target $(TARGET) -march=rv$(XLEN)$(EXT) -mabi=$(ABI)
 
 ifeq ($(KERNEL), 1)
 	CFLAGS += -mcmodel=medany

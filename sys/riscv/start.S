@@ -1,5 +1,6 @@
 #include <riscv/abi.h>
 #include <riscv/asm.h>
+#include <riscv/vm_param.h>
 
 #include "assym.h"
 
@@ -17,16 +18,16 @@
  *  - all other registers remain in an undefined state
  */
 _ENTRY(_start)
-	.option push;
-	.option norelax;
-	PTR_LA	gp, __global_pointer$_pa;
+	.option push
+	.option norelax
+	PTR_LA	gp, __global_pointer$_pa
 	REG_LI	t0, KERNEL_SPACE_BEGIN
 	REG_LI	t1, KERNEL_PHYS
 	REG_SUB	gp, gp, t1
 	or  gp, gp, t0
 	.option pop
 
-	/* 
+	/*
 	 * NOTE: In an actual SMP system, we could have multiple harts
 	 * entering the kernel simultaneously. In such case,
 	 * we would have to choose the hart to perform the global startup.

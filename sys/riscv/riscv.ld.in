@@ -1,4 +1,4 @@
-#include "assym.h"
+#include <riscv/vm_param.h>
 
 /* Linker scripts are documented here:
  * https://sourceware.org/binutils/docs/ld/Scripts.html */

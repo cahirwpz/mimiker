@@ -26,7 +26,7 @@ ifneq ($(shell which llvm-ar > /dev/null; echo $$?), 0)
 endif
 
 CC	= clang $(CLANG_ABIFLAGS) -g
-CPP	= $(CC) -E
+CPP	= $(CC) -x c -E
 AS	= $(CC)
 LD	= ld.lld
 AR	= llvm-ar
