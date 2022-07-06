@@ -15,7 +15,8 @@ typedef struct fb_color fb_color_t;
 typedef struct fb_palette fb_palette_t;
 typedef struct fb_info fb_info_t;
 
-#define FB_SIZE(fbi) ((fbi)->width * (fbi)->height * ((fbi)->bpp / 8))
+#define FB_SIZE(vga) ((vga)->fb_info.width * (vga)->fb_info.height * ((vga)->fb_info.bpp / 8))
+#define FB_PTR(vga) ((void *)vga->mem->r_bus_handle)
 
 #define VGA_PALETTE_SIZE 256
 
@@ -37,11 +38,17 @@ typedef struct stdvga_state {
 
 /* Bochs VBE. Simplifies VGA graphics mode configuration a great deal. Some
    documentation is available at http://wiki.osdev.org/Bochs_VBE_Extensions */
-#define VBE_DISPI_INDEX_XRES 0x01
-#define VBE_DISPI_INDEX_YRES 0x02
-#define VBE_DISPI_INDEX_BPP 0x03
-#define VBE_DISPI_INDEX_ENABLE 0x04
-#define VBE_DISPI_ENABLED 0x01 /* VBE Enabled bit */
+#define VBE_DISPI_INDEX_XRES 1
+#define VBE_DISPI_INDEX_YRES 2
+#define VBE_DISPI_INDEX_BPP 3
+#define VBE_DISPI_INDEX_ENABLE 4
+#define VBE_DISPI_INDEX_VIRT_WIDTH 6
+#define VBE_DISPI_INDEX_VIRT_HEIGHT 7
+#define VBE_DISPI_INDEX_X_OFFSET 8
+#define VBE_DISPI_INDEX_Y_OFFSET 9
+
+#define VBE_DISPI_ENABLED 1 /* VBE Enabled bit */
+#define VBE_DISPI_DISABLED 0
 
 /* Offsets for accessing ioports via PCI BAR1 (MMIO) */
 #define VGA_MMIO_OFFSET (0x400 - 0x3c0)
@@ -51,6 +58,8 @@ typedef struct stdvga_state {
    https://github.com/qemu/qemu/blob/master/docs/specs/standard-vga.txt */
 #define QEMU_STDVGA_VENDOR_ID 0x1234
 #define QEMU_STDVGA_DEVICE_ID 0x1111
+
+static fb_info_t stdvga_default = {.width = 320, .height = 200, .bpp = 8};
 
 static void stdvga_io_write(stdvga_state_t *vga, uint16_t reg, uint8_t value) {
   bus_write_1(vga->io, reg + VGA_MMIO_OFFSET, value);
@@ -116,40 +125,41 @@ static int stdvga_set_fbinfo(stdvga_state_t *vga, fb_info_t *fb_info) {
   memcpy(&vga->fb_info, fb_info, sizeof(fb_info_t));
 
   /* Apply resolution & bits per pixel. */
+  stdvga_vbe_set(vga, VBE_DISPI_INDEX_ENABLE, VBE_DISPI_DISABLED);
   stdvga_vbe_write(vga, VBE_DISPI_INDEX_XRES, vga->fb_info.width);
   stdvga_vbe_write(vga, VBE_DISPI_INDEX_YRES, vga->fb_info.height);
   stdvga_vbe_write(vga, VBE_DISPI_INDEX_BPP, vga->fb_info.bpp);
+  stdvga_vbe_set(vga, VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED);
+  stdvga_vbe_write(vga, VBE_DISPI_INDEX_VIRT_WIDTH, vga->fb_info.width);
+  stdvga_vbe_write(vga, VBE_DISPI_INDEX_VIRT_HEIGHT, vga->fb_info.height);
+  stdvga_vbe_write(vga, VBE_DISPI_INDEX_X_OFFSET, 0);
+  stdvga_vbe_write(vga, VBE_DISPI_INDEX_Y_OFFSET, 0);
   return 0;
 }
 
 static int stdvga_open(devnode_t *dev, file_t *fp, int oflags) {
   stdvga_state_t *vga = dev->data;
-  int error;
 
   /* Disallow opening the file more than once. */
   int expected = 0;
   if (!atomic_compare_exchange_strong(&vga->usecnt, &expected, 1))
     return EBUSY;
 
-  if ((error = stdvga_set_fbinfo(vga, &vga->fb_info))) {
-    atomic_store(&vga->usecnt, 0);
-    return error;
-  }
-
   return 0;
 }
 
 static int stdvga_close(devnode_t *dev, file_t *fp) {
   stdvga_state_t *vga = dev->data;
+  memset(FB_PTR(vga), 0, FB_SIZE(vga));
+  vga->fb_info = stdvga_default;
+  stdvga_set_fbinfo(vga, &vga->fb_info);
   atomic_store(&vga->usecnt, 0);
   return 0;
 }
 
 static int stdvga_write(devnode_t *dev, uio_t *uio) {
   stdvga_state_t *vga = dev->data;
-  size_t size = FB_SIZE(&vga->fb_info);
-
-  return uiomove_frombuf((void *)vga->mem->r_bus_handle, size, uio);
+  return uiomove_frombuf(FB_PTR(vga), FB_SIZE(vga), uio);
 }
 
 static int stdvga_ioctl(devnode_t *dev, u_long cmd, void *data, int fflags) {
@@ -201,7 +211,7 @@ static int stdvga_attach(device_t *dev) {
   stdvga_io_write(vga, VGA_AR_ADDR, VGA_AR_PAS);
 
   /* Configure initial videomode. */
-  vga->fb_info = (fb_info_t){.width = 320, .height = 200, .bpp = 8};
+  vga->fb_info = stdvga_default;
 
   /* Enable VBE. */
   stdvga_vbe_set(vga, VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED);
