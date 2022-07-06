@@ -13,7 +13,7 @@ ELFTYPE := elf$(XLEN)-littleriscv
 ELFARCH := riscv
 
 ifeq ($(BOARD), litex-riscv)
-	ifeq ($(CLANG), 1)
+	ifeq ($(LLVM), 1)
 		EXT := ima
 	else
 		EXT := ima_zicsr_zifencei
@@ -39,7 +39,7 @@ ifeq ($(KERNEL), 1)
 		CFLAGS_KASAN += -fasan-shadow-offset=0xdfffffe000000000
 	endif
 endif
-ifeq ($(CLANG), 1)
+ifeq ($(LLVM), 1)
 	CPPFLAGS += -D__riscv_d -D__riscv_f
 endif
 endif
