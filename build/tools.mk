@@ -1,4 +1,4 @@
-# vim: tabstop=8 shiftwidth=8 noexpandtab:
+# vim: tabstop=2 shiftwidth=2 noexpandtab:
 #
 # This is a common makefile used to establish the implementation of the basic
 # tools used throughout the build system.
@@ -51,7 +51,7 @@ endif
 CC	= $(TARGET)-gcc $(GCC_ABIFLAGS) -g
 CPP	= $(CC) -E
 AS	= $(CC)
-LD	= $(CC)
+LD	= $(TARGET)-ld
 AR	= $(TARGET)-ar
 NM	= $(TARGET)-nm
 RANLIB	= $(TARGET)-ranlib

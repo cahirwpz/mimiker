@@ -14,13 +14,11 @@ include $(TOPDIR)/build/build.kern.mk
 
 LDSCRIPT = $(ARCH)/$(ARCH).ld
 LDFLAGS += -T $(TOPDIR)/sys/$(LDSCRIPT)
-LDLIBS	= -Wl,--start-group \
-	    -Wl,--whole-archive $(KLIBLIST) -Wl,--no-whole-archive \
-          -Wl,--end-group
+LDLIBS	= --whole-archive $(KLIBLIST) --no-whole-archive
 
 mimiker.elf: $(KLIBDEPS) $(LDSCRIPT)
 	@echo "[LD] Linking kernel image: $@"
-	$(LD) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
+	$(LD) $(LDFLAGS) -Map=$@.map $(LDLIBS) -o $@
 
 mimiker.img: mimiker.elf
 	@echo "[OBJCOPY] Prepare kernel image: $@"
