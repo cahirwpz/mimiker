@@ -28,10 +28,6 @@ static void delay(int64_t count) {
 #define NGPIO_PIN 54
 #define FDT_PINS_INVAL (-1)
 
-#define BCM2835_PULL_NONE 0
-#define BCM2835_PULL_DOWN 1
-#define BCM2835_PULL_UP 2
-
 /* clang-format on */
 
 typedef struct bcm2835_gpio {
@@ -91,23 +87,49 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
   uint32_t *pin_cfgs, *function_cfgs, *pull_cfgs, *intr_detect_cfgs;
   bcm2835_gpio_t *gpio = (bcm2835_gpio_t *)dev->state;
 
-  ssize_t pin_cnt = FDT_getencprop_alloc_multi(node, "pins", sizeof(*pin_cfgs),
-                                               (void **)&pin_cfgs);
-  ssize_t function_cnt = FDT_getencprop_alloc_multi(
-    node, "function", sizeof(*function_cfgs), (void **)&function_cfgs);
-  ssize_t pull_cnt = FDT_getencprop_alloc_multi(
-    node, "pull", sizeof(*pull_cfgs), (void **)&pull_cfgs);
-  ssize_t intr_detect_cnt = FDT_getencprop_alloc_multi(
-    node, "intr_detect", sizeof(*intr_detect_cfgs), (void **)&intr_detect_cfgs);
+  ssize_t pin_cnt = 0;
+  ssize_t function_cnt = 0;
+  ssize_t pull_cnt = 0;
+  ssize_t intr_detect_cnt = 0;
 
+  pin_cnt = FDT_getencprop_alloc_multi(node, "pins", sizeof(*pin_cfgs),
+                                               (void **)&pin_cfgs);
   if (pin_cnt == FDT_PINS_INVAL) {
-    klog("Warning: GPIO FDT entry with no pins property");
+    klog("Warning: GPIO FDT entry with no `pins` property");
+    result = EINVAL;
+    goto cleanup;
+  }
+
+  function_cnt = FDT_getencprop_alloc_multi(
+    node, "function", sizeof(*function_cfgs), (void **)&function_cfgs);
+  if (function_cnt == FDT_PINS_INVAL) {
+    klog("Warning: GPIO FDT entry with no `function` property");
+    result = EINVAL;
+    goto cleanup;
+  }
+
+  pull_cnt = FDT_getencprop_alloc_multi(
+    node, "pull", sizeof(*pull_cfgs), (void **)&pull_cfgs);
+  if (pull_cnt == FDT_PINS_INVAL) {
+    klog("Warning: GPIO FDT entry with no `pull` property");
+    result = EINVAL;
+    goto cleanup;
+  }
+
+  intr_detect_cnt = FDT_getencprop_alloc_multi(
+    node, "intr_detect", sizeof(*intr_detect_cfgs), (void **)&intr_detect_cfgs);
+  if (intr_detect_cnt == FDT_PINS_INVAL) {
+    klog("Warning: GPIO FDT entry with no `intr_detect` property");
     result = EINVAL;
     goto cleanup;
   }
 
   for (ssize_t i = 0; i < pin_cnt; i++) {
     uint32_t pin = pin_cfgs[i];
+
+    /* Take entries one-by-one, until we reach an end. Then repeat the last
+     * entry until all pins are configured.
+     */
     uint32_t fsel =
       i < function_cnt ? function_cfgs[i] : function_cfgs[function_cnt - 1];
     uint32_t pull = i < pull_cnt ? pull_cfgs[i] : pull_cfgs[pull_cnt - 1];
@@ -131,6 +153,8 @@ cleanup:
     FDT_free(function_cfgs);
   if (pull_cnt > 0)
     FDT_free(pull_cfgs);
+  if (intr_detect_cnt > 0)
+    FDT_free(intr_detect_cfgs);
 
   return result;
 }
@@ -155,11 +179,13 @@ static int bcm2835_gpio_attach(device_t *dev) {
   return 0;
 }
 
-driver_t gpio_driver = {.desc = "BCM2835 RPi3 GPIO driver",
-                        .size = sizeof(bcm2835_gpio_t),
-                        .pass = FIRST_PASS,
-                        .probe = bcm2835_gpio_probe,
-                        .attach = bcm2835_gpio_attach,
-                        .interfaces = {}};
+driver_t gpio_driver = {
+  .desc = "BCM2835 RPi3 GPIO driver",
+  .size = sizeof(bcm2835_gpio_t),
+  .pass = FIRST_PASS,
+  .probe = bcm2835_gpio_probe,
+  .attach = bcm2835_gpio_attach,
+  .interfaces = {},
+};
 
 DEVCLASS_ENTRY(root, gpio_driver);
