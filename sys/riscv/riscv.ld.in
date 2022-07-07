@@ -18,7 +18,8 @@ SECTIONS
   .boot KERNEL_PHYS : AT(KERNEL_PHYS) ALIGN(4096)
   {
     __boot = ABSOLUTE(.);
-    KEEP(riscv/riscv.ka:start.o)
+    /* @mblk do we need it ?
+     * KEEP(riscv/riscv.ka:start.o) */
     *(.boot .boot.*)
     . = ALIGN(4096);
     __eboot = ABSOLUTE(.);

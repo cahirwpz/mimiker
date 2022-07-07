@@ -6,7 +6,8 @@
 
 #define INITSTACK_SIZE 512
 
-	.section .boot
+	.section .boot.text,"ax",@progbits
+
 /*
  * The following entry point is used when booting via SBI firmware.
  * It must be placed at the beginning of the .boot section.
