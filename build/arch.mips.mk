@@ -17,18 +17,12 @@ else
 endif
 ELFARCH := mips
 
+ASAN_SHADOW_OFFSET := 0xD8000000
+
 ifeq ($(KERNEL), 1)
-ifeq ($(KASAN), 1)
-  # Added to files that are sanitized
-  CFLAGS_KASAN = -fsanitize=kernel-address -fasan-shadow-offset=0xD8000000 \
-                 --param asan-globals=1 \
-                 --param asan-stack=1 \
-                 --param asan-instrument-allocas=1
-endif
-# Added to all files
-GCC_ABIFLAGS += -msoft-float
-CLANG_ABIFLAGS += -msoft-float
-ifeq ($(KGPROF), 1)
-	CFLAGS_KGPROF = -finstrument-functions
-endif
+  GCC_ABIFLAGS += -msoft-float
+  CLANG_ABIFLAGS += -msoft-float
+  ifeq ($(KGPROF), 1)
+    CFLAGS_KGPROF = -finstrument-functions
+  endif
 endif

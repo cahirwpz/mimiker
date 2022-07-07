@@ -1,4 +1,4 @@
-# vim: tabstop=8 shiftwidth=8 noexpandtab:
+# vim: tabstop=2 shiftwidth=2 noexpandtab:
 #
 # Common makefile which specifies aarch64 architecture specific settings.
 #
@@ -18,20 +18,14 @@ ELFARCH := aarch64
 # because we share bcopy (memcpy) implementation with user-space.
 CPPFLAGS += -DSTRICT_ALIGNMENT=1
 
+ASAN_SHADOW_OFFSET := 0xe0001f0000000000 
+
 ifeq ($(KERNEL), 1)
-	CFLAGS += -mcpu=cortex-a53+nofp -march=armv8-a+nofp -mgeneral-regs-only
-	ifeq ($(KASAN), 1)
-	# Added to files that are sanitized
-	CFLAGS_KASAN = -fsanitize=kernel-address \
-		       -fasan-shadow-offset=0xe0001f0000000000 \
-		       --param asan-globals=1 \
-		       --param asan-stack=1 \
-		       --param asan-instrument-allocas=1
-	endif
+  CFLAGS += -mcpu=cortex-a53+nofp -march=armv8-a+nofp -mgeneral-regs-only
 else
-	CFLAGS += -mcpu=cortex-a53 -march=armv8-a
+  CFLAGS += -mcpu=cortex-a53 -march=armv8-a
 endif
 
 ifeq ($(BOARD), rpi3)
-	KERNEL-IMAGES := mimiker.img mimiker.img.gz
+  KERNEL-IMAGES := mimiker.img mimiker.img.gz
 endif
