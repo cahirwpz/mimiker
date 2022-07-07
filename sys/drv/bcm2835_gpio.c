@@ -93,7 +93,7 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
   ssize_t intr_detect_cnt = 0;
 
   pin_cnt = FDT_getencprop_alloc_multi(node, "pins", sizeof(*pin_cfgs),
-                                               (void **)&pin_cfgs);
+                                       (void **)&pin_cfgs);
   if (pin_cnt == FDT_PINS_INVAL) {
     klog("Warning: GPIO FDT entry with no `pins` property");
     result = EINVAL;
@@ -108,8 +108,8 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
     goto cleanup;
   }
 
-  pull_cnt = FDT_getencprop_alloc_multi(
-    node, "pull", sizeof(*pull_cfgs), (void **)&pull_cfgs);
+  pull_cnt = FDT_getencprop_alloc_multi(node, "pull", sizeof(*pull_cfgs),
+                                        (void **)&pull_cfgs);
   if (pull_cnt == FDT_PINS_INVAL) {
     klog("Warning: GPIO FDT entry with no `pull` property");
     result = EINVAL;
