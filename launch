@@ -65,10 +65,12 @@ CONFIG = {
             },
             'rpi3': {
                 'kernel': 'sys/mimiker.img.gz',
+                'dts': 'sys/dts/rpi3.dts',
                 'simulator': 'qemu'
             },
             'litex-riscv': {
                 'kernel': 'sys/mimiker.img',
+                'dts': 'sys/dts/litex-riscv.dts',
                 'simulator': 'renode',
             },
             'sifive_u': {
@@ -126,14 +128,13 @@ CONFIG = {
                     '-machine', 'sifive_u',
                     '-smp', '5',
                     '-m', '1G',
-                    '-monitor', 'stdio',
                 ],
                 'network_options': [],
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True),
                     dict(name='/dev/tty1', port=RandomPort(), raw=True)
                 ]
-            }
+            },
         }
     },
     'renode': {
@@ -178,7 +179,7 @@ CONFIG = {
                 'extra-options': [
                     '-ex=add-inferior',
                     '-ex=inferior 2',
-                    '-ex=file sys/mimiker.elf',
+                    '-ex=file {kernel}',
                     '-ex=attach 2',
                     '-ex=set schedule-multiple on',
                 ],
@@ -186,15 +187,6 @@ CONFIG = {
         }
     }
 }
-
-BOOTARGS_DTS_TEMPLATE = """
-/dts-v1/;
-/plugin/;
-
-&{{/chosen}} {{
-    bootargs = "{}";
-}};
-"""
 
 
 def setboard(name):
@@ -295,7 +287,7 @@ class QEMU(Launchable):
             port = uart['port']
             self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
-        if getvar('board') == 'malta' and getvar('config.args'):
+        if getvar('config.dts', failok=True) is None and getvar('config.args'):
             self.options += ['-append', ' '.join(getvar('config.args'))]
         if getvar('config.debug'):
             self.options += ['-S']
@@ -342,8 +334,9 @@ class GDB(Launchable):
     def __init__(self):
         super().__init__('gdb', getvar('gdb.binary'))
 
-        self.options = getopts(
+        self.options += getopts(
                 'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
+
         if getvar('board') != 'sifive_u':
             self.options.append(getvar('config.elf'))
 
@@ -439,9 +432,12 @@ def setup_terminal():
 def prepare_dtb():
     bootargs = ' '.join(getvar('config.args'))
     board = getvar('board')
-    dts = f'sys/dts/{board}.dts'
-    if not os.path.isfile(dts):
+    dts = getvar('config.dts', failok=True)
+    if dts is None:
         return
+
+    if not os.path.isfile(dts):
+        raise SystemExit(f'{dts}: file does not exist!')
 
     try:
         with open('launch.dts', mode='w') as tmp:
