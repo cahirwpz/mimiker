@@ -69,6 +69,7 @@ CONFIG = {
             },
             'litex-riscv': {
                 'kernel': 'sys/mimiker.img',
+                'dts': 'sys/dts/sifive_u.dts',
                 'simulator': 'renode',
             },
         },
