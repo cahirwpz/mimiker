@@ -13,7 +13,7 @@ PHDRS
 
 SECTIONS
 {
-  .boot _KERNEL_PHYS : AT(_KERNEL_PHYS) ALIGN(4096)
+  .boot KERNEL_PHYS : AT(KERNEL_PHYS) ALIGN(4096)
   {
     __boot = ABSOLUTE(.);
     KEEP(*(.boot))
@@ -25,7 +25,7 @@ SECTIONS
 
   HIDDEN(_boot_size = __eboot - __boot);
 
-  .text _KERNEL_VIRT + _boot_size : AT(__eboot) ALIGN(4096)
+  .text KERNEL_VIRT + _boot_size : AT(__eboot) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
     __kernel_start_pa = LOADADDR(.text);
