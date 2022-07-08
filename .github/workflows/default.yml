@@ -100,6 +100,24 @@ jobs:
       - uses: actions/checkout@v2
       - run: make BOARD=litex-riscv LLVM=1
 
+  build_riscv64_gcc:
+    name: Build RISCV 64-bit (GCC + KASAN)
+    runs-on: self-hosted
+    needs: [verify_c_style, verify_py_style]
+    steps:
+      - uses: actions/checkout@v2
+      - run: make BOARD=sifive_u KASAN=1 LOCKDEP=1
+      - uses: actions/upload-artifact@v2
+        with:
+          name: "riscv64 gcc kernel+ramdisk"
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            sys/dts/*.dtb
+            initrd.cpio
+
   build_rv64_clang:
     name: Build RISC-V 64-bit (Clang)
     runs-on: self-hosted
