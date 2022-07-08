@@ -24,12 +24,12 @@ void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg) {
   _REG(ctx, A0) = arg;
 }
 
-void ctx_set_retval(ctx_t *ctx, long value) {
-  _REG(ctx, V0) = (register_t)value;
-}
-
 register_t ctx_get_pc(ctx_t *ctx) {
   return _REG(ctx, EPC);
+}
+
+void ctx_set_pc(ctx_t *ctx, uintptr_t addr) {
+  _REG(ctx, EPC) = addr;
 }
 
 void mcontext_copy(mcontext_t *to, mcontext_t *from) {
@@ -60,7 +60,7 @@ void mcontext_restart_syscall(mcontext_t *ctx) {
   /* Nothing needs to be done. */
 }
 
-__no_instrument_kgprof bool user_mode_p(ctx_t *ctx) {
+__no_profile bool user_mode_p(ctx_t *ctx) {
   return (_REG(ctx, SR) & SR_KSU_MASK) == SR_KSU_USER;
 }
 

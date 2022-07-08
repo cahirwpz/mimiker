@@ -310,7 +310,7 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de);
 static blkptr_t *tmpfs_get_blk(tmpfs_node_t *v, size_t blkno);
 static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize);
 static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
-                         cred_t *cred);
+                         cred_t *cred, va_flags_t vaflags);
 static void tmpfs_update_time(tmpfs_node_t *v, tmpfs_time_type_t type);
 
 /* tmpfs readdir operations */
@@ -398,7 +398,7 @@ static int tmpfs_uiomove(tmpfs_node_t *node, uio_t *uio, size_t n) {
   return uiomove(blk + blkoff, len, uio);
 }
 
-static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
+static int tmpfs_vop_read(vnode_t *v, uio_t *uio) {
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
   size_t remaining;
   int error = 0;
@@ -420,7 +420,7 @@ static int tmpfs_vop_read(vnode_t *v, uio_t *uio, int ioflag) {
   return error;
 }
 
-static int tmpfs_vop_write(vnode_t *v, uio_t *uio, int ioflag) {
+static int tmpfs_vop_write(vnode_t *v, uio_t *uio) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
   int error = 0;
@@ -430,7 +430,7 @@ static int tmpfs_vop_write(vnode_t *v, uio_t *uio, int ioflag) {
   if (node->tfn_type != V_REG)
     return EOPNOTSUPP;
 
-  if (ioflag & IO_APPEND)
+  if (uio->uio_ioflags & IO_APPEND)
     uio->uio_offset = node->tfn_size;
 
   if (uio->uio_offset + uio->uio_resid > node->tfn_size)
@@ -510,7 +510,8 @@ static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va, cred_t *cred) {
   }
 
   if (va->va_atime.tv_sec != VNOVAL || va->va_mtime.tv_sec != VNOVAL) {
-    if ((error = tmpfs_chtimes(node, &va->va_atime, &va->va_mtime, cred)))
+    if ((error = tmpfs_chtimes(node, &va->va_atime, &va->va_mtime, cred,
+                               va->va_flags)))
       return error;
   }
 
@@ -997,10 +998,9 @@ static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize) {
 }
 
 static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
-                         cred_t *cred) {
-  int err;
-  if ((err = cred_can_utime(v->tfn_vnode, v->tfn_uid, cred)))
-    return err;
+                         cred_t *cred, va_flags_t vaflags) {
+  if (!cred_can_utime(v->tfn_vnode, v->tfn_uid, cred, vaflags))
+    return EPERM;
 
   mtx_lock(&v->tfn_timelock);
   if (atime->tv_sec != VNOVAL)

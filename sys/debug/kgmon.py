@@ -1,12 +1,19 @@
 import gdb
 
 from .cmd import SimpleCommand
+from .struct import GdbStructMeta
 from struct import *
 
 
 def gmon_write(path):
+    class GmonParam(metaclass=GdbStructMeta):
+        __ctype__ = 'struct gmonparam'
+
+    gparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
     infer = gdb.inferiors()[0]
-    long_size = int(gdb.parse_and_eval('sizeof(long)'))
+
+    word_size = int(gdb.parse_and_eval('sizeof(long)'))
+
     with open(path, "wb") as of:
         # Write headers
         gmonhdr_size = int(gdb.parse_and_eval('sizeof(_gmonhdr)'))
@@ -14,46 +21,42 @@ def gmon_write(path):
         of.write(infer.read_memory(gmonhdr_p, gmonhdr_size))
 
         # Write tick buffer
-        kcountsize = int(gdb.parse_and_eval('_gmonparam.kcountsize'))
-        kcount = gdb.parse_and_eval('_gmonparam.kcount')
-        of.write(infer.read_memory(kcount, kcountsize))
+        of.write(infer.read_memory(gparam.kcount, gparam.kcountsize))
 
         # Write arc info
-        froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
-        fromssize = int(gdb.parse_and_eval('_gmonparam.fromssize'))
-        tossize = int(gdb.parse_and_eval('_gmonparam.tossize'))
-        hashfraction = gdb.parse_and_eval('_gmonparam.hashfraction')
-        froms = gdb.parse_and_eval('_gmonparam.froms')
-        tos = gdb.parse_and_eval('_gmonparam.tos')
-        lowpc = gdb.parse_and_eval('_gmonparam.lowpc')
+        memory = infer.read_memory(gparam.froms, gparam.fromssize)
+        froms_array = unpack('H' * int(gparam.fromssize/calcsize('H')), memory)
+        memory = infer.read_memory(gparam.tos, gparam.tossize)
 
-        long_size = gdb.parse_and_eval('sizeof(long)')
-        tos_rep = "IiHH"
+        # The last H stands for padding in the tos strusture
+        tos_rep = 'IiHH'
         output_rep = "IIi"
-        if long_size == 8:
+        if word_size == 8:
             tos_rep = "QqHHi"
             output_rep = "QQq"
         tos_rep_len = len(tos_rep)
+        size = calcsize(tos_rep)
+        tos_array = unpack(tos_rep * int(gparam.tossize/size), memory)
 
-        memory = infer.read_memory(froms, fromssize)
-        froms_array = unpack('H' * int(fromssize/calcsize('H')), memory)
-        memory = infer.read_memory(tos, tossize)
-
-        tos_array = unpack(tos_rep * int(tossize/calcsize(tos_rep)), memory)
-
-        fromindex = 0
+        fromindex = -1
+        froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
         for from_val in froms_array:
+            fromindex += 1
+            # Nothing has been called from this function
             if from_val == 0:
                 continue
-            frompc = lowpc + fromindex * froms_el_size * hashfraction
+            # Getting the calling function addres from encoded value
+            offset = fromindex * froms_el_size * gparam.hashfraction
+            frompc = gparam.lowpc + offset
             toindex = from_val
 
+            # Traversing the tos list for the calling function
+            # It stores data about called functions
             while toindex != 0:
                 selfpc = tos_array[toindex * tos_rep_len]
                 count = tos_array[toindex * tos_rep_len + 1]
                 toindex = tos_array[toindex * tos_rep_len + 2]
                 of.write(pack(output_rep, frompc, selfpc, count))
-            fromindex += 1
 
 
 class Kgmon(SimpleCommand):
@@ -66,6 +69,11 @@ class Kgmon(SimpleCommand):
         args = args.strip()
         state = gdb.parse_and_eval('_gmonparam.state')
         if state == gdb.parse_and_eval('GMON_PROF_NOT_INIT'):
-            print("Compile program with KGPROF=1 or gmon not initialized yet")
+            print("Kgprof not initialized yet")
+        elif state == gdb.parse_and_eval('GMON_PROF_BUSY'):
+            # To ensure consistent data
+            print("The mcount function is running - wait for it to finish")
         else:
+            if state == gdb.parse_and_eval('GMON_PROF_ERROR'):
+                print("The tostruct array was too small for the whole process")
             gmon_write(args or 'gmon.out')

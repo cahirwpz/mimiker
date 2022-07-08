@@ -1,6 +1,6 @@
 #include <sys/sched.h>
 #include <sys/tty.h>
-#include <sys/uart.h>
+#include <dev/uart.h>
 #include <sys/uart_tty.h>
 
 static void tty_set_outq_nonempty_flag(tty_thread_t *ttd) {

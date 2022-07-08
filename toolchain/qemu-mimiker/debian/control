@@ -10,5 +10,5 @@ Package: qemu-mimiker
 Architecture: amd64
 Depends: ${shlibs:Depends} ${misc:Depends}
 Description: QEMU system simulator for Mimiker OS development
- This package contains modified QEMU system simulator for mipsel and aarch64
- architectures.
+ This package contains modified QEMU system simulator for mipsel, aarch64,
+ and riscv64 architectures.

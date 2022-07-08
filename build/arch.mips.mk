@@ -9,7 +9,7 @@ TARGET := mipsel-mimiker-elf
 # as otherwise they would exceed 64KB limit
 GCC_ABIFLAGS := -mips32r2 -EL -G 0
 CLANG_ABIFLAGS := -target mipsel-elf -march=mips32r2 -mno-abicalls \
-		  -modd-spreg -G 0
+		  -modd-spreg -G 0 -D__ELF__=1
 ELFTYPE := elf32-littlemips 
 ELFARCH := mips
 
@@ -24,7 +24,4 @@ endif
 # Added to all files
 GCC_ABIFLAGS += -msoft-float
 CLANG_ABIFLAGS += -msoft-float
-ifeq ($(KGPROF), 1)
-  CFLAGS_KGPROF = -finstrument-functions
-endif
 endif

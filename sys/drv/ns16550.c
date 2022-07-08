@@ -10,11 +10,10 @@
 #include <sys/ttycom.h>
 #include <dev/isareg.h>
 #include <dev/ns16550reg.h>
-#include <sys/interrupt.h>
 #include <sys/stat.h>
 #include <sys/devclass.h>
 #include <sys/tty.h>
-#include <sys/uart.h>
+#include <dev/uart.h>
 #include <sys/uart_tty.h>
 
 #define UART_BUFSIZE 128
@@ -91,7 +90,7 @@ static int ns16550_attach(device_t *dev) {
   assert(ns16550->regs != NULL);
 
   ns16550->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
-  bus_intr_setup(dev, ns16550->irq_res, uart_intr, NULL, dev, "NS16550 UART");
+  pic_setup_intr(dev, ns16550->irq_res, uart_intr, NULL, dev, "NS16550 UART");
 
   /* Setup UART and enable interrupts */
   setup(ns16550->regs);

@@ -7,8 +7,18 @@
 include $(TOPDIR)/build/flags.mk
 
 CFLAGS   += -fno-builtin -nostdinc -nostdlib -ffreestanding
-CPPFLAGS += -I$(TOPDIR)/include -D_KERNEL
-CPPFLAGS += -DLOCKDEP=$(LOCKDEP) -DKASAN=$(KASAN) -DKGPROF=$(KGPROF)
+CPPFLAGS += -I$(TOPDIR)/include -I$(TOPDIR)/sys/contrib -D_KERNEL
+CPPFLAGS += -DLOCKDEP=$(LOCKDEP) -DKASAN=$(KASAN) -DKGPROF=$(KGPROF) -DKCSAN=$(KCSAN)
 LDFLAGS  += -nostdlib
+
+ifeq ($(KCSAN), 1)
+  # Added to files that are sanitized
+  CFLAGS_KCSAN = -fsanitize=thread \
+                  --param tsan-distinguish-volatile=1
+endif
+
+ifeq ($(KGPROF), 1)
+	CFLAGS_KGPROF = -finstrument-functions
+endif
 
 KERNEL := 1

@@ -35,6 +35,7 @@ typedef struct uio {
   size_t uio_resid;      /* remaining bytes to process */
   uio_op_t uio_op;       /* operation */
   vm_map_t *uio_vmspace; /* destination address space */
+  unsigned uio_ioflags;  /* IO_* flags associated with this operation */
 } uio_t;
 
 #define UIO_SINGLE(op, vm_map, offset, buf, buflen)                            \
@@ -45,7 +46,7 @@ typedef struct uio {
   }
 
 #define UIO_SINGLE_KERNEL(op, offset, buf, buflen)                             \
-  UIO_SINGLE(op, vm_map_kernel(), offset, buf, buflen)
+  UIO_SINGLE(op, NULL, offset, buf, buflen)
 
 #define UIO_SINGLE_USER(op, offset, buf, buflen)                               \
   UIO_SINGLE(op, vm_map_user(), offset, buf, buflen)
@@ -58,7 +59,7 @@ typedef struct uio {
   }
 
 #define UIO_VECTOR_KERNEL(op, iov, iovcnt, len)                                \
-  UIO_VECTOR(op, vm_map_kernel(), iov, iovcnt, len)
+  UIO_VECTOR(op, NULL, iov, iovcnt, len)
 
 #define UIO_VECTOR_USER(op, iov, iovcnt, len)                                  \
   UIO_VECTOR(op, vm_map_user(), iov, iovcnt, len)
