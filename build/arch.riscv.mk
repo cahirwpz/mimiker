@@ -20,6 +20,7 @@ ifeq ($(BOARD), litex-riscv)
   endif
   ABI := ilp32
   KERNEL_PHYS := 0x40000000
+  KERNEL_VIRT := 0x80000000
   KERNEL-IMAGES := mimiker.img
   ifeq ($(KERNEL), 1)
     CPPFLAGS += -DFPU=0
@@ -31,6 +32,7 @@ ifeq ($(BOARD), sifive_u)
   EXT := g
   ABI := lp64d
   KERNEL_PHYS := 0x80200000
+  KERNEL_VIRT := 0xffffffc000000000
   ifeq ($(KERNEL), 1)
     CPPFLAGS += -DFPU=1
     ASAN_SHADOW_OFFSET := 0xdfffffe000000000
@@ -45,6 +47,6 @@ CLANG_ABIFLAGS += -target $(TARGET) -march=rv$(XLEN)$(EXT) -mabi=$(ABI)
 
 ifeq ($(KERNEL), 1)
   CFLAGS += -mcmodel=medany
-  CPPFLAGS += -DKERNEL_PHYS=$(KERNEL_PHYS)
+  CPPFLAGS += -D_KERNEL_PHYS=$(KERNEL_PHYS) -D_KERNEL_VIRT=$(KERNEL_VIRT)
   CPPLDSCRIPT := 1
 endif

@@ -1,5 +1,3 @@
-#include <riscv/vm_param.h>
-
 /* Linker scripts are documented here:
  * https://sourceware.org/binutils/docs/ld/Scripts.html */
 OUTPUT_ARCH(riscv)
@@ -15,19 +13,19 @@ PHDRS
 
 SECTIONS
 {
-  .boot KERNEL_PHYS : AT(KERNEL_PHYS) ALIGN(4096)
+  .boot _KERNEL_PHYS : AT(_KERNEL_PHYS) ALIGN(4096)
   {
     __boot = ABSOLUTE(.);
-    /* @mblk do we need it ?
-     * KEEP(riscv/riscv.ka:start.o) */
-    *(.boot .boot.*)
+    KEEP(*(.boot))
+    *(.boot.text)
+    *(.boot.data)
     . = ALIGN(4096);
     __eboot = ABSOLUTE(.);
   } : boot
 
   HIDDEN(_boot_size = __eboot - __boot);
 
-  .text KERNEL_SPACE_BEGIN + _boot_size : AT(__eboot) ALIGN(4096)
+  .text _KERNEL_VIRT + _boot_size : AT(__eboot) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
     __kernel_start_pa = LOADADDR(.text);

@@ -28,6 +28,9 @@ mimiker.img.gz: mimiker.img
 	@echo "[GZIP] Compress kernel image: $@"
 	$(GZIP) -k -f $^ > $@
 
+$(LDSCRIPT):
+	make -C $(dir $(LDSCRIPT)) $(notdir $(LDSCRIPT))
+
 # Lists of all files that we consider operating system kernel sources.
 SRCDIRS = $(TOPDIR)/include $(TOPDIR)/sys
 SRCFILES_C = $(shell find $(SRCDIRS) -iname '*.[ch]')
