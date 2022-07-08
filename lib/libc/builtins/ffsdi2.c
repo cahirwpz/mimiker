@@ -25,3 +25,9 @@ COMPILER_RT_ABI int __ffsdi2(di_int a) {
   }
   return ctzsi(x.s.low) + 1;
 }
+
+#include <sys/cdefs.h>
+
+int ffsl(long);
+
+__weak_alias(ffsl, __ffsdi2);
