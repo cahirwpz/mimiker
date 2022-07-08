@@ -6,16 +6,16 @@
 
 static void *zero_page, *junk_page;
 
-static int dev_null_write(vnode_t *v, uio_t *uio, int ioflag) {
+static int dev_null_write(vnode_t *v, uio_t *uio) {
   uio->uio_resid = 0;
   return 0;
 }
 
-static int dev_null_read(vnode_t *v, uio_t *uio, int ioflag) {
+static int dev_null_read(vnode_t *v, uio_t *uio) {
   return 0;
 }
 
-static int dev_zero_write(vnode_t *v, uio_t *uio, int ioflag) {
+static int dev_zero_write(vnode_t *v, uio_t *uio) {
   /* We might just discard the data, but to demonstrate using uiomove for
    * writing, store the data into a junkyard page. */
   int error = 0;
@@ -28,7 +28,7 @@ static int dev_zero_write(vnode_t *v, uio_t *uio, int ioflag) {
   return error;
 }
 
-static int dev_zero_read(vnode_t *v, uio_t *uio, int ioflag) {
+static int dev_zero_read(vnode_t *v, uio_t *uio) {
   int error = 0;
   while (uio->uio_resid && !error) {
     size_t len = uio->uio_resid;

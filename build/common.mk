@@ -35,7 +35,7 @@ DSTPATH = $(DIR)$@
 
 %.o: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
-	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CFLAGS_KASAN) $(CFLAGS_KGPROF) $(CPPFLAGS) $(WFLAGS) \
+	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CFLAGS_KASAN) $(CFLAGS_KCSAN) $(CFLAGS_KGPROF) $(CPPFLAGS) $(WFLAGS) \
 	      -c -o $@ $(realpath $<)
 
 %.o: %.S
@@ -58,13 +58,17 @@ assym.h: genassym.cf
 	@echo "[ASSYM] $(DSTPATH)"
 	$(GENASSYM) $(CC) $(ASSYM_CFLAGS) $(CFLAGS) $(CPPFLAGS) < $^ > $@
 
+%.ld: %.ld.in
+	@echo "[CPP] $(SRCPATH) -> $(DSTPATH)"
+	$(CPP) $(CPPFLAGS) -I$(TOPDIR)/include -P -o $@ $<
+
 include $(TOPDIR)/config.mk
 include $(TOPDIR)/build/arch.$(ARCH).mk
 include $(TOPDIR)/build/tools.mk
 
 SRCDIR ?= .
 
-vpath %.c $(SRCDIR)
+vpath %.c $(SRCDIR) $(SRCDIR)/$(ARCH)
 vpath %.S $(SRCDIR)/$(ARCH)
 
 # Recursive rules for subdirectories
@@ -111,7 +115,7 @@ clean: clean-recursive clean-here
 	$(RM) -v *~
 distclean: distclean-recursive distclean-here
 
-FORMAT-FILES = $(filter-out $(FORMAT-EXCLUDE),$(SOURCES_C) $(SOURCES_H))
+FORMAT-FILES = $(filter-out $(FORMAT-EXCLUDE),$(SOURCES_ALL_C) $(SOURCES_H))
 FORMAT-RECURSE ?= format-recursive
 
 format: $(FORMAT-RECURSE) format-here

@@ -5,9 +5,14 @@
 #include <sys/queue.h>
 #include <sys/spinlock.h>
 #include <sys/priority.h>
+#include <sys/rman.h>
+
+#define IENAMELEN 32
 
 typedef struct ctx ctx_t;
 typedef struct device device_t;
+typedef struct fdt_intr fdt_intr_t;
+typedef uint32_t pcell_t;
 
 /*! \brief Disables hardware interrupts.
  *
@@ -22,13 +27,13 @@ typedef struct device device_t;
  *
  * \sa preempt_disable()
  */
-void intr_disable(void) __no_instrument_kgprof;
+void intr_disable(void) __no_profile;
 
 /*! \brief Enables interrupts. */
-void intr_enable(void) __no_instrument_kgprof;
+void intr_enable(void) __no_profile;
 
 /*! \brief Checks if interrupts are disabled now. */
-bool intr_disabled(void) __no_instrument_kgprof;
+bool intr_disabled(void) __no_profile;
 
 /* Two following functions are workaround to make interrupt disabling work with
  * scoped and with statement. */
@@ -72,7 +77,7 @@ typedef struct intr_event {
   ie_action_t *ie_disable; /* called before ithread delegation (mask irq) */
   ie_action_t *ie_enable;  /* called after ithread delagation (unmask irq) */
   void *ie_source;         /* additional argument for actions */
-  const char *ie_name;     /* individual event name */
+  char ie_name[IENAMELEN]; /* individual event name */
   unsigned ie_irq;         /* physical interrupt request line number */
   thread_t *ie_ithread;    /* associated interrupt thread */
 } intr_event_t;
@@ -85,9 +90,87 @@ intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
 void intr_event_remove_handler(intr_handler_t *ih);
 void intr_event_run_handlers(intr_event_t *ie);
 
-typedef void (*intr_root_filter_t)(ctx_t *ctx, device_t *dev, void *arg);
+typedef void (*intr_root_filter_t)(ctx_t *ctx, device_t *dev);
 
-void intr_root_claim(intr_root_filter_t filter, device_t *dev, void *arg);
-void intr_root_handler(ctx_t *ctx) __no_instrument_kgprof;
+void intr_root_claim(intr_root_filter_t filter, device_t *dev);
+void intr_root_handler(ctx_t *ctx) __no_profile;
+
+/*
+ * Interrupt controller interface.
+ */
+
+typedef resource_t *(*pic_alloc_intr_t)(device_t *pic, device_t *dev, int rid,
+                                        unsigned irq, rman_flags_t flags);
+typedef void (*pic_release_intr_t)(device_t *pic, device_t *dev, resource_t *r);
+typedef void (*pic_setup_intr_t)(device_t *pic, device_t *dev, resource_t *r,
+                                 ih_filter_t *filter, ih_service_t *service,
+                                 void *arg, const char *name);
+typedef void (*pic_teardown_intr_t)(device_t *pic, device_t *dev,
+                                    resource_t *r);
+typedef int (*pic_map_intr_t)(device_t *pic, device_t *dev, pcell_t *intr,
+                              int icells);
+
+typedef struct pic_methods {
+  pic_alloc_intr_t alloc_intr;
+  pic_release_intr_t release_intr;
+  pic_setup_intr_t setup_intr;
+  pic_teardown_intr_t teardown_intr;
+  pic_map_intr_t map_intr;
+} pic_methods_t;
+
+/*
+ * Allocate an interrupt resource.
+ *
+ * Arguments:
+ *  - `dev`: requesting device
+ *  - `rid`: unique resource ID that will be assigned to allocated resource
+ *  - `irq`: interrupt request line number
+ *  - `flags`: resource manager flags
+ */
+resource_t *pic_alloc_intr(device_t *dev, int rid, unsigned irq,
+                           rman_flags_t flags);
+
+/*
+ * Release allocated interrupt resource.
+ *
+ * Arguments:
+ *  - `dev`: requesting device
+ *  - `r`: interrupt resource to release
+ */
+void pic_release_intr(device_t *dev, resource_t *r);
+
+/*
+ * Register a new interrupt source for interrupt identified by `irq`.
+ *
+ * Arguments:
+ *  - `dev`: requesting device
+ *  - `irq`: interrupt resource
+ *  - `filter`: filter function called within interrupted context
+ *  - `service`: optional service function called within interrupt
+ *    thread context
+ *  - `arg`: argument passed to both filter and service routines
+ *  - `name`: description of the interrupt source
+ */
+void pic_setup_intr(device_t *dev, resource_t *irq, ih_filter_t *filter,
+                    ih_service_t *service, void *arg, const char *name);
+
+/*
+ * Remove specified interrupt source.
+ *
+ * Arguments:
+ *  - `dev`: requesting device
+ *  - `r`: interrupt resource
+ */
+void pic_teardown_intr(device_t *dev, resource_t *r);
+
+/*
+ * Map FDT interrupt resource of device `dev`
+ * into an interrupt controller-specific interrupt number.
+ *
+ * Returns:
+ *  - >= 0: PIC-specific interrupt number to identify PIC interrupt resource
+ *  - -1: the FDT interrupt resource is invalid
+ */
+int pic_map_intr(device_t *dev, fdt_intr_t *intr);
 
 #endif /* !_SYS_INTERRUPT_H_ */

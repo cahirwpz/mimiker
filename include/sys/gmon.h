@@ -103,7 +103,6 @@ typedef struct tostruct {
   u_long selfpc;
   long count;
   u_short link;
-  u_short pad;
 } tostruct_t;
 
 /*

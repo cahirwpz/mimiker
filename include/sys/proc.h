@@ -118,8 +118,8 @@ struct proc {
   mode_t p_cmask;                 /* ($) mask for file creation */
   kitimer_t p_itimer;             /* (@) interval timer state  */
   /* program segments */
-  vm_segment_t *p_sbrk; /* ($) The entry where brk segment resides in. */
-  vaddr_t p_sbrk_end;   /* ($) Current end of brk segment. */
+  vm_map_entry_t *p_sbrk; /* ($) The entry where brk segment resides in. */
+  vaddr_t p_sbrk_end;     /* ($) Current end of brk segment. */
   /* XXX: process resource usage stats */
 };
 

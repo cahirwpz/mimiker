@@ -65,7 +65,7 @@
 .endm
 
 #
-# long ctx_switch(thread_t *from, thread_t *to)
+# void ctx_switch(thread_t *from, thread_t *to)
 #
 ENTRY(ctx_switch)
         # ctx_switch must be called with interrupts disabled

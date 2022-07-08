@@ -18,6 +18,7 @@
 #include <sys/exec.h>
 #include <sys/ktest.h>
 #include <sys/fcntl.h>
+#include <sys/fdt.h>
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/vm_map.h>
@@ -26,6 +27,7 @@
 #include <sys/console.h>
 #include <sys/stat.h>
 #include <sys/lockdep.h>
+#include <sys/kcsan.h>
 #include <sys/kgprof.h>
 
 /* This function mounts some initial filesystems. Normally this would be done by
@@ -78,16 +80,13 @@ __noreturn void kernel_init(void) {
   init_pool();
   init_vmem();
   init_kmem();
-  init_vm_map();
 
   init_cons();
 
   /* Make dispatcher & scheduler structures ready for use. */
   init_sleepq();
   init_turnstile();
-#if LOCKDEP
   lockdep_init();
-#endif
   init_thread0();
   init_sched();
 
@@ -112,6 +111,8 @@ __noreturn void kernel_init(void) {
   init_kgprof();
 
   klog("Kernel initialized!");
+
+  init_kcsan();
 
   pid_t init_pid;
   do_fork(start_init, NULL, &init_pid);

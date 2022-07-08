@@ -29,8 +29,6 @@ typedef enum {
   VM_PROT_EXEC = 4   /* can execute page */
 } vm_prot_t;
 
-#define VM_PROT_MASK (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC)
-
 typedef enum {
   VM_FILE = 0x0000,    /* map from file (default) */
   VM_ANON = 0x1000,    /* allocated from memory */
@@ -51,7 +49,7 @@ typedef uintptr_t vm_offset_t;
 /* Field marking and corresponding locks:
  * (@) pv_list_lock (in pmap.c)
  * (P) physmem_lock (in vm_physmem.c)
- * (O) vm_object::mtx */
+ * (O) vm_object::vo_lock */
 
 struct vm_page {
   union {

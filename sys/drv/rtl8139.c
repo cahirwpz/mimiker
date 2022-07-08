@@ -1,8 +1,7 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
 #include <sys/mimiker.h>
-#include <sys/pci.h>
-#include <sys/interrupt.h>
+#include <dev/pci.h>
 #include <sys/errno.h>
 #include <sys/libkern.h>
 #include <sys/devfs.h>
@@ -83,7 +82,7 @@ static int rtl8139_attach(device_t *dev) {
     err = ENXIO;
     goto fail;
   }
-  bus_intr_setup(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
+  pic_setup_intr(dev, state->irq_res, rtl8139_intr, NULL, state, "RTL8139");
 
   /* TODO: introduce ring buffer */
 

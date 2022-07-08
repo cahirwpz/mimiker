@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
   /* Linker set in userspace would be quite difficult to set up, and it feels
      like an overkill to me. */
   CHECKRUN_TEST(mmap);
+  CHECKRUN_TEST(munmap);
   CHECKRUN_TEST(munmap_sigsegv);
   CHECKRUN_TEST(mmap_prot_none);
   CHECKRUN_TEST(mmap_prot_read);
@@ -124,6 +125,15 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(tty_signals);
 
   CHECKRUN_TEST(procstat);
+
+  CHECKRUN_TEST(pipe_parent_signaled);
+  CHECKRUN_TEST(pipe_child_signaled);
+  CHECKRUN_TEST(pipe_blocking_flag_manipulation);
+  CHECKRUN_TEST(pipe_write_interruptible_sleep);
+  CHECKRUN_TEST(pipe_write_errno_eagain);
+  CHECKRUN_TEST(pipe_read_interruptible_sleep);
+  CHECKRUN_TEST(pipe_read_errno_eagain);
+  CHECKRUN_TEST(pipe_read_return_zero);
 
   printf("No user test \"%s\" available.\n", test_name);
   return 1;

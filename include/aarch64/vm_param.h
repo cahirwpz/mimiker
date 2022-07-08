@@ -13,6 +13,10 @@
 #define USER_STACK_TOP 0x00007fffffff0000L
 #define USER_STACK_SIZE 0x800000 /* grows down up to that size limit */
 
+/* KASAN shadow memory */
+#define KASAN_SHADOW_START 0xffffff0000000000
+#define KASAN_MAX_SHADOW_SIZE (1ULL << 30) /* 1 GB */
+
 #define VM_PHYSSEG_NMAX 16
 
 #define KSTACK_PAGES 2

@@ -72,7 +72,9 @@ static int dev_procstat_open(vnode_t *v, int mode, file_t *fp);
 
 static fileops_t dev_procstat_fileops = {
   .fo_read = dev_procstat_read,
+  .fo_write = nowrite,
   .fo_close = default_vnclose,
+  .fo_seek = noseek,
   .fo_stat = default_vnstat,
   .fo_ioctl = default_vnioctl,
 };

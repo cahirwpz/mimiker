@@ -9,7 +9,7 @@
 #define UR_SET_IDLE 0x0a
 #define UR_SET_PROTOCOL 0x0b
 
-typedef struct usb_hid_descriptor {
+typedef struct usb_hid_dsc {
   uint8_t bLength;
   uint8_t bDescriptorType;
   uint16_t bcdHID;
@@ -19,6 +19,6 @@ typedef struct usb_hid_descriptor {
     uint8_t bDescriptorType;
     uint16_t wDescriptorLength;
   } descrs[1];
-} __packed usb_hid_descriptor_t;
+} __packed usb_hid_dsc_t;
 
 #endif /* _DEV_HID_H_ */

@@ -226,7 +226,6 @@ static void *malloc(size_t reqsz) {
   word_t *bt = find_fit(reqsz);
   if (bt != NULL) {
     bt_flags is_last = bt_get_islast(bt);
-    size_t memsz = reqsz - USEDBLK_SZ;
     /* Mark found block as used. */
     size_t sz = bt_size(bt);
     free_remove(bt);
@@ -236,7 +235,6 @@ static void *malloc(size_t reqsz) {
     if (sz > reqsz) {
       bt_make(next, sz - reqsz, FREE | is_last);
       bt_clr_islast(bt);
-      memsz += USEDBLK_SZ;
       free_insert(next);
     } else if (!is_last) {
       /* Nothing to split? Then previous block is not free anymore! */
@@ -255,7 +253,6 @@ static void free(void *ptr) {
   assert(bt_has_canary(bt));
 
   /* Mark block as free. */
-  size_t memsz = bt_size(bt) - USEDBLK_SZ;
   size_t sz = bt_size(bt);
   bt_make(bt, sz, FREE | bt_get_flags(bt));
 
@@ -266,7 +263,6 @@ static void free(void *ptr) {
       free_remove(next);
       sz += bt_size(next);
       bt_make(bt, sz, FREE | bt_get_prevfree(bt) | bt_get_islast(next));
-      memsz += USEDBLK_SZ;
     } else {
       /* Mark next used block with prevfree flag. */
       bt_set_prevfree(next);
@@ -279,7 +275,6 @@ static void free(void *ptr) {
     free_remove(prev);
     sz += bt_size(prev);
     bt_make(prev, sz, FREE | bt_get_islast(bt));
-    memsz += USEDBLK_SZ;
     bt = prev;
   }
 
