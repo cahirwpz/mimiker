@@ -1,6 +1,7 @@
 #include <sys/errno.h>
 #include <riscv/asm.h>
 #include <riscv/riscvreg.h>
+#include <riscv/vm_param.h>
 
 #include "assym.h"
 

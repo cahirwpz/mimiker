@@ -4,9 +4,6 @@ include <riscv/mcontext.h>
 include <riscv/riscvreg.h>
 include <riscv/vm_param.h>
 
-define USER_SPACE_END USER_SPACE_END
-define KERNEL_SPACE_BEGIN KERNEL_SPACE_BEGIN
-
 define TD_KCTX offsetof(thread_t, td_kctx)
 define TD_UCTX offsetof(thread_t, td_uctx)
 define TD_ONFAULT offsetof(thread_t, td_onfault)

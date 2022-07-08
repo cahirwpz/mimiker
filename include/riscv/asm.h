@@ -38,7 +38,7 @@
 
 #define _ENTRY(x)                                                              \
   .globl _C_LABEL(x);                                                          \
-  .align 4;                                                                    \
+  .p2align 2;                                                                  \
   .type _C_LABEL(x), @function;                                                \
   _C_LABEL(x) :
 
