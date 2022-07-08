@@ -100,8 +100,8 @@ jobs:
       - uses: actions/checkout@v2
       - run: make BOARD=litex-riscv LLVM=1
 
-  build_riscv64_gcc:
-    name: Build RISCV 64-bit (GCC + KASAN)
+  build_rv64_gcc:
+    name: Build RISC-V 64-bit (GCC + KASAN)
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
