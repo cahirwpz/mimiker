@@ -1,6 +1,7 @@
 #include <sys/errno.h>
 #include <riscv/asm.h>
 #include <riscv/riscvreg.h>
+#include <riscv/vm_param.h>
 
 #include "assym.h"
 
@@ -34,7 +35,7 @@
 .macro onfault_clr tmp, td
 	exit_user_access \tmp
 	PTR_L	\td, PCPU_CURTHREAD(tp)
-	PTR_S	zero, TD_ONFAULT(tp)
+	PTR_S	zero, TD_ONFAULT(\td)
 .endm
 
 /*
@@ -98,7 +99,7 @@
  */
 ENTRY(copyin)
 	/* len > 0 */
-	beqz	a2, 1f
+	beqz	a2, 0f
 
 	/* (uintptr_t)udaddr < (uintptr_t)(udaddr + len) */
 	PTR_ADD	t0, a0, a2
@@ -112,7 +113,7 @@ ENTRY(copyin)
 	copycommon
 	onfault_clr t0, t1
 
-1:	mv	a0, zero
+0:	mv	a0, zero
 	ret
 END(copyin)
 
@@ -123,7 +124,7 @@ END(copyin)
  */
 ENTRY(copyout)
 	/* len > 0 */
-	beqz	a2, 1f
+	beqz	a2, 0f
 
 	/* (uintptr_t)udaddr < (uintptr_t)(udaddr + len) */
 	PTR_ADD	t0, a1, a2
@@ -137,7 +138,7 @@ ENTRY(copyout)
 	copycommon
 	onfault_clr t0, t1
 
-1:	mv	a0, zero
+0:	mv	a0, zero
 	ret
 END(copyout)
 

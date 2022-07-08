@@ -30,6 +30,7 @@ SOURCES-MIPS = \
 SOURCES-AARCH64 = \
 	bcm2835_emmc.c \
 	bcm2835_gpio.c \
+	bcm2835_pic.c \
 	bcm2835_rootdev.c \
 	emmc.c \
 	pl011.c \
@@ -38,8 +39,8 @@ SOURCES-AARCH64 = \
 SOURCES-RISCV = \
 	clint.c \
 	liteuart.c \
-	litex_riscv_rootdev.c \
 	plic.c \
+	riscv_rootdev.c \
 	sifive_uart.c
 
 CPPFLAGS += -D_MACHDEP

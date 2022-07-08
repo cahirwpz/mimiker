@@ -31,3 +31,4 @@ $(SOURCES-AARCH64): assym.h
 
 boot.o : CFLAGS_KASAN =
 boot.o : CFLAGS_KCSAN =
+boot.o : CFLAGS_KGPROF =
