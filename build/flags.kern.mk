@@ -34,4 +34,8 @@ ifeq ($(KASAN), 1)
   endif
 endif
 
+ifeq ($(KGPROF), 1)
+  CFLAGS_KGPROF = -finstrument-functions
+endif
+
 KERNEL := 1
