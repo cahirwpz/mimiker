@@ -17,4 +17,8 @@ ifeq ($(KCSAN), 1)
                   --param tsan-distinguish-volatile=1
 endif
 
+ifeq ($(KGPROF), 1)
+	CFLAGS_KGPROF = -finstrument-functions
+endif
+
 KERNEL := 1
