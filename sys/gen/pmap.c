@@ -179,6 +179,11 @@ static pte_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va) {
 static void pmap_write_pte(pmap_t *pmap, pte_t *ptep, pte_t pte, vaddr_t va) {
   *ptep = pte;
   tlb_invalidate(va, pmap->asid);
+#ifdef __riscv
+#include <machine/cpufunc.h>
+  if (pte_access(pte, VM_PROT_EXEC))
+    __fence_i();
+#endif
 }
 
 /* Return PTE pointer for `va`. Allocate page table if needed. */

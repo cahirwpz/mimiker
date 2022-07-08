@@ -5,6 +5,8 @@
 
 #define __wfi() __asm__ volatile("wfi")
 
+#define __fence_i() __asm __volatile("fence.i" ::: "memory")
+
 #define __sfence_vma() __asm__ volatile("sfence.vma" ::: "memory")
 
 #define __sp()                                                                 \
