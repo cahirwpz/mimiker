@@ -8,7 +8,7 @@
 # Required common variables: KERNEL, BOARD.
 #
 
-TARGET := riscv$(XLEN)-mimiker-elf
+TARGET := riscv$(XLEN)-linux-mimiker-elf
 ELFTYPE := elf$(XLEN)-littleriscv
 ELFARCH := riscv
 

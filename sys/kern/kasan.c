@@ -272,9 +272,15 @@ void init_kasan(void) {
   void __asan_load##size##_noabort(uintptr_t addr) {                           \
     shadow_check(addr, size, true);                                            \
   }                                                                            \
+  void __asan_report_load##size##_noabort(uintptr_t addr);                     \
+  __weak_alias(__asan_report_load##size##_noabort,                             \
+               __asan_load##size##_noabort);                                   \
   void __asan_store##size##_noabort(uintptr_t addr) {                          \
     shadow_check(addr, size, false);                                           \
-  }
+  }                                                                            \
+  void __asan_report_store##size##_noabort(uintptr_t addr);                    \
+  __weak_alias(__asan_report_store##size##_noabort,                            \
+               __asan_store##size##_noabort);
 
 DEFINE_ASAN_LOAD_STORE(1);
 DEFINE_ASAN_LOAD_STORE(2);
@@ -284,11 +290,17 @@ DEFINE_ASAN_LOAD_STORE(16);
 
 void __asan_loadN_noabort(uintptr_t addr, size_t size) {
   shadow_check(addr, size, true);
-}
+};
+
+void __asan_report_load_n_noabort(uintptr_t addr, size_t size);
+__weak_alias(__asan_report_load_n_noabort, __asan_loadN_noabort);
 
 void __asan_storeN_noabort(uintptr_t addr, size_t size) {
   shadow_check(addr, size, false);
 }
+
+void __asan_report_store_n_noabort(uintptr_t addr, size_t size);
+__weak_alias(__asan_report_store_n_noabort, __asan_storeN_noabort);
 
 /* Called at the end of every function marked as "noreturn".
  * Performs cleanup of the current stack's shadow memory to prevent false

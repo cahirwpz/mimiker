@@ -5,7 +5,7 @@
 # Required common variables: KERNEL, BOARD.
 #
 
-TARGET := aarch64-mimiker-elf
+TARGET := aarch64-linux-mimiker-elf
 GCC_ABIFLAGS := -mno-outline-atomics
 CLANG_ABIFLAGS := -target $(TARGET)
 ELFTYPE := elf64-littleaarch64

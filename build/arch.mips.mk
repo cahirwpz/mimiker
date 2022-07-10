@@ -4,7 +4,7 @@
 #
 # Required common variables: KERNEL, BOARD.
 
-TARGET := mipsel-mimiker-elf
+TARGET := mipsel-linux-mimiker-elf
 # -G 0 disables small-data and small-bss,
 # as otherwise they would exceed 64KB limit
 GCC_ABIFLAGS := -mips32r2 -EL -G 0
