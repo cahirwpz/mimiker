@@ -288,7 +288,7 @@ DEFINE_ASAN_LOAD_STORE(16);
 
 void __asan_loadN_noabort(uintptr_t addr, size_t size) {
   shadow_check(addr, size, true);
-};
+}
 
 __weak_alias(__asan_loadN_noabort, __asan_report_load_n_noabort);
 
