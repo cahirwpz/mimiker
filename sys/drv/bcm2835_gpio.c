@@ -1,13 +1,14 @@
 #define KL_LOG KL_DEV
-
 #include <sys/klog.h>
 #include <sys/rman.h>
 #include <sys/bus.h>
 #include <dev/bcm2835reg.h>
-#include <dev/bcm2835_gpio.h>
+#include <stdbool.h>
+#include <dev/bcm2835_gpioreg.h>
 #include <sys/fdt.h>
 #include <sys/errno.h>
 #include <sys/devclass.h>
+#include <sys/device.h>
 
 /*
  * \brief delay function
@@ -34,8 +35,11 @@ typedef struct bcm2835_gpio {
   resource_t *gpio;
 } bcm2835_gpio_t;
 
-void bcm2835_gpio_function_select(resource_t *r, unsigned pin,
-                                  bcm2835_gpio_func_t func) {
+/* Select GPIO alt function. For more information look at
+ * https://cs140e.sergio.bz/docs/BCM2837-ARM-Peripherals.pdf and
+ * https://pinout.xyz */
+static void bcm2835_gpio_function_select(resource_t *r, unsigned pin,
+                                         bcm2835_gpio_func_t func) {
   assert(pin < NGPIO_PIN);
 
   unsigned mask = (1 << BCM2835_GPIO_GPFSEL_BITS_PER_PIN) - 1;
@@ -49,8 +53,8 @@ void bcm2835_gpio_function_select(resource_t *r, unsigned pin,
   bus_write_4(r, BCM2835_GPIO_GPFSEL(reg), val);
 }
 
-void bcm2835_gpio_set_pull(resource_t *r, unsigned pin,
-                           bcm2838_gpio_gppud_t pud) {
+static void bcm2835_gpio_set_pull(resource_t *r, unsigned pin,
+                                  bcm2838_gpio_gppud_t pud) {
   assert(pin < NGPIO_PIN);
 
   unsigned mask = 1 << (pin % BCM2835_GPIO_GPPUD_PINS_PER_REGISTER);
@@ -68,7 +72,8 @@ void bcm2835_gpio_set_pull(resource_t *r, unsigned pin,
   bus_write_4(r, BCM2835_GPIO_GPPUDCLK(reg), 0);
 }
 
-void bcm2835_gpio_set_high_detect(resource_t *r, unsigned pin, bool enable) {
+static void bcm2835_gpio_set_high_detect(resource_t *r, unsigned pin,
+                                         bool enable) {
   assert(pin < NGPIO_PIN);
 
   unsigned mask = 1 << (pin % BCM2835_GPIO_GPHEN_PINS_PER_REGISTER);
@@ -83,8 +88,8 @@ void bcm2835_gpio_set_high_detect(resource_t *r, unsigned pin, bool enable) {
 }
 
 static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
-  int result = 0;
-  uint32_t *pin_cfgs, *function_cfgs, *pull_cfgs, *intr_detect_cfgs;
+  int error = 0;
+  pcell_t *pin_cfgs, *function_cfgs, *pull_cfgs, *intr_detect_cfgs;
   bcm2835_gpio_t *gpio = (bcm2835_gpio_t *)dev->state;
 
   ssize_t pin_cnt = 0;
@@ -96,7 +101,7 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
                                        (void **)&pin_cfgs);
   if (pin_cnt == FDT_PINS_INVAL) {
     klog("Warning: GPIO FDT entry with no `pins` property");
-    result = EINVAL;
+    error = ENOENT;
     goto cleanup;
   }
 
@@ -104,7 +109,7 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
     node, "function", sizeof(*function_cfgs), (void **)&function_cfgs);
   if (function_cnt == FDT_PINS_INVAL) {
     klog("Warning: GPIO FDT entry with no `function` property");
-    result = EINVAL;
+    error = EINVAL;
     goto cleanup;
   }
 
@@ -112,7 +117,7 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
                                         (void **)&pull_cfgs);
   if (pull_cnt == FDT_PINS_INVAL) {
     klog("Warning: GPIO FDT entry with no `pull` property");
-    result = EINVAL;
+    error = EINVAL;
     goto cleanup;
   }
 
@@ -120,7 +125,7 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
     node, "intr_detect", sizeof(*intr_detect_cfgs), (void **)&intr_detect_cfgs);
   if (intr_detect_cnt == FDT_PINS_INVAL) {
     klog("Warning: GPIO FDT entry with no `intr_detect` property");
-    result = EINVAL;
+    error = EINVAL;
     goto cleanup;
   }
 
@@ -156,7 +161,7 @@ cleanup:
   if (intr_detect_cnt > 0)
     FDT_free(intr_detect_cfgs);
 
-  return result;
+  return error;
 }
 
 static int bcm2835_gpio_probe(device_t *dev) {
@@ -185,7 +190,6 @@ driver_t gpio_driver = {
   .pass = FIRST_PASS,
   .probe = bcm2835_gpio_probe,
   .attach = bcm2835_gpio_attach,
-  .interfaces = {},
 };
 
 DEVCLASS_ENTRY(root, gpio_driver);

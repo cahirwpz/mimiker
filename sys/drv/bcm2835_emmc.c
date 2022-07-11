@@ -9,7 +9,6 @@
 #include <sys/devclass.h>
 #include <sys/klog.h>
 #include <sys/types.h>
-#include <dev/bcm2835_gpio.h>
 #include <sys/device.h>
 #include <sys/bus.h>
 #include <sys/time.h>
