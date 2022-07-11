@@ -228,11 +228,12 @@ void kasan_mark_invalid(const void *addr, size_t size, uint8_t code) {
 }
 
 /* Call constructors that will register globals */
+typedef void (*ctor_t)(void);
+
 static void call_ctors(void) {
-  extern uintptr_t __CTOR_LIST__, __CTOR_END__;
-  for (uintptr_t *ptr = &__CTOR_LIST__; ptr != &__CTOR_END__; ptr++) {
-    void (*func)(void) = (void (*)(void))(*ptr);
-    (*func)();
+  extern ctor_t __CTOR_LIST__[], __CTOR_END__[];
+  for (ctor_t *ctor = __CTOR_LIST__; ctor != __CTOR_END__; ctor++) {
+    (*ctor)();
   }
 }
 
