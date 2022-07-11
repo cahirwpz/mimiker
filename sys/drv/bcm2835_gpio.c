@@ -27,7 +27,6 @@ static void delay(int64_t count) {
 }
 
 #define NGPIO_PIN 54
-#define FDT_PINS_INVAL (-1)
 
 /* clang-format on */
 
@@ -99,7 +98,7 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
 
   pin_cnt = FDT_getencprop_alloc_multi(node, "pins", sizeof(*pin_cfgs),
                                        (void **)&pin_cfgs);
-  if (pin_cnt == FDT_PINS_INVAL) {
+  if (pin_cnt == -1) {
     klog("Warning: GPIO FDT entry with no `pins` property");
     error = ENOENT;
     goto cleanup;
@@ -107,7 +106,7 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
 
   function_cnt = FDT_getencprop_alloc_multi(
     node, "function", sizeof(*function_cfgs), (void **)&function_cfgs);
-  if (function_cnt == FDT_PINS_INVAL) {
+  if (function_cnt == -1) {
     klog("Warning: GPIO FDT entry with no `function` property");
     error = EINVAL;
     goto cleanup;
@@ -115,7 +114,7 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
 
   pull_cnt = FDT_getencprop_alloc_multi(node, "pull", sizeof(*pull_cfgs),
                                         (void **)&pull_cfgs);
-  if (pull_cnt == FDT_PINS_INVAL) {
+  if (pull_cnt == -1) {
     klog("Warning: GPIO FDT entry with no `pull` property");
     error = EINVAL;
     goto cleanup;
@@ -123,7 +122,7 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
 
   intr_detect_cnt = FDT_getencprop_alloc_multi(
     node, "intr_detect", sizeof(*intr_detect_cfgs), (void **)&intr_detect_cfgs);
-  if (intr_detect_cnt == FDT_PINS_INVAL) {
+  if (intr_detect_cnt == -1) {
     klog("Warning: GPIO FDT entry with no `intr_detect` property");
     error = EINVAL;
     goto cleanup;
