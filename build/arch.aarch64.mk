@@ -10,7 +10,7 @@ ELFARCH := aarch64
 
 ifeq ($(LLVM), 1)
   TARGET := aarch64-linux-mimiker-elf
-  ABIFLAGS := -target $(TARGET)
+  ABIFLAGS :=
 else
   TARGET := aarch64-mimiker-elf
   ABIFLAGS := -mno-outline-atomics

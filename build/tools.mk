@@ -25,7 +25,7 @@ ifneq ($(shell which llvm-ar > /dev/null; echo $$?), 0)
   $(error llvm toolchain not found)
 endif
 
-CC	= clang $(ABIFLAGS) -g
+CC	= clang -target $(TARGET) $(ABIFLAGS) -g
 CPP	= $(CC) -x c -E
 AS	= $(CC)
 LD	= ld.lld
