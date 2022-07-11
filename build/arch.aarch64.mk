@@ -5,11 +5,16 @@
 # Required common variables: KERNEL, BOARD.
 #
 
-TARGET := aarch64-linux-mimiker-elf
-GCC_ABIFLAGS := -mno-outline-atomics
-CLANG_ABIFLAGS := -target $(TARGET)
 ELFTYPE := elf64-littleaarch64
 ELFARCH := aarch64
+
+ifeq ($(LLVM), 1)
+  TARGET := aarch64-linux-mimiker-elf
+  ABIFLAGS := -target $(TARGET)
+else
+  TARGET := aarch64-mimiker-elf
+  ABIFLAGS := -mno-outline-atomics
+endif
 
 # NOTE(pj): We set A, SA, SA0 bits for SCTLR_EL1 register (sys/aarch64/boot.c)
 # as a result not aligned access to memory causes an exception. It's okay but

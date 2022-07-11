@@ -4,7 +4,7 @@
 # tools used throughout the build system.
 #
 # The following make variables are set by the including makefile:
-# - TARGET, {CLANG,GCC}_ABIFLAGS: Set by arch.*.mk files.
+# - TARGET, ABIFLAGS: Set by arch.*.mk files.
 
 ifndef ARCH
   $(error ARCH variable not defined. Have you included config.mk?)
@@ -25,7 +25,7 @@ ifneq ($(shell which llvm-ar > /dev/null; echo $$?), 0)
   $(error llvm toolchain not found)
 endif
 
-CC	= clang $(CLANG_ABIFLAGS) -g
+CC	= clang $(ABIFLAGS) -g
 CPP	= $(CC) -x c -E
 AS	= $(CC)
 LD	= ld.lld
@@ -48,7 +48,7 @@ ifneq ($(shell which $(TARGET)-gcc > /dev/null; echo $$?), 0)
   $(error $(TARGET)-gcc compiler not found - please refer to README.md!)
 endif
 
-CC	= $(TARGET)-gcc $(GCC_ABIFLAGS) -g
+CC	= $(TARGET)-gcc $(ABIFLAGS) -g
 CPP	= $(TARGET)-cpp
 AS	= $(CC)
 LD	= $(TARGET)-ld
