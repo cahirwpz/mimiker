@@ -114,6 +114,8 @@ __boot_data static pde_t *kernel_pde;
 
 __boot_data static volatile vaddr_t _kernel_start = (vaddr_t)__kernel_start;
 __boot_data static volatile vaddr_t _kernel_end = (vaddr_t)__kernel_end;
+__boot_data static volatile paddr_t _boot = (paddr_t)__boot;
+__boot_data static volatile paddr_t _eboot = (paddr_t)__eboot;
 __boot_data static volatile vaddr_t _ebss = (vaddr_t)__ebss;
 __boot_data static volatile vaddr_t _text = (vaddr_t)__text;
 __boot_data static volatile vaddr_t _data = (vaddr_t)__data;
@@ -175,7 +177,7 @@ __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
 }
 
 __boot_text __noreturn void riscv_init(paddr_t dtb) {
-  if (!((paddr_t)__eboot < _kernel_start) || (_kernel_end < (paddr_t)__boot))
+  if (!(_eboot < _kernel_start || _kernel_end < _boot))
     halt();
 
   /* Initialize boot memory allocator. */

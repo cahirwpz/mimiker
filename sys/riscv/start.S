@@ -6,6 +6,7 @@
 
 #define INITSTACK_SIZE 512
 
+	.option nopic
 	.section .boot,"ax",@progbits
 
 /*
