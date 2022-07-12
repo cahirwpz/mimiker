@@ -144,13 +144,33 @@
 		reg = <0x0 0x80000000 0x2 0x00000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		opensbi@80000000 {
+			reg = <0x0 0x80000000 0x0 0x40000>;
+		};
+	};
+
 	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		compatible = "sifive,fu540-c000", "sifive,fu540", "simple-bus";
 		ranges;
 
-		plic0: interrupt-controller@c000000 {
+		clint: clint@2000000 {
+			compatible = "riscv,clint0";
+			reg = <0x0 0x2000000 0x0 0x10000>;
+			interrupts-extended = <&cpu0_intc 3 &cpu0_intc 7>,
+				<&cpu1_intc 3 &cpu1_intc 7>,
+				<&cpu2_intc 3 &cpu2_intc 7>,
+				<&cpu3_intc 3 &cpu3_intc 7>,
+				<&cpu4_intc 3 &cpu4_intc 7>;
+		};
+
+		plic: interrupt-controller@c000000 {
 			#interrupt-cells = <1>;
 			compatible = "sifive,plic-1.0.0";
 			reg = <0x0 0xc000000 0x0 0x4000000>;
@@ -166,14 +186,14 @@
 		uart0: serial@10010000 {
 			compatible = "sifive,fu540-c000-uart", "sifive,uart0";
 			reg = <0x0 0x10010000 0x0 0x1000>;
-			interrupt-parent = <&plic0>;
+			interrupt-parent = <&plic>;
 			interrupts = <4>;
 		};
 
 		uart1: serial@10011000 {
 			compatible = "sifive,fu540-c000-uart", "sifive,uart0";
 			reg = <0x0 0x10011000 0x0 0x1000>;
-			interrupt-parent = <&plic0>;
+			interrupt-parent = <&plic>;
 			interrupts = <5>;
 		};
 
@@ -184,7 +204,7 @@
 			cache-sets = <1024>;
 			cache-size = <2097152>;
 			cache-unified;
-			interrupt-parent = <&plic0>;
+			interrupt-parent = <&plic>;
 			interrupts = <1 2 3>;
 			reg = <0x0 0x2010000 0x0 0x1000>;
 		};
@@ -195,3 +215,4 @@
 		serial1 = &uart1;
 	};
 };
+
