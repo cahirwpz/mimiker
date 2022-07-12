@@ -82,7 +82,7 @@ class VmMapSeg(UserCommand):
     def __call__(self, args):
         vm_map = gdb.parse_and_eval('vm_map_user()')
         if vm_map == 0:
-            print('No active %s vm_map!' % args)
+            print('No active user vm_map!')
             return
         entries = vm_map['entries']
         table = TextTable(types='itttttt', align='rrrrrrr')
