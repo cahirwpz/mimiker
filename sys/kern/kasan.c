@@ -228,11 +228,12 @@ void kasan_mark_invalid(const void *addr, size_t size, uint8_t code) {
 }
 
 /* Call constructors that will register globals */
+typedef void (*ctor_t)(void);
+
 static void call_ctors(void) {
-  extern uintptr_t __CTOR_LIST__, __CTOR_END__;
-  for (uintptr_t *ptr = &__CTOR_LIST__; ptr != &__CTOR_END__; ptr++) {
-    void (*func)(void) = (void (*)(void))(*ptr);
-    (*func)();
+  extern ctor_t __CTOR_LIST__[], __CTOR_END__[];
+  for (ctor_t *ctor = __CTOR_LIST__; ctor != __CTOR_END__; ctor++) {
+    (*ctor)();
   }
 }
 
@@ -272,9 +273,13 @@ void init_kasan(void) {
   void __asan_load##size##_noabort(uintptr_t addr) {                           \
     shadow_check(addr, size, true);                                            \
   }                                                                            \
+  __weak_alias(__asan_load##size##_noabort,                                    \
+               __asan_report_load##size##_noabort);                            \
   void __asan_store##size##_noabort(uintptr_t addr) {                          \
     shadow_check(addr, size, false);                                           \
-  }
+  }                                                                            \
+  __weak_alias(__asan_store##size##_noabort,                                   \
+               __asan_report_store##size##_noabort);
 
 DEFINE_ASAN_LOAD_STORE(1);
 DEFINE_ASAN_LOAD_STORE(2);
@@ -286,9 +291,13 @@ void __asan_loadN_noabort(uintptr_t addr, size_t size) {
   shadow_check(addr, size, true);
 }
 
+__weak_alias(__asan_loadN_noabort, __asan_report_load_n_noabort);
+
 void __asan_storeN_noabort(uintptr_t addr, size_t size) {
   shadow_check(addr, size, false);
 }
+
+__weak_alias(__asan_storeN_noabort, __asan_report_store_n_noabort);
 
 /* Called at the end of every function marked as "noreturn".
  * Performs cleanup of the current stack's shadow memory to prevent false

@@ -24,7 +24,7 @@ jobs:
       - run: ./verify-pycodestyle.sh
 
   build_mips_gcc:
-    name: Build MIPS (GCC + KASAN)
+    name: Build MIPS (GCC)
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
@@ -46,10 +46,10 @@ jobs:
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v2
-      - run: make BOARD=malta LLVM=1
+      - run: make BOARD=malta LLVM=1 KASAN=1 LOCKDEP=1
 
   build_aarch64_gcc:
-    name: Build AArch64 (GCC + KASAN)
+    name: Build AArch64 (GCC)
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
@@ -73,10 +73,10 @@ jobs:
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v2
-      - run: make BOARD=rpi3 LLVM=1
+      - run: make BOARD=rpi3 LLVM=1 KASAN=1 LOCKDEP=1
 
   build_rv32_gcc:
-    name: Build RISC-V 32-bit (GCC + KASAN)
+    name: Build RISC-V 32-bit (GCC)
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
@@ -98,7 +98,7 @@ jobs:
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v2
-      - run: make BOARD=litex-riscv LLVM=1
+      - run: make BOARD=litex-riscv LLVM=1 KASAN=1 LOCKDEP=1
 
   build_rv64_clang:
     name: Build RISC-V 64-bit (Clang)
@@ -106,10 +106,10 @@ jobs:
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v2
-      - run: make BOARD=sifive_u LLVM=1
+      - run: make BOARD=sifive_u LLVM=1 KASAN=1 LOCKDEP=1
 
   kernel_tests_mips_gcc:
-    name: Tests MIPS (GCC + KASAN)
+    name: Tests MIPS (GCC)
     runs-on: self-hosted
     needs: build_mips_gcc
     steps:
@@ -120,7 +120,7 @@ jobs:
       - run: ./run_tests.py --board malta --timeout=80 --times=50
 
   kernel_tests_aarch64_gcc:
-    name: Tests AArch64 (GCC + KASAN)
+    name: Tests AArch64 (GCC)
     runs-on: self-hosted
     needs: build_aarch64_gcc
     steps:
