@@ -144,7 +144,7 @@
 		reg = <0x0 0x80000000 0x2 0x00000000>;
 	};
 
-        reserved-memory {
+	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
