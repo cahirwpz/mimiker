@@ -43,11 +43,11 @@ endif
 
 ifeq ($(LLVM), 1)
   TARGET := riscv$(XLEN)-linux-mimiker-elf
-  ABIFLAGS += -march=rv$(XLEN)$(EXT) -mabi=$(ABI)
 else
   TARGET := riscv$(XLEN)-mimiker-elf
-  ABIFLAGS += -march=rv$(XLEN)$(EXT) -mabi=$(ABI)
 endif
+
+ABIFLAGS += -march=rv$(XLEN)$(EXT) -mabi=$(ABI)
 
 ifeq ($(KERNEL), 1)
   CFLAGS += -mcmodel=medany
