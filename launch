@@ -114,7 +114,6 @@ CONFIG = {
                 'options': [
                     '-machine', 'raspi3',
                     '-smp', '4',
-                    '-dtb', 'launch.dtb',
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [
@@ -287,8 +286,12 @@ class QEMU(Launchable):
             port = uart['port']
             self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
-        if getvar('config.dts', failok=True) is None and getvar('config.args'):
-            self.options += ['-append', ' '.join(getvar('config.args'))]
+        if getvar('config.dts', failok=True) is None:
+            if getvar('config.args'):
+                self.options += ['-append', ' '.join(getvar('config.args'))]
+        else:
+            self.options += ['-dtb', 'launch.dtb']
+
         if getvar('config.debug'):
             self.options += ['-S']
         if not getvar('config.graphics'):

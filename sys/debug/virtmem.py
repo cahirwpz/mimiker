@@ -80,11 +80,7 @@ class VmMapSeg(UserCommand):
         super().__init__('vm_map')
 
     def __call__(self, args):
-        args = args.strip()
-        if args not in ['user', 'kernel']:
-            print('Choose either "user" or "kernel" vm_map!')
-            return
-        vm_map = gdb.parse_and_eval('vm_map_%s()' % args)
+        vm_map = gdb.parse_and_eval('vm_map_user()')
         if vm_map == 0:
             print('No active %s vm_map!' % args)
             return
