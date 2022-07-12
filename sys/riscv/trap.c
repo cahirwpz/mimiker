@@ -252,8 +252,8 @@ __no_profile void trap_handler(ctx_t *ctx) {
      * frame we consider situation to be critical and panic.
      * Hopefully sizeof(ctx_t) bytes of unallocated stack space will be enough
      * to display error message. */
-    register_t sp = __sp();
-    if ((sp & (PAGESIZE - 1)) < sizeof(ctx_t))
+    uintptr_t sp = __sp();
+    if (sp < (uintptr_t)td->td_kstack.stk_base + sizeof(ctx_t))
       panic("Kernel stack overflow caught at %p!", _REG(ctx, PC));
     kframe_saved = td->td_kframe;
     td->td_kframe = ctx;

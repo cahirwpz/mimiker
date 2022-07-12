@@ -311,8 +311,6 @@ class QEMU(Launchable):
                                  'selected platform.')
             self.options += ['-drive', drive.format(path=storage)]
 
-        print(self.options)
-
 
 class RENODE(Launchable):
     def __init__(self):
