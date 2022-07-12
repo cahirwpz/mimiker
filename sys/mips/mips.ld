@@ -69,7 +69,7 @@ SECTIONS
     *(.sbss .scommon)
     *(.bss .bss.*)
     *(COMMON)
-    . = ALIGN (4096);
+    . = ALIGN (4);
     __ebss = ABSOLUTE(.);
     __kernel_end = ABSOLUTE(.);
   }
