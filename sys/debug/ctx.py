@@ -33,7 +33,6 @@ class Context():
             prefix_len = len('riscv:rv')
             self.arch = 'riscv'
             self.reg_size = int(arch_name[prefix_len:prefix_len+2])
-            print(self.reg_size)
         self.regs = OrderedDict()
         for name in self.names[self.arch]:
             self.regs[name] = 0

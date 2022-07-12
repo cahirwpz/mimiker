@@ -87,8 +87,7 @@ static void insertionsort(u_char *, size_t, size_t,
  */
 /* Assumption: PSIZE is a power of 2. */
 #define EVAL(p)                                                                \
-  ((u_char **)(void *)(((u_char *)(void *)(p) + PSIZE - 1 - (u_char *)0) &     \
-                       ~(PSIZE - 1)))
+  ((u_char **)(void *)(((uintptr_t)(p) + PSIZE - 1) & ~(PSIZE - 1)))
 
 /*
  * Arguments are as for qsort.
@@ -117,7 +116,7 @@ int mergesort(void *base, size_t nmemb, size_t size,
    * Stupid subtraction for the Cray.
    */
   iflag = 0;
-  if (!(size % ISIZE) && !(((char *)base - (char *)0) % ISIZE))
+  if (!(size % ISIZE) && !(((uintptr_t)base) % ISIZE))
     iflag = 1;
 
   if ((list2 = malloc(nmemb * size + PSIZE)) == NULL)
