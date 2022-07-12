@@ -14,13 +14,8 @@
  *     before knowing the physical memory boundaries which are contained in the
  *     DTB itself),
  *
- *   - temoprarily mapping kernel page directory into VM (because there is
+ *   - temporarily mapping kernel page directory into VM (because there is
  *     no direct map to access it in the usual fashion),
- *
- *   - (HACK) preparing page tables for `vm_page_t` structs (we need to do so
- *     because the procedure that maps kernel virtual space allocated for the
- *     structs can't allocate physical pages on its own since
- *     the buddy system isn't initialized at that point),
  *
  *   - Preparing KASAN shadow memory for the mapped area,
  *
@@ -74,19 +69,29 @@
 #include <riscv/cpufunc.h>
 #include <riscv/pmap.h>
 
-#define KERNEL_VIRT_IMG_END align((vaddr_t)__ebss, PAGESIZE)
-#define KERNEL_PHYS_IMG_END align(RISCV_PHYSADDR(__ebss), PAGESIZE)
+#define PHYSADDR(x) ((paddr_t)((vaddr_t)(x) & ~KERNEL_VIRT) + KERNEL_PHYS)
 
-#define BOOT_KASAN_SANITIZED_SIZE                                              \
-  roundup2(roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE) +                  \
-             (VM_PAGE_PDS * GROWKERNEL_STRIDE) - KASAN_SANITIZED_START,        \
+#define BOOT_KASAN_SANITIZED_SIZE(end)                                         \
+  roundup2(roundup2((intptr_t)end, GROWKERNEL_STRIDE) - KASAN_SANITIZED_START, \
            PAGESIZE * KASAN_SHADOW_SCALE_SIZE)
-
-#define BOOT_KASAN_SHADOW_SIZE                                                 \
-  (BOOT_KASAN_SANITIZED_SIZE / KASAN_SHADOW_SCALE_SIZE)
 
 #define BOOT_DTB_VADDR DMAP_BASE
 #define BOOT_PD_VADDR (DMAP_BASE + GROWKERNEL_STRIDE)
+
+/*
+ * Virtual memory boot data.
+ */
+
+/* NOTE: the boot stack is used before we switch out to `thread0`. */
+static alignas(STACK_ALIGN) uint8_t boot_stack[PAGESIZE];
+/*
+ * Bare memory boot functions.
+ */
+
+__boot_text static __noreturn void halt(void) {
+  for (;;)
+    __wfi();
+}
 
 /*
  * Bare memory boot data.
@@ -97,21 +102,20 @@ __boot_data static void *bootmem_brk;
 
 __boot_data static pde_t *kernel_pde;
 
-/*
- * Virtual memory boot data.
- */
+static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end);
 
-/* NOTE: the boot stack is used before we switch out to `thread0`. */
-static alignas(STACK_ALIGN) uint8_t boot_stack[PAGESIZE];
-
-/*
- * Bare memory boot functions.
- */
-
-__boot_text static __noreturn void halt(void) {
-  for (;;)
-    __wfi();
-}
+/* Without `volatile` Clang applies constant propagation optimization and
+ * that ends up generating relocations in `.text` instead of `.data` section.
+ * This is exactly what we're trying to avoid here! */
+__boot_data static volatile vaddr_t _kernel_start = (vaddr_t)__kernel_start;
+__boot_data static volatile vaddr_t _kernel_end = (vaddr_t)__kernel_end;
+__boot_data static volatile paddr_t _boot = (paddr_t)__boot;
+__boot_data static volatile paddr_t _eboot = (paddr_t)__eboot;
+__boot_data static volatile vaddr_t _ebss = (vaddr_t)__ebss;
+__boot_data static volatile vaddr_t _text = (vaddr_t)__text;
+__boot_data static volatile vaddr_t _data = (vaddr_t)__data;
+__boot_data static volatile vaddr_t _riscv_boot = (vaddr_t)riscv_boot;
+__boot_data static volatile vaddr_t _boot_stack = (vaddr_t)boot_stack;
 
 /*
  * Allocate and clear pages in physical memory just after kernel image end.
@@ -126,17 +130,34 @@ __boot_text static void *bootmem_alloc(size_t bytes) {
   return addr;
 }
 
+__boot_text static pde_t *early_pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
+  pde_t *pde = (pde_t *)pd_pa;
+  if (lvl == 0)
+    return pde + L0_INDEX(va);
+#if __riscv_xlen == 32
+  return pde + L1_INDEX(va);
+#else
+  if (lvl == 1)
+    return pde + L1_INDEX(va);
+  return pde + L2_INDEX(va);
+#endif
+}
+
 __boot_text static pte_t *ensure_pte(vaddr_t va) {
-  pde_t *pdep = kernel_pde;
+  pde_t *pdep = early_pde_ptr((paddr_t)kernel_pde, 0, va);
 
-  /* Level 0 */
-  pdep += L0_INDEX(va);
-  if (!VALID_PTE_P(*pdep))
-    *pdep = PA_TO_PTE((paddr_t)bootmem_alloc(PAGESIZE)) | PTE_V;
-  pdep = (pde_t *)PTE_TO_PA(*pdep);
+  for (unsigned lvl = 1; lvl < PAGE_TABLE_DEPTH; lvl++) {
+    paddr_t pa;
+    if (!VALID_PDE_P(*pdep)) {
+      pa = (paddr_t)bootmem_alloc(PAGESIZE);
+      *pdep = PA_TO_PTE(pa) | PTE_V;
+    } else {
+      pa = (paddr_t)PTE_TO_PA(*pdep);
+    }
+    pdep = early_pde_ptr(pa, lvl, va);
+  }
 
-  /* Level 1 */
-  return (pte_t *)pdep + L1_INDEX(va);
+  return (pte_t *)pdep;
 }
 
 __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
@@ -150,35 +171,23 @@ __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
   }
 }
 
-static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end);
-
 __boot_text __noreturn void riscv_init(paddr_t dtb) {
-  if (!((paddr_t)__eboot < (vaddr_t)__kernel_start ||
-        (vaddr_t)__kernel_end < (paddr_t)__boot))
+  if (!(_eboot < _kernel_start || _kernel_end < _boot))
     halt();
 
   /* Initialize boot memory allocator. */
-  bootmem_brk = (void *)KERNEL_PHYS_IMG_END;
+  bootmem_brk = (void *)align(PHYSADDR(_ebss), PAGESIZE);
 
   /* Allocate kernel page directory.*/
   kernel_pde = bootmem_alloc(PAGESIZE);
 
-  /*
-   * !HACK!
-   * See 4th point of bare memory boot description
-   * at the top of this file for details.
-   */
-  vaddr_t va = roundup2(KERNEL_VIRT_IMG_END, GROWKERNEL_STRIDE);
-  for (int i = 0; i < VM_PAGE_PDS; i++)
-    (void)ensure_pte(va + i * GROWKERNEL_STRIDE);
+  vaddr_t kernel_end = align(_ebss, PAGESIZE);
 
   /* Kernel read-only segment - sections: .text and .rodata. */
-  early_kenter((vaddr_t)__text, __data - __text, RISCV_PHYSADDR(__text),
-               PTE_X | PTE_KERN_RO);
+  early_kenter(_text, _data - _text, PHYSADDR(_text), PTE_X | PTE_KERN_RO);
 
   /* Kernel read-write segment - sections: .data and .bss. */
-  early_kenter((vaddr_t)__data, KERNEL_VIRT_IMG_END - (vaddr_t)__data,
-               RISCV_PHYSADDR(__data), PTE_KERN);
+  early_kenter(_data, kernel_end - _data, PHYSADDR(_data), PTE_KERN);
 
   /*
    * NOTE: we don't have to map the boot allocation area as the allocated
@@ -194,20 +203,26 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
   early_kenter(BOOT_PD_VADDR, PAGESIZE, (paddr_t)kernel_pde, PTE_KERN);
 
 #if KASAN
-  paddr_t shadow_mem = (paddr_t)bootmem_alloc(BOOT_KASAN_SHADOW_SIZE);
+  size_t shadow_size =
+    BOOT_KASAN_SANITIZED_SIZE(kernel_end) / KASAN_SHADOW_SCALE_SIZE;
+  paddr_t shadow_mem = (paddr_t)bootmem_alloc(shadow_size);
 
-  early_kenter(KASAN_SHADOW_START, BOOT_KASAN_SHADOW_SIZE, shadow_mem,
-               PTE_KERN);
+  early_kenter(KASAN_SHADOW_START, shadow_size, shadow_mem, PTE_KERN);
 #endif /* !KASAN */
 
   /* Temporarily set the trap vector. */
-  csr_write(stvec, riscv_boot);
+  csr_write(stvec, _riscv_boot);
 
   /*
    * Move to VM boot stage.
    */
+#if __riscv_xlen == 64
+  const paddr_t satp = SATP_MODE_SV39 | ((paddr_t)kernel_pde >> PAGE_SHIFT);
+#else
   const paddr_t satp = SATP_MODE_SV32 | ((paddr_t)kernel_pde >> PAGE_SHIFT);
-  void *boot_sp = &boot_stack[PAGESIZE];
+#endif
+
+  void *boot_sp = (void *)_boot_stack + PAGESIZE;
 
   __sfence_vma();
 
@@ -269,7 +284,8 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
   kern_phys_end = kern_end;
 
 #if KASAN
-  _kasan_sanitized_end = KASAN_SANITIZED_START + BOOT_KASAN_SANITIZED_SIZE;
+  _kasan_sanitized_end =
+    KASAN_SANITIZED_START + BOOT_KASAN_SANITIZED_SIZE(__ebss);
 #endif
 
   void *dtb_va = (void *)BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));

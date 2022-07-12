@@ -61,6 +61,8 @@ static int pipe_read(file_t *f, uio_t *uio) {
 
   /* no read atomicity for now! */
   WITH_MTX_LOCK (&pipe->mtx) {
+    if (f->f_flags & IO_NONBLOCK)
+      return EAGAIN;
     while (ringbuf_empty(&pipe->buf)) {
       /* pipe empty & no writers => return end-of-file */
       if (pipe->writer_closed)
@@ -104,6 +106,9 @@ static int pipe_write(file_t *f, uio_t *uio) {
       /* nothing left to write? */
       if (uio->uio_resid == 0)
         return 0;
+      /* buffer is full, so if we write in NONBLOCK then return with error */
+      if (f->f_flags & IO_NONBLOCK)
+        return EAGAIN;
       /* buffer is full so wait for some data to be consumed */
       if (cv_wait_intr(&pipe->nonfull, &pipe->mtx)) {
         error = ERESTARTSYS;
@@ -126,12 +131,10 @@ static int pipe_close(file_t *f) {
   WITH_MTX_LOCK (&pipe->mtx) {
     /* If we're a reader, the file is read-only, otherwise it's write-only. */
     if (f->f_flags & FF_READ) {
-      assert(!pipe->reader_closed);
       pipe->reader_closed = true;
       /* Wake up writers so that they exit. */
       cv_broadcast(&pipe->nonfull);
     } else {
-      assert(!pipe->writer_closed);
       pipe->writer_closed = true;
       /* Wake up readers so that they exit. */
       cv_broadcast(&pipe->nonempty);
@@ -187,6 +190,10 @@ int do_pipe2(proc_t *p, int fds[2], int flags) {
   file_hold(reader);
   file_hold(writer);
 
+  if (flags & O_NONBLOCK) {
+    reader->f_flags |= IO_NONBLOCK;
+    writer->f_flags |= IO_NONBLOCK;
+  }
   int cloexec = flags & O_CLOEXEC;
   int error;
 

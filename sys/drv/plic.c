@@ -84,10 +84,6 @@ static void plic_intr_enable(intr_event_t *ie) {
   out4(PLIC_ENABLE_SV(irq), en);
 }
 
-static const char *plic_intr_name(unsigned irq) {
-  return kasprintf("PLIC source %u", irq);
-}
-
 static resource_t *plic_alloc_intr(device_t *pic, device_t *dev, int rid,
                                    unsigned irq, rman_flags_t flags) {
   plic_state_t *plic = pic->state;
@@ -107,9 +103,12 @@ static void plic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
   unsigned irq = resource_start(r);
   assert(irq && irq < plic->ndev);
 
+  char buf[32];
+  snprintf(buf, sizeof(buf), "PLIC source %u", irq);
+
   if (!plic->intr_event[irq])
-    plic->intr_event[irq] = intr_event_create(
-      plic, irq, plic_intr_disable, plic_intr_enable, plic_intr_name(irq));
+    plic->intr_event[irq] =
+      intr_event_create(plic, irq, plic_intr_disable, plic_intr_enable, buf);
 
   r->r_handler =
     intr_event_add_handler(plic->intr_event[irq], filter, service, arg, name);

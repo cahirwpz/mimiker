@@ -1,5 +1,3 @@
-#include "assym.h"
-
 /* Linker scripts are documented here:
  * https://sourceware.org/binutils/docs/ld/Scripts.html */
 OUTPUT_ARCH(riscv)
@@ -18,15 +16,17 @@ SECTIONS
   .boot KERNEL_PHYS : AT(KERNEL_PHYS) ALIGN(4096)
   {
     __boot = ABSOLUTE(.);
-    KEEP(riscv/riscv.ka:start.o)
-    *(.boot .boot.*)
+    KEEP(*(.boot))
+    *(.boot.text)
+    *(.boot.data)
+    *(.boot.bss)
     . = ALIGN(4096);
     __eboot = ABSOLUTE(.);
   } : boot
 
   HIDDEN(_boot_size = __eboot - __boot);
 
-  .text KERNEL_SPACE_BEGIN + _boot_size : AT(__eboot) ALIGN(4096)
+  .text KERNEL_VIRT + _boot_size : AT(__eboot) ALIGN(4096)
   {
     __kernel_start = ABSOLUTE(.);
     __text = ABSOLUTE(.);

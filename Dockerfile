@@ -5,8 +5,9 @@ WORKDIR /root
 RUN apt-get -q update && apt-get upgrade -y
 RUN apt-get install -y --no-install-recommends -t bullseye-backports \
       git make cpio curl universal-ctags cscope socat patch gperf quilt \
-      bmake byacc python3-pip clang clang-format device-tree-compiler tmux \
-      libmpfr6 libfdt1 libpython3.9 libsdl2-2.0-0 libglib2.0-0 libpixman-1-0
+      bmake byacc python3-pip clang clang-format llvm lld \
+      device-tree-compiler tmux libmpfr6 libfdt1 libpython3.9 \
+      libsdl2-2.0-0 libglib2.0-0 libpixman-1-0
 # patch & quilt required by lua and programs in contrib/
 # gperf required by libterminfo
 # socat & tmux required by launch
