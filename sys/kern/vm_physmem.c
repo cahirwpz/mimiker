@@ -99,9 +99,16 @@ void init_vm_page(void) {
     for (unsigned i = 0; i < seg->npages; i++) {
       vm_page_t *page = &pages[i];
       paddr_t pa = seg->start + i * PAGESIZE;
-      unsigned size = 1 << min(PM_NQUEUES - 1, ctz(pa / PAGESIZE));
-      if (pa + size * PAGESIZE > seg->end)
+      size_t size = 1 << min(PM_NQUEUES - 1, ctz(pa / PAGESIZE));
+      if (pa + size * PAGESIZE > seg->end) {
+        /*
+         *    `pa`    = 2^(k+1) * A + 2^k
+         * `seg->end` = 2^(k+1) * A + 2^k + B
+         *
+         * Let's just take the biggest size that can fit within B.
+         */
         size = 1 << min(PM_NQUEUES - 1, log2((seg->end ^ pa) / PAGESIZE));
+      }
       page->paddr = pa;
       page->size = size;
       page->flags = seg->used ? PG_ALLOCATED : 0;
