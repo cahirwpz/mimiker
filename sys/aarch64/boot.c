@@ -304,8 +304,7 @@ __boot_text __noreturn void aarch64_init(paddr_t dtb) {
                    "mov sp, %2\n\t"
                    "br %3"
                    :
-                   : "r"(dtb), "r"(kernel_pde), "r"(boot_sp),
-                     "r"(aarch64_boot)
+                   : "r"(dtb), "r"(kernel_pde), "r"(boot_sp), "r"(aarch64_boot)
                    : "x0", "x1");
   __unreachable();
 }

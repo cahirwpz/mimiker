@@ -32,9 +32,6 @@ _ENTRY(_start)
 
 	mv	a0, a1
 	tail	riscv_init
-halt:
-	wfi
-	j	halt
 _END(_start)
 
 	.section .boot.data,"aw",@progbits
