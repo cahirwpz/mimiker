@@ -22,6 +22,7 @@ SECTIONS
     KEEP(*(.boot))
     *(.boot.text)
     *(.boot.data)
+    *(.boot.bss)
     . = ALIGN (4096);
     __eboot = ABSOLUTE(.);
   } : boot

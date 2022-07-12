@@ -494,7 +494,7 @@ static void pmap_setup(pmap_t *pmap) {
   pmap_md_setup(pmap);
 }
 
-__long_call void pmap_bootstrap(paddr_t pd_pa, void *pd) {
+void pmap_bootstrap(paddr_t pd_pa, void *pd) {
   kernel_pmap.pde = pd_pa;
   pmap_md_bootstrap(pd);
 }

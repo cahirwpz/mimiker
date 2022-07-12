@@ -222,7 +222,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
   const paddr_t satp = SATP_MODE_SV32 | ((paddr_t)kernel_pde >> PAGE_SHIFT);
 #endif
 
-  void *boot_sp = (void *)_boot_stack + PAGESIZE;
+  vaddr_t boot_sp = _boot_stack + PAGESIZE;
 
   __sfence_vma();
 
@@ -255,7 +255,7 @@ static void clear_bss(void) {
 /* Trap handler in direct mode. */
 extern void cpu_exception_handler(void);
 
-extern void *board_stack(paddr_t dtb_pa, void *dtb_va);
+extern void *board_stack(void);
 extern void __noreturn board_init(void);
 
 static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
@@ -289,7 +289,9 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
 #endif
 
   void *dtb_va = (void *)BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
-  void *sp = board_stack(dtb, dtb_va);
+  FDT_early_init(dtb, dtb_va);
+
+  void *sp = board_stack();
 
   pmap_bootstrap(pde, (void *)BOOT_PD_VADDR);
 
@@ -300,7 +302,9 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
    * Switch to thread0's stack and perform `board_init`.
    */
   __asm __volatile("mv sp, %0\n\t"
-                   "tail board_init" ::"r"(sp));
+                   "tail board_init"
+                   :
+                   : "r"(sp));
   __unreachable();
 }
 

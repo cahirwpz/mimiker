@@ -1,3 +1,4 @@
+#include <sys/fdt.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
@@ -20,6 +21,16 @@
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data void *_bootmem_end;
 
+static __noreturn __used void aarch64_boot(paddr_t dtb, paddr_t pde);
+
+/*
+ * Temporary stack in VA.
+ * It's needed because in rpi3.c accesses to stack are instrumented
+ * and KASAN works only for virtual addresses.
+ * Stack instrumentation is done directly by GCC not by our code so
+ * we can't disable KASAN for that file in a simple way because we call
+ * functions from libkern.
+ */
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
@@ -112,22 +123,16 @@ el2_entry:
   }
 
 el1_entry:
+  WRITE_SPECIALREG(SPSR_EL1, PSR_DAIF);
   return;
 }
 
 #define AARCH64_PHYSADDR(x) ((paddr_t)(x) & (~KERNEL_SPACE_BEGIN))
 
-__boot_text static void clear_bss(void) {
-  uint64_t *ptr = (uint64_t *)AARCH64_PHYSADDR(__bss);
-  uint64_t *end = (uint64_t *)AARCH64_PHYSADDR(__ebss);
-  while (ptr < end)
-    *ptr++ = 0;
-}
-
 /* Create direct map of whole physical memory located at DMAP_BASE virtual
  * address. We will use this mapping later in pmap module. */
 
-__boot_text static paddr_t build_page_table(void) {
+__boot_text static pde_t *build_page_table(void) {
   /* l0 entry is 512GB */
   volatile pde_t *l0 = bootmem_alloc(PAGESIZE);
   /* l1 entry is 1GB */
@@ -214,11 +219,11 @@ __boot_text static paddr_t build_page_table(void) {
   }
 #endif /* KASAN */
 
-  return (paddr_t)l0;
+  return (pde_t *)l0;
 }
 
 /* Based on locore.S from FreeBSD. */
-__boot_text static void enable_mmu(paddr_t pde) {
+__boot_text static void enable_mmu(pde_t *pde) {
   __dsb("sy");
 
   WRITE_SPECIALREG(VBAR_EL1, exception_vectors);
@@ -280,20 +285,59 @@ __boot_text static void enable_mmu(paddr_t pde) {
   WRITE_SPECIALREG(sctlr_el1, SCTLR_M | SCTLR_I | SCTLR_C | SCTLR_A | SCTLR_SA |
                                 SCTLR_SA0);
   __isb();
-
-  pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
 }
 
-__boot_text void *aarch64_init(void) {
+__boot_text __noreturn void aarch64_init(paddr_t dtb) {
   drop_to_el1();
   configure_cpu();
-  clear_bss();
 
   /* Set end address of kernel for boot allocation purposes. */
   _bootmem_end = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
 
-  enable_mmu(build_page_table());
-  return &_boot_stack[PAGESIZE];
+  pde_t *kernel_pde = build_page_table();
+  enable_mmu(kernel_pde);
+
+  vaddr_t boot_sp = (vaddr_t)&_boot_stack[PAGESIZE];
+
+  __asm __volatile("mov x0, %0\n\t"
+                   "mov x1, %1\n\t"
+                   "mov sp, %2\n\t"
+                   "br %3"
+                   :
+                   : "r"(dtb), "r"(kernel_pde), "r"(boot_sp),
+                     "r"(aarch64_boot)
+                   : "x0", "x1");
+  __unreachable();
+}
+
+static void clear_bss(void) {
+  uint64_t *ptr = (uint64_t *)__bss;
+  uint64_t *end = (uint64_t *)__ebss;
+  while (ptr < end)
+    *ptr++ = 0;
+}
+
+extern void *board_stack(void);
+
+static __noreturn __used void aarch64_boot(paddr_t dtb, paddr_t pde) {
+  clear_bss();
+
+  pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
+
+  FDT_early_init(dtb, phys_to_dmap(dtb));
+  void *fdtp = (void *)phys_to_dmap(FDT_get_physaddr());
+  FDT_changeroot(fdtp);
+
+  void *sp = board_stack();
+
+  /*
+   * Switch to thread0's stack and perform `board_init`.
+   */
+  __asm __volatile("mov sp, %0\n\t"
+                   "b board_init"
+                   :
+                   : "r"(sp));
+  __unreachable();
 }
 
 /* TODO(pj) Remove those after architecture split of gdb debug scripts. */
