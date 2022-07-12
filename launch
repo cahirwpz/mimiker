@@ -61,6 +61,7 @@ CONFIG = {
         'board': {
             'malta': {
                 'kernel': 'sys/mimiker.elf',
+                'dts': None,
                 'simulator': 'qemu'
             },
             'rpi3': {
@@ -75,7 +76,7 @@ CONFIG = {
             },
             'sifive_u': {
                 'kernel': 'sys/mimiker.elf',
-                'dts': 'sys/dts/sifive_u.dts',
+                'dts': None,
                 'simulator': 'qemu'
             },
         },
@@ -287,7 +288,7 @@ class QEMU(Launchable):
             port = uart['port']
             self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
-        if getvar('config.dts', failok=True) is None:
+        if not getvar('config.dts'):
             if getvar('config.args'):
                 self.options += ['-append', ' '.join(getvar('config.args'))]
         else:
@@ -436,8 +437,8 @@ def setup_terminal():
 def prepare_dtb():
     bootargs = ' '.join(getvar('config.args'))
     board = getvar('board')
-    dts = getvar('config.dts', failok=True)
-    if dts is None:
+    dts = getvar('config.dts')
+    if not dts:
         return
 
     if not os.path.isfile(dts):
@@ -477,7 +478,7 @@ if __name__ == '__main__':
                         help='Test-run will fail after n seconds.')
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
-    parser.add_argument('-b', '--board', default='malta',
+    parser.add_argument('-b', '--board', default='rpi3',
                         choices=['malta', 'rpi3', 'litex-riscv', 'sifive_u'],
                         help='Emulated board.')
     parser.add_argument('-s', '--storage', type=str,

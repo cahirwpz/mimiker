@@ -1,11 +1,14 @@
 #include <riscv/abi.h>
 #include <riscv/asm.h>
+#include <riscv/vm_param.h>
 
 #include "assym.h"
 
 #define INITSTACK_SIZE 512
 
-	.section .boot
+	.option nopic
+	.section .boot,"ax",@progbits
+
 /*
  * The following entry point is used when booting via SBI firmware.
  * It must be placed at the beginning of the .boot section.
@@ -17,16 +20,9 @@
  *  - all other registers remain in an undefined state
  */
 _ENTRY(_start)
-	.option push;
-	.option norelax;
-	PTR_LA	gp, __global_pointer$_pa;
-	REG_LI	t0, KERNEL_SPACE_BEGIN
-	REG_LI	t1, KERNEL_PHYS
-	REG_SUB	gp, gp, t1
-	or  gp, gp, t0
-	.option pop
+	PTR_L	gp, _global_pointer
 
-	/* 
+	/*
 	 * NOTE: In an actual SMP system, we could have multiple harts
 	 * entering the kernel simultaneously. In such case,
 	 * we would have to choose the hart to perform the global startup.
@@ -34,16 +30,24 @@ _ENTRY(_start)
 	 */
 
 	/* Move to the initial stack. */
-	PTR_LA sp, initstack_end
+	PTR_LA	sp, initstack_end
 
-	mv a0, a1
-	tail riscv_init
+	mv	a0, a1
+	tail	riscv_init
 halt:
 	wfi
-	j halt
+	j	halt
 _END(_start)
 
-	.section .boot.data
+	.section .boot.data,"aw",@progbits
+_global_pointer:
+#if __riscv_xlen == 32
+	.long	__global_pointer$
+#else
+	.quad	__global_pointer$
+#endif
+
+	.section .boot.bss,"aw",@nobits
 
 	.align STACK_ALIGN
 initstack:
