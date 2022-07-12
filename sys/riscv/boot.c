@@ -69,16 +69,7 @@
 #include <riscv/cpufunc.h>
 #include <riscv/pmap.h>
 
-extern char __text[];
-extern char __data[];
-extern char __ebss[];
-extern char __kernel_start[];
-extern char __kernel_end[];
-
-static __noreturn __used void riscv_boot(paddr_t dtb, paddr_t pde,
-                                         paddr_t kern_end);
-
-#define PHYSADDR(x) ((paddr_t)((vaddr_t)(x)-KERNEL_VIRT) | KERNEL_PHYS)
+#define PHYSADDR(x) ((paddr_t)((vaddr_t)(x) & ~KERNEL_VIRT) + KERNEL_PHYS)
 
 #define BOOT_KASAN_SANITIZED_SIZE(end)                                         \
   roundup2(roundup2((intptr_t)end, GROWKERNEL_STRIDE) - KASAN_SANITIZED_START, \
@@ -92,8 +83,7 @@ static __noreturn __used void riscv_boot(paddr_t dtb, paddr_t pde,
  */
 
 /* NOTE: the boot stack is used before we switch out to `thread0`. */
-static __used alignas(STACK_ALIGN) uint8_t boot_stack[PAGESIZE];
-
+static alignas(STACK_ALIGN) uint8_t boot_stack[PAGESIZE];
 /*
  * Bare memory boot functions.
  */
@@ -112,6 +102,11 @@ __boot_data static void *bootmem_brk;
 
 __boot_data static pde_t *kernel_pde;
 
+static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end);
+
+/* Without `volatile` Clang applies constant propagation optimization and
+ * that ends up generating relocations in `.text` instead of `.data` section.
+ * This is exactly what we're trying to avoid here! */
 __boot_data static volatile vaddr_t _kernel_start = (vaddr_t)__kernel_start;
 __boot_data static volatile vaddr_t _kernel_end = (vaddr_t)__kernel_end;
 __boot_data static volatile paddr_t _boot = (paddr_t)__boot;
@@ -263,8 +258,7 @@ extern void cpu_exception_handler(void);
 extern void *board_stack(paddr_t dtb_pa, void *dtb_va);
 extern void __noreturn board_init(void);
 
-static __noreturn __used void riscv_boot(paddr_t dtb, paddr_t pde,
-                                         paddr_t kern_end) {
+static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
   /*
    * Set initial register values.
    */

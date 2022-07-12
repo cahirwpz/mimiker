@@ -21,6 +21,5 @@ endif
 ASAN_SHADOW_OFFSET := 0xD8000000
 
 ifeq ($(KERNEL), 1)
-  # Added to all files
   ABIFLAGS += -msoft-float
 endif
