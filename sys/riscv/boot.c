@@ -130,8 +130,7 @@ __boot_text static void *bootmem_alloc(size_t bytes) {
   return addr;
 }
 
-__boot_text static pde_t *early_pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
-  pde_t *pde = (pde_t *)pd_pa;
+__boot_text static pde_t *early_pde_ptr(pde_t *pde, int lvl, vaddr_t va) {
   if (lvl == 0)
     return pde + L0_INDEX(va);
 #if __riscv_xlen == 32
@@ -143,8 +142,8 @@ __boot_text static pde_t *early_pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
 #endif
 }
 
-__boot_text static pte_t *ensure_pte(vaddr_t va) {
-  pde_t *pdep = early_pde_ptr((paddr_t)kernel_pde, 0, va);
+__boot_text static pte_t *early_ensure_pte(vaddr_t va) {
+  pde_t *pdep = early_pde_ptr(kernel_pde, 0, va);
 
   for (unsigned lvl = 1; lvl < PAGE_TABLE_DEPTH; lvl++) {
     paddr_t pa;
@@ -154,7 +153,7 @@ __boot_text static pte_t *ensure_pte(vaddr_t va) {
     } else {
       pa = (paddr_t)PTE_TO_PA(*pdep);
     }
-    pdep = early_pde_ptr(pa, lvl, va);
+    pdep = early_pde_ptr((pde_t *)pa, lvl, va);
   }
 
   return (pte_t *)pdep;
@@ -166,7 +165,7 @@ __boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
     halt();
 
   for (size_t off = 0; off < size; off += PAGESIZE) {
-    pte_t *ptep = ensure_pte(va + off);
+    pte_t *ptep = early_ensure_pte(va + off);
     *ptep = PA_TO_PTE(pa + off) | flags;
   }
 }
