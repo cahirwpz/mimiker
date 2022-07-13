@@ -136,9 +136,13 @@ extern char __etext[];
 #ifdef _MACHDEP
 /* Symbols defined by linker and used during kernel boot phase. */
 extern char __boot[];
+extern char __eboot[];
+extern char __text[];
 extern char __data[];
 extern char __bss[];
 extern char __ebss[];
+extern char __kernel_start[];
+extern char __kernel_end[];
 
 /* Last physical address used by kernel for boot memory allocation. */
 extern __boot_data void *_bootmem_end;

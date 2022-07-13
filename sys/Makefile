@@ -4,23 +4,21 @@ TOPDIR = $(realpath ..)
 
 include $(TOPDIR)/config.mk
 
-SUBDIR = aarch64 drv dts kern libkern mips tests
+SUBDIR = aarch64 contrib drv dts gen kern libkern mips riscv tests
 KLIB = no
 
-BUILD-FILES += $(KERNEL-IMAGE) mimiker.elf cscope.out etags tags
+BUILD-FILES += $(KERNEL-IMAGES) mimiker.elf cscope.out etags tags
 CLEAN-FILES += mimiker.elf.map
 
 include $(TOPDIR)/build/build.kern.mk
 
-LDFLAGS += -T $(TOPDIR)/sys/$(ARCH)/$(ARCH).ld
-LDLIBS	= -Wl,--start-group \
-	    -Wl,--whole-archive $(KLIBLIST) -Wl,--no-whole-archive \
-            -lgcc \
-          -Wl,--end-group
+LDSCRIPT = $(ARCH)/$(ARCH).ld
+LDFLAGS += -T $(TOPDIR)/sys/$(LDSCRIPT)
+LDLIBS	= --whole-archive $(KLIBLIST) --no-whole-archive
 
-mimiker.elf: $(KLIBDEPS)
+mimiker.elf: $(KLIBDEPS) $(LDSCRIPT)
 	@echo "[LD] Linking kernel image: $@"
-	$(LD) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) -o $@
+	$(LD) $(LDFLAGS) -Map=$@.map $(LDLIBS) -o $@
 
 mimiker.img: mimiker.elf
 	@echo "[OBJCOPY] Prepare kernel image: $@"
@@ -28,7 +26,10 @@ mimiker.img: mimiker.elf
 
 mimiker.img.gz: mimiker.img
 	@echo "[GZIP] Compress kernel image: $@"
-	$(GZIP) -f $^ > $@
+	$(GZIP) -k -f $^ > $@
+
+$(LDSCRIPT):
+	make -C $(dir $(LDSCRIPT)) $(notdir $(LDSCRIPT))
 
 # Lists of all files that we consider operating system kernel sources.
 SRCDIRS = $(TOPDIR)/include $(TOPDIR)/sys

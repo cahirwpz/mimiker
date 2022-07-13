@@ -15,7 +15,6 @@ SOURCES-MIPS = \
 	signal.c \
 	start.S \
 	switch.S \
-	thread.c \
 	timer.c \
 	tlb.c \
 	trap.c
@@ -29,4 +28,5 @@ include $(TOPDIR)/build/build.kern.mk
 $(SOURCES-MIPS): assym.h
 
 boot.o : CFLAGS_KASAN =
+boot.o : CFLAGS_KCSAN =
 boot.o : CFLAGS_KGPROF =

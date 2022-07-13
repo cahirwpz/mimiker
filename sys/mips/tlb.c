@@ -1,5 +1,5 @@
 #include <mips/m32c0.h>
-#include <mips/tlb.h>
+#include <mips/pmap.h>
 #include <sys/interrupt.h>
 
 #define mips32_getasid() (mips32_getentryhi() & PTE_ASID_MASK)
@@ -79,7 +79,8 @@ void init_mips_tlb(void) {
   mips32_setcontext(0);
 }
 
-void tlb_invalidate(tlbhi_t hi) {
+void tlb_invalidate(vaddr_t va, asid_t asid) {
+  tlbhi_t hi = PTE_VPN2(va) | PTE_ASID(asid);
   SCOPED_INTR_DISABLED();
   tlbhi_t saved = mips32_getasid();
   int i = _tlb_probe(hi);

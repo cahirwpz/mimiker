@@ -22,12 +22,12 @@ void ctx_setup_call(ctx_t *ctx, register_t retaddr, register_t arg) {
   _REG(ctx, X0) = arg;
 }
 
-void ctx_set_retval(ctx_t *ctx, long value) {
-  _REG(ctx, X0) = value;
-}
-
 register_t ctx_get_pc(ctx_t *ctx) {
   return _REG(ctx, PC);
+}
+
+void ctx_set_pc(ctx_t *ctx, uintptr_t addr) {
+  _REG(ctx, PC) = addr;
 }
 
 void mcontext_copy(mcontext_t *to, mcontext_t *from) {

@@ -33,6 +33,12 @@ int do_write(proc_t *p, int fd, uio_t *uio) {
 
   uio->uio_ioflags |= f->f_flags & IO_MASK;
   error = f->f_ops->fo_write(f, uio);
+  if (error == EPIPE) {
+    proc_lock(p);
+    sig_kill(p, &DEF_KSI_RAW(SIGPIPE));
+    proc_unlock(p);
+  }
+
   file_drop(f);
   return error;
 }
@@ -93,7 +99,6 @@ int do_fcntl(proc_t *p, int fd, int cmd, int arg, int *resp) {
   if ((error = fdtab_get_file(p->p_fdtable, fd, 0, &f)))
     return error;
 
-  /* TODO: Currently only F_DUPFD command is implemented. */
   bool cloexec = false;
   int flags = 0;
   switch (cmd) {

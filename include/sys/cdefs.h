@@ -1,8 +1,6 @@
 #ifndef _SYS_CDEFS_H_
 #define _SYS_CDEFS_H_
 
-#include <machine/cdefs.h>
-
 /*
  * To be used when an empty body is required like:
  *
@@ -82,6 +80,12 @@
 #define __no_profile
 #endif
 
+#ifdef KCSAN
+#define __no_kcsan_sanitize __no_sanitize
+#else
+#define __no_kcsan_sanitize
+#endif
+
 /* Clang introduces support for the fallthrough attribute in C2x. */
 #ifdef __clang__
 #define __fallthrough
@@ -112,10 +116,10 @@
 #define __sysloglike(fmtarg, firstvararg)                                      \
   __attribute__((__format__(__syslog__, fmtarg, firstvararg)))
 
-#define __strong_alias(alias, sym)                                             \
-  extern __typeof(alias) alias __attribute__((__alias__(#sym)))
-#define __weak_alias(alias, sym)                                               \
-  __strong_alias(alias, sym) __attribute__((__weak__))
+#define __strong_alias(sym, alias)                                             \
+  extern __typeof(sym) alias __attribute__((__alias__(#sym)))
+#define __weak_alias(sym, alias)                                               \
+  __strong_alias(sym, alias) __attribute__((__weak__))
 
 /*
  * The following macro is used to remove const cast-away warnings
