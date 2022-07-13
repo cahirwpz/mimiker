@@ -124,13 +124,6 @@ static void ar_get_initrd(addr_range_t *ar) {
   ar->end = END(rd_end);
 }
 
-static void ar_get_dtb(addr_range_t *ar) {
-  paddr_t dtb_start, dtb_end;
-  FDT_get_blob_range(&dtb_start, &dtb_end);
-  ar->start = dtb_start;
-  ar->end = dtb_end;
-}
-
 static size_t ar_get_reserved_mem(addr_range_t *ars) {
   fdt_mem_reg_t mrs[FDT_MAX_RSV_MEM_REGS];
   size_t cnt;
@@ -179,10 +172,9 @@ static void physmem_regions(void) {
   addr_range_t memory[MAX_PHYS_MEM_REGS];
   ar_get_kernel_img(&memory[0]);
   ar_get_initrd(&memory[1]);
-  ar_get_dtb(&memory[2]);
-  const size_t rsvmem_cnt = ar_get_reserved_mem(&memory[3]);
+  const size_t rsvmem_cnt = ar_get_reserved_mem(&memory[2]);
 
-  const size_t nranges = rsvmem_cnt + 3;
+  const size_t nranges = rsvmem_cnt + 2;
   qsort(memory, nranges, sizeof(addr_range_t), ar_cmp);
 
   addr_range_t *range = &memory[0];
