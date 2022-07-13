@@ -1,12 +1,10 @@
 #include <mips/m32c0.h>
 #include <mips/pmap.h>
+#include <sys/boot.h>
 #include <sys/mimiker.h>
 #include <sys/pmap.h>
 #include <sys/vm.h>
 #include <sys/kasan.h>
-
-/* Last address in kseg0 used by kernel for boot allocation. */
-__boot_data void *_bootmem_end;
 
 /* The boot stack is used before we switch out to thread0. */
 static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
@@ -16,11 +14,6 @@ static __boot_text void *bootmem_alloc(size_t bytes) {
   void *addr = _bootmem_end;
   _bootmem_end += align(bytes, PAGESIZE);
   return addr;
-}
-
-__boot_text static void halt(void) {
-  for (;;)
-    continue;
 }
 
 __boot_text void *mips_init(void) {
