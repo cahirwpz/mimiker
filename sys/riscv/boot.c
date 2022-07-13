@@ -70,8 +70,8 @@
 #include <riscv/pmap.h>
 #include <libfdt/libfdt.h>
 
-#define PHYSADDR(x) ((paddr_t)((vaddr_t)(x) + (KERNEL_PHYS - KERNEL_VIRT))
-#define VIRTADDR(x) ((vaddr_t)((paddr_t)(x) + (KERNEL_VIRT - KERNEL_PHYS))
+#define PHYSADDR(x) ((paddr_t)((vaddr_t)(x) + (KERNEL_PHYS - KERNEL_VIRT)))
+#define VIRTADDR(x) ((vaddr_t)((paddr_t)(x) + (KERNEL_VIRT - KERNEL_PHYS)))
 
 #define BOOT_KASAN_SANITIZED_SIZE(end)                                         \
   roundup2(roundup2((intptr_t)end, GROWKERNEL_STRIDE) - KASAN_SANITIZED_START, \
@@ -122,26 +122,18 @@ __boot_text static void bootmem_init(void) {
   _bootmem_end = (void *)align(PHYSADDR(_ebss), sizeof(long));
 }
 
-/* Allocate and clear pages in physical memory just after kernel image end. */
+/* Clears and allocates clears physical memory just after kernel image end. */
 __boot_text static void *bootmem_alloc(size_t bytes) {
   long *addr = _bootmem_end;
   _bootmem_end += align(bytes, sizeof(long));
-
   for (size_t i = 0; i < bytes / sizeof(long); i++)
     addr[i] = 0;
   return addr;
 }
 
-__boot_text static void bootmem_align(size_t alignment) {
+__boot_text static paddr_t bootmem_align(size_t alignment) {
   _bootmem_end = (void *)align((uintptr_t)_bootmem_end, alignment);
-}
-
-__boot_text static void early_memcpy(void *dst, const void *src, size_t n) {
-  uint8_t *d = dst;
-  const uint8_t *s = src;
-
-  for (size_t i = 0; i < n; i++)
-    d[i] = s[i];
+  return (paddr_t)_bootmem_end;
 }
 
 __boot_text static pde_t *early_pde_ptr(pde_t *pde, int lvl, vaddr_t va) {
@@ -185,11 +177,8 @@ __boot_text static void early_kenter(pde_t *pde, vaddr_t va, size_t size,
 }
 
 __boot_text static pde_t *build_page_table(void) {
-  pde_t *pde;
-
   /* Allocate kernel page directory.*/
-  bootmem_align(PAGESIZE);
-  pde = bootmem_alloc(PAGESIZE);
+  pde_t *pde = bootmem_alloc(PAGESIZE);
 
   vaddr_t kernel_end = align(_ebss, PAGESIZE);
 
@@ -223,22 +212,30 @@ __boot_text static inline uint32_t fdt32toh(fdt32_t u) {
           (((u)&0x0000ff00) << 8) | (((u)&0x000000ff) << 24));
 }
 
+/* Copy DTB to kernel .bss section */
+__boot_text static vaddr_t copy_dtb(const struct fdt_header *fdt) {
+  if (fdt32toh(fdt->magic) != FDT_MAGIC)
+    halt();
+
+  size_t dtb_size = fdt32toh(fdt->totalsize);
+  uint8_t *dtb = bootmem_alloc(dtb_size);
+
+  const uint8_t *src = (void *)fdt;
+  for (size_t i = 0; i < dtb_size; i++)
+    dtb[i] = src[i];
+
+  return VIRTADDR((paddr_t)dtb);
+}
+
 __boot_text __noreturn void riscv_init(const struct fdt_header *fdt) {
   if (!(_eboot < _kernel_start || _kernel_end < _boot))
     halt();
 
   bootmem_init();
-
-  /* Copy DTB to kernel .bss section */
-  if (fdt32toh(fdt->magic) != FDT_MAGIC)
-    halt();
-
-  size_t dtb_size = fdt32toh(fdt->totalsize);
-  paddr_t dtb = (paddr_t)bootmem_alloc(dtb_size);
-  early_memcpy((void *)dtb, fdt, dtb_size);
+  vaddr_t dtb = copy_dtb(fdt);
 
   /* Make sure DTB is mapped into kernel virtual address space. */
-  _ebss = VIRTADDR(align((paddr_t)_bootmem_end, PAGESIZE));
+  _ebss = VIRTADDR(bootmem_align(PAGESIZE));
 
   /* Build kernel page table. */
   pde_t *pde = build_page_table();
@@ -266,8 +263,8 @@ __boot_text __noreturn void riscv_init(const struct fdt_header *fdt) {
                    "sfence.vma\n\t"
                    "nop" /* triggers instruction fetch page fault */
                    :
-                   : "r"(VIRTADDR(dtb)), "r"(pde), "r"(_bootmem_end),
-                     "r"(_ebss), "r"(boot_sp), "r"(satp)
+                   : "r"(dtb), "r"(pde), "r"(_bootmem_end), "r"(_ebss),
+                     "r"(boot_sp), "r"(satp)
                    : "a0", "a1", "a2", "a3");
   __unreachable();
 }

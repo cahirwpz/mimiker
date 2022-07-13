@@ -7,6 +7,7 @@
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
+#include <libfdt/libfdt.h>
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
@@ -19,6 +20,9 @@
     __rv;                                                                      \
   })
 
+#define PHYSADDR(x) ((paddr_t)(x) & (~KERNEL_SPACE_BEGIN))
+#define VIRTADDR(x) ((vaddr_t)(x) | KERNEL_SPACE_BEGIN)
+
 #define BOOT_KASAN_SANITIZED_SIZE(end)                                         \
   roundup2(roundup2((vaddr_t)(end), PAGESIZE) - KASAN_SANITIZED_START,         \
            SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE)
@@ -26,7 +30,7 @@
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data void *_bootmem_end;
 
-static __noreturn void aarch64_boot(paddr_t dtb, paddr_t pde);
+static __noreturn void aarch64_boot(void *dtb, paddr_t pde, vaddr_t kernel_end);
 
 static alignas(STACK_ALIGN) uint8_t _boot_stack[PAGESIZE];
 
@@ -38,13 +42,23 @@ __boot_text static void halt(void) {
     continue;
 }
 
-/* Allocates & clears pages in physical memory just after kernel image end. */
+/* Initialize boot memory allocator. */
+__boot_text static void bootmem_init(void) {
+  _bootmem_end = (void *)align(PHYSADDR(__ebss), sizeof(long));
+}
+
+/* Clears and allocates clears physical memory just after kernel image end. */
 __boot_text static void *bootmem_alloc(size_t bytes) {
-  uint64_t *addr = _bootmem_end;
-  _bootmem_end += bytes;
+  long *addr = _bootmem_end;
+  _bootmem_end += align(bytes, sizeof(long));
   for (unsigned i = 0; i < bytes / sizeof(uint64_t); i++)
     addr[i] = 0;
   return addr;
+}
+
+__boot_text static paddr_t bootmem_align(size_t alignment) {
+  _bootmem_end = (void *)align((uintptr_t)_bootmem_end, alignment);
+  return (paddr_t)_bootmem_end;
 }
 
 __boot_text static void configure_cpu(void) {
@@ -124,9 +138,6 @@ el1_entry:
   return;
 }
 
-#define PHYSADDR(x) ((paddr_t)(x) & (~KERNEL_SPACE_BEGIN))
-#define VIRTADDR(x) ((vaddr_t)(x) | KERNEL_SPACE_BEGIN)
-
 __boot_text static pde_t *early_pde_ptr(pde_t *pde, int lvl, vaddr_t va) {
   /* l0 entry is 512GB */
   if (lvl == 0)
@@ -169,7 +180,8 @@ __boot_text static void early_kenter(pde_t *pde, vaddr_t va, vaddr_t va_end,
 /* Create direct map of whole physical memory located at DMAP_BASE virtual
  * address. We will use this mapping later in pmap module. */
 
-__boot_text static pde_t *build_page_table(void) {
+__boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
+  /* Allocate kernel page directory.*/
   pde_t *pde = bootmem_alloc(PAGESIZE);
 
   const pte_t pte_default =
@@ -188,7 +200,7 @@ __boot_text static pde_t *build_page_table(void) {
                ATTR_AP_RO | ATTR_XN | pte_default);
 
   /* data & bss sections */
-  early_kenter(pde, (vaddr_t)__data, (vaddr_t)__ebss, PHYSADDR(__data),
+  early_kenter(pde, (vaddr_t)__data, kernel_end, PHYSADDR(__data),
                ATTR_AP_RW | ATTR_XN | pte_default);
 
   /* direct map construction */
@@ -273,25 +285,50 @@ __boot_text static void enable_mmu(pde_t *pde) {
   __isb();
 }
 
-__boot_text __noreturn void aarch64_init(paddr_t dtb) {
+__boot_text static inline uint32_t fdt32toh(fdt32_t u) {
+  return ((((u)&0xff000000) >> 24) | (((u)&0x00ff0000) >> 8) |
+          (((u)&0x0000ff00) << 8) | (((u)&0x000000ff) << 24));
+}
+
+/* Copy DTB to kernel .bss section */
+__boot_text static vaddr_t copy_dtb(const struct fdt_header *fdt) {
+  if (fdt32toh(fdt->magic) != FDT_MAGIC)
+    halt();
+
+  size_t dtb_size = fdt32toh(fdt->totalsize);
+  uint8_t *dtb = bootmem_alloc(dtb_size);
+
+  const uint8_t *src = (void *)fdt;
+  for (size_t i = 0; i < dtb_size; i++)
+    dtb[i] = src[i];
+
+  return VIRTADDR((paddr_t)dtb);
+}
+
+__boot_text __noreturn void aarch64_init(const struct fdt_header *fdt) {
   drop_to_el1();
   configure_cpu();
+  bootmem_init();
 
-  /* Set end address of kernel for boot allocation purposes. */
-  _bootmem_end = (void *)align(PHYSADDR(__ebss), PAGESIZE);
+  vaddr_t dtb = copy_dtb(fdt);
 
-  pde_t *kernel_pde = build_page_table();
-  enable_mmu(kernel_pde);
+  /* Make sure DTB is mapped into kernel virtual address space. */
+  vaddr_t kernel_end = VIRTADDR(bootmem_align(PAGESIZE));
+
+  pde_t *pde = build_page_table(kernel_end);
+  enable_mmu(pde);
 
   vaddr_t boot_sp = (vaddr_t)&_boot_stack[PAGESIZE];
 
   __asm __volatile("mov x0, %0\n\t"
                    "mov x1, %1\n\t"
-                   "mov sp, %2\n\t"
-                   "br %3"
+                   "mov x2, %2\n\t"
+                   "mov sp, %3\n\t"
+                   "br %4"
                    :
-                   : "r"(dtb), "r"(kernel_pde), "r"(boot_sp), "r"(aarch64_boot)
-                   : "x0", "x1");
+                   : "r"(dtb), "r"(pde), "r"(kernel_end), "r"(boot_sp),
+                     "r"(aarch64_boot)
+                   : "x0", "x1", "x2");
   __unreachable();
 }
 
@@ -304,21 +341,22 @@ static void clear_bss(void) {
 
 extern void *board_stack(void);
 
-static __noreturn void aarch64_boot(paddr_t dtb, paddr_t pde) {
+static __noreturn void aarch64_boot(void *dtb, paddr_t pde,
+                                    vaddr_t kernel_end) {
   clear_bss();
+
+  vm_kernel_end = kernel_end;
 
 #if KASAN
   _kasan_sanitized_end =
     KASAN_SANITIZED_START + BOOT_KASAN_SANITIZED_SIZE((vaddr_t)__ebss);
 #endif
 
-  pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
-
-  FDT_early_init(dtb, phys_to_dmap(dtb));
-  void *fdtp = phys_to_dmap(FDT_get_physaddr());
-  FDT_changeroot(fdtp);
+  FDT_init(dtb);
 
   void *sp = board_stack();
+
+  pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
 
   /*
    * Switch to thread0's stack and perform `board_init`.
