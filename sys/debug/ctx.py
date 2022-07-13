@@ -30,8 +30,8 @@ class Context():
             self.arch = 'aarch64'
             self.reg_size = 64
         if arch_name.startswith('riscv'):
-            self.arch = 'riscv'
             prefix_len = len('riscv:rv')
+            self.arch = 'riscv'
             self.reg_size = int(arch_name[prefix_len:prefix_len+2])
         self.regs = OrderedDict()
         for name in self.names[self.arch]:
