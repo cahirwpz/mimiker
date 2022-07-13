@@ -18,6 +18,9 @@
     __rv;                                                                      \
   })
 
+#define BOOT_KASAN_SANITIZED_SIZE(end)                                         \
+  roundup2((end)-KASAN_SANITIZED_START, SUPERPAGESIZE *KASAN_SHADOW_SCALE_SIZE);
+
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data void *_bootmem_end;
 
@@ -185,15 +188,10 @@ __boot_text static pde_t *build_page_table(void) {
   l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
 
 #if KASAN /* Prepare KASAN shadow mappings */
-  size_t kasan_sanitized_size = roundup2(
-    va - KASAN_SANITIZED_START, SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
+  size_t kasan_sanitized_size = BOOT_KASAN_SANITIZED_SIZE(va);
   size_t kasan_shadow_size = kasan_sanitized_size / KASAN_SHADOW_SCALE_SIZE;
   vaddr_t kasan_shadow_end = KASAN_SHADOW_START + kasan_shadow_size;
   va = KASAN_SHADOW_START;
-  /* XXX _kasan_sanitized_end is at a high address which is not mapped yet,
-   * so we access it using its physical address instead. */
-  *(vaddr_t *)AARCH64_PHYSADDR(&_kasan_sanitized_end) =
-    KASAN_SANITIZED_START + kasan_sanitized_size;
   /* Allocate physical memory for shadow area */
   pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
 
@@ -320,6 +318,11 @@ extern void *board_stack(void);
 
 static __noreturn __used void aarch64_boot(paddr_t dtb, paddr_t pde) {
   clear_bss();
+
+#if KASAN
+  _kasan_sanitized_end =
+    KASAN_SANITIZED_START + BOOT_KASAN_SANITIZED_SIZE((vaddr_t)__ebss);
+#endif
 
   pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
 
