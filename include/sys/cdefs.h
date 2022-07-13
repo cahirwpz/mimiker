@@ -182,4 +182,21 @@
  */
 #define __arraycount(__x) (sizeof(__x) / sizeof(__x[0]))
 
+/* __BIT(n): nth bit, where __BIT(0) == 0x1. */
+#define __BIT(__n)                                                             \
+  (((uintmax_t)(__n) >= NBBY * sizeof(uintmax_t))                              \
+     ? 0                                                                       \
+     : ((uintmax_t)1 << (uintmax_t)((__n) & (NBBY * sizeof(uintmax_t) - 1))))
+
+/* __MASK(n): first n bits all set, where __MASK(4) == 0b1111. */
+#define __MASK(__n) (__BIT(__n) - 1)
+
+/* Macros for min/max. */
+#define __MIN(a, b) ((/*CONSTCOND*/ (a) <= (b)) ? (a) : (b))
+#define __MAX(a, b) ((/*CONSTCOND*/ (a) > (b)) ? (a) : (b))
+
+/* __BITS(m, n): bits m through n, m < n. */
+#define __BITS(__m, __n)                                                       \
+  ((__BIT(__MAX((__m), (__n)) + 1) - 1) ^ (__BIT(__MIN((__m), (__n))) - 1))
+
 #endif /* !_SYS_CDEFS_H */
