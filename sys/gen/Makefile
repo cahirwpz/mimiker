@@ -3,6 +3,7 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
+	boot.c \
 	pmap.c \
 	thread.c
 

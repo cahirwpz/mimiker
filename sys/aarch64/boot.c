@@ -1,5 +1,7 @@
+#include <sys/boot.h>
 #include <sys/fdt.h>
 #include <sys/mimiker.h>
+#include <sys/libkern.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
 #include <sys/kasan.h>
@@ -7,7 +9,6 @@
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
-#include <libfdt/libfdt.h>
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
@@ -27,39 +28,12 @@
   roundup2(roundup2((vaddr_t)(end), PAGESIZE) - KASAN_SANITIZED_START,         \
            SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE)
 
-/* Last physical address used by kernel for boot memory allocation. */
-__boot_data void *_bootmem_end;
-
 static __noreturn void aarch64_boot(void *dtb, paddr_t pde, vaddr_t kernel_end);
 
 static alignas(STACK_ALIGN) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
-
-__boot_text static void halt(void) {
-  for (;;)
-    continue;
-}
-
-/* Initialize boot memory allocator. */
-__boot_text static void bootmem_init(void) {
-  _bootmem_end = (void *)align(PHYSADDR(__ebss), sizeof(long));
-}
-
-/* Clears and allocates clears physical memory just after kernel image end. */
-__boot_text static void *bootmem_alloc(size_t bytes) {
-  long *addr = _bootmem_end;
-  _bootmem_end += align(bytes, sizeof(long));
-  for (unsigned i = 0; i < bytes / sizeof(uint64_t); i++)
-    addr[i] = 0;
-  return addr;
-}
-
-__boot_text static paddr_t bootmem_align(size_t alignment) {
-  _bootmem_end = (void *)align((uintptr_t)_bootmem_end, alignment);
-  return (paddr_t)_bootmem_end;
-}
 
 __boot_text static void configure_cpu(void) {
   /* Enable hw management of data coherency with other cores in the cluster. */
@@ -160,7 +134,7 @@ __boot_text static pte_t *early_ensure_pte(pde_t *pde, vaddr_t va) {
     if (*pdep & Ln_VALID) {
       pa = (paddr_t)(*pdep) & L3_PAGE_OA;
     } else {
-      pa = (paddr_t)bootmem_alloc(PAGESIZE);
+      pa = (paddr_t)boot_sbrk(PAGESIZE);
       *pdep = pa | L0_TABLE; /* works for all levels */
     }
     pdep = early_pde_ptr((pde_t *)pa, lvl, va);
@@ -182,7 +156,7 @@ __boot_text static void early_kenter(pde_t *pde, vaddr_t va, vaddr_t va_end,
 
 __boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
   /* Allocate kernel page directory.*/
-  pde_t *pde = bootmem_alloc(PAGESIZE);
+  pde_t *pde = boot_sbrk(PAGESIZE);
 
   const pte_t pte_default =
     L3_PAGE | ATTR_AF | ATTR_SH_IS | ATTR_IDX(ATTR_NORMAL_MEM_WB);
@@ -285,38 +259,20 @@ __boot_text static void enable_mmu(pde_t *pde) {
   __isb();
 }
 
-__boot_text static inline uint32_t fdt32toh(fdt32_t u) {
-  return ((((u)&0xff000000) >> 24) | (((u)&0x00ff0000) >> 8) |
-          (((u)&0x0000ff00) << 8) | (((u)&0x000000ff) << 24));
-}
-
-/* Copy DTB to kernel .bss section */
-__boot_text static vaddr_t copy_dtb(const struct fdt_header *fdt) {
-  if (fdt32toh(fdt->magic) != FDT_MAGIC)
-    halt();
-
-  size_t dtb_size = fdt32toh(fdt->totalsize);
-  uint8_t *dtb = bootmem_alloc(dtb_size);
-
-  const uint8_t *src = (void *)fdt;
-  for (size_t i = 0; i < dtb_size; i++)
-    dtb[i] = src[i];
-
-  return VIRTADDR((paddr_t)dtb);
-}
-
-__boot_text __noreturn void aarch64_init(const struct fdt_header *fdt) {
+__boot_text __noreturn void aarch64_init(paddr_t dtb) {
   drop_to_el1();
   configure_cpu();
-  bootmem_init();
+  boot_sbrk_init(PHYSADDR(__ebss));
 
-  vaddr_t dtb = copy_dtb(fdt);
+  vaddr_t dtb_va = VIRTADDR(boot_save_dtb(dtb));
 
   /* Make sure DTB is mapped into kernel virtual address space. */
-  vaddr_t kernel_end = VIRTADDR(bootmem_align(PAGESIZE));
+  vaddr_t kernel_end = VIRTADDR(boot_sbrk_align(PAGESIZE));
 
   pde_t *pde = build_page_table(kernel_end);
   enable_mmu(pde);
+
+  _bootmem_end = boot_sbrk(0);
 
   vaddr_t boot_sp = (vaddr_t)&_boot_stack[PAGESIZE];
 
@@ -326,24 +282,17 @@ __boot_text __noreturn void aarch64_init(const struct fdt_header *fdt) {
                    "mov sp, %3\n\t"
                    "br %4"
                    :
-                   : "r"(dtb), "r"(pde), "r"(kernel_end), "r"(boot_sp),
+                   : "r"(dtb_va), "r"(pde), "r"(kernel_end), "r"(boot_sp),
                      "r"(aarch64_boot)
                    : "x0", "x1", "x2");
   __unreachable();
-}
-
-static void clear_bss(void) {
-  uint64_t *ptr = (uint64_t *)__bss;
-  uint64_t *end = (uint64_t *)__ebss;
-  while (ptr < end)
-    *ptr++ = 0;
 }
 
 extern void *board_stack(void);
 
 static __noreturn void aarch64_boot(void *dtb, paddr_t pde,
                                     vaddr_t kernel_end) {
-  clear_bss();
+  bzero(__bss, (intptr_t)__ebss - (intptr_t)__bss);
 
   vm_kernel_end = kernel_end;
 

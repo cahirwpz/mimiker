@@ -59,9 +59,11 @@
  * will be dropped.
  */
 #define KL_LOG KL_INIT
+#include <sys/boot.h>
 #include <sys/fdt.h>
 #include <sys/kasan.h>
 #include <sys/klog.h>
+#include <sys/libkern.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
@@ -85,14 +87,6 @@
 
 /* NOTE: the boot stack is used before we switch out to `thread0`. */
 static alignas(STACK_ALIGN) uint8_t boot_stack[PAGESIZE];
-/*
- * Bare memory boot functions.
- */
-
-__boot_text static __noreturn void halt(void) {
-  for (;;)
-    __wfi();
-}
 
 /*
  * Bare memory boot data.
@@ -104,37 +98,11 @@ static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t bootmem_end,
 /* Without `volatile` Clang applies constant propagation optimization and
  * that ends up generating relocations in `.text` instead of `.data` section.
  * This is exactly what we're trying to avoid here! */
-__boot_data static volatile vaddr_t _kernel_start = (vaddr_t)__kernel_start;
-__boot_data static volatile vaddr_t _kernel_end = (vaddr_t)__kernel_end;
-__boot_data static volatile paddr_t _boot = (paddr_t)__boot;
-__boot_data static volatile paddr_t _eboot = (paddr_t)__eboot;
-__boot_data static volatile vaddr_t _ebss = (vaddr_t)__ebss;
 __boot_data static volatile vaddr_t _text = (vaddr_t)__text;
 __boot_data static volatile vaddr_t _data = (vaddr_t)__data;
+__boot_data static volatile vaddr_t _ebss = (vaddr_t)__ebss;
 __boot_data static volatile vaddr_t _riscv_boot = (vaddr_t)riscv_boot;
 __boot_data static volatile vaddr_t _boot_stack = (vaddr_t)boot_stack;
-
-/* Last physical address used by kernel for boot memory allocation. */
-__boot_data void *_bootmem_end;
-
-/* Initialize boot memory allocator. */
-__boot_text static void bootmem_init(void) {
-  _bootmem_end = (void *)align(PHYSADDR(_ebss), sizeof(long));
-}
-
-/* Clears and allocates clears physical memory just after kernel image end. */
-__boot_text static void *bootmem_alloc(size_t bytes) {
-  long *addr = _bootmem_end;
-  _bootmem_end += align(bytes, sizeof(long));
-  for (size_t i = 0; i < bytes / sizeof(long); i++)
-    addr[i] = 0;
-  return addr;
-}
-
-__boot_text static paddr_t bootmem_align(size_t alignment) {
-  _bootmem_end = (void *)align((uintptr_t)_bootmem_end, alignment);
-  return (paddr_t)_bootmem_end;
-}
 
 __boot_text static pde_t *early_pde_ptr(pde_t *pde, int lvl, vaddr_t va) {
   if (lvl == 0)
@@ -154,7 +122,7 @@ __boot_text static pte_t *early_ensure_pte(pde_t *pde, vaddr_t va) {
   for (unsigned lvl = 1; lvl < PAGE_TABLE_DEPTH; lvl++) {
     paddr_t pa;
     if (!VALID_PDE_P(*pdep)) {
-      pa = (paddr_t)bootmem_alloc(PAGESIZE);
+      pa = (paddr_t)boot_sbrk(PAGESIZE);
       *pdep = PA_TO_PTE(pa) | PTE_V;
     } else {
       pa = (paddr_t)PTE_TO_PA(*pdep);
@@ -176,11 +144,9 @@ __boot_text static void early_kenter(pde_t *pde, vaddr_t va, size_t size,
   }
 }
 
-__boot_text static pde_t *build_page_table(void) {
+__boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
   /* Allocate kernel page directory.*/
-  pde_t *pde = bootmem_alloc(PAGESIZE);
-
-  vaddr_t kernel_end = align(_ebss, PAGESIZE);
+  pde_t *pde = boot_sbrk(PAGESIZE);
 
   /* Kernel read-only segment - sections: .text and .rodata. */
   early_kenter(pde, _text, _data - _text, PHYSADDR(_text), PTE_X | PTE_KERN_RO);
@@ -207,38 +173,18 @@ __boot_text static pde_t *build_page_table(void) {
   return pde;
 }
 
-__boot_text static inline uint32_t fdt32toh(fdt32_t u) {
-  return ((((u)&0xff000000) >> 24) | (((u)&0x00ff0000) >> 8) |
-          (((u)&0x0000ff00) << 8) | (((u)&0x000000ff) << 24));
-}
+__boot_text __noreturn void riscv_init(paddr_t dtb) {
+  boot_sbrk_init(PHYSADDR(_ebss));
 
-/* Copy DTB to kernel .bss section */
-__boot_text static vaddr_t copy_dtb(const struct fdt_header *fdt) {
-  if (fdt32toh(fdt->magic) != FDT_MAGIC)
-    halt();
-
-  size_t dtb_size = fdt32toh(fdt->totalsize);
-  uint8_t *dtb = bootmem_alloc(dtb_size);
-
-  const uint8_t *src = (void *)fdt;
-  for (size_t i = 0; i < dtb_size; i++)
-    dtb[i] = src[i];
-
-  return VIRTADDR((paddr_t)dtb);
-}
-
-__boot_text __noreturn void riscv_init(const struct fdt_header *fdt) {
-  if (!(_eboot < _kernel_start || _kernel_end < _boot))
-    halt();
-
-  bootmem_init();
-  vaddr_t dtb = copy_dtb(fdt);
+  vaddr_t dtb_va = VIRTADDR(boot_save_dtb(dtb));
 
   /* Make sure DTB is mapped into kernel virtual address space. */
-  _ebss = VIRTADDR(bootmem_align(PAGESIZE));
+  vaddr_t kernel_end = VIRTADDR(boot_sbrk_align(PAGESIZE));
 
   /* Build kernel page table. */
-  pde_t *pde = build_page_table();
+  pde_t *pde = build_page_table(kernel_end);
+
+  _bootmem_end = boot_sbrk(0);
 
   /* Temporarily set the trap vector. */
   csr_write(stvec, _riscv_boot);
@@ -263,7 +209,7 @@ __boot_text __noreturn void riscv_init(const struct fdt_header *fdt) {
                    "sfence.vma\n\t"
                    "nop" /* triggers instruction fetch page fault */
                    :
-                   : "r"(dtb), "r"(pde), "r"(_bootmem_end), "r"(_ebss),
+                   : "r"(dtb_va), "r"(pde), "r"(_bootmem_end), "r"(kernel_end),
                      "r"(boot_sp), "r"(satp)
                    : "a0", "a1", "a2", "a3");
   __unreachable();
@@ -272,13 +218,6 @@ __boot_text __noreturn void riscv_init(const struct fdt_header *fdt) {
 /*
  * Virtual memory boot functions.
  */
-
-static void clear_bss(void) {
-  long *ptr = (long *)__bss;
-  long *end = (long *)__ebss;
-  while (ptr < end)
-    *ptr++ = 0;
-}
 
 /* Trap handler in direct mode. */
 extern void cpu_exception_handler(void);
@@ -307,7 +246,7 @@ static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t bootmem_end,
   csr_clear(sie, SIP_SEIP | SIP_STIP | SIP_SSIP);
   csr_clear(sie, SIE_SEIE | SIE_STIE | SIE_SSIE);
 
-  clear_bss();
+  bzero(__bss, (intptr_t)__ebss - (intptr_t)__bss);
 
   extern paddr_t kern_phys_end;
   kern_phys_end = bootmem_end;

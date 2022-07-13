@@ -1,4 +1,5 @@
 #include <sys/kenv.h>
+#include <sys/boot.h>
 #include <sys/cmdline.h>
 #include <sys/libkern.h>
 #include <sys/klog.h>
