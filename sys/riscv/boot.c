@@ -165,7 +165,7 @@ __boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
 #if KASAN
   size_t shadow_size =
     BOOT_KASAN_SANITIZED_SIZE(kernel_end) / KASAN_SHADOW_SCALE_SIZE;
-  paddr_t shadow_mem = (paddr_t)bootmem_alloc(shadow_size);
+  paddr_t shadow_mem = (paddr_t)boot_sbrk(shadow_size);
 
   early_kenter(pde, KASAN_SHADOW_START, shadow_size, shadow_mem, PTE_KERN);
 #endif /* !KASAN */

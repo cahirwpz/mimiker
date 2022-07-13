@@ -185,7 +185,7 @@ __boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
   size_t kasan_sanitized_size = BOOT_KASAN_SANITIZED_SIZE(__ebss);
   size_t kasan_shadow_size = kasan_sanitized_size / KASAN_SHADOW_SCALE_SIZE;
   /* Allocate physical memory for shadow area */
-  paddr_t kasan_shadow_pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
+  paddr_t kasan_shadow_pa = (paddr_t)boot_sbrk(kasan_shadow_size);
 
   early_kenter(pde, KASAN_SHADOW_START, KASAN_SHADOW_START + kasan_shadow_size,
                kasan_shadow_pa, ATTR_AP_RW | ATTR_XN | pte_default);
