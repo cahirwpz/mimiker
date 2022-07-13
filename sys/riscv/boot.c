@@ -225,11 +225,8 @@ extern void cpu_exception_handler(void);
 extern void *board_stack(void);
 extern void __noreturn board_init(void);
 
-static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t bootmem_end,
-                                  vaddr_t kernel_end) {
-  /*
-   * Set initial register values.
-   */
+static void configure_cpu(void) {
+  /* Set initial register values. */
   __set_tp();
   csr_write(sscratch, 0);
 
@@ -245,19 +242,25 @@ static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t bootmem_end,
    */
   csr_clear(sie, SIP_SEIP | SIP_STIP | SIP_SSIP);
   csr_clear(sie, SIE_SEIE | SIE_STIE | SIE_SSIE);
+}
+
+static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t bootmem_end,
+                                  vaddr_t kernel_end) {
+  configure_cpu();
 
   bzero(__bss, (intptr_t)__ebss - (intptr_t)__bss);
 
+  vm_kernel_end = kernel_end;
+
   extern paddr_t kern_phys_end;
   kern_phys_end = bootmem_end;
-  vm_kernel_end = kernel_end;
 
 #if KASAN
   _kasan_sanitized_end =
     KASAN_SANITIZED_START + BOOT_KASAN_SANITIZED_SIZE(__ebss);
 #endif
 
-  FDT_init((void *)(dtb));
+  FDT_init(dtb);
 
   void *sp = board_stack();
 
