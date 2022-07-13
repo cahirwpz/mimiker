@@ -70,7 +70,7 @@ typedef struct uhci_state {
 
 static POOL_DEFINE(P_TFR, "UHCI transfer buffers", UHCI_TFR_BUF_SIZE,
                    UHCI_ALIGNMENT);
-static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
+static POOL_DEFINE(P_DATA, "UHCI data buffers", UHCI_DATA_BUF_SIZE);
 
 /*
  * How do we manage the UHCI frame list?
@@ -730,7 +730,7 @@ static uint8_t uhci_detect_ports(uhci_state_t *uhci) {
   }
 
   uhci->nports = port;
-  klog("detected %hhu ports", uhci->nports);
+  klog("detected %u ports", uhci->nports);
 
   return port;
 }
