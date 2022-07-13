@@ -3,6 +3,7 @@
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
 #include <sys/kasan.h>
+#include <aarch64/abi.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
@@ -25,17 +26,9 @@
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data void *_bootmem_end;
 
-static __noreturn __used void aarch64_boot(paddr_t dtb, paddr_t pde);
+static __noreturn void aarch64_boot(paddr_t dtb, paddr_t pde);
 
-/*
- * Temporary stack in VA.
- * It's needed because in rpi3.c accesses to stack are instrumented
- * and KASAN works only for virtual addresses.
- * Stack instrumentation is done directly by GCC not by our code so
- * we can't disable KASAN for that file in a simple way because we call
- * functions from libkern.
- */
-static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
+static alignas(STACK_ALIGN) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
@@ -46,7 +39,7 @@ __boot_text static void halt(void) {
 }
 
 /* Allocates & clears pages in physical memory just after kernel image end. */
-static __boot_text void *bootmem_alloc(size_t bytes) {
+__boot_text static void *bootmem_alloc(size_t bytes) {
   uint64_t *addr = _bootmem_end;
   _bootmem_end += bytes;
   for (unsigned i = 0; i < bytes / sizeof(uint64_t); i++)
@@ -311,7 +304,7 @@ static void clear_bss(void) {
 
 extern void *board_stack(void);
 
-static __noreturn __used void aarch64_boot(paddr_t dtb, paddr_t pde) {
+static __noreturn void aarch64_boot(paddr_t dtb, paddr_t pde) {
   clear_bss();
 
 #if KASAN
@@ -322,7 +315,7 @@ static __noreturn __used void aarch64_boot(paddr_t dtb, paddr_t pde) {
   pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
 
   FDT_early_init(dtb, phys_to_dmap(dtb));
-  void *fdtp = (void *)phys_to_dmap(FDT_get_physaddr());
+  void *fdtp = phys_to_dmap(FDT_get_physaddr());
   FDT_changeroot(fdtp);
 
   void *sp = board_stack();
