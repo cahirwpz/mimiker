@@ -23,14 +23,7 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
                                             rman_addr_t end, size_t size,
                                             rman_flags_t flags) {
   assert(dev->bus == DEV_BUS_ISA);
-
-  if (type != RT_IOPORTS) {
-    assert(type == RT_IRQ);
-    device_t *idev = BUS_METHOD_PROVIDER(dev->parent, alloc_resource);
-    return bus_methods(idev->parent)
-      ->alloc_resource(idev, type, rid, start, end, size, flags);
-  }
-
+  assert(type == RT_IOPORTS);
   assert(start >= IO_ICUSIZE);
 
   intel_isa_state_t *isa = dev->parent->state;
@@ -58,23 +51,18 @@ static resource_t *intel_isa_alloc_resource(device_t *dev, res_type_t type,
 }
 
 static int intel_isa_activate_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_IOPORTS || r->r_type == RT_IRQ);
-  /* Neither IRQs in general or IOports on ISA require activation */
+  assert(r->r_type == RT_IOPORTS);
+  /* IOports on ISA don't require activation */
   return 0;
 }
 
 static void intel_isa_deactivate_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_IOPORTS || r->r_type == RT_IRQ);
-  /* Neither IRQs in general or IOports on ISA require deactivation */
+  assert(r->r_type == RT_IOPORTS);
+  /* IOports on ISA don't require deactivation */
 }
 
 static void intel_isa_release_resource(device_t *dev, resource_t *r) {
-  if (r->r_type != RT_IOPORTS) {
-    assert(r->r_type == RT_IRQ);
-    device_t *idev = BUS_METHOD_PROVIDER(dev->parent, release_resource);
-    bus_methods(idev->parent)->release_resource(idev, r);
-    return;
-  }
+  assert(r->r_type == RT_IOPORTS);
   bus_deactivate_resource(dev, r);
   resource_release(r);
 }
@@ -95,24 +83,28 @@ static int intel_isa_attach(device_t *isab) {
 
   /* atkbdc keyboard device */
   dev = device_add_child(isab, 0);
+  dev->pic = isab->pic;
   dev->bus = DEV_BUS_ISA;
   device_add_ioports(dev, 0, IO_KBD, IO_KBDSIZE);
   device_add_irq(dev, 0, 1);
 
   /* ns16550 uart device */
   dev = device_add_child(isab, 1);
+  dev->pic = isab->pic;
   dev->bus = DEV_BUS_ISA;
   device_add_ioports(dev, 0, IO_COM1, IO_COMSIZE);
   device_add_irq(dev, 0, 4);
 
   /* rtc device */
   dev = device_add_child(isab, 2);
+  dev->pic = isab->pic;
   dev->bus = DEV_BUS_ISA;
   device_add_ioports(dev, 0, IO_RTC, IO_RTCSIZE);
   device_add_irq(dev, 0, 8);
 
   /* i8254 timer device */
   dev = device_add_child(isab, 3);
+  dev->pic = isab->pic;
   dev->bus = DEV_BUS_ISA;
   device_add_ioports(dev, 0, IO_TIMER1, IO_TMRSIZE);
   device_add_irq(dev, 0, 0);
@@ -121,8 +113,6 @@ static int intel_isa_attach(device_t *isab) {
 }
 
 static bus_methods_t intel_isa_bus_bus_if = {
-  .intr_setup = NULL,    /* Dispatched */
-  .intr_teardown = NULL, /* Dispatched */
   .alloc_resource = intel_isa_alloc_resource,
   .activate_resource = intel_isa_activate_resource,
   .deactivate_resource = intel_isa_deactivate_resource,

@@ -19,15 +19,17 @@ typedef struct pool pool_t;
 /*! \brief Called during kernel initialization. */
 void init_pool(void);
 
-/* Pool input parameters. */
-typedef struct pool_args {
+/*! \brief Pool constructor parameters. */
+typedef struct pool_init {
   const char *desc;
   size_t size;
   size_t alignment;
-} pool_args_t;
+} pool_init_t;
 
 /*! \brief Creates a pool of objects of given size. */
-pool_t *pool_create(pool_args_t *args);
+pool_t *_pool_create(pool_init_t *args);
+
+#define pool_create(...) _pool_create(&(pool_init_t){__VA_ARGS__})
 
 /*! \brief Adds a slab of one page to the pool.
  *
@@ -55,7 +57,7 @@ void pool_free(pool_t *pool, void *ptr);
 #define POOL_DEFINE(NAME, ...)                                                 \
   struct pool *NAME;                                                           \
   static void __ctor_##NAME(void) {                                            \
-    NAME = pool_create(&(pool_args_t){__VA_ARGS__});                           \
+    NAME = pool_create(__VA_ARGS__);                                           \
   }                                                                            \
   SET_ENTRY(pool_ctor_table, __ctor_##NAME);
 

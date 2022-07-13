@@ -39,15 +39,9 @@ setup:
 test: sys-build initrd.cpio
 	./run_tests.py --board $(BOARD)
 
-# USB drive size in GB.
-SIZE = 512
+PHONY-TARGETS += setup test
 
-udrive-img:
-	qemu-img create udrive.img $(SIZE)G
-
-PHONY-TARGETS += setup test print
-
-IMGVER = 1.8.1
+IMGVER = 1.9.1
 IMGNAME = cahirwpz/mimiker-ci
 
 docker-build:

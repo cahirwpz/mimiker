@@ -15,7 +15,6 @@ SOURCES-AARCH64 = \
 	start.S \
 	switch.S \
 	timer.c \
-	thread.c \
 	tlb.c \
 	trap.c
 
@@ -32,3 +31,4 @@ $(SOURCES-AARCH64): assym.h
 
 boot.o : CFLAGS_KASAN =
 boot.o : CFLAGS_KCSAN =
+boot.o : CFLAGS_KGPROF =

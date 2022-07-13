@@ -61,7 +61,6 @@
 #include <machine/abi.h>
 #include <machine/regdef.h>
 #include <sys/endian.h>
-#include <machine/cdefs.h>
 
 #define _C_LABEL(x) x
 

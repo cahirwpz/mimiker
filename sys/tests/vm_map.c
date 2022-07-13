@@ -10,12 +10,14 @@
 #include <sys/sched.h>
 #include <sys/proc.h>
 
-#ifdef __mips__
+#if __SIZEOF_POINTER__ == 4
 #define TOO_MUCH 0x40000000
+#else
+#define TOO_MUCH 0x800000000000L
 #endif
 
-#ifdef __aarch64__
-#define TOO_MUCH 0x800000000000L
+#ifdef __riscv
+#include <riscv/cpufunc.h>
 #endif
 
 static int paging_on_demand_and_memory_protection_demo(void) {
@@ -30,13 +32,13 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   p->p_uspace = vm_map_new();
   vm_map_activate(p->p_uspace);
 
-  vm_map_t *kmap = vm_map_kernel();
-  vm_map_t *umap = vm_map_user();
+  pmap_t *kpmap = pmap_kernel();
+  pmap_t *upmap = pmap_user();
 
-  klog("Kernel physical map : %08lx-%08lx", vm_map_start(kmap),
-       vm_map_end(kmap));
-  klog("User physical map   : %08lx-%08lx", vm_map_start(umap),
-       vm_map_end(umap));
+  klog("Kernel physical map : %08lx-%08lx", pmap_start(kpmap), pmap_end(kpmap));
+  klog("User physical map   : %08lx-%08lx", pmap_start(upmap), pmap_end(upmap));
+
+  vm_map_t *umap = vm_map_user();
 
   vaddr_t pre_start = 0x1000000;
   vaddr_t start = 0x1001000;
@@ -72,7 +74,10 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   }
 
   vm_map_dump(umap);
-  vm_map_dump(kmap);
+
+#ifdef __riscv
+  enter_user_access();
+#endif
 
   /* Start in paged on demand range, but end outside, to cause fault */
   for (int *ptr = (int *)start; ptr != (int *)end; ptr += 256) {
@@ -80,8 +85,11 @@ static int paging_on_demand_and_memory_protection_demo(void) {
     *ptr = 0xfeedbabe;
   }
 
+#ifdef __riscv
+  exit_user_access();
+#endif
+
   vm_map_dump(umap);
-  vm_map_dump(kmap);
 
   vm_map_delete(umap);
 

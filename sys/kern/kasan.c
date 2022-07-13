@@ -6,15 +6,21 @@
 #include <sys/thread.h>
 #include <sys/vm_physmem.h>
 #include <sys/vm.h>
-#include <machine/vm_param.h>
-#include <machine/kasan.h>
 
 /* Part of internal compiler interface */
-#define KASAN_SHADOW_SCALE_SHIFT 3
 #define KASAN_ALLOCA_REDZONE_SIZE 32
 
-#define KASAN_SHADOW_SCALE_SIZE (1 << KASAN_SHADOW_SCALE_SHIFT)
 #define KASAN_SHADOW_MASK (KASAN_SHADOW_SCALE_SIZE - 1)
+
+/* Sanitized memory (accesses within this range are checked) */
+#define KASAN_MAX_SANITIZED_SIZE                                               \
+  (KASAN_MAX_SHADOW_SIZE << KASAN_SHADOW_SCALE_SHIFT)
+#define KASAN_MAX_SANITIZED_END                                                \
+  (KASAN_SANITIZED_START + KASAN_MAX_SANITIZED_SIZE)
+
+/* NOTE: this offset has also to be explicitly set in `CFLAGS_KASAN` */
+#define KASAN_OFFSET                                                           \
+  (KASAN_SHADOW_START - (KASAN_SANITIZED_START >> KASAN_SHADOW_SCALE_SHIFT))
 
 /* The following two structures are part of internal compiler interface:
  * https://github.com/gcc-mirror/gcc/blob/master/libsanitizer/include/sanitizer/asan_interface.h
@@ -75,9 +81,17 @@ __always_inline static inline bool access_within_shadow_byte(uintptr_t addr,
          ((addr + size - 1) >> KASAN_SHADOW_SCALE_SHIFT);
 }
 
+__always_inline static inline int8_t *addr_to_shad(uintptr_t addr) {
+  return (int8_t *)(KASAN_OFFSET + (addr >> KASAN_SHADOW_SCALE_SHIFT));
+}
+
+__always_inline static inline bool addr_supported(uintptr_t addr) {
+  return addr >= KASAN_SANITIZED_START && addr < KASAN_MAX_SANITIZED_END;
+}
+
 __always_inline static inline bool shadow_1byte_isvalid(uintptr_t addr,
                                                         uint8_t *code) {
-  int8_t shadow_val = *kasan_md_addr_to_shad(addr);
+  int8_t shadow_val = *addr_to_shad(addr);
   int8_t last = addr & KASAN_SHADOW_MASK;
   if (__predict_true(shadow_val == 0 || last < shadow_val))
     return true;
@@ -91,7 +105,7 @@ __always_inline static inline bool shadow_2byte_isvalid(uintptr_t addr,
     return shadow_1byte_isvalid(addr, code) &&
            shadow_1byte_isvalid(addr + 1, code);
 
-  int8_t shadow_val = *kasan_md_addr_to_shad(addr);
+  int8_t shadow_val = *addr_to_shad(addr);
   int8_t last = (addr + 1) & KASAN_SHADOW_MASK;
   if (__predict_true(shadow_val == 0 || last < shadow_val))
     return true;
@@ -105,7 +119,7 @@ __always_inline static inline bool shadow_4byte_isvalid(uintptr_t addr,
     return shadow_2byte_isvalid(addr, code) &&
            shadow_2byte_isvalid(addr + 2, code);
 
-  int8_t shadow_val = *kasan_md_addr_to_shad(addr);
+  int8_t shadow_val = *addr_to_shad(addr);
   int8_t last = (addr + 3) & KASAN_SHADOW_MASK;
   if (__predict_true(shadow_val == 0 || last < shadow_val))
     return true;
@@ -119,7 +133,7 @@ __always_inline static inline bool shadow_8byte_isvalid(uintptr_t addr,
     return shadow_4byte_isvalid(addr, code) &&
            shadow_4byte_isvalid(addr + 4, code);
 
-  int8_t shadow_val = *kasan_md_addr_to_shad(addr);
+  int8_t shadow_val = *addr_to_shad(addr);
   int8_t last = (addr + 7) & KASAN_SHADOW_MASK;
   if (__predict_true(shadow_val == 0 || last < shadow_val))
     return true;
@@ -139,7 +153,7 @@ __always_inline static inline void shadow_check(uintptr_t addr, size_t size,
                                                 bool read) {
   if (__predict_false(!kasan_ready))
     return;
-  if (__predict_false(!kasan_md_addr_supported(addr)))
+  if (__predict_false(!addr_supported(addr)))
     return;
 
   uint8_t code = 0;
@@ -188,7 +202,7 @@ void kasan_mark(const void *addr, size_t valid, size_t total, uint8_t code) {
   assert(is_aligned(total, KASAN_SHADOW_SCALE_SIZE));
   assert(valid <= total);
 
-  int8_t *shadow = kasan_md_addr_to_shad((uintptr_t)addr);
+  int8_t *shadow = addr_to_shad((uintptr_t)addr);
   int8_t *end = shadow + total / KASAN_SHADOW_SCALE_SIZE;
 
   /* Valid bytes. */
@@ -214,25 +228,21 @@ void kasan_mark_invalid(const void *addr, size_t size, uint8_t code) {
 }
 
 /* Call constructors that will register globals */
-static void call_ctors(void) {
-  extern uintptr_t __CTOR_LIST__, __CTOR_END__;
-  for (uintptr_t *ptr = &__CTOR_LIST__; ptr != &__CTOR_END__; ptr++) {
-    void (*func)(void) = (void (*)(void))(*ptr);
-    (*func)();
-  }
-}
+typedef void (*ctor_t)(void);
 
-static inline vaddr_t kasan_va_to_shadow(vaddr_t va) {
-  return KASAN_MD_SHADOW_START +
-         (va - KASAN_MD_SANITIZED_START) / KASAN_SHADOW_SCALE_SIZE;
+static void call_ctors(void) {
+  extern ctor_t __CTOR_LIST__[], __CTOR_END__[];
+  for (ctor_t *ctor = __CTOR_LIST__; ctor != __CTOR_END__; ctor++) {
+    (*ctor)();
+  }
 }
 
 void kasan_grow(vaddr_t maxkvaddr) {
   assert(mtx_owned(&vm_kernel_end_lock));
   maxkvaddr = roundup2(maxkvaddr, PAGESIZE * KASAN_SHADOW_SCALE_SIZE);
-  assert(maxkvaddr < KASAN_MD_MAX_SANITIZED_END);
-  vaddr_t va = kasan_va_to_shadow(_kasan_sanitized_end);
-  vaddr_t end = kasan_va_to_shadow(maxkvaddr);
+  assert(maxkvaddr < KASAN_MAX_SANITIZED_END);
+  vaddr_t va = (vaddr_t)addr_to_shad(_kasan_sanitized_end);
+  vaddr_t end = (vaddr_t)addr_to_shad(maxkvaddr);
 
   /* Allocate and map shadow pages to cover the new KVA space. */
   for (; va < end; va += PAGESIZE) {
@@ -249,8 +259,8 @@ void kasan_grow(vaddr_t maxkvaddr) {
 
 void init_kasan(void) {
   /* Set entire shadow memory to zero */
-  kasan_mark_valid((const void *)KASAN_MD_SANITIZED_START,
-                   _kasan_sanitized_end - KASAN_MD_SANITIZED_START);
+  kasan_mark_valid((const void *)KASAN_SANITIZED_START,
+                   _kasan_sanitized_end - KASAN_SANITIZED_START);
 
   /* KASAN is ready to check for errors! */
   kasan_ready = 1;
@@ -263,9 +273,13 @@ void init_kasan(void) {
   void __asan_load##size##_noabort(uintptr_t addr) {                           \
     shadow_check(addr, size, true);                                            \
   }                                                                            \
+  __weak_alias(__asan_load##size##_noabort,                                    \
+               __asan_report_load##size##_noabort);                            \
   void __asan_store##size##_noabort(uintptr_t addr) {                          \
     shadow_check(addr, size, false);                                           \
-  }
+  }                                                                            \
+  __weak_alias(__asan_store##size##_noabort,                                   \
+               __asan_report_store##size##_noabort);
 
 DEFINE_ASAN_LOAD_STORE(1);
 DEFINE_ASAN_LOAD_STORE(2);
@@ -277,9 +291,13 @@ void __asan_loadN_noabort(uintptr_t addr, size_t size) {
   shadow_check(addr, size, true);
 }
 
+__weak_alias(__asan_loadN_noabort, __asan_report_load_n_noabort);
+
 void __asan_storeN_noabort(uintptr_t addr, size_t size) {
   shadow_check(addr, size, false);
 }
+
+__weak_alias(__asan_storeN_noabort, __asan_report_store_n_noabort);
 
 /* Called at the end of every function marked as "noreturn".
  * Performs cleanup of the current stack's shadow memory to prevent false
@@ -299,7 +317,6 @@ void __asan_unregister_globals(struct __asan_global *globals, size_t n) {
   /* never called */
 }
 
-/* Note: alloca is currently used in strntoul and test_sleepq_sync functions */
 void __asan_alloca_poison(const void *addr, size_t size) {
   void *left_redzone = (int8_t *)addr - KASAN_ALLOCA_REDZONE_SIZE;
   size_t size_with_mid_redzone = roundup(size, KASAN_ALLOCA_REDZONE_SIZE);
