@@ -23,23 +23,6 @@ jobs:
       - uses: actions/checkout@v2
       - run: ./verify-pycodestyle.sh
 
-  build_mips_gcc:
-    name: Build MIPS (GCC)
-    runs-on: self-hosted
-    needs: [verify_c_style, verify_py_style]
-    steps:
-      - uses: actions/checkout@v2
-      - run: make BOARD=malta KASAN=1 LOCKDEP=1
-      - uses: actions/upload-artifact@v2
-        with:
-          name: "mips gcc kernel+ramdisk"
-          path: |
-            sys/mimiker.elf
-            sys/mimiker.elf.map
-            bin/*/*.uelf
-            usr.bin/*/*.uelf
-            initrd.cpio
-
   build_mips_clang:
     name: Build MIPS (Clang)
     runs-on: self-hosted
@@ -47,6 +30,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: make BOARD=malta LLVM=1 KASAN=1 LOCKDEP=1
+      - uses: actions/upload-artifact@v2
+        with:
+          name: "mips clang kernel+ramdisk"
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            initrd.cpio
 
   build_aarch64_gcc:
     name: Build AArch64 (GCC)
@@ -75,23 +67,6 @@ jobs:
       - uses: actions/checkout@v2
       - run: make BOARD=rpi3 LLVM=1 KASAN=1 LOCKDEP=1
 
-  build_rv32_gcc:
-    name: Build RISC-V 32-bit (GCC)
-    runs-on: self-hosted
-    needs: [verify_c_style, verify_py_style]
-    steps:
-      - uses: actions/checkout@v2
-      - run: make BOARD=litex-riscv KASAN=1 LOCKDEP=1
-      - uses: actions/upload-artifact@v2
-        with:
-          name: "riscv32 gcc kernel+ramdisk"
-          path: |
-            sys/mimiker.elf
-            sys/mimiker.elf.map
-            bin/*/*.uelf
-            usr.bin/*/*.uelf
-            initrd.cpio
-
   build_rv32_clang:
     name: Build RISC-V 32-bit (Clang)
     runs-on: self-hosted
@@ -117,15 +92,15 @@ jobs:
             usr.bin/*/*.uelf
             initrd.cpio
 
-  kernel_tests_mips_gcc:
-    name: Tests MIPS (GCC)
+  kernel_tests_mips_clang:
+    name: Tests MIPS (Clang)
     runs-on: self-hosted
-    needs: build_mips_gcc
+    needs: build_mips_clang
     steps:
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v2
         with:
-          name: "mips gcc kernel+ramdisk"
+          name: "mips clang kernel+ramdisk"
       - run: ./run_tests.py --board malta --timeout=80 --times=50
 
   kernel_tests_aarch64_gcc:
