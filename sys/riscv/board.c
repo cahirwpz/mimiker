@@ -172,6 +172,8 @@ static void physmem_regions(void) {
   assert(is_aligned(mem_start, PAGESIZE));
   assert(is_aligned(mem_end, PAGESIZE));
 
+  mem_start += 0x80000;
+
   /*
    * NOTE: please refer to issue #1129 to see why the following workaround
    * is needed.

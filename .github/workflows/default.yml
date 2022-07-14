@@ -129,3 +129,14 @@ jobs:
         with:
           name: "aarch64 gcc kernel+ramdisk"
       - run: ./run_tests.py --board rpi3 --times=50
+
+  kernel_tests_rv64_clang:
+    name: Tests RISC-V 64-bit (Clang)
+    runs-on: self-hosted
+    needs: build_rv64_clang
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: "riscv64 clang kernel+ramdisk"
+      - run: ./run_tests.py --board sifive_u --times=50
