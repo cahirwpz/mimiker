@@ -100,6 +100,7 @@ static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t bootmem_end,
  * This is exactly what we're trying to avoid here! */
 __boot_data static volatile vaddr_t _text = (vaddr_t)__text;
 __boot_data static volatile vaddr_t _data = (vaddr_t)__data;
+__boot_data static volatile vaddr_t _bss = (vaddr_t)__bss;
 __boot_data static volatile vaddr_t _ebss = (vaddr_t)__ebss;
 __boot_data static volatile vaddr_t _riscv_boot = (vaddr_t)riscv_boot;
 __boot_data static volatile vaddr_t _boot_stack = (vaddr_t)boot_stack;
@@ -174,6 +175,7 @@ __boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
 }
 
 __boot_text __noreturn void riscv_init(paddr_t dtb) {
+  boot_clear(PHYSADDR(_bss), PHYSADDR(_ebss));
   boot_sbrk_init(PHYSADDR(_ebss));
 
   vaddr_t dtb_va = VIRTADDR(boot_save_dtb(dtb));
@@ -207,7 +209,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
                    "mv sp, %4\n\t"
                    "csrw satp, %5\n\t"
                    "sfence.vma\n\t"
-                   "nop" /* triggers instruction fetch page fault */
+                   "1: j 1b" /* triggers instruction fetch page fault */
                    :
                    : "r"(dtb_va), "r"(pde), "r"(_bootmem_end), "r"(kernel_end),
                      "r"(boot_sp), "r"(satp)
@@ -247,8 +249,6 @@ static void configure_cpu(void) {
 static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t bootmem_end,
                                   vaddr_t kernel_end) {
   configure_cpu();
-
-  bzero(__bss, (intptr_t)__ebss - (intptr_t)__bss);
 
   vm_kernel_end = kernel_end;
 

@@ -25,6 +25,13 @@ __boot_text paddr_t boot_sbrk_align(size_t n) {
   return (paddr_t)_boot_sbrk;
 }
 
+__boot_text void boot_clear(paddr_t start, paddr_t end) {
+  long *s = (long *)start;
+  long *e = (long *)end;
+  for (; s < e; s++)
+    *s = 0;
+}
+
 __boot_text static inline uint32_t fdt32toh(fdt32_t u) {
   return ((((u)&0xff000000) >> 24) | (((u)&0x00ff0000) >> 8) |
           (((u)&0x0000ff00) << 8) | (((u)&0x000000ff) << 24));

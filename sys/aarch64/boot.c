@@ -262,6 +262,7 @@ __boot_text static void enable_mmu(pde_t *pde) {
 __boot_text __noreturn void aarch64_init(paddr_t dtb) {
   drop_to_el1();
   configure_cpu();
+  boot_clear(PHYSADDR(__bss), PHYSADDR(__ebss));
   boot_sbrk_init(PHYSADDR(__ebss));
 
   vaddr_t dtb_va = VIRTADDR(boot_save_dtb(dtb));
@@ -292,8 +293,6 @@ extern void *board_stack(void);
 
 static __noreturn void aarch64_boot(void *dtb, paddr_t pde,
                                     vaddr_t kernel_end) {
-  bzero(__bss, (intptr_t)__ebss - (intptr_t)__bss);
-
   vm_kernel_end = kernel_end;
 
 #if KASAN

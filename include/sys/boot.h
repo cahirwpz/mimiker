@@ -19,6 +19,8 @@ __boot_text paddr_t boot_sbrk_align(size_t n);
 
 __boot_text paddr_t boot_save_dtb(paddr_t dtb);
 
+__boot_text void boot_clear(paddr_t start, paddr_t end);
+
 __boot_text __noreturn void halt(void);
 
 /* Last physical address used by kernel for boot memory allocation. */
