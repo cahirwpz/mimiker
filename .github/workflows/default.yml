@@ -107,6 +107,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: make BOARD=sifive_u LLVM=1 KASAN=1 LOCKDEP=1
+      - uses: actions/upload-artifact@v2
+        with:
+          name: "riscv64 clang kernel+ramdisk"
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            initrd.cpio
 
   kernel_tests_mips_gcc:
     name: Tests MIPS (GCC)
