@@ -100,8 +100,6 @@ __boot_text static __noreturn void halt(void) {
 /* Last physical address used by kernel for boot memory allocation. */
 __boot_data static void *bootmem_brk;
 
-__boot_data static pde_t *kernel_pde;
-
 static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end);
 
 /* Without `volatile` Clang applies constant propagation optimization and
@@ -130,8 +128,7 @@ __boot_text static void *bootmem_alloc(size_t bytes) {
   return addr;
 }
 
-__boot_text static pde_t *early_pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
-  pde_t *pde = (pde_t *)pd_pa;
+__boot_text static pde_t *early_pde_ptr(pde_t *pde, int lvl, vaddr_t va) {
   if (lvl == 0)
     return pde + L0_INDEX(va);
 #if __riscv_xlen == 32
@@ -143,8 +140,8 @@ __boot_text static pde_t *early_pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
 #endif
 }
 
-__boot_text static pte_t *ensure_pte(vaddr_t va) {
-  pde_t *pdep = early_pde_ptr((paddr_t)kernel_pde, 0, va);
+__boot_text static pte_t *early_ensure_pte(pde_t *pde, vaddr_t va) {
+  pde_t *pdep = early_pde_ptr(pde, 0, va);
 
   for (unsigned lvl = 1; lvl < PAGE_TABLE_DEPTH; lvl++) {
     paddr_t pa;
@@ -154,21 +151,57 @@ __boot_text static pte_t *ensure_pte(vaddr_t va) {
     } else {
       pa = (paddr_t)PTE_TO_PA(*pdep);
     }
-    pdep = early_pde_ptr(pa, lvl, va);
+    pdep = early_pde_ptr((pde_t *)pa, lvl, va);
   }
 
   return (pte_t *)pdep;
 }
 
-__boot_text static void early_kenter(vaddr_t va, size_t size, paddr_t pa,
-                                     u_long flags) {
+__boot_text static void early_kenter(pde_t *pde, vaddr_t va, size_t size,
+                                     paddr_t pa, u_long flags) {
   if (!is_aligned(size, PAGESIZE))
     halt();
 
   for (size_t off = 0; off < size; off += PAGESIZE) {
-    pte_t *ptep = ensure_pte(va + off);
+    pte_t *ptep = early_ensure_pte(pde, va + off);
     *ptep = PA_TO_PTE(pa + off) | flags;
   }
+}
+
+__boot_text static pde_t *build_page_table(paddr_t dtb) {
+  /* Allocate kernel page directory.*/
+  pde_t *pde = bootmem_alloc(PAGESIZE);
+
+  vaddr_t kernel_end = align(_ebss, PAGESIZE);
+
+  /* Kernel read-only segment - sections: .text and .rodata. */
+  early_kenter(pde, _text, _data - _text, PHYSADDR(_text), PTE_X | PTE_KERN_RO);
+
+  /* Kernel read-write segment - sections: .data and .bss. */
+  early_kenter(pde, _data, kernel_end - _data, PHYSADDR(_data), PTE_KERN);
+
+  /*
+   * NOTE: we don't have to map the boot allocation area as the allocated
+   * data will only be accessed using physical addresses (see pmap).
+   */
+
+  /* DTB - assume that DTB will be covered by a single last level page
+   * directory. */
+  early_kenter(pde, BOOT_DTB_VADDR, GROWKERNEL_STRIDE, rounddown(dtb, PAGESIZE),
+               PTE_KERN);
+
+  /* Kernel page directory table. */
+  early_kenter(pde, BOOT_PD_VADDR, PAGESIZE, (paddr_t)pde, PTE_KERN);
+
+#if KASAN
+  size_t shadow_size =
+    BOOT_KASAN_SANITIZED_SIZE(kernel_end) / KASAN_SHADOW_SCALE_SIZE;
+  paddr_t shadow_mem = (paddr_t)bootmem_alloc(shadow_size);
+
+  early_kenter(pde, KASAN_SHADOW_START, shadow_size, shadow_mem, PTE_KERN);
+#endif /* !KASAN */
+
+  return pde;
 }
 
 __boot_text __noreturn void riscv_init(paddr_t dtb) {
@@ -178,37 +211,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
   /* Initialize boot memory allocator. */
   bootmem_brk = (void *)align(PHYSADDR(_ebss), PAGESIZE);
 
-  /* Allocate kernel page directory.*/
-  kernel_pde = bootmem_alloc(PAGESIZE);
-
-  vaddr_t kernel_end = align(_ebss, PAGESIZE);
-
-  /* Kernel read-only segment - sections: .text and .rodata. */
-  early_kenter(_text, _data - _text, PHYSADDR(_text), PTE_X | PTE_KERN_RO);
-
-  /* Kernel read-write segment - sections: .data and .bss. */
-  early_kenter(_data, kernel_end - _data, PHYSADDR(_data), PTE_KERN);
-
-  /*
-   * NOTE: we don't have to map the boot allocation area as the allocated
-   * data will only be accessed using physical addresses (see pmap).
-   */
-
-  /* DTB - assume that DTB will be covered by a single last level page
-   * directory. */
-  early_kenter(BOOT_DTB_VADDR, GROWKERNEL_STRIDE, rounddown(dtb, PAGESIZE),
-               PTE_KERN);
-
-  /* Kernel page directory table. */
-  early_kenter(BOOT_PD_VADDR, PAGESIZE, (paddr_t)kernel_pde, PTE_KERN);
-
-#if KASAN
-  size_t shadow_size =
-    BOOT_KASAN_SANITIZED_SIZE(kernel_end) / KASAN_SHADOW_SCALE_SIZE;
-  paddr_t shadow_mem = (paddr_t)bootmem_alloc(shadow_size);
-
-  early_kenter(KASAN_SHADOW_START, shadow_size, shadow_mem, PTE_KERN);
-#endif /* !KASAN */
+  pde_t *kernel_pde = build_page_table(dtb);
 
   /* Temporarily set the trap vector. */
   csr_write(stvec, _riscv_boot);
@@ -222,7 +225,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
   const paddr_t satp = SATP_MODE_SV32 | ((paddr_t)kernel_pde >> PAGE_SHIFT);
 #endif
 
-  void *boot_sp = (void *)_boot_stack + PAGESIZE;
+  vaddr_t boot_sp = _boot_stack + PAGESIZE;
 
   __sfence_vma();
 
@@ -237,7 +240,6 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
                    : "r"(dtb), "r"(kernel_pde), "r"(bootmem_brk), "r"(boot_sp),
                      "r"(satp)
                    : "a0", "a1", "a2");
-
   __unreachable();
 }
 
@@ -255,7 +257,7 @@ static void clear_bss(void) {
 /* Trap handler in direct mode. */
 extern void cpu_exception_handler(void);
 
-extern void *board_stack(paddr_t dtb_pa, void *dtb_va);
+extern void *board_stack(void);
 extern void __noreturn board_init(void);
 
 static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
@@ -289,7 +291,9 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
 #endif
 
   void *dtb_va = (void *)BOOT_DTB_VADDR + (dtb & (PAGESIZE - 1));
-  void *sp = board_stack(dtb, dtb_va);
+  FDT_early_init(dtb, dtb_va);
+
+  void *sp = board_stack();
 
   pmap_bootstrap(pde, (void *)BOOT_PD_VADDR);
 
@@ -300,7 +304,9 @@ static __noreturn void riscv_boot(paddr_t dtb, paddr_t pde, paddr_t kern_end) {
    * Switch to thread0's stack and perform `board_init`.
    */
   __asm __volatile("mv sp, %0\n\t"
-                   "tail board_init" ::"r"(sp));
+                   "tail board_init"
+                   :
+                   : "r"(sp));
   __unreachable();
 }
 

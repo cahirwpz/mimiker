@@ -13,7 +13,6 @@
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
-#include <libfdt/libfdt.h>
 
 static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
                               kstack_t *stk) {
@@ -60,9 +59,7 @@ static void process_dtb(char **tokens, kstack_t *stk) {
   *tokens = NULL;
 }
 
-void *board_stack(paddr_t dtb) {
-  FDT_early_init(dtb, phys_to_dmap(dtb));
-
+void *board_stack(void) {
   kstack_t *stk = &thread0.td_kstack;
 
   thread0.td_uctx = kstack_alloc_s(stk, mcontext_t);

@@ -67,11 +67,13 @@ CONFIG = {
             'rpi3': {
                 'kernel': 'sys/mimiker.img.gz',
                 'dts': 'sys/dts/rpi3.dts',
+                'initrd-start': 0x8000000,
                 'simulator': 'qemu'
             },
             'litex-riscv': {
                 'kernel': 'sys/mimiker.img',
                 'dts': 'sys/dts/litex-riscv.dts',
+                'initrd-start': 0x42000000,
                 'simulator': 'renode',
             },
             'sifive_u': {
@@ -436,7 +438,6 @@ def setup_terminal():
 
 def prepare_dtb():
     bootargs = ' '.join(getvar('config.args'))
-    board = getvar('board')
     dts = getvar('config.dts')
     if not dts:
         return
@@ -444,12 +445,17 @@ def prepare_dtb():
     if not os.path.isfile(dts):
         raise SystemExit(f'{dts}: file does not exist!')
 
+    initrd_start = getvar('config.initrd-start')
+    initrd_end = initrd_start + os.path.getsize(getvar('config.initrd'))
+
     try:
         with open('launch.dts', mode='w') as tmp:
             with redirect_stdout(tmp):
                 print(f'/include/ "{dts}"')
                 print('&{/chosen} {')
-                print(f'  bootargs = "{bootargs}";')
+                print(f'    bootargs = "{bootargs}";')
+                print(f'    linux,initrd-start = <{initrd_start}>;')
+                print(f'    linux,initrd-end = <{initrd_end}>;')
                 print('};')
 
         subprocess.check_call(

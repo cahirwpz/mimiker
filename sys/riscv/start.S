@@ -2,9 +2,7 @@
 #include <riscv/asm.h>
 #include <riscv/vm_param.h>
 
-#include "assym.h"
-
-#define INITSTACK_SIZE 512
+#define INIT_STACK_SIZE 512
 
 	.option nopic
 	.section .boot,"ax",@progbits
@@ -30,13 +28,10 @@ _ENTRY(_start)
 	 */
 
 	/* Move to the initial stack. */
-	PTR_LA	sp, initstack_end
+	PTR_LA	sp, _init_stack_end
 
 	mv	a0, a1
 	tail	riscv_init
-halt:
-	wfi
-	j	halt
 _END(_start)
 
 	.section .boot.data,"aw",@progbits
@@ -50,8 +45,8 @@ _global_pointer:
 	.section .boot.bss,"aw",@nobits
 
 	.align STACK_ALIGN
-initstack:
-	.space INITSTACK_SIZE
-initstack_end:
+_init_stack:
+	.space INIT_STACK_SIZE
+_init_stack_end:
 
 # vim: sw=8 ts=8 et
