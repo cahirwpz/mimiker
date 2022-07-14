@@ -75,10 +75,9 @@ static const char *code_name(uint8_t code) {
 
 /* Check whether all bytes from range [addr, addr + size) are mapped to
  * a single shadow byte */
-__always_inline static inline bool access_within_shadow_byte(uintptr_t addr,
-                                                             size_t size) {
-  return (addr >> KASAN_SHADOW_SCALE_SHIFT) ==
-         ((addr + size - 1) >> KASAN_SHADOW_SCALE_SHIFT);
+__always_inline static inline bool access_not_within_shadow_byte(uintptr_t addr,
+                                                                 size_t size) {
+  return (addr ^ (addr + size - 1)) >> KASAN_SHADOW_SCALE_SHIFT;
 }
 
 __always_inline static inline int8_t *addr_to_shad(uintptr_t addr) {
@@ -89,102 +88,84 @@ __always_inline static inline bool addr_supported(uintptr_t addr) {
   return addr >= KASAN_SANITIZED_START && addr < KASAN_MAX_SANITIZED_END;
 }
 
-__always_inline static inline bool shadow_1byte_isvalid(uintptr_t addr,
-                                                        uint8_t *code) {
+__always_inline static inline uint8_t shadow_1byte_isvalid(uintptr_t addr) {
   int8_t shadow_val = *addr_to_shad(addr);
   int8_t last = addr & KASAN_SHADOW_MASK;
-  if (__predict_true(shadow_val == 0 || last < shadow_val))
-    return true;
-  *code = shadow_val;
-  return false;
+  return (shadow_val == 0 || last < shadow_val) ? 0 : shadow_val;
 }
 
-__always_inline static inline bool shadow_2byte_isvalid(uintptr_t addr,
-                                                        uint8_t *code) {
-  if (!access_within_shadow_byte(addr, 2))
-    return shadow_1byte_isvalid(addr, code) &&
-           shadow_1byte_isvalid(addr + 1, code);
+__always_inline static inline uint8_t shadow_2byte_isvalid(uintptr_t addr) {
+  if (access_not_within_shadow_byte(addr, 2))
+    return shadow_1byte_isvalid(addr) || shadow_1byte_isvalid(addr + 1);
 
   int8_t shadow_val = *addr_to_shad(addr);
   int8_t last = (addr + 1) & KASAN_SHADOW_MASK;
-  if (__predict_true(shadow_val == 0 || last < shadow_val))
-    return true;
-  *code = shadow_val;
-  return false;
+  return (shadow_val == 0 || last < shadow_val) ? 0 : shadow_val;
 }
 
-__always_inline static inline bool shadow_4byte_isvalid(uintptr_t addr,
-                                                        uint8_t *code) {
-  if (!access_within_shadow_byte(addr, 4))
-    return shadow_2byte_isvalid(addr, code) &&
-           shadow_2byte_isvalid(addr + 2, code);
+__always_inline static inline uint8_t shadow_4byte_isvalid(uintptr_t addr) {
+  if (access_not_within_shadow_byte(addr, 4))
+    return shadow_2byte_isvalid(addr) || shadow_2byte_isvalid(addr + 2);
 
   int8_t shadow_val = *addr_to_shad(addr);
   int8_t last = (addr + 3) & KASAN_SHADOW_MASK;
-  if (__predict_true(shadow_val == 0 || last < shadow_val))
-    return true;
-  *code = shadow_val;
-  return false;
+  return (shadow_val == 0 || last < shadow_val) ? 0 : shadow_val;
 }
 
-__always_inline static inline bool shadow_8byte_isvalid(uintptr_t addr,
-                                                        uint8_t *code) {
-  if (!access_within_shadow_byte(addr, 8))
-    return shadow_4byte_isvalid(addr, code) &&
-           shadow_4byte_isvalid(addr + 4, code);
+__always_inline static inline uint8_t shadow_8byte_isvalid(uintptr_t addr) {
+  if (access_not_within_shadow_byte(addr, 8))
+    return shadow_4byte_isvalid(addr) || shadow_4byte_isvalid(addr + 4);
 
   int8_t shadow_val = *addr_to_shad(addr);
   int8_t last = (addr + 7) & KASAN_SHADOW_MASK;
-  if (__predict_true(shadow_val == 0 || last < shadow_val))
-    return true;
-  *code = shadow_val;
-  return false;
+  return (shadow_val == 0 || last < shadow_val) ? 0 : shadow_val;
 }
 
-__always_inline static inline bool
-shadow_Nbyte_isvalid(uintptr_t addr, size_t size, uint8_t *code) {
-  for (size_t i = 0; i < size; i++)
-    if (__predict_false(!shadow_1byte_isvalid(addr + i, code)))
-      return false;
-  return true;
+__always_inline static inline uint8_t shadow_Nbyte_isvalid(uintptr_t addr,
+                                                           size_t size) {
+  for (size_t i = 0; i < size; i++) {
+    int8_t shadow_val = shadow_1byte_isvalid(addr + i);
+    if (__predict_false(shadow_val))
+      return shadow_val;
+  }
+  return 0;
+}
+
+__noreturn static void kasan_panic(uintptr_t addr, size_t size, bool rw,
+                                   uint8_t code) {
+  panic("===========KernelAddressSanitizer===========\n"
+        "* invalid access to address %p\n"
+        "* %s of size %lu\n"
+        "* redzone code %02x (%s)\n"
+        "============================================",
+        (void *)addr, (rw ? "read" : "write"), size, code, code_name(code));
+}
+
+__always_inline static inline uint8_t shadow_isvalid(uintptr_t addr,
+                                                     size_t size) {
+  if (__builtin_constant_p(size)) {
+    if (size == 1)
+      return shadow_1byte_isvalid(addr);
+    if (size == 2)
+      return shadow_2byte_isvalid(addr);
+    if (size == 4)
+      return shadow_4byte_isvalid(addr);
+    if (size == 8)
+      return shadow_8byte_isvalid(addr);
+  }
+  return shadow_Nbyte_isvalid(addr, size);
 }
 
 __always_inline static inline void shadow_check(uintptr_t addr, size_t size,
-                                                bool read) {
+                                                bool rw) {
   if (__predict_false(!kasan_ready))
     return;
   if (__predict_false(!addr_supported(addr)))
     return;
 
-  uint8_t code = 0;
-  bool valid = true;
-  if (__builtin_constant_p(size)) {
-    switch (size) {
-      case 1:
-        valid = shadow_1byte_isvalid(addr, &code);
-        break;
-      case 2:
-        valid = shadow_2byte_isvalid(addr, &code);
-        break;
-      case 4:
-        valid = shadow_4byte_isvalid(addr, &code);
-        break;
-      case 8:
-        valid = shadow_8byte_isvalid(addr, &code);
-        break;
-    }
-  } else {
-    valid = shadow_Nbyte_isvalid(addr, size, &code);
-  }
-
-  if (__predict_false(!valid)) {
-    panic("===========KernelAddressSanitizer===========\n"
-          "* invalid access to address %p\n"
-          "* %s of size %lu\n"
-          "* redzone code %02x (%s)\n"
-          "============================================",
-          (void *)addr, (read ? "read" : "write"), size, code, code_name(code));
-  }
+  uint8_t code = shadow_isvalid(addr, size);
+  if (__predict_false(code))
+    kasan_panic(addr, size, rw, code);
 }
 
 /* Marking memory has limitations captured by assertions in the code below.
