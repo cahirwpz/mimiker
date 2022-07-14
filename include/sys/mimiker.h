@@ -16,23 +16,9 @@
 #include <sys/types.h>
 
 #define log2(x) (CHAR_BIT * sizeof(unsigned long) - __builtin_clzl(x) - 1)
-
-/* clang-format off */
-#define ffs(x)                                                                 \
-  ((u_long) _Generic((x), int : __builtin_ffs,                                 \
-                     unsigned : __builtin_ffs,                                 \
-                     default  : __builtin_ffsl)(x))
-
-#define clz(x)                                                                 \
-  ((u_long) _Generic((x), int : __builtin_clz,                                 \
-                     unsigned : __builtin_clz,                                 \
-                     default  : __builtin_clzl)(x))
-
-#define ctz(x)                                                                 \
-  ((u_long) _Generic((x), int : __builtin_ctz,                                 \
-                     unsigned : __builtin_ctz,                                 \
-                     default  : __builtin_ctzl)(x))
-/* clang-format on */
+#define ffs(x) ((u_long)__builtin_ffsl(x))
+#define clz(x) ((u_long)__builtin_clzl(x))
+#define ctz(x) ((u_long)__builtin_ctzl(x))
 
 #define abs(x)                                                                 \
   ({                                                                           \
