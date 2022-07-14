@@ -7,7 +7,6 @@
 
 
         chosen {
-            linux,initrd-start = <0x42000000>;
         };
 
         cpus {

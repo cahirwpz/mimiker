@@ -151,6 +151,7 @@ extern char __etext[];
 /* Symbols defined by linker and used during kernel boot phase. */
 extern char __boot[];
 extern char __eboot[];
+extern char __rodata[];
 extern char __data[];
 extern char __bss[];
 extern char __ebss[];

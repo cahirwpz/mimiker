@@ -119,6 +119,7 @@ ENTRY(ctx_switch)
 
 	/* Get UCTX pointer for `from` thread. */
 	PTR_L	t4, TD_UCTX(a0)
+	INT_L	t0, CTX_SR(t4)
 
 	/* Save the FPE context only if it's dirty. */
 	li	t2, SSTATUS_FS_MASK
