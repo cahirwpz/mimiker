@@ -33,8 +33,8 @@ def run_test(seed, board, timeout):
                  'test=all', 'seed=%u' % seed, 'repeat=%d' % REPEAT])
         rc = launch.wait()
         if rc:
-            print("Run `launch -d test=all seed=%u repeat=%u` to reproduce "
-                  "the failure." % (seed, REPEAT))
+            print("Run `launch -d -b %s test=all seed=%u repeat=%u` "
+                  "to reproduce the failure." % (board, seed, REPEAT))
             sys.exit(rc)
     except KeyboardInterrupt:
         launch.send_signal(signal.SIGINT)
