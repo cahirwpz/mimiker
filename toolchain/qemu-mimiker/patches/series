@@ -1,4 +1,4 @@
 fix-virtual-clock-in-gdb.patch
 page-table-walk-for-gdb.patch
 gdbstub-stop-on-sigxcpu.patch
-bootargs.patch
+cmdline-set-dts-bootargs.patch
