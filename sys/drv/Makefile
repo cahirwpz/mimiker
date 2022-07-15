@@ -4,7 +4,9 @@ TOPDIR = $(realpath ../..)
 
 SOURCES = \
 	dev_cons.c \
-	uart.c
+	simplebus.c \
+	uart.c \
+	usb.c
 
 SOURCES-MIPS = \
 	82371AB.c \
@@ -25,13 +27,23 @@ SOURCES-MIPS = \
 	pit.c \
 	stdvga.c \
 	uart_cbus.c \
-	uhci.c \
-	usb.c
+	uhci.c
 
 SOURCES-AARCH64 = \
+	bcm2835_emmc.c \
 	bcm2835_gpio.c \
+	bcm2835_pic.c \
 	bcm2835_rootdev.c \
-	pl011.c
+	emmc.c \
+	pl011.c \
+	sdcard.c
+
+SOURCES-RISCV = \
+	clint.c \
+	liteuart.c \
+	plic.c \
+	riscv_rootdev.c \
+	sifive_uart.c
 
 CPPFLAGS += -D_MACHDEP
 

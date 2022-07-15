@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 
+from contextlib import redirect_stdout
+
 
 TMUX_CONF = './.tmux.conf'
 MIN_PORT = 24000
@@ -52,15 +54,33 @@ CONFIG = {
         'gdbport': RandomPort(),
         'graphics': False,
         'network': False,
+        'storage': '',
         'elf': 'sys/mimiker.elf',
         'initrd': 'initrd.cpio',
         'args': [],
         'board': {
             'malta': {
                 'kernel': 'sys/mimiker.elf',
+                'dts': None,
+                'simulator': 'qemu'
             },
             'rpi3': {
                 'kernel': 'sys/mimiker.img.gz',
+                'dts': 'sys/dts/rpi3.dts',
+                'initrd-start': 0x8000000,
+                'simulator': 'qemu'
+            },
+            'litex-riscv': {
+                'kernel': 'sys/mimiker.img',
+                'dts': 'sys/dts/litex-riscv.dts',
+                'initrd-start': 0x42000000,
+                'simulator': 'renode',
+            },
+            'sifive_u': {
+                'kernel': 'sys/mimiker.elf',
+                'dts': 'sys/dts/sifive_u.dts',
+                'initrd-start': 0xbf000000,
+                'simulator': 'qemu'
             },
         },
     },
@@ -90,21 +110,47 @@ CONFIG = {
                     '-object', 'filter-dump,id=net0,netdev=net0,file=rtl.pcap'
                 ],
                 'uarts': [
-                    dict(name='/dev/tty1', port=RandomPort(), raw=True),
-                    dict(name='/dev/tty2', port=RandomPort()),
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty1', port=RandomPort()),
                     dict(name='/dev/cons', port=RandomPort())
-                ]
+                ],
             },
             'rpi3': {
                 'binary': 'qemu-mimiker-aarch64',
                 'options': [
                     '-machine', 'raspi3',
                     '-smp', '4',
-                    '-dtb', 'sys/dts/rpi3.dtb',
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [
-                    dict(name='/dev/cons', port=RandomPort(), raw=True)
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True)
+                ],
+                'drive': 'if=sd,index=0,format=qcow2,file={path}',
+            },
+            'sifive_u': {
+                'binary': 'qemu-mimiker-riscv64',
+                'options': [
+                    '-machine', 'sifive_u',
+                    '-smp', '5',
+                    '-m', '1G',
+                ],
+                'network_options': [],
+                'uarts': [
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty1', port=RandomPort(), raw=True)
+                ]
+            },
+        }
+    },
+    'renode': {
+        'options': {
+            '--console',
+        },
+        'board': {
+            'litex-riscv': {
+                'script': 'litex_vexriscv_mimiker.resc',
+                'uarts': [
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ]
             }
         }
@@ -115,7 +161,7 @@ CONFIG = {
             '-ex=set confirm no',
             '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
             '-ex=set tcp connect-timeout 30',
-            '-ex=target remote localhost:{gdbport}',
+            '-ex=target extended-remote localhost:{gdbport}',
             '--silent',
         ],
         'extra-options': [],
@@ -129,7 +175,20 @@ CONFIG = {
             },
             'rpi3': {
                 'binary': 'aarch64-mimiker-elf-gdb'
-            }
+            },
+            'litex-riscv': {
+                'binary': 'riscv32-mimiker-elf-gdb'
+            },
+            'sifive_u': {
+                'binary': 'riscv64-mimiker-elf-gdb',
+                'extra-options': [
+                    '-ex=add-inferior',
+                    '-ex=inferior 2',
+                    '-ex=file {kernel}',
+                    '-ex=attach 2',
+                    '-ex=set schedule-multiple on',
+                ],
+            },
         }
     }
 }
@@ -233,14 +292,51 @@ class QEMU(Launchable):
             port = uart['port']
             self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
-        if getvar('config.args'):
-            self.options += ['-append', ' '.join(getvar('config.args'))]
+        if not getvar('config.dts'):
+            if getvar('config.args'):
+                self.options += ['-append', ' '.join(getvar('config.args'))]
+        else:
+            self.options += ['-dtb', 'launch.dtb']
+
         if getvar('config.debug'):
             self.options += ['-S']
         if not getvar('config.graphics'):
             self.options += ['-display', 'none']
         if getvar('config.network'):
             self.options += getopts('qemu.network_options')
+
+        storage = getvar('config.storage')
+        if storage:
+            if not os.path.isfile(storage):
+                raise SystemExit(f'{storage}: file does not exist!')
+            drive = getvar('qemu.drive', failok=True)
+            if not drive:
+                raise SystemExit('Default drive is not defined for the '
+                                 'selected platform.')
+            self.options += ['-drive', drive.format(path=storage)]
+
+
+class RENODE(Launchable):
+    def __init__(self):
+        super().__init__('renode', 'renode')
+
+        self.options = getopts('renode.options')
+
+        script = getvar('renode.script', failok=False)
+        self.options += [f'-e include @scripts/single-node/{script}']
+
+        for i, uart in enumerate(getvar('renode.uarts')):
+            port = uart['port']
+            dev = f'uart{i}'
+            self.options += ['-e emulation CreateServerSocketTerminal ' +
+                             f'{port} "{dev}" False']
+            self.options += [f'-e connector Connect sysbus.{dev} {dev}']
+
+        if getvar('config.debug'):
+            gdbport = getvar('config.gdbport', failok=False)
+            self.options += [f'-e machine StartGdbServer {gdbport}']
+
+        self.options += ['-e start']
 
 
 class GDB(Launchable):
@@ -249,7 +345,9 @@ class GDB(Launchable):
 
         self.options += getopts(
                 'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
-        self.options.append(getvar('config.elf'))
+
+        if getvar('board') != 'sifive_u':
+            self.options.append(getvar('config.elf'))
 
 
 class SOCAT(Launchable):
@@ -275,24 +373,24 @@ def PostMortem(gdb):
 
 
 def TestRun(sim, dbg, timeout):
-    qemu = sim.spawn(cpulimit=timeout)
-    gdb = dbg.spawn(dimensions=(int(os.environ['LINES']),
-                                int(os.environ['COLUMNS'])))
+    sim_proc = sim.spawn(cpulimit=timeout)
+    gdb_proc = dbg.spawn(dimensions=(int(os.environ['LINES']),
+                                     int(os.environ['COLUMNS'])))
 
     try:
-        # No need to wait for QEmu, GDB will terminate it!
-        rc = gdb.expect_exact([pexpect.EOF, '(gdb) '], timeout=None)
+        # No need to wait for the simulator, GDB will terminate it!
+        rc = gdb_proc.expect_exact([pexpect.EOF, '(gdb) '], timeout=None)
 
         if rc == 1:
-            timed_out = b'Program received signal SIGINT' in gdb.before
-            PostMortem(gdb)
+            timed_out = b'Program received signal SIGINT' in gdb_proc.before
+            PostMortem(gdb_proc)
             print('Test run %s!' % ('timeout' if timed_out else 'failed'))
             if timed_out:
                 rc = 2
     except KeyboardInterrupt:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        gdb.terminate()
-        qemu.terminate()
+        gdb_proc.terminate()
+        sim_proc.terminate()
         rc = 3
     sys.exit(rc)
 
@@ -311,7 +409,7 @@ def DevelRun(sim, dbg):
                                  window_name=':0', window_command='sleep 1')
 
     uarts = [SOCAT(uart['name'], uart['port'], uart.get('raw', False))
-             for uart in getvar('qemu.uarts')]
+             for uart in getvar(f'{sim.name}.uarts')]
 
     try:
         sim.start(session)
@@ -321,12 +419,12 @@ def DevelRun(sim, dbg):
             dbg.start(session)
 
         session.kill_window(':0')
-        session.select_window(dbg.name if dbg else '/dev/tty1')
+        session.select_window(dbg.name if dbg else '/dev/tty0')
         session.attach_session()
     finally:
         server.kill_server()
 
-        # Give QEMU a chance to exit gracefully
+        # Give the simulator a chance to exit gracefully
         sim.stop()
 
 
@@ -340,11 +438,42 @@ def setup_terminal():
         subprocess.run(['stty', 'cols', str(cols), 'rows', str(rows)])
 
 
+def prepare_dtb():
+    bootargs = ' '.join(getvar('config.args'))
+    dts = getvar('config.dts')
+    if not dts:
+        return
+
+    if not os.path.isfile(dts):
+        raise SystemExit(f'{dts}: file does not exist!')
+
+    initrd_start = getvar('config.initrd-start')
+    initrd_end = initrd_start + os.path.getsize(getvar('config.initrd'))
+
+    try:
+        with open('launch.dts', mode='w') as tmp:
+            with redirect_stdout(tmp):
+                print(f'/include/ "{dts}"')
+                print('&{/chosen} {')
+                print(f'    bootargs = "{bootargs}";')
+                print(f'    linux,initrd-start = <{initrd_start}>;')
+                print(f'    linux,initrd-end = <{initrd_end}>;')
+                print('};')
+
+        subprocess.check_call(
+            f'dtc -O dtb -o launch.dtb {tmp.name}', shell=True)
+    finally:
+        try:
+            os.remove('launch.dts')
+        except OSError:
+            pass
+
+
 if __name__ == '__main__':
     setup_terminal()
 
     parser = argparse.ArgumentParser(
-        description='Launch kernel in Malta board simulator.')
+        description='Launch kernel in a board simulator.')
     parser.add_argument('args', metavar='ARGS', type=str,
                         nargs=argparse.REMAINDER, help='Kernel arguments.')
     parser.add_argument('-d', '--debug', action='store_true',
@@ -357,8 +486,12 @@ if __name__ == '__main__':
                         help='Test-run will fail after n seconds.')
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
-    parser.add_argument('-b', '--board', default='malta',
-                        choices=['malta', 'rpi3'], help='Emulated board.')
+    parser.add_argument('-b', '--board', default='rpi3',
+                        choices=['malta', 'rpi3', 'litex-riscv', 'sifive_u'],
+                        help='Emulated board.')
+    parser.add_argument('-s', '--storage', type=str,
+                        help='QCOW2 image to be attached as a default storage '
+                             'device for given platform.')
     args = parser.parse_args()
 
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
@@ -369,16 +502,21 @@ if __name__ == '__main__':
     setvar('config.graphics', args.graphics)
     setvar('config.args', args.args)
     setvar('config.network', args.network)
+    setvar('config.storage', args.storage)
 
     # Check if the kernel file is available
     if not os.path.isfile(getvar('config.kernel')):
         raise SystemExit('%s: file does not exist!' % getvar('config.kernel'))
 
+    prepare_dtb()
+
+    sim_name = getvar('config.simulator', failok=False)
+
     # Create simulator launcher
     if args.test_run:
-        setvar('qemu.uarts', [])
+        setvar(f'{sim_name}.uarts', [])
 
-    sim = QEMU()
+    sim = QEMU() if sim_name == 'qemu' else RENODE()
 
     # Create debugger launcher
     if args.debug:

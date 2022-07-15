@@ -68,7 +68,6 @@ Some useful flags to the `launch` script:
 
 * `-h` - Prints usage.
 * `-d` - Starts simulation under a debugger.
-* `-D DEBUGGER` - Selects debugger to use.
 * `-t` - Bind simulator UART to current stdio.
 
 Any other argument is passed to the kernel as a kernel command-line
