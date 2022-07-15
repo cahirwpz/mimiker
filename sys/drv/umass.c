@@ -14,24 +14,27 @@
  *
  * - SCSI Primary Commands - 4 Revision 18
  *     https://www.t10.org/
+ *
+ * Each inner function is given a description. For description
+ * of the rest of contained functions please see `include/dev/usbhc.h`.
  */
 #define KL_LOG KL_DEV
-#include <sys/klog.h>
-#include <sys/endian.h>
 #include <sys/devclass.h>
-#include <sys/device.h>
-#include <sys/libkern.h>
-#include <sys/vnode.h>
 #include <sys/devfs.h>
+#include <sys/device.h>
+#include <sys/endian.h>
+#include <sys/klog.h>
+#include <sys/libkern.h>
 #include <dev/scsi.h>
 #include <dev/usb.h>
 #include <dev/umass.h>
+#include <sys/vnode.h>
 
 /* We assume that block size >= 512. */
 #define UMASS_MIN_BLOCK_SIZE 512
 
 typedef struct umass_state {
-  uint32_t next_tag;                    /* next tab to grant */
+  uint32_t next_tag;                    /* next tag to grant */
   uint32_t nblocks;                     /* number of available blocks */
   uint32_t block_size;                  /* size of a single block */
   char vendor[SID_VENDOR_SIZE + 1];     /* vandor string */
@@ -43,7 +46,7 @@ typedef struct umass_state {
  * Auxiliary functions.
  */
 
-/* Perform a reset recoery process. */
+/* Perform the reset recovery process. */
 static int umass_reset(device_t *dev) {
   int error = 0;
 
@@ -55,14 +58,13 @@ static int umass_reset(device_t *dev) {
   if ((error = usb_unhalt_endpt(dev, USB_TFR_BULK, USB_DIR_INPUT)))
     return error;
 
-  /* Unhalt the bulk input endpoint. */
+  /* Unhalt the bulk output endpoint. */
   if ((error = usb_unhalt_endpt(dev, USB_TFR_BULK, USB_DIR_OUTPUT)))
     return error;
 
   return 0;
 }
 
-/* Print a USB mass storage device. */
 static void umass_print(device_t *dev) {
   umass_state_t *umass = dev->state;
 
@@ -88,13 +90,16 @@ static void umass_print(device_t *dev) {
 
 /* Translate USB direction flags to CBW flags. */
 static uint8_t cbw_flags(usb_direction_t dir) {
-  if (dir == USB_DIR_INPUT)
-    return CBWFLAGS_IN;
-  assert(dir == USB_DIR_OUTPUT);
-  return CBWFLAGS_OUT;
+  switch (dir) {
+    case USB_DIR_INPUT:
+      return CBWFLAGS_IN;
+    case USB_DIR_OUTPUT:
+      return CBWFLAGS_OUT;
+    default:
+      panic("Invalid USB direction!");
+  }
 }
 
-/* Setup a command block wrapper. */
 static void cbw_setup(umass_bbb_cbw_t *cbw, uint32_t tag, uint32_t size,
                       uint8_t flags, void *cmd, uint8_t cmdsize) {
   assert(cmdsize <= CBWCDBLENGTH);
@@ -109,8 +114,7 @@ static void cbw_setup(umass_bbb_cbw_t *cbw, uint32_t tag, uint32_t size,
   memcpy(cbw->CBWCDB, cmd, cmdsize);
 }
 
-/* Send a command block wrapper. */
-static int umass_send_cbw(device_t *dev, usb_buf_t *buf, umass_bbb_cbw_t *cbw) {
+static int cbw_send(device_t *dev, umass_bbb_cbw_t *cbw, usb_buf_t *buf) {
   int error = 0;
 
   usb_data_transfer(dev, buf, cbw, sizeof(umass_bbb_cbw_t), USB_TFR_BULK,
@@ -118,8 +122,8 @@ static int umass_send_cbw(device_t *dev, usb_buf_t *buf, umass_bbb_cbw_t *cbw) {
   if (!(error = usb_buf_wait(buf)))
     return 0;
 
-  /* If a STALL ocurrs upon the first attempt, the device should be reset
-   * and another try should be perform. */
+  /* If a STALL ocurrs during the first attempt, the device should be reset
+   * and the transfer should be reissued. */
   if (buf->error != USB_ERR_STALLED)
     return error;
 
@@ -135,9 +139,25 @@ static int umass_send_cbw(device_t *dev, usb_buf_t *buf, umass_bbb_cbw_t *cbw) {
  * Command Status Wrapper handling functions.
  */
 
-/* Receive a command status wrapper. */
-static int umass_receive_csw(device_t *dev, usb_buf_t *buf,
-                             umass_bbb_csw_t *csw) {
+static int csw_check(device_t *dev, umass_bbb_csw_t *csw,
+                     uint32_t expected_tag) {
+  int error = 0;
+
+  /* If the CSW isn't meaningful, we perform the reset recovery. */
+  if (csw->dCSWSignature != CSWSIGNATURE || csw->dCSWTag != expected_tag) {
+    if ((error = umass_reset(dev)))
+      return error;
+    return EIO;
+  }
+
+  /* Has there been any error? */
+  if (csw->bCSWStatus & CSWSTATUS_FAILED)
+    return EIO;
+
+  return 0;
+}
+
+static int csw_receive(device_t *dev, umass_bbb_csw_t *csw, usb_buf_t *buf) {
   int error = 0;
 
   usb_data_transfer(dev, buf, csw, sizeof(umass_bbb_csw_t), USB_TFR_BULK,
@@ -154,31 +174,13 @@ static int umass_receive_csw(device_t *dev, usb_buf_t *buf,
   return EIO;
 }
 
-/* Examine a received CSW. */
-static int umass_check_csw(device_t *dev, umass_bbb_csw_t *csw, uint32_t tag) {
-  int error = 0;
-
-  /* If the CSW isn't meaningful, we perform the reset recovery. */
-  if (csw->dCSWSignature != CSWSIGNATURE || csw->dCSWTag != tag) {
-    if ((error = umass_reset(dev)))
-      return error;
-    return EIO;
-  }
-
-  /* Has there been any error? */
-  if (csw->bCSWStatus & CSWSTATUS_FAILED)
-    return EIO;
-
-  return 0;
-}
-
 /*
  * Bulk-Only transfer functions.
  */
 
-/* Perform a Bulk-Only transfer. */
-static int umass_transfer(device_t *dev, void *data, uint32_t size,
-                          usb_direction_t dir, void *cmd, size_t cmdsize) {
+static int umass_transfer(device_t *dev, void *cmd, uint8_t cmdsize,
+                          usb_direction_t dir, void *data, uint32_t size) {
+
   umass_state_t *umass = dev->state;
   usb_buf_t *buf = usb_buf_alloc();
   int error = 0;
@@ -190,8 +192,7 @@ static int umass_transfer(device_t *dev, void *data, uint32_t size,
   umass_bbb_cbw_t cbw;
   uint32_t tag = umass->next_tag++;
   cbw_setup(&cbw, tag, size, cbw_flags(dir), cmd, cmdsize);
-
-  if ((error = umass_send_cbw(dev, buf, &cbw)))
+  if ((error = cbw_send(dev, &cbw, buf)))
     goto end;
 
   /*
@@ -218,14 +219,14 @@ static int umass_transfer(device_t *dev, void *data, uint32_t size,
    */
 
   umass_bbb_csw_t csw;
-  int csw_error = umass_receive_csw(dev, buf, &csw);
+  int csw_error = csw_receive(dev, &csw, buf);
   if (csw_error) {
     error = csw_error;
     goto end;
   }
 
   if (!error)
-    error = umass_check_csw(dev, &csw, tag);
+    error = csw_check(dev, &csw, tag);
 
 end:
   usb_buf_free(buf);
@@ -236,17 +237,16 @@ end:
  * SCSI command functions.
  */
 
-/* Perform the inquiry command. */
 static int umass_inquiry(device_t *dev) {
   scsi_inquiry_data_t inq_data;
   scsi_inquiry_t inq = (scsi_inquiry_t){
     .opcode = INQUIRY,
     .length = htobe16(SHORT_INQUIRY_LENGTH),
   };
+  int error = 0;
 
-  int error = umass_transfer(dev, &inq_data, SHORT_INQUIRY_LENGTH,
-                             USB_DIR_INPUT, &inq, sizeof(scsi_inquiry_t));
-  if (error)
+  if ((error = umass_transfer(dev, &inq, sizeof(scsi_inquiry_t), USB_DIR_INPUT,
+                              &inq_data, SHORT_INQUIRY_LENGTH)))
     return error;
 
   /* We only handle direct access block devices (i.e. command set SBC-3). */
@@ -278,23 +278,20 @@ static int umass_request_sense(device_t *dev) {
     .opcode = REQUEST_SENSE,
     .length = sizeof(scsi_sense_data_t),
   };
-  int error = umass_transfer(dev, &sen_data, sizeof(scsi_sense_data_t),
-                             USB_DIR_INPUT, &sen, sizeof(scsi_request_sense_t));
-
   /* XXX: in the future, some recovery logic may be needed.
-   * FTTB, just performing the command is sufficient. */
-  return error;
+   * FTTB, simply performing the command is sufficient. */
+  return umass_transfer(dev, &sen, sizeof(scsi_request_sense_t), USB_DIR_INPUT,
+                        &sen_data, sizeof(scsi_sense_data_t));
 }
 
 /*
  * For the read cpapcity request to succeed, most devices will require to
  * perform a sequence of the following pairs of requests:
- * (read capacity, request sense). We have to establish some maximum number
- * of possible iterations.
+ * (read capacity, request sense).
+ * We have to establish some maximum number of possible iterations.
  */
 #define READ_CAPACITY_MAX_ITR 4
 
-/* Perform the read capacity command. */
 static int umass_read_capacity(device_t *dev) {
   scsi_read_capacity_data_t cap_data;
   scsi_read_capacity_t cap = (scsi_read_capacity_t){
@@ -304,15 +301,13 @@ static int umass_read_capacity(device_t *dev) {
 
   for (i = 0; i < READ_CAPACITY_MAX_ITR; i++) {
     /* Try to issue the read capacity command. */
-    error = umass_transfer(dev, &cap_data, sizeof(scsi_read_capacity_data_t),
-                           USB_DIR_INPUT, &cap, sizeof(scsi_read_capacity_t));
-    if (!error)
+    if (!umass_transfer(dev, &cap, sizeof(scsi_read_capacity_t), USB_DIR_INPUT,
+                        &cap_data, sizeof(scsi_read_capacity_data_t)))
       break;
 
     /* We've failed. Let's perform the request sense command. */
-    error = umass_request_sense(dev);
-    if (error) {
-      /* This kind of error is unacceptable. Return with error. */
+    if ((error = umass_request_sense(dev))) {
+      /* This kind of error is unacceptable. Return with `error`. */
       return error;
     }
   }
@@ -321,7 +316,7 @@ static int umass_read_capacity(device_t *dev) {
     return ENODEV;
   }
 
-  /* We assume that number of logical blocks is <= UINT32_MAX. */
+  /* We assume that number of logical blocks is < `UINT32_MAX`. */
   if (cap_data.addr == UINT32_MAX)
     return ENXIO;
 
@@ -337,116 +332,60 @@ static int umass_read_capacity(device_t *dev) {
  * Read/Write functions.
  */
 
-static int umass_read(vnode_t *v, uio_t *uio) {
+static inline usb_direction_t uioop_to_usbdir(uio_op_t op) {
+  switch (op) {
+    case UIO_READ:
+      return USB_DIR_INPUT;
+    case UIO_WRITE:
+      return USB_DIR_OUTPUT;
+    default:
+      panic("Invalid UIO operation!");
+  }
+}
+
+static int umass_op(vnode_t *v, uio_t *uio) {
   device_t *dev = devfs_node_data(v);
   umass_state_t *umass = dev->state;
+  usb_direction_t dir = uioop_to_usbdir(uio->uio_op);
   uint32_t block_size = umass->block_size;
-  off_t offset = uio->uio_offset;
   int error = 0;
 
-  /* Obtain the LBA of the first block to read. */
-  uint32_t start = offset / block_size;
+  if (!is_aligned(uio->uio_offset, block_size))
+    return EINVAL;
+  if (!is_aligned(uio->uio_resid, block_size))
+    return EINVAL;
 
-  /* Obtain the LBA of the last block to read. */
-  uint32_t end = roundup(offset + uio->uio_resid, block_size) / block_size;
-
-  /* How many blocks is it?
-   * Note: we assume that number of blocks to read is <= UINT16_MAX. */
-  uint16_t nblocks = end - start;
+  uint32_t start = uio->uio_offset / block_size;
+  uint32_t nblocks = uio->uio_resid / block_size;
   uint32_t size = nblocks * block_size;
 
+  /* Note: we assume that number of blocks to read is <= UINT16_MAX. */
+  if (nblocks > UINT16_MAX)
+    return EINVAL;
+
   void *buf = kmalloc(M_DEV, size, M_WAITOK);
-  if (!buf)
-    return ENOMEM;
+
+  if (dir == USB_DIR_OUTPUT) {
+    /* Copy data from the user. */
+    if ((error = uiomove(buf, uio->uio_resid, uio)))
+      goto end;
+  }
 
   scsi_rw_10_t rw10 = (scsi_rw_10_t){
-    .opcode = READ_10,
+    .opcode = (dir == USB_DIR_INPUT) ? READ_10 : WRITE_10,
     .addr = htobe32(start),
     .length = htobe16(nblocks),
   };
-  error =
-    umass_transfer(dev, buf, size, USB_DIR_INPUT, &rw10, sizeof(scsi_rw_10_t));
+  error = umass_transfer(dev, &rw10, sizeof(scsi_rw_10_t), dir, buf, size);
   if (error)
     goto end;
 
-  /* Copy the data to the user. */
-  uio->uio_offset -= start;
-  error = uiomove_frombuf(buf, size, uio);
-
-  /* XXX: this is a cheat which keeps file offset at 0.
-   * This should be removed when a better interface is presended. */
   uio->uio_offset = 0;
 
-end:
-  kfree(M_DEV, buf);
-  return error;
-}
-
-static int umass_write(vnode_t *v, uio_t *uio) {
-  device_t *dev = devfs_node_data(v);
-  umass_state_t *umass = dev->state;
-  uint32_t block_size = umass->block_size;
-  off_t offset = uio->uio_offset;
-  int error = 0;
-
-  /* Obtain the LBA of the first block invloved. */
-  uint32_t start = offset / block_size;
-
-  /* Obtain the LBA of the last block involved. */
-  uint32_t end = roundup(offset + uio->uio_resid, block_size) / block_size;
-
-  /* How many blocks is it?
-   * Note: we assume that number of blocks to read is <= UINT16_MAX. */
-  uint16_t nblocks = end - start;
-  uint32_t size = nblocks * block_size;
-
-  void *buf = kmalloc(M_DEV, size, M_ZERO);
-  if (!buf)
-    return ENOMEM;
-
-  /*
-   * If we won't overwrite the edge blocks, we have to preserve their content.
-   * To achive this, we have to read their current data.
-   */
-
-  scsi_rw_10_t rw10 = (scsi_rw_10_t){
-    .opcode = READ_10,
-    .length = htobe16(1),
-  };
-
-  /* Should we bother about the first block? */
-  if (offset % block_size) {
-    rw10.addr = htobe32(start);
-    error = umass_transfer(dev, buf, block_size, USB_DIR_INPUT, &rw10,
-                           sizeof(scsi_rw_10_t));
-    if (error)
-      goto end;
+  if (dir == USB_DIR_INPUT) {
+    /* Copy the data to the user. */
+    error = uiomove_frombuf(buf, size, uio);
   }
-
-  /* Should we bother about the last block? */
-  if ((offset + uio->uio_resid) % block_size) {
-    rw10.addr = htobe32(end - 1);
-    error = umass_transfer(dev, buf + size - block_size, block_size,
-                           USB_DIR_INPUT, &rw10, sizeof(scsi_rw_10_t));
-    if (error)
-      goto end;
-  }
-
-  /* Copy data from the user. */
-  error = uiomove(buf + (offset % block_size), uio->uio_resid, uio);
-  if (error)
-    goto end;
-
-  /* Write the data to the drive. */
-  rw10.opcode = WRITE_10;
-  rw10.addr = htobe32(start);
-  rw10.length = htobe16(nblocks);
-  error =
-    umass_transfer(dev, buf, size, USB_DIR_OUTPUT, &rw10, sizeof(scsi_rw_10_t));
-
-  /* XXX: this is a cheat which keeps file offset at 0.
-   * This should be removed when a better interface is presended. */
-  uio->uio_offset = 0;
 
 end:
   kfree(M_DEV, buf);
@@ -454,8 +393,8 @@ end:
 }
 
 static vnodeops_t umass_ops = {
-  .v_read = umass_read,
-  .v_write = umass_write,
+  .v_read = umass_op,
+  .v_write = umass_op,
 };
 
 /*
@@ -468,7 +407,7 @@ static int umass_probe(device_t *dev) {
     return 0;
 
   /* We're looking for a USB mass storage device using SCSI transparent
-   * command set, and Bulk-Only transfer protocol. */
+   * command set and Bulk-Only transfer protocol. */
   if (udev->class_code != UICLASS_MASS ||
       udev->subclass_code != UISUBCLASS_SCSI ||
       udev->protocol_code != UIPROTO_MASS_BBB)

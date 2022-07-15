@@ -97,11 +97,8 @@ CONFIG = {
             'malta': {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
-                    '-drive', 'if=none,id=stick,file=./udrive.img',
-                    '-device', 'usb-storage,drive=stick',
-                    '-device', 'usb-mouse',
-                    '-device', 'usb-kbd',
                     '-device', 'VGA',
+                    '-device', 'usb-storage,drive=stick',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
                 'network_options': [
@@ -114,6 +111,7 @@ CONFIG = {
                     dict(name='/dev/tty1', port=RandomPort()),
                     dict(name='/dev/cons', port=RandomPort())
                 ],
+                'drive': 'if=none,id=stick,file={path}',
             },
             'rpi3': {
                 'binary': 'qemu-mimiker-aarch64',
@@ -160,8 +158,8 @@ CONFIG = {
             '-n',
             '-ex=set confirm no',
             '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
-            '-ex=set tcp connect-timeout 100',
-            '-ex=target remote localhost:{gdbport}',
+            '-ex=set tcp connect-timeout 30',
+            '-ex=target extended-remote localhost:{gdbport}',
             '--silent',
         ],
         'extra-options': [],
