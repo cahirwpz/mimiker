@@ -101,7 +101,6 @@ CONFIG = {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
                     '-device', 'VGA',
-                    '-device', 'usb-storage,drive=stick',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
                 'network_options': [
@@ -113,6 +112,9 @@ CONFIG = {
                     dict(name='/dev/tty0', port=RandomPort(), raw=True),
                     dict(name='/dev/tty1', port=RandomPort()),
                     dict(name='/dev/cons', port=RandomPort())
+                ],
+                'storage_options': [
+                    '-device', 'usb-storage,drive=stick',
                 ],
                 'drive': 'if=none,id=stick,file={path}',
             },
@@ -126,6 +128,7 @@ CONFIG = {
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ],
+                'storage_options': [],
                 'drive': 'if=sd,index=0,format=qcow2,file={path}',
             },
             'sifive_u': {
@@ -315,6 +318,7 @@ class QEMU(Launchable):
                 raise SystemExit('Default drive is not defined for the '
                                  'selected platform.')
             self.options += ['-drive', drive.format(path=storage)]
+            self.options += getopts('qemu.storage_options')
 
 
 class RENODE(Launchable):
