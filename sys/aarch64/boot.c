@@ -1,7 +1,6 @@
 #include <sys/boot.h>
 #include <sys/fdt.h>
 #include <sys/mimiker.h>
-#include <sys/libkern.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
 #include <sys/kasan.h>

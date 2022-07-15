@@ -91,6 +91,10 @@ static alignas(STACK_ALIGN) uint8_t boot_stack[PAGESIZE];
 /* Without `volatile` Clang applies constant propagation optimization and
  * that ends up generating relocations in `.text` instead of `.data` section.
  * This is exactly what we're trying to avoid here! */
+__boot_data static volatile vaddr_t _kernel_start = (vaddr_t)__kernel_start;
+__boot_data static volatile vaddr_t _kernel_end = (vaddr_t)__kernel_end;
+__boot_data static volatile vaddr_t _boot = (vaddr_t)__boot;
+__boot_data static volatile vaddr_t _eboot = (vaddr_t)__eboot;
 __boot_data static volatile vaddr_t _text = (vaddr_t)__text;
 __boot_data static volatile vaddr_t _data = (vaddr_t)__data;
 __boot_data static volatile vaddr_t _bss = (vaddr_t)__bss;
@@ -168,6 +172,9 @@ __boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
 }
 
 __boot_text __noreturn void riscv_init(paddr_t dtb) {
+  if (!(_eboot < _kernel_start || _kernel_end < _boot))
+    halt();
+
   boot_clear(PHYSADDR(_bss), PHYSADDR(_ebss));
   boot_sbrk_init(PHYSADDR(_ebss));
 

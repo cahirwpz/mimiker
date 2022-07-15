@@ -1,3 +1,4 @@
+#include <mips/abi.h>
 #include <mips/m32c0.h>
 #include <mips/pmap.h>
 #include <sys/boot.h>
@@ -7,7 +8,7 @@
 #include <sys/kasan.h>
 
 /* The boot stack is used before we switch out to thread0. */
-static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
+static alignas(STACK_ALIGN) uint8_t _boot_stack[PAGESIZE];
 
 __boot_data void *_bootmem_end;
 
