@@ -1,4 +1,5 @@
 #include <sys/kenv.h>
+#include <sys/boot.h>
 #include <sys/cmdline.h>
 #include <sys/libkern.h>
 #include <sys/klog.h>
@@ -96,31 +97,32 @@ static void rpi3_physmem(void) {
   paddr_t ram_start = PAGESIZE;
   paddr_t ram_end = kenv_get_ulong("memsize");
   paddr_t kern_start = (paddr_t)__boot;
-  paddr_t kern_end = (paddr_t)_bootmem_end;
+  paddr_t kern_end = boot_sbrk_end;
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
-  paddr_t dtb_start, dtb_end;
-  FDT_get_blob_range(&dtb_start, &dtb_end);
 
   /* TODO(pj) if vm_physseg_plug* interface was more flexible,
    * we could do without following hack, please refer to issue #1129 */
-  addr_range_t memory[3] = {
-    {.start = rounddown(kern_start, PAGESIZE),
-     .end = roundup(kern_end, PAGESIZE)},
-    {.start = rounddown(rd_start, PAGESIZE), .end = roundup(rd_end, PAGESIZE)},
-    {.start = rounddown(dtb_start, PAGESIZE),
-     .end = roundup(dtb_end, PAGESIZE)},
+  addr_range_t memory[2] = {
+    {
+      .start = rounddown(kern_start, PAGESIZE),
+      .end = roundup(kern_end, PAGESIZE),
+    },
+    {
+      .start = rounddown(rd_start, PAGESIZE),
+      .end = roundup(rd_end, PAGESIZE),
+    },
   };
 
-  qsort(memory, 3, sizeof(addr_range_t), addr_range_cmp);
+  qsort(memory, 2, sizeof(addr_range_t), addr_range_cmp);
 
   vm_physseg_plug(ram_start, memory[0].start);
-  for (int i = 0; i < 3; ++i) {
+  for (int i = 0; i < 2; ++i) {
     if (memory[i].start == memory[i].end)
       continue;
     assert(memory[i].start < memory[i].end);
     vm_physseg_plug_used(memory[i].start, memory[i].end);
-    if (i == 2) {
+    if (i == 1) {
       if (memory[i].end < ram_end)
         vm_physseg_plug(memory[i].end, ram_end);
     } else if (memory[i].end < memory[i + 1].start) {

@@ -71,10 +71,6 @@
 bool preempt_disabled(void);
 bool intr_disabled(void) __no_profile;
 
-/* Attribute macros for boot/wired functions/data */
-#define __boot_text __long_call __section(".boot.text")
-#define __boot_data __section(".boot.data")
-
 #define CLEANUP_FUNCTION(func) __CONCAT(__cleanup_, func)
 #define DEFINE_CLEANUP_FUNCTION(type, func)                                    \
   static inline void __cleanup_##func(type *ptr) {                             \
@@ -141,9 +137,6 @@ extern char __rodata[];
 extern char __data[];
 extern char __bss[];
 extern char __ebss[];
-
-/* Last physical address used by kernel for boot memory allocation. */
-extern __boot_data void *_bootmem_end;
 #endif /* !_MACHDEP */
 
 #endif /* !_SYS_MIMIKER_H_ */
