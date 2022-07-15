@@ -59,6 +59,7 @@ install-stamp: build-stamp
 	cd $(PWD)/debian/tmp && \
 	mv usr/bin/qemu-system-mipsel usr/bin/qemu-mimiker-mipsel && \
 	mv usr/bin/qemu-system-aarch64 usr/bin/qemu-mimiker-aarch64 && \
+	mv usr/bin/qemu-system-riscv64 usr/bin/qemu-mimiker-riscv64 && \
 	touch $@
 
 binary: binary-stamp

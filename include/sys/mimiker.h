@@ -16,9 +16,9 @@
 #include <sys/types.h>
 
 #define log2(x) (CHAR_BIT * sizeof(unsigned long) - __builtin_clzl(x) - 1)
-#define ffs(x) (size_t)(__builtin_ffs(x))
-#define clz(x) (size_t)(__builtin_clz(x))
-#define ctz(x) (size_t)(__builtin_ctz(x))
+#define ffs(x) ((u_long)__builtin_ffsl(x))
+#define clz(x) ((u_long)__builtin_clzl(x))
+#define ctz(x) ((u_long)__builtin_ctzl(x))
 
 #define abs(x)                                                                 \
   ({                                                                           \
@@ -54,7 +54,7 @@
     intptr_t _addr = (intptr_t)(addr);                                         \
     intptr_t _size = (intptr_t)(size);                                         \
     _addr = (_addr + (_size - 1)) & -_size;                                    \
-    (typeof(addr)) _addr;                                                      \
+    (typeof(addr))_addr;                                                       \
   })
 
 #define is_aligned(addr, size)                                                 \
@@ -137,12 +137,10 @@ extern char __etext[];
 /* Symbols defined by linker and used during kernel boot phase. */
 extern char __boot[];
 extern char __eboot[];
-extern char __text[];
+extern char __rodata[];
 extern char __data[];
 extern char __bss[];
 extern char __ebss[];
-extern char __kernel_start[];
-extern char __kernel_end[];
 
 /* Last physical address used by kernel for boot memory allocation. */
 extern __boot_data void *_bootmem_end;
