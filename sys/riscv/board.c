@@ -10,13 +10,11 @@
 #include <sys/thread.h>
 #include <sys/types.h>
 #include <sys/vm_physmem.h>
+#include <riscv/boot.h>
 #include <riscv/mcontext.h>
 #include <riscv/pmap.h>
 #include <riscv/sbi.h>
 #include <riscv/vm_param.h>
-
-#define RISCV_PHYSADDR(x)                                                      \
-  ((paddr_t)((vaddr_t)(x) & ~KERNEL_SPACE_BEGIN) + KERNEL_PHYS)
 
 paddr_t kern_phys_end;
 
@@ -112,7 +110,7 @@ typedef struct {
 
 static void ar_get_kernel_img(addr_range_t *ar) {
   assert(kern_phys_end);
-  ar->start = RISCV_PHYSADDR(__kernel_start);
+  ar->start = PHYSADDR(__kernel_start);
   ar->end = kern_phys_end;
 }
 

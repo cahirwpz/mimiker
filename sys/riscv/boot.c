@@ -9,15 +9,12 @@
  *  address space. This involves the following tasks:
  *   - mapping kernel image (.text, .rodata, .data, .bss) into VM,
  *
- *   - temporarily mapping DTB into VM (as we will need to access it in the
- *     second stage of the boot process and we can't create the direct map
- *     before knowing the physical memory boundaries which are contained in the
- *     DTB itself),
+ *   - copy DTB into kernel .bss section,
  *
  *   - temporarily mapping kernel page directory into VM (because there is
  *     no direct map to access it in the usual fashion),
  *
- *   - Preparing KASAN shadow memory for the mapped area,
+ *   - preparing KASAN shadow memory for the mapped area,
  *
  *   - enabling MMU and moving to the second stage.
  *
@@ -48,7 +45,7 @@
  *
  *   - preparing bss,
  *
- *   - processing borad stack (this includes kernel environment setting),
+ *   - processing board stack (this includes kernel environment setting),
  *
  *   - performing pmap bootstrap (this includes creating dmap),
  *
@@ -63,23 +60,22 @@
 #include <sys/fdt.h>
 #include <sys/kasan.h>
 #include <sys/klog.h>
-#include <sys/libkern.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
 #include <sys/pmap.h>
 #include <riscv/abi.h>
+#include <riscv/boot.h>
 #include <riscv/cpufunc.h>
 #include <riscv/pmap.h>
-#include <libfdt/libfdt.h>
-
-#define PHYSADDR(x) ((paddr_t)((vaddr_t)(x) + (KERNEL_PHYS - KERNEL_VIRT)))
-#define VIRTADDR(x) ((vaddr_t)((paddr_t)(x) + (KERNEL_VIRT - KERNEL_PHYS)))
 
 #define BOOT_KASAN_SANITIZED_SIZE(end)                                         \
   roundup2(roundup2((intptr_t)end, GROWKERNEL_STRIDE) - KASAN_SANITIZED_START, \
            PAGESIZE * KASAN_SHADOW_SCALE_SIZE)
 
 #define BOOT_PD_VADDR (DMAP_BASE + GROWKERNEL_STRIDE)
+
+static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t bootmem_end,
+                                  vaddr_t kernel_end);
 
 /*
  * Virtual memory boot data.
@@ -91,9 +87,6 @@ static alignas(STACK_ALIGN) uint8_t boot_stack[PAGESIZE];
 /*
  * Bare memory boot data.
  */
-
-static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t bootmem_end,
-                                  vaddr_t kernel_end);
 
 /* Without `volatile` Clang applies constant propagation optimization and
  * that ends up generating relocations in `.text` instead of `.data` section.
