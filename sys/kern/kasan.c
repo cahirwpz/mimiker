@@ -25,7 +25,21 @@
 #define KASAN_OFFSET                                                           \
   (KASAN_SHADOW_START - (KASAN_SANITIZED_START >> KASAN_SHADOW_SCALE_SHIFT))
 
-/* The following two structures are part of internal compiler interface:
+/* Non-instrumented functions in mimiker and libkern. */
+int __real_copyin(const void *restrict udaddr, void *restrict kaddr,
+                  size_t len);
+int __real_copyinstr(const void *restrict udaddr, void *restrict kaddr,
+                     size_t len, size_t *restrict lencopied);
+int __real_copyout(const void *restrict kaddr, void *restrict udaddr,
+                   size_t len);
+void __real_bcopy(const void *src, void *dst, size_t n);
+void __real_bzero(void *dst, size_t n);
+void *__real_memcpy(void *dst, const void *src, size_t n);
+void *__real_memmove(void *dst, const void *src, size_t n);
+void *__real_memset(void *dst, int c, size_t n);
+
+/* 
+ * The following two structures are part of internal compiler interface:
  * https://github.com/gcc-mirror/gcc/blob/master/libsanitizer/include/sanitizer/asan_interface.h
  */
 
@@ -190,16 +204,15 @@ __always_inline static inline void shadow_check(uintptr_t addr, size_t size,
   }
 }
 
-/* Marking memory has limitations captured by assertions in the code below.
+/*
+ * Marking memory has limitations captured by assertions in the code below.
  *
  * Memory is divided into 8-byte blocks aligned to 8-byte boundary. Each block
  * has corresponding descriptor byte in the shadow memory. You can mark each
  * block as valid (0x00) or invalid (0xF1 - 0xFF). Blocks can be partially valid
  * (0x01 - 0x07) - i.e. prefix is valid, suffix is invalid.  Other variants are
  * NOT POSSIBLE! Thus `addr` and `total` must be block aligned.
- *
- * Note: use of __builtin_memset in this function is not optimal if its
- * implementation is instrumented (i.e. not written in asm). */
+ */
 void kasan_mark(const void *addr, size_t valid, size_t total, uint8_t code) {
   assert(is_aligned(addr, KASAN_SHADOW_SCALE_SIZE));
   assert(is_aligned(total, KASAN_SHADOW_SCALE_SIZE));
@@ -210,7 +223,7 @@ void kasan_mark(const void *addr, size_t valid, size_t total, uint8_t code) {
 
   /* Valid bytes. */
   size_t len = valid / KASAN_SHADOW_SCALE_SIZE;
-  __builtin_memset(shadow, 0, len);
+  __real_memset(shadow, 0, len);
   shadow += len;
 
   /* At most one partially valid byte. */
@@ -219,7 +232,7 @@ void kasan_mark(const void *addr, size_t valid, size_t total, uint8_t code) {
 
   /* Invalid bytes. */
   if (shadow < end)
-    __builtin_memset(shadow, code, end - shadow);
+    __real_memset(shadow, code, end - shadow);
 }
 
 void kasan_mark_valid(const void *addr, size_t size) {
@@ -341,58 +354,47 @@ void __asan_allocas_unpoison(const void *begin, const void *end) {
 
 /* Below you can find wrappers for various memory-touching functions,
  * which are implemented in assembly (therefore are not instrumented). */
-int __real_copyin(const void *restrict udaddr, void *restrict kaddr,
-                  size_t len);
 int __wrap_copyin(const void *restrict udaddr, void *restrict kaddr,
                   size_t len) {
   shadow_check((uintptr_t)kaddr, len, STORE);
   return __real_copyin(udaddr, kaddr, len);
 }
 
-int __real_copyinstr(const void *restrict udaddr, void *restrict kaddr,
-                     size_t len, size_t *restrict lencopied);
 int __wrap_copyinstr(const void *restrict udaddr, void *restrict kaddr,
                      size_t len, size_t *restrict lencopied) {
   shadow_check((uintptr_t)kaddr, len, STORE);
   return __real_copyinstr(udaddr, kaddr, len, lencopied);
 }
 
-int __real_copyout(const void *restrict kaddr, void *restrict udaddr,
-                   size_t len);
 int __wrap_copyout(const void *restrict kaddr, void *restrict udaddr,
                    size_t len) {
   shadow_check((uintptr_t)kaddr, len, LOAD);
   return __real_copyout(kaddr, udaddr, len);
 }
 
-void __real_bcopy(const void *src, void *dst, size_t n);
 void __wrap_bcopy(const void *src, void *dst, size_t n) {
   shadow_check((uintptr_t)src, n, LOAD);
   shadow_check((uintptr_t)dst, n, STORE);
   return __real_bcopy(src, dst, n);
 }
 
-void __real_bzero(void *dst, size_t n);
 void __wrap_bzero(void *dst, size_t n) {
   shadow_check((uintptr_t)dst, n, STORE);
   return __real_bzero(dst, n);
 }
 
-void *__real_memcpy(void *dst, const void *src, size_t n);
 void *__wrap_memcpy(void *dst, const void *src, size_t n) {
   shadow_check((uintptr_t)src, n, LOAD);
   shadow_check((uintptr_t)dst, n, STORE);
   return __real_memcpy(dst, src, n);
 }
 
-void *__real_memmove(void *dst, const void *src, size_t n);
 void *__wrap_memmove(void *dst, const void *src, size_t n) {
   shadow_check((uintptr_t)src, n, LOAD);
   shadow_check((uintptr_t)dst, n, STORE);
   return __real_memmove(dst, src, n);
 }
 
-void *__real_memset(void *dst, int c, size_t n);
 void *__wrap_memset(void *dst, int c, size_t n) {
   shadow_check((uintptr_t)dst, n, STORE);
   return __real_memset(dst, c, n);
