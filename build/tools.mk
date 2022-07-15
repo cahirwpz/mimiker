@@ -8,7 +8,7 @@
 
 LLVM_VER := -14
 
-ifneq ($(shell which cache > /dev/null; echo $$?), 0)
+ifeq ($(shell which cache > /dev/null; echo $$?), 0)
   CCACHE := ccache
 endif
 
