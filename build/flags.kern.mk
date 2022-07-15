@@ -34,6 +34,8 @@ ifeq ($(KASAN), 1)
                    --param asan-stack=1 \
                    --param asan-instrument-allocas=1
   endif
+  LDFLAGS += -wrap=copyin -wrap=copyinstr -wrap=copyout \
+             -wrap=bcopy -wrap=bzero -wrap=memcpy -wrap=memmove -wrap=memset
 endif
 
 ifeq ($(KGPROF), 1)

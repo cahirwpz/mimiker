@@ -7,6 +7,9 @@
 #include <sys/vm_physmem.h>
 #include <sys/vm.h>
 
+#define LOAD true
+#define STORE false
+
 /* Part of internal compiler interface */
 #define KASAN_ALLOCA_REDZONE_SIZE 32
 
@@ -338,47 +341,59 @@ void __asan_allocas_unpoison(const void *begin, const void *end) {
 
 /* Below you can find wrappers for various memory-touching functions,
  * which are implemented in assembly (therefore are not instrumented). */
-#undef copyin
-int copyin(const void *restrict udaddr, void *restrict kaddr, size_t len);
-int kasan_copyin(const void *restrict udaddr, void *restrict kaddr,
-                 size_t len) {
-  shadow_check((uintptr_t)kaddr, len, false);
-  return copyin(udaddr, kaddr, len);
-}
-
-#undef copyinstr
-int copyinstr(const void *restrict udaddr, void *restrict kaddr, size_t len,
-              size_t *restrict lencopied);
-int kasan_copyinstr(const void *restrict udaddr, void *restrict kaddr,
-                    size_t len, size_t *restrict lencopied) {
-  shadow_check((uintptr_t)kaddr, len, false);
-  return copyinstr(udaddr, kaddr, len, lencopied);
-}
-
-#undef copyout
-int copyout(const void *restrict kaddr, void *restrict udaddr, size_t len);
-int kasan_copyout(const void *restrict kaddr, void *restrict udaddr,
+int __real_copyin(const void *restrict udaddr, void *restrict kaddr,
+                  size_t len);
+int __wrap_copyin(const void *restrict udaddr, void *restrict kaddr,
                   size_t len) {
-  shadow_check((uintptr_t)kaddr, len, true);
-  return copyout(kaddr, udaddr, len);
+  shadow_check((uintptr_t)kaddr, len, STORE);
+  return __real_copyin(udaddr, kaddr, len);
 }
 
-#undef memcpy
-void *memcpy(void *dst, const void *src, size_t len);
-void *kasan_memcpy(void *dst, const void *src, size_t len) {
-  shadow_check((uintptr_t)src, len, true);
-  shadow_check((uintptr_t)dst, len, false);
-  return memcpy(dst, src, len);
+int __real_copyinstr(const void *restrict udaddr, void *restrict kaddr,
+                     size_t len, size_t *restrict lencopied);
+int __wrap_copyinstr(const void *restrict udaddr, void *restrict kaddr,
+                     size_t len, size_t *restrict lencopied) {
+  shadow_check((uintptr_t)kaddr, len, STORE);
+  return __real_copyinstr(udaddr, kaddr, len, lencopied);
 }
 
-size_t kasan_strlen(const char *str) {
-  const char *s = str;
-  while (1) {
-    shadow_check((uintptr_t)s, 1, true);
-    if (*s == '\0')
-      break;
-    s++;
-  }
+int __real_copyout(const void *restrict kaddr, void *restrict udaddr,
+                   size_t len);
+int __wrap_copyout(const void *restrict kaddr, void *restrict udaddr,
+                   size_t len) {
+  shadow_check((uintptr_t)kaddr, len, LOAD);
+  return __real_copyout(kaddr, udaddr, len);
+}
 
-  return s - str;
+void __real_bcopy(const void *src, void *dst, size_t n);
+void __wrap_bcopy(const void *src, void *dst, size_t n) {
+  shadow_check((uintptr_t)src, n, LOAD);
+  shadow_check((uintptr_t)dst, n, STORE);
+  return __real_bcopy(src, dst, n);
+}
+
+void __real_bzero(void *dst, size_t n);
+void __wrap_bzero(void *dst, size_t n) {
+  shadow_check((uintptr_t)dst, n, STORE);
+  return __real_bzero(dst, n);
+}
+
+void *__real_memcpy(void *dst, const void *src, size_t n);
+void *__wrap_memcpy(void *dst, const void *src, size_t n) {
+  shadow_check((uintptr_t)src, n, LOAD);
+  shadow_check((uintptr_t)dst, n, STORE);
+  return __real_memcpy(dst, src, n);
+}
+
+void *__real_memmove(void *dst, const void *src, size_t n);
+void *__wrap_memmove(void *dst, const void *src, size_t n) {
+  shadow_check((uintptr_t)src, n, LOAD);
+  shadow_check((uintptr_t)dst, n, STORE);
+  return __real_memmove(dst, src, n);
+}
+
+void *__real_memset(void *dst, int c, size_t n);
+void *__wrap_memset(void *dst, int c, size_t n) {
+  shadow_check((uintptr_t)dst, n, STORE);
+  return __real_memset(dst, c, n);
 }
