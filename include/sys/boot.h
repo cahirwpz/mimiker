@@ -24,6 +24,10 @@ __boot_text void boot_clear(paddr_t start, paddr_t end);
 __boot_text __noreturn void halt(void);
 
 /* Last physical address used by kernel for boot memory allocation. */
+#ifndef __mips
+extern paddr_t boot_sbrk_end;
+#else
 extern __boot_data void *_bootmem_end;
+#endif
 
 #endif /* !_SYS_BOOT_H_ */

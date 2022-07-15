@@ -2,7 +2,7 @@
 #include <libfdt/libfdt.h>
 
 /* Last physical address used by kernel for boot memory allocation. */
-__boot_data void *_bootmem_end;
+paddr_t boot_sbrk_end;
 
 __boot_data static uintptr_t _boot_sbrk;
 

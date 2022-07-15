@@ -28,7 +28,8 @@
   roundup2(roundup2((vaddr_t)(end), PAGESIZE) - KASAN_SANITIZED_START,         \
            SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE)
 
-static __noreturn void aarch64_boot(void *dtb, paddr_t pde, vaddr_t kernel_end);
+static __noreturn void aarch64_boot(void *dtb, paddr_t pde, paddr_t sbrk_end,
+                                    vaddr_t vma_end);
 
 static alignas(STACK_ALIGN) uint8_t _boot_stack[PAGESIZE];
 
@@ -44,6 +45,7 @@ __boot_data static volatile vaddr_t _text = (vaddr_t)__text;
 __boot_data static volatile vaddr_t _etext = (vaddr_t)__etext;
 __boot_data static volatile vaddr_t _rodata = (vaddr_t)__rodata;
 __boot_data static volatile vaddr_t _data = (vaddr_t)__data;
+__boot_data static volatile vaddr_t _bss = (vaddr_t)__bss;
 __boot_data static volatile vaddr_t _ebss = (vaddr_t)__ebss;
 __boot_data static volatile vaddr_t _evec = (vaddr_t)exception_vectors;
 __boot_data static volatile vaddr_t _hvec = (vaddr_t)hypervisor_vectors;
@@ -275,38 +277,40 @@ __boot_text static void enable_mmu(pde_t *pde) {
 __boot_text __noreturn void aarch64_init(paddr_t dtb) {
   drop_to_el1();
   configure_cpu();
-  boot_clear(PHYSADDR(__bss), PHYSADDR(__ebss));
-  boot_sbrk_init(PHYSADDR(__ebss));
+  boot_clear(PHYSADDR(_bss), PHYSADDR(_ebss));
+  boot_sbrk_init(PHYSADDR(_ebss));
 
   vaddr_t dtb_va = VIRTADDR(boot_save_dtb(dtb));
 
   /* Make sure DTB is mapped into kernel virtual address space. */
-  vaddr_t kernel_end = VIRTADDR(boot_sbrk_align(PAGESIZE));
+  vaddr_t vma_end = VIRTADDR(boot_sbrk_align(PAGESIZE));
 
-  pde_t *pde = build_page_table(kernel_end);
+  pde_t *pde = build_page_table(vma_end);
   enable_mmu(pde);
 
-  _bootmem_end = boot_sbrk(0);
+  void *sbrk_end = boot_sbrk(0);
 
   vaddr_t boot_sp = (vaddr_t)&_boot_stack[PAGESIZE];
 
   __asm __volatile("mov x0, %0\n\t"
                    "mov x1, %1\n\t"
                    "mov x2, %2\n\t"
-                   "mov sp, %3\n\t"
-                   "br %4"
+                   "mov x3, %3\n\t"
+                   "mov sp, %4\n\t"
+                   "br %5"
                    :
-                   : "r"(dtb_va), "r"(pde), "r"(kernel_end), "r"(boot_sp),
-                     "r"(aarch64_boot)
-                   : "x0", "x1", "x2");
+                   : "r"(dtb_va), "r"(pde), "r"(sbrk_end), "r"(vma_end),
+                     "r"(boot_sp), "r"(aarch64_boot)
+                   : "x0", "x1", "x2", "x3");
   __unreachable();
 }
 
 extern void *board_stack(void);
 
-static __noreturn void aarch64_boot(void *dtb, paddr_t pde,
-                                    vaddr_t kernel_end) {
-  vm_kernel_end = kernel_end;
+static __noreturn void aarch64_boot(void *dtb, paddr_t pde, paddr_t sbrk_end,
+                                    vaddr_t vma_end) {
+  vm_kernel_end = vma_end;
+  boot_sbrk_end = sbrk_end;
 
 #if KASAN
   _kasan_sanitized_end =

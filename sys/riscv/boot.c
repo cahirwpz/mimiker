@@ -74,8 +74,8 @@
 
 #define BOOT_PD_VADDR (DMAP_BASE + GROWKERNEL_STRIDE)
 
-static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t bootmem_end,
-                                  vaddr_t kernel_end);
+static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t sbrk_end,
+                                  vaddr_t vma_end);
 
 /*
  * Virtual memory boot data.
@@ -174,12 +174,12 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
   vaddr_t dtb_va = VIRTADDR(boot_save_dtb(dtb));
 
   /* Make sure DTB is mapped into kernel virtual address space. */
-  vaddr_t kernel_end = VIRTADDR(boot_sbrk_align(PAGESIZE));
+  vaddr_t vma_end = VIRTADDR(boot_sbrk_align(PAGESIZE));
 
   /* Build kernel page table. */
-  pde_t *pde = build_page_table(kernel_end);
+  pde_t *pde = build_page_table(vma_end);
 
-  _bootmem_end = boot_sbrk(0);
+  void *sbrk_end = boot_sbrk(0);
 
   /* Temporarily set the trap vector. */
   csr_write(stvec, _riscv_boot);
@@ -204,7 +204,7 @@ __boot_text __noreturn void riscv_init(paddr_t dtb) {
                    "sfence.vma\n\t"
                    "1: j 1b" /* triggers instruction fetch page fault */
                    :
-                   : "r"(dtb_va), "r"(pde), "r"(_bootmem_end), "r"(kernel_end),
+                   : "r"(dtb_va), "r"(pde), "r"(sbrk_end), "r"(vma_end),
                      "r"(boot_sp), "r"(satp)
                    : "a0", "a1", "a2", "a3");
   __unreachable();
@@ -239,14 +239,12 @@ static void configure_cpu(void) {
   csr_clear(sie, SIE_SEIE | SIE_STIE | SIE_SSIE);
 }
 
-static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t bootmem_end,
-                                  vaddr_t kernel_end) {
+static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t sbrk_end,
+                                  vaddr_t vma_end) {
   configure_cpu();
 
-  vm_kernel_end = kernel_end;
-
-  extern paddr_t kern_phys_end;
-  kern_phys_end = bootmem_end;
+  vm_kernel_end = vma_end;
+  boot_sbrk_end = sbrk_end;
 
 #if KASAN
   _kasan_sanitized_end =
