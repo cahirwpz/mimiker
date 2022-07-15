@@ -35,6 +35,20 @@ static alignas(STACK_ALIGN) uint8_t _boot_stack[PAGESIZE];
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
 
+/* Without `volatile` Clang applies constant propagation optimization and
+ * that ends up generating relocations in `.text` instead of `.data` section.
+ * This is exactly what we're trying to avoid here! */
+__boot_data static volatile paddr_t _boot = (paddr_t)__boot;
+__boot_data static volatile paddr_t _eboot = (paddr_t)__eboot;
+__boot_data static volatile vaddr_t _text = (vaddr_t)__text;
+__boot_data static volatile vaddr_t _etext = (vaddr_t)__etext;
+__boot_data static volatile vaddr_t _rodata = (vaddr_t)__rodata;
+__boot_data static volatile vaddr_t _data = (vaddr_t)__data;
+__boot_data static volatile vaddr_t _ebss = (vaddr_t)__ebss;
+__boot_data static volatile vaddr_t _evec = (vaddr_t)exception_vectors;
+__boot_data static volatile vaddr_t _hvec = (vaddr_t)hypervisor_vectors;
+__boot_data static volatile vaddr_t _pcpu = (vaddr_t)_pcpu_data;
+
 __boot_text static void configure_cpu(void) {
   /* Enable hw management of data coherency with other cores in the cluster. */
   WRITE_SPECIALREG(S3_1_C15_c2_1, READ_SPECIALREG(S3_1_C15_C2_1) | SMPEN);
@@ -49,7 +63,7 @@ __boot_text static void configure_cpu(void) {
     halt();
 #endif
 
-  WRITE_SPECIALREG(tpidr_el1, _pcpu_data);
+  WRITE_SPECIALREG(tpidr_el1, _pcpu);
 }
 
 __boot_text static void drop_to_el1(void) {
@@ -97,7 +111,7 @@ el2_entry:
     WRITE_SPECIALREG(CNTVOFF_EL2, 0);
 
     /* Hypervisor trap functions. */
-    WRITE_SPECIALREG(VBAR_EL2, hypervisor_vectors);
+    WRITE_SPECIALREG(VBAR_EL2, _hvec);
 
     /* Prepare for jump into EL1. */
     WRITE_SPECIALREG(SP_EL1, __sp());
@@ -162,19 +176,18 @@ __boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
     L3_PAGE | ATTR_AF | ATTR_SH_IS | ATTR_IDX(ATTR_NORMAL_MEM_WB);
 
   /* boot sections */
-  early_kenter(pde, VIRTADDR(__boot), VIRTADDR(__eboot), (paddr_t)__boot,
+  early_kenter(pde, VIRTADDR(_boot), VIRTADDR(_eboot), _boot,
                ATTR_AP_RW | pte_default);
 
   /* text section */
-  early_kenter(pde, (vaddr_t)__text, (vaddr_t)__etext, PHYSADDR(__text),
-               ATTR_AP_RO | pte_default);
+  early_kenter(pde, _text, _etext, PHYSADDR(_text), ATTR_AP_RO | pte_default);
 
   /* rodata section */
-  early_kenter(pde, (vaddr_t)__rodata, (vaddr_t)__data, PHYSADDR(__rodata),
+  early_kenter(pde, _rodata, _data, PHYSADDR(_rodata),
                ATTR_AP_RO | ATTR_XN | pte_default);
 
   /* data & bss sections */
-  early_kenter(pde, (vaddr_t)__data, kernel_end, PHYSADDR(__data),
+  early_kenter(pde, _data, _ebss, PHYSADDR(_data),
                ATTR_AP_RW | ATTR_XN | pte_default);
 
   /* direct map construction */
@@ -182,7 +195,7 @@ __boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
                ATTR_AP_RW | ATTR_XN | pte_default);
 
 #if KASAN /* Prepare KASAN shadow mappings */
-  size_t kasan_sanitized_size = BOOT_KASAN_SANITIZED_SIZE(__ebss);
+  size_t kasan_sanitized_size = BOOT_KASAN_SANITIZED_SIZE(_ebss);
   size_t kasan_shadow_size = kasan_sanitized_size / KASAN_SHADOW_SCALE_SIZE;
   /* Allocate physical memory for shadow area */
   paddr_t kasan_shadow_pa = (paddr_t)boot_sbrk(kasan_shadow_size);
@@ -198,7 +211,7 @@ __boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
 __boot_text static void enable_mmu(pde_t *pde) {
   __dsb("sy");
 
-  WRITE_SPECIALREG(VBAR_EL1, exception_vectors);
+  WRITE_SPECIALREG(VBAR_EL1, _evec);
   WRITE_SPECIALREG(TTBR0_EL1, pde);
   WRITE_SPECIALREG(TTBR1_EL1, pde);
   __isb();
