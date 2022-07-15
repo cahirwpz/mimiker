@@ -8,6 +8,10 @@
 
 LLVM_VER := -14
 
+ifeq ($(shell which cache > /dev/null; echo $$?), 0)
+  CCACHE := ccache
+endif
+
 ifndef ARCH
   $(error ARCH variable not defined. Have you included config.mk?)
 endif
@@ -27,9 +31,9 @@ ifneq ($(shell which llvm-ar$(LLVM_VER) > /dev/null; echo $$?), 0)
   $(error llvm toolchain not found)
 endif
 
-CC	= clang$(LLVM_VER) -target $(TARGET) $(ABIFLAGS) -g
-CPP	= $(CC) -x c -E
-AS	= $(CC)
+CC	= $(CCACHE) clang$(LLVM_VER) -target $(TARGET) $(ABIFLAGS) -g
+CPP	= $(CCACHE) $(CC) -x c -E
+AS	= $(CCACHE) $(CC)
 LD	= ld.lld$(LLVM_VER)
 AR	= llvm-ar$(LLVM_VER)
 NM	= llvm-nm$(LLVM_VER)
@@ -50,9 +54,9 @@ ifneq ($(shell which $(TARGET)-gcc > /dev/null; echo $$?), 0)
   $(error $(TARGET)-gcc compiler not found - please refer to README.md!)
 endif
 
-CC	= $(TARGET)-gcc $(ABIFLAGS) -g
-CPP	= $(TARGET)-cpp
-AS	= $(CC)
+CC	= $(CCACHE) $(TARGET)-gcc $(ABIFLAGS) -g
+CPP	= $(CCACHE) $(TARGET)-cpp
+AS	= $(CCACHE) $(CC)
 LD	= $(TARGET)-ld
 AR	= $(TARGET)-ar
 NM	= $(TARGET)-nm

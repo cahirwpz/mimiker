@@ -5,6 +5,7 @@
 #include <dev/malta.h>
 #include <mips/mcontext.h>
 #include <mips/tlb.h>
+#include <sys/boot.h>
 #include <sys/klog.h>
 #include <sys/console.h>
 #include <sys/context.h>
