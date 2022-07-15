@@ -27,7 +27,7 @@ $(DEPENDENCY-FILES): $(SOURCES_GEN)
 
 .%.D: %.S
 	@echo "[DEP] $(DIR)$@"
-	$(AS) $(ASFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -MF $@
+	$(CC) $(ASFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -MF $@
 
 ifeq ($(words $(findstring $(MAKECMDGOALS), download clean distclean)), 0)
   -include $(DEPENDENCY-FILES)

@@ -76,9 +76,7 @@ static void process_dtb(char **tokens, kstack_t *stk) {
   *tokens = NULL;
 }
 
-void *board_stack(paddr_t dtb_pa, void *dtb_va) {
-  FDT_early_init(dtb_pa, dtb_va);
-
+void *board_stack(void) {
   kstack_t *stk = &thread0.td_kstack;
 
   /*

@@ -61,15 +61,26 @@ CONFIG = {
         'board': {
             'malta': {
                 'kernel': 'sys/mimiker.elf',
+                'dts': None,
                 'simulator': 'qemu'
             },
             'rpi3': {
                 'kernel': 'sys/mimiker.img.gz',
+                'dts': 'sys/dts/rpi3.dts',
+                'initrd-start': 0x8000000,
                 'simulator': 'qemu'
             },
             'litex-riscv': {
                 'kernel': 'sys/mimiker.img',
+                'dts': 'sys/dts/litex-riscv.dts',
+                'initrd-start': 0x42000000,
                 'simulator': 'renode',
+            },
+            'sifive_u': {
+                'kernel': 'sys/mimiker.elf',
+                'dts': 'sys/dts/sifive_u.dts',
+                'initrd-start': 0xbf000000,
+                'simulator': 'qemu'
             },
         },
     },
@@ -108,14 +119,26 @@ CONFIG = {
                 'options': [
                     '-machine', 'raspi3',
                     '-smp', '4',
-                    '-dtb', 'launch.dtb',
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ],
                 'drive': 'if=sd,index=0,format=qcow2,file={path}',
-            }
+            },
+            'sifive_u': {
+                'binary': 'qemu-mimiker-riscv64',
+                'options': [
+                    '-machine', 'sifive_u',
+                    '-smp', '5',
+                    '-m', '1G',
+                ],
+                'network_options': [],
+                'uarts': [
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty1', port=RandomPort(), raw=True)
+                ]
+            },
         }
     },
     'renode': {
@@ -137,7 +160,7 @@ CONFIG = {
             '-ex=set confirm no',
             '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
             '-ex=set tcp connect-timeout 30',
-            '-ex=target remote localhost:{gdbport}',
+            '-ex=target extended-remote localhost:{gdbport}',
             '--silent',
         ],
         'extra-options': [],
@@ -154,6 +177,16 @@ CONFIG = {
             },
             'litex-riscv': {
                 'binary': 'riscv32-mimiker-elf-gdb'
+            },
+            'sifive_u': {
+                'binary': 'riscv64-mimiker-elf-gdb',
+                'extra-options': [
+                    '-ex=add-inferior',
+                    '-ex=inferior 2',
+                    '-ex=file {kernel}',
+                    '-ex=attach 2',
+                    '-ex=set schedule-multiple on',
+                ],
             },
         }
     }
@@ -258,8 +291,12 @@ class QEMU(Launchable):
             port = uart['port']
             self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
 
-        if getvar('board') == 'malta' and getvar('config.args'):
-            self.options += ['-append', ' '.join(getvar('config.args'))]
+        if not getvar('config.dts'):
+            if getvar('config.args'):
+                self.options += ['-append', ' '.join(getvar('config.args'))]
+        else:
+            self.options += ['-dtb', 'launch.dtb']
+
         if getvar('config.debug'):
             self.options += ['-S']
         if not getvar('config.graphics'):
@@ -307,7 +344,9 @@ class GDB(Launchable):
 
         self.options += getopts(
                 'gdb.pre-options', 'gdb.extra-options', 'gdb.post-options')
-        self.options.append(getvar('config.elf'))
+
+        if getvar('board') != 'sifive_u':
+            self.options.append(getvar('config.elf'))
 
 
 class SOCAT(Launchable):
@@ -400,17 +439,24 @@ def setup_terminal():
 
 def prepare_dtb():
     bootargs = ' '.join(getvar('config.args'))
-    board = getvar('board')
-    dts = f'sys/dts/{board}.dts'
-    if not os.path.isfile(dts):
+    dts = getvar('config.dts')
+    if not dts:
         return
+
+    if not os.path.isfile(dts):
+        raise SystemExit(f'{dts}: file does not exist!')
+
+    initrd_start = getvar('config.initrd-start')
+    initrd_end = initrd_start + os.path.getsize(getvar('config.initrd'))
 
     try:
         with open('launch.dts', mode='w') as tmp:
             with redirect_stdout(tmp):
                 print(f'/include/ "{dts}"')
                 print('&{/chosen} {')
-                print(f'  bootargs = "{bootargs}";')
+                print(f'    bootargs = "{bootargs}";')
+                print(f'    linux,initrd-start = <{initrd_start}>;')
+                print(f'    linux,initrd-end = <{initrd_end}>;')
                 print('};')
 
         subprocess.check_call(
@@ -439,8 +485,8 @@ if __name__ == '__main__':
                         help='Test-run will fail after n seconds.')
     parser.add_argument('-g', '--graphics', action='store_true',
                         help='Enable VGA output.')
-    parser.add_argument('-b', '--board', default='malta',
-                        choices=['malta', 'rpi3', 'litex-riscv'],
+    parser.add_argument('-b', '--board', default='rpi3',
+                        choices=['malta', 'rpi3', 'litex-riscv', 'sifive_u'],
                         help='Emulated board.')
     parser.add_argument('-s', '--storage', type=str,
                         help='QCOW2 image to be attached as a default storage '

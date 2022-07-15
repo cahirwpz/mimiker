@@ -30,7 +30,7 @@ double scalbn(double x, int n) {
   return scalbln(x, n);
 }
 
-__weak_alias(ldexp, scalbn);
+__weak_alias(scalbn, ldexp);
 
 double scalbln(double x, long n) {
   int32_t k, hx, lx;
