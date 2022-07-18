@@ -51,7 +51,7 @@ static void hidm_init_evdev(device_t *dev) {
 
   /* Mouse buttons. */
   evdev_support_event(evdev, EV_KEY);
-  evdev_support_all_known_buttons(evdev);
+  evdev_support_all_mouse_buttons(evdev);
   evdev_support_event(evdev, EV_REP);
 
   /* Mouse movement. */
@@ -86,7 +86,8 @@ static void hidm_process_buttons(hidm_state_t *hidm, uint8_t buttons) {
   }
 }
 
-static void hidm_process_in_report(hidm_state_t *hidm, hidm_in_report_t *report) {
+static void hidm_process_in_report(hidm_state_t *hidm,
+                                   hidm_in_report_t *report) {
   /* Hnadle buttons. */
   hidm_process_buttons(hidm, report->buttons);
 
@@ -110,20 +111,20 @@ static void hidm_process_in_report(hidm_state_t *hidm, hidm_in_report_t *report)
 static void hidm_thread(void *arg) {
   device_t *dev = arg;
   hidm_state_t *hidm = dev->state;
-  hidm_report_t report;
+  hidm_in_report_t report;
 
   /* Obtain a USB buf. */
   usb_buf_t *buf = usb_buf_alloc();
 
   /* Register an interrupt input transfer. */
-  usb_data_transfer(dev, buf, &report, sizeof(hidm_report_t), USB_TFR_INTERRUPT,
-                    USB_DIR_INPUT);
+  usb_data_transfer(dev, buf, &report, sizeof(hidm_in_report_t),
+                    USB_TFR_INTERRUPT, USB_DIR_INPUT);
 
   for (;;) {
     /* Wait for the data to arrvie. */
     int error = usb_buf_wait(buf);
     if (!error) {
-      hidm_process_report(hidm, &report);
+      hidm_process_in_report(hidm, &report);
       hidm->prev_buttons = report.buttons;
       continue;
     }
@@ -132,7 +133,7 @@ static void hidm_thread(void *arg) {
     if ((error = usb_unhalt_endpt(dev, USB_TFR_INTERRUPT, USB_DIR_INPUT)))
       panic("Unable to unhalt an endpoint");
 
-    usb_data_transfer(dev, buf, &report, sizeof(hidm_report_t),
+    usb_data_transfer(dev, buf, &report, sizeof(hidm_in_report_t),
                       USB_TFR_INTERRUPT, USB_DIR_INPUT);
   }
 }
