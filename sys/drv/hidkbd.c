@@ -51,7 +51,7 @@ static void hidkbd_init_evdev(device_t *dev) {
   evdev_support_event(evdev, EV_SYN);
   evdev_support_event(evdev, EV_KEY);
 
-  evdev_hidkbd_support_all_known_keys(evdev);
+  evdev_support_all_hidkbd_keys(evdev);
 
   /* NOTE: we assume that the HID keyboard supports hardware key repetiton,
    * which isn't said to always be true. */
