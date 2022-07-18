@@ -16,9 +16,9 @@
 #include <sys/types.h>
 
 #define log2(x) (CHAR_BIT * sizeof(unsigned long) - __builtin_clzl(x) - 1)
-#define ffs(x) (size_t)(__builtin_ffs(x))
-#define clz(x) (size_t)(__builtin_clz(x))
-#define ctz(x) (size_t)(__builtin_ctz(x))
+#define ffs(x) ((u_long)__builtin_ffsl(x))
+#define clz(x) ((u_long)__builtin_clzl(x))
+#define ctz(x) ((u_long)__builtin_ctzl(x))
 
 #define abs(x)                                                                 \
   ({                                                                           \
@@ -54,7 +54,7 @@
     intptr_t _addr = (intptr_t)(addr);                                         \
     intptr_t _size = (intptr_t)(size);                                         \
     _addr = (_addr + (_size - 1)) & -_size;                                    \
-    (typeof(addr)) _addr;                                                      \
+    (typeof(addr))_addr;                                                       \
   })
 
 #define is_aligned(addr, size)                                                 \
@@ -70,10 +70,6 @@
 /* Checks often used in assert statements. */
 bool preempt_disabled(void);
 bool intr_disabled(void) __no_profile;
-
-/* Attribute macros for boot/wired functions/data */
-#define __boot_text __long_call __section(".boot.text")
-#define __boot_data __section(".boot.data")
 
 #define CLEANUP_FUNCTION(func) __CONCAT(__cleanup_, func)
 #define DEFINE_CLEANUP_FUNCTION(type, func)                                    \
@@ -136,12 +132,11 @@ extern char __etext[];
 #ifdef _MACHDEP
 /* Symbols defined by linker and used during kernel boot phase. */
 extern char __boot[];
+extern char __eboot[];
+extern char __rodata[];
 extern char __data[];
 extern char __bss[];
 extern char __ebss[];
-
-/* Last physical address used by kernel for boot memory allocation. */
-extern __boot_data void *_bootmem_end;
 #endif /* !_MACHDEP */
 
 #endif /* !_SYS_MIMIKER_H_ */

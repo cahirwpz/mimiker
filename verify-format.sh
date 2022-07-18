@@ -3,7 +3,7 @@
 PAGER=cat
 
 # Use make format to cleanup the copied tree
-make format > /dev/null
+make format > /dev/null || exit 1
 
 # See if there are any changes compared to checked out sources.
 if ! git diff --check --exit-code >/dev/null; then

@@ -1,11 +1,13 @@
+#include <sys/boot.h>
+#include <sys/fdt.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
+#include <sys/pmap.h>
 #include <sys/kasan.h>
+#include <aarch64/abi.h>
 #include <aarch64/armreg.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
-#include <aarch64/pte.h>
-#include <aarch64/kasan.h>
 
 #define __tlbi(x) __asm__ volatile("TLBI " x)
 #define __dsb(x) __asm__ volatile("DSB " x)
@@ -18,28 +20,35 @@
     __rv;                                                                      \
   })
 
-/* Last physical address used by kernel for boot memory allocation. */
-__boot_data void *_bootmem_end;
-/* Kernel page directory entries. */
-extern paddr_t _kernel_pmap_pde;
-static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
+#define PHYSADDR(x) ((paddr_t)(x) & (~KERNEL_SPACE_BEGIN))
+#define VIRTADDR(x) ((vaddr_t)(x) | KERNEL_SPACE_BEGIN)
+
+#define BOOT_KASAN_SANITIZED_SIZE(end)                                         \
+  roundup2(roundup2((vaddr_t)(end), PAGESIZE) - KASAN_SANITIZED_START,         \
+           SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE)
+
+static __noreturn void aarch64_boot(void *dtb, paddr_t pde, paddr_t sbrk_end,
+                                    vaddr_t vma_end);
+
+static alignas(STACK_ALIGN) uint8_t _boot_stack[PAGESIZE];
 
 extern char exception_vectors[];
 extern char hypervisor_vectors[];
 
-__boot_text static void halt(void) {
-  for (;;)
-    continue;
-}
-
-/* Allocates & clears pages in physical memory just after kernel image end. */
-static __boot_text void *bootmem_alloc(size_t bytes) {
-  uint64_t *addr = _bootmem_end;
-  _bootmem_end += bytes;
-  for (unsigned i = 0; i < bytes / sizeof(uint64_t); i++)
-    addr[i] = 0;
-  return addr;
-}
+/* Without `volatile` Clang applies constant propagation optimization and
+ * that ends up generating relocations in `.text` instead of `.data` section.
+ * This is exactly what we're trying to avoid here! */
+__boot_data static volatile paddr_t _boot = (paddr_t)__boot;
+__boot_data static volatile paddr_t _eboot = (paddr_t)__eboot;
+__boot_data static volatile vaddr_t _text = (vaddr_t)__text;
+__boot_data static volatile vaddr_t _etext = (vaddr_t)__etext;
+__boot_data static volatile vaddr_t _rodata = (vaddr_t)__rodata;
+__boot_data static volatile vaddr_t _data = (vaddr_t)__data;
+__boot_data static volatile vaddr_t _bss = (vaddr_t)__bss;
+__boot_data static volatile vaddr_t _ebss = (vaddr_t)__ebss;
+__boot_data static volatile vaddr_t _evec = (vaddr_t)exception_vectors;
+__boot_data static volatile vaddr_t _hvec = (vaddr_t)hypervisor_vectors;
+__boot_data static volatile vaddr_t _pcpu = (vaddr_t)_pcpu_data;
 
 __boot_text static void configure_cpu(void) {
   /* Enable hw management of data coherency with other cores in the cluster. */
@@ -55,7 +64,7 @@ __boot_text static void configure_cpu(void) {
     halt();
 #endif
 
-  WRITE_SPECIALREG(tpidr_el1, _pcpu_data);
+  WRITE_SPECIALREG(tpidr_el1, _pcpu);
 }
 
 __boot_text static void drop_to_el1(void) {
@@ -103,7 +112,7 @@ el2_entry:
     WRITE_SPECIALREG(CNTVOFF_EL2, 0);
 
     /* Hypervisor trap functions. */
-    WRITE_SPECIALREG(VBAR_EL2, hypervisor_vectors);
+    WRITE_SPECIALREG(VBAR_EL2, _hvec);
 
     /* Prepare for jump into EL1. */
     WRITE_SPECIALREG(SP_EL1, __sp());
@@ -114,127 +123,96 @@ el2_entry:
   }
 
 el1_entry:
+  WRITE_SPECIALREG(SPSR_EL1, PSR_DAIF);
   return;
 }
 
-#define AARCH64_PHYSADDR(x) ((paddr_t)(x) & (~KERNEL_SPACE_BEGIN))
+__boot_text static pde_t *early_pde_ptr(pde_t *pde, int lvl, vaddr_t va) {
+  /* l0 entry is 512GB */
+  if (lvl == 0)
+    return pde + L0_INDEX(va);
+  /* l1 entry is 1GB */
+  if (lvl == 1)
+    return pde + L1_INDEX(va);
+  /* l2 entry is 2MB */
+  if (lvl == 2)
+    return pde + L2_INDEX(va);
+  /* l3 entry is 4KB */
+  return pde + L3_INDEX(va);
+}
 
-__boot_text static void clear_bss(void) {
-  uint64_t *ptr = (uint64_t *)AARCH64_PHYSADDR(__bss);
-  uint64_t *end = (uint64_t *)AARCH64_PHYSADDR(__ebss);
-  while (ptr < end)
-    *ptr++ = 0;
+__boot_text static pte_t *early_ensure_pte(pde_t *pde, vaddr_t va) {
+  pde_t *pdep = early_pde_ptr(pde, 0, va);
+
+  for (unsigned lvl = 1; lvl < PAGE_TABLE_DEPTH; lvl++) {
+    paddr_t pa;
+    if (*pdep & Ln_VALID) {
+      pa = (paddr_t)(*pdep) & L3_PAGE_OA;
+    } else {
+      pa = (paddr_t)boot_sbrk(PAGESIZE);
+      *pdep = pa | L0_TABLE; /* works for all levels */
+    }
+    pdep = early_pde_ptr((pde_t *)pa, lvl, va);
+  }
+
+  return (pte_t *)pdep;
+}
+
+__boot_text static void early_kenter(pde_t *pde, vaddr_t va, vaddr_t va_end,
+                                     paddr_t pa, u_long flags) {
+  for (; va < va_end; va += PAGESIZE, pa += PAGESIZE) {
+    pte_t *ptep = early_ensure_pte(pde, va);
+    *ptep = pa | flags;
+  }
 }
 
 /* Create direct map of whole physical memory located at DMAP_BASE virtual
  * address. We will use this mapping later in pmap module. */
 
-__boot_text static paddr_t build_page_table(void) {
-  /* l0 entry is 512GB */
-  volatile pde_t *l0 = bootmem_alloc(PAGESIZE);
-  /* l1 entry is 1GB */
-  volatile pde_t *l1 = bootmem_alloc(PAGESIZE);
-  /* l2 entry is 2MB */
-  volatile pde_t *l2 = bootmem_alloc(PAGESIZE);
-  /* l3 entry is 4KB */
-  volatile pte_t *l3 = bootmem_alloc(PAGESIZE);
-
-  paddr_t text = AARCH64_PHYSADDR(__text);
-  paddr_t data = AARCH64_PHYSADDR(__data);
-  paddr_t ebss = AARCH64_PHYSADDR(roundup((vaddr_t)__ebss, PAGESIZE));
-  vaddr_t va = KERNEL_SPACE_BEGIN + (vaddr_t)__boot;
-
-  l0[L0_INDEX(va)] = (pde_t)l1 | L0_TABLE;
-  l1[L1_INDEX(va)] = (pde_t)l2 | L1_TABLE;
-  l2[L2_INDEX(va)] = (pde_t)l3 | L2_TABLE;
-
-  /* TODO(pj) imitate pmap_growkernel from NetBSD */
-  l2[L2_INDEX(0)] = (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
-  for (int i = 0; i < 32; i++) {
-    l2[L2_INDEX(0xffff000000400000 + i * PAGESIZE * PT_ENTRIES)] =
-      (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
-  }
+__boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
+  /* Allocate kernel page directory.*/
+  pde_t *pde = boot_sbrk(PAGESIZE);
 
   const pte_t pte_default =
     L3_PAGE | ATTR_AF | ATTR_SH_IS | ATTR_IDX(ATTR_NORMAL_MEM_WB);
 
-  paddr_t pa = (paddr_t)__boot;
-
   /* boot sections */
-  for (; pa < text; pa += PAGESIZE, va += PAGESIZE)
-    l3[L3_INDEX(va)] = pa | ATTR_AP_RW | pte_default;
+  early_kenter(pde, VIRTADDR(_boot), VIRTADDR(_eboot), _boot,
+               ATTR_AP_RW | pte_default);
 
   /* text section */
-  for (; pa < data; pa += PAGESIZE, va += PAGESIZE)
-    l3[L3_INDEX(va)] = pa | ATTR_AP_RO | pte_default;
+  early_kenter(pde, _text, _etext, PHYSADDR(_text), ATTR_AP_RO | pte_default);
+
+  /* rodata section */
+  early_kenter(pde, _rodata, _data, PHYSADDR(_rodata),
+               ATTR_AP_RO | ATTR_XN | pte_default);
 
   /* data & bss sections */
-  for (; pa < ebss; pa += PAGESIZE, va += PAGESIZE)
-    l3[L3_INDEX(va)] = pa | ATTR_AP_RW | ATTR_XN | pte_default;
+  early_kenter(pde, _data, _ebss, PHYSADDR(_data),
+               ATTR_AP_RW | ATTR_XN | pte_default);
 
   /* direct map construction */
-  volatile pde_t *l1d = bootmem_alloc(DMAP_L1_SIZE);
-  volatile pde_t *l2d = bootmem_alloc(DMAP_L2_SIZE);
-  volatile pde_t *l3d = bootmem_alloc(DMAP_L3_SIZE);
-
-  for (intptr_t i = 0; i < DMAP_L3_ENTRIES; i++)
-    l3d[i] = (i * PAGESIZE) | ATTR_AP_RW | ATTR_XN | pte_default;
-
-  for (intptr_t i = 0; i < DMAP_L2_ENTRIES; i++)
-    l2d[i] = (pde_t)&l3d[i * PT_ENTRIES] | L2_TABLE;
-
-  for (intptr_t i = 0; i < DMAP_L1_ENTRIES; i++)
-    l1d[i] = (pde_t)&l2d[i * PT_ENTRIES] | L1_TABLE;
-
-  l0[L0_INDEX(DMAP_BASE)] = (pde_t)l1d | L0_TABLE;
+  early_kenter(pde, DMAP_BASE, DMAP_BASE + DMAP_SIZE, 0,
+               ATTR_AP_RW | ATTR_XN | pte_default);
 
 #if KASAN /* Prepare KASAN shadow mappings */
-  /* XXX we add 2 * SUPERPAGESIZE to account for future allocations made with
-   * vm_boot_alloc() which can't extend the shadow map, as the VM system isn't
-   * fully initialized yet. */
-  size_t kasan_sanitized_size =
-    2 * SUPERPAGESIZE + roundup2(va - KASAN_MD_SANITIZED_START,
-                                 SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE);
+  size_t kasan_sanitized_size = BOOT_KASAN_SANITIZED_SIZE(_ebss);
   size_t kasan_shadow_size = kasan_sanitized_size / KASAN_SHADOW_SCALE_SIZE;
-  vaddr_t kasan_shadow_end = KASAN_MD_SHADOW_START + kasan_shadow_size;
-  va = KASAN_MD_SHADOW_START;
-  /* XXX _kasan_sanitized_end is at a high address which is not mapped yet,
-   * so we access it using its physical address instead. */
-  *(vaddr_t *)AARCH64_PHYSADDR(&_kasan_sanitized_end) =
-    KASAN_MD_SANITIZED_START + kasan_sanitized_size;
   /* Allocate physical memory for shadow area */
-  pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
+  paddr_t kasan_shadow_pa = (paddr_t)boot_sbrk(kasan_shadow_size);
 
-  while (va < kasan_shadow_end) {
-    if (l0[L0_INDEX(va)] == 0)
-      l0[L0_INDEX(va)] = (pde_t)bootmem_alloc(PAGESIZE) | L0_TABLE;
-
-    pde_t *l1k = (pde_t *)PTE_FRAME_ADDR(l0[L0_INDEX(va)]);
-    if (l1k[L1_INDEX(va)] == 0)
-      l1k[L1_INDEX(va)] = (pde_t)bootmem_alloc(PAGESIZE) | L1_TABLE;
-
-    pde_t *l2k = (pde_t *)PTE_FRAME_ADDR(l1k[L1_INDEX(va)]);
-    if (l2k[L2_INDEX(va)] == 0)
-      l2k[L2_INDEX(va)] = (pde_t)bootmem_alloc(PAGESIZE) | L2_TABLE;
-
-    pde_t *l3k = (pde_t *)PTE_FRAME_ADDR(l2k[L2_INDEX(va)]);
-
-    for (int j = 0; va < kasan_shadow_end && j < PT_ENTRIES; j++) {
-      l3k[L3_INDEX(va)] = pa | ATTR_AP_RW | ATTR_XN | pte_default;
-      va += PAGESIZE;
-      pa += PAGESIZE;
-    }
-  }
+  early_kenter(pde, KASAN_SHADOW_START, KASAN_SHADOW_START + kasan_shadow_size,
+               kasan_shadow_pa, ATTR_AP_RW | ATTR_XN | pte_default);
 #endif /* KASAN */
 
-  return (paddr_t)l0;
+  return pde;
 }
 
 /* Based on locore.S from FreeBSD. */
-__boot_text static void enable_mmu(paddr_t pde) {
+__boot_text static void enable_mmu(pde_t *pde) {
   __dsb("sy");
 
-  WRITE_SPECIALREG(VBAR_EL1, exception_vectors);
+  WRITE_SPECIALREG(VBAR_EL1, _evec);
   WRITE_SPECIALREG(TTBR0_EL1, pde);
   WRITE_SPECIALREG(TTBR1_EL1, pde);
   __isb();
@@ -293,24 +271,69 @@ __boot_text static void enable_mmu(paddr_t pde) {
   WRITE_SPECIALREG(sctlr_el1, SCTLR_M | SCTLR_I | SCTLR_C | SCTLR_A | SCTLR_SA |
                                 SCTLR_SA0);
   __isb();
-
-  _kernel_pmap_pde = pde;
 }
 
-__boot_text void *aarch64_init(void) {
+__boot_text __noreturn void aarch64_init(paddr_t dtb) {
   drop_to_el1();
   configure_cpu();
-  clear_bss();
+  boot_clear(PHYSADDR(_bss), PHYSADDR(_ebss));
+  boot_sbrk_init(PHYSADDR(_ebss));
 
-  /* Set end address of kernel for boot allocation purposes. */
-  _bootmem_end = (void *)align(AARCH64_PHYSADDR(__ebss), PAGESIZE);
+  vaddr_t dtb_va = VIRTADDR(boot_save_dtb(dtb));
 
-  enable_mmu(build_page_table());
-  return &_boot_stack[PAGESIZE];
+  /* Make sure DTB is mapped into kernel virtual address space. */
+  vaddr_t vma_end = VIRTADDR(boot_sbrk_align(PAGESIZE));
+
+  pde_t *pde = build_page_table(vma_end);
+  enable_mmu(pde);
+
+  void *sbrk_end = boot_sbrk(0);
+
+  vaddr_t boot_sp = (vaddr_t)&_boot_stack[PAGESIZE];
+
+  __asm __volatile("mov x0, %0\n\t"
+                   "mov x1, %1\n\t"
+                   "mov x2, %2\n\t"
+                   "mov x3, %3\n\t"
+                   "mov sp, %4\n\t"
+                   "br %5"
+                   :
+                   : "r"(dtb_va), "r"(pde), "r"(sbrk_end), "r"(vma_end),
+                     "r"(boot_sp), "r"(aarch64_boot)
+                   : "x0", "x1", "x2", "x3");
+  __unreachable();
+}
+
+extern void *board_stack(void);
+
+static __noreturn void aarch64_boot(void *dtb, paddr_t pde, paddr_t sbrk_end,
+                                    vaddr_t vma_end) {
+  vm_kernel_end = vma_end;
+  boot_sbrk_end = sbrk_end;
+
+#if KASAN
+  _kasan_sanitized_end =
+    KASAN_SANITIZED_START + BOOT_KASAN_SANITIZED_SIZE((vaddr_t)__ebss);
+#endif
+
+  FDT_init(dtb);
+
+  void *sp = board_stack();
+
+  pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
+
+  /*
+   * Switch to thread0's stack and perform `board_init`.
+   */
+  __asm __volatile("mov sp, %0\n\t"
+                   "b board_init"
+                   :
+                   : "r"(sp));
+  __unreachable();
 }
 
 /* TODO(pj) Remove those after architecture split of gdb debug scripts. */
 typedef struct {
 } tlbentry_t;
 
-static __unused __boot_data volatile tlbentry_t _gdb_tlb_entry;
+static __used __boot_data volatile tlbentry_t _gdb_tlb_entry;

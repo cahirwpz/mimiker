@@ -34,16 +34,20 @@ void device_remove_child(device_t *parent, device_t *dev) {
 int device_probe(device_t *dev) {
   assert(dev->driver != NULL);
   d_probe_t probe = dev->driver->probe;
-  int found = probe ? probe(dev) : 0;
-  if (found)
-    dev->state = kmalloc(M_DEV, dev->driver->size, M_ZERO);
-  return found;
+  return probe ? probe(dev) : 0;
 }
 
 int device_attach(device_t *dev) {
   assert(dev->driver != NULL);
   d_attach_t attach = dev->driver->attach;
-  return attach ? attach(dev) : ENODEV;
+  if (attach == NULL)
+    return ENODEV;
+  dev->state = kmalloc(M_DEV, dev->driver->size, M_ZERO);
+  int err = attach(dev);
+  if (!err)
+    return 0;
+  kfree(M_DEV, dev->state);
+  return err;
 }
 
 int device_detach(device_t *dev) {
@@ -68,7 +72,11 @@ void device_add_resource(device_t *dev, res_type_t type, int rid,
                          rman_addr_t start, rman_addr_t end, size_t size,
                          rman_flags_t flags) {
   assert(!resource_list_find(dev, rid, type));
-  resource_t *r = bus_alloc_resource(dev, type, rid, start, end, size, flags);
+  resource_t *r;
+  if (type == RT_IRQ)
+    r = pic_alloc_intr(dev, rid, start, flags);
+  else
+    r = bus_alloc_resource(dev, type, rid, start, end, size, flags);
   assert(r);
   SLIST_INSERT_HEAD(&dev->resources, r, r_link);
 }
@@ -79,7 +87,7 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
   if (!r)
     return NULL;
 
-  if (flags & RF_ACTIVE)
+  if ((type != RT_IRQ) && flags & RF_ACTIVE)
     bus_activate_resource(dev, r);
 
   return r;

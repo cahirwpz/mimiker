@@ -32,8 +32,6 @@
 #ifndef _AARCH64_ASM_H_
 #define _AARCH64_ASM_H_
 
-#include <aarch64/cdefs.h>
-
 #define _C_LABEL(x) x
 
 #define EXPORT(x)                                                              \
