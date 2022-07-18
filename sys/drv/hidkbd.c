@@ -8,13 +8,13 @@
  *     https://www.usb.org/sites/default/files/hid1_11.pdf
  */
 #define KL_LOG KL_DEV
-#include <sys/klog.h>
-#include <sys/libkern.h>
-#include <sys/errno.h>
 #include <sys/devclass.h>
 #include <sys/device.h>
-#include <sys/sched.h>
+#include <sys/errno.h>
 #include <dev/evdev.h>
+#include <sys/klog.h>
+#include <sys/libkern.h>
+#include <sys/sched.h>
 #include <dev/usb.h>
 
 #define HIDKBD_NMODKEYS 8
@@ -22,7 +22,7 @@
 
 /* HID keyboard input report. */
 typedef struct hidkbd_in_report {
-  uint8_t modifier_keys;
+  uint8_t modkeys;
   uint8_t reserved;
   uint8_t keycodes[HIDKBD_NKEYCODES];
 } __packed hidkbd_in_report_t;
@@ -30,30 +30,30 @@ typedef struct hidkbd_in_report {
 /* HID keyboard software context. */
 typedef struct hidkbd_state {
   hidkbd_in_report_t prev_report; /* the most recent report */
-  thread_t *thread;               /* thread which gathers scancodes */
-  evdev_dev_t *evdev;             /* evdev device structure */
+  thread_t *thread;               /* scancode gathering thread */
+  evdev_dev_t *evdev;             /* corresponding evdev device */
 } hidkbd_state_t;
 
 /*
  * Evdev handling functions.
  */
 
-/* Create and setup a corresponding evdev device. */
 static void hidkbd_init_evdev(device_t *dev) {
-  usb_device_t *udev = usb_device_of(dev);
   hidkbd_state_t *hidkbd = dev->state;
   evdev_dev_t *evdev = evdev_alloc();
 
   /* Set the basic evdev parameters. */
+  usb_device_t *udev = usb_device_of(dev);
   evdev_set_name(evdev, "HID keyboard");
   evdev_set_id(evdev, BUS_USB, udev->vendor_id, udev->product_id, 0);
 
-  /* EV_SYN is required for every evdev device. */
+  /* `EV_SYN` is required for every evdev device. */
   evdev_support_event(evdev, EV_SYN);
-
   evdev_support_event(evdev, EV_KEY);
+
   evdev_hidkbd_support_all_known_keys(evdev);
-  /* NOTE: we assume that the keyboard supports hardware key repetiton,
+
+  /* NOTE: we assume that the HID keyboard supports hardware key repetiton,
    * which isn't said to always be true. */
   evdev_support_event(evdev, EV_REP);
 
@@ -68,66 +68,63 @@ static void hidkbd_init_evdev(device_t *dev) {
  * Report processing functions.
  */
 
-/* Process modifier keys. */
-static void hidkbd_process_modkeys(hidkbd_state_t *hidkbd, uint8_t modkeys) {
-  uint8_t prev_modkeys = hidkbd->prev_report.modifier_keys;
+static void hidkbd_push_evdev_event(hidkbd_state_t *hidkbd,
+                                    uint8_t hidkbd_keycode, uint32_t value) {
+  uint16_t evdev_keycode = evdev_hid2key(hidkbd_keycode);
+  if (evdev_keycode == KEY_RESERVED)
+    return;
+  evdev_push_event(hidkbd->evdev, EV_KEY, evdev_keycode, value);
+  evdev_sync(hidkbd->evdev);
+}
 
-  for (size_t i = 0; i <= HIDKBD_NMODKEYS; i++) {
+static void hidkbd_process_modkeys(hidkbd_state_t *hidkbd, uint8_t modkeys) {
+  uint8_t prev_modkeys = hidkbd->prev_report.modkeys;
+
+  for (size_t i = 0; i < HIDKBD_NMODKEYS; i++) {
     uint8_t prev = prev_modkeys & (1 << i);
     uint8_t cur = modkeys & (1 << i);
 
     if (prev == cur)
       continue;
 
-    uint16_t keycode = evdev_mod2key(i);
-    int32_t value = cur ? 1 : 0;
-    evdev_push_event(hidkbd->evdev, EV_KEY, keycode, value);
-    evdev_sync(hidkbd->evdev);
+    int32_t value = cur ? KEY_EVENT_DOWN : KEY_EVENT_UP;
+    hidkbd_push_evdev_event(hidkbd, i, value);
   }
 }
 
-/* Process keycodes. */
-static void hidkbd_process_keycodes(hidkbd_state_t *hidkbd, uint8_t *keycodes) {
+static void hidkbd_process_keycodes(hidkbd_state_t *hidkbd,
+                                    uint8_t keycodes[HIDKBD_NKEYCODES]) {
   uint8_t *prev_keycodes = hidkbd->prev_report.keycodes;
 
+  /* First, report released keys. */
+  for (size_t i = 0; i < HIDKBD_NKEYCODES; i++) {
+    uint8_t keycode = prev_keycodes[i];
+    if (!keycode)
+      break;
+
+    bool pressed = false;
+
+    for (size_t j = 0; j < HIDKBD_NKEYCODES; j++)
+      if (keycodes[j] == keycode)
+        pressed = true;
+
+    if (!pressed)
+      hidkbd_push_evdev_event(hidkbd, keycode, KEY_EVENT_UP);
+  }
+
+  /* Report pressed keys. */
   for (int i = 0; i < HIDKBD_NKEYCODES; i++) {
-    uint16_t keycode;
-    int32_t value = 1;
+    uint8_t keycode = keycodes[i];
+    if (!keycode)
+      break;
 
-    if (*prev_keycodes == *keycodes) {
-      if (*keycodes == 0)
-        break;
-      keycode = evdev_hid2key(*keycodes);
-      goto both_up;
-    }
-
-    /* Has the button been pressed? */
-    if (*prev_keycodes == 0) {
-      keycode = evdev_hid2key(*keycodes);
-      goto both_up;
-    }
-
-    /* The button has been released. */
-    keycode = evdev_hid2key(*prev_keycodes);
-    value = 0;
-    goto prev_up;
-
-  both_up:
-    keycodes++;
-  prev_up:
-    prev_keycodes++;
-
-    if (keycode != KEY_RESERVED) {
-      evdev_push_event(hidkbd->evdev, EV_KEY, keycode, value);
-      evdev_sync(hidkbd->evdev);
-    }
+    hidkbd_push_evdev_event(hidkbd, keycode, KEY_EVENT_DOWN);
   }
 }
 
-/* Process an input report. */
 static void hidkbd_process_in_report(hidkbd_state_t *hidkbd,
                                      hidkbd_in_report_t *report) {
-  hidkbd_process_modkeys(hidkbd, report->modifier_keys);
+  hidkbd_process_modkeys(hidkbd, report->modkeys);
   hidkbd_process_keycodes(hidkbd, report->keycodes);
 }
 
@@ -145,7 +142,7 @@ static void hidkbd_thread(void *arg) {
   usb_data_transfer(dev, buf, &report, sizeof(hidkbd_in_report_t),
                     USB_TFR_INTERRUPT, USB_DIR_INPUT);
 
-  while (true) {
+  for (;;) {
     /* Wait for the data to arrvie. */
     int error = usb_buf_wait(buf);
     if (!error) {
@@ -156,7 +153,7 @@ static void hidkbd_thread(void *arg) {
 
     /* Recover and reenable the transfer. */
     if ((error = usb_unhalt_endpt(dev, USB_TFR_INTERRUPT, USB_DIR_INPUT)))
-      panic("unable to unhalt an endpoint");
+      panic("Unable to unhalt an endpoint");
 
     usb_data_transfer(dev, buf, &report, sizeof(hidkbd_in_report_t),
                       USB_TFR_INTERRUPT, USB_DIR_INPUT);

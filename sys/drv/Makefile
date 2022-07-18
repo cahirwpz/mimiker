@@ -4,6 +4,7 @@ TOPDIR = $(realpath ../..)
 
 SOURCES = \
 	dev_cons.c \
+	hidkbd.c \
 	simplebus.c \
 	uart.c \
 	usb.c
@@ -15,7 +16,6 @@ SOURCES-MIPS = \
 	evdev.c \
 	evdev_kbd.c \
 	gt64120.c \
-	hidkbd.c \
 	isa.c \
 	malta_rootdev.c \
 	ns16550.c \
