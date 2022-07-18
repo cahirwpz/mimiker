@@ -91,8 +91,7 @@ static void atkbdc_thread(void *arg) {
     keycode = evdev_scancode2key(&atkbdc->evdev_state, scancode);
 
     if (keycode != KEY_RESERVED) {
-      evdev_push_event(atkbdc->evdev, EV_KEY, (uint16_t)keycode,
-                       scancode & 0x80 ? 0 : 1);
+      evdev_push_key(atkbdc->evdev, (uint16_t)keycode, !(scancode & 0x80));
       evdev_sync(atkbdc->evdev);
     }
   }

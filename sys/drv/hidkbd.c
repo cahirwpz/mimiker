@@ -73,7 +73,7 @@ static void hidkbd_push_evdev_event(hidkbd_state_t *hidkbd,
   uint16_t evdev_keycode = evdev_hid2key(hidkbd_keycode);
   if (evdev_keycode == KEY_RESERVED)
     return;
-  evdev_push_event(hidkbd->evdev, EV_KEY, evdev_keycode, value);
+  evdev_push_key(hidkbd->evdev, evdev_keycode, value);
   evdev_sync(hidkbd->evdev);
 }
 
