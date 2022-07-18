@@ -48,12 +48,4 @@ $(KLIB): $(OBJECTS) $(KLIBDEPS)
 	@echo "[DTB] $(DIR)$< -> $(DIR)$@"
 	dtc -O dtb -o $@ $<
 
-%_dtb.o: %.dtb
-	@echo "[OBJCOPY] $(DIR)$< -> $(DIR)$@"
-	$(OBJCOPY) -I binary -O $(ELFTYPE) -B $(ELFARCH) \
-	  --redefine-sym _binary_$(@:%.o=%)_start=__$(@:%.o=%)_start \
-	  --redefine-sym _binary_$(@:%.o=%)_end=__$(@:%.o=%)_end \
-	  --redefine-sym _binary_$(@:%.o=%)_size=__$(@:%.o=%)_size \
-	  $< $@
-
-CLEAN-FILES += *_dtb.o *.dtb
+CLEAN-FILES += *.dtb

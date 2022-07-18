@@ -815,7 +815,7 @@ int do_setlogin(const char *name) {
     return EINVAL;
 
   WITH_MTX_LOCK (&all_proc_mtx)
-    strncpy(p->p_pgrp->pg_session->s_login, name, LOGIN_NAME_MAX);
+    strlcpy(p->p_pgrp->pg_session->s_login, name, LOGIN_NAME_MAX);
 
   return 0;
 }
@@ -827,7 +827,7 @@ void proc_stop(signo_t sig) {
   assert(mtx_owned(&p->p_lock));
   assert(p->p_state == PS_NORMAL);
 
-  klog("Stopping thread %lu in process PID(%d)", td->td_tid, p->p_pid);
+  klog("Stopping thread %u in process PID(%d)", td->td_tid, p->p_pid);
   p->p_stopsig = sig;
   p->p_state = PS_STOPPED;
   p->p_flags |= PF_STATE_CHANGED;
@@ -835,7 +835,9 @@ void proc_stop(signo_t sig) {
     proc_wakeup_parent(p->p_parent);
     sig_child(p, CLD_STOPPED);
   }
-  WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
+  WITH_SPIN_LOCK (td->td_lock) {
+    td->td_flags |= TDF_STOPPING;
+  }
   proc_unlock(p);
   /* We're holding no locks here, so our process can be continued before we
    * actually stop the thread. This is why we need the TDF_STOPPING flag. */
@@ -857,12 +859,14 @@ void proc_continue(proc_t *p) {
   assert(mtx_owned(&p->p_lock));
   assert(p->p_state == PS_STOPPED);
 
-  klog("Continuing thread %lu in process PID(%d)", td->td_tid, p->p_pid);
+  klog("Continuing thread %u in process PID(%d)", td->td_tid, p->p_pid);
 
   p->p_state = PS_NORMAL;
   p->p_flags |= PF_STATE_CHANGED;
   WITH_PROC_LOCK(p->p_parent) {
     proc_wakeup_parent(p->p_parent);
   }
-  WITH_SPIN_LOCK (td->td_lock) { thread_continue(td); }
+  WITH_SPIN_LOCK (td->td_lock) {
+    thread_continue(td);
+  }
 }

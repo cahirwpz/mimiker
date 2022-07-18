@@ -7,7 +7,7 @@
 
 static int copyin_vmspace(vm_map_t *vm, const void *restrict udaddr,
                           void *restrict kaddr, size_t len) {
-  if (vm == vm_map_kernel()) {
+  if (!vm) {
     memcpy(kaddr, udaddr, len);
     return 0;
   }
@@ -20,7 +20,7 @@ static int copyin_vmspace(vm_map_t *vm, const void *restrict udaddr,
 
 static int copyout_vmspace(vm_map_t *vm, const void *restrict kaddr,
                            void *restrict udaddr, size_t len) {
-  if (vm == vm_map_kernel()) {
+  if (!vm) {
     memcpy(udaddr, kaddr, len);
     return 0;
   }

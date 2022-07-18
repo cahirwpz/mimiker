@@ -18,6 +18,7 @@
 #include <sys/exec.h>
 #include <sys/ktest.h>
 #include <sys/fcntl.h>
+#include <sys/fdt.h>
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/vm_map.h>
@@ -26,8 +27,8 @@
 #include <sys/console.h>
 #include <sys/stat.h>
 #include <sys/lockdep.h>
+#include <sys/kcsan.h>
 #include <sys/kgprof.h>
-#include <sys/dtb.h>
 
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
@@ -79,7 +80,6 @@ __noreturn void kernel_init(void) {
   init_pool();
   init_vmem();
   init_kmem();
-  init_vm_map();
 
   init_cons();
 
@@ -95,7 +95,6 @@ __noreturn void kernel_init(void) {
   preempt_enable();
 
   /* [FIRST_PASS] Initialize first timer and console devices. */
-  dtb_init();
   init_devices();
 
   init_vfs();
@@ -112,6 +111,8 @@ __noreturn void kernel_init(void) {
   init_kgprof();
 
   klog("Kernel initialized!");
+
+  init_kcsan();
 
   pid_t init_pid;
   do_fork(start_init, NULL, &init_pid);

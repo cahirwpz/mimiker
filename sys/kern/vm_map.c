@@ -33,8 +33,6 @@ struct vm_map {
 static POOL_DEFINE(P_VM_MAP, "vm_map", sizeof(vm_map_t));
 static POOL_DEFINE(P_VM_MAPENT, "vm_map_entry", sizeof(vm_map_entry_t));
 
-static vm_map_t *kspace = &(vm_map_t){};
-
 void vm_map_activate(vm_map_t *map) {
   SCOPED_NO_PREEMPTION();
 
@@ -57,19 +55,9 @@ void vm_map_unlock(vm_map_t *map) {
 }
 
 vm_map_t *vm_map_user(void) {
-  return PCPU_GET(uspace);
-}
-
-vm_map_t *vm_map_kernel(void) {
-  return kspace;
-}
-
-vaddr_t vm_map_start(vm_map_t *map) {
-  return map->pmap == pmap_kernel() ? KERNEL_SPACE_BEGIN : USER_SPACE_BEGIN;
-}
-
-vaddr_t vm_map_end(vm_map_t *map) {
-  return map->pmap == pmap_kernel() ? KERNEL_SPACE_END : USER_SPACE_END;
+  vm_map_t *map = PCPU_GET(uspace);
+  assert(map);
+  return map;
 }
 
 vaddr_t vm_map_entry_start(vm_map_entry_t *ent) {
@@ -84,31 +72,13 @@ inline vm_map_entry_t *vm_map_entry_next(vm_map_entry_t *ent) {
   return TAILQ_NEXT(ent, link);
 }
 
-bool vm_map_address_p(vm_map_t *map, vaddr_t addr) {
-  return map && vm_map_start(map) <= addr && addr < vm_map_end(map);
-}
-
-bool vm_map_contains_p(vm_map_t *map, vaddr_t start, vaddr_t end) {
-  return map && vm_map_start(map) <= start && end <= vm_map_end(map);
-}
-
-vm_map_t *vm_map_lookup(vaddr_t addr) {
-  if (vm_map_address_p(vm_map_user(), addr))
-    return vm_map_user();
-  if (vm_map_address_p(vm_map_kernel(), addr))
-    return vm_map_kernel();
-  return NULL;
+static bool userspace_p(vaddr_t start, vaddr_t end) {
+  return USER_SPACE_BEGIN <= start && end <= USER_SPACE_END;
 }
 
 static void vm_map_setup(vm_map_t *map) {
   TAILQ_INIT(&map->entries);
   mtx_init(&map->mtx, 0);
-}
-
-void init_vm_map(void) {
-  vm_map_setup(kspace);
-  kspace->pmap = pmap_kernel();
-  vm_map_activate(kspace);
 }
 
 vm_map_t *vm_map_new(void) {
@@ -237,8 +207,8 @@ static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
   assert(page_aligned_p(start) && page_aligned_p(length));
 
   /* Bounds check */
-  start = max(start, vm_map_start(map));
-  if (start + length > vm_map_end(map))
+  start = max(start, (vaddr_t)USER_SPACE_BEGIN);
+  if (start + length > (vaddr_t)USER_SPACE_END)
     return ENOMEM;
 
   if (after_p)
@@ -258,7 +228,7 @@ static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
   TAILQ_FOREACH (it, &map->entries, link) {
     vm_map_entry_t *next = vm_map_entry_next(it);
     vaddr_t gap_start = it->end;
-    vaddr_t gap_end = next ? next->start : vm_map_end(map);
+    vaddr_t gap_end = next ? next->start : USER_SPACE_END;
 
     /* Move start address forward if it points inside allocated space. */
     if (start < gap_start)
@@ -324,7 +294,7 @@ int vm_map_alloc_entry(vm_map_t *map, vaddr_t addr, size_t length,
   if (length == 0)
     return EINVAL;
 
-  if (addr != 0 && !vm_map_contains_p(map, addr, addr + length))
+  if (addr != 0 && !userspace_p(addr, addr + length))
     return EINVAL;
 
   /* Create object with a pager that supplies cleared pages on page fault. */
@@ -350,7 +320,7 @@ int vm_map_entry_resize(vm_map_t *map, vm_map_entry_t *ent, vaddr_t new_end) {
   if (new_end >= ent->end) {
     /* Expanding entry */
     vm_map_entry_t *next = vm_map_entry_next(ent);
-    vaddr_t gap_end = next ? next->start : vm_map_end(map);
+    vaddr_t gap_end = next ? next->start : USER_SPACE_END;
     if (new_end > gap_end)
       return ENOMEM;
   } else {
@@ -373,8 +343,7 @@ int vm_map_entry_resize(vm_map_t *map, vm_map_entry_t *ent, vaddr_t new_end) {
 void vm_map_dump(vm_map_t *map) {
   SCOPED_MTX_LOCK(&map->mtx);
 
-  klog("Virtual memory map (%08lx - %08lx):", vm_map_start(map),
-       vm_map_end(map));
+  klog("Virtual memory map (%08lx - %08lx):", USER_SPACE_BEGIN, USER_SPACE_END);
 
   vm_map_entry_t *it;
   TAILQ_FOREACH (it, &map->entries, link) {

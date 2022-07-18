@@ -1,8 +1,6 @@
 #ifndef _SYS_CDEFS_H_
 #define _SYS_CDEFS_H_
 
-#include <machine/cdefs.h>
-
 /*
  * To be used when an empty body is required like:
  *
@@ -82,6 +80,12 @@
 #define __no_profile
 #endif
 
+#ifdef KCSAN
+#define __no_kcsan_sanitize __no_sanitize
+#else
+#define __no_kcsan_sanitize
+#endif
+
 /* Clang introduces support for the fallthrough attribute in C2x. */
 #ifdef __clang__
 #define __fallthrough
@@ -112,10 +116,10 @@
 #define __sysloglike(fmtarg, firstvararg)                                      \
   __attribute__((__format__(__syslog__, fmtarg, firstvararg)))
 
-#define __strong_alias(alias, sym)                                             \
-  extern __typeof(alias) alias __attribute__((__alias__(#sym)))
-#define __weak_alias(alias, sym)                                               \
-  __strong_alias(alias, sym) __attribute__((__weak__))
+#define __strong_alias(sym, alias)                                             \
+  extern __typeof(sym) alias __attribute__((__alias__(#sym)))
+#define __weak_alias(sym, alias)                                               \
+  __strong_alias(sym, alias) __attribute__((__weak__))
 
 /*
  * The following macro is used to remove const cast-away warnings
@@ -177,5 +181,22 @@
  * Return the number of elements in a statically-allocated array __x.
  */
 #define __arraycount(__x) (sizeof(__x) / sizeof(__x[0]))
+
+/* __BIT(n): nth bit, where __BIT(0) == 0x1. */
+#define __BIT(__n)                                                             \
+  (((uintmax_t)(__n) >= NBBY * sizeof(uintmax_t))                              \
+     ? 0                                                                       \
+     : ((uintmax_t)1 << (uintmax_t)((__n) & (NBBY * sizeof(uintmax_t) - 1))))
+
+/* __MASK(n): first n bits all set, where __MASK(4) == 0b1111. */
+#define __MASK(__n) (__BIT(__n) - 1)
+
+/* Macros for min/max. */
+#define __MIN(a, b) ((/*CONSTCOND*/ (a) <= (b)) ? (a) : (b))
+#define __MAX(a, b) ((/*CONSTCOND*/ (a) > (b)) ? (a) : (b))
+
+/* __BITS(m, n): bits m through n, m < n. */
+#define __BITS(__m, __n)                                                       \
+  ((__BIT(__MAX((__m), (__n)) + 1) - 1) ^ (__BIT(__MIN((__m), (__n))) - 1))
 
 #endif /* !_SYS_CDEFS_H */

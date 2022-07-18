@@ -1,4 +1,5 @@
 #include <sys/kenv.h>
+#include <sys/boot.h>
 #include <sys/cmdline.h>
 #include <sys/libkern.h>
 #include <sys/klog.h>
@@ -9,77 +10,57 @@
 #include <sys/interrupt.h>
 #include <sys/kasan.h>
 #include <sys/fdt.h>
-#include <sys/dtb.h>
+#include <sys/pmap.h>
 #include <aarch64/mcontext.h>
 #include <aarch64/vm_param.h>
 #include <aarch64/pmap.h>
 
-/* Return offset of path at dtb or die. */
-static int dtb_offset(void *dtb, const char *path) {
-  int offset = fdt_path_offset(dtb, path);
-  if (offset < 0)
-    panic("Failed to find offset at dtb!");
-  return offset;
+static char **process_dtb_mem(char *buf, size_t buflen, char **tokens,
+                              kstack_t *stk) {
+  /*
+   * TODO: we assume that physical memory starts at fixed address 0.
+   * This assumption should be removed and the memory boundaries
+   * should be read from dtb (thus `mr` shouldn't be discarded).
+   */
+  fdt_mem_reg_t mrs[FDT_MAX_REG_TUPLES];
+  size_t cnt, size;
+  if (FDT_get_mem(mrs, &cnt, &size))
+    panic("Failed to retrieve memory regions from DTB!");
+  assert(cnt == 1);
+  snprintf(buf, buflen, "memsize=%lu", size);
+  return cmdline_extract_tokens(stk, buf, tokens);
 }
 
-static uint32_t process_dtb_memsize(void *dtb) {
-  int offset = dtb_offset(dtb, "/memory@0");
-  int len;
-  const uint32_t *prop = fdt_getprop(dtb, offset, "reg", &len);
-  /* reg contains start (4 bytes) and end (4 bytes) */
-  if (prop == NULL || (size_t)len < 2 * sizeof(uint32_t))
-    panic("Failed to get memory size from dtb!");
-
-  return fdt32_to_cpu(prop[1]);
+static char **process_dtb_initrd(char *buf, size_t buflen, char **tokens,
+                                 kstack_t *stk) {
+  fdt_mem_reg_t mr;
+  if (FDT_get_chosen_initrd(&mr))
+    panic("Failed to retrieve initrd boundaries from DTB!");
+  snprintf(buf, buflen, "rd_start=%lu", mr.addr);
+  tokens = cmdline_extract_tokens(stk, buf, tokens);
+  snprintf(buf, buflen, "rd_size=%lu", mr.size);
+  return cmdline_extract_tokens(stk, buf, tokens);
 }
 
-static int process_dtb_rd_start(void *dtb) {
-  int offset = dtb_offset(dtb, "/chosen");
-  int len;
-  const uint32_t *prop = fdt_getprop(dtb, offset, "linux,initrd-start", &len);
-  if (prop == NULL || (size_t)len < sizeof(uint32_t))
-    panic("Failed to get initrd-start from dtb!");
-
-  return fdt32_to_cpu(*prop);
+static char **process_dtb_bootargs(char **tokens, kstack_t *stk) {
+  const char *bootargs;
+  if (FDT_get_chosen_bootargs(&bootargs))
+    panic("Failed to retrieve bootargs from DTB!");
+  return cmdline_extract_tokens(stk, bootargs, tokens);
 }
 
-static int process_dtb_rd_size(void *dtb) {
-  int offset = dtb_offset(dtb, "/chosen");
-  int len;
-  const uint32_t *prop = fdt_getprop(dtb, offset, "linux,initrd-end", &len);
-  if (prop == NULL || (size_t)len < sizeof(uint32_t))
-    panic("Failed to get initrd-start from dtb!");
-
-  return fdt32_to_cpu(*prop) - process_dtb_rd_start(dtb);
-}
-
-static const char *process_dtb_cmdline(void *dtb) {
-  int offset = dtb_offset(dtb, "/chosen");
-  const char *prop = fdt_getprop(dtb, offset, "bootargs", NULL);
-  if (prop == NULL)
-    panic("Failed to get cmdline from dtb!");
-
-  return prop;
-}
-
-static void process_dtb(char **tokens, kstack_t *stk, void *dtb) {
-  if (fdt_check_header(dtb))
-    panic("dtb incorrect header!");
-
+static void process_dtb(char **tokens, kstack_t *stk) {
   char buf[32];
-  snprintf(buf, sizeof(buf), "memsize=%d", process_dtb_memsize(dtb));
-  tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "rd_start=%d", process_dtb_rd_start(dtb));
-  tokens = cmdline_extract_tokens(stk, buf, tokens);
-  snprintf(buf, sizeof(buf), "rd_size=%d", process_dtb_rd_size(dtb));
-  tokens = cmdline_extract_tokens(stk, buf, tokens);
-  tokens = cmdline_extract_tokens(stk, process_dtb_cmdline(dtb), tokens);
+
+  /* TODO: process reserved memory regions. */
+  tokens = process_dtb_mem(buf, sizeof(buf), tokens, stk);
+  tokens = process_dtb_initrd(buf, sizeof(buf), tokens, stk);
+  tokens = process_dtb_bootargs(tokens, stk);
+
   *tokens = NULL;
 }
 
-void *board_stack(paddr_t dtb) {
-  dtb_early_init(dtb, fdt_totalsize(PHYS_TO_DMAP(dtb)));
-
+void *board_stack(void) {
   kstack_t *stk = &thread0.td_kstack;
 
   thread0.td_uctx = kstack_alloc_s(stk, mcontext_t);
@@ -88,7 +69,7 @@ void *board_stack(paddr_t dtb) {
    * NOTE: memsize, rd_start, rd_size, cmdline + 2 = 6
    */
   char **kenvp = kstack_alloc(stk, 6 * sizeof(char *));
-  process_dtb(kenvp, stk, (void *)PHYS_TO_DMAP(dtb));
+  process_dtb(kenvp, stk);
   kstack_fix_bottom(stk);
   init_kenv(kenvp);
 
@@ -116,31 +97,32 @@ static void rpi3_physmem(void) {
   paddr_t ram_start = PAGESIZE;
   paddr_t ram_end = kenv_get_ulong("memsize");
   paddr_t kern_start = (paddr_t)__boot;
-  paddr_t kern_end = (paddr_t)_bootmem_end;
+  paddr_t kern_end = boot_sbrk_end;
   paddr_t rd_start = ramdisk_get_start();
   paddr_t rd_end = rd_start + ramdisk_get_size();
-  paddr_t dtb_start = dtb_early_root();
-  paddr_t dtb_end = dtb_start + fdt_totalsize(PHYS_TO_DMAP(dtb_start));
 
   /* TODO(pj) if vm_physseg_plug* interface was more flexible,
    * we could do without following hack, please refer to issue #1129 */
-  addr_range_t memory[3] = {
-    {.start = rounddown(kern_start, PAGESIZE),
-     .end = roundup(kern_end, PAGESIZE)},
-    {.start = rounddown(rd_start, PAGESIZE), .end = roundup(rd_end, PAGESIZE)},
-    {.start = rounddown(dtb_start, PAGESIZE),
-     .end = roundup(dtb_end, PAGESIZE)},
+  addr_range_t memory[2] = {
+    {
+      .start = rounddown(kern_start, PAGESIZE),
+      .end = roundup(kern_end, PAGESIZE),
+    },
+    {
+      .start = rounddown(rd_start, PAGESIZE),
+      .end = roundup(rd_end, PAGESIZE),
+    },
   };
 
-  qsort(memory, 3, sizeof(addr_range_t), addr_range_cmp);
+  qsort(memory, 2, sizeof(addr_range_t), addr_range_cmp);
 
   vm_physseg_plug(ram_start, memory[0].start);
-  for (int i = 0; i < 3; ++i) {
+  for (int i = 0; i < 2; ++i) {
     if (memory[i].start == memory[i].end)
       continue;
     assert(memory[i].start < memory[i].end);
     vm_physseg_plug_used(memory[i].start, memory[i].end);
-    if (i == 2) {
+    if (i == 1) {
       if (memory[i].end < ram_end)
         vm_physseg_plug(memory[i].end, ram_end);
     } else if (memory[i].end < memory[i + 1].start) {

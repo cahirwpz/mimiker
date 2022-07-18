@@ -12,6 +12,8 @@ def gmon_write(path):
     gparam = GmonParam(gdb.parse_and_eval('_gmonparam'))
     infer = gdb.inferiors()[0]
 
+    word_size = int(gdb.parse_and_eval('sizeof(long)'))
+
     with open(path, "wb") as of:
         # Write headers
         gmonhdr_size = int(gdb.parse_and_eval('sizeof(_gmonhdr)'))
@@ -28,13 +30,18 @@ def gmon_write(path):
 
         # The last H stands for padding in the tos strusture
         tos_rep = 'IiHH'
+        output_rep = "IIi"
+        if word_size == 8:
+            tos_rep = "QqHHi"
+            output_rep = "QQq"
         tos_rep_len = len(tos_rep)
         size = calcsize(tos_rep)
         tos_array = unpack(tos_rep * int(gparam.tossize/size), memory)
 
-        fromindex = 0
+        fromindex = -1
         froms_el_size = int(gdb.parse_and_eval('sizeof(*_gmonparam.froms)'))
         for from_val in froms_array:
+            fromindex += 1
             # Nothing has been called from this function
             if from_val == 0:
                 continue
@@ -49,8 +56,7 @@ def gmon_write(path):
                 selfpc = tos_array[toindex * tos_rep_len]
                 count = tos_array[toindex * tos_rep_len + 1]
                 toindex = tos_array[toindex * tos_rep_len + 2]
-                of.write(pack('IIi', frompc, selfpc, count))
-            fromindex += 1
+                of.write(pack(output_rep, frompc, selfpc, count))
 
 
 class Kgmon(SimpleCommand):
