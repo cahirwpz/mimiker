@@ -87,8 +87,7 @@ static void hidkbd_process_modkeys(hidkbd_state_t *hidkbd, uint8_t modkeys) {
     if (prev == cur)
       continue;
 
-    int32_t value = cur ? KEY_EVENT_DOWN : KEY_EVENT_UP;
-    hidkbd_push_evdev_event(hidkbd, i, value);
+    hidkbd_push_evdev_event(hidkbd, i, cur);
   }
 }
 
