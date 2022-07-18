@@ -615,6 +615,15 @@ void evdev_support_key(evdev_dev_t *evdev, uint16_t code) {
   bit_set(evdev->ev_key_flags, code);
 }
 
+void evdev_support_all_keys(evdev_dev_t *evdev, uint16_t *keyset,
+                            size_t nitems) {
+  for (size_t i = 0; i < nitems; i++) {
+    uint16_t keycode = keyset[i];
+    if (keycode != KEY_RESERVED)
+      evdev_support_key(evdev, keycode);
+  }
+}
+
 void evdev_support_rel(evdev_dev_t *evdev, uint16_t code) {
   assert(code < REL_CNT);
   bit_set(evdev->ev_rel_flags, code);

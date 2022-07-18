@@ -15,8 +15,7 @@ uint16_t evdev_hid2btn(uint8_t btnum) {
   return evdev_mouse_button_codes[btnum];
 }
 
-void evdev_support_all_known_buttons(evdev_dev_t *evdev) {
+void evdev_support_all_mouse_buttons(evdev_dev_t *evdev) {
   size_t nitems = sizeof(evdev_mouse_button_codes) / sizeof(uint16_t);
-  for (size_t i = KEY_RESERVED; i < nitems; i++)
-    evdev_support_key(evdev, evdev_mouse_button_codes[i]);
+  evdev_support_all_keys(evdev, evdev_mouse_button_codes, nitems);
 }
