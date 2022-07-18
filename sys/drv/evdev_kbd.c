@@ -6,15 +6,6 @@
 
 #define NONE KEY_RESERVED
 
-static void evdev_support_all_known_keys(evdev_dev_t *evdev, uint16_t *keyset,
-                                         size_t nitems) {
-  for (size_t i = 0; i < nitems; i++) {
-    uint16_t keycode = keyset[i];
-    if (keycode != NONE)
-      evdev_support_key(evdev, keycode);
-  }
-}
-
 /*
  * USB HID scancode list is available at:
  * https://www.win.tue.nl/~aeb/linux/kbd/scancodes-14.html
@@ -100,9 +91,9 @@ uint16_t evdev_hid2key(int scancode) {
   return evdev_usb_scancodes[scancode];
 }
 
-void evdev_hidkbd_support_all_known_keys(evdev_dev_t *evdev) {
+void evdev_support_all_hidkbd_keys(evdev_dev_t *evdev) {
   size_t nitems = sizeof(evdev_usb_scancodes) / sizeof(uint16_t);
-  evdev_support_all_known_keys(evdev, evdev_usb_scancodes, nitems);
+  evdev_support_all_keys(evdev, evdev_usb_scancodes, nitems);
 }
 
 /*
@@ -231,7 +222,7 @@ uint16_t evdev_scancode2key(int *statep, int scancode) {
   return keycode;
 }
 
-void evdev_atkbd_support_all_known_keys(evdev_dev_t *evdev) {
+void evdev_support_all_atkbd_keys(evdev_dev_t *evdev) {
   size_t nitems = sizeof(evdev_at_set1_scancodes) / sizeof(uint16_t);
-  evdev_support_all_known_keys(evdev, evdev_at_set1_scancodes, nitems);
+  evdev_support_all_keys(evdev, evdev_at_set1_scancodes, nitems);
 }
