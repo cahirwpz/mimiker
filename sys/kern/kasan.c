@@ -137,11 +137,27 @@ __always_inline static inline uint8_t shadow_8byte_isvalid(uintptr_t addr) {
 
 __always_inline static inline uint8_t shadow_Nbyte_isvalid(uintptr_t addr,
                                                            size_t size) {
-  for (size_t i = 0; i < size; i++) {
-    int8_t shadow_val = shadow_1byte_isvalid(addr + i);
+  while (size && (addr & KASAN_SHADOW_MASK)) {
+    int8_t shadow_val = shadow_1byte_isvalid(addr);
     if (__predict_false(shadow_val))
       return shadow_val;
+    addr++, size--;
   }
+
+  while (size >= KASAN_SHADOW_SCALE_SIZE) {
+    int8_t shadow_val = *addr_to_shad(addr);
+    if (__predict_false(shadow_val))
+      return shadow_val;
+    addr += KASAN_SHADOW_SCALE_SIZE, size -= KASAN_SHADOW_SCALE_SIZE;
+  }
+
+  while (size) {
+    int8_t shadow_val = shadow_1byte_isvalid(addr);
+    if (__predict_false(shadow_val))
+      return shadow_val;
+    addr++, size--;
+  }
+
   return 0;
 }
 
