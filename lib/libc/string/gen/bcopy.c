@@ -32,6 +32,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #include <stddef.h>
 
 #if defined(_STANDALONE) || defined(_KERNEL)
@@ -54,6 +55,7 @@ typedef long word; /* "word" used for optimal copy speed */
  * This is the routine that actually implements
  * (the portable versions of) bcopy, memcpy, and memmove.
  */
+__no_sanitize
 #if defined(MEMCOPY)
 void *memcpy(void *dst0, const void *src0, size_t length)
 #elif defined(MEMMOVE)

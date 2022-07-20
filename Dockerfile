@@ -4,9 +4,9 @@ WORKDIR /root
 
 RUN apt-get -q update && apt-get upgrade -y
 RUN apt-get install -y --no-install-recommends -t bullseye-backports \
-      git make cpio curl gnupg universal-ctags cscope socat patch gperf quilt \
-      bmake byacc python3-pip device-tree-compiler tmux libmpfr6 libfdt1 \
-      libpython3.9 libsdl2-2.0-0 libglib2.0-0 libpixman-1-0
+      git make ccache cpio curl gnupg universal-ctags cscope socat patch \
+      gperf quilt bmake byacc python3-pip device-tree-compiler tmux \
+      libmpfr6 libfdt1 libpython3.9 libsdl2-2.0-0 libglib2.0-0 libpixman-1-0
 RUN apt-key adv --fetch-keys https://apt.llvm.org/llvm-snapshot.gpg.key
 RUN echo "deb http://apt.llvm.org/bullseye/ llvm-toolchain-bullseye-14 main" > \
       /etc/apt/sources.list.d/llvm-14.list && apt-get update

@@ -7,6 +7,10 @@
 
 #include "assym.h"
 
+#if KASAN
+#define bcopy __real_bcopy
+#endif
+
 # WARNING: copyin and copyout make unsafe assumption that memcpy routine does
 # not modify caller saved registers nor stack pointer. If you're about to
 # change memcpy implementation, make sure it does not violate the assumption!
