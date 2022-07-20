@@ -1,4 +1,5 @@
 #define KL_LOG KL_INIT
+#include <sys/boot.h>
 #include <sys/cmdline.h>
 #include <sys/fdt.h>
 #include <sys/initrd.h>
@@ -15,8 +16,6 @@
 #include <riscv/pmap.h>
 #include <riscv/sbi.h>
 #include <riscv/vm_param.h>
-
-paddr_t kern_phys_end;
 
 static size_t count_args(void) {
   /*
@@ -109,9 +108,9 @@ typedef struct {
 #define END(pa) roundup((pa), PAGESIZE)
 
 static void ar_get_kernel_img(addr_range_t *ar) {
-  assert(kern_phys_end);
+  assert(boot_sbrk_end);
   ar->start = PHYSADDR(__kernel_start);
-  ar->end = kern_phys_end;
+  ar->end = boot_sbrk_end;
 }
 
 static void ar_get_initrd(addr_range_t *ar) {
