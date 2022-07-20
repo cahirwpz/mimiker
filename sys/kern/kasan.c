@@ -93,7 +93,7 @@ static const char *code_name(uint8_t code) {
 static void assume_within_shadow_byte(uintptr_t addr, size_t size) {
   if ((addr ^ (addr + size - 1)) >> KASAN_SHADOW_SCALE_SHIFT) {
     panic("KASAN: unaligned access to shadow map, address %p, size %lu!\n",
-         (void *)addr, size);
+          (void *)addr, size);
   }
 }
 
