@@ -7,9 +7,6 @@
 #include <sys/vm_physmem.h>
 #include <sys/vm.h>
 
-#define LOAD true
-#define STORE false
-
 /* Part of internal compiler interface */
 #define KASAN_ALLOCA_REDZONE_SIZE 32
 
@@ -37,8 +34,9 @@ void __real_bzero(void *dst, size_t n);
 void *__real_memcpy(void *dst, const void *src, size_t n);
 void *__real_memmove(void *dst, const void *src, size_t n);
 void *__real_memset(void *dst, int c, size_t n);
+size_t __real_strlen(const char *s);
 
-/* 
+/*
  * The following two structures are part of internal compiler interface:
  * https://github.com/gcc-mirror/gcc/blob/master/libsanitizer/include/sanitizer/asan_interface.h
  */
@@ -356,46 +354,59 @@ void __asan_allocas_unpoison(const void *begin, const void *end) {
  * which are implemented in assembly (therefore are not instrumented). */
 int __wrap_copyin(const void *restrict udaddr, void *restrict kaddr,
                   size_t len) {
-  shadow_check((uintptr_t)kaddr, len, STORE);
+  __asan_storeN_noabort((uintptr_t)kaddr, len);
   return __real_copyin(udaddr, kaddr, len);
 }
 
 int __wrap_copyinstr(const void *restrict udaddr, void *restrict kaddr,
                      size_t len, size_t *restrict lencopied) {
-  shadow_check((uintptr_t)kaddr, len, STORE);
+  __asan_storeN_noabort((uintptr_t)kaddr, len);
   return __real_copyinstr(udaddr, kaddr, len, lencopied);
 }
 
 int __wrap_copyout(const void *restrict kaddr, void *restrict udaddr,
                    size_t len) {
-  shadow_check((uintptr_t)kaddr, len, LOAD);
+  __asan_loadN_noabort((uintptr_t)kaddr, len);
   return __real_copyout(kaddr, udaddr, len);
 }
 
 void __wrap_bcopy(const void *src, void *dst, size_t n) {
-  shadow_check((uintptr_t)src, n, LOAD);
-  shadow_check((uintptr_t)dst, n, STORE);
-  return __real_bcopy(src, dst, n);
+  __asan_loadN_noabort((uintptr_t)src, n);
+  __asan_storeN_noabort((uintptr_t)dst, n);
+  __real_bcopy(src, dst, n);
 }
 
 void __wrap_bzero(void *dst, size_t n) {
-  shadow_check((uintptr_t)dst, n, STORE);
-  return __real_bzero(dst, n);
+  __asan_storeN_noabort((uintptr_t)dst, n);
+  __real_bzero(dst, n);
 }
 
 void *__wrap_memcpy(void *dst, const void *src, size_t n) {
-  shadow_check((uintptr_t)src, n, LOAD);
-  shadow_check((uintptr_t)dst, n, STORE);
+  __asan_loadN_noabort((uintptr_t)src, n);
+  __asan_storeN_noabort((uintptr_t)dst, n);
   return __real_memcpy(dst, src, n);
 }
 
 void *__wrap_memmove(void *dst, const void *src, size_t n) {
-  shadow_check((uintptr_t)src, n, LOAD);
-  shadow_check((uintptr_t)dst, n, STORE);
+  __asan_loadN_noabort((uintptr_t)src, n);
+  __asan_storeN_noabort((uintptr_t)dst, n);
   return __real_memmove(dst, src, n);
 }
 
 void *__wrap_memset(void *dst, int c, size_t n) {
-  shadow_check((uintptr_t)dst, n, STORE);
+  __asan_storeN_noabort((uintptr_t)dst, n);
   return __real_memset(dst, c, n);
+}
+
+/* Wrapper for strlen is required as long as __real_strlen is implemented in
+ * assembly, i.e. for AArch64 and MIPS. */
+size_t __wrap_strlen(const char *str) {
+  const char *s = str;
+
+  while (1) {
+    __asan_load1_noabort((uintptr_t)s);
+    if (*s == '\0')
+      return s - str;
+    s++;
+  }
 }
