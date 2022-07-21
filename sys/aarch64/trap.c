@@ -52,6 +52,24 @@ static vm_prot_t exc_access(u_long exc_code, register_t esr) {
   return access;
 }
 
+static int unaligned_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access) {
+  sig_trap(ctx, SIGBUS);
+  return 0;
+}
+
+typedef int abort_handler_t(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access);
+
+static abort_handler_t *abort_handlers[ISS_DATA_DFSC_MASK + 1] = {
+  [ISS_DATA_DFSC_TF_L0] = pmap_fault_handler,
+  [ISS_DATA_DFSC_TF_L1] = pmap_fault_handler,
+  [ISS_DATA_DFSC_TF_L2] = pmap_fault_handler,
+  [ISS_DATA_DFSC_TF_L3] = pmap_fault_handler,
+  [ISS_DATA_DFSC_AFF_L1] = pmap_fault_handler,
+  [ISS_DATA_DFSC_AFF_L2] = pmap_fault_handler,
+  [ISS_DATA_DFSC_AFF_L3] = pmap_fault_handler,
+  [ISS_DATA_DFSC_ALIGN] = unaligned_handler,
+};
+
 void user_trap_handler(mcontext_t *uctx) {
   /* Let's read special registers before enabling interrupts.
    * This ensures their values will not be lost. */
@@ -60,6 +78,7 @@ void user_trap_handler(mcontext_t *uctx) {
   register_t far = READ_SPECIALREG(far_el1);
   syscall_result_t result;
   register_t exc_code = ESR_ELx_EXCEPTION(esr);
+  register_t dfsc = esr & ISS_DATA_DFSC_MASK;
 
   cpu_intr_enable();
 
@@ -70,9 +89,13 @@ void user_trap_handler(mcontext_t *uctx) {
     case EXCP_INSN_ABORT:
     case EXCP_DATA_ABORT_L:
     case EXCP_DATA_ABORT:
-      klog("%x at $%lx, caused by reference to $%lx!", exc_code, _REG(ctx, PC),
-           far);
-      pmap_fault_handler(ctx, far, exc_access(exc_code, esr));
+      if (abort_handlers[dfsc]) {
+        abort_handlers[dfsc](ctx, far, exc_access(exc_code, esr));
+      } else {
+        panic("Unhandled EL0 %s abort (0x%x) at %p caused by reference to %p!" ,
+              exc_code == EXCP_INSN_ABORT_L ? "instruction" : "data", dfsc,
+              _REG(ctx, PC), far);
+      }
       break;
 
     case EXCP_SVC64:
@@ -81,7 +104,7 @@ void user_trap_handler(mcontext_t *uctx) {
 
     case EXCP_SP_ALIGN:
     case EXCP_PC_ALIGN:
-      sig_trap(ctx, SIGBUS);
+      unaligned_handler(ctx, far, exc_access(exc_code, esr));
       break;
 
     case EXCP_UNKNOWN:
@@ -113,6 +136,7 @@ void kern_trap_handler(ctx_t *ctx) {
   register_t esr = READ_SPECIALREG(esr_el1);
   register_t far = READ_SPECIALREG(far_el1);
   register_t exc_code = ESR_ELx_EXCEPTION(esr);
+  register_t dfsc = esr & ISS_DATA_DFSC_MASK;
 
   /* If interrupts were enabled before we trapped, then turn them on here. */
   if ((_REG(ctx, SPSR) & PSR_I) == 0)
@@ -121,8 +145,8 @@ void kern_trap_handler(ctx_t *ctx) {
   switch (exc_code) {
     case EXCP_INSN_ABORT:
     case EXCP_DATA_ABORT:
-      klog("%x at $%lx, caused by reference to $%lx!", exc_code, _REG(ctx, PC),
-           far);
+      klog("exc:0x%x dfsc:0x%x at %p, caused by reference to $%p!", exc_code,
+           dfsc, _REG(ctx, PC), far);
       if (pmap_fault_handler(ctx, far, exc_access(exc_code, esr)))
         kernel_oops(ctx);
       break;
