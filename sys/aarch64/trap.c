@@ -67,6 +67,9 @@ static abort_handler_t *abort_handlers[ISS_DATA_DFSC_MASK + 1] = {
   [ISS_DATA_DFSC_AFF_L1] = pmap_fault_handler,
   [ISS_DATA_DFSC_AFF_L2] = pmap_fault_handler,
   [ISS_DATA_DFSC_AFF_L3] = pmap_fault_handler,
+  [ISS_DATA_DFSC_PF_L1] = pmap_fault_handler,
+  [ISS_DATA_DFSC_PF_L2] = pmap_fault_handler,
+  [ISS_DATA_DFSC_PF_L3] = pmap_fault_handler,
   [ISS_DATA_DFSC_ALIGN] = unaligned_handler,
 };
 
