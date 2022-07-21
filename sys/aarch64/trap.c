@@ -95,7 +95,7 @@ void user_trap_handler(mcontext_t *uctx) {
       if (abort_handlers[dfsc]) {
         abort_handlers[dfsc](ctx, far, exc_access(exc_code, esr));
       } else {
-        panic("Unhandled EL0 %s abort (0x%x) at %p caused by reference to %p!" ,
+        panic("Unhandled EL0 %s abort (0x%x) at %p caused by reference to %p!",
               exc_code == EXCP_INSN_ABORT_L ? "instruction" : "data", dfsc,
               _REG(ctx, PC), far);
       }
