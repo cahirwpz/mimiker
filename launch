@@ -78,7 +78,7 @@ CONFIG = {
             },
             'sifive_u': {
                 'kernel': 'sys/mimiker.elf',
-                'dts': None,  # 'sys/dts/sifive_u.dts',
+                'dts': 'sys/dts/sifive_u.dts',
                 'initrd-start': 0xbf000000,
                 'simulator': 'qemu'
             },
