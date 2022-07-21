@@ -236,8 +236,10 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
        child = FDT_peer(child)) {
     if (cnt == FDT_MAX_RSV_MEM_REGS)
       return ERANGE;
+#if 0
     if (FDT_hasprop(child, "no-map"))
       continue;
+#endif
     if (FDT_getprop(child, "reg", reg, sizeof(reg)) < 0)
       continue;
     FDT_data_to_res(reg, addr_cells, size_cells, &mrs[cnt].addr,
