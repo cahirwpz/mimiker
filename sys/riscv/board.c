@@ -171,7 +171,7 @@ static void physmem_regions(void) {
   ar_get_initrd(&memory[1]);
   const size_t rsvmem_cnt = ar_get_reserved_mem(&memory[2]);
 
-  const size_t nranges = rsvmem_cnt + 1;
+  const size_t nranges = rsvmem_cnt + 2;
   qsort(memory, nranges, sizeof(addr_range_t), ar_cmp);
 
   addr_range_t *range = &memory[0];

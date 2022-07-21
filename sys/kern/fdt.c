@@ -39,6 +39,10 @@ void FDT_init(void *va) {
   if (err < 0)
     FDT_panic(err);
   fdtp = va;
+  klog("FDT: %p - %p", fdtp, fdtp + fdt_totalsize(va));
+  /* XXX: To save DTB to file use GDB command:
+   * `memory dump memory board.dtb start_addr end_addr`,
+   * then decompile DTB file: `dtc -I dtb -O dts -o board.dts board.dtb` */
 }
 
 phandle_t FDT_finddevice(const char *device) {

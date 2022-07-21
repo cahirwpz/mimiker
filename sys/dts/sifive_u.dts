@@ -149,9 +149,18 @@
 		#size-cells = <2>;
 		ranges;
 
-		opensbi@80000000 {
-			reg = <0x0 0x80000000 0x0 0x40000>;
-		};
+    /* QEmu patches this DTS and adds following on its own:
+     *
+     * mmode_resv0@80000000 {
+     *   no-map;
+     *   reg = <0x00 0x80000000 0x00 0x40000>;
+     * };
+     */
+    /*
+     * opensbi@80000000 {
+     *   reg = <0x0 0x80000000 0x0 0x40000>;
+     * };
+     */
 	};
 
 	soc {
