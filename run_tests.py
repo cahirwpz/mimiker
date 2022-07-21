@@ -10,7 +10,7 @@ import sys
 
 
 N_SIMPLE = 10
-DEFAULT_TIMEOUT = 60
+DEFAULT_TIMEOUT = 40
 REPEAT = 5
 
 
