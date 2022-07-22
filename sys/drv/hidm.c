@@ -52,7 +52,6 @@ static void hidm_init_evdev(device_t *dev) {
   /* Mouse buttons. */
   evdev_support_event(evdev, EV_KEY);
   evdev_support_all_mouse_buttons(evdev);
-  evdev_support_event(evdev, EV_REP);
 
   /* Mouse movement. */
   evdev_support_event(evdev, EV_REL);
