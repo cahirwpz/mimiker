@@ -101,6 +101,8 @@ CONFIG = {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
                     '-device', 'VGA',
+                    '-device', 'usb-kbd',
+                    #'-device', 'usb-mouse',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
                 'network_options': [
@@ -116,7 +118,7 @@ CONFIG = {
                 'storage_options': [
                     '-device', 'usb-storage,drive=stick',
                 ],
-                'drive': 'if=none,id=stick,file={path}',
+                #'drive': 'if=none,id=stick,file={path}',
             },
             'rpi3': {
                 'binary': 'qemu-mimiker-aarch64',

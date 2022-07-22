@@ -1,3 +1,4 @@
+#include <sys/boot.h>
 #include <sys/fdt.h>
 #include <sys/mimiker.h>
 #include <sys/pcpu.h>
@@ -19,14 +20,15 @@
     __rv;                                                                      \
   })
 
+#define PHYSADDR(x) ((paddr_t)(x) & (~KERNEL_SPACE_BEGIN))
+#define VIRTADDR(x) ((vaddr_t)(x) | KERNEL_SPACE_BEGIN)
+
 #define BOOT_KASAN_SANITIZED_SIZE(end)                                         \
   roundup2(roundup2((vaddr_t)(end), PAGESIZE) - KASAN_SANITIZED_START,         \
            SUPERPAGESIZE * KASAN_SHADOW_SCALE_SIZE)
 
-/* Last physical address used by kernel for boot memory allocation. */
-__boot_data void *_bootmem_end;
-
-static __noreturn void aarch64_boot(paddr_t dtb, paddr_t pde);
+static __noreturn void aarch64_boot(void *dtb, paddr_t pde, paddr_t sbrk_end,
+                                    vaddr_t vma_end);
 
 static alignas(STACK_ALIGN) uint8_t _boot_stack[PAGESIZE];
 
@@ -42,24 +44,11 @@ __boot_data static volatile vaddr_t _text = (vaddr_t)__text;
 __boot_data static volatile vaddr_t _etext = (vaddr_t)__etext;
 __boot_data static volatile vaddr_t _rodata = (vaddr_t)__rodata;
 __boot_data static volatile vaddr_t _data = (vaddr_t)__data;
+__boot_data static volatile vaddr_t _bss = (vaddr_t)__bss;
 __boot_data static volatile vaddr_t _ebss = (vaddr_t)__ebss;
 __boot_data static volatile vaddr_t _evec = (vaddr_t)exception_vectors;
 __boot_data static volatile vaddr_t _hvec = (vaddr_t)hypervisor_vectors;
 __boot_data static volatile vaddr_t _pcpu = (vaddr_t)_pcpu_data;
-
-__boot_text static void halt(void) {
-  for (;;)
-    continue;
-}
-
-/* Allocates & clears pages in physical memory just after kernel image end. */
-__boot_text static void *bootmem_alloc(size_t bytes) {
-  uint64_t *addr = _bootmem_end;
-  _bootmem_end += bytes;
-  for (unsigned i = 0; i < bytes / sizeof(uint64_t); i++)
-    addr[i] = 0;
-  return addr;
-}
 
 __boot_text static void configure_cpu(void) {
   /* Enable hw management of data coherency with other cores in the cluster. */
@@ -138,9 +127,6 @@ el1_entry:
   return;
 }
 
-#define PHYSADDR(x) ((paddr_t)(x) & (~KERNEL_SPACE_BEGIN))
-#define VIRTADDR(x) ((vaddr_t)(x) | KERNEL_SPACE_BEGIN)
-
 __boot_text static pde_t *early_pde_ptr(pde_t *pde, int lvl, vaddr_t va) {
   /* l0 entry is 512GB */
   if (lvl == 0)
@@ -163,7 +149,7 @@ __boot_text static pte_t *early_ensure_pte(pde_t *pde, vaddr_t va) {
     if (*pdep & Ln_VALID) {
       pa = (paddr_t)(*pdep) & L3_PAGE_OA;
     } else {
-      pa = (paddr_t)bootmem_alloc(PAGESIZE);
+      pa = (paddr_t)boot_sbrk(PAGESIZE);
       *pdep = pa | L0_TABLE; /* works for all levels */
     }
     pdep = early_pde_ptr((pde_t *)pa, lvl, va);
@@ -183,8 +169,9 @@ __boot_text static void early_kenter(pde_t *pde, vaddr_t va, vaddr_t va_end,
 /* Create direct map of whole physical memory located at DMAP_BASE virtual
  * address. We will use this mapping later in pmap module. */
 
-__boot_text static pde_t *build_page_table(void) {
-  pde_t *pde = bootmem_alloc(PAGESIZE);
+__boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
+  /* Allocate kernel page directory.*/
+  pde_t *pde = boot_sbrk(PAGESIZE);
 
   const pte_t pte_default =
     L3_PAGE | ATTR_AF | ATTR_SH_IS | ATTR_IDX(ATTR_NORMAL_MEM_WB);
@@ -212,7 +199,7 @@ __boot_text static pde_t *build_page_table(void) {
   size_t kasan_sanitized_size = BOOT_KASAN_SANITIZED_SIZE(_ebss);
   size_t kasan_shadow_size = kasan_sanitized_size / KASAN_SHADOW_SCALE_SIZE;
   /* Allocate physical memory for shadow area */
-  paddr_t kasan_shadow_pa = (paddr_t)bootmem_alloc(kasan_shadow_size);
+  paddr_t kasan_shadow_pa = (paddr_t)boot_sbrk(kasan_shadow_size);
 
   early_kenter(pde, KASAN_SHADOW_START, KASAN_SHADOW_START + kasan_shadow_size,
                kasan_shadow_pa, ATTR_AP_RW | ATTR_XN | pte_default);
@@ -289,49 +276,51 @@ __boot_text static void enable_mmu(pde_t *pde) {
 __boot_text __noreturn void aarch64_init(paddr_t dtb) {
   drop_to_el1();
   configure_cpu();
+  boot_clear(PHYSADDR(_bss), PHYSADDR(_ebss));
+  boot_sbrk_init(PHYSADDR(_ebss));
 
-  /* Set end address of kernel for boot allocation purposes. */
-  _bootmem_end = (void *)align(PHYSADDR(_ebss), PAGESIZE);
+  vaddr_t dtb_va = VIRTADDR(boot_save_dtb(dtb));
 
-  pde_t *kernel_pde = build_page_table();
-  enable_mmu(kernel_pde);
+  /* Make sure DTB is mapped into kernel virtual address space. */
+  vaddr_t vma_end = VIRTADDR(boot_sbrk_align(PAGESIZE));
+
+  pde_t *pde = build_page_table(vma_end);
+  enable_mmu(pde);
+
+  void *sbrk_end = boot_sbrk(0);
 
   vaddr_t boot_sp = (vaddr_t)&_boot_stack[PAGESIZE];
 
   __asm __volatile("mov x0, %0\n\t"
                    "mov x1, %1\n\t"
-                   "mov sp, %2\n\t"
-                   "br %3"
+                   "mov x2, %2\n\t"
+                   "mov x3, %3\n\t"
+                   "mov sp, %4\n\t"
+                   "br %5"
                    :
-                   : "r"(dtb), "r"(kernel_pde), "r"(boot_sp), "r"(aarch64_boot)
-                   : "x0", "x1");
+                   : "r"(dtb_va), "r"(pde), "r"(sbrk_end), "r"(vma_end),
+                     "r"(boot_sp), "r"(aarch64_boot)
+                   : "x0", "x1", "x2", "x3");
   __unreachable();
-}
-
-static void clear_bss(void) {
-  uint64_t *ptr = (uint64_t *)__bss;
-  uint64_t *end = (uint64_t *)__ebss;
-  while (ptr < end)
-    *ptr++ = 0;
 }
 
 extern void *board_stack(void);
 
-static __noreturn void aarch64_boot(paddr_t dtb, paddr_t pde) {
-  clear_bss();
+static __noreturn void aarch64_boot(void *dtb, paddr_t pde, paddr_t sbrk_end,
+                                    vaddr_t vma_end) {
+  vm_kernel_end = vma_end;
+  boot_sbrk_end = sbrk_end;
 
 #if KASAN
   _kasan_sanitized_end =
     KASAN_SANITIZED_START + BOOT_KASAN_SANITIZED_SIZE((vaddr_t)__ebss);
 #endif
 
-  pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
-
-  FDT_early_init(dtb, phys_to_dmap(dtb));
-  void *fdtp = phys_to_dmap(FDT_get_physaddr());
-  FDT_changeroot(fdtp);
+  FDT_init(dtb);
 
   void *sp = board_stack();
+
+  pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
 
   /*
    * Switch to thread0's stack and perform `board_init`.

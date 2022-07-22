@@ -5,6 +5,10 @@
 
 #include "assym.h"
 
+#if KASAN
+#define bcopy __real_bcopy
+#endif
+
 /*
  * Enable permit Supervisor User Memory access (SUM).
  */
