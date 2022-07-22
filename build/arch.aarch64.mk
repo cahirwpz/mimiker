@@ -31,6 +31,8 @@ else
   CFLAGS += -mcpu=cortex-a53 -march=armv8-a
 endif
 
+CFLAGS += -mstrict-align
+
 ifeq ($(BOARD), rpi3)
   KERNEL-IMAGES := mimiker.img mimiker.img.gz
 endif
