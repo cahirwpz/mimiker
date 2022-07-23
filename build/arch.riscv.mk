@@ -36,9 +36,6 @@ ifeq ($(BOARD), sifive_u)
     CPPFLAGS += -DFPU=1
     ASAN_SHADOW_OFFSET := 0xdfffffe000000000
   endif
-  ifeq ($(LLVM), 1)
-    CPPFLAGS += -D__riscv_d -D__riscv_f
-  endif
 endif
 
 ifeq ($(LLVM), 1)

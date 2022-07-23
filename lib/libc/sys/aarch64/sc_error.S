@@ -4,9 +4,9 @@
 ENTRY(__sc_error)
         sub     sp, sp, #16
         stp     x19, lr, [sp]
-        mov     x19, x1
+        mov     w19, w1
         bl      __errno
-        str     x19, [x0]
+        str     w19, [x0]
         mov     x0, #-1
         ldp     x19, lr, [sp]
         add     sp, sp, #16

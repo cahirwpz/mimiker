@@ -35,7 +35,7 @@ XLEN := 64
 endif
 
 VERBOSE ?= 0
-LLVM ?= 0
+LLVM ?= 1
 LOCKDEP ?= 0
 KASAN ?= 0
 KGPROF ?= 0
