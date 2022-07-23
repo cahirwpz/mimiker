@@ -552,9 +552,12 @@ static int evdev_kqfilter(devnode_t *dev, knote_t *kn) {
 static int evdev_open(devnode_t *master_dev, file_t *fp, int oflags) {
   evdev_dev_t *evdev = master_dev->data;
 
-  evdev_client_t *client = kmalloc(
-    M_DEV, sizeof(evdev_client_t) + sizeof(input_event_t) * CLIENT_QUEUE_SIZE,
-    M_WAITOK | M_ZERO);
+  if ((oflags & O_ACCMODE) != O_RDONLY)
+    return EACCES;
+
+  size_t client_size =
+    sizeof(evdev_client_t) + sizeof(input_event_t) * CLIENT_QUEUE_SIZE;
+  evdev_client_t *client = kmalloc(M_DEV, client_size, M_WAITOK | M_ZERO);
 
   devnode_t *dev = &client->ev_dev;
   dev->data = client;
