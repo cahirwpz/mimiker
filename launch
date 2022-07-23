@@ -78,7 +78,8 @@ CONFIG = {
             },
             'sifive_u': {
                 'kernel': 'sys/mimiker.elf',
-                'dts': None,
+                'dts': 'sys/dts/sifive_u.dts',
+                'initrd-start': 0xbf000000,
                 'simulator': 'qemu'
             },
         },
@@ -116,7 +117,7 @@ CONFIG = {
             'rpi3': {
                 'binary': 'qemu-mimiker-aarch64',
                 'options': [
-                    '-machine', 'raspi3',
+                    '-machine', 'raspi3b',
                     '-smp', '4',
                     '-cpu', 'cortex-a53'],
                 'network_options': [],

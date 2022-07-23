@@ -23,8 +23,8 @@ jobs:
       - uses: actions/checkout@v2
       - run: ./verify-pycodestyle.sh
 
-  build_mips_gcc:
-    name: Build MIPS (GCC)
+  build_mips:
+    name: Build MIPS
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
@@ -32,7 +32,7 @@ jobs:
       - run: make BOARD=malta KASAN=1 LOCKDEP=1
       - uses: actions/upload-artifact@v2
         with:
-          name: "mips gcc kernel+ramdisk"
+          name: "mips kernel+ramdisk"
           path: |
             sys/mimiker.elf
             sys/mimiker.elf.map
@@ -40,16 +40,8 @@ jobs:
             usr.bin/*/*.uelf
             initrd.cpio
 
-  build_mips_clang:
-    name: Build MIPS (Clang)
-    runs-on: self-hosted
-    needs: [verify_c_style, verify_py_style]
-    steps:
-      - uses: actions/checkout@v2
-      - run: make BOARD=malta LLVM=1 KASAN=1 LOCKDEP=1
-
-  build_aarch64_gcc:
-    name: Build AArch64 (GCC)
+  build_aarch64:
+    name: Build AArch64
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
@@ -57,7 +49,7 @@ jobs:
       - run: make BOARD=rpi3 KASAN=1 LOCKDEP=1
       - uses: actions/upload-artifact@v2
         with:
-          name: "aarch64 gcc kernel+ramdisk"
+          name: "aarch64 kernel+ramdisk"
           path: |
             sys/mimiker.elf
             sys/mimiker.img.gz
@@ -67,65 +59,40 @@ jobs:
             sys/dts/*.dtb
             initrd.cpio
 
-  build_aarch64_clang:
-    name: Build AArch64 (Clang)
-    runs-on: self-hosted
-    needs: [verify_c_style, verify_py_style]
-    steps:
-      - uses: actions/checkout@v2
-      - run: make BOARD=rpi3 LLVM=1 KASAN=1 LOCKDEP=1
-
-  build_rv32_gcc:
-    name: Build RISC-V 32-bit (GCC)
+  build_riscv32:
+    name: Build RISC-V 32-bit
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v2
       - run: make BOARD=litex-riscv KASAN=1 LOCKDEP=1
-      - uses: actions/upload-artifact@v2
-        with:
-          name: "riscv32 gcc kernel+ramdisk"
-          path: |
-            sys/mimiker.elf
-            sys/mimiker.elf.map
-            bin/*/*.uelf
-            usr.bin/*/*.uelf
-            initrd.cpio
 
-  build_rv32_clang:
-    name: Build RISC-V 32-bit (Clang)
+  build_riscv64:
+    name: Build RISC-V 64-bit
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v2
-      - run: make BOARD=litex-riscv LLVM=1 KASAN=1 LOCKDEP=1
+      - run: make BOARD=sifive_u KASAN=1 LOCKDEP=1
 
-  build_rv64_clang:
-    name: Build RISC-V 64-bit (Clang)
+  kernel_tests_mips:
+    name: Tests MIPS
     runs-on: self-hosted
-    needs: [verify_c_style, verify_py_style]
-    steps:
-      - uses: actions/checkout@v2
-      - run: make BOARD=sifive_u LLVM=1 KASAN=1 LOCKDEP=1
-
-  kernel_tests_mips_gcc:
-    name: Tests MIPS (GCC)
-    runs-on: self-hosted
-    needs: build_mips_gcc
+    needs: build_mips
     steps:
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v2
         with:
-          name: "mips gcc kernel+ramdisk"
+          name: "mips kernel+ramdisk"
       - run: ./run_tests.py --board malta --timeout=80 --times=50
 
-  kernel_tests_aarch64_gcc:
-    name: Tests AArch64 (GCC)
+  kernel_tests_aarch64:
+    name: Tests AArch64
     runs-on: self-hosted
-    needs: build_aarch64_gcc
+    needs: build_aarch64
     steps:
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v2
         with:
-          name: "aarch64 gcc kernel+ramdisk"
+          name: "aarch64 kernel+ramdisk"
       - run: ./run_tests.py --board rpi3 --times=50

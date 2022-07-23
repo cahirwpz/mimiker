@@ -16,9 +16,9 @@
 #include <sys/types.h>
 
 #define log2(x) (CHAR_BIT * sizeof(unsigned long) - __builtin_clzl(x) - 1)
-#define ffs(x) (size_t)(__builtin_ffs(x))
-#define clz(x) (size_t)(__builtin_clz(x))
-#define ctz(x) (size_t)(__builtin_ctz(x))
+#define ffs(x) ((u_long)__builtin_ffsl(x))
+#define clz(x) ((u_long)__builtin_clzl(x))
+#define ctz(x) ((u_long)__builtin_ctzl(x))
 
 #define abs(x)                                                                 \
   ({                                                                           \
@@ -54,7 +54,7 @@
     intptr_t _addr = (intptr_t)(addr);                                         \
     intptr_t _size = (intptr_t)(size);                                         \
     _addr = (_addr + (_size - 1)) & -_size;                                    \
-    (typeof(addr)) _addr;                                                      \
+    (typeof(addr))_addr;                                                       \
   })
 
 #define is_aligned(addr, size)                                                 \
@@ -70,10 +70,6 @@
 /* Checks often used in assert statements. */
 bool preempt_disabled(void);
 bool intr_disabled(void) __no_profile;
-
-/* Attribute macros for boot/wired functions/data */
-#define __boot_text __long_call __section(".boot.text")
-#define __boot_data __section(".boot.data")
 
 #define CLEANUP_FUNCTION(func) __CONCAT(__cleanup_, func)
 #define DEFINE_CLEANUP_FUNCTION(type, func)                                    \
@@ -98,24 +94,12 @@ int copystr(const void *restrict kfaddr, void *restrict kdaddr, size_t len,
             size_t *restrict lencopied) __nonnull(1)
   __nonnull(2) __no_sanitize __no_instrument_function;
 int copyinstr(const void *restrict udaddr, void *restrict kaddr, size_t len,
-              size_t *restrict lencopied) __nonnull(1) __nonnull(2);
+              size_t *restrict lencopied) __nonnull(1)
+  __nonnull(2) __no_sanitize;
 int copyin(const void *restrict udaddr, void *restrict kaddr, size_t len)
-  __nonnull(1) __nonnull(2);
+  __nonnull(1) __nonnull(2) __no_sanitize;
 int copyout(const void *restrict kaddr, void *restrict udaddr, size_t len)
-  __nonnull(1) __nonnull(2);
-
-#if KASAN
-int kasan_copyin(const void *restrict udaddr, void *restrict kaddr, size_t len);
-#define copyin(u, k, l) kasan_copyin(u, k, l)
-
-int kasan_copyout(const void *restrict kaddr, void *restrict udaddr,
-                  size_t len);
-#define copyout(k, u, l) kasan_copyout(k, u, l)
-
-int kasan_copyinstr(const void *restrict udaddr, void *restrict kaddr,
-                    size_t len, size_t *restrict lencopied);
-#define copyinstr(u, k, len, lencopied) kasan_copyinstr(u, k, len, lencopied)
-#endif /* !KASAN */
+  __nonnull(1) __nonnull(2) __no_sanitize;
 
 #define copyin_s(udaddr, _what) copyin((udaddr), &(_what), sizeof(_what))
 #define copyout_s(_what, udaddr) copyout(&(_what), (udaddr), sizeof(_what))
@@ -137,15 +121,10 @@ extern char __etext[];
 /* Symbols defined by linker and used during kernel boot phase. */
 extern char __boot[];
 extern char __eboot[];
-extern char __text[];
+extern char __rodata[];
 extern char __data[];
 extern char __bss[];
 extern char __ebss[];
-extern char __kernel_start[];
-extern char __kernel_end[];
-
-/* Last physical address used by kernel for boot memory allocation. */
-extern __boot_data void *_bootmem_end;
 #endif /* !_MACHDEP */
 
 #endif /* !_SYS_MIMIKER_H_ */

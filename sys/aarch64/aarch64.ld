@@ -22,6 +22,7 @@ SECTIONS
     KEEP(*(.boot))
     *(.boot.text)
     *(.boot.data)
+    *(.boot.bss)
     . = ALIGN (4096);
     __eboot = ABSOLUTE(.);
   } : boot
@@ -33,15 +34,16 @@ SECTIONS
     __kernel_start = ABSOLUTE(.);
     __text = ABSOLUTE(.);
     *(.text .text.*)
-    __etext = ABSOLUTE(.);
     /* Constructors are used by KASAN to initialize global redzones */
     __CTOR_LIST__ = ABSOLUTE(.);
     *(.ctors)
     __CTOR_END__ = ABSOLUTE(.);
+    __etext = ABSOLUTE(.);
   } : text
 
   .rodata : ALIGN(4096)
   {
+    __rodata = ABSOLUTE(.);
     *(.rodata .rodata.*)
   } : rodata
 
