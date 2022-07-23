@@ -204,6 +204,11 @@ static int devfs_fop_ioctl(file_t *fp, u_long cmd, void *data) {
   return dev->ops->d_ioctl(dev, cmd, data, fp->f_flags);
 }
 
+static int devfs_fop_kqfilter(file_t *fp, knote_t *kn) {
+  devnode_t *dev = fp->f_data;
+  return dev->ops->d_kqfilter(dev, kn);
+}
+
 static fileops_t devfs_fileops = {
   .fo_read = devfs_fop_read,
   .fo_write = devfs_fop_write,
@@ -211,6 +216,7 @@ static fileops_t devfs_fileops = {
   .fo_seek = devfs_fop_seek,
   .fo_stat = devfs_fop_stat,
   .fo_ioctl = devfs_fop_ioctl,
+  .fo_kqfilter = devfs_fop_kqfilter,
 };
 
 /*
