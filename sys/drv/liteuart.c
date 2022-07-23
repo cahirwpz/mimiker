@@ -28,7 +28,6 @@
 typedef struct liteuart_state {
   resource_t *csrs;
   resource_t *irq;
-  thread_t *thread;
 } liteuart_state_t;
 
 /*
