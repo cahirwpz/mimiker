@@ -4,6 +4,10 @@
 
 #include "assym.h"
 
+#if KASAN
+#define bcopy __real_bcopy
+#endif
+
 /*
  * WARNING: copyin, copyout and copyinstr make unsafe assumption that bcopy and
  * copystr don't modify stack, stack pointer and callee saved registers.

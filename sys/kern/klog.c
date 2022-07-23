@@ -28,7 +28,11 @@ typedef struct klog {
   int prev;
 } klog_t;
 
-static klog_t klog;
+static klog_t klog = (klog_t){
+  .mask = KL_DEFAULT_MASK,
+  .prev = -1,
+};
+
 static SPIN_DEFINE(klog_lock, LK_RECURSIVE);
 
 static const char *subsystems[] = {
@@ -45,10 +49,6 @@ static const char *subsystems[] = {
 void init_klog(void) {
   const char *mask = kenv_get("klog-mask");
   klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_DEFAULT_MASK;
-  klog.first = 0;
-  klog.last = 0;
-  klog.repeated = 0;
-  klog.prev = -1;
 }
 
 static inline unsigned next(unsigned i) {
@@ -161,6 +161,7 @@ __noreturn void klog_panic(klog_origin_t origin, const char *file,
                            unsigned line, const char *format, uintptr_t arg1,
                            uintptr_t arg2, uintptr_t arg3, uintptr_t arg4,
                            uintptr_t arg5, uintptr_t arg6) {
+  klog.mask = -1;
   klog_append(origin, file, line, format, arg1, arg2, arg3, arg4, arg5, arg6);
   ktest_log_failure();
   halt();

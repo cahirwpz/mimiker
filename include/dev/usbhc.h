@@ -13,7 +13,8 @@ typedef bool (*usbhc_device_present_t)(device_t *hcdev, uint8_t port);
 typedef usb_speed_t (*usbhc_device_speed_t)(device_t *hcdev, uint8_t port);
 typedef void (*usbhc_reset_port_t)(device_t *hcdev, uint8_t port);
 typedef void (*usbhc_control_transfer_t)(device_t *hcdev, device_t *dev,
-                                         usb_buf_t *buf, usb_dev_req_t *req);
+                                         usb_buf_t *buf, usb_dev_req_t *req,
+                                         usb_direction_t status_dir);
 typedef void (*usbhc_data_transfer_t)(device_t *hcdev, device_t *dev,
                                       usb_buf_t *buf);
 
@@ -94,11 +95,13 @@ static inline void usbhc_reset_port(device_t *hcdev, uint8_t port) {
  * \param dev USB device
  * \param buf USB buffer used for the transfer
  * \param req USB device request
+ * \param status_dir direction for the STATUS stage of the transfer
  */
 static inline void usbhc_control_transfer(device_t *dev, usb_buf_t *buf,
-                                          usb_dev_req_t *req) {
+                                          usb_dev_req_t *req,
+                                          usb_direction_t status_dir) {
   device_t *hcdev = USBHC_METHOD_PROVIDER(dev, control_transfer);
-  usbhc_methods(hcdev)->control_transfer(hcdev, dev, buf, req);
+  usbhc_methods(hcdev)->control_transfer(hcdev, dev, buf, req, status_dir);
 }
 
 /*! \brief Schedules a data stage only transfer between the host

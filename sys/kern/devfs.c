@@ -95,7 +95,7 @@ static devfs_node_t *devfs_find_child(devfs_node_t *parent,
 static devfs_node_t *devfs_node_create(const char *name, int mode) {
   devfs_node_t *dn = kmalloc(M_DEVFS, sizeof(devfs_node_t), M_ZERO | M_WAITOK);
 
-  strncpy(dn->dn_name, name, DEVFS_NAME_MAX);
+  strlcpy(dn->dn_name, name, DEVFS_NAME_MAX);
   dn->dn_device.mode = mode;
   dn->dn_nlinks = (mode & S_IFDIR) ? 2 : 1;
   dn->dn_ino = devfs.next_ino++;

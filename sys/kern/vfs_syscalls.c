@@ -143,6 +143,10 @@ static int vfs_open(proc_t *p, file_t *f, int fdat, char *pathname, int flags,
   if (!error)
     error = VOP_OPEN(v, flags, f);
 
+  /* If we failed to open a file then don't make attempt to close it! */
+  if (error)
+    f->f_ops = &badfileops;
+
   /* Drop our reference to v. We received it from vfs_namelookup, but we no
      longer need it - file f keeps its own reference to v after open. */
   vnode_drop(v);
@@ -699,6 +703,7 @@ static int vfs_utimens(vnode_t *v, timespec_t times[2], cred_t *cred) {
 
   if (times == NULL) {
     va.va_atime = va.va_mtime = nanotime();
+    va.va_flags = VA_UTIMES_NULL;
   } else {
     va.va_atime = times[0];
     va.va_mtime = times[1];
