@@ -23,7 +23,7 @@
     __rv;                                                                      \
   })
 
-#define __set_tp() __asm__ volatile("mv tp, %0" ::"r"(_pcpu_data) : "tp")
+#define __set_tp() __asm__ volatile("mv tp, %0" ::"r"(_pcpu_data))
 
 #define __set_satp(val) csr_write(satp, val)
 
