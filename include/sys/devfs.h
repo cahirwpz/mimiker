@@ -83,7 +83,7 @@ typedef int (*dev_write_t)(devnode_t *dev, uio_t *uio);
  */
 typedef int (*dev_ioctl_t)(devnode_t *dev, u_long cmd, void *data, int fflags);
 
-/* TODO */
+/* Kernel Event note registration. */
 typedef int (*dev_kqfilter_t)(devnode_t *dev, knote_t *kn);
 
 typedef enum {
@@ -103,7 +103,7 @@ typedef struct devops {
   dev_read_t d_read;   /* read bytes form a device file */
   dev_write_t d_write; /* write bytes to a device file */
   dev_ioctl_t d_ioctl; /* read or modify device properties */
-  dev_kqfilter_t d_kqfilter; /* TODO */
+  dev_kqfilter_t d_kqfilter; /* called when knote is attached to the device */
 } devops_t;
 
 typedef struct devnode {
