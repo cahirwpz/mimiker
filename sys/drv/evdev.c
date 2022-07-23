@@ -13,6 +13,7 @@
 #include <sys/malloc.h>
 #include <sys/device.h>
 #include <bitstring.h>
+#include <sys/event.h>
 #include <sys/libkern.h>
 
 /* Maximum length of an evdev device */
@@ -64,6 +65,7 @@ typedef struct evdev_dev {
   /* Supported features: */
   bitstr_t bit_decl(ev_type_flags, EV_CNT);    /* (!) supported event types */
   bitstr_t bit_decl(ev_key_flags, KEY_CNT);    /* (!) supported key codes */
+  bitstr_t bit_decl(ev_rel_flags, REL_CNT);    /* (!) supported relative axes */
   bitstr_t bit_decl(ev_flags, EVDEV_FLAG_CNT); /* (!) supported features */
 
   /* Protects the data that is changed by incoming evdev events
@@ -92,8 +94,10 @@ typedef struct evdev_client {
   evdev_dev_t *ec_evdev;            /* (!) associated evdev device */
   LIST_ENTRY(evdev_client) ec_link; /* (s) link on client list */
 
+  mtx_t ec_lock;      /* Protects various fields in evdev_client struct. */
+  knlist_t ec_knlist; /* (c) knotes attached to this evdev client. */
+
   /* Event ring buffer implementation: */
-  mtx_t ec_lock;                /* serializes access to ring buffer data */
   evdev_clock_id_t ec_clock_id; /* (c) clock used to timestamp events */
   condvar_t ec_buffer_cv;       /* (c) wait here for state change to happen */
   size_t ec_buffer_size;        /* (c) ring buffer capacity */
@@ -109,6 +113,16 @@ typedef struct evdev_client {
 
 static bool evdev_client_empty(evdev_client_t *client) {
   return client->ec_buffer_head == client->ec_buffer_ready;
+}
+
+/* Returns the number of events that are ready to read. */
+static int evdev_client_queue_size(evdev_client_t *client) {
+  size_t size = client->ec_buffer_size;
+  size_t ready = client->ec_buffer_ready;
+  size_t head = client->ec_buffer_head;
+  if (ready < head)
+    return ready + size - head;
+  return ready - head;
 }
 
 /* Get time depending on the client clock id */
@@ -176,6 +190,8 @@ static void evdev_client_notify(evdev_client_t *client) {
   /* move `ready` pointer and notify readers */
   client->ec_buffer_ready = client->ec_buffer_tail;
   cv_broadcast(&client->ec_buffer_cv);
+
+  knote(&client->ec_knlist, 0);
 }
 
 /* Pop one event from the client's queue. Assumes the queue is nonempty! */
@@ -324,10 +340,33 @@ static void evdev_soft_repeat(evdev_dev_t *evdev, uint16_t key, int32_t state) {
  * Device file interface implementation.
  */
 
+static void evdev_kq_detach(knote_t *kn) {
+  evdev_client_t *client = kn->kn_hook;
+
+  WITH_MTX_LOCK (&client->ec_lock) {
+    SLIST_REMOVE(&client->ec_knlist, kn, knote, kn_objlink);
+  }
+}
+
+static int evdev_kq_read(knote_t *kn, long hint) {
+  evdev_client_t *client = kn->kn_hook;
+  assert(mtx_owned(&client->ec_lock));
+
+  kn->kn_kevent.data = evdev_client_queue_size(client) * sizeof(input_event_t);
+  return !evdev_client_empty(client);
+}
+
+static filterops_t evdev_filterops = {
+  .filt_attach = NULL,
+  .filt_detach = evdev_kq_detach,
+  .filt_event = evdev_kq_read,
+};
+
 static int evdev_open(devnode_t *dev, file_t *fp, int oflags);
 static int evdev_close(devnode_t *dev, file_t *fp);
 static int evdev_read(devnode_t *dev, uio_t *uio);
 static int evdev_ioctl(devnode_t *dev, u_long cmd, void *data, int fflags);
+static int evdev_kqfilter(devnode_t *dev, knote_t *kn);
 
 static devops_t evdev_devops = {
   .d_type = DT_OTHER,
@@ -335,6 +374,7 @@ static devops_t evdev_devops = {
   .d_close = evdev_close,
   .d_read = evdev_read,
   .d_ioctl = evdev_ioctl,
+  .d_kqfilter = evdev_kqfilter,
 };
 
 static int evdev_read(devnode_t *dev, uio_t *uio) {
@@ -454,6 +494,25 @@ static int evdev_ioctl(devnode_t *dev, u_long cmd, void *data, int fflags) {
   return EINVAL;
 }
 
+/* Called whenever a new knote is attached to this file. */
+static int evdev_kqfilter(devnode_t *dev, knote_t *kn) {
+  evdev_client_t *client = dev->data;
+
+  if (kn->kn_kevent.filter != EVFILT_READ)
+    return EINVAL;
+
+  kn->kn_filtops = &evdev_filterops;
+  kn->kn_hook = client;
+  kn->kn_objlock = &client->ec_lock;
+
+  WITH_MTX_LOCK (&client->ec_lock) {
+    SLIST_INSERT_HEAD(&client->ec_knlist, kn, kn_objlink);
+  }
+
+  return 0;
+}
+
+
 static int evdev_open(devnode_t *master_dev, file_t *fp, int oflags) {
   evdev_dev_t *evdev = master_dev->data;
 
@@ -471,6 +530,7 @@ static int evdev_open(devnode_t *master_dev, file_t *fp, int oflags) {
   client->ec_evdev = evdev;
   mtx_init(&client->ec_lock, 0);
   cv_init(&client->ec_buffer_cv, "ec_buffer_cv");
+  SLIST_INIT(&client->ec_knlist);
 
   WITH_MTX_LOCK (&evdev->ev_lock)
     LIST_INSERT_HEAD(&evdev->ev_clients, client, ec_link);
@@ -555,6 +615,20 @@ void evdev_support_event(evdev_dev_t *evdev, uint16_t type) {
 void evdev_support_key(evdev_dev_t *evdev, uint16_t code) {
   assert(code < KEY_CNT);
   bit_set(evdev->ev_key_flags, code);
+}
+
+void evdev_support_all_keys(evdev_dev_t *evdev, uint16_t *keyset,
+                            size_t nitems) {
+  for (size_t i = 0; i < nitems; i++) {
+    uint16_t keycode = keyset[i];
+    if (keycode != KEY_RESERVED)
+      evdev_support_key(evdev, keycode);
+  }
+}
+
+void evdev_support_rel(evdev_dev_t *evdev, uint16_t code) {
+  assert(code < REL_CNT);
+  bit_set(evdev->ev_rel_flags, code);
 }
 
 void evdev_set_flag(evdev_dev_t *evdev, uint16_t flag) {
