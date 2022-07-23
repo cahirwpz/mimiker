@@ -1,7 +1,7 @@
 #ifndef _SYS_KSTACK_H_
 #define _SYS_KSTACK_H_
 
-#include <sys/cdefs.h>
+#include <sys/types.h>
 #include <machine/abi.h>
 
 /*! \brief Thread stack structure. */

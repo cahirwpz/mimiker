@@ -34,6 +34,7 @@ typedef enum {
 } evdev_clock_id_t;
 
 /* Type definitions to abbreviate types used in the code below. */
+typedef struct evdev_client evdev_client_t;
 typedef LIST_HEAD(, evdev_client) evdev_client_list_t;
 typedef struct input_id input_id_t;
 
@@ -80,6 +81,7 @@ typedef struct evdev_dev {
   /* State: */
   bitstr_t bit_decl(ev_key_states, KEY_CNT); /* (s) state of all keys */
   evdev_client_list_t ev_clients; /* (s) clients associated with this device */
+  evdev_client_t *ev_grabber;     /* (s) grabber pointer */
 } evdev_dev_t;
 
 /*
@@ -89,7 +91,7 @@ typedef struct evdev_dev {
  * which may not be the last element in the ring buffer. Thus we need to keep
  * track of last EV_SYN position in `ec_buffer_ready`.
  */
-typedef struct evdev_client {
+struct evdev_client {
   devnode_t ev_dev;                 /* (!) device node of this client */
   evdev_dev_t *ec_evdev;            /* (!) associated evdev device */
   LIST_ENTRY(evdev_client) ec_link; /* (s) link on client list */
@@ -105,7 +107,7 @@ typedef struct evdev_client {
   size_t ec_buffer_head;        /* (c) read end */
   size_t ec_buffer_tail;        /* (c) write end */
   input_event_t ec_buffer[];    /* (c) stored events */
-} evdev_client_t;
+};
 
 /*
  * Event client functions.
@@ -268,6 +270,8 @@ static bool evdev_handle_event(evdev_dev_t *evdev, uint16_t type, uint16_t code,
 /* Send an event to evdev. */
 static void evdev_send_event(evdev_dev_t *evdev, uint16_t type, uint16_t code,
                              int32_t value) {
+  assert(mtx_owned(&evdev->ev_lock));
+
   if (!evdev_handle_event(evdev, type, code, value))
     return;
 
@@ -275,6 +279,9 @@ static void evdev_send_event(evdev_dev_t *evdev, uint16_t type, uint16_t code,
    * and notify them if it is the end of the event batch. */
   evdev_client_t *client;
   LIST_FOREACH (client, &evdev->ev_clients, ec_link) {
+    if (evdev->ev_grabber && evdev->ev_grabber != client)
+      continue;
+
     WITH_MTX_LOCK (&client->ec_lock) {
       evdev_client_push(client, type, code, value);
       /* Allow users to read events only after report has been completed */
@@ -410,6 +417,26 @@ static int evdev_read(devnode_t *dev, uio_t *uio) {
   return error;
 }
 
+static int evdev_grab_client(evdev_dev_t *evdev, evdev_client_t *client) {
+  assert(mtx_owned(&evdev->ev_lock));
+
+  if (evdev->ev_grabber)
+    return EBUSY;
+
+  evdev->ev_grabber = client;
+  return 0;
+}
+
+static int evdev_release_client(evdev_dev_t *evdev, evdev_client_t *client) {
+  assert(mtx_owned(&evdev->ev_lock));
+
+  if (!evdev->ev_grabber)
+    return EINVAL;
+
+  evdev->ev_grabber = NULL;
+  return 0;
+}
+
 /* Handle EVIOCGBIT ioctl, which returns the bitmaps of supported features. */
 static int evdev_ioctl_eviocgbit(evdev_dev_t *evdev, int type, int len,
                                  caddr_t data) {
@@ -438,6 +465,7 @@ static int evdev_ioctl_eviocgbit(evdev_dev_t *evdev, int type, int len,
 static int evdev_ioctl(devnode_t *dev, u_long cmd, void *data, int fflags) {
   evdev_client_t *client = dev->data;
   evdev_dev_t *evdev = client->ec_evdev;
+  int err = 0;
 
   /* evdev fixed-length ioctls handling */
   switch (cmd) {
@@ -459,14 +487,23 @@ static int evdev_ioctl(devnode_t *dev, u_long cmd, void *data, int fflags) {
         switch (*(int *)data) {
           case CLOCK_REALTIME:
             client->ec_clock_id = EV_CLOCK_REALTIME;
-            return 0;
+            break;
           case CLOCK_MONOTONIC:
             client->ec_clock_id = EV_CLOCK_MONOTONIC;
-            return 0;
+            break;
           default:
-            return EINVAL;
+            err = EINVAL;
         }
       }
+      return err;
+    case EVIOCGRAB:
+      WITH_MTX_LOCK (&evdev->ev_lock) {
+        if (*(int *)data)
+          err = evdev_grab_client(evdev, client);
+        else
+          err = evdev_release_client(evdev, client);
+      }
+      return err;
   }
 
   /* evdev variable-length ioctls handling */
@@ -511,7 +548,6 @@ static int evdev_kqfilter(devnode_t *dev, knote_t *kn) {
 
   return 0;
 }
-
 
 static int evdev_open(devnode_t *master_dev, file_t *fp, int oflags) {
   evdev_dev_t *evdev = master_dev->data;
