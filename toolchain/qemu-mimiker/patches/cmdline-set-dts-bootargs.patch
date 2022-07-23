@@ -1,4 +1,3 @@
-
 Index: qemu-mimiker/qemu-6.2.0/hw/riscv/sifive_u.c
 ===================================================================
 --- qemu-mimiker.orig/qemu-6.2.0/hw/riscv/sifive_u.c
