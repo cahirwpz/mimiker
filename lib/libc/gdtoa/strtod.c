@@ -1072,14 +1072,18 @@ double strtod(CONST char *s, char **sp) {
   return _int_strtod_l(s, sp, _current_locale());
 }
 
+#ifdef __SIZEOF_INT128__
 long double strtold(CONST char *s, char **sp) {
   return _int_strtod_l(s, sp, _current_locale());
 }
+#endif
 
 double strtod_l(CONST char *s, char **sp, locale_t loc) {
   return _int_strtod_l(s, sp, loc);
 }
 
+#ifdef __SIZEOF_INT128__
 long double strtold_l(CONST char *s, char **sp, locale_t loc) {
   return _int_strtod_l(s, sp, loc);
 }
+#endif

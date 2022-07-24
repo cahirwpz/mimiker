@@ -22,10 +22,7 @@
 
 #define FDT_DEF_INTR_CELLS 1
 
-static paddr_t fdt_pa;  /* FDT blob physical address (`PAGESIZE`-aligned) */
-static size_t fdt_off;  /* FDT blob offset within the first page */
-static void *fdtp;      /* FDT blob virtual memory pointer */
-static size_t fdt_size; /* FDT blob size (rounded to `PAGESIZE`) */
+static void *fdtp; /* FDT blob virtual memory pointer */
 
 static inline void FDT_perror(int err) {
 #if defined(FDT_DEBUG) && FDT_DEBUG
@@ -37,33 +34,11 @@ static inline void FDT_panic(int err) {
   panic("FDT operation failed: %s", fdt_strerror(err));
 }
 
-void FDT_early_init(paddr_t pa, void *va) {
+void FDT_init(void *va) {
   int err = fdt_check_header(va);
   if (err < 0)
     FDT_panic(err);
-
-  const size_t totalsize = fdt_totalsize(va);
-
-  fdt_pa = rounddown(pa, PAGESIZE);
-  fdt_off = fdt_pa - pa;
   fdtp = va;
-  paddr_t fdt_end = roundup(pa + totalsize, PAGESIZE);
-  fdt_size = fdt_end - fdt_pa;
-}
-
-paddr_t FDT_get_physaddr(void) {
-  assert(fdt_pa);
-  return fdt_pa + fdt_off;
-}
-
-void FDT_changeroot(void *root) {
-  assert(fdtp);
-  fdtp = root;
-}
-
-void FDT_get_blob_range(paddr_t *startp, paddr_t *endp) {
-  *startp = fdt_pa;
-  *endp = fdt_pa + fdt_size;
 }
 
 phandle_t FDT_finddevice(const char *device) {

@@ -1,53 +1,77 @@
-# vim: tabstop=8 shiftwidth=8 noexpandtab:
+# vim: tabstop=2 shiftwidth=2 noexpandtab:
 #
 # This is a common makefile used to establish the implementation of the basic
 # tools used throughout the build system.
 #
 # The following make variables are set by the including makefile:
-# - TARGET, {CLANG,GCC}_ABIFLAGS: Set by arch.*.mk files.
+# - TARGET, ABIFLAGS: Set by arch.*.mk files.
+
+LLVM_VER := -14
+
+ifeq ($(shell which cache > /dev/null; echo $$?), 0)
+  CCACHE := ccache
+endif
 
 ifndef ARCH
   $(error ARCH variable not defined. Have you included config.mk?)
 endif
 
-GCC_FOUND = $(shell which $(TARGET)-gcc > /dev/null; echo $$?)
-ifneq ($(GCC_FOUND), 0)
-  $(error $(TARGET)-gcc compiler not found - please refer to README.md!)
-endif
+# Pass "LLVM=1" at command line to switch to llvm toolchain.
+ifeq ($(LLVM), 1)
 
-# Pass "CLANG=1" at command line to switch kernel compiler to Clang.
-ifeq ($(CLANG), 1)
-CLANG_FOUND = $(shell which clang > /dev/null; echo $$?)
-ifneq ($(CLANG_FOUND), 0)
+ifneq ($(shell which clang$(LLVM_VER) > /dev/null; echo $$?), 0)
   $(error clang compiler not found - please refer to README.md!)
 endif
-TARGET_CC = clang $(CLANG_ABIFLAGS) -g
+
+ifneq ($(shell which ld.lld$(LLVM_VER) > /dev/null; echo $$?), 0)
+  $(error lld linker not found)
+endif
+
+ifneq ($(shell which llvm-ar$(LLVM_VER) > /dev/null; echo $$?), 0)
+  $(error llvm toolchain not found)
+endif
+
+CC	= $(CCACHE) clang$(LLVM_VER) -target $(TARGET) $(ABIFLAGS) -g
+CPP	= $(CC) -x c -E
+AS	= $(CC)
+LD	= ld.lld$(LLVM_VER)
+AR	= llvm-ar$(LLVM_VER)
+NM	= llvm-nm$(LLVM_VER)
+RANLIB	= llvm-ranlib$(LLVM_VER)
+READELF	= llvm-readelf$(LLVM_VER)
+OBJCOPY	= llvm-objcopy$(LLVM_VER)
+OBJDUMP	= llvm-objdump$(LLVM_VER)
+STRIP	= llvm-strip$(LLVM_VER)
+
 # The genassym script produces C code with asm statements that have
 # garbage instructions, which Clang checks using its built-in assembler
 # and refuses to compile. This option disables this check.
 ASSYM_CFLAGS += -no-integrated-as
+
 else
-TARGET_CC = $(TARGET)-gcc $(GCC_ABIFLAGS) -g
+
+ifneq ($(shell which $(TARGET)-gcc > /dev/null; echo $$?), 0)
+  $(error $(TARGET)-gcc compiler not found - please refer to README.md!)
 endif
 
-CC       = $(TARGET_CC)
-AS       = $(TARGET_CC)
-LD       = $(TARGET)-gcc $(GCC_ABIFLAGS) -g
-CPP      = $(TARGET)-cpp
-AR       = $(TARGET)-ar
-NM       = $(TARGET)-nm
-GDB      = $(TARGET)-gdb
-RANLIB	 = $(TARGET)-ranlib
-READELF  = $(TARGET)-readelf
-OBJCOPY  = $(TARGET)-objcopy
-OBJDUMP  = $(TARGET)-objdump
-STRIP    = $(TARGET)-strip
+CC	= $(CCACHE) $(TARGET)-gcc $(ABIFLAGS) -g
+CPP	= $(CCACHE) $(TARGET)-cpp
+AS	= $(CC)
+LD	= $(TARGET)-ld
+AR	= $(TARGET)-ar
+NM	= $(TARGET)-nm
+RANLIB	= $(TARGET)-ranlib
+READELF	= $(TARGET)-readelf
+OBJCOPY	= $(TARGET)-objcopy
+OBJDUMP	= $(TARGET)-objdump
+STRIP	= $(TARGET)-strip
+endif
 
 CP      = cp
 CPIO    = cpio --format=crc
 CSCOPE  = cscope -b
 CTAGS   = ctags
-FORMAT  = clang-format -style=file 
+FORMAT  = clang-format$(LLVM_VER) -style=file 
 INSTALL = install -D
 LN	= ln
 RM      = rm -f
