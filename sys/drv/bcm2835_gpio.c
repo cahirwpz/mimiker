@@ -96,10 +96,14 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
   ssize_t pull_cnt = 0;
   ssize_t intr_detect_cnt = 0;
 
+  int entry_name_len = FDT_getproplen(node, "name");
+  char *entry_name = kmalloc(M_DEV, entry_name_len, M_ZERO);
+  FDT_getprop(node, "name", (pcell_t *)entry_name, entry_name_len);
+
   pin_cnt = FDT_getencprop_alloc_multi(node, "pins", sizeof(*pin_cfgs),
                                        (void **)&pin_cfgs);
   if (pin_cnt == -1) {
-    klog("Warning: GPIO FDT entry with no `pins` property");
+    klog("Warning: GPIO FDT entry \"%s\" with no `pins` property", entry_name);
     error = ENOENT;
     goto cleanup;
   }
@@ -107,7 +111,8 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
   function_cnt = FDT_getencprop_alloc_multi(
     node, "function", sizeof(*function_cfgs), (void **)&function_cfgs);
   if (function_cnt == -1) {
-    klog("Warning: GPIO FDT entry with no `function` property");
+    klog("Warning: GPIO FDT entry \"%s\" with no `function` property",
+         entry_name);
     error = EINVAL;
     goto cleanup;
   }
@@ -115,7 +120,7 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
   pull_cnt = FDT_getencprop_alloc_multi(node, "pull", sizeof(*pull_cfgs),
                                         (void **)&pull_cfgs);
   if (pull_cnt == -1) {
-    klog("Warning: GPIO FDT entry with no `pull` property");
+    klog("Warning: GPIO FDT entry \"%s\" with no `pull` property", entry_name);
     error = EINVAL;
     goto cleanup;
   }
@@ -123,7 +128,8 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
   intr_detect_cnt = FDT_getencprop_alloc_multi(
     node, "intr_detect", sizeof(*intr_detect_cfgs), (void **)&intr_detect_cfgs);
   if (intr_detect_cnt == -1) {
-    klog("Warning: GPIO FDT entry with no `intr_detect` property");
+    klog("Warning: GPIO FDT entry \"%s\" with no `intr_detect` property",
+         entry_name);
     error = EINVAL;
     goto cleanup;
   }
@@ -151,6 +157,8 @@ static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
   }
 
 cleanup:
+  FDT_free(entry_name);
+
   if (pin_cnt > 0)
     FDT_free(pin_cfgs);
   if (function_cnt > 0)
