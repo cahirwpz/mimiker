@@ -162,7 +162,9 @@ typedef enum emmc_prop_id {
   EMMC_PROP_RW_BUSWIDTH,      /* Bus width, ie. no. of data lanes. */
   EMMC_PROP_RW_RCA,           /* Relative card address */
   EMMC_PROP_R_ERRORS,         /* Last reported set of errors */
-  EMMC_PROP_W_CLR_ERRORS      /* Clear all errors (assume reset) */
+  EMMC_PROP_W_CLR_ERRORS,     /* Clear all errors (assume reset) */
+  EMMC_PROP_R_ERROR_CODE,     /* Error code associated with an invalid state.
+                               * Should be 0 if state is valid. */
 } emmc_prop_id_t;
 typedef uint64_t emmc_prop_val_t;
 

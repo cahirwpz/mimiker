@@ -32,7 +32,8 @@ typedef struct bcmemmc_state {
   uint64_t rca;          /* Relative Card Address */
   uint64_t host_version; /* Host specification version */
   volatile uint32_t pending; /* All interrupts received */
-  emmc_error_t errors;
+  emmc_error_t errors;       /* Error flags */
+  int last_error;            /* Error code associated with invalid state */
 } bcmemmc_state_t;
 
 #define b_in bus_read_4
@@ -73,13 +74,15 @@ static emmc_error_t bcemmc_decode_errors(uint32_t interrupts) {
   return e;
 }
 
-static inline int ret_error(bcmemmc_state_t *state, int err) {
-  state->errors |= EMMC_ERROR_INTERNAL;
-  return err;
+static inline int invalid_state(bcmemmc_state_t *state) {
+  return state->errors & EMMC_ERROR_INTERNAL;
 }
 
-static inline int should_nop(bcmemmc_state_t *state) {
-  return state->errors & EMMC_ERROR_INTERNAL;
+static inline int ret_error(bcmemmc_state_t *state, int err) {
+  if (!invalid_state(state))
+    state->last_error = err;
+  state->errors |= EMMC_ERROR_INTERNAL;
+  return err;
 }
 
 /* Returns new pending interrupts.
@@ -130,7 +133,7 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
 
   assert(mask != 0);
 
-  if (should_nop(state))
+  if (invalid_state(state))
     return ENXIO;
 
   SCOPED_SPIN_LOCK(&state->lock);
@@ -324,7 +327,7 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   resource_t *emmc = state->emmc;
 
-  if (should_nop(state))
+  if (invalid_state(state))
     return ENXIO;
 
   uint32_t reg = 0;
@@ -363,9 +366,8 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
     case EMMC_PROP_R_ERRORS:
       *var = state->errors;
       break;
-    case EMMC_PROP_W_CLR_ERRORS:
-      state->errors = 0;
-      break;
+    case EMMC_PROP_R_ERROR_CODE:
+      *var = state->last_error;
     default:
       return ret_error(state, ENODEV);
   }
@@ -377,7 +379,7 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   resource_t *emmc = state->emmc;
 
-  if (should_nop(state))
+  if (invalid_state(state))
     return ENXIO;
 
   uint32_t reg = 0;
@@ -412,6 +414,10 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
       return bcmemmc_set_bus_width(state, var);
     case EMMC_PROP_RW_RCA:
       state->rca = var;
+      break;
+    case EMMC_PROP_W_CLR_ERRORS:
+      state->errors = 0;
+      state->last_error = 0;
       break;
     default:
       return ret_error(state, ENODEV);
@@ -452,7 +458,7 @@ static int bcmemmc_send_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   int error = 0;
 
-  if (should_nop(state))
+  if (invalid_state(state))
     return ENXIO;
 
   /* Application-specific command need to be prefixed with APP_CMD command. */
@@ -492,7 +498,7 @@ static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
 
   assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
 
-  if (should_nop(state))
+  if (invalid_state(state))
     return ENXIO;
 
   /* A very simple transfer (should be replaced with DMA in the future) */
