@@ -1,0 +1,104 @@
+
+/dts-v1/;
+
+/ {
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+
+        chosen {
+        };
+
+        cpus {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            timebase-frequency = <100000000>;
+
+            CPU0: cpu@0 {
+                device_type = "cpu";
+                compatible = "riscv";
+                riscv,isa = "rv32ima";
+                mmu-type = "riscv,sv32";
+                reg = <0>;
+                clock-frequency = <100000000>;
+                status = "okay";
+                
+                d-cache-size = <4096>;
+                d-cache-sets = <1>;
+                d-cache-block-size = <64>;
+
+                i-cache-size = <4096>;
+                i-cache-sets = <1>;
+                i-cache-block-size = <64>;
+
+                
+                d-tlb-size = <4>;
+                d-tlb-sets = <4>;
+
+                i-tlb-size = <4>;
+                i-tlb-sets = <4>;
+
+                hlic: interrupt-controller {
+                    #interrupt-cells = <0x00000001>;
+                    interrupt-controller;
+                    compatible = "riscv,cpu-intc";
+                };
+            };
+        };
+
+        memory@40000000 {
+            device_type = "memory";
+            reg = <0x40000000 0x10000000>;
+        };
+
+        reserved-memory {
+            #address-cells = <1>;
+            #size-cells = <1>;
+            ranges;
+
+            opensbi@40f00000 {
+                reg = <0x40f00000 0x80000>;
+            };
+        };
+
+        soc {
+            #address-cells = <1>;
+            #size-cells = <1>;
+            compatible = "simple-bus";
+            interrupt-parent = <&plic>;
+            ranges;
+
+            soc_ctrl0: soc_controller@f0000000 {
+                compatible = "litex,soc-controller";
+                reg = <0xf0000000 0xc>;
+                status = "okay";
+            };
+
+            clint@f0010000 {
+                reg = <0xf0010000 0x10000>;
+                interrupts= <3>, <7>;
+                compatible = "riscv,clint0";
+            };
+
+            plic: interrupt-controller@f0c00000 {
+                compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
+                reg = <0xf0c00000 0x400000>;
+                #address-cells = <0>;
+                #interrupt-cells = <1>;
+                interrupt-controller;
+                interrupts-extended = <&hlic 11>, <&hlic 9>;
+                riscv,ndev = <32>;
+            };
+
+            liteuart0: serial@f0001000 {
+                compatible = "litex,liteuart";
+                reg = <0xf0001000 0x100>;
+                interrupts = <1>;
+                status = "okay";
+            };
+        };
+
+        aliases {
+                serial0 = &liteuart0;
+        };
+};

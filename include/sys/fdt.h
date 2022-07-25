@@ -15,7 +15,7 @@
 #define FDT_MAX_RSV_MEM_REGS 16
 #define FDT_MAX_REG_TUPLES 16
 #define FDT_MAX_ICELLS 3
-#define FDT_MAX_INTRS 8
+#define FDT_MAX_INTRS 16
 
 typedef uint32_t phandle_t;
 typedef uint32_t pcell_t;
@@ -40,35 +40,15 @@ typedef struct fdt_intr {
 } fdt_intr_t;
 
 /*
- * Early FDT initialization.
+ * FDT initialization.
  *
  * Must be called during MD bootstrap before the kernel environment is built.
  * This is the first FDT function that gets called.
  *
  * Arguments:
- *  - `pa`: FDT physical address
  *  - `va`: FDT kernel virtual address
  */
-void FDT_early_init(paddr_t pa, void *va);
-
-/*
- * Obtain the physical address of the FDT blob.
- */
-paddr_t FDT_get_physaddr(void);
-
-/*
- * Change the internal root FDT pointer.
- */
-void FDT_changeroot(void *root);
-
-/*
- * Obtain physical memory boundaries of the FDT blob.
- *
- * Arguments:
- *  - `startp`: dst for the first address
- *  - `endp`: dst for the first address after the blob
- */
-void FDT_get_blob_range(paddr_t *startp, paddr_t *endp);
+void FDT_init(void *va);
 
 /*
  * Find the package handle of a pointed device in the device tree.

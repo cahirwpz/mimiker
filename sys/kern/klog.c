@@ -161,6 +161,7 @@ __noreturn void klog_panic(klog_origin_t origin, const char *file,
                            unsigned line, const char *format, uintptr_t arg1,
                            uintptr_t arg2, uintptr_t arg3, uintptr_t arg4,
                            uintptr_t arg5, uintptr_t arg6) {
+  klog.mask = -1;
   klog_append(origin, file, line, format, arg1, arg2, arg3, arg4, arg5, arg6);
   ktest_log_failure();
   halt();

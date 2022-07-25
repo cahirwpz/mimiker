@@ -10,12 +10,13 @@
 #include <sys/thread.h>
 #include <sys/types.h>
 #include <sys/vm_physmem.h>
+#include <riscv/boot.h>
 #include <riscv/mcontext.h>
 #include <riscv/pmap.h>
 #include <riscv/sbi.h>
 #include <riscv/vm_param.h>
 
-#define KERNEL_PHYS_END (align(RISCV_PHYSADDR(__ebss), PAGESIZE) + BOOTMEM_SIZE)
+paddr_t kern_phys_end;
 
 static size_t count_args(void) {
   /*
@@ -73,9 +74,7 @@ static void process_dtb(char **tokens, kstack_t *stk) {
   *tokens = NULL;
 }
 
-void *board_stack(paddr_t dtb_pa, void *dtb_va) {
-  FDT_early_init(dtb_pa, dtb_va);
-
+void *board_stack(void) {
   kstack_t *stk = &thread0.td_kstack;
 
   /*
@@ -110,8 +109,9 @@ typedef struct {
 #define END(pa) roundup((pa), PAGESIZE)
 
 static void ar_get_kernel_img(addr_range_t *ar) {
-  ar->start = (paddr_t)__eboot;
-  ar->end = KERNEL_PHYS_END;
+  assert(kern_phys_end);
+  ar->start = PHYSADDR(__kernel_start);
+  ar->end = kern_phys_end;
 }
 
 static void ar_get_initrd(addr_range_t *ar) {
@@ -120,13 +120,6 @@ static void ar_get_initrd(addr_range_t *ar) {
   assert(rd_start && rd_end);
   ar->start = START(rd_start);
   ar->end = END(rd_end);
-}
-
-static void ar_get_dtb(addr_range_t *ar) {
-  paddr_t dtb_start, dtb_end;
-  FDT_get_blob_range(&dtb_start, &dtb_end);
-  ar->start = dtb_start;
-  ar->end = dtb_end;
 }
 
 static size_t ar_get_reserved_mem(addr_range_t *ars) {
@@ -177,10 +170,9 @@ static void physmem_regions(void) {
   addr_range_t memory[MAX_PHYS_MEM_REGS];
   ar_get_kernel_img(&memory[0]);
   ar_get_initrd(&memory[1]);
-  ar_get_dtb(&memory[2]);
-  const size_t rsvmem_cnt = ar_get_reserved_mem(&memory[3]);
+  const size_t rsvmem_cnt = ar_get_reserved_mem(&memory[2]);
 
-  const size_t nranges = rsvmem_cnt + 3;
+  const size_t nranges = rsvmem_cnt + 2;
   qsort(memory, nranges, sizeof(addr_range_t), ar_cmp);
 
   addr_range_t *range = &memory[0];
