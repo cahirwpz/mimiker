@@ -1,0 +1,13 @@
+Index: qemu-mimiker/qemu-6.2.0/hw/riscv/sifive_u.c
+===================================================================
+--- qemu-mimiker.orig/qemu-6.2.0/hw/riscv/sifive_u.c
++++ qemu-mimiker/qemu-6.2.0/hw/riscv/sifive_u.c
+@@ -510,7 +510,7 @@ static void create_fdt(SiFiveUState *s,
+     g_free(nodename);
+ 
+ update_bootargs:
+-    if (cmdline) {
++    if (cmdline && *cmdline) {
+         qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", cmdline);
+     }
+ }

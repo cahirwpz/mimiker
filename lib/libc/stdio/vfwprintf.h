@@ -592,7 +592,11 @@ static char *cvt(double, int, int, char *, int *, int, int *);
  */
 #define ALT 0x001      /* alternate form */
 #define LADJUST 0x004  /* left adjustment */
+#ifdef __SIZEOF_INT128__
 #define LONGDBL 0x008  /* long double */
+#else
+#define LONGDBL 0
+#endif
 #define LONGINT 0x010  /* long integer */
 #define LLONGINT 0x020 /* long long integer */
 #define SHORTINT 0x040 /* short integer */
