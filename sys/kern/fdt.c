@@ -92,13 +92,6 @@ const char *FDT_getname(phandle_t node) {
 
 ssize_t FDT_getproplen(phandle_t node, const char *propname) {
   int len;
-
-  if (!strcmp(propname, "name")) {
-    fdt_get_name(fdtp, node, &len);
-    assert(len > 0);
-    return len + 1;
-  }
-
   const void *prop = fdt_getprop(fdtp, node, propname, &len);
   if (!prop) {
     FDT_perror(len);
@@ -115,12 +108,7 @@ ssize_t FDT_getprop(phandle_t node, const char *propname, pcell_t *buf,
                     size_t buflen) {
   int len;
   const void *prop = fdt_getprop(fdtp, node, propname, &len);
-
-  if ((!prop) && (!strcmp(propname, "name"))) {
-    prop = fdt_get_name(fdtp, node, &len);
-    assert(len > 0);
-    len += 1;
-  } else if (!prop) {
+  if (!prop) {
     FDT_perror(len);
     return -1;
   }
