@@ -8,7 +8,6 @@ SOURCES = \
 	crash.c \
 	devfs.c \
 	kmem.c \
-	libfdt.c \
 	linker_set.c \
 	mutex.c \
 	physmem.c \
@@ -35,7 +34,6 @@ SOURCES = \
 	vfs.c \
 	vmem.c
 
-OBJECTS += fake_dtb.o
 CPPFLAGS = -DKL_LOG=KL_TEST
 
 include $(TOPDIR)/build/build.kern.mk

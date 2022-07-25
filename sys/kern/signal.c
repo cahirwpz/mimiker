@@ -526,8 +526,8 @@ void sig_post(ksiginfo_t *ksi) {
 }
 
 __noreturn void sig_exit(thread_t *td, signo_t sig) {
-  klog("PID(%d) terminated due to signal %s ", td->td_proc->p_pid,
-       sig_name[sig]);
+  klog("PID(%d) terminated due to signal %s at %p!", td->td_proc->p_pid,
+       sig_name[sig], ctx_get_pc((ctx_t *)td->td_uctx));
   proc_exit(MAKE_STATUS_SIG_TERM(sig));
 }
 
