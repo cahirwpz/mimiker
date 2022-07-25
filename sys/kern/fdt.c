@@ -86,6 +86,10 @@ void FDT_free(void *buf) {
   kfree(M_DEV, buf);
 }
 
+const char *FDT_getname(phandle_t node) {
+  return fdt_get_name(fdtp, node, NULL);
+}
+
 ssize_t FDT_getproplen(phandle_t node, const char *propname) {
   int len;
   const void *prop = fdt_getprop(fdtp, node, propname, &len);
