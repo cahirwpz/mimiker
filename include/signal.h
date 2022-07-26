@@ -35,6 +35,7 @@
 #define _SIGNAL_H_
 
 #include <sys/cdefs.h>
+#include <sys/time.h>
 #include <sys/signal.h>
 
 __BEGIN_DECLS
@@ -67,6 +68,13 @@ int sigsuspend(const sigset_t *);
 
 int killpg(int pgrp, int sig);
 int siginterrupt(int sig, int flag);
+
+/*
+ * X/Open CAE Specification Issue 5; IEEE Std 1003.1b-1993 (POSIX)
+ */
+int sigwait(const sigset_t *__restrict, int *__restrict);
+int sigtimedwait(const sigset_t *__restrict set, siginfo_t *__restrict info,
+                 const struct timespec *__restrict timeout);
 
 /*
  * Mimiker specific stuff.
