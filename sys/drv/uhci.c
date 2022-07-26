@@ -484,12 +484,14 @@ static void uhci_init_pool(void) {
   size_t tfr_pool_asize = uhci_align_pool_size(UHCI_TFR_POOL_SIZE);
   void *tfr_pool =
     (void *)kmem_alloc_contig(NULL, tfr_pool_asize, PMAP_NOCACHE);
-  pool_add_page(P_TFR, tfr_pool, roundup2(UHCI_TFR_POOL_SIZE, PAGESIZE));
+  pool_add_page(P_TFR, tfr_pool,
+                /*roundup2(UHCI_TFR_POOL_SIZE, PAGESIZE)*/ tfr_pool_asize);
 
   size_t data_pool_asize = uhci_align_pool_size(UHCI_DATA_POOL_SIZE);
   void *data_pool =
     (void *)kmem_alloc_contig(NULL, data_pool_asize, PMAP_NOCACHE);
-  pool_add_page(P_DATA, data_pool, roundup2(UHCI_DATA_POOL_SIZE, PAGESIZE));
+  pool_add_page(P_DATA, data_pool, /*roundup2(UHCI_DATA_POOL_SIZE, PAGESIZE)*/
+                data_pool_asize);
 }
 
 /*
