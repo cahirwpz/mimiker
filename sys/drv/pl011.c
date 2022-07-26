@@ -16,9 +16,7 @@
 #include <dev/uart.h>
 #include <sys/uart_tty.h>
 #include <dev/bcm2835reg.h>
-#include <dev/bcm2835_gpioreg.h>
 #include <dev/plcomreg.h>
-#include <dev/bcm2835_gpio.h>
 
 #define UART0_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE)
 #define UART_BUFSIZE 128
@@ -96,11 +94,6 @@ static int pl011_attach(device_t *dev) {
   bus_write_4(r, PL011COM_ICR, PL011_INT_ALLMASK);
 
   /* TODO(pj) do magic with mail buffer */
-
-  bcm2835_gpio_function_select(r, 14, BCM2835_GPIO_ALT0);
-  bcm2835_gpio_function_select(r, 15, BCM2835_GPIO_ALT0);
-  bcm2835_gpio_set_pull(r, 14, BCM2838_GPIO_GPPUD_PULLOFF);
-  bcm2835_gpio_set_pull(r, 15, BCM2838_GPIO_GPPUD_PULLOFF);
 
   /*
    * Set integer & fractional part of baud rate.
