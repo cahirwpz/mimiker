@@ -33,8 +33,8 @@ def run_test(seed, board, timeout):
                  'test=all', 'seed=%u' % seed, 'repeat=%d' % REPEAT])
         rc = launch.wait()
         if rc:
-            print("Run `launch -d test=all seed=%u repeat=%u` to reproduce "
-                  "the failure." % (seed, REPEAT))
+            print("Run `launch -d -b %s test=all seed=%u repeat=%u` "
+                  "to reproduce the failure." % (board, seed, REPEAT))
             sys.exit(rc)
     except KeyboardInterrupt:
         launch.send_signal(signal.SIGINT)
@@ -48,7 +48,8 @@ if __name__ == '__main__':
         description='Automatically performs kernel tests.')
     parser.add_argument('--times', type=int, default=N_SIMPLE,
                         help='Run tests given number of times.')
-    parser.add_argument('--board', default='rpi3', choices=['malta', 'rpi3'],
+    parser.add_argument('-b', '--board', default='rpi3',
+                        choices=['malta', 'rpi3', 'sifive_u'],
                         help='Emulated board.')
     parser.add_argument('-T', '--timeout', type=int, default=DEFAULT_TIMEOUT,
                         help='Test-run will fail after n seconds.')

@@ -39,6 +39,10 @@ void FDT_init(void *va) {
   if (err < 0)
     FDT_panic(err);
   fdtp = va;
+  klog("FDT: %p - %p", fdtp, fdtp + fdt_totalsize(va));
+  /* XXX: To save DTB to file use GDB command:
+   * `dump memory board.dtb start_addr end_addr`,
+   * then decompile DTB file: `dtc -I dtb -O dts -o board.dts board.dtb` */
 }
 
 phandle_t FDT_finddevice(const char *device) {
@@ -240,8 +244,6 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
        child = FDT_peer(child)) {
     if (cnt == FDT_MAX_RSV_MEM_REGS)
       return ERANGE;
-    if (FDT_hasprop(child, "no-map"))
-      continue;
     if (FDT_getprop(child, "reg", reg, sizeof(reg)) < 0)
       continue;
     FDT_data_to_res(reg, addr_cells, size_cells, &mrs[cnt].addr,
