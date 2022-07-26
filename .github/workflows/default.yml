@@ -115,4 +115,4 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: "riscv64 kernel+ramdisk"
-      - run: ./run_tests.py --board sifive_u --timeout=60 --times=50
+      - run: ./run_tests.py --board sifive_u --timeout=80 --times=50
