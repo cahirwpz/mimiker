@@ -68,8 +68,10 @@ static __noreturn void start_init(__unused void *arg) {
   assert(_stderr == 2);
 
   char *init = kenv_get("init");
-  if (init)
-    kern_execve(init, kenv_get_init(), (char *[]){NULL});
+  if (init == NULL)
+    init = "/sbin/init";
+
+  kern_execve(init, kenv_get_init(), (char *[]){NULL});
 
   char *test = kenv_get("test");
   if (test)

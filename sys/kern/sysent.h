@@ -91,6 +91,7 @@ static int sys_sync(proc_t *, void *, register_t *);
 static int sys_fsync(proc_t *, fsync_args_t *, register_t *);
 static int sys_kqueue1(proc_t *, kqueue1_args_t *, register_t *);
 static int sys_kevent(proc_t *, kevent_args_t *, register_t *);
+static int sys_sigtimedwait(proc_t *, sigtimedwait_args_t *, register_t *);
 
 struct sysent sysent[] = {
   [SYS_syscall] = { .name = "syscall", .nargs = 1, .call = (syscall_t *)sys_syscall },
