@@ -24,7 +24,7 @@ drivers, so we keep a list of target platforms small.
 If you'd like to get involved in the project please read our [Wiki][2] to find
 out more!
 
-## Where we are?
+## Where we are
 
 Mimiker is a real-time operating system. The kernel is preemptible and our
 mutexes support priority inheritance. We minimize work done in interupt context
@@ -61,7 +61,7 @@ Virtual file system and user virtual address space management are loosely based
 on FreeBSD ideas. They need substatial amount of work to become as mature as in
 FreeBSD or Linux kernels.
 
-## What we're proud of ?
+## What we are proud of
 
 We have over eighty [syscalls][4] that allow us to run various open-source
 tools, including NetBSD's [Korn Shell][5], [Atto Emacs][6] editor, [Lua][7]
@@ -77,7 +77,7 @@ Mimiker supports:
  * libterminfo, hence Mimiker can run some fullscreen terminal applications,
  * [pseudoterminals][16] -- so we can run [script][17] or terminal emulators.
 
-## What is missing?
+## What is missing
 
 We would like to support:
  * multi-core systems,

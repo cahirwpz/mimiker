@@ -1,12 +1,9 @@
 Building
 ---
 
-With toolchain installed you are ready to compile Mimiker. Before you run
+With [toolchain][1] installed you are ready to compile Mimiker. Before you run
 `make` in project's root directory, please have a look at `config.mk` file.
-
-Of several configurable options, the following are most important to you:
-* `VERBOSE=1`: shows commands executed by `make` as they're run, useful when
-  debugging build system,
+There are several important configurable options there, including:
 * `KASAN=1`: enables Kernel Address Sanitizer (dynamic memory error detector),
   which finds buffer overruns and other nasty memory related bugs,
 * `KCSAN=1`: enables Kernel Concurrency Sanitizer (data races detector), which
@@ -19,8 +16,10 @@ Of several configurable options, the following are most important to you:
 * `LLVM` if set to 0 GNU toolchain (gcc & binutils) will be used to compile the
   project instead of LLVM toolchain (clang & lld).
 
-Each option defined with `?=` operator can be overridden from command line. For
-example, use `make KASAN=1` command to create a KASAN build.
+If you need to debug build system, i.e. print commands executed by `make` as
+they are run, add `VERBOSE=1` to the command line.
 
-The result will be a `mimiker.elf` file in `sys` directory containing the kernel
-image.
+**Important!** It's recommended to issue `make distclean` command after each
+modification to `config.mk` file.
+
+[1]: toolchain.md

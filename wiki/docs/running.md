@@ -1,15 +1,14 @@
 Running
 ---
 
-We provide a Python script, i.e. `launch`, that simplifies running Mimiker OS.
+We provide a Python script, i.e. [launch][3], that simplifies running Mimiker OS.
 The kernel image is run with QEMU or Renode simulator. One or more serial
 consoles are available for interaction. Optionally you can attach to simulator
 with `gdb` debugger.  All of that is achieved by running all interactive
-sessions within [tmux](https://github.com/tmux/tmux/wiki) terminal multiplexer
-with default key bindings.
+sessions within [tmux][1] terminal multiplexer with default key bindings.
 
-In project main directory, run command below that will start the kernel in
-test-run mode. To finish simulation simply detach from `tmux` session by
+To start kernel in test-run mode, run the following command in project's root
+directory. To finish simulation simply detach from `tmux` session by
 pressing `Ctrl+b` and `d` (as in _detach_) keys. To switch between emulated
 serial consoles and debugger press `Ctrl+b` and corresponding terminal number.
 
@@ -31,4 +30,11 @@ argument. Some useful kernel arguments:
   Browse `bin` and `usr.bin` directories for currently available programs.
   In most cases you want to run `/bin/ksh` shell.
 
-If you want to run tests please read [this document](sys/tests/README.md).
+Please note that `launch` script is highly configurable by means of changing
+`CONFIG` dictionary.
+
+If you want to run tests please read [this document][2].
+
+[1]: https://github.com/tmux/tmux/wiki
+[2]: sys/tests/README.md
+[3]: launch
