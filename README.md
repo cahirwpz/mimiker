@@ -27,7 +27,7 @@ out more!
 ## Where we are
 
 Mimiker is a real-time operating system. The kernel is preemptible and our
-mutexes support priority inheritance. We minimize work done in interupt context
+mutexes support priority inheritance. We minimize work done in interrupt context
 by delegating it to interrupt threads instead of running it using soft
 interrupts.
 
