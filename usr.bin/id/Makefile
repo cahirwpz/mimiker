@@ -5,4 +5,4 @@ FORMAT-EXCLUDE = $(SOURCES)
 
 include $(TOPDIR)/build/build.prog.mk
 
-CFLAGS += -Wno-format-nonliteral
+WFLAGS += -Wno-format-nonliteral
