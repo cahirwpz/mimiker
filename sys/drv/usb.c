@@ -173,9 +173,9 @@ static usb_endpt_t *usb_endpt_alloc(uint16_t maxpkt, uint8_t addr,
 }
 
 /* Release an endpoint. */
-static void usb_endpt_free(usb_endpt_t *endpt) {
+/*static void usb_endpt_free(usb_endpt_t *endpt) {
   kfree(M_DEV, endpt);
-}
+}*/
 
 /*
  * USB device handling functions.
@@ -204,10 +204,10 @@ static usb_device_t *usb_dev_alloc(usb_speed_t speed) {
 
 /* Release a device. */
 static void usb_dev_free(usb_device_t *udev) {
-  usb_endpt_t *endpt;
-  TAILQ_FOREACH (endpt, &udev->endpts, link)
-    usb_endpt_free(endpt);
-  kfree(M_DEV, udev);
+  //  usb_endpt_t *endpt;
+  //  TAILQ_FOREACH (endpt, &udev->endpts, link)
+  //    usb_endpt_free(endpt);
+  //  kfree(M_DEV, udev);
 }
 
 /* Return endpoint of device `dev` which implements transfer type `transfer`
