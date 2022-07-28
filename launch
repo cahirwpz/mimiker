@@ -101,7 +101,7 @@ CONFIG = {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
                     '-device', 'VGA',
-                    # '-device', 'usb-kbd',
+                    '-device', 'usb-kbd',
                     # '-device', 'usb-mouse',
                     '-machine', 'malta',
                     '-cpu', '24Kf'],
