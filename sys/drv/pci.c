@@ -85,6 +85,9 @@ void pci_bus_enumerate(device_t *pcib) {
                    .instance = (pci_device_t[1]){},
                    .state = NULL};
 
+  bus_addr_t mem_start = 0;
+  bus_addr_t ioports_start = IO_ISAEND + 1;
+
   for (int d = 0; d < PCI_DEV_MAX_NUM; d++) {
     SET_PCIA(&pcid, 0, d, 0);
     /* Note that if we don't check the MF bit of the device
@@ -148,9 +151,10 @@ void pci_bus_enumerate(device_t *pcib) {
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
 
         /* skip ISA I/O ports range */
-        rman_addr_t start = (type == RT_IOPORTS) ? (IO_ISAEND + 1) : 0;
+        bus_addr_t *startp = (type == RT_IOPORTS) ? &ioports_start : &mem_start;
 
-        device_add_resource(dev, type, i, start, RMAN_ADDR_MAX, size, flags);
+        device_add_range(dev, type, i, *startp, *startp + size, flags);
+        *startp += size;
       }
       if (pcid->pin) {
         int irq = pci_route_interrupt(dev);

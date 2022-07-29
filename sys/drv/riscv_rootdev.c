@@ -26,8 +26,6 @@ typedef enum hlic_irq {
 } hlic_irq_t;
 
 typedef struct rootdev {
-  rman_t mem_rm;                        /* memory resource manager */
-  rman_t hlic_rm;                       /* HLIC resource manager */
   intr_event_t *intr_event[HLIC_NIRQS]; /* HLIC interrupt events */
 } rootdev_t;
 
@@ -75,23 +73,11 @@ static void hlic_intr_enable(intr_event_t *ie) {
   csr_set(sie, 1 << irq);
 }
 
-static resource_t *hlic_alloc_intr(device_t *pic, device_t *dev, int rid,
-                                   unsigned irq, rman_flags_t flags) {
-  rootdev_t *rd = pic->state;
-  rman_t *rman = &rd->hlic_rm;
-
-  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
-}
-
-static void hlic_release_intr(device_t *pic, device_t *dev, resource_t *r) {
-  resource_release(r);
-}
-
 static void hlic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                             ih_filter_t *filter, ih_service_t *service,
                             void *arg, const char *name) {
   rootdev_t *rd = pic->state;
-  unsigned irq = resource_start(r);
+  unsigned irq = r->r_irq;
   assert(irq < HLIC_NIRQS);
 
   if (!rd->intr_event[irq])
@@ -137,47 +123,18 @@ static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
  * Root bus.
  */
 
-static int rootdev_activate_resource(device_t *dev, resource_t *r) {
+static int rootdev_map_resource(device_t *dev, resource_t *r) {
   assert(r->r_type == RT_MEMORY);
-  return bus_space_map(r->r_bus_tag, resource_start(r),
+
+  r->r_bus_tag = generic_bus_space;
+
+  return bus_space_map(r->r_bus_tag, r->r_start,
                        roundup(resource_size(r), PAGESIZE), &r->r_bus_handle);
 }
 
-static void rootdev_deactivate_resource(device_t *dev, resource_t *r) {
+static void rootdev_unmap_resource(device_t *dev, resource_t *r) {
+  assert(r->r_type == RT_MEMORY);
   /* TODO: unmap mapped resources. */
-}
-
-static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
-                                          int rid, rman_addr_t start,
-                                          rman_addr_t end, size_t size,
-                                          rman_flags_t flags) {
-  rootdev_t *rd = dev->parent->state;
-  rman_t *rman = &rd->mem_rm;
-  size_t alignment = PAGESIZE;
-
-  assert(type == RT_MEMORY);
-
-  resource_t *r =
-    rman_reserve_resource(rman, type, rid, start, end, size, alignment, flags);
-  if (!r)
-    return NULL;
-
-  r->r_bus_tag = generic_bus_space;
-  r->r_bus_handle = resource_start(r);
-
-  if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, r)) {
-      resource_release(r);
-      return NULL;
-    }
-  }
-
-  return r;
-}
-
-static void rootdev_release_resource(device_t *dev, resource_t *r) {
-  bus_deactivate_resource(dev, r);
-  resource_release(r);
 }
 
 static int rootdev_probe(device_t *bus) {
@@ -185,27 +142,9 @@ static int rootdev_probe(device_t *bus) {
 }
 
 static int rootdev_attach(device_t *bus) {
-  rootdev_t *rd = bus->state;
-
   bus->node = FDT_finddevice("/cpus/cpu/interrupt-controller");
   if (bus->node == FDT_NODEV)
     return ENXIO;
-
-  rman_init(&rd->mem_rm, "RISC-V I/O space");
-#if __riscv_xlen == 64
-  rman_manage_region(&rd->mem_rm, 0x00000000, 0x30000000);
-#else
-  rman_manage_region(&rd->mem_rm, 0xf0000000, 0x10000000);
-#endif
-
-  /*
-   * NOTE: supervisor can only control supervisor and user interrupts, however,
-   * we don't support user-level trap extension.
-   */
-  rman_init(&rd->hlic_rm, "HLIC interrupts");
-  rman_manage_region(&rd->hlic_rm, HLIC_IRQ_SOFTWARE_SUPERVISOR, 1);
-  rman_manage_region(&rd->hlic_rm, HLIC_IRQ_TIMER_SUPERVISOR, 1);
-  rman_manage_region(&rd->hlic_rm, HLIC_IRQ_EXTERNAL_SUPERVISOR, 1);
 
   intr_root_claim(hlic_intr_handler, bus);
 
@@ -232,18 +171,14 @@ static int rootdev_attach(device_t *bus) {
 }
 
 static pic_methods_t hlic_pic_if = {
-  .alloc_intr = hlic_alloc_intr,
-  .release_intr = hlic_release_intr,
   .setup_intr = hlic_setup_intr,
   .teardown_intr = hlic_teardown_intr,
   .map_intr = hlic_map_intr,
 };
 
 static bus_methods_t rootdev_bus_if = {
-  .alloc_resource = rootdev_alloc_resource,
-  .release_resource = rootdev_release_resource,
-  .activate_resource = rootdev_activate_resource,
-  .deactivate_resource = rootdev_deactivate_resource,
+  .map_resource = rootdev_map_resource,
+  .unmap_resource = rootdev_unmap_resource,
 };
 
 driver_t rootdev_driver = {

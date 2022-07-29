@@ -135,11 +135,16 @@ static intr_filter_t atkbdc_intr(void *data) {
 }
 
 static int atkbdc_probe(device_t *dev) {
+  int err = 0;
+
   if (dev->unit != 0) /* XXX: unit 0 assigned by gt_pci */
     return 0;
 
-  resource_t *regs = device_take_ioports(dev, 0, RF_ACTIVE);
+  resource_t *regs = device_take_ioports(dev, 0);
   assert(regs != NULL);
+
+  if ((err = bus_map_resource(dev, regs)))
+    return err;
 
   if (!kbd_reset(regs)) {
     klog("Keyboard self-test failed.");
@@ -191,10 +196,10 @@ static int atkbdc_attach(device_t *dev) {
 
   spin_init(&atkbdc->lock, 0);
   cv_init(&atkbdc->nonempty, "AT keyboard buffer non-empty");
-  atkbdc->regs = device_take_ioports(dev, 0, RF_ACTIVE);
+  atkbdc->regs = device_take_ioports(dev, 0);
   assert(atkbdc->regs != NULL);
 
-  atkbdc->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
+  atkbdc->irq_res = device_take_irq(dev, 0);
   pic_setup_intr(dev, atkbdc->irq_res, atkbdc_intr, NULL, atkbdc,
                  "AT keyboard controller");
 
