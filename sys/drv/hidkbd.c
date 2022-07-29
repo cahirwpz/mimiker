@@ -61,7 +61,7 @@ static void hidkbd_init_evdev(device_t *dev) {
   hidkbd->evdev = evdev;
 
   /* Finally, register the device in the file system. */
-  // evdev_register(evdev);
+  evdev_register(evdev);
 }
 
 /*
@@ -192,7 +192,7 @@ static int hidkbd_attach(device_t *dev) {
 
   hidkbd_init_evdev(dev);
 
-  sched_add(hidkbd->thread);
+  //sched_add(hidkbd->thread);
 
   return 0;
 }

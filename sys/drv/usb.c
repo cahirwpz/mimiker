@@ -298,6 +298,7 @@ static int usb_get_dev_dsc(device_t *dev, usb_dev_dsc_t *devdsc) {
 
   /* Get the whole descriptor. */
   req.wLength = devdsc->bLength;
+  assert(req.wLength <= sizeof(usb_dev_dsc_t));
   return usb_send_req(dev, devdsc, USB_DIR_INPUT, &req, NULL);
 }
 
@@ -375,6 +376,7 @@ static int usb_get_config(device_t *dev, usb_cfg_dsc_t *cfgdsc) {
 
   /* Read the whole configuration. */
   req.wLength = cfgdsc->wTotalLength;
+  assert(req.wLength <= USB_MAX_CONFIG_SIZE);
   return usb_send_req(dev, cfgdsc, USB_DIR_INPUT, &req, NULL);
 }
 
@@ -422,6 +424,7 @@ static int usb_get_str_lang_dsc(device_t *dev, usb_str_lang_t *langs) {
 
   /* Read the whole language table. */
   req.wLength = langs->bLength;
+  assert(req.wLength <= sizeof(usb_str_lang_t));
   return usb_send_req(dev, langs, USB_DIR_INPUT, &req, NULL);
 }
 
@@ -442,6 +445,7 @@ static int usb_get_str_dsc(device_t *dev, uint8_t idx, usb_str_dsc_t *strdsc) {
 
   /* Read the whole descriptor. */
   req.wLength = strdsc->bLength;
+  assert(req.wLength <= sizeof(usb_str_dsc_t));
   return usb_send_req(dev, strdsc, USB_DIR_INPUT, &req, NULL);
 }
 
@@ -685,6 +689,10 @@ static usb_endpt_dsc_t *usb_if_endpt_dsc(usb_if_dsc_t *ifdsc) {
 static void usb_if_process_endpts(usb_if_dsc_t *ifdsc, usb_device_t *udev) {
   usb_endpt_dsc_t *endptdsc = usb_if_endpt_dsc(ifdsc);
 
+  assert((uintptr_t)(endptdsc + ifdsc->bNumEndpoints) - (uintptr_t)ifdsc +
+           sizeof(usb_if_dsc_t) <=
+         USB_MAX_CONFIG_SIZE);
+
   for (uint8_t i = 0; i < ifdsc->bNumEndpoints; i++, endptdsc++) {
     /* Obtain endpoint's address. */
     uint8_t addr = UE_GET_ADDR(endptdsc->bEndpointAddress);
@@ -712,11 +720,11 @@ static int usb_configure(device_t *dev) {
   usb_cfg_dsc_t *cfgdsc = kmalloc(M_DEV, USB_MAX_CONFIG_SIZE, M_ZERO);
   int error = usb_get_config(dev, cfgdsc);
   if (error)
-    return error;
+    goto end;
 
   /* Save configuration string descriptor. */
   if ((error = usb_get_str(dev, USB_STR_CONFIGURATION, cfgdsc->iConfiguration)))
-    return error;
+    goto end;
 
   usb_if_dsc_t *ifdsc = (usb_if_dsc_t *)(cfgdsc + 1);
 
@@ -732,7 +740,7 @@ static int usb_configure(device_t *dev) {
 
   /* Save interface string descriptor. */
   if ((error = usb_get_str(dev, USB_STR_INTERFACE, ifdsc->iInterface)))
-    return error;
+    goto end;
 
   /* Process each supplied endpoint. */
   usb_if_process_endpts(ifdsc, udev);
@@ -740,6 +748,8 @@ static int usb_configure(device_t *dev) {
   /* Move the device to the configured state. */
   error = usb_set_config(dev, cfgdsc->bConfigurationValue);
 
+end:
+  kfree(M_DEV, cfgdsc);
   return error;
 }
 
