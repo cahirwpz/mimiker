@@ -192,7 +192,7 @@ static int hidkbd_attach(device_t *dev) {
 
   hidkbd_init_evdev(dev);
 
-  //sched_add(hidkbd->thread);
+  // sched_add(hidkbd->thread);
 
   return 0;
 }
