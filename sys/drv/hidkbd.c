@@ -180,8 +180,8 @@ static int hidkbd_probe(device_t *dev) {
 static int hidkbd_attach(device_t *dev) {
   hidkbd_state_t *hidkbd = dev->state;
 
-  // if (usb_hid_set_idle(dev))
-  //   return ENXIO;
+  if (usb_hid_set_idle(dev))
+    return ENXIO;
 
   /* We rely on the boot protocol report layout. */
   if (usb_hid_set_boot_protocol(dev))

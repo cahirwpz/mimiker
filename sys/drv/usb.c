@@ -590,7 +590,7 @@ end:
 
 /* Print information regarding device `dev`.
  * TODO: this function should be replaced with a GDB python script. */
-static void usb_print_dev(device_t *dev) {
+static __used void usb_print_dev(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
 
   klog("device address: %u", udev->addr);
@@ -808,7 +808,7 @@ int usb_enumerate(device_t *hcdev) {
       goto bad;
     }
 
-    usb_print_dev(dev);
+    //    usb_print_dev(dev);
     continue;
 
   bad:
