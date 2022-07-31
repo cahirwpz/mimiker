@@ -299,7 +299,12 @@ static int usb_get_dev_dsc(device_t *dev, usb_dev_dsc_t *devdsc) {
   /* Get the whole descriptor. */
   req.wLength = devdsc->bLength;
   assert(req.wLength <= sizeof(usb_dev_dsc_t));
-  return usb_send_req(dev, devdsc, USB_DIR_INPUT, &req, NULL);
+
+  for (int i = 0; i < 3; i++) {
+    error = usb_send_req(dev, devdsc, USB_DIR_INPUT, &req, NULL);
+    assert(!error);
+  }
+  return 0;
 }
 
 /* Assign the next available address in the USB bus to device `dev`. */
@@ -590,7 +595,7 @@ end:
 
 /* Print information regarding device `dev`.
  * TODO: this function should be replaced with a GDB python script. */
-static __used void usb_print_dev(device_t *dev) {
+static void usb_print_dev(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
 
   klog("device address: %u", udev->addr);
@@ -808,7 +813,7 @@ int usb_enumerate(device_t *hcdev) {
       goto bad;
     }
 
-    //    usb_print_dev(dev);
+    usb_print_dev(dev);
     continue;
 
   bad:

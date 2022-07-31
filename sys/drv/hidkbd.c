@@ -180,12 +180,14 @@ static int hidkbd_probe(device_t *dev) {
 static int hidkbd_attach(device_t *dev) {
   hidkbd_state_t *hidkbd = dev->state;
 
+#if 0
   if (usb_hid_set_idle(dev))
     return ENXIO;
 
   /* We rely on the boot protocol report layout. */
   if (usb_hid_set_boot_protocol(dev))
     return ENXIO;
+#endif
 
   hidkbd->thread = thread_create("hidkbd", hidkbd_thread, dev,
                                  prio_ithread(PRIO_ITHRD_QTY - 1));
