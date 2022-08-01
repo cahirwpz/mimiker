@@ -142,8 +142,9 @@ typedef struct emmc_cmd {
 
 typedef uint64_t emmc_error_t;
 
-#define EMMC_ERROR_CMD_TIMEOUT 0x01
-#define EMMC_ERROR_INTERNAL 0x02
+#define EMMC_ERROR_TIMEOUT 0x01
+#define EMMC_ERROR_PROP_NOTSUP 0x02
+#define EMMC_ERROR_INTERNAL 0x04
 
 /* R stands for "read"
  * W stands for "write" */
@@ -162,7 +163,8 @@ typedef enum emmc_prop_id {
   EMMC_PROP_RW_BUSWIDTH,      /* Bus width, ie. no. of data lanes. */
   EMMC_PROP_RW_RCA,           /* Relative card address */
   EMMC_PROP_R_ERRORS,         /* Last reported set of errors */
-  EMMC_PROP_W_CLR_ERRORS,     /* Clear all errors (assume reset) */
+  EMMC_PROP_W_ALLOW_ERRORS,   /* Do not assume invalid state on specified error
+                               * flags. */
   EMMC_PROP_R_ERROR_CODE,     /* Error code associated with an invalid state.
                                * Should be 0 if state is valid. */
 } emmc_prop_id_t;
@@ -180,6 +182,7 @@ typedef int (*emmc_get_prop_t)(device_t *dev, emmc_prop_id_t id,
                                emmc_prop_val_t *val);
 typedef int (*emmc_set_prop_t)(device_t *dev, emmc_prop_id_t id,
                                emmc_prop_val_t val);
+typedef int (*emmc_reset_t)(device_t *dev);
 
 typedef struct emmc_methods {
   emmc_send_cmd_t send_cmd;
@@ -188,6 +191,7 @@ typedef struct emmc_methods {
   emmc_write_dat_t write;
   emmc_get_prop_t get_prop;
   emmc_set_prop_t set_prop;
+  emmc_reset_t reset;
 } emmc_methods_t;
 
 static inline emmc_methods_t *emmc_methods(device_t *dev) {
@@ -274,12 +278,24 @@ static inline int emmc_get_prop(device_t *dev, emmc_prop_id_t id,
  * \param id value identifier
  * \param var pointer to where the associated value should be written to
  * \return 0 if value was fetched successfully, non-zero if it wasn't
- * (ENODEV if option is not supported)
+ * (ENODEV if option is not supported). Sets EMMC_ERROR_PROP_NOTSUP error
+ * flag on failure.
  */
 static inline int emmc_set_prop(device_t *dev, emmc_prop_id_t id,
                                 emmc_prop_val_t val) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, set_prop);
   return emmc_methods(idev->parent)->set_prop(dev, id, val);
+}
+
+/**
+ * Reset the e.MMC controller. This should bring the controller back from
+ * an invalid state to an intial state.
+ * \param dev e.MMC controller device
+ * \return 0 on success, error code on failure.
+ */
+static inline int emmc_reset(device_t *dev) {
+  device_t *idev = EMMC_METHOD_PROVIDER(dev, reset);
+  return emmc_methods(idev->parent)->reset(dev);
 }
 
 /* Use if a command is expected to respond with R1b */
