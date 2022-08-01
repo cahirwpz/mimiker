@@ -87,7 +87,7 @@ resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
   if (!r)
     return NULL;
 
-  if ((type != RT_IRQ) && flags & RF_ACTIVE)
+  if ((type != RT_IRQ) && (flags & RF_ACTIVE))
     bus_activate_resource(dev, r);
 
   return r;

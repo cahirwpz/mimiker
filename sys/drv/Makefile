@@ -42,6 +42,7 @@ SOURCES-RISCV = \
 	liteuart.c \
 	plic.c \
 	riscv_rootdev.c \
+	sbi_console.c \
 	sifive_uart.c
 
 include $(TOPDIR)/build/build.kern.mk

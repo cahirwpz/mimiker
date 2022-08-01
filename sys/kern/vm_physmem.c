@@ -36,6 +36,8 @@ MTX_DEFINE(vm_kernel_end_lock, 0);
 void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
 
+  klog("%s: %p - %p, used=%d", __func__, start, end, used);
+
   static vm_physseg_t freeseg[VM_PHYSSEG_NMAX];
   static unsigned freeseg_last = 0;
 
@@ -208,6 +210,7 @@ static vm_page_t *pm_take_page(size_t fl) {
 }
 
 vm_page_t *vm_page_alloc(size_t npages) {
+  assert(vm_boot_done);
   assert((npages > 0) && powerof2(npages));
 
   SCOPED_MTX_LOCK(&physmem_lock);
