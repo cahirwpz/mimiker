@@ -2,17 +2,6 @@
 
 TOPDIR = $(realpath ../..)
 
-CPPFLAGS = -I$(CURDIR) \
-	   -I$(CURDIR)/include \
-	   -I$(CURDIR)/builtins \
-	   -I$(CURDIR)/citrus \
-	   -I$(CURDIR)/gdtoa \
-	   -I$(CURDIR)/gen \
-	   -I$(CURDIR)/locale \
-	   -I$(CURDIR)/stdlib \
-	   -D_LIBC -DNO_FENV_H
-
-
 SUBLIBS = builtins cdb citrus gdtoa gen locale misc regex \
 	  stdio stdlib string sys termios time
 
@@ -22,6 +11,16 @@ SOURCES = $(foreach dir, $(SUBLIBS), \
             $(wildcard $(dir)/*.[cS]) $(wildcard $(dir)/$(ARCH)/*.[cS]))
 
 include $(TOPDIR)/build/build.lib.mk
+
+CPPFLAGS += -I$(CURDIR) \
+	    -I$(CURDIR)/include \
+	    -I$(CURDIR)/builtins \
+	    -I$(CURDIR)/citrus \
+	    -I$(CURDIR)/gdtoa \
+	    -I$(CURDIR)/gen \
+	    -I$(CURDIR)/locale \
+	    -I$(CURDIR)/stdlib \
+	    -D_LIBC -DNO_FENV_H
 
 $(SOURCES): $(ARCH)/assym.h
 
