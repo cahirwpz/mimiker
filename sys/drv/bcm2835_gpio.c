@@ -1,6 +1,5 @@
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
-#include <sys/rman.h>
 #include <sys/bus.h>
 #include <dev/bcm2835reg.h>
 #include <stdbool.h>
@@ -172,10 +171,14 @@ static int bcm2835_gpio_probe(device_t *dev) {
 }
 
 static int bcm2835_gpio_attach(device_t *dev) {
-  int err;
   bcm2835_gpio_t *gpio = (bcm2835_gpio_t *)dev->state;
+  int err = 0;
 
-  gpio->gpio = device_take_memory(dev, 0, RF_ACTIVE);
+  gpio->gpio = device_take_memory(dev, 0);
+  assert(gpio->gpio);
+
+  if ((err = bus_map_resource(dev, gpio->gpio)))
+    return err;
 
   /* Read configuration from FDT */
   for (phandle_t node = FDT_child(dev->node); node != FDT_NODEV;

@@ -43,7 +43,6 @@ SOURCES = \
 	proc.c \
 	pty.c \
 	ringbuf.c \
-	rman.c \
 	runq.c \
 	sbrk.c \
 	sched.c \

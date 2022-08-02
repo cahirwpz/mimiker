@@ -27,7 +27,6 @@ typedef enum bcm2835_intrtype {
 #define BCM2835_NIRQPERTYPE (BCM2835_NIRQ / BCM2835_INTRTYPE_CNT)
 
 typedef struct bcm2835_pic_state {
-  rman_t rm;
   resource_t *mem;
   resource_t *irq;
   intr_event_t *intr_event[BCM2835_NIRQ];
@@ -64,18 +63,6 @@ static void bcm2835_pic_enable_irq(intr_event_t *ie) {
   out4(reg, en | (1 << irq));
 }
 
-static resource_t *bcm2835_pic_alloc_intr(device_t *pic, device_t *dev, int rid,
-                                          unsigned irq, rman_flags_t flags) {
-  bcm2835_pic_state_t *bcm2835_pic = pic->state;
-  rman_t *rman = &bcm2835_pic->rm;
-  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
-}
-
-static void bcm2835_pic_release_intr(device_t *pic, device_t *dev,
-                                     resource_t *r) {
-  resource_release(r);
-}
-
 static const char *bcm2835_pic_intr_name(unsigned irq) {
   const char *type = "BASIC";
   if (irq < BCM2835_INT_GPU1BASE)
@@ -89,7 +76,7 @@ static void bcm2835_pic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                                    ih_filter_t *filter, ih_service_t *service,
                                    void *arg, const char *name) {
   bcm2835_pic_state_t *bcm2835_pic = pic->state;
-  unsigned irq = resource_start(r);
+  unsigned irq = r->r_irq;
   assert(irq < BCM2835_NIRQ);
 
   if (bcm2835_pic->intr_event[irq] == NULL)
@@ -170,14 +157,15 @@ static int bcm2835_pic_probe(device_t *pic) {
 
 static int bcm2835_pic_attach(device_t *pic) {
   bcm2835_pic_state_t *bcm2835_pic = pic->state;
+  int err = 0;
 
-  rman_init(&bcm2835_pic->rm, "BCM2835 PIC interrupt sources");
-  rman_manage_region(&bcm2835_pic->rm, 0, BCM2835_NIRQ);
-
-  bcm2835_pic->mem = device_take_memory(pic, 0, RF_ACTIVE);
+  bcm2835_pic->mem = device_take_memory(pic, 0);
   assert(bcm2835_pic->mem);
 
-  bcm2835_pic->irq = device_take_irq(pic, 0, RF_ACTIVE);
+  if ((err = bus_map_resource(pic, bcm2835_pic->mem)))
+    return err;
+
+  bcm2835_pic->irq = device_take_irq(pic, 0);
   assert(bcm2835_pic->irq);
 
   pic_setup_intr(pic, bcm2835_pic->irq, bcm2835_pic_intr_handler, NULL,
@@ -187,8 +175,6 @@ static int bcm2835_pic_attach(device_t *pic) {
 }
 
 static pic_methods_t bcm2835_pic_if = {
-  .alloc_intr = bcm2835_pic_alloc_intr,
-  .release_intr = bcm2835_pic_release_intr,
   .setup_intr = bcm2835_pic_setup_intr,
   .teardown_intr = bcm2835_pic_teardown_intr,
   .map_intr = bcm2835_pic_map_intr,
