@@ -6,7 +6,6 @@
 #include <sys/mutex.h>
 #include <sys/pmap.h>
 #include <sys/vm_physmem.h>
-#include <sys/kasan.h>
 
 #define FREELIST(page) (&freelist[log2((page)->size)])
 #define PAGECOUNT(page) (pagecount[log2((page)->size)])
@@ -31,6 +30,9 @@ static vm_pagelist_t freelist[PM_NQUEUES];
 static size_t pagecount[PM_NQUEUES];
 static MTX_DEFINE(physmem_lock, LK_RECURSIVE);
 
+atomic_vaddr_t vm_kernel_end = (vaddr_t)__kernel_end;
+MTX_DEFINE(vm_kernel_end_lock, 0);
+
 void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
 
@@ -52,23 +54,11 @@ void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
 }
 
 static bool vm_boot_done = false;
-atomic_vaddr_t vm_kernel_end = (vaddr_t)__kernel_end;
-MTX_DEFINE(vm_kernel_end_lock, 0);
 
 static void *vm_boot_alloc(size_t n) {
   assert(!vm_boot_done);
 
-  void *begin = align((void *)vm_kernel_end, sizeof(long));
-  void *end = align(begin + n, PAGESIZE);
-#if KASAN
-  /* We're not ready to call kasan_grow() yet, so this function could
-   * potentially make vm_kernel_end go past _kernel_sanitized_end, which could
-   * lead to KASAN referencing unmapped addresses in the shadow map, causing
-   * a panic. Make sure that doesn't happen.
-   * If this assertion fails, more shadow memory must be allocated when
-   * initializing KASAN.*/
-  assert((vaddr_t)end <= _kasan_sanitized_end);
-#endif
+  n = roundup2(n, PAGESIZE);
 
   vm_physseg_t *seg = TAILQ_FIRST(&seglist);
 
@@ -77,20 +67,12 @@ static void *vm_boot_alloc(size_t n) {
 
   assert(seg != NULL);
 
-  for (void *va = align(begin, PAGESIZE); va < end; va += PAGESIZE) {
-    paddr_t pa = seg->start;
-    seg->start += PAGESIZE;
-    if (--seg->npages == 0) {
-      TAILQ_REMOVE(&seglist, seg, seglink);
-      seg = TAILQ_FIRST(&seglist);
-    }
+  void *va = phys_to_dmap(seg->start);
 
-    pmap_kenter((vaddr_t)va, pa, VM_PROT_READ | VM_PROT_WRITE, 0);
-  }
+  seg->start += n;
+  seg->npages -= n / PAGESIZE;
 
-  vm_kernel_end += n;
-
-  return begin;
+  return va;
 }
 
 static void vm_boot_finish(void) {
@@ -117,9 +99,16 @@ void init_vm_page(void) {
     for (unsigned i = 0; i < seg->npages; i++) {
       vm_page_t *page = &pages[i];
       paddr_t pa = seg->start + i * PAGESIZE;
-      unsigned size = 1 << min(PM_NQUEUES - 1, ctz(pa / PAGESIZE));
-      if (pa + size * PAGESIZE > seg->end)
+      size_t size = 1 << min(PM_NQUEUES - 1, ctz(pa / PAGESIZE));
+      if (pa + size * PAGESIZE > seg->end) {
+        /*
+         *    `pa`    = 2^(k+1) * A + 2^k
+         * `seg->end` = 2^(k+1) * A + 2^k + B
+         *
+         * Let's just take the biggest size that can fit within B.
+         */
         size = 1 << min(PM_NQUEUES - 1, log2((seg->end ^ pa) / PAGESIZE));
+      }
       page->paddr = pa;
       page->size = size;
       page->flags = seg->used ? PG_ALLOCATED : 0;

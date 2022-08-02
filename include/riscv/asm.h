@@ -38,7 +38,7 @@
 
 #define _ENTRY(x)                                                              \
   .globl _C_LABEL(x);                                                          \
-  .align 4;                                                                    \
+  .p2align 2;                                                                  \
   .type _C_LABEL(x), @function;                                                \
   _C_LABEL(x) :
 
@@ -199,6 +199,7 @@
 
 #define REG_LI li
 #define REG_ADD add
+#define REG_SUB sub
 #define REG_SLLI slli
 #define REG_SLL sll
 #define REG_SRLI srli

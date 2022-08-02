@@ -6,7 +6,7 @@
 
 CONFIG_OPTS := KASAN LOCKDEP KGPROF MIPS AARCH64 RISCV KCSAN
 
-BOARD ?= malta
+BOARD ?= rpi3
 
 MIPS ?= 0
 AARCH64 ?= 0
@@ -25,10 +25,17 @@ endif
 ifeq ($(BOARD), litex-riscv)
 ARCH := riscv
 RISCV := 1
+XLEN := 32
+endif
+
+ifeq ($(BOARD), sifive_u)
+ARCH := riscv
+RISCV := 1
+XLEN := 64
 endif
 
 VERBOSE ?= 0
-CLANG ?= 0
+LLVM ?= 1
 LOCKDEP ?= 0
 KASAN ?= 0
 KGPROF ?= 0

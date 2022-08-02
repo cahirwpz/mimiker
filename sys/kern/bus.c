@@ -7,7 +7,12 @@
 
 int generic_bs_map(bus_addr_t addr, bus_size_t size,
                    bus_space_handle_t *handle_p) {
-  *handle_p = kmem_map_contig(addr, size, PMAP_NOCACHE);
+  bus_addr_t pg_start = rounddown2(addr, PAGESIZE);
+  bus_addr_t pg_end = roundup2(addr + size, PAGESIZE);
+  bus_size_t off = addr & (PAGESIZE - 1);
+
+  vaddr_t va = kmem_map_contig(pg_start, pg_end - pg_start, PMAP_NOCACHE);
+  *handle_p = va + off;
   return 0;
 }
 
@@ -96,24 +101,22 @@ bus_space_t *generic_bus_space = &(bus_space_t){
   .bs_write_region_4 = generic_bs_write_region_4,
 };
 
-int bus_activate_resource(device_t *dev, resource_t *r) {
-  if (resource_active(r) || r->r_type == RT_IRQ)
+int bus_map_resource(device_t *dev, resource_t *r) {
+  assert(r->r_type != RT_IRQ);
+
+  if (r->r_bus_handle)
     return 0;
 
-  device_t *idev = BUS_METHOD_PROVIDER(dev, activate_resource);
-  int error = bus_methods(idev->parent)->activate_resource(idev, r);
-  if (error == 0)
-    resource_activate(r);
-  return error;
+  device_t *idev = BUS_METHOD_PROVIDER(dev, map_resource);
+  return bus_methods(idev->parent)->map_resource(idev, r);
 }
 
-void bus_deactivate_resource(device_t *dev, resource_t *r) {
-  if (r->r_type != RT_IRQ) {
-    assert(resource_active(r));
-    device_t *idev = BUS_METHOD_PROVIDER(dev, deactivate_resource);
-    bus_methods(idev->parent)->deactivate_resource(idev, r);
-    resource_deactivate(r);
-  }
+void bus_unmap_resource(device_t *dev, resource_t *r) {
+  assert(r->r_type != RT_IRQ);
+  assert(r->r_bus_handle);
+  device_t *idev = BUS_METHOD_PROVIDER(dev, unmap_resource);
+  bus_methods(idev->parent)->unmap_resource(idev, r);
+  r->r_bus_handle = 0;
 }
 
 /* System-wide current pass number. */

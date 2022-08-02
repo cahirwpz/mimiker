@@ -13,8 +13,28 @@
  *   https://github.com/riscv/riscv-plic-spec
  */
 
-/* PLIC memory map. */
+/*
+ * For the VexRiscv hardware platform we assume a single HART
+ * with two PLIC contexts:
+ *  - ctx0 - machine mode
+ *  - ctx1 - supervisor mode
+ *
+ * The organization of PLIC contexts for SiFive Unleashed can be found
+ * in the official manual (chapter 10):
+ *  -
+ * https://sifive.cdn.prismic.io/sifive/d3ed5cd0-6e74-46b2-a12d-72b06706513e_fu540-c000-manual-v1p4.pdf
+ *
+ * NOTE: FTTB, we designate a single HART to handle interrupts from all
+ * peripheral-level devices.
+ */
+
+#if __riscv_xlen == 64
+#define PLIC_CTXNUM_SV 2
+#else
 #define PLIC_CTXNUM_SV 1
+#endif
+
+/* PLIC memory map. */
 
 #define PLIC_PRIORITY_BASE 0x000000
 
@@ -36,7 +56,6 @@
 #define PLIC_CLAIM_SV (PLIC_CONTEXT_BASE_SV + PLIC_CONTEXT_CLAIM)
 
 typedef struct plic_state {
-  rman_t rm;                 /* irq resource manager */
   resource_t *mem;           /* PLIC memory resource */
   resource_t *irq;           /* PLIC irq resource */
   intr_event_t **intr_event; /* interrupt events */
@@ -64,32 +83,19 @@ static void plic_intr_enable(intr_event_t *ie) {
   out4(PLIC_ENABLE_SV(irq), en);
 }
 
-static const char *plic_intr_name(unsigned irq) {
-  return kasprintf("PLIC source %u", irq);
-}
-
-static resource_t *plic_alloc_intr(device_t *pic, device_t *dev, int rid,
-                                   unsigned irq, rman_flags_t flags) {
-  plic_state_t *plic = pic->state;
-  rman_t *rman = &plic->rm;
-
-  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
-}
-
-static void plic_release_intr(device_t *pic, device_t *dev, resource_t *r) {
-  resource_release(r);
-}
-
 static void plic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                             ih_filter_t *filter, ih_service_t *service,
                             void *arg, const char *name) {
   plic_state_t *plic = pic->state;
-  unsigned irq = resource_start(r);
+  unsigned irq = r->r_irq;
   assert(irq && irq < plic->ndev);
 
+  char buf[32];
+  snprintf(buf, sizeof(buf), "PLIC source %u", irq);
+
   if (!plic->intr_event[irq])
-    plic->intr_event[irq] = intr_event_create(
-      plic, irq, plic_intr_disable, plic_intr_enable, plic_intr_name(irq));
+    plic->intr_event[irq] =
+      intr_event_create(plic, irq, plic_intr_disable, plic_intr_enable, buf);
 
   r->r_handler =
     intr_event_add_handler(plic->intr_event[irq], filter, service, arg, name);
@@ -131,11 +137,13 @@ static intr_filter_t plic_intr_handler(void *arg) {
 
 static int plic_probe(device_t *pic) {
   return FDT_is_compatible(pic->node, "riscv,plic0") ||
+         FDT_is_compatible(pic->node, "sifive,plic-1.0.0") ||
          FDT_is_compatible(pic->node, "sifive,fu540-c000-plic");
 }
 
 static int plic_attach(device_t *pic) {
   plic_state_t *plic = pic->state;
+  int err = 0;
 
   /* Obtain the number of sources. */
   if (FDT_getencprop(pic->node, "riscv,ndev", (void *)&plic->ndev,
@@ -148,11 +156,11 @@ static int plic_attach(device_t *pic) {
   if (!plic->intr_event)
     return ENXIO;
 
-  rman_init(&plic->rm, "PLIC interrupt sources");
-  rman_manage_region(&plic->rm, 1, plic->ndev);
-
-  plic->mem = device_take_memory(pic, 0, RF_ACTIVE);
+  plic->mem = device_take_memory(pic, 0);
   assert(plic->mem);
+
+  if ((err = bus_map_resource(pic, plic->mem)))
+    return err;
 
   /*
    * In case PLIC supports priorities, set each priority to 1
@@ -163,7 +171,7 @@ static int plic_attach(device_t *pic) {
   }
   out4(PLIC_THRESHOLD_SV, 0);
 
-  plic->irq = device_take_irq(pic, 0, RF_ACTIVE);
+  plic->irq = device_take_irq(pic, 0);
   assert(plic->irq);
 
   pic_setup_intr(pic, plic->irq, plic_intr_handler, NULL, plic, "PLIC");
@@ -172,8 +180,6 @@ static int plic_attach(device_t *pic) {
 }
 
 static pic_methods_t plic_pic_if = {
-  .alloc_intr = plic_alloc_intr,
-  .release_intr = plic_release_intr,
   .setup_intr = plic_setup_intr,
   .teardown_intr = plic_teardown_intr,
   .map_intr = plic_map_intr,
