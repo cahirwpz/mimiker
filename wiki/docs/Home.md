@@ -23,3 +23,13 @@ When you design and implement an interface, please keep in mind following practi
 * [Linux Kernel Cross Reference](http://lxr.free-electrons.com/)
 * [FreeBSD Kernel Cross Reference](http://fxr.watson.org/fxr/source/)
 * [Minix 3.3.0 Cross Reference](http://users.sosdg.org/~qiyong/mxr/source/minix/kernel/)
+
+### Documentation
+
+Useful sites:
+* [OSDev wiki](http://wiki.osdev.org)
+
+Toolchain documentation:
+* [Extensions to the C Language Family](https://gcc.gnu.org/onlinedocs/gcc/C-Extensions.html)
+* [Debugging with GDB](https://sourceware.org/gdb/onlinedocs/gdb/index.html)
+* [Linker scripts](https://sourceware.org/binutils/docs/ld/Scripts.html)
