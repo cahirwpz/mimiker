@@ -5,6 +5,7 @@
 #include <sys/devclass.h>
 #include <dev/pci.h>
 #include <dev/isareg.h>
+#include <machine/vm_param.h>
 
 /* For reference look at:
  *   http://wiki.osdev.org/PCI
