@@ -29,7 +29,7 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,
                kmem_flags_t flags);
 
 /*! \brief Free segment previously allocated by vmem_alloc(). */
-void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size);
+void vmem_free(vmem_t *vm, vmem_addr_t addr);
 
 /*! \brief Destroy existing vmem arena. */
 void vmem_destroy(vmem_t *vm);

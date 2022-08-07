@@ -317,16 +317,18 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,
   return 0;
 }
 
-void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
+void vmem_free(vmem_t *vm, vmem_addr_t addr) {
   bt_t *prev = NULL;
   bt_t *next = NULL;
+  vmem_size_t size;
 
   WITH_MTX_LOCK (&vm->vm_lock) {
     vmem_check_sanity(vm);
 
     bt_t *bt = bt_lookupbusy(vm, addr);
     assert(bt != NULL);
-    assert(bt->bt_size == align(size, vm->vm_quantum));
+
+    size = bt->bt_size;
 
     bt_rembusy(vm, bt);
     bt->bt_type = BT_TYPE_FREE;
