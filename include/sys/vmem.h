@@ -21,6 +21,9 @@ void init_vmem(void);
  * You need to specify quantum, the smallest unit of allocation. */
 vmem_t *vmem_create(const char *name, vmem_size_t quantum);
 
+/*! \brief Obtain the size of the segment starting at `addr`. */
+vmem_size_t vmem_size(vmem_t *vm, vmem_addr_t addr);
+
 /*! \brief Add a new address span to the arena. */
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size);
 
