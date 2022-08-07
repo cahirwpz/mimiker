@@ -2,7 +2,6 @@
 #include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/kmem.h>
-#include <sys/vmem.h>
 #include <sys/pool.h>
 #include <sys/malloc.h>
 #include <sys/device.h>
@@ -78,7 +77,6 @@ __noreturn void kernel_init(void) {
   init_vm_page();
   init_kmalloc();
   init_pool();
-  init_vmem();
   init_kmem();
 
   init_cons();

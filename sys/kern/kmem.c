@@ -61,9 +61,9 @@ vaddr_t kva_alloc(size_t size) {
   return start;
 }
 
-void kva_free(vaddr_t ptr, size_t size) {
-  assert(page_aligned_p(ptr) && page_aligned_p(size));
-  vmem_free(kvspace, ptr, size);
+void kva_free(vaddr_t ptr) {
+  assert(page_aligned_p(ptr));
+  vmem_free(kvspace, ptr);
 }
 
 static void kva_map_page(vaddr_t va, paddr_t pa, size_t n, unsigned flags) {
@@ -149,7 +149,11 @@ vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size, unsigned flags) {
 void kmem_free(void *ptr, size_t size) {
   klog("%s: free %p of size %ld", __func__, ptr, size);
   kva_unmap((vaddr_t)ptr, size);
-  vmem_free(kvspace, (vmem_addr_t)ptr, size);
+  vmem_free(kvspace, (vmem_addr_t)ptr);
+}
+
+size_t kmem_size(void *ptr) {
+  return vmem_size(kvspace, (vmem_addr_t)ptr);
 }
 
 vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) {

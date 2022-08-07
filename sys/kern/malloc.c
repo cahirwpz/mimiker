@@ -9,69 +9,67 @@
 #include <sys/vm.h>
 #include <machine/vm_param.h>
 
-#define ALIGNMENT sizeof(long)
+#define KM_ALIGNMENT sizeof(long)
 
-#define SLAB_MINBLKSZ 16
-#define SLAB_MAXBLKSZ (1 << 16)
+#define KM_SLAB_MINBLKSZ 16
+#define KM_SLAB_MAXBLKSZ (1 << 13)
 
-#define NPOOLS (ffs(SLAB_MAXBLKSZ) - ffs(SLAB_MINBLKSZ) + 1)
+#define KM_NPOOLS (ffs(KM_SLAB_MAXBLKSZ) - ffs(KM_SLAB_MINBLKSZ) + 1)
 
-#define CANARY ((u_long)0x1EE7CAFEDEADC0DE)
-#define KASAN_CANARY_RANGE max(sizeof(u_long), (size_t)KASAN_SHADOW_SCALE_SIZE)
-
-/* Large block header. */
-typedef struct {
-  union {
-    size_t size;
-    uint8_t _pad[ALIGNMENT];
-  };
-} lblk_hdr_t;
-
-static pool_t pools[NPOOLS];
-static mtx_t mplock;
+static pool_t km_pools[KM_NPOOLS];
+static mtx_t km_lock; /* guards `kmalloc_pool_t` structures */
 
 /* clang-format off */
-static const size_t slab_sizes[] = {
-  [0] =    4096, /* blksz=    16  blkcnt= 256 */
-  [1] =    4096, /* blksz=    32  blkcnt= 128 */
-  [2] =    4096, /* blksz=    64  blkcnt=  64 */
-  [3] =    8192, /* blksz=   128  blkcnt=  64 */
-  [4] =    8192, /* blksz=   256  blkcnt=  32 */
-  [5] =   16384, /* blksz=   512  blkcnt=  32 */
-  [6] =   16384, /* blksz=  1024  blkcnt=  16 */
-  [7] =   32768, /* blksz=  2048  blkcnt=  16 */
-  [8] =   32768, /* blksz=  4096  blkcnt=   8 */
-  [9] =   65536, /* blksz=  8192  blkcnt=   8 */
-  [10] =  65536, /* blksz= 16384  blkcnt=   4 */
-  [11] = 131072, /* blksz= 32768  blkcnt=   4 */
-  [12] = 131072, /* blksz= 65536  blkcnt=   2 */
+static const struct {
+  const char *desc;
+  size_t size;
+} km_slab_cfg[] = {
+  [0] = { "kmalloc bin 16",     8192 }, /* blkcnt= 512 */
+  [1] = { "kmalloc bin 32",    16384 }, /* blkcnt= 512 */
+  [2] = { "kmalloc bin 64",    16384 }, /* blkcnt= 256 */
+  [3] = { "kmalloc bin 128",   32768 }, /* blkcnt= 256 */
+  [4] = { "kmalloc bin 256",   32768 }, /* blkcnt= 128 */
+  [5] = { "kmalloc bin 512",   65536 }, /* blkcnt= 128 */
+  [6] = { "kmalloc bin 1024",  65536 }, /* blkcnt=  64 */
+  [7] = { "kmalloc bin 2048", 131072 }, /* blkcnt=  64 */
+  [8] = { "kmalloc bin 4096", 131072 }, /* blkcnt=  32 */
+  [9] = { "kmalloc bin 8192", 262144 }, /* blkcnt=  32 */
 };
 /* clang-format on */
 
-#define BOOT_AREASZ 520192
+#define KM_BOOT_AREASZ 761856
+
+/*
+ * Auxiliary functions.
+ */
+
+static void mp_update_alloc(kmalloc_pool_t *mp, void *ptr, size_t blksz) {
+  WITH_MTX_LOCK (&km_lock) {
+    mp->nrequests++;
+    if (!ptr)
+      return;
+    mp->used += blksz;
+    mp->maxused = max(mp->used, mp->maxused);
+    mp->active++;
+  }
+}
+
+static void mp_update_free(kmalloc_pool_t *mp, size_t blksz) {
+  WITH_MTX_LOCK (&km_lock) {
+    mp->used -= blksz;
+    mp->active--;
+  }
+}
 
 /*
  * Large block allocator.
  */
 
 static inline size_t lblk_size(size_t size) {
-  /* header + payload + canary */
-  return roundup2(size + sizeof(lblk_hdr_t) + sizeof(u_long), PAGESIZE);
+  return roundup2(size, PAGESIZE);
 }
 
-static inline void *lblk_payload(lblk_hdr_t *hdr) {
-  return (void *)hdr + sizeof(lblk_hdr_t);
-}
-
-static inline u_long *lblk_canary(lblk_hdr_t *hdr) {
-  return (void *)hdr + hdr->size - sizeof(u_long);
-}
-
-static inline lblk_hdr_t *lblk_hdr_fromptr(void *ptr) {
-  return ptr - sizeof(lblk_hdr_t);
-}
-
-static void *lblk_alloc(kmalloc_pool_t *mp, size_t size, kmem_flags_t flags) {
+static void *lblk_alloc(size_t size, kmem_flags_t flags, size_t *blkszp) {
   assert(size);
 
 #if KASAN
@@ -80,49 +78,22 @@ static void *lblk_alloc(kmalloc_pool_t *mp, size_t size, kmem_flags_t flags) {
   size_t req_size = lblk_size(size);
 #endif
 
-  void *ptr = NULL;
+  void *ptr = kmem_alloc(req_size, flags);
+  if (!ptr)
+    return NULL;
 
-  lblk_hdr_t *hdr = kmem_alloc(req_size, flags);
-  if (!hdr)
-    goto end;
+  // kasan_mark(ptr, size, req_size, KASAN_CODE_KMALLOC_OVERFLOW);
+  *blkszp = req_size;
 
-  hdr->size = req_size;
-
-  u_long *canaryp = lblk_canary(hdr);
-  *canaryp = CANARY;
-
-  ptr = lblk_payload(hdr);
-
-  kasan_mark(ptr, size, req_size - KASAN_CANARY_RANGE,
-             KASAN_CODE_KMALLOC_OVERFLOW);
-
-end:
-  WITH_MTX_LOCK (&mplock) {
-    mp->nrequests++;
-    if (!ptr)
-      return NULL;
-    mp->used += req_size;
-    mp->maxused = max(mp->used, mp->maxused);
-    mp->active++;
-  }
   return ptr;
 }
 
-void lblk_free(kmalloc_pool_t *mp, void *ptr) {
+void lblk_free(void *ptr, size_t *blkszp) {
   assert(ptr);
 
-  lblk_hdr_t *hdr = lblk_hdr_fromptr(ptr);
-
-  u_long *canaryp = lblk_canary(hdr);
-  assert(*canaryp == CANARY);
-
-  size_t blksz = hdr->size;
-  kmem_free(hdr, blksz);
-
-  WITH_MTX_LOCK (&mplock) {
-    mp->used -= blksz;
-    mp->active--;
-  }
+  size_t blksz = kmem_size(ptr);
+  kmem_free(ptr, blksz);
+  *blkszp = blksz;
 }
 
 /*
@@ -130,59 +101,50 @@ void lblk_free(kmalloc_pool_t *mp, void *ptr) {
  */
 
 static inline size_t blk_size(size_t size) {
-  return max(pow2(size), (size_t)SLAB_MINBLKSZ);
+  return max(pow2(size), (size_t)KM_SLAB_MINBLKSZ);
 }
 
-size_t blk_idx(size_t size) {
+static inline size_t blk_idx(size_t size) {
   assert(powerof2(size));
-  return ffs(size) - 1 - log2(SLAB_MINBLKSZ);
+  return ffs(size) - 1 - log2(KM_SLAB_MINBLKSZ);
 }
 
-static slab_t *blk_slab(void *ptr) {
+static inline slab_t *blk_slab(void *ptr) {
   assert(ptr);
   vm_page_t *pg = kva_find_page((vaddr_t)ptr);
   return pg->slab;
 }
 
-static void *blk_alloc(kmalloc_pool_t *mp, size_t size, kmem_flags_t flags) {
+static void *blk_alloc(size_t size, kmem_flags_t flags, size_t *blkszp) {
   assert(size);
 
   size_t req_size = blk_size(size);
   size_t idx = blk_idx(req_size);
-  assert(idx < NPOOLS);
+  assert(idx < KM_NPOOLS);
 
-  pool_t *pool = &pools[idx];
+  pool_t *pool = &km_pools[idx];
   void *ptr = pool_alloc(pool, flags);
+  if (!ptr)
+    return NULL;
 
+  kasan_mark(ptr, size, req_size, KASAN_CODE_KMALLOC_OVERFLOW);
 #if KASAN
-  size_t used = req_size + pool->pp_redzone;
+  *blkszp = req_size + pool->pp_redzone;
 #else /* !KASAN */
-  size_t used = req_size;
+  *blkszp = req_size;
 #endif
 
-  WITH_MTX_LOCK (&mplock) {
-    mp->nrequests++;
-    if (!ptr)
-      return NULL;
-    mp->used += used;
-    mp->maxused = max(mp->used, mp->maxused);
-    mp->active++;
-  }
   return ptr;
 }
 
-static void blk_free(kmalloc_pool_t *mp, void *ptr) {
+static void blk_free(void *ptr, size_t *blkszp) {
   assert(ptr);
 
   slab_t *slab = blk_slab(ptr);
   pool_t *pool = slab->ph_pool;
 
   pool_free(pool, ptr);
-
-  WITH_MTX_LOCK (&mplock) {
-    mp->used -= slab->ph_itemsize;
-    mp->active--;
-  }
+  *blkszp = slab->ph_itemsize;
 }
 
 /*
@@ -198,19 +160,19 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, kmem_flags_t flags) {
     return NULL;
 
   void *ptr = NULL;
+  size_t blksz;
 
-  if (size > SLAB_MAXBLKSZ)
-    ptr = lblk_alloc(mp, size, flags);
+  if (size > KM_SLAB_MAXBLKSZ)
+    ptr = lblk_alloc(size, flags, &blksz);
   else
-    ptr = blk_alloc(mp, size, flags);
+    ptr = blk_alloc(size, flags, &blksz);
 
   if (!ptr)
     return NULL;
 
-  assert(is_aligned(ptr, ALIGNMENT));
+  assert(is_aligned(ptr, KM_ALIGNMENT));
+  mp_update_alloc(mp, ptr, blksz);
 
-  if (flags & M_ZERO)
-    memset(ptr, 0, size);
   return ptr;
 }
 
@@ -218,10 +180,14 @@ void kfree(kmalloc_pool_t *mp, void *ptr) {
   if (!ptr)
     return;
 
+  size_t blksz;
+
   if (is_large(ptr))
-    lblk_free(mp, ptr);
+    lblk_free(ptr, &blksz);
   else
-    blk_free(mp, ptr);
+    blk_free(ptr, &blksz);
+
+  mp_update_free(mp, blksz);
 }
 
 char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
@@ -232,25 +198,26 @@ char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
   return copy;
 }
 
-static alignas(PAGESIZE) uint8_t boot_area[BOOT_AREASZ];
+static alignas(PAGESIZE) uint8_t km_boot_area[KM_BOOT_AREASZ];
 
 void init_kmalloc(void) {
-  mtx_init(&mplock, 0);
+  mtx_init(&km_lock, 0);
 
-  void *slab_pages = boot_area;
+  void *slab_pages = km_boot_area;
 
-  for (size_t i = 0; i < NPOOLS; i++) {
-    pool_t *pool = &pools[i];
-    size_t blksz = SLAB_MINBLKSZ << i;
-    size_t slabsz = slab_sizes[i];
+  for (size_t i = 0; i < KM_NPOOLS; i++) {
+    pool_t *pool = &km_pools[i];
+    const char *desc = km_slab_cfg[i].desc;
+    size_t slabsz = km_slab_cfg[i].size;
+    size_t blksz = KM_SLAB_MINBLKSZ << i;
 
-    pool_init(pool, "bin", blksz, ALIGNMENT, slabsz);
+    pool_init(pool, desc, blksz, KM_ALIGNMENT, slabsz);
     pool_add_page(pool, slab_pages, slabsz);
 
     slab_pages += slabsz;
   }
 
-  assert(slab_pages == &boot_area[BOOT_AREASZ]);
+  assert(slab_pages == &km_boot_area[KM_BOOT_AREASZ]);
 }
 
 KMALLOC_DEFINE(M_TEMP, "temporaries");
