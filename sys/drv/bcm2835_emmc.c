@@ -28,10 +28,10 @@ typedef struct bcmemmc_state {
   spin_t lock;           /* Covers `pending`, `intr_recv` and `emmc`. */
   uint64_t rca;          /* Relative Card Address */
   uint64_t host_version; /* Host specification version */
-  volatile uint32_t pending; /* All interrupts received */
-  emmc_error_t errors;       /* Error flags */
-  uint64_t ignore_errors;    /* Error flags that do not cause invalidation of
-                              * current state */
+  volatile uint32_t pending;  /* All interrupts received */
+  emmc_error_t errors;        /* Error flags */
+  emmc_error_t ignore_errors; /* Error flags that do not cause invalidation of
+                               * current state */
 } bcmemmc_state_t;
 
 #define b_in bus_read_4
@@ -384,7 +384,7 @@ static emmc_error_t bcmemmc_set_prop(device_t *cdev, uint32_t id,
   resource_t *emmc = state->emmc;
 
   if (bcmemmc_invalid_state(state))
-    return ENXIO;
+    return bcmemmc_set_error(state, EMMC_ERROR_INTERNAL);
 
   uint32_t reg = 0;
   switch (id) {
@@ -423,6 +423,7 @@ static emmc_error_t bcmemmc_set_prop(device_t *cdev, uint32_t id,
       /* The only way to reset nternal error is to reset the entire controller
        * using the `reset` method. */
       state->errors = var & ~EMMC_ERROR_INTERNAL;
+      break;
     case EMMC_PROP_RW_ALLOW_ERRORS:
       state->errors &= ~state->ignore_errors;
       state->ignore_errors = var;
@@ -488,6 +489,9 @@ static emmc_error_t bcmemmc_read(device_t *cdev, void *buf, size_t len,
   uint32_t *data = buf;
 
   assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
+
+  if (bcmemmc_invalid_state(state))
+    return bcmemmc_set_error(state, EMMC_ERROR_INVALID_STATE);
 
   /* A very simple transfer (should be replaced with DMA in the future) */
   for (size_t i = 0; i < len / sizeof(uint32_t); i++)

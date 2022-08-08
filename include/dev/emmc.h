@@ -141,11 +141,18 @@ typedef struct emmc_cmd {
 #define EMMC_BUSWIDTH_8 0x04 /* 8-bit but */
 
 typedef enum {
-  EMMC_ERROR_TIMEOUT = 0x01,
-  EMMC_ERROR_PROP_NOTSUP = 0x02,
-  EMMC_ERROR_PROP_INVALID_ARG = 0x04,
-  EMMC_ERROR_INVALID_STATE = 0x08,
-  EMMC_ERROR_INTERNAL = 0x10,
+  EMMC_ERROR_TIMEOUT = 0x01,          /* Controller timed-out on a request */
+  EMMC_ERROR_PROP_NOTSUP = 0x02,      /* Requested property is not supported*/
+  EMMC_ERROR_PROP_INVALID_ARG = 0x04, /* Can't set the property for the
+                                       * requested value */
+  EMMC_ERROR_INVALID_STATE = 0x08,    /* Controller was in an invalid state.
+                                       * Request for operation has been
+                                       * ignored. */
+  EMMC_ERROR_INTERNAL = 0x10,         /* Raised if an error was unexpected.
+                                       * If raised, stops further operations.
+                                       * The only way to clear this flag is
+                                       * to completely reset the controller
+                                       * with `emmc_reset` */
 } emmc_error_t;
 
 /* R stands for "read"
@@ -166,7 +173,8 @@ typedef enum emmc_prop_id {
   EMMC_PROP_RW_RCA,           /* Relative card address */
   EMMC_PROP_RW_ERRORS,        /* Last reported set of errors */
   EMMC_PROP_RW_ALLOW_ERRORS,  /* Do not assume invalid state on specified error
-                               * flags. */
+                               * flags. EMMC_ERROR_INVALID_STATE can't be
+                               * allowed */
 } emmc_prop_id_t;
 typedef uint64_t emmc_prop_val_t;
 
@@ -210,11 +218,11 @@ static inline emmc_methods_t *emmc_methods(device_t *dev) {
  * \param arg1 first argument
  * \param arg2 second argument
  * \param resp pointer for response data to be written to or NULL
- * \return 0 on success EBUSY if device is busy, ETIMEDOUT on timeout, EIO
- * on internal error.
+ * \return 0 on success EMMC_ERROR_TIMEOUT on timeout, EMMC_ERROR_INVALID_STATE
+ * on invalid internal state
  */
-static inline int emmc_send_cmd(device_t *dev, emmc_cmd_t cmd, uint32_t arg,
-                                emmc_resp_t *resp) {
+static inline emmc_error_t emmc_send_cmd(device_t *dev, emmc_cmd_t cmd,
+                                         uint32_t arg, emmc_resp_t *resp) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, send_cmd);
   return emmc_methods(idev->parent)->send_cmd(dev, cmd, arg, resp);
 }
@@ -223,9 +231,10 @@ static inline int emmc_send_cmd(device_t *dev, emmc_cmd_t cmd, uint32_t arg,
  * \brief Wait until e.MMC signals
  * \param dev e.MMC controller device
  * \param wflags conditions to be met
- * \return 0 on success, ETIMEDOUT on timeout
+ * \return 0 on success EMMC_ERROR_TIMEOUT on timeout, EMMC_ERROR_INVALID_STATE
+ * on invalid internal state
  */
-static inline int emmc_wait(device_t *dev, emmc_wait_flags_t wflags) {
+static inline emmc_error_t emmc_wait(device_t *dev, emmc_wait_flags_t wflags) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, wait);
   return emmc_methods(idev->parent)->wait(dev, wflags);
 }
@@ -236,10 +245,11 @@ static inline int emmc_wait(device_t *dev, emmc_wait_flags_t wflags) {
  * \param buf pointer to where the data should be written to
  * \param len expected data length
  * \param n pointer for the number of read bytes or NULL
- * \return 0 on success, ENODATA if no new data can be read, EBUSY if device is
- * busy
+ * \return 0 on success EMMC_ERROR_TIMEOUT on timeout, EMMC_ERROR_INVALID_STATE
+ * on invalid internal state
  */
-static inline int emmc_read(device_t *dev, void *buf, size_t len, size_t *n) {
+static inline emmc_error_t emmc_read(device_t *dev, void *buf, size_t len,
+                                     size_t *n) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, read);
   return emmc_methods(idev->parent)->read(dev, buf, len, n);
 }
@@ -250,11 +260,11 @@ static inline int emmc_read(device_t *dev, void *buf, size_t len, size_t *n) {
  * \param buf pointer to where the data should be read from
  * \param len data length
  * \param n pointer for the number of written bytes in or NULL
- * \return 0 on success, EBUSY if device is busy, EINVAL on incorrect data
- * length (not a multiple of block size)
+ * \return 0 on success EMMC_ERROR_TIMEOUT on timeout, EMMC_ERROR_INVALID_STATE
+ * on invalid internal state
  */
-static inline int emmc_write(device_t *dev, const void *buf, size_t len,
-                             size_t *n) {
+static inline emmc_error_t emmc_write(device_t *dev, const void *buf,
+                                      size_t len, size_t *n) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, write);
   return emmc_methods(idev->parent)->write(dev, buf, len, n);
 }
@@ -264,11 +274,12 @@ static inline int emmc_write(device_t *dev, const void *buf, size_t len,
  * \param dev e.MMC controller device
  * \param id value identifier
  * \param var pointer to where the associated value should be written to
- * \return 0 if value was fetched successfully, non-zero if it wasn't
- * (ENODEV if option is not supported)
+ * \return 0 on success EMMC_ERROR_TIMEOUT on timeout, EMMC_ERROR_PROP_NOTSUP
+ * if the property is not supported, EMMC_ERROR_INVALID_STATE
+ * on invalid internal state (unless id = EMMC_PROP_RW_ERRORS)
  */
-static inline int emmc_get_prop(device_t *dev, emmc_prop_id_t id,
-                                emmc_prop_val_t *val) {
+static inline emmc_error_t emmc_get_prop(device_t *dev, emmc_prop_id_t id,
+                                         emmc_prop_val_t *val) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, get_prop);
   return emmc_methods(idev->parent)->get_prop(dev, id, val);
 }
@@ -278,12 +289,13 @@ static inline int emmc_get_prop(device_t *dev, emmc_prop_id_t id,
  * \param dev e.MMC controller device
  * \param id value identifier
  * \param var pointer to where the associated value should be written to
- * \return 0 if value was fetched successfully, non-zero if it wasn't
- * (ENODEV if option is not supported). Sets EMMC_ERROR_PROP_NOTSUP error
- * flag on failure.
+ * \return 0 on success EMMC_ERROR_TIMEOUT on timeout, EMMC_ERROR_PROP_NOTSUP
+ * if the property is not supported, EMMC_ERROR_PROP_INVALID_ARG if provided
+ * value is invalid for a given proprty, EMMC_ERROR_INVALID_STATE on invalid
+ * internal state
  */
-static inline int emmc_set_prop(device_t *dev, emmc_prop_id_t id,
-                                emmc_prop_val_t val) {
+static inline emmc_error_t emmc_set_prop(device_t *dev, emmc_prop_id_t id,
+                                         emmc_prop_val_t val) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, set_prop);
   return emmc_methods(idev->parent)->set_prop(dev, id, val);
 }
@@ -292,9 +304,9 @@ static inline int emmc_set_prop(device_t *dev, emmc_prop_id_t id,
  * Reset the e.MMC controller. This should bring the controller back from
  * an invalid state to an intial state.
  * \param dev e.MMC controller device
- * \return 0 on success, error code on failure.
+ * \return 0 on success, non-zero on failure
  */
-static inline int emmc_reset(device_t *dev) {
+static inline emmc_error_t emmc_reset(device_t *dev) {
   device_t *idev = EMMC_METHOD_PROVIDER(dev, reset);
   return emmc_methods(idev->parent)->reset(dev);
 }
