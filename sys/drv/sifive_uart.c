@@ -96,16 +96,20 @@ static int sfuart_probe(device_t *dev) {
 static int sfuart_attach(device_t *dev) {
   sfuart_state_t *sfuart =
     kmalloc(M_DEV, sizeof(sfuart_state_t), M_WAITOK | M_ZERO);
+  int err = 0;
 
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
   tty->t_termios.c_ospeed = 115200;
   tty->t_ops.t_notify_out = uart_tty_notify_out;
 
-  uart_init(dev, "SiFive UART", SFUART_BUFSIZE, sfuart, tty);
-
-  sfuart->regs = device_take_memory(dev, 0, RF_ACTIVE);
+  sfuart->regs = device_take_memory(dev, 0);
   assert(sfuart->regs);
+
+  if ((err = bus_map_resource(dev, sfuart->regs)))
+    return err;
+
+  uart_init(dev, "SiFive UART", SFUART_BUFSIZE, sfuart, tty);
 
   out(SFUART_IRQ_ENABLE, 0);
 
@@ -114,7 +118,7 @@ static int sfuart_attach(device_t *dev) {
 
   out(SFUART_IRQ_ENABLE, SFUART_IRQ_ENABLE_RXWM);
 
-  sfuart->irq = device_take_irq(dev, 0, RF_ACTIVE);
+  sfuart->irq = device_take_irq(dev, 0);
   assert(sfuart->irq);
 
   pic_setup_intr(dev, sfuart->irq, uart_intr, NULL, dev, "SiFive UART");

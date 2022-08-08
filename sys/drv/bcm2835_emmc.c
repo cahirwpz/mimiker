@@ -5,7 +5,6 @@
  */
 
 #include <sys/mimiker.h>
-#include <sys/rman.h>
 #include <sys/devclass.h>
 #include <sys/klog.h>
 #include <sys/types.h>
@@ -514,8 +513,7 @@ static emmc_error_t bcmemmc_write(device_t *cdev, const void *buf, size_t len,
   /* A very simple transfer (should be replaced with DMA in the future) */
   for (size_t i = 0; i < len / sizeof(uint32_t); i++)
     b_out(emmc, BCMEMMC_DATA, data[i]);
-
-  /* TODO (mohr): check wether the transfer fully succeeded! */
+  
   if (wrote)
     *wrote = len;
   return EMMC_OK;
@@ -573,16 +571,20 @@ DEVCLASS_DECLARE(emmc);
 
 static int bcmemmc_attach(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
+  int err = 0;
 
-  state->emmc = device_take_memory(dev, 0, RF_ACTIVE);
+  state->emmc = device_take_memory(dev, 0);
   assert(state->emmc);
+
+  if ((err = bus_map_resource(dev, state->emmc)))
+    return err;
 
   spin_init(&state->lock, 0);
   cv_init(&state->intr_recv, "e.MMC command response wakeup");
 
   b_out(state->emmc, BCMEMMC_INTERRUPT, INT_ALL_MASK);
 
-  state->irq = device_take_irq(dev, 0, RF_ACTIVE);
+  state->irq = device_take_irq(dev, 0);
   pic_setup_intr(dev, state->irq, bcmemmc_intr_filter, NULL, state,
                  "e.MMC interrupt");
 

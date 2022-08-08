@@ -231,6 +231,12 @@ vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
   return vm;
 }
 
+vmem_size_t vmem_size(vmem_t *vm, vmem_addr_t addr) {
+  SCOPED_MTX_LOCK(&vm->vm_lock);
+  bt_t *bt = bt_lookupbusy(vm, addr);
+  return bt->bt_size;
+}
+
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
   bt_t *btspan = pool_alloc(P_BT, M_ZERO);
   bt_t *btfree = pool_alloc(P_BT, M_ZERO);
@@ -317,16 +323,18 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,
   return 0;
 }
 
-void vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
+void vmem_free(vmem_t *vm, vmem_addr_t addr) {
   bt_t *prev = NULL;
   bt_t *next = NULL;
+  vmem_size_t size;
 
   WITH_MTX_LOCK (&vm->vm_lock) {
     vmem_check_sanity(vm);
 
     bt_t *bt = bt_lookupbusy(vm, addr);
     assert(bt != NULL);
-    assert(bt->bt_size == align(size, vm->vm_quantum));
+
+    size = bt->bt_size;
 
     bt_rembusy(vm, bt);
     bt->bt_type = BT_TYPE_FREE;

@@ -7,9 +7,9 @@ SOURCES = \
 	pmap.c \
 	thread.c
 
-CPPFLAGS += -D_MACHDEP
-
 include $(TOPDIR)/build/build.kern.mk
+
+CPPFLAGS += -D_MACHDEP
 
 boot.o : CFLAGS_KASAN =
 boot.o : CFLAGS_KCSAN =
