@@ -98,6 +98,7 @@ void *pool_alloc(pool_t *pool, kmem_flags_t flags) {
 
     if (!(slab = LIST_FIRST(&pool->pp_part_slabs))) {
       if (!(slab = LIST_FIRST(&pool->pp_empty_slabs))) {
+        assert(pool->pp_kind != PK_BT);
         if (flags & (M_NOGROW | M_NOWAIT))
           return NULL;
         size_t slabsize = pool->pp_slabsize;
