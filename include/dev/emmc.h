@@ -140,14 +140,13 @@ typedef struct emmc_cmd {
 #define EMMC_BUSWIDTH_4 0x02 /* 4-bit bus */
 #define EMMC_BUSWIDTH_8 0x04 /* 8-bit but */
 
-typedef uint64_t emmc_error_t;
-
-#define EMMC_OK 0x00
-#define EMMC_ERROR_TIMEOUT 0x01
-#define EMMC_ERROR_PROP_NOTSUP 0x02
-#define EMMC_ERROR_PROP_INVALID_ARG 0x04
-#define EMMC_ERROR_INVALID_STATE 0x08
-#define EMMC_ERROR_INTERNAL 0x10
+typedef enum {
+  EMMC_ERROR_TIMEOUT = 0x01,
+  EMMC_ERROR_PROP_NOTSUP = 0x02,
+  EMMC_ERROR_PROP_INVALID_ARG = 0x04,
+  EMMC_ERROR_INVALID_STATE = 0x08,
+  EMMC_ERROR_INTERNAL = 0x10,
+} emmc_error_t;
 
 /* R stands for "read"
  * W stands for "write" */

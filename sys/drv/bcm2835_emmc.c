@@ -170,7 +170,7 @@ static emmc_error_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
     }
   }
 
-  return EMMC_OK;
+  return 0;
 }
 
 static emmc_error_t bcmemmc_wait(device_t *cdev, emmc_wait_flags_t wflags) {
@@ -375,7 +375,7 @@ static emmc_error_t bcmemmc_get_prop(device_t *cdev, uint32_t id,
       return bcmemmc_set_error(state, EMMC_ERROR_PROP_NOTSUP);
   }
 
-  return EMMC_OK;
+  return 0;
 }
 
 static emmc_error_t bcmemmc_set_prop(device_t *cdev, uint32_t id,
@@ -431,7 +431,7 @@ static emmc_error_t bcmemmc_set_prop(device_t *cdev, uint32_t id,
       return bcmemmc_set_error(state, EMMC_ERROR_PROP_NOTSUP);
   }
 
-  return EMMC_OK;
+  return 0;
 }
 
 /* Send encoded command */
@@ -458,7 +458,7 @@ static emmc_error_t bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
     resp->r[3] = b_in(emmc, BCMEMMC_RESP3);
   }
 
-  return EMMC_OK;
+  return 0;
 }
 
 /* Send a command */
@@ -495,7 +495,7 @@ static emmc_error_t bcmemmc_read(device_t *cdev, void *buf, size_t len,
 
   if (read)
     *read = len;
-  return EMMC_OK;
+  return 0;
 }
 
 static emmc_error_t bcmemmc_write(device_t *cdev, const void *buf, size_t len,
@@ -516,7 +516,7 @@ static emmc_error_t bcmemmc_write(device_t *cdev, const void *buf, size_t len,
 
   if (wrote)
     *wrote = len;
-  return EMMC_OK;
+  return 0;
 }
 
 #define BCMEMMC_INIT_FREQ 400000
@@ -556,7 +556,7 @@ static emmc_error_t bcmemmc_reset_internal(device_t *dev) {
 
   klog("e.MMC: Reset");
 
-  return EMMC_OK;
+  return 0;
 }
 
 static emmc_error_t bcmemmc_reset(device_t *cdev) {
@@ -608,13 +608,15 @@ static int bcmemmc_attach(device_t *dev) {
   return bus_generic_probe(dev);
 }
 
-static emmc_methods_t bcmemmc_emmc_if = {.send_cmd = bcmemmc_send_cmd,
-                                         .wait = bcmemmc_wait,
-                                         .read = bcmemmc_read,
-                                         .write = bcmemmc_write,
-                                         .get_prop = bcmemmc_get_prop,
-                                         .set_prop = bcmemmc_set_prop,
-                                         .reset = bcmemmc_reset};
+static emmc_methods_t bcmemmc_emmc_if = {
+  .send_cmd = bcmemmc_send_cmd,
+  .wait = bcmemmc_wait,
+  .read = bcmemmc_read,
+  .write = bcmemmc_write,
+  .get_prop = bcmemmc_get_prop,
+  .set_prop = bcmemmc_set_prop,
+  .reset = bcmemmc_reset,
+};
 
 static driver_t bcmemmc_driver = {
   .desc = "e.MMC controller driver",
