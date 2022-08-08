@@ -513,7 +513,7 @@ static emmc_error_t bcmemmc_write(device_t *cdev, const void *buf, size_t len,
   /* A very simple transfer (should be replaced with DMA in the future) */
   for (size_t i = 0; i < len / sizeof(uint32_t); i++)
     b_out(emmc, BCMEMMC_DATA, data[i]);
-  
+
   if (wrote)
     *wrote = len;
   return EMMC_OK;
