@@ -14,6 +14,7 @@ void init_kmem(void);
 
 void *kmem_alloc(size_t size, kmem_flags_t flags) __warn_unused;
 void kmem_free(void *ptr, size_t size);
+size_t kmem_size(void *ptr);
 
 /* Allocates contiguous physical memory of `size` bytes aligned to at least
  * `PAGESIZE` boundary. First physical address of the region will be stored

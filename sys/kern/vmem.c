@@ -231,6 +231,12 @@ vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
   return vm;
 }
 
+vmem_size_t vmem_size(vmem_t *vm, vmem_addr_t addr) {
+  SCOPED_MTX_LOCK(&vm->vm_lock);
+  bt_t *bt = bt_lookupbusy(vm, addr);
+  return bt->bt_size;
+}
+
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
   bt_t *btspan = pool_alloc(P_BT, M_ZERO);
   bt_t *btfree = pool_alloc(P_BT, M_ZERO);

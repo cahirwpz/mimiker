@@ -152,6 +152,10 @@ void kmem_free(void *ptr, size_t size) {
   vmem_free(kvspace, (vmem_addr_t)ptr);
 }
 
+size_t kmem_size(void *ptr) {
+  return (size_t)vmem_size(kvspace, (vmem_addr_t)ptr);
+}
+
 vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) {
   assert(page_aligned_p(pa) && page_aligned_p(size));
 
