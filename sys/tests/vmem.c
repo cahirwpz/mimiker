@@ -59,7 +59,7 @@ static int test_vmem(void) {
   assert(rc == ENOMEM);
 
   /* free 17 quantums */
-  vmem_free(vm, addr17, 17 * quantum);
+  vmem_free(vm, addr17);
 
   /* alloc 10 quantums, should return addr from span #2 */
   size = 10 * quantum;
@@ -68,9 +68,9 @@ static int test_vmem(void) {
   assert_addr_is_in_span(addr10, size, &span2);
 
   /* free all segments */
-  vmem_free(vm, addr1, 1 * quantum);
-  vmem_free(vm, addr8, 8 * quantum);
-  vmem_free(vm, addr10, 10 * quantum);
+  vmem_free(vm, addr1);
+  vmem_free(vm, addr8);
+  vmem_free(vm, addr10);
 
   vmem_destroy(vm);
 
