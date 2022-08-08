@@ -398,7 +398,7 @@ static emmc_error_t bcmemmc_set_prop(device_t *cdev, uint32_t id,
       break;
     case EMMC_PROP_RW_BLKSIZE:
       /* BLKSIZE can be at most a 10-bit value */
-      if ((var = 0) || (var > MAXBLKSIZE))
+      if ((var == 0) || (var > MAXBLKSIZE))
         return bcmemmc_set_error(state, EMMC_ERROR_PROP_INVALID_ARG);
       reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
       reg = (reg & ~0x03ff) | var;
