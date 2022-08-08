@@ -142,9 +142,12 @@ typedef struct emmc_cmd {
 
 typedef uint64_t emmc_error_t;
 
+#define EMMC_OK 0x00
 #define EMMC_ERROR_TIMEOUT 0x01
 #define EMMC_ERROR_PROP_NOTSUP 0x02
-#define EMMC_ERROR_INTERNAL 0x04
+#define EMMC_ERROR_PROP_INVALID_ARG 0x04
+#define EMMC_ERROR_INVALID_STATE 0x08
+#define EMMC_ERROR_INTERNAL 0x10
 
 /* R stands for "read"
  * W stands for "write" */
@@ -162,27 +165,26 @@ typedef enum emmc_prop_id {
   EMMC_PROP_RW_CLOCK_FREQ,    /* Clocking frequency (Hz) */
   EMMC_PROP_RW_BUSWIDTH,      /* Bus width, ie. no. of data lanes. */
   EMMC_PROP_RW_RCA,           /* Relative card address */
-  EMMC_PROP_R_ERRORS,         /* Last reported set of errors */
-  EMMC_PROP_W_ALLOW_ERRORS,   /* Do not assume invalid state on specified error
+  EMMC_PROP_RW_ERRORS,        /* Last reported set of errors */
+  EMMC_PROP_RW_ALLOW_ERRORS,  /* Do not assume invalid state on specified error
                                * flags. */
-  EMMC_PROP_R_ERROR_CODE,     /* Error code associated with an invalid state.
-                               * Should be 0 if state is valid. */
 } emmc_prop_id_t;
 typedef uint64_t emmc_prop_val_t;
 
 /* For a detailed explanation on semantics refer to the comments above
  * respective wrappers */
-typedef int (*emmc_send_cmd_t)(device_t *dev, emmc_cmd_t cmd, uint32_t arg,
-                               emmc_resp_t *res);
-typedef int (*emmc_wait_t)(device_t *dev, emmc_wait_flags_t wflags);
-typedef int (*emmc_read_dat_t)(device_t *dev, void *buf, size_t len, size_t *n);
-typedef int (*emmc_write_dat_t)(device_t *dev, const void *buf, size_t len,
-                                size_t *n);
-typedef int (*emmc_get_prop_t)(device_t *dev, emmc_prop_id_t id,
-                               emmc_prop_val_t *val);
-typedef int (*emmc_set_prop_t)(device_t *dev, emmc_prop_id_t id,
-                               emmc_prop_val_t val);
-typedef int (*emmc_reset_t)(device_t *dev);
+typedef emmc_error_t (*emmc_send_cmd_t)(device_t *dev, emmc_cmd_t cmd,
+                                        uint32_t arg, emmc_resp_t *res);
+typedef emmc_error_t (*emmc_wait_t)(device_t *dev, emmc_wait_flags_t wflags);
+typedef emmc_error_t (*emmc_read_dat_t)(device_t *dev, void *buf, size_t len,
+                                        size_t *n);
+typedef emmc_error_t (*emmc_write_dat_t)(device_t *dev, const void *buf,
+                                         size_t len, size_t *n);
+typedef emmc_error_t (*emmc_get_prop_t)(device_t *dev, emmc_prop_id_t id,
+                                        emmc_prop_val_t *val);
+typedef emmc_error_t (*emmc_set_prop_t)(device_t *dev, emmc_prop_id_t id,
+                                        emmc_prop_val_t val);
+typedef emmc_error_t (*emmc_reset_t)(device_t *dev);
 
 typedef struct emmc_methods {
   emmc_send_cmd_t send_cmd;
