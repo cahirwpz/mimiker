@@ -17,14 +17,14 @@
 #include <dev/sd.h>
 #include <sys/fdt.h>
 
-
 typedef struct sd_state {
   sd_props_t props; /* SD Card's flags */
   void *block_buf;  /* A buffer for reading data into */
 } sd_state_t;
 
 static int sd_probe(device_t *dev) {
-  return FDT_is_compatible(dev->node, "mimiker,sd");
+  /* return FDT_is_compatible(dev->node, "mimiker,sd"); */
+  return dev->unit == 0;
 }
 
 static const char standard_cap_str[] = "Ver 2.0 or later, Standard Capacity "
@@ -34,8 +34,9 @@ static const char high_cap_str[] = "Ver 2.0 or later, High Capacity or Extended"
 
 static int sd_sanity_check(device_t *dev) {
   uint64_t propv;
-  if (emmc_get_prop(dev, EMMC_PROP_R_ERRORS, &propv) || propv) {
-    klog("A failure in communication with an SD device occured.");
+  emmc_get_prop(dev, EMMC_PROP_RW_ERRORS, &propv);
+  if (propv & EMMC_ERROR_INTERNAL) {
+    klog("A failure in communication with an SD device occured: %llx", propv);
     return ENXIO;
   }
   return 0;
@@ -54,6 +55,8 @@ static int sd_init(device_t *dev) {
 
   state->props = 0;
 
+  emmc_reset(dev);
+
   /* The routine below is based on SD Specifications: Part 1 Physical Layer
    * Simplified Specification, Version 6.0. See: page 30 */
 
@@ -61,7 +64,7 @@ static int sd_init(device_t *dev) {
 
   emmc_set_prop(dev, EMMC_PROP_RW_RCA, 0);
   emmc_send_cmd(dev, EMMC_CMD(GO_IDLE), 0, NULL);
-  
+
   if ((err = sd_sanity_check(dev)))
     return err;
 
@@ -73,9 +76,10 @@ static int sd_init(device_t *dev) {
   emmc_set_prop(dev, EMMC_PROP_RW_RESP_LOW, chkpat - 1);
   emmc_send_cmd(dev, SD_CMD_SET_IF_COND, propv << 8 | chkpat, &response);
 
+  assert(sd_sanity_check(dev) == 0);
   if ((err = sd_sanity_check(dev)))
     return err;
-  
+
   if (SD_R7_CHKPAT(&response) != chkpat) {
     klog("SD 2.0 voltage supply is mismatched, or the card is at Version 1.x");
     return ENXIO;
@@ -84,24 +88,39 @@ static int sd_init(device_t *dev) {
   /* Counter-intuitively, the busy bit is set ot 0 if the card is not ready */
   SD_ACMD41_RESP_SET_BUSY(&response, 0);
   int trial_cnt = 120; /* XXX: test it on a real hardware */
+
+  /* During this phase the controller may time out on some commands and
+   * it shouldn't be treated as a fatal error. It just means that the card
+   * is busy. */
+  emmc_set_prop(dev, EMMC_PROP_RW_ALLOW_ERRORS, EMMC_ERROR_TIMEOUT);
+
+  if ((err = sd_sanity_check(dev)))
+    return err;
+
   while (trial_cnt & ~SD_ACMD41_RESP_READ_BUSY(&response)) {
     if (trial_cnt-- < 0) {
       klog("Card timedout on ACMD41 polling.");
+      emmc_set_prop(dev, EMMC_PROP_RW_ALLOW_ERRORS, 0);
       return ETIMEDOUT;
     }
-    int e = emmc_send_cmd(dev, SD_CMD_SEND_OP_COND,
-                          SD_ACMD41_SD2_0_POLLRDY_ARG1, &response);
-    /* During this phase the controller may time out on some commands and
-     * it shouldn't be treated as a fatal error. It just means that the card
-     * is busy. */
-    if (e == EIO) {
-      int eprop = emmc_get_prop(dev, EMMC_PROP_R_ERRORS, &propv);
-      if ((eprop == ENODEV) || (propv == EMMC_ERROR_CMD_TIMEOUT))
-        continue;
-    } else if (e) {
-      return e;
+    emmc_send_cmd(dev, SD_CMD_SEND_OP_COND, SD_ACMD41_SD2_0_POLLRDY_ARG1,
+                  &response);
+    emmc_error_t eprop = emmc_get_prop(dev, EMMC_PROP_RW_ERRORS, &propv);
+    assert(eprop == EMMC_OK);
+    if (propv != EMMC_ERROR_INTERNAL) {
+      continue;
+    } else {
+      emmc_set_prop(dev, EMMC_PROP_RW_ALLOW_ERRORS, 0);
+      klog("SD/HC: An internal error has occured.");
+      return ENXIO;
     }
   }
+
+  if ((err = sd_sanity_check(dev)))
+    return err;
+
+  emmc_set_prop(dev, EMMC_PROP_RW_ERRORS, 0);
+  emmc_set_prop(dev, EMMC_PROP_RW_ALLOW_ERRORS, 0);
 
   if (SD_ACMD41_RESP_READ_CCS(&response))
     state->props |= SD_SUPP_CCS;
@@ -119,11 +138,11 @@ static int sd_init(device_t *dev) {
   if ((err = sd_sanity_check(dev)))
     return err;
 
-  /* At this point we should have just enetered data transfer mode */
+  /* At this point we should have just entered data transfer mode */
 
   if (emmc_set_prop(dev, EMMC_PROP_RW_CLOCK_FREQ, SD_CLOCK_FREQ))
     klog("Failed to set e.MMC clock for SD card. Transfers might be slow.");
-  
+
   emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), rca << 16, NULL);
   emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 8);
   emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, 1);
@@ -169,7 +188,7 @@ static int sd_read_block_ccs(device_t *dev, uint32_t lba, void *buffer,
     emmc_send_cmd(dev, EMMC_CMD(READ_MULTIPLE_BLOCKS), lba, NULL);
   else
     emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba, NULL);
-  
+
   emmc_wait(dev, EMMC_I_READ_READY);
 
   if ((err = sd_sanity_check(dev)))
@@ -179,13 +198,13 @@ static int sd_read_block_ccs(device_t *dev, uint32_t lba, void *buffer,
     return err;
   if ((num == 1) || (state->props & SD_SUPP_BLKCNT))
     emmc_wait(dev, EMMC_I_DATA_DONE);
-  
+
   if (read)
     *read = num * DEFAULT_BLKSIZE;
-  
+
   if (num > 1 && (~state->props & SD_SUPP_BLKCNT))
     emmc_send_cmd(dev, EMMC_CMD(STOP_TRANSMISSION), 0, NULL);
-  
+
   return sd_sanity_check(dev);
 }
 
@@ -198,9 +217,8 @@ static int sd_read_block_noccs(device_t *dev, uint32_t lba, void *buffer,
   for (uint32_t c = 0; c < num; c++) {
     /* See note no. 10 at page 222 of
      * SD Physical Layer Simplified Specification V6.0 */
-    emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK),
-                  (lba + c) * DEFAULT_BLKSIZE, NULL);
-    
+    emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), (lba + c) * DEFAULT_BLKSIZE, NULL);
+
     if ((err = sd_sanity_check(dev)))
       return err;
 
@@ -277,7 +295,7 @@ static int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
     if ((err = emmc_write(dev, buf, DEFAULT_BLKSIZE, NULL)))
       return err;
     emmc_wait(dev, EMMC_I_DATA_DONE);
-    buf += 128;
+    buf += DEFAULT_BLKSIZE / sizeof(uint32_t);
     if (wrote)
       *wrote = *wrote + DEFAULT_BLKSIZE;
   }
