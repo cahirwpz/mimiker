@@ -76,7 +76,8 @@ pmap_t *pmap_user(void);
  */
 int pmap_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access);
 
-void pmap_growkernel(vaddr_t maxkvaddr);
+vaddr_t pmap_roundup_growkernel_stride(vaddr_t addr);
+void pmap_growkernel(vaddr_t addr);
 
 /*
  * Direct map.
