@@ -153,7 +153,7 @@ void kmem_free(void *ptr, size_t size) {
 }
 
 size_t kmem_size(void *ptr) {
-  return vmem_size(kvspace, (vmem_addr_t)ptr);
+  return (size_t)vmem_size(kvspace, (vmem_addr_t)ptr);
 }
 
 vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) {
