@@ -6,10 +6,8 @@
 #include <sys/sched.h>
 #include <sys/malloc.h>
 #include <sys/pool.h>
-#include <sys/pmap.h>
 #include <sys/kmem.h>
 #include <sys/vm.h>
-#include <sys/vm_physmem.h>
 #include <machine/vm_param.h>
 
 #define PI_ALIGNMENT sizeof(uint64_t)
@@ -30,20 +28,13 @@ static void *slab_item_at(slab_t *slab, unsigned i) {
   return slab->ph_items + i * slab->ph_itemsize;
 }
 
-static vm_page_t *find_page(pool_t *pool, void *ptr) {
-  if (pool->pp_kind == PK_BT)
-    return vm_page_find(dmap_to_phys(ptr));
-  return kva_find_page((vaddr_t)ptr);
-}
-
 static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
   assert(mtx_owned(&pool->pp_mtx));
   assert(is_aligned(slab, PAGESIZE));
   assert(slabsize >= pool->pp_slabsize);
   assert(is_aligned(slabsize, PAGESIZE));
 
-  klog("add slab at %p (%lu bytes) to '%s' pool", slab, slabsize,
-       pool->pp_desc);
+  klog("add slab at %p to '%s' pool", slab, pool->pp_desc);
 
   slab->ph_pool = pool;
   slab->ph_size = slabsize;
@@ -82,7 +73,7 @@ static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
   pool->pp_npages += slabsize;
 
   for (size_t i = 0; i < slabsize; i += PAGESIZE) {
-    vm_page_t *pg = find_page(pool, slab + i);
+    vm_page_t *pg = kva_find_page((vaddr_t)slab + i);
     assert(pg != NULL);
     pg->slab = slab;
   }
@@ -98,9 +89,6 @@ void *pool_alloc(pool_t *pool, kmem_flags_t flags) {
 
     if (!(slab = LIST_FIRST(&pool->pp_part_slabs))) {
       if (!(slab = LIST_FIRST(&pool->pp_empty_slabs))) {
-        assert(pool->pp_kind != PK_BT);
-        if (flags & (M_NOGROW | M_NOWAIT))
-          return NULL;
         size_t slabsize = pool->pp_slabsize;
         slab = kmem_alloc(slabsize, flags);
         assert(slab != NULL);
@@ -131,11 +119,9 @@ void *pool_alloc(pool_t *pool, kmem_flags_t flags) {
     pool->pp_nmaxused = max(pool->pp_nmaxused, pool->pp_nused);
   }
 
-  if (pool->pp_kind != PK_BT) {
-    /* Create redzone after the item. */
-    kasan_mark(ptr, pool->pp_itemsize, pool->pp_itemsize + pool->pp_redzone,
-               KASAN_CODE_POOL_OVERFLOW);
-  }
+  /* Create redzone after the item. */
+  kasan_mark(ptr, pool->pp_itemsize, pool->pp_itemsize + pool->pp_redzone,
+             KASAN_CODE_POOL_OVERFLOW);
   if (flags & M_ZERO)
     bzero(ptr, pool->pp_itemsize);
 
@@ -149,7 +135,7 @@ static void _pool_free(pool_t *pool, void *ptr) {
 
   debug("pool_free: pool = %p, ptr = %p", pool, ptr);
 
-  vm_page_t *pg = find_page(pool, ptr);
+  vm_page_t *pg = kva_find_page((vaddr_t)ptr);
   assert(pg != NULL);
   slab_t *slab = pg->slab;
 
@@ -179,9 +165,6 @@ static void _pool_free(pool_t *pool, void *ptr) {
 void pool_free(pool_t *pool, void *ptr) {
   SCOPED_MTX_LOCK(&pool->pp_mtx);
 
-  if (pool->pp_kind == PK_BT)
-    _pool_free(pool, ptr);
-
   kasan_mark_invalid(ptr, pool->pp_itemsize + pool->pp_redzone,
                      KASAN_CODE_POOL_FREED);
   kasan_quar_additem(&pool->pp_quarantine, pool, ptr);
@@ -210,7 +193,7 @@ static void destroy_slabs(pool_t *pool, slab_list_t *slabs) {
     LIST_REMOVE(slab, ph_link);
 
     for (size_t i = 0; i < slab->ph_size; i += PAGESIZE) {
-      vm_page_t *pg = find_page(pool, slab + i);
+      vm_page_t *pg = kva_find_page((vaddr_t)slab + i);
       assert(pg != NULL);
       assert(pg->slab == slab);
       pg->slab = NULL;
@@ -242,21 +225,15 @@ void _pool_init(pool_t *pool, pool_init_t *args) {
   pool->pp_desc = desc;
   pool->pp_alignment = alignment;
   pool->pp_slabsize = slabsize;
-  pool->pp_kind = args->kind;
 #if KASAN
-  if (pool->pp_kind == PK_BT) {
-    pool->pp_itemsize = align(size, alignment);
-  } else {
-    /* the alignment is within the redzone */
-    pool->pp_itemsize = size;
-    pool->pp_redzone = align(size + KASAN_POOL_REDZONE_SIZE, alignment) - size;
-  }
+  /* the alignment is within the redzone */
+  pool->pp_itemsize = size;
+  pool->pp_redzone = align(size + KASAN_POOL_REDZONE_SIZE, alignment) - size;
 #else /* !KASAN */
   /* no redzone, we have to align the size itself */
   pool->pp_itemsize = align(size, alignment);
 #endif
-  if (pool->pp_kind != PK_BT)
-    kasan_quar_init(&pool->pp_quarantine, (quar_free_t)_pool_free);
+  kasan_quar_init(&pool->pp_quarantine, (quar_free_t)_pool_free);
   klog("initialized '%s' pool at %p (item size = %d)", pool->pp_desc, pool,
        pool->pp_itemsize);
   WITH_MTX_LOCK (&pool_list_lock)
@@ -281,11 +258,9 @@ pool_t *_pool_create(pool_init_t *args) {
 void pool_destroy(pool_t *pool) {
   WITH_MTX_LOCK (&pool_list_lock)
     TAILQ_REMOVE(&pool_list, pool, pp_link);
-  if (pool->pp_kind != PK_BT) {
-    WITH_MTX_LOCK (&pool->pp_mtx)
-      /* Lock needed as the quarantine may call _pool_free! */
-      kasan_quar_releaseall(&pool->pp_quarantine);
-  }
+  WITH_MTX_LOCK (&pool->pp_mtx)
+    /* Lock needed as the quarantine may call _pool_free! */
+    kasan_quar_releaseall(&pool->pp_quarantine);
   pool_dtor(pool);
   kfree(M_POOL, pool);
 }

@@ -14,12 +14,15 @@ typedef struct vmem vmem_t;
  * https://netbsd.gw.com/cgi-bin/man-cgi?vmem+9+NetBSD-current
  */
 
+/*! \brief Called during kernel initialization. */
+void init_vmem(void);
+
 /*! \brief Create a new vmem arena.
  * You need to specify quantum, the smallest unit of allocation. */
 vmem_t *vmem_create(const char *name, vmem_size_t quantum);
 
 /*! \brief Obtain the size of the segment starting at `addr`. */
-size_t vmem_size(vmem_t *vm, vmem_addr_t addr);
+vmem_size_t vmem_size(vmem_t *vm, vmem_addr_t addr);
 
 /*! \brief Add a new address span to the arena. */
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size);

@@ -20,14 +20,8 @@
 
 typedef LIST_HEAD(, slab) slab_list_t;
 
-typedef enum pool_kind {
-  PK_STANDARD,
-  PK_BT, /* vmem boundary tag pool */
-} pool_kind_t;
-
 typedef struct pool {
   TAILQ_ENTRY(pool) pp_link;
-  pool_kind_t pp_kind;
   mtx_t pp_mtx;
   const char *pp_desc;
   slab_list_t pp_empty_slabs;
@@ -67,7 +61,6 @@ typedef struct pool_init {
   size_t size;
   size_t alignment;
   size_t slabsize;
-  pool_kind_t kind;
 } pool_init_t;
 
 /*! \brief Creates a pool of objects of given size. */

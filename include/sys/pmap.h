@@ -82,6 +82,5 @@ void pmap_growkernel(vaddr_t maxkvaddr);
  * Direct map.
  */
 void *phys_to_dmap(paddr_t addr);
-paddr_t dmap_to_phys(void *ptr);
 
 #endif /* !_SYS_PMAP_H_ */

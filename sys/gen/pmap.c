@@ -577,14 +577,3 @@ void pmap_growkernel(vaddr_t maxkvaddr) {
 
   vm_kernel_end = maxkvaddr;
 }
-
-/*
- * Direct map.
- */
-
-paddr_t dmap_to_phys(void *ptr) {
-  vaddr_t va = (vaddr_t)ptr;
-  size_t phys_size = dmap_paddr_end - dmap_paddr_base;
-  assert((va >= DMAP_BASE) && (va <= DMAP_BASE + phys_size));
-  return (paddr_t)(va - DMAP_BASE) + dmap_paddr_base;
-}
