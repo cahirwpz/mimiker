@@ -82,7 +82,7 @@ static void *lblk_alloc(size_t size, kmem_flags_t flags, size_t *blkszp) {
   if (!ptr)
     return NULL;
 
-  // kasan_mark(ptr, size, req_size, KASAN_CODE_KMALLOC_OVERFLOW);
+  kasan_mark(ptr, size, req_size, KASAN_CODE_KMALLOC_OVERFLOW);
   *blkszp = req_size;
 
   return ptr;

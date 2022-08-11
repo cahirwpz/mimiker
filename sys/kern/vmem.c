@@ -4,7 +4,6 @@
 #include <sys/kmem.h>
 #include <sys/vmem.h>
 #include <sys/queue.h>
-#include <sys/pool.h>
 #include <sys/malloc.h>
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
@@ -107,39 +106,25 @@ void init_vmem(void) {
   bt_add_page(bt_bootpage);
 }
 
-static void bt_refill(void) {
-  thread_t *td = thread_self();
-  assert(td == bt_refiller);
-
-  void *page = kmem_alloc(BT_PAGESIZE, M_NOWAIT | M_ZERO);
-  assert(page);
-
-  WITH_MTX_LOCK (&bt_lock) {
-    bt_add_page(page);
-    bt_refiller = NULL;
-    cv_broadcast(&bt_cv);
-  }
-}
-
 static bt_t *bt_alloc(kmem_flags_t flags) {
+  SCOPED_MTX_LOCK(&bt_lock);
+
   thread_t *td = thread_self();
 
-  mtx_lock(&bt_lock);
-
-  for (;;) {
-    if (bt_freecnt > BT_RESERVE_THRESHOLD)
-      break;
-
+  while ((td != bt_refiller) && (bt_freecnt <= BT_RESERVE_THRESHOLD)) {
     if (!bt_refiller) {
       bt_refiller = td;
       mtx_unlock(&bt_lock);
-      bt_refill();
-      mtx_lock(&bt_lock);
-      continue;
-    }
 
-    if (bt_refiller == td)
+      void *page = kmem_alloc(BT_PAGESIZE, M_ZERO | M_NOWAIT);
+      assert(page);
+
+      mtx_lock(&bt_lock);
+      bt_add_page(page);
+      bt_refiller = NULL;
+      cv_broadcast(&bt_cv);
       break;
+    }
 
     if (flags & M_NOWAIT)
       return NULL;
@@ -151,14 +136,17 @@ static bt_t *bt_alloc(kmem_flags_t flags) {
   assert(bt);
   LIST_REMOVE(bt, bt_alloclink);
   bt_freecnt--;
-  mtx_unlock(&bt_lock);
   return bt;
 }
 
 static void bt_free(bt_t *bt) {
-  SCOPED_MTX_LOCK(&bt_lock);
-  LIST_INSERT_HEAD(&bt_alloclist, bt, bt_alloclink);
-  bt_freecnt++;
+  if (!bt)
+    return;
+
+  WITH_MTX_LOCK (&bt_lock) {
+    LIST_INSERT_HEAD(&bt_alloclist, bt, bt_alloclink);
+    bt_freecnt++;
+  }
 }
 
 static vmem_freelist_t *bt_freehead(vmem_t *vm, vmem_size_t size) {
@@ -313,15 +301,18 @@ vmem_size_t vmem_size(vmem_t *vm, vmem_addr_t addr) {
 
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
              kmem_flags_t flags) {
+  int error = 0;
+
   bt_t *btspan = bt_alloc(flags);
-  if (!btspan)
-    return EAGAIN;
+  if (!btspan) {
+    error = EAGAIN;
+    goto end;
+  }
 
   bt_t *btfree = bt_alloc(flags);
   if (!btfree) {
-    if (btspan)
-      bt_free(btspan);
-    return EAGAIN;
+    error = EAGAIN;
+    goto end;
   }
 
   btspan->bt_type = BT_TYPE_SPAN;
@@ -339,11 +330,14 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
     vm->vm_size += size;
     vmem_check_sanity(vm);
   }
+  btspan = NULL;
 
   klog("%s: added [%p-%p] span to '%s'", __func__, addr, addr + size - 1,
        vm->vm_name);
 
-  return 0;
+end:
+  bt_free(btspan);
+  return error;
 }
 
 int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,

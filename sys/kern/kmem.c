@@ -1,4 +1,5 @@
 #define KL_LOG KL_KMEM
+#include <sys/errno.h>
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
@@ -10,15 +11,17 @@
 #include <sys/vm_physmem.h>
 #include <sys/kasan.h>
 #include <sys/mutex.h>
-#include <machine/vm_param.h>
 
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
+static vmem_addr_t kvspace_end;
+static MTX_DEFINE(kvspace_end_lock, 0);
 
 void init_kmem(void) {
   kvspace = vmem_create("kvspace", PAGESIZE);
   if (KERNEL_SPACE_BEGIN < (vaddr_t)__kernel_start)
     vmem_add(kvspace, KERNEL_SPACE_BEGIN,
              (vaddr_t)__kernel_start - KERNEL_SPACE_BEGIN, M_NOWAIT);
+  kvspace_end = vm_kernel_end;
 }
 
 static void kick_swapper(void) {
@@ -29,6 +32,7 @@ vaddr_t kva_alloc(size_t size, kmem_flags_t flags) {
   assert(page_aligned_p(size));
   vaddr_t old = atomic_load(&vm_kernel_end);
   vmem_addr_t start = 0;
+  int error;
 
   /*
    * Let's assume that vmem_alloc failed.
@@ -39,7 +43,11 @@ vaddr_t kva_alloc(size_t size, kmem_flags_t flags) {
    * vmem_alloc fails so we need to repeat pmap_growkernel and restart
    * vmem_alloc. We do that until success because kva_alloc should never failed.
    */
-  while (vmem_alloc(kvspace, size, &start, flags)) {
+  while ((error = vmem_alloc(kvspace, size, &start, flags))) {
+    if (error == EAGAIN)
+      continue;
+    assert(error == ENOMEM);
+
     mtx_lock(&vm_kernel_end_lock);
 
     /* Check if other thread called pmap_growkernel between vmem_alloc and
@@ -50,15 +58,27 @@ vaddr_t kva_alloc(size_t size, kmem_flags_t flags) {
       continue;
     }
 
-    vaddr_t new = pmap_roundup_growkernel_stride(old + size);
-    if (vmem_add(kvspace, old, new - old, M_NOWAIT)) {
-      mtx_unlock(&vm_kernel_end_lock);
-      continue;
+    WITH_MTX_LOCK (&kvspace_end_lock) {
+      if (kvspace_end < vm_kernel_end) {
+        if (!vmem_add(kvspace, vm_kernel_end, vm_kernel_end - kvspace_end,
+                      M_NOWAIT)) {
+          kvspace_end = vm_kernel_end;
+        }
+        mtx_unlock(&kvspace_end_lock);
+        mtx_unlock(&vm_kernel_end_lock);
+        continue;
+      }
     }
 
-    pmap_growkernel(new);
+    pmap_growkernel(old + size);
+    klog("%s: increase kernel end %08lx -> %08lx", __func__, old,
+         vm_kernel_end);
 
-    klog("%s: increase kernel end %08lx -> %08lx", __func__, old, new);
+    if (!vmem_add(kvspace, old, vm_kernel_end - old, M_NOWAIT)) {
+      WITH_MTX_LOCK (&kvspace_end_lock)
+        kvspace_end = vm_kernel_end;
+    }
+
     mtx_unlock(&vm_kernel_end_lock);
   }
 
@@ -136,7 +156,7 @@ void *kmem_alloc(size_t size, kmem_flags_t flags) {
   return (void *)va;
 }
 
-vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size, kmem_flags_t flags) {
+vaddr_t kmem_alloc_contig(paddr_t *pap, size_t size, unsigned flags) {
   assert(page_aligned_p(size) && powerof2(size));
 
   size_t n = size / PAGESIZE;
@@ -160,10 +180,10 @@ size_t kmem_size(void *ptr) {
   return (size_t)vmem_size(kvspace, (vmem_addr_t)ptr);
 }
 
-vaddr_t kmem_map_contig(paddr_t pa, size_t size, kmem_flags_t flags) {
+vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) {
   assert(page_aligned_p(pa) && page_aligned_p(size));
 
-  vaddr_t va = kva_alloc(size, flags);
+  vaddr_t va = kva_alloc(size, M_WAITOK);
 
   /* Mark the entire block as valid */
   kasan_mark_valid((void *)va, size);
