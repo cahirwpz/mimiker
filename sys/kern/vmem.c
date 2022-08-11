@@ -140,9 +140,13 @@ static bt_t *bt_alloc(kmem_flags_t flags) {
 }
 
 static void bt_free(bt_t *bt) {
-  SCOPED_MTX_LOCK(&bt_lock);
-  LIST_INSERT_HEAD(&bt_alloclist, bt, bt_alloclink);
-  bt_freecnt++;
+  if (!bt)
+    return;
+
+  WITH_MTX_LOCK (&bt_lock) {
+    LIST_INSERT_HEAD(&bt_alloclist, bt, bt_alloclink);
+    bt_freecnt++;
+  }
 }
 
 static vmem_freelist_t *bt_freehead(vmem_t *vm, vmem_size_t size) {
@@ -297,15 +301,18 @@ vmem_size_t vmem_size(vmem_t *vm, vmem_addr_t addr) {
 
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
              kmem_flags_t flags) {
+  int error = 0;
+
   bt_t *btspan = bt_alloc(flags);
-  if (!btspan)
-    return EAGAIN;
+  if (!btspan) {
+    error = EAGAIN;
+    goto end;
+  }
 
   bt_t *btfree = bt_alloc(flags);
   if (!btfree) {
-    if (btspan)
-      bt_free(btspan);
-    return EAGAIN;
+    error = EAGAIN;
+    goto end;
   }
 
   btspan->bt_type = BT_TYPE_SPAN;
@@ -323,11 +330,14 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
     vm->vm_size += size;
     vmem_check_sanity(vm);
   }
+  btspan = NULL;
 
   klog("%s: added [%p-%p] span to '%s'", __func__, addr, addr + size - 1,
        vm->vm_name);
 
-  return 0;
+end:
+  bt_free(btspan);
+  return error;
 }
 
 int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,
