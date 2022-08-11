@@ -550,23 +550,19 @@ void pmap_delete(pmap_t *pmap) {
   pool_free(P_PMAP, pmap);
 }
 
-vaddr_t pmap_roundup_growkernel_stride(vaddr_t addr) {
-  return roundup2(addr, GROWKERNEL_STRIDE);
-}
-
 /*
- * Increase usable kernel virtual address space to at least `addr`.
+ * Increase usable kernel virtual address space to at least `maxkvaddr`.
  * Allocate page tables if needed.
  */
-void pmap_growkernel(vaddr_t addr) {
+void pmap_growkernel(vaddr_t maxkvaddr) {
   assert(mtx_owned(&vm_kernel_end_lock));
-  assert(addr > vm_kernel_end);
-  assert(is_aligned(addr, GROWKERNEL_STRIDE));
+  assert(maxkvaddr > vm_kernel_end);
 
+  maxkvaddr = roundup2(maxkvaddr, GROWKERNEL_STRIDE);
   pmap_t *pmap = pmap_kernel();
 
   WITH_MTX_LOCK (&pmap->mtx) {
-    for (vaddr_t va = vm_kernel_end; va < addr; va += GROWKERNEL_STRIDE)
+    for (vaddr_t va = vm_kernel_end; va < maxkvaddr; va += GROWKERNEL_STRIDE)
       (void)pmap_ensure_pte(pmap, va);
   }
 
@@ -575,9 +571,9 @@ void pmap_growkernel(vaddr_t addr) {
    * But we are under `vm_kernel_end_lock` from kmem so it's safe to call
    * `kasan_grow`.
    */
-  kasan_grow(addr);
+  kasan_grow(maxkvaddr);
 
-  pmap_md_growkernel(addr);
+  pmap_md_growkernel(maxkvaddr);
 
-  vm_kernel_end = addr;
+  vm_kernel_end = maxkvaddr;
 }

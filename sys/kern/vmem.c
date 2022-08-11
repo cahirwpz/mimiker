@@ -106,39 +106,25 @@ void init_vmem(void) {
   bt_add_page(bt_bootpage);
 }
 
-static void bt_refill(void) {
-  thread_t *td = thread_self();
-  assert(td == bt_refiller);
-
-  void *page = kmem_alloc(BT_PAGESIZE, M_NOWAIT | M_ZERO);
-  assert(page);
-
-  WITH_MTX_LOCK (&bt_lock) {
-    bt_add_page(page);
-    bt_refiller = NULL;
-    cv_broadcast(&bt_cv);
-  }
-}
-
 static bt_t *bt_alloc(kmem_flags_t flags) {
+  SCOPED_MTX_LOCK(&bt_lock);
+
   thread_t *td = thread_self();
 
-  mtx_lock(&bt_lock);
-
-  for (;;) {
-    if (bt_freecnt > BT_RESERVE_THRESHOLD)
-      break;
-
+  while ((td != bt_refiller) && (bt_freecnt <= BT_RESERVE_THRESHOLD)) {
     if (!bt_refiller) {
       bt_refiller = td;
       mtx_unlock(&bt_lock);
-      bt_refill();
-      mtx_lock(&bt_lock);
-      continue;
-    }
 
-    if (bt_refiller == td)
+      void *page = kmem_alloc(BT_PAGESIZE, M_ZERO | M_NOWAIT);
+      assert(page);
+
+      mtx_lock(&bt_lock);
+      bt_add_page(page);
+      bt_refiller = NULL;
+      cv_broadcast(&bt_cv);
       break;
+    }
 
     if (flags & M_NOWAIT)
       return NULL;
@@ -150,7 +136,6 @@ static bt_t *bt_alloc(kmem_flags_t flags) {
   assert(bt);
   LIST_REMOVE(bt, bt_alloclink);
   bt_freecnt--;
-  mtx_unlock(&bt_lock);
   return bt;
 }
 
