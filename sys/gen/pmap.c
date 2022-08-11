@@ -501,6 +501,7 @@ __long_call void pmap_bootstrap(paddr_t pd_pa, void *pd) {
 
 void init_pmap(void) {
   pmap_setup(&kernel_pmap);
+  /* Create a separate lock class for kernel pmap. */
   mtx_init(&kernel_pmap.mtx, 0);
 }
 
