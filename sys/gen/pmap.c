@@ -486,9 +486,12 @@ static void pmap_setup(pmap_t *pmap) {
     vm_page_t *pg = pmap_pagealloc();
     pmap->pde = pg->paddr;
     TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
+    mtx_init(&pmap->mtx, 0);
+  } else {
+    /* Create a separate lock class for kernel pmap. */
+    mtx_init(&kernel_pmap.mtx, 0);
   }
   pmap->asid = alloc_asid();
-  mtx_init(&pmap->mtx, 0);
   TAILQ_INIT(&pmap->pv_list);
 
   pmap_md_setup(pmap);
@@ -501,8 +504,6 @@ __long_call void pmap_bootstrap(paddr_t pd_pa, void *pd) {
 
 void init_pmap(void) {
   pmap_setup(&kernel_pmap);
-  /* Create a separate lock class for kernel pmap. */
-  mtx_init(&kernel_pmap.mtx, 0);
 }
 
 pmap_t *pmap_new(void) {
