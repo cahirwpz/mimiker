@@ -24,7 +24,7 @@ paddr_t dmap_paddr_base;
 paddr_t dmap_paddr_end;
 
 /* Real kernel end in kernel virtual address space. */
-static atomic_vaddr_t vm_kernel_end = (vaddr_t)__kernel_end;
+static atomic_vaddr_t vm_kernel_end;
 static MTX_DEFINE(vm_kernel_end_lock, 0);
 
 static pmap_t kernel_pmap;
