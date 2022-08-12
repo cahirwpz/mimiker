@@ -26,7 +26,7 @@ typedef struct pmap pmap_t;
 /* Machine-dependent flags */
 #define _PMAP_KERNEL (1 << 24)
 
-__long_call void pmap_bootstrap(paddr_t pd_pa, void *pd);
+__long_call void pmap_bootstrap(vaddr_t vma_end, paddr_t pd_pa, void *pd);
 void init_pmap(void);
 
 vaddr_t pmap_start(pmap_t *pmap);
@@ -76,7 +76,15 @@ pmap_t *pmap_user(void);
  */
 int pmap_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access);
 
-void pmap_growkernel(vaddr_t maxvaddr);
+/*
+ * Increase maximum kernel virtual addresses by at least `size` bytes.
+ * Allocate page tables if needed.
+ *
+ * Returns:
+ *  - current maximum KVA if `size` == 0
+ *  - new maximum KVA otherwise
+ */
+vaddr_t pmap_growkernel(size_t size);
 
 /*
  * Direct map.
