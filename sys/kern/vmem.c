@@ -301,16 +301,15 @@ vmem_size_t vmem_size(vmem_t *vm, vmem_addr_t addr) {
 
 int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
              kmem_flags_t flags) {
+  bt_t *btspan, *btfree;
   int error = 0;
 
-  bt_t *btspan = bt_alloc(flags);
-  if (!btspan) {
+  if (!(btspan = bt_alloc(flags))) {
     error = EAGAIN;
     goto end;
   }
 
-  bt_t *btfree = bt_alloc(flags);
-  if (!btfree) {
+  if (!(btfree = bt_alloc(flags))) {
     error = EAGAIN;
     goto end;
   }
@@ -330,6 +329,7 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
     vm->vm_size += size;
     vmem_check_sanity(vm);
   }
+
   btspan = NULL;
 
   klog("%s: added [%p-%p] span to '%s'", __func__, addr, addr + size - 1,

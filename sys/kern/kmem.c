@@ -40,12 +40,11 @@ vaddr_t kva_alloc(size_t size, kmem_flags_t flags) {
    * vmem_alloc where other thread can call kva_alloc and steal memory prepared
    * by us for vmem. In that scenario it's possible that second call to
    * vmem_alloc fails so we need to repeat pmap_growkernel and restart
-   * vmem_alloc. We do that until success because kva_alloc should never failed.
+   * vmem_alloc. We do that until success because kva_alloc should never fail.
    */
   while ((error = vmem_alloc(kvspace, size, &start, flags))) {
-    if (error == EAGAIN)
+    if (error != ENOMEM)
       continue;
-    assert(error == ENOMEM);
 
     WITH_MTX_LOCK (&max_kva_lock) {
       vmem_addr_t max_kva_prev = pmap_growkernel(0);
