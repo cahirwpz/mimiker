@@ -28,10 +28,10 @@ typedef struct bcmemmc_state {
   spin_t lock;           /* Covers `pending`, `intr_recv` and `emmc`. */
   uint64_t rca;          /* Relative Card Address */
   uint64_t host_version; /* Host specification version */
-  volatile uint32_t pending;  /* All interrupts received */
-  emmc_error_t errors;        /* Error flags */
-  emmc_error_t ignore_errors; /* Error flags that do not cause invalidation of
-                               * current state */
+  volatile uint32_t pending;   /* All interrupts received */
+  emmc_error_t errors;         /* Error flags */
+  emmc_error_t ignored_errors; /* Error flags that do not cause invalidation of
+                                * current state */
 } bcmemmc_state_t;
 
 #define b_in bus_read_4
@@ -73,16 +73,16 @@ static emmc_error_t bcemmc_decode_errors(uint32_t interrupts) {
 }
 
 static inline int bcmemmc_invalid_state(bcmemmc_state_t *state) {
-  return state->errors & (~state->ignore_errors | EMMC_ERROR_INTERNAL |
+  return state->errors & (~state->ignored_errors | EMMC_ERROR_INTERNAL |
                           EMMC_ERROR_INVALID_STATE);
 }
 
 static inline emmc_error_t bcmemmc_set_error(bcmemmc_state_t *state,
                                              emmc_error_t error_flags) {
-  state->errors = error_flags;
-  if ((error_flags & !state->ignore_errors) && !bcmemmc_invalid_state(state)) {
+  if (error_flags & ~state->ignored_errors) {
     state->errors |= EMMC_ERROR_INTERNAL;
   }
+  state->errors |= error_flags;
   return error_flags;
 }
 
@@ -142,7 +142,7 @@ static emmc_error_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
   for (;;) {
     if (state->pending & INT_ERROR_MASK) {
       emmc_error_t error_flags = bcemmc_decode_errors(state->pending);
-      if (error_flags & ~state->ignore_errors)
+      if (error_flags & ~state->ignored_errors)
         klog("e.MMC: An error flag(s) raised for e.MMC controller: 0x%x",
              state->pending & INT_ERROR_MASK);
       state->pending = 0;
@@ -369,7 +369,7 @@ static emmc_error_t bcmemmc_get_prop(device_t *cdev, uint32_t id,
       *var = state->errors;
       break;
     case EMMC_PROP_RW_ALLOW_ERRORS:
-      *var = state->ignore_errors;
+      *var = state->ignored_errors;
       break;
     default:
       return bcmemmc_set_error(state, EMMC_ERROR_PROP_NOTSUP);
@@ -420,13 +420,13 @@ static emmc_error_t bcmemmc_set_prop(device_t *cdev, uint32_t id,
       state->rca = var;
       break;
     case EMMC_PROP_RW_ERRORS:
-      /* The only way to reset nternal error is to reset the entire controller
+      /* The only way to reset internal error is to reset the entire controller
        * using the `reset` method. */
       state->errors = var & ~EMMC_ERROR_INTERNAL;
       break;
     case EMMC_PROP_RW_ALLOW_ERRORS:
-      state->errors &= ~state->ignore_errors;
-      state->ignore_errors = var;
+      state->errors &= ~state->ignored_errors;
+      state->ignored_errors = var;
       break;
     default:
       return bcmemmc_set_error(state, EMMC_ERROR_PROP_NOTSUP);
@@ -446,7 +446,7 @@ static emmc_error_t bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
   b_out(emmc, BCMEMMC_ARG1, arg);
   b_out(emmc, BCMEMMC_CMDTM, code);
   if ((error = bcmemmc_intr_wait(dev, INT_CMD_DONE))) {
-    if (state->errors & ~state->ignore_errors)
+    if (state->errors & ~state->ignored_errors)
       klog("e.MMC: ERROR: failed to send e.MMC command %p (error %d)", code,
            error);
     return error;
@@ -534,7 +534,7 @@ static emmc_error_t bcmemmc_reset_internal(device_t *dev) {
 
   /* Clear errors */
   state->errors = 0;
-  state->ignore_errors = 0;
+  state->ignored_errors = 0;
 
   /* Disable interrupts. */
   b_out(emmc, BCMEMMC_INT_MASK, 0);

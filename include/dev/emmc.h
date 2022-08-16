@@ -142,7 +142,7 @@ typedef struct emmc_cmd {
 
 typedef enum {
   EMMC_ERROR_TIMEOUT = 0x01,          /* Controller timed-out on a request */
-  EMMC_ERROR_PROP_NOTSUP = 0x02,      /* Requested property is not supported*/
+  EMMC_ERROR_PROP_NOTSUP = 0x02,      /* Requested property is not supported */
   EMMC_ERROR_PROP_INVALID_ARG = 0x04, /* Can't set the property for the
                                        * requested value */
   EMMC_ERROR_INVALID_STATE = 0x08,    /* Controller was in an invalid state.
@@ -226,6 +226,9 @@ static inline emmc_error_t emmc_send_cmd(device_t *dev, emmc_cmd_t cmd,
   device_t *idev = EMMC_METHOD_PROVIDER(dev, send_cmd);
   return emmc_methods(idev->parent)->send_cmd(dev, cmd, arg, resp);
 }
+
+/* NOTE: All of the methods below might return a mask of error codes instead of
+ * a single code. */
 
 /**
  * \brief Wait until e.MMC signals
