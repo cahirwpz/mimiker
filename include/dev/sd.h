@@ -13,7 +13,7 @@
 #define SDRESP_R6 EMMCRESP_R1
 #define SD_R6_RCA(resp) EMMC_FMASK48(resp, 16, 16)
 
-/* Custom commands */
+/* Custom commands (diffrent from classic e.MMC) */
 #define SD_CMD_SET_IF_COND                                                     \
   (emmc_cmd_t) {                                                               \
     .cmd_idx = 8, .flags = 0, .exp_resp = SDRESP_R7,                           \
@@ -69,9 +69,12 @@
 #define SD_BUSWIDTH_4 0x02
 
 typedef enum sd_props {
-  SD_SUPP_CCS = 1,
-  SD_SUPP_BLKCNT = 2,
-  SD_SUPP_BUSWIDTH_4 = 4,
+  SD_SUPP_CCS = 1,        /* Card Capacity Status reported as 1.
+                           * (card is SDHC/SDSC) */
+  SD_SUPP_BLKCNT = 2,     /* Card supports reads/writes that use SET_BLOCK_COUNT
+                           * (CMD23) for declaring number of blocks used in the
+                           * transfer */
+  SD_SUPP_BUSWIDTH_4 = 4, /* Card supports 4-bit wide bus */
 } sd_props_t;
 
 #define SD_CLOCK_FREQ 25000000

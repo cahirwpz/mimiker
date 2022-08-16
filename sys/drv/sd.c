@@ -1,16 +1,18 @@
 #define KL_LOG KL_DEV
 
-/* This driver is based on SD Specifications Part 1: Physical Layer Simplified
- * Specification, Version 6.00. This document is a free resource, available
+/* This driver is based on "SD Specifications Part 1: Physical Layer Simplified
+ * Specification, Version 6.00". This document is a free resource, available
  * here (link split into two lines due to code formatting requirements):
  * https://www.taterli.com/wp-content/uploads/2017/05/
- *   Physical-Layer-Simplified-SpecificationV6.0.pdf */
+ *   Physical-Layer-Simplified-SpecificationV6.0.pdf
+ * Whenever a comment in this very file mentions "the specs", it refers to this
+ * document, unless explicitly said otherwise.
+ */
 
 #include <sys/mimiker.h>
 #include <dev/emmc.h>
 #include <sys/device.h>
 #include <sys/devclass.h>
-#include <sys/rman.h>
 #include <sys/klog.h>
 #include <sys/vnode.h>
 #include <sys/devfs.h>
@@ -20,6 +22,8 @@
 typedef struct sd_state {
   sd_props_t props; /* SD Card's flags */
   void *block_buf;  /* A buffer for reading data into */
+  uint64_t csd[2];  /* Card-Specific Data register's content */
+  uint16_t rca;     /* Relative Card Address */
 } sd_state_t;
 
 static int sd_probe(device_t *dev) {
@@ -42,6 +46,33 @@ static int sd_sanity_check(device_t *dev) {
   return 0;
 }
 
+/* Returns SD card's capacity in bytes */
+static uint64_t sd_capacity(device_t *dev) {
+  sd_state_t *state = (sd_state_t *)dev->state;
+
+  /* XXX: The specs seems to imply that C_SIZE entry should be read from a
+   * freshly generated response of CMD9 (SEND_CSD). I don't know when the value
+   * of C_SIZE could change, but we don't have such scenario yet. */
+  /* XXX Note that the response doesn't contain the CRC checksum and the end
+   * bit, which are presented as art of CSD register structure in the specs.
+   * Thus all fields are shifted in the response by 8 bits right */
+  if (state->props & SD_SUPP_CCS) {
+    /* SDHC/SDSC cards have different CSD structure than SD cards.
+     * Refer to page 171 and 172 of the SD specs */
+    uint64_t c_size = (state->csd[0] & 0x3fffff0000000000) >> 40;
+    assert(c_size >= 0x1010); /* Minimum size for SDHC */
+    assert(c_size <= 0xff5f); /* Maximum size for SDHC */
+    return (c_size + 1) * 512 * 1024;
+  }
+  /* Refer to page 164 and 167 of the SD specs */
+  uint64_t c_size_low = (state->csd[0] & 0xffc0000000000000) >> 62;
+  uint64_t c_size_high = state->csd[1] & 0x03;
+  uint64_t c_size_mult = (state->csd[0] & 0x0000038000000000) >> 47;
+  uint64_t read_bl_len = (state->csd[1]) & 0x00000f00 >> 16;
+  uint64_t c_size = (c_size_high << 2) | c_size_low;
+  return (c_size + 1) * c_size_mult * (1 << read_bl_len);
+}
+
 static int sd_init(device_t *dev) {
   int err = 0;
   sd_state_t *state = (sd_state_t *)dev->state;
@@ -51,14 +82,13 @@ static int sd_init(device_t *dev) {
   size_t of = 0;                 /* Offset (Used only for checking the number of
                                   * bytes read */
   uint32_t scr[SD_SCR_WORD_CNT]; /* SD Configuration Register */
-  uint16_t rca;                  /* Relative Card Address */
 
   state->props = 0;
 
   emmc_reset(dev);
 
-  /* The routine below is based on SD Specifications: Part 1 Physical Layer
-   * Simplified Specification, Version 6.0. See: page 30 */
+  /* The card initialization routine below is based on the diagram present on
+   * the page 30 of the specs. */
 
   klog("Attaching SD/SDHC block device interface...");
 
@@ -87,11 +117,11 @@ static int sd_init(device_t *dev) {
 
   /* Counter-intuitively, the busy bit is set ot 0 if the card is not ready */
   SD_ACMD41_RESP_SET_BUSY(&response, 0);
-  int trial_cnt = 120; /* XXX: test it on a real hardware */
+  int trial_cnt = 120; /* TODO: test it on a real hardware */
 
   /* During this phase the controller may time out on some commands and
    * it shouldn't be treated as a fatal error. It just means that the card
-   * is busy. */
+   * is busy. Refer to page 29 of the specs  for more information. */
   emmc_set_prop(dev, EMMC_PROP_RW_ALLOW_ERRORS, EMMC_ERROR_TIMEOUT);
 
   if ((err = sd_sanity_check(dev)))
@@ -105,11 +135,8 @@ static int sd_init(device_t *dev) {
     }
     emmc_send_cmd(dev, SD_CMD_SEND_OP_COND, SD_ACMD41_SD2_0_POLLRDY_ARG1,
                   &response);
-    emmc_error_t eprop = emmc_get_prop(dev, EMMC_PROP_RW_ERRORS, &propv);
-    assert(eprop == EMMC_OK);
-    if (propv != EMMC_ERROR_INTERNAL) {
-      continue;
-    } else {
+    emmc_get_prop(dev, EMMC_PROP_RW_ERRORS, &propv);
+    if (propv == EMMC_ERROR_INTERNAL) {
       emmc_set_prop(dev, EMMC_PROP_RW_ALLOW_ERRORS, 0);
       klog("SD/HC: An internal error has occured.");
       return ENXIO;
@@ -132,18 +159,23 @@ static int sd_init(device_t *dev) {
 
   emmc_send_cmd(dev, EMMC_CMD(ALL_SEND_CID), 0, NULL);
   emmc_send_cmd(dev, SD_CMD_SEND_REL_ADDR, 0, &response);
-  rca = SD_R6_RCA(&response);
-  emmc_set_prop(dev, EMMC_PROP_RW_RCA, rca);
+  state->rca = SD_R6_RCA(&response);
+  emmc_set_prop(dev, EMMC_PROP_RW_RCA, state->rca);
 
   if ((err = sd_sanity_check(dev)))
     return err;
 
-  /* At this point we should have just entered data transfer mode */
-
   if (emmc_set_prop(dev, EMMC_PROP_RW_CLOCK_FREQ, SD_CLOCK_FREQ))
     klog("Failed to set e.MMC clock for SD card. Transfers might be slow.");
 
-  emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), rca << 16, NULL);
+  emmc_send_cmd(dev, EMMC_CMD(SEND_CSD), state->rca << 16, &response);
+
+  state->csd[0] = (uint64_t)response.r[0] | ((uint64_t)response.r[1] << 32);
+  state->csd[1] = (uint64_t)response.r[2] | ((uint64_t)response.r[3] << 32);
+
+  /* Go from stand-by state into transfer state */
+  emmc_send_cmd(dev, EMMC_CMD(SELECT_CARD), state->rca << 16, NULL);
+
   emmc_set_prop(dev, EMMC_PROP_RW_BLKSIZE, 8);
   emmc_set_prop(dev, EMMC_PROP_RW_BLKCNT, 1);
 
@@ -165,14 +197,22 @@ static int sd_init(device_t *dev) {
     emmc_set_prop(dev, EMMC_PROP_RW_BUSWIDTH, EMMC_BUSWIDTH_4);
   }
 
-  klog("Card's feature support:\n* CCS: %s\n* SET_BLOCK_COUNT: %s",
-       (state->props & SD_SUPP_CCS) ? "YES" : "NO",
-       (state->props & SD_SUPP_BLKCNT) ? "YES" : "NO");
+  if ((err = sd_sanity_check(dev)))
+    return err;
 
+  klog("Card's feature support:\n* CCS: %s\n* SET_BLOCK_COUNT: %s\n"
+       "Capacity: %lluB",
+       (state->props & SD_SUPP_CCS) ? "YES" : "NO",
+       (state->props & SD_SUPP_BLKCNT) ? "YES" : "NO",
+       sd_capacity(dev));
+  
+  if ((err = sd_sanity_check(dev)))
+    return err;
+  
   return err;
 }
 
-/* Data read routine for CCS-enabled cards (>=SDHC) */
+/* Data read routine for CCS-enabled cards (SDHC/SDSC) */
 static int sd_read_block_ccs(device_t *dev, uint32_t lba, void *buffer,
                              uint32_t num, size_t *read) {
   int err = 0;
@@ -184,11 +224,9 @@ static int sd_read_block_ccs(device_t *dev, uint32_t lba, void *buffer,
   if (num > 1 && (state->props & SD_SUPP_BLKCNT))
     emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, NULL);
 
-  if (num > 1)
-    emmc_send_cmd(dev, EMMC_CMD(READ_MULTIPLE_BLOCKS), lba, NULL);
-  else
-    emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), lba, NULL);
-
+  emmc_cmd_t read_blocks_cmd =
+    (num > 1) ? EMMC_CMD(READ_MULTIPLE_BLOCKS) : EMMC_CMD(READ_BLOCK);
+  emmc_send_cmd(dev, read_blocks_cmd, lba, NULL);
   emmc_wait(dev, EMMC_I_READ_READY);
 
   if ((err = sd_sanity_check(dev)))
@@ -215,8 +253,7 @@ static int sd_read_block_noccs(device_t *dev, uint32_t lba, void *buffer,
   uint32_t *buf = (uint32_t *)buffer;
 
   for (uint32_t c = 0; c < num; c++) {
-    /* See note no. 10 at page 222 of
-     * SD Physical Layer Simplified Specification V6.0 */
+    /* See note no. 10 at page 222 of the specs. */
     emmc_send_cmd(dev, EMMC_CMD(READ_BLOCK), (lba + c) * DEFAULT_BLKSIZE, NULL);
 
     if ((err = sd_sanity_check(dev)))
@@ -303,10 +340,12 @@ static int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
   return err;
 }
 
-static inline int sd_check_uio(uio_t *uio) {
+static inline int sd_check_uio(device_t *dev, uio_t *uio) {
   if (uio->uio_resid & (DEFAULT_BLKSIZE - 1))
     return EINVAL;
   if (uio->uio_offset & (DEFAULT_BLKSIZE - 1))
+    return EINVAL;
+  if (uio->uio_offset >= sd_capacity(dev))
     return EINVAL;
   return 0;
 }
@@ -319,7 +358,7 @@ static int sd_dop_uio(devnode_t *d, uio_t *uio) {
   sd_state_t *state = (sd_state_t *)dev->state;
   int err;
 
-  if ((err = sd_check_uio(uio)))
+  if ((err = sd_check_uio(dev, uio)))
     return err;
 
   uint32_t lba = uio->uio_offset / DEFAULT_BLKSIZE;
