@@ -47,15 +47,17 @@ vaddr_t kva_alloc(size_t size, kmem_flags_t flags) {
       continue;
 
     WITH_MTX_LOCK (&max_kva_lock) {
-      vmem_addr_t max_kva_prev = pmap_growkernel(0);
+      vmem_addr_t max_kva_old = pmap_growkernel(0);
+      vmem_addr_t max_kva_new = max_kva;
 
-      if (max_kva == max_kva_prev) {
-        max_kva = pmap_growkernel(size);
+      if (max_kva_new == max_kva_old) {
+        max_kva_new = pmap_growkernel(size);
 
-        klog("increase kernel end %08lx -> %08lx", max_kva_prev, max_kva);
+        klog("increase kernel end %08lx -> %08lx", max_kva_old, max_kva);
       }
 
-      vmem_add(kvspace, max_kva_prev, max_kva - max_kva_prev, M_NOWAIT);
+      if (!vmem_add(kvspace, max_kva_old, max_kva_new - max_kva_old, M_NOWAIT))
+        max_kva = max_kva_new;
     }
   }
 
