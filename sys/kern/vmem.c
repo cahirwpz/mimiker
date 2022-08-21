@@ -126,6 +126,9 @@ static bt_t *bt_alloc(kmem_flags_t flags) {
       break;
     }
 
+    /* If the calling thread cannot sleep, we return `NULL` and the calling
+     * function can choose to return an error or loop waiting for the refiller
+     * to provide more boundary tags. */
     if (flags & M_NOWAIT)
       return NULL;
 
