@@ -422,7 +422,7 @@ static emmc_error_t bcmemmc_set_prop(device_t *cdev, uint32_t id,
     case EMMC_PROP_RW_ERRORS:
       /* The only way to reset internal error is to reset the entire controller
        * using the `reset` method. */
-      state->errors = var & ~EMMC_ERROR_INTERNAL;
+      state->errors = var | (state->errors & EMMC_ERROR_INTERNAL);
       break;
     case EMMC_PROP_RW_ALLOW_ERRORS:
       state->errors &= ~state->ignored_errors;
