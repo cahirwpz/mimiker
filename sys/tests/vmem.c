@@ -23,12 +23,12 @@ static int test_vmem(void) {
 
   /* add span #1 */
   span_t span1 = {.addr = 2 * quantum, .size = 8 * quantum};
-  rc = vmem_add(vm, span1.addr, span1.size);
+  rc = vmem_add(vm, span1.addr, span1.size, M_WAITOK);
   assert(rc == 0);
 
   /* add span #2 */
   span_t span2 = {.addr = 100 * quantum, .size = 20 * quantum};
-  rc = vmem_add(vm, span2.addr, span2.size);
+  rc = vmem_add(vm, span2.addr, span2.size, M_WAITOK);
   assert(rc == 0);
 
   /* alloc 17 quantums, should return addr from span #2 */

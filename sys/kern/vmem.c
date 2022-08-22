@@ -1,14 +1,16 @@
 #define KL_LOG KL_VMEM
+#include <sys/condvar.h>
 #include <sys/klog.h>
+#include <sys/kmem.h>
 #include <sys/vmem.h>
 #include <sys/queue.h>
-#include <sys/pool.h>
 #include <sys/malloc.h>
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/errno.h>
 #include <sys/hash.h>
 #include <sys/mutex.h>
+#include <sys/thread.h>
 #include <machine/vm_param.h>
 
 #define VMEM_DEBUG 0
@@ -60,9 +62,13 @@ typedef enum {
  *
  * Field markings and the corresponding locks:
  *  (a) vm_lock
+ *  (@) bt_lock
  */
 typedef struct bt {
-  TAILQ_ENTRY(bt) bt_seglink; /* (a) link for vm_seglist */
+  union {
+    LIST_ENTRY(bt) bt_alloclink; /* (@) link on bt_alloclist */
+    TAILQ_ENTRY(bt) bt_seglink;  /* (a) link for vm_seglist */
+  };
   union {
     /* (a) link for vm_freelist[] (array index based on bt_size) */
     LIST_ENTRY(bt) bt_freelink;
@@ -75,16 +81,75 @@ typedef struct bt {
 } bt_t;
 
 static KMALLOC_DEFINE(M_VMEM, "vmem");
-static POOL_DEFINE(P_BT, "vmem boundary tag", sizeof(bt_t));
-/* Note: in the future, the amount of static memory for boundary tags should
- * be reduced by more clever tag allocation technique that always keeps some
- * number of free tags. For more information, please see bt_alloc and bt_refill
- * methods in NetBSD's vmem and M_NOGROW flag in Mimiker. */
-#define PT_BT_BOOTPAGE_SIZE ((sizeof(void *) / sizeof(int)) * PAGESIZE)
-static alignas(PT_BT_BOOTPAGE_SIZE) uint8_t P_BT_BOOTPAGE[PT_BT_BOOTPAGE_SIZE];
+
+#define BT_PAGESIZE ((sizeof(void *) / sizeof(int)) * PAGESIZE)
+#define BT_PAGECAPACITY (BT_PAGESIZE / sizeof(bt_t))
+#define BT_RESERVE_THRESHOLD 3
+
+static MTX_DEFINE(bt_lock, 0);
+static LIST_HEAD(, bt) bt_alloclist = LIST_HEAD_INITIALIZER(bt_alloclist);
+static size_t bt_freecnt;
+static thread_t *bt_refiller;
+static condvar_t bt_cv;
+
+static alignas(BT_PAGESIZE) uint8_t bt_bootpage[BT_PAGESIZE];
+
+static void bt_add_page(void *page) {
+  bt_t *bt = page;
+  for (size_t i = 0; i < BT_PAGECAPACITY; i++, bt++)
+    LIST_INSERT_HEAD(&bt_alloclist, bt, bt_alloclink);
+  bt_freecnt += BT_PAGECAPACITY;
+}
 
 void init_vmem(void) {
-  pool_add_page(P_BT, P_BT_BOOTPAGE, sizeof(P_BT_BOOTPAGE));
+  cv_init(&bt_cv, 0);
+  bt_add_page(bt_bootpage);
+}
+
+static bt_t *bt_alloc(kmem_flags_t flags) {
+  SCOPED_MTX_LOCK(&bt_lock);
+
+  thread_t *td = thread_self();
+
+  while ((td != bt_refiller) && (bt_freecnt <= BT_RESERVE_THRESHOLD)) {
+    if (!bt_refiller) {
+      bt_refiller = td;
+      mtx_unlock(&bt_lock);
+
+      void *page = kmem_alloc(BT_PAGESIZE, M_ZERO | M_NOWAIT);
+      assert(page);
+
+      mtx_lock(&bt_lock);
+      bt_add_page(page);
+      bt_refiller = NULL;
+      cv_broadcast(&bt_cv);
+      break;
+    }
+
+    /* If the calling thread cannot sleep, we return `NULL` and the calling
+     * function can choose to return an error or loop waiting for the refiller
+     * to provide more boundary tags. */
+    if (flags & M_NOWAIT)
+      return NULL;
+
+    cv_wait(&bt_cv, &bt_lock);
+  }
+
+  bt_t *bt = LIST_FIRST(&bt_alloclist);
+  assert(bt);
+  LIST_REMOVE(bt, bt_alloclink);
+  bt_freecnt--;
+  return bt;
+}
+
+static void bt_free(bt_t *bt) {
+  if (!bt)
+    return;
+
+  WITH_MTX_LOCK (&bt_lock) {
+    LIST_INSERT_HEAD(&bt_alloclist, bt, bt_alloclink);
+    bt_freecnt++;
+  }
 }
 
 static vmem_freelist_t *bt_freehead(vmem_t *vm, vmem_size_t size) {
@@ -237,9 +302,20 @@ vmem_size_t vmem_size(vmem_t *vm, vmem_addr_t addr) {
   return bt->bt_size;
 }
 
-int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
-  bt_t *btspan = pool_alloc(P_BT, M_ZERO);
-  bt_t *btfree = pool_alloc(P_BT, M_ZERO);
+int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size,
+             kmem_flags_t flags) {
+  bt_t *btspan, *btfree;
+  int error = 0;
+
+  if (!(btspan = bt_alloc(flags))) {
+    error = EAGAIN;
+    goto end;
+  }
+
+  if (!(btfree = bt_alloc(flags))) {
+    error = EAGAIN;
+    goto end;
+  }
 
   btspan->bt_type = BT_TYPE_SPAN;
   btspan->bt_start = addr;
@@ -257,10 +333,14 @@ int vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size) {
     vmem_check_sanity(vm);
   }
 
+  btspan = NULL;
+
   klog("%s: added [%p-%p] span to '%s'", __func__, addr, addr + size - 1,
        vm->vm_name);
 
-  return 0;
+end:
+  bt_free(btspan);
+  return error;
 }
 
 int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,
@@ -271,8 +351,8 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,
   /* Allocate new boundary tag before acquiring the vmem lock */
   bt_t *bt, *btnew;
 
-  if (!(btnew = pool_alloc(P_BT, flags | M_ZERO)))
-    return ENOMEM;
+  if (!(btnew = bt_alloc(flags)))
+    return EAGAIN;
 
   WITH_MTX_LOCK (&vm->vm_lock) {
     vmem_check_sanity(vm);
@@ -280,7 +360,7 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,
     bt = bt_find_freeseg(vm, size);
 
     if (bt == NULL) {
-      pool_free(P_BT, btnew);
+      bt_free(btnew);
       klog("%s: block of %lu bytes not found in '%s'", __func__, size,
            vm->vm_name);
       return ENOMEM;
@@ -311,7 +391,7 @@ int vmem_alloc(vmem_t *vm, vmem_size_t size, vmem_addr_t *addrp,
   }
 
   if (btnew != NULL)
-    pool_free(P_BT, btnew);
+    bt_free(btnew);
 
   assert(bt->bt_size >= size);
   assert(bt->bt_type == BT_TYPE_BUSY);
@@ -372,9 +452,9 @@ void vmem_free(vmem_t *vm, vmem_addr_t addr) {
   }
 
   if (prev != NULL)
-    pool_free(P_BT, prev);
+    bt_free(prev);
   if (next != NULL)
-    pool_free(P_BT, next);
+    bt_free(next);
 
   klog("%s: block of %lu bytes deallocated from '%s'", __func__, size,
        vm->vm_name);
@@ -431,6 +511,6 @@ void vmem_destroy(vmem_t *vm) {
   /* free the memory */
   bt_t *next;
   TAILQ_FOREACH_SAFE (bt, &vm->vm_seglist, bt_seglink, next)
-    pool_free(P_BT, bt);
+    bt_free(bt);
   kfree(M_VMEM, vm);
 }
