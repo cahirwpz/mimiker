@@ -329,7 +329,7 @@ static int umass_read_capacity(device_t *dev) {
 }
 
 /*
- * Device operations.
+ * Device node interface.
  */
 
 static inline usb_direction_t uioop_to_usbdir(uio_op_t op) {
