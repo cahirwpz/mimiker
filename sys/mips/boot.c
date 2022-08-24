@@ -1,26 +1,22 @@
+#include <mips/abi.h>
 #include <mips/m32c0.h>
 #include <mips/pmap.h>
+#include <sys/boot.h>
 #include <sys/mimiker.h>
 #include <sys/pmap.h>
 #include <sys/vm.h>
 #include <sys/kasan.h>
 
-/* Last address in kseg0 used by kernel for boot allocation. */
-__boot_data void *_bootmem_end;
-
 /* The boot stack is used before we switch out to thread0. */
-static alignas(PAGESIZE) uint8_t _boot_stack[PAGESIZE];
+static alignas(STACK_ALIGN) uint8_t _boot_stack[PAGESIZE];
+
+__boot_data void *_bootmem_end;
 
 /* Allocates pages in kseg0. The argument will be aligned to PAGESIZE. */
 static __boot_text void *bootmem_alloc(size_t bytes) {
   void *addr = _bootmem_end;
   _bootmem_end += align(bytes, PAGESIZE);
   return addr;
-}
-
-__boot_text static void halt(void) {
-  for (;;)
-    continue;
 }
 
 __boot_text void *mips_init(void) {
@@ -130,7 +126,7 @@ __boot_text void *mips_init(void) {
   mips32_setindex(0);
   mips32_tlbwi();
 
-  pmap_bootstrap((paddr_t)pde, pde);
+  pmap_bootstrap((vaddr_t)__kernel_end, (paddr_t)pde, pde);
 #if KASAN
   _kasan_sanitized_end = KASAN_SANITIZED_START + kasan_sanitized_size;
 #endif /* !KASAN */

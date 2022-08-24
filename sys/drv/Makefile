@@ -4,6 +4,9 @@ TOPDIR = $(realpath ../..)
 
 SOURCES = \
 	dev_cons.c \
+	evdev.c \
+	evdev_kbd.c \
+	evdev_m.c \
 	simplebus.c \
 	uart.c \
 	usb.c
@@ -12,8 +15,6 @@ SOURCES-MIPS = \
 	82371AB.c \
 	atkbdc.c \
 	cbus.c \
-	evdev.c \
-	evdev_kbd.c \
 	gt64120.c \
 	isa.c \
 	malta_rootdev.c \
@@ -43,6 +44,6 @@ SOURCES-RISCV = \
 	riscv_rootdev.c \
 	sifive_uart.c
 
-CPPFLAGS += -D_MACHDEP
-
 include $(TOPDIR)/build/build.kern.mk
+
+CPPFLAGS += -D_MACHDEP

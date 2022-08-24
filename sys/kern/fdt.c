@@ -22,10 +22,7 @@
 
 #define FDT_DEF_INTR_CELLS 1
 
-static paddr_t fdt_pa;  /* FDT blob physical address (`PAGESIZE`-aligned) */
-static size_t fdt_off;  /* FDT blob offset within the first page */
-static void *fdtp;      /* FDT blob virtual memory pointer */
-static size_t fdt_size; /* FDT blob size (rounded to `PAGESIZE`) */
+static void *fdtp; /* FDT blob virtual memory pointer */
 
 static inline void FDT_perror(int err) {
 #if defined(FDT_DEBUG) && FDT_DEBUG
@@ -37,33 +34,15 @@ static inline void FDT_panic(int err) {
   panic("FDT operation failed: %s", fdt_strerror(err));
 }
 
-void FDT_early_init(paddr_t pa, void *va) {
+void FDT_init(void *va) {
   int err = fdt_check_header(va);
   if (err < 0)
     FDT_panic(err);
-
-  const size_t totalsize = fdt_totalsize(va);
-
-  fdt_pa = rounddown(pa, PAGESIZE);
-  fdt_off = fdt_pa - pa;
   fdtp = va;
-  paddr_t fdt_end = roundup(pa + totalsize, PAGESIZE);
-  fdt_size = fdt_end - fdt_pa;
-}
-
-paddr_t FDT_get_physaddr(void) {
-  assert(fdt_pa);
-  return fdt_pa + fdt_off;
-}
-
-void FDT_changeroot(void *root) {
-  assert(fdtp);
-  fdtp = root;
-}
-
-void FDT_get_blob_range(paddr_t *startp, paddr_t *endp) {
-  *startp = fdt_pa;
-  *endp = fdt_pa + fdt_size;
+  klog("FDT: %p - %p", fdtp, fdtp + fdt_totalsize(va));
+  /* XXX: To save DTB to file use GDB command:
+   * `dump memory board.dtb start_addr end_addr`,
+   * then decompile DTB file: `dtc -I dtb -O dts -o board.dts board.dtb` */
 }
 
 phandle_t FDT_finddevice(const char *device) {
@@ -109,6 +88,10 @@ static void FDT_decode(pcell_t *cell, int cells) {
 
 void FDT_free(void *buf) {
   kfree(M_DEV, buf);
+}
+
+const char *FDT_getname(phandle_t node) {
+  return fdt_get_name(fdtp, node, NULL);
 }
 
 ssize_t FDT_getproplen(phandle_t node, const char *propname) {
@@ -261,8 +244,6 @@ int FDT_get_reserved_mem(fdt_mem_reg_t *mrs, size_t *cntp) {
        child = FDT_peer(child)) {
     if (cnt == FDT_MAX_RSV_MEM_REGS)
       return ERANGE;
-    if (FDT_hasprop(child, "no-map"))
-      continue;
     if (FDT_getprop(child, "reg", reg, sizeof(reg)) < 0)
       continue;
     FDT_data_to_res(reg, addr_cells, size_cells, &mrs[cnt].addr,

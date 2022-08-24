@@ -8,7 +8,6 @@
 # Required common variables: KERNEL, BOARD.
 #
 
-TARGET := riscv$(XLEN)-mimiker-elf
 ELFTYPE := elf$(XLEN)-littleriscv
 ELFARCH := riscv
 
@@ -37,13 +36,15 @@ ifeq ($(BOARD), sifive_u)
     CPPFLAGS += -DFPU=1
     ASAN_SHADOW_OFFSET := 0xdfffffe000000000
   endif
-  ifeq ($(LLVM), 1)
-    CPPFLAGS += -D__riscv_d -D__riscv_f
-  endif
 endif
 
-GCC_ABIFLAGS += -march=rv$(XLEN)$(EXT) -mabi=$(ABI) 
-CLANG_ABIFLAGS += -target $(TARGET) -march=rv$(XLEN)$(EXT) -mabi=$(ABI)
+ifeq ($(LLVM), 1)
+  TARGET := riscv$(XLEN)-linux-mimiker-elf
+else
+  TARGET := riscv$(XLEN)-mimiker-elf
+endif
+
+ABIFLAGS += -march=rv$(XLEN)$(EXT) -mabi=$(ABI)
 
 ifeq ($(KERNEL), 1)
   CFLAGS += -mcmodel=medany

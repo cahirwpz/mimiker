@@ -22,16 +22,21 @@ ifeq ($(KASAN), 1)
   ifeq ($(LLVM), 1)
     CFLAGS_KASAN = -fsanitize=kernel-address \
                    -mllvm -asan-mapping-offset=$(ASAN_SHADOW_OFFSET) \
+                   -mllvm -asan-instrumentation-with-call-threshold=0 \
                    -mllvm -asan-globals=true \
                    -mllvm -asan-stack=true \
                    -mllvm -asan-instrument-dynamic-allocas=true
   else
     CFLAGS_KASAN = -fsanitize=kernel-address \
                    -fasan-shadow-offset=$(ASAN_SHADOW_OFFSET) \
+                   --param asan-instrumentation-with-call-threshold=0 \
                    --param asan-globals=1 \
                    --param asan-stack=1 \
                    --param asan-instrument-allocas=1
   endif
+  LDFLAGS += -wrap=copyin -wrap=copyinstr -wrap=copyout \
+             -wrap=bcopy -wrap=bzero -wrap=memcpy -wrap=memmove -wrap=memset \
+             -wrap=strlen
 endif
 
 ifeq ($(KGPROF), 1)

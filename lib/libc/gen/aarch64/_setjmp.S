@@ -8,7 +8,7 @@ ENTRY(_setjmp)
         str     x19, [x0, UC_REGS_X19]
         stp     x20, x21, [x0, UC_REGS_X20]
         stp     x22, x23, [x0, UC_REGS_X22]
-        stp     x24, x24, [x0, UC_REGS_X24]
+        stp     x24, x25, [x0, UC_REGS_X24]
         stp     x26, x27, [x0, UC_REGS_X26]
         stp     x28, x29, [x0, UC_REGS_X28]
         str     lr, [x0, UC_REGS_LR]
@@ -16,7 +16,7 @@ ENTRY(_setjmp)
         /* sp register is special :( */
         mov     x1, sp
         str     x1, [x0, UC_REGS_SP]
-        
+
         /* save flags */
         ldr     x1, [x0, UC_FLAGS]
         orr     x1, x1, (_UC_FPU | _UC_CPU)

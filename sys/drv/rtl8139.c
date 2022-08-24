@@ -64,19 +64,22 @@ static int rtl8139_attach(device_t *dev) {
     err = ENOMEM;
     goto fail;
   }
-  state->regs = device_take_memory(dev, 1, RF_ACTIVE);
+  state->regs = device_take_memory(dev, 1);
   if (!state->regs) {
     klog("Failed to init regs resource!");
     err = ENXIO;
     goto fail;
   }
 
+  if ((err = bus_map_resource(dev, state->regs)))
+    goto fail;
+
   if ((err = rtl_reset(state))) {
     klog("Failed to reset device!");
     goto fail;
   }
 
-  state->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
+  state->irq_res = device_take_irq(dev, 0);
   if (!state->irq_res) {
     klog("Failed to init irq resources!");
     err = ENXIO;
