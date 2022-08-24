@@ -77,19 +77,23 @@ static void ns16550_tx_disable(void *state) {
 
 static int ns16550_attach(device_t *dev) {
   ns16550_state_t *ns16550 = kmalloc(M_DEV, sizeof(ns16550_state_t), M_ZERO);
+  int err = 0;
 
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
   tty->t_termios.c_ospeed = 115200;
   tty->t_ops.t_notify_out = uart_tty_notify_out;
 
-  uart_init(dev, "ns16550", UART_BUFSIZE, ns16550, tty);
-
   /* TODO Small hack to select COM1 UART */
-  ns16550->regs = device_take_ioports(dev, 0, RF_ACTIVE);
+  ns16550->regs = device_take_ioports(dev, 0);
   assert(ns16550->regs != NULL);
 
-  ns16550->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
+  if ((err = bus_map_resource(dev, ns16550->regs)))
+    return err;
+
+  uart_init(dev, "ns16550", UART_BUFSIZE, ns16550, tty);
+
+  ns16550->irq_res = device_take_irq(dev, 0);
   pic_setup_intr(dev, ns16550->irq_res, uart_intr, NULL, dev, "NS16550 UART");
 
   /* Setup UART and enable interrupts */

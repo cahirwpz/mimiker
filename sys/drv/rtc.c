@@ -97,11 +97,15 @@ static devops_t rtc_devops = {
 
 static int rtc_attach(device_t *dev) {
   rtc_state_t *rtc = dev->state;
+  int err = 0;
 
-  rtc->regs = device_take_ioports(dev, 0, RF_ACTIVE);
+  rtc->regs = device_take_ioports(dev, 0);
   assert(rtc->regs != NULL);
 
-  rtc->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
+  if ((err = bus_map_resource(dev, rtc->regs)))
+    return err;
+
+  rtc->irq_res = device_take_irq(dev, 0);
   pic_setup_intr(dev, rtc->irq_res, rtc_intr, NULL, rtc, "RTC periodic timer");
 
   /* Configure how the time is presented through registers. */

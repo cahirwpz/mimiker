@@ -3,7 +3,6 @@
 #include <sys/mimiker.h>
 #include <sys/bus.h>
 #include <sys/devclass.h>
-#include <sys/rman.h>
 #include <sys/vnode.h>
 #include <sys/devfs.h>
 #include <sys/stat.h>
@@ -71,22 +70,22 @@ static int pl011_probe(device_t *dev) {
 
 static int pl011_attach(device_t *dev) {
   pl011_state_t *pl011 = kmalloc(M_DEV, sizeof(pl011_state_t), M_ZERO);
+  int err = 0;
 
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
   tty->t_termios.c_ospeed = 115200;
   tty->t_ops.t_notify_out = uart_tty_notify_out;
 
+  pl011->regs = device_take_memory(dev, 0);
+  assert(pl011->regs != NULL);
+
+  if ((err = bus_map_resource(dev, pl011->regs)))
+    return err;
+
   uart_init(dev, "pl011", UART_BUFSIZE, pl011, tty);
 
-  resource_t *r = device_take_memory(dev, 0, 0);
-
-  /* (pj) BCM2835_UART0_SIZE is much smaller than PAGESIZE */
-  bus_space_map(r->r_bus_tag, resource_start(r), PAGESIZE, &r->r_bus_handle);
-
-  assert(r != NULL);
-
-  pl011->regs = r;
+  resource_t *r = pl011->regs;
 
   /* Disable UART0. */
   bus_write_4(r, PL011COM_CR, 0);
@@ -120,7 +119,7 @@ static int pl011_attach(device_t *dev) {
   /* Enable interrupt. */
   bus_write_4(r, PL011COM_IMSC, PL011_INT_RX);
 
-  pl011->irq = device_take_irq(dev, 0, RF_ACTIVE);
+  pl011->irq = device_take_irq(dev, 0);
   pic_setup_intr(dev, pl011->irq, uart_intr, NULL, dev, "PL011 UART");
 
   /* Prepare /dev/uart interface. */

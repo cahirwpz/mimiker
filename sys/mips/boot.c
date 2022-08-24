@@ -126,7 +126,7 @@ __boot_text void *mips_init(void) {
   mips32_setindex(0);
   mips32_tlbwi();
 
-  pmap_bootstrap((paddr_t)pde, pde);
+  pmap_bootstrap((vaddr_t)__kernel_end, (paddr_t)pde, pde);
 #if KASAN
   _kasan_sanitized_end = KASAN_SANITIZED_START + kasan_sanitized_size;
 #endif /* !KASAN */

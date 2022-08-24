@@ -329,7 +329,7 @@ static int umass_read_capacity(device_t *dev) {
 }
 
 /*
- * Read/Write functions.
+ * Device node interface.
  */
 
 static inline usb_direction_t uioop_to_usbdir(uio_op_t op) {
@@ -343,8 +343,8 @@ static inline usb_direction_t uioop_to_usbdir(uio_op_t op) {
   }
 }
 
-static int umass_op(vnode_t *v, uio_t *uio) {
-  device_t *dev = devfs_node_data(v);
+static int umass_op(devnode_t *node, uio_t *uio) {
+  device_t *dev = node->data;
   umass_state_t *umass = dev->state;
   usb_direction_t dir = uioop_to_usbdir(uio->uio_op);
   uint32_t block_size = umass->block_size;
@@ -359,7 +359,7 @@ static int umass_op(vnode_t *v, uio_t *uio) {
   uint32_t nblocks = uio->uio_resid / block_size;
   uint32_t size = nblocks * block_size;
 
-  /* Note: we assume that number of blocks to read is <= UINT16_MAX. */
+  /* NOTE: we assume that number of blocks to read is <= `UINT16_MAX`. */
   if (nblocks > UINT16_MAX)
     return EINVAL;
 
@@ -380,8 +380,6 @@ static int umass_op(vnode_t *v, uio_t *uio) {
   if (error)
     goto end;
 
-  uio->uio_offset = 0;
-
   if (dir == USB_DIR_INPUT) {
     /* Copy the data to the user. */
     error = uiomove_frombuf(buf, size, uio);
@@ -392,9 +390,10 @@ end:
   return error;
 }
 
-static vnodeops_t umass_ops = {
-  .v_read = umass_op,
-  .v_write = umass_op,
+static devops_t umass_devops = {
+  .d_type = DT_SEEKABLE, /* TODO: should be `DT_DISK`. */
+  .d_read = umass_op,
+  .d_write = umass_op,
 };
 
 /*
@@ -448,7 +447,7 @@ static int umass_attach(device_t *dev) {
   umass_print(dev);
 
   /* Prepare /dev/umass interface. */
-  devfs_makedev(NULL, "umass", &umass_ops, dev, NULL);
+  devfs_makedev_new(NULL, "umass", &umass_devops, dev, NULL);
 
   return 0;
 }

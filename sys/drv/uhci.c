@@ -20,6 +20,7 @@
 #include <sys/libkern.h>
 #include <sys/klog.h>
 #include <sys/kmem.h>
+#include <sys/mimiker.h>
 #include <sys/pmap.h>
 #include <sys/pool.h>
 #include <sys/time.h>
@@ -482,12 +483,12 @@ static void uhci_init_frames(uhci_state_t *uhci) {
 static void uhci_init_pool(void) {
   size_t tfr_pool_asize = roundup2(UHCI_TFR_POOL_SIZE, PAGESIZE);
   void *tfr_pool =
-    (void *)kmem_alloc_contig(NULL, pow(tfr_pool_asize), PMAP_NOCACHE);
+    (void *)kmem_alloc_contig(NULL, pow2(tfr_pool_asize), PMAP_NOCACHE);
   pool_add_page(P_TFR, tfr_pool, tfr_pool_asize);
 
   size_t data_pool_asize = roundup2(UHCI_DATA_POOL_SIZE, PAGESIZE);
   void *data_pool =
-    (void *)kmem_alloc_contig(NULL, pow(data_pool_asize), PMAP_NOCACHE);
+    (void *)kmem_alloc_contig(NULL, pow2(data_pool_asize), PMAP_NOCACHE);
   pool_add_page(P_DATA, data_pool, data_pool_asize);
 }
 
@@ -791,10 +792,14 @@ static int uhci_probe(device_t *hcdev) {
 
 static int uhci_attach(device_t *hcdev) {
   uhci_state_t *uhci = hcdev->state;
+  int err = 0;
 
   /* Gather I/O ports resources. */
-  uhci->regs = device_take_ioports(hcdev, 4, RF_ACTIVE);
+  uhci->regs = device_take_ioports(hcdev, 4);
   assert(uhci->regs);
+
+  if ((err = bus_map_resource(hcdev, uhci->regs)))
+    return err;
 
   /* Perform the global reset of the UHCI controller. */
   set16(UHCI_CMD, UHCI_CMD_GRESET);
@@ -833,7 +838,7 @@ static int uhci_attach(device_t *hcdev) {
   pci_enable_busmaster(hcdev);
 
   /* Setup host controller's interrupt. */
-  uhci->irq = device_take_irq(hcdev, 0, RF_ACTIVE);
+  uhci->irq = device_take_irq(hcdev, 0);
   assert(uhci->irq);
   pic_setup_intr(hcdev, uhci->irq, uhci_isr, NULL, uhci, "UHCI");
 

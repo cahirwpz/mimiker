@@ -203,12 +203,22 @@ static int stdvga_probe(device_t *dev) {
 
 static int stdvga_attach(device_t *dev) {
   stdvga_state_t *vga = dev->state;
+  int err = 0;
 
-  vga->mem = device_take_memory(dev, 0, RF_ACTIVE | RF_PREFETCHABLE);
-  vga->io = device_take_memory(dev, 2, RF_ACTIVE);
-
+  vga->mem = device_take_memory(dev, 0);
   assert(vga->mem != NULL);
+
+  if (!(vga->mem->r_flags & RF_PREFETCHABLE))
+    return ENXIO;
+
+  if ((err = bus_map_resource(dev, vga->mem)))
+    return err;
+
+  vga->io = device_take_memory(dev, 2);
   assert(vga->io != NULL);
+
+  if ((err = bus_map_resource(dev, vga->io)))
+    return err;
 
   vga->usecnt = 0;
 

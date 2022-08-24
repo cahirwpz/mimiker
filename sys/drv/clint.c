@@ -87,10 +87,10 @@ static int clint_probe(device_t *dev) {
 static int clint_attach(device_t *dev) {
   clint_state_t *clint = dev->state;
 
-  clint->mswi_irq = device_take_irq(dev, 0, RF_ACTIVE);
+  clint->mswi_irq = device_take_irq(dev, 0);
   assert(clint->mswi_irq);
 
-  clint->mtimer_irq = device_take_irq(dev, 1, RF_ACTIVE);
+  clint->mtimer_irq = device_take_irq(dev, 1);
   assert(clint->mtimer_irq);
 
   pic_setup_intr(dev, clint->mswi_irq, mswi_intr, NULL, NULL, "SSI");
