@@ -21,11 +21,11 @@ SOURCES-MIPS = \
 
 CLEAN-FILES += assym.h
 
-CPPFLAGS += -D_MACHDEP
-
 include $(TOPDIR)/build/build.kern.mk
 
 $(SOURCES-MIPS): assym.h
+
+CPPFLAGS += -D_MACHDEP
 
 boot.o : CFLAGS_KASAN =
 boot.o : CFLAGS_KCSAN =

@@ -74,6 +74,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: make BOARD=sifive_u KASAN=1 LOCKDEP=1
+      - uses: actions/upload-artifact@v2
+        with:
+          name: "riscv64 kernel+ramdisk"
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            initrd.cpio
 
   kernel_tests_mips:
     name: Tests MIPS
@@ -84,7 +93,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: "mips kernel+ramdisk"
-      - run: ./run_tests.py --board malta --timeout=80 --times=50
+      - run: ./run_tests.py --board malta --timeout=60 --times=50
 
   kernel_tests_aarch64:
     name: Tests AArch64
@@ -96,3 +105,14 @@ jobs:
         with:
           name: "aarch64 kernel+ramdisk"
       - run: ./run_tests.py --board rpi3 --times=50
+
+  kernel_tests_riscv64:
+    name: Tests RISC-V 64-bit
+    runs-on: self-hosted
+    needs: build_riscv64
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: "riscv64 kernel+ramdisk"
+      - run: ./run_tests.py --board sifive_u --timeout=80 --times=50
