@@ -5,11 +5,9 @@
  */
 
 #include <sys/mimiker.h>
-#include <sys/rman.h>
 #include <sys/devclass.h>
 #include <sys/klog.h>
 #include <sys/types.h>
-#include <dev/bcm2835_gpio.h>
 #include <sys/device.h>
 #include <sys/bus.h>
 #include <sys/time.h>
@@ -21,10 +19,9 @@
 #include <sys/errno.h>
 #include <sys/bitops.h>
 #include <dev/bcm2835_emmcreg.h>
+#include <sys/fdt.h>
 
 typedef struct bcmemmc_state {
-  resource_t *gpio;      /* GPIO resource (needed until we have a decent
-                          * way of setting up GPIO) */
   resource_t *emmc;      /* e.MMC controller registers */
   resource_t *irq;       /* e.MMC controller interrupt */
   condvar_t intr_recv;   /* Used to wake up a thread waiting for an interrupt */
@@ -478,36 +475,6 @@ static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
   return 0;
 }
 
-/* e.MMC requires some GPIO setup to work properly. This however is different
- * than what is described in BCM2835 Peripherals datasheet.
- * See: https://www.raspberrypi.org/app/uploads/2012/04/
- *      Raspberry-Pi-Schematics-R1.0.pdf */
-static void emmc_gpio_init(device_t *dev) {
-  bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
-  resource_t *gpio = state->gpio;
-
-  /* GPIO_CD: interrupt pin */
-  bcm2835_gpio_function_select(gpio, 47, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_set_pull(gpio, 47, BCM2838_GPIO_GPPUD_PULLDOWN);
-  bcm2835_gpio_set_high_detect(gpio, 47, true);
-
-  /* GPIO_CLK, GPIO_CMD */
-  bcm2835_gpio_function_select(gpio, 48, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_function_select(gpio, 49, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_set_pull(gpio, 48, BCM2838_GPIO_GPPUD_PULLDOWN);
-  bcm2835_gpio_set_pull(gpio, 49, BCM2838_GPIO_GPPUD_PULLDOWN);
-
-  /* GPIO_DAT0, GPIO_DAT1, GPIO_DAT2, GPIO_DAT3 */
-  bcm2835_gpio_function_select(gpio, 50, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_function_select(gpio, 51, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_function_select(gpio, 52, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_function_select(gpio, 53, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_set_pull(gpio, 50, BCM2838_GPIO_GPPUD_PULLDOWN);
-  bcm2835_gpio_set_pull(gpio, 51, BCM2838_GPIO_GPPUD_PULLDOWN);
-  bcm2835_gpio_set_pull(gpio, 52, BCM2838_GPIO_GPPUD_PULLDOWN);
-  bcm2835_gpio_set_pull(gpio, 53, BCM2838_GPIO_GPPUD_PULLDOWN);
-}
-
 #define BCMEMMC_INIT_FREQ 400000
 
 static int bcmemmc_init(device_t *dev) {
@@ -538,28 +505,27 @@ static int bcmemmc_init(device_t *dev) {
 }
 
 static int bcmemmc_probe(device_t *dev) {
-  return dev->unit == 3;
+  return FDT_is_compatible(dev->node, "brcm,bcm2835-emmc");
 }
 
 DEVCLASS_DECLARE(emmc);
 
 static int bcmemmc_attach(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
+  int err = 0;
 
-  state->emmc = device_take_memory(dev, 0, RF_ACTIVE);
+  state->emmc = device_take_memory(dev, 0);
   assert(state->emmc);
 
-  state->gpio = device_take_memory(dev, 1, RF_ACTIVE);
-  assert(state->gpio);
+  if ((err = bus_map_resource(dev, state->emmc)))
+    return err;
 
   spin_init(&state->lock, 0);
   cv_init(&state->intr_recv, "e.MMC command response wakeup");
 
   b_out(state->emmc, BCMEMMC_INTERRUPT, INT_ALL_MASK);
-  emmc_gpio_init(dev);
-  klog("e.MMC: GPIO set up");
 
-  state->irq = device_take_irq(dev, 0, RF_ACTIVE);
+  state->irq = device_take_irq(dev, 0);
   pic_setup_intr(dev, state->irq, bcmemmc_intr_filter, NULL, state,
                  "e.MMC interrupt");
 

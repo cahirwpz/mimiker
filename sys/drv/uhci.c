@@ -794,10 +794,14 @@ static int uhci_probe(device_t *dev) {
 
 static int uhci_attach(device_t *dev) {
   uhci_state_t *uhci = dev->state;
+  int err = 0;
 
   /* Gather I/O ports resources. */
-  uhci->regs = device_take_ioports(dev, 4, RF_ACTIVE);
+  uhci->regs = device_take_ioports(dev, 4);
   assert(uhci->regs);
+
+  if ((err = bus_map_resource(dev, uhci->regs)))
+    return err;
 
   /* Perform the global reset of the UHCI controller. */
   set16(UHCI_CMD, UHCI_CMD_GRESET);
@@ -836,7 +840,7 @@ static int uhci_attach(device_t *dev) {
   pci_enable_busmaster(dev);
 
   /* Setup host controller's interrupt. */
-  uhci->irq = device_take_irq(dev, 0, RF_ACTIVE);
+  uhci->irq = device_take_irq(dev, 0);
   assert(uhci->irq);
   pic_setup_intr(dev, uhci->irq, uhci_isr, NULL, uhci, "UHCI");
 

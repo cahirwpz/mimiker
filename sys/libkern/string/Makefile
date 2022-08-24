@@ -2,8 +2,6 @@
 
 TOPDIR = $(realpath ../../..)
 
-CPPFLAGS += -I$(TOPDIR)/lib/libc/string
-
 SRCDIR = $(TOPDIR)/lib/libc/string
 
 SOURCES = \
@@ -41,3 +39,5 @@ SOURCES-RISCV = \
 	strlen.c
 
 include $(TOPDIR)/build/build.kern.mk
+
+CPPFLAGS += -I$(TOPDIR)/lib/libc/string

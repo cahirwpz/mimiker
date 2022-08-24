@@ -14,6 +14,7 @@ void init_kmem(void);
 
 void *kmem_alloc(size_t size, kmem_flags_t flags) __warn_unused;
 void kmem_free(void *ptr, size_t size);
+size_t kmem_size(void *ptr);
 
 /* Allocates contiguous physical memory of `size` bytes aligned to at least
  * `PAGESIZE` boundary. First physical address of the region will be stored
@@ -37,8 +38,8 @@ vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) __warn_unused;
 
 /* Allocates a range of kernel virtual address space of `size` pages (in bytes)
  * and returns virtual address. kva_alloc never fails. */
-vaddr_t kva_alloc(size_t size);
-void kva_free(vaddr_t va, size_t size);
+vaddr_t kva_alloc(size_t size, kmem_flags_t flags);
+void kva_free(vaddr_t va);
 vm_page_t *kva_find_page(vaddr_t ptr);
 
 /*
