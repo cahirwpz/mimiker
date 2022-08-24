@@ -2,7 +2,7 @@
  *
  * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file.
  *
- * How do we handle `resource_start(r)` and `r_bus_handle`
+ * How do we handle `r_start` and `r_bus_handle`
  * of assigned resources?
  *
  * - Interrupts:
@@ -74,11 +74,6 @@ typedef struct gt_pci_state {
   resource_t *pci_io;
   resource_t *pci_mem;
   resource_t *irq_res;
-
-  /* Resource managers which manage resources used by child devices. */
-  rman_t pci_io_rman;
-  rman_t pci_mem_rman;
-  rman_t irq_rman;
 
   intr_event_t *intr_event[IO_ICUSIZE];
 
@@ -218,22 +213,11 @@ static const char *gt_pci_intr_name[IO_ICUSIZE] = {
 };
 /* clang-format on */
 
-static resource_t *gt_pci_alloc_intr(device_t *pic, device_t *dev, int rid,
-                                     unsigned irq, rman_flags_t flags) {
-  gt_pci_state_t *gtpci = pic->state;
-  rman_t *rman = &gtpci->irq_rman;
-  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
-}
-
-static void gt_pci_release_intr(device_t *pic, device_t *dev, resource_t *r) {
-  resource_release(r);
-}
-
 static void gt_pci_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                               ih_filter_t *filter, ih_service_t *service,
                               void *arg, const char *name) {
   gt_pci_state_t *gtpci = pic->state;
-  int irq = resource_start(r);
+  int irq = r->r_irq;
   assert(irq < IO_ICUSIZE);
 
   if (gtpci->intr_event[irq] == NULL)
@@ -306,26 +290,21 @@ DEVCLASS_DECLARE(isa);
 
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
+  int err = 0;
 
-  gtpci->pci_mem = device_take_memory(pcib, 0, 0);
-  gtpci->pci_io = device_take_memory(pcib, 1, RF_ACTIVE);
-  gtpci->corectrl = device_take_memory(pcib, 2, RF_ACTIVE);
+  gtpci->pci_mem = device_take_memory(pcib, 0);
+  gtpci->pci_io = device_take_memory(pcib, 1);
+  gtpci->corectrl = device_take_memory(pcib, 2);
 
   if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
       gtpci->pci_io == NULL) {
     panic("gt64120 resource allocation fail");
   }
 
-  rman_init(&gtpci->pci_io_rman, "GT64120 PCI I/O ports");
-  rman_manage_region(&gtpci->pci_io_rman, 0, 0x10000);
-
-  /* This will ensure absolute addresses which is essential
-   * in order to satisfy memory alignment. */
-  rman_init_from_resource(&gtpci->pci_mem_rman, "GT64120 PCI memory",
-                          gtpci->pci_mem);
-
-  rman_init(&gtpci->irq_rman, "GT64120 PCI & ISA interrupts");
-  rman_manage_region(&gtpci->irq_rman, 0, IO_ICUSIZE);
+  if ((err = bus_map_resource(pcib, gtpci->pci_io)))
+    return err;
+  if ((err = bus_map_resource(pcib, gtpci->corectrl)))
+    return err;
 
   /* All interrupts default to "masked off" and edge-triggered. */
   gtpci->imask = 0xffff;
@@ -340,7 +319,7 @@ static int gt_pci_attach(device_t *pcib) {
   bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
-  gtpci->irq_res = device_take_irq(pcib, 0, RF_ACTIVE);
+  gtpci->irq_res = device_take_irq(pcib, 0);
   pic_setup_intr(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
                  "GT64120 main irq");
 
@@ -361,63 +340,17 @@ static int gt_pci_attach(device_t *pcib) {
 }
 
 static bool gt_pci_bar(device_t *dev, res_type_t type, int rid,
-                       rman_addr_t start) {
+                       bus_addr_t start) {
   if ((type == RT_IOPORTS && start <= IO_ISAEND) || type == RT_IRQ)
     return false;
   pci_device_t *pcid = pci_device_of(dev);
   return rid < PCI_BAR_MAX && pcid->bar[rid].size != 0;
 }
 
-static resource_t *gt_pci_alloc_resource(device_t *dev, res_type_t type,
-                                         int rid, rman_addr_t start,
-                                         rman_addr_t end, size_t size,
-                                         rman_flags_t flags) {
-  assert(dev->bus == DEV_BUS_PCI);
-
-  device_t *pcib = dev->parent;
-  gt_pci_state_t *gtpci = pcib->state;
-  bus_space_handle_t bh = 0;
-  size_t alignment = 0;
-  rman_t *rman = NULL;
-
-  if (type == RT_IOPORTS) {
-    rman = &gtpci->pci_io_rman;
-    bh = gtpci->pci_io->r_bus_handle;
-  } else if (type == RT_MEMORY) {
-    alignment = PAGESIZE;
-    rman = &gtpci->pci_mem_rman;
-  } else {
-    panic("Invalid resource type in bus allocation: %d", type);
-  }
-
-  if (gt_pci_bar(dev, type, rid, start))
-    alignment = max(alignment, size);
-
-  resource_t *r =
-    rman_reserve_resource(rman, type, rid, start, end, size, alignment, flags);
-  if (!r)
-    return NULL;
-
-  r->r_bus_tag = generic_bus_space;
-  r->r_bus_handle = bh + resource_start(r);
-
-  if (type == RT_IOPORTS || flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, r)) {
-      resource_release(r);
-      return NULL;
-    }
-  }
-
-  return r;
-}
-
-static void gt_pci_release_resource(device_t *dev, resource_t *r) {
-  bus_deactivate_resource(dev, r);
-  resource_release(r);
-}
-
-static int gt_pci_activate_resource(device_t *dev, resource_t *r) {
-  rman_addr_t start = resource_start(r);
+static int gt_pci_map_resource(device_t *dev, resource_t *r) {
+  bus_addr_t start = r->r_start;
+  if (r->r_type == RT_MEMORY)
+    start += MALTA_PCI0_MEMORY_BASE;
 
   if (r->r_type == RT_MEMORY || start > IO_ISAEND) {
     uint16_t command = pci_read_config_2(dev, PCIR_COMMAND);
@@ -431,14 +364,21 @@ static int gt_pci_activate_resource(device_t *dev, resource_t *r) {
   if (gt_pci_bar(dev, r->r_type, r->r_rid, start))
     pci_write_config_4(dev, PCIR_BAR(r->r_rid), start);
 
-  if (r->r_type == RT_MEMORY)
+  gt_pci_state_t *gtpci = dev->parent->state;
+
+  r->r_bus_tag = generic_bus_space;
+
+  if (r->r_type == RT_IOPORTS) {
+    bus_space_handle_t bh = gtpci->pci_io->r_bus_handle;
+    r->r_bus_handle = bh + start;
+  } else {
     return bus_space_map(r->r_bus_tag, start, resource_size(r),
                          &r->r_bus_handle);
-
+  }
   return 0;
 }
 
-static void gt_pci_deactivate_resource(device_t *dev, resource_t *r) {
+static void gt_pci_unmap_resource(device_t *dev, resource_t *r) {
   /* TODO: unmap mapped memory. */
 }
 
@@ -448,15 +388,11 @@ static int gt_pci_probe(device_t *d) {
 }
 
 static bus_methods_t gt_pci_bus_if = {
-  .alloc_resource = gt_pci_alloc_resource,
-  .release_resource = gt_pci_release_resource,
-  .activate_resource = gt_pci_activate_resource,
-  .deactivate_resource = gt_pci_deactivate_resource,
+  .map_resource = gt_pci_map_resource,
+  .unmap_resource = gt_pci_unmap_resource,
 };
 
 static pic_methods_t gt_pic_if = {
-  .alloc_intr = gt_pci_alloc_intr,
-  .release_intr = gt_pci_release_intr,
   .setup_intr = gt_pci_setup_intr,
   .teardown_intr = gt_pci_teardown_intr,
 };

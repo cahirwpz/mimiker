@@ -250,7 +250,6 @@ static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t sbrk_end,
                                   vaddr_t vma_end) {
   configure_cpu();
 
-  vm_kernel_end = vma_end;
   boot_sbrk_end = sbrk_end;
 
 #if KASAN
@@ -262,7 +261,7 @@ static __noreturn void riscv_boot(void *dtb, paddr_t pde, paddr_t sbrk_end,
 
   void *sp = board_stack();
 
-  pmap_bootstrap(pde, (void *)BOOT_PD_VADDR);
+  pmap_bootstrap(vma_end, pde, (void *)BOOT_PD_VADDR);
 
   /*
    * Switch to thread0's stack and perform `board_init`.

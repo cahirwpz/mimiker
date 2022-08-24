@@ -158,7 +158,7 @@ static void ensure_vaddr_mapped(vaddr_t va) {
 /* tmpfs memory allocation routines */
 
 static mem_arena_t *tmpfs_add_mem_arena(tmpfs_mount_t *tfm) {
-  mem_arena_t *arena = (mem_arena_t *)kva_alloc(ARENA_SIZE);
+  mem_arena_t *arena = (mem_arena_t *)kva_alloc(ARENA_SIZE, M_WAITOK);
   if (arena == NULL)
     return NULL;
 

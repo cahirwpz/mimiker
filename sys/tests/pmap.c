@@ -17,7 +17,7 @@ static vm_page_t *x_vm_page_alloc(size_t npages) {
 }
 
 static vaddr_t x_kva_alloc(size_t size) {
-  vaddr_t vaddr = kva_alloc(size);
+  vaddr_t vaddr = kva_alloc(size, M_WAITOK);
   assert(vaddr != 0);
   return vaddr;
 }
@@ -61,7 +61,7 @@ static int test_pmap_kenter(void) {
   assert(!done);
 
   pmap_kremove(va, PAGESIZE);
-  kva_free(va, PAGESIZE);
+  kva_free(va);
   vm_page_free(pg);
 
   return KTEST_SUCCESS;
@@ -77,7 +77,7 @@ static int test_pmap_kextract(void) {
   assert(ok && pa == pg->paddr);
 
   pmap_kremove(va, PAGESIZE);
-  kva_free(va, PAGESIZE);
+  kva_free(va);
   vm_page_free(pg);
 
   return KTEST_SUCCESS;
@@ -112,7 +112,7 @@ static int test_pmap_page_copy(void) {
   }
 
   pmap_kremove(va, PAGESIZE);
-  kva_free(va, PAGESIZE);
+  kva_free(va);
   vm_page_free(pg1);
   vm_page_free(pg2);
 

@@ -2,10 +2,10 @@
 
 TOPDIR = $(realpath ../../..)
 
-CPPFLAGS += -I../include
-
 SOURCES = ctype_.c \
 	  tolower_.c \
 	  toupper_.c
 
 include $(TOPDIR)/build/build.kern.mk
+
+CPPFLAGS += -I$(CURDIR)/../include

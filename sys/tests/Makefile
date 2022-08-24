@@ -34,6 +34,6 @@ SOURCES = \
 	vfs.c \
 	vmem.c
 
-CPPFLAGS = -DKL_LOG=KL_TEST
-
 include $(TOPDIR)/build/build.kern.mk
+
+CPPFLAGS += -DKL_LOG=KL_TEST
