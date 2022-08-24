@@ -40,9 +40,6 @@ typedef struct atkbdc_state {
   int evdev_state;
 } atkbdc_state_t;
 
-/* For now, this is the only keyboard driver we'll want to have, so the
-   interface is not very flexible. */
-
 /* NOTE: These blocking wait helper functions can't use an interrupt, as the
    PS/2 controller does not generate interrupts for these events. However, this
    is not a major problem, since pretty much always the controller is
