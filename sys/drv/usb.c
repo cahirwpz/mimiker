@@ -173,9 +173,9 @@ static usb_endpt_t *usb_endpt_alloc(uint16_t maxpkt, uint8_t addr,
 }
 
 /* Release an endpoint. */
-/*static void usb_endpt_free(usb_endpt_t *endpt) {
+static void usb_endpt_free(usb_endpt_t *endpt) {
   kfree(M_DEV, endpt);
-}*/
+}
 
 /*
  * USB device handling functions.
@@ -204,10 +204,10 @@ static usb_device_t *usb_dev_alloc(usb_speed_t speed) {
 
 /* Release a device. */
 static void usb_dev_free(usb_device_t *udev) {
-  //  usb_endpt_t *endpt;
-  //  TAILQ_FOREACH (endpt, &udev->endpts, link)
-  //    usb_endpt_free(endpt);
-  //  kfree(M_DEV, udev);
+  usb_endpt_t *endpt;
+  TAILQ_FOREACH (endpt, &udev->endpts, link)
+    usb_endpt_free(endpt);
+  kfree(M_DEV, udev);
 }
 
 /* Return endpoint of device `dev` which implements transfer type `transfer`
@@ -299,12 +299,7 @@ static int usb_get_dev_dsc(device_t *dev, usb_dev_dsc_t *devdsc) {
   /* Get the whole descriptor. */
   req.wLength = devdsc->bLength;
   assert(req.wLength <= sizeof(usb_dev_dsc_t));
-
-  for (int i = 0; i < 3; i++) {
-    error = usb_send_req(dev, devdsc, USB_DIR_INPUT, &req, NULL);
-    assert(!error);
-  }
-  return 0;
+  return usb_send_req(dev, devdsc, USB_DIR_INPUT, &req, NULL);
 }
 
 /* Assign the next available address in the USB bus to device `dev`. */
@@ -693,7 +688,6 @@ static usb_endpt_dsc_t *usb_if_endpt_dsc(usb_if_dsc_t *ifdsc) {
  * within device `udev`. */
 static void usb_if_process_endpts(usb_if_dsc_t *ifdsc, usb_device_t *udev) {
   usb_endpt_dsc_t *endptdsc = usb_if_endpt_dsc(ifdsc);
-
   assert((uintptr_t)(endptdsc + ifdsc->bNumEndpoints) - (uintptr_t)ifdsc +
            sizeof(usb_if_dsc_t) <=
          USB_MAX_CONFIG_SIZE);

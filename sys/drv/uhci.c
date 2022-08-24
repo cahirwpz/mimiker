@@ -53,9 +53,13 @@ typedef struct uhci_state {
 
 #define UHCI_DATA_BUF_SIZE 512UL
 
+/* Control transfer: SETUP + (device request + actual data) + STATUS. */
 #define UHCI_TFR_CTRL_MAX_TDS                                                  \
   (2 + (UHCI_DATA_BUF_SIZE - sizeof(usb_dev_req_t)) / USB_MAX_IPACKET)
+
+/* DATA transfer: actual data. */
 #define UHCI_TFR_DATA_MAX_TDS (UHCI_DATA_BUF_SIZE / USB_MAX_IPACKET)
+
 #define UHCI_TFR_MAX_TDS max(UHCI_TFR_CTRL_MAX_TDS, UHCI_TFR_DATA_MAX_TDS)
 #define UHCI_TFR_BUF_SIZE                                                      \
   (sizeof(uhci_qh_t) + UHCI_TFR_MAX_TDS * sizeof(uhci_td_t))
@@ -474,23 +478,17 @@ static void uhci_init_frames(uhci_state_t *uhci) {
   out32(UHCI_FLBASEADDR, uhci_physaddr(uhci->frames));
 }
 
-static inline size_t uhci_align_pool_size(size_t size) {
-  size_t log = log2(size);
-  size_t asize = 1UL << log;
-  return (asize != size) ? (asize << 1) : asize;
-}
-
 /* Supply a contiguous physical memory for further buffer allocation. */
-void uhci_init_pool(void) {
-  size_t tfr_pool_asize = uhci_align_pool_size(UHCI_TFR_POOL_SIZE);
+static void uhci_init_pool(void) {
+  size_t tfr_pool_asize = roundup2(UHCI_TFR_POOL_SIZE, PAGESIZE);
   void *tfr_pool =
-    (void *)kmem_alloc_contig(NULL, tfr_pool_asize, PMAP_NOCACHE);
-  pool_add_page(P_TFR, tfr_pool, roundup2(UHCI_TFR_POOL_SIZE, PAGESIZE));
+    (void *)kmem_alloc_contig(NULL, pow(tfr_pool_asize), PMAP_NOCACHE);
+  pool_add_page(P_TFR, tfr_pool, tfr_pool_asize);
 
-  size_t data_pool_asize = uhci_align_pool_size(UHCI_DATA_POOL_SIZE);
+  size_t data_pool_asize = roundup2(UHCI_DATA_POOL_SIZE, PAGESIZE);
   void *data_pool =
-    (void *)kmem_alloc_contig(NULL, data_pool_asize, PMAP_NOCACHE);
-  pool_add_page(P_DATA, data_pool, roundup2(UHCI_DATA_POOL_SIZE, PAGESIZE));
+    (void *)kmem_alloc_contig(NULL, pow(data_pool_asize), PMAP_NOCACHE);
+  pool_add_page(P_DATA, data_pool, data_pool_asize);
 }
 
 /*
