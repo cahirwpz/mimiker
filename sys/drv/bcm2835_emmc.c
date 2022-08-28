@@ -281,8 +281,12 @@ static uint32_t bcmemmc_encode_cmd(emmc_cmd_t cmd) {
     code |= CMD_DATA_TRANSFER | CMD_DATA_READ;
   if (cmd.flags & EMMC_F_DATA_WRITE)
     code |= CMD_DATA_TRANSFER;
-  if (cmd.flags & EMMC_F_DATA_MULTI)
+  if (cmd.flags & EMMC_F_DATA_MULTI) {
     code |= CMD_DATA_MULTI;
+    /* Block counter must be enabled for multi-block transfers in order t
+     * generate READ_DONE interrupt when the transfer succeeds. */
+    code |= CMD_TM_BLKCNT_EN;
+  }
   if (cmd.flags & EMMC_F_CHKIDX)
     code |= CMD_CHECKIDX;
   if (cmd.flags & EMMC_F_CHKCRC)
