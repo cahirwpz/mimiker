@@ -13,15 +13,15 @@
 #include <sys/mutex.h>
 
 static vmem_t *kvspace; /* Kernel virtual address space allocator. */
-static vmem_addr_t kvspace_end;
-static MTX_DEFINE(kvspace_end_lock, 0);
+static vmem_addr_t max_kva;
+static MTX_DEFINE(max_kva_lock, 0);
 
 void init_kmem(void) {
   kvspace = vmem_create("kvspace", PAGESIZE);
   if (KERNEL_SPACE_BEGIN < (vaddr_t)__kernel_start)
     vmem_add(kvspace, KERNEL_SPACE_BEGIN,
              (vaddr_t)__kernel_start - KERNEL_SPACE_BEGIN, M_NOWAIT);
-  kvspace_end = vm_kernel_end;
+  max_kva = pmap_growkernel(0);
 }
 
 static void kick_swapper(void) {
@@ -30,7 +30,6 @@ static void kick_swapper(void) {
 
 vaddr_t kva_alloc(size_t size, kmem_flags_t flags) {
   assert(page_aligned_p(size));
-  vaddr_t old = atomic_load(&vm_kernel_end);
   vmem_addr_t start = 0;
   int error;
 
@@ -41,48 +40,27 @@ vaddr_t kva_alloc(size_t size, kmem_flags_t flags) {
    * vmem_alloc where other thread can call kva_alloc and steal memory prepared
    * by us for vmem. In that scenario it's possible that second call to
    * vmem_alloc fails so we need to repeat pmap_growkernel and restart
-   * vmem_alloc. We do that until success because kva_alloc should never failed.
+   * vmem_alloc. We do that until success because kva_alloc should never fail.
    */
   while ((error = vmem_alloc(kvspace, size, &start, flags))) {
-    if (error == EAGAIN)
+    if (error != ENOMEM)
       continue;
-    assert(error == ENOMEM);
 
-    mtx_lock(&vm_kernel_end_lock);
+    WITH_MTX_LOCK (&max_kva_lock) {
+      vmem_addr_t max_kva_old = pmap_growkernel(0);
+      vmem_addr_t max_kva_new = max_kva;
 
-    /* Check if other thread called pmap_growkernel between vmem_alloc and
-     * mtx_lock. */
-    if (vm_kernel_end > old) {
-      old = vm_kernel_end;
-      mtx_unlock(&vm_kernel_end_lock);
-      continue;
-    }
+      if (max_kva_new == max_kva_old) {
+        max_kva_new = pmap_growkernel(size);
 
-    WITH_MTX_LOCK (&kvspace_end_lock) {
-      if (kvspace_end < vm_kernel_end) {
-        if (!vmem_add(kvspace, vm_kernel_end, vm_kernel_end - kvspace_end,
-                      M_NOWAIT)) {
-          kvspace_end = vm_kernel_end;
-        }
-        mtx_unlock(&kvspace_end_lock);
-        mtx_unlock(&vm_kernel_end_lock);
-        continue;
+        klog("increase kernel end %08lx -> %08lx", max_kva_old, max_kva);
       }
+
+      if (!vmem_add(kvspace, max_kva_old, max_kva_new - max_kva_old, M_NOWAIT))
+        max_kva = max_kva_new;
     }
-
-    pmap_growkernel(old + size);
-    klog("%s: increase kernel end %08lx -> %08lx", __func__, old,
-         vm_kernel_end);
-
-    if (!vmem_add(kvspace, old, vm_kernel_end - old, M_NOWAIT)) {
-      WITH_MTX_LOCK (&kvspace_end_lock)
-        kvspace_end = vm_kernel_end;
-    }
-
-    mtx_unlock(&vm_kernel_end_lock);
   }
 
-  assert(start != 0);
   return start;
 }
 
