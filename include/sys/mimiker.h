@@ -16,7 +16,6 @@
 #include <sys/types.h>
 
 #define log2(x) (CHAR_BIT * sizeof(unsigned long) - __builtin_clzl(x) - 1)
-#define pow2(x) (1UL << log2(2 * (u_long)(x)-1))
 #define ffs(x) ((u_long)__builtin_ffsl(x))
 #define clz(x) ((u_long)__builtin_clzl(x))
 #define ctz(x) ((u_long)__builtin_ctzl(x))
