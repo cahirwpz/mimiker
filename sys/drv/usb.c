@@ -480,7 +480,7 @@ static int usb_hub_port_reset(device_t *dev, uint8_t port) {
   return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
-static int usb_hub_get_port_status(device_t *dev, uint8_t port,
+static int usb_hub_port_get_status(device_t *dev, uint8_t port,
                                    usb_port_sts_t *psts) {
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_READ_CLASS_OTHER,
@@ -489,6 +489,26 @@ static int usb_hub_get_port_status(device_t *dev, uint8_t port,
     .wLength = sizeof(usb_port_sts_t),
   };
   return usb_send_req(dev, psts, USB_DIR_INPUT, &req, NULL);
+}
+
+#define UHP_WAIT_ENABLE_MAX_ITRS 4
+#define UHP_WAIT_ENABLE_DELAY 10
+
+static int usb_hub_port_wait_enable(device_t *dev, uint8_t port) {
+  int error = 0;
+
+  for (int i = 0; i < UHP_WAIT_ENABLE_MAX_ITRS; i++) {
+    usb_port_sts_t psts;
+    if ((error = usb_hub_port_get_status(dev, port, &psts)))
+      return error;
+
+    if (psts.wPortStatus & UPS_PORT_ENABLED)
+      return 0;
+
+    mdelay(UHP_WAIT_ENABLE_DELAY);
+  }
+
+  return ENXIO;
 }
 
 /*
@@ -866,7 +886,7 @@ static int usb_enumerate_hub(device_t *hcdev, device_t *dev,
     mdelay(hubdsc->bPwrOn2PwrGood * UHD_PWRON_FACTOR);
 
     usb_port_sts_t psts;
-    if ((error = usb_hub_get_port_status(dev, port, &psts)))
+    if ((error = usb_hub_port_get_status(dev, port, &psts)))
       goto end;
 
     if (!(psts.wPortStatus & UPS_CURRENT_CONNECT_STATUS)) {
@@ -878,7 +898,8 @@ static int usb_enumerate_hub(device_t *hcdev, device_t *dev,
     if ((error = usb_hub_port_reset(dev, port)))
       goto end;
 
-    mdelay(0xff);
+    if ((error = usb_hub_port_wait_enable(dev, port)))
+      goto end;
 
     if ((error = usb_enumerate_root_port(hcdev, root_port)))
       goto end;

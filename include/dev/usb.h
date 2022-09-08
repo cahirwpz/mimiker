@@ -214,6 +214,7 @@ typedef struct usb_port_sts {
 } __packed usb_port_sts_t;
 
 #define UPS_CURRENT_CONNECT_STATUS 0x0001
+#define UPS_PORT_ENABLED 0x0002
 #define UPS_RESET 0x0010
 
 /*
