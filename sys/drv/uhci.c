@@ -51,17 +51,30 @@ typedef struct uhci_state {
  * - `P_DATA` - memory buffers for I/O data to transfer.
  */
 
-#define UHCI_TFR_BUF_SIZE 128
-#define UHCI_TFR_POOL_SIZE PAGESIZE
+#define UHCI_DATA_BUF_SIZE 512UL
 
-#define UHCI_DATA_BUF_SIZE (2 * UHCI_TD_MAXLEN)
-#define UHCI_DATA_POOL_SIZE (64 * PAGESIZE)
+/* Control transfer: SETUP + (device request + actual data) + STATUS. */
+#define UHCI_TFR_CTRL_MAX_TDS                                                  \
+  (2 + (UHCI_DATA_BUF_SIZE - sizeof(usb_dev_req_t)) / USB_MAX_IPACKET)
+
+/* DATA transfer: actual data. */
+#define UHCI_TFR_DATA_MAX_TDS (UHCI_DATA_BUF_SIZE / USB_MAX_IPACKET)
+
+#define UHCI_TFR_MAX_TDS max(UHCI_TFR_CTRL_MAX_TDS, UHCI_TFR_DATA_MAX_TDS)
+#define UHCI_TFR_BUF_SIZE                                                      \
+  (sizeof(uhci_qh_t) + UHCI_TFR_MAX_TDS * sizeof(uhci_td_t))
+
+#define UHCI_MAX_NREQS 15 /* maximum number of scheduled request */
+
+#define UHCI_DATA_POOL_SIZE (UHCI_MAX_NREQS * UHCI_DATA_BUF_SIZE)
+
+#define UHCI_TFR_POOL_SIZE (UHCI_MAX_NREQS * UHCI_TFR_BUF_SIZE)
 
 #define UHCI_ALIGNMENT max(UHCI_TD_ALIGN, UHCI_QH_ALIGN)
 
 static POOL_DEFINE(P_TFR, "UHCI transfer buffers", UHCI_TFR_BUF_SIZE,
                    UHCI_ALIGNMENT);
-static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
+static POOL_DEFINE(P_DATA, "UHCI data buffers", UHCI_DATA_BUF_SIZE);
 
 /*
  * How do we manage the UHCI frame list?
@@ -466,13 +479,17 @@ static void uhci_init_frames(uhci_state_t *uhci) {
 
 /* Supply a contiguous physical memory for further buffer allocation. */
 static void uhci_init_pool(void) {
+  const size_t tfr_pool_asize = roundup2(UHCI_TFR_POOL_SIZE, PAGESIZE);
+  assert(powerof2(tfr_pool_asize));
   void *tfr_pool =
-    (void *)kmem_alloc_contig(NULL, UHCI_TFR_POOL_SIZE, PMAP_NOCACHE);
-  pool_add_page(P_TFR, tfr_pool, UHCI_TFR_POOL_SIZE);
+    (void *)kmem_alloc_contig(NULL, tfr_pool_asize, PMAP_NOCACHE);
+  pool_add_page(P_TFR, tfr_pool, tfr_pool_asize);
 
+  const size_t data_pool_asize = roundup2(UHCI_DATA_POOL_SIZE, PAGESIZE);
+  assert(powerof2(data_pool_asize));
   void *data_pool =
-    (void *)kmem_alloc_contig(NULL, UHCI_DATA_POOL_SIZE, PMAP_NOCACHE);
-  pool_add_page(P_DATA, data_pool, UHCI_DATA_POOL_SIZE);
+    (void *)kmem_alloc_contig(NULL, data_pool_asize, PMAP_NOCACHE);
+  pool_add_page(P_DATA, data_pool, data_pool_asize);
 }
 
 /*
@@ -713,7 +730,7 @@ static uint8_t uhci_detect_ports(uhci_state_t *uhci) {
   }
 
   uhci->nports = port;
-  klog("detected %hhu ports", uhci->nports);
+  klog("detected %u ports", uhci->nports);
 
   return port;
 }

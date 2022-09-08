@@ -150,16 +150,15 @@ void pci_bus_enumerate(device_t *pcib) {
         pcid->bar[i] = (pci_bar_t){
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
 
-        bus_addr_t start;
-        if (type == RT_IOPORTS) {
-          start = ioports_start;
-          ioports_start += size;
-        } else {
-          start = mem_start;
-          mem_start += size;
-        }
+        bus_addr_t start = (type == RT_IOPORTS) ? ioports_start : mem_start;
+        start = roundup(start, size);
 
         device_add_range(dev, type, i, start, start + size, flags);
+
+        if (type == RT_IOPORTS)
+          ioports_start = start + size;
+        else
+          mem_start = start + size;
       }
       if (pcid->pin) {
         int irq = pci_route_interrupt(dev);
