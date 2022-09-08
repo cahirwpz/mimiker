@@ -44,21 +44,20 @@ static const struct {
  */
 
 static void mp_update_alloc(kmalloc_pool_t *mp, void *ptr, size_t blksz) {
-  WITH_MTX_LOCK (&km_lock) {
-    mp->nrequests++;
-    if (!ptr)
-      return;
-    mp->used += blksz;
-    mp->maxused = max(mp->used, mp->maxused);
-    mp->active++;
-  }
+  SCOPED_MTX_LOCK(&km_lock);
+  mp->nrequests++;
+  if (!ptr)
+    return;
+  mp->used += blksz;
+  mp->maxused = max(mp->used, mp->maxused);
+  mp->active++;
 }
 
 static void mp_update_free(kmalloc_pool_t *mp, size_t blksz) {
-  WITH_MTX_LOCK (&km_lock) {
-    mp->used -= blksz;
-    mp->active--;
-  }
+  SCOPED_MTX_LOCK(&km_lock);
+  assert(blksz);
+  mp->used -= blksz;
+  mp->active--;
 }
 
 /*
@@ -73,18 +72,18 @@ static void *lblk_alloc(size_t size, kmem_flags_t flags, size_t *blkszp) {
   assert(size);
 
 #if KASAN
-  size_t req_size = lblk_size(size + KASAN_KMALLOC_REDZONE_SIZE);
+  size_t blksz = lblk_size(size + KASAN_KMALLOC_REDZONE_SIZE);
 #else /* !KASAN */
-  size_t req_size = lblk_size(size);
+  size_t blksz = lblk_size(size);
 #endif
 
-  void *ptr = kmem_alloc(req_size, flags);
+  void *ptr = kmem_alloc(blksz, flags);
   if (!ptr)
     return NULL;
 
-  kasan_mark(ptr, size, req_size, KASAN_CODE_KMALLOC_OVERFLOW);
-  *blkszp = req_size;
+  kasan_mark(ptr, size, blksz, KASAN_CODE_KMALLOC_OVERFLOW);
 
+  *blkszp = blksz;
   return ptr;
 }
 
@@ -92,21 +91,20 @@ void lblk_free(void *ptr, size_t *blkszp) {
   assert(ptr);
 
   size_t blksz = kmem_size(ptr);
-  kmem_free(ptr, blksz);
   *blkszp = blksz;
+
+  kmem_free(ptr, blksz);
 }
 
 /*
  * Slab block allocator.
  */
 
-static inline size_t blk_size(size_t size) {
-  return max(pow2(size), (size_t)KM_SLAB_MINBLKSZ);
-}
-
 static inline size_t blk_idx(size_t size) {
-  assert(powerof2(size));
-  return ffs(size) - 1 - log2(KM_SLAB_MINBLKSZ);
+  if (size <= KM_SLAB_MINBLKSZ)
+    return 0;
+  size_t clg = powerof2(size) ? log2(size) : log2(size) + 1;
+  return clg - log2(KM_SLAB_MINBLKSZ);
 }
 
 static inline slab_t *blk_slab(void *ptr) {
@@ -118,7 +116,12 @@ static inline slab_t *blk_slab(void *ptr) {
 static void *blk_alloc(size_t size, kmem_flags_t flags, size_t *blkszp) {
   assert(size);
 
-  size_t req_size = blk_size(size);
+#if KASAN
+  size_t req_size = size + KASAN_KMALLOC_REDZONE_SIZE;
+#else /* !KASAN */
+  size_t req_size = size;
+#endif
+
   size_t idx = blk_idx(req_size);
   assert(idx < KM_NPOOLS);
 
@@ -127,13 +130,11 @@ static void *blk_alloc(size_t size, kmem_flags_t flags, size_t *blkszp) {
   if (!ptr)
     return NULL;
 
-  kasan_mark(ptr, size, req_size, KASAN_CODE_KMALLOC_OVERFLOW);
-#if KASAN
-  *blkszp = req_size + pool->pp_redzone;
-#else /* !KASAN */
-  *blkszp = req_size;
-#endif
+  size_t blksz = KM_SLAB_MINBLKSZ << idx;
 
+  kasan_mark(ptr, size, blksz, KASAN_CODE_KMALLOC_OVERFLOW);
+
+  *blkszp = blksz;
   return ptr;
 }
 
@@ -143,8 +144,13 @@ static void blk_free(void *ptr, size_t *blkszp) {
   slab_t *slab = blk_slab(ptr);
   pool_t *pool = slab->ph_pool;
 
-  pool_free(pool, ptr);
+#if KASAN
+  *blkszp = slab->ph_itemsize - pool->pp_redzone;
+#else /* !KASAN */
   *blkszp = slab->ph_itemsize;
+#endif
+
+  pool_free(pool, ptr);
 }
 
 /*
@@ -167,12 +173,9 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, kmem_flags_t flags) {
   else
     ptr = blk_alloc(size, flags, &blksz);
 
-  if (!ptr)
-    return NULL;
-
-  assert(is_aligned(ptr, KM_ALIGNMENT));
   mp_update_alloc(mp, ptr, blksz);
 
+  assert(!ptr || is_aligned(ptr, KM_ALIGNMENT));
   return ptr;
 }
 
