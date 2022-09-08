@@ -99,6 +99,11 @@ phandle_t FDT_peer(phandle_t node);
 phandle_t FDT_parent(phandle_t node);
 
 /*
+ * Returns a pointer to the name of `node`.
+ */
+const char *FDT_getname(phandle_t node);
+
+/*
  * Obtain the length of the value associated with property `propname`
  * in node `node`.
  *

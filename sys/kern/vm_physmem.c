@@ -30,9 +30,6 @@ static vm_pagelist_t freelist[PM_NQUEUES];
 static size_t pagecount[PM_NQUEUES];
 static MTX_DEFINE(physmem_lock, LK_RECURSIVE);
 
-atomic_vaddr_t vm_kernel_end = (vaddr_t)__kernel_end;
-MTX_DEFINE(vm_kernel_end_lock, 0);
-
 void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
   assert(page_aligned_p(start) && page_aligned_p(end) && start < end);
 
@@ -53,11 +50,7 @@ void _vm_physseg_plug(paddr_t start, paddr_t end, bool used) {
   TAILQ_INSERT_TAIL(&seglist, seg, seglink);
 }
 
-static bool vm_boot_done = false;
-
 static void *vm_boot_alloc(size_t n) {
-  assert(!vm_boot_done);
-
   n = roundup2(n, PAGESIZE);
 
   vm_physseg_t *seg = TAILQ_FIRST(&seglist);
@@ -73,11 +66,6 @@ static void *vm_boot_alloc(size_t n) {
   seg->npages -= n / PAGESIZE;
 
   return va;
-}
-
-static void vm_boot_finish(void) {
-  vm_kernel_end = (vaddr_t)align((void *)vm_kernel_end, PAGESIZE);
-  vm_boot_done = true;
 }
 
 void init_vm_page(void) {
@@ -129,8 +117,6 @@ void init_vm_page(void) {
     seg->pages = pages;
     pages += seg->npages;
   }
-
-  vm_boot_finish();
 }
 
 /* Takes two pages which are buddies, and merges them */

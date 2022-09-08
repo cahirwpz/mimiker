@@ -8,7 +8,7 @@
 
 LLVM_VER := -14
 
-ifeq ($(shell which cache > /dev/null; echo $$?), 0)
+ifeq ($(shell which ccache > /dev/null; echo $$?), 0)
   CCACHE := ccache
 endif
 
@@ -32,8 +32,8 @@ ifneq ($(shell which llvm-ar$(LLVM_VER) > /dev/null; echo $$?), 0)
 endif
 
 CC	= $(CCACHE) clang$(LLVM_VER) -target $(TARGET) $(ABIFLAGS) -g
-CPP	= $(CCACHE) $(CC) -x c -E
-AS	= $(CCACHE) $(CC)
+CPP	= $(CC) -x c -E
+AS	= $(CC)
 LD	= ld.lld$(LLVM_VER)
 AR	= llvm-ar$(LLVM_VER)
 NM	= llvm-nm$(LLVM_VER)
@@ -56,7 +56,7 @@ endif
 
 CC	= $(CCACHE) $(TARGET)-gcc $(ABIFLAGS) -g
 CPP	= $(CCACHE) $(TARGET)-cpp
-AS	= $(CCACHE) $(CC)
+AS	= $(CC)
 LD	= $(TARGET)-ld
 AR	= $(TARGET)-ar
 NM	= $(TARGET)-nm

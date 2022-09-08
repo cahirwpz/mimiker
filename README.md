@@ -1,108 +1,108 @@
-# Mimiker: MIPS Micro-Kernel
+# Mimiker: Unix-like system for education and research purposes
 
-An experiment with implementation of very simple operating system
-for [Malta](https://www.linux-mips.org/wiki/MIPS_Malta) board.
+Mimiker's main goal is to deliver minimal Unix-like operating system, i.e.
+the kernel and a set of userspace programs.
 
-Toolchain
----
+Kernel design is heavily inspired by FreeBSD & NetBSD systems with some ideas
+taken from Linux, Plan9 and other OSes. We spend a lot of time reading source
+code of open-source operating systems. We carefully choose their best design
+decisions, ideas, algorithms, APIs, practices and so on, distill them to bare
+minimum and reimplement them or adapt to Mimiker code base. We hope not to
+repeat their mistakes and move away from legacy and non-perfect solutions.
 
-To build Mimiker you will need a custom MIPS toolchain we use. You can download
-a binary debian package
-[from here](http://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_1.2_amd64.deb).
-It installs into `/opt`, so you'll need to add `/opt/mipsel-mimiker-elf/bin` to
-your `PATH`.
+Mimiker project gathers like minded people who value minimalism, simplicity and
+readability of code. We strive for the lowest possible complexity of solutions.
+We love to throw away code that isn't terribly useful or handles rare edge
+cases. We know value of debuggability and we don't hesitate to spend time
+writing tools that help to improve it.
 
-Otherwise, if you prefer to build the toolchain on your own, download
-crosstool-ng which we use for configuring the toolchain. You can get
-it [from here](http://crosstool-ng.org/). Then:
+Though userspace programs are part of Mimiker project, they've got simply ported
+from NetBSD or [suckless][1] project. We focus on kernel development, since we
+find it more interesting. We don't want to invest too much time into the device
+drivers, so we keep a list of target platforms small.
 
-```
-cd toolchain/mips/
-ct-ng build
-```
+If you'd like to get involved in the project please read our [Wiki][2] to find
+out more!
 
-By default, this will build and install the `mipsel-mimiker-elf` toolchain to
-`~/local`. Update your `$PATH` so that it provides `mipsel-mimiker-elf-*`,
-i.e. unless you've changed the install location you will need to append
-`~/local/mipsel-mimiker-elf/bin` to your `PATH`.
+## Where we are
 
-Building
----
+Mimiker is a real-time operating system. The kernel is preemptible and our
+mutexes support priority inheritance. We minimize work done in interrupt context
+by delegating it to interrupt threads instead of running it using soft
+interrupts.
 
-With toolchain in place, you are ready to compile Mimiker. Run
+Mimiker runs on [MIPS][15] (32-bit), [AArch64][9] and [RISC-V][10] (both 32-bit
+and 64-bit) architectures under [QEmu][11] and [Renode][12] control.
 
-```
-make
-```
+Mimiker has nice set of debugging tools: `gdb` scripts written in Python, Kernel
+Address Sanitizer, Lock dependency validator, Kernel Concurrency Sanitizer. We
+even have support for profiling the kernel using `gprof`! We use [Clang][19] to
+compile our code base, hence we can employ sophisticated dynamic and static
+analysis algorithms to aid code reliablity.
 
-in project root. Currently two additional command-line options are supported:
-* `CLANG=1` - Use the Clang compiler instead of GCC (make sure you have it installed!).
-* `KASAN=1` - Compile the kernel with the KernelAddressSanitizer, which is a
-dynamic memory error detector. 
-* `KCSAN=1` - Compile the kernel with the KernelConcurrencySanitizer, a tool for detecting data races.
+A common set of synchronization primitives is provided, i.e. spin-locks, mutexes
+and conditional variables - all with simple semantics. We don't have multiple
+primitives that do similar things, but a little bit differently, which is common
+for FreeBSD or Linux kernels.
 
-For example, use `make KASAN=1` command to create a GCC-KASAN build.
+Mimiker's kernel memory is wired (i.e. non-swappable), so you don't have to
+worry about choosing right locks when accessing kernel memory, unlike in
+FreeBSD.  We have buddy memory allocator for physical memory, virtual address
+space allocator and slab allocator based on [Magazines and Vmem][3] paper. Our
+memory allocators are simple yet efficient.
 
-The result will be a `mimiker.elf` file containing the kernel image.
+Mimiker's driver infrastructure abstracts away concept of hardware register
+and interrupts in similar manner to FreeBSD's [NewBus][14]. Special care is
+taken to make drivers portable. We have enumerator routines that autodetect
+devices attached to PCI and USB buses. We use [flat device tree][13] to drive
+kernel configuration during startup phase.
 
-Running
----
+Virtual file system and user virtual address space management are loosely based
+on FreeBSD ideas. They need substatial amount of work to become as mature as in
+FreeBSD or Linux kernels.
 
-We provide a Python script that simplifies running Mimiker OS. The kernel image
-is run with QEMU simulator. Several serial consoles are available for
-interaction. Optionally you can attach to simulator with `gdb` debugger.
-All of that is achieved by running all interactive sessions within
-[tmux](https://github.com/tmux/tmux/wiki) terminal multiplexer with default key
-bindings.
+## What we are proud of
 
-In project main directory, run command below that will start the kernel in
-test-run mode. To finish simulation simply detach from `tmux` session by
-pressing `Ctrl+b` and `d` (as in _detach_) keys. To switch between emulated
-serial consoles and debugger press `Ctrl+b` and corresponding terminal number.
+We have over eighty [syscalls][4] that allow us to run various open-source
+tools, including NetBSD's [Korn Shell][5], [Atto Emacs][6] editor, [Lua][7]
+interpreter, and many more. We even have a game:
 
-```
-./launch test=all
-```
+![tetris][8]
 
-Some useful flags to the `launch` script:
+Mimiker supports:
+ * UNIX file I/O -- well known APIs for file-like objects access,
+ * interprocess communication -- POSIX signal and pipes,
+ * job control -- thus we can run unmodified [Korn Shell][18],
+ * UNIX credentials -- users, groups, file permissions,
+ * libterminfo, hence Mimiker can run some fullscreen terminal applications,
+ * [pseudoterminals][16] -- so we can run [script][17] or terminal emulators.
 
-* `-h` - Prints usage.
-* `-d` - Starts simulation under a debugger.
-* `-t` - Bind simulator UART to current stdio.
+## What is missing
 
-Any other argument is passed to the kernel as a kernel command-line
-argument. Some useful kernel arguments:
+We would like to support:
+ * multi-core systems,
+ * VirtIO and virt platforms in QEmu,
+ * a filesystem for non-volatile storage devices,
+ * TCP/IP protocols.
 
-* `init=PROGRAM` - Specifies the userspace program for PID 1.
-  Browse `bin` and `usr.bin` directories for currently available programs.
-* `klog-quiet=1` - Turns off printing kernel diagnostic messages.
+There's plenty of work to be done. Please refer to our roadmap!
 
-If you want to run tests please read [this document](sys/tests/README.md).
-
-Documentation
----
-
-Useful sites:
-* [OSDev wiki](http://wiki.osdev.org)
-
-Toolchain documentation:
-* [Extensions to the C Language Family](https://gcc.gnu.org/onlinedocs/gcc-4.9.3/gcc/C-Extensions.html)
-* [Debugging with GDB](https://sourceware.org/gdb/onlinedocs/gdb/index.html)
-* [Linker scripts](https://sourceware.org/binutils/docs/ld/Scripts.html)
-
-MIPS documentation:
-* [MIPS® Architecture For Programmers Volume II-A: The MIPS32® Instruction Set](http://mimiker.ii.uni.wroc.pl/documents/MD00086-2B-MIPS32BIS-AFP-6.06.pdf)
-* [MIPS® Architecture For Programmers Volume III: The MIPS32® and microMIPS32™ Privileged Resource Architecture](http://mimiker.ii.uni.wroc.pl/documents/MD00090-2B-MIPS32PRA-AFP-06.02.pdf)
-* [MIPS32® 24KE™ Processor Core Family Software User’s Manual](http://mimiker.ii.uni.wroc.pl/documents/MD00468-2B-24KE-SUM-01.11.pdf)
-* [MIPS32® 24KEf™ Processor Core Datasheet](http://mimiker.ii.uni.wroc.pl/documents/MD00446-2B-24KEF-DTS-02.00.pdf)
-* [Programming the MIPS32® 24KE™ Core Family](http://mimiker.ii.uni.wroc.pl/documents/MD00458-2B-24KEPRG-PRG-04.63.pdf)
-* [MIPS® YAMON™ User’s Manual](http://mimiker.ii.uni.wroc.pl/documents/MD00008-2B-YAMON-USM-02.19.pdf)
-* [MIPS® YAMON™ Reference Manual](http://mimiker.ii.uni.wroc.pl/documents/MD00009-2B-YAMON-RFM-02.20.pdf)
-* [MIPS ABI Project](https://dmz-portal.mips.com/wiki/MIPS_ABI_Project)
-
-Hardware documentation:
-* [MIPS® Malta™-R Development Platform User’s Manual](http://mimiker.ii.uni.wroc.pl/documents/MD00627-2B-MALTA_R-USM-01.01.pdf)
-* [Galileo GT–64120 System Controller](http://doc.chipfind.ru/pdf/marvell/gt64120.pdf)
-* [Intel® 82371AB PCI-TO-ISA/IDE XCELERATOR (PIIX4)](http://www.intel.com/assets/pdf/datasheet/290562.pdf)
-* [Am79C973: Single-Chip 10/100 Mbps PCI Ethernet Controller with Integrated PHY](http://pdf.datasheetcatalog.com/datasheet/AdvancedMicroDevices/mXwquw.pdf)
-* [FDC37M81x: PC98/99 Compliant Enhanced Super I/O Controller with Keyboard/Mouse Wake-Up](http://www.alldatasheet.com/datasheet-pdf/pdf/119979/SMSC/FDC37M817.html)
+[1]: https://suckless.org
+[2]: https://github.com/cahirwpz/mimiker/wiki
+[3]: https://www.usenix.org/legacy/publications/library/proceedings/usenix01/full_papers/bonwick/bonwick.pdf
+[4]: https://github.com/cahirwpz/mimiker/blob/master/sys/kern/syscalls.master
+[5]: https://man.netbsd.org/ksh.1
+[6]: https://github.com/hughbarney/atto
+[7]: https://www.lua.org/docs.html
+[8]: https://mimiker.ii.uni.wroc.pl/resources/tetris.gif
+[9]: https://www.qemu.org/docs/master/system/target-arm.html
+[10]: https://www.qemu.org/docs/master/system/target-riscv.html
+[11]: https://www.qemu.org
+[12]: https://renode.io
+[13]: https://wiki.freebsd.org/FlattenedDeviceTree
+[14]: https://nostarch.com/download/samples/freebsd-device-drivers_ch7.pdf
+[15]: https://www.qemu.org/docs/master/system/target-mips.html
+[16]: https://en.wikipedia.org/wiki/Pseudoterminal
+[17]: https://man.netbsd.org/script.1
+[18]: https://man.netbsd.org/ksh.1
+[19]: https://clang.llvm.org/
