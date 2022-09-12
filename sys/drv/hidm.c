@@ -6,6 +6,8 @@
  * - Device Class Definition for Human Interface Devices (HID) Version 1.11,
  *   5/27/01:
  *     https://www.usb.org/sites/default/files/hid1_11.pdf
+ *
+ * NOTE: for simplicity, we rely on the boot protocol.
  */
 #define KL_LOG KL_DEV
 #include <sys/klog.h>
@@ -17,28 +19,28 @@
 #include <dev/evdev.h>
 #include <dev/usb.h>
 
-#define HIDM_NBUTTONS 3
+#define HIDMS_NBUTTONS 3
 
-/* HID mouse input report. */
-typedef struct hidm_in_report {
+/* HID mouse boot input report. */
+typedef struct hidms_boot_in_rep {
   uint8_t buttons; /* button status */
   int8_t x;        /* relative X movement */
   int8_t y;        /* relative Y movement */
-} __packed hidm_in_report_t;
+} __packed hidms_boot_in_rep_t;
 
 /* HID mouse software context. */
-typedef struct hidm_state {
+typedef struct hidms_state {
   thread_t *thread;     /* input packets gathering thread */
   evdev_dev_t *evdev;   /* evdev device structure */
   uint8_t prev_buttons; /* the most recent buttons state */
-} hidm_state_t;
+} hidms_state_t;
 
 /*
  * Evdev handling functions.
  */
 
-static void hidm_init_evdev(device_t *dev) {
-  hidm_state_t *hidm = dev->state;
+static void hidms_init_evdev(device_t *dev) {
+  hidms_state_t *hidms = dev->state;
   evdev_dev_t *evdev = evdev_alloc();
 
   /* Set the basic evdev parameters. */
@@ -58,8 +60,8 @@ static void hidm_init_evdev(device_t *dev) {
   evdev_support_rel(evdev, REL_X);
   evdev_support_rel(evdev, REL_Y);
 
-  /* Bind `evdev` to `hidm` for future references. */
-  hidm->evdev = evdev;
+  /* Bind `evdev` to `hidms` for future references. */
+  hidms->evdev = evdev;
 
   /* Finally, register the device in the file system. */
   evdev_register(evdev);
@@ -69,70 +71,74 @@ static void hidm_init_evdev(device_t *dev) {
  * Report processing functions.
  */
 
-static void hidm_process_buttons(hidm_state_t *hidm, uint8_t buttons) {
-  uint8_t prev_buttons = hidm->prev_buttons;
+static bool hidms_process_buttons(hidms_state_t *hidms, uint8_t buttons) {
+  uint8_t prev_buttons = hidms->prev_buttons;
+  bool sync = false;
 
-  for (size_t i = 0; i < HIDM_NBUTTONS; i++) {
+  for (size_t i = 0; i < HIDMS_NBUTTONS; i++) {
     uint8_t prev = prev_buttons & (1 << i);
     uint8_t cur = buttons & (1 << i);
 
-    if ((cur == prev) && !cur)
+    if (cur == prev)
       continue;
 
     uint16_t keycode = evdev_hid2btn(i);
-    evdev_push_key(hidm->evdev, keycode, cur);
-    evdev_sync(hidm->evdev);
+    evdev_push_key(hidms->evdev, keycode, cur);
+    sync = true;
   }
+
+  return sync;
 }
 
-static void hidm_process_in_report(hidm_state_t *hidm,
-                                   hidm_in_report_t *report) {
-  /* Hnadle buttons. */
-  hidm_process_buttons(hidm, report->buttons);
+static void hidms_process_in_report(hidms_state_t *hidms,
+                                    hidms_boot_in_rep_t *report) {
+  /* Handle buttons. */
+  bool btns = hidms_process_buttons(hidms, report->buttons);
 
   /* Handle the X-axis. */
   int8_t x = report->x;
-  if (x) {
-    evdev_push_event(hidm->evdev, EV_REL, REL_X, x);
-    evdev_sync(hidm->evdev);
-  }
+  if (x)
+    evdev_push_event(hidms->evdev, EV_REL, REL_X, x);
 
   /* Handle the Y-axis. */
   int8_t y = report->y;
-  if (y) {
-    evdev_push_event(hidm->evdev, EV_REL, REL_Y, y);
-    evdev_sync(hidm->evdev);
-  }
+  if (y)
+    evdev_push_event(hidms->evdev, EV_REL, REL_Y, y);
+
+  if (btns || x || y)
+    evdev_sync(hidms->evdev);
 }
 
 /* A thread which gathers input reports, processes and converts them
  * to evdev-compatible events and then hands them over to the evdev layer. */
-static void hidm_thread(void *arg) {
+static void hidms_thread(void *arg) {
   device_t *dev = arg;
-  hidm_state_t *hidm = dev->state;
-  hidm_in_report_t report;
+  hidms_state_t *hidms = dev->state;
+  hidms_boot_in_rep_t report;
 
   /* Obtain a USB buf. */
   usb_buf_t *buf = usb_buf_alloc();
 
   /* Register an interrupt input transfer. */
-  usb_data_transfer(dev, buf, &report, sizeof(hidm_in_report_t),
+  usb_data_transfer(dev, buf, &report, sizeof(hidms_boot_in_rep_t),
                     USB_TFR_INTERRUPT, USB_DIR_INPUT);
 
   for (;;) {
-    /* Wait for the data to arrvie. */
+    /* Wait for the data to arrive. */
     int error = usb_buf_wait(buf);
     if (!error) {
-      hidm_process_in_report(hidm, &report);
-      hidm->prev_buttons = report.buttons;
+      hidms_process_in_report(hidms, &report);
+      hidms->prev_buttons = report.buttons;
       continue;
     }
 
     /* Recover and reenable the transfer. */
-    if ((error = usb_unhalt_endpt(dev, USB_TFR_INTERRUPT, USB_DIR_INPUT)))
+    if ((error = usb_unhalt_endpt(dev, USB_TFR_INTERRUPT, USB_DIR_INPUT))) {
+      /* TODO: we should have a way to unregister an evdev device. */
       panic("Unable to unhalt an endpoint");
+    }
 
-    usb_data_transfer(dev, buf, &report, sizeof(hidm_in_report_t),
+    usb_data_transfer(dev, buf, &report, sizeof(hidms_boot_in_rep_t),
                       USB_TFR_INTERRUPT, USB_DIR_INPUT);
   }
 }
@@ -141,7 +147,7 @@ static void hidm_thread(void *arg) {
  * Driver interface implementation.
  */
 
-static int hidm_probe(device_t *dev) {
+static int hidms_probe(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
   if (!udev)
     return 0;
@@ -155,8 +161,8 @@ static int hidm_probe(device_t *dev) {
   return 1;
 }
 
-static int hidm_attach(device_t *dev) {
-  hidm_state_t *hidm = dev->state;
+static int hidms_attach(device_t *dev) {
+  hidms_state_t *hidms = dev->state;
 
   if (usb_hid_set_idle(dev))
     return ENXIO;
@@ -165,22 +171,22 @@ static int hidm_attach(device_t *dev) {
   if (usb_hid_set_boot_protocol(dev))
     return ENXIO;
 
-  hidm->thread =
-    thread_create("hidm", hidm_thread, dev, prio_ithread(PRIO_ITHRD_QTY - 1));
+  hidms->thread =
+    thread_create("hidms", hidms_thread, dev, prio_ithread(PRIO_ITHRD_QTY - 1));
 
-  hidm_init_evdev(dev);
+  hidms_init_evdev(dev);
 
-  sched_add(hidm->thread);
+  sched_add(hidms->thread);
 
   return 0;
 }
 
-static driver_t hidm_driver = {
+static driver_t hidms_driver = {
   .desc = "HID mouse driver",
-  .size = sizeof(hidm_state_t),
+  .size = sizeof(hidms_state_t),
   .pass = SECOND_PASS,
-  .probe = hidm_probe,
-  .attach = hidm_attach,
+  .probe = hidms_probe,
+  .attach = hidms_attach,
 };
 
-DEVCLASS_ENTRY(usb, hidm_driver);
+DEVCLASS_ENTRY(usb, hidms_driver);
