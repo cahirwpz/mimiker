@@ -40,19 +40,24 @@ typedef struct usb_dev_req {
 #define UT_DEVICE 0x00
 #define UT_INTERFACE 0x01
 #define UT_ENDPOINT 0x02
+#define UT_OTHER 0x03
 
 #define UT_READ_DEVICE (UT_READ | UT_STANDARD | UT_DEVICE)
 #define UT_READ_INTERFACE (UT_READ | UT_STANDARD | UT_INTERFACE)
 #define UT_READ_ENDPOINT (UT_READ | UT_STANDARD | UT_ENDPOINT)
 #define UT_WRITE_DEVICE (UT_WRITE | UT_STANDARD | UT_DEVICE)
 #define UT_WRITE_ENDPOINT (UT_WRITE | UT_STANDARD | UT_ENDPOINT)
+#define UT_READ_CLASS_DEVICE (UT_READ | UT_CLASS | UT_DEVICE)
 #define UT_READ_CLASS_INTERFACE (UT_READ | UT_CLASS | UT_INTERFACE)
 #define UT_READ_CLASS_ENDPOINT (UT_READ | UT_CLASS | UT_ENDPOINT)
+#define UT_READ_CLASS_OTHER (UT_READ | UT_CLASS | UT_OTHER)
 #define UT_WRITE_CLASS_INTERFACE (UT_WRITE | UT_CLASS | UT_INTERFACE)
+#define UT_WRITE_CLASS_OTHER (UT_WRITE | UT_CLASS | UT_OTHER)
 
 /* Requests. */
 #define UR_GET_STATUS 0x00
 #define UR_CLEAR_FEATURE 0x01
+#define UR_SET_FEATURE 0x03
 #define UR_SET_ADDRESS 0x05
 #define UR_GET_DESCRIPTOR 0x06
 #define USB_LANGUAGE_TABLE 0x00
@@ -61,9 +66,14 @@ typedef struct usb_dev_req {
 #define UDESC_DEVICE 0x01
 #define UDESC_CONFIG 0x02
 #define UDESC_STRING 0x03
+#define UDESC_HUB 0x29
 
 /* Feature numbers. */
 #define UF_ENDPOINT_HALT 0
+
+/* Hub specific features. */
+#define UHF_PORT_RESET 4
+#define UHF_PORT_POWER 8
 
 #define UV_MAKE(d, i) ((d) << 8 | (i))
 
@@ -151,6 +161,8 @@ typedef struct usb_if_dsc {
 #define UISUBCLASS_SCSI 6
 #define UIPROTO_MASS_BBB 80
 
+#define UICLASS_HUB 0x09
+
 /*
  * USB endpoint descriptor.
  */
@@ -175,6 +187,35 @@ typedef struct usb_endpt_dsc {
 #define UE_ISOCHRONOUS 0x01
 #define UE_BULK 0x02
 #define UE_INTERRUPT 0x03
+
+/*
+ * USB hub descriptor.
+ */
+typedef struct usb_hub_dsc {
+  uint8_t bDescLength;
+  uint8_t bDescriptorType;
+  uint8_t bNbrPorts;
+  uint16_t wHubCharacteristics;
+  uint8_t bPwrOn2PwrGood; /* delay in 2 ms units */
+  uint8_t bHubContrCurrent;
+  uint8_t DeviceRemovable[32];  /* max 255 ports */
+  uint8_t PortPowerCtrlMask[1]; /* deprecated */
+} __packed usb_hub_dsc_t;
+
+#define UHD_PWRON_FACTOR 2
+
+/*
+ * USB hub port status.
+ */
+
+typedef struct usb_port_sts {
+  uint16_t wPortStatus;
+  uint16_t wPortChange;
+} __packed usb_port_sts_t;
+
+#define UPS_CURRENT_CONNECT_STATUS 0x0001
+#define UPS_PORT_ENABLED 0x0002
+#define UPS_RESET 0x0010
 
 /*
  * Implementation specific constructs.
