@@ -145,7 +145,8 @@ CONFIG = {
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True),
                     dict(name='/dev/tty1', port=RandomPort(), raw=True)
-                ]
+                ],
+                'storage_options': [],
             },
         }
     },
