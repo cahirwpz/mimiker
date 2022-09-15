@@ -140,12 +140,32 @@ void devfs_free(devfs_node_t *dn) {
 
 static int devfs_fop_read(file_t *fp, uio_t *uio) {
   devnode_t *dev = fp->f_data;
-  return dev->ops->d_read(dev, uio);
+  int err;
+
+  if (dev->ops->d_type & DT_SEEKABLE)
+    uio->uio_offset = fp->f_offset;
+
+  err = dev->ops->d_read(dev, uio);
+
+  if (dev->ops->d_type & DT_SEEKABLE)
+    fp->f_offset = uio->uio_offset;
+
+  return err;
 }
 
 static int devfs_fop_write(file_t *fp, uio_t *uio) {
   devnode_t *dev = fp->f_data;
-  return dev->ops->d_write(dev, uio);
+  int err;
+
+  if (dev->ops->d_type & DT_SEEKABLE)
+    uio->uio_offset = fp->f_offset;
+
+  err = dev->ops->d_write(dev, uio);
+
+  if (dev->ops->d_type & DT_SEEKABLE)
+    fp->f_offset = uio->uio_offset;
+
+  return err;
 }
 
 static int devfs_fop_close(file_t *fp) {
