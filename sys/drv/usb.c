@@ -242,7 +242,7 @@ static void _usb_control_transfer(device_t *dev, usb_buf_t *buf, void *data,
 
   /* Obtain the status stage direction. */
   usb_direction_t status_dir = USB_DIR_OUTPUT;
-  if (dir == USB_DIR_OUTPUT || !req->wLength)
+  if (dir == USB_DIR_INPUT || !req->wLength)
     status_dir = USB_DIR_INPUT;
 
   /* The corresponding host controller implements the actual transfer. */
