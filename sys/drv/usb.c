@@ -19,6 +19,7 @@
 #include <sys/malloc.h>
 #include <sys/klog.h>
 #include <sys/bus.h>
+#include <sys/time.h>
 #include <dev/usb.h>
 #include <dev/usbhc.h>
 #include <dev/usbhid.h>
@@ -241,7 +242,7 @@ static void _usb_control_transfer(device_t *dev, usb_buf_t *buf, void *data,
 
   /* Obtain the status stage direction. */
   usb_direction_t status_dir = USB_DIR_OUTPUT;
-  if (dir == USB_DIR_OUTPUT || !req->wLength)
+  if (dir == USB_DIR_INPUT || !req->wLength)
     status_dir = USB_DIR_INPUT;
 
   /* The corresponding host controller implements the actual transfer. */
@@ -298,6 +299,7 @@ static int usb_get_dev_dsc(device_t *dev, usb_dev_dsc_t *devdsc) {
 
   /* Get the whole descriptor. */
   req.wLength = devdsc->bLength;
+  assert(req.wLength <= sizeof(usb_dev_dsc_t));
   return usb_send_req(dev, devdsc, USB_DIR_INPUT, &req, NULL);
 }
 
@@ -375,6 +377,7 @@ static int usb_get_config(device_t *dev, usb_cfg_dsc_t *cfgdsc) {
 
   /* Read the whole configuration. */
   req.wLength = cfgdsc->wTotalLength;
+  assert(req.wLength <= USB_MAX_CONFIG_SIZE);
   return usb_send_req(dev, cfgdsc, USB_DIR_INPUT, &req, NULL);
 }
 
@@ -422,6 +425,7 @@ static int usb_get_str_lang_dsc(device_t *dev, usb_str_lang_t *langs) {
 
   /* Read the whole language table. */
   req.wLength = langs->bLength;
+  assert(req.wLength <= sizeof(usb_str_lang_t));
   return usb_send_req(dev, langs, USB_DIR_INPUT, &req, NULL);
 }
 
@@ -442,7 +446,73 @@ static int usb_get_str_dsc(device_t *dev, uint8_t idx, usb_str_dsc_t *strdsc) {
 
   /* Read the whole descriptor. */
   req.wLength = strdsc->bLength;
+  assert(req.wLength <= sizeof(usb_str_dsc_t));
   return usb_send_req(dev, strdsc, USB_DIR_INPUT, &req, NULL);
+}
+
+static int usb_get_hub_dsc(device_t *dev, usb_hub_dsc_t *hubdsc) {
+  usb_dev_req_t req = (usb_dev_req_t){
+    .bmRequestType = UT_READ_CLASS_DEVICE,
+    .bRequest = UR_GET_DESCRIPTOR,
+    .wValue = UV_MAKE(UDESC_HUB, 0),
+    .wLength = sizeof(usb_hub_dsc_t),
+  };
+  return usb_send_req(dev, hubdsc, USB_DIR_INPUT, &req, NULL);
+}
+
+/*
+ * USB hub requests.
+ */
+
+static int usb_hub_port_power(device_t *dev, uint8_t port) {
+  usb_dev_req_t req = (usb_dev_req_t){
+    .bmRequestType = UT_WRITE_CLASS_OTHER,
+    .bRequest = UR_SET_FEATURE,
+    .wValue = UHF_PORT_POWER,
+    .wIndex = port,
+  };
+  return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
+}
+
+static int usb_hub_port_reset(device_t *dev, uint8_t port) {
+  usb_dev_req_t req = (usb_dev_req_t){
+    .bmRequestType = UT_WRITE_CLASS_OTHER,
+    .bRequest = UR_SET_FEATURE,
+    .wValue = UHF_PORT_RESET,
+    .wIndex = port,
+  };
+  return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
+}
+
+static int usb_hub_port_get_status(device_t *dev, uint8_t port,
+                                   usb_port_sts_t *psts) {
+  usb_dev_req_t req = (usb_dev_req_t){
+    .bmRequestType = UT_READ_CLASS_OTHER,
+    .bRequest = UR_GET_STATUS,
+    .wIndex = port,
+    .wLength = sizeof(usb_port_sts_t),
+  };
+  return usb_send_req(dev, psts, USB_DIR_INPUT, &req, NULL);
+}
+
+#define UHP_WAIT_ENABLE_MAX_ITRS 4
+#define UHP_WAIT_ENABLE_DELAY 10
+
+static int usb_hub_port_wait_enable(device_t *dev, uint8_t port) {
+  int error = 0;
+
+  for (int i = 0; i < UHP_WAIT_ENABLE_MAX_ITRS; i++) {
+    usb_port_sts_t psts;
+    if ((error = usb_hub_port_get_status(dev, port, &psts)))
+      return error;
+
+    if (psts.wPortStatus & UPS_PORT_ENABLED)
+      return 0;
+
+    mdelay(UHP_WAIT_ENABLE_DELAY);
+  }
+
+  return ENXIO;
 }
 
 /*
@@ -684,6 +754,9 @@ static usb_endpt_dsc_t *usb_if_endpt_dsc(usb_if_dsc_t *ifdsc) {
  * within device `udev`. */
 static void usb_if_process_endpts(usb_if_dsc_t *ifdsc, usb_device_t *udev) {
   usb_endpt_dsc_t *endptdsc = usb_if_endpt_dsc(ifdsc);
+  assert((uintptr_t)(endptdsc + ifdsc->bNumEndpoints) - (uintptr_t)ifdsc +
+           sizeof(usb_if_dsc_t) <=
+         USB_MAX_CONFIG_SIZE);
 
   for (uint8_t i = 0; i < ifdsc->bNumEndpoints; i++, endptdsc++) {
     /* Obtain endpoint's address. */
@@ -712,11 +785,11 @@ static int usb_configure(device_t *dev) {
   usb_cfg_dsc_t *cfgdsc = kmalloc(M_DEV, USB_MAX_CONFIG_SIZE, M_ZERO);
   int error = usb_get_config(dev, cfgdsc);
   if (error)
-    return error;
+    goto end;
 
   /* Save configuration string descriptor. */
   if ((error = usb_get_str(dev, USB_STR_CONFIGURATION, cfgdsc->iConfiguration)))
-    return error;
+    goto end;
 
   usb_if_dsc_t *ifdsc = (usb_if_dsc_t *)(cfgdsc + 1);
 
@@ -732,7 +805,7 @@ static int usb_configure(device_t *dev) {
 
   /* Save interface string descriptor. */
   if ((error = usb_get_str(dev, USB_STR_INTERFACE, ifdsc->iInterface)))
-    return error;
+    goto end;
 
   /* Process each supplied endpoint. */
   usb_if_process_endpts(ifdsc, udev);
@@ -740,6 +813,8 @@ static int usb_configure(device_t *dev) {
   /* Move the device to the configured state. */
   error = usb_set_config(dev, cfgdsc->bConfigurationValue);
 
+end:
+  kfree(M_DEV, cfgdsc);
   return error;
 }
 
@@ -767,6 +842,83 @@ static void usb_remove_child(device_t *busdev, device_t *dev) {
   device_remove_child(busdev, dev);
 }
 
+static int usb_enumerate_hub(device_t *hcdev, device_t *dev, uint8_t root_port);
+
+static int usb_enumerate_root_port(device_t *hcdev, uint8_t port) {
+  device_t *busdev = usb_bus_of(hcdev);
+  usb_state_t *usb = busdev->state;
+  int error = 0;
+
+  /* We'll perform some requests on device's behalf so lets create
+   * its software representation. */
+  usb_speed_t speed = usbhc_device_speed(hcdev, port);
+  device_t *dev = usb_add_child(busdev, usb->next_addr, speed);
+  usb_device_t *udev = usb_device_of(dev);
+
+  if ((error = usb_identify(dev))) {
+    klog("failed to identify the device at port %u", port);
+    goto bad;
+  }
+
+  if ((error = usb_configure(dev))) {
+    klog("failed to configure the device at port %u", port);
+    goto bad;
+  }
+
+  usb_print_dev(dev);
+
+  if (udev->class_code != UICLASS_HUB)
+    return 0;
+
+  if ((error = usb_enumerate_hub(hcdev, dev, port)))
+    goto bad;
+
+  return 0;
+
+bad:
+  usb_remove_child(busdev, dev);
+  return error;
+}
+
+static int usb_enumerate_hub(device_t *hcdev, device_t *dev,
+                             uint8_t root_port) {
+  usb_hub_dsc_t *hubdsc = kmalloc(M_DEV, sizeof(usb_hub_dsc_t), M_ZERO);
+  int error = 0;
+
+  if ((error = usb_get_hub_dsc(dev, hubdsc)))
+    goto end;
+
+  for (uint8_t port = 1; port <= hubdsc->bNbrPorts; port++) {
+    if ((error = usb_hub_port_power(dev, port)))
+      goto end;
+
+    mdelay(hubdsc->bPwrOn2PwrGood * UHD_PWRON_FACTOR);
+
+    usb_port_sts_t psts;
+    if ((error = usb_hub_port_get_status(dev, port, &psts)))
+      goto end;
+
+    if (!(psts.wPortStatus & UPS_CURRENT_CONNECT_STATUS)) {
+      klog("no device attached to external hub port %u", port);
+      continue;
+    }
+    klog("device attached to external hub port %u", port);
+
+    if ((error = usb_hub_port_reset(dev, port)))
+      goto end;
+
+    if ((error = usb_hub_port_wait_enable(dev, port)))
+      goto end;
+
+    if ((error = usb_enumerate_root_port(hcdev, root_port)))
+      goto end;
+  }
+
+end:
+  kfree(M_DEV, hubdsc);
+  return error;
+}
+
 int usb_enumerate(device_t *hcdev) {
   device_t *busdev = usb_bus_of(hcdev);
   uint8_t nports = usbhc_number_of_ports(hcdev);
@@ -774,36 +926,18 @@ int usb_enumerate(device_t *hcdev) {
   /* Identify and configure each device attached to the root hub. */
   for (uint8_t port = 0; port < nports; port++) {
     int error = 0;
-    usbhc_reset_port(hcdev, port);
 
     /* If there is no device attached, step to the next port. */
     if (!usbhc_device_present(hcdev, port)) {
-      klog("no device attached to port %u", port);
+      klog("no device attached to root hub port %u", port);
       continue;
     }
-    klog("device attached to port %u", port);
+    klog("device attached to root hub port %u", port);
 
-    /* We'll perform some requests on device's behalf so lets create
-     * its software representation. */
-    usb_speed_t speed = usbhc_device_speed(hcdev, port);
-    device_t *dev = usb_add_child(busdev, port, speed);
+    usbhc_reset_port(hcdev, port);
 
-    if ((error = usb_identify(dev))) {
-      klog("failed to identify the device at port %u", port);
-      goto bad;
-    }
-
-    if ((error = usb_configure(dev))) {
-      klog("failed to configure the device at port %u", port);
-      goto bad;
-    }
-
-    usb_print_dev(dev);
-    continue;
-
-  bad:
-    usb_remove_child(busdev, dev);
-    return error;
+    if ((error = usb_enumerate_root_port(hcdev, port)))
+      return error;
   }
 
   /* Now, each valid attached device is configured and ready to perform

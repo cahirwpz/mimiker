@@ -20,6 +20,7 @@
 #include <sys/libkern.h>
 #include <sys/klog.h>
 #include <sys/kmem.h>
+#include <sys/mimiker.h>
 #include <sys/pmap.h>
 #include <sys/pool.h>
 #include <sys/time.h>
@@ -51,17 +52,30 @@ typedef struct uhci_state {
  * - `P_DATA` - memory buffers for I/O data to transfer.
  */
 
-#define UHCI_TFR_BUF_SIZE 128
-#define UHCI_TFR_POOL_SIZE PAGESIZE
+#define UHCI_DATA_BUF_SIZE 512UL
 
-#define UHCI_DATA_BUF_SIZE (2 * UHCI_TD_MAXLEN)
-#define UHCI_DATA_POOL_SIZE (64 * PAGESIZE)
+/* Control transfer: SETUP + (device request + actual data) + STATUS. */
+#define UHCI_TFR_CTRL_MAX_TDS                                                  \
+  (2 + (UHCI_DATA_BUF_SIZE - sizeof(usb_dev_req_t)) / USB_MAX_IPACKET)
+
+/* DATA transfer: actual data. */
+#define UHCI_TFR_DATA_MAX_TDS (UHCI_DATA_BUF_SIZE / USB_MAX_IPACKET)
+
+#define UHCI_TFR_MAX_TDS max(UHCI_TFR_CTRL_MAX_TDS, UHCI_TFR_DATA_MAX_TDS)
+#define UHCI_TFR_BUF_SIZE                                                      \
+  (sizeof(uhci_qh_t) + UHCI_TFR_MAX_TDS * sizeof(uhci_td_t))
+
+#define UHCI_MAX_NREQS 15 /* maximum number of scheduled request */
+
+#define UHCI_DATA_POOL_SIZE (UHCI_MAX_NREQS * UHCI_DATA_BUF_SIZE)
+
+#define UHCI_TFR_POOL_SIZE (UHCI_MAX_NREQS * UHCI_TFR_BUF_SIZE)
 
 #define UHCI_ALIGNMENT max(UHCI_TD_ALIGN, UHCI_QH_ALIGN)
 
 static POOL_DEFINE(P_TFR, "UHCI transfer buffers", UHCI_TFR_BUF_SIZE,
                    UHCI_ALIGNMENT);
-static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
+static POOL_DEFINE(P_DATA, "UHCI data buffers", UHCI_DATA_BUF_SIZE);
 
 /*
  * How do we manage the UHCI frame list?
@@ -148,8 +162,8 @@ static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
  *         ---------------                          |             |
  *         |   transfer  |      `td_buffer`         |             |
  *         |  descriptor |------------------------> |             |
- *         |     #0      |                          |  row data   |
- *         ---------------                          |    stram    |
+ *         |     #0      |                          |  raw data   |
+ *         ---------------                          |   stream    |
  *         |             |                          |             |
  *               ...                                      ...
  *         |             |                          |             |
@@ -195,9 +209,9 @@ static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
 /*
  * Clear specified bit in a given UHCI write clear port.
  */
-#define wclr8(p, b) set8((p), b)
-#define wclr16(p, b) set16((p), b)
-#define wclr32(p, b) set32((p), b)
+#define wclr8(p, b) set8((p), (b))
+#define wclr16(p, b) set16((p), (b))
+#define wclr32(p, b) set32((p), (b))
 
 /*
  * Check if a specified bit is set in a given UHCI port.
@@ -213,7 +227,8 @@ static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
 /* Obtain the physical address corresponding to `vaddr`. */
 static uhci_physaddr_t uhci_physaddr(void *vaddr) {
   paddr_t paddr = 0;
-  pmap_kextract((vaddr_t)vaddr, &paddr);
+  bool suc = pmap_kextract((vaddr_t)vaddr, &paddr);
+  assert(suc);
   return (uhci_physaddr_t)paddr;
 }
 
@@ -288,7 +303,7 @@ static void td_reactivate(uhci_td_t *td) {
   td->td_status = UHCI_TD_SET_ERRCNT(3) | ioc | ls | UHCI_TD_ACTIVE;
 }
 
-/* Chect whether a transfer descriptor is the last one in a transfer. */
+/* Check whether a transfer descriptor is the last one in a transfer. */
 static inline bool td_last(uhci_td_t *td) {
   return td->td_next & UHCI_PTR_T;
 }
@@ -332,7 +347,7 @@ static void qh_free(uhci_qh_t *qh) {
   pool_free(P_TFR, qh);
 }
 
-/* Return `true` if the trnasfer corresponding to `qh` has been executrd. */
+/* Return `true` if the trnasfer corresponding to `qh` has been executed. */
 static bool qh_executed(uhci_qh_t *qh) {
   uhci_td_t *td = qh_first_td(qh);
   while (!td_last(td))
@@ -399,7 +414,7 @@ static void qh_remove(uhci_qh_t *mq, uhci_qh_t *qh) {
   if (prev)
     prev->qh_h_next = qh->qh_h_next;
   else
-    mq->qh_e_next = UHCI_PTR_T;
+    qh_halt(mq);
 }
 
 /* Obtain queue's error status. */
@@ -436,16 +451,15 @@ static void qh_reactivate(uhci_qh_t *qh) {
 
 /* Initialize main queues. */
 static void uhci_init_mainqs(uhci_state_t *uhci) {
+  assert(sizeof(uhci_qh_t) * (UHCI_NMAINQS - 1) <= PAGESIZE);
   uhci_qh_t *mqs = (void *)kmem_alloc_contig(NULL, PAGESIZE, PMAP_NOCACHE);
 
   /* Organize the main queues in a list. */
   for (int i = 0; i < UHCI_NMAINQS; i++) {
     qh_init_main(&mqs[i]);
-    qh_chain(&mqs[i], &mqs[i - 1]);
+    qh_chain(&mqs[i + 1], &mqs[i]);
     uhci->mainqs[i] = &mqs[i];
   }
-  /* Revise the boundary case. */
-  mqs[0].qh_h_next = UHCI_PTR_T;
 }
 
 /* Initialize the UHCI frame list. */
@@ -457,6 +471,7 @@ static void uhci_init_frames(uhci_state_t *uhci) {
   for (int i = 0; i < UHCI_FRAMELIST_COUNT; i++) {
     int maxpow2 = ffs(i + 1);
     int qn = min(maxpow2, UHCI_NMAINQS) - 1;
+    assert(qn >= 0 && qn < UHCI_NMAINQS);
     uhci->frames[i] = uhci_physaddr(uhci->mainqs[qn]) | UHCI_PTR_QH;
   }
 
@@ -466,13 +481,17 @@ static void uhci_init_frames(uhci_state_t *uhci) {
 
 /* Supply a contiguous physical memory for further buffer allocation. */
 static void uhci_init_pool(void) {
+  const size_t tfr_pool_asize = roundup2(UHCI_TFR_POOL_SIZE, PAGESIZE);
+  assert(powerof2(tfr_pool_asize));
   void *tfr_pool =
-    (void *)kmem_alloc_contig(NULL, UHCI_TFR_POOL_SIZE, PMAP_NOCACHE);
-  pool_add_page(P_TFR, tfr_pool, UHCI_TFR_POOL_SIZE);
+    (void *)kmem_alloc_contig(NULL, tfr_pool_asize, PMAP_NOCACHE);
+  pool_add_page(P_TFR, tfr_pool, tfr_pool_asize);
 
+  const size_t data_pool_asize = roundup2(UHCI_DATA_POOL_SIZE, PAGESIZE);
+  assert(powerof2(data_pool_asize));
   void *data_pool =
-    (void *)kmem_alloc_contig(NULL, UHCI_DATA_POOL_SIZE, PMAP_NOCACHE);
-  pool_add_page(P_DATA, data_pool, UHCI_DATA_POOL_SIZE);
+    (void *)kmem_alloc_contig(NULL, data_pool_asize, PMAP_NOCACHE);
+  pool_add_page(P_DATA, data_pool, data_pool_asize);
 }
 
 /*
@@ -524,12 +543,10 @@ static void uhci_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
   usb_buf_process(buf, qh->qh_data, 0);
 
   /* If this is a periodic transfer we have to reactivate it. */
-  if (usb_buf_periodic(buf)) {
-    /* Adding a transfer descriptor will unhalt the queue automatically. */
+  if (usb_buf_periodic(buf))
     qh_reactivate(qh);
-  } else {
+  else
     qh_discard(mq, qh);
-  }
 }
 
 /* UHCI Interrupt Service Routine. */
@@ -677,14 +694,14 @@ static bool uhci_check_port(uhci_state_t *uhci, uint8_t port) {
 }
 
 /* Check whether a device is attached to the specified root hub port. */
-static bool uhci_device_present(device_t *dev, uint8_t port) {
-  uhci_state_t *uhci = dev->state;
+static bool uhci_device_present(device_t *hcdev, uint8_t port) {
+  uhci_state_t *uhci = hcdev->state;
   return chk16(UHCI_PORTSC(port), UHCI_PORTSC_CCS);
 }
 
 /* Reset the specified root hub port. */
-static void uhci_reset_port(device_t *dev, uint8_t port) {
-  uhci_state_t *uhci = dev->state;
+static void uhci_reset_port(device_t *hcdev, uint8_t port) {
+  uhci_state_t *uhci = hcdev->state;
 
   set16(UHCI_PORTSC(port), UHCI_PORTSC_PR);
   mdelay(USB_PORT_ROOT_RESET_DELAY_SPEC);
@@ -692,7 +709,7 @@ static void uhci_reset_port(device_t *dev, uint8_t port) {
   mdelay(USB_PORT_RESET_RECOVERY_SPEC);
 
   /* Only enable the port if some device is attached. */
-  if (!uhci_device_present(dev, port))
+  if (!uhci_device_present(hcdev, port))
     return;
 
   /* Clear status chenge indicators. */
@@ -709,25 +726,25 @@ static uint8_t uhci_detect_ports(uhci_state_t *uhci) {
 
   for (; uhci_is_port(uhci, port); port++) {
     if (!uhci_check_port(uhci, port))
-      return 0;
+      break;
   }
 
   uhci->nports = port;
-  klog("detected %hhu ports", uhci->nports);
+  klog("detected %u ports", uhci->nports);
 
   return port;
 }
 
 /* Return the number of available root hub ports. */
-static uint8_t uhci_number_of_ports(device_t *dev) {
-  uhci_state_t *uhci = dev->state;
+static uint8_t uhci_number_of_ports(device_t *hcdev) {
+  uhci_state_t *uhci = hcdev->state;
   return uhci->nports;
 }
 
 /* Check whether the device attached to the specified port
  * is a low speed device. */
-static usb_speed_t uhci_device_speed(device_t *dev, uint8_t port) {
-  uhci_state_t *uhci = dev->state;
+static usb_speed_t uhci_device_speed(device_t *hcdev, uint8_t port) {
+  uhci_state_t *uhci = hcdev->state;
   if (chk16(UHCI_PORTSC(port), UHCI_PORTSC_LSDA))
     return USB_SPD_LOW;
   return USB_SPD_FULL;
@@ -737,8 +754,8 @@ static usb_speed_t uhci_device_speed(device_t *dev, uint8_t port) {
  * Driver interface functions.
  */
 
-static int check_usb_release(device_t *dev) {
-  uint8_t rev = pci_read_config_1(dev, PCI_USBREV);
+static int check_usb_release(device_t *hcdev) {
+  uint8_t rev = pci_read_config_1(hcdev, PCI_USBREV);
   const char *str = NULL;
 
   if (rev == PCI_USB_REV_PRE_1_0)
@@ -754,8 +771,8 @@ static int check_usb_release(device_t *dev) {
   return 0;
 }
 
-static int uhci_probe(device_t *dev) {
-  pci_device_t *pcid = pci_device_of(dev);
+static int uhci_probe(device_t *hcdev) {
+  pci_device_t *pcid = pci_device_of(hcdev);
 
   if (!pcid)
     return 0;
@@ -769,21 +786,21 @@ static int uhci_probe(device_t *dev) {
   if (pcid->progif != PCI_INTERFACE_UHCI)
     return 0;
 
-  if (check_usb_release(dev))
+  if (check_usb_release(hcdev))
     return 0;
 
   return 1;
 }
 
-static int uhci_attach(device_t *dev) {
-  uhci_state_t *uhci = dev->state;
+static int uhci_attach(device_t *hcdev) {
+  uhci_state_t *uhci = hcdev->state;
   int err = 0;
 
   /* Gather I/O ports resources. */
-  uhci->regs = device_take_ioports(dev, 4);
+  uhci->regs = device_take_ioports(hcdev, 4);
   assert(uhci->regs);
 
-  if ((err = bus_map_resource(dev, uhci->regs)))
+  if ((err = bus_map_resource(hcdev, uhci->regs)))
     return err;
 
   /* Perform the global reset of the UHCI controller. */
@@ -820,12 +837,12 @@ static int uhci_attach(device_t *dev) {
   out16(UHCI_FRNUM, 0x0000);
 
   /* Enable bus master mode. */
-  pci_enable_busmaster(dev);
+  pci_enable_busmaster(hcdev);
 
   /* Setup host controller's interrupt. */
-  uhci->irq = device_take_irq(dev, 0);
+  uhci->irq = device_take_irq(hcdev, 0);
   assert(uhci->irq);
-  pic_setup_intr(dev, uhci->irq, uhci_isr, NULL, uhci, "UHCI");
+  pic_setup_intr(hcdev, uhci->irq, uhci_isr, NULL, uhci, "UHCI");
 
   /* Turn on the IOC and error interrupts. */
   set16(UHCI_INTR, UHCI_INTR_TOCRCIE | UHCI_INTR_IOCE);
@@ -834,12 +851,12 @@ static int uhci_attach(device_t *dev) {
   out16(UHCI_CMD, UHCI_CMD_RS);
 
   /* Initialize the underlying USB bus. */
-  usb_init(dev);
+  usb_init(hcdev);
 
   /* Detect and configure attached devices. */
-  int error = usb_enumerate(dev);
+  int error = usb_enumerate(hcdev);
   if (error)
-    pic_teardown_intr(dev, uhci->irq);
+    pic_teardown_intr(hcdev, uhci->irq);
   return error;
 }
 
