@@ -37,7 +37,6 @@ typedef struct hidkbd_state {
   thread_t *thread;                    /* scancode gathering thread */
   evdev_dev_t *evdev;                  /* corresponding evdev device */
   uint8_t leds;                        /* current LEDs state */
-  uint8_t next_leds;                   /* subsequent LEDs state */
 } hidkbd_state_t;
 
 /*
@@ -75,37 +74,51 @@ static void hidkbd_init_evdev(device_t *dev) {
  */
 
 static void hidkbd_push_evdev_event(hidkbd_state_t *hidkbd, uint8_t keycode,
-                                    uint32_t value) {
+                                    evdev_key_events_t event) {
   if (keycode == KEY_RESERVED)
     return;
-  evdev_push_key(hidkbd->evdev, keycode, value);
+  evdev_push_key(hidkbd->evdev, keycode, event);
   evdev_sync(hidkbd->evdev);
 }
 
-static void hidkbd_push_modkey_evdev_event(hidkbd_state_t *hidkbd,
-                                           uint8_t modkey, uint32_t value) {
+static void hidkbd_process_modkey_event(hidkbd_state_t *hidkbd, uint8_t modkey,
+                                        evdev_key_events_t event) {
   uint16_t evdev_keycode = evdev_mod2key(modkey);
-  hidkbd_push_evdev_event(hidkbd, evdev_keycode, value);
+  hidkbd_push_evdev_event(hidkbd, evdev_keycode, event);
 }
 
-static void hidkbd_push_key_evdev_event(hidkbd_state_t *hidkbd,
-                                        uint8_t hidkbd_keycode,
-                                        uint32_t value) {
+static bool hidkbd_process_key_event(hidkbd_state_t *hidkbd,
+                                     uint8_t hidkbd_keycode,
+                                     evdev_key_events_t event) {
   uint16_t evdev_keycode = evdev_hid2key(hidkbd_keycode);
+  bool set_leds = false;
+  uint8_t led = 0;
 
   switch (evdev_keycode) {
     case KEY_NUMLOCK:
-      hidkbd->next_leds ^= UHID_KBDLED_NUMLOCK;
+      led = UHID_KBDLED_NUMLOCK;
       break;
     case KEY_CAPSLOCK:
-      hidkbd->next_leds ^= UHID_KBDLED_CAPSLOCK;
+      led = UHID_KBDLED_CAPSLOCK;
       break;
     case KEY_SCROLLLOCK:
-      hidkbd->next_leds ^= UHID_KBDLED_SCROLLLOCK;
+      led = UHID_KBDLED_SCROLLLOCK;
       break;
   }
+  if (!led)
+    goto end;
 
-  hidkbd_push_evdev_event(hidkbd, evdev_keycode, value);
+  if (event == KEY_EVENT_DOWN && !(hidkbd->leds & led)) {
+    hidkbd->leds |= led;
+    set_leds = true;
+  } else if (event == KEY_EVENT_UP && (hidkbd->leds & led)) {
+    hidkbd->leds &= ~led;
+    set_leds = true;
+  }
+
+end:
+  hidkbd_push_evdev_event(hidkbd, evdev_keycode, event);
+  return set_leds;
 }
 
 static void hidkbd_process_modkeys(hidkbd_state_t *hidkbd, uint8_t modkeys) {
@@ -115,16 +128,17 @@ static void hidkbd_process_modkeys(hidkbd_state_t *hidkbd, uint8_t modkeys) {
     uint8_t prev = prev_modkeys & (1 << i);
     uint8_t cur = modkeys & (1 << i);
 
-    if ((prev == cur) && !cur)
+    if (prev == cur && !cur)
       continue;
 
-    hidkbd_push_modkey_evdev_event(hidkbd, i, cur);
+    hidkbd_process_modkey_event(hidkbd, i, cur ? KEY_EVENT_DOWN : KEY_EVENT_UP);
   }
 }
 
-static void hidkbd_process_keycodes(hidkbd_state_t *hidkbd,
+static bool hidkbd_process_keycodes(hidkbd_state_t *hidkbd,
                                     uint8_t keycodes[HIDKBD_NKEYCODES]) {
   uint8_t *prev_keycodes = hidkbd->prev_report.keycodes;
+  bool set_leds = false;
 
   /* First, report released keys. */
   for (size_t i = 0; i < HIDKBD_NKEYCODES; i++) {
@@ -139,7 +153,7 @@ static void hidkbd_process_keycodes(hidkbd_state_t *hidkbd,
         pressed = true;
 
     if (!pressed)
-      hidkbd_push_key_evdev_event(hidkbd, keycode, KEY_EVENT_UP);
+      set_leds = hidkbd_process_key_event(hidkbd, keycode, KEY_EVENT_UP);
   }
 
   /* Report pressed keys. */
@@ -148,22 +162,20 @@ static void hidkbd_process_keycodes(hidkbd_state_t *hidkbd,
     if (!keycode)
       break;
 
-    hidkbd_push_key_evdev_event(hidkbd, keycode, KEY_EVENT_DOWN);
+    set_leds = hidkbd_process_key_event(hidkbd, keycode, KEY_EVENT_DOWN);
   }
+
+  return set_leds;
 }
 
 static int hidkbd_process_in_report(device_t *dev,
                                     hidkbd_boot_in_report_t *report) {
   hidkbd_state_t *hidkbd = dev->state;
-  hidkbd->next_leds = hidkbd->leds;
 
   hidkbd_process_modkeys(hidkbd, report->modkeys);
-  hidkbd_process_keycodes(hidkbd, report->keycodes);
-
-  if (hidkbd->next_leds == hidkbd->leds)
+  if (!hidkbd_process_keycodes(hidkbd, report->keycodes))
     return 0;
 
-  hidkbd->leds = hidkbd->next_leds;
   return usb_hid_set_leds(dev, hidkbd->leds);
 }
 
