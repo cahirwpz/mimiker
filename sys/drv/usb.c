@@ -535,6 +535,20 @@ int usb_hid_set_boot_protocol(device_t *dev) {
   return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
+int usb_hid_set_leds(device_t *dev, uint8_t leds) {
+  usb_device_t *udev = usb_device_of(dev);
+  usb_dev_req_t req = (usb_dev_req_t){
+    .bmRequestType = UT_WRITE_CLASS_INTERFACE,
+    .bRequest = UR_SET_REPORT,
+    .wValue = UV_MAKE(UHID_OUTPUT_REPORT, 0),
+    .wIndex = udev->ifnum,
+    .wLength = sizeof(uint8_t),
+  };
+  /* We consider bits 7:3 to be reserved. */
+  leds &= __BITS(0, 2);
+  return usb_send_req(dev, &leds, USB_DIR_OUTPUT, &req, NULL);
+}
+
 /*
  * USB Bulk-Only standard requests.
  */
