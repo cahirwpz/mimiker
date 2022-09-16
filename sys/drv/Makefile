@@ -10,6 +10,7 @@ SOURCES = \
 	hidms.c \
 	simplebus.c \
 	uart.c \
+	umass.c \
 	usb.c
 
 SOURCES-MIPS = \
