@@ -245,10 +245,6 @@ static int hidkbd_attach(device_t *dev) {
   if (usb_hid_set_boot_protocol(dev))
     return ENXIO;
 
-  /* Let's turn off the LEDs. */
-  if (usb_hid_set_leds(dev, 0))
-    return ENXIO;
-
   hidkbd->thread = thread_create("hidkbd", hidkbd_thread, dev,
                                  prio_ithread(PRIO_ITHRD_QTY - 1));
 
