@@ -37,6 +37,7 @@ typedef struct hidkbd_state {
   thread_t *thread;                    /* scancode gathering thread */
   evdev_dev_t *evdev;                  /* corresponding evdev device */
   uint8_t leds;                        /* current LEDs state */
+  bool set_leds;                       /* should we (re)set LEDs? */
 } hidkbd_state_t;
 
 /*
@@ -87,11 +88,10 @@ static void hidkbd_process_modkey_event(hidkbd_state_t *hidkbd, uint8_t modkey,
   hidkbd_push_evdev_event(hidkbd, evdev_keycode, event);
 }
 
-static bool hidkbd_process_key_event(hidkbd_state_t *hidkbd,
+static void hidkbd_process_key_event(hidkbd_state_t *hidkbd,
                                      uint8_t hidkbd_keycode,
                                      evdev_key_events_t event) {
   uint16_t evdev_keycode = evdev_hid2key(hidkbd_keycode);
-  bool set_leds = false;
   uint8_t led = 0;
 
   switch (evdev_keycode) {
@@ -110,15 +110,14 @@ static bool hidkbd_process_key_event(hidkbd_state_t *hidkbd,
 
   if (event == KEY_EVENT_DOWN && !(hidkbd->leds & led)) {
     hidkbd->leds |= led;
-    set_leds = true;
+    hidkbd->set_leds = true;
   } else if (event == KEY_EVENT_UP && (hidkbd->leds & led)) {
     hidkbd->leds &= ~led;
-    set_leds = true;
+    hidkbd->set_leds = true;
   }
 
 end:
   hidkbd_push_evdev_event(hidkbd, evdev_keycode, event);
-  return set_leds;
 }
 
 static void hidkbd_process_modkeys(hidkbd_state_t *hidkbd, uint8_t modkeys) {
@@ -135,10 +134,9 @@ static void hidkbd_process_modkeys(hidkbd_state_t *hidkbd, uint8_t modkeys) {
   }
 }
 
-static bool hidkbd_process_keycodes(hidkbd_state_t *hidkbd,
+static void hidkbd_process_keycodes(hidkbd_state_t *hidkbd,
                                     uint8_t keycodes[HIDKBD_NKEYCODES]) {
   uint8_t *prev_keycodes = hidkbd->prev_report.keycodes;
-  bool set_leds = false;
 
   /* First, report released keys. */
   for (size_t i = 0; i < HIDKBD_NKEYCODES; i++) {
@@ -153,7 +151,7 @@ static bool hidkbd_process_keycodes(hidkbd_state_t *hidkbd,
         pressed = true;
 
     if (!pressed)
-      set_leds = hidkbd_process_key_event(hidkbd, keycode, KEY_EVENT_UP);
+      hidkbd_process_key_event(hidkbd, keycode, KEY_EVENT_UP);
   }
 
   /* Report pressed keys. */
@@ -162,18 +160,20 @@ static bool hidkbd_process_keycodes(hidkbd_state_t *hidkbd,
     if (!keycode)
       break;
 
-    set_leds = hidkbd_process_key_event(hidkbd, keycode, KEY_EVENT_DOWN);
+    hidkbd_process_key_event(hidkbd, keycode, KEY_EVENT_DOWN);
   }
-
-  return set_leds;
 }
 
 static int hidkbd_process_in_report(device_t *dev,
                                     hidkbd_boot_in_report_t *report) {
   hidkbd_state_t *hidkbd = dev->state;
 
+  hidkbd->set_leds = false;
+
   hidkbd_process_modkeys(hidkbd, report->modkeys);
-  if (!hidkbd_process_keycodes(hidkbd, report->keycodes))
+  hidkbd_process_keycodes(hidkbd, report->keycodes);
+
+  if (!hidkbd->set_leds)
     return 0;
 
   return usb_hid_set_leds(dev, hidkbd->leds);
