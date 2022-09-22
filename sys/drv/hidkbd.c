@@ -6,32 +6,38 @@
  * - Device Class Definition for Human Interface Devices (HID) Version 1.11,
  *   5/27/01:
  *     https://www.usb.org/sites/default/files/hid1_11.pdf
+ *
+ * NOTE: for simplicity, we rely on the boot protocol.
  */
 #define KL_LOG KL_DEV
 #include <sys/devclass.h>
 #include <sys/device.h>
 #include <sys/errno.h>
-#include <dev/evdev.h>
+#include <sys/input-event-codes.h>
 #include <sys/klog.h>
 #include <sys/libkern.h>
 #include <sys/sched.h>
+#include <dev/evdev.h>
 #include <dev/usb.h>
+#include <dev/usbhid.h>
 
 #define HIDKBD_NMODKEYS 8
 #define HIDKBD_NKEYCODES 6
 
-/* HID keyboard input report. */
-typedef struct hidkbd_in_report {
+/* HID keyboard boot input report. */
+typedef struct hidkbd_boot_in_report {
   uint8_t modkeys;
   uint8_t reserved;
   uint8_t keycodes[HIDKBD_NKEYCODES];
-} __packed hidkbd_in_report_t;
+} __packed hidkbd_boot_in_report_t;
 
 /* HID keyboard software context. */
 typedef struct hidkbd_state {
-  hidkbd_in_report_t prev_report; /* the most recent report */
-  thread_t *thread;               /* scancode gathering thread */
-  evdev_dev_t *evdev;             /* corresponding evdev device */
+  hidkbd_boot_in_report_t prev_report; /* the most recent report */
+  thread_t *thread;                    /* scancode gathering thread */
+  evdev_dev_t *evdev;                  /* corresponding evdev device */
+  uint8_t leds;                        /* current LEDs state */
+  bool set_leds;                       /* should we (re)set LEDs? */
 } hidkbd_state_t;
 
 /*
@@ -68,13 +74,50 @@ static void hidkbd_init_evdev(device_t *dev) {
  * Report processing functions.
  */
 
-static void hidkbd_push_evdev_event(hidkbd_state_t *hidkbd,
-                                    uint8_t hidkbd_keycode, uint32_t value) {
-  uint16_t evdev_keycode = evdev_hid2key(hidkbd_keycode);
-  if (evdev_keycode == KEY_RESERVED)
+static void hidkbd_push_evdev_event(hidkbd_state_t *hidkbd, uint8_t keycode,
+                                    evdev_key_events_t event) {
+  if (keycode == KEY_RESERVED)
     return;
-  evdev_push_key(hidkbd->evdev, evdev_keycode, value);
+  evdev_push_key(hidkbd->evdev, keycode, event);
   evdev_sync(hidkbd->evdev);
+}
+
+static void hidkbd_process_modkey_event(hidkbd_state_t *hidkbd, uint8_t modkey,
+                                        evdev_key_events_t event) {
+  uint16_t evdev_keycode = evdev_mod2key(modkey);
+  hidkbd_push_evdev_event(hidkbd, evdev_keycode, event);
+}
+
+static void hidkbd_process_key_event(hidkbd_state_t *hidkbd,
+                                     uint8_t hidkbd_keycode,
+                                     evdev_key_events_t event) {
+  uint16_t evdev_keycode = evdev_hid2key(hidkbd_keycode);
+  uint8_t led = 0;
+
+  switch (evdev_keycode) {
+    case KEY_NUMLOCK:
+      led = UHID_KBDLED_NUMLOCK;
+      break;
+    case KEY_CAPSLOCK:
+      led = UHID_KBDLED_CAPSLOCK;
+      break;
+    case KEY_SCROLLLOCK:
+      led = UHID_KBDLED_SCROLLLOCK;
+      break;
+  }
+  if (!led)
+    goto end;
+
+  if (event == KEY_EVENT_DOWN && !(hidkbd->leds & led)) {
+    hidkbd->leds |= led;
+    hidkbd->set_leds = true;
+  } else if (event == KEY_EVENT_UP && (hidkbd->leds & led)) {
+    hidkbd->leds &= ~led;
+    hidkbd->set_leds = true;
+  }
+
+end:
+  hidkbd_push_evdev_event(hidkbd, evdev_keycode, event);
 }
 
 static void hidkbd_process_modkeys(hidkbd_state_t *hidkbd, uint8_t modkeys) {
@@ -84,10 +127,10 @@ static void hidkbd_process_modkeys(hidkbd_state_t *hidkbd, uint8_t modkeys) {
     uint8_t prev = prev_modkeys & (1 << i);
     uint8_t cur = modkeys & (1 << i);
 
-    if (prev == cur)
+    if (prev == cur && !cur)
       continue;
 
-    hidkbd_push_evdev_event(hidkbd, i, cur);
+    hidkbd_process_modkey_event(hidkbd, i, cur ? KEY_EVENT_DOWN : KEY_EVENT_UP);
   }
 }
 
@@ -108,7 +151,7 @@ static void hidkbd_process_keycodes(hidkbd_state_t *hidkbd,
         pressed = true;
 
     if (!pressed)
-      hidkbd_push_evdev_event(hidkbd, keycode, KEY_EVENT_UP);
+      hidkbd_process_key_event(hidkbd, keycode, KEY_EVENT_UP);
   }
 
   /* Report pressed keys. */
@@ -117,14 +160,23 @@ static void hidkbd_process_keycodes(hidkbd_state_t *hidkbd,
     if (!keycode)
       break;
 
-    hidkbd_push_evdev_event(hidkbd, keycode, KEY_EVENT_DOWN);
+    hidkbd_process_key_event(hidkbd, keycode, KEY_EVENT_DOWN);
   }
 }
 
-static void hidkbd_process_in_report(hidkbd_state_t *hidkbd,
-                                     hidkbd_in_report_t *report) {
+static int hidkbd_process_in_report(device_t *dev,
+                                    hidkbd_boot_in_report_t *report) {
+  hidkbd_state_t *hidkbd = dev->state;
+
+  hidkbd->set_leds = false;
+
   hidkbd_process_modkeys(hidkbd, report->modkeys);
   hidkbd_process_keycodes(hidkbd, report->keycodes);
+
+  if (!hidkbd->set_leds)
+    return 0;
+
+  return usb_hid_set_leds(dev, hidkbd->leds);
 }
 
 /* A thread which gathers USB HID scancodes, converts them to evdev-compatible
@@ -132,29 +184,35 @@ static void hidkbd_process_in_report(hidkbd_state_t *hidkbd,
 static void hidkbd_thread(void *arg) {
   device_t *dev = arg;
   hidkbd_state_t *hidkbd = dev->state;
-  hidkbd_in_report_t report;
+  hidkbd_boot_in_report_t report;
 
   /* Obtain a USB buf. */
   usb_buf_t *buf = usb_buf_alloc();
 
   /* Register an interrupt input transfer. */
-  usb_data_transfer(dev, buf, &report, sizeof(hidkbd_in_report_t),
+  usb_data_transfer(dev, buf, &report, sizeof(hidkbd_boot_in_report_t),
                     USB_TFR_INTERRUPT, USB_DIR_INPUT);
 
   for (;;) {
-    /* Wait for the data to arrvie. */
+    /* Wait for the data to arrive. */
     int error = usb_buf_wait(buf);
-    if (!error) {
-      hidkbd_process_in_report(hidkbd, &report);
-      memcpy(&hidkbd->prev_report, &report, sizeof(hidkbd_in_report_t));
-      continue;
+    if (error)
+      goto bad;
+
+    if ((error = hidkbd_process_in_report(dev, &report)))
+      goto bad;
+
+    memcpy(&hidkbd->prev_report, &report, sizeof(hidkbd_boot_in_report_t));
+    continue;
+
+  bad:
+    /* Recover and reenable the transfer. */
+    if ((error = usb_unhalt_endpt(dev, USB_TFR_INTERRUPT, USB_DIR_INPUT))) {
+      /* TODO: we should have a way to unregister an evdev device. */
+      panic("Unable to unhalt an endpoint");
     }
 
-    /* Recover and reenable the transfer. */
-    if ((error = usb_unhalt_endpt(dev, USB_TFR_INTERRUPT, USB_DIR_INPUT)))
-      panic("Unable to unhalt an endpoint");
-
-    usb_data_transfer(dev, buf, &report, sizeof(hidkbd_in_report_t),
+    usb_data_transfer(dev, buf, &report, sizeof(hidkbd_boot_in_report_t),
                       USB_TFR_INTERRUPT, USB_DIR_INPUT);
   }
 }

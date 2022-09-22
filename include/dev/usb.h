@@ -447,6 +447,28 @@ int usb_hid_set_idle(device_t *dev);
 int usb_hid_set_boot_protocol(device_t *dev);
 
 /*
+ * Turns on/off keyboards LEDs.
+ *
+ * Layout of the `leds` argument:
+ *
+ *  Bit  Description
+ *   0    Num Lock
+ *   1    Caps Lock
+ *   2   Scroll Lock
+ *  7:3   Reserved
+ *
+ *  Please see `UHID_KBDLED_*` macros at `include/dev/usbhid.h`.
+ *
+ * Arguments:
+ *  - `dev`: USB device
+ *  - `leds`: LEDs state
+ *
+ * Error codes:
+ *  - EIO: an error has been encountered during the transfer
+ */
+int usb_hid_set_leds(device_t *dev, uint8_t leds);
+
+/*
  * USB Bulk-Only specific standard requests.
  *
  * The following functions implements standard USB requests specific to
