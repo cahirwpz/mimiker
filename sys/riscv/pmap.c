@@ -146,15 +146,19 @@ void pmap_md_growkernel(vaddr_t maxkvaddr) {
   pmap_t *kmap = pmap_kernel();
   pmap_t *umap = pmap_user();
 
+  if (umap)
+    mtx_lock(&umap->mtx);
+
   WITH_MTX_LOCK (&kmap->mtx) {
     kmap->md.generation++;
     assert(kmap->md.generation);
-    if (umap) {
-      WITH_MTX_LOCK (&umap->mtx)
-        update_kernel_pd(umap);
-      __sfence_vma();
-    }
+    if (!umap)
+      return;
+    update_kernel_pd(umap);
+    __sfence_vma();
   }
+
+  mtx_unlock(&umap->mtx);
 }
 
 /*
