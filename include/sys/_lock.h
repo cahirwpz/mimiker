@@ -26,12 +26,6 @@ typedef enum {
    * When a thread tries to acquire a sleeping lock that is owned by another
    * thread, it will go to sleep on a sleepqueue. */
   LK_TYPE_SLEEP = 3,
-  /*!\var LK_RECURSIVE
-   * \brief Flag indicating a recursive lock.
-   *
-   * The lock may be acquired by the owner multiple times, and must
-   * be released exactly as many times. */
-  LK_RECURSIVE = 4
 } lk_attr_t;
 
 typedef struct spin spin_t;
@@ -62,11 +56,6 @@ static inline bool lk_block_p(lock_t l) {
 
 static inline bool lk_sleep_p(lock_t l) {
   return lk_type(l) == LK_TYPE_SLEEP;
-}
-
-/* !\brief Predicates checking flags of a lock */
-static inline bool lk_recursive_p(lock_t l) {
-  return lk_attr(l) & LK_RECURSIVE;
 }
 
 #endif /* !_SYS__LOCK_H_ */

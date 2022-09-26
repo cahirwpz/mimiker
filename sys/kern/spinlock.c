@@ -20,12 +20,8 @@ void spin_init(spin_t *s, lk_attr_t la) {
 __no_profile void _spin_lock(spin_t *s, const void *waitpt) {
   intr_disable();
 
-  if (spin_owned(s)) {
-    if (!lk_recursive_p(s))
-      panic("Spin lock %p is not recursive!", s);
-    s->s_count++;
-    return;
-  }
+  if (spin_owned(s))
+    panic("Attempt was made to re-acquire spin lock %p!", s);
 
   assert(s->s_owner == NULL);
   s->s_owner = thread_self();
@@ -35,13 +31,8 @@ __no_profile void _spin_lock(spin_t *s, const void *waitpt) {
 __no_profile void spin_unlock(spin_t *s) {
   assert(spin_owned(s));
 
-  if (s->s_count > 0) {
-    assert(lk_recursive_p(s));
-    s->s_count--;
-  } else {
-    s->s_owner = NULL;
-    s->s_lockpt = NULL;
-  }
+  s->s_owner = NULL;
+  s->s_lockpt = NULL;
 
   intr_enable();
 }
