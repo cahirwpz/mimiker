@@ -29,7 +29,7 @@ typedef struct lock_class_edge {
   lock_class_t *to;
 } lock_class_edge_t;
 
-static MTX_DEFINE(main_lock, MTX_SPIN|MTX_NODEBUG);
+static MTX_DEFINE(main_lock, MTX_SPIN | MTX_NODEBUG);
 
 #define CLASSHASH_SIZE 64
 /* We have to divide the key by the alignment of lock_class_key_t to prevent the

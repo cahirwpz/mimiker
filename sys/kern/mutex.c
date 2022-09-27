@@ -11,7 +11,7 @@ bool mtx_owned(mtx_t *m) {
 
 void _mtx_init(mtx_t *m, intptr_t flags, const char *name,
                lock_class_key_t *key) {
-  assert((flags & ~(MTX_SPIN|MTX_NODEBUG)) == 0);
+  assert((flags & ~(MTX_SPIN | MTX_NODEBUG)) == 0);
   m->m_owner = flags;
 
 #if LOCKDEP
@@ -21,7 +21,7 @@ void _mtx_init(mtx_t *m, intptr_t flags, const char *name,
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {
-  intptr_t flags = m->m_owner & (MTX_SPIN|MTX_NODEBUG);
+  intptr_t flags = m->m_owner & (MTX_SPIN | MTX_NODEBUG);
 
   if (flags & MTX_SPIN) {
     intr_disable();
@@ -72,7 +72,7 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
 }
 
 void mtx_unlock(mtx_t *m) {
-  intptr_t flags = m->m_owner & (MTX_SPIN|MTX_NODEBUG);
+  intptr_t flags = m->m_owner & (MTX_SPIN | MTX_NODEBUG);
 
   assert(mtx_owned(m));
 
