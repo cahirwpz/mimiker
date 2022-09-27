@@ -195,7 +195,7 @@ void __noreturn board_init(void) {
   init_kasan();
   init_klog();
   init_sbi();
-  physmem_regions();
   intr_enable();
+  physmem_regions();
   kernel_init();
 }
