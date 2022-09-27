@@ -31,7 +31,7 @@ static pmap_t kernel_pmap;
 
 /* Bitmap of used ASIDs. */
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
-static SPIN_DEFINE(asid_lock, 0);
+static MTX_DEFINE(asid_lock, MTX_SPIN);
 
 /*
  * This lock is used to protect the `vm_page::pv_list` field.
@@ -102,7 +102,7 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
 
 static asid_t alloc_asid(void) {
   int free = 0;
-  WITH_SPIN_LOCK (&asid_lock) {
+  WITH_MTX_LOCK (&asid_lock) {
     bit_ffc(asid_used, MAX_ASID, &free);
     if (free < 0)
       panic("Out of asids!");
@@ -114,7 +114,7 @@ static asid_t alloc_asid(void) {
 
 static void free_asid(asid_t asid) {
   klog("free_asid(%d)", asid);
-  SCOPED_SPIN_LOCK(&asid_lock);
+  SCOPED_MTX_LOCK(&asid_lock);
   bit_clear(asid_used, (unsigned)asid);
   tlb_invalidate_asid(asid);
 }

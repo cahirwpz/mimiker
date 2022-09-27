@@ -5,8 +5,8 @@
 #define _DEV_USB_H_
 
 #include <sys/condvar.h>
-#include <sys/spinlock.h>
 #include <sys/device.h>
+#include <sys/mutex.h>
 
 /*
  * Constructs defined by the USB specification.
@@ -283,7 +283,7 @@ typedef struct usb_device {
 /* USB buffer used for USB transfers. */
 typedef struct usb_buf {
   condvar_t cv;           /* wait for the transfer to complete */
-  spin_t lock;            /* buffer guard */
+  mtx_t lock;             /* buffer guard */
   usb_endpt_t *endpt;     /* device's endpoint we're talking with */
   void *data;             /* data buffer */
   void *priv;             /* buffer's private data (do not alter!) */

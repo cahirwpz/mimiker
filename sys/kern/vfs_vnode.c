@@ -9,7 +9,7 @@
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/condvar.h>
 #include <sys/cred.h>
 
@@ -38,13 +38,13 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
  * that allows sleeping. */
 
 static void vnlock_init(vnlock_t *vl) {
-  spin_init(&vl->vl_interlock, 0);
+  mtx_init(&vl->vl_interlock, MTX_SPIN);
   cv_init(&vl->vl_cv, "vnode sleep cv");
 }
 
 void vnode_lock(vnode_t *v) {
   vnlock_t *vl = &v->v_lock;
-  WITH_SPIN_LOCK (&vl->vl_interlock) {
+  WITH_MTX_LOCK (&vl->vl_interlock) {
     while (vl->vl_locked)
       cv_wait(&vl->vl_cv, &vl->vl_interlock);
     vl->vl_locked = true;
@@ -53,7 +53,7 @@ void vnode_lock(vnode_t *v) {
 
 void vnode_unlock(vnode_t *v) {
   vnlock_t *vl = &v->v_lock;
-  WITH_SPIN_LOCK (&vl->vl_interlock) {
+  WITH_MTX_LOCK (&vl->vl_interlock) {
     vl->vl_locked = false;
     cv_signal(&vl->vl_cv);
   }
