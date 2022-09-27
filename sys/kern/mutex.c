@@ -23,12 +23,8 @@ void _mtx_init(mtx_t *m, lk_attr_t attr, const char *name,
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {
-  if (mtx_owned(m)) {
-    if (!lk_recursive_p(m))
-      panic("Sleeping mutex %p is not recursive!", m);
-    m->m_count++;
-    return;
-  }
+  if (mtx_owned(m))
+    panic("Attempt was made to re-acquire sleep mutex %p!", m);
 
 #if LOCKDEP
   lockdep_acquire(&m->m_lockmap);
@@ -65,12 +61,6 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
 
 void mtx_unlock(mtx_t *m) {
   assert(mtx_owned(m));
-
-  if (m->m_count > 0) {
-    assert(lk_recursive_p(m));
-    m->m_count--;
-    return;
-  }
 
 #if LOCKDEP
   lockdep_release(&m->m_lockmap);

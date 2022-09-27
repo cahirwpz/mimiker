@@ -64,7 +64,7 @@ intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
                                 ie_action_t *enable, const char *name) {
   intr_event_t *ie = kmalloc(M_INTR, sizeof(intr_event_t), M_WAITOK | M_ZERO);
   ie->ie_irq = irq;
-  spin_init(&ie->ie_lock, LK_RECURSIVE);
+  spin_init(&ie->ie_lock, 0);
   ie->ie_enable = enable;
   ie->ie_disable = disable;
   ie->ie_source = source;
