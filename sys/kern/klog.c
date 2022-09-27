@@ -33,7 +33,7 @@ static klog_t klog = (klog_t){
   .prev = -1,
 };
 
-static SPIN_DEFINE(klog_lock, 0);
+static MTX_DEFINE(klog_lock, MTX_SPIN);
 
 static const char *subsystems[] = {
   [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout", [KL_INIT] = "init",
@@ -85,7 +85,7 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
 
   tid_t tid = thread_self()->td_tid;
 
-  WITH_SPIN_LOCK (&klog_lock) {
+  WITH_MTX_LOCK (&klog_lock) {
     bintime_t now = binuptime();
 
     /* Do not store repeating log messages, just count them. */
@@ -142,7 +142,7 @@ void klog_dump(void) {
   klog_entry_t entry;
 
   while (klog.first != klog.last) {
-    WITH_SPIN_LOCK (&klog_lock) {
+    WITH_MTX_LOCK (&klog_lock) {
       entry = klog.array[klog.first];
       klog.first = next(klog.first);
     }

@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 #include <sys/mimiker.h>
-#include <sys/_lock.h>
 #include <sys/lockdep.h>
 
 typedef struct thread thread_t;
@@ -18,9 +17,7 @@ typedef struct thread thread_t;
  * \note Mutex must be released by its owner!
  */
 typedef struct mtx {
-  lk_attr_t m_attr;          /*!< lock attributes */
-  volatile unsigned m_count; /*!< counter for recursive mutexes */
-  atomic_intptr_t m_owner;   /*!< stores address of the owner */
+  atomic_intptr_t m_owner; /*!< stores address of the owner */
 
 #if LOCKDEP
   lock_class_mapping_t m_lockmap;
@@ -28,35 +25,35 @@ typedef struct mtx {
 } mtx_t;
 
 /* Flags stored in lower 3 bits of m_owner. */
-#define MTX_CONTESTED 1
+#define MTX_SPIN 1
+#define MTX_CONTESTED 2
 #define MTX_FLAGMASK 7
 
 #if LOCKDEP
-#define MTX_INITIALIZER(mutexname, recursive)                                  \
+#define MTX_INITIALIZER(mutexname, type)                                       \
   (mtx_t) {                                                                    \
-    .m_attr = (recursive) | LK_TYPE_BLOCK,                                     \
-    .m_lockmap = LOCKDEP_MAPPING_INITIALIZER(mutexname)                        \
+    .m_owner = (type), .m_lockmap = LOCKDEP_MAPPING_INITIALIZER(mutexname)     \
   }
 #else
-#define MTX_INITIALIZER(mutexname, recursive)                                  \
+#define MTX_INITIALIZER(mutexname, type)                                       \
   (mtx_t) {                                                                    \
-    .m_attr = (recursive) | LK_TYPE_BLOCK                                      \
+    .m_owner = (type)                                                          \
   }
 #endif
 
-#define MTX_DEFINE(mutexname, recursive)                                       \
-  mtx_t mutexname = MTX_INITIALIZER(mutexname, recursive)
+#define MTX_DEFINE(mutexname, type)                                            \
+  mtx_t mutexname = MTX_INITIALIZER(mutexname, type)
 
 /*! \brief Initializes mutex.
  *
  * \note Every mutex has to be initialized before it is used. */
-void _mtx_init(mtx_t *m, lk_attr_t attr, const char *name,
+void _mtx_init(mtx_t *m, intptr_t flags, const char *name,
                lock_class_key_t *key);
 
-#define mtx_init(lock, attr)                                                   \
+#define mtx_init(lock, flags)                                                  \
   {                                                                            \
     static lock_class_key_t __key;                                             \
-    _mtx_init(lock, attr, #lock, &__key);                                      \
+    _mtx_init(lock, flags, #lock, &__key);                                     \
   }
 
 /*! \brief Makes mutex unusable for further locking.
@@ -85,7 +82,7 @@ static inline void mtx_lock(mtx_t *m) {
 }
 
 /*! \brief Unlocks sleep mutex */
-void mtx_unlock(mtx_t *m);
+void mtx_unlock(mtx_t *m) __no_profile;
 
 DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
 

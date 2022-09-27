@@ -1,5 +1,5 @@
 #include <sys/lockdep.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/thread.h>
 #include <sys/mimiker.h>
 #include <sys/klog.h>
