@@ -83,7 +83,9 @@ void mtx_unlock(mtx_t *m) {
 
   /* Fast path: if lock is not contested then drop ownership. */
   intptr_t expected = (intptr_t)thread_self() | spin;
-  if (atomic_compare_exchange_strong(&m->m_owner, &expected, spin))
+  intptr_t value = spin;
+
+  if (atomic_compare_exchange_strong(&m->m_owner, &expected, value))
     goto done;
 
   /* Using broadcast instead of signal is faster according to

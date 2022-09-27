@@ -11,10 +11,24 @@ typedef struct thread thread_t;
 
 /*! \brief Basic synchronization primitive.
  *
+ * Locking &default mutex* (MTX_SLEEP) goes to sleep when the mutex is acquired
+ * by another thread. This kind of mutex must only be used in *thread context*.
+ *
+ * Locking *spin mutex* (MTX_SPIN) spins while waiting for another thread to
+ * release the mutex. Acquiring spin mutex guarantees that interrupts on
+ * processor that the thread is running on will be disabled until the thread
+ * releases the mutex. This disables preemption on this processor as well.
+ *
+ * It's safe to use *spin mutex* in *interrupt context*. If you try to use
+ * *sleep mutex* within *interrupt context* the kernel is going to panic!
+ *
+ * \attention It is forbidden to change context while holding spin lock!
+ * \todo How to enforce the condition given above?
+ *
  * \warning You must never access mutex fields directly outside of its
  * implementation!
  *
- * \note Mutex must be released by its owner!
+ * \note Mutex must always be released by its owner!
  */
 typedef struct mtx {
   atomic_intptr_t m_owner; /*!< stores address of the owner */
@@ -25,6 +39,7 @@ typedef struct mtx {
 } mtx_t;
 
 /* Flags stored in lower 3 bits of m_owner. */
+#define MTX_SLEEP 0
 #define MTX_SPIN 1
 #define MTX_CONTESTED 2
 #define MTX_FLAGMASK 7
@@ -72,7 +87,7 @@ static inline thread_t *mtx_owner(mtx_t *m) {
 }
 
 /*! \brief Locks sleep mutex (with custom \a waitpt) */
-void _mtx_lock(mtx_t *m, const void *waitpt);
+void _mtx_lock(mtx_t *m, const void *waitpt) __no_profile;
 
 /*! \brief Locks sleep mutex.
  *
