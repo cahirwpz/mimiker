@@ -1,5 +1,5 @@
 #include <sys/lockdep.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/thread.h>
 #include <sys/mimiker.h>
 #include <sys/klog.h>
@@ -29,7 +29,7 @@ typedef struct lock_class_edge {
   lock_class_t *to;
 } lock_class_edge_t;
 
-static SPIN_DEFINE(main_lock, 0);
+static MTX_DEFINE(main_lock, MTX_SPIN);
 
 #define CLASSHASH_SIZE 64
 /* We have to divide the key by the alignment of lock_class_key_t to prevent the
@@ -96,11 +96,11 @@ static inline lock_class_edge_t *bfs_q_dequeue(bfs_queue_t *q) {
 }
 
 static inline void lockdep_lock(void) {
-  spin_lock(&main_lock);
+  mtx_lock(&main_lock);
 }
 
 static inline void lockdep_unlock(void) {
-  spin_unlock(&main_lock);
+  mtx_unlock(&main_lock);
 }
 
 static inline lock_class_edge_t *bfs_next_edge(lock_class_edge_t *edge) {

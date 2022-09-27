@@ -1,5 +1,6 @@
 #include <sys/klog.h>
 #include <sys/mutex.h>
+#include <sys/interrupt.h>
 #include <sys/turnstile.h>
 #include <sys/sched.h>
 #include <sys/thread.h>
@@ -8,13 +9,10 @@ bool mtx_owned(mtx_t *m) {
   return (mtx_owner(m) == thread_self());
 }
 
-void _mtx_init(mtx_t *m, lk_attr_t attr, const char *name,
+void _mtx_init(mtx_t *m, intptr_t flags, const char *name,
                lock_class_key_t *key) {
-  /* The caller must not attempt to set the lock's type, only flags. */
-  assert((attr & LK_TYPE_MASK) == 0);
-  m->m_owner = 0;
-  m->m_count = 0;
-  m->m_attr = attr | LK_TYPE_BLOCK;
+  assert((flags & ~MTX_SPIN) == 0);
+  m->m_owner = flags;
 
 #if LOCKDEP
   m->m_lockmap =
@@ -23,25 +21,35 @@ void _mtx_init(mtx_t *m, lk_attr_t attr, const char *name,
 }
 
 void _mtx_lock(mtx_t *m, const void *waitpt) {
-  if (mtx_owned(m)) {
-    if (!lk_recursive_p(m))
-      panic("Sleeping mutex %p is not recursive!", m);
-    m->m_count++;
-    return;
+  intptr_t spin = m->m_owner & MTX_SPIN;
+
+  if (spin) {
+    intr_disable();
+  } else {
+    if (__unlikely(intr_disabled()))
+      panic("Cannot acquire sleep mutex in interrupt context!");
   }
 
+  if (__unlikely(mtx_owned(m)))
+    panic("Attempt was made to re-acquire non-recursive mutex!");
+
 #if LOCKDEP
-  lockdep_acquire(&m->m_lockmap);
+  if (!spin)
+    lockdep_acquire(&m->m_lockmap);
 #endif
 
   thread_t *td = thread_self();
 
   for (;;) {
-    intptr_t expected = 0;
+    intptr_t expected = spin;
+    intptr_t value = (intptr_t)td | spin;
 
     /* Fast path: if lock has no owner then take ownership. */
-    if (atomic_compare_exchange_strong(&m->m_owner, &expected, (intptr_t)td))
+    if (atomic_compare_exchange_strong(&m->m_owner, &expected, value))
       break;
+
+    if (spin)
+      continue;
 
     WITH_NO_PREEMPTION {
       /* TODO(cahir) turnstile_take / turnstile_give doesn't make much sense
@@ -64,22 +72,21 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
 }
 
 void mtx_unlock(mtx_t *m) {
+  intptr_t spin = m->m_owner & MTX_SPIN;
+
   assert(mtx_owned(m));
 
-  if (m->m_count > 0) {
-    assert(lk_recursive_p(m));
-    m->m_count--;
-    return;
-  }
-
 #if LOCKDEP
-  lockdep_release(&m->m_lockmap);
+  if (!spin)
+    lockdep_release(&m->m_lockmap);
 #endif
 
   /* Fast path: if lock is not contested then drop ownership. */
-  intptr_t expected = (intptr_t)thread_self();
-  if (atomic_compare_exchange_strong(&m->m_owner, &expected, 0))
-    return;
+  intptr_t expected = (intptr_t)thread_self() | spin;
+  intptr_t value = spin;
+
+  if (atomic_compare_exchange_strong(&m->m_owner, &expected, value))
+    goto done;
 
   /* Using broadcast instead of signal is faster according to
    * "The Design and Implementation of the FreeBSD Operating System",
@@ -93,4 +100,8 @@ void mtx_unlock(mtx_t *m) {
     if (owner & MTX_CONTESTED)
       turnstile_broadcast(m);
   }
+
+done:
+  if (spin)
+    intr_enable();
 }

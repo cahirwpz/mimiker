@@ -127,7 +127,7 @@ static void hidkbd_process_modkeys(hidkbd_state_t *hidkbd, uint8_t modkeys) {
     uint8_t prev = prev_modkeys & (1 << i);
     uint8_t cur = modkeys & (1 << i);
 
-    if (prev == cur && !cur)
+    if (!(prev || cur))
       continue;
 
     hidkbd_process_modkey_event(hidkbd, i, cur ? KEY_EVENT_DOWN : KEY_EVENT_UP);

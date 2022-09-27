@@ -5,7 +5,7 @@
 #include <sys/mutex.h>
 #include <sys/uio.h>
 #include <sys/refcnt.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/condvar.h>
 #include <sys/file.h>
 #include <sys/time.h>
@@ -86,7 +86,7 @@ void vnodeops_init(vnodeops_t *vops);
 typedef struct {
   bool vl_locked;
   condvar_t vl_cv;
-  spin_t vl_interlock;
+  mtx_t vl_interlock;
 } vnlock_t;
 
 typedef struct vnode {
