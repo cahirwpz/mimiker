@@ -793,6 +793,8 @@ static int uhci_probe(device_t *dev) {
 }
 
 static int uhci_attach(device_t *dev) {
+  return ENXIO;
+
   uhci_state_t *uhci = dev->state;
   int err = 0;
 
