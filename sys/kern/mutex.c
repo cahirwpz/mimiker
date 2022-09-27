@@ -23,11 +23,15 @@ void _mtx_init(mtx_t *m, intptr_t flags, const char *name,
 void _mtx_lock(mtx_t *m, const void *waitpt) {
   intptr_t spin = m->m_owner & MTX_SPIN;
 
-  if (spin)
+  if (spin) {
     intr_disable();
+  } else {
+    if (__unlikely(intr_disabled()))
+      panic("Cannot acquire sleep mutex in interrupt context!");
+  }
 
-  if (mtx_owned(m))
-    panic("Attempt was made to re-acquire mutex %p!", m);
+  if (__unlikely(mtx_owned(m)))
+    panic("Attempt was made to re-acquire non-recursive mutex!");
 
 #if LOCKDEP
   if (!spin)
