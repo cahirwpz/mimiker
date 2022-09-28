@@ -11,7 +11,7 @@ static void tty_set_outq_nonempty_flag(tty_thread_t *ttd) {
 }
 
 static bool uart_getb_lock(uart_state_t *uart, uint8_t *byte_p) {
-  SCOPED_SPIN_LOCK(&uart->u_lock);
+  SCOPED_MTX_LOCK(&uart->u_lock);
   return ringbuf_getb(&uart->u_rx_buf, byte_p);
 }
 
@@ -42,7 +42,7 @@ static void uart_tty_fill_txbuf(device_t *dev) {
   uint8_t byte;
 
   while (true) {
-    SCOPED_SPIN_LOCK(&uart->u_lock);
+    SCOPED_MTX_LOCK(&uart->u_lock);
     uart_tty_try_bypass_txbuf(dev);
     if (ringbuf_full(&uart->u_tx_buf) || !ringbuf_getb(&tty->t_outq, &byte)) {
       /* Enable TXRDY interrupts if there are characters in tx_buf. */
@@ -80,7 +80,7 @@ static void uart_tty_thread(void *arg) {
   uint8_t work, byte;
 
   while (true) {
-    WITH_SPIN_LOCK (&uart->u_lock) {
+    WITH_MTX_LOCK (&uart->u_lock) {
       /* Sleep until there's work for us to do. */
       while ((work = ttd->ttd_flags & TTY_THREAD_WORK_MASK) == 0)
         cv_wait(&ttd->ttd_cv, &uart->u_lock);

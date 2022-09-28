@@ -100,6 +100,7 @@ CONFIG = {
             'malta': {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
+                    '-device', 'usb-kbd',
                     '-device', 'usb-mouse',
                     '-device', 'VGA',
                     '-machine', 'malta',

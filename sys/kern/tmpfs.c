@@ -1033,7 +1033,7 @@ static int tmpfs_mount(mount_t *mp) {
   /* Allocate the tmpfs mount structure and fill it. */
   tmpfs_mount_t *tfm = &tmpfs;
 
-  mtx_init(&tfm->tfm_lock, LK_RECURSIVE);
+  mtx_init(&tfm->tfm_lock, 0);
   tfm->tfm_next_ino = 2;
   mp->mnt_data = tfm;
 
