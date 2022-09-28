@@ -64,7 +64,7 @@ void init_sleepq(void) {
 
   for (int i = 0; i < SC_TABLESIZE; i++) {
     sleepq_chain_t *sc = &sleepq_chains[i];
-    mtx_init(&sc->sc_lock, MTX_SPIN);
+    mtx_init(&sc->sc_lock, MTX_SPIN | MTX_NODEBUG);
     TAILQ_INIT(&sc->sc_queues);
   }
 }

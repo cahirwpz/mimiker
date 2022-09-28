@@ -41,7 +41,8 @@ typedef struct mtx {
 /* Flags stored in lower 3 bits of m_owner. */
 #define MTX_SLEEP 0
 #define MTX_SPIN 1
-#define MTX_CONTESTED 2
+#define MTX_NODEBUG 2
+#define MTX_CONTESTED 4
 #define MTX_FLAGMASK 7
 
 #if LOCKDEP

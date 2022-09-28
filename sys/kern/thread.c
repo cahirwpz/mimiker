@@ -85,7 +85,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   td->td_base_prio = prio;
 
   td->td_lock = kmalloc(M_TEMP, sizeof(mtx_t), M_ZERO);
-  mtx_init(td->td_lock, MTX_SPIN);
+  mtx_init(td->td_lock, MTX_SPIN | MTX_NODEBUG);
 
   cv_init(&td->td_waitcv, "thread waiters");
   LIST_INIT(&td->td_contested);
