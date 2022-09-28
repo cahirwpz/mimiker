@@ -19,6 +19,12 @@ ENTRY(_start)
         add     x2, x1, x2
         add     x2, x2, #8
 
+        # Align stack to 16-byte boundary
+        mov     x3, #-16
+        mov     x4, sp
+        and     x4, x4, x3
+        mov     sp, x4
+
         # Jump to start in crt0-common.c
         # void ___start(int argc, char **argv, char **envp)
         b       ___start
