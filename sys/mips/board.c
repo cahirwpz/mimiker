@@ -120,7 +120,7 @@ __noreturn void board_init(void) {
   init_klog();
   init_mips_cpu();
   init_mips_tlb();
-  malta_physmem();
   intr_enable();
+  malta_physmem();
   kernel_init();
 }

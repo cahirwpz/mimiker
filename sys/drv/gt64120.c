@@ -35,7 +35,7 @@
 #include <dev/isareg.h>
 #include <dev/gt64120reg.h>
 #include <dev/pci.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/libkern.h>
 #include <sys/bus.h>
 #include <sys/devclass.h>

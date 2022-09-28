@@ -11,10 +11,6 @@ typedef struct mtx mtx_t;
 
 #define page_aligned_p(addr) is_aligned((addr), PAGESIZE)
 
-/* Real kernel end in kernel virtual address space. */
-extern atomic_vaddr_t vm_kernel_end;
-extern mtx_t vm_kernel_end_lock;
-
 typedef enum {
   PG_ALLOCATED = 0x01,  /* page has been allocated */
   PG_MANAGED = 0x02,    /* a page is on a freeq */

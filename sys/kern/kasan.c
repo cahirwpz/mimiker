@@ -247,8 +247,8 @@ static void call_ctors(void) {
   }
 }
 
+/* Should only be called from `pmap_growkernel`! */
 void kasan_grow(vaddr_t maxkvaddr) {
-  assert(mtx_owned(&vm_kernel_end_lock));
   maxkvaddr = roundup2(maxkvaddr, PAGESIZE * KASAN_SHADOW_SCALE_SIZE);
   assert(maxkvaddr < KASAN_MAX_SANITIZED_END);
   vaddr_t va = (vaddr_t)addr_to_shad(_kasan_sanitized_end);

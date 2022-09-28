@@ -4,7 +4,7 @@
 #ifndef _DEV_UHCI_H_
 #define _DEV_UHCI_H_
 
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 
 #define UHCI_FRAMELIST_COUNT 1024 /* units */
 
@@ -86,7 +86,7 @@ struct uhci_qh {
   union {
     /* Main queue items. */
     struct {
-      spin_t qh_lock;         /* guards all the main queue's fields */
+      mtx_t qh_lock;          /* guards all the main queue's fields */
       uhci_qh_list_t qh_list; /* list of scheduled transfers */
     };
     /* External queue items. */

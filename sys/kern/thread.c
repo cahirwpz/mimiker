@@ -84,8 +84,8 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   td->td_prio = prio;
   td->td_base_prio = prio;
 
-  td->td_lock = kmalloc(M_TEMP, sizeof(spin_t), M_ZERO);
-  spin_init(td->td_lock, 0);
+  td->td_lock = kmalloc(M_TEMP, sizeof(mtx_t), M_ZERO);
+  mtx_init(td->td_lock, MTX_SPIN | MTX_NODEBUG);
 
   cv_init(&td->td_waitcv, "thread waiters");
   LIST_INIT(&td->td_contested);
@@ -163,14 +163,14 @@ __noreturn void thread_exit(void) {
   preempt_disable();
 
   WITH_MTX_LOCK (&threads_lock) {
-    spin_lock(td->td_lock); /* force threads_lock >> thread_t::td_lock order */
+    mtx_lock(td->td_lock); /* force threads_lock >> thread_t::td_lock order */
     TAILQ_INSERT_TAIL(&zombie_threads, td, td_zombieq);
   }
 
   cv_broadcast(&td->td_waitcv);
-  spin_unlock(td->td_lock);
+  mtx_unlock(td->td_lock);
 
-  spin_lock(td->td_lock);
+  mtx_lock(td->td_lock);
   td->td_state = TDS_DEAD;
   sched_switch();
 
@@ -182,7 +182,7 @@ void thread_join(thread_t *otd) {
 
   klog("Join %u {%p} with %u {%p}", td->td_tid, td, otd->td_tid, otd);
 
-  WITH_SPIN_LOCK (otd->td_lock) {
+  WITH_MTX_LOCK (otd->td_lock) {
     while (!td_is_dead(otd))
       cv_wait(&otd->td_waitcv, otd->td_lock);
   }
@@ -191,7 +191,7 @@ void thread_join(thread_t *otd) {
 void thread_yield(void) {
   thread_t *td = thread_self();
 
-  spin_lock(td->td_lock);
+  mtx_lock(td->td_lock);
   td->td_state = TDS_READY;
   sched_switch();
 }
@@ -203,16 +203,16 @@ thread_t *thread_find(tid_t id) {
 
   thread_t *td;
   TAILQ_FOREACH (td, &all_threads, td_all) {
-    spin_lock(td->td_lock);
+    mtx_lock(td->td_lock);
     if (td->td_tid == id)
       return td;
-    spin_unlock(td->td_lock);
+    mtx_unlock(td->td_lock);
   }
   return NULL;
 }
 
 void thread_continue(thread_t *td) {
-  assert(spin_owned(td->td_lock));
+  assert(mtx_owned(td->td_lock));
 
   if (td->td_flags & TDF_STOPPING) {
     td->td_flags &= ~TDF_STOPPING;

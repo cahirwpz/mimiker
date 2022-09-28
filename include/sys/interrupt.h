@@ -3,7 +3,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/queue.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/priority.h>
 
 #define IENAMELEN 32
@@ -71,7 +71,7 @@ typedef void ie_action_t(intr_event_t *);
 
 /* Software representation of interrupt line. */
 typedef struct intr_event {
-  spin_t ie_lock;
+  mtx_t ie_lock;
   TAILQ_ENTRY(intr_event) ie_link; /* link on list of all interrupt events */
   TAILQ_HEAD(, intr_handler) ie_handlers; /* sorted by descending ih_prio */
   ie_action_t *ie_disable; /* called before ithread delegation (mask irq) */
