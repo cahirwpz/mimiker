@@ -792,10 +792,10 @@ static int uhci_probe(device_t *hcdev) {
   return 1;
 }
 
-static int uhci_attach(device_t *dev) {
+static int uhci_attach(device_t *hcdev) {
   return ENXIO;
 
-  uhci_state_t *uhci = dev->state;
+  uhci_state_t *uhci = hcdev->state;
   int err = 0;
 
   /* Gather I/O ports resources. */
