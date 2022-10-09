@@ -85,8 +85,8 @@ void ustack_relocate_ptr(ustack_t *us, vaddr_t *ptr_p) {
 
 void ustack_finalize(ustack_t *us) {
   assert(!finalized_p(us));
-  ptrdiff_t size = us->us_bottom - us->us_top;
-  us->us_bottom = us->us_top + roundup2(size, STACK_ALIGN);
+  /* Cannot fail because initially stack is aligned to STACK_ALIGN. */
+  ustack_align(us, STACK_ALIGN);
   us->us_finalized = true;
 }
 
