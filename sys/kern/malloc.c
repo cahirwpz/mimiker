@@ -9,7 +9,7 @@
 #include <sys/vm.h>
 #include <machine/vm_param.h>
 
-#define KM_ALIGNMENT sizeof(long)
+#define KM_ALIGNMENT 16
 
 #define KM_SLAB_MINBLKSZ 16
 #define KM_SLAB_MAXBLKSZ (1 << 13)
