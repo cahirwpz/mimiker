@@ -5,7 +5,6 @@
  */
 
 #include <sys/mimiker.h>
-#include <sys/rman.h>
 #include <sys/devclass.h>
 #include <sys/klog.h>
 #include <sys/types.h>
@@ -26,7 +25,7 @@ typedef struct bcmemmc_state {
   resource_t *emmc;      /* e.MMC controller registers */
   resource_t *irq;       /* e.MMC controller interrupt */
   condvar_t intr_recv;   /* Used to wake up a thread waiting for an interrupt */
-  spin_t lock;           /* Covers `pending`, `intr_recv` and `emmc`. */
+  mtx_t lock;            /* Covers `pending`, `intr_recv` and `emmc`. */
   uint64_t rca;          /* Relative Card Address */
   uint64_t host_version; /* Host specification version */
   volatile uint32_t pending; /* All interrupts received */
@@ -96,7 +95,7 @@ static uint32_t bcmemmc_read_intr(bcmemmc_state_t *state) {
  * \warning THIS FUNCTION NEEDS TO BE CALLED WITH `state->lock` LOCKED!
  */
 static inline uint32_t bcmemmc_try_read_intr_blocking(bcmemmc_state_t *state) {
-  if (cv_wait_timed(&state->intr_recv, (lock_t)&state->lock, BCMEMMC_TIMEOUT))
+  if (cv_wait_timed(&state->intr_recv, &state->lock, BCMEMMC_TIMEOUT))
     return 0;
   return state->pending;
 }
@@ -119,7 +118,7 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
 
   assert(mask != 0);
 
-  SCOPED_SPIN_LOCK(&state->lock);
+  SCOPED_MTX_LOCK(&state->lock);
 
   for (;;) {
     if (state->pending & INT_ERROR_MASK) {
@@ -162,7 +161,7 @@ static int bcmemmc_wait(device_t *cdev, emmc_wait_flags_t wflags) {
 
 static intr_filter_t bcmemmc_intr_filter(void *data) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)data;
-  WITH_SPIN_LOCK (&state->lock) {
+  WITH_MTX_LOCK (&state->lock) {
     if (!bcmemmc_read_intr(state))
       return IF_STRAY;
     /* Wake up the thread if all expected interrupts have been received */
@@ -513,16 +512,20 @@ DEVCLASS_DECLARE(emmc);
 
 static int bcmemmc_attach(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
+  int err = 0;
 
-  state->emmc = device_take_memory(dev, 0, RF_ACTIVE);
+  state->emmc = device_take_memory(dev, 0);
   assert(state->emmc);
 
-  spin_init(&state->lock, 0);
+  if ((err = bus_map_resource(dev, state->emmc)))
+    return err;
+
+  mtx_init(&state->lock, MTX_SPIN);
   cv_init(&state->intr_recv, "e.MMC command response wakeup");
 
   b_out(state->emmc, BCMEMMC_INTERRUPT, INT_ALL_MASK);
 
-  state->irq = device_take_irq(dev, 0, RF_ACTIVE);
+  state->irq = device_take_irq(dev, 0);
   pic_setup_intr(dev, state->irq, bcmemmc_intr_filter, NULL, state,
                  "e.MMC interrupt");
 

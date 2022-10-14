@@ -7,8 +7,11 @@ SOURCES = \
 	evdev.c \
 	evdev_kbd.c \
 	evdev_m.c \
+	hidkbd.c \
+	hidms.c \
 	simplebus.c \
 	uart.c \
+	umass.c \
 	usb.c
 
 SOURCES-MIPS = \
@@ -44,6 +47,6 @@ SOURCES-RISCV = \
 	riscv_rootdev.c \
 	sifive_uart.c
 
-CPPFLAGS += -D_MACHDEP
-
 include $(TOPDIR)/build/build.kern.mk
+
+CPPFLAGS += -D_MACHDEP

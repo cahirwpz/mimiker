@@ -30,7 +30,7 @@
 #define ATKBDC_DEVICE_ID 0x7110 /* ISA! */
 
 typedef struct atkbdc_state {
-  spin_t lock;
+  mtx_t lock;
   condvar_t nonempty;
   ringbuf_t scancodes;
   resource_t *irq_res;
@@ -39,9 +39,6 @@ typedef struct atkbdc_state {
   evdev_dev_t *evdev;
   int evdev_state;
 } atkbdc_state_t;
-
-/* For now, this is the only keyboard driver we'll want to have, so the
-   interface is not very flexible. */
 
 /* NOTE: These blocking wait helper functions can't use an interrupt, as the
    PS/2 controller does not generate interrupts for these events. However, this
@@ -83,7 +80,7 @@ static void atkbdc_thread(void *arg) {
   uint8_t scancode;
 
   while (true) {
-    WITH_SPIN_LOCK (&atkbdc->lock) {
+    WITH_MTX_LOCK (&atkbdc->lock) {
       while (!ringbuf_getb(&atkbdc->scancodes, &scancode))
         cv_wait(&atkbdc->nonempty, &atkbdc->lock);
     }
@@ -91,8 +88,7 @@ static void atkbdc_thread(void *arg) {
     keycode = evdev_scancode2key(&atkbdc->evdev_state, scancode);
 
     if (keycode != KEY_RESERVED) {
-      evdev_push_event(atkbdc->evdev, EV_KEY, (uint16_t)keycode,
-                       scancode & 0x80 ? 0 : 1);
+      evdev_push_key(atkbdc->evdev, (uint16_t)keycode, !(scancode & 0x80));
       evdev_sync(atkbdc->evdev);
     }
   }
@@ -123,7 +119,7 @@ static intr_filter_t atkbdc_intr(void *data) {
   if (extended)
     code2 = read_data(atkbdc->regs);
 
-  WITH_SPIN_LOCK (&atkbdc->lock) {
+  WITH_MTX_LOCK (&atkbdc->lock) {
     /* TODO: There's no logic for processing scancodes. */
     ringbuf_putb(&atkbdc->scancodes, code);
     if (extended)
@@ -135,11 +131,16 @@ static intr_filter_t atkbdc_intr(void *data) {
 }
 
 static int atkbdc_probe(device_t *dev) {
+  int err = 0;
+
   if (dev->unit != 0) /* XXX: unit 0 assigned by gt_pci */
     return 0;
 
-  resource_t *regs = device_take_ioports(dev, 0, RF_ACTIVE);
+  resource_t *regs = device_take_ioports(dev, 0);
   assert(regs != NULL);
+
+  if ((err = bus_map_resource(dev, regs)))
+    return err;
 
   if (!kbd_reset(regs)) {
     klog("Keyboard self-test failed.");
@@ -189,12 +190,12 @@ static int atkbdc_attach(device_t *dev) {
   atkbdc->scancodes.data = kmalloc(M_DEV, KBD_BUFSIZE, M_ZERO);
   atkbdc->scancodes.size = KBD_BUFSIZE;
 
-  spin_init(&atkbdc->lock, 0);
+  mtx_init(&atkbdc->lock, MTX_SPIN);
   cv_init(&atkbdc->nonempty, "AT keyboard buffer non-empty");
-  atkbdc->regs = device_take_ioports(dev, 0, RF_ACTIVE);
+  atkbdc->regs = device_take_ioports(dev, 0);
   assert(atkbdc->regs != NULL);
 
-  atkbdc->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
+  atkbdc->irq_res = device_take_irq(dev, 0);
   pic_setup_intr(dev, atkbdc->irq_res, atkbdc_intr, NULL, atkbdc,
                  "AT keyboard controller");
 

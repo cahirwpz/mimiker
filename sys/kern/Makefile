@@ -43,13 +43,11 @@ SOURCES = \
 	proc.c \
 	pty.c \
 	ringbuf.c \
-	rman.c \
 	runq.c \
 	sbrk.c \
 	sched.c \
 	signal.c \
 	sleepq.c \
-	spinlock.c \
 	syscalls.c \
 	taskqueue.c \
 	turnstile.c \

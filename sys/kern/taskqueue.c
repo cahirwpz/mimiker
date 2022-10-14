@@ -5,7 +5,7 @@
 
 void taskqueue_init(taskqueue_t *tq) {
   STAILQ_INIT(&tq->tq_list);
-  mtx_init(&tq->tq_mutex, LK_RECURSIVE);
+  mtx_init(&tq->tq_mutex, 0);
   cv_init(&tq->tq_nonempty, "taskqueue nonempty");
 }
 
