@@ -22,6 +22,11 @@ You can find all needed software in a [Dockerfile][12]. There is also a script
 [install-tools.sh][13] that will automatically install all needed software on
 Debian system.
 
+You also need to install python requirements. E.g. with command:
+```
+pip3 install -r requirements.txt
+```
+
 ## Deprecated toolchain
 The other method is to use a custom pre-build _GNU toolchain_, i.e. `gcc`,
 `binutils` and `gdb`. We prepared packages for Debian x86-64 based system, each
