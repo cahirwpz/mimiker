@@ -196,8 +196,22 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VM_MAP, map);
 }
 
-/* TODO: not implemented */
+/* XXX: it allows only to change prot of existing vm_map_entry */
 void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+  SCOPED_MTX_LOCK(&map->mtx);
+
+  vm_map_entry_t *ent;
+
+  klog("vm_map_protect: 0x%x - 0x%x %c%c%c", start, end,
+       (prot & VM_PROT_READ) ? 'r' : '-', (prot & VM_PROT_WRITE) ? 'w' : '-',
+       (prot & VM_PROT_EXEC) ? 'x' : '-');
+
+  ent = vm_map_find_entry(map, start);
+  assert(ent);
+  assert(ent->end == end);
+
+  ent->prot = prot;
+  pmap_protect(map->pmap, start, end, prot);
 }
 
 static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,

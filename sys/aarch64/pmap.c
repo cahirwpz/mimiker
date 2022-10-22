@@ -76,7 +76,8 @@ pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags) {
 }
 
 pte_t pte_protect(pte_t pte, vm_prot_t prot) {
-  return vm_prot_map[prot] | (pte & (~ATTR_AP_MASK & ~ATTR_XN));
+  return vm_prot_map[prot] | (pte & (~ATTR_AP_MASK & ~ATTR_XN)) |
+         (pte & ATTR_AP_USER);
 }
 
 /*
