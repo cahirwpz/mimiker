@@ -36,7 +36,6 @@
 
 typedef struct uhci_state {
   uhci_qh_t *mainqs[UHCI_NMAINQS]; /* main queues (i.e. schedule queues) */
-  uhci_qh_list_t release_list;     /* queues to release */
   uint32_t *frames;                /* UHCI frame list */
   resource_t *regs;                /* host controller registers */
   resource_t *irq;                 /* host controller interrupt */
@@ -227,8 +226,7 @@ static POOL_DEFINE(P_DATA, "UHCI data buffers", UHCI_DATA_BUF_SIZE);
 /* Obtain the physical address corresponding to `vaddr`. */
 static uhci_physaddr_t uhci_physaddr(void *vaddr) {
   paddr_t paddr = 0;
-  bool success = pmap_kextract((vaddr_t)vaddr, &paddr);
-  assert(success);
+  pmap_kextract((vaddr_t)vaddr, &paddr);
   return (uhci_physaddr_t)paddr;
 }
 
@@ -256,7 +254,6 @@ static void td_init(uhci_td_t *td, usb_device_t *udev, uint32_t ioc,
   td->td_status = UHCI_TD_SET_ERRCNT(3) | ioc | ls | UHCI_TD_ACTIVE;
   td->td_token = token;
   td->td_buffer = (data ? uhci_physaddr(data) : 0);
-  td->td_paddr = uhci_physaddr(td);
 }
 
 /* Create a SETUP transfer descriptor. */
@@ -316,7 +313,7 @@ static inline bool td_last(uhci_td_t *td) {
 /* Point the queue's element link pointer
  * at the specified transfer descriptor. */
 static inline void qh_add_td(uhci_qh_t *qh, uhci_td_t *td) {
-  qh->qh_e_next = td->td_paddr | UHCI_PTR_TD;
+  qh->qh_e_next = uhci_physaddr(td) | UHCI_PTR_TD;
 }
 
 /* Return a pointer to the first transfer descriptor composing `qh`. */
@@ -328,8 +325,8 @@ static inline uhci_td_t *qh_first_td(uhci_qh_t *qh) {
 static void qh_init(uhci_qh_t *qh, usb_buf_t *buf) {
   qh->qh_h_next = UHCI_PTR_T;
   qh->qh_e_next = UHCI_PTR_T;
-  qh->qh_paddr = uhci_physaddr(qh);
   qh->qh_buf = buf;
+  qh_add_td(qh, qh_first_td(qh));
 }
 
 /* Allocate a new queue (including transfer I/O data buffer). */
@@ -361,19 +358,18 @@ static void qh_init_main(uhci_qh_t *mq) {
   bzero(mq, sizeof(uhci_qh_t));
   mq->qh_h_next = UHCI_PTR_T;
   mq->qh_e_next = UHCI_PTR_T;
-  mq->qh_paddr = uhci_physaddr(mq);
-  mtx_init(&mq->qh_lock, MTX_SPIN);
+  mtx_init(&mq->qh_lock, MTX_SLEEP);
   TAILQ_INIT(&mq->qh_list);
 }
 
 /* Point the queue's element link pointer at the specified queue. */
 static inline void qh_add_qh(uhci_qh_t *qh1, uhci_qh_t *qh2) {
-  qh1->qh_e_next = qh2->qh_paddr | UHCI_PTR_QH;
+  qh1->qh_e_next = uhci_physaddr(qh2) | UHCI_PTR_QH;
 }
 
 /* Point the queue's head link pointer at the specified queue. */
 static inline void qh_chain(uhci_qh_t *qh1, uhci_qh_t *qh2) {
-  qh1->qh_h_next = qh2->qh_paddr | UHCI_PTR_QH;
+  qh1->qh_h_next = uhci_physaddr(qh2) | UHCI_PTR_QH;
 }
 
 /* Tell the controller to omit the specified queue from now on. */
@@ -435,6 +431,7 @@ static uint32_t qh_error_status(uhci_qh_t *qh) {
 static void qh_discard(uhci_qh_t *mq, uhci_qh_t *qh) {
   assert(mtx_owned(&mq->qh_lock));
   qh_remove(mq, qh);
+  qh_free(qh);
 }
 
 /* Set a queue to be executed. */
@@ -516,8 +513,7 @@ static usb_error_t uhcie2usbe(uint32_t error) {
 }
 
 /* Process the transfer identified by queue `qh`. */
-static intr_filter_t uhci_process(uhci_state_t *uhci, uhci_qh_t *mq,
-                                  uhci_qh_t *qh) {
+static void uhci_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
   assert(mtx_owned(&mq->qh_lock));
 
   qh_halt(qh);
@@ -531,13 +527,14 @@ static intr_filter_t uhci_process(uhci_state_t *uhci, uhci_qh_t *mq,
   if (error) {
     usb_error_t uerr = uhcie2usbe(error);
     usb_buf_process(buf, NULL, uerr);
-    goto discard;
+    qh_discard(mq, qh);
+    return;
   }
 
   /* If the transfer isn't done yet, we'll come back to it later. */
   if (!qh_executed(qh)) {
     qh_unhalt(qh);
-    return IF_FILTERED;
+    return;
   }
 
   /* Let the USB bus layer handle the received data. */
@@ -547,13 +544,9 @@ static intr_filter_t uhci_process(uhci_state_t *uhci, uhci_qh_t *mq,
   if (usb_buf_periodic(buf)) {
     /* Adding a transfer descriptor will unhalt the queue automatically. */
     qh_reactivate(qh);
-    return IF_FILTERED;
+  } else {
+    qh_discard(mq, qh);
   }
-
-discard:
-  qh_discard(mq, qh);
-  TAILQ_INSERT_TAIL(&uhci->release_list, qh, qh_release_link);
-  return IF_DELEGATE;
 }
 
 /* UHCI Interrupt Service Routine. */
@@ -569,33 +562,28 @@ static intr_filter_t uhci_isr(void *data) {
   /* Clear the interrupt flags so that new requests can be queued. */
   wclr16(UHCI_STS, intrmask);
 
-  intr_filter_t status = IF_FILTERED;
-
   for (int i = 0; i < UHCI_NMAINQS; i++) {
     uhci_qh_t *mq = uhci->mainqs[i];
     qh_halt(mq);
-
-    /* Travers each main queue to find the delinquent. */
-    WITH_MTX_LOCK (&mq->qh_lock) {
-      uhci_qh_t *qh, *next;
-      TAILQ_FOREACH_SAFE (qh, &mq->qh_list, qh_link, next)
-        status |= uhci_process(uhci, mq, qh);
-      /* Unhalt only non-empty main queues. */
-      if (!TAILQ_EMPTY(&mq->qh_list))
-        qh_unhalt(mq);
-    }
   }
 
-  return (status & IF_DELEGATE) ? IF_DELEGATE : IF_FILTERED;
+  return IF_DELEGATE;
 }
 
 static void uhci_service(void *data) {
   uhci_state_t *uhci = data;
 
-  while (!TAILQ_EMPTY(&uhci->release_list)) {
-    uhci_qh_t *qh = TAILQ_FIRST(&uhci->release_list);
-    TAILQ_REMOVE(&uhci->release_list, qh, qh_release_link);
-    qh_free(qh);
+  for (int i = 0; i < UHCI_NMAINQS; i++) {
+    uhci_qh_t *mq = uhci->mainqs[i];
+    /* Travers each main queue to find the delinquent. */
+    WITH_MTX_LOCK (&mq->qh_lock) {
+      uhci_qh_t *qh, *next;
+      TAILQ_FOREACH_SAFE (qh, &mq->qh_list, qh_link, next)
+        uhci_process(uhci, mq, qh);
+      /* Unhalt only non-empty main queues. */
+      if (!TAILQ_EMPTY(&mq->qh_list))
+        qh_unhalt(mq);
+    }
   }
 }
 
@@ -663,8 +651,6 @@ static void uhci_control_transfer(device_t *hcdev, device_t *dev,
   /* Prepare a STATUS packet. */
   td_status(td, udev, endpt, buf->transfer_size, status_dir);
 
-  qh_add_td(qh, qh_first_td(qh));
-
   uhci_schedule(uhci, qh, 0);
 }
 
@@ -684,8 +670,6 @@ static void uhci_data_transfer(device_t *hcdev, device_t *dev, usb_buf_t *buf) {
   td--;
   td->td_next = UHCI_PTR_T;
   td->td_status |= UHCI_TD_IOC;
-
-  qh_add_td(qh, qh_first_td(qh));
 
   uhci_schedule(uhci, qh, endpt->interval);
 }
@@ -818,8 +802,6 @@ static int uhci_probe(device_t *dev) {
 static int uhci_attach(device_t *dev) {
   uhci_state_t *uhci = dev->state;
   int err = 0;
-
-  TAILQ_INIT(&uhci->release_list);
 
   /* Gather I/O ports resources. */
   uhci->regs = device_take_ioports(dev, 4);

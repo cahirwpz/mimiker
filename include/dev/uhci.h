@@ -29,9 +29,7 @@ struct uhci_td {
   volatile uint32_t td_status;
   volatile uint32_t td_token;
   volatile uint32_t td_buffer;
-  /* 16 bytes for user usage */
-  uhci_physaddr_t td_paddr;
-  uint32_t __reserved[3];
+  uint32_t __reserved[4]; /* 16 bytes for user usage */
 } __aligned(UHCI_TD_ALIGN);
 
 #define UHCI_TD_GET_ACTLEN(s) (((s) + 1) & 0x3ff)
@@ -85,7 +83,6 @@ typedef struct usb_buf usb_buf_t;
 struct uhci_qh {
   volatile uint32_t qh_h_next;
   volatile uint32_t qh_e_next;
-  uhci_physaddr_t qh_paddr;
   union {
     /* Main queue items. */
     struct {
@@ -94,8 +91,7 @@ struct uhci_qh {
     };
     /* External queue items. */
     struct {
-      TAILQ_ENTRY(uhci_qh) qh_link;         /* link on a main queue's list */
-      TAILQ_ENTRY(uhci_qh) qh_release_link; /* link on a release list */
+      TAILQ_ENTRY(uhci_qh) qh_link; /* link on a main queue's list */
       usb_buf_t *qh_buf; /* usb buffer associated with the transaction */
       void *qh_data;     /* I/O data buffer of the transaction */
     };
