@@ -17,8 +17,7 @@ static __noreturn void utest_generic_thread(void *arg) {
 }
 
 /* This is the klog mask used with utests. */
-#define KL_UTEST_MASK                                                          \
-  (KL_ALL & (~KL_MASK(KL_PMAP)) & (~KL_MASK(KL_VM)) & (~KL_MASK(KL_PHYSMEM)))
+#define KL_UTEST_MASK (KL_ALL & (~KL_MASK(KL_VM)) & (~KL_MASK(KL_PHYSMEM)))
 
 static int utest_generic(const char *name, int status_success) {
   unsigned old_klog_mask = klog_setmask(KL_UTEST_MASK);
@@ -59,6 +58,9 @@ static int utest_generic(const char *name, int status_success) {
 #define UTEST_ADD_SIMPLE(name) UTEST_ADD(name, MAKE_STATUS_EXIT(0), 0)
 #define UTEST_ADD_SIGNAL(name, sig)                                            \
   UTEST_ADD(name, MAKE_STATUS_SIG_TERM(sig), 0)
+
+UTEST_ADD_SIGNAL(vmmap_text_w, SIGSEGV);
+UTEST_ADD_SIGNAL(vmmap_data_x, SIGSEGV);
 
 UTEST_ADD_SIMPLE(mmap);
 UTEST_ADD_SIMPLE(munmap);

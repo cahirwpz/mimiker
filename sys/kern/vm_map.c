@@ -1,4 +1,4 @@
-#define KL_LOG KL_VM
+#define KL_LOG KL_VMMAP
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
@@ -196,7 +196,7 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VM_MAP, map);
 }
 
-/* XXX: it allows only to change prot of existing vm_map_entry */
+/* XXX: it allows only to change protection of existing vm_map_entry */
 void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   SCOPED_MTX_LOCK(&map->mtx);
 
