@@ -27,6 +27,13 @@ You also need to install python requirements. E.g. with command:
 pip3 install -r requirements.txt
 ```
 
+#### A comment about dependencies from Dockerfile
+```
+# patch & quilt required by lua and programs in contrib/
+# gperf required by libterminfo
+# socat & tmux required by launch
+```
+
 ## Deprecated toolchain
 The other method is to use a custom pre-build _GNU toolchain_, i.e. `gcc`,
 `binutils` and `gdb`. We prepared packages for Debian x86-64 based system, each
