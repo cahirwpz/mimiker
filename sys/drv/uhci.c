@@ -358,7 +358,7 @@ static void qh_init_main(uhci_qh_t *mq) {
   bzero(mq, sizeof(uhci_qh_t));
   mq->qh_h_next = UHCI_PTR_T;
   mq->qh_e_next = UHCI_PTR_T;
-  mtx_init(&mq->qh_lock, MTX_SPIN);
+  mtx_init(&mq->qh_lock, MTX_SLEEP);
   TAILQ_INIT(&mq->qh_list);
 }
 
@@ -565,7 +565,16 @@ static intr_filter_t uhci_isr(void *data) {
   for (int i = 0; i < UHCI_NMAINQS; i++) {
     uhci_qh_t *mq = uhci->mainqs[i];
     qh_halt(mq);
+  }
 
+  return IF_DELEGATE;
+}
+
+static void uhci_service(void *data) {
+  uhci_state_t *uhci = data;
+
+  for (int i = 0; i < UHCI_NMAINQS; i++) {
+    uhci_qh_t *mq = uhci->mainqs[i];
     /* Travers each main queue to find the delinquent. */
     WITH_MTX_LOCK (&mq->qh_lock) {
       uhci_qh_t *qh, *next;
@@ -576,8 +585,6 @@ static intr_filter_t uhci_isr(void *data) {
         qh_unhalt(mq);
     }
   }
-
-  return IF_FILTERED;
 }
 
 /* Schedule a queue for execution in `flr(log(interval))` ms. */
@@ -793,8 +800,6 @@ static int uhci_probe(device_t *dev) {
 }
 
 static int uhci_attach(device_t *dev) {
-  return ENXIO;
-
   uhci_state_t *uhci = dev->state;
   int err = 0;
 
@@ -844,7 +849,7 @@ static int uhci_attach(device_t *dev) {
   /* Setup host controller's interrupt. */
   uhci->irq = device_take_irq(dev, 0);
   assert(uhci->irq);
-  pic_setup_intr(dev, uhci->irq, uhci_isr, NULL, uhci, "UHCI");
+  pic_setup_intr(dev, uhci->irq, uhci_isr, uhci_service, uhci, "UHCI");
 
   /* Turn on the IOC and error interrupts. */
   set16(UHCI_INTR, UHCI_INTR_TOCRCIE | UHCI_INTR_IOCE);
