@@ -35,13 +35,26 @@ function ask() {
 [ -f /usr/bin/apt ] || fatal '/usr/bin/apt is missing; is your distro debian based?'
 [ -f /usr/bin/sudo ] || fatal 'sudo is missing; (run `su -c "apt install sudo"`)'
 
-DEBS="git make ccache cpio curl gnupg universal-ctags cscope socat patch gperf quilt byacc python3 python3-pip python3-virtualenv device-tree-compiler tmux lsb-release gdb-multiarch qemu-system-aarch64 qemu-system-riscv64"
+DEBS=packages.txt
+DEBS_BACKPORTS=packages-backports.txt
 
 info "Install required packages"
 info "Upgrade privileges to root user"
 info "Install packages from base repository"
 
-sudo -u root sh -c "apt-get update -q && apt install ${DEBS}"
+sudo -u root sh -c "apt-get update -q && apt install < ${DEBS}"
+
+CODENAME=$(lsb_release -sc 2>/dev/null)
+
+if ! [ "$CODENAME" == "bullseye" ]; then
+    fatal "Your distribution 'bullseye' is not supported"
+fi
+
+sudo -u root sh -c "apt-get update -t bullseye-backports -q && apt install -t bullseye-backports < ${DEBS_BACKPORTS}"
+
+if ! [ $? -eq 0 ]; then
+    fatal "You don't have a bulseye-backports set up."
+fi
 
 info "Drop privileges to $USER"
 info "Install local python dependencies"
@@ -53,33 +66,24 @@ pip3 install -r requirements.txt
 LLVM_VERSION=14
 DEBS_LLVM="clang-${LLVM_VERSION} clang-format-${LLVM_VERSION} llvm-${LLVM_VERSION} lld-${LLVM_VERSION}"
 
-CODENAME=$(lsb_release -sc 2>/dev/null)
-case $CODENAME in
-    bullseye|buster)
+info "Prepare sources.list for llvm && install llvm-${LLVM_VERSION}"
+LLVM_REPO="deb http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-${LLVM_VERSION} main"
+sudo -u root sh -c "apt-key adv --fetch-keys https://apt.llvm.org/llvm-snapshot.gpg.key && echo ${LLVM_REPO} > /etc/apt/sources.list.d/llvm.list && apt-get update -q && apt-get install ${DEBS_LLVM}"
 
-        info "Prepare sources.list for llvm && install llvm-${LLVM_VERSION}"
-        LLVM_REPO="deb http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-${LLVM_VERSION} main"
-        sudo -u root sh -c "apt-key adv --fetch-keys https://apt.llvm.org/llvm-snapshot.gpg.key && echo ${LLVM_REPO} > /etc/apt/sources.list.d/llvm.list && apt-get update -q && apt-get install ${DEBS_LLVM}"
+WORKDIR=$(mktemp -d)
+info "${WORKDIR} created"
+info "Download prebuild toolchain"
 
-        WORKDIR=$(mktemp -d)
-        info "${WORKDIR} created"
-        info "Download prebuild toolchain"
+curl -o $WORKDIR/mipsel-mimiker-elf_latest_amd64.deb https://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_latest_amd64.deb
+curl -o $WORKDIR/aarch64-mimiker-elf_latest_amd64.deb https://mimiker.ii.uni.wroc.pl/download/aarch64-mimiker-elf_latest_amd64.deb
+curl -o $WORKDIR/riscv32-mimiker-elf_latest_amd64.deb https://mimiker.ii.uni.wroc.pl/download/riscv32-mimiker-elf_latest_amd64.deb
+curl -o $WORKDIR/riscv64-mimiker-elf_latest_amd64.deb https://mimiker.ii.uni.wroc.pl/download/riscv64-mimiker-elf_latest_amd64.deb
+curl -o $WORKDIR/qemu-mimiker_latest_amd64.deb https://mimiker.ii.uni.wroc.pl/download/qemu-mimiker_latest_amd64.deb
 
-        curl -o $WORKDIR/mipsel-mimiker-elf_latest_amd64.deb https://mimiker.ii.uni.wroc.pl/download/mipsel-mimiker-elf_latest_amd64.deb
-        curl -o $WORKDIR/aarch64-mimiker-elf_latest_amd64.deb https://mimiker.ii.uni.wroc.pl/download/aarch64-mimiker-elf_latest_amd64.deb
-        curl -o $WORKDIR/riscv32-mimiker-elf_latest_amd64.deb https://mimiker.ii.uni.wroc.pl/download/riscv32-mimiker-elf_latest_amd64.deb
-        curl -o $WORKDIR/riscv64-mimiker-elf_latest_amd64.deb https://mimiker.ii.uni.wroc.pl/download/riscv64-mimiker-elf_latest_amd64.deb
-        curl -o $WORKDIR/qemu-mimiker_latest_amd64.deb https://mimiker.ii.uni.wroc.pl/download/qemu-mimiker_latest_amd64.deb
+info "Install toolchain"
+sudo -u root sh -c "dpkg -i $WORKDIR/*.deb"
 
-        info "Install toolchain"
-        sudo -u root sh -c "dpkg -i $WORKDIR/*.deb"
-
-        info "Cleanup $WORKDIR"
-        rm -r $WORKDIR
-        ;;
-    *)
-        warn "Your distribution doesn't support our prebuild toolchain"
-        ;;
-esac
+info "Cleanup $WORKDIR"
+rm -r $WORKDIR
 
 exit 0
