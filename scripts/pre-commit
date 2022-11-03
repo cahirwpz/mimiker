@@ -1,0 +1,32 @@
+#!/bin/bash
+
+err=false
+
+# Verify C code style
+
+echo "Verifying C code style..."
+CFILES=$(git diff --cached --name-only | grep -E ".*\.[hc]")
+
+if ! [ "$CFILES" == "" ]; then
+  for file in $CFILES; do
+    clang-format-14 -n --Werror --style=file -i $file || err=true
+  done
+fi
+
+# Verify Python code style
+
+echo "Verifying Python code style..."
+PYFILES=$(git diff --cached --name-only | grep -E ".*\.py")
+PYEXTRA=$(git diff --cached --name-only | grep -E "launch")
+
+if ! [ "$PYFILES" == "" ] || ! [ "$PYEXTRA" == "" ]; then
+  pycodestyle ${PYEXTRA} ${PYFILES} || err=true
+fi
+
+echo $err
+if $err ; then
+  exit 1
+fi
+
+echo "Code style OK"
+exit 0
