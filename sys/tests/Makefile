@@ -21,7 +21,6 @@ SOURCES = \
 	sleepq_abort.c \
 	sleepq_timed.c \
 	strtol.c \
-	taskqueue.c \
 	thread_stats.c \
 	thread_exit.c \
 	turnstile_adjust.c \
