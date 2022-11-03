@@ -72,4 +72,4 @@ sysroot
 *.pcap
 
 # python env
-mimiker-env
+mimiker-env/
