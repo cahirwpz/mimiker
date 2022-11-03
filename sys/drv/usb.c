@@ -3,8 +3,17 @@
  *
  * For explanation of terms used throughout the code
  * please see the following documents:
- * - USB 2.0 specification:
- *     http://sdpha2.ucsd.edu/Lab_Equip_Manuals/usb_20.pdf
+ *
+ * - (1) USB 2.0 specification:
+ *     https://www.usb.org/document-library/usb-20-specification
+ *
+ * - (2) Device Class Definition for Human Interface Devices (HID) Version 1.11,
+ *   5/27/01:
+ *     https://www.usb.org/sites/default/files/hid1_11.pdf
+ *
+ * - (3) Universal Serial BusMass Storage ClassBulk-Only Transport Revision 1.0,
+ *   September 31, 1999:
+ *     https://www.usb.org/sites/default/files/usbmassbulk_10.pdf
  *
  * Each inner function if given a description. For description
  * of the rest of contained functions please see `include/dev/usb.h`.
@@ -232,6 +241,7 @@ static usb_endpt_t *usb_dev_endpt(usb_device_t *udev, usb_transfer_t transfer,
  * USB transfer functions.
  */
 
+/* Control transfers are described in (1) 5.5. */
 static void _usb_control_transfer(device_t *dev, usb_buf_t *buf, void *data,
                                   usb_direction_t dir, usb_dev_req_t *req) {
   usb_device_t *udev = usb_device_of(dev);
@@ -249,6 +259,8 @@ static void _usb_control_transfer(device_t *dev, usb_buf_t *buf, void *data,
   usbhc_control_transfer(dev, buf, req, status_dir);
 }
 
+/* Interrupt transfers are described in (1) 5.7.
+ * Bulk transfers are described in (1) 5.8. */
 static void _usb_data_transfer(device_t *dev, usb_buf_t *buf, void *data,
                                uint16_t size, usb_transfer_t transfer,
                                usb_direction_t dir) {
@@ -282,7 +294,8 @@ static int usb_send_req(device_t *dev, void *data, usb_direction_t dir,
   return error;
 }
 
-/* Obtain device descriptor corresponding to device `dev`. */
+/* Obtain device descriptor corresponding to device `dev`.
+ * Device descriptors are described in (1) 9.6.1. */
 static int usb_get_dev_dsc(device_t *dev, usb_dev_dsc_t *devdsc) {
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_READ_DEVICE,
@@ -303,7 +316,9 @@ static int usb_get_dev_dsc(device_t *dev, usb_dev_dsc_t *devdsc) {
   return usb_send_req(dev, devdsc, USB_DIR_INPUT, &req, NULL);
 }
 
-/* Assign the next available address in the USB bus to device `dev`. */
+/* Assign the next available address in the USB bus to device `dev`.
+ * USB device states are described in (1) 9.1.
+ * The set address request is described in (1) 9.4.6. */
 static int usb_set_addr(device_t *dev) {
   usb_state_t *usb = usb_bus_of(dev)->state;
   uint8_t addr = usb->next_addr++;
@@ -361,7 +376,8 @@ static int usb_set_addr(device_t *dev) {
  * than `USB_MAX_CONFIG_SIZE`. */
 #define USB_MAX_CONFIG_SIZE 0x30
 
-/* Retreive device's configuration. */
+/* Retreive device's configuration.
+ * Configuration descriptors are described in (1) 9.6.3. */
 static int usb_get_config(device_t *dev, usb_cfg_dsc_t *cfgdsc) {
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_READ_DEVICE,
@@ -382,7 +398,8 @@ static int usb_get_config(device_t *dev, usb_cfg_dsc_t *cfgdsc) {
 }
 
 /* Set device's configuration to the one identified
- * by configuration value `val.*/
+ * by configuration value `val.
+ * The set configuration request is described in (1) 9.4.7. */
 static int usb_set_config(device_t *dev, uint8_t val) {
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_WRITE,
@@ -392,6 +409,7 @@ static int usb_set_config(device_t *dev, uint8_t val) {
   return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
+/* The clear feature request is described in (1) 9.4.1. */
 int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
                      usb_direction_t dir) {
   usb_device_t *udev = usb_device_of(dev);
@@ -408,7 +426,8 @@ int usb_unhalt_endpt(device_t *dev, usb_transfer_t transfer,
   return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
-/* Retreive deivice's string language descriptor. */
+/* Retreive deivice's string language descriptor.
+ * String descriptors (and LANGIDs) are described in (1) 9.6.7. */
 static int usb_get_str_lang_dsc(device_t *dev, usb_str_lang_t *langs) {
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_READ_DEVICE,
@@ -429,7 +448,8 @@ static int usb_get_str_lang_dsc(device_t *dev, usb_str_lang_t *langs) {
   return usb_send_req(dev, langs, USB_DIR_INPUT, &req, NULL);
 }
 
-/* Fetch device's string descriptor identified by index `idx`. */
+/* Fetch device's string descriptor identified by index `idx`.
+ * String descriptors (and LANGIDs) are described in (1) 9.6.7. */
 static int usb_get_str_dsc(device_t *dev, uint8_t idx, usb_str_dsc_t *strdsc) {
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_READ_DEVICE,
@@ -450,6 +470,7 @@ static int usb_get_str_dsc(device_t *dev, uint8_t idx, usb_str_dsc_t *strdsc) {
   return usb_send_req(dev, strdsc, USB_DIR_INPUT, &req, NULL);
 }
 
+/* Hub descriptors are described in (1) 11.23.2.1. */
 static int usb_get_hub_dsc(device_t *dev, usb_hub_dsc_t *hubdsc) {
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_READ_CLASS_DEVICE,
@@ -464,6 +485,7 @@ static int usb_get_hub_dsc(device_t *dev, usb_hub_dsc_t *hubdsc) {
  * USB hub requests.
  */
 
+/* Hub port power control is described in (1) 11.11. */
 static int usb_hub_port_power(device_t *dev, uint8_t port) {
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_WRITE_CLASS_OTHER,
@@ -474,6 +496,7 @@ static int usb_hub_port_power(device_t *dev, uint8_t port) {
   return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
+/* Hub reset behavior is described in (1) 11.10. */
 static int usb_hub_port_reset(device_t *dev, uint8_t port) {
   usb_dev_req_t req = (usb_dev_req_t){
     .bmRequestType = UT_WRITE_CLASS_OTHER,
@@ -484,6 +507,7 @@ static int usb_hub_port_reset(device_t *dev, uint8_t port) {
   return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
+/* The get hub port status request is described in (1) 11.24.2.7. */
 static int usb_hub_port_get_status(device_t *dev, uint8_t port,
                                    usb_port_sts_t *psts) {
   usb_dev_req_t req = (usb_dev_req_t){
@@ -519,6 +543,7 @@ static int usb_hub_port_wait_enable(device_t *dev, uint8_t port) {
  * USB HID standard requests.
  */
 
+/* The set idle request is described in (2) 7.2.4. */
 int usb_hid_set_idle(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
   usb_dev_req_t req = (usb_dev_req_t){
@@ -529,6 +554,7 @@ int usb_hid_set_idle(device_t *dev) {
   return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
+/* The set protocol request is described in (2) 7.2.6. */
 int usb_hid_set_boot_protocol(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
   usb_dev_req_t req = (usb_dev_req_t){
@@ -539,6 +565,7 @@ int usb_hid_set_boot_protocol(device_t *dev) {
   return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
 }
 
+/* The set report request is described in (2) 7.2.2. */
 int usb_hid_set_leds(device_t *dev, uint8_t leds) {
   usb_device_t *udev = usb_device_of(dev);
   usb_dev_req_t req = (usb_dev_req_t){
@@ -557,6 +584,7 @@ int usb_hid_set_leds(device_t *dev, uint8_t leds) {
  * USB Bulk-Only standard requests.
  */
 
+/* The get max LUN request is described in (3) 3.2. */
 int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun) {
   usb_device_t *udev = usb_device_of(dev);
   usb_dev_req_t req = (usb_dev_req_t){
@@ -580,6 +608,7 @@ int usb_bbb_get_max_lun(device_t *dev, uint8_t *maxlun) {
   return error;
 }
 
+/* The reset request is described in (3) 3.1. */
 int usb_bbb_reset(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
   usb_dev_req_t req = (usb_dev_req_t){
@@ -673,13 +702,13 @@ end:
 static void usb_print_dev(device_t *dev) {
   usb_device_t *udev = usb_device_of(dev);
 
-  klog("device address: %u", udev->addr);
-  klog("device class code: %#x", udev->class_code);
-  klog("device subclass code: %#x", udev->subclass_code);
-  klog("device protocol code: %#x", udev->protocol_code);
-  klog("vendor ID: %#x", udev->vendor_id);
-  klog("product ID: %#x", udev->product_id);
-  klog("speed: %s", speed_info[udev->speed]);
+  klog("Device address: %u", udev->addr);
+  klog("Device class code: %#x", udev->class_code);
+  klog("Device subclass code: %#x", udev->subclass_code);
+  klog("Device protocol code: %#x", udev->protocol_code);
+  klog("Vendor ID: %#x", udev->vendor_id);
+  klog("Product ID: %#x", udev->product_id);
+  klog("Speed: %s", speed_info[udev->speed]);
 
   /* Print the provided string descriptors. */
   for (usb_str_t ustr = 0; ustr < USB_STR_COUNT; ustr++) {
@@ -691,14 +720,14 @@ static void usb_print_dev(device_t *dev) {
   /* Print the device's endpoints. */
   usb_endpt_t *endpt;
   TAILQ_FOREACH (endpt, &udev->endpts, link) {
-    klog("endpoint address: %u", endpt->addr);
-    klog("max packet size: %#x", endpt->maxpkt);
-    klog("transfer type: %s", tfr_info[endpt->transfer]);
-    klog("direction: %s", dir_info[endpt->dir]);
+    klog("Endpoint address: %u", endpt->addr);
+    klog("Max packet size: %#x", endpt->maxpkt);
+    klog("Transfer type: %s", tfr_info[endpt->transfer]);
+    klog("Direction: %s", dir_info[endpt->dir]);
     if (endpt->interval)
-      klog("interval: %u", endpt->interval);
+      klog("Interval: %u", endpt->interval);
     else
-      klog("no polling required");
+      klog("No polling required");
   }
 }
 

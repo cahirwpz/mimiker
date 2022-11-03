@@ -7,9 +7,6 @@
  * - Universal Host Controller Interface (UHCI) Design Guide, March 1996:
  *     ftp://ftp.netbsd.org/pub/NetBSD/misc/blymn/uhci11d.pdfunit
  *
- * - Universal Serial Bus Specification Revision 2.0, April 27, 2000:
- *     http://sdpha2.ucsd.edu/Lab_Equip_Manuals/usb_20.pdf
- *
  * Each inner function if given a description. For description
  * of the rest of contained functions please see `include/dev/usbhc.h`.
  */
@@ -849,7 +846,7 @@ static int uhci_attach(device_t *hcdev) {
   /* Setup host controller's interrupt. */
   uhci->irq = device_take_irq(hcdev, 0);
   assert(uhci->irq);
-  pic_setup_intr(dev, uhci->irq, uhci_isr, uhci_service, uhci, "UHCI");
+  pic_setup_intr(hcdev, uhci->irq, uhci_isr, uhci_service, uhci, "UHCI");
 
   /* Turn on the IOC and error interrupts. */
   set16(UHCI_INTR, UHCI_INTR_TOCRCIE | UHCI_INTR_IOCE);
