@@ -67,7 +67,7 @@ usb_buf_t *usb_buf_alloc(void) {
   usb_buf_t *buf = kmalloc(M_DEV, sizeof(usb_buf_t), M_ZERO);
 
   cv_init(&buf->cv, "USB buffer ready");
-  spin_init(&buf->lock, 0);
+  mtx_init(&buf->lock, MTX_SPIN);
 
   return buf;
 }
@@ -111,7 +111,7 @@ static void usb_buf_prepare(usb_buf_t *buf, usb_endpt_t *endpt, void *data,
 }
 
 int usb_buf_wait(usb_buf_t *buf) {
-  SCOPED_SPIN_LOCK(&buf->lock);
+  SCOPED_MTX_LOCK(&buf->lock);
 
   while (!buf->error && !buf->executed)
     cv_wait(&buf->cv, &buf->lock);
@@ -132,7 +132,7 @@ int usb_buf_wait(usb_buf_t *buf) {
 }
 
 void usb_buf_process(usb_buf_t *buf, void *data, usb_error_t error) {
-  SCOPED_SPIN_LOCK(&buf->lock);
+  SCOPED_MTX_LOCK(&buf->lock);
 
   if (error) {
     buf->error |= error;
@@ -537,6 +537,20 @@ int usb_hid_set_boot_protocol(device_t *dev) {
     .wIndex = udev->ifnum,
   };
   return usb_send_req(dev, NULL, USB_DIR_OUTPUT, &req, NULL);
+}
+
+int usb_hid_set_leds(device_t *dev, uint8_t leds) {
+  usb_device_t *udev = usb_device_of(dev);
+  usb_dev_req_t req = (usb_dev_req_t){
+    .bmRequestType = UT_WRITE_CLASS_INTERFACE,
+    .bRequest = UR_SET_REPORT,
+    .wValue = UV_MAKE(UHID_OUTPUT_REPORT, 0),
+    .wIndex = udev->ifnum,
+    .wLength = sizeof(uint8_t),
+  };
+  /* We consider bits 7:3 to be reserved. */
+  leds &= __BITS(0, 2);
+  return usb_send_req(dev, &leds, USB_DIR_OUTPUT, &req, NULL);
 }
 
 /*

@@ -7,21 +7,21 @@ SOURCES = \
 	evdev.c \
 	evdev_kbd.c \
 	evdev_m.c \
+	hidkbd.c \
 	hidms.c \
 	simplebus.c \
 	uart.c \
+	umass.c \
 	usb.c
 
 SOURCES-MIPS = \
 	82371AB.c \
-	atkbdc.c \
 	cbus.c \
 	gt64120.c \
 	isa.c \
 	malta_rootdev.c \
 	ns16550.c \
 	rtc.c \
-	rtl8139.c \
 	pci.c \
 	pci_ids.c \
 	pit.c \

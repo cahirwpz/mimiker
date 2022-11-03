@@ -6,8 +6,18 @@
 
 #define UDESC_REPORT 0x01
 #define UR_GET_REPORT 0x01
+#define UR_SET_REPORT 0x09
 #define UR_SET_IDLE 0x0a
 #define UR_SET_PROTOCOL 0x0b
+
+#define UHID_INPUT_REPORT 0x01
+#define UHID_OUTPUT_REPORT 0x02
+#define UHID_FEATURE_REPORT 0x03
+
+/* Keyboard LEDs in boot output report. */
+#define UHID_KBDLED_NUMLOCK 0x01
+#define UHID_KBDLED_CAPSLOCK 0x02
+#define UHID_KBDLED_SCROLLLOCK 0x04
 
 typedef struct usb_hid_dsc {
   uint8_t bLength;

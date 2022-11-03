@@ -360,7 +360,7 @@ static void qh_init_main(uhci_qh_t *mq) {
   bzero(mq, sizeof(uhci_qh_t));
   mq->qh_h_next = UHCI_PTR_T;
   mq->qh_e_next = UHCI_PTR_T;
-  spin_init(&mq->qh_lock, 0);
+  mtx_init(&mq->qh_lock, MTX_SLEEP);
   TAILQ_INIT(&mq->qh_list);
 }
 
@@ -387,7 +387,7 @@ static inline void qh_unhalt(uhci_qh_t *qh) {
 
 /* Insert the specified queue into the specified main queue for execution. */
 static void qh_insert(uhci_qh_t *mq, uhci_qh_t *qh) {
-  SCOPED_SPIN_LOCK(&mq->qh_lock);
+  SCOPED_MTX_LOCK(&mq->qh_lock);
 
   uhci_qh_t *last = TAILQ_LAST(&mq->qh_list, qh_list);
 
@@ -403,7 +403,7 @@ static void qh_insert(uhci_qh_t *mq, uhci_qh_t *qh) {
 
 /* Remove the specified queue from the specified main queue. */
 static void qh_remove(uhci_qh_t *mq, uhci_qh_t *qh) {
-  assert(spin_owned(&mq->qh_lock));
+  assert(mtx_owned(&mq->qh_lock));
 
   uhci_qh_t *prev = TAILQ_PREV(qh, qh_list, qh_link);
 
@@ -431,7 +431,7 @@ static uint32_t qh_error_status(uhci_qh_t *qh) {
 /* Remove the specified queue from the pointed main queue and reclaim
  * UHCI buffers associated with the queue. */
 static void qh_discard(uhci_qh_t *mq, uhci_qh_t *qh) {
-  assert(spin_owned(&mq->qh_lock));
+  assert(mtx_owned(&mq->qh_lock));
   qh_remove(mq, qh);
   qh_free(qh);
 }
@@ -516,7 +516,7 @@ static usb_error_t uhcie2usbe(uint32_t error) {
 
 /* Process the transfer identified by queue `qh`. */
 static void uhci_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
-  assert(spin_owned(&mq->qh_lock));
+  assert(mtx_owned(&mq->qh_lock));
 
   qh_halt(qh);
 
@@ -565,9 +565,18 @@ static intr_filter_t uhci_isr(void *data) {
   for (int i = 0; i < UHCI_NMAINQS; i++) {
     uhci_qh_t *mq = uhci->mainqs[i];
     qh_halt(mq);
+  }
 
+  return IF_DELEGATE;
+}
+
+static void uhci_service(void *data) {
+  uhci_state_t *uhci = data;
+
+  for (int i = 0; i < UHCI_NMAINQS; i++) {
+    uhci_qh_t *mq = uhci->mainqs[i];
     /* Travers each main queue to find the delinquent. */
-    WITH_SPIN_LOCK (&mq->qh_lock) {
+    WITH_MTX_LOCK (&mq->qh_lock) {
       uhci_qh_t *qh, *next;
       TAILQ_FOREACH_SAFE (qh, &mq->qh_list, qh_link, next)
         uhci_process(uhci, mq, qh);
@@ -576,8 +585,6 @@ static intr_filter_t uhci_isr(void *data) {
         qh_unhalt(mq);
     }
   }
-
-  return IF_FILTERED;
 }
 
 /* Schedule a queue for execution in `flr(log(interval))` ms. */
@@ -842,7 +849,7 @@ static int uhci_attach(device_t *hcdev) {
   /* Setup host controller's interrupt. */
   uhci->irq = device_take_irq(hcdev, 0);
   assert(uhci->irq);
-  pic_setup_intr(hcdev, uhci->irq, uhci_isr, NULL, uhci, "UHCI");
+  pic_setup_intr(dev, uhci->irq, uhci_isr, uhci_service, uhci, "UHCI");
 
   /* Turn on the IOC and error interrupts. */
   set16(UHCI_INTR, UHCI_INTR_TOCRCIE | UHCI_INTR_IOCE);

@@ -13,7 +13,6 @@
 #include <sys/signal.h>
 #include <sys/sigtypes.h>
 #include <sys/kstack.h>
-#include <sys/spinlock.h>
 #include <sys/lockdep.h>
 
 /*! \file thread.h */
@@ -96,8 +95,8 @@ typedef enum {
  */
 typedef struct thread {
   /* locking */
-  spin_t *volatile td_lock; /*!< (~) used by dispatcher & scheduler */
-  condvar_t td_waitcv;      /*!< (t) for thread_join */
+  mtx_t *volatile td_lock; /*!< (~) used by dispatcher & scheduler */
+  condvar_t td_waitcv;     /*!< (t) for thread_join */
   /* linked lists */
   TAILQ_ENTRY(thread) td_all;      /* (a) link on all threads list */
   TAILQ_ENTRY(thread) td_runq;     /* ($) link on run queue */

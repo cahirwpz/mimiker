@@ -5,8 +5,8 @@
 #define _DEV_USB_H_
 
 #include <sys/condvar.h>
-#include <sys/spinlock.h>
 #include <sys/device.h>
+#include <sys/mutex.h>
 
 /*
  * Constructs defined by the USB specification.
@@ -283,7 +283,7 @@ typedef struct usb_device {
 /* USB buffer used for USB transfers. */
 typedef struct usb_buf {
   condvar_t cv;           /* wait for the transfer to complete */
-  spin_t lock;            /* buffer guard */
+  mtx_t lock;             /* buffer guard */
   usb_endpt_t *endpt;     /* device's endpoint we're talking with */
   void *data;             /* data buffer */
   void *priv;             /* buffer's private data (do not alter!) */
@@ -445,6 +445,28 @@ int usb_hid_set_idle(device_t *dev);
  *  - EIO: an error has been encountered during the transfer
  */
 int usb_hid_set_boot_protocol(device_t *dev);
+
+/*
+ * Turns on/off keyboards LEDs.
+ *
+ * Layout of the `leds` argument:
+ *
+ *  Bit  Description
+ *   0    Num Lock
+ *   1    Caps Lock
+ *   2   Scroll Lock
+ *  7:3   Reserved
+ *
+ *  Please see `UHID_KBDLED_*` macros at `include/dev/usbhid.h`.
+ *
+ * Arguments:
+ *  - `dev`: USB device
+ *  - `leds`: LEDs state
+ *
+ * Error codes:
+ *  - EIO: an error has been encountered during the transfer
+ */
+int usb_hid_set_leds(device_t *dev, uint8_t leds);
 
 /*
  * USB Bulk-Only specific standard requests.

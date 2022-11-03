@@ -42,7 +42,7 @@ static inline uart_methods_t *uart_methods(device_t *dev) {
 }
 
 typedef struct uart_state {
-  spin_t u_lock;
+  mtx_t u_lock;
   ringbuf_t u_rx_buf; /* Software receiver queue. */
   ringbuf_t u_tx_buf; /* Software transmitter queue. */
   tty_thread_t u_ttd;
