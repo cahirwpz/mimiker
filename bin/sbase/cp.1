@@ -1,0 +1,75 @@
+.Dd 2015-10-08
+.Dt CP 1
+.Os sbase
+.Sh NAME
+.Nm cp
+.Nd copy files and directories
+.Sh SYNOPSIS
+.Nm
+.Op Fl afpv
+.Oo
+.Fl R
+.Op Fl H | L | P
+.Oc
+.Ar source ...
+.Ar dest
+.Sh DESCRIPTION
+.Nm
+copies
+.Ar source
+to
+.Ar dest .
+If more than one
+.Ar source
+is given
+.Ar dest
+has to be a directory.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl a
+Preserve block devices, character devices, sockets and FIFOs.
+Implies
+.Fl p ,
+.Fl P
+and
+.Fl R .
+.It Fl f
+If an existing
+.Ar dest
+cannot be opened, remove it and try again.
+.It Fl p
+Preserve mode, timestamp and permissions.
+.It Fl v
+Write "'source' -> 'dest'" for each
+.Ar source
+to stdout.
+.It Fl H
+Dereference
+.Ar source
+if it is a symbolic link.
+.It Fl L
+Dereference all symbolic links.
+This is the default without
+.Fl R .
+.It Fl P
+Preserve symbolic links.
+This is the default with
+.Fl R .
+.It Fl R
+Traverse directories recursively.
+If this flag is not specified, directories are not copied.
+.El
+.Sh SEE ALSO
+.Xr mv 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification except from the
+.Op Fl i
+flag.
+.Pp
+The
+.Op Fl av
+flags are an extension to that specification.

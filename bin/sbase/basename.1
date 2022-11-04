@@ -1,0 +1,26 @@
+.Dd 2015-10-08
+.Dt BASENAME 1
+.Os sbase
+.Sh NAME
+.Nm basename
+.Nd strip leading directory components of a path
+.Sh SYNOPSIS
+.Nm
+.Ar path
+.Op Ar suffix
+.Sh DESCRIPTION
+.Nm
+writes
+.Ar path
+without leading directory components and
+.Ar suffix
+to stdout.
+.Sh SEE ALSO
+.Xr dirname 1 ,
+.Xr basename 3
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

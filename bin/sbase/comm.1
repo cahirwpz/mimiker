@@ -1,0 +1,44 @@
+.Dd 2015-10-08
+.Dt COMM 1
+.Os sbase
+.Sh NAME
+.Nm comm
+.Nd select or reject lines common to two files
+.Sh SYNOPSIS
+.Nm
+.Op Fl 123
+.Ar file1
+.Ar file2
+.Sh DESCRIPTION
+.Nm
+reads
+.Ar file1
+and
+.Ar file2,
+which should both be sorted lexically, and writes three text columns
+to stdout:
+.Bl -tag -width Ds
+.It 1
+Lines only in
+.Ar file1 .
+.It 2
+Lines only in
+.Ar file2 .
+.It 3
+Common lines.
+.El
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl 1 | Fl 2 | Fl 3
+Suppress column 1 | 2 | 3
+.El
+.Sh SEE ALSO
+.Xr cmp 1 ,
+.Xr sort 1 ,
+.Xr uniq 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

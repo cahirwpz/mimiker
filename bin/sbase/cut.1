@@ -1,0 +1,73 @@
+.Dd 2015-10-08
+.Dt CUT 1
+.Os sbase
+.Sh NAME
+.Nm cut
+.Nd extract columns of data
+.Sh SYNOPSIS
+.Nm
+.Fl b Ar list
+.Op Fl n
+.Op Ar file ...
+.Nm
+.Fl c Ar list
+.Op Ar file ...
+.Nm
+.Fl f Ar list
+.Op Fl d Ar delim
+.Op Fl s
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+out bytes, characters or delimited fields from each line of
+.Ar file
+and write to stdout.
+.Pp
+If no
+.Ar file
+is given or
+.Ar file
+is '-',
+.Nm
+reads from stdin.
+.Pp
+.Ar list
+is a comma or space separated list of numbers and ranges starting
+from 1.
+Ranges have the form 'N-M'. If N or M is missing, beginning or end
+of line is assumed.
+Numbers and ranges may be repeated, overlapping and in any order.
+.Pp
+Selected input is written in the same order it is read
+and is written exactly once.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl b Ar list | Fl c Ar list
+.Ar list
+specifies byte | character positions.
+.It Fl d Ar delim
+Use
+.Ar delim
+as field delimiter, which can be an arbitrary string.
+Default is '\et'.
+.It Fl f Ar list
+.Ar list
+specifies field numbers.
+Lines not containing field delimiters are passed through, unless
+.Fl s
+is specified.
+.It Fl n
+Do not split multibyte characters.
+A character is written when its last byte is selected.
+.It Fl s
+Suppress lines not containing field delimiters.
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The possibility of separating numbers and ranges with a space and specifying
+multibyte delimiters of arbitrary length is an extension to that specification.

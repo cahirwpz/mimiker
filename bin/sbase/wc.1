@@ -1,0 +1,32 @@
+.Dd 2015-10-08
+.Dt WC 1
+.Os sbase
+.Sh NAME
+.Nm wc
+.Nd word count
+.Sh SYNOPSIS
+.Nm
+.Op Fl c | Fl m
+.Op Fl lw
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+writes the number of lines, words and bytes in each
+.Ar file
+to stdout.
+If no
+.Ar file
+is given
+.Nm
+reads from stdin.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl c | Fl l | Fl m | Fl w
+Print the number of bytes | lines | characters | words.
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

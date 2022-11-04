@@ -1,0 +1,39 @@
+.Dd 2015-10-08
+.Dt MV 1
+.Os sbase
+.Sh NAME
+.Nm mv
+.Nd move files and directories
+.Sh SYNOPSIS
+.Nm
+.Op Fl f
+.Ar source ...
+.Ar dest
+.Sh DESCRIPTION
+.Nm
+moves each
+.Ar source
+to
+.Ar dest .
+If only one
+.Ar source
+is given and
+.Ar dest
+is not a directory,
+.Nm
+overwrites the latter with the former.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl f
+Do not prompt before overwriting.
+.Ar dest .
+Prompting has not been implemented yet.
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification except from the
+.Op Fl i
+flag.

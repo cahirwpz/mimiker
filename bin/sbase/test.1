@@ -1,0 +1,135 @@
+.Dd 2015-10-08
+.Dt TEST 1
+.Os sbase
+.Sh NAME
+.Nm test
+.Nd evaluate expression
+.Sh SYNOPSIS
+.Nm
+.Ar expression
+.Sh DESCRIPTION
+.Nm
+returns the status of the
+.Ar expression .
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It ! Ar expression
+invert
+.Ar expression .
+.It ( Fl e | Fl s ) Ar file
+.Ar file
+exists and has (any size
+.Op Fl e
+| non-zero size
+.Op Fl s ) .
+.It ( Fl f | Fl d | Fl p | Fl hL | Fl S | Fl b | Fl c ) Ar file
+.Ar file
+exists and is a
+(regular file
+.Op Fl f
+| directory
+.Op Fl d
+| named pipe
+.Op Fl p
+| symbolic link
+.Op Fl h | Fl L
+| socket
+.Op Fl S
+| block special
+.Op Fl b
+| character special
+.Op Fl c ) .
+.It ( Fl k | Fl g | Fl u | Fl r | Fl w | Fl x ) Ar file
+.Ar file
+exists and has
+.Xr ( sticky 1
+.Op Fl k
+|
+.Xr setgid 2
+.Op Fl g
+|
+.Xr setuid 4
+.Op Fl u
+|
+.Xr read 4
+.Op Fl r
+|
+.Xr write 2
+.Op Fl w
+|
+.Xr execute 1
+.Op Fl x )
+permissions.
+.It Fl t Ar fd
+.Ar fd
+as a file descriptor is associated with a terminal.
+.It Ar string
+True if
+.Ar string
+is not the null string.
+.It ( Fl z | Fl n ) Ar string
+True if
+.Ar string
+has (zero
+.Op Fl z
+| non-zero
+.Op Fl n )
+length.
+.It Ar s1 Sy ( = | != ) Ar s2
+True if strings
+.Ar s1
+and
+.Ar s2
+are
+(identical
+.Oo Sy = Oc
+| different
+.Oo Sy != Oc ) .
+.It Ar n1 ( Fl eq | Fl ne | Fl gt | Fl ge | Fl le | Fl lt ) Ar n2
+True if integers
+.Ar n1
+and
+.Ar n2
+are (=
+.Op Fl eq
+| !=
+.Op Fl ne
+| >
+.Op Fl gt
+| >=
+.Op Fl ge
+| <=
+.Op Fl le
+| <
+.Op Fl lt ) .
+.It Ar f1 ( Fl ef | Fl ot | Fl nt ) Ar f2
+True if file
+.Ar f1
+(refer to the same inode as
+.Op Fl ef
+| has an older mtime than
+.Op Fl ot
+| has a newer mtime than
+.Op Fl nt )
+file
+.Ar f2 .
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+.Ar expression
+is true.
+.It 1
+.Ar expression
+is false.
+.It > 1
+An error occurred.
+.El
+.Sh SEE ALSO
+.Xr expr 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

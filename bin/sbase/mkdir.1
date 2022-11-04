@@ -1,0 +1,38 @@
+.Dd 2015-10-08
+.Dt MKDIR 1
+.Os sbase
+.Sh NAME
+.Nm mkdir
+.Nd create directories
+.Sh SYNOPSIS
+.Nm
+.Op Fl p
+.Op Fl m Ar mode
+.Ar name ...
+.Sh DESCRIPTION
+.Nm
+creates a directory for each
+.Ar name
+if it does not already exist.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl m
+Set the file
+.Ar mode
+of newly created directories.
+See
+.Xr chmod 1 .
+.It Fl p
+Also create necessary parent directories and
+do not fail if
+.Ar name
+already exists.
+.El
+.Sh SEE ALSO
+.Xr mkdir 2
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

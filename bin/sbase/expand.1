@@ -1,0 +1,51 @@
+.Dd 2015-10-08
+.Dt EXPAND 1
+.Os sbase
+.Sh NAME
+.Nm expand
+.Nd expand tabs to spaces
+.Sh SYNOPSIS
+.Nm
+.Op Fl i
+.Op Fl t Ar tablist
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+converts tabs to spaces in each
+.Ar file
+as specified in
+.Ar tablist .
+If no file is given,
+.Nm
+reads from stdin.
+.Pp
+Backspace characters are preserved and decrement the column count
+for tab calculations.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl i
+Only expand tabs at the beginning of lines, i.e. expand each
+line until a character different from '\et' and ' ' is reached.
+.It Fl t Ar tablist
+Specify tab size or tabstops.
+.Ar tablist
+is a list of one (in the former case) or multiple (in the latter case)
+strictly positive integers separated by ' ' or ','.
+.Pp
+The default
+.Ar tablist
+is "8".
+.El
+.Sh SEE ALSO
+.Xr fold 1 ,
+.Xr unexpand 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The
+.Op Fl i
+flag is an extension to that specification.

@@ -51,6 +51,7 @@ typedef struct _dirdesc DIR;
 __BEGIN_DECLS
 int closedir(DIR *);
 DIR *opendir(const char *);
+DIR *fdopendir(int fd);
 struct dirent *readdir(DIR *);
 int readdir_r(DIR *__restrict, struct dirent *__restrict,
               struct dirent **__restrict);

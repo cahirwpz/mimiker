@@ -1,0 +1,44 @@
+.Dd 2015-10-08
+.Dt WHICH 1
+.Os sbase
+.Sh NAME
+.Nm which
+.Nd locate programs in the path
+.Sh SYNOPSIS
+.Nm
+.Op Fl a
+.Ar name ...
+.Sh DESCRIPTION
+.Nm
+looks for each
+.Ar name
+in the
+.Ev PATH
+directories, stopping at the first match and printing
+the full path to stdout.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl a
+Don't stop at the first match and search all
+.Ev PATH
+directories.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+Each
+.Ar name
+was found.
+.It 1
+At least one
+.Ar name
+was not found.
+.It 2
+No
+.Ar name
+was found.
+.It 3
+An error occurred.
+.El
+.Sh SEE ALSO
+.Xr environ 7

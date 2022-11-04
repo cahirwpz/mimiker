@@ -1,0 +1,119 @@
+.Dd 2020-05-15
+.Dt NL 1
+.Os sbase
+.Sh NAME
+.Nm nl
+.Nd line numbering filter
+.Sh SYNOPSIS
+.Nm
+.Op Fl p
+.Op Fl b Ar type
+.Op Fl d Ar delim
+.Op Fl f Ar type
+.Op Fl h Ar type
+.Op Fl i Ar num
+.Op Fl l Ar num
+.Op Fl n Ar format
+.Op Fl s Ar sep
+.Op Fl v Ar num
+.Op Fl w Ar num
+.Op Ar file
+.Sh DESCRIPTION
+.Nm
+reads lines from
+.Ar file
+and writes them to stdout, numbering non-empty lines.
+If no
+.Ar file
+is given
+.Nm
+reads from stdin.
+.Pp
+.Nm
+treats the input text as a collection of logical pages divided into
+logical page sections.
+Each logical page consists of a header section, a body
+section and a footer section.
+Sections may be empty.
+The start of each section is indicated by a single delimiting line, one of:
+.Bl -column "\e:\e:\e: " "header " -offset indent
+.It Em "Line" Ta Em "Start of"
+.It \e:\e:\e:	header
+.It \e:\e:	body
+.It \e:	footer
+.El
+.Pp
+If the input text contains no delimiting line then all of the input text
+belongs to a single logical page body section.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl p
+Do not reset line number for logical pages.
+.It Fl h Ar type | Fl b Ar type | Fl f Ar type
+Define which lines to number in the head | body | footer section:
+.Bl -tag -width pstringXX
+.It a
+All lines.
+.It n
+No lines.
+.It t
+Only non-empty lines.
+This is the default.
+.It p Ns Ar expr
+Only lines matching
+.Ar expr
+according to
+.Xr regex 7 .
+.El
+.It Fl d Ar delim
+Set
+.Ar delim
+as the delimiter for logical pages.
+If
+.Ar delim
+is only one character,
+.Nm
+appends ":" to it.
+The default is "\e:".
+.It Fl i Ar num
+Set the increment between numbered lines to
+.Ar num .
+.It Fl l Ar num
+Set the number of adjacent blank lines to be considered as one to
+.Ar num .
+The default is 1.
+.It Fl n Ar format
+Set the line number output
+.Ar format
+to one of:
+.Bl -tag -width pstringXX
+.It ln
+Left justified.
+.It rn
+Right justified.
+This is the default.
+.It rz
+Right justified with leading zeroes.
+.El
+.It Fl s Ar sep
+Use
+.Ar sep
+to separate line numbers and lines.
+The default is "\et".
+.It Fl v Ar num
+Start counting lines from
+.Ar num .
+The default is 1.
+.It Fl w Ar num
+Set the width of the line number to
+.Ar num .
+The default is 6.
+.El
+.Sh SEE ALSO
+.Xr pr 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

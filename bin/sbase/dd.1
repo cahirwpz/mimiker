@@ -1,0 +1,91 @@
+.Dd 2020-04-28
+.Dt DD 1
+.Os sbase
+.Sh NAME
+.Nm dd
+.Nd convert and copy a file
+.Sh SYNOPSIS
+.Nm
+.Op Ar operand Ns ...
+.Sh DESCRIPTION
+.Nm
+copies its input to its output, possibly after conversion, using
+the specified block sizes,
+.Pp
+The following operands are available:
+.Bl -tag -width ibs=expr
+.It Cm if= Ns Ar file
+Read from the file named by
+.Ar file
+instead of standard input.
+.It Cm of= Ns Ar file
+Write to the file named by
+.Ar file
+instead of standard output.
+.It Cm ibs= Ns Ar expr
+Set the input block size to
+.Ar expr
+(defaults to 512).
+.It Cm obs= Ns Ar expr
+Set the output block size to
+.Ar expr
+(defaults to 512).
+.It Cm bs= Ns Ar expr
+Set the input and output block sizes to
+.Ar expr .
+Additionally, if no conversion other than
+.Cm noerror ,
+.Cm notrunc ,
+or
+.Cm sync
+is specified, input blocks are copied as single output blocks, even
+when the input block is short.
+.It Cm skip= Ns Ar n
+Skip
+.Ar n
+input blocks before starting to copy.
+.It Cm seek= Ns Ar n
+Skip
+.Ar n
+output blocks before starting to copy.
+.It Cm count= Ns Ar n
+Copy at most
+.Ar n
+input blocks.
+.It Cm conv= Ns Ar value Ns Op , Ns Ar value Ns ...
+Apply the conversions specified by
+.Ar value .
+.Bl -tag -width Ds
+.It Cm lcase
+Map uppercase characters to the corresponding lowercase character
+using
+.Fn tolower .
+.It Cm ucase
+Map lowercase characters to the corresponding uppercase character
+using
+.Fn toupper .
+.It Cm swab
+Swap each pair of bytes in the input block.
+If there is an odd number of bytes in a block, the last one is
+unmodified.
+.It Cm noerror
+In case of an error reading from the input, do not fail.
+Instead, print a diagnostic message and a summary of the current
+status.
+.It Cm notrunc
+Do not truncate the output file.
+.It Cm sync
+In case of a partial input block, pad with null bytes to form a
+complete block.
+.El
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2008
+specification, except that it does not implement the
+.Cm block
+and
+.Cm unblock
+conversions.

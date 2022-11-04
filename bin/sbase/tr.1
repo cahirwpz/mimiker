@@ -1,0 +1,87 @@
+.Dd 2016-10-05
+.Dt TR 1
+.Os sbase
+.Sh NAME
+.Nm tr
+.Nd translate characters
+.Sh SYNOPSIS
+.Nm
+.Op Fl c | Fl C
+.Op Fl sd
+.Ar set1 set2
+.Sh DESCRIPTION
+.Nm
+matches characters from stdin and performs translations to stdout.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl c | Fl C
+Match to
+.Ar set1
+complement.
+.It Fl d
+Delete characters matching
+.Ar set1 .
+.It Fl s
+Squeeze repeated characters matching
+.Ar set1
+or
+.Ar set2
+if
+.Fl d
+is set.
+.El
+.Sh SET
+.Bl -tag -width Ds
+.It Literal Sy c
+.It Escape sequence Sy \ec
+\e\e, \e', \e", \ea, \eb, \ee, \ef, \en, \er, \et, \ev, \exH[H], \eO[OO]
+.It Range Sy c-d
+.It Repeat Sy [c*n]
+Only in
+.Ar set2 .
+If n = 0 or left out, set n to length of
+.Ar set1 .
+.It Character class Sy [:class:]
+See
+.Xr wctype 3 .
+.It Equivalence class Sy [=c=]
+Resolve to
+.Sy c .
+.El
+.Sh TRANSLATION
+If
+.Fl d
+is not set,
+.Nm
+translates from
+.Ar set1
+to
+.Ar set2
+by index or character class.
+.Pp
+If
+.Ar set2
+is shorter than
+.Ar set1
+or
+.Ar set1
+is a character class,
+overflowing characters translate to the last character in
+.Ar set2 .
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+Input processed successfully.
+.It 1
+An error occurred.
+.El
+.Sh SEE ALSO
+.Xr awk 1 ,
+.Xr sed 1 ,
+.Xr utf8 7
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification except from equivalence classes.

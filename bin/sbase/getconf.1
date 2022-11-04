@@ -1,0 +1,60 @@
+.Dd 2015-10-08
+.Dt GETCONF 1
+.Os sbase
+.Sh NAME
+.Nm getconf
+.Nd get configuration values
+.Sh SYNOPSIS
+.Nm
+.Op Fl v Ar spec
+.Ar var
+.Ar [path]
+.Sh DESCRIPTION
+.Nm
+writes the value of the variable
+.Ar var
+to stdout.
+.sp
+If
+.Ar path
+is given,
+.Ar var
+is matched against configuration values from
+.Xr pathconf 3 .
+If
+.Ar path
+is not given,
+.Ar var
+is matched against configuration values from
+.Xr sysconf 3 ,
+.Xr confstr 3
+and limits.h (Minimum and Maximum).
+.sp
+If
+.Ar var
+is not defined,
+.Nm
+writes "undefined" to stdout.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl v Ar spec
+Ignored.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+.Ar var
+was matched and its value written successfully.
+.It 1
+An error occured or
+.Ar var
+was invalid.
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification except from the
+.Op Fl v
+flag.

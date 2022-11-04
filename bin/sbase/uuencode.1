@@ -1,0 +1,38 @@
+.Dd 2015-10-08
+.Dt UUENCODE 1
+.Os sbase
+.Sh NAME
+.Nm uuencode
+.Nd encode a binary file
+.Sh SYNOPSIS
+.Nm
+.Op Fl m
+.Op Ar file
+.Ar name
+.Sh DESCRIPTION
+.Nm
+reads
+.Ar file
+and writes an encoded version to stdout.
+The encoding uses only printing ASCII characters and
+includes the mode of the file and the operand
+.Ar name
+for use by uudecode.
+If no
+.Ar name
+is given
+.Nm
+reads from stdin.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl m
+Use Base64 for encoding.
+.El
+.Sh SEE ALSO
+.Xr uudecode 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

@@ -1,0 +1,32 @@
+.Dd 2016-02-24
+.Dt SHA224SUM 1
+.Os sbase
+.Sh NAME
+.Nm sha224sum
+.Nd compute or check SHA-224 message digests
+.Sh SYNOPSIS
+.Nm
+.Op Fl c
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+writes SHA-224 (224-bit) checksums of each
+.Ar file
+to stdout.
+If no
+.Ar file
+is given
+.Nm
+reads from stdin.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl c
+Read list of SHA-224 checksums from each
+.Ar file
+and check them.
+If no
+.Ar file
+is given
+.Nm
+reads from stdin.
+.El

@@ -1,0 +1,33 @@
+.Dd 2015-10-08
+.Dt PWD 1
+.Os sbase
+.Sh NAME
+.Nm pwd
+.Nd print working directory
+.Sh SYNOPSIS
+.Nm
+.Op Fl L | Fl P
+.Sh DESCRIPTION
+.Nm
+prints the path of the current working directory.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl L
+Logical path, uses $PWD.
+This is the default.
+.It Fl P
+Physical path, avoids all symlinks.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width PWD
+.It Ev PWD
+The logical path to the current working directory.
+.El
+.Sh SEE ALSO
+.Xr getcwd 3
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

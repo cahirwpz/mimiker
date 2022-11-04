@@ -1,0 +1,50 @@
+.Dd 2015-10-08
+.Dt SPLIT 1
+.Os sbase
+.Sh NAME
+.Nm split
+.Nd split up a file
+.Sh SYNOPSIS
+.Nm
+.Op Fl a Ar num
+.Op Fl b Ar num[k|m|g] | Fl l Ar num
+.Op Fl d
+.Op Ar file Op Ar prefix
+.Sh DESCRIPTION
+.Nm
+splits
+.Ar file
+into files with 1000 lines each, named with
+.Ar prefix
+"x" followed by 2-digit alphabetical count suffixes.
+If
+.Nm
+runs out of suffixes, it stops after the last valid filename.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl a Ar num
+Set suffix length to
+.Ar num
+characters.
+The default is 2.
+.It Fl b Ar num[k|m|g] | Fl l Ar num
+Start a new file every
+.Ar num
+bytes | lines.
+The units k, m, and g are case insensitive and powers of 2, not 10.
+The default is 1000 lines.
+.It Fl d
+Use decimal rather than alphabetical suffixes.
+.El
+.Sh SEE ALSO
+.Xr cat 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The
+.Op Fl d
+flag and g unit are an extension to that specification.

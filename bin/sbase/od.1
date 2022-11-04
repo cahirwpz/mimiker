@@ -1,0 +1,83 @@
+.Dd 2015-10-25
+.Dt OD 1
+.Os sbase
+.Sh NAME
+.Nm od
+.Nd octal dump
+.Sh SYNOPSIS
+.Nm
+.Op Fl bdosvx
+.Op Fl A Ar addrformat
+.Op Fl E | e
+.Op Fl j Ar skip
+.Op Fl t Ar outputformat...
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+writes an octal dump of each
+.Ar file
+to stdout.
+If no
+.Ar file
+is given
+.Nm
+reads from stdin.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl A Ar addressformat
+.Ar addressformat
+is one of d|o|x|n and sets the address to be
+either in \fId\fRecimal, \fIo\fRctal, he\fIx\fRadecimal or \fIn\fRot
+printed at all.
+The default is octal.
+.It Fl E | e
+Force Little Endian
+.Fl ( e )
+or Big Endian
+.Fl ( E )
+system-independently.
+.It Fl b
+Equivalent to
+.Fl t o1 .
+.It Fl d
+Equivalent to
+.Fl t u2 .
+.It Fl j Ar skip
+Ignore the first
+.Ar skip
+bytes of input.
+.It Fl o
+Equivalent to
+.Fl t o2 .
+.It Fl s
+Equivalent to
+.Fl t d2 .
+.It Fl t Ar outputformat
+.Ar outputformat
+is a list of a|c|d|o|u|x followed by a digit or C|S|I|L and sets
+the content to be in n\fIa\fRmed character, \fIc\fRharacter, signed
+\fId\fRecimal, \fIo\fRctal, \fIu\fRnsigned decimal, or
+he\fIx\fRadecimal format, processing the given amount of bytes or the length
+of \fIC\fRhar, \fIS\fRhort, \fII\fRnteger or \fIL\fRong.
+The default is octal with 4 bytes.
+.It Fl v
+Always set.
+Write all input data, including duplicate lines.
+.It Fl x
+Equivalent to
+.Fl t x2 .
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification except that the
+.Op Fl v
+flag is always enabled and the 'd' parameter for the
+.Op Fl t
+flag is interpreted as 'u'.
+.Pp
+The
+.Op Ee
+flags are an extension to that specification.

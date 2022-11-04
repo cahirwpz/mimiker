@@ -1,0 +1,51 @@
+.Dd 2015-10-08
+.Dt PASTE 1
+.Os sbase
+.Sh NAME
+.Nm paste
+.Nd merge lines of files in parallel or sequentially
+.Sh SYNOPSIS
+.Nm
+.Op Fl s
+.Op Fl d Ar list
+.Ar file ...
+.Sh DESCRIPTION
+.Nm
+reads single lines from each
+.Ar file
+and writes them into one line, replacing
+.Sy \en
+with
+.Sy \et
+except from the last
+.Ar file .
+This process is repeated until each
+.Ar file
+is starved, treating zero-reads as empty lines along the way.
+.Pp
+If
+.Ar file
+is '-',
+.Nm
+interprets it as stdin.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl d Ar list
+Replace
+.Sy \en
+with escaped characters from
+.Ar list
+by cycling through it.
+.It Fl s
+Read each
+.Ar file
+sequentially instead of in parallel.
+.El
+.Sh SEE ALSO
+.Xr cut 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

@@ -1,0 +1,32 @@
+.Dd 2015-10-08
+.Dt TFTP 1
+.Os sbase
+.Sh NAME
+.Nm tftp
+.Nd trivial file transfer protocol client
+.Sh SYNOPSIS
+.Nm
+.Fl h Ar host
+.Op Fl p Ar port
+.Op Fl x | c
+.Ar file
+.Sh DESCRIPTION
+.Nm
+is a client that implements the trivial file transfer protocol over
+either IPv4 or IPv6 as specified in RFC 1350.
+It can be used to transfer files to and from remote machines.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl h Ar host
+Set the remote hostname.
+.It Fl p Ar port
+Set the remote port.
+It defaults to port 69.
+.It Fl x
+Extract a file from the server.
+This is the default if no flags are specified.
+Output goes to stdout.
+.It Fl c
+Create a file on the server.
+Input comes from stdin.
+.El

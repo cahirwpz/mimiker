@@ -1,0 +1,56 @@
+.Dd 2015-10-08
+.Dt LOGGER 1
+.Os sbase
+.Sh NAME
+.Nm logger
+.Nd make entries in the system log
+.Sh SYNOPSIS
+.Nm
+.Op Fl is
+.Op Fl p Ar priority
+.Op Fl t Ar tag
+.Op Ar message ...
+.Sh DESCRIPTION
+.Nm
+provides a shell command interface to the
+.Xr syslog 3
+system log module and writes each
+.Ar message
+to the log.
+If no
+.Ar message
+is given,
+.Nm
+logs stdin.
+.Sh OPTIONS
+.Bl -tag -width xxxxxxxxxxxx
+.It Fl i
+Add the logger process ID to each line in the log.
+.It Fl p Ar priority
+Set the message
+.Ar priority
+given symbolically as a
+.Dq facility.level
+pair.
+The default is
+.Dq user.notice .
+.It Fl s
+Also log to stderr.
+.It Fl t Ar tag
+Add
+.Ar tag
+to each line in the log.
+.El
+.Sh SEE ALSO
+.Xr syslogd 1 ,
+.Xr syslog 3
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The
+.Op Fl ipst
+flags are an extensions to that specification.

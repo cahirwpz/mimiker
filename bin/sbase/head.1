@@ -1,0 +1,44 @@
+.Dd 2015-10-08
+.Dt HEAD 1
+.Os sbase
+.Sh NAME
+.Nm head
+.Nd display initial lines of files
+.Sh SYNOPSIS
+.Nm
+.Op Fl n Ar num | Fl Ns Ar num
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+writes
+.Ar num
+lines of each
+.Ar file
+to stdout.
+If no
+.Ar file
+is given
+.Nm
+reads from stdin.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl n Ar num | Fl Ns Ar num
+Display initial
+.Ar num
+|
+.Sy N
+lines.
+Default is 10.
+.El
+.Sh SEE ALSO
+.Xr tail 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The
+.Op Fl Ns num
+syntax is an extension to that specification.

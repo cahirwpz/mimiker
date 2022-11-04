@@ -1,0 +1,53 @@
+.Dd 2015-10-08
+.Dt CMP 1
+.Os sbase
+.Sh NAME
+.Nm cmp
+.Nd compare two files
+.Sh SYNOPSIS
+.Nm
+.Op Fl l | Fl s
+.Ar file1 file2
+.Sh DESCRIPTION
+.Nm
+compares
+.Ar file1
+and
+.Ar file2
+byte by byte.
+If they differ,
+.Nm
+writes the first differing byte- and line-number to stdout.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl l
+Print byte-number and bytes (in octal) for each difference.
+.It Fl s
+Print nothing and only return status.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+.Ar file1
+and
+.Ar file2
+are identical.
+.It 1
+.Ar file1
+and
+.Ar file2
+are different.
+.It > 1
+An error occurred.
+.El
+.Sh SEE ALSO
+.Xr comm 1 ,
+.Xr diff 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The "char" in the default result format has been replaced with "byte".

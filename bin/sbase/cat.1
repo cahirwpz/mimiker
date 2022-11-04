@@ -1,0 +1,31 @@
+.Dd 2015-10-08
+.Dt CAT 1
+.Os sbase
+.Sh NAME
+.Nm cat
+.Nd concatenate files
+.Sh SYNOPSIS
+.Nm
+.Op Fl u
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+reads each
+.Ar file
+in sequence and writes it to stdout.
+If no
+.Ar file
+is given
+.Nm
+reads from stdin.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl u
+Unbuffered output.
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

@@ -1,0 +1,61 @@
+.Dd 2015-10-08
+.Dt DU 1
+.Os sbase
+.Sh NAME
+.Nm du
+.Nd display disk usage statistics
+.Sh SYNOPSIS
+.Nm
+.Op Fl a | s
+.Op Fl d Ar depth
+.Op Fl h
+.Op Fl k
+.Op Fl H | L | P
+.Op Fl x
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+displays the file system block usage for each
+.Ar file
+argument and for each directory in the file hierarchy rooted in directory
+argument.
+If no
+.Ar file
+is specified, the block usage of the hierarchy rooted in the current directory
+is displayed.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl a
+Display an entry for each file in the file hierarchy.
+.It Fl s
+Display only the grand total for the specified files.
+.It Fl d Ar depth
+Maximum directory depth to print files and directories.
+.It Fl h
+Enable human-readable output.
+.It Fl k
+By default all sizes are reported in 512-byte block counts.
+The
+.Fl k
+option causes the numbers to be reported in kilobyte counts.
+.It Fl H
+Only dereference symbolic links that are passed as command line arguments when
+recursively traversing directories.
+.It Fl L
+Always dereference symbolic links while recursively traversing directories.
+.It Fl P
+Don't dereference symbolic links.
+This is the default.
+.It Fl x
+Do not traverse file systems mount points.
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The
+.Op Fl dhP
+flags are an extension to that specification.

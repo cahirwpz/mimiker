@@ -1,0 +1,55 @@
+.Dd 2015-10-08
+.Dt TAIL 1
+.Os sbase
+.Sh NAME
+.Nm tail
+.Nd display final lines of files
+.Sh SYNOPSIS
+.Nm
+.Op Fl f
+.Op Fl c Ar num | Fl m Ar num | Fl n Ar num | Fl Ns Ar num
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+writes the last 10 lines of each
+.Ar file
+to stdout.
+If no
+.Ar file
+is given,
+.Nm
+reads from stdin.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl c Ar num | Fl m Ar num | Fl n Ar num | Fl Ns Ar num
+Display final
+.Ar num
+bytes | characters | lines | lines.
+If
+.Ar num
+begins with '+'
+it is an offset from the beginning of each
+.Ar file .
+If
+.Ar num
+begins with '-' it is as if no sign was given.
+The default is 10 lines.
+.It Fl f
+If one
+.Ar file
+is specified, append lines to output as
+.Ar file
+grows.
+.El
+.Sh SEE ALSO
+.Xr head 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The
+.Op Fl Ns Ar num
+syntax is an extension to that specification.

@@ -1,0 +1,241 @@
+.Dd 2016-12-27
+.Dt ED 1
+.Os sbase
+.Sh NAME
+.Nm ed
+.Nd text editor
+.Sh SYNOPSIS
+.Nm
+.Op Fl s
+.Op Fl p Ar string
+.Op Ar file
+.Sh DESCRIPTION
+.Nm
+is the standard text editor.
+It performs line-oriented operations on a buffer; The buffer's contents are
+manipulated in command mode and text is written to the buffer in input mode.
+Command mode is the default.
+To exit input mode enter a dot ('.') on a line of its own.
+.Pp
+If
+.Nm
+is invoked with a file as an argument, it will simulate an edit command and read
+the file's contents into a buffer.
+Changes to this buffer are local to
+.Nm
+until a write command is given.
+.Pp
+.Nm
+uses the basic regular expression syntax and allows any character but space and
+newline to be used as a delimiter in regular expressions.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl s
+Suppress diagnostic messages
+.It Fl p Ar string
+Use
+.Ar string
+as a prompt when in command mode
+.El
+.Sh EXTENDED DESCRIPTION
+.Ss Addresses
+Commands operate on addresses.
+Addresses are used to refer to lines within the buffer.
+Address ranges may have spaces before and after the separator.
+Unless otherwise specified, 0 is an invalid address.
+The following symbols are valid addresses:
+.Bl -tag -width Ds
+.It n
+The nth line.
+.It .
+The current line, or "dot".
+.It $
+The last line.
+.It +
+The next line.
+.It +n
+The nth next line.
+.It ^ or -
+The previous line.
+.It ^n or -n
+The nth previous line.
+.It x,y
+The range of lines from x to y.
+The default value of x is 1, and the default value of y is $.
+.It x;y
+As above, except that the current line is set to x.
+Omitting x in this case uses the current line as the default value.
+.It /re/
+The next line matching re.
+.It ?re?
+The last line matching re.
+.It 'c
+The line marked by c. See k below.
+.El
+.Ss Commands
+.Nm
+expects to see one command per line, with the following exception: commands may
+be suffixed with either a list, number, or print command.
+These suffixed commands are run after the command they're suffixed to has
+executed.
+.Pp
+The following is the list of commands that
+.Nm
+knows about.
+The parentheses contain the default addresses that a command uses.
+.Bl -tag -width Ds
+.It (.)a
+Append text after the addressed line.
+The dot is set to the last line entered.
+If no text was entered, the dot is set to the addressed line.
+An address of 0 appends to the start of the buffer.
+.It (.,.)c
+Delete the addressed lines and then accept input to replace them.
+The dot is set to the last line entered.
+If no text was entered, the dot is set to the line before the deleted lines.
+.It (.,.)d
+Delete the addressed lines.
+If there is a line after the deleted range, the dot is set to it.
+Otherwise, the dot is set to the line before the deleted range.
+.It e Ar file
+Delete the contents of the buffer and load in
+.Ar file
+for editing, printing the bytes read to standard output.
+If no filename is given,
+.Nm
+uses the currently remembered filename.
+The remembered filename is set to
+.Ar file
+for later use.
+.It E Ar file
+As above, but without warning if the current buffer has unsaved changes.
+.It f Ar file
+Set the currently remembered filename to
+.Ar file
+, or print the currently remembered filename if
+.Ar file
+is omitted.
+.It (1,$)g/re/command
+Apply command to lines matching re.
+The dot is set to the matching line before command is executed.
+When each matching line has been operated on, the dot is set to the last line
+operated on.
+If no lines match then the dot remains unchanged.
+The command used may not be g, G, v, or V.
+.It (1,$)G/re/
+Interactively edit the range of line addresses that match re.
+The dot is set to the matching line and printed before a command is input.
+When each matching line has been operated on, the dot is set to the last line
+operated on.
+If no lines match then the dot remains unchanged.
+The command used may not be a, c, i, g, G, v, or V.
+.It h
+Print the reason for the most recent error.
+.It H
+Toggle error explanations.
+If on, the above behaviour is produced on all subsequent errors.
+.It (.)i
+Insert text into the buffer before the addressed line.
+The dot is set to the last line entered.
+If no text was entered, the dot is set to the addressed line
+.It (.,.+1)j
+Join two lines together.
+If only one address is given, nothing happens.
+The dot is set to the newly joined line.
+.It (.)kc
+Mark the line with the lower case character c. The dot is unchanged.
+.It (.,.)l
+Unambiguously print the addressed lines.
+The dot is set to the last line written.
+.It (.,.)m(.)
+Move lines in the buffer to the line address on the right hand side.
+An address of 0 on the right hand side moves to the start of the buffer.
+The dot is set to the last line moved.
+.It (.,.)n
+Print the addressed lines and their numbers.
+The dot is set to the last line printed.
+.It (.,.)p
+Print the addressed lines.
+The dot is set to the last line printed.
+.It P
+Toggle the prompt.
+Defaults to off, but is switched on if the -p flag is used.
+.It q
+Quit
+.Nm
+, warning if there are unsaved changes.
+.It Q
+As above, but without warning if the current buffer has unsaved changes.
+.It ($)r Ar file
+Read in
+.Ar file
+and append it to the current buffer, printing the bytes read to standard output.
+The currently remembered filename isn't changed unless it's empty.
+An address of 0 reads the file into the start of the buffer.
+.It (.,.)s/re/replacement/flags
+Substitute re for replacement in lines matching re.
+An & within replacement is replaced with the whole string matched by re.
+Backrefs can be used with the form \\n, where n is a positive non-zero integer.
+When % is the only character in replacement, it is substituted for the
+replacement string from the last substitute command.
+If a newline is part of replacement then the matched string is split into two
+lines; this cannot be done as part of a g or v command.
+If flags contains an integer n, then the nth match is replaced.
+If flags contains g, all matches are replaced.
+The dot is set to the last line matched.
+.It (.,.)t(.)
+As m, but copying instead of moving.
+The dot is set to the last line added.
+.It u
+Undo the last change.
+The dot is set to whatever it was before the undone command was performed.
+.It (1.$)v/re/command
+As with g, but operating on lines that don't match re.
+.It (1.$)V/re/
+As with G, but operating on lines that don't match re.
+.It (1,$)w Ar file
+Write the addressed lines to
+.Ar file
+, overwriting its previous contents if the file exists, and print the number of
+bytes written.
+If no filename is given the currently remembered filename will be used instead.
+The dot is unchanged.
+.It (1,$)W Ar file
+As above, but instead of overwriting the contents of
+.Ar file
+the addressed lines are appended to
+.Ar file
+instead.
+.It (.+1)
+Print the addressed line.
+Sets the dot to that line.
+.It ($)=
+Print the line number of the addressed line.
+The dot is unchanged.
+.It &
+Repeat the last command.
+.It ! Ar command
+Execute
+.Ar command
+using sh.
+If the first character of
+.Ar command
+is '!' then it is replaced with the text of the previous command.
+An unescaped % is replaced with the currently remembered filename.
+! does not process escape characters.
+When
+.Ar command
+returns a '!' is printed.
+The dot is unchanged.
+.El
+.Sh SEE ALSO
+.Xr sed 1 ,
+.Xr regexp 3
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification, except where noted here:
+g and v operate on single commands rather than lists delimited with '\\'.
+e, E, r, w, and W commands cannot accept shell escapes.

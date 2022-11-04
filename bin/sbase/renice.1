@@ -1,0 +1,42 @@
+.Dd 2015-10-08
+.Dt RENICE 1
+.Os sbase
+.Sh NAME
+.Nm renice
+.Nd change niceness of processes
+.Sh SYNOPSIS
+.Nm
+.Fl n Ar num
+.Op Fl g | Fl p | Fl u
+.Ar id ...
+.Sh DESCRIPTION
+.Nm
+changes the niceness of each process with the given
+.Ar id .
+Only the superuser can lower the niceness.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl g | Fl p | Fl u
+Interpret each
+.Ar id
+as a process group ID | process ID | user name or ID.
+The middle option is default.
+.It Fl n Ar num
+Change niceness by
+.Ar num ,
+with niceness ranging from
+.Sy -20
+(highest priority)
+to
+.Sy +20
+(lowest priority).
+.El
+.Sh SEE ALSO
+.Xr nice 2 ,
+.Xr renice 2
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

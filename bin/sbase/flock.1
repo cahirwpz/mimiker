@@ -1,0 +1,35 @@
+.Dd 2015-10-08
+.Dt FLOCK 1
+.Os sbase
+.Sh NAME
+.Nm flock
+.Nd tool to manage locks on files
+.Sh SYNOPSIS
+.Nm
+.Op Fl nosux
+.Ar file
+.Ar cmd Op arg ...
+.Sh DESCRIPTION
+.Nm
+is used to manage advisory locks on open files.
+It is commonly used to prevent long running cron jobs from running in
+parallel.
+If
+.Ar file
+does not exist, it will be created.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl n
+Set non-blocking mode on the lock.
+Fail immediately if the lock cannot be acquired.
+.It Fl o
+Close the file descriptor before exec to avoid having the exec'ed
+program holding on to the lock.
+.It Fl s
+Acquire a shared lock.
+.It Fl u
+Release the lock.
+.It Fl x
+Acquire an exclusive lock.
+This is the default.
+.El

@@ -1,0 +1,25 @@
+.Dd 2015-10-08
+.Dt CHROOT 1
+.Os sbase
+.Sh NAME
+.Nm chroot
+.Nd run a command or shell with a different root directory
+.Sh SYNOPSIS
+.Nm
+.Ar dir
+.Op Ar cmd Op Ar arg ...
+.Sh DESCRIPTION
+.Nm
+runs
+.Ar cmd
+after changing the root directory to
+.Ar dir
+with the
+.Xr chroot 2
+system call and after changing the working directory to the new root.
+If
+.Ar cmd
+is not specified, an interactive shell is started in the new root.
+.Sh SEE ALSO
+.Xr chdir 2 ,
+.Xr chroot 2

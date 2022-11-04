@@ -1,0 +1,69 @@
+.Dd 2015-10-08
+.Dt TAR 1
+.Os sbase
+.Sh NAME
+.Nm tar
+.Nd create, list or extract a tape archive
+.Sh SYNOPSIS
+.Nm
+.Op Fl C Ar dir
+.Op Fl J | Fl Z | Fl a | Fl j | Fl z
+.Fl x Op Fl m | Fl t
+.Op Fl f Ar file
+.Op Ar file ...
+.Nm
+.Op Fl C Ar dir
+.Op Fl J | Fl Z | Fl a | Fl j | Fl z
+.Op Fl h
+.Fl c Ar path ...
+.Op Fl f Ar file
+.Sh DESCRIPTION
+.Nm
+is the standard file archiver.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl c Ar path ...
+Create archive from
+.Ar path .
+.It Fl C Ar dir
+Change directory to
+.Ar dir
+before beginning.
+.It Fl f Ar file
+Set
+.Ar file
+as input | output archive instead of stdin | stdout.
+If '-', stdin | stdout is used.
+.It Fl m
+Do not preserve modification time.
+.It Fl t
+List all files in the archive.
+.It Fl x
+Extract archive.
+.It Fl h
+Always dereference symbolic links while recursively traversing directories.
+.It Fl J | Fl Z | Fl a | Fl j | Fl z
+Use xz | compress | lzma | bzip2 | gzip compression or decompression.
+These utilities must be installed separately.
+Using these flags is discouraged in favour of the flexibility
+and clarity of pipes:
+.Bd -literal -offset indent
+$ bzip2 -cd archive.tar.bz2 | tar -x
+$ gzip -cd archive.tar.gz | tar -x
+.Ed
+.Bd -literal -offset indent
+$ tar -c file ... | bzip2 > archive.tar.bz2
+$ tar -c file ... | gzip2 > archive.tar.gz
+.Ed
+.El
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr bzip2 1 ,
+.Xr gzip 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the UStar (Uniform Standard Tape ARchive)
+format defined in the
+.St -p1003.1-88
+specification.

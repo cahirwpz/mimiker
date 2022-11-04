@@ -1,0 +1,32 @@
+.Dd 2015-10-08
+.Dt MKFIFO 1
+.Os sbase
+.Sh NAME
+.Nm mkfifo
+.Nd create named pipes
+.Sh SYNOPSIS
+.Nm
+.Op Fl m Ar mode
+.Ar name ...
+.Sh DESCRIPTION
+.Nm
+creates a named pipe for each
+.Ar name
+if it does not already exist.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl m
+Set the file
+.Ar mode
+of newly created named pipes.
+See
+.Xr chmod 1 .
+.El
+.Sh SEE ALSO
+.Xr mkfifo 3
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

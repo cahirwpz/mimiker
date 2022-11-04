@@ -1,0 +1,28 @@
+.Dd 2015-10-08
+.Dt CKSUM 1
+.Os sbase
+.Sh NAME
+.Nm cksum
+.Nd compute file checksum
+.Sh SYNOPSIS
+.Nm
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+calculates a cyclic redundancy check (CRC) of
+.Ar file
+according to
+.St -iso8802-3
+and writes it, the file size in bytes and path to stdout.
+.Pp
+If no
+.Ar file
+is given,
+.Nm
+reads from stdin.
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

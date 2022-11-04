@@ -1,0 +1,105 @@
+.Dd 2015-10-08
+.Dt EXPR 1
+.Os sbase
+.Sh NAME
+.Nm expr
+.Nd evaluate expression
+.Sh SYNOPSIS
+.Nm
+.Ar expression
+.Sh DESCRIPTION
+.Nm
+evaluates
+.Ar expression
+and writes the result to stdout.
+.Pp
+There are two elemental expressions,
+.Sy integer
+and
+.Sy string.
+Let
+.Sy expr
+be a non-elemental expression and
+.Sy expr1 ,
+.Sy expr2
+arbitrary expressions.
+Then
+.Sy expr
+has the recursive form
+.Sy expr = [(] expr1 operand expr2 [)].
+.Pp
+With
+.Sy operand
+being in order of increasing precedence:
+.Bl -tag -width Ds
+.It |
+Evaluate to
+.Sy expr1
+if it is neither an empty string nor 0; otherwise evaluate to
+.Sy expr2 .
+.It &
+Evaluate to
+.Sy expr1
+if
+.Sy expr1
+and
+.Sy expr2
+are neither empty strings nor 0; otherwise evaluate to 0.
+.It = > >= < <= !=
+If
+.Sy expr1
+and
+.Sy expr2
+are integers, evaluate to 1 if the relation is true and 0 if it is false.
+If
+.Sy expr1
+and
+.Sy expr2
+are strings, apply the relation to the return value of
+.Xr strcmp 3 .
+.It + -
+If
+.Sy expr1
+and
+.Sy expr2
+are integers, evaluate to their sum or subtraction.
+.It * / %
+If
+.Sy expr1
+and
+.Sy expr2
+are integers, evaluate to their multiplication, division or remainder.
+.It :
+Evaluate to the number of characters matched in
+.Sy expr1
+against
+.Sy expr2 . expr2
+is anchored with an implicit '^'.
+.Pp
+You can't directly match the empty string, since zero matched characters
+resolve equally to a failed match.
+To work around this limitation, use "expr X'' : 'X$' instead of "expr ''
+: '$'"
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+.Ar expression
+is neither an empty string nor 0.
+.It 1
+.Ar expression
+is an empty string or 0.
+.It 2
+.Ar expression
+is invalid.
+.It > 2
+An error occurred.
+.El
+.Sh SEE ALSO
+.Xr test 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

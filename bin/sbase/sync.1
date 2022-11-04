@@ -1,0 +1,17 @@
+.Dd 2015-10-08
+.Dt SYNC 1
+.Os sbase
+.Sh NAME
+.Nm sync
+.Nd flush disk cache
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+.Nm
+invokes
+.Xr sync 2
+to flush all unwritten changes to disk.
+This is usually done before shutting down, rebooting or halting.
+.Sh SEE ALSO
+.Xr fsync 2 ,
+.Xr sync 2

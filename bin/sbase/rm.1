@@ -1,0 +1,43 @@
+.Dd 2015-10-08
+.Dt RM 1
+.Os sbase
+.Sh NAME
+.Nm rm
+.Nd remove directory entries
+.Sh SYNOPSIS
+.Nm
+.Op Fl f
+.Op Fl Rr
+.Ar file ...
+.Sh DESCRIPTION
+.Nm
+removes each
+.Ar file .
+If
+.Ar file
+is a directory, it has to be empty unless
+.Fl R
+or
+.Fl r
+is specified.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl f
+Do not prompt before removing
+.Ar file .
+Do not report when
+.Ar file
+doesn't exist or couldn't be removed.
+.It Fl Rr
+Remove directories recursively.
+.El
+.Sh SEE ALSO
+.Xr remove 3
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification except from the
+.Op Fl i
+flag.

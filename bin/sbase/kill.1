@@ -1,0 +1,47 @@
+.Dd 2015-10-08
+.Dt KILL 1
+.Os sbase
+.Sh NAME
+.Nm kill
+.Nd signal processes
+.Sh SYNOPSIS
+.Nm
+.Op Fl s Ar signame | Fl num | Fl signame
+.Ar pid ...
+.Nm
+.Fl l Op Ar num
+.Sh DESCRIPTION
+.Nm
+signals TERM to each process or process group specified by
+.Ar pid .
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl l Op Ar num
+List all available signals or the signal name of
+.Ar num .
+.It Fl s Ar signame | Fl num | Fl signame
+Send signal corresponding to
+.Ar signame
+|
+.Ar num .
+The default is TERM.
+.El
+.Sh SEE ALSO
+.Xr kill 2 ,
+.Xr signal 7
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The
+.Fl Ar signame
+and
+.Fl Ar num
+syntax is marked by
+.St -p1003.1-2013
+as an
+X/OPEN System Interfaces
+option.

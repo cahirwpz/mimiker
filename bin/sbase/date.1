@@ -1,0 +1,85 @@
+.Dd 2015-10-08
+.Dt DATE 1
+.Os sbase
+.Sh NAME
+.Nm date
+.Nd print or set date and time
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar time
+.Op Fl u
+.Oo
+.Cm + Ns Ar format |
+.Sm off
+.Ar mmddHHMM Oo Oo Ar CC Oc Ar yy Oc
+.Sm on
+.Oc
+.Sh DESCRIPTION
+.Nm
+prints the date and time according to
+.Xr locale 7
+or
+.Ar format
+using
+.Xr strftime 3
+or sets the date.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl d Ar time
+Print
+.Ar time
+given as the number of seconds since the
+Unix epoch 1970-01-01T00:00:00Z.
+.It Fl u
+Print or set UTC time instead of local time.
+.El
+.Pp
+An operand with a leading plus
+.Pq Cm +
+sign signals a user-defined format string using
+.Xr strftime 3
+conversion specifications.
+.Pp
+An operand without a leading plus sign is interpreted as a value
+for setting the system's current date and time.
+The canonical representation for setting the date and time is:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar mm
+The month of the year, from 01 to 12.
+.It Ar dd
+The day of the month, from 01 to 31.
+.It Ar HH
+The hour of the day, from 00 to 23.
+.It Ar MM
+The minute of the hour, from 00 to 59.
+.It Ar CC
+The first two digits of the year (the century).
+.It Ar yy
+The second two digits of the year.
+If
+.Ar yy
+is specified, but
+.Ar CC
+is not, a value for
+.Ar yy
+between 69 and 99 results in a
+.Ar CC
+value of 19.
+Otherwise, a
+.Ar CC
+value of 20 is used.
+.El
+.Pp
+The century and year are optional.
+The default is the current year.
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The
+.Op Fl d
+flag is an extension to that specification.

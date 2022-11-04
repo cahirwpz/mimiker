@@ -1,0 +1,22 @@
+.Dd 2016-03-26
+.Dt REV 1
+.Os sbase
+.Sh NAME
+.Nm rev
+.Nd reverse each line
+.Sh SYNOPSIS
+.Nm
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+reads each
+.Ar file
+in sequence and writes it to stdout, but with all characters in each
+line in reverse order.
+If no
+.Ar file
+is given
+.Nm
+reads from stdin.
+.Sh SEE ALSO
+.Xr tac 1

@@ -1,0 +1,102 @@
+.Dd 2016-02-17
+.Dt SORT 1
+.Os sbase
+.Sh NAME
+.Nm sort
+.Nd sort lines
+.Sh SYNOPSIS
+.Nm
+.Op Fl Cbcdfimnru
+.Op Fl o Ar outfile
+.Op Fl t Ar delim
+.Op Fl k Ar key ...
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+writes the sorted concatenation of each
+.Ar file
+to stdout.
+If no
+.Ar file
+is given
+.Nm
+reads from stdin.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl C
+Check that the concatenation of the given
+.Ar files
+is sorted rather than sorting them.
+In this mode, no output is printed to stdout, and the exit status
+indicates the result of the check.
+.It Fl b
+Skip leading whitespace of columns when sorting.
+.It Fl c
+The same as
+.Fl C
+except that when disorder is detected, a message is written to stderr
+indicating the location of the disorder.
+.It Fl d
+Skip non-whitespace and non-alphanumeric characters.
+.It Fl f
+Ignore letter case when sorting.
+.It FL i
+Skip non-printable characters.
+.It Fl k Ar key
+Specify a key definition of the form
+.Sm off
+.Sy S
+.No [.
+.Sy s
+.No ][
+.Sy f
+.No ][,
+.Sy E
+.No [.
+.Sy e
+.No ][
+.Sy f
+.No ]]
+.Sm on
+where
+.Sy S , s , E
+and
+.Sy e
+are the starting column, starting character in that column, ending column and
+the ending character of that column respectively.
+If they are not specified,
+.Sy s
+refers to the first character of the specified starting column,
+.Sy E
+refers to the last column of every line, and
+.Sy e
+refers to the last character of the ending column.
+.Sy f
+can be used to specify options
+.Sy ( n , b )
+that only apply to this key definition.
+.Sy b
+is special in that it only applies to the column that it was specified after.
+.It Fl m
+Assume sorted input, merge only.
+.It Fl n
+Perform a numeric sort.
+.It Fl o Ar outfile
+Write output to
+.Ar outfile
+rather than stdout.
+.It Fl r
+Reverses the sort.
+.It Fl t Ar delim
+Set
+.Ar delim
+as the field delimiter.
+.It Fl u
+Print equal lines only once.
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

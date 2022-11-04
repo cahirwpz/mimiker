@@ -1,0 +1,99 @@
+.Dd 2015-10-08
+.Dt LS 1
+.Os sbase
+.Sh NAME
+.Nm ls
+.Nd list directory contents
+.Sh SYNOPSIS
+.Nm
+.Op Fl iqr
+.Op Fl ln
+.Op Fl A | a
+.Op Fl 1
+.Op Fl h | F | p
+.Op Fl H | L
+.Op Fl R | d
+.Op Fl S | f | t | U
+.Op Fl c | u
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+lists each given file, and the contents of each given directory.
+If no files are given the current directory is listed.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl A
+List all entries except for '.' and '..'.
+.It Fl a
+Show hidden files (those beginning with '.').
+.It Fl c
+Use time file's status was last changed instead of last
+modification time for sorting or printing.
+.It Fl d
+List directories themselves, not their contents.
+.It Fl F
+Append a file type indicator to all special files.
+.It Fl f
+Like
+.Fl U
+but turns on
+.Fl a
+and disables
+.Fl r ,
+.Fl S
+and
+.Fl t .
+.It Fl H
+List information about the targets of symbolic links specified on the command
+line instead of the links themselves.
+.It Fl h
+Show filesizes in human\-readable format.
+.It Fl i
+Print the index number of each file.
+.It Fl L
+List information about the targets of symbolic links instead of the links
+themselves.
+.It Fl l
+List detailed information about each file, including their type, permissions,
+links, owner, group, size or major and minor numbers if the file is a
+character/block device, and last file status/modification time.
+.It Fl n
+List detailed information about each file, including their type, permissions,
+links, owner, group, size or major and minor numbers if the file is a
+character/block device, and last file status/modification time, but with
+numeric IDs.
+.It Fl p
+Append a file type indicator to directories.
+.It Fl q
+Replace non-printable characters in filenames with '?'.
+.It Fl R
+List directory content recursively.
+The
+.Fl 1
+flag is set implicitly.
+.It Fl r
+Reverse the sort order.
+.It Fl S
+Sort files by size (in decreasing order).
+.It Fl t
+Sort files by last file status/modification time instead of by name.
+.It Fl U
+Keep the list unsorted.
+.It Fl u
+Use file's last access time instead of last modification time for
+sorting or printing.
+.El
+.Sh SEE ALSO
+.Xr stat 2
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification except from the
+.Op Fl Ckmpsx
+flags.
+.Pp
+The
+.Op Fl hU
+flags are an extension to that specification.

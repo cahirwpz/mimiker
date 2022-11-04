@@ -1,0 +1,30 @@
+.Dd 2016-03-30
+.Dt PRINTENV 1
+.Os sbase
+.Sh NAME
+.Nm printenv
+.Nd print the environment or values of variables
+.Sh SYNOPSIS
+.Nm
+.Op Ar var ...
+.Sh DESCRIPTION
+.Nm
+prints the entire environment as key=value pairs if no
+.Ar var
+is given.
+Otherwise,
+.Nm
+prints only the value of each
+.Ar var
+one per line in the order specified.
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+Successful completion.
+.It 1
+One or more queried variables were not found.
+.It > 1
+An error occurred.
+.El
+.Sh SEE ALSO
+.Xr env 1

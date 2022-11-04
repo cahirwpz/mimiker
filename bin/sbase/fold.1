@@ -1,0 +1,43 @@
+.Dd 2015-10-08
+.Dt FOLD 1
+.Os sbase
+.Sh NAME
+.Nm fold
+.Nd wrap lines to width
+.Sh SYNOPSIS
+.Nm
+.Op Fl bs
+.Op Fl w Ar num | Fl Ns Ar num
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+reads each
+.Ar file
+and prints its lines wrapped such that no line
+exceeds a certain width.
+If no file is given,
+.Nm
+reads from stdin.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl b
+Count bytes rather than characters.
+.It Fl s
+If a line contains spaces, break
+at the last space within width.
+.It Fl w Ar num | Fl Ns Ar num
+Break at
+.Ar num
+characters.
+The default is 80.
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The
+.Op Fl Ns Ar num
+syntax is an extension to that specification.

@@ -1,0 +1,40 @@
+.Dd 2015-10-08
+.Dt SEQ 1
+.Os sbase
+.Sh NAME
+.Nm seq
+.Nd print a sequence of numbers
+.Sh SYNOPSIS
+.Nm
+.Op Fl w
+.Op Fl f Ar fmt
+.Op Fl s Ar sep
+.Op Ar startnum Op Ar step
+.Ar endnum
+.Sh DESCRIPTION
+.Nm
+writes a sequence of numbers from
+.Ar startnum
+(default: 1) to
+.Ar endnum
+in
+.Ar step
+intervals (default: 1)
+to stdout.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl f Ar fmt
+Use
+.Ar fmt
+as the output line format according to
+.Xr printf 3 .
+.It Fl s Ar sep
+Print
+.Ar sep
+between output lines.
+The default is "\en".
+.It Fl w
+Print out lines in equal width.
+.El
+.Sh SEE ALSO
+.Xr printf 3

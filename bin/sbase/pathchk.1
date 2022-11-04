@@ -1,0 +1,35 @@
+.Dd 2016-02-03
+.Dt PATHCHK 1
+.Os sbase
+.Sh NAME
+.Nm pathchk
+.Nd validate filename validity or portability
+.Sh SYNOPSIS
+.Nm
+.Op Fl p
+.Op Fl P
+.Ar file Ar ...
+.Sh DESCRIPTION
+.Nm
+checks that filenames are valid for the system,
+and optional on other POSIX systems.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl p
+Check for most POSIX systems.
+.It Fl P
+Check for empty pathnames and leading hythens.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+All pathname operands passed all of the checks.
+.It > 0
+An error occurred.
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

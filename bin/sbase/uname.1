@@ -1,0 +1,39 @@
+.Dd 2015-10-08
+.Dt UNAME 1
+.Os sbase
+.Sh NAME
+.Nm uname
+.Nd print system information
+.Sh SYNOPSIS
+.Nm
+.Op Fl amnrsv
+.Sh DESCRIPTION
+.Nm
+writes system information to stdout.
+If no flags are given,
+.Nm
+implies
+.Fl s .
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl a
+Print all the information below.
+.It Fl m
+Print the machine's architecture.
+.It Fl n
+Print the system's network node hostname.
+.It Fl r
+Print the operating system's release name.
+.It Fl s
+Print the name of the operating system.
+.It Fl v
+Print the operating system's version name.
+.El
+.Sh SEE ALSO
+.Xr uname 2
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

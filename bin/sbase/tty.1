@@ -1,0 +1,28 @@
+.Dd 2015-10-08
+.Dt TTY 1
+.Os sbase
+.Sh NAME
+.Nm tty
+.Nd print terminal name
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+.Nm
+writes the name of the terminal open on stdin to stdout.
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+stdin is a terminal.
+.It 1
+stdin is not a terminal.
+.It > 1
+An error occurred.
+.El
+.Sh SEE ALSO
+.Xr ttyname 3
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

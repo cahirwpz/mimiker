@@ -1,0 +1,65 @@
+.Dd 2015-10-08
+.Dt LN 1
+.Os sbase
+.Sh NAME
+.Nm ln
+.Nd link files
+.Sh SYNOPSIS
+.Nm
+.Op Fl f
+.Op Fl L | Fl P | Fl s
+.Ar target
+.Op Ar name
+.Nm
+.Op Fl f
+.Op Fl L | Fl P | Fl s
+.Ar target ...
+.Ar directory
+.Sh DESCRIPTION
+.Nm
+creates a hard link
+.Ar name
+to
+.Ar target .
+If no
+.Ar name
+is given, a hard link to
+.Ar target
+is created in the current directory.
+If more than one
+.Ar target
+is given,
+.Nm
+hardlinks them in the existing
+.Ar directory .
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl f
+If
+.Ar name
+exists and is not a
+.Ar target ,
+remove it to allow the link.
+.It Fl L | Fl P
+If
+.Ar target
+is a symbolic link, create a hard link to the (referenced file) |
+(symbolic link itself). The former is the default.
+.It Fl s
+Create symbolic links instead of hard links.
+Disables
+.Fl L
+and
+.Fl P ,
+because their purpose does not apply to symbolic links.
+.El
+.Sh SEE ALSO
+.Xr cp 1 ,
+.Xr link 2 ,
+.Xr symlink 2
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

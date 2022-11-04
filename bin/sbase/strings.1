@@ -1,0 +1,54 @@
+.Dd 2015-10-08
+.Dt STRINGS 1
+.Os sbase
+.Sh NAME
+.Nm strings
+.Nd print strings of printable characters in files
+.Sh SYNOPSIS
+.Nm
+.Op Fl a
+.Op Fl n Ar num
+.Op Fl t Ar format
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+writes sequences of at least 4 printable characters in each
+.Ar file
+to stdout.
+If no
+.Ar file
+is given,
+.Nm
+reads from stdin.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl a
+Scan each
+.Ar file
+entirely.
+This is the default.
+.It Fl n Ar num
+Print sequences of at least
+.Ar num
+characters.
+The default is 4.
+.It Fl t Ar format
+Prepend each string with its byte offset, with
+.Ar format
+being one of
+.Sy d , o , x
+for decimal, octal or hexadecimal numbers.
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The
+.Op Fl t
+output format has been changed from "%F %s" to "%8lF: %s", with
+.Sy F
+being one of
+.Sy d , o , x .

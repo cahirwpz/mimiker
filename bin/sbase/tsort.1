@@ -1,0 +1,74 @@
+.Dd 2016-02-16
+.Dt TSORT 1
+.Os sbase
+.Sh NAME
+.Nm tsort
+.Nd topological sort
+.Sh SYNOPSIS
+.Nm
+.Op Ar file
+.Sh DESCRIPTION
+.Nm
+topologically sorts a graph.
+The graph is read either from
+.Ar file
+or from standard input.
+The result is not optimized for any particular usage.
+Loops are detected and reported to standard error, but does not stop the
+sort.
+.Pp
+The input is a list of edges (vertex pairs), where
+the edge is directed from the first vertex to the
+second vertex.
+.Sh OPTIONS
+None.
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+The graph as successfully sorted.
+.It 1
+The graph as successfully sorted, but contained loops.
+.It > 1
+An error occurred.
+.El
+.Sh EXAMPLES
+.Bd -literal -offset left
+The input
+
+    a a
+    a b
+    a c
+    a c
+    a d
+    b c
+    c b
+    e f
+
+or equivalently
+
+    a a a b a c a c a d
+    b c c b e f
+
+represents the graph
+
+              ┌─┐
+              ↓ │
+             ┏━━━┓
+      ┌──────┃ a ┃──────┐
+      │      ┗━━━┛      │
+      │       │ │       │
+      ↓       ↓ ↓       ↓
+    ┏━━━┓───→┏━━━┓    ┏━━━┓
+    ┃ b ┃    ┃ c ┃    ┃ d ┃
+    ┗━━━┛←───┗━━━┛    ┗━━━┛
+
+    ┏━━━┓    ┏━━━┓
+    ┃ e ┃───→┃ f ┃
+    ┗━━━┛    ┗━━━┛
+.Ed
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

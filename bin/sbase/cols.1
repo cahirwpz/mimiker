@@ -1,0 +1,56 @@
+.Dd 2015-10-08
+.Dt COLS 1
+.Os sbase
+.Sh NAME
+.Nm cols
+.Nd columnize output
+.Sh SYNOPSIS
+.Nm
+.Op Fl c Ar num
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+reads each
+.Ar file
+in sequence and writes them to stdout, in as many vertical
+columns as will fit in
+.Ar num
+character columns.
+If no
+.Ar file
+is given,
+.Nm
+reads from stdin.
+.Pp
+By default
+.Nm cols
+tries to figure out the width of the output device.
+If that fails, it defaults to 65 chars.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl c Ar num
+Set maximum number of character columns to
+.Ar num ,
+unless input lines exceed this limit.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It COLUMNS
+The width of the output device.
+.El
+.Sh HISTORY
+.Nm
+is similar to
+.Xr mc 1
+in Plan 9. It was renamed to
+.Nm
+to avoid the name collision with the popular file manager
+Midnight Commander.
+.Sh CAVEATS
+This implementation of
+.Nm
+assumes that each UTF-8 code point occupies one character cell,
+and thus mishandles TAB characters (among others).
+.Pp
+.Nm
+currently mangles files which contain embedded NULs.

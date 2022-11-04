@@ -1,0 +1,44 @@
+.Dd 2015-10-08
+.Dt NOHUP 1
+.Os sbase
+.Sh NAME
+.Nm nohup
+.Nd run command immune to hangups
+.Sh SYNOPSIS
+.Nm
+.Ar cmd
+.Op Ar arg ...
+.Sh DESCRIPTION
+.Nm
+runs
+.Ar cmd
+with the
+.Em HUP
+signal set to be ignored.
+.Pp
+If stdout is a terminal, it is appended to
+.Em nohup.out
+in the current working directory.
+If stderr is a terminal, it is redirected to stdout.
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+.Ar cmd
+executed successfully.
+.It 1
+Internal error.
+.It 126
+.Ar cmd
+was found but could not be executed.
+.It 127
+.Ar cmd
+could not be found.
+.El
+.Sh SEE ALSO
+.Xr signal 7
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

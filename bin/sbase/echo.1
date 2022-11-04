@@ -1,0 +1,31 @@
+.Dd 2015-10-08
+.Dt ECHO 1
+.Os sbase
+.Sh NAME
+.Nm echo
+.Nd print arguments
+.Sh SYNOPSIS
+.Nm
+.Op Fl n
+.Op Ar string ...
+.Sh DESCRIPTION
+.Nm
+writes each
+.Ar string
+to stdout, separated by spaces and terminated by
+a newline.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl n
+Do not print the terminating newline.
+.El
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The
+.Op Fl n
+flag is an extension to that specification.

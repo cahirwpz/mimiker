@@ -1,0 +1,157 @@
+.Dd 2015-10-08
+.Dt SED 1
+.Os sbase
+.Sh NAME
+.Nm sed
+.Nd stream editor
+.Sh SYNOPSIS
+.Nm
+.Op Fl nrE
+.Ar script
+.Op Ar file ...
+.Nm
+.Op Fl nrE
+.Fl e Ar script
+.Op Fl e Ar script
+.Ar ...
+.Op Fl f Ar scriptfile
+.Ar ...
+.Op Ar file ...
+.Nm
+.Op Fl nrE
+.Op Fl e Ar script
+.Ar ...
+.Fl f Ar scriptfile
+.Op Fl f Ar scriptfile
+.Ar ...
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+reads line oriented output from
+.Ar file
+or stdin, applies the editing commands supplied by
+.Ar script
+or
+.Ar scriptfile
+and writes the edited stream to stdout.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl n
+Suppress default printing at the end of each cycle.
+.It Fl r E
+Use extended regular expressions
+.It Fl e Ar script
+Append
+.Ar script
+to the list of editing commands.
+.It Fl f Ar scriptfile
+Append the commands from
+.Ar scriptfile
+to the list of editing commands.
+.El
+.Sh EXTENDED DESCRIPTION
+Editing commands take the form
+.Pp
+[address[,address]]function
+.Ss Addresses
+Addresses are either blank, a positive decimal integer denoting a line
+number, the character '$' denoting the last line of input, or a regular
+expression.
+A command with no addresses matches every line, one address matches
+individual lines, and two addresses matches a range of lines from the
+first to the second address inclusive.
+.Ss Functions
+.Bl -tag -width Ds
+.It Ar a Op Ar text
+Append text to output after end of current cycle.
+.It Ar b Op Ar label
+Branch to label.
+If no label is provided branch to end of script.
+.It Ar c Op Ar text
+Change.
+Delete addressed range and output text after end of current cycle.
+.It Ar d
+Delete pattern space and begin next cycle.
+.It Ar D
+Delete pattern space up to and including first newline and begin new
+cycle without reading input.
+If there is no newline, behave like d.
+.It Ar g
+Get.
+Replace the pattern space with the hold space.
+.It Ar G
+Get.
+Append a newline and the hold space to the pattern space.
+.It Ar h
+Hold.
+Replace the hold space with the pattern space.
+.It Ar H
+Hold.
+Append a newline and the pattern space to the hold space.
+.It Ar i Op Ar text
+Insert text in output.
+.It Ar l
+List? Write the pattern space replacing known non printing characters with
+backslash escaped versions (\\\\, \\a, \\b, \\f, \\r, \\t, \\v).
+Print bad UTF-8 sequences as \\ooo where ooo is a three digit octal
+number.
+Mark end of lines with '$'.
+.It Ar n
+Next.
+Write pattern space (unless
+.Fl n ) ,
+read next line into pattern space, and continue current cycle.
+If there is no next line, quit.
+.It Ar N
+Next.
+Read next line, append newline and next line to pattern space, and
+continue cycle.
+If there is no next line, quit without printing current pattern space.
+.It Ar p
+Print current pattern space.
+.It Ar P
+Print current pattern space up to first newline.
+.It Ar q
+Quit.
+.It Ar r file
+Read file and write contents to output.
+.It Ar s/re/text/flags
+Find occurences of regular expression re in the pattern space and
+replace with text.
+A '&' in text is replaced with the entire match.
+A \\d where d is a decimal digit 1-9 is replaced with the corresponding
+match group from the regular expression.
+\\n represents a newline in both the regular expression and replacement
+text.
+A literal newline in the replacement text must be preceded by a \\.
+.Pp
+Flags are
+.Bl -tag -width Ds
+.It Ar n
+A positive decimal number denoting which match in the pattern space
+to replace.
+.It Ar g
+Global.
+Replace all matches in the pattern space.
+.It Ar p
+Print the pattern if a replacement was made.
+.It Ar w file
+Write the pattern space to file if a replacement was made.
+.El
+.It Ar t Op Ar label
+Test.
+Branch to corresponding label if a substitution has been made since the
+last line was read or last t command was executed.
+If no label is provided branch to end of script.
+.It Ar w file
+Write pattern space to file.
+.It Ar x
+Exchange hold space and pattern space.
+.It Ar y/set1/set2/
+Replace each occurrence of a character from set 1 with the corresponding
+character from set 2.
+.It Ar :label
+Create a label for b and t commands.
+.It Ar =
+Write current input line number to output.
+.El

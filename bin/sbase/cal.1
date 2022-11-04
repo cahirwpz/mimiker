@@ -1,0 +1,72 @@
+.Dd 2015-10-08
+.Dt CAL 1
+.Os sbase
+.Sh NAME
+.Nm cal
+.Nd show calendar
+.Sh SYNOPSIS
+.Nm
+.Op Fl 1 | Fl 3 | Fl y | Fl n Ar num
+.Op Fl s | Fl m | Fl f Ar num
+.Op Fl c Ar num
+.Oo Oo Ar month Oc Ar year Oc
+.Sh DESCRIPTION
+.Nm
+writes a calendar of
+.Ar month
+and
+.Ar year
+or the current month to stdout.
+If
+.Ar year
+is given without
+.Ar month ,
+.Nm
+writes a 3-column calendar of the whole
+year to stdout.
+The date formatting is according to
+.Xr localtime 3 .
+.Pp
+The Julian calendar is used until Sep 2, 1752.
+The Gregorian calendar is used starting the next day on Sep 14, 1752.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl 1
+Print current month.
+This is the default.
+.It Fl 3
+Print previous, current and next month.
+.It Fl c Ar num
+Print
+.Ar num
+calendars in a row.
+The default is 3.
+.It Fl f Ar num
+Set
+.Ar num
+(0 is Sunday, 6 is Saturday) as first day of week.
+.It Fl m
+Set Monday as first day of week.
+.It Fl n Ar num
+Output
+.Ar num
+months starting from and including the current month.
+.It Fl s
+Set Sunday as first day of week.
+.It Fl y
+Print the entire
+.Ar year
+or current year.
+.El
+.Sh SEE ALSO
+.Xr localtime 3
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The flags
+.Op Fl 13cfmnsy
+are an extension to that specification.

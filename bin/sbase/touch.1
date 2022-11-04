@@ -1,0 +1,66 @@
+.Dd 2015-10-08
+.Dt TOUCH 1
+.Os sbase
+.Sh NAME
+.Nm touch
+.Nd set file timestamps
+.Sh SYNOPSIS
+.Nm
+.Op Fl acm
+.Op Fl d Ar time | Fl r Ar ref_file | Fl T Ar time | Fl t Ar time
+.Ar file ...
+.Sh DESCRIPTION
+.Nm
+sets the access and modification time of each
+.Ar file
+to the current time of day.
+If
+.Ar file
+doesn't exist, it is created with default permissions.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl a | Fl m
+Set the access | modification time of
+.Ar file.
+.It Fl c
+Don't create
+.Ar file
+if it doesn't exist, not affecting exit status.
+.It Fl d Ar time
+Set the
+.Ar time
+of the format YYYY-MM-DDThh:mm:SS[Z] used for
+.Op Fl am .
+.It Fl r Ar ref_file
+Set the
+.Ar time
+used for
+.Op Fl am
+to the modification time of
+.Ar ref_file .
+.It Fl T Ar time
+Set the
+.Ar time
+used for
+.Op Fl am
+given as the number of seconds since the
+Unix epoch 1970-01-01T00:00:00Z.
+.It Fl t Ar time
+Set the
+.Ar time
+of the format [[CC]YY]MMDDhhmm[.SS] used for
+.Op Fl am .
+.El
+.Sh SEE ALSO
+.Xr date 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification except from fractional seconds with
+.Op Fl d .
+.Pp
+The
+.Op Fl T
+flag is an extension to that specification.

@@ -1,0 +1,78 @@
+.Dd 2019-12-21
+.Dt CHMOD 1
+.Os sbase
+.Sh NAME
+.Nm chmod
+.Nd change file modes
+.Sh SYNOPSIS
+.Nm
+.Op Fl R
+.Ar mode
+.Ar file ...
+.Sh DESCRIPTION
+.Nm
+changes the file mode of each
+.Ar file
+to
+.Ar mode .
+.Pp
+If
+.Ar mode
+is
+.Em octal
+"[sog]e"
+.Bl -tag -width Ds
+.It s
+.Xr sticky 1 => s += 1
+.Pp
+.Xr setgid 2 => s += 2
+.Pp
+.Xr setuid 4 => s += 4
+.It o|g|e
+owner | group | everyone
+.Pp
+.Xr execute 1 => o|g|e += 1
+.Pp
+.Xr write 2 => o|g|e += 2
+.Pp
+.Xr read 4 => o|g|e += 4
+.El
+.Pp
+Leading zeroes may be omitted.
+.Pp
+If
+.Ar mode
+is
+.Em symbolic
+"[ugoa]*[+-=][rwxXst]*"
+.Bl -tag -width Ds
+.It u|g|o|a
+owner | group | other (non-group) | everyone
+.It +|-|=
+add | remove | set
+.It r|w|x|s|t
+read | write | execute | setuid and setgid | sticky
+.It X
+execute, if directory or at least one execute bit is already set
+.El
+.Pp
+Symbolic links are followed if they are passed as operands, and ignored
+if they are encountered during directory traversal.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl R
+Change modes recursively.
+.El
+.Sh SEE ALSO
+.Xr chgrp 1 ,
+.Xr umask 1
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The
+.Op Fl HLP
+flags are an extension to that specification.

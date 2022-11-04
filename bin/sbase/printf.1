@@ -1,0 +1,34 @@
+.Dd 2015-10-08
+.Dt PRINTF 1
+.Os sbase
+.Sh NAME
+.Nm printf
+.Nd print formatted data
+.Sh SYNOPSIS
+.Nm
+.Ar format
+.Op Ar arg ...
+.Sh DESCRIPTION
+.Nm
+writes formatted data according to
+.Ar format
+using each
+.Ar arg
+until drained.
+.Pp
+.Nm
+interprets the standard escape sequences \e\e, \e', \e", \ea, \eb, \ee,
+\ef, \en, \er, \et, \ev, \exH[H], \eO[OOO], the sequence \ec, which
+terminates further output if it's found inside
+.Ar format
+or a %b format string, the format specification %b for an unescaped string and all C
+.Xr printf 3
+format specifications ending with csdiouxXaAeEfFgG, including variable width and precision.
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
+.Pp
+The possibility of specifying 4-digit octals is an extension to that specification.

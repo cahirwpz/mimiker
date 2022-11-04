@@ -1,0 +1,144 @@
+.Dd 2015-10-08
+.Dt FIND 1
+.Os sbase
+.Sh NAME
+.Nm find
+.Nd find files
+.Sh SYNOPSIS
+.Nm
+.Op Fl H | L
+.Ar path Op ...
+.Op Ar expression
+.Sh DESCRIPTION
+.Nm
+walks a file hierarchy starting at each
+.Ar path
+and applies the
+.Ar expression
+to each file encountered.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl H
+Dereference symbolic links provided as
+.Ar path .
+.It Fl L
+Dereference all symbolic links encountered.
+.El
+.Sh EXTENDED DESCRIPTION
+.Ar expression
+is a combination of the following primaries and boolean operators.
+In the following descriptions the number n can be replaced by +n, n, or
+-n, to mean more than, exactly, or less than n respectively.
+.Ss Primaries
+.Bl -tag -width Ds
+.It Fl name Ar pattern
+True if the name of the file matches the given pattern.
+.It Fl path Ar pattern
+True if the path to the file matches the given pattern.
+.It Fl nouser
+True if the file belongs to a user for which getpwuid() returns NULL.
+.It Fl nogroup
+True if the file belongs to a group for which getgrgid() returns NULL.
+.It Fl xdev
+True.
+Do not enter directory on a different device.
+.It Fl prune
+True.
+Do not enter directory.
+.It Fl perm Ar mode
+True if permissions on the file match mode.
+Mode is a symbolic mode as used in chmod.
+A leading '-' in mode checks that at least all bits in mode are set in
+permissions for file.
+Without the leading '-' the permissions for file must exactly match
+mode.
+.It Fl type Ar t
+True if file is of type specified by
+.Ar t .
+.Bl -tag -width Ds
+.It Ar b
+block special
+.It Ar c
+character special
+.It Ar d
+directory
+.It Ar l
+symbolic link
+.It Ar p
+FIFO
+.It Ar f
+regular file
+.It Ar s
+socket
+.El
+.It Fl links Ar n
+True if file has
+.Ar n
+links.
+.It Fl user Ar name
+True if file belongs to user
+.Ar name .
+.It Fl group Ar name
+True if file belongs to group
+.Ar name .
+.It Fl size Ar n[c]
+True if file size in 512 byte sectors (rounded up), or bytes (if
+.Ar c
+is given), is
+.Ar n .
+.It Fl atime n
+True if file access time is
+.Ar n
+days.
+.It Fl ctime
+True if file status change time is
+.Ar n
+days.
+.It Fl mtime
+True if file modified time is
+.Ar n
+days.
+.It Fl exec Ar cmd [arg ...] \&;
+Execute cmd with given arguments, replacing each {} in argument list
+with the current file.
+True if cmd exits with status 0.
+.It Fl exec Ar cmd [arg ...] {} +
+True.
+Add as many files as possible to argument list and execute when the list
+is full or all files have been found.
+.It Fl ok Ar cmd [arg ...] \&;
+Prompt the user on each file encountered whether or not to execute cmd
+as with -exec.
+True if the user responds yes and cmd exits with status 0, false
+otherwise.
+.It Fl print
+True.
+Print the path to the current file.
+.It Fl newer Ar file
+True if the modification time of the current file is newer than that of
+the provided file.
+.It Fl depth
+True.
+Causes find to evaluate files within in a directory before the directory
+itself.
+.El
+.Ss Operators
+In order of decreasing precedence
+.Bl -tag -width Ds
+.It Ar \&( expression \&)
+True if expression is true.
+.It Ar \&! expression
+True if expression if false.
+.It Ar expression [ Fl a ] Ar expression
+True if both expressions are true.
+Second expression is not evaluated if first expression is false.
+.Fl a
+is implied if there is no operator between primaries.
+.It Ar expression Fl o Ar expression
+True if either expression is true.
+Second expression is not evaluated if first expression is true.
+.El
+.Pp
+If no expression is supplied, -print is used.
+If an expression is supplied but none of -print, -exec, or -ok is
+supplied, then -a -print is appended to the expressions.

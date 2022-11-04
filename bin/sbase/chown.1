@@ -1,0 +1,61 @@
+.Dd 2015-10-08
+.Dt CHOWN 1
+.Os sbase
+.Sh NAME
+.Nm chown
+.Nd change file ownership
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Oo
+.Fl R
+.Op Fl H | L | P
+.Oc
+.Ar owner Ns Op Pf : Op Ar group
+.Op Ar file ...
+.Nm
+.Op Fl h
+.Oo
+.Fl R
+.Op Fl H | L | P
+.Oc
+.Pf : Ar group
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+sets the user and/or group id of each
+.Ar file
+to the uid of
+.Ar owner
+and/or the gid of
+.Ar group
+respectively.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl h
+Preserve
+.Ar file
+if it is a symbolic link.
+.It Fl R
+Change file ownerships recursively.
+.It Fl H
+Dereference
+.Ar file
+if it is a symbolic link.
+.It Fl L
+Dereference all symbolic links.
+.It Fl P
+Preserve symbolic links.
+This is the default.
+.El
+.Sh SEE ALSO
+.Xr chmod 1 ,
+.Xr chown 2 ,
+.Xr getgrnam 3 ,
+.Xr getpwnam 3
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

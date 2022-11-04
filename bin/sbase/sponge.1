@@ -1,0 +1,19 @@
+.Dd 2015-10-08
+.Dt SPONGE 1
+.Os sbase
+.Sh NAME
+.Nm sponge
+.Nd soak up standard input and write to a file
+.Sh SYNOPSIS
+.Nm
+.Ar file
+.Sh DESCRIPTION
+.Nm
+reads stdin completely, then writes the saved contents to
+.Ar file .
+This makes it possible to easily create pipes which read from and write to
+the same file.
+.Pp
+If
+.Ar file
+is a symbolic link, it writes to its destination instead.

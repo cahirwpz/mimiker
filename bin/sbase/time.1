@@ -1,0 +1,49 @@
+.Dd 2015-10-08
+.Dt TIME 1
+.Os sbase
+.Sh NAME
+.Nm time
+.Nd time a command
+.Sh SYNOPSIS
+.Nm
+.Op Fl p
+.Ar cmd
+.Op Ar arg ...
+.Sh DESCRIPTION
+.Nm
+executes
+.Ar cmd
+and writes timing statistics to stderr after it finishes.
+The statistics include the elapsed real time
+between invocation and termination and the user
+and system CPU time (see
+.Xr times 2 ) .
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl p
+Use the format "real %f\enuser %f\ensys %f\en" for printing.
+This is the default.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+.Ar cmd
+executed successfully.
+.It 1
+Internal error.
+.It 126
+.Ar cmd
+was found but could not be executed.
+.It 127
+.Ar cmd
+could not be found.
+.El
+.Sh SEE ALSO
+.Xr times 2 ,
+.Xr waitpid 2
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.

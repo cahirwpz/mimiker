@@ -1,0 +1,32 @@
+.Dd 2015-11-16
+.Dt READLINK 1
+.Os sbase
+.Sh NAME
+.Nm readlink
+.Nd print symbolic link target or canonical file name
+.Sh SYNOPSIS
+.Nm
+.Op Fl f
+.Op Fl n
+.Ar path
+.Sh DESCRIPTION
+.Nm
+writes the target of
+.Ar path ,
+if it is a symbolic link, to stdout.
+If not,
+.Nm
+exits with a non-zero return value.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl f
+Canonicalize
+.Ar path ,
+which needn't be a symlink,
+by recursively following every symlink in its path components.
+.It Fl n
+Do not print the terminating newline.
+.El
+.Sh SEE ALSO
+.Xr readlink 2 ,
+.Xr realpath 3

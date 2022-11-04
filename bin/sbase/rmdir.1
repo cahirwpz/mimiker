@@ -1,0 +1,33 @@
+.Dd 2015-10-08
+.Dt RMDIR 1
+.Os sbase
+.Sh NAME
+.Nm rmdir
+.Nd remove empty directories
+.Sh SYNOPSIS
+.Nm
+.Op Fl p
+.Ar dir ...
+.Sh DESCRIPTION
+.Nm
+removes each empty
+.Ar dir .
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl p
+Remove
+.Ar dir
+and its parents in the pathname
+.Ar dir .
+.El
+.Sh SEE ALSO
+.Xr rm 1 ,
+.Xr unlink 1 ,
+.Xr rmdir 2 ,
+.Xr unlink 2
+.Sh STANDARDS
+The
+.Nm
+utility is compliant with the
+.St -p1003.1-2013
+specification.
