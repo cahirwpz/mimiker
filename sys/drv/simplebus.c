@@ -155,11 +155,8 @@ static int sb_get_interrupts_extended(device_t *dev, fdt_intr_t *intrs,
       goto end;
     }
 
-    /* TODO: at this point we should find the interrupt parent
-     * based on the phandle encoded in the current tuple.
-     * FTTB, we assume that each device has at most one interrupt controller. */
-    phandle_t iparent = dev->pic->node;
-    i++;
+    /* TODO: change this to phandle. */
+    pcell_t iparent = cells[i++];
 
     if ((err = FDT_intr_cells(iparent, &icells)))
       goto end;
@@ -180,7 +177,6 @@ end:
   return err;
 }
 
-/* TODO: handle ranges property. */
 static int sb_region_to_rl(device_t *dev) {
   if (!FDT_hasprop(dev->node, "reg"))
     return 0;
@@ -205,10 +201,6 @@ end:
 }
 
 static int sb_intr_to_rl(device_t *dev) {
-  device_t *pic = dev->pic;
-  assert(pic);
-  assert(pic->driver);
-
   fdt_intr_t *intrs =
     kmalloc(M_DEV, FDT_MAX_INTRS * sizeof(fdt_intr_t), M_WAITOK | M_ZERO);
   phandle_t node = dev->node;
@@ -220,49 +212,43 @@ static int sb_intr_to_rl(device_t *dev) {
   else if (FDT_hasprop(node, "interrupts-extended"))
     err = sb_get_interrupts_extended(dev, intrs, &nintrs);
   else
-    goto end;
+    return err;
 
   if (err)
-    goto end;
+    return err;
 
-  int rid = 0;
+  int id = 0;
   for (size_t i = 0; i < nintrs; i++) {
-    int irqnum = pic_map_intr(dev, &intrs[i]);
-    if (irqnum >= 0)
-      device_add_irq(dev, rid++, irqnum);
+    fdt_intr_t *intr = &intrs[i];
+    device_add_irq(dev, id++, intr->phandle, 0, intr);
   }
 
-end:
-  kfree(M_DEV, intrs);
-  return err;
+  return 0;
 }
 
-int simplebus_add_child(device_t *bus, const char *path, int unit,
-                        device_t *pic, device_t **devp) {
+int simplebus_add_child(device_t *bus, const char *path) {
+  static int next_unit = 1;
+
   phandle_t node;
   if ((node = FDT_finddevice(path)) == FDT_NODEV)
     return ENXIO;
 
-  device_t *dev = device_add_child(bus, unit);
+  device_t *dev = device_add_child(bus, next_unit);
+  dev->bus = BUS_FDT;
   dev->node = node;
-  dev->pic = pic;
 
   int err;
 
   if ((err = sb_region_to_rl(dev)))
-    goto end;
+    goto bad;
   if ((err = sb_intr_to_rl(dev)))
-    goto end;
+    goto bad;
 
-  if (FDT_hasprop(node, "interrupt-controller")) {
-    if ((err = bus_generic_probe(bus)))
-      goto end;
-  }
+  device_add_pending(dev);
+  next_unit++;
+  return 0;
 
-  if (devp)
-    *devp = dev;
-end:
-  if (err)
-    device_remove_child(bus, dev);
+bad:
+  device_remove_child(bus, dev);
   return err;
 }

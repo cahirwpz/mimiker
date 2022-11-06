@@ -374,3 +374,26 @@ int FDT_is_compatible(phandle_t node, const char *compatible) {
   }
   return 0;
 }
+
+int FDT_find_iparent_phandle(phandle_t node, pcell_t *phandle_p) {
+  pcell_t iparent;
+
+  if (FDT_searchencprop(node, "interrupt-parent", &iparent, sizeof(pcell_t)) !=
+      -1)
+    return iparent;
+
+  for (phandle_t candidate = node; candidate != FDT_NODEV;
+       candidate = FDT_parent(candidate)) {
+    if (!FDT_hasprop(candidate, "interrupt-controller"))
+      continue;
+
+    if (FDT_getencprop(candidate, "phandle", &iparent, sizeof(pcell_t)) !=
+        sizeof(pcell_t))
+      return ENXIO;
+
+    *phandle = iparent;
+    return 0;
+  }
+
+  return ENXIO;
+}

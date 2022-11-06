@@ -10,12 +10,21 @@
 #include <sys/device.h>
 #include <sys/fdt.h>
 
+typedef struct pic pic_t;
+typedef TAILQ_HEAD(, intr_event) ie_list_t;
+typedef TAILQ_HEAD(, pic) pic_list_t;
+
+struct pic {
+  TAILQ_ENTRY(pic) link;
+  device_t *dev;
+  unsigned id;
+};
+
 static KMALLOC_DEFINE(M_INTR, "interrupt events & handlers");
 
-typedef TAILQ_HEAD(, intr_event) ie_list_t;
-
-static MTX_DEFINE(all_ievents_mtx, 0);
+static MTX_DEFINE(intr_mtx, 0);
 static ie_list_t all_ievents_list = TAILQ_HEAD_INITIALIZER(all_ievents_list);
+static pic_list_t all_pic_list = TAILQ_HED_INITIALIZER(all_pic_list);
 
 /*
  * IH_REMOVE: set when the handler cannot be removed, because it has been
@@ -73,7 +82,7 @@ intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
 
   strlcpy(ie->ie_name, name, IENAMELEN);
 
-  WITH_MTX_LOCK (&all_ievents_mtx)
+  WITH_MTX_LOCK (&intr_mtx)
     TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_link);
 
   return ie;
@@ -216,31 +225,68 @@ void intr_event_run_handlers(intr_event_t *ie) {
     klog("Spurious %s interrupt!", ie->ie_name);
 }
 
+void intr_pic_register(device_t *pic, unsigned id) {
+  assert(pic);
+
+  pic_t *p = kmalloc(M_DEV, sizeof(pic_t), M_WAITOK | M_ZERO);
+  p->pic = pic;
+  p->id = id;
+
+  WITH_MTX_LOCK (&intr_mtx)
+    TAILQ_INSERT_TAIL(&all_pic_list, p, link);
+}
+
+static device_t *intr_pic_find(device_t *dev, unsigned id) {
+  SCOPED_MTX_LOCK(&intr_mtx);
+  device_t *pic_dev = NULL;
+
+  pic_t *pic;
+  TAILQ_FOREACH (pic, &all_pic_list, pic) {
+    pic_dev = pic->dev;
+    if (pic->id == id && pic_dev->bus == dev->bus)
+      break;
+  }
+
+  return pic_dev;
+}
+
 static inline pic_methods_t *pic_methods(device_t *dev) {
   return (pic_methods_t *)dev->driver->interfaces[DIF_PIC];
 }
 
-void pic_setup_intr(device_t *dev, resource_t *r, ih_filter_t *filter,
-                    ih_service_t *service, void *arg, const char *name) {
-  assert(r->r_type == RT_IRQ);
-  assert(!r->r_handler);
-  device_t *pic = dev->pic;
-  pic_methods(pic)->setup_intr(pic, dev, r, filter, service, arg, name);
+int pic_setup_intr(device_t *dev, interrupt_t *intr, ih_filter_t *filter,
+                   ih_service_t *service, void *arg, const char *name) {
+  assert(!intr->handler);
+  device_t *pic = intr->pic;
+  if (pic)
+    goto setup;
+
+  if (!(pic = intr_pic_find(dev, intr->id)))
+    return ENXIO
+
+      if (!pic_methods(pic)->map_intr) goto setup;
+
+  int irqnum = pic_map_intr(dev, pic, intr->fdt_intr);
+  if (irqnum < 0) {
+    intr->pic = NULL;
+    return EPERM;
+  }
+
+  intr->irq = irqnum;
+  intr->pic = pic;
+setup:
+  pic_methods(pic)->setup_intr(pic, dev, intr, filter, service, arg, name);
 }
 
-void pic_teardown_intr(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_IRQ);
-  assert(r->r_handler);
-  device_t *pic = dev->pic;
-  pic_methods(pic)->teardown_intr(pic, dev, r);
-  r->r_handler = NULL;
+void pic_teardown_intr(device_t *dev, interrupt_t *intr) {
+  assert(intr->pic);
+  assert(intr->handler);
+  device_t *pic = intr->pic;
+  pic_methods(pic)->teardown_intr(pic, dev, intr);
+  intr->handler = NULL;
 }
 
-int pic_map_intr(device_t *dev, fdt_intr_t *intr) {
-  /* TODO: we should pick the interrupt controller based on the `node`
-   * member of `fdt_intr_t`. However, FTTB we assume that each device
-   * has at most one interrupt controller. */
-  device_t *pic = dev->pic;
+int pic_map_intr(device_t *dev, device_t *pic, fdt_intr_t *intr) {
   return pic_methods(pic)->map_intr(pic, dev, intr->tuple, intr->icells);
 }
 

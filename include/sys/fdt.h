@@ -36,7 +36,7 @@ typedef struct fdt_mem_reg {
 typedef struct fdt_intr {
   pcell_t tuple[FDT_MAX_ICELLS];
   int icells;
-  phandle_t iparent;
+  pcell_t phandle;
 } fdt_intr_t;
 
 /*
@@ -311,5 +311,7 @@ int FDT_get_chosen_bootargs(const char **bootargsp);
  *  - 1: match
  */
 int FDT_is_compatible(phandle_t node, const char *compatible);
+
+int FDT_find_iparent_phandle(phandle_t node, pcell_t *phandle_p);
 
 #endif /* !_SYS_FDT_H_ */

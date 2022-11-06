@@ -10,7 +10,7 @@
 
 typedef struct ctx ctx_t;
 typedef struct device device_t;
-typedef struct resource resource_t;
+typedef struct interrupt interrupt_t;
 typedef struct fdt_intr fdt_intr_t;
 typedef uint32_t pcell_t;
 
@@ -95,15 +95,18 @@ typedef void (*intr_root_filter_t)(ctx_t *ctx, device_t *dev);
 void intr_root_claim(intr_root_filter_t filter, device_t *dev);
 void intr_root_handler(ctx_t *ctx) __no_profile;
 
+void intr_pic_register(device_t *pic, unsigned id);
+
 /*
  * Interrupt controller interface.
  */
 
-typedef void (*pic_setup_intr_t)(device_t *pic, device_t *dev, resource_t *r,
-                                 ih_filter_t *filter, ih_service_t *service,
-                                 void *arg, const char *name);
+typedef void (*pic_setup_intr_t)(device_t *pic, device_t *dev,
+                                 interrupt_t *intr, ih_filter_t *filter,
+                                 ih_service_t *service, void *arg,
+                                 const char *name);
 typedef void (*pic_teardown_intr_t)(device_t *pic, device_t *dev,
-                                    resource_t *r);
+                                    interrupt_t *intr);
 typedef int (*pic_map_intr_t)(device_t *pic, device_t *dev, pcell_t *intr,
                               int icells);
 
@@ -118,24 +121,24 @@ typedef struct pic_methods {
  *
  * Arguments:
  *  - `dev`: requesting device
- *  - `irq`: interrupt resource
+ *  - `intr`: interrupt resource
  *  - `filter`: filter function called within interrupted context
  *  - `service`: optional service function called within interrupt
  *    thread context
  *  - `arg`: argument passed to both filter and service routines
  *  - `name`: description of the interrupt source
  */
-void pic_setup_intr(device_t *dev, resource_t *irq, ih_filter_t *filter,
-                    ih_service_t *service, void *arg, const char *name);
+int pic_setup_intr(device_t *dev, interrupt_t *intr, ih_filter_t *filter,
+                   ih_service_t *service, void *arg, const char *name);
 
 /*
  * Remove specified interrupt source.
  *
  * Arguments:
  *  - `dev`: requesting device
- *  - `r`: interrupt resource
+ *  - `intr`: interrupt resource
  */
-void pic_teardown_intr(device_t *dev, resource_t *r);
+int pic_teardown_intr(device_t *dev, interrupt_t *intr);
 
 /*
  * Map FDT interrupt resource of device `dev`

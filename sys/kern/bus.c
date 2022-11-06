@@ -101,73 +101,17 @@ bus_space_t *generic_bus_space = &(bus_space_t){
   .bs_write_region_4 = generic_bs_write_region_4,
 };
 
-int bus_map_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type != RT_IRQ);
-
-  if (r->r_bus_handle)
+int bus_map_mmio(device_t *dev, mmio_t *mmio) {
+  if (mmio->bus_handle)
     return 0;
 
-  device_t *idev = BUS_METHOD_PROVIDER(dev, map_resource);
-  return bus_methods(idev->parent)->map_resource(idev, r);
+  device_t *idev = BUS_METHOD_PROVIDER(dev, map_mmio);
+  return bus_methods(idev->parent)->map_mmio(idev, mmio);
 }
 
-void bus_unmap_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type != RT_IRQ);
-  assert(r->r_bus_handle);
-  device_t *idev = BUS_METHOD_PROVIDER(dev, unmap_resource);
-  bus_methods(idev->parent)->unmap_resource(idev, r);
-  r->r_bus_handle = 0;
-}
-
-/* System-wide current pass number. */
-static drv_pass_t current_pass;
-
-int bus_generic_probe(device_t *bus) {
-  devclass_t *dc = bus->devclass;
-  if (!dc)
-    return 0;
-  device_t *dev;
-  TAILQ_FOREACH (dev, &bus->children, link) {
-    if (dev->driver) {
-      if (device_bus(dev))
-        bus_generic_probe(dev);
-      continue;
-    }
-
-    driver_t **drv_p;
-    DEVCLASS_FOREACH(drv_p, dc) {
-      driver_t *driver = *drv_p;
-      if (driver->pass > current_pass)
-        continue;
-      dev->driver = driver;
-      if (device_probe(dev)) {
-        klog("%s detected!", driver->desc);
-        /* device_attach returns error ! */
-        if (!device_attach(dev)) {
-          klog("%s attached to %p!", driver->desc, dev);
-          break;
-        }
-      }
-      dev->driver = NULL;
-    }
-  }
-  return 0;
-}
-
-DEVCLASS_DECLARE(root);
-
-void init_devices(void) {
-  assert(current_pass < PASS_COUNT);
-  extern driver_t rootdev_driver;
-  static device_t *rootdev;
-  if (rootdev == NULL) {
-    rootdev = device_alloc(0);
-    rootdev->devclass = &DEVCLASS(root);
-    rootdev->driver = (driver_t *)&rootdev_driver;
-    device_probe(rootdev);
-    device_attach(rootdev);
-  } else {
-    bus_generic_probe(rootdev);
-  }
-  current_pass++;
+void bus_unmap_mmio(device_t *dev, mmio_t *mmio) {
+  assert(mmio->bus_handle);
+  device_t *idev = BUS_METHOD_PROVIDER(dev, unmap_mmio);
+  bus_methods(idev->parent)->unmap_mmio(idev, mmio);
+  mmio->bus_handle = 0;
 }
