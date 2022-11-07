@@ -17,7 +17,6 @@
 #define KM_NPOOLS (ffs(KM_SLAB_MAXBLKSZ) - ffs(KM_SLAB_MINBLKSZ) + 1)
 
 static pool_t km_pools[KM_NPOOLS];
-static mtx_t km_lock; /* guards `kmalloc_pool_t` structures */
 
 /* clang-format off */
 static const struct {
@@ -90,7 +89,7 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, kmem_flags_t flags) {
 
   kasan_mark(ptr, size, blksz, KASAN_CODE_KMALLOC_OVERFLOW);
 
-  WITH_MTX_LOCK(&km_lock) {
+  WITH_MTX_LOCK(&mp->lock) {
     mp->nrequests++;
     mp->used += blksz;
     mp->maxused = max(mp->used, mp->maxused);
@@ -121,7 +120,7 @@ void kfree(kmalloc_pool_t *mp, void *ptr) {
     kmem_free(ptr, blksz);
   }
 
-  WITH_MTX_LOCK(&km_lock) {
+  WITH_MTX_LOCK(&mp->lock) {
     mp->used -= blksz;
     mp->active--;
   }
@@ -138,8 +137,6 @@ char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
 static alignas(PAGESIZE) uint8_t km_boot_area[KM_BOOT_AREASZ];
 
 void init_kmalloc(void) {
-  mtx_init(&km_lock, 0);
-
   void *slab_pages = km_boot_area;
 
   for (size_t i = 0; i < KM_NPOOLS; i++) {

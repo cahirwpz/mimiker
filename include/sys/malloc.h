@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/linker_set.h>
 #include <sys/kmem_flags.h>
+#include <sys/mutex.h>
 
 /*
  * General purpose kernel memory allocator.
@@ -11,6 +12,7 @@
 
 typedef struct kmalloc_pool {
   const char *desc; /* Printable type name. */
+  mtx_t lock;       /* Guards fields below. */
   size_t nrequests; /* Number of allocation requests. */
   size_t active;    /* Numer of active blocks. */
   size_t used;      /* Bytes currently used. */
@@ -20,6 +22,7 @@ typedef struct kmalloc_pool {
 /* Defines a local pool of memory for use by a subsystem. */
 #define KMALLOC_DEFINE(NAME, DESC)                                             \
   kmalloc_pool_t *NAME = &(kmalloc_pool_t){                                    \
+    .lock = MTX_INITIALIZER(kmalloc_pool, MTX_SPIN),                           \
     .desc = (DESC),                                                            \
   };                                                                           \
   SET_ENTRY(kmalloc_pool, NAME)
