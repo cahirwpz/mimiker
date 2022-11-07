@@ -36,8 +36,6 @@ static const struct {
 };
 /* clang-format on */
 
-#define KM_BOOT_AREASZ 761856
-
 /*
  * Auxiliary functions.
  */
