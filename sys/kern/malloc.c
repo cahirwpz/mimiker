@@ -43,63 +43,6 @@ static const struct {
  * Auxiliary functions.
  */
 
-static void mp_update_alloc(kmalloc_pool_t *mp, void *ptr, size_t blksz) {
-  SCOPED_MTX_LOCK(&km_lock);
-  mp->nrequests++;
-  if (!ptr)
-    return;
-  mp->used += blksz;
-  mp->maxused = max(mp->used, mp->maxused);
-  mp->active++;
-}
-
-static void mp_update_free(kmalloc_pool_t *mp, size_t blksz) {
-  SCOPED_MTX_LOCK(&km_lock);
-  assert(blksz);
-  mp->used -= blksz;
-  mp->active--;
-}
-
-/*
- * Large block allocator.
- */
-
-static inline size_t lblk_size(size_t size) {
-  return roundup2(size, PAGESIZE);
-}
-
-static void *lblk_alloc(size_t size, kmem_flags_t flags, size_t *blkszp) {
-  assert(size);
-
-#if KASAN
-  size_t blksz = lblk_size(size + KASAN_KMALLOC_REDZONE_SIZE);
-#else /* !KASAN */
-  size_t blksz = lblk_size(size);
-#endif
-
-  void *ptr = kmem_alloc(blksz, flags);
-  if (!ptr)
-    return NULL;
-
-  kasan_mark(ptr, size, blksz, KASAN_CODE_KMALLOC_OVERFLOW);
-
-  *blkszp = blksz;
-  return ptr;
-}
-
-void lblk_free(void *ptr, size_t *blkszp) {
-  assert(ptr);
-
-  size_t blksz = kmem_size(ptr);
-  *blkszp = blksz;
-
-  kmem_free(ptr, blksz);
-}
-
-/*
- * Slab block allocator.
- */
-
 static inline size_t blk_idx(size_t size) {
   if (size <= KM_SLAB_MINBLKSZ)
     return 0;
@@ -108,13 +51,17 @@ static inline size_t blk_idx(size_t size) {
 }
 
 static inline slab_t *blk_slab(void *ptr) {
-  assert(ptr);
   vm_page_t *pg = kva_find_page((vaddr_t)ptr);
   return pg->slab;
 }
 
-static void *blk_alloc(size_t size, kmem_flags_t flags, size_t *blkszp) {
-  assert(size);
+/*
+ * Kernel API.
+ */
+
+void *kmalloc(kmalloc_pool_t *mp, size_t size, kmem_flags_t flags) {
+  if (size == 0)
+    return NULL;
 
 #if KASAN
   size_t req_size = size + KASAN_KMALLOC_REDZONE_SIZE;
@@ -122,60 +69,34 @@ static void *blk_alloc(size_t size, kmem_flags_t flags, size_t *blkszp) {
   size_t req_size = size;
 #endif
 
-  size_t idx = blk_idx(req_size);
-  assert(idx < KM_NPOOLS);
+  size_t blksz;
+  void *ptr;
 
-  pool_t *pool = &km_pools[idx];
-  void *ptr = pool_alloc(pool, flags);
+  if (size > KM_SLAB_MAXBLKSZ) {
+    blksz = roundup2(req_size, PAGESIZE);
+    ptr = kmem_alloc(blksz, flags);
+  } else {
+    size_t idx = blk_idx(req_size);
+    assert(idx < KM_NPOOLS);
+
+    blksz = KM_SLAB_MINBLKSZ << idx;
+    ptr = pool_alloc(&km_pools[idx], flags);
+  }
+
   if (!ptr)
     return NULL;
 
-  size_t blksz = KM_SLAB_MINBLKSZ << idx;
+  assert(is_aligned(ptr, KM_ALIGNMENT));
 
   kasan_mark(ptr, size, blksz, KASAN_CODE_KMALLOC_OVERFLOW);
 
-  *blkszp = blksz;
-  return ptr;
-}
+  WITH_MTX_LOCK(&km_lock) {
+    mp->nrequests++;
+    mp->used += blksz;
+    mp->maxused = max(mp->used, mp->maxused);
+    mp->active++;
+  }
 
-static void blk_free(void *ptr, size_t *blkszp) {
-  assert(ptr);
-
-  slab_t *slab = blk_slab(ptr);
-  pool_t *pool = slab->ph_pool;
-
-#if KASAN
-  *blkszp = slab->ph_itemsize - pool->pp_redzone;
-#else /* !KASAN */
-  *blkszp = slab->ph_itemsize;
-#endif
-
-  pool_free(pool, ptr);
-}
-
-/*
- * Kernel API.
- */
-
-static inline bool is_large(void *ptr) {
-  return !blk_slab(ptr);
-}
-
-void *kmalloc(kmalloc_pool_t *mp, size_t size, kmem_flags_t flags) {
-  if (size == 0)
-    return NULL;
-
-  void *ptr = NULL;
-  size_t blksz;
-
-  if (size > KM_SLAB_MAXBLKSZ)
-    ptr = lblk_alloc(size, flags, &blksz);
-  else
-    ptr = blk_alloc(size, flags, &blksz);
-
-  mp_update_alloc(mp, ptr, blksz);
-
-  assert(!ptr || is_aligned(ptr, KM_ALIGNMENT));
   return ptr;
 }
 
@@ -184,13 +105,26 @@ void kfree(kmalloc_pool_t *mp, void *ptr) {
     return;
 
   size_t blksz;
+  slab_t *slab;
 
-  if (is_large(ptr))
-    lblk_free(ptr, &blksz);
-  else
-    blk_free(ptr, &blksz);
+  if ((slab = blk_slab(ptr))) {
+    pool_t *pool = slab->ph_pool;
 
-  mp_update_free(mp, blksz);
+    blksz = slab->ph_itemsize;
+#if KASAN
+    blksz -= pool->pp_redzone;
+#endif
+
+    pool_free(pool, ptr);
+  } else {
+    blksz = kmem_size(ptr);
+    kmem_free(ptr, blksz);
+  }
+
+  WITH_MTX_LOCK(&km_lock) {
+    mp->used -= blksz;
+    mp->active--;
+  }
 }
 
 char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
