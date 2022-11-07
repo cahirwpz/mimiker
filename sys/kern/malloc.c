@@ -88,7 +88,7 @@ void *kmalloc(kmalloc_pool_t *mp, size_t size, kmem_flags_t flags) {
 
   kasan_mark(ptr, size, blksz, KASAN_CODE_KMALLOC_OVERFLOW);
 
-  WITH_MTX_LOCK(&mp->lock) {
+  WITH_MTX_LOCK (&mp->lock) {
     mp->nrequests++;
     mp->used += blksz;
     mp->maxused = max(mp->used, mp->maxused);
@@ -119,7 +119,7 @@ void kfree(kmalloc_pool_t *mp, void *ptr) {
     kmem_free(ptr, blksz);
   }
 
-  WITH_MTX_LOCK(&mp->lock) {
+  WITH_MTX_LOCK (&mp->lock) {
     mp->used -= blksz;
     mp->active--;
   }
