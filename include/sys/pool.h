@@ -96,9 +96,9 @@ void pool_free(pool_t *pool, void *ptr);
 
 /*! \brief Define a pool that will be initialized during system startup. */
 #define POOL_DEFINE(NAME, ...)                                                 \
-  struct pool *NAME;                                                           \
+  pool_t NAME[1];                                                              \
   static void __ctor_##NAME(void) {                                            \
-    NAME = pool_create(__VA_ARGS__);                                           \
+    pool_init(NAME, __VA_ARGS__);                                              \
   }                                                                            \
   SET_ENTRY(pool_ctor_table, __ctor_##NAME);
 

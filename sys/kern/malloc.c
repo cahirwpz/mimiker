@@ -45,8 +45,7 @@ static const struct {
 static inline size_t blk_idx(size_t size) {
   if (size <= KM_SLAB_MINBLKSZ)
     return 0;
-  size_t clg = powerof2(size) ? log2(size) : log2(size) + 1;
-  return clg - log2(KM_SLAB_MINBLKSZ);
+  return 1 + log2(size - 1) - log2(KM_SLAB_MINBLKSZ);
 }
 
 static inline slab_t *blk_slab(void *ptr) {
@@ -134,11 +133,7 @@ char *kstrndup(kmalloc_pool_t *mp, const char *s, size_t maxlen) {
   return copy;
 }
 
-static alignas(PAGESIZE) uint8_t km_boot_area[KM_BOOT_AREASZ];
-
 void init_kmalloc(void) {
-  void *slab_pages = km_boot_area;
-
   for (size_t i = 0; i < KM_NPOOLS; i++) {
     pool_t *pool = &km_pools[i];
     const char *desc = km_slab_cfg[i].desc;
@@ -146,12 +141,7 @@ void init_kmalloc(void) {
     size_t blksz = KM_SLAB_MINBLKSZ << i;
 
     pool_init(pool, desc, blksz, KM_ALIGNMENT, slabsz);
-    pool_add_page(pool, slab_pages, slabsz);
-
-    slab_pages += slabsz;
   }
-
-  assert(slab_pages == &km_boot_area[KM_BOOT_AREASZ]);
 }
 
 KMALLOC_DEFINE(M_TEMP, "temporaries");
