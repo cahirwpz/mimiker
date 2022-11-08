@@ -89,14 +89,19 @@ static void update_kernel_pd(pmap_t *umap) {
 
   assert(umap != kmap);
 
-  if (umap->md.generation == kmap->md.generation)
-    return;
+  WITH_MTX_LOCK (&umap->mtx) {
+    WITH_MTX_LOCK (&kmap->mtx) {
+      if (umap->md.generation == kmap->md.generation)
+        return;
 
-  size_t halfpage = PAGESIZE / 2;
-  memcpy(phys_to_dmap(umap->pde) + halfpage, phys_to_dmap(kmap->pde) + halfpage,
-         halfpage);
+      size_t halfpage = PAGESIZE / 2;
+      void *new_kpd = phys_to_dmap(kmap->pde) + halfpage;
+      void *old_kpd = phys_to_dmap(umap->pde) + halfpage;
+      memcpy(old_kpd, new_kpd, halfpage);
 
-  umap->md.generation = kmap->md.generation;
+      umap->md.generation = kmap->md.generation;
+    }
+  }
 }
 
 void pmap_md_activate(pmap_t *umap) {
@@ -153,6 +158,8 @@ void pmap_md_bootstrap(pde_t *pd) {
 
 void pmap_md_growkernel(vaddr_t old_kva, vaddr_t new_kva) {
   pmap_t *kmap = pmap_kernel();
+
+  assert(mtx_owned(&kmap->mtx));
 
   /* Did we change top kernel PD? If so force updates to user pmaps! */
   if ((old_kva & ~L0_OFFSET) != (new_kva & ~L0_OFFSET)) {
