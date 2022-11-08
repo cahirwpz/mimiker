@@ -70,7 +70,7 @@ static inline bool kern_addr_p(vaddr_t va) {
  */
 
 static inline bool pde_valid_p(pde_t *pdep);
-void pde_write(pde_t *pdep, paddr_t pd, int lvl, vaddr_t va);
+pde_t pde_make(int lvl, paddr_t pa);
 static inline pde_t *pde_ptr(paddr_t pd, int lvl, vaddr_t va);
 
 /*

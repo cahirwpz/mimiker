@@ -101,6 +101,9 @@ static inline void pmap_md_setup(pmap_t *pmap) {
 static inline void pmap_md_delete(pmap_t *pmap) {
 }
 
+static inline void pmap_md_growkernel(vaddr_t old_kva, vaddr_t new_kva) {
+}
+
 static inline void pmap_md_update(pmap_t *pmap) {
 }
 

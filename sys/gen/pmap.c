@@ -191,7 +191,7 @@ static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
     paddr_t pa;
     if (!pde_valid_p(pdep)) {
       pa = pmap_alloc_pde(pmap, va);
-      pde_write(pdep, pa, lvl - 1, va);
+      *pdep = pde_make(lvl - 1, pa);
     } else {
       pa = pte_frame((pte_t)*pdep);
     }
@@ -574,6 +574,8 @@ vaddr_t pmap_growkernel(size_t size) {
      * `kasan_grow`.
      */
     kasan_grow(maxkvaddr);
+
+    pmap_md_growkernel(vm_kernel_end, maxkvaddr);
 
     vm_kernel_end = maxkvaddr;
   }

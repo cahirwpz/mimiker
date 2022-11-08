@@ -21,11 +21,11 @@ static const pte_t vm_prot_map[] = {
  * Page directory.
  */
 
-void pde_write(pde_t *pdep, paddr_t pa, int lvl, vaddr_t va) {
+pde_t pde_make(int lvl, paddr_t pa) {
   pde_t *pde = (pde_t *)phys_to_dmap(pa);
   for (int i = 0; i < PT_ENTRIES; i++)
     pde[i] = PTE_GLOBAL;
-  *pdep = PTE_PFN((paddr_t)pde) | PTE_KERNEL;
+  return PTE_PFN((paddr_t)pde) | PTE_KERNEL;
 }
 
 /*

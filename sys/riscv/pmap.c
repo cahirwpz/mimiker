@@ -52,15 +52,8 @@ static const pte_t vm_prot_map[] = {
  * Page directory.
  */
 
-void pde_write(pde_t *pdep, paddr_t pa, int lvl, vaddr_t va) {
-  *pdep = PA_TO_PTE(pa) | PTE_V;
-
-  /* Check if we need to propagate changes to other pmaps. */
-  if (kern_addr_p(va) && lvl == 0) {
-    pmap_t *kmap = pmap_kernel();
-    kmap->md.generation++;
-    assert(kmap->md.generation);
-  }
+pde_t pde_make(int lvl, paddr_t pa) {
+  return PA_TO_PTE(pa) | PTE_V;
 }
 
 /*
@@ -156,6 +149,16 @@ void pmap_md_bootstrap(pde_t *pd) {
     pd[idx] = PA_TO_PTE(pa) | PTE_KERN;
 
   __sfence_vma();
+}
+
+void pmap_md_growkernel(vaddr_t old_kva, vaddr_t new_kva) {
+  pmap_t *kmap = pmap_kernel();
+
+  /* Did we change top kernel PD? If so force updates to user pmaps! */
+  if ((old_kva & ~L0_OFFSET) != (new_kva & ~L0_OFFSET)) {
+    kmap->md.generation++;
+    assert(kmap->md.generation);
+  }
 }
 
 /*
