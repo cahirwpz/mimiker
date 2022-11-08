@@ -66,6 +66,7 @@ extern paddr_t dmap_paddr_end;
  */
 
 static inline bool pde_valid_p(pde_t *pdep);
+paddr_t pde_alloc(pmap_t *pmap);
 pde_t pde_make(int lvl, paddr_t pa);
 static inline pde_t *pde_ptr(paddr_t pd, int lvl, vaddr_t va);
 

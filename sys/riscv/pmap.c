@@ -84,23 +84,53 @@ inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
  * Physical map management.
  */
 
+static MTX_DEFINE(kmap_l0_lock, MTX_SPIN);
+static paddr_t kmap_l0_pages[Ln_ENTRIES];
+
 static void update_kernel_pd(pmap_t *umap) {
   pmap_t *kmap = pmap_kernel();
 
   assert(umap != kmap);
 
-  WITH_MTX_LOCK (&umap->mtx) {
-    WITH_MTX_LOCK (&kmap->mtx) {
-      if (umap->md.generation == kmap->md.generation)
-        return;
+  WITH_MTX_LOCK (&kmap_l0_lock) {
+    if (umap->md.generation == kmap->md.generation)
+      return;
 
-      size_t halfpage = PAGESIZE / 2;
-      void *new_kpd = phys_to_dmap(kmap->pde) + halfpage;
-      void *old_kpd = phys_to_dmap(umap->pde) + halfpage;
-      memcpy(old_kpd, new_kpd, halfpage);
+    size_t halfpage = PAGESIZE / 2;
+    void *new_kpd = phys_to_dmap(kmap->pde) + halfpage;
+    void *old_kpd = phys_to_dmap(umap->pde) + halfpage;
+    memcpy(old_kpd, new_kpd, halfpage);
 
-      umap->md.generation = kmap->md.generation;
+    umap->md.generation = kmap->md.generation;
+  }
+}
+
+void pmap_md_growkernel(vaddr_t old_kva, vaddr_t new_kva) {
+  /* Did we change top kernel PD? If so force updates to user pmaps! */
+  if ((old_kva & ~L0_OFFSET) == (new_kva & ~L0_OFFSET))
+    return;
+
+  pmap_t *kmap = pmap_kernel();
+
+  /* We're protected by unique `kernel_pmap.mtx` */
+  assert(mtx_owned(&kmap->mtx));
+
+  old_kva = roundup(old_kva, L0_SIZE);
+
+  /* Cannot allocate memory under spin lock, so do it here. */
+  for (vaddr_t va = old_kva; va <= new_kva; va += L0_SIZE)
+    kmap_l0_pages[L0_INDEX(va)] = pde_alloc(kmap);
+
+  WITH_MTX_LOCK (&kmap_l0_lock) {
+    /* Fill level 0 page directory with new pages. */
+    for (vaddr_t va = old_kva; va <= new_kva; va += L0_SIZE) {
+      pde_t *pdep = pde_ptr(kmap->pde, 0, va);
+      assert(!pde_valid_p(pdep));
+      *pdep = pde_make(0, kmap_l0_pages[L0_INDEX(va)]);
     }
+
+    kmap->md.generation++;
+    assert(kmap->md.generation);
   }
 }
 
@@ -154,18 +184,6 @@ void pmap_md_bootstrap(pde_t *pd) {
     pd[idx] = PA_TO_PTE(pa) | PTE_KERN;
 
   __sfence_vma();
-}
-
-void pmap_md_growkernel(vaddr_t old_kva, vaddr_t new_kva) {
-  pmap_t *kmap = pmap_kernel();
-
-  assert(mtx_owned(&kmap->mtx));
-
-  /* Did we change top kernel PD? If so force updates to user pmaps! */
-  if ((old_kva & ~L0_OFFSET) != (new_kva & ~L0_OFFSET)) {
-    kmap->md.generation++;
-    assert(kmap->md.generation);
-  }
 }
 
 /*
