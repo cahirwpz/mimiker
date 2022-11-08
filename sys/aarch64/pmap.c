@@ -50,12 +50,15 @@ static const pte_t vm_prot_map[] = {
  * Page directory.
  */
 
-pde_t pde_make(int lvl, paddr_t pa) {
+void pde_write(pde_t *pdep, paddr_t pa, int lvl, vaddr_t va) {
+  pde_t pde = pa;
   if (lvl == 0)
-    return pa | L0_TABLE;
-  if (lvl == 1)
-    return pa | L1_TABLE;
-  return pa | L2_TABLE;
+    pde |= L0_TABLE;
+  else if (lvl == 1)
+    pde |= L1_TABLE;
+  else
+    pde |= L2_TABLE;
+  *pdep = pde;
 }
 
 /*

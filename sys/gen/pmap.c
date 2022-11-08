@@ -195,7 +195,7 @@ static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
     paddr_t pa;
     if (!pde_valid_p(pdep)) {
       pa = pmap_alloc_pde(pmap, va);
-      *pdep = pde_make(lvl - 1, pa);
+      pde_write(pdep, pa, lvl - 1, va);
     } else {
       pa = pte_frame((pte_t)*pdep);
     }
@@ -559,30 +559,30 @@ void pmap_delete(pmap_t *pmap) {
 }
 
 vaddr_t pmap_growkernel(size_t size) {
-  pmap_t *pmap = pmap_kernel();
+  pmap_t *kmap = pmap_kernel();
 
-  SCOPED_MTX_LOCK(&vm_kernel_end_lock);
+  WITH_MTX_LOCK (&vm_kernel_end_lock) {
+    if (size == 0)
+      return vm_kernel_end;
 
-  if (size == 0)
-    return vm_kernel_end;
+    vaddr_t maxkvaddr = roundup2(vm_kernel_end + size, GROWKERNEL_STRIDE);
 
-  vaddr_t maxkvaddr = roundup2(vm_kernel_end + size, GROWKERNEL_STRIDE);
+    WITH_MTX_LOCK (&kmap->mtx) {
+      for (vaddr_t va = vm_kernel_end; va < maxkvaddr; va += GROWKERNEL_STRIDE)
+        (void)pmap_ensure_pte(kmap, va);
+    }
 
-  WITH_MTX_LOCK (&pmap->mtx) {
-    for (vaddr_t va = vm_kernel_end; va < maxkvaddr; va += GROWKERNEL_STRIDE)
-      (void)pmap_ensure_pte(pmap, va);
+    /*
+     * `kasan_grow` calls `pmap_kenter` which acquires `kmap->mtx`.
+     * But we are under `vm_kernel_end_lock` from kmem so it's safe to call
+     * `kasan_grow`.
+     */
+    kasan_grow(maxkvaddr);
+
+    vm_kernel_end = maxkvaddr;
   }
 
-  /*
-   * `kasan_grow` calls `pmap_kenter` which acquires `pmap->mtx`.
-   * But we are under `vm_kernel_end_lock` from kmem so it's safe to call
-   * `kasan_grow`.
-   */
-  kasan_grow(maxkvaddr);
-
-  pmap_md_growkernel(maxkvaddr);
-
-  vm_kernel_end = maxkvaddr;
+  pmap_md_update(pmap_user());
 
   return vm_kernel_end;
 }

@@ -52,8 +52,15 @@ static const pte_t vm_prot_map[] = {
  * Page directory.
  */
 
-pde_t pde_make(int lvl, paddr_t pa) {
-  return PA_TO_PTE(pa) | PTE_V;
+void pde_write(pde_t *pdep, paddr_t pa, int lvl, vaddr_t va) {
+  *pdep = PA_TO_PTE(pa) | PTE_V;
+
+  /* Check if we need to propagate changes to other pmaps. */
+  if (va >= KERNEL_SPACE_BEGIN && va < KERNEL_SPACE_END && lvl == 0) {
+    pmap_t *kmap = pmap_kernel();
+    kmap->md.generation++;
+    assert(kmap->md.generation);
+  }
 }
 
 /*
@@ -87,6 +94,11 @@ inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
 static void update_kernel_pd(pmap_t *umap) {
   pmap_t *kmap = pmap_kernel();
 
+  assert(umap != kmap);
+
+  if (umap->md.generation == kmap->md.generation)
+    return;
+
   size_t halfpage = PAGESIZE / 2;
   memcpy(phys_to_dmap(umap->pde) + halfpage, phys_to_dmap(kmap->pde) + halfpage,
          halfpage);
@@ -95,13 +107,17 @@ static void update_kernel_pd(pmap_t *umap) {
 }
 
 void pmap_md_activate(pmap_t *umap) {
-  pmap_t *kmap = pmap_kernel();
-  assert(kmap->md.generation);
-
-  if (umap->md.generation < kmap->md.generation)
-    update_kernel_pd(umap);
+  update_kernel_pd(umap);
 
   __set_satp(umap->md.satp);
+  __sfence_vma();
+}
+
+void pmap_md_update(pmap_t *umap) {
+  if (!umap)
+    return;
+
+  update_kernel_pd(umap);
   __sfence_vma();
 }
 
@@ -140,25 +156,6 @@ void pmap_md_bootstrap(pde_t *pd) {
     pd[idx] = PA_TO_PTE(pa) | PTE_KERN;
 
   __sfence_vma();
-}
-
-void pmap_md_growkernel(vaddr_t maxkvaddr) {
-  pmap_t *kmap = pmap_kernel();
-  pmap_t *umap = pmap_user();
-
-  if (umap)
-    mtx_lock(&umap->mtx);
-
-  WITH_MTX_LOCK (&kmap->mtx) {
-    kmap->md.generation++;
-    assert(kmap->md.generation);
-    if (!umap)
-      return;
-    update_kernel_pd(umap);
-    __sfence_vma();
-  }
-
-  mtx_unlock(&umap->mtx);
 }
 
 /*

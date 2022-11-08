@@ -66,7 +66,7 @@ extern paddr_t dmap_paddr_end;
  */
 
 static inline bool pde_valid_p(pde_t *pdep);
-pde_t pde_make(int lvl, paddr_t pa);
+void pde_write(pde_t *pdep, paddr_t pd, int lvl, vaddr_t va);
 static inline pde_t *pde_ptr(paddr_t pd, int lvl, vaddr_t va);
 
 /*
@@ -87,7 +87,7 @@ void pmap_md_bootstrap(pde_t *pd);
 void pmap_md_setup(pmap_t *pmap);
 void pmap_md_activate(pmap_t *pmap);
 void pmap_md_delete(pmap_t *pmap);
-void pmap_md_growkernel(vaddr_t maxkvaddr);
+void pmap_md_update(pmap_t *pmap);
 
 /*
  * Direct map.
