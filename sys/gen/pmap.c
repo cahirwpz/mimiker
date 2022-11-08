@@ -49,6 +49,10 @@ static inline pde_t page_offset(vaddr_t addr) {
   return addr & (PAGESIZE - 1);
 }
 
+static inline bool kern_addr_p(vaddr_t va) {
+  return va >= KERNEL_SPACE_BEGIN && va < KERNEL_SPACE_END;
+}
+
 vaddr_t pmap_start(pmap_t *pmap) {
   return pmap->asid ? USER_SPACE_BEGIN : KERNEL_SPACE_BEGIN;
 }
