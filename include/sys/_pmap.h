@@ -61,6 +61,10 @@ typedef struct pv_entry {
 extern paddr_t dmap_paddr_base;
 extern paddr_t dmap_paddr_end;
 
+static inline bool kern_addr_p(vaddr_t va) {
+  return va >= KERNEL_SPACE_BEGIN && va < KERNEL_SPACE_END;
+}
+
 /*
  * Page directory.
  */

@@ -56,7 +56,7 @@ void pde_write(pde_t *pdep, paddr_t pa, int lvl, vaddr_t va) {
   *pdep = PA_TO_PTE(pa) | PTE_V;
 
   /* Check if we need to propagate changes to other pmaps. */
-  if (va >= KERNEL_SPACE_BEGIN && va < KERNEL_SPACE_END && lvl == 0) {
+  if (kern_addr_p(va) && lvl == 0) {
     pmap_t *kmap = pmap_kernel();
     kmap->md.generation++;
     assert(kmap->md.generation);
