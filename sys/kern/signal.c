@@ -576,6 +576,7 @@ int do_sigreturn(ucontext_t *ucp) {
   /* Restore user context. */
   mcontext_copy(uctx, &uc.uc_mcontext);
 
+  // TODO sigsuspend tests (no "unmasking")
   WITH_MTX_LOCK (&td->td_proc->p_lock)
     error = do_sigprocmask(SIG_SETMASK, &uc.uc_sigmask, NULL);
   assert(error == 0);

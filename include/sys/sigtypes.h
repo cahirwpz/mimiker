@@ -31,6 +31,8 @@ typedef struct {
   { (t)->__bits &= ~(s)->__bits; }
 #define __sigandset(s, t)                                                      \
   { (t)->__bits &= (s)->__bits; }
+#define __signandset(s, t)                                                      \
+  { (t)->__bits &= ~((s)->__bits); }
 #define __sigfindset(s) (__builtin_ffs((s)->__bits))
 
 typedef struct sigaltstack {
