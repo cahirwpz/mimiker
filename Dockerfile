@@ -18,4 +18,4 @@ RUN pip3 install setuptools wheel && pip3 install -r requirements.txt && \
   curl -O https://mimiker.ii.uni.wroc.pl/download/riscv32-mimiker-elf_latest_amd64.deb && \
   curl -O https://mimiker.ii.uni.wroc.pl/download/riscv64-mimiker-elf_latest_amd64.deb && \
   curl -O https://mimiker.ii.uni.wroc.pl/download/qemu-mimiker_latest_amd64.deb && \
-  apt-get install -y ./*.deb && rm -f *.deb && \
+  apt-get install -y ./*.deb && rm -f *.deb

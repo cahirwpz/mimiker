@@ -4,18 +4,13 @@ Toolchain
 To build and run Mimiker you will need a toolchain, i.e. compiler, linker, ELF
 tools, emulator and debugger. The default option is to choose quite recent
 _LLVM toolchain_ (check version in [tools.mk][6]), i.e. `clang`, `lld`, `llvm`
-from [apt.llvm.org][7], [QEmu][11] and [gdb-multiarch][8].
+from [apt.llvm.org][7] and [QEmu][11].
 
 NOTE:
 If you plan to run Mimiker on MIPS you need to install patched version of QEmu
 as well. Our version solves several issues not patched in the mainstream version
 – please refer to our list of [patches][10]. Prebuild package for Debian x86-64
 can be found [here][5].
-
-NOTE:
-To use gdb-multiarch you need to reconfigure [launch][9] script to use same
-`gdb-multiarch` binary for each target architecture, look for `gdb` section and
-find `binary` key.
 
 ## Requiremnts
 You can find all needed software in a [Dockerfile][12]. There is also a script
