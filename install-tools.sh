@@ -36,7 +36,6 @@ function ask() {
 [ -f /usr/bin/sudo ] || fatal 'sudo is missing; (run `su -c "apt install sudo"`)'
 
 DEBS=packages.txt
-DEBS_BACKPORTS=packages-backports.txt
 
 info "Install required packages"
 info "Upgrade privileges to root user"
@@ -44,24 +43,18 @@ info "Install packages from base repository"
 
 sudo -u root sh -c "apt-get update -q && apt install < ${DEBS}"
 
-CODENAME=$(lsb_release -sc 2>/dev/null)
-
-if ! [ "$CODENAME" == "bullseye" ]; then
-    fatal "Your distribution 'bullseye' is not supported"
-fi
-
-sudo -u root sh -c "apt-get update -t bullseye-backports -q && apt install -t bullseye-backports < ${DEBS_BACKPORTS}"
-
-if ! [ $? -eq 0 ]; then
-    fatal "You don't have a bulseye-backports set up."
-fi
-
 info "Drop privileges to $USER"
 info "Install local python dependencies"
 
 python3 -m venv mimiker-env
 . mimiker-env/bin/activate
 pip3 install -r requirements.txt
+
+CODENAME=$(lsb_release -sc 2>/dev/null)
+
+if ! [ "$CODENAME" == "bullseye" ]; then
+    fatal "Your distribution '$CODENAME' is not supported"
+fi
 
 LLVM_VERSION=14
 DEBS_LLVM="clang-${LLVM_VERSION} clang-format-${LLVM_VERSION} llvm-${LLVM_VERSION} lld-${LLVM_VERSION}"
@@ -81,7 +74,7 @@ curl -o $WORKDIR/riscv64-mimiker-elf_latest_amd64.deb https://mimiker.ii.uni.wro
 curl -o $WORKDIR/qemu-mimiker_latest_amd64.deb https://mimiker.ii.uni.wroc.pl/download/qemu-mimiker_latest_amd64.deb
 
 info "Install toolchain"
-sudo -u root sh -c "dpkg -i $WORKDIR/*.deb"
+sudo -u root sh -c "apt-get install $WORKDIR/*.deb"
 
 info "Cleanup $WORKDIR"
 rm -r $WORKDIR
