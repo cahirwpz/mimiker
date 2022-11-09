@@ -280,39 +280,58 @@ void __tsan_init(void) {
 }
 
 /*
- * The compiler replaces all atomic operations to these functions. KCSAN doesn't
- * use them, so we simply call the original ones.
+ * The compiler replaces all atomic operations to these functions.
+ * KCSAN doesn't use them, so we simply call the original ones.
+ * Signatures of these functions come from `tsan_interface_atomic.h`.
  */
+
+#define INT(size) int##size##_t
+#define PTR(size) INT(size) *
+#define VPTR(size) volatile PTR(size)
+#define CAST(size, ptr) ((_Atomic PTR(size))(ptr))
+
+#define DEFINE_KCSAN_ATOMIC_LOAD(size)                                         \
+  INT(size) __tsan_atomic##size##_load(const VPTR(size) a, int mo) {           \
+    return atomic_load_explicit(CAST(size, a), mo);                            \
+  }
+
+#define DEFINE_KCSAN_ATOMIC_STORE(size)                                        \
+  void __tsan_atomic##size##_store(VPTR(size) a, INT(size) v, int mo) {        \
+    atomic_store_explicit(CAST(size, a), v, mo);                               \
+  }
+
 #define DEFINE_KCSAN_ATOMIC_OP(size, op)                                       \
-  uint##size##_t __tsan_atomic##size##_##op(volatile uint##size##_t *a,        \
-                                            uint##size##_t v, int mo) {        \
-    return atomic_##op##_explicit((_Atomic uint##size##_t *)a, v, mo);         \
+  INT(size) __tsan_atomic##size##_##op(VPTR(size) a, INT(size) v, int mo) {    \
+    return atomic_##op##_explicit(CAST(size, a), v, mo);                       \
+  }
+
+#define DEFINE_KCSAN_ATOMIC_CAS_OP(size, kind)                                 \
+  int __tsan_atomic##size##_compare_exchange_##kind(                           \
+    VPTR(size) a, PTR(size) c, INT(size) v, int mo, int fail_mo) {             \
+    return atomic_compare_exchange_##kind##_explicit(CAST(size, a), c, v, mo,  \
+                                                     fail_mo);                 \
+  }
+
+#define DEFINE_KCSAN_ATOMIC_CAS_VAL(size)                                      \
+  INT(size)                                                                    \
+  __tsan_atomic##size##_compare_exchange_val(                                  \
+    VPTR(size) a, INT(size) c, INT(size) v, int mo, int fail_mo) {             \
+    (void)atomic_compare_exchange_strong_explicit(CAST(size, a), &c, v, mo,    \
+                                                  fail_mo);                    \
+    return c;                                                                  \
   }
 
 #define DEFINE_KCSAN_ATOMIC_OPS(size)                                          \
+  DEFINE_KCSAN_ATOMIC_LOAD(size)                                               \
+  DEFINE_KCSAN_ATOMIC_STORE(size)                                              \
   DEFINE_KCSAN_ATOMIC_OP(size, exchange)                                       \
   DEFINE_KCSAN_ATOMIC_OP(size, fetch_add)                                      \
   DEFINE_KCSAN_ATOMIC_OP(size, fetch_sub)                                      \
   DEFINE_KCSAN_ATOMIC_OP(size, fetch_or)                                       \
-  uint##size##_t __tsan_atomic##size##_load(const uint##size##_t *a, int mo) { \
-    return atomic_load_explicit((const _Atomic uint##size##_t *)a, mo);        \
-  }                                                                            \
-  void __tsan_atomic##size##_store(volatile uint##size##_t *a,                 \
-                                   volatile uint##size##_t v, int mo) {        \
-    atomic_store_explicit((_Atomic uint##size##_t *)a, v, mo);                 \
-  }                                                                            \
-  int __tsan_atomic##size##_compare_exchange_strong(                           \
-    volatile uint##size##_t *a, uint##size##_t *c, uint##size##_t v, int mo,   \
-    int fail_mo) {                                                             \
-    return atomic_compare_exchange_strong_explicit(                            \
-      (_Atomic uint##size##_t *)a, c, v, mo, fail_mo);                         \
-  }                                                                            \
-  int __tsan_atomic##size##_compare_exchange_val(                              \
-    volatile uint##size##_t *a, uint##size##_t e, uint##size##_t v, int mo,    \
-    int fail_mo) {                                                             \
-    return atomic_compare_exchange_strong_explicit(                            \
-      (_Atomic uint##size##_t *)a, &e, v, mo, fail_mo);                        \
-  }
+  DEFINE_KCSAN_ATOMIC_OP(size, fetch_xor)                                      \
+  DEFINE_KCSAN_ATOMIC_CAS_OP(size, weak)                                       \
+  DEFINE_KCSAN_ATOMIC_CAS_OP(size, strong)                                     \
+  DEFINE_KCSAN_ATOMIC_CAS_VAL(size)
 
 DEFINE_KCSAN_ATOMIC_OPS(8);
 DEFINE_KCSAN_ATOMIC_OPS(16);
