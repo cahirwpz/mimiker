@@ -31,7 +31,7 @@ function ask() {
 # all checks before script is run
 [ "`id -u`" -eq 0 ] && fatal "You are running as root... it is not supported"
 [ -f /etc/apt/sources.list.d/llvm.list ] && warn 'You already have llvm sources.list. The script will override it.' && ask
-[ -f requirements.txt ] || fatal 'You are not in the Mimiker repo topdir.'
+[ -f requirements.txt ] || fatal 'Python requirements not found. Are you in the Mimiker directory?'
 [ -f /usr/bin/apt ] || fatal '/usr/bin/apt is missing; is your distro debian based?'
 [ -f /usr/bin/sudo ] || fatal 'sudo is missing; (run `su -c "apt install sudo"`)'
 
