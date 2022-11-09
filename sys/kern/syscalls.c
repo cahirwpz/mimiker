@@ -1,4 +1,3 @@
-#define KL_LOG KL_SYSCALL
 #include <sys/klog.h>
 #include <sys/sysent.h>
 #include <sys/mimiker.h>
@@ -26,6 +25,7 @@
 #include <sys/pty.h>
 #include <sys/event.h>
 
+#include "sys/sigtypes.h"
 #include "sysent.h"
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
@@ -1312,7 +1312,60 @@ end:
   return error;
 }
 
+static int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
+                             struct timespec *timeout) {
+  int timevalid = 0;
+  sigset_t saved_mask, new_block;
+  thread_t *td = p->p_thread;
+
+  if (timeout != NULL) {
+    if (timeout->tv_nsec >= 0 && timeout->tv_nsec < 1000000000) {
+      timevalid = 1;
+    }
+  }
+
+  bzero(kinfo, sizeof(*kinfo));
+
+  /* These signals cannot be waited for. */
+  __sigdelset(&waitset, SIGKILL);
+  __sigdelset(&waitset, SIGSTOP);
+  
+  WITH_PROC_LOCK(p) {
+    saved_mask = td->td_sigmask;
+    __sigminusset(&td->td_sigmask, &waitset);
+    for (;;) {
+       
+    }
+  }
+}
+
 static int sys_sigtimedwait(proc_t *p, sigtimedwait_args_t *args,
                             register_t *res) {
-  return ENOTSUP;
+  const sigset_t *u_set = SCARG(args, set);
+  siginfo_t *u_info = SCARG(args, info);
+  const struct timespec *u_timeout = SCARG(args, timeout);
+  sigset_t set;
+  ksiginfo_t kinfo;
+  timespec_t timeout;
+  int error;
+
+  if (u_timeout) {
+    error = copyin_s(u_timeout, timeout);
+    if (error)
+      return error;
+  }
+
+  error = copyin_s(u_set, set);
+  if (error)
+    return error;
+
+  error = do_sigtimedwait(p, set, &kinfo, &timeout);
+  if (error)
+    return error;
+
+  if (u_info) {
+    error = copyout_s(kinfo.ksi_info, u_info);
+  }
+
+  return error;
 }

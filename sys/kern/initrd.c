@@ -367,9 +367,7 @@ size_t ramdisk_get_size(void) {
 void ramdisk_dump(void) {
   cpio_node_t *it;
 
-  TAILQ_FOREACH (it, &initrd_head, c_list) {
-    cpio_node_dump(it);
-  }
+  TAILQ_FOREACH (it, &initrd_head, c_list) { cpio_node_dump(it); }
 }
 
 static vfsops_t initrd_vfsops = {
