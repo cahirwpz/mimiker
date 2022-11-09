@@ -41,13 +41,20 @@ info "Install required packages"
 info "Upgrade privileges to root user"
 info "Install packages from base repository"
 
-sudo -u root sh -c "apt-get update -q && apt install < ${DEBS}"
+sudo -u root sh -c "apt-get update -q && apt install $(< ${DEBS})"
 
 info "Drop privileges to $USER"
-info "Install local python dependencies"
 
-python3 -m venv mimiker-env
-. mimiker-env/bin/activate
+read -p "Do you want to create python virtual env for Mimiker? (Y/n) " choice
+case $choice in
+    [yY] )
+        python3 -m venv mimiker-env
+        source mimiker-env/bin/activate
+        info "Python venv 'mimiker-env' created"
+        ;;
+esac
+
+info "Install python dependencies"
 pip3 install -r requirements.txt
 
 CODENAME=$(lsb_release -sc 2>/dev/null)
