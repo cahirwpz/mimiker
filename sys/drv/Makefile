@@ -16,14 +16,12 @@ SOURCES = \
 
 SOURCES-MIPS = \
 	82371AB.c \
-	atkbdc.c \
 	cbus.c \
 	gt64120.c \
 	isa.c \
 	malta_rootdev.c \
 	ns16550.c \
 	rtc.c \
-	rtl8139.c \
 	pci.c \
 	pci_ids.c \
 	pit.c \
