@@ -7,12 +7,8 @@ SOURCES = \
 	evdev.c \
 	evdev_kbd.c \
 	evdev_m.c \
-	hidkbd.c \
-	hidms.c \
-	simplebus.c \
-	uart.c \
-	umass.c \
-	usb.c
+	fdt_dev.c \
+	uart.c
 
 SOURCES-MIPS = \
 	82371AB.c \
@@ -40,7 +36,6 @@ SOURCES-AARCH64 = \
 
 SOURCES-RISCV = \
 	clint.c \
-	liteuart.c \
 	plic.c \
 	riscv_rootdev.c \
 	sifive_uart.c

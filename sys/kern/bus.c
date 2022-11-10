@@ -101,17 +101,17 @@ bus_space_t *generic_bus_space = &(bus_space_t){
   .bs_write_region_4 = generic_bs_write_region_4,
 };
 
-int bus_map_mmio(device_t *dev, mmio_t *mmio) {
-  if (mmio->bus_handle)
+int bus_map_mem(device_t *dev, dev_mem_t *mem) {
+  if (mem->bus_handle)
     return 0;
 
-  device_t *idev = BUS_METHOD_PROVIDER(dev, map_mmio);
-  return bus_methods(idev->parent)->map_mmio(idev, mmio);
+  device_t *idev = BUS_METHOD_PROVIDER(dev, map_mem);
+  return bus_methods(idev->parent)->map_mem(idev, mem);
 }
 
-void bus_unmap_mmio(device_t *dev, mmio_t *mmio) {
-  assert(mmio->bus_handle);
-  device_t *idev = BUS_METHOD_PROVIDER(dev, unmap_mmio);
-  bus_methods(idev->parent)->unmap_mmio(idev, mmio);
-  mmio->bus_handle = 0;
+void bus_unmap_mem(device_t *dev, dev_mem_t *mem) {
+  assert(mem->bus_handle);
+  device_t *idev = BUS_METHOD_PROVIDER(dev, unmap_mem);
+  bus_methods(idev->parent)->unmap_mem(idev, mem);
+  mem->bus_handle = 0;
 }

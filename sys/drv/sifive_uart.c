@@ -36,8 +36,8 @@
 #define SFUART_DIV 0x18
 
 typedef struct sfuart_state {
-  resource_t *regs;
-  resource_t *irq;
+  dev_mem_t *regs;
+  dev_intr_t *irq;
   uint8_t c;
   bool buffered;
 } sfuart_state_t;
@@ -103,10 +103,10 @@ static int sfuart_attach(device_t *dev) {
   tty->t_termios.c_ospeed = 115200;
   tty->t_ops.t_notify_out = uart_tty_notify_out;
 
-  sfuart->regs = device_take_memory(dev, 0);
+  sfuart->regs = device_take_mem(dev, 0);
   assert(sfuart->regs);
 
-  if ((err = bus_map_resource(dev, sfuart->regs)))
+  if ((err = bus_map_mem(dev, sfuart->regs)))
     return err;
 
   uart_init(dev, "SiFive UART", SFUART_BUFSIZE, sfuart, tty);
@@ -118,7 +118,7 @@ static int sfuart_attach(device_t *dev) {
 
   out(SFUART_IRQ_ENABLE, SFUART_IRQ_ENABLE_RXWM);
 
-  sfuart->irq = device_take_irq(dev, 0);
+  sfuart->irq = device_take_intr(dev, 0);
   assert(sfuart->irq);
 
   pic_setup_intr(dev, sfuart->irq, uart_intr, NULL, dev, "SiFive UART");

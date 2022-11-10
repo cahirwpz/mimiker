@@ -56,8 +56,8 @@
 #define PLIC_CLAIM_SV (PLIC_CONTEXT_BASE_SV + PLIC_CONTEXT_CLAIM)
 
 typedef struct plic_state {
-  resource_t *mem;           /* PLIC memory resource */
-  resource_t *irq;           /* PLIC irq resource */
+  dev_mem_t *mem;            /* PLIC memory resource */
+  dev_intr_t *irq;           /* PLIC irq resource */
   intr_event_t **intr_event; /* interrupt events */
   unsigned ndev;             /* number of sources */
 } plic_state_t;
@@ -83,11 +83,11 @@ static void plic_intr_enable(intr_event_t *ie) {
   out4(PLIC_ENABLE_SV(irq), en);
 }
 
-static void plic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
+static void plic_setup_intr(device_t *pic, device_t *dev, dev_intr_t *intr,
                             ih_filter_t *filter, ih_service_t *service,
                             void *arg, const char *name) {
   plic_state_t *plic = pic->state;
-  unsigned irq = r->r_irq;
+  unsigned irq = intr->irq;
   assert(irq && irq < plic->ndev);
 
   char buf[32];
@@ -97,16 +97,16 @@ static void plic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
     plic->intr_event[irq] =
       intr_event_create(plic, irq, plic_intr_disable, plic_intr_enable, buf);
 
-  r->r_handler =
+  intr->handler =
     intr_event_add_handler(plic->intr_event[irq], filter, service, arg, name);
 }
 
-static void plic_teardown_intr(device_t *pic, device_t *dev, resource_t *r) {
-  intr_event_remove_handler(r->r_handler);
+static void plic_teardown_intr(device_t *pic, device_t *dev, dev_intr_t *intr) {
+  intr_event_remove_handler(intr->handler);
 }
 
 static int plic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
-                         int icells) {
+                         size_t icells) {
   plic_state_t *plic = pic->state;
 
   if (icells != 1)
@@ -156,10 +156,10 @@ static int plic_attach(device_t *pic) {
   if (!plic->intr_event)
     return ENXIO;
 
-  plic->mem = device_take_memory(pic, 0);
+  plic->mem = device_take_mem(pic, 0);
   assert(plic->mem);
 
-  if ((err = bus_map_resource(pic, plic->mem)))
+  if ((err = bus_map_mem(pic, plic->mem)))
     return err;
 
   /*
@@ -171,10 +171,12 @@ static int plic_attach(device_t *pic) {
   }
   out4(PLIC_THRESHOLD_SV, 0);
 
-  plic->irq = device_take_irq(pic, 0);
+  plic->irq = device_take_intr(pic, 2);
   assert(plic->irq);
 
   pic_setup_intr(pic, plic->irq, plic_intr_handler, NULL, plic, "PLIC");
+
+  intr_pic_register(pic, pic->node);
 
   return 0;
 }

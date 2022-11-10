@@ -10,8 +10,7 @@
 
 typedef struct ctx ctx_t;
 typedef struct device device_t;
-typedef struct interrupt interrupt_t;
-typedef struct fdt_intr fdt_intr_t;
+typedef struct dev_intr dev_intr_t;
 typedef uint32_t pcell_t;
 
 /*! \brief Disables hardware interrupts.
@@ -101,14 +100,13 @@ void intr_pic_register(device_t *pic, unsigned id);
  * Interrupt controller interface.
  */
 
-typedef void (*pic_setup_intr_t)(device_t *pic, device_t *dev,
-                                 interrupt_t *intr, ih_filter_t *filter,
-                                 ih_service_t *service, void *arg,
-                                 const char *name);
+typedef void (*pic_setup_intr_t)(device_t *pic, device_t *dev, dev_intr_t *intr,
+                                 ih_filter_t *filter, ih_service_t *service,
+                                 void *arg, const char *name);
 typedef void (*pic_teardown_intr_t)(device_t *pic, device_t *dev,
-                                    interrupt_t *intr);
+                                    dev_intr_t *intr);
 typedef int (*pic_map_intr_t)(device_t *pic, device_t *dev, pcell_t *intr,
-                              int icells);
+                              size_t icells);
 
 typedef struct pic_methods {
   pic_setup_intr_t setup_intr;
@@ -127,8 +125,14 @@ typedef struct pic_methods {
  *    thread context
  *  - `arg`: argument passed to both filter and service routines
  *  - `name`: description of the interrupt source
+ *
+ * Returns:
+ *  - 0: success
+ *  - ENODEV: the corresponding PIC hasn't been registered yet
+ *  - EINVAL: invalid interrupt resource
+ *  - otherwise: invalid device or PIC FDT entry
  */
-int pic_setup_intr(device_t *dev, interrupt_t *intr, ih_filter_t *filter,
+int pic_setup_intr(device_t *dev, dev_intr_t *intr, ih_filter_t *filter,
                    ih_service_t *service, void *arg, const char *name);
 
 /*
@@ -138,16 +142,18 @@ int pic_setup_intr(device_t *dev, interrupt_t *intr, ih_filter_t *filter,
  *  - `dev`: requesting device
  *  - `intr`: interrupt resource
  */
-int pic_teardown_intr(device_t *dev, interrupt_t *intr);
+void pic_teardown_intr(device_t *dev, dev_intr_t *intr);
 
 /*
  * Map FDT interrupt resource of device `dev`
  * into an interrupt controller-specific interrupt number.
  *
+ * This function is called internally by the interrupt module.
+ *
  * Returns:
- *  - >= 0: PIC-specific interrupt number to identify PIC interrupt resource
- *  - -1: the FDT interrupt resource is invalid
+ *  - 0: success
+ *  - otherwise: invalid device or PIC FDT entry
  */
-int pic_map_intr(device_t *dev, fdt_intr_t *intr);
+int pic_map_intr(device_t *dev, dev_intr_t *intr);
 
 #endif /* !_SYS_INTERRUPT_H_ */

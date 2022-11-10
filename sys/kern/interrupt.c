@@ -1,4 +1,5 @@
 #define KL_LOG KL_INTR
+#include <sys/errno.h>
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/malloc.h>
@@ -9,6 +10,7 @@
 #include <sys/sched.h>
 #include <sys/device.h>
 #include <sys/fdt.h>
+#include <dev/fdt_dev.h>
 
 typedef struct pic pic_t;
 typedef TAILQ_HEAD(, intr_event) ie_list_t;
@@ -22,9 +24,9 @@ struct pic {
 
 static KMALLOC_DEFINE(M_INTR, "interrupt events & handlers");
 
-static MTX_DEFINE(intr_mtx, 0);
+static MTX_DEFINE(all_ievents_mtx, 0);
 static ie_list_t all_ievents_list = TAILQ_HEAD_INITIALIZER(all_ievents_list);
-static pic_list_t all_pic_list = TAILQ_HED_INITIALIZER(all_pic_list);
+static pic_list_t all_pic_list = TAILQ_HEAD_INITIALIZER(all_pic_list);
 
 /*
  * IH_REMOVE: set when the handler cannot be removed, because it has been
@@ -82,7 +84,7 @@ intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
 
   strlcpy(ie->ie_name, name, IENAMELEN);
 
-  WITH_MTX_LOCK (&intr_mtx)
+  WITH_MTX_LOCK (&all_ievents_mtx)
     TAILQ_INSERT_TAIL(&all_ievents_list, ie, ie_link);
 
   return ie;
@@ -229,65 +231,68 @@ void intr_pic_register(device_t *pic, unsigned id) {
   assert(pic);
 
   pic_t *p = kmalloc(M_DEV, sizeof(pic_t), M_WAITOK | M_ZERO);
-  p->pic = pic;
+  p->dev = pic;
   p->id = id;
 
-  WITH_MTX_LOCK (&intr_mtx)
-    TAILQ_INSERT_TAIL(&all_pic_list, p, link);
+  TAILQ_INSERT_TAIL(&all_pic_list, p, link);
 }
 
 static device_t *intr_pic_find(device_t *dev, unsigned id) {
-  SCOPED_MTX_LOCK(&intr_mtx);
-  device_t *pic_dev = NULL;
-
   pic_t *pic;
-  TAILQ_FOREACH (pic, &all_pic_list, pic) {
-    pic_dev = pic->dev;
+  TAILQ_FOREACH (pic, &all_pic_list, link) {
+    device_t *pic_dev = pic->dev;
     if (pic->id == id && pic_dev->bus == dev->bus)
-      break;
+      return pic_dev;
   }
-
-  return pic_dev;
+  return NULL;
 }
 
 static inline pic_methods_t *pic_methods(device_t *dev) {
   return (pic_methods_t *)dev->driver->interfaces[DIF_PIC];
 }
 
-int pic_setup_intr(device_t *dev, interrupt_t *intr, ih_filter_t *filter,
+int pic_setup_intr(device_t *dev, dev_intr_t *intr, ih_filter_t *filter,
                    ih_service_t *service, void *arg, const char *name) {
   assert(!intr->handler);
   device_t *pic = intr->pic;
-  if (pic)
+  if (pic) {
+    if (intr->irq == -1)
+      return EINVAL;
     goto setup;
-
-  if (!(pic = intr_pic_find(dev, intr->id)))
-    return ENXIO
-
-      if (!pic_methods(pic)->map_intr) goto setup;
-
-  int irqnum = pic_map_intr(dev, pic, intr->fdt_intr);
-  if (irqnum < 0) {
-    intr->pic = NULL;
-    return EPERM;
   }
 
-  intr->irq = irqnum;
+  if (!(pic = intr_pic_find(dev, intr->id)))
+    return ENODEV;
   intr->pic = pic;
+
+  int err = pic_map_intr(dev, intr);
+  if (err)
+    return err;
+
 setup:
   pic_methods(pic)->setup_intr(pic, dev, intr, filter, service, arg, name);
+  return 0;
 }
 
-void pic_teardown_intr(device_t *dev, interrupt_t *intr) {
+void pic_teardown_intr(device_t *dev, dev_intr_t *intr) {
   assert(intr->pic);
   assert(intr->handler);
+  assert(intr->irq >= 0);
   device_t *pic = intr->pic;
   pic_methods(pic)->teardown_intr(pic, dev, intr);
   intr->handler = NULL;
 }
 
-int pic_map_intr(device_t *dev, device_t *pic, fdt_intr_t *intr) {
-  return pic_methods(pic)->map_intr(pic, dev, intr->tuple, intr->icells);
+int pic_map_intr(device_t *dev, dev_intr_t *intr) {
+  pcell_t cells[FDT_MAX_ICELLS];
+  size_t ncells;
+  int err = FDT_dev_get_intr_cells(dev, intr, cells, &ncells);
+  if (err)
+    return err;
+
+  device_t *pic = intr->pic;
+  intr->irq = pic_methods(pic)->map_intr(pic, dev, cells, ncells);
+  return 0;
 }
 
 static void intr_thread(void *arg) {

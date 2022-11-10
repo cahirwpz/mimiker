@@ -2,6 +2,7 @@
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/mimiker.h>
+#include <sys/devclass.h>
 #include <sys/device.h>
 #include <sys/bus.h>
 
@@ -14,7 +15,8 @@ static device_list_t pending_devices = TAILQ_HEAD_INITIALIZER(pending_devices);
 device_t *device_alloc(int unit) {
   device_t *dev = kmalloc(M_DEV, sizeof(device_t), M_WAITOK | M_ZERO);
   TAILQ_INIT(&dev->children);
-  SLIST_INIT(&dev->resources);
+  SLIST_INIT(&dev->intr_list);
+  SLIST_INIT(&dev->mem_list);
   dev->unit = unit;
   return dev;
 }
@@ -32,7 +34,7 @@ void device_remove_child(device_t *parent, device_t *dev) {
 }
 
 void device_add_pending(device_t *dev) {
-  TAILQ_INSERT_TAIL(&pending_devices, child, pending_link);
+  TAILQ_INSERT_TAIL(&pending_devices, dev, pending_link);
   modcnt++;
 }
 
@@ -72,48 +74,47 @@ int device_detach(device_t *dev) {
   return res;
 }
 
-interrupt_t *device_take_intr(device_t *dev, int id) {
-  interrupt_t *intr;
-  SLIST_FOREACH(r, &dev->intr_list, link) {
+dev_intr_t *device_take_intr(device_t *dev, unsigned id) {
+  dev_intr_t *intr;
+  SLIST_FOREACH(intr, &dev->intr_list, link) {
     if (intr->id == id)
       return intr;
   }
   return NULL;
 }
 
-mmio_t *device_take_mmio(device_t *dev, int id) {
-  interrupt_t *mmio;
-  SLIST_FOREACH(mmio, &dev->mmio_list, link) {
-    if (mmio->id == id)
-      return mmio;
+dev_mem_t *device_take_mem(device_t *dev, unsigned id) {
+  dev_mem_t *mem;
+  SLIST_FOREACH(mem, &dev->mem_list, link) {
+    if (mem->id == id)
+      return mem;
   }
   return NULL;
 }
 
-void device_add_intr(device_t *dev, int id, unsigned pic_id, unsigned irq,
-                     fdt_intr_t *fdt_intr) {
-  assert(pic);
+void device_add_intr(device_t *dev, unsigned id, unsigned pic_id,
+                     unsigned irq) {
   assert(!device_take_intr(dev, id));
 
-  interrupt_t *intr = kmalloc(M_DEV, sizeof(interrupt_t), M_WAITOK | M_ZERO);
+  dev_intr_t *intr = kmalloc(M_DEV, sizeof(dev_intr_t), M_WAITOK | M_ZERO);
   intr->id = id;
   intr->pic_id = pic_id;
-  intr->fdt_intr = fdt_intr;
+  intr->irq = irq;
 
   SLIST_INSERT_HEAD(&dev->intr_list, intr, link);
 }
 
-void device_add_mmio(device_t *dev, int id, bus_addr_t start, bus_addr_t end,
-                     res_flags_t flags) {
-  assert(!device_take_mmio(dev, id));
+void device_add_mem(device_t *dev, unsigned id, bus_addr_t start,
+                    bus_addr_t end, dev_mem_flags_t flags) {
+  assert(!device_take_mem(dev, id));
 
-  mmio_t *mmio = kmalloc(M_DEV, sizeof(mmio_t), M_WAITOK | M_ZERO);
-  mmio->id = id;
-  mmio->start = start;
-  mmio->end = end;
-  mmio->flags = flags;
+  dev_mem_t *mem = kmalloc(M_DEV, sizeof(dev_mem_t), M_WAITOK | M_ZERO);
+  mem->id = id;
+  mem->start = start;
+  mem->end = end;
+  mem->flags = flags;
 
-  SLIST_INSERT_HEAD(&dev->mmio_list, mmio, link);
+  SLIST_INSERT_HEAD(&dev->mem_list, mem, link);
 }
 
 device_t *device_method_provider(device_t *dev, drv_if_t iface,
@@ -130,10 +131,10 @@ device_t *device_method_provider(device_t *dev, drv_if_t iface,
 void init_devices(void) {
   assert(current_pass < PASS_COUNT);
 
-  if (current_pass = FIRST_PASS) {
+  if (current_pass == FIRST_PASS) {
     extern driver_t rootdev_driver;
     device_t *rootdev = device_alloc(0);
-    rootdev->bus = BUS_FDT;
+    rootdev->bus = DEV_BUS_FDT;
     rootdev->driver = &rootdev_driver;
     device_add_pending(rootdev);
     if (!device_probe(rootdev))
@@ -150,12 +151,12 @@ void init_devices(void) {
       int err;
 
       if (dev->driver) {
-        if ((err = device_attach(dev)) = EAGAIN)
+        if ((err = device_attach(dev)) == EAGAIN)
           continue;
         if (!err)
-          klog("%s attached to %p!", driver->desc, dev);
+          klog("%s attached to %p!", dev->driver->desc, dev);
         else
-          device_remove(dev);
+          device_remove_child(dev->parent, dev);
         device_remove_pending(dev);
         continue;
       }
@@ -186,7 +187,7 @@ void init_devices(void) {
         dev->driver = NULL;
       }
     }
-  } while (modcnt && !TAILQ_EMPTY(pending_devices));
+  } while (modcnt && !TAILQ_EMPTY(&pending_devices));
 
   if (++current_pass == PASS_COUNT && !TAILQ_EMPTY(&pending_devices))
     klog("Missing drivers for some devices!");

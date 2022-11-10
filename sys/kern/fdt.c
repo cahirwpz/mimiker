@@ -375,25 +375,48 @@ int FDT_is_compatible(phandle_t node, const char *compatible) {
   return 0;
 }
 
-int FDT_find_iparent_phandle(phandle_t node, pcell_t *phandle_p) {
-  pcell_t iparent;
-
-  if (FDT_searchencprop(node, "interrupt-parent", &iparent, sizeof(pcell_t)) !=
-      -1)
-    return iparent;
-
-  for (phandle_t candidate = node; candidate != FDT_NODEV;
-       candidate = FDT_parent(candidate)) {
-    if (!FDT_hasprop(candidate, "interrupt-controller"))
-      continue;
-
-    if (FDT_getencprop(candidate, "phandle", &iparent, sizeof(pcell_t)) !=
-        sizeof(pcell_t))
-      return ENXIO;
-
-    *phandle = iparent;
+static int FDT_match_iparent_by_phandle(phandle_t node, pcell_t phandle) {
+  if (!FDT_hasprop(node, "interrupt-controller"))
     return 0;
-  }
 
+  pcell_t node_phandle;
+  if (FDT_getencprop(node, "phandle", &node_phandle, sizeof(pcell_t)) !=
+      sizeof(pcell_t))
+    return 0;
+
+  return node_phandle == phandle;
+}
+
+int FDT_find_iparent_by_phandle(phandle_t node, pcell_t phandle,
+                                phandle_t *iparentp) {
+  /* XXX: broken! */
+  for (phandle_t parent = FDT_parent(node); parent != FDT_NODEV;
+       parent = FDT_parent(parent)) {
+    if (FDT_match_iparent_by_phandle(parent, phandle))
+      return parent;
+
+    for (phandle_t child = FDT_child(parent); child != FDT_NODEV;
+         child = FDT_peer(child)) {
+      if (FDT_match_iparent_by_phandle(child, phandle))
+        return child;
+    }
+  }
+  return ENXIO;
+}
+
+int FDT_find_iparent(phandle_t node, phandle_t *iparentp) {
+  pcell_t phandle;
+
+  if (FDT_searchencprop(node, "interrupt-parent", &phandle, sizeof(pcell_t)) !=
+      -1)
+    return FDT_find_iparent_by_phandle(node, phandle, iparentp);
+
+  for (phandle_t parent = FDT_parent(node); parent != FDT_NODEV;
+       parent = FDT_parent(parent)) {
+    if (FDT_hasprop(parent, "interrupt-controller")) {
+      *iparentp = parent;
+      return 0;
+    }
+  }
   return ENXIO;
 }

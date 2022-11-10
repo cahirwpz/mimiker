@@ -7,7 +7,7 @@
 #include <sys/libkern.h>
 #include <aarch64/armreg.h>
 #include <dev/bcm2835reg.h>
-#include <dev/simplebus.h>
+#include <dev/fdt_dev.h>
 
 /*
  * located at BCM2836_ARM_LOCAL_BASE
@@ -123,24 +123,23 @@ static int rootdev_attach(device_t *bus) {
   int unit = 0;
   device_t *bcm2835_pic, *emmc;
 
-  if ((err = simplebus_add_child(bus, "/soc/intc", unit++, bus, &bcm2835_pic)))
+  if ((err = FDT_dev_add_child(bus, "/soc/intc")))
     return err;
 
-  if ((err = simplebus_add_child(bus, "/timer", unit++, bus, NULL)))
+  if ((err = FDT_dev_add_child(bus, "/timer")))
     return err;
 
-  if ((err = simplebus_add_child(bus, "/soc/gpio", unit++, bcm2835_pic, NULL)))
+  if ((err = FDT_dev_add_child(bus, "/soc/gpio")))
     return err;
 
-  if ((err =
-         simplebus_add_child(bus, "/soc/serial", unit++, bcm2835_pic, NULL)))
+  if ((err = FDT_dev_add_child(bus, "/soc/serial")))
     return err;
 
-  if ((err = simplebus_add_child(bus, "/soc/emmc", unit++, bcm2835_pic, &emmc)))
+  if ((err = FDT_dev_add_child(bus, "/soc/emmc")))
     return err;
   emmc->devclass = &DEVCLASS(emmc);
 
-  return bus_generic_probe(bus);
+  return 0;
 }
 
 static int rootdev_map_resource(device_t *dev, resource_t *r) {

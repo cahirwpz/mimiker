@@ -11,8 +11,8 @@
 
 typedef struct clint_state {
   timer_t mtimer;
-  resource_t *mswi_irq;
-  resource_t *mtimer_irq;
+  dev_intr_t *mswi_irq;
+  dev_intr_t *mtimer_irq;
   uint64_t mtimer_step;
 } clint_state_t;
 
@@ -87,10 +87,10 @@ static int clint_probe(device_t *dev) {
 static int clint_attach(device_t *dev) {
   clint_state_t *clint = dev->state;
 
-  clint->mswi_irq = device_take_irq(dev, 0);
+  clint->mswi_irq = device_take_intr(dev, 2);
   assert(clint->mswi_irq);
 
-  clint->mtimer_irq = device_take_irq(dev, 1);
+  clint->mtimer_irq = device_take_intr(dev, 3);
   assert(clint->mtimer_irq);
 
   pic_setup_intr(dev, clint->mswi_irq, mswi_intr, NULL, NULL, "SSI");

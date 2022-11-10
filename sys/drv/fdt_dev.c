@@ -7,7 +7,7 @@
 #include <sys/klog.h>
 #include <sys/libkern.h>
 
-static int sb_soc_addr_to_cpu_addr(u_long soc_addr, u_long *cpu_addr_p) {
+static int FDT_dev_soc_addr_to_cpu_addr(u_long soc_addr, u_long *cpu_addr_p) {
   phandle_t node = FDT_finddevice("/soc");
   if (node == FDT_NODEV)
     return ENXIO;
@@ -60,7 +60,7 @@ end:
   return err;
 }
 
-static int sb_get_region(device_t *dev, fdt_mem_reg_t *mrs, size_t *cntp) {
+static int FDT_dev_get_region(device_t *dev, fdt_mem_reg_t *mrs, size_t *cntp) {
   phandle_t node = dev->node;
 
   int addr_cells, size_cells;
@@ -88,7 +88,7 @@ static int sb_get_region(device_t *dev, fdt_mem_reg_t *mrs, size_t *cntp) {
     if ((err = FDT_data_to_res(tuple, addr_cells, size_cells, &mr->addr,
                                &mrs->size)))
       goto end;
-    if ((err = sb_soc_addr_to_cpu_addr(mr->addr, &mr->addr)))
+    if ((err = FDT_dev_soc_addr_to_cpu_addr(mr->addr, &mr->addr)))
       goto end;
   }
 
@@ -98,65 +98,88 @@ end:
   return err;
 }
 
-static int sb_get_interrupts(device_t *dev, fdt_intr_t *intrs, size_t *cntp) {
+int FDT_dev_get_intr_cells(device_t *dev, dev_intr_t *intr, pcell_t *cells,
+                           size_t *cntp) {
   phandle_t node = dev->node;
-  phandle_t iparent = dev->pic->node;
-
-  int icells;
-  int err = FDT_intr_cells(iparent, &icells);
-  if (err)
-    return err;
-
-  size_t tuple_size = sizeof(pcell_t) * icells;
-  pcell_t *tuples;
-
-  int ntuples = FDT_getencprop_alloc_multi(node, "interrupts", tuple_size,
-                                           (void **)&tuples);
-  if (ntuples == -1)
+  const char *propname =
+    FDT_hasprop(node, "interrupts") ? "interrutps" : "interrupts-extended";
+  pcell_t *icells;
+  ssize_t ncells = FDT_getencprop_alloc_multi(node, propname, sizeof(pcell_t),
+                                              (void **)&icells);
+  if (ncells <= 0)
     return ENXIO;
 
-  if (!ntuples)
+  memcpy(cells, &icells[intr->id], ncells);
+  *cntp = ncells;
+  FDT_free(icells);
+  return 0;
+}
+
+static int FDT_dev_region_to_rl(device_t *dev) {
+  if (!FDT_hasprop(dev->node, "reg"))
     return 0;
 
-  if (ntuples > FDT_MAX_INTRS) {
-    err = ERANGE;
-    goto end;
-  }
+  fdt_mem_reg_t *mrs = kmalloc(
+    M_DEV, FDT_MAX_REG_TUPLES * sizeof(fdt_mem_reg_t), M_WAITOK | M_ZERO);
 
-  for (int i = 0; i < ntuples * icells; i += icells, intrs++) {
-    memcpy(intrs->tuple, &tuples[i], tuple_size);
-    intrs->icells = icells;
-    intrs->iparent = iparent;
+  size_t cnt;
+  int err = FDT_dev_get_region(dev, mrs, &cnt);
+  if (err)
+    goto end;
+
+  for (size_t i = 0; i < cnt; i++) {
+    bus_addr_t start = mrs[i].addr;
+    bus_addr_t end = start + mrs[i].size;
+    device_add_mem(dev, i, start, end, 0);
   }
 
 end:
-  *cntp = ntuples;
-  FDT_free(tuples);
+  kfree(M_DEV, mrs);
   return err;
 }
 
-static int sb_get_interrupts_extended(device_t *dev, fdt_intr_t *intrs,
-                                      size_t *cntp) {
+static int FDT_dev_intr_to_rl(device_t *dev) {
+  int err;
+  phandle_t iparent;
+  phandle_t node = dev->node;
+
+  if ((err = FDT_find_iparent(node, &iparent)))
+    return err;
+
+  int icells;
+  if ((err = FDT_intr_cells(iparent, &icells)))
+    return err;
+
+  ssize_t intr_size = FDT_getproplen(node, "interrupts");
+  if (intr_size < 0)
+    return ENXIO;
+
+  size_t tuple_size = sizeof(pcell_t) * icells;
+  size_t nintrs = intr_size / tuple_size;
+
+  for (size_t i = 0; i < nintrs; i++)
+    device_add_unmapped_intr(dev, i, iparent);
+
+  return 0;
+}
+
+static int FDT_dev_ext_intr_to_rl(device_t *dev) {
   phandle_t node = dev->node;
 
   pcell_t *cells;
-  int ncells = FDT_getencprop_alloc_multi(node, "interrupts-extended",
-                                          sizeof(pcell_t), (void **)&cells);
+  ssize_t ncells = FDT_getencprop_alloc_multi(node, "interrupts-extended",
+                                              sizeof(pcell_t), (void **)&cells);
   if (ncells == -1)
     return ENXIO;
   if (!ncells)
     return 0;
 
-  size_t ntuples = 0;
-  int err = 0, icells;
-  for (int i = 0; i < ncells; i += icells, intrs++, ntuples++) {
-    if (ntuples > FDT_MAX_INTRS) {
-      err = ERANGE;
-      goto end;
-    }
-
-    /* TODO: change this to phandle. */
-    pcell_t iparent = cells[i++];
+  int err = 0;
+  int icells;
+  for (int i = 0; i < ncells; i += icells) {
+    phandle_t iparent;
+    if ((err = FDT_find_iparent_by_phandle(node, cells[i++], &iparent)))
+      return err;
 
     if ((err = FDT_intr_cells(iparent, &icells)))
       goto end;
@@ -165,68 +188,15 @@ static int sb_get_interrupts_extended(device_t *dev, fdt_intr_t *intrs,
       goto end;
     }
 
-    size_t tuple_size = sizeof(pcell_t) * icells;
-    memcpy(intrs->tuple, &cells[i], tuple_size);
-    intrs->icells = icells;
-    intrs->iparent = iparent;
+    device_add_unmapped_intr(dev, i, iparent);
   }
 
 end:
-  *cntp = ntuples;
   FDT_free(cells);
   return err;
 }
 
-static int sb_region_to_rl(device_t *dev) {
-  if (!FDT_hasprop(dev->node, "reg"))
-    return 0;
-
-  fdt_mem_reg_t *mrs = kmalloc(
-    M_DEV, FDT_MAX_REG_TUPLES * sizeof(fdt_mem_reg_t), M_WAITOK | M_ZERO);
-
-  size_t cnt;
-  int err = sb_get_region(dev, mrs, &cnt);
-  if (err)
-    goto end;
-
-  for (size_t i = 0; i < cnt; i++) {
-    bus_addr_t start = mrs[i].addr;
-    bus_addr_t end = start + mrs[i].size;
-    device_add_memory(dev, i, start, end, 0);
-  }
-
-end:
-  kfree(M_DEV, mrs);
-  return err;
-}
-
-static int sb_intr_to_rl(device_t *dev) {
-  fdt_intr_t *intrs =
-    kmalloc(M_DEV, FDT_MAX_INTRS * sizeof(fdt_intr_t), M_WAITOK | M_ZERO);
-  phandle_t node = dev->node;
-  size_t nintrs;
-  int err = 0;
-
-  if (FDT_hasprop(node, "interrupts"))
-    err = sb_get_interrupts(dev, intrs, &nintrs);
-  else if (FDT_hasprop(node, "interrupts-extended"))
-    err = sb_get_interrupts_extended(dev, intrs, &nintrs);
-  else
-    return err;
-
-  if (err)
-    return err;
-
-  int id = 0;
-  for (size_t i = 0; i < nintrs; i++) {
-    fdt_intr_t *intr = &intrs[i];
-    device_add_irq(dev, id++, intr->phandle, 0, intr);
-  }
-
-  return 0;
-}
-
-int simplebus_add_child(device_t *bus, const char *path) {
+int FDT_dev_add_child(device_t *bus, const char *path) {
   static int next_unit = 1;
 
   phandle_t node;
@@ -234,14 +204,20 @@ int simplebus_add_child(device_t *bus, const char *path) {
     return ENXIO;
 
   device_t *dev = device_add_child(bus, next_unit);
-  dev->bus = BUS_FDT;
+  dev->bus = DEV_BUS_FDT;
   dev->node = node;
 
   int err;
 
-  if ((err = sb_region_to_rl(dev)))
+  if ((err = FDT_dev_region_to_rl(dev)))
     goto bad;
-  if ((err = sb_intr_to_rl(dev)))
+
+  if (FDT_hasprop(node, "interrupts"))
+    err = FDT_dev_intr_to_rl(dev);
+  else if (FDT_hasprop(node, "interrupts-extended"))
+    err = FDT_dev_ext_intr_to_rl(dev);
+
+  if (err)
     goto bad;
 
   device_add_pending(dev);

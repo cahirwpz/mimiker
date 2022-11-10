@@ -5,7 +5,7 @@
 #include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
-#include <dev/simplebus.h>
+#include <dev/fdt_dev.h>
 #include <riscv/mcontext.h>
 #include <riscv/riscvreg.h>
 
@@ -73,7 +73,7 @@ static void hlic_intr_enable(intr_event_t *ie) {
   csr_set(sie, 1 << irq);
 }
 
-static void hlic_setup_intr(device_t *pic, device_t *dev, interrupt_t *intr,
+static void hlic_setup_intr(device_t *pic, device_t *dev, dev_intr_t *intr,
                             ih_filter_t *filter, ih_service_t *service,
                             void *arg, const char *name) {
   rootdev_t *rd = pic->state;
@@ -88,8 +88,7 @@ static void hlic_setup_intr(device_t *pic, device_t *dev, interrupt_t *intr,
     intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
-static void hlic_teardown_intr(device_t *pic, device_t *dev,
-                               interrupt_t *intr) {
+static void hlic_teardown_intr(device_t *pic, device_t *dev, dev_intr_t *intr) {
   intr_event_remove_handler(intr->handler);
 }
 
@@ -110,7 +109,7 @@ static void hlic_intr_handler(ctx_t *ctx, device_t *bus) {
 }
 
 static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
-                         int icells) {
+                         size_t icells) {
   if (icells != 1)
     return -1;
 
@@ -124,14 +123,14 @@ static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
  * Root bus.
  */
 
-static int rootdev_map_mmio(device_t *dev, mmio_t *mmio) {
-  mmi->bus_tag = generic_bus_space;
+static int rootdev_map_mem(device_t *dev, dev_mem_t *mem) {
+  mem->bus_tag = generic_bus_space;
 
-  return bus_space_map(mmio->bus_tag, mmio->start,
-                       roundup(mmio_size(r), PAGESIZE), &mmio->bus_handle);
+  return bus_space_map(mem->bus_tag, mem->start,
+                       roundup(dev_mem_size(mem), PAGESIZE), &mem->bus_handle);
 }
 
-static void rootdev_unmap_mmio(device_t *dev, mmio_t *mmio) {
+static void rootdev_unmap_mem(device_t *dev, dev_mem_t *mem) {
   /* TODO: unmap mapped resources. */
 }
 
@@ -141,35 +140,29 @@ static int rootdev_probe(device_t *bus) {
 
 static int rootdev_attach(device_t *bus) {
   phandle_t node;
-  if ((node = FDT_finddevice("/cpus/cpu/interrupt-controller")) = FDT_NODEV)
+  if ((node = FDT_finddevice("/cpus/cpu/interrupt-controller")) == FDT_NODEV)
     return ENXIO;
   bus->node = node;
 
-  pcell_t phandle;
-  if (FDT_getencprop(node, "phandle", &phandle, sizeof(pcell_t)) !=
-      sizeof(pcell_t))
-    return ENXIO;
-
-  intr_pic_register(bus, phandle);
+  intr_pic_register(bus, node);
   intr_root_claim(hlic_intr_handler, bus);
 
   /*
    * Device enumeration.
    * TODO: this should be performed by a simplebus enumeration.
    */
-
   int err;
 
-  if ((err = simplebus_add_child(bus, "/soc/interrupt-controller")))
+  if ((err = FDT_dev_add_child(bus, "/soc/interrupt-controller")))
     return err;
 
-  if ((err = simplebus_add_child(bus, "/soc/clint")))
+  if ((err = FDT_dev_add_child(bus, "/soc/clint")))
     return err;
 
-  if ((err = simplebus_add_child(bus, "/soc/serial")))
+  if ((err = FDT_dev_add_child(bus, "/soc/serial")))
     return err;
 
-  return bus_generic_probe(bus);
+  return 0;
 }
 
 static pic_methods_t hlic_pic_if = {
@@ -179,8 +172,8 @@ static pic_methods_t hlic_pic_if = {
 };
 
 static bus_methods_t rootdev_bus_if = {
-  .map_resource = rootdev_map_mmio,
-  .unmap_resource = rootdev_unmap_mmio,
+  .map_mem = rootdev_map_mem,
+  .unmap_mem = rootdev_unmap_mem,
 };
 
 driver_t rootdev_driver = {

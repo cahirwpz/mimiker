@@ -15,7 +15,6 @@
 #define FDT_MAX_RSV_MEM_REGS 16
 #define FDT_MAX_REG_TUPLES 16
 #define FDT_MAX_ICELLS 3
-#define FDT_MAX_INTRS 16
 
 typedef uint32_t phandle_t;
 typedef uint32_t pcell_t;
@@ -29,15 +28,6 @@ typedef struct fdt_mem_reg {
   u_long addr;
   u_long size;
 } fdt_mem_reg_t;
-
-/*
- * FDT interrupt resource.
- */
-typedef struct fdt_intr {
-  pcell_t tuple[FDT_MAX_ICELLS];
-  int icells;
-  pcell_t phandle;
-} fdt_intr_t;
 
 /*
  * FDT initialization.
@@ -312,6 +302,9 @@ int FDT_get_chosen_bootargs(const char **bootargsp);
  */
 int FDT_is_compatible(phandle_t node, const char *compatible);
 
-int FDT_find_iparent_phandle(phandle_t node, pcell_t *phandle_p);
+int FDT_find_iparent_by_phandle(phandle_t node, pcell_t phandle,
+                                phandle_t *iparentp);
+
+int FDT_find_iparent(phandle_t node, phandle_t *iparentp);
 
 #endif /* !_SYS_FDT_H_ */
