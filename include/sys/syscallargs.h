@@ -9,7 +9,6 @@
 #include <sys/ucontext.h>
 #include <sys/sigtypes.h>
 #include <sys/siginfo.h>
-
 #define SCARG(p, x) ((p)->x.arg)
 #define SYSCALLARG(x) union { register_t _pad; x arg; }
 

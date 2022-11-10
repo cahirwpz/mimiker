@@ -1312,33 +1312,6 @@ end:
   return error;
 }
 
-static int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
-                             struct timespec *timeout) {
-  int timevalid = 0;
-  sigset_t saved_mask, new_block;
-  thread_t *td = p->p_thread;
-
-  if (timeout != NULL) {
-    if (timeout->tv_nsec >= 0 && timeout->tv_nsec < 1000000000) {
-      timevalid = 1;
-    }
-  }
-
-  bzero(kinfo, sizeof(*kinfo));
-
-  /* These signals cannot be waited for. */
-  __sigdelset(&waitset, SIGKILL);
-  __sigdelset(&waitset, SIGSTOP);
-  
-  WITH_PROC_LOCK(p) {
-    saved_mask = td->td_sigmask;
-    __sigminusset(&td->td_sigmask, &waitset);
-    for (;;) {
-       
-    }
-  }
-}
-
 static int sys_sigtimedwait(proc_t *p, sigtimedwait_args_t *args,
                             register_t *res) {
   const sigset_t *u_set = SCARG(args, set);
