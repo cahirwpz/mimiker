@@ -185,6 +185,7 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   thread_t *td = thread_self();
   assert(td->td_proc == p);
 
+  /* The old mask will be set back after returning from a signal handler. */
   td->td_oldsigmask = td->td_sigmask;
   td->td_pflags |= TDP_OLDSIGMASK;
 

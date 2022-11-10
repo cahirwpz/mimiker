@@ -258,7 +258,14 @@ int test_signal_sigsuspend(void) {
   }
   /* Go to sleep with SIGCONT blocked and SIGUSR1 unblocked. */
   printf("Calling sigsuspend()...\n");
+  sigset_t current;
+  sigprocmask(SIG_BLOCK, NULL, &current);
+  assert(__sigismember(&current, SIGUSR1));
+  assert(!__sigismember(&old, SIGUSR1));
   sigsuspend(&old);
+  /* Check if mask is set back after waking up */
+  sigprocmask(SIG_BLOCK, NULL, &set);
+  assert(__sigsetequal(&set, &current));
   /* SIGUSR1 should have woken us up, but SIGCONT should still be pending. */
   assert(sigusr1_handled);
   assert(!sigcont_handled);
