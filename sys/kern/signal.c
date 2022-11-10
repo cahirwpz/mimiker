@@ -199,6 +199,45 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   return ERESTARTNOHAND;
 }
 
+int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
+                    timespec_t *tsp) {
+  int timevalid = 0, sig, error, timeout;
+  sigset_t saved_mask, new_block;
+  thread_t *td = p->p_thread;
+
+  if (tsp != NULL) {
+    if (tsp->tv_nsec >= 0 && tsp->tv_nsec < 1000000000) {
+      timevalid = 1;
+      timeout = ts2hz(tsp);
+    }
+  }
+
+  bzero(kinfo, sizeof(*kinfo));
+
+  /* These signals cannot be waited for. */
+  __sigdelset(&waitset, SIGKILL);
+  __sigdelset(&waitset, SIGSTOP);
+
+  WITH_PROC_LOCK(p) {
+    saved_mask = td->td_sigmask;
+    __sigminusset(&td->td_sigmask, &waitset);
+    for (;;) {
+      /* if there's a pending non-blocked signal: return! */
+
+      /* FreeBSD says that POSIX says that this should be checked after 
+       * checking if there's a pending signal */
+      if (tsp != NULL && !timevalid) {
+        error = EINVAL;
+        break;
+      }
+
+      error = sleepq_wait_timed(&td->td_sigmask, "sigtimedwait()", timeout);
+    }
+  }
+
+  return error;
+}
+
 int do_sigpending(proc_t *p, sigset_t *set) {
   SCOPED_MTX_LOCK(&p->p_lock);
   thread_t *td = p->p_thread;
