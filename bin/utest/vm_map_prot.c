@@ -48,7 +48,34 @@ int test_vmmap_data_x(void) {
 
   /* Executing function in data segment (without exec prot) */
   int v = ff(1);
+
   assert(v != 2);
+  assert(0);
+  return -1;
+}
+
+static const char *ro_data_str = "String in .rodata section";
+
+int test_vmmap_rodata_w(void) {
+  char *c = (char *)ro_data_str;
+
+  printf("mem to write: 0x%p\n", c);
+
+  /* Writing to rodata segment. */
+  *c = 'X';
+
+  assert(0);
+  return -1;
+}
+
+int test_vmmap_rodata_x(void) {
+  func_int_t fun = (func_int_t)ro_data_str;
+
+  printf("func: 0x%p\n", fun);
+
+  /* Executing from rodata segment. */
+  fun(1);
+
   assert(0);
   return -1;
 }

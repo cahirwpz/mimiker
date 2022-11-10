@@ -19,6 +19,8 @@ int main(int argc, char **argv) {
      like an overkill to me. */
   CHECKRUN_TEST(vmmap_text_w);
   CHECKRUN_TEST(vmmap_data_x);
+  CHECKRUN_TEST(vmmap_rodata_w);
+  CHECKRUN_TEST(vmmap_rodata_x);
   CHECKRUN_TEST(mmap);
   CHECKRUN_TEST(munmap);
   CHECKRUN_TEST(munmap_sigsegv);

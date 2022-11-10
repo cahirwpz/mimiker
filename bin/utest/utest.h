@@ -9,6 +9,8 @@ void utest_child_exited(int exitcode);
 /* List of available tests. */
 int test_vmmap_text_w(void);
 int test_vmmap_data_x(void);
+int test_vmmap_rodata_w(void);
+int test_vmmap_rodata_x(void);
 
 int test_mmap(void);
 int test_munmap(void);
