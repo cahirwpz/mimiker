@@ -96,12 +96,13 @@ static void update_kernel_pd(pmap_t *umap) {
 
 void pmap_md_activate(pmap_t *umap) {
   pmap_t *kmap = pmap_kernel();
+  paddr_t satp = umap ? umap->md.satp : kmap->md.satp;
   assert(kmap->md.generation);
 
-  if (umap->md.generation < kmap->md.generation)
+  if (umap && umap->md.generation < kmap->md.generation)
     update_kernel_pd(umap);
 
-  __set_satp(umap->md.satp);
+  __set_satp(satp);
   __sfence_vma();
 }
 
