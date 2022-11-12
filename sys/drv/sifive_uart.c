@@ -94,20 +94,30 @@ static int sfuart_probe(device_t *dev) {
 }
 
 static int sfuart_attach(device_t *dev) {
+  int err = 0;
+
+  dev_intr_t *intr = device_take_intr(dev, 0);
+  assert(intr);
+
+  if ((err = pic_setup_intr(dev, intr, uart_intr, NULL, dev, "SiFive UART"))) {
+    return (err == ENODEV) ? EAGAIN : err;
+  }
+
+  dev_mem_t *regs = device_take_mem(dev, 0);
+  assert(regs);
+
+  if ((err = bus_map_mem(dev, regs)))
+    return err;
+
   sfuart_state_t *sfuart =
     kmalloc(M_DEV, sizeof(sfuart_state_t), M_WAITOK | M_ZERO);
-  int err = 0;
+  sfuart->irq = intr;
+  sfuart->regs = regs;
 
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
   tty->t_termios.c_ospeed = 115200;
   tty->t_ops.t_notify_out = uart_tty_notify_out;
-
-  sfuart->regs = device_take_mem(dev, 0);
-  assert(sfuart->regs);
-
-  if ((err = bus_map_mem(dev, sfuart->regs)))
-    return err;
 
   uart_init(dev, "SiFive UART", SFUART_BUFSIZE, sfuart, tty);
 
@@ -117,11 +127,6 @@ static int sfuart_attach(device_t *dev) {
   out(SFUART_TXCTRL, (1 << SFUART_TXCTRL_TXCNT_SHIFT) | SFUART_TXCTRL_ENABLE);
 
   out(SFUART_IRQ_ENABLE, SFUART_IRQ_ENABLE_RXWM);
-
-  sfuart->irq = device_take_intr(dev, 0);
-  assert(sfuart->irq);
-
-  pic_setup_intr(dev, sfuart->irq, uart_intr, NULL, dev, "SiFive UART");
 
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);

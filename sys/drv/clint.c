@@ -42,7 +42,9 @@ static int mtimer_start(timer_t *tm, unsigned flags, const bintime_t start,
   clint_state_t *clint = dev->state;
   clint->mtimer_step = bintime_mul(period, tm->tm_frequency).sec;
 
-  pic_setup_intr(dev, clint->mtimer_irq, mtimer_intr, NULL, clint, "MTIMER");
+  int err =
+    pic_setup_intr(dev, clint->mtimer_irq, mtimer_intr, NULL, clint, "MTIMER");
+  assert(!err);
 
   WITH_INTR_DISABLED {
     uint64_t count = rdtime();
@@ -86,14 +88,7 @@ static int clint_probe(device_t *dev) {
 
 static int clint_attach(device_t *dev) {
   clint_state_t *clint = dev->state;
-
-  clint->mswi_irq = device_take_intr(dev, 2);
-  assert(clint->mswi_irq);
-
-  clint->mtimer_irq = device_take_intr(dev, 3);
-  assert(clint->mtimer_irq);
-
-  pic_setup_intr(dev, clint->mswi_irq, mswi_intr, NULL, NULL, "SSI");
+  int err = 0;
 
   phandle_t cpus = FDT_finddevice("/cpus");
   if (cpus == FDT_NODEV)
@@ -103,6 +98,17 @@ static int clint_attach(device_t *dev) {
   if (FDT_getencprop(cpus, "timebase-frequency", (void *)&freq,
                      sizeof(uint32_t)) != sizeof(uint32_t))
     return ENXIO;
+
+  clint->mswi_irq = device_take_intr(dev, 2);
+  assert(clint->mswi_irq);
+
+  clint->mtimer_irq = device_take_intr(dev, 3);
+  assert(clint->mtimer_irq);
+
+  if ((err =
+         pic_setup_intr(dev, clint->mswi_irq, mswi_intr, NULL, NULL, "SSI"))) {
+    return (err == ENODEV) ? EAGAIN : err;
+  }
 
   clint->mtimer = (timer_t){
     .tm_name = "RISC-V CLINT",

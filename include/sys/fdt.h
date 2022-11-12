@@ -52,6 +52,8 @@ void FDT_init(void *va);
  */
 phandle_t FDT_finddevice(const char *device);
 
+phandle_t FDT_finddevice_by_phandle(pcell_t phandle);
+
 /*
  * Obtain the handle of the first child of device node `node`.
  *
@@ -87,6 +89,8 @@ phandle_t FDT_peer(phandle_t node);
  *  - otherwise: phandle of the parent node
  */
 phandle_t FDT_parent(phandle_t node);
+
+phandle_t FDT_iparent(phandle_t node);
 
 /*
  * Returns a pointer to the name of `node`.
@@ -301,10 +305,5 @@ int FDT_get_chosen_bootargs(const char **bootargsp);
  *  - 1: match
  */
 int FDT_is_compatible(phandle_t node, const char *compatible);
-
-int FDT_find_iparent_by_phandle(phandle_t node, pcell_t phandle,
-                                phandle_t *iparentp);
-
-int FDT_find_iparent(phandle_t node, phandle_t *iparentp);
 
 #endif /* !_SYS_FDT_H_ */

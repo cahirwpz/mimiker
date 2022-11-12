@@ -146,9 +146,6 @@ int device_detach(device_t *dev);
 
 void device_add_intr(device_t *dev, unsigned id, unsigned pic_id, unsigned irq);
 
-#define device_add_unmapped_intr(dev, id, pic_id)                              \
-  device_add_intr((dev), (id), (pic_id), -1)
-
 void device_add_mem(device_t *dev, unsigned id, bus_addr_t start,
                     bus_addr_t end, dev_mem_flags_t flags);
 

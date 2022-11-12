@@ -140,12 +140,9 @@ static int rootdev_probe(device_t *bus) {
 
 static int rootdev_attach(device_t *bus) {
   phandle_t node;
-  if ((node = FDT_finddevice("/cpus/cpu/interrupt-controller")) == FDT_NODEV)
+  if ((node = FDT_finddevice("/cpus/cpu@1/interrupt-controller")) == FDT_NODEV)
     return ENXIO;
   bus->node = node;
-
-  intr_pic_register(bus, node);
-  intr_root_claim(hlic_intr_handler, bus);
 
   /*
    * Device enumeration.
@@ -161,6 +158,9 @@ static int rootdev_attach(device_t *bus) {
 
   if ((err = FDT_dev_add_child(bus, "/soc/serial")))
     return err;
+
+  intr_pic_register(bus, node);
+  intr_root_claim(hlic_intr_handler, bus);
 
   return 0;
 }

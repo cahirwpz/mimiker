@@ -150,17 +150,23 @@ static int plic_attach(device_t *pic) {
                      sizeof(uint32_t)) != sizeof(uint32_t))
     return ENXIO;
 
-  /* We'll need interrupt event for each interrupt source. */
-  plic->intr_event =
-    kmalloc(M_DEV, plic->ndev * sizeof(intr_event_t *), M_WAITOK | M_ZERO);
-  if (!plic->intr_event)
-    return ENXIO;
+  plic->irq = device_take_intr(pic, 2);
+  assert(plic->irq);
+
+  if ((err = pic_setup_intr(pic, plic->irq, plic_intr_handler, NULL, plic,
+                            "PLIC"))) {
+    return (err == ENODEV) ? EAGAIN : err;
+  }
 
   plic->mem = device_take_mem(pic, 0);
   assert(plic->mem);
 
   if ((err = bus_map_mem(pic, plic->mem)))
     return err;
+
+  /* We'll need interrupt event for each interrupt source. */
+  plic->intr_event =
+    kmalloc(M_DEV, plic->ndev * sizeof(intr_event_t *), M_WAITOK | M_ZERO);
 
   /*
    * In case PLIC supports priorities, set each priority to 1
@@ -170,11 +176,6 @@ static int plic_attach(device_t *pic) {
     out4(PLIC_PRIORITY(irq), 1);
   }
   out4(PLIC_THRESHOLD_SV, 0);
-
-  plic->irq = device_take_intr(pic, 2);
-  assert(plic->irq);
-
-  pic_setup_intr(pic, plic->irq, plic_intr_handler, NULL, plic, "PLIC");
 
   intr_pic_register(pic, pic->node);
 

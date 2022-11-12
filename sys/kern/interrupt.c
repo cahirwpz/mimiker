@@ -261,7 +261,7 @@ int pic_setup_intr(device_t *dev, dev_intr_t *intr, ih_filter_t *filter,
     goto setup;
   }
 
-  if (!(pic = intr_pic_find(dev, intr->id)))
+  if (!(pic = intr_pic_find(dev, intr->pic_id)))
     return ENODEV;
   intr->pic = pic;
 

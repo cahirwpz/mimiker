@@ -132,11 +132,12 @@ void init_devices(void) {
   assert(current_pass < PASS_COUNT);
 
   if (current_pass == FIRST_PASS) {
+    DEVCLASS_DECLARE(root);
     extern driver_t rootdev_driver;
     device_t *rootdev = device_alloc(0);
     rootdev->bus = DEV_BUS_FDT;
     rootdev->driver = &rootdev_driver;
-    device_add_pending(rootdev);
+    rootdev->devclass = &DEVCLASS(root);
     if (!device_probe(rootdev))
       panic("Rootdev probe failed!");
     if (device_attach(rootdev))
@@ -161,7 +162,7 @@ void init_devices(void) {
         continue;
       }
 
-      devclass_t *dc = dev->devclass;
+      devclass_t *dc = dev->parent->devclass;
       assert(dc);
 
       driver_t **drv_p;

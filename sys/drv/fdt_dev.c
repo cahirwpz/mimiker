@@ -101,17 +101,24 @@ end:
 int FDT_dev_get_intr_cells(device_t *dev, dev_intr_t *intr, pcell_t *cells,
                            size_t *cntp) {
   phandle_t node = dev->node;
+
+  int icells;
+  int err = FDT_intr_cells(intr->pic_id, &icells);
+  if (err)
+    return err;
+
+  pcell_t *intrs;
   const char *propname =
-    FDT_hasprop(node, "interrupts") ? "interrutps" : "interrupts-extended";
-  pcell_t *icells;
+    FDT_hasprop(node, "interrupts") ? "interrupts" : "interrupts-extended";
   ssize_t ncells = FDT_getencprop_alloc_multi(node, propname, sizeof(pcell_t),
-                                              (void **)&icells);
+                                              (void **)&intrs);
   if (ncells <= 0)
     return ENXIO;
 
-  memcpy(cells, &icells[intr->id], ncells);
-  *cntp = ncells;
-  FDT_free(icells);
+  memcpy(cells, &intrs[intr->irq], icells * sizeof(pcell_t));
+
+  *cntp = icells;
+  FDT_free(intrs);
   return 0;
 }
 
@@ -139,15 +146,14 @@ end:
 }
 
 static int FDT_dev_intr_to_rl(device_t *dev) {
-  int err;
-  phandle_t iparent;
   phandle_t node = dev->node;
-
-  if ((err = FDT_find_iparent(node, &iparent)))
-    return err;
+  phandle_t iparent = FDT_iparent(node);
+  if (iparent == FDT_NODEV)
+    return ENXIO;
 
   int icells;
-  if ((err = FDT_intr_cells(iparent, &icells)))
+  int err = FDT_intr_cells(iparent, &icells);
+  if (err)
     return err;
 
   ssize_t intr_size = FDT_getproplen(node, "interrupts");
@@ -158,7 +164,7 @@ static int FDT_dev_intr_to_rl(device_t *dev) {
   size_t nintrs = intr_size / tuple_size;
 
   for (size_t i = 0; i < nintrs; i++)
-    device_add_unmapped_intr(dev, i, iparent);
+    device_add_intr(dev, i, iparent, i * tuple_size);
 
   return 0;
 }
@@ -176,10 +182,11 @@ static int FDT_dev_ext_intr_to_rl(device_t *dev) {
 
   int err = 0;
   int icells;
-  for (int i = 0; i < ncells; i += icells) {
-    phandle_t iparent;
-    if ((err = FDT_find_iparent_by_phandle(node, cells[i++], &iparent)))
-      return err;
+  unsigned id = 0;
+  for (int i = 0; i < ncells; i += icells, id++) {
+    phandle_t iparent = FDT_finddevice_by_phandle(cells[i++]);
+    if (iparent == FDT_NODEV)
+      return ENXIO;
 
     if ((err = FDT_intr_cells(iparent, &icells)))
       goto end;
@@ -188,7 +195,7 @@ static int FDT_dev_ext_intr_to_rl(device_t *dev) {
       goto end;
     }
 
-    device_add_unmapped_intr(dev, i, iparent);
+    device_add_intr(dev, id, iparent, i);
   }
 
 end:
