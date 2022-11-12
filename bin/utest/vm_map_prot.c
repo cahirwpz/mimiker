@@ -57,7 +57,7 @@ int test_vmmap_data_x(void) {
 static const char *ro_data_str = "String in .rodata section";
 
 int test_vmmap_rodata_w(void) {
-  char *c = (char *)ro_data_str;
+  volatile char *c = (char *)ro_data_str;
 
   printf("mem to write: 0x%p\n", c);
 
