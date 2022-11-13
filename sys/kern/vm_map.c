@@ -196,21 +196,25 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VM_MAP, map);
 }
 
-/* XXX: it allows only to change protection of existing vm_map_entry */
+/* TODO(fzdo): allow for changing protection bits of parts of entries */
+/* XXX: This function allows for setting protection bits fo existing entries
+ * only. It can't change protection of part of entry (currently we don't need to
+ * set protection of part of entry). */
 void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   SCOPED_MTX_LOCK(&map->mtx);
-
-  vm_map_entry_t *ent;
 
   klog("vm_map_protect: 0x%x - 0x%x %c%c%c", start, end,
        (prot & VM_PROT_READ) ? 'r' : '-', (prot & VM_PROT_WRITE) ? 'w' : '-',
        (prot & VM_PROT_EXEC) ? 'x' : '-');
 
-  ent = vm_map_find_entry(map, start);
-  assert(ent);
-  assert(ent->end == end);
-
-  ent->prot = prot;
+  vm_map_entry_t *ent, *next;
+  TAILQ_FOREACH_SAFE (ent, &map->entries, link, next) {
+    assert((ent->start < start && ent->end <= start) ||
+           (ent->end > end && ent->start >= end) ||
+           (ent->start >= start && ent->end <= end));
+    if (ent->start >= start && ent->end <= end)
+      ent->prot = prot;
+  }
   pmap_protect(map->pmap, start, end, prot);
 }
 
