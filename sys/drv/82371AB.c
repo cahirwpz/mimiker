@@ -51,10 +51,6 @@ static int intel_isa_attach(device_t *isab) {
 
   /* -------------------------------------------------------------
    * Create child devices of ISA bus.
-   *
-   * NOTE: the devices are marked as attached to the PCI bus by the `bus` field
-   * to simplify interrupt resource handling. The interrupt parent for each
-   * of the interrupts is the PCI controller.
    */
   device_t *dev;
 
