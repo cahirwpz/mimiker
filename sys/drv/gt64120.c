@@ -270,7 +270,8 @@ static int gt_pci_attach(device_t *pcib) {
   int err = 0;
 
   pcib->devclass = &DEVCLASS(pci);
-  pcib->node = 1;
+  if (!pcib->node)
+    pcib->node = 1;
 
   gtpci->pci_mem = device_take_mem(pcib, 0);
   gtpci->pci_io = device_take_mem(pcib, 1);
@@ -318,7 +319,7 @@ static int gt_pci_attach(device_t *pcib) {
   device_add_mem(dev, 0, IO_ISABEGIN, IO_ISAEND + 1, 0);
   device_add_pending(dev);
 
-  intr_pic_register(pcib, 1);
+  intr_pic_register(pcib, pcib->node);
 
   return 0;
 }
