@@ -29,7 +29,6 @@ typedef enum {
   KL_FILE,    /* filedesc & file operations */
   KL_FILESYS, /* filesystems */
   KL_TTY,     /* terminal subsystem */
-  KL_VMMAP,   /* TODO: remove */
 } klog_origin_t;
 
 #define KL_NONE 0x00000000 /* don't log anything */
