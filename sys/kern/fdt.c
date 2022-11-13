@@ -211,10 +211,10 @@ phandle_t FDT_iparent(phandle_t node) {
       -1)
     return FDT_finddevice_by_phandle(phandle);
 
-  for (phandle_t parent = FDT_parent(node); parent != FDT_NODEV;
-       parent = FDT_parent(parent)) {
-    if (FDT_hasprop(parent, "interrupt-controller")) {
-      return parent;
+  for (phandle_t candidate = node; candidate != FDT_NODEV;
+       candidate = FDT_parent(candidate)) {
+    if (FDT_hasprop(candidate, "interrupt-controller")) {
+      return candidate;
     }
   }
   return FDT_NODEV;

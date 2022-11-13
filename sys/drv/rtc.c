@@ -19,10 +19,10 @@
 #define RTC_ASCTIME_SIZE 32
 
 typedef struct rtc_state {
-  resource_t *regs;
+  dev_mem_t *regs;
   char asctime[RTC_ASCTIME_SIZE];
   unsigned counter; /* TODO Should that be part of intr_handler_t ? */
-  resource_t *irq_res;
+  dev_intr_t *irq_res;
   devnode_t *dev;
 } rtc_state_t;
 
@@ -41,21 +41,21 @@ static void boottime_init(tm_t *t) {
   tm_setclock(&bt);
 }
 
-static inline uint8_t rtc_read(resource_t *regs, unsigned addr) {
+static inline uint8_t rtc_read(dev_mem_t *regs, unsigned addr) {
   bus_write_1(regs, RTC_ADDR, addr);
   return bus_read_1(regs, RTC_DATA);
 }
 
-static inline void rtc_write(resource_t *regs, unsigned addr, uint8_t value) {
+static inline void rtc_write(dev_mem_t *regs, unsigned addr, uint8_t value) {
   bus_write_1(regs, RTC_ADDR, addr);
   bus_write_1(regs, RTC_DATA, value);
 }
 
-static inline void rtc_setb(resource_t *regs, unsigned addr, uint8_t mask) {
+static inline void rtc_setb(dev_mem_t *regs, unsigned addr, uint8_t mask) {
   rtc_write(regs, addr, rtc_read(regs, addr) | mask);
 }
 
-static void rtc_gettime(resource_t *regs, tm_t *t) {
+static void rtc_gettime(dev_mem_t *regs, tm_t *t) {
   t->tm_sec = rtc_read(regs, MC_SEC);
   t->tm_min = rtc_read(regs, MC_MIN);
   t->tm_hour = rtc_read(regs, MC_HOUR);
@@ -99,14 +99,19 @@ static int rtc_attach(device_t *dev) {
   rtc_state_t *rtc = dev->state;
   int err = 0;
 
-  rtc->regs = device_take_ioports(dev, 0);
-  assert(rtc->regs != NULL);
+  rtc->irq_res = device_take_intr(dev, 0);
+  assert(rtc->irq_res);
 
-  if ((err = bus_map_resource(dev, rtc->regs)))
+  if (pic_setup_intr(dev, rtc->irq_res, rtc_intr, NULL, rtc,
+                     "RTC periodic timer")) {
+    return (err == ENODEV) ? EAGAIN : err;
+  }
+
+  rtc->regs = device_take_mem(dev, 0);
+  assert(rtc->regs);
+
+  if ((err = bus_map_mem(dev, rtc->regs)))
     return err;
-
-  rtc->irq_res = device_take_irq(dev, 0);
-  pic_setup_intr(dev, rtc->irq_res, rtc_intr, NULL, rtc, "RTC periodic timer");
 
   /* Configure how the time is presented through registers. */
   rtc_setb(rtc->regs, MC_REGB, MC_REGB_BINARY | MC_REGB_24HR);
@@ -127,7 +132,7 @@ static int rtc_attach(device_t *dev) {
 }
 
 static int rtc_probe(device_t *dev) {
-  return dev->unit == 2; /* XXX: unit 2 assigned by gt_pci */
+  return dev->unit == 2;
 }
 
 static driver_t rtc_driver = {

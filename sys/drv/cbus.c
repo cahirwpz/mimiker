@@ -15,7 +15,7 @@ static bus_space_t cbus_bus_space = {
 };
 
 /* clang-format off */
-resource_t cbus_uart[1] = {{.r_bus_tag = &cbus_bus_space,
-                            .r_bus_handle = 0,
-			   }};
+dev_mem_t cbus_uart[1] = {{.bus_tag = &cbus_bus_space,
+                           .bus_handle = 0,
+			  }};
 /* clang-format on */

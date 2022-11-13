@@ -26,8 +26,8 @@
 #define LITEUART_BUFSIZE 128
 
 typedef struct liteuart_state {
-  resource_t *csrs;
-  resource_t *irq;
+  dev_mem_t *csrs;
+  dev_intr_t *irq;
   thread_t *thread;
 } liteuart_state_t;
 
@@ -91,20 +91,29 @@ static int liteuart_probe(device_t *dev) {
 }
 
 static int liteuart_attach(device_t *dev) {
+  int err = 0;
+
+  dev_intr_t *intr = device_take_intr(dev, 0);
+  assert(intr);
+
+  if ((err = pic_setup_intr(dev, intr, liteuart_intr, NULL, dev, "liteuart")))
+    return (err == ENODEV) ? EAGAIN : err;
+
+  dev_mem_t *csrs = device_take_mem(dev, 0);
+  assert(csrs);
+
+  if ((err = bus_map_mem(dev, csrs)))
+    return err;
+
   liteuart_state_t *liteuart =
     kmalloc(M_DEV, sizeof(liteuart_state_t), M_WAITOK | M_ZERO);
-  int err = 0;
+  liteuart->irq = intr;
+  liteuart->csrs = csrs;
 
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
   tty->t_termios.c_ospeed = 115200;
   tty->t_ops.t_notify_out = uart_tty_notify_out;
-
-  liteuart->csrs = device_take_memory(dev, 0);
-  assert(liteuart->csrs);
-
-  if ((err = bus_map_resource(dev, liteuart->csrs)))
-    return err;
 
   uart_init(dev, "liteuart", LITEUART_BUFSIZE, liteuart, tty);
 
@@ -113,11 +122,6 @@ static int liteuart_attach(device_t *dev) {
 
   /* Enable events. */
   csr_write(LITEUART_CSR_EV_ENABLE, LITEUART_EV_TX | LITEUART_EV_RX);
-
-  liteuart->irq = device_take_irq(dev, 0);
-  assert(liteuart->irq);
-
-  pic_setup_intr(dev, liteuart->irq, liteuart_intr, NULL, dev, "liteuart");
 
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);

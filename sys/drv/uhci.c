@@ -37,8 +37,8 @@
 typedef struct uhci_state {
   uhci_qh_t *mainqs[UHCI_NMAINQS]; /* main queues (i.e. schedule queues) */
   uint32_t *frames;                /* UHCI frame list */
-  resource_t *regs;                /* host controller registers */
-  resource_t *irq;                 /* host controller interrupt */
+  dev_mem_t *regs;                 /* host controller registers */
+  dev_intr_t *irq;                 /* host controller interrupt */
   uint8_t nports;                  /* number of root hub ports */
 } uhci_state_t;
 
@@ -803,11 +803,20 @@ static int uhci_attach(device_t *dev) {
   uhci_state_t *uhci = dev->state;
   int err = 0;
 
+  /* Setup host controller's interrupt. */
+  uhci->irq = device_take_intr(dev, 0);
+  assert(uhci->irq);
+
+  if ((err = pic_setup_intr(dev, uhci->irq, uhci_isr, uhci_service, uhci,
+                            "UHCI"))) {
+    return (err == ENODEV) ? EAGAIN : err;
+  }
+
   /* Gather I/O ports resources. */
-  uhci->regs = device_take_ioports(dev, 4);
+  uhci->regs = device_take_mem(dev, 4);
   assert(uhci->regs);
 
-  if ((err = bus_map_resource(dev, uhci->regs)))
+  if ((err = bus_map_mem(dev, uhci->regs)))
     return err;
 
   /* Perform the global reset of the UHCI controller. */
@@ -846,11 +855,6 @@ static int uhci_attach(device_t *dev) {
   /* Enable bus master mode. */
   pci_enable_busmaster(dev);
 
-  /* Setup host controller's interrupt. */
-  uhci->irq = device_take_irq(dev, 0);
-  assert(uhci->irq);
-  pic_setup_intr(dev, uhci->irq, uhci_isr, uhci_service, uhci, "UHCI");
-
   /* Turn on the IOC and error interrupts. */
   set16(UHCI_INTR, UHCI_INTR_TOCRCIE | UHCI_INTR_IOCE);
 
@@ -861,10 +865,9 @@ static int uhci_attach(device_t *dev) {
   usb_init(dev);
 
   /* Detect and configure attached devices. */
-  int error = usb_enumerate(dev);
-  if (error)
+  if ((err = usb_enumerate(dev)))
     pic_teardown_intr(dev, uhci->irq);
-  return error;
+  return err;
 }
 
 static usbhc_methods_t uhci_usbhc_if = {

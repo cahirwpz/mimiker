@@ -138,9 +138,13 @@ static int rootdev_probe(device_t *bus) {
   return 1;
 }
 
+DEVCLASS_DECLARE(root);
+
 static int rootdev_attach(device_t *bus) {
-  phandle_t node;
-  if ((node = FDT_finddevice("/cpus/cpu@1/interrupt-controller")) == FDT_NODEV)
+  bus->devclass = &DEVCLASS(root);
+
+  phandle_t node = FDT_finddevice("/cpus/cpu@1/interrupt-controller");
+  if (node == FDT_NODEV)
     return ENXIO;
   bus->node = node;
 
@@ -150,13 +154,13 @@ static int rootdev_attach(device_t *bus) {
    */
   int err;
 
-  if ((err = FDT_dev_add_child(bus, "/soc/interrupt-controller")))
+  if ((err = FDT_dev_add_child(bus, "/soc/clint", DEV_BUS_FDT)))
     return err;
 
-  if ((err = FDT_dev_add_child(bus, "/soc/clint")))
+  if ((err = FDT_dev_add_child(bus, "/soc/serial", DEV_BUS_FDT)))
     return err;
 
-  if ((err = FDT_dev_add_child(bus, "/soc/serial")))
+  if ((err = FDT_dev_add_child(bus, "/soc/interrupt-controller", DEV_BUS_FDT)))
     return err;
 
   intr_pic_register(bus, node);

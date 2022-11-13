@@ -132,12 +132,10 @@ void init_devices(void) {
   assert(current_pass < PASS_COUNT);
 
   if (current_pass == FIRST_PASS) {
-    DEVCLASS_DECLARE(root);
     extern driver_t rootdev_driver;
     device_t *rootdev = device_alloc(0);
     rootdev->bus = DEV_BUS_FDT;
     rootdev->driver = &rootdev_driver;
-    rootdev->devclass = &DEVCLASS(root);
     if (!device_probe(rootdev))
       panic("Rootdev probe failed!");
     if (device_attach(rootdev))
@@ -184,6 +182,7 @@ void init_devices(void) {
           device_remove_pending(dev);
           break;
         }
+        /* XXX: we should perform some cleanup here. */
       next_driver:
         dev->driver = NULL;
       }

@@ -237,12 +237,11 @@ void intr_pic_register(device_t *pic, unsigned id) {
   TAILQ_INSERT_TAIL(&all_pic_list, p, link);
 }
 
-static device_t *intr_pic_find(device_t *dev, unsigned id) {
+static device_t *intr_pic_find(unsigned id) {
   pic_t *pic;
   TAILQ_FOREACH (pic, &all_pic_list, link) {
-    device_t *pic_dev = pic->dev;
-    if (pic->id == id && pic_dev->bus == dev->bus)
-      return pic_dev;
+    if (pic->id == id)
+      return pic->dev;
   }
   return NULL;
 }
@@ -261,7 +260,7 @@ int pic_setup_intr(device_t *dev, dev_intr_t *intr, ih_filter_t *filter,
     goto setup;
   }
 
-  if (!(pic = intr_pic_find(dev, intr->pic_id)))
+  if (!(pic = intr_pic_find(intr->pic_id)))
     return ENODEV;
   intr->pic = pic;
 
@@ -284,13 +283,17 @@ void pic_teardown_intr(device_t *dev, dev_intr_t *intr) {
 }
 
 int pic_map_intr(device_t *dev, dev_intr_t *intr) {
+  device_t *pic = intr->pic;
+
+  if (!pic_methods(pic)->map_intr)
+    return 0;
+
   pcell_t cells[FDT_MAX_ICELLS];
   size_t ncells;
   int err = FDT_dev_get_intr_cells(dev, intr, cells, &ncells);
   if (err)
     return err;
 
-  device_t *pic = intr->pic;
   intr->irq = pic_methods(pic)->map_intr(pic, dev, cells, ncells);
   return 0;
 }

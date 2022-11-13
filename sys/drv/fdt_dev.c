@@ -164,7 +164,7 @@ static int FDT_dev_intr_to_rl(device_t *dev) {
   size_t nintrs = intr_size / tuple_size;
 
   for (size_t i = 0; i < nintrs; i++)
-    device_add_intr(dev, i, iparent, i * tuple_size);
+    device_add_intr(dev, i, iparent, i * icells);
 
   return 0;
 }
@@ -203,7 +203,7 @@ end:
   return err;
 }
 
-int FDT_dev_add_child(device_t *bus, const char *path) {
+int FDT_dev_add_child(device_t *bus, const char *path, device_bus_t dev_bus) {
   static int next_unit = 1;
 
   phandle_t node;
@@ -211,7 +211,7 @@ int FDT_dev_add_child(device_t *bus, const char *path) {
     return ENXIO;
 
   device_t *dev = device_add_child(bus, next_unit);
-  dev->bus = DEV_BUS_FDT;
+  dev->bus = dev_bus;
   dev->node = node;
 
   int err;

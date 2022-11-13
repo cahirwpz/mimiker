@@ -18,13 +18,13 @@ typedef struct fb_info fb_info_t;
 
 #define FB_SIZE(vga)                                                           \
   ((vga)->fb_info.width * (vga)->fb_info.height * ((vga)->fb_info.bpp / 8))
-#define FB_PTR(vga) ((void *)vga->mem->r_bus_handle)
+#define FB_PTR(vga) ((void *)vga->mem->bus_handle)
 
 #define VGA_PALETTE_SIZE 256
 
 typedef struct stdvga_state {
-  resource_t *mem;
-  resource_t *io;
+  dev_mem_t *mem;
+  dev_mem_t *io;
 
   atomic_int usecnt;
   fb_info_t fb_info;
@@ -195,7 +195,7 @@ static int stdvga_probe(device_t *dev) {
   if (!pci_device_match(pcid, QEMU_STDVGA_VENDOR_ID, QEMU_STDVGA_DEVICE_ID))
     return 0;
 
-  if (!(pcid->bar[0].flags & RF_PREFETCHABLE))
+  if (!(pcid->bar[0].flags & DMF_PREFETCHABLE))
     return 0;
 
   return 1;
@@ -205,19 +205,19 @@ static int stdvga_attach(device_t *dev) {
   stdvga_state_t *vga = dev->state;
   int err = 0;
 
-  vga->mem = device_take_memory(dev, 0);
+  vga->mem = device_take_mem(dev, 0);
   assert(vga->mem != NULL);
 
-  if (!(vga->mem->r_flags & RF_PREFETCHABLE))
+  if (!(vga->mem->flags & DMF_PREFETCHABLE))
     return ENXIO;
 
-  if ((err = bus_map_resource(dev, vga->mem)))
+  if ((err = bus_map_mem(dev, vga->mem)))
     return err;
 
-  vga->io = device_take_memory(dev, 2);
+  vga->io = device_take_mem(dev, 2);
   assert(vga->io != NULL);
 
-  if ((err = bus_map_resource(dev, vga->io)))
+  if ((err = bus_map_mem(dev, vga->io)))
     return err;
 
   vga->usecnt = 0;

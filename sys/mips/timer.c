@@ -16,7 +16,7 @@ typedef struct mips_timer_state {
   volatile timercntr_t count; /* last written value of counter reg. (64 bits) */
   volatile timercntr_t compare; /* last read value of compare reg. (64 bits) */
   timer_t timer;
-  resource_t *irq_res;
+  dev_intr_t *irq_res;
 } mips_timer_state_t;
 
 static intr_filter_t mips_timer_intr(void *data);
@@ -121,7 +121,8 @@ static int mips_timer_probe(device_t *dev) {
 static int mips_timer_attach(device_t *dev) {
   mips_timer_state_t *state = dev->state;
 
-  state->irq_res = device_take_irq(dev, 0);
+  state->irq_res = device_take_intr(dev, 0);
+  assert(state->irq_res);
 
   state->timer = (timer_t){
     .tm_name = "mips-cpu-timer",

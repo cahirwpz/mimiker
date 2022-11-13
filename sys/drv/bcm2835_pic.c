@@ -27,8 +27,8 @@ typedef enum bcm2835_intrtype {
 #define BCM2835_NIRQPERTYPE (BCM2835_NIRQ / BCM2835_INTRTYPE_CNT)
 
 typedef struct bcm2835_pic_state {
-  resource_t *mem;
-  resource_t *irq;
+  dev_mem_t *mem;
+  dev_intr_t *irq;
   intr_event_t *intr_event[BCM2835_NIRQ];
 } bcm2835_pic_state_t;
 
@@ -72,11 +72,12 @@ static const char *bcm2835_pic_intr_name(unsigned irq) {
   return kasprintf("%s source %u", type, irq);
 }
 
-static void bcm2835_pic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
-                                   ih_filter_t *filter, ih_service_t *service,
-                                   void *arg, const char *name) {
+static void bcm2835_pic_setup_intr(device_t *pic, device_t *dev,
+                                   dev_intr_t *intr, ih_filter_t *filter,
+                                   ih_service_t *service, void *arg,
+                                   const char *name) {
   bcm2835_pic_state_t *bcm2835_pic = pic->state;
-  unsigned irq = r->r_irq;
+  unsigned irq = intr->irq;
   assert(irq < BCM2835_NIRQ);
 
   if (bcm2835_pic->intr_event[irq] == NULL)
@@ -84,17 +85,17 @@ static void bcm2835_pic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
       intr_event_create(bcm2835_pic, irq, bcm2835_pic_disable_irq,
                         bcm2835_pic_enable_irq, bcm2835_pic_intr_name(irq));
 
-  r->r_handler = intr_event_add_handler(bcm2835_pic->intr_event[irq], filter,
-                                        service, arg, name);
+  intr->handler = intr_event_add_handler(bcm2835_pic->intr_event[irq], filter,
+                                         service, arg, name);
 }
 
 static void bcm2835_pic_teardown_intr(device_t *pic, device_t *dev,
-                                      resource_t *irq) {
-  intr_event_remove_handler(irq->r_handler);
+                                      dev_intr_t *intr) {
+  intr_event_remove_handler(intr->handler);
 }
 
 static int bcm2835_pic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
-                                int icells) {
+                                size_t icells) {
   if (icells != 2)
     return -1;
 
@@ -159,17 +160,21 @@ static int bcm2835_pic_attach(device_t *pic) {
   bcm2835_pic_state_t *bcm2835_pic = pic->state;
   int err = 0;
 
-  bcm2835_pic->mem = device_take_memory(pic, 0);
-  assert(bcm2835_pic->mem);
-
-  if ((err = bus_map_resource(pic, bcm2835_pic->mem)))
-    return err;
-
-  bcm2835_pic->irq = device_take_irq(pic, 0);
+  bcm2835_pic->irq = device_take_intr(pic, 0);
   assert(bcm2835_pic->irq);
 
-  pic_setup_intr(pic, bcm2835_pic->irq, bcm2835_pic_intr_handler, NULL,
-                 bcm2835_pic, "BCM2835 PIC");
+  if ((err = pic_setup_intr(pic, bcm2835_pic->irq, bcm2835_pic_intr_handler,
+                            NULL, bcm2835_pic, "BCM2835 PIC"))) {
+    return (err == ENODEV) ? EAGAIN : err;
+  }
+
+  bcm2835_pic->mem = device_take_mem(pic, 0);
+  assert(bcm2835_pic->mem);
+
+  if ((err = bus_map_mem(pic, bcm2835_pic->mem)))
+    return err;
+
+  intr_pic_register(pic, pic->node);
 
   return 0;
 }

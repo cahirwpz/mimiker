@@ -123,7 +123,7 @@ struct dev_mem {
 };
 
 /* TODO: remove it. */
-#define RESOURCE_DECLARE(name) extern resource_t name[1]
+#define DEV_MEM_DECLARE(name) extern dev_mem_t name[1]
 
 /*! \brief Calculate resource size. */
 static inline bus_size_t dev_mem_size(dev_mem_t *mem) {

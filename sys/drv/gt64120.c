@@ -1,32 +1,9 @@
 /* GT64120 PCI bus driver
  *
  * Heavily inspired by FreeBSD / NetBSD `gt_pci.c` file.
- *
- * How do we handle `r_start` and `r_bus_handle`
- * of assigned resources?
- *
- * - Interrupts:
- *     In this case, the `r_handler` field is used rather than
- *     `r_bus_handle` and `r_bus_tag`, and `start` identifies an
- *     interrupt number.
- *
- * - Memory:
- *     - `gt_pci_alloc_resource` sets `r_bus_handle` to a physical
- *       address of a resource, while `gt_pci_activate_resource`
- *       upgrades it to a virtual address of the mapped resource.
- *     - `start` is an absolute address of a resource.
- *
- *  - IO ports:
- *     - All IO ports managed by the PCI bus driver are mapped in the
- *       `gt_pci_attach` function, therefore `gt_pci_alloc_resource`
- *       sets `r_bus_handle` to a virtual address of a resource.
- *     - `start` is an offset in the PCI IO space.
- *
- *   Memory BARs must contain absolute addresses, while IO BARs require
- *   relative addresses. The above scheme allows us to unify updating of a
- *   BAR register by using the `start` of a resource.
  */
 #define KL_LOG KL_DEV
+#include <sys/errno.h>
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <dev/malta.h>
@@ -70,10 +47,10 @@ typedef union {
 typedef struct gt_pci_state {
 
   /* Resources belonging to this driver. */
-  resource_t *corectrl;
-  resource_t *pci_io;
-  resource_t *pci_mem;
-  resource_t *irq_res;
+  dev_mem_t *corectrl;
+  dev_mem_t *pci_io;
+  dev_mem_t *pci_mem;
+  dev_intr_t *irq_res;
 
   intr_event_t *intr_event[IO_ICUSIZE];
 
@@ -89,7 +66,7 @@ static driver_t gt_pci_bus;
 static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
   pci_device_t *pcid = pci_device_of(dev);
   gt_pci_state_t *gtpci = dev->parent->state;
-  resource_t *pcicfg = gtpci->corectrl;
+  dev_mem_t *pcicfg = gtpci->corectrl;
   assert(pcid);
 
   if (pcid->addr.bus > 0)
@@ -116,7 +93,7 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
                                 uint32_t value) {
   pci_device_t *pcid = pci_device_of(dev);
   gt_pci_state_t *gtpci = dev->parent->state;
-  resource_t *pcicfg = gtpci->corectrl;
+  dev_mem_t *pcicfg = gtpci->corectrl;
   assert(pcid);
 
   if (pcid->addr.bus > 0)
@@ -167,7 +144,7 @@ static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
   else
     gtpci->imask |= (1U << 2);
 
-  resource_t *io = gtpci->pci_io;
+  dev_mem_t *io = gtpci->pci_io;
   bus_write_1(io, ICU1_DATA, LO(gtpci->imask));
   bus_write_1(io, ICU2_DATA, HI(gtpci->imask));
   bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
@@ -213,27 +190,27 @@ static const char *gt_pci_intr_name[IO_ICUSIZE] = {
 };
 /* clang-format on */
 
-static void gt_pci_setup_intr(device_t *pic, device_t *dev, resource_t *r,
+static void gt_pci_setup_intr(device_t *pic, device_t *dev, dev_intr_t *intr,
                               ih_filter_t *filter, ih_service_t *service,
                               void *arg, const char *name) {
   gt_pci_state_t *gtpci = pic->state;
-  int irq = r->r_irq;
+  unsigned irq = intr->irq;
   assert(irq < IO_ICUSIZE);
 
   if (gtpci->intr_event[irq] == NULL)
     gtpci->intr_event[irq] = intr_event_create(
       gtpci, irq, gt_pci_mask_irq, gt_pci_unmask_irq, gt_pci_intr_name[irq]);
 
-  r->r_handler =
+  intr->handler =
     intr_event_add_handler(gtpci->intr_event[irq], filter, service, arg, name);
 }
 
 static void gt_pci_teardown_intr(device_t *pic, device_t *dev,
-                                 resource_t *irq) {
-  intr_event_remove_handler(irq->r_handler);
+                                 dev_intr_t *intr) {
+  intr_event_remove_handler(intr->handler);
 }
 
-static void init_8259(resource_t *io, unsigned icu, unsigned imask) {
+static void init_8259(dev_mem_t *io, unsigned icu, unsigned imask) {
   /* reset, program device, 4 bytes */
   bus_write_1(io, ICU_ADDR(icu), ICW1_RESET | ICW1_IC4);
   bus_write_1(io, ICU_DATA(icu), 0);
@@ -249,7 +226,7 @@ static void init_8259(resource_t *io, unsigned icu, unsigned imask) {
 
 static intr_filter_t gt_pci_intr(void *data) {
   gt_pci_state_t *gtpci = data;
-  resource_t *io = gtpci->pci_io;
+  dev_mem_t *io = gtpci->pci_io;
   unsigned irq;
 
   assert(data != NULL);
@@ -286,24 +263,27 @@ static intr_filter_t gt_pci_intr(void *data) {
   return IF_FILTERED;
 }
 
-DEVCLASS_DECLARE(isa);
+DEVCLASS_DECLARE(pci);
 
 static int gt_pci_attach(device_t *pcib) {
   gt_pci_state_t *gtpci = pcib->state;
   int err = 0;
 
-  gtpci->pci_mem = device_take_memory(pcib, 0);
-  gtpci->pci_io = device_take_memory(pcib, 1);
-  gtpci->corectrl = device_take_memory(pcib, 2);
+  pcib->devclass = &DEVCLASS(pci);
+  pcib->node = 1;
+
+  gtpci->pci_mem = device_take_mem(pcib, 0);
+  gtpci->pci_io = device_take_mem(pcib, 1);
+  gtpci->corectrl = device_take_mem(pcib, 2);
 
   if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
       gtpci->pci_io == NULL) {
     panic("gt64120 resource allocation fail");
   }
 
-  if ((err = bus_map_resource(pcib, gtpci->pci_io)))
+  if ((err = bus_map_mem(pcib, gtpci->pci_io)))
     return err;
-  if ((err = bus_map_resource(pcib, gtpci->corectrl)))
+  if ((err = bus_map_mem(pcib, gtpci->corectrl)))
     return err;
 
   /* All interrupts default to "masked off" and edge-triggered. */
@@ -311,7 +291,7 @@ static int gt_pci_attach(device_t *pcib) {
   gtpci->elcr = 0;
 
   /* Initialize the 8259s. */
-  resource_t *io = gtpci->pci_io;
+  dev_mem_t *io = gtpci->pci_io;
   init_8259(io, IO_ICU1, LO(gtpci->imask));
   init_8259(io, IO_ICU2, HI(gtpci->imask));
 
@@ -319,9 +299,14 @@ static int gt_pci_attach(device_t *pcib) {
   bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
-  gtpci->irq_res = device_take_irq(pcib, 0);
-  pic_setup_intr(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
-                 "GT64120 main irq");
+  gtpci->irq_res = device_take_intr(pcib, 0);
+  assert(gtpci->irq_res);
+
+  if ((err = pic_setup_intr(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
+                            "GT64120 main irq"))) {
+    /* TODO: handle the `ENODEV` case when resource unmapping is implemented. */
+    panic("gt64120 interrupt setup fail");
+  }
 
   pci_bus_enumerate(pcib);
 
@@ -329,67 +314,66 @@ static int gt_pci_attach(device_t *pcib) {
 
   /* ISA Bridge */
   dev = device_add_child(pcib, 0);
-  dev->pic = pcib;
   dev->bus = DEV_BUS_PCI;
-  dev->devclass = &DEVCLASS(isa);
-  device_add_ioports(dev, 0, IO_ISABEGIN, IO_ISAEND + 1);
+  device_add_mem(dev, 0, IO_ISABEGIN, IO_ISAEND + 1, 0);
+  device_add_pending(dev);
 
-  /* TODO: replace raw resource assignments by parsing FDT file. */
+  intr_pic_register(pcib, 1);
 
-  return bus_generic_probe(pcib);
-}
-
-static bool gt_pci_bar(device_t *dev, res_type_t type, int rid,
-                       bus_addr_t start) {
-  if ((type == RT_IOPORTS && start <= IO_ISAEND) || type == RT_IRQ)
-    return false;
-  pci_device_t *pcid = pci_device_of(dev);
-  return rid < PCI_BAR_MAX && pcid->bar[rid].size != 0;
-}
-
-static int gt_pci_map_resource(device_t *dev, resource_t *r) {
-  bus_addr_t start = r->r_start;
-  if (r->r_type == RT_MEMORY)
-    start += MALTA_PCI0_MEMORY_BASE;
-
-  if (r->r_type == RT_MEMORY || start > IO_ISAEND) {
-    uint16_t command = pci_read_config_2(dev, PCIR_COMMAND);
-    if (r->r_type == RT_MEMORY)
-      command |= PCIM_CMD_MEMEN;
-    else if (r->r_type == RT_IOPORTS)
-      command |= PCIM_CMD_PORTEN;
-    pci_write_config_2(dev, PCIR_COMMAND, command);
-  }
-
-  if (gt_pci_bar(dev, r->r_type, r->r_rid, start))
-    pci_write_config_4(dev, PCIR_BAR(r->r_rid), start);
-
-  gt_pci_state_t *gtpci = dev->parent->state;
-
-  r->r_bus_tag = generic_bus_space;
-
-  if (r->r_type == RT_IOPORTS) {
-    bus_space_handle_t bh = gtpci->pci_io->r_bus_handle;
-    r->r_bus_handle = bh + start;
-  } else {
-    return bus_space_map(r->r_bus_tag, start, resource_size(r),
-                         &r->r_bus_handle);
-  }
   return 0;
 }
 
-static void gt_pci_unmap_resource(device_t *dev, resource_t *r) {
+static int gt_pci_map_mem(device_t *dev, dev_mem_t *mem) {
+  gt_pci_state_t *gtpci = dev->parent->state;
+  bus_addr_t start = mem->start;
+
+  mem->bus_tag = generic_bus_space;
+
+  pci_device_t *pcid = pci_device_of(dev);
+  if (!pcid)
+    goto ioports;
+
+  if (mem->id >= PCI_BAR_MAX)
+    return EINVAL;
+
+  pci_bar_t *bar = &pcid->bar[mem->id];
+  if (!bar->size)
+    return EINVAL;
+
+  pci_res_type_t type = bar->type;
+
+  uint16_t command = pci_read_config_2(dev, PCIR_COMMAND);
+  if (type == PCI_RT_MEMORY)
+    command |= PCIM_CMD_MEMEN;
+  else
+    command |= PCIM_CMD_PORTEN;
+  pci_write_config_2(dev, PCIR_COMMAND, command);
+
+  if (type == PCI_RT_MEMORY)
+    start += MALTA_PCI0_MEMORY_BASE;
+
+  pci_write_config_4(dev, PCIR_BAR(mem->id), start);
+
+  if (type == PCI_RT_MEMORY)
+    return bus_space_map(mem->bus_tag, start, dev_mem_size(mem),
+                         &mem->bus_handle);
+
+ioports:
+  mem->bus_handle = gtpci->pci_io->bus_handle + start;
+  return 0;
+}
+
+static void gt_pci_unmap_mem(device_t *dev, dev_mem_t *mem) {
   /* TODO: unmap mapped memory. */
 }
 
 static int gt_pci_probe(device_t *d) {
-  /* TODO(cahir) match device with driver on FDT basis */
   return d->unit == 1;
 }
 
 static bus_methods_t gt_pci_bus_if = {
-  .map_resource = gt_pci_map_resource,
-  .unmap_resource = gt_pci_unmap_resource,
+  .map_mem = gt_pci_map_mem,
+  .unmap_mem = gt_pci_unmap_mem,
 };
 
 static pic_methods_t gt_pic_if = {

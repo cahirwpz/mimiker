@@ -99,9 +99,8 @@ static int sfuart_attach(device_t *dev) {
   dev_intr_t *intr = device_take_intr(dev, 0);
   assert(intr);
 
-  if ((err = pic_setup_intr(dev, intr, uart_intr, NULL, dev, "SiFive UART"))) {
+  if ((err = pic_setup_intr(dev, intr, uart_intr, NULL, dev, "SiFive UART")))
     return (err == ENODEV) ? EAGAIN : err;
-  }
 
   dev_mem_t *regs = device_take_mem(dev, 0);
   assert(regs);

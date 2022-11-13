@@ -18,12 +18,13 @@
 #include <dev/emmc.h>
 #include <sys/errno.h>
 #include <sys/bitops.h>
-#include <dev/bcm2835_emmcreg.h>
 #include <sys/fdt.h>
+#include <dev/bcm2835_emmcreg.h>
+#include <dev/fdt_dev.h>
 
 typedef struct bcmemmc_state {
-  resource_t *emmc;      /* e.MMC controller registers */
-  resource_t *irq;       /* e.MMC controller interrupt */
+  dev_mem_t *emmc;       /* e.MMC controller registers */
+  dev_intr_t *irq;       /* e.MMC controller interrupt */
   condvar_t intr_recv;   /* Used to wake up a thread waiting for an interrupt */
   mtx_t lock;            /* Covers `pending`, `intr_recv` and `emmc`. */
   uint64_t rca;          /* Relative Card Address */
@@ -74,7 +75,7 @@ static emmc_error_t bcemmc_decode_errors(uint32_t interrupts) {
  * All pending interrupts are stored in `bmcemmc_state_t::pending`.
  */
 static uint32_t bcmemmc_read_intr(bcmemmc_state_t *state) {
-  resource_t *emmc = state->emmc;
+  dev_mem_t *emmc = state->emmc;
   uint32_t newpend;
 
   newpend = b_in(emmc, BCMEMMC_INTERRUPT);
@@ -102,7 +103,7 @@ static inline uint32_t bcmemmc_try_read_intr_blocking(bcmemmc_state_t *state) {
 
 /* Return 1 if there are any interrupts to be processed, 0 if not */
 static inline int bcmemmc_check_intr(bcmemmc_state_t *state) {
-  resource_t *emmc = state->emmc;
+  dev_mem_t *emmc = state->emmc;
   return (b_in(emmc, BCMEMMC_INTERRUPT) | state->pending) ? 1 : 0;
 }
 
@@ -185,7 +186,7 @@ static uint32_t bcmemmc_clk_approx_divisor(uint32_t clk, uint32_t frq) {
 
 /* Set e.MMC clock's divisor to match frequency `frq` */
 static void bcmemmc_clk_set_divisor(bcmemmc_state_t *state, uint32_t frq) {
-  resource_t *emmc = state->emmc;
+  dev_mem_t *emmc = state->emmc;
 
   uint32_t clk = GPIO_CLK_EMMC_DEFAULT_FREQ;
   uint32_t divisor = bcmemmc_clk_approx_divisor(clk, frq);
@@ -209,7 +210,7 @@ static void bcmemmc_clk_set_divisor(bcmemmc_state_t *state, uint32_t frq) {
  */
 static int bcmemmc_set_clk_freq(device_t *dev, uint32_t frq) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
-  resource_t *emmc = state->emmc;
+  dev_mem_t *emmc = state->emmc;
   int32_t cnt = CLK_STABLE_TRIALS;
 
   b_clr(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
@@ -307,7 +308,7 @@ static int bcmemmc_get_bus_width(bcmemmc_state_t *state) {
 
 static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
-  resource_t *emmc = state->emmc;
+  dev_mem_t *emmc = state->emmc;
 
   uint32_t reg = 0;
   switch (id) {
@@ -354,7 +355,7 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
 
 static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
-  resource_t *emmc = state->emmc;
+  dev_mem_t *emmc = state->emmc;
 
   uint32_t reg = 0;
   switch (id) {
@@ -400,7 +401,7 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
 static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
                             emmc_resp_t *resp) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
-  resource_t *emmc = state->emmc;
+  dev_mem_t *emmc = state->emmc;
 
   uint32_t error = 0;
 
@@ -441,7 +442,7 @@ static int bcmemmc_send_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
 static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *read) {
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
-  resource_t *emmc = state->emmc;
+  dev_mem_t *emmc = state->emmc;
   uint32_t *data = buf;
 
   assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
@@ -460,7 +461,7 @@ static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
                          size_t *wrote) {
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
-  resource_t *emmc = state->emmc;
+  dev_mem_t *emmc = state->emmc;
   const uint32_t *data = buf;
 
   assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
@@ -479,7 +480,7 @@ static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
 
 static int bcmemmc_init(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
-  resource_t *emmc = state->emmc;
+  dev_mem_t *emmc = state->emmc;
 
   state->host_version =
     (b_in(emmc, BCMEMMC_SLOTISR_VER) & HOST_SPEC_NUM) >> HOST_SPEC_NUM_SHIFT;
@@ -514,10 +515,20 @@ static int bcmemmc_attach(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   int err = 0;
 
-  state->emmc = device_take_memory(dev, 0);
+  dev->devclass = &DEVCLASS(emmc);
+
+  state->irq = device_take_intr(dev, 0);
+  assert(state->irq);
+
+  if ((err = pic_setup_intr(dev, state->irq, bcmemmc_intr_filter, NULL, state,
+                            "e.MMC interrupt"))) {
+    return (err == ENODEV) ? EAGAIN : err;
+  }
+
+  state->emmc = device_take_mem(dev, 0);
   assert(state->emmc);
 
-  if ((err = bus_map_resource(dev, state->emmc)))
+  if ((err = bus_map_mem(dev, state->emmc)))
     return err;
 
   mtx_init(&state->lock, MTX_SPIN);
@@ -525,24 +536,15 @@ static int bcmemmc_attach(device_t *dev) {
 
   b_out(state->emmc, BCMEMMC_INTERRUPT, INT_ALL_MASK);
 
-  state->irq = device_take_irq(dev, 0);
-  pic_setup_intr(dev, state->irq, bcmemmc_intr_filter, NULL, state,
-                 "e.MMC interrupt");
-
-  int error = bcmemmc_init(dev);
-  if (error) {
-    klog("e.MMC initialzation failed with code %d.", error);
+  if ((err = bcmemmc_init(dev))) {
+    klog("e.MMC initialzation failed with code %d.", err);
     return ENXIO;
   }
 
-  /* This is not a legitimate bus in a sense that it implements `DIF_BUS`, but
-   * it should work nevertheless */
-  device_t *child = device_add_child(dev, 0);
-  child->bus = DEV_BUS_EMMC;
-  child->devclass = &DEVCLASS(emmc);
-  child->unit = 0;
+  if ((err = FDT_dev_add_child(dev, "/soc/emmc/sdcard", DEV_BUS_EMMC)))
+    return err;
 
-  return bus_generic_probe(dev);
+  return 0;
 }
 
 static emmc_methods_t bcmemmc_emmc_if = {
