@@ -84,6 +84,14 @@ inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
  * Physical map management.
  */
 
+/*
+ * Since `pmap_md_update` and `pmap_md_update` are called (via `vm_map_switch`)
+ * from `ctx_switch`, they may be executed in an interrupt context. Thus they
+ * cannot take any sleep lock including default mutex.
+ *
+ * That's why we need to introduce spin lock for synchronization of level 0
+ * page directory entries that belong to the kernel.
+ */
 static MTX_DEFINE(kmap_l0_lock, MTX_SPIN);
 static paddr_t kmap_l0_pages[Ln_ENTRIES];
 
@@ -99,6 +107,7 @@ void pmap_md_update(pmap_t *umap) {
     if (umap->md.generation == kmap->md.generation)
       return;
 
+    /* Synchronize kernel page directory entries between two pmaps. */
     size_t halfpage = PAGESIZE / 2;
     void *new_kpd = phys_to_dmap(kmap->pde) + halfpage;
     void *old_kpd = phys_to_dmap(umap->pde) + halfpage;
