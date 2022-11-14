@@ -87,7 +87,10 @@ inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
 static MTX_DEFINE(kmap_l0_lock, MTX_SPIN);
 static paddr_t kmap_l0_pages[Ln_ENTRIES];
 
-static void update_kernel_pd(pmap_t *umap) {
+void pmap_md_update(pmap_t *umap) {
+  if (umap == NULL)
+    return;
+
   pmap_t *kmap = pmap_kernel();
 
   assert(umap != kmap);
@@ -100,6 +103,8 @@ static void update_kernel_pd(pmap_t *umap) {
     void *new_kpd = phys_to_dmap(kmap->pde) + halfpage;
     void *old_kpd = phys_to_dmap(umap->pde) + halfpage;
     memcpy(old_kpd, new_kpd, halfpage);
+
+    __sfence_vma();
 
     umap->md.generation = kmap->md.generation;
   }
@@ -135,17 +140,12 @@ void pmap_md_growkernel(vaddr_t old_kva, vaddr_t new_kva) {
 }
 
 void pmap_md_activate(pmap_t *umap) {
-  update_kernel_pd(umap);
+  pmap_t *kmap = pmap_kernel();
+  paddr_t satp = umap ? umap->md.satp : kmap->md.satp;
 
-  __set_satp(umap->md.satp);
-  __sfence_vma();
-}
+  pmap_md_update(umap);
 
-void pmap_md_update(pmap_t *umap) {
-  if (!umap)
-    return;
-
-  update_kernel_pd(umap);
+  __set_satp(satp);
   __sfence_vma();
 }
 

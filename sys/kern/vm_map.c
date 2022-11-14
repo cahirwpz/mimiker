@@ -42,8 +42,7 @@ void vm_map_activate(vm_map_t *map) {
 
 void vm_map_switch(thread_t *td) {
   proc_t *p = td->td_proc;
-  if (p)
-    vm_map_activate(p->p_uspace);
+  vm_map_activate(p ? p->p_uspace : NULL);
 }
 
 void vm_map_lock(vm_map_t *map) {
