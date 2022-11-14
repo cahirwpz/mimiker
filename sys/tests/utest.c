@@ -61,8 +61,8 @@ static int utest_generic(const char *name, int status_success) {
 
 UTEST_ADD_SIGNAL(vmmap_text_w, SIGSEGV);
 UTEST_ADD_SIGNAL(vmmap_rodata_w, SIGSEGV);
-#ifndef __mips__
 UTEST_ADD_SIGNAL(vmmap_data_x, SIGSEGV);
+#ifndef __mips__
 UTEST_ADD_SIGNAL(vmmap_rodata_x, SIGSEGV);
 #endif
 
