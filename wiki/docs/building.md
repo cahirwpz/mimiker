@@ -22,4 +22,7 @@ they are run, add `VERBOSE=1` to the command line.
 **Important!** It's recommended to issue `make distclean` command after each
 modification to `config.mk` file.
 
+**Important!** Before building Mimker for different board you have to run
+`make distclean` with `BOARD` argument set to previous board.
+
 [1]: toolchain.md
