@@ -27,7 +27,8 @@ SOURCES = \
 	util.c \
 	vfs.c \
 	wait.c \
-	vm_map.c
+	vm_map.c \
+	vm_map_prot.c
 
 PROGRAM = utest
 
