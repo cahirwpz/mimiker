@@ -102,6 +102,8 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
     case EXC_DBE:
     case EXC_TLBL:
     case EXC_TLBS:
+    case EXC_TLBRI:
+    case EXC_TLBXI:
       klog("Caused by reference to $%08lx!", _REG(ctx, BADVADDR));
       break;
     case EXC_RI:
@@ -124,7 +126,13 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
 }
 
 static vm_prot_t exc_access(u_long code) {
-  return (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
+  if (code == EXC_TLBL || code == EXC_TLBRI)
+    return VM_PROT_READ;
+  if (code == EXC_TLBS || code == EXC_MOD)
+    return VM_PROT_WRITE;
+  if (code == EXC_TLBXI)
+    return VM_PROT_EXEC;
+  panic("unknown code: %s", exceptions[code]);
 }
 
 static void user_trap_handler(ctx_t *ctx) {
@@ -143,6 +151,8 @@ static void user_trap_handler(ctx_t *ctx) {
     case EXC_MOD:
     case EXC_TLBL:
     case EXC_TLBS:
+    case EXC_TLBRI:
+    case EXC_TLBXI:
       klog("%s at $%lx, caused by reference to $%lx!", exceptions[code],
            _REG(ctx, EPC), vaddr);
       pmap_fault_handler(ctx, vaddr, exc_access(code));

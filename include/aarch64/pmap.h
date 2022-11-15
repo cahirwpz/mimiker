@@ -101,7 +101,10 @@ static inline void pmap_md_setup(pmap_t *pmap) {
 static inline void pmap_md_delete(pmap_t *pmap) {
 }
 
-static inline void pmap_md_growkernel(vaddr_t maxkvaddr) {
+static inline void pmap_md_growkernel(vaddr_t old_kva, vaddr_t new_kva) {
+}
+
+static inline void pmap_md_update(pmap_t *pmap) {
 }
 
 #endif /* !_AARCH64_PMAP_H_ */
