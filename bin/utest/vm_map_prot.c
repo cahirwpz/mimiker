@@ -8,16 +8,21 @@
 
 typedef int (*func_int_t)(int);
 
-static int func_inc(int x) {
+/* XXX In theory compiler may reorder those function and indeed Clang does it
+ * when they're marked with `static` quantifier. */
+
+int func_inc(int x) {
   return x + 1;
 }
 
-static int func_dec(int x) {
+int func_dec(int x) {
   return x - 1;
 }
 
 int test_vmmap_text_w(void) {
   func_int_t fun = func_dec;
+
+  assert((uintptr_t)func_inc < (uintptr_t)func_dec);
 
   printf("func_inc: 0x%p\n", func_inc);
   printf("func_dec: 0x%p\n", func_dec);
