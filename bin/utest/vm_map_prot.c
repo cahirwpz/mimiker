@@ -40,8 +40,10 @@ int test_vmmap_text_w(void) {
 int test_vmmap_data_x(void) {
   static char func_buf[1024];
 
+  assert((uintptr_t)func_inc < (uintptr_t)func_dec);
+
   /* TODO: how to properly determine function length? */
-  size_t len = (char *)func_inc - (char *)func_dec;
+  size_t len = (char *)func_dec - (char *)func_inc;
   memcpy(func_buf, func_inc, len);
 
   func_int_t ff = (func_int_t)func_buf;
