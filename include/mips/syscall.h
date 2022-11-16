@@ -36,10 +36,6 @@
 
 #if defined(_MACHDEP) && defined(_KERNEL)
 
-static inline register_t sc_md_code(ctx_t *ctx) {
-  return _REG(ctx, V0);
-}
-
 static inline void *sc_md_args(ctx_t *ctx) {
   return &_REG(ctx, A0);
 }

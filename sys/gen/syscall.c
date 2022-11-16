@@ -5,8 +5,7 @@
 #include <sys/sysent.h>
 #include <machine/syscall.h>
 
-void syscall_handler(ctx_t *ctx, syscall_result_t *result) {
-  int code = sc_md_code(ctx);
+void syscall_handler(int code, ctx_t *ctx, syscall_result_t *result) {
   register_t args[SYS_MAXSYSARGS];
   const size_t nregs = min(SYS_MAXSYSARGS, FUNC_MAXREGARGS);
   int error = 0;

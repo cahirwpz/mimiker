@@ -119,7 +119,7 @@ static void user_trap_handler(ctx_t *ctx) {
       break;
 
     case EXC_SYS:
-      syscall_handler(ctx, &result);
+      syscall_handler(_REG(ctx, V0), ctx, &result);
       break;
 
     case EXC_FPE:

@@ -1,8 +1,8 @@
 #define KL_LOG KL_INTR
+#include <sys/klog.h>
 #include <sys/cpu.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
-#include <sys/klog.h>
 #include <sys/pmap.h>
 #include <sys/sysent.h>
 #include <sys/thread.h>
@@ -69,50 +69,6 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
   klog("HINT: Type 'info line *%p' into gdb to find faulty code line", epc);
 
   panic("KERNEL PANIC!!!");
-}
-
-static inline void *sc_md_args(ctx_t *ctx) {
-  return &_REG(ctx, A0);
-}
-
-/*
- * RISC-V syscall ABI:
- *  - a7: code
- *  - a0-5: args
- *
- * NOTE: the following code assumes all arguments to syscalls are passed
- * via registers.
- */
-static_assert(SYS_MAXSYSARGS <= FUNC_MAXREGARGS - 1,
-              "Syscall args don't fit in registers!");
-
-static void syscall_handler(register_t code, ctx_t *ctx,
-                            syscall_result_t *result) {
-  register_t args[SYS_MAXSYSARGS];
-  const size_t nregs = SYS_MAXSYSARGS;
-  int error = 0;
-
-  memcpy(args, sc_md_args(ctx), nregs * sizeof(register_t));
-
-  if (code > SYS_MAXSYSCALL) {
-    args[0] = code;
-    code = 0;
-  }
-
-  sysent_t *se = &sysent[code];
-  size_t nargs = se->nargs;
-
-  assert(nargs <= nregs);
-
-  thread_t *td = thread_self();
-  register_t retval = 0;
-
-  assert(td->td_proc != NULL);
-
-  error = se->call(td->td_proc, (void *)args, &retval);
-
-  result->retval = error ? -1 : retval;
-  result->error = error;
 }
 
 /*

@@ -22,6 +22,6 @@ typedef struct sysent {
 
 extern struct sysent sysent[];
 
-void syscall_handler(ctx_t *ctx, syscall_result_t *result);
+void syscall_handler(int code, ctx_t *ctx, syscall_result_t *result);
 
 #endif /* !_SYS_SYSENT_H_ */

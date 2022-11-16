@@ -32,4 +32,27 @@
 
 #endif /* !__ASSEMBLER__ */
 
+#if defined(_MACHDEP) && defined(_KERNEL)
+
+static inline void *sc_md_args(ctx_t *ctx) {
+  return &_REG(ctx, A0);
+}
+
+/*
+ * RISC-V syscall ABI:
+ *  - a7: code
+ *  - a0-5: args
+ *
+ * NOTE: the following code assumes all arguments to syscalls are passed
+ * via registers.
+ */
+static_assert(SYS_MAXSYSARGS <= FUNC_MAXREGARGS - 1,
+              "Syscall args don't fit in registers!");
+
+static inline void *sc_md_stack_args(ctx_t *ctx, size_t nregs) {
+  panic("not implemented!");
+}
+
+#endif /* !_MACHDEP && !_KERNEL */
+
 #endif /* !_RISCV_SYSCALL_H_ */
