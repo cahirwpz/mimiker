@@ -13,13 +13,17 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
   panic("KERNEL PANIC!!!");
 }
 
+static inline void *sc_md_args(ctx_t *ctx) {
+  return &_REG(ctx, X0);
+}
+
 static void syscall_handler(register_t code, ctx_t *ctx,
                             syscall_result_t *result) {
   register_t args[SYS_MAXSYSARGS];
   /* On AArch64 we have more free registers than SYS_MAXSYSARGS */
   const size_t nregs = min(SYS_MAXSYSARGS, FUNC_MAXREGARGS);
 
-  memcpy(args, &_REG(ctx, X0), nregs * sizeof(register_t));
+  memcpy(args, sc_md_args(ctx), nregs * sizeof(register_t));
 
   if (code > SYS_MAXSYSCALL) {
     args[0] = code;

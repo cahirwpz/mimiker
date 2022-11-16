@@ -71,6 +71,10 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
   panic("KERNEL PANIC!!!");
 }
 
+static inline void *sc_md_args(ctx_t *ctx) {
+  return &_REG(ctx, A0);
+}
+
 /*
  * RISC-V syscall ABI:
  *  - a7: code
@@ -82,11 +86,12 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
 static_assert(SYS_MAXSYSARGS <= FUNC_MAXREGARGS - 1,
               "Syscall args don't fit in registers!");
 
-static void syscall_handler(mcontext_t *uctx, syscall_result_t *result) {
+static void syscall_handler(register_t code, ctx_t *ctx,
+                            syscall_result_t *result) {
   register_t args[SYS_MAXSYSARGS];
-  register_t code = _REG(uctx, A7);
+  const size_t nregs = SYS_MAXSYSARGS;
 
-  memcpy(args, &_REG(uctx, A0), sizeof(args));
+  memcpy(args, sc_md_args(ctx), nregs * sizeof(register_t));
 
   if (code > SYS_MAXSYSCALL) {
     args[0] = code;
@@ -96,12 +101,12 @@ static void syscall_handler(mcontext_t *uctx, syscall_result_t *result) {
   sysent_t *se = &sysent[code];
   size_t nargs = se->nargs;
 
-  assert(nargs <= SYS_MAXSYSARGS);
+  assert(nargs <= nregs);
 
   thread_t *td = thread_self();
   register_t retval = 0;
 
-  assert(td->td_proc);
+  assert(td->td_proc != NULL);
 
   int error = se->call(td->td_proc, (void *)args, &retval);
 
@@ -186,7 +191,7 @@ static void user_trap_handler(ctx_t *ctx) {
       break;
 
     case SCAUSE_ECALL_USER:
-      syscall_handler((mcontext_t *)ctx, &result);
+      syscall_handler(_REG(ctx, A7), ctx, &result);
       break;
 
     case SCAUSE_ILLEGAL_INSTRUCTION:
