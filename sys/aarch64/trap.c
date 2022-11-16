@@ -1,9 +1,8 @@
-#define KL_LOG KL_VM
+#define KL_LOG KL_INTR
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/thread.h>
 #include <sys/pmap.h>
-#include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/interrupt.h>
 #include <sys/cpu.h>
@@ -11,35 +10,6 @@
 
 static __noreturn void kernel_oops(ctx_t *ctx) {
   panic("KERNEL PANIC!!!");
-}
-
-static void syscall_handler(register_t code, ctx_t *ctx,
-                            syscall_result_t *result) {
-  register_t args[SYS_MAXSYSARGS];
-  /* On AArch64 we have more free registers than SYS_MAXSYSARGS */
-  const size_t nregs = min(SYS_MAXSYSARGS, FUNC_MAXREGARGS);
-
-  memcpy(args, &_REG(ctx, X0), nregs * sizeof(register_t));
-
-  if (code > SYS_MAXSYSCALL) {
-    args[0] = code;
-    code = 0;
-  }
-
-  sysent_t *se = &sysent[code];
-  size_t nargs = se->nargs;
-
-  assert(nargs <= nregs);
-
-  thread_t *td = thread_self();
-  register_t retval = 0;
-
-  assert(td->td_proc != NULL);
-
-  int error = se->call(td->td_proc, (void *)args, &retval);
-
-  result->retval = error ? -1 : retval;
-  result->error = error;
 }
 
 static vm_prot_t exc_access(u_long exc_code, register_t esr) {

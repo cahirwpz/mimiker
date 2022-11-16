@@ -19,7 +19,7 @@ typedef enum {
   KL_SCHED,   /* scheduler tracing */
   KL_TIME,    /* system clock & timers */
   KL_THREAD,  /* kernel threads management */
-  KL_INTR,    /* interrupts management and handling */
+  KL_INTR,    /* exception & interrupts management and handling */
   KL_DEV,     /* device management */
   KL_VFS,     /* vfs & vnode operations tracing */
   KL_PROC,    /* user process management */
