@@ -21,10 +21,10 @@ typedef struct kmalloc_pool {
 
 /* Defines a local pool of memory for use by a subsystem. */
 #define KMALLOC_DEFINE(NAME, DESC)                                             \
-  kmalloc_pool_t NAME[1] = {{                                    \
+  kmalloc_pool_t NAME[1] = {{                                                  \
     .lock = MTX_INITIALIZER(kmalloc_pool, MTX_SPIN),                           \
     .desc = (DESC),                                                            \
-  }};                                                                           \
+  }};                                                                          \
   SET_ENTRY(kmalloc_pool, NAME)
 
 #define KMALLOC_DECLARE(NAME) extern kmalloc_pool_t NAME[1];
