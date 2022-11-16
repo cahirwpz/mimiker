@@ -1,4 +1,4 @@
-#define KL_LOG KL_VM
+#define KL_LOG KL_INTR
 #include <sys/cpu.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
@@ -90,6 +90,7 @@ static void syscall_handler(register_t code, ctx_t *ctx,
                             syscall_result_t *result) {
   register_t args[SYS_MAXSYSARGS];
   const size_t nregs = SYS_MAXSYSARGS;
+  int error = 0;
 
   memcpy(args, sc_md_args(ctx), nregs * sizeof(register_t));
 
@@ -108,7 +109,7 @@ static void syscall_handler(register_t code, ctx_t *ctx,
 
   assert(td->td_proc != NULL);
 
-  int error = se->call(td->td_proc, (void *)args, &retval);
+  error = se->call(td->td_proc, (void *)args, &retval);
 
   result->retval = error ? -1 : retval;
   result->error = error;

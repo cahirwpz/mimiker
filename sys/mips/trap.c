@@ -1,4 +1,4 @@
-#define KL_LOG KL_VM
+#define KL_LOG KL_INTR
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>

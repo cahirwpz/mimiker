@@ -1,4 +1,4 @@
-#define KL_LOG KL_VM
+#define KL_LOG KL_INTR
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/thread.h>
@@ -22,6 +22,7 @@ static void syscall_handler(register_t code, ctx_t *ctx,
   register_t args[SYS_MAXSYSARGS];
   /* On AArch64 we have more free registers than SYS_MAXSYSARGS */
   const size_t nregs = min(SYS_MAXSYSARGS, FUNC_MAXREGARGS);
+  int error = 0;
 
   memcpy(args, sc_md_args(ctx), nregs * sizeof(register_t));
 
@@ -40,7 +41,7 @@ static void syscall_handler(register_t code, ctx_t *ctx,
 
   assert(td->td_proc != NULL);
 
-  int error = se->call(td->td_proc, (void *)args, &retval);
+  error = se->call(td->td_proc, (void *)args, &retval);
 
   result->retval = error ? -1 : retval;
   result->error = error;
