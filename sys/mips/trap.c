@@ -1,65 +1,14 @@
 #define KL_LOG KL_INTR
 #include <sys/klog.h>
-#include <sys/errno.h>
 #include <sys/interrupt.h>
 #include <sys/cpu.h>
 #include <sys/context.h>
 #include <mips/tlb.h>
 #include <sys/pmap.h>
-#include <sys/sysent.h>
 #include <sys/thread.h>
-#include <sys/vm_map.h>
-#include <sys/vm_physmem.h>
 
 __no_profile static inline unsigned exc_code(ctx_t *ctx) {
   return (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
-}
-
-static void syscall_handler(ctx_t *ctx, syscall_result_t *result) {
-  /* TODO Eventually we should have a platform-independent syscall handler. */
-  register_t args[SYS_MAXSYSARGS];
-  register_t code = _REG(ctx, V0);
-  const size_t nregs = min(SYS_MAXSYSARGS, FUNC_MAXREGARGS);
-  int error = 0;
-
-  /*
-   * Copy the arguments passed via register from the
-   * trapctx to our argument array
-   */
-  memcpy(args, &_REG(ctx, A0), nregs * sizeof(register_t));
-
-  if (code > SYS_MAXSYSCALL) {
-    args[0] = code;
-    code = 0;
-  }
-
-  sysent_t *se = &sysent[code];
-  size_t nargs = se->nargs;
-
-  if (nargs > nregs) {
-    /*
-     * From ABI:
-     * Despite the fact that some or all of the arguments to a function are
-     * passed in registers, always allocate space on the stack for all
-     * arguments.
-     * For this reason, we read from the user stack with some offset.
-     */
-    vaddr_t usp = _REG(ctx, SP) + nregs * sizeof(register_t);
-    error = copyin((register_t *)usp, &args[nregs],
-                   (nargs - nregs) * sizeof(register_t));
-  }
-
-  /* Call the handler. */
-  thread_t *td = thread_self();
-  register_t retval = 0;
-
-  assert(td->td_proc != NULL);
-
-  if (!error)
-    error = se->call(td->td_proc, (void *)args, &retval);
-
-  result->retval = error ? -1 : retval;
-  result->error = error;
 }
 
 /*

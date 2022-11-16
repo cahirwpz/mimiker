@@ -5,6 +5,7 @@
 #include <sys/syscall.h>
 #include <sys/syscallargs.h>
 
+typedef struct ctx ctx_t;
 typedef struct proc proc_t;
 
 typedef int syscall_t(proc_t *, void *, register_t *);
@@ -20,5 +21,7 @@ typedef struct sysent {
 } sysent_t;
 
 extern struct sysent sysent[];
+
+void syscall_handler(ctx_t *ctx, syscall_result_t *result);
 
 #endif /* !_SYS_SYSENT_H_ */
