@@ -22,12 +22,15 @@ void syscall_handler(int code, ctx_t *ctx, syscall_result_t *result) {
   }
 
   sysent_t *se = &sysent[code];
+
+#if SYS_MAXSYSARGS > FUNC_MAXREGARGS
   size_t nargs = se->nargs;
 
   if (nargs > nregs) {
     error = copyin(sc_md_stack_args(ctx, nregs), &args[nregs],
                    (nargs - nregs) * sizeof(register_t));
   }
+#endif
 
   /* Call the handler. */
   thread_t *td = thread_self();

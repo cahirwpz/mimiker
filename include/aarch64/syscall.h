@@ -35,10 +35,6 @@ static inline void *sc_md_args(ctx_t *ctx) {
   return &_REG(ctx, X0);
 }
 
-static inline void *sc_md_stack_args(ctx_t *ctx, size_t nregs) {
-  panic("not implemented!");
-}
-
 #endif /* !_MACHDEP && !_KERNEL */
 
 #endif /* !_AARCH64_SYSCALL_H_ */
