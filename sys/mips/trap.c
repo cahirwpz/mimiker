@@ -152,7 +152,7 @@ static void user_trap_handler(ctx_t *ctx) {
   sched_maybe_preempt();
 
   /* If we're about to return to user mode then check pending signals, etc. */
-  on_user_exc_leave((mcontext_t *)ctx, code == EXC_SYS ? &result : NULL);
+  sig_userret((mcontext_t *)ctx, code == EXC_SYS ? &result : NULL);
 }
 
 static void kern_trap_handler(ctx_t *ctx) {

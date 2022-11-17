@@ -532,6 +532,37 @@ __noreturn void sig_exit(thread_t *td, signo_t sig) {
   proc_exit(MAKE_STATUS_SIG_TERM(sig));
 }
 
+void sig_userret(mcontext_t *ctx, syscall_result_t *result) {
+  thread_t *td = thread_self();
+  proc_t *p = td->td_proc;
+  int sig = 0;
+  ksiginfo_t ksi;
+
+  /* XXX we need to know if there's a signal to be delivered in order to call
+   * set_syscall_retval(), but we also need to call set_syscall_retval() before
+   * sig_post(), as set_syscall_retval() assumes the context has not been
+   * modified, and sig_post() modifies it. This is why the logic here looks
+   * a bit weird. */
+  WITH_PROC_LOCK(p) {
+    if (td->td_flags & TDF_NEEDSIGCHK) {
+      sig = sig_check(td, &ksi);
+    }
+
+    /* Set return value from syscall, restarting it if needed. */
+    if (result)
+      syscall_set_retval(ctx, result, sig);
+
+    /* Process pending signals. */
+    while (sig) {
+      /* Calling sig_post() multiple times before returning to userspace
+       * will not make us lose signals, see comment on sig_post() in signal.h
+       */
+      sig_post(&ksi);
+      sig = sig_check(td, &ksi);
+    }
+  }
+}
+
 int do_sigreturn(ucontext_t *ucp) {
   thread_t *td = thread_self();
   mcontext_t *uctx = td->td_uctx;

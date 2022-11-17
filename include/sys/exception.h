@@ -7,6 +7,4 @@
 
 __noreturn __long_call void user_exc_leave(void);
 
-void on_user_exc_leave(mcontext_t *ctx, syscall_result_t *result);
-
 #endif /* !_SYS_EXCEPTION_H_ */
