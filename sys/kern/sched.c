@@ -15,6 +15,7 @@ static MTX_DEFINE(sched_lock, MTX_SPIN);
 static runq_t runq;
 static bool sched_active = false;
 
+/* clang-format off */
 static const char *thread_state_name[] = {
   [TDS_INACTIVE] = "inactive",
   [TDS_READY] = "ready",
@@ -24,6 +25,7 @@ static const char *thread_state_name[] = {
   [TDS_STOPPED] = "stopped",
   [TDS_DEAD] = "dead",
 };
+/* clang-format on */
 
 #define SLICE 10
 
