@@ -1,6 +1,7 @@
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/exec.h>
+#include <sys/kenv.h>
 #include <sys/ktest.h>
 #include <sys/thread.h>
 #include <sys/proc.h>
@@ -17,10 +18,14 @@ static __noreturn void utest_generic_thread(void *arg) {
 }
 
 /* This is the klog mask used with utests. */
-#define KL_UTEST_MASK (KL_ALL & (~KL_MASK(KL_VM)) & (~KL_MASK(KL_PHYSMEM)))
+#define KL_UTEST_MASK                                                          \
+  (KL_ALL & (~(KL_MASK(KL_INTR) | KL_MASK(KL_PMAP) | KL_MASK(KL_PHYSMEM))))
 
 static int utest_generic(const char *name, int status_success) {
-  unsigned old_klog_mask = klog_setmask(KL_UTEST_MASK);
+  const char *utest_mask = kenv_get("klog-utest-mask");
+  unsigned new_klog_mask =
+    utest_mask ? (unsigned)strtol(utest_mask, NULL, 16) : KL_UTEST_MASK;
+  unsigned old_klog_mask = klog_setmask(new_klog_mask);
 
   /* Prefix test thread's name with `utest-`. */
   char prefixed_name[TD_NAME_MAX];
