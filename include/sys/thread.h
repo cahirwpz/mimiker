@@ -59,21 +59,23 @@ typedef enum {
   TDS_DEAD
 } thread_state_t;
 
-#define TDF_SLICEEND 0x00000001   /* run out of time slice */
-#define TDF_NEEDSWITCH 0x00000002 /* must switch on next opportunity */
-#define TDF_NEEDSIGCHK 0x00000004 /* signals were posted for delivery */
-#define TDF_STOPPING 0x00000008   /* thread is about to stop */
-#define TDF_BORROWING 0x00000010  /* priority propagation */
-/* TDF_SLP* flags are used internally by sleep queue */
-#define TDF_SLPINTR 0x00000040  /* sleep is interruptible */
-#define TDF_SLPTIMED 0x00000080 /* sleep with timeout */
+typedef enum {
+  TDF_SLICEEND = 0x0001,   /* run out of time slice */
+  TDF_NEEDSWITCH = 0x0002, /* must switch on next opportunity */
+  TDF_NEEDSIGCHK = 0x0004, /* signals were posted for delivery */
+  TDF_STOPPING = 0x0008,   /* thread is about to stop */
+  TDF_BORROWING = 0x0010,  /* priority propagation */
+  /* TDF_SLP* flags are used internally by sleep queue */
+  TDF_SLPINTR = 0x0040,  /* sleep is interruptible */
+  TDF_SLPTIMED = 0x0080, /* sleep with timeout */
+} td_flags_t;
 
 typedef enum {
   TDP_OLDSIGMASK = 0x01,  /* Pass td_oldsigmask as return mask to send_sig(). */
   TDP_FPUCTXSAVED = 0x02, /* FPU context was saved by `ctx_switch`. */
   TDP_FPUINUSE = 0x04     /* FPU is in use and its context should be saved &
                               restored on demand. */
-} tdp_flags_t;
+} td_pflags_t;
 
 /*! \brief Thread structure
  *
@@ -109,8 +111,8 @@ typedef struct thread {
   tid_t td_tid;    /*!< (@) thread identifier */
   /* thread state */
   thread_state_t td_state;        /*!< (t) thread state */
-  volatile uint32_t td_flags;     /*!< (t) TDF_* flags */
-  volatile tdp_flags_t td_pflags; /*!< (*) TDP_* (private) flags */
+  volatile td_flags_t td_flags;   /*!< (t) TDF_* flags */
+  volatile td_pflags_t td_pflags; /*!< (*) TDP_* (private) flags */
   /* thread context */
   volatile unsigned td_idnest; /*!< (*) interrupt disable nest level */
   volatile unsigned td_pdnest; /*!< (*) preemption disable nest level */

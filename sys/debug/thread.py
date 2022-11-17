@@ -6,13 +6,23 @@ from .utils import func_ret_addr, local_var, TextTable
 from .ctx import Context
 
 
+def sigpend(v):
+    return '{:08x}'.format(int(v['sp_set']['__bits']) << 1)
+
+
+def sigmask(v):
+    return '{:08x}'.format(int(v['__bits']) << 1)
+
+
 class Thread(metaclass=GdbStructMeta):
     __ctype__ = 'struct thread'
     __cast__ = {'td_waitpt': ProgramCounter,
                 'td_tid': int,
                 'td_state': enum,
                 'td_prio': int,
-                'td_name': cstr}
+                'td_name': cstr,
+                'td_sigpend': sigpend,
+                'td_sigmask': sigmask}
 
     @staticmethod
     def current():
