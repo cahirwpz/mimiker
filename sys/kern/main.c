@@ -42,7 +42,12 @@ static void mount_fs(void) {
 
 static __noreturn void start_init(__unused void *arg) {
   proc_t *p = proc_self();
+  thread_t *td = thread_self();
   int error;
+
+  WITH_MTX_LOCK (td->td_lock) {
+    sched_set_prio(td, prio_uthread(PRIO_MID));
+  }
 
   /* [SECOND_PASS] Init devices that need extra kernel API to be functional. */
   init_devices();
