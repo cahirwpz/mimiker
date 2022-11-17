@@ -11,6 +11,7 @@ python sys.path.append(os.path.join(os.getcwd(), 'sys'))
 python import debug
 
 define post-mortem
+  add-symbol-file bin/utest/utest.uelf 0x400000
   echo \n*** REGISTERS ***\n\n
   info registers all
   echo \n*** BACKTRACE ***\n\n
@@ -20,8 +21,6 @@ define post-mortem
   kthread *
   klog
 end
-
-add-symbol-file bin/utest/utest.uelf 0x400000
 
 break ktest_success
 commands
