@@ -42,9 +42,12 @@ class Kprocess(SimpleCommand):
         table = TextTable(align='rllll')
         table.header(['Pid', 'Tid', 'State', 'SigPend', 'SigMask'])
         for p in Process.list_all():
-            thread = None if p.p_state == 'PS_ZOMBIE' else p.p_thread
-            table.add_row([p.p_pid, thread, p.p_state, thread.td_sigpend,
-                           thread.td_sigmask])
+            if p.p_state == 'PS_ZOMBIE':
+                td, sigpend, sigmask = None, 0, 0
+            else:
+                td = p.p_thread
+                sigpend, sigmask = td.td_sigpend, td.td_sigmask
+            table.add_row([p.p_pid, td, p.p_state, sigpend, sigmask])
         print(table)
 
 
