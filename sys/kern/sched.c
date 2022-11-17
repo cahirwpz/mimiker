@@ -15,20 +15,6 @@ static MTX_DEFINE(sched_lock, MTX_SPIN);
 static runq_t runq;
 static bool sched_active = false;
 
-#if 0
-/* clang-format off */
-static const char *thread_state_name[] = {
-  [TDS_INACTIVE] = "inactive",
-  [TDS_READY] = "ready",
-  [TDS_RUNNING] = "running",
-  [TDS_SLEEPING] = "sleeping",
-  [TDS_BLOCKED] = "blocked",
-  [TDS_STOPPED] = "stopped",
-  [TDS_DEAD] = "dead",
-};
-/* clang-format on */
-#endif
-
 #define SLICE 10
 
 void init_sched(void) {
@@ -173,10 +159,6 @@ void sched_switch(void) {
     panic("Switching context while interrupts are disabled is forbidden!");
 
   WITH_INTR_DISABLED {
-#if 0
-    klog("Switching from thread %d (%s) to thread %d", td->td_tid,
-         thread_state_name[td->td_state], newtd->td_tid);
-#endif
     mtx_unlock(td->td_lock);
     ctx_switch(td, newtd);
     return;
