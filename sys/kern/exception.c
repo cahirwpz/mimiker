@@ -14,10 +14,12 @@ void on_exc_leave(void) {
     return;
 
   thread_t *td = thread_self();
+  mtx_lock(td->td_lock);
   if (td->td_flags & TDF_NEEDSWITCH) {
-    mtx_lock(td->td_lock);
     td->td_state = TDS_READY;
     sched_switch();
+  } else {
+    mtx_unlock(td->td_lock);
   }
 }
 
