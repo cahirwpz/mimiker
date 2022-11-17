@@ -21,7 +21,7 @@ define post-mortem
   klog
 end
 
-add-symbol-file sysroot/bin/utest.dbg 0x400000
+add-symbol-file bin/utest/utest.uelf 0x400000
 
 break ktest_success
 commands
