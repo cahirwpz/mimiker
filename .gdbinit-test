@@ -12,7 +12,7 @@ python import debug
 
 define post-mortem
   echo \n*** REGISTERS ***\n\n
-  info registers
+  info registers all
   echo \n*** BACKTRACE ***\n\n
   backtrace full
   echo \n*** KERNEL STRUCTURES ***\n\n
