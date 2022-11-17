@@ -159,6 +159,7 @@ void sched_switch(void) {
     panic("Switching context while interrupts are disabled is forbidden!");
 
   WITH_INTR_DISABLED {
+    klog("Switching from thread %d to thread %d", td->td_tid, newtd->td_tid);
     mtx_unlock(td->td_lock);
     ctx_switch(td, newtd);
     return;
