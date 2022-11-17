@@ -6,13 +6,24 @@ from .utils import func_ret_addr, local_var, TextTable
 from .ctx import Context
 
 
+def sigpend(v):
+    return '{:08x}'.format(int(v['sp_set']['__bits']) << 1)
+
+
+def sigmask(v):
+    return '{:08x}'.format(int(v['__bits']) << 1)
+
+
 class Thread(metaclass=GdbStructMeta):
     __ctype__ = 'struct thread'
     __cast__ = {'td_waitpt': ProgramCounter,
                 'td_tid': int,
                 'td_state': enum,
                 'td_prio': int,
-                'td_name': cstr}
+                'td_name': cstr,
+                'td_flags': str,
+                'td_sigpend': sigpend,
+                'td_sigmask': sigmask}
 
     @staticmethod
     def current():
@@ -104,12 +115,13 @@ class Kthread(SimpleCommand, AutoCompleteMixin):
 
     def dump_all(self, backtrace=False):
         cur_td = Thread.from_current()
-        table = TextTable(types='ittit', align='rrrrl')
-        table.header(['Id', 'Name', 'State', 'Priority', 'Waiting Point'])
+        table = TextTable(types='itttit', align='rrrrrl')
+        table.header(['Id', 'Name', 'State', 'Flags', 'Priority',
+                      'Waiting Point'])
         for td in Thread.list_all():
             marker = '(*) ' if cur_td.td_tid == td.td_tid else ''
             table.add_row(['{}{}'.format(marker, td.td_tid), td.td_name,
-                           td.td_state, td.td_prio, td.td_waitpt])
+                           td.td_state, td.td_flags, td.td_prio, td.td_waitpt])
         print('(*) current thread marker')
         print(table)
 

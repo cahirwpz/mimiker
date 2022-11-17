@@ -41,6 +41,9 @@ void syscall_handler(int code, ctx_t *ctx, syscall_result_t *result) {
   if (!error)
     error = se->call(td->td_proc, (void *)args, &retval);
 
+  if (error && error < EJUSTRETURN)
+    klog("%s(...) = %d", se->name, error);
+
   result->retval = error ? -1 : retval;
   result->error = error;
 }

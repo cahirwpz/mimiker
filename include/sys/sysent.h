@@ -16,8 +16,9 @@ typedef struct {
 } syscall_result_t;
 
 typedef struct sysent {
-  int nargs;       /* number of args passed to syscall */
-  syscall_t *call; /* syscall implementation */
+  const char *name; /* syscall name for logging purposes */
+  int nargs;        /* number of args passed to syscall */
+  syscall_t *call;  /* syscall implementation */
 } sysent_t;
 
 extern struct sysent sysent[];
