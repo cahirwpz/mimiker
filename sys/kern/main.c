@@ -44,13 +44,11 @@ static __noreturn void start_init(__unused void *arg) {
   proc_t *p = proc_self();
   int error;
 
-#if 0
   thread_t *td = thread_self();
 
   WITH_MTX_LOCK (td->td_lock) {
     sched_set_prio(td, prio_uthread(PRIO_MID));
   }
-#endif
 
   /* [SECOND_PASS] Init devices that need extra kernel API to be functional. */
   init_devices();
