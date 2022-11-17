@@ -220,7 +220,8 @@ __noreturn void sched_run(void) {
 }
 
 void sched_maybe_preempt(void) {
-  if (preempt_disabled() || intr_disabled())
+  /* If thread requested not to be preempted, then do not switch out! */
+  if (preempt_disabled())
     return;
 
   thread_t *td = thread_self();

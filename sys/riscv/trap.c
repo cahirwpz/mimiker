@@ -6,6 +6,7 @@
 #include <sys/pmap.h>
 #include <sys/sysent.h>
 #include <sys/thread.h>
+#include <sys/sched.h>
 #include <riscv/cpufunc.h>
 
 /* clang-format off */
@@ -167,7 +168,7 @@ static void user_trap_handler(ctx_t *ctx) {
   }
 
   /* This is a right moment to check if our time slice expired. */
-  on_exc_leave();
+  sched_maybe_preempt();
 
   /* If we're about to return to user mode, then check pending signals, etc. */
   on_user_exc_leave((mcontext_t *)ctx,

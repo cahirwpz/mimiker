@@ -8,21 +8,6 @@
 #include <sys/proc.h>
 #include <sys/signal.h>
 
-void on_exc_leave(void) {
-  /* If thread requested not to be preempted, then do not switch out! */
-  if (preempt_disabled())
-    return;
-
-  thread_t *td = thread_self();
-  mtx_lock(td->td_lock);
-  if (td->td_flags & TDF_NEEDSWITCH) {
-    td->td_state = TDS_READY;
-    sched_switch();
-  } else {
-    mtx_unlock(td->td_lock);
-  }
-}
-
 static void set_syscall_retval(mcontext_t *ctx, syscall_result_t *result,
                                int sig) {
   int error = result->error;

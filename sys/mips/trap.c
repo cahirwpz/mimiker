@@ -5,6 +5,7 @@
 #include <sys/context.h>
 #include <mips/tlb.h>
 #include <sys/pmap.h>
+#include <sys/sched.h>
 #include <sys/thread.h>
 
 __no_profile static inline unsigned exc_code(ctx_t *ctx) {
@@ -148,7 +149,7 @@ static void user_trap_handler(ctx_t *ctx) {
   }
 
   /* This is right moment to check if out time slice expired. */
-  on_exc_leave();
+  sched_maybe_preempt();
 
   /* If we're about to return to user mode then check pending signals, etc. */
   on_user_exc_leave((mcontext_t *)ctx, code == EXC_SYS ? &result : NULL);

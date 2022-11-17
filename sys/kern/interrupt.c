@@ -172,7 +172,7 @@ __no_profile void intr_root_handler(ctx_t *ctx) {
   PCPU_SET(no_switch, false);
 
   /* If filter routine requested a context switch it's now time to handle it. */
-  on_exc_leave();
+  sched_maybe_preempt();
 
   /* To avoid `intr_root_handler` nesting while in kernel mode,
    * we have to complete this routine without interrupts enabled.
