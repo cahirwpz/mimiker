@@ -202,9 +202,11 @@ void vm_map_delete(vm_map_t *map) {
 void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   SCOPED_MTX_LOCK(&map->mtx);
 
+#if 0
   klog("vm_map_protect: 0x%x - 0x%x %c%c%c", start, end,
        (prot & VM_PROT_READ) ? 'r' : '-', (prot & VM_PROT_WRITE) ? 'w' : '-',
        (prot & VM_PROT_EXEC) ? 'x' : '-');
+#endif
 
   vm_map_entry_t *ent, *next;
   TAILQ_FOREACH_SAFE (ent, &map->entries, link, next) {
@@ -368,7 +370,9 @@ void vm_map_dump(vm_map_t *map) {
          (it->prot & VM_PROT_READ) ? 'r' : '-',
          (it->prot & VM_PROT_WRITE) ? 'w' : '-',
          (it->prot & VM_PROT_EXEC) ? 'x' : '-');
+#if 0
     vm_object_dump(it->object);
+#endif
   }
 }
 
