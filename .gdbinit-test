@@ -17,6 +17,7 @@ define post-mortem
   echo \n*** BACKTRACE ***\n\n
   backtrace full
   echo \n*** KERNEL STRUCTURES ***\n\n
+  print all_proc_mtx
   kproc
   kthread *
   klog
