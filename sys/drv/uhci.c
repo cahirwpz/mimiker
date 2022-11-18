@@ -51,17 +51,30 @@ typedef struct uhci_state {
  * - `P_DATA` - memory buffers for I/O data to transfer.
  */
 
-#define UHCI_TFR_BUF_SIZE 128
-#define UHCI_TFR_POOL_SIZE PAGESIZE
+#define UHCI_DATA_BUF_SIZE 512UL
 
-#define UHCI_DATA_BUF_SIZE (2 * UHCI_TD_MAXLEN)
-#define UHCI_DATA_POOL_SIZE (64 * PAGESIZE)
+/* Control transfer: SETUP + (device request + actual data) + STATUS. */
+#define UHCI_TFR_CTRL_MAX_TDS                                                  \
+  (2 + (UHCI_DATA_BUF_SIZE - sizeof(usb_dev_req_t)) / USB_MAX_IPACKET)
+
+/* DATA transfer: actual data. */
+#define UHCI_TFR_DATA_MAX_TDS (UHCI_DATA_BUF_SIZE / USB_MAX_IPACKET)
+
+#define UHCI_TFR_MAX_TDS max(UHCI_TFR_CTRL_MAX_TDS, UHCI_TFR_DATA_MAX_TDS)
+#define UHCI_TFR_BUF_SIZE                                                      \
+  (sizeof(uhci_qh_t) + UHCI_TFR_MAX_TDS * sizeof(uhci_td_t))
+
+#define UHCI_MAX_NREQS 15 /* maximum number of scheduled request */
+
+#define UHCI_DATA_POOL_SIZE (UHCI_MAX_NREQS * UHCI_DATA_BUF_SIZE)
+
+#define UHCI_TFR_POOL_SIZE (UHCI_MAX_NREQS * UHCI_TFR_BUF_SIZE)
 
 #define UHCI_ALIGNMENT max(UHCI_TD_ALIGN, UHCI_QH_ALIGN)
 
 static POOL_DEFINE(P_TFR, "UHCI transfer buffers", UHCI_TFR_BUF_SIZE,
                    UHCI_ALIGNMENT);
-static POOL_DEFINE(P_DATA, "UHCI data  buffers", UHCI_DATA_BUF_SIZE);
+static POOL_DEFINE(P_DATA, "UHCI data buffers", UHCI_DATA_BUF_SIZE);
 
 /*
  * How do we manage the UHCI frame list?
@@ -345,7 +358,7 @@ static void qh_init_main(uhci_qh_t *mq) {
   bzero(mq, sizeof(uhci_qh_t));
   mq->qh_h_next = UHCI_PTR_T;
   mq->qh_e_next = UHCI_PTR_T;
-  spin_init(&mq->qh_lock, 0);
+  mtx_init(&mq->qh_lock, MTX_SLEEP);
   TAILQ_INIT(&mq->qh_list);
 }
 
@@ -372,7 +385,7 @@ static inline void qh_unhalt(uhci_qh_t *qh) {
 
 /* Insert the specified queue into the specified main queue for execution. */
 static void qh_insert(uhci_qh_t *mq, uhci_qh_t *qh) {
-  SCOPED_SPIN_LOCK(&mq->qh_lock);
+  SCOPED_MTX_LOCK(&mq->qh_lock);
 
   uhci_qh_t *last = TAILQ_LAST(&mq->qh_list, qh_list);
 
@@ -388,7 +401,7 @@ static void qh_insert(uhci_qh_t *mq, uhci_qh_t *qh) {
 
 /* Remove the specified queue from the specified main queue. */
 static void qh_remove(uhci_qh_t *mq, uhci_qh_t *qh) {
-  assert(spin_owned(&mq->qh_lock));
+  assert(mtx_owned(&mq->qh_lock));
 
   uhci_qh_t *prev = TAILQ_PREV(qh, qh_list, qh_link);
 
@@ -416,7 +429,7 @@ static uint32_t qh_error_status(uhci_qh_t *qh) {
 /* Remove the specified queue from the pointed main queue and reclaim
  * UHCI buffers associated with the queue. */
 static void qh_discard(uhci_qh_t *mq, uhci_qh_t *qh) {
-  assert(spin_owned(&mq->qh_lock));
+  assert(mtx_owned(&mq->qh_lock));
   qh_remove(mq, qh);
   qh_free(qh);
 }
@@ -466,13 +479,17 @@ static void uhci_init_frames(uhci_state_t *uhci) {
 
 /* Supply a contiguous physical memory for further buffer allocation. */
 static void uhci_init_pool(void) {
+  const size_t tfr_pool_asize = roundup2(UHCI_TFR_POOL_SIZE, PAGESIZE);
+  assert(powerof2(tfr_pool_asize));
   void *tfr_pool =
-    (void *)kmem_alloc_contig(NULL, UHCI_TFR_POOL_SIZE, PMAP_NOCACHE);
-  pool_add_page(P_TFR, tfr_pool, UHCI_TFR_POOL_SIZE);
+    (void *)kmem_alloc_contig(NULL, tfr_pool_asize, PMAP_NOCACHE);
+  pool_add_page(P_TFR, tfr_pool, tfr_pool_asize);
 
+  const size_t data_pool_asize = roundup2(UHCI_DATA_POOL_SIZE, PAGESIZE);
+  assert(powerof2(data_pool_asize));
   void *data_pool =
-    (void *)kmem_alloc_contig(NULL, UHCI_DATA_POOL_SIZE, PMAP_NOCACHE);
-  pool_add_page(P_DATA, data_pool, UHCI_DATA_POOL_SIZE);
+    (void *)kmem_alloc_contig(NULL, data_pool_asize, PMAP_NOCACHE);
+  pool_add_page(P_DATA, data_pool, data_pool_asize);
 }
 
 /*
@@ -497,7 +514,7 @@ static usb_error_t uhcie2usbe(uint32_t error) {
 
 /* Process the transfer identified by queue `qh`. */
 static void uhci_process(uhci_state_t *uhci, uhci_qh_t *mq, uhci_qh_t *qh) {
-  assert(spin_owned(&mq->qh_lock));
+  assert(mtx_owned(&mq->qh_lock));
 
   qh_halt(qh);
 
@@ -548,9 +565,18 @@ static intr_filter_t uhci_isr(void *data) {
   for (int i = 0; i < UHCI_NMAINQS; i++) {
     uhci_qh_t *mq = uhci->mainqs[i];
     qh_halt(mq);
+  }
 
+  return IF_DELEGATE;
+}
+
+static void uhci_service(void *data) {
+  uhci_state_t *uhci = data;
+
+  for (int i = 0; i < UHCI_NMAINQS; i++) {
+    uhci_qh_t *mq = uhci->mainqs[i];
     /* Travers each main queue to find the delinquent. */
-    WITH_SPIN_LOCK (&mq->qh_lock) {
+    WITH_MTX_LOCK (&mq->qh_lock) {
       uhci_qh_t *qh, *next;
       TAILQ_FOREACH_SAFE (qh, &mq->qh_list, qh_link, next)
         uhci_process(uhci, mq, qh);
@@ -559,8 +585,6 @@ static intr_filter_t uhci_isr(void *data) {
         qh_unhalt(mq);
     }
   }
-
-  return IF_FILTERED;
 }
 
 /* Schedule a queue for execution in `flr(log(interval))` ms. */
@@ -713,7 +737,7 @@ static uint8_t uhci_detect_ports(uhci_state_t *uhci) {
   }
 
   uhci->nports = port;
-  klog("detected %hhu ports", uhci->nports);
+  klog("detected %u ports", uhci->nports);
 
   return port;
 }
@@ -777,10 +801,14 @@ static int uhci_probe(device_t *dev) {
 
 static int uhci_attach(device_t *dev) {
   uhci_state_t *uhci = dev->state;
+  int err = 0;
 
   /* Gather I/O ports resources. */
-  uhci->regs = device_take_ioports(dev, 4, RF_ACTIVE);
+  uhci->regs = device_take_ioports(dev, 4);
   assert(uhci->regs);
+
+  if ((err = bus_map_resource(dev, uhci->regs)))
+    return err;
 
   /* Perform the global reset of the UHCI controller. */
   set16(UHCI_CMD, UHCI_CMD_GRESET);
@@ -819,9 +847,9 @@ static int uhci_attach(device_t *dev) {
   pci_enable_busmaster(dev);
 
   /* Setup host controller's interrupt. */
-  uhci->irq = device_take_irq(dev, 0, RF_ACTIVE);
+  uhci->irq = device_take_irq(dev, 0);
   assert(uhci->irq);
-  pic_setup_intr(dev, uhci->irq, uhci_isr, NULL, uhci, "UHCI");
+  pic_setup_intr(dev, uhci->irq, uhci_isr, uhci_service, uhci, "UHCI");
 
   /* Turn on the IOC and error interrupts. */
   set16(UHCI_INTR, UHCI_INTR_TOCRCIE | UHCI_INTR_IOCE);

@@ -32,4 +32,17 @@
 
 #endif /* !__ASSEMBLER__ */
 
+#if defined(_MACHDEP) && defined(_KERNEL)
+
+/*
+ * RISC-V syscall ABI:
+ *  - a7: code
+ *  - a0-5: args
+ */
+static inline void *sc_md_args(ctx_t *ctx) {
+  return &_REG(ctx, A0);
+}
+
+#endif /* !_MACHDEP && !_KERNEL */
+
 #endif /* !_RISCV_SYSCALL_H_ */

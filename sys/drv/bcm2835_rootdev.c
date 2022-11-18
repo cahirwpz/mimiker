@@ -15,8 +15,6 @@
  */
 
 typedef struct rootdev {
-  rman_t rm;
-  rman_t irq_rm;
   resource_t mem_local; /* ARM local */
   intr_event_t *intr_event[BCM2836_NIRQ];
 } rootdev_t;
@@ -44,17 +42,6 @@ static void rootdev_disable_irq(intr_event_t *ie) {
   out4(BCM2836_LOCAL_TIMER_IRQ_CONTROLN(0), irqctrl & ~(1 << irq));
 }
 
-static resource_t *rootdev_alloc_intr(device_t *pic, device_t *dev, int rid,
-                                      unsigned irq, rman_flags_t flags) {
-  rootdev_t *rd = pic->state;
-  rman_t *rman = &rd->irq_rm;
-  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
-}
-
-static void rootdev_release_intr(device_t *pic, device_t *dev, resource_t *r) {
-  resource_release(r);
-}
-
 static const char *rootdev_intr_name(int irq) {
   return kasprintf("ARM local interrupt source %d", irq);
 }
@@ -63,7 +50,7 @@ static void rootdev_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                                ih_filter_t *filter, ih_service_t *service,
                                void *arg, const char *name) {
   rootdev_t *rd = pic->state;
-  int irq = resource_start(r);
+  int irq = r->r_irq;
   assert(irq < BCM2836_INT_NLOCAL);
 
   if (rd->intr_event[irq] == NULL)
@@ -117,14 +104,6 @@ static int rootdev_attach(device_t *bus) {
   if (bus->node == FDT_NODEV)
     return ENXIO;
 
-  rman_init(&rd->rm, "ARM and BCM2835 space");
-  rman_manage_region(&rd->rm, BCM2835_PERIPHERALS_BASE,
-                     BCM2835_PERIPHERALS_SIZE);
-  rman_manage_region(&rd->rm, BCM2836_ARM_LOCAL_BASE, BCM2836_ARM_LOCAL_SIZE);
-
-  rman_init(&rd->irq_rm, "BCM2835 local interrupts");
-  rman_manage_region(&rd->irq_rm, 0, BCM2836_NIRQ);
-
   rd->mem_local = (resource_t){
     .r_type = RT_MEMORY,
     .r_bus_tag = generic_bus_space,
@@ -142,7 +121,7 @@ static int rootdev_attach(device_t *bus) {
    */
 
   int unit = 0;
-  device_t *bcm2835_pic, *sdhci;
+  device_t *bcm2835_pic, *emmc;
 
   if ((err = simplebus_add_child(bus, "/soc/intc", unit++, bus, &bcm2835_pic)))
     return err;
@@ -150,60 +129,24 @@ static int rootdev_attach(device_t *bus) {
   if ((err = simplebus_add_child(bus, "/timer", unit++, bus, NULL)))
     return err;
 
+  if ((err = simplebus_add_child(bus, "/soc/gpio", unit++, bcm2835_pic, NULL)))
+    return err;
+
   if ((err =
          simplebus_add_child(bus, "/soc/serial", unit++, bcm2835_pic, NULL)))
     return err;
 
-  if ((err =
-         simplebus_add_child(bus, "/soc/sdhci", unit++, bcm2835_pic, &sdhci)))
+  if ((err = simplebus_add_child(bus, "/soc/emmc", unit++, bcm2835_pic, &emmc)))
     return err;
-  sdhci->devclass = &DEVCLASS(emmc);
-  /* Due to the lack of proper GPIO routines, the driver uses a workaround that
-   * requires the GPIO memory to be passed to it as a resource */
-  /* TODO: Mark a proper GPIO interface and driver */
-  device_add_memory(
-    sdhci, 1, BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_GPIO_BASE), PAGESIZE);
+  emmc->devclass = &DEVCLASS(emmc);
 
   return bus_generic_probe(bus);
 }
 
-static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
-                                          int rid, rman_addr_t start,
-                                          rman_addr_t end, size_t size,
-                                          rman_flags_t flags) {
-  rootdev_t *rd = dev->parent->state;
-  rman_t *rman = &rd->rm;
-
-  assert(type == RT_MEMORY);
-
-  resource_t *r = rman_reserve_resource(rman, type, rid, start, end, size,
-                                        sizeof(long), flags);
-  if (!r)
-    return NULL;
-
-  r->r_bus_tag = generic_bus_space;
-  r->r_bus_handle = resource_start(r);
-
-  if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, r)) {
-      resource_release(r);
-      return NULL;
-    }
-  }
-
-  return r;
-}
-
-static void rootdev_release_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_MEMORY);
-  bus_deactivate_resource(dev, r);
-  resource_release(r);
-}
-
-static int rootdev_activate_resource(device_t *dev, resource_t *r) {
+static int rootdev_map_resource(device_t *dev, resource_t *r) {
   assert(r->r_type == RT_MEMORY);
   rootdev_t *rd = dev->parent->state;
-  bus_addr_t addr = resource_start(r);
+  bus_addr_t addr = r->r_start;
   bus_size_t size = resource_size(r);
 
   bus_addr_t arm_local = BCM2836_ARM_LOCAL_BASE;
@@ -214,24 +157,22 @@ static int rootdev_activate_resource(device_t *dev, resource_t *r) {
     return 0;
   }
 
+  r->r_bus_tag = generic_bus_space;
+
   return bus_space_map(r->r_bus_tag, addr, size, &r->r_bus_handle);
 }
 
-static void rootdev_deactivate_resource(device_t *dev, resource_t *r) {
+static void rootdev_unmap_resource(device_t *dev, resource_t *r) {
   assert(r->r_type == RT_MEMORY);
   /* TODO: unmap mapped resources. */
 }
 
 static bus_methods_t rootdev_bus_if = {
-  .alloc_resource = rootdev_alloc_resource,
-  .release_resource = rootdev_release_resource,
-  .activate_resource = rootdev_activate_resource,
-  .deactivate_resource = rootdev_deactivate_resource,
+  .map_resource = rootdev_map_resource,
+  .unmap_resource = rootdev_unmap_resource,
 };
 
 static pic_methods_t rootdev_pic_if = {
-  .alloc_intr = rootdev_alloc_intr,
-  .release_intr = rootdev_release_intr,
   .setup_intr = rootdev_setup_intr,
   .teardown_intr = rootdev_teardown_intr,
   .map_intr = rootdev_map_intr,

@@ -12,13 +12,13 @@
 typedef int signo_t;
 
 typedef struct {
-  uint32_t __bits;
+  uint32_t __bits; /* bit 0 is unused */
 } sigset_t;
 
 /*
  * Macro for manipulating signal masks.
  */
-#define __sigmask(n) (1U << (((unsigned int)(n)-1) & 31))
+#define __sigmask(n) (1U << (((unsigned)(n)-1) & 31))
 #define __sigaddset(s, n) ((s)->__bits |= __sigmask(n))
 #define __sigdelset(s, n) ((s)->__bits &= ~__sigmask(n))
 #define __sigismember(s, n) (((s)->__bits & __sigmask(n)) != 0)

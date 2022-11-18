@@ -18,7 +18,6 @@ SOURCES = \
 	dev_procstat.c \
 	devfs.c \
 	event.c \
-	exception.c \
 	exec.c \
 	exec_elf.c \
 	exec_shebang.c \
@@ -43,15 +42,12 @@ SOURCES = \
 	proc.c \
 	pty.c \
 	ringbuf.c \
-	rman.c \
 	runq.c \
 	sbrk.c \
 	sched.c \
 	signal.c \
 	sleepq.c \
-	spinlock.c \
 	syscalls.c \
-	taskqueue.c \
 	turnstile.c \
 	thread.c \
 	time.c \

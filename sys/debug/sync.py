@@ -32,15 +32,14 @@ class Turnstile(metaclass=GdbStructMeta):
 
 class Mutex(metaclass=GdbStructMeta):
     __ctype__ = 'struct mtx'
-    __cast__ = {'m_count': int}
 
     def __str__(self):
         if self.m_owner:
             owner = self.m_owner & -8
             owner = owner.cast(gdb.lookup_type('thread_t').pointer())
-            return 'mtx{owner = %s, count = %d, blocked = %s}' % (
+            return 'mtx{owner = %s, blocked = %s}' % (
                     Thread(owner.dereference()),
-                    self.m_count, Turnstile(self._obj.address))
+                    Turnstile(self._obj.address))
         return 'mtx{owner = None}'
 
 

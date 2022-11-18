@@ -3,7 +3,6 @@
 #include <sys/errno.h>
 #include <sys/mimiker.h>
 #include <sys/device.h>
-#include <sys/rman.h>
 #include <sys/bus.h>
 
 KMALLOC_DEFINE(M_DEV, "devices & drivers");
@@ -59,7 +58,15 @@ int device_detach(device_t *dev) {
   return res;
 }
 
-static resource_t *resource_list_find(device_t *dev, res_type_t type, int rid) {
+static resource_t *resource_alloc(res_type_t type, int rid, res_flags_t flags) {
+  resource_t *r = kmalloc(M_DEV, sizeof(resource_t), M_WAITOK | M_ZERO);
+  r->r_type = type;
+  r->r_rid = rid;
+  r->r_flags = flags;
+  return r;
+}
+
+resource_t *device_take_resource(device_t *dev, res_type_t type, int rid) {
   resource_t *r;
   SLIST_FOREACH(r, &dev->resources, r_link) {
     if (r->r_type == type && r->r_rid == rid)
@@ -68,29 +75,26 @@ static resource_t *resource_list_find(device_t *dev, res_type_t type, int rid) {
   return NULL;
 }
 
-void device_add_resource(device_t *dev, res_type_t type, int rid,
-                         rman_addr_t start, rman_addr_t end, size_t size,
-                         rman_flags_t flags) {
-  assert(!resource_list_find(dev, rid, type));
-  resource_t *r;
-  if (type == RT_IRQ)
-    r = pic_alloc_intr(dev, rid, start, flags);
-  else
-    r = bus_alloc_resource(dev, type, rid, start, end, size, flags);
-  assert(r);
+void device_add_irq(device_t *dev, int rid, unsigned irq) {
+  assert(!device_take_resource(dev, rid, RT_IRQ));
+
+  resource_t *r = resource_alloc(RT_IRQ, rid, 0);
+  r->r_irq = irq;
+
   SLIST_INSERT_HEAD(&dev->resources, r, r_link);
 }
 
-resource_t *device_take_resource(device_t *dev, res_type_t type, int rid,
-                                 rman_flags_t flags) {
-  resource_t *r = resource_list_find(dev, type, rid);
-  if (!r)
-    return NULL;
+void device_add_range(device_t *dev, res_type_t type, int rid, bus_addr_t start,
+                      bus_addr_t end, res_flags_t flags) {
+  assert(type != RT_IRQ);
+  assert(!(type == RT_IOPORTS && (flags & RF_PREFETCHABLE)));
+  assert(!device_take_resource(dev, rid, type));
 
-  if ((type != RT_IRQ) && flags & RF_ACTIVE)
-    bus_activate_resource(dev, r);
+  resource_t *r = resource_alloc(type, rid, flags);
+  r->r_start = start;
+  r->r_end = end;
 
-  return r;
+  SLIST_INSERT_HEAD(&dev->resources, r, r_link);
 }
 
 device_t *device_method_provider(device_t *dev, drv_if_t iface,

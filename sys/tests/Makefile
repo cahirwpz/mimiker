@@ -21,7 +21,6 @@ SOURCES = \
 	sleepq_abort.c \
 	sleepq_timed.c \
 	strtol.c \
-	taskqueue.c \
 	thread_stats.c \
 	thread_exit.c \
 	turnstile_adjust.c \
@@ -34,6 +33,6 @@ SOURCES = \
 	vfs.c \
 	vmem.c
 
-CPPFLAGS = -DKL_LOG=KL_TEST
-
 include $(TOPDIR)/build/build.kern.mk
+
+CPPFLAGS += -DKL_LOG=KL_TEST

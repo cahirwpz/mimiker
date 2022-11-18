@@ -193,8 +193,11 @@ static int sb_region_to_rl(device_t *dev) {
   if (err)
     goto end;
 
-  for (size_t i = 0; i < cnt; i++)
-    device_add_memory(dev, i, mrs[i].addr, mrs[i].size);
+  for (size_t i = 0; i < cnt; i++) {
+    bus_addr_t start = mrs[i].addr;
+    bus_addr_t end = start + mrs[i].size;
+    device_add_memory(dev, i, start, end, 0);
+  }
 
 end:
   kfree(M_DEV, mrs);

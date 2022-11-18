@@ -308,7 +308,6 @@ extern void *board_stack(void);
 
 static __noreturn void aarch64_boot(void *dtb, paddr_t pde, paddr_t sbrk_end,
                                     vaddr_t vma_end) {
-  vm_kernel_end = vma_end;
   boot_sbrk_end = sbrk_end;
 
 #if KASAN
@@ -320,7 +319,7 @@ static __noreturn void aarch64_boot(void *dtb, paddr_t pde, paddr_t sbrk_end,
 
   void *sp = board_stack();
 
-  pmap_bootstrap(pde, (pde_t *)(pde + DMAP_BASE));
+  pmap_bootstrap(vma_end, pde, (pde_t *)(pde + DMAP_BASE));
 
   /*
    * Switch to thread0's stack and perform `board_init`.

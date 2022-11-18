@@ -34,4 +34,23 @@
 
 #endif /* !__ASSEMBLER__ */
 
+#if defined(_MACHDEP) && defined(_KERNEL)
+
+static inline void *sc_md_args(ctx_t *ctx) {
+  return &_REG(ctx, A0);
+}
+
+/*
+ * From ABI:
+ * Despite the fact that some or all of the arguments to a function are
+ * passed in registers, always allocate space on the stack for all
+ * arguments.
+ * For this reason, we read from the user stack with some offset.
+ */
+static inline void *sc_md_stack_args(ctx_t *ctx, size_t nregs) {
+  return (void *)(_REG(ctx, SP) + nregs * sizeof(register_t));
+}
+
+#endif /* !_MACHDEP && !_KERNEL */
+
 #endif /* !_MIPS_SYSCALL_H_ */

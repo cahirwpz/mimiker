@@ -66,7 +66,7 @@
 #include <sys/types.h>
 #include <sys/gmon.h>
 #include <sys/interrupt.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/types.h>
 
 static SPIN_DEFINE(mcount_lock, 0);

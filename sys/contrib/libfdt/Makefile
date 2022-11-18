@@ -2,8 +2,6 @@
 
 TOPDIR = $(realpath ../../..)
 
-CPPFLAGS += -I$(CURDIR)
-
 SOURCES = \
 	fdt.c \
 	fdt_addresses.c \
@@ -16,3 +14,5 @@ SOURCES = \
 	fdt_wip.c
 
 include $(TOPDIR)/build/build.kern.mk
+
+CPPFLAGS += -I$(CURDIR)

@@ -3,14 +3,14 @@
 
 #include <sys/cdefs.h>
 #include <sys/queue.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/priority.h>
-#include <sys/rman.h>
 
 #define IENAMELEN 32
 
 typedef struct ctx ctx_t;
 typedef struct device device_t;
+typedef struct resource resource_t;
 typedef struct fdt_intr fdt_intr_t;
 typedef uint32_t pcell_t;
 
@@ -71,7 +71,7 @@ typedef void ie_action_t(intr_event_t *);
 
 /* Software representation of interrupt line. */
 typedef struct intr_event {
-  spin_t ie_lock;
+  mtx_t ie_lock;
   TAILQ_ENTRY(intr_event) ie_link; /* link on list of all interrupt events */
   TAILQ_HEAD(, intr_handler) ie_handlers; /* sorted by descending ih_prio */
   ie_action_t *ie_disable; /* called before ithread delegation (mask irq) */
@@ -99,9 +99,6 @@ void intr_root_handler(ctx_t *ctx) __no_profile;
  * Interrupt controller interface.
  */
 
-typedef resource_t *(*pic_alloc_intr_t)(device_t *pic, device_t *dev, int rid,
-                                        unsigned irq, rman_flags_t flags);
-typedef void (*pic_release_intr_t)(device_t *pic, device_t *dev, resource_t *r);
 typedef void (*pic_setup_intr_t)(device_t *pic, device_t *dev, resource_t *r,
                                  ih_filter_t *filter, ih_service_t *service,
                                  void *arg, const char *name);
@@ -111,33 +108,10 @@ typedef int (*pic_map_intr_t)(device_t *pic, device_t *dev, pcell_t *intr,
                               int icells);
 
 typedef struct pic_methods {
-  pic_alloc_intr_t alloc_intr;
-  pic_release_intr_t release_intr;
   pic_setup_intr_t setup_intr;
   pic_teardown_intr_t teardown_intr;
   pic_map_intr_t map_intr;
 } pic_methods_t;
-
-/*
- * Allocate an interrupt resource.
- *
- * Arguments:
- *  - `dev`: requesting device
- *  - `rid`: unique resource ID that will be assigned to allocated resource
- *  - `irq`: interrupt request line number
- *  - `flags`: resource manager flags
- */
-resource_t *pic_alloc_intr(device_t *dev, int rid, unsigned irq,
-                           rman_flags_t flags);
-
-/*
- * Release allocated interrupt resource.
- *
- * Arguments:
- *  - `dev`: requesting device
- *  - `r`: interrupt resource to release
- */
-void pic_release_intr(device_t *dev, resource_t *r);
 
 /*
  * Register a new interrupt source for interrupt identified by `irq`.

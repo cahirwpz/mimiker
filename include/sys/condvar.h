@@ -2,7 +2,8 @@
 #define _SYS_CONDVAR_H_
 
 #include <sys/types.h>
-#include <sys/lock.h>
+
+typedef struct mtx mtx_t;
 
 typedef struct condvar {
   const char *name;     /*!< name for debugging purpose */
@@ -24,7 +25,7 @@ void cv_init(condvar_t *cv, const char *name);
 #define cv_destroy(m)
 
 /*! \brief Wait on a conditional variable. */
-void cv_wait(condvar_t *cv, lock_t m);
+void cv_wait(condvar_t *cv, mtx_t *m);
 
 /*! \brief Wait on a conditional variable with possiblity of being interrupted.
  *
@@ -41,7 +42,7 @@ void cv_wait(condvar_t *cv, lock_t m);
  * \returns EINTR if the thread was interrupted during the sleep
  * \returns ETIMEDOUT if the sleep timed out
  */
-int cv_wait_timed(condvar_t *cv, lock_t m, systime_t timeout);
+int cv_wait_timed(condvar_t *cv, mtx_t *m, systime_t timeout);
 
 /*! \brief Wake a single thread waiting on a conditional variable.
  *
