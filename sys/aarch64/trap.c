@@ -5,6 +5,7 @@
 #include <sys/pmap.h>
 #include <sys/sysent.h>
 #include <sys/interrupt.h>
+#include <sys/sched.h>
 #include <sys/cpu.h>
 #include <aarch64/armreg.h>
 
@@ -99,10 +100,10 @@ void user_trap_handler(mcontext_t *uctx) {
   }
 
   /* This is right moment to check if out time slice expired. */
-  on_exc_leave();
+  sched_maybe_preempt();
 
   /* If we're about to return to user mode then check pending signals, etc. */
-  on_user_exc_leave(uctx, exc_code == EXCP_SVC64 ? &result : NULL);
+  sig_userret(uctx, exc_code == EXCP_SVC64 ? &result : NULL);
 }
 
 void kern_trap_handler(ctx_t *ctx) {

@@ -228,7 +228,9 @@ bool sleepq_signal(void *wchan) {
   sq_wakeup(best_td, sc, sq, 0);
   sc_release(sc);
 
-  sched_maybe_preempt();
+  if (!intr_disabled())
+    sched_maybe_preempt();
+
   return true;
 }
 

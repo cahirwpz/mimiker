@@ -22,6 +22,7 @@ class Thread(metaclass=GdbStructMeta):
                 'td_prio': int,
                 'td_name': cstr,
                 'td_flags': str,
+                'td_nctxsw': int,
                 'td_sigpend': sigpend,
                 'td_sigmask': sigmask}
 
@@ -115,13 +116,14 @@ class Kthread(SimpleCommand, AutoCompleteMixin):
 
     def dump_all(self, backtrace=False):
         cur_td = Thread.from_current()
-        table = TextTable(types='itttit', align='rrrrrl')
+        table = TextTable(types='itttiti', align='rrrrrlr')
         table.header(['Id', 'Name', 'State', 'Flags', 'Priority',
-                      'Waiting Point'])
+                      'Waiting Point', '# of ctx switches'])
         for td in Thread.list_all():
             marker = '(*) ' if cur_td.td_tid == td.td_tid else ''
             table.add_row(['{}{}'.format(marker, td.td_tid), td.td_name,
-                           td.td_state, td.td_flags, td.td_prio, td.td_waitpt])
+                           td.td_state, td.td_flags, td.td_prio, td.td_waitpt,
+                           td.td_nctxsw])
         print('(*) current thread marker')
         print(table)
 

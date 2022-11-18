@@ -3,9 +3,12 @@
 #include <sys/interrupt.h>
 #include <sys/cpu.h>
 #include <sys/context.h>
-#include <mips/tlb.h>
 #include <sys/pmap.h>
+#include <sys/sched.h>
+#include <sys/sysent.h>
 #include <sys/thread.h>
+#include <mips/mcontext.h>
+#include <mips/tlb.h>
 
 __no_profile static inline unsigned exc_code(ctx_t *ctx) {
   return (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
@@ -148,10 +151,10 @@ static void user_trap_handler(ctx_t *ctx) {
   }
 
   /* This is right moment to check if out time slice expired. */
-  on_exc_leave();
+  sched_maybe_preempt();
 
   /* If we're about to return to user mode then check pending signals, etc. */
-  on_user_exc_leave((mcontext_t *)ctx, code == EXC_SYS ? &result : NULL);
+  sig_userret((mcontext_t *)ctx, code == EXC_SYS ? &result : NULL);
 }
 
 static void kern_trap_handler(ctx_t *ctx) {
