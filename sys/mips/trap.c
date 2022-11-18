@@ -3,10 +3,12 @@
 #include <sys/interrupt.h>
 #include <sys/cpu.h>
 #include <sys/context.h>
-#include <mips/tlb.h>
 #include <sys/pmap.h>
 #include <sys/sched.h>
+#include <sys/sysent.h>
 #include <sys/thread.h>
+#include <mips/mcontext.h>
+#include <mips/tlb.h>
 
 __no_profile static inline unsigned exc_code(ctx_t *ctx) {
   return (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
