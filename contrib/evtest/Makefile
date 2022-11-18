@@ -19,7 +19,6 @@ download-here: evtest patch
 evtest:
 	@echo "[GIT] clone $(EVTEST_URL) -> $@"
 	$(GIT) clone $(EVTEST_URL) $@
-	make -C .
 
 patch: patch-stamp
 patch-stamp:

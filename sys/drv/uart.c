@@ -1,4 +1,4 @@
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/ringbuf.h>
 #include <dev/uart.h>
 #include <sys/uart_tty.h>
@@ -11,7 +11,7 @@ void uart_init(device_t *dev, const char *name, size_t buf_size, void *state,
   ringbuf_init(&uart->u_rx_buf, kmalloc(M_DEV, buf_size, M_ZERO), buf_size);
   ringbuf_init(&uart->u_tx_buf, kmalloc(M_DEV, buf_size, M_ZERO), buf_size);
 
-  spin_init(&uart->u_lock, 0);
+  mtx_init(&uart->u_lock, MTX_SPIN);
   uart_tty_thread_create(name, dev, tty);
 }
 
@@ -21,7 +21,7 @@ intr_filter_t uart_intr(void *data /* device_t* */) {
   tty_thread_t *ttd = &uart->u_ttd;
   intr_filter_t res = IF_STRAY;
 
-  WITH_SPIN_LOCK (&uart->u_lock) {
+  WITH_MTX_LOCK (&uart->u_lock) {
     /* data ready to be received? */
     if (uart_rx_ready(dev)) {
       (void)ringbuf_putb(&uart->u_rx_buf, uart_getc(dev));

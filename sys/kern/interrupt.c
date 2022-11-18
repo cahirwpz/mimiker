@@ -64,7 +64,7 @@ intr_event_t *intr_event_create(void *source, int irq, ie_action_t *disable,
                                 ie_action_t *enable, const char *name) {
   intr_event_t *ie = kmalloc(M_INTR, sizeof(intr_event_t), M_WAITOK | M_ZERO);
   ie->ie_irq = irq;
-  spin_init(&ie->ie_lock, LK_RECURSIVE);
+  mtx_init(&ie->ie_lock, MTX_SPIN);
   ie->ie_enable = enable;
   ie->ie_disable = disable;
   ie->ie_source = source;
@@ -90,7 +90,7 @@ static void ie_disable(intr_event_t *ie) {
 }
 
 static void intr_event_insert_handler(intr_event_t *ie, intr_handler_t *ih) {
-  SCOPED_SPIN_LOCK(&ie->ie_lock);
+  SCOPED_MTX_LOCK(&ie->ie_lock);
 
   /* Enable interrupt if this is the first handler. */
   if (TAILQ_EMPTY(&ie->ie_handlers))
@@ -101,7 +101,7 @@ static void intr_event_insert_handler(intr_event_t *ie, intr_handler_t *ih) {
 
 static void intr_thread_maybe_attach(intr_event_t *ie, intr_handler_t *ih) {
   /* Ensure we can create interrupt thread only once! */
-  WITH_SPIN_LOCK (&ie->ie_lock) {
+  WITH_MTX_LOCK (&ie->ie_lock) {
     if (ie->ie_ithread != NULL || ih->ih_service == NULL)
       return;
     /* We can't execute `thread_create` under spin lock, thus mark ie_thread
@@ -131,7 +131,7 @@ intr_handler_t *intr_event_add_handler(intr_event_t *ie, ih_filter_t *filter,
 
 void intr_event_remove_handler(intr_handler_t *ih) {
   intr_event_t *ie = ih->ih_event;
-  WITH_SPIN_LOCK (&ie->ie_lock) {
+  WITH_MTX_LOCK (&ie->ie_lock) {
     if (ih->ih_flags & IH_DELEGATE) {
       ih->ih_flags |= IH_REMOVE;
       return;
@@ -172,7 +172,7 @@ __no_profile void intr_root_handler(ctx_t *ctx) {
   PCPU_SET(no_switch, false);
 
   /* If filter routine requested a context switch it's now time to handle it. */
-  on_exc_leave();
+  sched_maybe_preempt();
 
   /* To avoid `intr_root_handler` nesting while in kernel mode,
    * we have to complete this routine without interrupts enabled.
@@ -180,7 +180,7 @@ __no_profile void intr_root_handler(ctx_t *ctx) {
    * to perform signal processing, which can be interrupted and that's ok. */
   if (user_mode_p(ctx)) {
     intr_enable();
-    on_user_exc_leave((mcontext_t *)ctx, NULL);
+    sig_userret((mcontext_t *)ctx, NULL);
     return;
   }
 

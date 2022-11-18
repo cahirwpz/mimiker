@@ -82,6 +82,8 @@ typedef struct pgrp pgrp_t;
 typedef struct thread thread_t;
 typedef struct ctx ctx_t;
 typedef struct __ucontext ucontext_t;
+typedef struct mcontext mcontext_t;
+typedef struct syscall_result syscall_result_t;
 
 /*! \brief Notify the parent of a change in the child's status.
  *
@@ -148,6 +150,9 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi);
  *
  * \note This is machine dependent code! */
 int do_sigreturn(ucontext_t *ucp);
+
+/*! \brief Deliver signals to a process on return to userspace. */
+void sig_userret(mcontext_t *ctx, syscall_result_t *result);
 
 /*! \brief Reset handlers for caught signals on process exec.
  *

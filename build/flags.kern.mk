@@ -13,8 +13,13 @@ LDFLAGS  += -nostdlib
 
 ifeq ($(KCSAN), 1)
   # Added to files that are sanitized
-  CFLAGS_KCSAN = -fsanitize=thread \
-                  --param tsan-distinguish-volatile=1
+  ifeq ($(LLVM), 1)
+    CFLAGS_KCSAN = -fsanitize=thread \
+                   -mllvm -tsan-distinguish-volatile=1
+  else
+    CFLAGS_KCSAN = -fsanitize=thread \
+                   --param tsan-distinguish-volatile=1
+  endif
 endif
 
 ifeq ($(KASAN), 1)

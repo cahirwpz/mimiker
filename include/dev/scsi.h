@@ -11,6 +11,9 @@
 #define READ_10 0x28
 #define WRITE_10 0x2A
 
+/* Device types. */
+#define T_DIRECT 0x00
+
 typedef struct scsi_request_sense {
   uint8_t opcode; /* REQUEST_SENSE */
   uint8_t byte2;

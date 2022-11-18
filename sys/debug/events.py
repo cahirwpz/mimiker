@@ -37,6 +37,6 @@ def stop_handler(event):
                 to_string=True
             )
             gdb.execute(
-                f'add-symbol-file  {current_host_path}', to_string=True)
+                f'add-symbol-file {current_host_path}', to_string=True)
         except:  # noqa: E722
-            print('failed to swap symbol files')
+            print(f'Failed to swap symbol files to {current_host_path}!')

@@ -100,9 +100,11 @@ CONFIG = {
             'malta': {
                 'binary': 'qemu-mimiker-mipsel',
                 'options': [
+                    '-device', 'usb-kbd',
+                    '-device', 'usb-mouse',
                     '-device', 'VGA',
                     '-machine', 'malta',
-                    '-cpu', '24Kf'],
+                    '-cpu', 'P5600'],
                 'network_options': [
                     '-device', 'rtl8139,netdev=net0',
                     '-netdev', 'user,id=net0,hostfwd=tcp::10022-:22',
@@ -113,6 +115,10 @@ CONFIG = {
                     dict(name='/dev/tty1', port=RandomPort()),
                     dict(name='/dev/cons', port=RandomPort())
                 ],
+                'storage_options': [
+                    '-device', 'usb-storage,drive=stick',
+                ],
+                'drive': 'if=none,id=stick,file={path}',
             },
             'rpi3': {
                 'binary': 'qemu-mimiker-aarch64',
@@ -124,6 +130,7 @@ CONFIG = {
                 'uarts': [
                     dict(name='/dev/tty0', port=RandomPort(), raw=True)
                 ],
+                'storage_options': [],
                 'drive': 'if=sd,index=0,format=qcow2,file={path}',
             },
             'sifive_u': {
@@ -313,6 +320,7 @@ class QEMU(Launchable):
                 raise SystemExit('Default drive is not defined for the '
                                  'selected platform.')
             self.options += ['-drive', drive.format(path=storage)]
+            self.options += getopts('qemu.storage_options')
 
 
 class RENODE(Launchable):
@@ -382,11 +390,14 @@ def TestRun(sim, dbg, timeout):
 
         if rc == 1:
             timed_out = b'Program received signal SIGINT' in gdb_proc.before
+            print('\n*** GDB OUTPUT ***\n\n')
+            print(gdb_proc.before.decode('utf-8'))
             PostMortem(gdb_proc)
             print('Test run %s!' % ('timeout' if timed_out else 'failed'))
             if timed_out:
                 rc = 2
     except KeyboardInterrupt:
+        print('Test run was interrupted!')
         signal.signal(signal.SIGINT, signal.SIG_IGN)
         gdb_proc.terminate()
         sim_proc.terminate()

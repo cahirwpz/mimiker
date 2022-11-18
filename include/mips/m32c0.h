@@ -670,11 +670,13 @@
 #define PERFCNT_EXL		0x00000001
 
 /* MIPS32r2 PageGrain  Register (CP0 Register 5, Select 1) */
+#define PAGEGRAIN_RIE 0x80000000 /* Read Inhibit enable */
+#define PAGEGRAIN_XIE 0x40000000 /* Execute Inhibit enable */
 #define PAGEGRAIN_ELPA	0x20000000	/* Enable large physical addresses */
 #define PAGEGRAIN_ELPA_SHIFT	29
 #define PAGEGRAIN_ELPA_BITS	1
-
 #define PAGEGRAIN_ESP	0x10000000	/* Enable small (1KB) page support */
+#define PAGEGRAIN_IEC 0x08000000 /* Enable RI and XI unique exception codes */
 
 /* MIPS32r2 EBase  Register (CP0 Register 15, Select 1) */
 #define EBASE_BASE	0xfffff000	/* Exception base */

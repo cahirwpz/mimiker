@@ -5,6 +5,7 @@ TOPDIR = $(realpath ../..)
 SOURCES = \
 	boot.c \
 	pmap.c \
+	syscall.c \
 	thread.c
 
 include $(TOPDIR)/build/build.kern.mk

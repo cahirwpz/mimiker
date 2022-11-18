@@ -38,7 +38,7 @@ vaddr_t kmem_map_contig(paddr_t pa, size_t size, unsigned flags) __warn_unused;
 
 /* Allocates a range of kernel virtual address space of `size` pages (in bytes)
  * and returns virtual address. kva_alloc never fails. */
-vaddr_t kva_alloc(size_t size);
+vaddr_t kva_alloc(size_t size, kmem_flags_t flags);
 void kva_free(vaddr_t va);
 vm_page_t *kva_find_page(vaddr_t ptr);
 

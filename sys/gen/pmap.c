@@ -23,11 +23,15 @@ static POOL_DEFINE(P_PV, "pv_entry", sizeof(pv_entry_t));
 paddr_t dmap_paddr_base;
 paddr_t dmap_paddr_end;
 
+/* Real kernel end in kernel virtual address space. */
+static atomic_vaddr_t vm_kernel_end;
+static MTX_DEFINE(vm_kernel_end_lock, 0);
+
 static pmap_t kernel_pmap;
 
 /* Bitmap of used ASIDs. */
 static bitstr_t asid_used[bitstr_size(MAX_ASID)] = {0};
-static SPIN_DEFINE(asid_lock, 0);
+static MTX_DEFINE(asid_lock, MTX_SPIN);
 
 /*
  * This lock is used to protect the `vm_page::pv_list` field.
@@ -98,7 +102,7 @@ void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
 
 static asid_t alloc_asid(void) {
   int free = 0;
-  WITH_SPIN_LOCK (&asid_lock) {
+  WITH_MTX_LOCK (&asid_lock) {
     bit_ffc(asid_used, MAX_ASID, &free);
     if (free < 0)
       panic("Out of asids!");
@@ -110,7 +114,7 @@ static asid_t alloc_asid(void) {
 
 static void free_asid(asid_t asid) {
   klog("free_asid(%d)", asid);
-  SCOPED_SPIN_LOCK(&asid_lock);
+  SCOPED_MTX_LOCK(&asid_lock);
   bit_clear(asid_used, (unsigned)asid);
   tlb_invalidate_asid(asid);
 }
@@ -151,14 +155,12 @@ static void pv_remove(pmap_t *pmap, vaddr_t va, vm_page_t *pg) {
  * Routines for accessing page table entries.
  */
 
-static paddr_t pmap_alloc_pde(pmap_t *pmap, vaddr_t va) {
+paddr_t pde_alloc(pmap_t *pmap) {
   assert(mtx_owned(&pmap->mtx));
 
   vm_page_t *pg = pmap_pagealloc();
 
   TAILQ_INSERT_TAIL(&pmap->pte_pages, pg, pageq);
-
-  klog("Page table for %p allocated at %p", (void *)va, pg->paddr);
 
   return pg->paddr;
 }
@@ -190,7 +192,8 @@ static pte_t *pmap_ensure_pte(pmap_t *pmap, vaddr_t va) {
   for (int lvl = 1; lvl < PAGE_TABLE_DEPTH; lvl++) {
     paddr_t pa;
     if (!pde_valid_p(pdep)) {
-      pa = pmap_alloc_pde(pmap, va);
+      pa = pde_alloc(pmap);
+      klog("Page table for %p allocated at %p", (void *)va, (void *)pa);
       *pdep = pde_make(lvl - 1, pa);
     } else {
       pa = pte_frame((pte_t)*pdep);
@@ -497,7 +500,8 @@ static void pmap_setup(pmap_t *pmap) {
   pmap_md_setup(pmap);
 }
 
-__long_call void pmap_bootstrap(paddr_t pd_pa, void *pd) {
+__long_call void pmap_bootstrap(vaddr_t vma_end, paddr_t pd_pa, void *pd) {
+  vm_kernel_end = align(vma_end, PAGESIZE);
   kernel_pmap.pde = pd_pa;
   pmap_md_bootstrap(pd);
 }
@@ -553,30 +557,33 @@ void pmap_delete(pmap_t *pmap) {
   pool_free(P_PMAP, pmap);
 }
 
-/*
- * Increase usable kernel virtual address space to at least `maxkvaddr`.
- * Allocate page tables if needed.
- */
-void pmap_growkernel(vaddr_t maxkvaddr) {
-  assert(mtx_owned(&vm_kernel_end_lock));
-  assert(maxkvaddr > vm_kernel_end);
-
-  maxkvaddr = roundup2(maxkvaddr, GROWKERNEL_STRIDE);
+vaddr_t pmap_growkernel(size_t size) {
   pmap_t *pmap = pmap_kernel();
 
-  WITH_MTX_LOCK (&pmap->mtx) {
-    for (vaddr_t va = vm_kernel_end; va < maxkvaddr; va += GROWKERNEL_STRIDE)
-      (void)pmap_ensure_pte(pmap, va);
+  WITH_MTX_LOCK (&vm_kernel_end_lock) {
+    if (size == 0)
+      return vm_kernel_end;
+
+    vaddr_t maxkvaddr = roundup2(vm_kernel_end + size, GROWKERNEL_STRIDE);
+
+    WITH_MTX_LOCK (&pmap->mtx) {
+      pmap_md_growkernel(vm_kernel_end, maxkvaddr);
+
+      for (vaddr_t va = vm_kernel_end; va < maxkvaddr; va += GROWKERNEL_STRIDE)
+        (void)pmap_ensure_pte(pmap, va);
+    }
+
+    /*
+     * `kasan_grow` calls `pmap_kenter` which acquires `pmap->mtx`.
+     * But we are under `vm_kernel_end_lock` from kmem so it's safe to call
+     * `kasan_grow`.
+     */
+    kasan_grow(maxkvaddr);
+
+    vm_kernel_end = maxkvaddr;
   }
 
-  /*
-   * `kasan_grow` calls `pmap_kenter` which acquires `pmap->mtx`.
-   * But we are under `vm_kernel_end_lock` from kmem so it's safe to call
-   * `kasan_grow`.
-   */
-  kasan_grow(maxkvaddr);
+  pmap_md_update(pmap_user());
 
-  pmap_md_growkernel(maxkvaddr);
-
-  vm_kernel_end = maxkvaddr;
+  return vm_kernel_end;
 }
