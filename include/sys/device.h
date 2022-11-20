@@ -14,10 +14,14 @@ typedef struct device device_t;
 typedef struct driver driver_t;
 typedef struct dev_intr dev_intr_t;
 typedef struct dev_mem dev_mem_t;
+typedef enum intr_filter intr_filter_t;
 typedef struct intr_handler intr_handler_t;
 typedef TAILQ_HEAD(, device) device_list_t;
 typedef SLIST_HEAD(, dev_intr) dev_intr_list_t;
 typedef SLIST_HEAD(, dev_mem) dev_mem_list_t;
+
+typedef intr_filter_t ih_filter_t(void *);
+typedef void ih_service_t(void *);
 
 /* Driver that returns the highest value from its probe action
  * will be selected for attach action. */
@@ -152,6 +156,12 @@ void device_add_mem(device_t *dev, unsigned id, bus_addr_t start,
 dev_intr_t *device_take_intr(device_t *dev, unsigned id);
 
 dev_mem_t *device_take_mem(device_t *dev, unsigned id);
+
+int device_claim_intr(device_t *dev, unsigned id, ih_filter_t *filter,
+                      ih_service_t *service, void *arg, const char *name,
+                      dev_intr_t **intrp);
+
+int device_claim_mem(device_t *dev, unsigned id, dev_mem_t **memp);
 
 /* A universal memory pool to be used by all drivers. */
 KMALLOC_DECLARE(M_DEV);

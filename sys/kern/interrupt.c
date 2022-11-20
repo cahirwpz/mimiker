@@ -261,7 +261,7 @@ int pic_setup_intr(device_t *dev, dev_intr_t *intr, ih_filter_t *filter,
   }
 
   if (!(pic = intr_pic_find(intr->pic_id)))
-    return ENODEV;
+    return EAGAIN;
   intr->pic = pic;
 
   int err = pic_map_intr(dev, intr);

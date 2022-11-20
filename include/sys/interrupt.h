@@ -49,14 +49,15 @@ static inline void __intr_enable(void *data) {
 
 #define WITH_INTR_DISABLED WITH_STMT(void, __intr_disable, __intr_enable, NULL)
 
+typedef enum intr_filter intr_filter_t;
 typedef struct intr_event intr_event_t;
 typedef struct intr_handler intr_handler_t;
 
-typedef enum {
+enum intr_filter {
   IF_STRAY = 0,    /* this device did not trigger the interrupt */
   IF_FILTERED = 1, /* the interrupt has been handled and can be EOId */
   IF_DELEGATE = 2, /* the handler should be run in private thread */
-} intr_filter_t;
+};
 
 /*
  * The filter routine is run in primary interrupt context and may not
@@ -128,7 +129,7 @@ typedef struct pic_methods {
  *
  * Returns:
  *  - 0: success
- *  - ENODEV: the corresponding PIC hasn't been registered yet
+ *  - EAGAIN: the corresponding PIC hasn't been registered yet
  *  - EINVAL: invalid interrupt resource
  *  - otherwise: invalid device or PIC FDT entry
  */

@@ -214,10 +214,7 @@ static int stdvga_attach(device_t *dev) {
   if ((err = bus_map_mem(dev, vga->mem)))
     return err;
 
-  vga->io = device_take_mem(dev, 2);
-  assert(vga->io != NULL);
-
-  if ((err = bus_map_mem(dev, vga->io)))
+  if ((err = device_claim_mem(dev, 2, &vga->io)))
     return err;
 
   vga->usecnt = 0;

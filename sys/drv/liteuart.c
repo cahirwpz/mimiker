@@ -91,24 +91,17 @@ static int liteuart_probe(device_t *dev) {
 }
 
 static int liteuart_attach(device_t *dev) {
-  int err = 0;
-
-  dev_intr_t *intr = device_take_intr(dev, 0);
-  assert(intr);
-
-  if ((err = pic_setup_intr(dev, intr, liteuart_intr, NULL, dev, "liteuart")))
-    return (err == ENODEV) ? EAGAIN : err;
-
-  dev_mem_t *csrs = device_take_mem(dev, 0);
-  assert(csrs);
-
-  if ((err = bus_map_mem(dev, csrs)))
-    return err;
-
   liteuart_state_t *liteuart =
     kmalloc(M_DEV, sizeof(liteuart_state_t), M_WAITOK | M_ZERO);
-  liteuart->irq = intr;
-  liteuart->csrs = csrs;
+  int err = 0;
+
+  if ((err = device_claim_intr(dev, 0, liteuart_intr, NULL, dev, "liteuart",
+                               &liteuart->irq))) {
+    goto end;
+  }
+
+  if ((err = device_claim_mem(dev, 0, &liteuart->csrs)))
+    goto end;
 
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
@@ -126,6 +119,9 @@ static int liteuart_attach(device_t *dev) {
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);
 
+end:
+  if (err)
+    kfree(M_DEV, liteuart);
   return 0;
 }
 

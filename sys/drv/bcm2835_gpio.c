@@ -7,7 +7,6 @@
 #include <sys/fdt.h>
 #include <sys/errno.h>
 #include <sys/devclass.h>
-#include <sys/device.h>
 
 /*
  * \brief delay function
@@ -174,10 +173,7 @@ static int bcm2835_gpio_attach(device_t *dev) {
   bcm2835_gpio_t *gpio = (bcm2835_gpio_t *)dev->state;
   int err = 0;
 
-  gpio->gpio = device_take_mem(dev, 0);
-  assert(gpio->gpio);
-
-  if ((err = bus_map_mem(dev, gpio->gpio)))
+  if ((err = device_claim_mem(dev, 0, &gpio->gpio)))
     return err;
 
   /* Read configuration from FDT */

@@ -148,10 +148,7 @@ static int pit_attach(device_t *dev) {
   pit->irq_res = device_take_intr(dev, 0);
   assert(pit->irq_res);
 
-  pit->regs = device_take_mem(dev, 0);
-  assert(pit->regs);
-
-  if ((err = bus_map_mem(dev, pit->regs)))
+  if ((err = device_claim_mem(dev, 0, &pit->regs)))
     return err;
 
   pit->timer = (timer_t){

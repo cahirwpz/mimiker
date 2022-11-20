@@ -150,18 +150,12 @@ static int plic_attach(device_t *pic) {
                      sizeof(uint32_t)) != sizeof(uint32_t))
     return ENXIO;
 
-  plic->irq = device_take_intr(pic, 2);
-  assert(plic->irq);
-
-  if ((err = pic_setup_intr(pic, plic->irq, plic_intr_handler, NULL, plic,
-                            "PLIC"))) {
-    return (err == ENODEV) ? EAGAIN : err;
+  if ((err = device_claim_intr(pic, 2, plic_intr_handler, NULL, plic, "PLIC",
+                               &plic->irq))) {
+    return err;
   }
 
-  plic->mem = device_take_mem(pic, 0);
-  assert(plic->mem);
-
-  if ((err = bus_map_mem(pic, plic->mem)))
+  if ((err = device_claim_mem(pic, 0, &plic->mem)))
     return err;
 
   /* We'll need interrupt event for each interrupt source. */

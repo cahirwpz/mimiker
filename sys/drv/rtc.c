@@ -99,18 +99,12 @@ static int rtc_attach(device_t *dev) {
   rtc_state_t *rtc = dev->state;
   int err = 0;
 
-  rtc->irq_res = device_take_intr(dev, 0);
-  assert(rtc->irq_res);
-
-  if (pic_setup_intr(dev, rtc->irq_res, rtc_intr, NULL, rtc,
-                     "RTC periodic timer")) {
-    return (err == ENODEV) ? EAGAIN : err;
+  if ((err = device_claim_intr(dev, 0, rtc_intr, NULL, rtc,
+                               "RTC periodic timer", &rtc->irq_res))) {
+    return err;
   }
 
-  rtc->regs = device_take_mem(dev, 0);
-  assert(rtc->regs);
-
-  if ((err = bus_map_mem(dev, rtc->regs)))
+  if ((err = device_claim_mem(dev, 0, &rtc->regs)))
     return err;
 
   /* Configure how the time is presented through registers. */

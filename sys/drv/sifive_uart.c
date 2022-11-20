@@ -94,24 +94,17 @@ static int sfuart_probe(device_t *dev) {
 }
 
 static int sfuart_attach(device_t *dev) {
-  int err = 0;
-
-  dev_intr_t *intr = device_take_intr(dev, 0);
-  assert(intr);
-
-  if ((err = pic_setup_intr(dev, intr, uart_intr, NULL, dev, "SiFive UART")))
-    return (err == ENODEV) ? EAGAIN : err;
-
-  dev_mem_t *regs = device_take_mem(dev, 0);
-  assert(regs);
-
-  if ((err = bus_map_mem(dev, regs)))
-    return err;
-
   sfuart_state_t *sfuart =
     kmalloc(M_DEV, sizeof(sfuart_state_t), M_WAITOK | M_ZERO);
-  sfuart->irq = intr;
-  sfuart->regs = regs;
+  int err = 0;
+
+  if ((err = device_claim_intr(dev, 0, uart_intr, NULL, dev, "SiFive UART",
+                               &sfuart->irq))) {
+    goto end;
+  }
+
+  if ((err = device_claim_mem(dev, 0, &sfuart->regs)))
+    goto end;
 
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
@@ -130,6 +123,9 @@ static int sfuart_attach(device_t *dev) {
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);
 
+end:
+  if (err)
+    kfree(M_DEV, sfuart);
   return 0;
 }
 

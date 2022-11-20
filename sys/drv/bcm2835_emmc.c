@@ -9,7 +9,6 @@
 #include <sys/klog.h>
 #include <sys/types.h>
 #include <sys/device.h>
-#include <sys/bus.h>
 #include <sys/time.h>
 #include <sys/libkern.h>
 #include <sys/callout.h>
@@ -517,18 +516,12 @@ static int bcmemmc_attach(device_t *dev) {
 
   dev->devclass = &DEVCLASS(emmc);
 
-  state->irq = device_take_intr(dev, 0);
-  assert(state->irq);
-
-  if ((err = pic_setup_intr(dev, state->irq, bcmemmc_intr_filter, NULL, state,
-                            "e.MMC interrupt"))) {
-    return (err == ENODEV) ? EAGAIN : err;
+  if ((err = device_claim_intr(dev, 0, bcmemmc_intr_filter, NULL, state,
+                               "e.MMC interrupt", &state->irq))) {
+    return err;
   }
 
-  state->emmc = device_take_mem(dev, 0);
-  assert(state->emmc);
-
-  if ((err = bus_map_mem(dev, state->emmc)))
+  if ((err = device_claim_mem(dev, 0, &state->emmc)))
     return err;
 
   mtx_init(&state->lock, MTX_SPIN);

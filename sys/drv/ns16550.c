@@ -76,23 +76,16 @@ static void ns16550_tx_disable(void *state) {
 }
 
 static int ns16550_attach(device_t *dev) {
+  ns16550_state_t *ns16550 = kmalloc(M_DEV, sizeof(ns16550_state_t), M_ZERO);
   int err = 0;
 
-  dev_intr_t *intr = device_take_intr(dev, 0);
-  assert(intr);
+  if ((err = device_claim_intr(dev, 0, uart_intr, NULL, dev, "NS16550 UART",
+                               &ns16550->irq_res))) {
+    goto end;
+  }
 
-  if ((err = pic_setup_intr(dev, intr, uart_intr, NULL, dev, "NS16550 UART")))
-    return (err == ENODEV) ? EAGAIN : err;
-
-  dev_mem_t *regs = device_take_mem(dev, 0);
-  assert(regs);
-
-  if ((err = bus_map_mem(dev, regs)))
-    return err;
-
-  ns16550_state_t *ns16550 = kmalloc(M_DEV, sizeof(ns16550_state_t), M_ZERO);
-  ns16550->irq_res = intr;
-  ns16550->regs = regs;
+  if ((err = device_claim_mem(dev, 0, &ns16550->regs)))
+    goto end;
 
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
@@ -108,7 +101,10 @@ static int ns16550_attach(device_t *dev) {
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);
 
-  return 0;
+end:
+  if (err)
+    kfree(M_DEV, ns16550);
+  return err;
 }
 
 static int ns16550_probe(device_t *dev) {

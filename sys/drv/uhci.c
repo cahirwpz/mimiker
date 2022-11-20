@@ -803,20 +803,12 @@ static int uhci_attach(device_t *dev) {
   uhci_state_t *uhci = dev->state;
   int err = 0;
 
-  /* Setup host controller's interrupt. */
-  uhci->irq = device_take_intr(dev, 0);
-  assert(uhci->irq);
-
-  if ((err = pic_setup_intr(dev, uhci->irq, uhci_isr, uhci_service, uhci,
-                            "UHCI"))) {
-    return (err == ENODEV) ? EAGAIN : err;
+  if ((err = device_claim_intr(dev, 0, uhci_isr, uhci_service, uhci, "UHCI",
+                               &uhci->irq))) {
+    return err;
   }
 
-  /* Gather I/O ports resources. */
-  uhci->regs = device_take_mem(dev, 4);
-  assert(uhci->regs);
-
-  if ((err = bus_map_mem(dev, uhci->regs)))
+  if ((err = device_claim_mem(dev, 4, &uhci->regs)))
     return err;
 
   /* Perform the global reset of the UHCI controller. */

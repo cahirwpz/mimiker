@@ -43,10 +43,7 @@ static int intel_isa_attach(device_t *isab) {
 
   isab->devclass = &DEVCLASS(isa);
 
-  isa->io = device_take_mem(isab, 0);
-  assert(isa->io);
-
-  if ((err = bus_map_mem(isab, isa->io)))
+  if ((err = device_claim_mem(isab, 0, &isa->io)))
     return err;
 
   /* -------------------------------------------------------------

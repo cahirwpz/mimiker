@@ -160,18 +160,13 @@ static int bcm2835_pic_attach(device_t *pic) {
   bcm2835_pic_state_t *bcm2835_pic = pic->state;
   int err = 0;
 
-  bcm2835_pic->irq = device_take_intr(pic, 0);
-  assert(bcm2835_pic->irq);
-
-  if ((err = pic_setup_intr(pic, bcm2835_pic->irq, bcm2835_pic_intr_handler,
-                            NULL, bcm2835_pic, "BCM2835 PIC"))) {
-    return (err == ENODEV) ? EAGAIN : err;
+  if ((err =
+         device_claim_intr(pic, 0, bcm2835_pic_intr_handler, NULL, bcm2835_pic,
+                           "BCM2835 PIC", &bcm2835_pic->irq))) {
+    return err;
   }
 
-  bcm2835_pic->mem = device_take_mem(pic, 0);
-  assert(bcm2835_pic->mem);
-
-  if ((err = bus_map_mem(pic, bcm2835_pic->mem)))
+  if ((err = device_claim_mem(pic, 0, &bcm2835_pic->mem)))
     return err;
 
   intr_pic_register(pic, pic->node);

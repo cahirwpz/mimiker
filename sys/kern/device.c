@@ -2,9 +2,9 @@
 #include <sys/klog.h>
 #include <sys/errno.h>
 #include <sys/mimiker.h>
-#include <sys/devclass.h>
-#include <sys/device.h>
 #include <sys/bus.h>
+#include <sys/devclass.h>
+#include <sys/interrupt.h>
 
 KMALLOC_DEFINE(M_DEV, "devices & drivers");
 
@@ -90,6 +90,22 @@ dev_mem_t *device_take_mem(device_t *dev, unsigned id) {
       return mem;
   }
   return NULL;
+}
+
+int device_claim_intr(device_t *dev, unsigned id, ih_filter_t *filter,
+                      ih_service_t *service, void *arg, const char *name,
+                      dev_intr_t **intrp) {
+  dev_intr_t *intr = device_take_intr(dev, id);
+  assert(intr);
+  *intrp = intr;
+  return pic_setup_intr(dev, intr, filter, service, arg, name);
+}
+
+int device_claim_mem(device_t *dev, unsigned id, dev_mem_t **memp) {
+  dev_mem_t *mem = device_take_mem(dev, id);
+  assert(mem);
+  *memp = mem;
+  return bus_map_mem(dev, mem);
 }
 
 void device_add_intr(device_t *dev, unsigned id, unsigned pic_id,

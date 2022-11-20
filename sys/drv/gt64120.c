@@ -274,17 +274,11 @@ static int gt_pci_attach(device_t *pcib) {
     pcib->node = 1;
 
   gtpci->pci_mem = device_take_mem(pcib, 0);
-  gtpci->pci_io = device_take_mem(pcib, 1);
-  gtpci->corectrl = device_take_mem(pcib, 2);
+  assert(gtpci->pci_mem);
 
-  if (gtpci->corectrl == NULL || gtpci->pci_mem == NULL ||
-      gtpci->pci_io == NULL) {
-    panic("gt64120 resource allocation fail");
-  }
-
-  if ((err = bus_map_mem(pcib, gtpci->pci_io)))
+  if ((err = device_claim_mem(pcib, 1, &gtpci->pci_io)))
     return err;
-  if ((err = bus_map_mem(pcib, gtpci->corectrl)))
+  if ((err = device_claim_mem(pcib, 2, &gtpci->corectrl)))
     return err;
 
   /* All interrupts default to "masked off" and edge-triggered. */
@@ -300,12 +294,9 @@ static int gt_pci_attach(device_t *pcib) {
   bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
   bus_write_1(io, PIIX_REG_ELCR + 1, HI(gtpci->elcr));
 
-  gtpci->irq_res = device_take_intr(pcib, 0);
-  assert(gtpci->irq_res);
-
-  if ((err = pic_setup_intr(pcib, gtpci->irq_res, gt_pci_intr, NULL, gtpci,
-                            "GT64120 main irq"))) {
-    /* TODO: handle the `ENODEV` case when resource unmapping is implemented. */
+  if ((err = device_claim_intr(pcib, 0, gt_pci_intr, NULL, gtpci,
+                               "GT64120 main irq", &gtpci->irq_res))) {
+    /* TODO: handle the `EAGAIN` case when resource unmapping is implemented. */
     panic("gt64120 interrupt setup fail");
   }
 

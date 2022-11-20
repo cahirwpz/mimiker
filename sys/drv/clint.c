@@ -1,5 +1,6 @@
 #define KL_LOG KL_TIME
 #include <sys/devclass.h>
+#include <sys/device.h>
 #include <sys/errno.h>
 #include <sys/fdt.h>
 #include <sys/interrupt.h>
@@ -99,15 +100,12 @@ static int clint_attach(device_t *dev) {
                      sizeof(uint32_t)) != sizeof(uint32_t))
     return ENXIO;
 
-  clint->mswi_irq = device_take_intr(dev, 2);
-  assert(clint->mswi_irq);
-
   clint->mtimer_irq = device_take_intr(dev, 3);
   assert(clint->mtimer_irq);
 
-  if ((err =
-         pic_setup_intr(dev, clint->mswi_irq, mswi_intr, NULL, NULL, "SSI"))) {
-    return (err == ENODEV) ? EAGAIN : err;
+  if ((err = device_claim_intr(dev, 2, mswi_intr, NULL, NULL, "SSI",
+                               &clint->mswi_irq))) {
+    return err;
   }
 
   clint->mtimer = (timer_t){
