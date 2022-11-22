@@ -201,7 +201,7 @@ __noreturn void sched_run(void) {
   }
 }
 
-void sched_maybe_preempt(void) {
+static void _sched_maybe_switch(void) {
   /* If thread requested not to be preempted, then do not switch out! */
   if (preempt_disabled())
     return;
@@ -215,6 +215,17 @@ void sched_maybe_preempt(void) {
   } else {
     mtx_unlock(td->td_lock);
   }
+}
+
+void sched_maybe_switch(void) {
+  assert(intr_disabled());
+  _sched_maybe_switch();
+}
+
+void sched_maybe_preempt(void) {
+  /* We should not make attempts to switch out if interrupts are disabled! */
+  if (!intr_disabled())
+    _sched_maybe_switch();
 }
 
 /*

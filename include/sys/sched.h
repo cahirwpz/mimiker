@@ -109,6 +109,13 @@ void sched_switch(void);
  */
 void sched_maybe_preempt(void);
 
+/*! \brief Switch out to another thread when interrupts are disabled.
+ *
+ * \note The only user of this function should be `intr_root_handler`
+ *       procedure that returns from an interrupt context.
+ */
+void sched_maybe_switch(void);
+
 /*! \brief Turns calling thread into idle thread. */
 __noreturn void sched_run(void);
 
