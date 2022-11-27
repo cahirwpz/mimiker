@@ -30,8 +30,12 @@ static bool td_is_blocked_on_mtx(thread_t *td, mtx_t *m) {
 }
 
 static void routine(void *_arg) {
+  thread_t *td = thread_self();
+
   WITH_NO_PREEMPTION {
-    sleepq_signal(thread_self());
+    sleepq_lock(td);
+    sleepq_signal(td);
+    sleepq_unlock(td);
     mtx_lock(&ts_adj_mtx);
   }
 
@@ -81,10 +85,9 @@ static int test_turnstile_adjust(void) {
   mtx_lock(&ts_adj_mtx);
 
   for (int i = 0; i < T; i++) {
-    WITH_NO_PREEMPTION {
-      sched_add(threads[i]);
-      sleepq_wait(threads[i], "thread start");
-    }
+    sleepq_lock(threads[i]);
+    sched_add(threads[i]);
+    sleepq_wait(threads[i], "thread start");
   }
 
   for (int i = 0; i < T; i++)

@@ -9,15 +9,16 @@ static volatile int wakeups;
 
 static void test_thread(void *expected) {
   while (wakeups < (intptr_t)expected) {
-    WITH_NO_PREEMPTION {
-      wakeups++;
-    }
+    sleepq_lock(&test_thread);
+    wakeups++;
     sleepq_wait(&test_thread, NULL);
   }
 }
 
 static void wake_threads_up(void *arg) {
+  sleepq_lock(&test_thread);
   sleepq_broadcast(&test_thread);
+  sleepq_unlock(&test_thread);
 }
 
 static int test_sleepq_sync(void) {

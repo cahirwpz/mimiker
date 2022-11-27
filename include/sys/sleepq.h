@@ -13,6 +13,10 @@ typedef struct sleepq sleepq_t;
 /*! \brief Called during kernel initialization. */
 void init_sleepq(void);
 
+void sleepq_lock(void *wchan);
+
+void sleepq_unlock(void *wchan);
+
 /*! \brief Allocates sleep queue entry. */
 sleepq_t *sleepq_alloc(void);
 
@@ -54,7 +58,7 @@ bool sleepq_broadcast(void *wchan);
 /*! \brief Break thread's sleep.
  *
  * \returns true on success
- * \returns false if the thread has not been asleep
+ * \returns false if the thread has not been aborted
  */
 bool sleepq_abort(thread_t *td);
 

@@ -3,19 +3,21 @@
 
 #ifdef _KERNEL
 
+#include <bitstring.h>
 #include <sys/cdefs.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 
 typedef struct thread thread_t;
+typedef TAILQ_HEAD(, thread) thread_list_t;
 
-/* TODO How to prevent tests from using following values? */
 #define RQ_NQS 64 /* Number of run queues. */
 #define RQ_PPQ 4  /* Priorities per queue. */
 
-TAILQ_HEAD(rq_head, thread);
-
-typedef struct {
-  struct rq_head rq_queues[RQ_NQS];
+typedef struct runq {
+  mtx_t rq_lock;
+  bitstr_t bit_decl(rq_status, RQ_NQS);
+  thread_list_t rq_queues[RQ_NQS];
 } runq_t;
 
 /* Initialize a run structure. */

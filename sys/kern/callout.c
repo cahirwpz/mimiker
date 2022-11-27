@@ -7,7 +7,6 @@
 #include <sys/sleepq.h>
 #include <sys/thread.h>
 #include <sys/sched.h>
-#include <sys/interrupt.h>
 #include <sys/time.h>
 
 /* Note: If the difference in time between ticks is greater than the number of
@@ -53,14 +52,12 @@ static void callout_thread(void *arg) {
   while (true) {
     callout_t *elem;
 
-    WITH_INTR_DISABLED {
-      while (TAILQ_EMPTY(&delegated)) {
-        sleepq_wait(&delegated, NULL);
-      }
-
-      elem = TAILQ_FIRST(&delegated);
-      TAILQ_REMOVE(&delegated, elem, c_link);
+    sleepq_lock(delegated);
+    while (TAILQ_EMPTY(&delegated)) {
+      sleepq_wait(&delegated, NULL);
     }
+    elem = TAILQ_FIRST(&delegated);
+    TAILQ_REMOVE(&delegated, elem, c_link);
 
     assert(callout_is_active(elem));
     assert(!callout_is_pending(elem));
@@ -163,6 +160,8 @@ bool callout_stop(callout_t *handle) {
  * current position and delegate them to callout thread.
  */
 void callout_process(systime_t time) {
+  SCOPED_MTX_LOCK(&ci.lock);
+
   unsigned int last_bucket;
   unsigned int current_bucket = ci.last % CALLOUT_BUCKETS;
 
@@ -174,8 +173,7 @@ void callout_process(systime_t time) {
     last_bucket = time % CALLOUT_BUCKETS;
   }
 
-  /* We are in kernel's bottom half. */
-  assert(intr_disabled());
+  sleepq_lock(delegated);
 
   while (true) {
     callout_list_t *head = ci_list(current_bucket);
@@ -204,12 +202,18 @@ void callout_process(systime_t time) {
   if (!TAILQ_EMPTY(&delegated)) {
     sleepq_signal(&delegated);
   }
+
+  sleepq_unlock(delegated);
 }
 
 bool callout_drain(callout_t *handle) {
-  SCOPED_INTR_DISABLED();
-  if (!callout_is_pending(handle) && !callout_is_active(handle))
+  sleepq_lock(handle);
+
+  if (!callout_is_pending(handle) && !callout_is_active(handle)) {
+    sleepq_unlock(handle);
     return false;
+  }
+
   while (callout_is_pending(handle) || callout_is_active(handle))
     sleepq_wait(handle, NULL);
   return true;

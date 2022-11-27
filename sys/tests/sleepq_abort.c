@@ -35,6 +35,7 @@ static volatile int interrupted;
  * when waiters can't.
  * Therefore there should be only one waiter active at once */
 static void waiter_routine(void *_arg) {
+  sleepq_lock(&some_val);
   int rsn = sleepq_wait_intr(&some_val, __caller(0));
 
   if (rsn == EINTR)
@@ -58,14 +59,19 @@ static void waker_routine(void *_arg) {
     rand_next++;
 
     if (wake) {
+      sleepq_lock(&some_val);
       bool succ = sleepq_signal(&some_val);
       assert(succ);
+      sleepq_unlock(&some_val);
       wakened++;
     } else {
       bool succ = false;
       while (!succ) {
+        thread_t *td = waiters[waiters_ord[next_abort]];
         assert(next_abort < T && waiters_ord[next_abort] < T);
-        succ = sleepq_abort(waiters[waiters_ord[next_abort]]);
+        WITH_MTX_LOCK (td->td_lock) {
+          succ = sleepq_abort();
+        }
         next_abort++;
       }
       aborted++;
@@ -105,7 +111,10 @@ static int test_sleepq_abort_mult(void) {
 }
 
 static void simple_waker_routine(void *_arg) {
-  sleepq_abort(waiters[0]);
+  thread_t *td = waiters[0];
+  WITH_MTX_LOCK (td->td_lock) {
+    sleepq_abort(waiters[0]);
+  }
 }
 
 /* waiter routine is shared with test_mult */

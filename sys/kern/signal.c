@@ -194,8 +194,8 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
     do_sigprocmask(SIG_SETMASK, mask, NULL);
   }
 
-  int error;
-  error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
+  sleepq_lock(&td->td_sigmask);
+  int error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
   assert(error == EINTR);
 
   return ERESTARTNOHAND;
@@ -396,12 +396,8 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
     td->td_flags |= TDF_NEEDSIGCHK;
     /* If the thread is sleeping interruptibly (!), wake it up, so that it
      * continues execution and the signal gets delivered soon. */
-    if (td_is_interruptible(td)) {
-      /* XXX Maybe TDF_NEEDSIGCHK should be protected by a different lock? */
-      mtx_unlock(td->td_lock);
-      sleepq_abort(td); /* Locks & unlocks td_lock */
-      mtx_lock(td->td_lock);
-    }
+    if (td_is_interruptible(td))
+      sleepq_abort(td);
   }
 }
 

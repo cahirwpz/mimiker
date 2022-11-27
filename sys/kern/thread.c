@@ -221,3 +221,11 @@ void thread_continue(thread_t *td) {
     sched_wakeup(td);
   }
 }
+
+void thread_lock_set(thread_t *td, mtx_t *mtx) {
+  assert(mtx_owned(mtx));
+  mtx_t *old = td->td_lock;
+  assert(mtx_owned(old));
+  td->td_lock = mtx;
+  mtx_unlock(old);
+}

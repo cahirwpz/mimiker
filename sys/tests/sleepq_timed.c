@@ -33,6 +33,7 @@ static thread_t *waiters[THREADS];
 static thread_t *waker;
 
 static void waiter_routine(void *_arg) {
+  sleepq_lock(&wchan);
   systime_t before_sleep = getsystime();
   int status = sleepq_wait_timed(&wchan, __caller(0), SLEEP_TICKS);
   systime_t after_sleep = getsystime();
@@ -49,12 +50,14 @@ static void waiter_routine(void *_arg) {
 }
 
 static void waker_routine(void *_arg) {
+  sleepq_lock(&wchan);
   /* try to wake up half of the threads before timeout */
   for (int i = 0; i < THREADS / 2; i++) {
     bool status = sleepq_signal(&wchan);
     if (status)
       signaled_sent++;
   }
+  sleepq_unlock(&wchan);
 }
 
 static int test_sleepq_timed(void) {

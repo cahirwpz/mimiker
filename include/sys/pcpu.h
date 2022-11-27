@@ -1,9 +1,10 @@
 #ifndef _SYS_PCPU_H_
 #define _SYS_PCPU_H_
 
+#include <stdbool.h>
+#include <sys/runq.h>
 #include <machine/types.h>
 #include <machine/pcpu.h>
-#include <stdbool.h>
 
 typedef struct thread thread_t;
 typedef struct pmap pmap_t;
@@ -11,6 +12,7 @@ typedef struct vm_map vm_map_t;
 
 /*! \brief Private per-cpu structure. */
 typedef struct pcpu {
+  runq_t runq;
   bool no_switch;        /*!< executing code that must not switch out */
   thread_t *curthread;   /*!< thread running on this CPU */
   thread_t *idle_thread; /*!< idle thread executed on this CPU */

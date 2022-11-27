@@ -3,24 +3,23 @@
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/sched.h>
-#include <sys/runq.h>
 #include <sys/interrupt.h>
 #include <sys/time.h>
 #include <sys/thread.h>
-#include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/turnstile.h>
 
-static MTX_DEFINE(sched_lock, MTX_SPIN);
-static runq_t runq;
 static bool sched_active = false;
 
 #define SLICE 10
 
 void init_sched(void) {
-  thread0.td_lock = &sched_lock;
-  runq_init(&runq);
+  runq_t *rq = PCPU_GET(runq);
+  runq_init(rq);
+  thread0.td_lock = &rq->rq_lock;
 }
+
+/*********************************************************************/
 
 void sched_add(thread_t *td) {
   klog("Add thread %ld {%p} to scheduler", td->td_tid, td);
