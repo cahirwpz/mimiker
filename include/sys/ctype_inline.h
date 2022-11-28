@@ -43,7 +43,8 @@
 #include <sys/cdefs.h>
 #include <sys/ctype_bits.h>
 
-#define isalnum(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & (_CTYPE_A | _CTYPE_D)))
+#define isalnum(c)                                                             \
+  ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & (_CTYPE_A | _CTYPE_D)))
 #define isalpha(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_A))
 #define iscntrl(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_C))
 #define isdigit(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_D))
