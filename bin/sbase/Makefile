@@ -92,7 +92,6 @@ BIN =\
 	chown\
 	cmp\
 	comm\
-	cp\
 	cut\
 	dirname\
 	echo\
@@ -108,8 +107,6 @@ BIN =\
 	md5sum\
 	mkdir\
 	mkfifo\
-	mktemp\
-	mv\
 	nice\
 	nl\
 	nohup\
@@ -118,7 +115,6 @@ BIN =\
 	readlink\
 	renice\
 	rev\
-	rm\
 	rmdir\
 	seq\
 	setsid\
@@ -131,7 +127,6 @@ BIN =\
 	sha512-256sum\
 	sleep\
 	split\
-	sponge\
 	strings\
 	sync\
 	test\
@@ -147,7 +142,6 @@ BIN =\
 	wc\
 	which\
 	whoami\
-	xinstall\
 	yes
 
 BIN_DISABLED =\
@@ -155,6 +149,7 @@ BIN_DISABLED =\
 	chroot\
 	cksum\
 	cols\
+	cp\
 	cron\
 	date\
 	dd\
@@ -170,19 +165,24 @@ BIN_DISABLED =\
 	logger\
 	ls\
 	mknod\
+	mktemp\
+	mv\
 	od\
 	paste\
 	pathchk\
 	printf\
+	rm\
 	sed\
 	sort\
+	sponge\
 	tail\
 	tftp\
 	tar\
 	tee\
 	time\
 	touch\
-	xargs
+	xargs\
+	xinstall\
 
 LIBUTFOBJ = $(LIBUTFSRC:.c=.o)
 LIBUTILOBJ = $(LIBUTILSRC:.c=.o)
