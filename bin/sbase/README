@@ -1,0 +1,145 @@
+sbase - suckless unix tools
+===========================
+
+sbase is a collection of unix tools that are inherently portable across
+UNIX and UNIX-like systems.
+
+The complement of sbase is ubase[1] which is Linux-specific and provides
+all the non-portable tools. Together they are intended to form a base
+system similar to busybox but much smaller and suckless.
+
+Building
+--------
+
+To build sbase, simply type make. You may have to fiddle with config.mk
+depending on your system.
+
+You can also build sbase-box, which generates a single binary containing
+all the required tools. You can then symlink the individual tools to
+sbase-box or run: make sbase-box-install
+
+Ideally you will want to statically link sbase. If you are on Linux we
+recommend using musl-libc[2].
+
+Portability
+-----------
+
+sbase has been compiled on a variety of different operating systems,
+including Linux, *BSD, OSX, Haiku, Solaris, SCO OpenServer and others.
+
+Various combinations of operating systems and architectures have also
+been built.
+
+You can build sbase with gcc, clang, tcc, nwcc and pcc.
+
+Status
+------
+
+The following tools are implemented:
+
+'#'  -> UTF-8 support, '=' -> Implicit UTF-8 support, '*' -> Finished,
+'|'  -> Audited,       'o' -> POSIX 2013 compliant,   'x' -> Non-POSIX,
+'0'  -> NUL handling,  '()' -> Petty flag
+
+      UTILITY         MISSING
+      -------         -------
+0=*|o basename        .
+0=*|o cal             .
+0=*|o cat             .
+0=*|o chgrp           .
+0=*|o chmod           .
+0=*|o chown           .
+0=*|x chroot          .
+0=*|o cksum           .
+0=*|o cmp             .
+0#*|x cols            .
+0=*|o comm            .
+0=*|o cp              (-i)
+0=*|x cron            .
+0#*|o cut             .
+0=*|o date            .
+0=*|o dd              .
+0=*|o dirname         .
+0=*|o du              .
+0=*|o echo            .
+    o ed              .
+0=*|o env             .
+0#*|o expand          .
+0#*|o expr            .
+0=*|o false           .
+0=    find            .
+0=* x flock           .
+0#*|o fold            .
+0=*|o getconf         (-v)
+ =*|o grep            .
+0=*|o head            .
+0=*|x hostname        .
+0=*|x install         .
+0=* o join            .
+0=*|o kill            .
+0=*|o link            .
+0=*|o ln              .
+0=*|o logger          .
+0=*|o logname         .
+0#* o ls              (-C, -k, -m, -p, -s, -x)
+0=*|x md5sum          .
+0=*|o mkdir           .
+0=*|o mkfifo          .
+0=*|x mknod           .
+0=*|x mktemp          .
+0=*|o mv              (-i)
+0=*|o nice            .
+0#*|o nl              .
+0=*|o nohup           .
+0=*|o od              .
+0#* o pathchk         .
+ #*|o paste           .
+0=*|x printenv        .
+0#*|o printf          .
+0=*|o pwd             .
+0=*|x readlink        .
+0=*|o renice          .
+0#* x rev             .
+0=*|o rm              (-i)
+0=*|o rmdir           .
+ #    sed             .
+0=*|x seq             .
+0=*|x setsid          .
+0=*|x sha1sum         .
+0=* x sha224sum       .
+0=*|x sha256sum       .
+0=* x sha238sum       .
+0=*|x sha512sum       .
+0=* x sha512-224sum   .
+0=* x sha512-256sum   .
+0=*|o sleep           .
+0#*|o sort            .
+0=*|o split           .
+0=*|x sponge          .
+0#*|o strings         .
+0=*|x sync            .
+0=*|o tail            .
+0=*|x tar             .
+0=*|o tee             .
+0=*|o test            .
+0=*|x tftp            .
+0=*|o time            .
+0=*|o touch           .
+0#*|o tr              .
+0=*|o true            .
+0=* o tsort           .
+0=*|o tty             .
+0=*|o uname           .
+0#*|o unexpand        .
+0=*|o uniq            .
+0=*|o unlink          .
+0=*|o uudecode        .
+0=*|o uuencode        .
+0#*|o wc              .
+0=*|x which           .
+0=*|x whoami          .
+0=*|o xargs           (-p)
+0=*|x yes             .
+
+[1] http://git.suckless.org/ubase/
+[2] http://www.musl-libc.org/
