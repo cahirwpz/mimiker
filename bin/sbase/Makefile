@@ -188,10 +188,8 @@ LIBUTFOBJ = $(LIBUTFSRC:.c=.o)
 LIBUTILOBJ = $(LIBUTILSRC:.c=.o)
 OBJ = $(BIN:=.o) $(LIBUTFOBJ) $(LIBUTILOBJ)
 SRC = $(BIN:=.c)
-INSTALLDIR = $(SYSROOT)/bin/sbase/
+INSTALLDIR = $(SYSROOT)/$(DIR)
 PROGRAM = sbase-box
-
-$(OBJ): $(HDR)
 
 $(PROGRAM).c: $(SRC)
 	@echo "[SBASE] $^ -> $@"
@@ -230,10 +228,8 @@ $(PROGRAM): $(PROGRAM).o $(BIN:=.o) $(LIB)
 build-here: $(PROGRAM)
 
 install-here:
-	@echo "[SBASE] install"
-	mkdir -p $(INSTALLDIR)
-	cp -f $(PROGRAM) $(INSTALLDIR)
-	chmod 755 $(INSTALLDIR)/$(PROGRAM)
+	@echo "[INSTALL] $(DIR)/$(PROGRAM) -> $(INSTALLDIR)/$(PROGRAM)"
+	install -D $(PROGRAM) --mode=0755 $(INSTALLDIR)/$(PROGRAM)
 	for f in $(BIN); do ln -sf $(PROGRAM) $(INSTALLDIR)/"$$f"; done
 	ln -sf $(PROGRAM) $(INSTALLDIR)/[
 
