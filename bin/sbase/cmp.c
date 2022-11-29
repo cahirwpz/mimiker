@@ -62,12 +62,12 @@ cmp_main(int argc, char *argv[])
 			break;
 		} else if (!lflag) {
 			if (!sflag)
-				printf("%s %s differ: byte %zu, line %zu\n",
+				printf("%s %s differ: byte %lu, line %lu\n",
 				       argv[0], argv[1], n, line);
 			same = 0;
 			break;
 		} else {
-			printf("%zu %o %o\n", n, b[0], b[1]);
+			printf("%lu %o %o\n", n, b[0], b[1]);
 			same = 0;
 		}
 	}

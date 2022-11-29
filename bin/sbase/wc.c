@@ -16,18 +16,18 @@ output(const char *str, size_t nc, size_t nl, size_t nw)
 
 	if (lflag) {
 		first = 0;
-		printf("%zu", nl);
+		printf("%lu", nl);
 	}
 	if (wflag) {
 		if (!first)
 			putchar(' ');
 		first = 0;
-		printf("%zu", nw);
+		printf("%lu", nw);
 	}
 	if (cmode) {
 		if (!first)
 			putchar(' ');
-		printf("%zu", nc);
+		printf("%lu", nc);
 	}
 	if (str)
 		printf(" %s", str);
