@@ -234,6 +234,6 @@ install-here:
 	ln -sf $(PROGRAM) $(INSTALLDIR)/[
 
 clean-here:
-	rm -f $(OBJ) $(LIB) $(PROGRAM).*
+	rm -f $(OBJ) $(LIB) $(PROGRAM) $(PROGRAM).*
 
 .PHONY: all install uninstall dist clean
