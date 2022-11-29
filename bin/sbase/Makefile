@@ -107,6 +107,7 @@ BIN =\
 	md5sum\
 	mkdir\
 	mkfifo\
+	mktemp\
 	nice\
 	nl\
 	nohup\
@@ -165,7 +166,6 @@ BIN_DISABLED =\
 	logger\
 	ls\
 	mknod\
-	mktemp\
 	mv\
 	od\
 	paste\
