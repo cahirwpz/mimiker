@@ -4,6 +4,7 @@
 #include <sys/cpu.h>
 #include <sys/context.h>
 #include <sys/pmap.h>
+#include <sys/errno.h>
 #include <sys/sched.h>
 #include <sys/sysent.h>
 #include <sys/thread.h>
@@ -107,7 +108,22 @@ static void user_trap_handler(ctx_t *ctx) {
     case EXC_TLBXI:
       klog("%s at $%lx, caused by reference to $%lx!", exceptions[code],
            _REG(ctx, EPC), vaddr);
-      pmap_fault_handler(ctx, vaddr, exc_access(code));
+      int signo = 0, sigcode;
+      int err = pmap_fault_handler(ctx, vaddr, exc_access(code));
+
+      if (err == EACCES) {
+        signo = SIGSEGV;
+        sigcode = SEGV_ACCERR;
+      } else if (err == EFAULT) {
+        signo = SIGSEGV;
+        sigcode = SEGV_MAPERR;
+      } else if (err > 0) {
+        panic("Unknown error returned from abort handler: %d", err);
+      }
+
+      if (err) {
+        sig_trap(ctx, signo, sigcode, (void *)vaddr, code);
+      }
       break;
 
     /*
@@ -118,7 +134,7 @@ static void user_trap_handler(ctx_t *ctx) {
      */
     case EXC_ADEL:
     case EXC_ADES:
-      sig_trap(ctx, SIGBUS);
+      sig_trap(ctx, SIGBUS, BUS_ADRALN, (void *)vaddr, code);
       break;
 
     case EXC_SYS:
@@ -128,13 +144,13 @@ static void user_trap_handler(ctx_t *ctx) {
     case EXC_FPE:
     case EXC_MSAFPE:
     case EXC_OVF:
-      sig_trap(ctx, SIGFPE);
+      sig_trap(ctx, SIGFPE, FPE_INTOVF, (void *)vaddr, code);
       break;
 
     case EXC_CPU:
       cp_id = (_REG(ctx, CAUSE) & CR_CEMASK) >> CR_CESHIFT;
       if (cp_id != 1) {
-        sig_trap(ctx, SIGILL);
+        sig_trap(ctx, SIGILL, ILL_ILLOPC, (void *)vaddr, code);
       } else {
         /* Enable FPU for interrupted context. */
         thread_self()->td_pflags |= TDP_FPUINUSE;
@@ -143,7 +159,7 @@ static void user_trap_handler(ctx_t *ctx) {
       break;
 
     case EXC_RI:
-      sig_trap(ctx, SIGILL);
+      sig_trap(ctx, SIGILL, ILL_PRVOPC, (void *)vaddr, code);
       break;
 
     default:

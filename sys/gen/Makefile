@@ -5,6 +5,7 @@ TOPDIR = $(realpath ../..)
 SOURCES = \
 	boot.c \
 	pmap.c \
+	signal.c \
 	syscall.c \
 	thread.c
 

@@ -446,7 +446,7 @@ static int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
 
 int pmap_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access) {
   thread_t *td = thread_self();
-  int error = EINVAL;
+  int error = EACCES;
 
   if (kern_addr_p(vaddr))
     goto fault;
@@ -471,10 +471,6 @@ fault:
     ctx_set_pc(ctx, td->td_onfault);
     td->td_onfault = 0;
     return 0;
-  }
-  if (user_mode_p(ctx)) {
-    /* Send a segmentation fault signal to the user program. */
-    sig_trap(ctx, SIGSEGV);
   }
   return error;
 }

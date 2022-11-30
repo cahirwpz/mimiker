@@ -7,6 +7,7 @@
 #include <sys/interrupt.h>
 #include <sys/sched.h>
 #include <sys/cpu.h>
+#include <sys/errno.h>
 #include <aarch64/armreg.h>
 
 static __noreturn void kernel_oops(ctx_t *ctx) {
@@ -24,8 +25,9 @@ static vm_prot_t exc_access(u_long exc_code, register_t esr) {
 }
 
 static int unaligned_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access) {
-  sig_trap(ctx, SIGBUS);
-  return 0;
+  /* Just return information about error. Other actions will be taken out of
+   * this function. */
+  return EINVAL;
 }
 
 typedef int abort_handler_t(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access);
@@ -64,7 +66,27 @@ void user_trap_handler(mcontext_t *uctx) {
     case EXCP_DATA_ABORT_L:
     case EXCP_DATA_ABORT:
       if (abort_handlers[dfsc]) {
-        abort_handlers[dfsc](ctx, far, exc_access(exc_code, esr));
+        int signo = 0, sigcode;
+        int err = abort_handlers[dfsc](ctx, far, exc_access(exc_code, esr));
+
+        klog("Error from abort_handler: %d", err);
+
+        if (err == EACCES) {
+          signo = SIGSEGV;
+          sigcode = SEGV_ACCERR;
+        } else if (err == EFAULT) {
+          signo = SIGSEGV;
+          sigcode = SEGV_MAPERR;
+        } else if (err == EINVAL) {
+          signo = SIGBUS;
+          sigcode = BUS_ADRALN;
+        } else if (err > 0) {
+          panic("Unknown error returned from abort handler: %d", err);
+        }
+
+        if (err) {
+          sig_trap(ctx, signo, sigcode, (void *)far, exc_code);
+        }
       } else {
         panic("Unhandled EL0 %s abort (0x%x) at %p caused by reference to %p!",
               exc_code == EXCP_INSN_ABORT_L ? "instruction" : "data", dfsc,
@@ -78,12 +100,12 @@ void user_trap_handler(mcontext_t *uctx) {
 
     case EXCP_SP_ALIGN:
     case EXCP_PC_ALIGN:
-      unaligned_handler(ctx, far, exc_access(exc_code, esr));
+      sig_trap(ctx, SIGBUS, BUS_ADRALN, (void *)far, exc_code);
       break;
 
     case EXCP_UNKNOWN:
     case EXCP_MSR: /* privileged instruction */
-      sig_trap(ctx, SIGILL);
+      sig_trap(ctx, SIGILL, ILL_PRVOPC, (void *)far, exc_code);
       break;
 
     case EXCP_FP_SIMD:
@@ -92,7 +114,7 @@ void user_trap_handler(mcontext_t *uctx) {
 
     case EXCP_BRKPT_EL0:
     case EXCP_BRK:
-      sig_trap(ctx, SIGTRAP);
+      sig_trap(ctx, SIGTRAP, TRAP_BRKPT, (void *)far, exc_code);
       break;
 
     default:

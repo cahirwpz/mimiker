@@ -134,7 +134,23 @@ static void user_trap_handler(ctx_t *ctx) {
     case SCAUSE_STORE_PAGE_FAULT:
       klog("%s at %p, caused by reference to %lx!", exceptions[code], epc,
            vaddr);
-      pmap_fault_handler(ctx, vaddr, exc_access(code));
+      int signo = 0, sigcode;
+      int err = pmap_fault_handler(ctx, vaddr, exc_access(code));
+
+      if (err == EACCES) {
+        signo = SIGSEGV;
+        sigcode = SEGV_ACCERR;
+      } else if (err == EFAULT) {
+        signo = SIGSEGV;
+        sigcode = SEGV_MAPERR;
+      } else if (err > 0) {
+        panic("Unknown error returned from abort handler: %d", err);
+      }
+
+      if (err) {
+        sig_trap(ctx, signo, sigcode, (void *)vaddr, code);
+      }
+
       break;
 
       /* Access fault */
@@ -145,7 +161,7 @@ static void user_trap_handler(ctx_t *ctx) {
     case SCAUSE_INST_MISALIGNED:
     case SCAUSE_LOAD_MISALIGNED:
     case SCAUSE_STORE_MISALIGNED:
-      sig_trap(ctx, SIGBUS);
+      sig_trap(ctx, SIGBUS, BUS_ADRALN, (void *)vaddr, code);
       break;
 
     case SCAUSE_ECALL_USER:
@@ -156,11 +172,11 @@ static void user_trap_handler(ctx_t *ctx) {
       if (fpu_handler((mcontext_t *)ctx))
         break;
       klog("%s at %p!", exceptions[code], epc);
-      sig_trap(ctx, SIGILL);
+      sig_trap(ctx, SIGILL, ILL_ILLOPC, (void *)vaddr, code);
       break;
 
     case SCAUSE_BREAKPOINT:
-      sig_trap(ctx, SIGTRAP);
+      sig_trap(ctx, SIGTRAP, TRAP_BRKPT, (void *)vaddr, code);
       break;
 
     default:
