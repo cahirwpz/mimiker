@@ -60,7 +60,8 @@ int test_vmmap_text_w(void) {
     assert(0);
   }
 
-  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address, sigsegv_code);
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address,
+         sigsegv_code);
 
   assert(sigsegv_address == p);
   assert(sigsegv_code == SEGV_ACCERR);
@@ -88,7 +89,8 @@ int test_vmmap_data_x(void) {
     assert(v != 2);
   }
 
-  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address, sigsegv_code);
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address,
+         sigsegv_code);
 
   assert(sigsegv_address == ff);
   assert(sigsegv_code == SEGV_ACCERR);
@@ -112,7 +114,8 @@ int test_vmmap_rodata_w(void) {
     assert(*c == 'X');
   }
 
-  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address, sigsegv_code);
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address,
+         sigsegv_code);
 
   assert(sigsegv_address == c);
   assert(sigsegv_code == SEGV_ACCERR);
@@ -134,9 +137,11 @@ int test_vmmap_rodata_x(void) {
     assert(0);
   }
 
-  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address, sigsegv_code);
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address,
+         sigsegv_code);
 
-  /* for some reason this assertion fails on riscv because fail address is fun + 1 */
+  /* for some reason this assertion fails on riscv because fail address is fun +
+   * 1 */
   assert(sigsegv_address == fun);
   assert(sigsegv_code == SEGV_ACCERR);
 
