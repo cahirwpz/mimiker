@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <setjmp.h>
+#include <signal.h>
 
 typedef int (*func_int_t)(int);
 
@@ -19,7 +21,28 @@ int func_dec(int x) {
   return x - 1;
 }
 
+static volatile void *sigsegv_address = 0;
+static volatile int sigsegv_code = 0;
+static jmp_buf return_to;
+
+static void sigsegv_handler(int signo, siginfo_t *info, void *uctx) {
+  sigsegv_address = info->si_addr;
+  sigsegv_code = info->si_code;
+  siglongjmp(return_to, 1);
+}
+
+static void setup_sigaction() {
+  sigaction_t sa;
+  memset(&sa, 0, sizeof(sigaction_t));
+  sa.sa_sigaction = sigsegv_handler;
+  sa.sa_flags = SA_SIGINFO;
+  int err = sigaction(SIGSEGV, &sa, NULL);
+  assert(err == 0);
+}
+
 int test_vmmap_text_w(void) {
+  setup_sigaction();
+
   func_int_t fun = func_dec;
 
   assert((uintptr_t)func_inc < (uintptr_t)func_dec);
@@ -30,19 +53,25 @@ int test_vmmap_text_w(void) {
 
   char *p = (char *)func_inc;
   char prev_value0 = p[0];
-  char prev_value1 = p[1];
 
-  /* These memory writes should fail */
-  p[0] = prev_value0 + 1;
-  p[1] = prev_value1 + 1;
+  if (sigsetjmp(return_to, 1) == 0) {
+    /* This memory write should fail and trigger SIGSEGV. */
+    p[0] = prev_value0 + 1;
+    assert(0);
+  }
 
-  /* Assertions will fail if memory writes succeeded. */
-  assert(p[0] == prev_value0);
-  assert(p[1] == prev_value1);
-  return -1;
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address, sigsegv_code);
+
+  assert(sigsegv_address == p);
+  assert(sigsegv_code == SEGV_ACCERR);
+
+  signal(SIGSEGV, SIG_DFL);
+  return 0;
 }
 
 int test_vmmap_data_x(void) {
+  setup_sigaction();
+
   static char func_buf[1024];
 
   assert((uintptr_t)func_inc < (uintptr_t)func_dec);
@@ -53,36 +82,64 @@ int test_vmmap_data_x(void) {
 
   func_int_t ff = (func_int_t)func_buf;
 
-  /* Executing function in data segment (without exec prot) */
-  int v = ff(1);
+  if (sigsetjmp(return_to, 1) == 0) {
+    /* Executing function in data segment (without exec prot) */
+    int v = ff(1);
+    assert(v != 2);
+  }
 
-  assert(v != 2);
-  assert(0);
-  return -1;
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address, sigsegv_code);
+
+  assert(sigsegv_address == ff);
+  assert(sigsegv_code == SEGV_ACCERR);
+
+  signal(SIGSEGV, SIG_DFL);
+  return 0;
 }
 
 static const char *ro_data_str = "String in .rodata section";
 
 int test_vmmap_rodata_w(void) {
+  setup_sigaction();
+
   volatile char *c = (char *)ro_data_str;
 
   printf("mem to write: 0x%p\n", c);
 
-  /* Writing to rodata segment. */
-  *c = 'X';
+  if (sigsetjmp(return_to, 1) == 0) {
+    /* Writing to rodata segment. */
+    *c = 'X';
+    assert(*c == 'X');
+  }
 
-  assert(0);
-  return -1;
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address, sigsegv_code);
+
+  assert(sigsegv_address == c);
+  assert(sigsegv_code == SEGV_ACCERR);
+
+  signal(SIGSEGV, SIG_DFL);
+  return 0;
 }
 
 int test_vmmap_rodata_x(void) {
+  setup_sigaction();
+
   func_int_t fun = (func_int_t)ro_data_str;
 
   printf("func: 0x%p\n", fun);
 
-  /* Executing from rodata segment. */
-  fun(1);
+  if (sigsetjmp(return_to, 1) == 0) {
+    /* Executing from rodata segment. */
+    fun(1);
+    assert(0);
+  }
 
-  assert(0);
-  return -1;
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address, sigsegv_code);
+
+  /* for some reason this assertion fails on riscv because fail address is fun + 1 */
+  assert(sigsegv_address == fun);
+  assert(sigsegv_code == SEGV_ACCERR);
+
+  signal(SIGSEGV, SIG_DFL);
+  return 0;
 }
