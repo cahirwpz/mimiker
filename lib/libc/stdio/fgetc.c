@@ -1,8 +1,11 @@
-/*	$NetBSD: dirent.h,v 1.36 2016/12/16 04:45:04 mrg Exp $	*/
+/*	$NetBSD: getc.c,v 1.12 2012/03/15 18:22:30 christos Exp $	*/
 
 /*-
- * Copyright (c) 1989, 1993
+ * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,41 +30,26 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)dirent.h	8.2 (Berkeley) 7/28/94
  */
-
-#ifndef _DIRENT_H_
-#define _DIRENT_H_
-
-#include <sys/types.h>
-
-/*
- * The kernel defines the format of directory entries returned by
- * the getdents(2) system call.
- */
-#include <sys/dirent.h>
-
-#ifndef _KERNEL
 
 #include <sys/cdefs.h>
+#include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include "reentrant.h"
+#include "local.h"
 
-typedef struct _dirdesc DIR;
+/*
+ * A subroutine version of the macro getc.
+ */
 
-__BEGIN_DECLS
-int closedir(DIR *);
-DIR *opendir(const char *);
-DIR *fdopendir(int fd);
-struct dirent *readdir(DIR *);
-int readdir_r(DIR *__restrict, struct dirent *__restrict,
-              struct dirent **__restrict);
-long telldir(DIR *);
-ssize_t getdents(int, char *, size_t);
-int alphasort(const struct dirent **, const struct dirent **);
-int scandir(const char *, struct dirent ***, int (*)(const struct dirent *),
-            int (*)(const struct dirent **, const struct dirent **));
-__END_DECLS
+int fgetc(FILE *fp) {
+  int r;
 
-#endif /* !_KERNEL */
+  _DIAGASSERT(fp != NULL);
 
-#endif /* !_DIRENT_H */
+  FLOCKFILE(fp);
+  r = __sgetc(fp);
+  FUNLOCKFILE(fp);
+  return r;
+}
