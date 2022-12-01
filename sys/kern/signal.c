@@ -583,6 +583,24 @@ int do_sigreturn(ucontext_t *ucp) {
   return EJUSTRETURN;
 }
 
+void fault_handler_sigcode(int err, int *signo, int *sigcode) {
+  if (err == EACCES) {
+    *signo = SIGSEGV;
+    *sigcode = SEGV_ACCERR;
+  } else if (err == EFAULT) {
+    *signo = SIGSEGV;
+    *sigcode = SEGV_MAPERR;
+  } else if (err == EINVAL) {
+    /* This branch is used on aarch64 but this error is not returned from
+     * pmap_fault_handler hence it won't be taken on other architectures.
+     */
+    *signo = SIGBUS;
+    *sigcode = BUS_ADRALN;
+  } else if (err > 0) {
+    panic("Unknown error returned from abort handler: %d", err);
+  }
+}
+
 void sig_trap(ctx_t *ctx, signo_t sig, int code, void *addr, int trapno) {
   proc_t *proc = proc_self();
 

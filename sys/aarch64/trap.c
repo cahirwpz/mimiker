@@ -6,6 +6,7 @@
 #include <sys/sysent.h>
 #include <sys/interrupt.h>
 #include <sys/sched.h>
+#include <sys/signal.h>
 #include <sys/cpu.h>
 #include <sys/errno.h>
 #include <aarch64/armreg.h>
@@ -70,19 +71,7 @@ void user_trap_handler(mcontext_t *uctx) {
         int err = abort_handlers[dfsc](ctx, far, exc_access(exc_code, esr));
 
         klog("Error from abort_handler: %d", err);
-
-        if (err == EACCES) {
-          signo = SIGSEGV;
-          sigcode = SEGV_ACCERR;
-        } else if (err == EFAULT) {
-          signo = SIGSEGV;
-          sigcode = SEGV_MAPERR;
-        } else if (err == EINVAL) {
-          signo = SIGBUS;
-          sigcode = BUS_ADRALN;
-        } else if (err > 0) {
-          panic("Unknown error returned from abort handler: %d", err);
-        }
+        fault_handler_sigcode(err, &signo, &sigcode);
 
         if (err) {
           sig_trap(ctx, signo, sigcode, (void *)far, exc_code);

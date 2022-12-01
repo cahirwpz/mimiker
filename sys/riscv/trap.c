@@ -137,15 +137,8 @@ static void user_trap_handler(ctx_t *ctx) {
       int signo = 0, sigcode;
       int err = pmap_fault_handler(ctx, vaddr, exc_access(code));
 
-      if (err == EACCES) {
-        signo = SIGSEGV;
-        sigcode = SEGV_ACCERR;
-      } else if (err == EFAULT) {
-        signo = SIGSEGV;
-        sigcode = SEGV_MAPERR;
-      } else if (err > 0) {
-        panic("Unknown error returned from abort handler: %d", err);
-      }
+      klog("Error from abort_handler: %d", err);
+      fault_handler_sigcode(err, &signo, &sigcode);
 
       if (err) {
         sig_trap(ctx, signo, sigcode, (void *)vaddr, code);
