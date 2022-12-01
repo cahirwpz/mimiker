@@ -136,7 +136,7 @@ static void user_trap_handler(ctx_t *ctx) {
       klog("%s at %p, caused by reference to %lx!", exceptions[code], epc,
            vaddr);
       if ((error = pmap_fault_handler(ctx, vaddr, exc_access(code))))
-        sig_trap(SIGSEGV, error == EFAULT ? SEGV_MAPERR : SEGV_ACCERR, 
+        sig_trap(SIGSEGV, error == EFAULT ? SEGV_MAPERR : SEGV_ACCERR,
                  (void *)vaddr, code);
       break;
 

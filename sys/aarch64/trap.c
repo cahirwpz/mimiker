@@ -25,6 +25,7 @@ static vm_prot_t exc_access(u_long exc_code, register_t esr) {
   return access;
 }
 
+/* clang-format off */
 static signo_t abort_signo[ISS_DATA_DFSC_MASK + 1] = {
   [ISS_DATA_DFSC_TF_L0] = SIGSEGV,
   [ISS_DATA_DFSC_TF_L1] = SIGSEGV,
@@ -38,6 +39,7 @@ static signo_t abort_signo[ISS_DATA_DFSC_MASK + 1] = {
   [ISS_DATA_DFSC_PF_L3] = SIGSEGV,
   [ISS_DATA_DFSC_ALIGN] = SIGBUS,
 };
+/* clang-format on */
 
 void user_trap_handler(mcontext_t *uctx) {
   /* Let's read special registers before enabling interrupts.
@@ -63,7 +65,7 @@ void user_trap_handler(mcontext_t *uctx) {
         sig_trap(SIGBUS, BUS_ADRALN, (void *)far, exc_code);
       } else if (abort_signo[dfsc] == SIGSEGV) {
         if ((error = pmap_fault_handler(ctx, far, exc_access(exc_code, esr))))
-          sig_trap(SIGSEGV, error == EFAULT ? SEGV_MAPERR : SEGV_ACCERR, 
+          sig_trap(SIGSEGV, error == EFAULT ? SEGV_MAPERR : SEGV_ACCERR,
                    (void *)far, exc_code);
       } else {
         panic("Unhandled EL0 %s abort (0x%x) at %p caused by reference to %p!",
