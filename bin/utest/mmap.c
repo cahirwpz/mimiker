@@ -98,18 +98,18 @@ int test_munmap_sigsegv(void) {
   setup_sigsegv_sigaction();
 
   void *addr = mmap_anon_prw(NULL, 0x4000);
-  volatile int *ptr = (volatile int *)(addr + 0x2000);
 
   munmap(addr, 0x4000);
 
   if (sigsetjmp(return_to, 1) == 0) {
     /* Try to access freed memory. It should raise SIGSEGV */
-    (void)*ptr;
+    int data = *((volatile int *)(addr + 0x2000));
+    (void)data;
     assert(0);
   }
 
   /* Check if SIGSEGV was handled correctly */
-  assert(sigsegv_address == ptr);
+  assert(sigsegv_address == (addr + 0x2000));
   assert(sigsegv_code = SEGV_MAPERR);
 
   signal(SIGSEGV, SIG_DFL);
