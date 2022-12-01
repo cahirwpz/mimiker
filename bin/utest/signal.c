@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 
 #include "utest.h"
+#include "util.h"
 
 /* ======= signal_basic ======= */
 static volatile int sigusr1_handled = 0;
@@ -67,11 +68,19 @@ int test_signal_abort(void) {
 }
 
 /* ======= signal_segfault ======= */
-/* This test shall be considered success if the process gets terminated with
-   SIGABRT */
 int test_signal_segfault(void) {
+  setup_sigsegv_sigaction();
+
   volatile struct { int x; } *ptr = 0x0;
-  ptr->x = 42;
+
+  if (sigsetjmp(return_to, 1) == 0) {
+    ptr->x = 42;
+  }
+
+  assert(sigsegv_address == ptr);
+  assert(sigsegv_code == SEGV_MAPERR);
+
+  signal(SIGSEGV, SIG_DFL);
   return 0;
 }
 

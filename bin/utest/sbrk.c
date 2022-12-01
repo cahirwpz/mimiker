@@ -1,7 +1,9 @@
 #include "utest.h"
+#include "util.h"
 
 #include <errno.h>
 #include <string.h>
+#include <signal.h>
 #include <unistd.h>
 #include <assert.h>
 
@@ -63,8 +65,9 @@ static void sbrk_bad(void) {
   assert(b2 == b1);
 }
 
-/* Causes SIGSEGV, don't call it here */
 int test_sbrk_sigsegv(void) {
+  setup_sigsegv_sigaction();
+
   /* Make sure memory just above sbrk has just been used and freed */
   void *unaligned = sbrk(0);
   /* Align to page size */
@@ -73,10 +76,19 @@ int test_sbrk_sigsegv(void) {
   void *ptr = sbrk(0x2000);
   sbrk(-0x2000);
 
-  /* Try to access freed memory. It should raise SIGSEGV */
-  int data = *((volatile int *)(ptr + 0x1000));
-  (void)data;
-  return 1;
+  if (sigsetjmp(return_to, 1) == 0) {
+    /* Try to access freed memory. It should raise SIGSEGV */
+    int data = *((volatile int *)(ptr + 0x1000));
+    (void)data;
+    assert(0);
+  }
+
+  /* Check if SIGSEGV was handled correctly */
+  assert(sigsegv_address == (ptr + 0x1000));
+  assert(sigsegv_code = SEGV_MAPERR);
+
+  signal(SIGSEGV, SIG_DFL);
+  return 0;
 }
 
 int test_sbrk(void) {

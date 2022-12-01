@@ -21,27 +21,8 @@ int func_dec(int x) {
   return x - 1;
 }
 
-static volatile void *sigsegv_address = 0;
-static volatile int sigsegv_code = 0;
-static jmp_buf return_to;
-
-static void sigsegv_handler(int signo, siginfo_t *info, void *uctx) {
-  sigsegv_address = info->si_addr;
-  sigsegv_code = info->si_code;
-  siglongjmp(return_to, 1);
-}
-
-static void setup_sigaction(void) {
-  sigaction_t sa;
-  memset(&sa, 0, sizeof(sigaction_t));
-  sa.sa_sigaction = sigsegv_handler;
-  sa.sa_flags = SA_SIGINFO;
-  int err = sigaction(SIGSEGV, &sa, NULL);
-  assert(err == 0);
-}
-
 int test_vmmap_text_w(void) {
-  setup_sigaction();
+  setup_sigsegv_sigaction();
 
   func_int_t fun = func_dec;
 
@@ -71,7 +52,7 @@ int test_vmmap_text_w(void) {
 }
 
 int test_vmmap_data_x(void) {
-  setup_sigaction();
+  setup_sigsegv_sigaction();
 
   static char func_buf[1024];
 
@@ -102,7 +83,7 @@ int test_vmmap_data_x(void) {
 static const char *ro_data_str = "String in .rodata section";
 
 int test_vmmap_rodata_w(void) {
-  setup_sigaction();
+  setup_sigsegv_sigaction();
 
   volatile char *c = (char *)ro_data_str;
 
@@ -125,7 +106,7 @@ int test_vmmap_rodata_w(void) {
 }
 
 int test_vmmap_rodata_x(void) {
-  setup_sigaction();
+  setup_sigsegv_sigaction();
 
   func_int_t fun = (func_int_t)ro_data_str;
 

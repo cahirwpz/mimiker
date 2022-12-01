@@ -71,11 +71,11 @@ UTEST_ADD_SIMPLE(vmmap_rodata_x);
 
 UTEST_ADD_SIMPLE(mmap);
 UTEST_ADD_SIMPLE(munmap);
-UTEST_ADD_SIGNAL(munmap_sigsegv, SIGSEGV);
+UTEST_ADD_SIMPLE(munmap_sigsegv);
 UTEST_ADD_SIMPLE(mmap_prot_none);
 UTEST_ADD_SIMPLE(mmap_prot_read);
 UTEST_ADD_SIMPLE(sbrk);
-UTEST_ADD_SIGNAL(sbrk_sigsegv, SIGSEGV);
+UTEST_ADD_SIMPLE(sbrk_sigsegv);
 UTEST_ADD_SIMPLE(misbehave);
 
 UTEST_ADD_SIMPLE(fd_read);
@@ -94,7 +94,7 @@ UTEST_ADD_SIMPLE(fd_all);
 UTEST_ADD_SIMPLE(signal_basic);
 UTEST_ADD_SIMPLE(signal_send);
 UTEST_ADD_SIGNAL(signal_abort, SIGABRT);
-UTEST_ADD_SIGNAL(signal_segfault, SIGSEGV);
+UTEST_ADD_SIMPLE(signal_segfault);
 UTEST_ADD_SIMPLE(signal_stop);
 UTEST_ADD_SIMPLE(signal_cont_masked);
 UTEST_ADD_SIMPLE(signal_mask);

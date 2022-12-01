@@ -1,3 +1,4 @@
+#include <setjmp.h>
 
 /* Wait for a single child process with process id `pid` to exit,
  * and check that its exit code matches the expected value. */
@@ -14,3 +15,11 @@ void wait_for_signal(int signo);
 /* Create a new pseudoterminal and return file descriptors to the master and
  * slave side. */
 void open_pty(int *master_fd, int *slave_fd);
+
+extern volatile void *sigsegv_address;
+extern volatile int sigsegv_code;
+extern jmp_buf return_to;
+
+/* Sets sigaction handler for SIGSEGV which records si_addr and si_code from
+ * sginfo structure. */
+void setup_sigsegv_sigaction(void);
