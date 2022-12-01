@@ -176,13 +176,8 @@ void sig_post(ksiginfo_t *ksi);
 /*! \brief Terminate the process as the result of posting a signal. */
 __noreturn void sig_exit(thread_t *td, signo_t sig);
 
-/*! \brief Converts error code into signo and sigcode */
-void fault_handler_sigcode(int err, int *signo, int *sigcode);
-
-/*! \brief Delivers a hardware trap related signal to current thread.
- *
- * \note This is machine dependent code! */
-void sig_trap(ctx_t *ctx, signo_t sig, int code, void *addr, int trapno);
+/*! \brief Delivers a hardware trap related signal to current thread. */
+void sig_trap(signo_t sig, int code, void *addr, int trapno);
 
 /*! \brief Prepare user context for entry to signal handler action.
  *

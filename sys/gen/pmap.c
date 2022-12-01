@@ -446,7 +446,7 @@ static int pmap_emulate_bits(pmap_t *pmap, vaddr_t va, vm_prot_t prot) {
 
 int pmap_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access) {
   thread_t *td = thread_self();
-  int error = EACCES;
+  int error = EINVAL;
 
   if (kern_addr_p(vaddr))
     goto fault;

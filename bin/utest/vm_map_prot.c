@@ -31,7 +31,7 @@ static void sigsegv_handler(int signo, siginfo_t *info, void *uctx) {
   siglongjmp(return_to, 1);
 }
 
-static void setup_sigaction() {
+static void setup_sigaction(void) {
   sigaction_t sa;
   memset(&sa, 0, sizeof(sigaction_t));
   sa.sa_sigaction = sigsegv_handler;
