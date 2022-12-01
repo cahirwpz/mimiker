@@ -79,14 +79,14 @@ typedef struct sigaction {
 #define ILL_BADSTK 8 /* Internal stack error */
 
 /* SIGFPE */
-#define FPE_INTDIV 1 /* Integer divide by zero		*/
-#define FPE_INTOVF 2 /* Integer overflow			*/
-#define FPE_FLTDIV 3 /* Floating point divide by zero	*/
-#define FPE_FLTOVF 4 /* Floating point overflow		*/
-#define FPE_FLTUND 5 /* Floating point underflow		*/
-#define FPE_FLTRES 6 /* Floating point inexact result	*/
-#define FPE_FLTINV 7 /* Invalid Floating point operation	*/
-#define FPE_FLTSUB 8 /* Subscript out of range		*/
+#define FPE_INTDIV 1 /* Integer divide by zero */
+#define FPE_INTOVF 2 /* Integer overflow */
+#define FPE_FLTDIV 3 /* Floating point divide by zero */
+#define FPE_FLTOVF 4 /* Floating point overflow */
+#define FPE_FLTUND 5 /* Floating point underflow */
+#define FPE_FLTRES 6 /* Floating point inexact result */
+#define FPE_FLTINV 7 /* Invalid Floating point operation */
+#define FPE_FLTSUB 8 /* Subscript out of range */
 
 /* SIGSEGV */
 #define SEGV_MAPERR 1 /* Address not mapped to object */
