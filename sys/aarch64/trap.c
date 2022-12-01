@@ -25,26 +25,18 @@ static vm_prot_t exc_access(u_long exc_code, register_t esr) {
   return access;
 }
 
-static int unaligned_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access) {
-  /* Just return information about error. Other actions will be taken out of
-   * this function. */
-  return EINVAL;
-}
-
-typedef int abort_handler_t(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access);
-
-static abort_handler_t *abort_handlers[ISS_DATA_DFSC_MASK + 1] = {
-  [ISS_DATA_DFSC_TF_L0] = pmap_fault_handler,
-  [ISS_DATA_DFSC_TF_L1] = pmap_fault_handler,
-  [ISS_DATA_DFSC_TF_L2] = pmap_fault_handler,
-  [ISS_DATA_DFSC_TF_L3] = pmap_fault_handler,
-  [ISS_DATA_DFSC_AFF_L1] = pmap_fault_handler,
-  [ISS_DATA_DFSC_AFF_L2] = pmap_fault_handler,
-  [ISS_DATA_DFSC_AFF_L3] = pmap_fault_handler,
-  [ISS_DATA_DFSC_PF_L1] = pmap_fault_handler,
-  [ISS_DATA_DFSC_PF_L2] = pmap_fault_handler,
-  [ISS_DATA_DFSC_PF_L3] = pmap_fault_handler,
-  [ISS_DATA_DFSC_ALIGN] = unaligned_handler,
+static signo_t abort_signo[ISS_DATA_DFSC_MASK + 1] = {
+  [ISS_DATA_DFSC_TF_L0] = SIGSEGV,
+  [ISS_DATA_DFSC_TF_L1] = SIGSEGV,
+  [ISS_DATA_DFSC_TF_L2] = SIGSEGV,
+  [ISS_DATA_DFSC_TF_L3] = SIGSEGV,
+  [ISS_DATA_DFSC_AFF_L1] = SIGSEGV,
+  [ISS_DATA_DFSC_AFF_L2] = SIGSEGV,
+  [ISS_DATA_DFSC_AFF_L3] = SIGSEGV,
+  [ISS_DATA_DFSC_PF_L1] = SIGSEGV,
+  [ISS_DATA_DFSC_PF_L2] = SIGSEGV,
+  [ISS_DATA_DFSC_PF_L3] = SIGSEGV,
+  [ISS_DATA_DFSC_ALIGN] = SIGBUS,
 };
 
 void user_trap_handler(mcontext_t *uctx) {
@@ -56,6 +48,7 @@ void user_trap_handler(mcontext_t *uctx) {
   syscall_result_t result;
   register_t exc_code = ESR_ELx_EXCEPTION(esr);
   register_t dfsc = esr & ISS_DATA_DFSC_MASK;
+  int error;
 
   cpu_intr_enable();
 
@@ -66,16 +59,12 @@ void user_trap_handler(mcontext_t *uctx) {
     case EXCP_INSN_ABORT:
     case EXCP_DATA_ABORT_L:
     case EXCP_DATA_ABORT:
-      if (abort_handlers[dfsc]) {
-        int signo = 0, sigcode;
-        int err = abort_handlers[dfsc](ctx, far, exc_access(exc_code, esr));
-
-        klog("Error from abort_handler: %d", err);
-        fault_handler_sigcode(err, &signo, &sigcode);
-
-        if (err) {
-          sig_trap(ctx, signo, sigcode, (void *)far, exc_code);
-        }
+      if (abort_signo[dfsc] == SIGBUS) {
+        sig_trap(SIGBUS, BUS_ADRALN, (void *)far, exc_code);
+      } else if (abort_signo[dfsc] == SIGSEGV) {
+        if ((error = pmap_fault_handler(ctx, far, exc_access(exc_code, esr))))
+          sig_trap(SIGSEGV, error == EFAULT ? SEGV_MAPERR : SEGV_ACCERR, 
+                   (void *)far, exc_code);
       } else {
         panic("Unhandled EL0 %s abort (0x%x) at %p caused by reference to %p!",
               exc_code == EXCP_INSN_ABORT_L ? "instruction" : "data", dfsc,
@@ -89,12 +78,12 @@ void user_trap_handler(mcontext_t *uctx) {
 
     case EXCP_SP_ALIGN:
     case EXCP_PC_ALIGN:
-      sig_trap(ctx, SIGBUS, BUS_ADRALN, (void *)far, exc_code);
+      sig_trap(SIGBUS, BUS_ADRALN, (void *)far, exc_code);
       break;
 
     case EXCP_UNKNOWN:
     case EXCP_MSR: /* privileged instruction */
-      sig_trap(ctx, SIGILL, ILL_PRVOPC, (void *)far, exc_code);
+      sig_trap(SIGILL, ILL_PRVOPC, (void *)far, exc_code);
       break;
 
     case EXCP_FP_SIMD:
@@ -103,7 +92,7 @@ void user_trap_handler(mcontext_t *uctx) {
 
     case EXCP_BRKPT_EL0:
     case EXCP_BRK:
-      sig_trap(ctx, SIGTRAP, TRAP_BRKPT, (void *)far, exc_code);
+      sig_trap(SIGTRAP, TRAP_BRKPT, (void *)far, exc_code);
       break;
 
     default:
