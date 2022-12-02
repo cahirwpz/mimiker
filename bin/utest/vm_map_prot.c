@@ -80,7 +80,8 @@ int test_vmmap_data_x(void) {
   return 0;
 }
 
-static const char *ro_data_str = "String in .rodata section";
+/* String must be alinged as instuctions because we jump here */
+static __aligned(4) const char ro_data_str[] = "String in .rodata section";
 
 int test_vmmap_rodata_w(void) {
   setup_sigsegv_sigaction();
@@ -121,8 +122,6 @@ int test_vmmap_rodata_x(void) {
   printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address,
          sigsegv_code);
 
-  /* for some reason this assertion fails on riscv because fail address is fun +
-   * 1 */
   assert(sigsegv_address == fun);
   assert(sigsegv_code == SEGV_ACCERR);
 
