@@ -33,7 +33,7 @@ sponge_main(int argc, char *argv[])
 	if (lseek(tmpfd, 0, SEEK_SET) < 0)
 		eprintf("lseek:");
 
-	if ((fd = creat(argv[0], 0666)) < 0)
+	if ((fd = open(argv[0], O_CREAT|O_WRONLY|O_TRUNC, 0666)) < 0)
 		eprintf("creat %s:", argv[0]);
 	if (concat(tmpfd, "<tmpfile>", fd, argv[0]) < 0)
 		return 1;

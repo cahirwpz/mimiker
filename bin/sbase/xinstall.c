@@ -47,10 +47,10 @@ install(const char *s1, const char *s2, int depth)
 
 	if ((f1 = open(s1, O_RDONLY)) < 0)
 		eprintf("open %s:", s1);
-	if ((f2 = creat(s2, 0600)) < 0) {
+	if ((f2 = open(s2, O_CREAT|O_WRONLY|O_TRUNC, 0600)) < 0) {
 		if (unlink(s2) < 0 && errno != ENOENT)
 			eprintf("unlink %s:", s2);
-		if ((f2 = creat(s2, 0600)) < 0)
+		if ((f2 = open(s2, O_CREAT|O_WRONLY|O_TRUNC, 0600)) < 0)
 			eprintf("creat %s:", s2);
 	}
 	if (concat(f1, s1, f2, s2) < 0)
