@@ -148,11 +148,16 @@ BIN =\
 	which\
 	whoami\
 	xinstall\
-	yes
-
-BIN_DISABLED =\
+	yes\
 	cal\
 	cksum\
+	od\
+	paste\
+	printf\
+	sort\
+	tee
+
+BIN_DONT_WORK =\
 	cols\
 	date\
 	dd\
@@ -162,15 +167,10 @@ BIN_DISABLED =\
 	join\
 	kill\
 	ls\
-	od\
-	paste\
 	pathchk\
-	printf\
 	sed\
-	sort\
 	tail\
 	tar\
-	tee\
 	time\
 	touch\
 	xargs
@@ -194,6 +194,7 @@ OBJ = $(BIN:=.o) $(LIBUTFOBJ) $(LIBUTILOBJ)
 SRC = $(BIN:=.c)
 INSTALLDIR = $(SYSROOT)/$(DIR)
 PROGRAM = sbase-box
+WFLAGS += -Wno-error=sign-compare -Wno-error=implicit-fallthrough
 
 $(PROGRAM).c: $(SRC)
 	@echo "[SBASE] $^ -> $@"
