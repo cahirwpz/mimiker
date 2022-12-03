@@ -152,24 +152,16 @@ BIN =\
 
 BIN_DISABLED =\
 	cal\
-	chroot\
 	cksum\
 	cols\
-	cron\
 	date\
 	dd\
-	du\
-	flock\
 	find\
-	ed\
 	getconf\
 	grep\
-	hostname\
 	join\
 	kill\
-	logger\
 	ls\
-	mknod\
 	od\
 	paste\
 	pathchk\
@@ -177,12 +169,24 @@ BIN_DISABLED =\
 	sed\
 	sort\
 	tail\
-	tftp\
 	tar\
 	tee\
 	time\
 	touch\
 	xargs
+
+BIN_QUESTIONABLE =\
+	cron\
+	du\
+	ed\
+	logger
+
+BIN_SURELY_DISABLED =\
+	chroot\
+	flock\
+	hostname\
+	mknod\
+	tftp
 
 LIBUTFOBJ = $(LIBUTFSRC:.c=.o)
 LIBUTILOBJ = $(LIBUTILSRC:.c=.o)
