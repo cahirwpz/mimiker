@@ -57,7 +57,7 @@ pathchk(char *filename)
 	/* Too long pathname? */
 	maxlen = most ? _POSIX_PATH_MAX : PATH_MAX;
 	if (strlen(filename) >= maxlen)
-		eprintf("%s: is longer than %zu bytes\n", filename, maxlen);
+		eprintf("%s: is longer than %lu bytes\n", filename, maxlen);
 
 	/* Too long component? */
 	maxlen = most ? _POSIX_NAME_MAX : NAME_MAX;
@@ -65,7 +65,7 @@ pathchk(char *filename)
 		q = strchr(p, '/');
 		len = q ? (size_t)(q++ - p) : strlen(p);
 		if (len > maxlen)
-			eprintf("%s: includes component longer than %zu bytes\n",
+			eprintf("%s: includes component longer than %lu bytes\n",
 			         filename, maxlen);
 	}
 

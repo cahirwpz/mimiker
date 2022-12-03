@@ -642,7 +642,7 @@ dowrite(const char *fname, int trunc)
 	strcpy(savfname, fname);
 	modflag = 0;
 	curln = line;
-	printf("%zu\n", bytecount);
+	printf("%lu\n", bytecount);
 }
 
 static void
@@ -673,7 +673,7 @@ doread(const char *fname)
 		inject(s, AFTER);
 	}
 	if (optdiag)
-		printf("%zu\n", cnt);
+		printf("%lu\n", cnt);
 
 	aux = fp;
 	fp = NULL;

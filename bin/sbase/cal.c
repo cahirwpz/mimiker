@@ -111,7 +111,7 @@ drawcal(size_t year, int month, size_t ncols, size_t nmons, int fday)
 				cur_month -= 12;
 				cur_year += 1;
 			}
-			snprintf(month_year, sizeof(month_year), "%s %zu", smon[cur_month], cur_year);
+			snprintf(month_year, sizeof(month_year), "%s %lu", smon[cur_month], cur_year);
 			pad = sizeof(month_year) - 1 - strlen(month_year);
 			printf("%*s%s%*s   ", pad / 2 + pad % 2, "", month_year, pad / 2, "");
 		}

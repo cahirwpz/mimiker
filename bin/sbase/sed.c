@@ -347,9 +347,9 @@ static void
 leprintf(char *s)
 {
 	if (errno)
-		eprintf("%zu: %s: %s\n", lineno, s, strerror(errno));
+		eprintf("%lu: %s: %s\n", lineno, s, strerror(errno));
 	else
-		eprintf("%zu: %s\n", lineno, s);
+		eprintf("%lu: %s\n", lineno, s);
 }
 
 /* FIXME: write usage message */
@@ -1600,7 +1600,7 @@ static void
 cmd_equal(Cmd *c)
 {
 	if (in_range(c))
-		printf("%zu\n", lineno);
+		printf("%lu\n", lineno);
 }
 
 static void

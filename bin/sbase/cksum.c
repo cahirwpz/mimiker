@@ -84,7 +84,7 @@ cksum(int fd, const char *s)
 	for (i = len; i; i >>= 8)
 		ck = (ck << 8) ^ crctab[(ck >> 24) ^ (i & 0xFF)];
 
-	printf("%"PRIu32" %zu", ~ck, len);
+	printf("%"PRIu32" %lu", ~ck, len);
 	if (s) {
 		putchar(' ');
 		fputs(s, stdout);
