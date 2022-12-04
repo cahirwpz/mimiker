@@ -11,7 +11,7 @@
  * non-empty requirement */
 
 static int sdcard_probe(device_t *dev) {
-  return FDT_is_compatible(dev->node, "brcm,bcm2835-sdcard");
+  return FDT_is_compatible(dev->node, "mimiker,sd");
 }
 
 static int sdcard_attach(device_t *dev) {

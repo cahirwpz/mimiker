@@ -84,24 +84,77 @@ inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
  * Physical map management.
  */
 
-static void update_kernel_pd(pmap_t *umap) {
+/*
+ * Since `pmap_md_update` and `pmap_md_update` are called (via `vm_map_switch`)
+ * from `ctx_switch`, they may be executed in an interrupt context. Thus they
+ * cannot take any sleep lock including default mutex.
+ *
+ * That's why we need to introduce spin lock for synchronization of level 0
+ * page directory entries that belong to the kernel.
+ */
+static MTX_DEFINE(kmap_l0_lock, MTX_SPIN);
+static paddr_t kmap_l0_pages[Ln_ENTRIES];
+
+void pmap_md_update(pmap_t *umap) {
+  if (umap == NULL)
+    return;
+
   pmap_t *kmap = pmap_kernel();
 
-  size_t halfpage = PAGESIZE / 2;
-  memcpy(phys_to_dmap(umap->pde) + halfpage, phys_to_dmap(kmap->pde) + halfpage,
-         halfpage);
+  assert(umap != kmap);
 
-  umap->md.generation = kmap->md.generation;
+  WITH_MTX_LOCK (&kmap_l0_lock) {
+    if (umap->md.generation == kmap->md.generation)
+      return;
+
+    /* Synchronize kernel page directory entries between two pmaps. */
+    size_t halfpage = PAGESIZE / 2;
+    void *new_kpd = phys_to_dmap(kmap->pde) + halfpage;
+    void *old_kpd = phys_to_dmap(umap->pde) + halfpage;
+    memcpy(old_kpd, new_kpd, halfpage);
+
+    __sfence_vma();
+
+    umap->md.generation = kmap->md.generation;
+  }
+}
+
+void pmap_md_growkernel(vaddr_t old_kva, vaddr_t new_kva) {
+  /* Did we change top kernel PD? If so force updates to user pmaps! */
+  if ((old_kva & ~L0_OFFSET) == (new_kva & ~L0_OFFSET))
+    return;
+
+  pmap_t *kmap = pmap_kernel();
+
+  /* We're protected by unique `kernel_pmap.mtx` */
+  assert(mtx_owned(&kmap->mtx));
+
+  old_kva = roundup(old_kva, L0_SIZE);
+
+  /* Cannot allocate memory under spin lock, so do it here. */
+  for (vaddr_t va = old_kva; va <= new_kva; va += L0_SIZE)
+    kmap_l0_pages[L0_INDEX(va)] = pde_alloc(kmap);
+
+  WITH_MTX_LOCK (&kmap_l0_lock) {
+    /* Fill level 0 page directory with new pages. */
+    for (vaddr_t va = old_kva; va <= new_kva; va += L0_SIZE) {
+      pde_t *pdep = pde_ptr(kmap->pde, 0, va);
+      assert(!pde_valid_p(pdep));
+      *pdep = pde_make(0, kmap_l0_pages[L0_INDEX(va)]);
+    }
+
+    kmap->md.generation++;
+    assert(kmap->md.generation);
+  }
 }
 
 void pmap_md_activate(pmap_t *umap) {
   pmap_t *kmap = pmap_kernel();
-  assert(kmap->md.generation);
+  paddr_t satp = umap ? umap->md.satp : kmap->md.satp;
 
-  if (umap->md.generation < kmap->md.generation)
-    update_kernel_pd(umap);
+  pmap_md_update(umap);
 
-  __set_satp(umap->md.satp);
+  __set_satp(satp);
   __sfence_vma();
 }
 
@@ -140,25 +193,6 @@ void pmap_md_bootstrap(pde_t *pd) {
     pd[idx] = PA_TO_PTE(pa) | PTE_KERN;
 
   __sfence_vma();
-}
-
-void pmap_md_growkernel(vaddr_t maxkvaddr) {
-  pmap_t *kmap = pmap_kernel();
-  pmap_t *umap = pmap_user();
-
-  if (umap)
-    mtx_lock(&umap->mtx);
-
-  WITH_MTX_LOCK (&kmap->mtx) {
-    kmap->md.generation++;
-    assert(kmap->md.generation);
-    if (!umap)
-      return;
-    update_kernel_pd(umap);
-    __sfence_vma();
-  }
-
-  mtx_unlock(&umap->mtx);
 }
 
 /*

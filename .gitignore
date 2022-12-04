@@ -70,3 +70,6 @@ sysroot
 
 # pcap files
 *.pcap
+
+# python env
+mimiker-env/

@@ -108,22 +108,22 @@ typedef enum {
 } dev_mem_flags_t;
 
 struct dev_intr {
-  SLIST_ENTRY(dev_intr) link;
-  device_t *pic;
-  intr_handler_t *handler;
-  int irq;
-  unsigned pic_id;
-  unsigned id;
+  SLIST_ENTRY(dev_intr) link; /* link on resource list */
+  device_t *pic;              /* PIC controlling this interrupt */
+  intr_handler_t *handler;    /* registered interrupt handler */
+  int irq;                    /* PIC-relative interrupt ID (or -1 if invalid) */
+  unsigned pic_id;            /* corresponding PIC ID */
+  unsigned id;                /* device-relative interrupt ID */
 };
 
 struct dev_mem {
-  SLIST_ENTRY(dev_mem) link;
+  SLIST_ENTRY(dev_mem) link;     /* link on resource list */
   bus_space_tag_t bus_tag;       /* bus space methods */
   bus_space_handle_t bus_handle; /* bus space base address */
-  bus_addr_t start;
-  bus_addr_t end;
-  dev_mem_flags_t flags;
-  unsigned id;
+  bus_addr_t start;              /* resource start address */
+  bus_addr_t end;                /* resource end address */
+  dev_mem_flags_t flags;         /* flags describing the resource */
+  unsigned id;                   /* device-relative resource ID */
 };
 
 /* TODO: remove it. */

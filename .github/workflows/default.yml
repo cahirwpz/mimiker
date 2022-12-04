@@ -8,19 +8,23 @@ on:
     branches:
       - master
 
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify_c_style:
     name: Verify C code style
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: ./verify-format.sh
 
   verify_py_style:
     name: Verify Python code style
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: ./verify-pycodestyle.sh
 
   build_mips:
@@ -28,9 +32,9 @@ jobs:
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: make BOARD=malta KASAN=1 LOCKDEP=1
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: "mips kernel+ramdisk"
           path: |
@@ -45,9 +49,9 @@ jobs:
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: make BOARD=rpi3 KASAN=1 LOCKDEP=1
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: "aarch64 kernel+ramdisk"
           path: |
@@ -64,7 +68,7 @@ jobs:
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: make BOARD=litex-riscv KASAN=1 LOCKDEP=1
 
   build_riscv64:
@@ -72,9 +76,9 @@ jobs:
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: make BOARD=sifive_u KASAN=1 LOCKDEP=1
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: "riscv64 kernel+ramdisk"
           path: |
@@ -89,8 +93,8 @@ jobs:
     runs-on: self-hosted
     needs: build_mips
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v2
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
         with:
           name: "mips kernel+ramdisk"
       - run: ./run_tests.py --board malta --timeout=60 --times=50
@@ -100,8 +104,8 @@ jobs:
     runs-on: self-hosted
     needs: build_aarch64
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v2
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
         with:
           name: "aarch64 kernel+ramdisk"
       - run: ./run_tests.py --board rpi3 --times=50
@@ -111,8 +115,8 @@ jobs:
     runs-on: self-hosted
     needs: build_riscv64
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v2
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
         with:
           name: "riscv64 kernel+ramdisk"
       - run: ./run_tests.py --board sifive_u --timeout=80 --times=50

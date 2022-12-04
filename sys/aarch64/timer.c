@@ -68,12 +68,9 @@ static int arm_timer_attach(device_t *dev) {
   arm_timer_state_t *state = dev->state;
   int err = 0;
 
-  state->irq_res = device_take_intr(dev, 1);
-  assert(state->irq_res);
-
-  if ((err = pic_setup_intr(dev, state->irq_res, arm_timer_intr, NULL, dev,
-                            "ARM CPU timer"))) {
-    return (err == ENODEV) ? EAGAIN : err;
+  if ((err = device_claim_intr(dev, 1, arm_timer_intr, NULL, dev,
+                               "ARM CPU timer", &state->irq_res))) {
+    return err;
   }
 
   uint64_t freq = READ_SPECIALREG(cntfrq_el0);

@@ -42,8 +42,17 @@ class TLBLo():
     def ppn(self):
         return (self.val & 0x03ffffc0) << 6
 
+    @property
+    def xi(self):
+        return bool(self.val & 0x40000000)
+
+    @property
+    def ri(self):
+        return bool(self.val & 0x80000000)
+
     def __str__(self):
-        return '%08x %c' % (self.ppn, '-D'[self.dirty])
+        return '%08x %c %s %s' % (self.ppn, '-D'[self.dirty],
+                                  ['--', 'RI'][self.ri], ['--', 'XI'][self.xi])
 
 
 class TLBEntry(metaclass=GdbStructMeta):

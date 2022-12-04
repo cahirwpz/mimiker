@@ -76,7 +76,7 @@ DIR *__opendir2(const char *name, int flags) {
   return dirp;
 }
 
-DIR *_fdopendir(int fd) {
+DIR *fdopendir(int fd) {
   struct stat sb;
 
   if (fstat(fd, &sb) == -1)

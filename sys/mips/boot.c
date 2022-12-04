@@ -90,7 +90,7 @@ __boot_text void *mips_init(void) {
 
   /* read-write segment - sections: .data, .bss, etc. */
   for (paddr_t pa = data; pa < ebss; va += PAGESIZE, pa += PAGESIZE)
-    pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL;
+    pte[PTE_INDEX(va)] = PTE_PFN(pa) | PTE_KERNEL | PTE_XI;
 
 #if KASAN /* Prepare KASAN shadow mappings */
   /* The loop below where we map the shadow pages depends on
@@ -114,6 +114,9 @@ __boot_text void *mips_init(void) {
     }
   }
 #endif /* !KASAN */
+
+  /* Enable Read-Inhibit and Execute-Inhibit bits in page descriptors. */
+  mips32_setpagegrain(PAGEGRAIN_XIE | PAGEGRAIN_RIE | PAGEGRAIN_IEC);
 
   /* 1st wired TLB entry is always occupied by kernel-PDE and user-PDE. */
   mips32_setwired(1);

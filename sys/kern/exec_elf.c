@@ -130,14 +130,13 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
 
   /* Apply correct permissions */
   vm_prot_t prot = VM_PROT_NONE;
-  if (ph->p_flags | PF_R)
+  if (ph->p_flags & PF_R)
     prot |= VM_PROT_READ;
-  if (ph->p_flags | PF_W)
+  if (ph->p_flags & PF_W)
     prot |= VM_PROT_WRITE;
-  if (ph->p_flags | PF_X)
+  if (ph->p_flags & PF_X)
     prot |= VM_PROT_EXEC;
-  /* Note: vm_map_protect is not yet implemented, so
-   * this will have no effect as of now */
+
   vm_map_protect(p->p_uspace, start, end, prot);
   return 0;
 }

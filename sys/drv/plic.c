@@ -30,8 +30,10 @@
 
 #if __riscv_xlen == 64
 #define PLIC_CTXNUM_SV 2
+#define PLIC_IRQ 2
 #else
 #define PLIC_CTXNUM_SV 1
+#define PLIC_IRQ 1
 #endif
 
 /* PLIC memory map. */
@@ -150,8 +152,8 @@ static int plic_attach(device_t *pic) {
                      sizeof(uint32_t)) != sizeof(uint32_t))
     return ENXIO;
 
-  if ((err = device_claim_intr(pic, 2, plic_intr_handler, NULL, plic, "PLIC",
-                               &plic->irq))) {
+  if ((err = device_claim_intr(pic, PLIC_IRQ, plic_intr_handler, NULL, plic,
+                               "PLIC", &plic->irq))) {
     return err;
   }
 
