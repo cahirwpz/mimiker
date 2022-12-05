@@ -4,11 +4,11 @@ PKG = lua
 
 all: download build install
 
-download-here: $(PKG)/lua.c
+download-here: $(PKG)/.git
 
-$(PKG)/lua.c:
+$(PKG)/.git:
 	@echo "[GIT] submodule $(PKG)"
-	$(GIT) submodule update --remote $(PKG)
+	$(GIT) submodule update --init $(PKG)
 
 patch: download .pc/done
 .pc/done:
