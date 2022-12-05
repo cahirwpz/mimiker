@@ -20,8 +20,8 @@ build-here: patch
 	@echo "[MAKE] $(PKG)"
 	$(MAKE) -C $(PKG) all \
 	  CC="$(CC)" AR="$(AR) rcu" LD="$(LD)" RANLIB="$(RANLIB)" \
-	  MYCFLAGS="$(CPPFLAGS) $(CFLAGS)" MYLDFLAGS="$(LDFLAGS)" \
-	  MYLIBS="$(LDLIBS)"
+	  MYCFLAGS="$(CPPFLAGS) $(CFLAGS) -I$(realpath .)/$(PKG)" \
+	  MYLDFLAGS="$(LDFLAGS)" MYLIBS="$(LDLIBS)"
 
 install-here:
 	@echo "[INSTALL] /bin/lua"
