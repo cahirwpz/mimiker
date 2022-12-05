@@ -3,4 +3,3 @@ init.patch
 loslib.patch
 luaconf.patch
 lunix.patch
-Makefile.patch
