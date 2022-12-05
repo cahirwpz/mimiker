@@ -1,4 +1,3 @@
-clang-warning.patch
 init.patch
 loslib.patch
 luaconf.patch

@@ -1,6 +1,8 @@
---- contrib.orig/lua/luaconf.h
-+++ contrib/lua/luaconf.h
-@@ -200,15 +200,14 @@
+Index: lua/lua/luaconf.h
+===================================================================
+--- lua.orig/lua/luaconf.h
++++ lua/lua/luaconf.h
+@@ -217,9 +217,9 @@
  
  #else			/* }{ */
  
@@ -10,13 +12,15 @@
 +#define LUA_ROOT	"/"
 +#define LUA_LDIR	LUA_ROOT "lib/lua/"
 +#define LUA_CDIR	""
+ 
+ #if !defined(LUA_PATH_DEFAULT)
  #define LUA_PATH_DEFAULT  \
- 		LUA_LDIR"?.lua;"  LUA_LDIR"?/init.lua;" \
- 		LUA_CDIR"?.lua;"  LUA_CDIR"?/init.lua;" \
- 		"./?.lua;" "./?/init.lua"
--#define LUA_CPATH_DEFAULT \
+@@ -230,7 +230,7 @@
+ 
+ #if !defined(LUA_CPATH_DEFAULT)
+ #define LUA_CPATH_DEFAULT \
 -		LUA_CDIR"?.so;" LUA_CDIR"loadall.so;" "./?.so"
-+#define LUA_CPATH_DEFAULT ""
++		""
+ #endif
+ 
  #endif			/* } */
- 
- 

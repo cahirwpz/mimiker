@@ -7,14 +7,14 @@ Index: lua/lua/linit.c
    {LUA_UTF8LIBNAME, luaopen_utf8},
    {LUA_DBLIBNAME, luaopen_debug},
 +  {LUA_UNIXNAME, luaopen_unix},
- #if defined(LUA_COMPAT_BITLIB)
-   {LUA_BITLIBNAME, luaopen_bit32},
- #endif
+   {NULL, NULL}
+ };
+ 
 Index: lua/lua/lualib.h
 ===================================================================
 --- lua.orig/lua/lualib.h
 +++ lua/lua/lualib.h
-@@ -44,6 +44,9 @@ LUAMOD_API int (luaopen_math) (lua_State
+@@ -41,6 +41,9 @@ LUAMOD_API int (luaopen_math) (lua_State
  #define LUA_DBLIBNAME	"debug"
  LUAMOD_API int (luaopen_debug) (lua_State *L);
  
