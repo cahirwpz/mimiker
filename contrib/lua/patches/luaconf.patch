@@ -1,5 +1,5 @@
---- lua-5.3.5.orig/src/luaconf.h
-+++ lua-5.3.5/src/luaconf.h
+--- contrib.orig/lua/luaconf.h
++++ contrib/lua/luaconf.h
 @@ -200,15 +200,14 @@
  
  #else			/* }{ */

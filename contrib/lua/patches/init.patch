@@ -1,5 +1,5 @@
---- lua-5.3.5.orig/src/lua.c
-+++ lua-5.3.5/src/lua.c
+--- contrib.orig/lua/lua.c
++++ contrib/lua/lua.c
 @@ -570,6 +570,8 @@
    }
    luaL_openlibs(L);  /* open standard libraries */

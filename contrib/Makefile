@@ -2,7 +2,8 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = atto doom lua mish evtest
+SUBDIR = lua 
+SUBDIR_EXTRA = atto doom mish evtest
 
 all: build
 

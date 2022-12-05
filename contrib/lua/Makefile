@@ -1,52 +1,31 @@
 TOPDIR = $(realpath ../..)
 
-PKG = lua-5.3.5
-URL = https://www.lua.org/ftp/$(PKG).tar.gz
-PATCHES = loslib.patch lunix.patch luaconf.patch init.patch \
-	  clang-warning.patch Makefile.patch
+PKG = lua
 
 all: download build install
 
-download-here: $(PKG)
+download-here: $(PKG)/lua.c
 
-$(PKG).tar.gz:
-	@echo "[CURL] $(PKG)"
-	$(CURL) -# -O $(URL)
+$(PKG)/lua.c:
+	@echo "[GIT] submodule $(PKG)"
+	$(GIT) submodule update --remote $(PKG)
 
-$(PKG): $(PKG).tar.gz
-	@echo "[TAR] $^ -> $@"
-	$(TAR) xzf $(PKG).tar.gz
-	touch $(PKG)
-
-patch: download patch-stamp
-patch-stamp:
-	cd $(PKG) && \
-	  for p in $(PATCHES); do \
-	    $(PATCH) -p1 < ../$${p}; \
-	  done
-	ln -s -t $(PKG)/src ../../lunix.c
+patch: download .pc/done
+.pc/done:
+	@echo "[QUILT] apply patches"
+	quilt push -a
 	touch $@
-
-unpatch:
-	if [ -f patch-stamp ]; then \
-	  cd $(PKG) && \
-	    for p in $(PATCHES); do \
-	      $(PATCH) -R -p1 < ../$$p; \
-	    done; \
-	fi
-	$(RM) $(PKG)/src/lunix.c
-	$(RM) patch-stamp
 
 build-here: patch
 	@echo "[MAKE] $(PKG)"
-	$(MAKE) -C $(PKG) generic \
+	$(MAKE) -C $(PKG) all \
 	  CC="$(CC)" AR="$(AR) rcu" LD="$(LD)" RANLIB="$(RANLIB)" \
 	  MYCFLAGS="$(CPPFLAGS) $(CFLAGS)" MYLDFLAGS="$(LDFLAGS)" \
 	  MYLIBS="$(LDLIBS)"
 
 install-here:
 	@echo "[INSTALL] /bin/lua"
-	$(INSTALL) -m 755 lua-5.3.5/src/lua $(SYSROOT)/bin/lua
+	$(INSTALL) -m 755 $(PKG)/lua $(SYSROOT)/bin/lua
 	@echo "[OBJCOPY] $(SYSROOT)/bin/lua -> \
 		$(SYSROOT)/bin/lua.dbg"
 	$(OBJCOPY) --only-keep-debug $(SYSROOT)/bin/lua \
@@ -56,11 +35,12 @@ install-here:
 	@echo "[INSTALL] /lib/lua/init.lua"
 	$(INSTALL) -D -m 644 init.lua $(SYSROOT)/lib/lua/init.lua
 
-clean-here: unpatch
-	$(RM) -r $(PKG)
-
-distclean-here:
-	$(RM) $(PKG).tar.gz
+clean-here:
+	@echo "[MAKE] clean $(PKG)"
+	-$(MAKE) -C $(PKG) clean
+	@echo "[QUILT] remove patches"
+	test -f .pc/done && quilt pop -a
+	rm -f .pc/done
 
 PHONY-TARGETS += patch unpatch
 
