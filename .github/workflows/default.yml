@@ -18,6 +18,8 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - run: ./verify-format.sh
 
   verify_py_style:
@@ -33,6 +35,8 @@ jobs:
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - run: make BOARD=malta KASAN=1 LOCKDEP=1
       - uses: actions/upload-artifact@v3
         with:
@@ -50,6 +54,8 @@ jobs:
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - run: make BOARD=rpi3 KASAN=1 LOCKDEP=1
       - uses: actions/upload-artifact@v3
         with:
@@ -69,6 +75,8 @@ jobs:
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - run: make BOARD=litex-riscv KASAN=1 LOCKDEP=1
 
   build_riscv64:
@@ -77,6 +85,8 @@ jobs:
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - run: make BOARD=sifive_u KASAN=1 LOCKDEP=1
       - uses: actions/upload-artifact@v3
         with:

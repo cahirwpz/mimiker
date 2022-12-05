@@ -1,68 +1,39 @@
 TOPDIR = $(realpath ../..)
 
-PKG = lua-5.3.5
-URL = https://www.lua.org/ftp/$(PKG).tar.gz
-PATCHES = loslib.patch lunix.patch luaconf.patch init.patch \
-	  clang-warning.patch Makefile.patch
+PROGRAM = lua
+BINDIR = bin
+SRCDIR = lua
+SOURCES = lua.c \
+	  lapi.c lcode.c lctype.c ldebug.c ldo.c ldump.c lfunc.c lgc.c llex.c \
+	  lmem.c lobject.c lopcodes.c lparser.c lstate.c lstring.c ltable.c \
+	  ltm.c lundump.c lvm.c lzio.c ltests.c \
+	  lauxlib.c lbaselib.c ldblib.c liolib.c lmathlib.c loslib.c ltablib.c \
+	  lstrlib.c lutf8lib.c loadlib.c lcorolib.c lunix.c linit.c
+FORMAT-EXCLUDE = $(SOURCES)
 
-all: download build install
+CPPFLAGS += -Ilua/
 
-download-here: $(PKG)
+all: download build
 
-$(PKG).tar.gz:
-	@echo "[CURL] $(PKG)"
-	$(CURL) -# -O $(URL)
+include $(TOPDIR)/build/build.prog.mk
 
-$(PKG): $(PKG).tar.gz
-	@echo "[TAR] $^ -> $@"
-	$(TAR) xzf $(PKG).tar.gz
-	touch $(PKG)
+download-here: .pc/done
 
-patch: download patch-stamp
-patch-stamp:
-	cd $(PKG) && \
-	  for p in $(PATCHES); do \
-	    $(PATCH) -p1 < ../$${p}; \
-	  done
-	ln -s -t $(PKG)/src ../../lunix.c
+lua/.git:
+	@echo "[GIT] update submodule $(DIR)"
+	$(GIT) submodule update --init lua
+
+.pc/done: lua/.git
+	@echo "[QUILT] apply patches $(DIR)"
+	quilt push -a
 	touch $@
 
-unpatch:
-	if [ -f patch-stamp ]; then \
-	  cd $(PKG) && \
-	    for p in $(PATCHES); do \
-	      $(PATCH) -R -p1 < ../$$p; \
-	    done; \
-	fi
-	$(RM) $(PKG)/src/lunix.c
-	$(RM) patch-stamp
-
-build-here: patch
-	@echo "[MAKE] $(PKG)"
-	$(MAKE) -C $(PKG) generic \
-	  CC="$(CC)" AR="$(AR) rcu" LD="$(LD)" RANLIB="$(RANLIB)" \
-	  MYCFLAGS="$(CPPFLAGS) $(CFLAGS)" MYLDFLAGS="$(LDFLAGS)" \
-	  MYLIBS="$(LDLIBS)"
-
 install-here:
-	@echo "[INSTALL] /bin/lua"
-	$(INSTALL) -m 755 lua-5.3.5/src/lua $(SYSROOT)/bin/lua
-	@echo "[OBJCOPY] $(SYSROOT)/bin/lua -> \
-		$(SYSROOT)/bin/lua.dbg"
-	$(OBJCOPY) --only-keep-debug $(SYSROOT)/bin/lua \
-		$(SYSROOT)/bin/lua.dbg
-	@echo "[STRIP] /bin/lua"
-	$(STRIP) --strip-all $(SYSROOT)/bin/lua
 	@echo "[INSTALL] /lib/lua/init.lua"
 	$(INSTALL) -D -m 644 init.lua $(SYSROOT)/lib/lua/init.lua
 
-clean-here: unpatch
-	$(RM) -r $(PKG)
+clean-here:
+	@echo "[QUILT] remove patches $(DIR)"
+	-test -f .pc/done && quilt pop -a
+	rm -f .pc/done
 
-distclean-here:
-	$(RM) $(PKG).tar.gz
-
-PHONY-TARGETS += patch unpatch
-
-include $(TOPDIR)/build/flags.user.mk
-include $(TOPDIR)/build/common.mk
