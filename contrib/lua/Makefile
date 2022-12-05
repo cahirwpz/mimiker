@@ -1,10 +1,8 @@
 TOPDIR = $(realpath ../..)
 
-PKG = lua
-
 PROGRAM = lua
 BINDIR = bin
-SRCDIR = $(PKG)
+SRCDIR = lua
 SOURCES = lua.c \
 	  lapi.c lcode.c lctype.c ldebug.c ldo.c ldump.c lfunc.c lgc.c llex.c \
 	  lmem.c lobject.c lopcodes.c lparser.c lstate.c lstring.c ltable.c \
@@ -13,21 +11,20 @@ SOURCES = lua.c \
 	  lstrlib.c lutf8lib.c lbitlib.c loadlib.c lcorolib.c lunix.c linit.c
 FORMAT-EXCLUDE = $(SOURCES)
 
-CPPFLAGS += -I$(PKG)/
-BUILD-FILES += lua.uelf
+CPPFLAGS += -Ilua/
 
-all: download build install
+all: download build
 
 include $(TOPDIR)/build/build.prog.mk
 
 download-here: .pc/done
 
-$(PKG)/.git:
-	@echo "[GIT] submodule $(PKG)"
-	$(GIT) submodule update --init $(PKG)
+lua/.git:
+	@echo "[GIT] update submodule $(DIR)"
+	$(GIT) submodule update --init lua
 
-.pc/done: $(PKG)/.git
-	@echo "[QUILT] apply patches"
+.pc/done: lua/.git
+	@echo "[QUILT] apply patches $(DIR)"
 	quilt push -a
 	touch $@
 
@@ -36,7 +33,7 @@ install-here:
 	$(INSTALL) -D -m 644 init.lua $(SYSROOT)/lib/lua/init.lua
 
 clean-here:
-	@echo "[QUILT] remove patches"
+	@echo "[QUILT] remove patches $(DIR)"
 	-test -f .pc/done && quilt pop -a
 	rm -f .pc/done
 
