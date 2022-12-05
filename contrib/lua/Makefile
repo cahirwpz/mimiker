@@ -11,6 +11,7 @@ SOURCES = lua.c \
 	  ltm.c lundump.c lvm.c lzio.c ltests.c \
 	  lauxlib.c lbaselib.c ldblib.c liolib.c lmathlib.c loslib.c ltablib.c \
 	  lstrlib.c lutf8lib.c lbitlib.c loadlib.c lcorolib.c lunix.c linit.c
+FORMAT-EXCLUDE = $(SOURCES)
 
 CPPFLAGS += -I$(PKG)/
 BUILD-FILES += lua.uelf
