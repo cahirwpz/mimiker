@@ -30,29 +30,24 @@ DSTPATH = $(DIR)$@
 # Define our own recipes
 $(BUILDDIR)%.S: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
-	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CPPFLAGS) $(WFLAGS) -S -o $@ \
 	      $(realpath $<)
 
 $(BUILDDIR)%.o: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
-	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CFLAGS_KASAN) $(CFLAGS_KCSAN) $(CFLAGS_KGPROF) $(CPPFLAGS) $(WFLAGS) \
 	      -c -o $@ $(realpath $<)
 
 $(BUILDDIR)%.o: %.S
 	@echo "[AS] $(SRCPATH) -> $(DSTPATH)"
-	mkdir -p $(dir $@)
 	$(AS) $(ASFLAGS) $(CPPFLAGS) -c -o $@ $(realpath $<)
 
 $(BUILDDIR)%.c: %.y
 	@echo "[YACC] $(SCRPATH) -> $(DSTPATH)"
-	mkdir -p $(dir $@)
 	$(YACC) -o $@ $(realpath $<)
 
 $(BUILDDIR)%.a:
 	@echo "[AR] $(addprefix $(DIR),$^) -> $(DSTPATH)"
-	mkdir -p $(dir $@)
 	$(AR) rs $@ $^ 2> /dev/null
 
 assym.h: genassym.cf
@@ -116,6 +111,7 @@ build: build-before $(DEPENDENCY-FILES) build-recursive $(BUILD-FILES) build-her
 install: install-recursive $(INSTALL-FILES) install-here
 clean: clean-recursive clean-here
 	$(RM) -v $(CLEAN-FILES)
+	$(RM) -v -r $(CLEAN-DIRS)
 	$(RM) -v $(BUILD-FILES)
 	$(RM) -v *~
 distclean: distclean-recursive distclean-here
