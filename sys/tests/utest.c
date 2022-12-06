@@ -64,10 +64,10 @@ static int utest_generic(const char *name, int status_success) {
 #define UTEST_ADD_SIGNAL(name, sig)                                            \
   UTEST_ADD(name, MAKE_STATUS_SIG_TERM(sig), 0)
 
-UTEST_ADD_SIGNAL(vmmap_text_w, SIGSEGV);
-UTEST_ADD_SIGNAL(vmmap_rodata_w, SIGSEGV);
-UTEST_ADD_SIGNAL(vmmap_data_x, SIGSEGV);
-UTEST_ADD_SIGNAL(vmmap_rodata_x, SIGSEGV);
+UTEST_ADD_SIMPLE(vmmap_text_w);
+UTEST_ADD_SIMPLE(vmmap_rodata_w);
+UTEST_ADD_SIMPLE(vmmap_data_x);
+UTEST_ADD_SIMPLE(vmmap_rodata_x);
 
 UTEST_ADD_SIMPLE(mmap);
 UTEST_ADD_SIMPLE(munmap);

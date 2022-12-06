@@ -1,0 +1,26 @@
+Index: lua/lua/linit.c
+===================================================================
+--- lua.orig/lua/linit.c
++++ lua/lua/linit.c
+@@ -50,6 +50,7 @@ static const luaL_Reg loadedlibs[] = {
+   {LUA_MATHLIBNAME, luaopen_math},
+   {LUA_UTF8LIBNAME, luaopen_utf8},
+   {LUA_DBLIBNAME, luaopen_debug},
++  {LUA_UNIXNAME, luaopen_unix},
+   {NULL, NULL}
+ };
+ 
+Index: lua/lua/lualib.h
+===================================================================
+--- lua.orig/lua/lualib.h
++++ lua/lua/lualib.h
+@@ -41,6 +41,9 @@ LUAMOD_API int (luaopen_math) (lua_State
+ #define LUA_DBLIBNAME	"debug"
+ LUAMOD_API int (luaopen_debug) (lua_State *L);
+ 
++#define LUA_UNIXNAME "unix"
++LUAMOD_API int (luaopen_unix) (lua_State *L);
++
+ #define LUA_LOADLIBNAME	"package"
+ LUAMOD_API int (luaopen_package) (lua_State *L);
+ 
