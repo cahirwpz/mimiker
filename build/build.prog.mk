@@ -45,3 +45,16 @@ $(SYSROOT)/$(BINDIR)/$(PROGRAM): $(PROGRAM).uelf
 		$(SYSROOT)/$(BINDIR)/$(PROGRAM).dbg
 	@echo "[STRIP] /$(BINDIR)/$(PROGRAM)"
 	$(STRIP) --strip-all $(SYSROOT)/$(BINDIR)/$(PROGRAM)
+
+%/.git: %
+	@echo "[GIT] update submodule $(DIR)$<"
+	$(GIT) submodule update --init $<
+	touch $@
+
+quilt-patch:
+	@echo "[QUILT] apply patches for $(PROGRAM)"
+	quilt push -a || [ $$? -ne 1 ]
+
+quilt-unpatch:
+	@echo "[QUILT] remove patches for $(PROGRAM)"
+	quilt pop -a || [ $$? -ne 1 ]

@@ -26,7 +26,7 @@
 *.map
 
 # Build dependency files
-.*.D
+*.d
 *-stamp
 
 # Python cache
