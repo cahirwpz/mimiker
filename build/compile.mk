@@ -15,9 +15,9 @@ SOURCES_ASM = $(filter %.S,$(SOURCES))
 OBJECTS += $(SOURCES_C:%.c=$(BUILDDIR)%.o) $(SOURCES_ASM:%.S=$(BUILDDIR)%.o)
 
 DEPENDENCY-FILES += $(foreach f, $(SOURCES_C),\
-		      $(dir $(f))$(patsubst %.c,%.d,$(notdir $(f))))
+		      $(BUILDDIR)$(dir $(f))$(patsubst %.c,%.d,$(notdir $(f))))
 DEPENDENCY-FILES += $(foreach f, $(SOURCES_ASM),\
-	  	      $(dir $(f))$(patsubst %.S,%.d,$(notdir $(f))))
+	  	      $(BUILDDIR)$(dir $(f))$(patsubst %.S,%.d,$(notdir $(f))))
 
 $(DEPENDENCY-FILES): $(SOURCES_GEN)
 

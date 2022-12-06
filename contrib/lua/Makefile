@@ -19,7 +19,7 @@ include $(TOPDIR)/build/build.prog.mk
 download-here: lua/.git
 
 .pc/done:
-	@echo "[QUILT] apply patches $(DIR)"
+	@echo "[QUILT] apply patches for $(PROGRAM)"
 	quilt push -a || [ $$? -ne 1 ]
 	touch $@
 
@@ -30,6 +30,6 @@ install-here:
 	$(INSTALL) -D -m 644 init.lua $(SYSROOT)/lib/lua/init.lua
 
 clean-here:
-	@echo "[QUILT] remove patches $(DIR)"
+	@echo "[QUILT] remove patches for $(PROGRAM)"
 	-test -f .pc/done && quilt pop -a
 	rm -f .pc/done
