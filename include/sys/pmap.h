@@ -63,16 +63,19 @@ pmap_t *pmap_kernel(void);
 pmap_t *pmap_user(void);
 
 /*
- * Handle page fault exception caused by access to `vaddr`
- * with permissions `access`.
+ * Handle page fault caused by access to `vaddr` with permissions `access`.
  *
  * Returns:
- *  - 0: on success, indicates that the faulting instruction
- *    should be run again or the on fault mechanism is on
+ *  - 0: on success, indicates that the faulting instruction should be run again
+ *      (for user-space) or the on-fault has been triggered (for kernel-space)
  *  - `EINVAL`: if page fault has been caused by access to kernel memory
- *  - `EACCESS`: indicates the the attempted access dosen't have
- *    sufficient permissions
- *  - `EFAULT`: indicates a pager fault
+ *  - `EACCES`: there were insufficient permissions to access the page
+ *  - `EFAULT`: indicates that the page was not mapped to any object
+ *
+ * TODO(cahir): what about mmap(2) and SIGBUS?
+ *
+ * When a page fault was triggered by kernel space and non-zero is returned,
+ * kernel will panic!
  */
 int pmap_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access);
 
