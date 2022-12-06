@@ -12,21 +12,23 @@ SOURCES_C = $(filter %.c,$(SOURCES)) $(SOURCES_GEN)
 SOURCES_ALL_C = $(filter %.c,$(SOURCES_ALL)) $(SOURCES_GEN)
 SOURCES_ASM = $(filter %.S,$(SOURCES))
 
-OBJECTS += $(SOURCES_C:%.c=%.o) $(SOURCES_ASM:%.S=%.o)
+OBJECTS += $(SOURCES_C:%.c=$(BUILDDIR)%.o) $(SOURCES_ASM:%.S=$(BUILDDIR)%.o)
 
 DEPENDENCY-FILES += $(foreach f, $(SOURCES_C),\
-		      $(dir $(f))$(patsubst %.c,.%.D,$(notdir $(f))))
+		      $(dir $(f))$(patsubst %.c,%.d,$(notdir $(f))))
 DEPENDENCY-FILES += $(foreach f, $(SOURCES_ASM),\
-	  	      $(dir $(f))$(patsubst %.S,.%.D,$(notdir $(f))))
+	  	      $(dir $(f))$(patsubst %.S,%.d,$(notdir $(f))))
 
 $(DEPENDENCY-FILES): $(SOURCES_GEN)
 
-.%.D: %.c
+$(BUILDDIR)%.d: %.c
 	@echo "[DEP] $(DIR)$@"
+	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -MF $@
 
-.%.D: %.S
+$(BUILDDIR)%.d: %.S
 	@echo "[DEP] $(DIR)$@"
+	mkdir -p $(dir $@)
 	$(CC) $(ASFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -MF $@
 
 ifeq ($(words $(findstring $(MAKECMDGOALS), download clean distclean)), 0)

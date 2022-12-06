@@ -28,26 +28,31 @@ SRCPATH = $(subst $(TOPDIR)/,,$(realpath $<))
 DSTPATH = $(DIR)$@
 
 # Define our own recipes
-%.S: %.c
+$(BUILDDIR)%.S: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
+	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CPPFLAGS) $(WFLAGS) -S -o $@ \
 	      $(realpath $<)
 
-%.o: %.c
+$(BUILDDIR)%.o: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
+	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CFLAGS_KASAN) $(CFLAGS_KCSAN) $(CFLAGS_KGPROF) $(CPPFLAGS) $(WFLAGS) \
 	      -c -o $@ $(realpath $<)
 
-%.o: %.S
+$(BUILDDIR)%.o: %.S
 	@echo "[AS] $(SRCPATH) -> $(DSTPATH)"
+	mkdir -p $(dir $@)
 	$(AS) $(ASFLAGS) $(CPPFLAGS) -c -o $@ $(realpath $<)
 
-%.c: %.y
+$(BUILDDIR)%.c: %.y
 	@echo "[YACC] $(SCRPATH) -> $(DSTPATH)"
+	mkdir -p $(dir $@)
 	$(YACC) -o $@ $(realpath $<)
 
-%.a:
+$(BUILDDIR)%.a:
 	@echo "[AR] $(addprefix $(DIR),$^) -> $(DSTPATH)"
+	mkdir -p $(dir $@)
 	$(AR) rs $@ $^ 2> /dev/null
 
 assym.h: genassym.cf
@@ -107,7 +112,7 @@ format-recursive: $(SUBDIR:%=%-format)
 
 # Define main rules of the build system
 download: download-recursive download-here
-build: $(DEPENDENCY-FILES) build-recursive $(BUILD-FILES) build-here
+build: build-before $(DEPENDENCY-FILES) build-recursive $(BUILD-FILES) build-here
 install: install-recursive $(INSTALL-FILES) install-here
 clean: clean-recursive clean-here
 	$(RM) -v $(CLEAN-FILES)
@@ -125,7 +130,7 @@ ifneq ($(FORMAT-FILES),)
 endif
 
 PHONY-TARGETS += all no
-PHONY-TARGETS += build build-dependencies build-recursive build-here
+PHONY-TARGETS += build build-before build-recursive build-here
 PHONY-TARGETS += clean clean-recursive clean-here
 PHONY-TARGETS += install install-recursive install-here
 PHONY-TARGETS += distclean distclean-recursive distclean-here

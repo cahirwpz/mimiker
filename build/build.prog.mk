@@ -45,3 +45,8 @@ $(SYSROOT)/$(BINDIR)/$(PROGRAM): $(PROGRAM).uelf
 		$(SYSROOT)/$(BINDIR)/$(PROGRAM).dbg
 	@echo "[STRIP] /$(BINDIR)/$(PROGRAM)"
 	$(STRIP) --strip-all $(SYSROOT)/$(BINDIR)/$(PROGRAM)
+
+%/.git: %
+	@echo "[GIT] update submodule $(DIR)$<"
+	$(GIT) submodule update --init $<
+	touch $@
