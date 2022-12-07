@@ -7,3 +7,6 @@
 [submodule "contrib/atto/incurses"]
 	path = contrib/atto/incurses
 	url = https://github.com/infinnovation-dev/incurses.git
+[submodule "contrib/sbase/sbase"]
+	path = contrib/sbase/sbase
+	url = git://git.suckless.org/sbase
