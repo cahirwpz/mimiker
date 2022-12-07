@@ -127,7 +127,7 @@ static void vm_map_insert_after(vm_map_t *map, vm_map_entry_t *after,
   map->nentries++;
 }
 
-void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
+static void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
   assert(mtx_owned(&map->mtx));
 
   TAILQ_REMOVE(&map->entries, ent, link);
@@ -164,25 +164,44 @@ static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
   return new_ent;
 }
 
-void vm_map_entry_destroy_range(vm_map_t *map, vm_map_entry_t *ent,
-                                vaddr_t start, vaddr_t end) {
-  assert(mtx_owned(&map->mtx));
-  assert(start >= ent->start && end <= ent->end);
+int vm_map_destroy_range(vm_map_t *map, vaddr_t start, vaddr_t end) {
+  SCOPED_VM_MAP_LOCK(map);
+
+  /* Find first entry affected by unmapping memory. */
+  vm_map_entry_t *ent = vm_map_find_entry(map, start);
+  if (!ent)
+    return EINVAL;
 
   pmap_remove(map->pmap, start, end);
-  vm_map_entry_t *del = ent;
 
-  if (start > ent->start) {
-    /* entry we want to delete is after clipped entry */
-    del = vm_map_entry_split(map, ent, start);
+  while (vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end) {
+    vaddr_t rm_start = max(start, vm_map_entry_start(ent));
+    vaddr_t rm_end = min(end, vm_map_entry_end(ent));
+
+    /* Next entry that could be affected is right after current one.
+     * Since we can delete it entirely, we have to take next entry now. */
+    vm_map_entry_t *next = vm_map_entry_next(ent);
+
+    vm_map_entry_t *del = ent;
+
+    if (rm_start > ent->start) {
+      /* entry we want to delete is after clipped entry */
+      del = vm_map_entry_split(map, ent, rm_start);
+    }
+
+    if (rm_end < del->end) {
+      /* entry which is after del is one we want to keep */
+      vm_map_entry_split(map, del, rm_end);
+    }
+
+    vm_map_entry_destroy(map, del);
+
+    if (!next)
+      break;
+
+    ent = next;
   }
-
-  if (end < del->end) {
-    /* entry which is after del is one we want to keep */
-    vm_map_entry_split(map, del, end);
-  }
-
-  vm_map_entry_destroy(map, del);
+  return 0;
 }
 
 void vm_map_delete(vm_map_t *map) {
