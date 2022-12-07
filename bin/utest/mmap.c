@@ -95,13 +95,12 @@ static void munmap_good(void) {
 }
 
 int test_munmap_sigsegv(void) {
-  setup_sigsegv_sigaction();
-
   void *addr = mmap_anon_prw(NULL, 0x4000);
 
   munmap(addr, 0x4000);
 
-  if (sigsetjmp(return_to, 1) == 0) {
+  siginfo_t si;
+  TEST_EXPECT_SIGNAL(SIGSEGV, &si) {
     /* Try to access freed memory. It should raise SIGSEGV */
     int data = *((volatile int *)(addr + 0x2000));
     (void)data;
@@ -109,10 +108,9 @@ int test_munmap_sigsegv(void) {
   }
 
   /* Check if SIGSEGV was handled correctly */
-  assert(sigsegv_address == (addr + 0x2000));
-  assert(sigsegv_code = SEGV_MAPERR);
-
-  signal(SIGSEGV, SIG_DFL);
+  assert(si.si_signo == SIGSEGV);
+  assert(si.si_addr == (addr + 0x2000));
+  assert(si.si_code == SEGV_MAPERR);
   return 0;
 }
 
@@ -160,33 +158,28 @@ int test_munmap(void) {
 #define NPAGES 8
 
 int test_mmap_prot_none(void) {
-  setup_sigsegv_sigaction();
-
   size_t pgsz = getpagesize();
   size_t size = pgsz * NPAGES;
   volatile void *addr = mmap_anon_priv(NULL, size, PROT_NONE);
   assert(addr != MAP_FAILED);
 
+  siginfo_t si;
   for (int i = 0; i < NPAGES; i++) {
     volatile uint8_t *ptr = addr + i * pgsz;
-    if (sigsetjmp(return_to, 1) == 0) {
+
+    TEST_EXPECT_SIGNAL(SIGSEGV, &si) {
       assert(*ptr == 0);
     }
 
     /* Check if SIGSEGV was handled correctly */
-    assert(sigsegv_address == ptr);
-    assert(sigsegv_code = SEGV_ACCERR);
+    assert(si.si_signo == SIGSEGV);
+    assert(si.si_addr == ptr);
+    assert(si.si_code == SEGV_ACCERR);
   }
-
-  /* restore original behavior */
-  signal(SIGSEGV, SIG_DFL);
-
   return 0;
 }
 
 int test_mmap_prot_read(void) {
-  setup_sigsegv_sigaction();
-
   size_t pgsz = getpagesize();
   size_t size = pgsz * NPAGES;
   volatile void *addr = mmap_anon_priv(NULL, size, PROT_READ);
@@ -196,21 +189,20 @@ int test_mmap_prot_read(void) {
   for (size_t i = 0; i < size / sizeof(uint32_t); i++)
     assert(((uint32_t *)addr)[i] == 0);
 
+  siginfo_t si;
   for (int i = 0; i < NPAGES; i++) {
     volatile uint8_t *ptr = addr + i * pgsz;
-    if (sigsetjmp(return_to, 1) == 0) {
+
+    TEST_EXPECT_SIGNAL(SIGSEGV, &si) {
       *ptr = 42;
     }
     /* Check if nothing changed */
     assert(*ptr == 0);
 
     /* Check if SIGSEGV was handled correctly */
-    assert(sigsegv_address == ptr);
-    assert(sigsegv_code = SEGV_ACCERR);
+    assert(si.si_signo == SIGSEGV);
+    assert(si.si_addr == ptr);
+    assert(si.si_code == SEGV_ACCERR);
   }
-
-  /* restore original behavior */
-  signal(SIGSEGV, SIG_DFL);
-
   return 0;
 }

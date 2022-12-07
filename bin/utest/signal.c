@@ -69,18 +69,17 @@ int test_signal_abort(void) {
 
 /* ======= signal_segfault ======= */
 int test_signal_segfault(void) {
-  setup_sigsegv_sigaction();
-
   volatile struct { int x; } *ptr = 0x0;
 
-  if (sigsetjmp(return_to, 1) == 0) {
+  siginfo_t si;
+  TEST_EXPECT_SIGNAL(SIGSEGV, &si) {
     ptr->x = 42;
+    assert(0);
   }
 
-  assert(sigsegv_address == ptr);
-  assert(sigsegv_code == SEGV_MAPERR);
-
-  signal(SIGSEGV, SIG_DFL);
+  assert(si.si_signo == SIGSEGV);
+  assert(si.si_addr == ptr);
+  assert(si.si_code == SEGV_MAPERR);
   return 0;
 }
 

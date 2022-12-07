@@ -66,8 +66,6 @@ static void sbrk_bad(void) {
 }
 
 int test_sbrk_sigsegv(void) {
-  setup_sigsegv_sigaction();
-
   /* Make sure memory just above sbrk has just been used and freed */
   void *unaligned = sbrk(0);
   /* Align to page size */
@@ -76,7 +74,8 @@ int test_sbrk_sigsegv(void) {
   void *ptr = sbrk(0x2000);
   sbrk(-0x2000);
 
-  if (sigsetjmp(return_to, 1) == 0) {
+  siginfo_t si;
+  TEST_EXPECT_SIGNAL(SIGSEGV, &si) {
     /* Try to access freed memory. It should raise SIGSEGV */
     int data = *((volatile int *)(ptr + 0x1000));
     (void)data;
@@ -84,10 +83,9 @@ int test_sbrk_sigsegv(void) {
   }
 
   /* Check if SIGSEGV was handled correctly */
-  assert(sigsegv_address == (ptr + 0x1000));
-  assert(sigsegv_code = SEGV_MAPERR);
-
-  signal(SIGSEGV, SIG_DFL);
+  assert(si.si_signo == SIGSEGV);
+  assert(si.si_addr == (ptr + 0x1000));
+  assert(si.si_code == SEGV_MAPERR);
   return 0;
 }
 

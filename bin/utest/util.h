@@ -1,4 +1,5 @@
 #include <setjmp.h>
+#include <signal.h>
 
 /* Wait for a single child process with process id `pid` to exit,
  * and check that its exit code matches the expected value. */
@@ -16,10 +17,14 @@ void wait_for_signal(int signo);
  * slave side. */
 void open_pty(int *master_fd, int *slave_fd);
 
-extern volatile void *sigsegv_address;
-extern volatile int sigsegv_code;
-extern jmp_buf return_to;
+extern jmp_buf signal_return;
 
-/* Sets sigaction handler for SIGSEGV which records si_addr and si_code from
- * sginfo structure. */
-void setup_sigsegv_sigaction(void);
+void setup_handler(int signo, siginfo_t *siginfo_ptr);
+void restore_handler(void);
+
+#define TEST_EXPECT_SIGNAL(signo, siginfo_ptr)                                 \
+  for (; ({                                                                    \
+         setup_handler((signo), (siginfo_ptr));                                \
+         sigsetjmp(signal_return, 1) == 0;                                     \
+       });                                                                     \
+       restore_handler())
