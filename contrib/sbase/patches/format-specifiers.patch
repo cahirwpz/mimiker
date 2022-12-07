@@ -1,0 +1,140 @@
+Index: sbase/sbase/cal.c
+===================================================================
+--- sbase.orig/sbase/cal.c	2022-12-07 22:20:25.006463307 +0100
++++ sbase/sbase/cal.c	2022-12-08 00:50:50.422832055 +0100
+@@ -111,7 +111,7 @@
+ 				cur_month -= 12;
+ 				cur_year += 1;
+ 			}
+-			snprintf(month_year, sizeof(month_year), "%s %zu", smon[cur_month], cur_year);
++			snprintf(month_year, sizeof(month_year), "%s %lu", smon[cur_month], cur_year);
+ 			pad = sizeof(month_year) - 1 - strlen(month_year);
+ 			printf("%*s%s%*s   ", pad / 2 + pad % 2, "", month_year, pad / 2, "");
+ 		}
+Index: sbase/sbase/cksum.c
+===================================================================
+--- sbase.orig/sbase/cksum.c	2022-12-07 22:20:25.006463307 +0100
++++ sbase/sbase/cksum.c	2022-12-08 00:50:50.422832055 +0100
+@@ -84,7 +84,7 @@
+ 	for (i = len; i; i >>= 8)
+ 		ck = (ck << 8) ^ crctab[(ck >> 24) ^ (i & 0xFF)];
+ 
+-	printf("%"PRIu32" %zu", ~ck, len);
++	printf("%"PRIu32" %lu", ~ck, len);
+ 	if (s) {
+ 		putchar(' ');
+ 		fputs(s, stdout);
+Index: sbase/sbase/cmp.c
+===================================================================
+--- sbase.orig/sbase/cmp.c	2022-12-07 22:20:25.006463307 +0100
++++ sbase/sbase/cmp.c	2022-12-08 00:50:50.422832055 +0100
+@@ -62,12 +62,12 @@
+ 			break;
+ 		} else if (!lflag) {
+ 			if (!sflag)
+-				printf("%s %s differ: byte %zu, line %zu\n",
++				printf("%s %s differ: byte %lu, line %lu\n",
+ 				       argv[0], argv[1], n, line);
+ 			same = 0;
+ 			break;
+ 		} else {
+-			printf("%zu %o %o\n", n, b[0], b[1]);
++			printf("%lu %o %o\n", n, b[0], b[1]);
+ 			same = 0;
+ 		}
+ 	}
+Index: sbase/sbase/ed.c
+===================================================================
+--- sbase.orig/sbase/ed.c	2022-12-07 22:20:25.006463307 +0100
++++ sbase/sbase/ed.c	2022-12-08 00:50:50.426165388 +0100
+@@ -642,7 +642,7 @@
+ 	strcpy(savfname, fname);
+ 	modflag = 0;
+ 	curln = line;
+-	printf("%zu\n", bytecount);
++	printf("%lu\n", bytecount);
+ }
+ 
+ static void
+@@ -673,7 +673,7 @@
+ 		inject(s, AFTER);
+ 	}
+ 	if (optdiag)
+-		printf("%zu\n", cnt);
++		printf("%lu\n", cnt);
+ 
+ 	aux = fp;
+ 	fp = NULL;
+Index: sbase/sbase/pathchk.c
+===================================================================
+--- sbase.orig/sbase/pathchk.c	2022-12-07 22:20:25.006463307 +0100
++++ sbase/sbase/pathchk.c	2022-12-08 00:50:50.429498722 +0100
+@@ -57,7 +57,7 @@
+ 	/* Too long pathname? */
+ 	maxlen = most ? _POSIX_PATH_MAX : PATH_MAX;
+ 	if (strlen(filename) >= maxlen)
+-		eprintf("%s: is longer than %zu bytes\n", filename, maxlen);
++		eprintf("%s: is longer than %lu bytes\n", filename, maxlen);
+ 
+ 	/* Too long component? */
+ 	maxlen = most ? _POSIX_NAME_MAX : NAME_MAX;
+@@ -65,7 +65,7 @@
+ 		q = strchr(p, '/');
+ 		len = q ? (size_t)(q++ - p) : strlen(p);
+ 		if (len > maxlen)
+-			eprintf("%s: includes component longer than %zu bytes\n",
++			eprintf("%s: includes component longer than %lu bytes\n",
+ 			         filename, maxlen);
+ 	}
+ 
+Index: sbase/sbase/sed.c
+===================================================================
+--- sbase.orig/sbase/sed.c	2022-12-07 22:20:25.006463307 +0100
++++ sbase/sbase/sed.c	2022-12-08 00:50:50.429498722 +0100
+@@ -347,9 +347,9 @@
+ leprintf(char *s)
+ {
+ 	if (errno)
+-		eprintf("%zu: %s: %s\n", lineno, s, strerror(errno));
++		eprintf("%lu: %s: %s\n", lineno, s, strerror(errno));
+ 	else
+-		eprintf("%zu: %s\n", lineno, s);
++		eprintf("%lu: %s\n", lineno, s);
+ }
+ 
+ /* FIXME: write usage message */
+@@ -1600,7 +1600,7 @@
+ cmd_equal(Cmd *c)
+ {
+ 	if (in_range(c))
+-		printf("%zu\n", lineno);
++		printf("%lu\n", lineno);
+ }
+ 
+ static void
+Index: sbase/sbase/wc.c
+===================================================================
+--- sbase.orig/sbase/wc.c	2022-12-07 22:20:25.006463307 +0100
++++ sbase/sbase/wc.c	2022-12-08 00:50:50.432832054 +0100
+@@ -16,18 +16,18 @@
+ 
+ 	if (lflag) {
+ 		first = 0;
+-		printf("%zu", nl);
++		printf("%lu", nl);
+ 	}
+ 	if (wflag) {
+ 		if (!first)
+ 			putchar(' ');
+ 		first = 0;
+-		printf("%zu", nw);
++		printf("%lu", nw);
+ 	}
+ 	if (cmode) {
+ 		if (!first)
+ 			putchar(' ');
+-		printf("%zu", nc);
++		printf("%lu", nc);
+ 	}
+ 	if (str)
+ 		printf(" %s", str);
