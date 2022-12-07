@@ -96,7 +96,6 @@ static void munmap_good(void) {
 
 int test_munmap_sigsegv(void) {
   void *addr = mmap_anon_prw(NULL, 0x4000);
-
   munmap(addr, 0x4000);
 
   siginfo_t si;
