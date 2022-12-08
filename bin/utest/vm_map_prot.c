@@ -21,7 +21,7 @@ int func_dec(int x) {
   return x - 1;
 }
 
-int test_vmmap_text_w(void) {
+int test_vmmap_text_access(void) {
   func_int_t fun = func_dec;
 
   assert((uintptr_t)func_inc < (uintptr_t)func_dec);
@@ -43,7 +43,7 @@ int test_vmmap_text_w(void) {
   return 0;
 }
 
-int test_vmmap_data_x(void) {
+int test_vmmap_data_access(void) {
   static char func_buf[1024];
 
   assert((uintptr_t)func_inc < (uintptr_t)func_dec);
@@ -67,27 +67,22 @@ int test_vmmap_data_x(void) {
 /* String must be alinged as instuctions because we jump here */
 static __aligned(4) const char ro_data_str[] = "String in .rodata section";
 
-int test_vmmap_rodata_w(void) {
-  volatile char *c = (char *)ro_data_str;
-
-  printf("mem to write: 0x%p\n", c);
-
+int test_vmmap_rodata_access(void) {
   siginfo_t si;
+
+  /* Check write */
+  volatile char *c = (char *)ro_data_str;
+  printf("mem to write: 0x%p\n", c);
   TEST_EXPECT_SIGNAL(SIGSEGV, &si, c, SEGV_ACCERR) {
     /* Writing to rodata segment. */
     *c = 'X';
     assert(*c == 'X');
   }
   printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
-  return 0;
-}
 
-int test_vmmap_rodata_x(void) {
+  /* Check execute */
   func_int_t fun = (func_int_t)ro_data_str;
-
   printf("func: 0x%p\n", fun);
-
-  siginfo_t si;
   TEST_EXPECT_SIGNAL(SIGSEGV, &si, fun, SEGV_ACCERR) {
     /* Executing from rodata segment. */
     fun(1);
