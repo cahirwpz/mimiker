@@ -29,6 +29,12 @@ void setup_handler(int signo, siginfo_t *siginfo_ptr) {
   _save_info = siginfo_ptr;
 }
 
+void check_signal(int signo, void *addr, int code) {
+  assert(_save_info->si_signo == signo);
+  assert(_save_info->si_addr == addr);
+  assert(_save_info->si_code == code);
+}
+
 void restore_handler(void) {
   int err = sigaction(_handled_signo, &_old_sa, NULL);
   assert(err == 0);

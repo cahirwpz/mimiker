@@ -20,11 +20,15 @@ void open_pty(int *master_fd, int *slave_fd);
 extern jmp_buf signal_return;
 
 void setup_handler(int signo, siginfo_t *siginfo_ptr);
+void check_signal(int signo, void *addr, int code);
 void restore_handler(void);
 
-#define TEST_EXPECT_SIGNAL(signo, siginfo_ptr)                                 \
+#define TEST_EXPECT_SIGNAL(signo, siginfo_ptr, addr, code)                     \
   for (; ({                                                                    \
          setup_handler((signo), (siginfo_ptr));                                \
          sigsetjmp(signal_return, 1) == 0;                                     \
        });                                                                     \
-       restore_handler())
+       ({                                                                      \
+         restore_handler();                                                    \
+         check_signal((signo), (void *)(addr), (code));                        \
+       }))

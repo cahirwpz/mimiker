@@ -75,17 +75,12 @@ int test_sbrk_sigsegv(void) {
   sbrk(-0x2000);
 
   siginfo_t si;
-  TEST_EXPECT_SIGNAL(SIGSEGV, &si) {
+  TEST_EXPECT_SIGNAL(SIGSEGV, &si, ptr + 0x1000, SEGV_MAPERR) {
     /* Try to access freed memory. It should raise SIGSEGV */
     int data = *((volatile int *)(ptr + 0x1000));
     (void)data;
     assert(0);
   }
-
-  /* Check if SIGSEGV was handled correctly */
-  assert(si.si_signo == SIGSEGV);
-  assert(si.si_addr == (ptr + 0x1000));
-  assert(si.si_code == SEGV_MAPERR);
   return 0;
 }
 

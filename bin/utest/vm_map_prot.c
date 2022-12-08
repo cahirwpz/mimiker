@@ -34,19 +34,12 @@ int test_vmmap_text_w(void) {
   char prev_value0 = p[0];
 
   siginfo_t si;
-  TEST_EXPECT_SIGNAL(SIGSEGV, &si) {
+  TEST_EXPECT_SIGNAL(SIGSEGV, &si, p, SEGV_ACCERR) {
     /* This memory write should fail and trigger SIGSEGV. */
     p[0] = prev_value0 + 1;
     assert(0);
   }
-
   printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
-
-  assert(si.si_signo == SIGSEGV);
-  assert(si.si_addr == p);
-  assert(si.si_code == SEGV_ACCERR);
-
-  signal(SIGSEGV, SIG_DFL);
   return 0;
 }
 
@@ -62,18 +55,12 @@ int test_vmmap_data_x(void) {
   func_int_t ff = (func_int_t)func_buf;
 
   siginfo_t si;
-  TEST_EXPECT_SIGNAL(SIGSEGV, &si) {
+  TEST_EXPECT_SIGNAL(SIGSEGV, &si, ff, SEGV_ACCERR) {
     /* Executing function in data segment (without exec prot) */
     int v = ff(1);
     assert(v != 2);
   }
-
   printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
-
-  assert(si.si_signo == SIGSEGV);
-  assert(si.si_addr == ff);
-  assert(si.si_code == SEGV_ACCERR);
-
   return 0;
 }
 
@@ -86,18 +73,12 @@ int test_vmmap_rodata_w(void) {
   printf("mem to write: 0x%p\n", c);
 
   siginfo_t si;
-  TEST_EXPECT_SIGNAL(SIGSEGV, &si) {
+  TEST_EXPECT_SIGNAL(SIGSEGV, &si, c, SEGV_ACCERR) {
     /* Writing to rodata segment. */
     *c = 'X';
     assert(*c == 'X');
   }
-
   printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
-
-  assert(si.si_signo == SIGSEGV);
-  assert(si.si_addr == c);
-  assert(si.si_code == SEGV_ACCERR);
-
   return 0;
 }
 
@@ -107,16 +88,11 @@ int test_vmmap_rodata_x(void) {
   printf("func: 0x%p\n", fun);
 
   siginfo_t si;
-  TEST_EXPECT_SIGNAL(SIGSEGV, &si) {
+  TEST_EXPECT_SIGNAL(SIGSEGV, &si, fun, SEGV_ACCERR) {
     /* Executing from rodata segment. */
     fun(1);
     assert(0);
   }
-
   printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
-  assert(si.si_signo == SIGSEGV);
-  assert(si.si_addr == fun);
-  assert(si.si_code == SEGV_ACCERR);
-
   return 0;
 }
