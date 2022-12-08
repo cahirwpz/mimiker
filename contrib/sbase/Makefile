@@ -148,6 +148,7 @@ BIN =\
 	xinstall\
 	yes\
 	cal\
+	cols\
 	cksum\
 	grep\
 	od\
@@ -158,7 +159,6 @@ BIN =\
 	tee
 
 BIN_DONT_WORK =\
-	cols\
 	date\
 	dd\
 	find\
