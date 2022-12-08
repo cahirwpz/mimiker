@@ -21,6 +21,7 @@ void setup_handler(int signo, siginfo_t *siginfo_ptr) {
   sigaction_t sa;
   _handled_signo = signo;
   memset(&sa, 0, sizeof(sigaction_t));
+  memset(siginfo_ptr, 0, sizeof(siginfo_t));
   sa.sa_sigaction = signal_handler;
   sa.sa_flags = SA_SIGINFO;
   int err = sigaction(_handled_signo, &sa, &_old_sa);
