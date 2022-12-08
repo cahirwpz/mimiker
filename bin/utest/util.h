@@ -24,11 +24,12 @@ void check_signal(int signo, void *addr, int code);
 void restore_handler(void);
 
 #define TEST_EXPECT_SIGNAL(signo, siginfo_ptr, addr, code)                     \
-  for (; ({                                                                    \
+  for (int __test_expect_signal_iter = 0; ({                                   \
          setup_handler((signo), (siginfo_ptr));                                \
-         sigsetjmp(signal_return, 1) == 0;                                     \
+         (sigsetjmp(signal_return, 1) == 0) && __test_expect_signal_iter < 1;  \
        });                                                                     \
        ({                                                                      \
+         __test_expect_signal_iter++;                                          \
          restore_handler();                                                    \
          check_signal((signo), (void *)(addr), (code));                        \
        }))
