@@ -149,9 +149,11 @@ BIN =\
 	yes\
 	cal\
 	cksum\
+	grep\
 	od\
 	paste\
 	printf\
+	sed\
 	sort\
 	tee
 
@@ -161,12 +163,10 @@ BIN_DONT_WORK =\
 	dd\
 	find\
 	getconf\
-	grep\
 	join\
 	kill\
 	ls\
 	pathchk\
-	sed\
 	tail\
 	tar\
 	time\
