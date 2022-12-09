@@ -23,13 +23,14 @@ void setup_handler(int signo, siginfo_t *siginfo_ptr);
 void check_signal(int signo, void *addr, int code);
 void restore_handler(void);
 
-#define TEST_EXPECT_SIGNAL(signo, siginfo_ptr, addr, code)                     \
-  for (int __test_expect_signal_iter = 0; ({                                   \
-         setup_handler((signo), (siginfo_ptr));                                \
-         (sigsetjmp(signal_return, 1) == 0) && __test_expect_signal_iter < 1;  \
-       });                                                                     \
-       ({                                                                      \
-         __test_expect_signal_iter++;                                          \
-         restore_handler();                                                    \
-         check_signal((signo), (void *)(addr), (code));                        \
-       }))
+#define EXPECT_SIGNAL(signo, siginfo_ptr)                                      \
+  for (setup_handler((signo), (siginfo_ptr));                                  \
+       (sigsetjmp(signal_return, 1) == 0); assert(0))
+
+#define CLEANUP_SIGNAL() restore_handler()
+
+#define CHECK_SIGSEGV(si, sig_addr, sig_code)                                  \
+  ({                                                                           \
+    assert((si)->si_addr == (sig_addr));                                       \
+    assert((si)->si_code == (sig_code));                                       \
+  })

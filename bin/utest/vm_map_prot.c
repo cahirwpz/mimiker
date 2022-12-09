@@ -34,11 +34,12 @@ int test_vmmap_text_access(void) {
   char prev_value0 = p[0];
 
   siginfo_t si;
-  TEST_EXPECT_SIGNAL(SIGSEGV, &si, p, SEGV_ACCERR) {
+  EXPECT_SIGNAL(SIGSEGV, &si) {
     /* This memory write should fail and trigger SIGSEGV. */
     p[0] = prev_value0 + 1;
-    assert(0);
   }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, p, SEGV_ACCERR);
   printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
   return 0;
 }
@@ -55,11 +56,13 @@ int test_vmmap_data_access(void) {
   func_int_t ff = (func_int_t)func_buf;
 
   siginfo_t si;
-  TEST_EXPECT_SIGNAL(SIGSEGV, &si, ff, SEGV_ACCERR) {
+  EXPECT_SIGNAL(SIGSEGV, &si) {
     /* Executing function in data segment (without exec prot) */
     int v = ff(1);
-    assert(v != 2);
+    (void)v;
   }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, ff, SEGV_ACCERR);
   printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
   return 0;
 }
@@ -73,21 +76,23 @@ int test_vmmap_rodata_access(void) {
   /* Check write */
   volatile char *c = (char *)ro_data_str;
   printf("mem to write: 0x%p\n", c);
-  TEST_EXPECT_SIGNAL(SIGSEGV, &si, c, SEGV_ACCERR) {
+  EXPECT_SIGNAL(SIGSEGV, &si) {
     /* Writing to rodata segment. */
     *c = 'X';
-    assert(*c == 'X');
   }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, c, SEGV_ACCERR);
   printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
 
   /* Check execute */
   func_int_t fun = (func_int_t)ro_data_str;
   printf("func: 0x%p\n", fun);
-  TEST_EXPECT_SIGNAL(SIGSEGV, &si, fun, SEGV_ACCERR) {
+  EXPECT_SIGNAL(SIGSEGV, &si) {
     /* Executing from rodata segment. */
     fun(1);
-    assert(0);
   }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, fun, SEGV_ACCERR);
   printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
   return 0;
 }

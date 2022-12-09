@@ -99,12 +99,13 @@ int test_munmap_sigsegv(void) {
   munmap(addr, 0x4000);
 
   siginfo_t si;
-  TEST_EXPECT_SIGNAL(SIGSEGV, &si, addr + 0x2000, SEGV_MAPERR) {
+  EXPECT_SIGNAL(SIGSEGV, &si) {
     /* Try to access freed memory. It should raise SIGSEGV */
     int data = *((volatile int *)(addr + 0x2000));
     (void)data;
-    assert(0);
   }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr + 0x2000, SEGV_MAPERR);
   return 0;
 }
 
@@ -161,9 +162,11 @@ int test_mmap_prot_none(void) {
   for (int i = 0; i < NPAGES; i++) {
     volatile uint8_t *ptr = addr + i * pgsz;
 
-    TEST_EXPECT_SIGNAL(SIGSEGV, &si, ptr, SEGV_ACCERR) {
-      assert(*ptr == 0);
+    EXPECT_SIGNAL(SIGSEGV, &si) {
+      (void)(*ptr == 0);
     }
+    CLEANUP_SIGNAL();
+    CHECK_SIGSEGV(&si, ptr, SEGV_ACCERR);
   }
   return 0;
 }
@@ -182,9 +185,11 @@ int test_mmap_prot_read(void) {
   for (int i = 0; i < NPAGES; i++) {
     volatile uint8_t *ptr = addr + i * pgsz;
 
-    TEST_EXPECT_SIGNAL(SIGSEGV, &si, ptr, SEGV_ACCERR) {
+    EXPECT_SIGNAL(SIGSEGV, &si) {
       *ptr = 42;
     }
+    CLEANUP_SIGNAL();
+    CHECK_SIGSEGV(&si, ptr, SEGV_ACCERR);
     /* Check if nothing changed */
     assert(*ptr == 0);
   }

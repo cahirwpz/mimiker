@@ -72,10 +72,11 @@ int test_signal_segfault(void) {
   volatile struct { int x; } *ptr = 0x0;
 
   siginfo_t si;
-  TEST_EXPECT_SIGNAL(SIGSEGV, &si, ptr, SEGV_MAPERR) {
+  EXPECT_SIGNAL(SIGSEGV, &si) {
     ptr->x = 42;
-    assert(0);
   }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, ptr, SEGV_MAPERR);
   return 0;
 }
 
