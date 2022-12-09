@@ -158,6 +158,7 @@ BIN =\
 	printf\
 	sed\
 	sort\
+	tail\
 	tee
 
 BIN_DONT_WORK =\
@@ -167,7 +168,6 @@ BIN_DONT_WORK =\
 	join\
 	kill\
 	pathchk\
-	tail\
 	tar\
 	time\
 	touch\
