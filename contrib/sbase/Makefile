@@ -92,6 +92,7 @@ BIN =\
 	comm\
 	cp\
 	cut\
+	dd\
 	dirname\
 	echo\
 	env\
@@ -161,7 +162,6 @@ BIN =\
 
 BIN_DONT_WORK =\
 	date\
-	dd\
 	find\
 	getconf\
 	join\
