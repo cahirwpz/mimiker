@@ -151,6 +151,7 @@ BIN =\
 	cols\
 	cksum\
 	grep\
+	ls\
 	od\
 	paste\
 	printf\
@@ -165,7 +166,6 @@ BIN_DONT_WORK =\
 	getconf\
 	join\
 	kill\
-	ls\
 	pathchk\
 	tail\
 	tar\
