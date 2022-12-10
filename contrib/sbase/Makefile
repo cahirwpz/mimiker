@@ -152,6 +152,7 @@ BIN =\
 	cols\
 	cksum\
 	grep\
+	join\
 	ls\
 	od\
 	paste\
@@ -166,7 +167,6 @@ BIN_DONT_WORK =\
 	date\
 	find\
 	getconf\
-	join\
 	kill\
 	tar\
 	time\
@@ -255,6 +255,7 @@ CFLAGS.sbase/cal.c += -Dmain=cal_main
 CFLAGS.sbase/cols.c += -Dmain=cols_main
 CFLAGS.sbase/cksum.c += -Dmain=cksum_main
 CFLAGS.sbase/grep.c += -Dmain=grep_main
+CFLAGS.sbase/join.c += -Dmain=join_main
 CFLAGS.sbase/ls.c += -Dmain=ls_main
 CFLAGS.sbase/od.c += -Dmain=od_main
 CFLAGS.sbase/paste.c += -Dmain=paste_main
@@ -282,6 +283,7 @@ OBJECTS += $(addprefix $(BUILDDIR),$(LIB_SBASE)) $(addsuffix .o,$(addprefix $(BU
 DEPENDENCY-FILES += $(foreach f, $(SOURCES_LIBUTIL) $(SOURCES_LIBUTF),\
 		      $(BUILDDIR)$(dir $(f))$(patsubst %.c,%.d,$(notdir $(f))))
 WFLAGS += -Wno-error=sign-compare -Wno-error=implicit-fallthrough
+CFLAGS.sbase/join.c += -Wno-error=sometimes-uninitialized
 
 include $(TOPDIR)/build/build.prog.mk
 
