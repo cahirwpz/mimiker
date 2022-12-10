@@ -155,6 +155,7 @@ BIN =\
 	ls\
 	od\
 	paste\
+	pathchk\
 	printf\
 	sed\
 	sort\
@@ -167,7 +168,6 @@ BIN_DONT_WORK =\
 	getconf\
 	join\
 	kill\
-	pathchk\
 	tar\
 	time\
 	touch\
@@ -258,6 +258,7 @@ CFLAGS.sbase/grep.c += -Dmain=grep_main
 CFLAGS.sbase/ls.c += -Dmain=ls_main
 CFLAGS.sbase/od.c += -Dmain=od_main
 CFLAGS.sbase/paste.c += -Dmain=paste_main
+CFLAGS.sbase/pathchk.c += -Dmain=pathchk_main
 CFLAGS.sbase/printf.c += -Dmain=printf_main
 CFLAGS.sbase/sed.c += -Dmain=sed_main
 CFLAGS.sbase/sort.c += -Dmain=sort_main
