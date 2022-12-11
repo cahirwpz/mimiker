@@ -1,0 +1,9 @@
+[submodule "contrib/lua/lua"]
+	path = contrib/lua/lua
+	url = https://github.com/lua/lua.git
+[submodule "contrib/atto/atto"]
+	path = contrib/atto/atto
+	url = https://github.com/hughbarney/atto.git
+[submodule "contrib/atto/incurses"]
+	path = contrib/atto/incurses
+	url = https://github.com/infinnovation-dev/incurses.git
