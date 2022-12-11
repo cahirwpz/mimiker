@@ -47,9 +47,9 @@ typedef union {
 typedef struct gt_pci_state {
 
   /* Resources belonging to this driver. */
-  dev_mem_t *corectrl;
-  dev_mem_t *pci_io;
-  dev_mem_t *pci_mem;
+  dev_mmio_t *corectrl;
+  dev_mmio_t *pci_io;
+  dev_mmio_t *pci_mem;
   dev_intr_t *irq_res;
 
   intr_event_t *intr_event[IO_ICUSIZE];
@@ -66,7 +66,7 @@ static driver_t gt_pci_bus;
 static uint32_t gt_pci_read_config(device_t *dev, unsigned reg, unsigned size) {
   pci_device_t *pcid = pci_device_of(dev);
   gt_pci_state_t *gtpci = dev->parent->state;
-  dev_mem_t *pcicfg = gtpci->corectrl;
+  dev_mmio_t *pcicfg = gtpci->corectrl;
   assert(pcid);
 
   if (pcid->addr.bus > 0)
@@ -93,7 +93,7 @@ static void gt_pci_write_config(device_t *dev, unsigned reg, unsigned size,
                                 uint32_t value) {
   pci_device_t *pcid = pci_device_of(dev);
   gt_pci_state_t *gtpci = dev->parent->state;
-  dev_mem_t *pcicfg = gtpci->corectrl;
+  dev_mmio_t *pcicfg = gtpci->corectrl;
   assert(pcid);
 
   if (pcid->addr.bus > 0)
@@ -144,7 +144,7 @@ static void gt_pci_set_icus(gt_pci_state_t *gtpci) {
   else
     gtpci->imask |= (1U << 2);
 
-  dev_mem_t *io = gtpci->pci_io;
+  dev_mmio_t *io = gtpci->pci_io;
   bus_write_1(io, ICU1_DATA, LO(gtpci->imask));
   bus_write_1(io, ICU2_DATA, HI(gtpci->imask));
   bus_write_1(io, PIIX_REG_ELCR + 0, LO(gtpci->elcr));
@@ -210,7 +210,7 @@ static void gt_pci_teardown_intr(device_t *pic, device_t *dev,
   intr_event_remove_handler(intr->handler);
 }
 
-static void init_8259(dev_mem_t *io, unsigned icu, unsigned imask) {
+static void init_8259(dev_mmio_t *io, unsigned icu, unsigned imask) {
   /* reset, program device, 4 bytes */
   bus_write_1(io, ICU_ADDR(icu), ICW1_RESET | ICW1_IC4);
   bus_write_1(io, ICU_DATA(icu), 0);
@@ -226,7 +226,7 @@ static void init_8259(dev_mem_t *io, unsigned icu, unsigned imask) {
 
 static intr_filter_t gt_pci_intr(void *data) {
   gt_pci_state_t *gtpci = data;
-  dev_mem_t *io = gtpci->pci_io;
+  dev_mmio_t *io = gtpci->pci_io;
   unsigned irq;
 
   assert(data != NULL);
@@ -273,12 +273,12 @@ static int gt_pci_attach(device_t *pcib) {
   if (!pcib->node)
     pcib->node = 1;
 
-  gtpci->pci_mem = device_take_mem(pcib, 0);
+  gtpci->pci_mem = device_request_mmio(pcib, 0);
   assert(gtpci->pci_mem);
 
-  if ((err = device_claim_mem(pcib, 1, &gtpci->pci_io)))
+  if ((err = device_claim_mmio(pcib, 1, &gtpci->pci_io)))
     return err;
-  if ((err = device_claim_mem(pcib, 2, &gtpci->corectrl)))
+  if ((err = device_claim_mmio(pcib, 2, &gtpci->corectrl)))
     return err;
 
   /* All interrupts default to "masked off" and edge-triggered. */
@@ -286,7 +286,7 @@ static int gt_pci_attach(device_t *pcib) {
   gtpci->elcr = 0;
 
   /* Initialize the 8259s. */
-  dev_mem_t *io = gtpci->pci_io;
+  dev_mmio_t *io = gtpci->pci_io;
   init_8259(io, IO_ICU1, LO(gtpci->imask));
   init_8259(io, IO_ICU2, HI(gtpci->imask));
 
@@ -307,7 +307,7 @@ static int gt_pci_attach(device_t *pcib) {
   /* ISA Bridge */
   dev = device_add_child(pcib, 0);
   dev->bus = DEV_BUS_PCI;
-  device_add_mem(dev, 0, IO_ISABEGIN, IO_ISAEND + 1, 0);
+  device_add_mmio(dev, 0, IO_ISABEGIN, IO_ISAEND + 1, 0);
   device_add_pending(dev);
 
   intr_pic_register(pcib, pcib->node);
@@ -315,20 +315,20 @@ static int gt_pci_attach(device_t *pcib) {
   return 0;
 }
 
-static int gt_pci_map_mem(device_t *dev, dev_mem_t *mem) {
+static int gt_pci_map_mmio(device_t *dev, dev_mmio_t *mmio) {
   gt_pci_state_t *gtpci = dev->parent->state;
-  bus_addr_t start = mem->start;
+  bus_addr_t start = mmio->start;
 
-  mem->bus_tag = generic_bus_space;
+  mmio->bus_tag = generic_bus_space;
 
   pci_device_t *pcid = pci_device_of(dev);
   if (!pcid)
     goto ioports;
 
-  if (mem->id >= PCI_BAR_MAX)
+  if (mmio->id >= PCI_BAR_MAX)
     return EINVAL;
 
-  pci_bar_t *bar = &pcid->bar[mem->id];
+  pci_bar_t *bar = &pcid->bar[mmio->id];
   if (!bar->size)
     return EINVAL;
 
@@ -344,18 +344,18 @@ static int gt_pci_map_mem(device_t *dev, dev_mem_t *mem) {
   if (type == PCI_RT_MEMORY)
     start += MALTA_PCI0_MEMORY_BASE;
 
-  pci_write_config_4(dev, PCIR_BAR(mem->id), start);
+  pci_write_config_4(dev, PCIR_BAR(mmio->id), start);
 
   if (type == PCI_RT_MEMORY)
-    return bus_space_map(mem->bus_tag, start, dev_mem_size(mem),
-                         &mem->bus_handle);
+    return bus_space_map(mmio->bus_tag, start, dev_mmio_size(mmio),
+                         &mmio->bus_handle);
 
 ioports:
-  mem->bus_handle = gtpci->pci_io->bus_handle + start;
+  mmio->bus_handle = gtpci->pci_io->bus_handle + start;
   return 0;
 }
 
-static void gt_pci_unmap_mem(device_t *dev, dev_mem_t *mem) {
+static void gt_pci_unmap_mmio(device_t *dev, dev_mmio_t *mmio) {
   /* TODO: unmap mapped memory. */
 }
 
@@ -364,8 +364,8 @@ static int gt_pci_probe(device_t *d) {
 }
 
 static bus_methods_t gt_pci_bus_if = {
-  .map_mem = gt_pci_map_mem,
-  .unmap_mem = gt_pci_unmap_mem,
+  .map_mmio = gt_pci_map_mmio,
+  .unmap_mmio = gt_pci_unmap_mmio,
 };
 
 static pic_methods_t gt_pic_if = {

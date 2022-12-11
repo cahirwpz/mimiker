@@ -29,13 +29,13 @@ static void delay(int64_t count) {
 /* clang-format on */
 
 typedef struct bcm2835_gpio {
-  dev_mem_t *gpio;
+  dev_mmio_t *gpio;
 } bcm2835_gpio_t;
 
 /* Select GPIO alt function. For more information look at
  * https://cs140e.sergio.bz/docs/BCM2837-ARM-Peripherals.pdf and
  * https://pinout.xyz */
-static void bcm2835_gpio_function_select(dev_mem_t *mem, unsigned pin,
+static void bcm2835_gpio_function_select(dev_mmio_t *mmio, unsigned pin,
                                          bcm2835_gpio_func_t func) {
   assert(pin < NGPIO_PIN);
 
@@ -44,44 +44,44 @@ static void bcm2835_gpio_function_select(dev_mem_t *mem, unsigned pin,
   unsigned shift = (pin % BCM2835_GPIO_GPFSEL_PINS_PER_REGISTER) *
                    BCM2835_GPIO_GPFSEL_BITS_PER_PIN;
 
-  unsigned val = bus_read_4(mem, BCM2835_GPIO_GPFSEL(reg));
+  unsigned val = bus_read_4(mmio, BCM2835_GPIO_GPFSEL(reg));
   val &= ~(mask << shift);
   val |= (func << shift);
-  bus_write_4(mem, BCM2835_GPIO_GPFSEL(reg), val);
+  bus_write_4(mmio, BCM2835_GPIO_GPFSEL(reg), val);
 }
 
-static void bcm2835_gpio_set_pull(dev_mem_t *mem, unsigned pin,
+static void bcm2835_gpio_set_pull(dev_mmio_t *mmio, unsigned pin,
                                   bcm2838_gpio_gppud_t pud) {
   assert(pin < NGPIO_PIN);
 
   unsigned mask = 1 << (pin % BCM2835_GPIO_GPPUD_PINS_PER_REGISTER);
   unsigned reg = pin / BCM2835_GPIO_GPPUD_PINS_PER_REGISTER;
 
-  bus_write_4(mem, BCM2835_GPIO_GPPUD, pud);
+  bus_write_4(mmio, BCM2835_GPIO_GPPUD, pud);
   /* Wait 150 cycles – this provides the required set-up time for the control
    * signal. */
   delay(150);
-  bus_write_4(mem, BCM2835_GPIO_GPPUDCLK(reg), mask);
+  bus_write_4(mmio, BCM2835_GPIO_GPPUDCLK(reg), mask);
   /* Wait 150 cycles – this provides the required hold time for the control
    * signal. */
   delay(150);
-  bus_write_4(mem, BCM2835_GPIO_GPPUD, BCM2838_GPIO_GPPUD_PULLOFF);
-  bus_write_4(mem, BCM2835_GPIO_GPPUDCLK(reg), 0);
+  bus_write_4(mmio, BCM2835_GPIO_GPPUD, BCM2838_GPIO_GPPUD_PULLOFF);
+  bus_write_4(mmio, BCM2835_GPIO_GPPUDCLK(reg), 0);
 }
 
-static void bcm2835_gpio_set_high_detect(dev_mem_t *mem, unsigned pin,
+static void bcm2835_gpio_set_high_detect(dev_mmio_t *mmio, unsigned pin,
                                          bool enable) {
   assert(pin < NGPIO_PIN);
 
   unsigned mask = 1 << (pin % BCM2835_GPIO_GPHEN_PINS_PER_REGISTER);
   unsigned reg = pin / BCM2835_GPIO_GPHEN_PINS_PER_REGISTER;
 
-  uint32_t val = bus_read_4(mem, BCM2835_GPIO_GPHEN(reg));
+  uint32_t val = bus_read_4(mmio, BCM2835_GPIO_GPHEN(reg));
   if (enable)
     val |= mask;
   else
     val &= ~mask;
-  bus_write_4(mem, BCM2835_GPIO_GPHEN(reg), val);
+  bus_write_4(mmio, BCM2835_GPIO_GPHEN(reg), val);
 }
 
 static int bcm2835_gpio_read_fdt_entry(device_t *dev, phandle_t node) {
@@ -173,7 +173,7 @@ static int bcm2835_gpio_attach(device_t *dev) {
   bcm2835_gpio_t *gpio = (bcm2835_gpio_t *)dev->state;
   int err = 0;
 
-  if ((err = device_claim_mem(dev, 0, &gpio->gpio)))
+  if ((err = device_claim_mmio(dev, 0, &gpio->gpio)))
     return err;
 
   /* Read configuration from FDT */

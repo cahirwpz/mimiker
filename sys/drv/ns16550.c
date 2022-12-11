@@ -20,21 +20,21 @@
 
 typedef struct ns16550_state {
   dev_intr_t *irq_res;
-  dev_mem_t *regs;
+  dev_mmio_t *regs;
 } ns16550_state_t;
 
 #define in(regs, offset) bus_read_1((regs), (offset))
 #define out(regs, offset, value) bus_write_1((regs), (offset), (value))
 
-static void set(dev_mem_t *regs, unsigned offset, uint8_t mask) {
+static void set(dev_mmio_t *regs, unsigned offset, uint8_t mask) {
   out(regs, offset, in(regs, offset) | mask);
 }
 
-static void clr(dev_mem_t *regs, unsigned offset, uint8_t mask) {
+static void clr(dev_mmio_t *regs, unsigned offset, uint8_t mask) {
   out(regs, offset, in(regs, offset) & ~mask);
 }
 
-static void setup(dev_mem_t *regs) {
+static void setup(dev_mmio_t *regs) {
   set(regs, LCR, LCR_DLAB);
   out(regs, DLM, 0);
   out(regs, DLL, 1); /* 115200 */
@@ -84,7 +84,7 @@ static int ns16550_attach(device_t *dev) {
     goto end;
   }
 
-  if ((err = device_claim_mem(dev, 0, &ns16550->regs)))
+  if ((err = device_claim_mmio(dev, 0, &ns16550->regs)))
     goto end;
 
   tty_t *tty = tty_alloc();

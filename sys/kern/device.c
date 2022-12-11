@@ -16,7 +16,7 @@ device_t *device_alloc(int unit) {
   device_t *dev = kmalloc(M_DEV, sizeof(device_t), M_WAITOK | M_ZERO);
   TAILQ_INIT(&dev->children);
   SLIST_INIT(&dev->intr_list);
-  SLIST_INIT(&dev->mem_list);
+  SLIST_INIT(&dev->mmio_list);
   dev->unit = unit;
   return dev;
 }
@@ -74,7 +74,7 @@ int device_detach(device_t *dev) {
   return res;
 }
 
-dev_intr_t *device_take_intr(device_t *dev, unsigned id) {
+dev_intr_t *device_request_intr(device_t *dev, unsigned id) {
   dev_intr_t *intr;
   SLIST_FOREACH(intr, &dev->intr_list, link) {
     if (intr->id == id)
@@ -83,11 +83,11 @@ dev_intr_t *device_take_intr(device_t *dev, unsigned id) {
   return NULL;
 }
 
-dev_mem_t *device_take_mem(device_t *dev, unsigned id) {
-  dev_mem_t *mem;
-  SLIST_FOREACH(mem, &dev->mem_list, link) {
-    if (mem->id == id)
-      return mem;
+dev_mmio_t *device_request_mmio(device_t *dev, unsigned id) {
+  dev_mmio_t *mmio;
+  SLIST_FOREACH(mmio, &dev->mmio_list, link) {
+    if (mmio->id == id)
+      return mmio;
   }
   return NULL;
 }
@@ -95,24 +95,25 @@ dev_mem_t *device_take_mem(device_t *dev, unsigned id) {
 int device_claim_intr(device_t *dev, unsigned id, ih_filter_t *filter,
                       ih_service_t *service, void *arg, const char *name,
                       dev_intr_t **intrp) {
-  dev_intr_t *intr = device_take_intr(dev, id);
+  dev_intr_t *intr = device_request_intr(dev, id);
   assert(intr);
   *intrp = intr;
   return pic_setup_intr(dev, intr, filter, service, arg, name);
 }
 
-int device_claim_mem(device_t *dev, unsigned id, dev_mem_t **memp) {
-  dev_mem_t *mem = device_take_mem(dev, id);
-  assert(mem);
-  *memp = mem;
-  return bus_map_mem(dev, mem);
+int device_claim_mmio(device_t *dev, unsigned id, dev_mmio_t **mmiop) {
+  dev_mmio_t *mmio = device_request_mmio(dev, id);
+  assert(mmio);
+  *mmiop = mmio;
+  return bus_map_mmio(dev, mmio);
 }
 
 void device_add_intr(device_t *dev, unsigned id, unsigned pic_id,
                      unsigned irq) {
-  assert(!device_take_intr(dev, id));
+  dev_intr_t *intr = device_request_intr(dev, id);
+  assert(intr == NULL);
 
-  dev_intr_t *intr = kmalloc(M_DEV, sizeof(dev_intr_t), M_WAITOK | M_ZERO);
+  intr = kmalloc(M_DEV, sizeof(dev_intr_t), M_WAITOK | M_ZERO);
   intr->id = id;
   intr->pic_id = pic_id;
   intr->irq = irq;
@@ -120,17 +121,18 @@ void device_add_intr(device_t *dev, unsigned id, unsigned pic_id,
   SLIST_INSERT_HEAD(&dev->intr_list, intr, link);
 }
 
-void device_add_mem(device_t *dev, unsigned id, bus_addr_t start,
-                    bus_addr_t end, dev_mem_flags_t flags) {
-  assert(!device_take_mem(dev, id));
+void device_add_mmio(device_t *dev, unsigned id, bus_addr_t start,
+                    bus_addr_t end, dev_mmio_flags_t flags) {
+  dev_mmio_t *mmio = device_request_mmio(dev, id);
+  assert(mmio == 0);
 
-  dev_mem_t *mem = kmalloc(M_DEV, sizeof(dev_mem_t), M_WAITOK | M_ZERO);
-  mem->id = id;
-  mem->start = start;
-  mem->end = end;
-  mem->flags = flags;
+  mmio = kmalloc(M_DEV, sizeof(dev_mmio_t), M_WAITOK | M_ZERO);
+  mmio->id = id;
+  mmio->start = start;
+  mmio->end = end;
+  mmio->flags = flags;
 
-  SLIST_INSERT_HEAD(&dev->mem_list, mem, link);
+  SLIST_INSERT_HEAD(&dev->mmio_list, mmio, link);
 }
 
 device_t *device_method_provider(device_t *dev, drv_if_t iface,

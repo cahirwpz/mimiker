@@ -19,7 +19,7 @@
 #define RTC_ASCTIME_SIZE 32
 
 typedef struct rtc_state {
-  dev_mem_t *regs;
+  dev_mmio_t *regs;
   char asctime[RTC_ASCTIME_SIZE];
   unsigned counter; /* TODO Should that be part of intr_handler_t ? */
   dev_intr_t *irq_res;
@@ -41,21 +41,21 @@ static void boottime_init(tm_t *t) {
   tm_setclock(&bt);
 }
 
-static inline uint8_t rtc_read(dev_mem_t *regs, unsigned addr) {
+static inline uint8_t rtc_read(dev_mmio_t *regs, unsigned addr) {
   bus_write_1(regs, RTC_ADDR, addr);
   return bus_read_1(regs, RTC_DATA);
 }
 
-static inline void rtc_write(dev_mem_t *regs, unsigned addr, uint8_t value) {
+static inline void rtc_write(dev_mmio_t *regs, unsigned addr, uint8_t value) {
   bus_write_1(regs, RTC_ADDR, addr);
   bus_write_1(regs, RTC_DATA, value);
 }
 
-static inline void rtc_setb(dev_mem_t *regs, unsigned addr, uint8_t mask) {
+static inline void rtc_setb(dev_mmio_t *regs, unsigned addr, uint8_t mask) {
   rtc_write(regs, addr, rtc_read(regs, addr) | mask);
 }
 
-static void rtc_gettime(dev_mem_t *regs, tm_t *t) {
+static void rtc_gettime(dev_mmio_t *regs, tm_t *t) {
   t->tm_sec = rtc_read(regs, MC_SEC);
   t->tm_min = rtc_read(regs, MC_MIN);
   t->tm_hour = rtc_read(regs, MC_HOUR);
@@ -104,7 +104,7 @@ static int rtc_attach(device_t *dev) {
     return err;
   }
 
-  if ((err = device_claim_mem(dev, 0, &rtc->regs)))
+  if ((err = device_claim_mmio(dev, 0, &rtc->regs)))
     return err;
 
   /* Configure how the time is presented through registers. */

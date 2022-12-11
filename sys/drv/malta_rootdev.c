@@ -58,14 +58,14 @@ static void rootdev_teardown_intr(device_t *pic, device_t *dev,
    * intr_teardown method? probably not... maybe in detach method? */
 }
 
-static int rootdev_map_mem(device_t *dev, dev_mem_t *mem) {
-  mem->bus_tag = generic_bus_space;
+static int rootdev_map_mmio(device_t *dev, dev_mmio_t *mmio) {
+  mmio->bus_tag = generic_bus_space;
 
-  return bus_space_map(mem->bus_tag, mem->start, dev_mem_size(mem),
-                       &mem->bus_handle);
+  return bus_space_map(mmio->bus_tag, mmio->start, dev_mmio_size(mmio),
+                       &mmio->bus_handle);
 }
 
-static void rootdev_unmap_mem(device_t *dev, dev_mem_t *mem) {
+static void rootdev_unmap_mmio(device_t *dev, dev_mmio_t *mmio) {
   /* TODO: unmap mapped resources. */
 }
 
@@ -101,11 +101,11 @@ static int rootdev_attach(device_t *bus) {
   /* Create GT PCI device and assign resources to it. */
   dev = device_add_child(bus, 1);
   /* PCI I/O memory. */
-  device_add_mem(dev, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END, 0);
+  device_add_mmio(dev, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END, 0);
   /* PCI I/O ports. */
-  device_add_mem(dev, 1, MALTA_PCI0_IO_BASE, MALTA_PCI0_IO_END, 0);
+  device_add_mmio(dev, 1, MALTA_PCI0_IO_BASE, MALTA_PCI0_IO_END, 0);
   /* GT64120 registers. */
-  device_add_mem(dev, 2, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END, 0);
+  device_add_mmio(dev, 2, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END, 0);
   /* GT64120 main irq. */
   device_add_intr(dev, 0, 0, MIPS_HWINT0);
   device_add_pending(dev);
@@ -117,8 +117,8 @@ static int rootdev_attach(device_t *bus) {
 }
 
 static bus_methods_t rootdev_bus_if = {
-  .map_mem = rootdev_map_mem,
-  .unmap_mem = rootdev_unmap_mem,
+  .map_mmio = rootdev_map_mmio,
+  .unmap_mmio = rootdev_unmap_mmio,
 };
 
 static pic_methods_t rootdev_pic_if = {

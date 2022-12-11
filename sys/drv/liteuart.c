@@ -26,7 +26,7 @@
 #define LITEUART_BUFSIZE 128
 
 typedef struct liteuart_state {
-  dev_mem_t *csrs;
+  dev_mmio_t *csrs;
   dev_intr_t *irq;
   thread_t *thread;
 } liteuart_state_t;
@@ -100,7 +100,7 @@ static int liteuart_attach(device_t *dev) {
     goto end;
   }
 
-  if ((err = device_claim_mem(dev, 0, &liteuart->csrs)))
+  if ((err = device_claim_mmio(dev, 0, &liteuart->csrs)))
     goto end;
 
   tty_t *tty = tty_alloc();

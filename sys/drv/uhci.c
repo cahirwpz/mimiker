@@ -37,7 +37,7 @@
 typedef struct uhci_state {
   uhci_qh_t *mainqs[UHCI_NMAINQS]; /* main queues (i.e. schedule queues) */
   uint32_t *frames;                /* UHCI frame list */
-  dev_mem_t *regs;                 /* host controller registers */
+  dev_mmio_t *regs;                /* host controller registers */
   dev_intr_t *irq;                 /* host controller interrupt */
   uint8_t nports;                  /* number of root hub ports */
 } uhci_state_t;
@@ -808,7 +808,7 @@ static int uhci_attach(device_t *dev) {
     return err;
   }
 
-  if ((err = device_claim_mem(dev, 4, &uhci->regs)))
+  if ((err = device_claim_mmio(dev, 4, &uhci->regs)))
     return err;
 
   /* Perform the global reset of the UHCI controller. */

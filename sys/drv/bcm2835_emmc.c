@@ -22,10 +22,10 @@
 #include <dev/fdt_dev.h>
 
 typedef struct bcmemmc_state {
-  dev_mem_t *emmc;       /* e.MMC controller registers */
+  dev_mmio_t *regs;       /* e.MMC controller registers */
   dev_intr_t *irq;       /* e.MMC controller interrupt */
   condvar_t intr_recv;   /* Used to wake up a thread waiting for an interrupt */
-  mtx_t lock;            /* Covers `pending`, `intr_recv` and `emmc`. */
+  mtx_t lock;            /* Covers `pending`, `intr_recv` and `regs`. */
   uint64_t rca;          /* Relative Card Address */
   uint64_t host_version; /* Host specification version */
   volatile uint32_t pending;   /* All interrupts received */
@@ -34,10 +34,10 @@ typedef struct bcmemmc_state {
                                 * current state */
 } bcmemmc_state_t;
 
-#define b_in bus_read_4
-#define b_out bus_write_4
-#define b_clr(mem, reg, b) b_out((mem), (reg), b_in((mem), (reg)) & ~(b))
-#define b_set(mem, reg, b) b_out((mem), (reg), b_in((mem), (reg)) | (b))
+#define b_in(reg) bus_read_4(state->regs, (reg))
+#define b_out(reg, val) bus_write_4(state->regs, (reg), (val))
+#define b_clr(reg, mask) b_out((reg), b_in((reg)) & ~(mask))
+#define b_set(reg, mask) b_out((reg), b_in((reg)) | (mask))
 
 /**
  * Delay function.
@@ -90,15 +90,14 @@ static inline emmc_error_t bcmemmc_set_error(bcmemmc_state_t *state,
  * All pending interrupts are stored in `bmcemmc_state_t::pending`.
  */
 static uint32_t bcmemmc_read_intr(bcmemmc_state_t *state) {
-  dev_mem_t *emmc = state->emmc;
   uint32_t newpend;
 
-  newpend = b_in(emmc, BCMEMMC_INTERRUPT);
+  newpend = b_in(BCMEMMC_INTERRUPT);
 
   /* Pending interrupts need to be cleared manually. */
   if (newpend) {
     state->pending |= newpend;
-    b_out(emmc, BCMEMMC_INTERRUPT, newpend);
+    b_out(BCMEMMC_INTERRUPT, newpend);
   }
   return newpend;
 }
@@ -118,8 +117,7 @@ static inline uint32_t bcmemmc_try_read_intr_blocking(bcmemmc_state_t *state) {
 
 /* Return 1 if there are any interrupts to be processed, 0 if not */
 static inline int bcmemmc_check_intr(bcmemmc_state_t *state) {
-  dev_mem_t *emmc = state->emmc;
-  return (b_in(emmc, BCMEMMC_INTERRUPT) | state->pending) ? 1 : 0;
+  return (b_in(BCMEMMC_INTERRUPT) | state->pending) ? 1 : 0;
 }
 
 /**
@@ -204,8 +202,6 @@ static uint32_t bcmemmc_clk_approx_divisor(uint32_t clk, uint32_t frq) {
 
 /* Set e.MMC clock's divisor to match frequency `frq` */
 static void bcmemmc_clk_set_divisor(bcmemmc_state_t *state, uint32_t frq) {
-  dev_mem_t *emmc = state->emmc;
-
   uint32_t clk = GPIO_CLK_EMMC_DEFAULT_FREQ;
   uint32_t divisor = bcmemmc_clk_approx_divisor(clk, frq);
 
@@ -214,9 +210,9 @@ static void bcmemmc_clk_set_divisor(bcmemmc_state_t *state, uint32_t frq) {
   uint32_t lo = (divisor & 0x00ff) << 8;
   uint32_t hi = (divisor & 0x0300) >> 2;
 
-  uint32_t ctl1 = b_in(emmc, BCMEMMC_CONTROL1) & BCMEMMC_CLKDIV_INVMASK;
+  uint32_t ctl1 = b_in(BCMEMMC_CONTROL1) & BCMEMMC_CLKDIV_INVMASK;
   ctl1 |= lo | hi;
-  b_out(emmc, BCMEMMC_CONTROL1, ctl1);
+  b_out(BCMEMMC_CONTROL1, ctl1);
 
   klog("e.MMC: clock set to %luHz / %lu (requested %luHz)", clk, divisor, frq);
 }
@@ -228,18 +224,17 @@ static void bcmemmc_clk_set_divisor(bcmemmc_state_t *state, uint32_t frq) {
  */
 static int bcmemmc_set_clk_freq(device_t *dev, uint32_t frq) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
-  dev_mem_t *emmc = state->emmc;
   int32_t cnt = CLK_STABLE_TRIALS;
 
-  b_clr(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
+  b_clr(BCMEMMC_CONTROL1, C1_CLK_EN);
   /* host_version <= HOST_SPEC_V2 needs a power-of-two divisor. It would require
    * a different calculation method. */
   assert(state->host_version > HOST_SPEC_V2);
   bcmemmc_clk_set_divisor(state, frq);
-  b_set(emmc, BCMEMMC_CONTROL1, C1_CLK_EN);
+  b_set(BCMEMMC_CONTROL1, C1_CLK_EN);
 
   /* Wait until the clock becomes stable */
-  while (!(b_in(emmc, BCMEMMC_CONTROL1) & C1_CLK_STABLE)) {
+  while (!(b_in(BCMEMMC_CONTROL1) & C1_CLK_STABLE)) {
     if (cnt-- < 0)
       return bcmemmc_set_error(state, EMMC_ERROR_TIMEOUT);
     bcmemmc_delay(30);
@@ -298,16 +293,16 @@ static uint32_t bcmemmc_encode_cmd(emmc_cmd_t cmd) {
 static int bcmemmc_set_bus_width(bcmemmc_state_t *state, uint32_t bw) {
   switch (bw) {
     case EMMC_BUSWIDTH_1:
-      b_clr(state->emmc, BCMEMMC_CONTROL0, C0_HCTL_8BIT);
-      b_clr(state->emmc, BCMEMMC_CONTROL0, C0_HCTL_DWITDH);
+      b_clr(BCMEMMC_CONTROL0, C0_HCTL_8BIT);
+      b_clr(BCMEMMC_CONTROL0, C0_HCTL_DWITDH);
       return 0;
     case EMMC_BUSWIDTH_4:
-      b_clr(state->emmc, BCMEMMC_CONTROL0, C0_HCTL_8BIT);
-      b_set(state->emmc, BCMEMMC_CONTROL0, C0_HCTL_DWITDH);
+      b_clr(BCMEMMC_CONTROL0, C0_HCTL_8BIT);
+      b_set(BCMEMMC_CONTROL0, C0_HCTL_DWITDH);
       return 0;
     case EMMC_BUSWIDTH_8:
-      b_set(state->emmc, BCMEMMC_CONTROL0, C0_HCTL_8BIT);
-      b_clr(state->emmc, BCMEMMC_CONTROL0, C0_HCTL_DWITDH);
+      b_set(BCMEMMC_CONTROL0, C0_HCTL_8BIT);
+      b_clr(BCMEMMC_CONTROL0, C0_HCTL_DWITDH);
       return 0;
     default:
       return EINVAL;
@@ -315,7 +310,7 @@ static int bcmemmc_set_bus_width(bcmemmc_state_t *state, uint32_t bw) {
 }
 
 static int bcmemmc_get_bus_width(bcmemmc_state_t *state) {
-  uint32_t ctl = b_in(state->emmc, BCMEMMC_CONTROL0);
+  uint32_t ctl = b_in(BCMEMMC_CONTROL0);
   if (ctl & C0_HCTL_8BIT)
     return EMMC_BUSWIDTH_8;
   if (ctl & C0_HCTL_DWITDH)
@@ -331,7 +326,6 @@ static int bcmemmc_get_bus_width(bcmemmc_state_t *state) {
 static emmc_error_t bcmemmc_get_prop(device_t *cdev, uint32_t id,
                                      uint64_t *var) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
-  dev_mem_t *emmc = state->emmc;
 
   if (bcmemmc_invalid_state(state) && (id != EMMC_PROP_RW_ERRORS))
     return bcmemmc_set_error(state, EMMC_ERROR_INVALID_STATE);
@@ -339,11 +333,11 @@ static emmc_error_t bcmemmc_get_prop(device_t *cdev, uint32_t id,
   uint32_t reg = 0;
   switch (id) {
     case EMMC_PROP_RW_BLKCNT:
-      reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
+      reg = b_in(BCMEMMC_BLKSIZECNT);
       *var = (reg & BSC_BLKCNT) >> BSC_BLKCNT_SHIFT;
       break;
     case EMMC_PROP_RW_BLKSIZE:
-      reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
+      reg = b_in(BCMEMMC_BLKSIZECNT);
       *var = reg & BSC_BLKSIZE;
       break;
     case EMMC_PROP_R_MAXBLKSIZE:
@@ -356,12 +350,12 @@ static emmc_error_t bcmemmc_get_prop(device_t *cdev, uint32_t id,
       *var = EMMC_VOLTAGE_WINDOW_LOW;
       break;
     case EMMC_PROP_RW_RESP_LOW:
-      *var = (uint64_t)b_in(emmc, BCMEMMC_RESP0) |
-             (uint64_t)b_in(emmc, BCMEMMC_RESP1) << 32;
+      *var = (uint64_t)b_in(BCMEMMC_RESP0) |
+             (uint64_t)b_in(BCMEMMC_RESP1) << 32;
       break;
     case EMMC_PROP_RW_RESP_HI:
-      *var = (uint64_t)b_in(emmc, BCMEMMC_RESP2) |
-             (uint64_t)b_in(emmc, BCMEMMC_RESP3) << 32;
+      *var = (uint64_t)b_in(BCMEMMC_RESP2) |
+             (uint64_t)b_in(BCMEMMC_RESP3) << 32;
       break;
     case EMMC_PROP_RW_BUSWIDTH:
       *var = bcmemmc_get_bus_width(state);
@@ -385,7 +379,6 @@ static emmc_error_t bcmemmc_get_prop(device_t *cdev, uint32_t id,
 static emmc_error_t bcmemmc_set_prop(device_t *cdev, uint32_t id,
                                      uint64_t var) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
-  dev_mem_t *emmc = state->emmc;
 
   if (bcmemmc_invalid_state(state))
     return bcmemmc_set_error(state, EMMC_ERROR_INTERNAL);
@@ -396,25 +389,25 @@ static emmc_error_t bcmemmc_set_prop(device_t *cdev, uint32_t id,
       /* BLKCNT can be at most a 16-bit value */
       if (var & ~0xffff)
         return bcmemmc_set_error(state, EMMC_ERROR_PROP_INVALID_ARG);
-      reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
+      reg = b_in(BCMEMMC_BLKSIZECNT);
       reg = (reg & 0x0000ffff) | (var << 16);
-      b_out(emmc, BCMEMMC_BLKSIZECNT, reg);
+      b_out(BCMEMMC_BLKSIZECNT, reg);
       break;
     case EMMC_PROP_RW_BLKSIZE:
       /* BLKSIZE can be at most a 10-bit value */
       if ((var == 0) || (var > MAXBLKSIZE))
         return bcmemmc_set_error(state, EMMC_ERROR_PROP_INVALID_ARG);
-      reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
+      reg = b_in(BCMEMMC_BLKSIZECNT);
       reg = (reg & ~0x03ff) | var;
-      b_out(emmc, BCMEMMC_BLKSIZECNT, reg);
+      b_out(BCMEMMC_BLKSIZECNT, reg);
       break;
     case EMMC_PROP_RW_RESP_LOW:
-      b_out(emmc, BCMEMMC_RESP0, (uint32_t)var);
-      b_out(emmc, BCMEMMC_RESP1, (uint32_t)(var >> 32));
+      b_out(BCMEMMC_RESP0, (uint32_t)var);
+      b_out(BCMEMMC_RESP1, (uint32_t)(var >> 32));
       break;
     case EMMC_PROP_RW_RESP_HI:
-      b_out(emmc, BCMEMMC_RESP2, (uint32_t)var);
-      b_out(emmc, BCMEMMC_RESP3, (uint32_t)(var >> 32));
+      b_out(BCMEMMC_RESP2, (uint32_t)var);
+      b_out(BCMEMMC_RESP3, (uint32_t)(var >> 32));
       break;
     case EMMC_PROP_RW_CLOCK_FREQ:
       return bcmemmc_set_clk_freq(cdev->parent, var);
@@ -443,12 +436,11 @@ static emmc_error_t bcmemmc_set_prop(device_t *cdev, uint32_t id,
 static emmc_error_t bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
                                      emmc_resp_t *resp) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
-  dev_mem_t *emmc = state->emmc;
 
   emmc_error_t error = 0;
 
-  b_out(emmc, BCMEMMC_ARG1, arg);
-  b_out(emmc, BCMEMMC_CMDTM, code);
+  b_out(BCMEMMC_ARG1, arg);
+  b_out(BCMEMMC_CMDTM, code);
   if ((error = bcmemmc_intr_wait(dev, INT_CMD_DONE))) {
     if (state->errors & ~state->ignored_errors)
       klog("e.MMC: ERROR: failed to send e.MMC command %p (error %d)", code,
@@ -457,10 +449,10 @@ static emmc_error_t bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
   }
 
   if (resp) {
-    resp->r[0] = b_in(emmc, BCMEMMC_RESP0);
-    resp->r[1] = b_in(emmc, BCMEMMC_RESP1);
-    resp->r[2] = b_in(emmc, BCMEMMC_RESP2);
-    resp->r[3] = b_in(emmc, BCMEMMC_RESP3);
+    resp->r[0] = b_in(BCMEMMC_RESP0);
+    resp->r[1] = b_in(BCMEMMC_RESP1);
+    resp->r[2] = b_in(BCMEMMC_RESP2);
+    resp->r[3] = b_in(BCMEMMC_RESP3);
   }
 
   return 0;
@@ -489,7 +481,6 @@ static emmc_error_t bcmemmc_read(device_t *cdev, void *buf, size_t len,
                                  size_t *read) {
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
-  dev_mem_t *emmc = state->emmc;
   uint32_t *data = buf;
 
   assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
@@ -499,7 +490,7 @@ static emmc_error_t bcmemmc_read(device_t *cdev, void *buf, size_t len,
 
   /* A very simple transfer (should be replaced with DMA in the future) */
   for (size_t i = 0; i < len / sizeof(uint32_t); i++)
-    data[i] = b_in(emmc, BCMEMMC_DATA);
+    data[i] = b_in(BCMEMMC_DATA);
 
   if (read)
     *read = len;
@@ -510,7 +501,6 @@ static emmc_error_t bcmemmc_write(device_t *cdev, const void *buf, size_t len,
                                   size_t *wrote) {
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
-  dev_mem_t *emmc = state->emmc;
   const uint32_t *data = buf;
 
   assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
@@ -520,7 +510,7 @@ static emmc_error_t bcmemmc_write(device_t *cdev, const void *buf, size_t len,
 
   /* A very simple transfer (should be replaced with DMA in the future) */
   for (size_t i = 0; i < len / sizeof(uint32_t); i++)
-    b_out(emmc, BCMEMMC_DATA, data[i]);
+    b_out(BCMEMMC_DATA, data[i]);
 
   if (wrote)
     *wrote = len;
@@ -531,7 +521,6 @@ static emmc_error_t bcmemmc_write(device_t *cdev, const void *buf, size_t len,
 
 static emmc_error_t bcmemmc_reset_internal(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
-  dev_mem_t *emmc = state->emmc;
 
   const uint32_t interrupts = INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY |
                               INT_WRITE_RDY | INT_CTO_ERR | INT_DTO_ERR;
@@ -541,26 +530,26 @@ static emmc_error_t bcmemmc_reset_internal(device_t *dev) {
   state->ignored_errors = 0;
 
   /* Disable interrupts. */
-  b_out(emmc, BCMEMMC_INT_MASK, 0);
-  b_out(emmc, BCMEMMC_INT_EN, 0);
+  b_out(BCMEMMC_INT_MASK, 0);
+  b_out(BCMEMMC_INT_EN, 0);
 
   state->host_version =
-    (b_in(emmc, BCMEMMC_SLOTISR_VER) & HOST_SPEC_NUM) >> HOST_SPEC_NUM_SHIFT;
+    (b_in(BCMEMMC_SLOTISR_VER) & HOST_SPEC_NUM) >> HOST_SPEC_NUM_SHIFT;
 
   /* Reset the card. */
-  b_out(emmc, BCMEMMC_CONTROL0, 0);
-  b_set(emmc, BCMEMMC_CONTROL1, C1_SRST_HC);
+  b_out(BCMEMMC_CONTROL0, 0);
+  b_set(BCMEMMC_CONTROL1, C1_SRST_HC);
 
   /* Set up clock. */
-  b_set(emmc, BCMEMMC_CONTROL1, C1_CLK_INTLEN | C1_TOUNIT_MAX);
+  b_set(BCMEMMC_CONTROL1, C1_CLK_INTLEN | C1_TOUNIT_MAX);
   int error = bcmemmc_set_clk_freq(dev, BCMEMMC_INIT_FREQ);
   if (error)
     return error;
 
   /* Enable interrupts. */
   state->pending = 0;
-  b_out(emmc, BCMEMMC_INT_EN, interrupts);
-  b_out(emmc, BCMEMMC_INT_MASK, interrupts);
+  b_out(BCMEMMC_INT_EN, interrupts);
+  b_out(BCMEMMC_INT_MASK, interrupts);
 
   klog("e.MMC: Reset");
 
@@ -588,17 +577,16 @@ static int bcmemmc_attach(device_t *dev) {
     return err;
   }
 
-  if ((err = device_claim_mem(dev, 0, &state->emmc)))
+  if ((err = device_claim_mmio(dev, 0, &state->regs)))
     return err;
 
   mtx_init(&state->lock, MTX_SPIN);
   cv_init(&state->intr_recv, "e.MMC command response wakeup");
 
-  b_out(state->emmc, BCMEMMC_INTERRUPT, INT_ALL_MASK);
+  b_out(BCMEMMC_INTERRUPT, INT_ALL_MASK);
 
   state->host_version =
-    (b_in(state->emmc, BCMEMMC_SLOTISR_VER) & HOST_SPEC_NUM) >>
-    HOST_SPEC_NUM_SHIFT;
+    (b_in(BCMEMMC_SLOTISR_VER) & HOST_SPEC_NUM) >> HOST_SPEC_NUM_SHIFT;
 
   if ((err = bcmemmc_reset_internal(dev))) {
     klog("e.MMC initialzation failed with code %d.", err);

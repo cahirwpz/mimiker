@@ -58,7 +58,7 @@
 #define PLIC_CLAIM_SV (PLIC_CONTEXT_BASE_SV + PLIC_CONTEXT_CLAIM)
 
 typedef struct plic_state {
-  dev_mem_t *mem;            /* PLIC memory resource */
+  dev_mmio_t *mem;           /* PLIC memory resource */
   dev_intr_t *irq;           /* PLIC irq resource */
   intr_event_t **intr_event; /* interrupt events */
   unsigned ndev;             /* number of sources */
@@ -157,7 +157,7 @@ static int plic_attach(device_t *pic) {
     return err;
   }
 
-  if ((err = device_claim_mem(pic, 0, &plic->mem)))
+  if ((err = device_claim_mmio(pic, 0, &plic->mem)))
     return err;
 
   /* We'll need interrupt event for each interrupt source. */

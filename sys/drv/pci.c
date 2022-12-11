@@ -153,7 +153,7 @@ void pci_bus_enumerate(device_t *pcib) {
         bus_addr_t start = (type == PCI_RT_IOPORTS) ? ioports_start : mem_start;
         start = roundup(start, size);
 
-        device_add_mem(dev, i, start, start + size, flags);
+        device_add_mmio(dev, i, start, start + size, flags);
 
         if (type == PCI_RT_IOPORTS)
           ioports_start = start + size;

@@ -100,7 +100,7 @@ static int clint_attach(device_t *dev) {
                      sizeof(uint32_t)) != sizeof(uint32_t))
     return ENXIO;
 
-  clint->mtimer_irq = device_take_intr(dev, 3);
+  clint->mtimer_irq = device_request_intr(dev, 3);
   assert(clint->mtimer_irq);
 
   if ((err = device_claim_intr(dev, 2, mswi_intr, NULL, NULL, "SSI",

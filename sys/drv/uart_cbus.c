@@ -7,7 +7,7 @@
 #include <sys/kmem.h>
 #include <sys/pmap.h>
 
-DEV_MEM_DECLARE(cbus_uart);
+DEV_MMIO_DECLARE(cbus_uart);
 
 static uint8_t in(off_t offset) {
   return bus_read_1(cbus_uart, offset);

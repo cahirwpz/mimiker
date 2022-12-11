@@ -15,7 +15,7 @@
  */
 
 typedef struct rootdev {
-  dev_mem_t mem_local; /* ARM local */
+  dev_mmio_t mem_local; /* ARM local */
   intr_event_t *intr_event[BCM2836_NIRQ];
 } rootdev_t;
 
@@ -107,7 +107,7 @@ static int rootdev_attach(device_t *bus) {
     return ENXIO;
   bus->node = node;
 
-  rd->mem_local = (dev_mem_t){
+  rd->mem_local = (dev_mmio_t){
     .bus_tag = generic_bus_space,
   };
   int err = bus_space_map(generic_bus_space, BCM2836_ARM_LOCAL_BASE,
@@ -141,31 +141,31 @@ static int rootdev_attach(device_t *bus) {
   return 0;
 }
 
-static int rootdev_map_mem(device_t *dev, dev_mem_t *mem) {
+static int rootdev_map_mmio(device_t *dev, dev_mmio_t *mmio) {
   rootdev_t *rd = dev->parent->state;
-  bus_addr_t addr = mem->start;
-  bus_size_t size = dev_mem_size(mem);
+  bus_addr_t addr = mmio->start;
+  bus_size_t size = dev_mmio_size(mmio);
 
   bus_addr_t arm_local = BCM2836_ARM_LOCAL_BASE;
 
   if (addr >= arm_local && addr + size <= arm_local + BCM2836_ARM_LOCAL_SIZE) {
     bus_size_t off = addr - arm_local;
-    mem->bus_handle = rd->mem_local.bus_handle + off;
+    mmio->bus_handle = rd->mem_local.bus_handle + off;
     return 0;
   }
 
-  mem->bus_tag = generic_bus_space;
+  mmio->bus_tag = generic_bus_space;
 
-  return bus_space_map(mem->bus_tag, addr, size, &mem->bus_handle);
+  return bus_space_map(mmio->bus_tag, addr, size, &mmio->bus_handle);
 }
 
-static void rootdev_unmap_mem(device_t *dev, dev_mem_t *mem) {
+static void rootdev_unmap_mmio(device_t *dev, dev_mmio_t *mmio) {
   /* TODO: unmap mapped resources. */
 }
 
 static bus_methods_t rootdev_bus_if = {
-  .map_mem = rootdev_map_mem,
-  .unmap_mem = rootdev_unmap_mem,
+  .map_mmio = rootdev_map_mmio,
+  .unmap_mmio = rootdev_unmap_mmio,
 };
 
 static pic_methods_t rootdev_pic_if = {

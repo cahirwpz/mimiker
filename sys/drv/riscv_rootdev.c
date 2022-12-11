@@ -124,14 +124,14 @@ static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
  * Root bus.
  */
 
-static int rootdev_map_mem(device_t *dev, dev_mem_t *mem) {
-  mem->bus_tag = generic_bus_space;
+static int rootdev_map_mmio(device_t *dev, dev_mmio_t *mmio) {
+  mmio->bus_tag = generic_bus_space;
 
-  return bus_space_map(mem->bus_tag, mem->start,
-                       roundup(dev_mem_size(mem), PAGESIZE), &mem->bus_handle);
+  return bus_space_map(mmio->bus_tag, mmio->start,
+                       roundup(dev_mmio_size(mmio), PAGESIZE), &mmio->bus_handle);
 }
 
-static void rootdev_unmap_mem(device_t *dev, dev_mem_t *mem) {
+static void rootdev_unmap_mmio(device_t *dev, dev_mmio_t *mmio) {
   /* TODO: unmap mapped resources. */
 }
 
@@ -177,8 +177,8 @@ static pic_methods_t hlic_pic_if = {
 };
 
 static bus_methods_t rootdev_bus_if = {
-  .map_mem = rootdev_map_mem,
-  .unmap_mem = rootdev_unmap_mem,
+  .map_mmio = rootdev_map_mmio,
+  .unmap_mmio = rootdev_unmap_mmio,
 };
 
 driver_t rootdev_driver = {

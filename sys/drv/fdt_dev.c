@@ -137,7 +137,7 @@ static int FDT_dev_region_to_rl(device_t *dev) {
   for (size_t i = 0; i < cnt; i++) {
     bus_addr_t start = mrs[i].addr;
     bus_addr_t end = start + mrs[i].size;
-    device_add_mem(dev, i, start, end, 0);
+    device_add_mmio(dev, i, start, end, 0);
   }
 
 end:

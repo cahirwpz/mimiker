@@ -106,7 +106,7 @@ extern bus_space_t *generic_bus_space;
 #define bus_space_write_region_4(t, h, o, src, cnt)                            \
   __bs_write_region(t, h, o, src, cnt, 4)
 
-/* Simplified versions of the above, which take only a pointer to `dev_mem`. */
+/* Simplified versions of the above, which take only a pointer to `dev_mmio`. */
 #define __bus_read(m, o, sz) __bs_read((m)->bus_tag, (m)->bus_handle, (o), sz)
 #define bus_read_1(m, o) __bus_read(m, o, 1)
 #define bus_read_2(m, o) __bus_read(m, o, 2)
@@ -133,8 +133,8 @@ extern bus_space_t *generic_bus_space;
 #define bus_space_map(t, a, s, hp) (*(t)->bs_map)((a), (s), (hp))
 
 struct bus_methods {
-  int (*map_mem)(device_t *dev, dev_mem_t *mem);
-  void (*unmap_mem)(device_t *dev, dev_mem_t *mem);
+  int (*map_mmio)(device_t *dev, dev_mmio_t *mmio);
+  void (*unmap_mmio)(device_t *dev, dev_mmio_t *mmio);
 };
 
 static inline bus_methods_t *bus_methods(device_t *dev) {
@@ -148,14 +148,14 @@ static inline bus_methods_t *bus_methods(device_t *dev) {
 
 /*! \brief Maps a memory resource for a device.
  *
- * This is a wrapper that calls bus method `map_mem`.
+ * This is a wrapper that calls bus method `map_mmio`.
  */
-int bus_map_mem(device_t *dev, dev_mem_t *mem);
+int bus_map_mmio(device_t *dev, dev_mmio_t *mmio);
 
 /*! \brief Unmaps a memory resource on device behalf.
  *
- * This is a wrapper that calls bus method `unmap_mem`.
+ * This is a wrapper that calls bus method `unmap_mmio`.
  */
-void bus_unmap_mem(device_t *dev, dev_mem_t *mem);
+void bus_unmap_mmio(device_t *dev, dev_mmio_t *mmio);
 
 #endif /* !_SYS_BUS_H_ */

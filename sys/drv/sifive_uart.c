@@ -36,7 +36,7 @@
 #define SFUART_DIV 0x18
 
 typedef struct sfuart_state {
-  dev_mem_t *regs;
+  dev_mmio_t *regs;
   dev_intr_t *irq;
   uint8_t c;
   bool buffered;
@@ -103,7 +103,7 @@ static int sfuart_attach(device_t *dev) {
     goto end;
   }
 
-  if ((err = device_claim_mem(dev, 0, &sfuart->regs)))
+  if ((err = device_claim_mmio(dev, 0, &sfuart->regs)))
     goto end;
 
   tty_t *tty = tty_alloc();

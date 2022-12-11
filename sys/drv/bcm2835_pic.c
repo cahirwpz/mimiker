@@ -27,13 +27,13 @@ typedef enum bcm2835_intrtype {
 #define BCM2835_NIRQPERTYPE (BCM2835_NIRQ / BCM2835_INTRTYPE_CNT)
 
 typedef struct bcm2835_pic_state {
-  dev_mem_t *mem;
+  dev_mmio_t *regs;
   dev_intr_t *irq;
   intr_event_t *intr_event[BCM2835_NIRQ];
 } bcm2835_pic_state_t;
 
-#define in4(addr) bus_read_4(bcm2835_pic->mem, (addr))
-#define out4(addr, val) bus_write_4(bcm2835_pic->mem, (addr), (val))
+#define in4(addr) bus_read_4(bcm2835_pic->regs, (addr))
+#define out4(addr, val) bus_write_4(bcm2835_pic->regs, (addr), (val))
 
 static void bcm2835_pic_disable_irq(intr_event_t *ie) {
   bcm2835_pic_state_t *bcm2835_pic = ie->ie_source;
@@ -166,7 +166,7 @@ static int bcm2835_pic_attach(device_t *pic) {
     return err;
   }
 
-  if ((err = device_claim_mem(pic, 0, &bcm2835_pic->mem)))
+  if ((err = device_claim_mmio(pic, 0, &bcm2835_pic->regs)))
     return err;
 
   intr_pic_register(pic, pic->node);

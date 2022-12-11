@@ -20,16 +20,16 @@
 #define UART0_BASE BCM2835_PERIPHERALS_BUS_TO_PHYS(BCM2835_UART0_BASE)
 #define UART_BUFSIZE 128
 
-static inline void set4(dev_mem_t *mem, int o, uint32_t v) {
-  bus_write_4(mem, o, bus_read_4(mem, o) | v);
+static inline void set4(dev_mmio_t *mmio, int o, uint32_t v) {
+  bus_write_4(mmio, o, bus_read_4(mmio, o) | v);
 }
 
-static inline void clr4(dev_mem_t *mem, int o, uint32_t v) {
-  bus_write_4(mem, o, bus_read_4(mem, o) & ~v);
+static inline void clr4(dev_mmio_t *mmio, int o, uint32_t v) {
+  bus_write_4(mmio, o, bus_read_4(mmio, o) & ~v);
 }
 
 typedef struct pl011_state {
-  dev_mem_t *regs;
+  dev_mmio_t *regs;
   dev_intr_t *irq;
 } pl011_state_t;
 
@@ -77,7 +77,7 @@ static int pl011_attach(device_t *dev) {
     goto end;
   }
 
-  if ((err = device_claim_mem(dev, 0, &pl011->regs)))
+  if ((err = device_claim_mmio(dev, 0, &pl011->regs)))
     goto end;
 
   tty_t *tty = tty_alloc();

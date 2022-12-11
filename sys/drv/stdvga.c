@@ -23,8 +23,8 @@ typedef struct fb_info fb_info_t;
 #define VGA_PALETTE_SIZE 256
 
 typedef struct stdvga_state {
-  dev_mem_t *mem;
-  dev_mem_t *io;
+  dev_mmio_t *mem;
+  dev_mmio_t *io;
 
   atomic_int usecnt;
   fb_info_t fb_info;
@@ -205,16 +205,16 @@ static int stdvga_attach(device_t *dev) {
   stdvga_state_t *vga = dev->state;
   int err = 0;
 
-  vga->mem = device_take_mem(dev, 0);
+  vga->mem = device_request_mmio(dev, 0);
   assert(vga->mem != NULL);
 
   if (!(vga->mem->flags & DMF_PREFETCHABLE))
     return ENXIO;
 
-  if ((err = bus_map_mem(dev, vga->mem)))
+  if ((err = bus_map_mmio(dev, vga->mem)))
     return err;
 
-  if ((err = device_claim_mem(dev, 2, &vga->io)))
+  if ((err = device_claim_mmio(dev, 2, &vga->io)))
     return err;
 
   vga->usecnt = 0;
