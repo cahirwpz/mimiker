@@ -1,5 +1,8 @@
+#pragma once
+
 #include <setjmp.h>
 #include <signal.h>
+#include <stdlib.h>
 
 /* Wait for a single child process with process id `pid` to exit,
  * and check that its exit code matches the expected value. */
@@ -17,20 +20,17 @@ void wait_for_signal(int signo);
  * slave side. */
 void open_pty(int *master_fd, int *slave_fd);
 
-extern jmp_buf signal_return;
+extern jmp_buf _expect_signal_ctx;
 
-void setup_handler(int signo, siginfo_t *siginfo_ptr);
-void check_signal(int signo, void *addr, int code);
-void restore_handler(void);
+void _expect_signal_setup(int signo, siginfo_t *siginfop);
+void _expect_signal_cleanup(void);
 
-#define EXPECT_SIGNAL(signo, siginfo_ptr)                                      \
-  for (setup_handler((signo), (siginfo_ptr));                                  \
-       (sigsetjmp(signal_return, 1) == 0); assert(0))
+#define EXPECT_SIGNAL(signo, siginfop)                                         \
+  for (_expect_signal_setup((signo), (siginfop));                              \
+       sigsetjmp(_expect_signal_ctx, 1) == 0; exit(1))
 
-#define CLEANUP_SIGNAL() restore_handler()
+#define CLEANUP_SIGNAL() _expect_signal_cleanup()
 
 #define CHECK_SIGSEGV(si, sig_addr, sig_code)                                  \
-  ({                                                                           \
-    assert((si)->si_addr == (sig_addr));                                       \
-    assert((si)->si_code == (sig_code));                                       \
-  })
+  assert((si)->si_addr == (sig_addr));                                         \
+  assert((si)->si_code == (sig_code))
