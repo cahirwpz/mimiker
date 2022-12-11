@@ -22,7 +22,7 @@
 #include <dev/fdt_dev.h>
 
 typedef struct bcmemmc_state {
-  dev_mmio_t *regs;       /* e.MMC controller registers */
+  dev_mmio_t *regs;      /* e.MMC controller registers */
   dev_intr_t *irq;       /* e.MMC controller interrupt */
   condvar_t intr_recv;   /* Used to wake up a thread waiting for an interrupt */
   mtx_t lock;            /* Covers `pending`, `intr_recv` and `regs`. */
@@ -350,12 +350,12 @@ static emmc_error_t bcmemmc_get_prop(device_t *cdev, uint32_t id,
       *var = EMMC_VOLTAGE_WINDOW_LOW;
       break;
     case EMMC_PROP_RW_RESP_LOW:
-      *var = (uint64_t)b_in(BCMEMMC_RESP0) |
-             (uint64_t)b_in(BCMEMMC_RESP1) << 32;
+      *var = (uint64_t)b_in(BCMEMMC_RESP0) | (uint64_t)b_in(BCMEMMC_RESP1)
+                                               << 32;
       break;
     case EMMC_PROP_RW_RESP_HI:
-      *var = (uint64_t)b_in(BCMEMMC_RESP2) |
-             (uint64_t)b_in(BCMEMMC_RESP3) << 32;
+      *var = (uint64_t)b_in(BCMEMMC_RESP2) | (uint64_t)b_in(BCMEMMC_RESP3)
+                                               << 32;
       break;
     case EMMC_PROP_RW_BUSWIDTH:
       *var = bcmemmc_get_bus_width(state);

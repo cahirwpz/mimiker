@@ -122,7 +122,7 @@ void device_add_intr(device_t *dev, unsigned id, unsigned pic_id,
 }
 
 void device_add_mmio(device_t *dev, unsigned id, bus_addr_t start,
-                    bus_addr_t end, dev_mmio_flags_t flags) {
+                     bus_addr_t end, dev_mmio_flags_t flags) {
   dev_mmio_t *mmio = device_request_mmio(dev, id);
   assert(mmio == 0);
 

@@ -128,7 +128,8 @@ static int rootdev_map_mmio(device_t *dev, dev_mmio_t *mmio) {
   mmio->bus_tag = generic_bus_space;
 
   return bus_space_map(mmio->bus_tag, mmio->start,
-                       roundup(dev_mmio_size(mmio), PAGESIZE), &mmio->bus_handle);
+                       roundup(dev_mmio_size(mmio), PAGESIZE),
+                       &mmio->bus_handle);
 }
 
 static void rootdev_unmap_mmio(device_t *dev, dev_mmio_t *mmio) {
