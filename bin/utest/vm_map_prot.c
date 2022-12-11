@@ -21,28 +21,7 @@ int func_dec(int x) {
   return x - 1;
 }
 
-static volatile void *sigsegv_address = 0;
-static volatile int sigsegv_code = 0;
-static jmp_buf return_to;
-
-static void sigsegv_handler(int signo, siginfo_t *info, void *uctx) {
-  sigsegv_address = info->si_addr;
-  sigsegv_code = info->si_code;
-  siglongjmp(return_to, 1);
-}
-
-static void setup_sigaction(void) {
-  sigaction_t sa;
-  memset(&sa, 0, sizeof(sigaction_t));
-  sa.sa_sigaction = sigsegv_handler;
-  sa.sa_flags = SA_SIGINFO;
-  int err = sigaction(SIGSEGV, &sa, NULL);
-  assert(err == 0);
-}
-
-int test_vmmap_text_w(void) {
-  setup_sigaction();
-
+int test_vmmap_text_access(void) {
   func_int_t fun = func_dec;
 
   assert((uintptr_t)func_inc < (uintptr_t)func_dec);
@@ -54,25 +33,18 @@ int test_vmmap_text_w(void) {
   char *p = (char *)func_inc;
   char prev_value0 = p[0];
 
-  if (sigsetjmp(return_to, 1) == 0) {
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGSEGV, &si) {
     /* This memory write should fail and trigger SIGSEGV. */
     p[0] = prev_value0 + 1;
-    assert(0);
   }
-
-  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address,
-         sigsegv_code);
-
-  assert(sigsegv_address == p);
-  assert(sigsegv_code == SEGV_ACCERR);
-
-  signal(SIGSEGV, SIG_DFL);
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, p, SEGV_ACCERR);
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
   return 0;
 }
 
-int test_vmmap_data_x(void) {
-  setup_sigaction();
-
+int test_vmmap_data_access(void) {
   static char func_buf[1024];
 
   assert((uintptr_t)func_inc < (uintptr_t)func_dec);
@@ -83,68 +55,44 @@ int test_vmmap_data_x(void) {
 
   func_int_t ff = (func_int_t)func_buf;
 
-  if (sigsetjmp(return_to, 1) == 0) {
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGSEGV, &si) {
     /* Executing function in data segment (without exec prot) */
     int v = ff(1);
-    assert(v != 2);
+    (void)v;
   }
-
-  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address,
-         sigsegv_code);
-
-  assert(sigsegv_address == ff);
-  assert(sigsegv_code == SEGV_ACCERR);
-
-  signal(SIGSEGV, SIG_DFL);
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, ff, SEGV_ACCERR);
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
   return 0;
 }
 
-static const char *ro_data_str = "String in .rodata section";
+/* String must be alinged as instuctions because we jump here */
+static __aligned(4) const char ro_data_str[] = "String in .rodata section";
 
-int test_vmmap_rodata_w(void) {
-  setup_sigaction();
+int test_vmmap_rodata_access(void) {
+  siginfo_t si;
 
+  /* Check write */
   volatile char *c = (char *)ro_data_str;
-
   printf("mem to write: 0x%p\n", c);
-
-  if (sigsetjmp(return_to, 1) == 0) {
+  EXPECT_SIGNAL(SIGSEGV, &si) {
     /* Writing to rodata segment. */
     *c = 'X';
-    assert(*c == 'X');
   }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, c, SEGV_ACCERR);
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
 
-  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address,
-         sigsegv_code);
-
-  assert(sigsegv_address == c);
-  assert(sigsegv_code == SEGV_ACCERR);
-
-  signal(SIGSEGV, SIG_DFL);
-  return 0;
-}
-
-int test_vmmap_rodata_x(void) {
-  setup_sigaction();
-
+  /* Check execute */
   func_int_t fun = (func_int_t)ro_data_str;
-
   printf("func: 0x%p\n", fun);
-
-  if (sigsetjmp(return_to, 1) == 0) {
+  EXPECT_SIGNAL(SIGSEGV, &si) {
     /* Executing from rodata segment. */
     fun(1);
-    assert(0);
   }
-
-  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", sigsegv_address,
-         sigsegv_code);
-
-  /* for some reason this assertion fails on riscv because fail address is fun +
-   * 1 */
-  assert(sigsegv_address == fun);
-  assert(sigsegv_code == SEGV_ACCERR);
-
-  signal(SIGSEGV, SIG_DFL);
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, fun, SEGV_ACCERR);
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
   return 0;
 }

@@ -131,6 +131,11 @@ static void user_trap_handler(ctx_t *ctx) {
 
   switch (code) {
     case SCAUSE_INST_PAGE_FAULT:
+    /* TODO: There is a rare case when address in TVAL is inside the
+     * instruction. It happens when we have a variable length instructions and
+     * fault was observed on address that is inside the instruction. Then the
+     * starting address of instruction that caused a fault is stored in epc.
+     */
     case SCAUSE_LOAD_PAGE_FAULT:
     case SCAUSE_STORE_PAGE_FAULT:
       klog("%s at %p, caused by reference to %lx!", exceptions[code], epc,

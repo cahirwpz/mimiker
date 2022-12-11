@@ -94,15 +94,19 @@ static void munmap_good(void) {
   assert(result == 0);
 }
 
-/* Don't call this function in this module */
 int test_munmap_sigsegv(void) {
   void *addr = mmap_anon_prw(NULL, 0x4000);
   munmap(addr, 0x4000);
 
-  /* Try to access freed memory. It should raise SIGSEGV */
-  int data = *((volatile int *)(addr + 0x2000));
-  (void)data;
-  return 1;
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    /* Try to access freed memory. It should raise SIGSEGV */
+    int data = *((volatile int *)(addr + 0x2000));
+    (void)data;
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr + 0x2000, SEGV_MAPERR);
+  return 0;
 }
 
 int test_mmap(void) {
@@ -146,43 +150,28 @@ int test_munmap(void) {
   return 0;
 }
 
-static volatile int sigsegv_handled = 0;
-static jmp_buf return_to;
-static void sigsegv_handler(int signo) {
-  sigsegv_handled++;
-  siglongjmp(return_to, 1);
-}
-
 #define NPAGES 8
 
 int test_mmap_prot_none(void) {
-  signal(SIGSEGV, sigsegv_handler);
-
   size_t pgsz = getpagesize();
   size_t size = pgsz * NPAGES;
   volatile void *addr = mmap_anon_priv(NULL, size, PROT_NONE);
   assert(addr != MAP_FAILED);
 
-  sigsegv_handled = 0;
-
+  siginfo_t si;
   for (int i = 0; i < NPAGES; i++) {
     volatile uint8_t *ptr = addr + i * pgsz;
-    if (sigsetjmp(return_to, 1) == 0) {
-      assert(*ptr == 0);
+
+    EXPECT_SIGNAL(SIGSEGV, &si) {
+      (void)(*ptr == 0);
     }
+    CLEANUP_SIGNAL();
+    CHECK_SIGSEGV(&si, ptr, SEGV_ACCERR);
   }
-
-  assert(sigsegv_handled == NPAGES);
-
-  /* restore original behavior */
-  signal(SIGSEGV, SIG_DFL);
-
   return 0;
 }
 
 int test_mmap_prot_read(void) {
-  signal(SIGSEGV, sigsegv_handler);
-
   size_t pgsz = getpagesize();
   size_t size = pgsz * NPAGES;
   volatile void *addr = mmap_anon_priv(NULL, size, PROT_READ);
@@ -192,20 +181,17 @@ int test_mmap_prot_read(void) {
   for (size_t i = 0; i < size / sizeof(uint32_t); i++)
     assert(((uint32_t *)addr)[i] == 0);
 
-  sigsegv_handled = 0;
-
+  siginfo_t si;
   for (int i = 0; i < NPAGES; i++) {
     volatile uint8_t *ptr = addr + i * pgsz;
-    if (sigsetjmp(return_to, 1) == 0) {
+
+    EXPECT_SIGNAL(SIGSEGV, &si) {
       *ptr = 42;
     }
+    CLEANUP_SIGNAL();
+    CHECK_SIGSEGV(&si, ptr, SEGV_ACCERR);
+    /* Check if nothing changed */
     assert(*ptr == 0);
   }
-
-  assert(sigsegv_handled == NPAGES);
-
-  /* restore original behavior */
-  signal(SIGSEGV, SIG_DFL);
-
   return 0;
 }
