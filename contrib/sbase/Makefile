@@ -287,21 +287,9 @@ CFLAGS.sbase/join.c += -Wno-error=sometimes-uninitialized
 
 include $(TOPDIR)/build/build.prog.mk
 
-$(PROGRAM).c: $(SOURCES_SBASE)
-	@echo "[SH] $^ -> $@"
-	echo '#include <libgen.h>'                                                                                                 > $@
-	echo '#include <stdio.h>'                                                                                                     >> $@
-	echo '#include <stdlib.h>'                                                                                                    >> $@
-	echo '#include <string.h>'                                                                                                    >> $@
-	echo '#include "util.h"'                                                                                                      >> $@
-	for f in $(notdir $(SOURCES_SBASE)); do echo "int $$(echo "$${f%.c}" | sed s/-/_/g)_main(int, char **);"; done                                    >> $@
-	echo 'int main(int argc, char *argv[]) { char *s = basename(argv[0]);'                                                        >> $@
-	echo 'if(!strcmp(s,"$(PROGRAM)")) { argc--; argv++; s = basename(argv[0]); } if(0) ;'                                          >> $@
-	echo "else if (!strcmp(s, \"[\")) return test_main(argc, argv);"                                                              >> $@
-	for f in $(notdir $(SOURCES_SBASE)); do echo "else if(!strcmp(s, \"$${f%.c}\")) return $$(echo "$${f%.c}" | sed s/-/_/g)_main(argc, argv);"; done >> $@
-	echo 'else { fputs("[ ", stdout);'                                                                                            >> $@
-	for f in $(notdir $(SOURCES_SBASE)); do echo "fputs(\"$${f%.c} \", stdout);"; done                                                                >> $@
-	echo 'putchar(0xa); }; return 0; }'                                                                                           >> $@
+$(PROGRAM).c:
+	@echo "[PYTHON] $^ -> $@"
+	./box_src_generator.py --program $(PROGRAM) --tools $(BIN)
 
 $(BUILDDIR)sbase/$(LIBUTIL): $(OBJ_LIBUTIL)
 
