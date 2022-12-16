@@ -16,8 +16,6 @@
 
 static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));
 
-typedef TAILQ_HEAD(, thread) thread_list_t;
-
 static MTX_DEFINE(threads_lock, 0);
 static thread_list_t all_threads = TAILQ_HEAD_INITIALIZER(all_threads);
 static thread_list_t zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
