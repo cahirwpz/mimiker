@@ -127,14 +127,22 @@ static void user_trap_handler(ctx_t *ctx) {
   u_long code = ctx_code(ctx);
   void *epc = (void *)_REG(ctx, PC);
   vaddr_t vaddr = _REG(ctx, TVAL);
+  int error;
 
   switch (code) {
     case SCAUSE_INST_PAGE_FAULT:
+    /* TODO: There is a rare case when address in TVAL is inside the
+     * instruction. It happens when we have a variable length instructions and
+     * fault was observed on address that is inside the instruction. Then the
+     * starting address of instruction that caused a fault is stored in epc.
+     */
     case SCAUSE_LOAD_PAGE_FAULT:
     case SCAUSE_STORE_PAGE_FAULT:
       klog("%s at %p, caused by reference to %lx!", exceptions[code], epc,
            vaddr);
-      pmap_fault_handler(ctx, vaddr, exc_access(code));
+      if ((error = pmap_fault_handler(ctx, vaddr, exc_access(code))))
+        sig_trap(SIGSEGV, error == EFAULT ? SEGV_MAPERR : SEGV_ACCERR,
+                 (void *)vaddr, code);
       break;
 
       /* Access fault */
@@ -145,7 +153,7 @@ static void user_trap_handler(ctx_t *ctx) {
     case SCAUSE_INST_MISALIGNED:
     case SCAUSE_LOAD_MISALIGNED:
     case SCAUSE_STORE_MISALIGNED:
-      sig_trap(ctx, SIGBUS);
+      sig_trap(SIGBUS, BUS_ADRALN, (void *)vaddr, code);
       break;
 
     case SCAUSE_ECALL_USER:
@@ -156,11 +164,11 @@ static void user_trap_handler(ctx_t *ctx) {
       if (fpu_handler((mcontext_t *)ctx))
         break;
       klog("%s at %p!", exceptions[code], epc);
-      sig_trap(ctx, SIGILL);
+      sig_trap(SIGILL, ILL_ILLOPC, (void *)vaddr, code);
       break;
 
     case SCAUSE_BREAKPOINT:
-      sig_trap(ctx, SIGTRAP);
+      sig_trap(SIGTRAP, TRAP_BRKPT, (void *)vaddr, code);
       break;
 
     default:

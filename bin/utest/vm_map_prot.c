@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <setjmp.h>
+#include <signal.h>
 
 typedef int (*func_int_t)(int);
 
@@ -19,7 +21,7 @@ int func_dec(int x) {
   return x - 1;
 }
 
-int test_vmmap_text_w(void) {
+int test_vmmap_text_access(void) {
   func_int_t fun = func_dec;
 
   assert((uintptr_t)func_inc < (uintptr_t)func_dec);
@@ -30,19 +32,19 @@ int test_vmmap_text_w(void) {
 
   char *p = (char *)func_inc;
   char prev_value0 = p[0];
-  char prev_value1 = p[1];
 
-  /* These memory writes should fail */
-  p[0] = prev_value0 + 1;
-  p[1] = prev_value1 + 1;
-
-  /* Assertions will fail if memory writes succeeded. */
-  assert(p[0] == prev_value0);
-  assert(p[1] == prev_value1);
-  return -1;
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    /* This memory write should fail and trigger SIGSEGV. */
+    p[0] = prev_value0 + 1;
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, p, SEGV_ACCERR);
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
+  return 0;
 }
 
-int test_vmmap_data_x(void) {
+int test_vmmap_data_access(void) {
   static char func_buf[1024];
 
   assert((uintptr_t)func_inc < (uintptr_t)func_dec);
@@ -53,36 +55,44 @@ int test_vmmap_data_x(void) {
 
   func_int_t ff = (func_int_t)func_buf;
 
-  /* Executing function in data segment (without exec prot) */
-  int v = ff(1);
-
-  assert(v != 2);
-  assert(0);
-  return -1;
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    /* Executing function in data segment (without exec prot) */
+    int v = ff(1);
+    (void)v;
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, ff, SEGV_ACCERR);
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
+  return 0;
 }
 
-static const char *ro_data_str = "String in .rodata section";
+/* String must be alinged as instuctions because we jump here */
+static __aligned(4) const char ro_data_str[] = "String in .rodata section";
 
-int test_vmmap_rodata_w(void) {
+int test_vmmap_rodata_access(void) {
+  siginfo_t si;
+
+  /* Check write */
   volatile char *c = (char *)ro_data_str;
-
   printf("mem to write: 0x%p\n", c);
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    /* Writing to rodata segment. */
+    *c = 'X';
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, c, SEGV_ACCERR);
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
 
-  /* Writing to rodata segment. */
-  *c = 'X';
-
-  assert(0);
-  return -1;
-}
-
-int test_vmmap_rodata_x(void) {
+  /* Check execute */
   func_int_t fun = (func_int_t)ro_data_str;
-
   printf("func: 0x%p\n", fun);
-
-  /* Executing from rodata segment. */
-  fun(1);
-
-  assert(0);
-  return -1;
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    /* Executing from rodata segment. */
+    fun(1);
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, fun, SEGV_ACCERR);
+  printf("SIGSEGV address: %p\nSIGSEGV code: %d\n", si.si_addr, si.si_code);
+  return 0;
 }

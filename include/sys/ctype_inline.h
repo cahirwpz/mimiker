@@ -43,25 +43,26 @@
 #include <sys/cdefs.h>
 #include <sys/ctype_bits.h>
 
-#define isalnum(c) ((int)((_ctype_tab_ + 1)[(c)] & (_CTYPE_A | _CTYPE_D)))
-#define isalpha(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_A))
-#define iscntrl(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_C))
-#define isdigit(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_D))
-#define isgraph(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_G))
-#define islower(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_L))
-#define isprint(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_R))
-#define ispunct(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_P))
-#define isspace(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_S))
-#define isupper(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_U))
-#define isxdigit(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_X))
-#define tolower(c) ((int)((_tolower_tab_ + 1)[(c)]))
-#define toupper(c) ((int)((_toupper_tab_ + 1)[(c)]))
+#define isalnum(c)                                                             \
+  ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & (_CTYPE_A | _CTYPE_D)))
+#define isalpha(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_A))
+#define iscntrl(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_C))
+#define isdigit(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_D))
+#define isgraph(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_G))
+#define islower(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_L))
+#define isprint(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_R))
+#define ispunct(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_P))
+#define isspace(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_S))
+#define isupper(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_U))
+#define isxdigit(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_X))
+#define tolower(c) ((int)((_tolower_tab_ + 1)[(unsigned)(c)]))
+#define toupper(c) ((int)((_toupper_tab_ + 1)[(unsigned)(c)]))
 
 #define isascii(c) ((unsigned)(c) <= 0177)
 #define toascii(c) ((c)&0177)
 #define _tolower(c) ((c) - 'A' + 'a')
 #define _toupper(c) ((c) - 'a' + 'A')
 
-#define isblank(c) ((int)((_ctype_tab_ + 1)[(c)] & _CTYPE_BL))
+#define isblank(c) ((int)((_ctype_tab_ + 1)[(unsigned)(c)] & _CTYPE_BL))
 
 #endif /* !_CTYPE_INLINE_H_ */

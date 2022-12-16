@@ -472,10 +472,6 @@ fault:
     td->td_onfault = 0;
     return 0;
   }
-  if (user_mode_p(ctx)) {
-    /* Send a segmentation fault signal to the user program. */
-    sig_trap(ctx, SIGSEGV);
-  }
   return error;
 }
 
