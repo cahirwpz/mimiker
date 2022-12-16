@@ -161,6 +161,7 @@ BIN =\
 	sed\
 	sort\
 	tail\
+	tar\
 	tee
 
 BIN_DONT_WORK =\
@@ -168,7 +169,6 @@ BIN_DONT_WORK =\
 	find\
 	getconf\
 	kill\
-	tar\
 	time\
 	touch\
 	xargs
@@ -264,6 +264,7 @@ CFLAGS.sbase/printf.c += -Dmain=printf_main
 CFLAGS.sbase/sed.c += -Dmain=sed_main
 CFLAGS.sbase/sort.c += -Dmain=sort_main
 CFLAGS.sbase/tail.c += -Dmain=tail_main
+CFLAGS.sbase/tar.c += -Dmain=tar_main
 CFLAGS.sbase/tee.c += -Dmain=tee_main
 
 SOURCES_SBASE = $(addprefix sbase/,$(BIN:=.c))
