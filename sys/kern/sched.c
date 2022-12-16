@@ -3,6 +3,7 @@
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
 #include <sys/sched.h>
+#include <sys/runq.h>
 #include <sys/interrupt.h>
 #include <sys/time.h>
 #include <sys/thread.h>
