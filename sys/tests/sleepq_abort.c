@@ -70,7 +70,7 @@ static void waker_routine(void *_arg) {
         thread_t *td = waiters[waiters_ord[next_abort]];
         assert(next_abort < T && waiters_ord[next_abort] < T);
         WITH_MTX_LOCK (td->td_lock) {
-          succ = sleepq_abort();
+          succ = sleepq_abort(td);
         }
         next_abort++;
       }

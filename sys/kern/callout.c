@@ -52,12 +52,16 @@ static void callout_thread(void *arg) {
   while (true) {
     callout_t *elem;
 
-    sleepq_lock(delegated);
+    sleepq_lock(&delegated);
+
     while (TAILQ_EMPTY(&delegated)) {
       sleepq_wait(&delegated, NULL);
+      sleepq_lock(&delegated);
     }
     elem = TAILQ_FIRST(&delegated);
     TAILQ_REMOVE(&delegated, elem, c_link);
+
+    sleepq_unlock(&delegated);
 
     assert(callout_is_active(elem));
     assert(!callout_is_pending(elem));
@@ -173,7 +177,7 @@ void callout_process(systime_t time) {
     last_bucket = time % CALLOUT_BUCKETS;
   }
 
-  sleepq_lock(delegated);
+  sleepq_lock(&delegated);
 
   while (true) {
     callout_list_t *head = ci_list(current_bucket);
@@ -203,7 +207,7 @@ void callout_process(systime_t time) {
     sleepq_signal(&delegated);
   }
 
-  sleepq_unlock(delegated);
+  sleepq_unlock(&delegated);
 }
 
 bool callout_drain(callout_t *handle) {

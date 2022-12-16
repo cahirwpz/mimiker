@@ -220,6 +220,8 @@ static inline bool thread_lock_eq(thread_t *td, mtx_t *mtx) {
 
 void thread_lock_set(thread_t *td, mtx_t *mtx);
 
+mtx_t *thread_lock_block(thread_t *td);
+
 /* Please use following functions to read state of a thread! */
 static inline bool td_is_ready(thread_t *td) {
   return td->td_state == TDS_READY;

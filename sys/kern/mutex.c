@@ -5,8 +5,15 @@
 #include <sys/sched.h>
 #include <sys/thread.h>
 
+MTX_DEFINE(blocked_lock, MTX_SPIN);
+
 bool mtx_owned(mtx_t *m) {
   return (mtx_owner(m) == thread_self());
+}
+
+void init_mtx(void) {
+  mtx_init(&blocked_lock, MTX_SPIN);
+  blocked_lock.m_owner = 0xdeadc0de;
 }
 
 void _mtx_init(mtx_t *m, intptr_t flags, const char *name,
@@ -23,15 +30,13 @@ void _mtx_init(mtx_t *m, intptr_t flags, const char *name,
 void _mtx_lock(mtx_t *m, const void *waitpt) {
   intptr_t flags = m->m_owner & (MTX_SPIN | MTX_NODEBUG);
 
-  if (flags & MTX_SPIN) {
+  if (flags & MTX_SPIN)
     intr_disable();
-  } else {
-    if (__unlikely(intr_disabled()))
-      panic("Cannot acquire sleep mutex in interrupt context!");
-  }
+  else if (__unlikely(intr_disabled()))
+    panic("Cannot acquire sleep mutex in interrupt context!");
 
   if (__unlikely(mtx_owned(m)))
-    panic("Attempt was made to re-acquire non-recursive mutex!");
+    panic("Attempt was made to re-acquire a mutex!");
 
 #if LOCKDEP
   if (!(flags & MTX_NODEBUG))
@@ -41,33 +46,36 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
   thread_t *td = thread_self();
 
   for (;;) {
-    intptr_t expected = flags;
-    intptr_t value = (intptr_t)td | flags;
+    intptr_t cur = flags;
+    intptr_t new = (intptr_t)td | flags;
 
     /* Fast path: if lock has no owner then take ownership. */
-    if (atomic_compare_exchange_strong(&m->m_owner, &expected, value))
+    if (atomic_compare_exchange_strong(&m->m_owner, &cur, new))
       break;
 
     if (flags & MTX_SPIN)
       continue;
 
-    WITH_NO_PREEMPTION {
-      /* TODO(cahir) turnstile_take / turnstile_give doesn't make much sense
-       * until tc_lock is thrown into the equation. */
-      turnstile_t *ts = turnstile_take(m);
+    turnstile_lock(m);
+    cur = m->m_owner;
 
-      /* Between atomic cas and turnstile_take there's a small window when
-       * preemption can take place. This can result in mutex being released. */
-      if (m->m_owner) {
-        /* we're the first thread to block, so lock is now being contested */
-        if (ts == td->td_turnstile)
-          m->m_owner |= MTX_CONTESTED;
+  retry_turnstile:
 
-        turnstile_wait(ts, mtx_owner(m), waitpt);
-      } else {
-        turnstile_give(ts);
-      }
+    if (cur == flags) {
+      turnstile_unlock(m);
+      continue;
     }
+
+    if (cur & MTX_CONTESTED)
+      goto block;
+
+    new = cur | MTX_CONTESTED;
+    if (!atomic_compare_exchange_strong(&m->m_owner, &cur, new))
+      goto retry_turnstile;
+
+  block:
+    assert(mtx_owned(m));
+    turnstile_wait(m, waitpt);
   }
 }
 
@@ -82,11 +90,13 @@ void mtx_unlock(mtx_t *m) {
 #endif
 
   /* Fast path: if lock is not contested then drop ownership. */
-  intptr_t expected = (intptr_t)thread_self() | flags;
-  intptr_t value = flags;
+  intptr_t cur = (intptr_t)thread_self() | flags;
+  intptr_t new = flags;
 
-  if (atomic_compare_exchange_strong(&m->m_owner, &expected, value))
+  if (atomic_compare_exchange_strong(&m->m_owner, &cur, new))
     goto done;
+
+  assert(!(flags & MTX_SPIN));
 
   /* Using broadcast instead of signal is faster according to
    * "The Design and Implementation of the FreeBSD Operating System",
@@ -95,11 +105,11 @@ void mtx_unlock(mtx_t *m) {
    * The reasoning is that the awakened threads will often be scheduled
    * sequentially and only act on empty mutex on which operations are
    * cheaper. */
-  WITH_NO_PREEMPTION {
-    uintptr_t owner = atomic_exchange(&m->m_owner, 0);
-    if (owner & MTX_CONTESTED)
-      turnstile_broadcast(m);
-  }
+  turnstile_lock(m);
+  uintptr_t owner = atomic_exchange(&m->m_owner, flags & MTX_NODEBUG);
+  if (owner & MTX_CONTESTED)
+    turnstile_broadcast(m);
+  turnstile_unlock(m);
 
 done:
   if (flags & MTX_SPIN)

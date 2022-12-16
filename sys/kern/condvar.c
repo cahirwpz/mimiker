@@ -1,4 +1,5 @@
 #include <sys/condvar.h>
+#include <sys/mutex.h>
 #include <sys/sleepq.h>
 
 void cv_init(condvar_t *cv, const char *name) {

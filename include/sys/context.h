@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <stdbool.h>
 
+typedef struct mtx mtx_t;
 typedef struct thread thread_t;
 typedef struct __ucontext ucontext_t;
 typedef struct ctx ctx_t;
@@ -47,7 +48,7 @@ void mcontext_restart_syscall(mcontext_t *ctx);
  *
  * \note must be called with interrupts disabled!
  */
-void ctx_switch(thread_t *from, thread_t *to);
+void ctx_switch(thread_t *from, thread_t *to, mtx_t *mtx);
 
 /* Implementation of setcontext syscall. */
 int do_setcontext(thread_t *td, ucontext_t *uc);

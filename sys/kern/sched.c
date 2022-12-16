@@ -9,23 +9,47 @@
 #include <sys/pcpu.h>
 #include <sys/turnstile.h>
 
+static MTX_DEFINE(sched_lock, MTX_SPIN);
+static runq_t runq;
 static bool sched_active = false;
 
 #define SLICE 10
 
 void init_sched(void) {
-  runq_t *rq = PCPU_GET(runq);
-  runq_init(rq);
-  thread0.td_lock = &rq->rq_lock;
+  thread0.td_lock = &sched_lock;
+  runq_init(&runq);
 }
 
-/*********************************************************************/
+void sched_init(thread_t *td) {
+  td->td_lock = &sched_lock;
+}
 
-void sched_add(thread_t *td) {
+static void _sched_add(thread_t *td) {
+  assert(mtx_owned(td->td_lock));
+  assert(td != thread_self());
+
   klog("Add thread %ld {%p} to scheduler", td->td_tid, td);
 
-  WITH_MTX_LOCK (td->td_lock)
-    sched_wakeup(td);
+  td->td_state = TDS_READY;
+  td->td_slice = SLICE;
+
+  if (!thread_lock_eq(td, &sched_lock)) {
+    mtx_lock(&sched_lock);
+    td->td_lock = &sched_lock;
+  }
+
+  runq_add(&runq, td);
+
+  /* Check if we need to reschedule threads. */
+  thread_t *oldtd = thread_self();
+  assert(mtx_owned(oldtd->td_lock));
+  if (prio_gt(td->td_prio, oldtd->td_prio))
+    oldtd->td_flags |= TDF_NEEDSWITCH;
+}
+
+void sched_add(thread_t *td) {
+  SCOPED_MTX_LOCK(td->td_lock);
+  _sched_add(td);
 }
 
 void sched_wakeup(thread_t *td) {
@@ -38,15 +62,7 @@ void sched_wakeup(thread_t *td) {
   bintime_sub(&now, &td->td_last_slptime);
   bintime_add(&td->td_slptime, &now);
 
-  td->td_state = TDS_READY;
-  td->td_slice = SLICE;
-
-  runq_add(&runq, td);
-
-  /* Check if we need to reschedule threads. */
-  thread_t *oldtd = thread_self();
-  if (prio_gt(td->td_prio, oldtd->td_prio))
-    oldtd->td_flags |= TDF_NEEDSWITCH;
+  _sched_add(td);
 }
 
 /*! \brief Set thread's active priority \a td_prio to \a prio.
@@ -61,9 +77,10 @@ static void sched_set_active_prio(thread_t *td, prio_t prio) {
 
   if (td_is_ready(td)) {
     /* Thread is on a run queue. */
+    assert(thread_lock_eq(td, &sched_lock));
     runq_remove(&runq, td);
     td->td_prio = prio;
-    runq_add(&runq, td);
+    _sched_add(td);
   } else {
     td->td_prio = prio;
   }
@@ -110,6 +127,7 @@ void sched_unlend_prio(thread_t *td, prio_t prio) {
  * \note Returned thread is marked as running!
  */
 static thread_t *sched_choose(void) {
+  assert(mtx_owned(&sched_lock));
   thread_t *td = runq_choose(&runq);
   if (td == NULL)
     return PCPU_GET(idle_thread);
@@ -122,34 +140,47 @@ static thread_t *sched_choose(void) {
 void sched_switch(void) {
   thread_t *td = thread_self();
 
-  if (!sched_active)
-    goto noswitch;
+  if (!sched_active) {
+    mtx_unlock(td->td_lock);
+    return;
+  }
 
   assert(mtx_owned(td->td_lock));
   assert(!td_is_running(td));
 
   td->td_flags &= ~(TDF_SLICEEND | TDF_NEEDSWITCH);
 
-  /* Update running time, */
+  /* Update running time. */
   bintime_t now = binuptime();
   bintime_sub(&now, &td->td_last_rtime);
   bintime_add(&td->td_rtime, &now);
 
+  mtx_t *mtx = thread_lock_block(td);
+  intr_disable();
+
   if (td_is_ready(td)) {
+    assert(mtx == &sched_lock);
     /* Idle threads need not to be inserted into the run queue. */
     if (td != PCPU_GET(idle_thread))
       runq_add(&runq, td);
-  } else if (td_is_sleeping(td)) {
-    /* Record when the thread fell asleep. */
-    td->td_last_slptime = now;
-  } else if (td_is_dead(td) || td_is_stopped(td)) {
-    /* Don't add dead or stopped threads to run queue. */
+  } else {
+    if (td_is_sleeping(td)) {
+      /* Record when the thread fell asleep. */
+      td->td_last_slptime = now;
+    }
+    if (mtx != &sched_lock) {
+      mtx_unlock(mtx);
+      mtx_lock(&sched_lock);
+    }
   }
 
   thread_t *newtd = sched_choose();
+  mtx_unlock(&sched_lock);
 
-  if (td == newtd)
-    goto noswitch;
+  if (td == newtd) {
+    td->td_lock = mtx;
+    goto end;
+  }
 
   /* If we got here then a context switch is required. */
   td->td_nctxsw++;
@@ -157,15 +188,10 @@ void sched_switch(void) {
   if (PCPU_GET(no_switch))
     panic("Switching context while interrupts are disabled is forbidden!");
 
-  WITH_INTR_DISABLED {
-    mtx_unlock(td->td_lock);
-    ctx_switch(td, newtd);
-    return;
-    /* XXX Right now all local variables belong to thread we switched to! */
-  }
+  ctx_switch(td, newtd, mtx);
 
-noswitch:
-  mtx_unlock(td->td_lock);
+end:
+  intr_enable();
 }
 
 void sched_clock(void) {

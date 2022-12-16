@@ -16,8 +16,6 @@
 
 static POOL_DEFINE(P_THREAD, "thread", sizeof(thread_t));
 
-typedef TAILQ_HEAD(, thread) thread_list_t;
-
 static MTX_DEFINE(threads_lock, 0);
 static thread_list_t all_threads = TAILQ_HEAD_INITIALIZER(all_threads);
 static thread_list_t zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
@@ -84,8 +82,7 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   td->td_prio = prio;
   td->td_base_prio = prio;
 
-  td->td_lock = kmalloc(M_TEMP, sizeof(mtx_t), M_ZERO);
-  mtx_init(td->td_lock, MTX_SPIN | MTX_NODEBUG);
+  sched_init(td);
 
   cv_init(&td->td_waitcv, "thread waiters");
   LIST_INIT(&td->td_contested);
@@ -228,4 +225,11 @@ void thread_lock_set(thread_t *td, mtx_t *mtx) {
   assert(mtx_owned(old));
   td->td_lock = mtx;
   mtx_unlock(old);
+}
+
+mtx_t *thread_lock_block(thread_t *td) {
+  mtx_t *mtx = td->td_lock;
+  assert(mtx_owned(mtx));
+  td->td_lock = &blocked_lock;
+  return mtx;
 }

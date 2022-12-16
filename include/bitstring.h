@@ -51,6 +51,9 @@
  * works."
  *  /s/ Perry E. Metzger, 2 Feb 98
  */
+#include <stddef.h>
+#include <stdint.h>
+
 typedef unsigned char bitstr_t;
 
 /* internal macros */

@@ -72,6 +72,7 @@ void sleepq_destroy(sleepq_t *sq) {
   assert(TAILQ_EMPTY(&sq->sq_blocked));
   assert(TAILQ_EMPTY(&sq->sq_free));
   assert(sq->sq_nblocked == 0);
+  assert(sq->sq_wchan == NULL);
   pool_free(P_SLEEPQ, sq);
 }
 
@@ -106,11 +107,9 @@ static __used sleepq_t *sleepq_lookup(void *wchan) {
 static void sq_enter(thread_t *td, sleepq_chain_t *sc, void *wchan,
                      const void *waitpt) {
   assert(wchan != NULL);
+  assert(waitpt);
   assert(sc_owned(sc));
   assert(mtx_owned(td->td_lock));
-
-  if (waitpt == NULL)
-    waitpt = __caller(0);
 
   klog("Thread %u goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
@@ -148,7 +147,6 @@ static void sq_enter(thread_t *td, sleepq_chain_t *sc, void *wchan,
   td->td_sleepqueue = NULL;
   td->td_state = TDS_SLEEPING;
   sched_switch();
-  assert(sc_owned(sc));
 }
 
 static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
@@ -248,7 +246,7 @@ static bool _sleepq_abort(thread_t *td, int wakeup) {
   if (!td_is_sleeping(td))
     return false;
 
-  void wchan = td->td_wchan;
+  void *wchan = td->td_wchan;
   sleepq_chain_t *sc = SC_LOOKUP(wchan);
   assert(thread_lock_eq(td, &sc->sc_lock));
   sleepq_t *sq = sq_lookup(sc, wchan);
@@ -264,6 +262,9 @@ bool sleepq_abort(thread_t *td) {
 void sleepq_wait(void *wchan, const void *waitpt) {
   thread_t *td = thread_self();
 
+  if (waitpt == NULL)
+    waitpt = __caller(0);
+
   sleepq_chain_t *sc = SC_LOOKUP(wchan);
   assert(sc_owned(sc));
   mtx_lock(td->td_lock);
@@ -277,6 +278,9 @@ static void sq_timeout(thread_t *td) {
 
 int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
   thread_t *td = thread_self();
+
+  if (waitpt == NULL)
+    waitpt = __caller(0);
 
   sleepq_chain_t *sc = SC_LOOKUP(wchan);
   assert(sc_owned(sc));

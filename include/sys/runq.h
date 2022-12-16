@@ -5,7 +5,6 @@
 
 #include <bitstring.h>
 #include <sys/cdefs.h>
-#include <sys/mutex.h>
 #include <sys/queue.h>
 
 typedef struct thread thread_t;
@@ -15,7 +14,6 @@ typedef TAILQ_HEAD(, thread) thread_list_t;
 #define RQ_PPQ 4  /* Priorities per queue. */
 
 typedef struct runq {
-  mtx_t rq_lock;
   bitstr_t bit_decl(rq_status, RQ_NQS);
   thread_list_t rq_queues[RQ_NQS];
 } runq_t;
