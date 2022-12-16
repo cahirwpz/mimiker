@@ -1,0 +1,62 @@
+Index: sbase/sbase/tar.c
+===================================================================
+--- sbase.orig/sbase/tar.c	2022-12-16 14:25:37.133008606 +0100
++++ sbase/sbase/tar.c	2022-12-16 14:26:02.209674451 +0100
+@@ -26,10 +26,7 @@
+ 	AREG      = '\0',
+ 	HARDLINK  = '1',
+ 	SYMLINK   = '2',
+-	CHARDEV   = '3',
+-	BLOCKDEV  = '4',
+ 	DIRECTORY = '5',
+-	FIFO      = '6',
+ 	RESERVED  = '7'
+ };
+ 
+@@ -225,12 +222,6 @@
+ 		if ((r = readlink(path, h->linkname, sizeof(h->linkname) - 1)) < 0)
+ 			eprintf("readlink %s:", path);
+ 		h->linkname[r] = '\0';
+-	} else if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
+-		h->type = S_ISCHR(st.st_mode) ? CHARDEV : BLOCKDEV;
+-		putoctal(h->major, (unsigned)major(st.st_dev), sizeof(h->major));
+-		putoctal(h->minor, (unsigned)minor(st.st_dev), sizeof(h->minor));
+-	} else if (S_ISFIFO(st.st_mode)) {
+-		h->type = FIFO;
+ 	}
+ 
+ 	memset(h->chksum, ' ', sizeof(h->chksum));
+@@ -255,7 +246,7 @@
+ unarchive(char *fname, ssize_t l, char b[BLKSIZ])
+ {
+ 	char lname[101], *tmp, *p;
+-	long mode, major, minor, type, mtime, uid, gid;
++	long mode, mtime, uid, gid;
+ 	struct header *h = (struct header *)b;
+ 	int fd = -1;
+ 	struct timespec times[2];
+@@ -295,24 +286,6 @@
+ 			eprintf("mkdir %s:", fname);
+ 		pushdirtime(fname, mtime);
+ 		break;
+-	case CHARDEV:
+-	case BLOCKDEV:
+-		if ((mode = strtol(h->mode, &p, 8)) < 0 || *p != '\0')
+-			eprintf("strtol %s: invalid number\n", h->mode);
+-		if ((major = strtol(h->major, &p, 8)) < 0 || *p != '\0')
+-			eprintf("strtol %s: invalid number\n", h->major);
+-		if ((minor = strtol(h->minor, &p, 8)) < 0 || *p != '\0')
+-			eprintf("strtol %s: invalid number\n", h->minor);
+-		type = (h->type == CHARDEV) ? S_IFCHR : S_IFBLK;
+-		if (mknod(fname, type | mode, makedev(major, minor)) < 0)
+-			eprintf("mknod %s:", fname);
+-		break;
+-	case FIFO:
+-		if ((mode = strtol(h->mode, &p, 8)) < 0 || *p != '\0')
+-			eprintf("strtol %s: invalid number\n", h->mode);
+-		if (mknod(fname, S_IFIFO | mode, 0) < 0)
+-			eprintf("mknod %s:", fname);
+-		break;
+ 	default:
+ 		eprintf("unsupported tar-filetype %c\n", h->type);
+ 	}
