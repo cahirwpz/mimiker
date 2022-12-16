@@ -278,7 +278,7 @@ backward_tiny:
 	ret
 9:
 	/* length is small(<32), and src or dst may be unaligned */
-	eor	TMP_X, SRC0, DST0
+	eor	TMP_X, SRC0, DST
 	ands	TMP_X, TMP_X, #7
 	bne	notaligned_backward_small
 
