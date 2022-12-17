@@ -164,13 +164,14 @@ static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
   return new_ent;
 }
 
-int vm_map_destroy_range(vm_map_t *map, vaddr_t start, vaddr_t end) {
-  SCOPED_VM_MAP_LOCK(map);
+static int vm_map_destroy_range_nolock(vm_map_t *map, vaddr_t start,
+                                       vaddr_t end) {
+  assert(mtx_owned(&map->mtx));
 
   /* Find first entry affected by unmapping memory. */
   vm_map_entry_t *ent = vm_map_find_entry(map, start);
   if (!ent)
-    return EINVAL;
+    return 0;
 
   pmap_remove(map->pmap, start, end);
 
@@ -202,6 +203,11 @@ int vm_map_destroy_range(vm_map_t *map, vaddr_t start, vaddr_t end) {
     ent = next;
   }
   return 0;
+}
+
+int vm_map_destroy_range(vm_map_t *map, vaddr_t start, vaddr_t end) {
+  SCOPED_VM_MAP_LOCK(map);
+  return vm_map_destroy_range_nolock(map, start, end);
 }
 
 void vm_map_delete(vm_map_t *map) {
@@ -300,9 +306,20 @@ int vm_map_insert(vm_map_t *map, vm_map_entry_t *ent, vm_flags_t flags) {
   size_t length = ent->end - ent->start;
   vm_entry_flags_t entry_flags = 0;
 
-  int error = vm_map_findspace_nolock(map, &start, length, &after);
-  if (error)
+  int error;
+  if ((flags & VM_FIXED) && !(flags & VM_EXCL)) {
+    klog("Inserting with VM_FIXED");
+    if ((error = vm_map_destroy_range_nolock(map, ent->start, ent->end)))
+      return error;
+  }
+
+  klog("Destroyed range");
+
+  if ((error = vm_map_findspace_nolock(map, &start, length, &after)))
     return error;
+
+  klog("Found space");
+
   if ((flags & VM_FIXED) && (start != ent->start))
     return ENOMEM;
 
