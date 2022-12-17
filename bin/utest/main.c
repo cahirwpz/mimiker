@@ -25,6 +25,9 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(munmap_sigsegv);
   CHECKRUN_TEST(mmap_prot_none);
   CHECKRUN_TEST(mmap_prot_read);
+  CHECKRUN_TEST(mmap_fixed);
+  CHECKRUN_TEST(mmap_fixed_excl);
+  CHECKRUN_TEST(mmap_fixed_replace);
   CHECKRUN_TEST(sbrk);
   CHECKRUN_TEST(sbrk_sigsegv);
   CHECKRUN_TEST(misbehave);

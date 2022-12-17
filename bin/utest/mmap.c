@@ -20,6 +20,9 @@
 #define BAD_ADDR_SPAN_LEN 0xfffe800000002000
 #endif
 
+#define mmap_anon_priv_flags(addr, length, prot, flags)                        \
+  mmap((addr), (length), (prot), (flags) | MAP_ANON | MAP_PRIVATE, -1, 0)
+
 #define mmap_anon_priv(addr, length, prot)                                     \
   mmap((addr), (length), (prot), MAP_ANON | MAP_PRIVATE, -1, 0)
 
@@ -135,8 +138,11 @@ int test_munmap(void) {
   /* Now we have to fork to trigger pagefault on both parts of mapped memory. */
   child = fork();
   if (child == 0) {
-    assert(strncmp(addr, "first", 5) == 0);
-    assert(strncmp(addr + 0x2000, "second", 6) == 0);
+    int err;
+    err = strncmp(addr, "first", 5);
+    assert(err == 0);
+    err = strncmp(addr + 0x2000, "second", 6);
+    assert(err == 0);
     exit(0);
   }
 
@@ -193,5 +199,61 @@ int test_mmap_prot_read(void) {
     /* Check if nothing changed */
     assert(*ptr == 0);
   }
+  return 0;
+}
+
+int test_mmap_fixed(void) {
+  size_t pgsz = getpagesize();
+  void *addr = mmap_anon_priv(NULL, 3 * pgsz, PROT_READ | PROT_WRITE);
+  void *new;
+  int res;
+
+  res = munmap(addr + pgsz, pgsz);
+  assert(res == 0);
+
+  new = mmap_anon_priv_flags(addr + pgsz, pgsz, PROT_READ, MAP_FIXED);
+  assert(new == addr + pgsz);
+
+  return 0;
+}
+
+int test_mmap_fixed_excl(void) {
+  size_t pgsz = getpagesize();
+  void *addr = mmap_anon_priv(NULL, 2 * pgsz, PROT_READ);
+  void *err;
+
+  err = mmap_anon_priv_flags(addr, pgsz, PROT_READ, MAP_FIXED | MAP_EXCL);
+  assert(err == MAP_FAILED && errno == ENOMEM);
+
+  err = mmap_anon_priv_flags(addr, 2 * pgsz, PROT_READ, MAP_FIXED | MAP_EXCL);
+  assert(err == MAP_FAILED && errno == ENOMEM);
+
+  err = mmap_anon_priv_flags(addr - pgsz, 3 * pgsz, PROT_READ,
+                             MAP_FIXED | MAP_EXCL);
+  assert(err == MAP_FAILED && errno == ENOMEM);
+
+  return 0;
+}
+
+int test_mmap_fixed_replace(void) {
+  size_t pgsz = getpagesize();
+  void *addr = mmap_anon_priv(NULL, 2 * pgsz, PROT_READ | PROT_WRITE);
+  void *new;
+  int err;
+
+  sprintf(addr, "first");
+  sprintf(addr + pgsz, "second");
+
+  new = mmap_anon_priv_flags(addr, pgsz, PROT_READ, MAP_FIXED);
+  assert(new == addr);
+
+  /* First page should be replaced with new mapping */
+  err = strncmp(addr, "first", 5);
+  assert(err != 0);
+
+  /* Second page should remain unchanged */
+  err = strncmp(addr + pgsz, "second", 6);
+  assert(err == 0);
+
   return 0;
 }

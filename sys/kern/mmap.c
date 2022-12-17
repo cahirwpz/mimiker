@@ -21,6 +21,7 @@ static_assert(VM_SHARED == MAP_SHARED, "VM_SHARED != MAP_SHARED");
 static_assert(VM_PRIVATE == MAP_PRIVATE, "VM_PRIVATE != MAP_PRIVATE");
 static_assert(VM_FIXED == MAP_FIXED, "VM_FIXED != MAP_FIXED");
 static_assert(VM_STACK == MAP_STACK, "VM_STACK != MAP_STACK");
+static_assert(VM_EXCL == MAP_EXCL, "VM_EXCL != MAP_EXCL");
 
 int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags) {
   thread_t *td = thread_self();
