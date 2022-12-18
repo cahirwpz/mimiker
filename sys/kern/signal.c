@@ -218,8 +218,7 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
       if (timeout == 0) {
         if (tsp->tv_nsec == 0 && tsp->tv_sec == 0) {
           timeout = -1;
-        } 
-        else {
+        } else {
           /* Shortest possible timeout */
           timeout = 1;
         }
@@ -246,12 +245,12 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
       error = EAGAIN;
       goto out;
     }
-    
+
     if (tsp != NULL && !timevalid) {
       error = EINVAL;
       goto out;
     }
-  
+
     error = sleepq_wait_timed(&td->td_sigmask, "sigtimedwait()", timeout);
 
     if (error == ETIMEDOUT) {
@@ -260,18 +259,17 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
     }
 
     sigset_t unblocked = td->td_sigpend.sp_set;
-    __sigandset(&waitset, &unblocked)
+    __sigandset(&waitset, &unblocked);
     if (__sigfindset(&unblocked)) {
       error = 0;
-    }
-    else {
+    } else {
       error = EINTR;
     }
 
-out:
+  out:
     td->td_sigmask = saved_mask;
   }
- 
+
   return error;
 }
 

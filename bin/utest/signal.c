@@ -305,7 +305,7 @@ int test_signal_sigtimedwait(void) {
     kill(ppid, SIGUSR1);
     return 0;
   }
-  /* Go to sleep with everything except SIGUSR1 blocked. */ 
+  /* Go to sleep with everything except SIGUSR1 blocked. */
   printf("Calling sigtimedwait()...\n");
   siginfo_t info;
   __sigemptyset(&waitset);
