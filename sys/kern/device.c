@@ -9,7 +9,7 @@
 KMALLOC_DEFINE(M_DEV, "devices & drivers");
 
 static drv_pass_t current_pass; /* system-wide current pass number */
-static int modcnt;              /* pending devices modification count */
+static bool pending_changed;    /* pending devices modification flag */
 static device_list_t pending_devices = TAILQ_HEAD_INITIALIZER(pending_devices);
 
 device_t *device_alloc(int unit) {
@@ -35,12 +35,12 @@ void device_remove_child(device_t *parent, device_t *dev) {
 
 void device_add_pending(device_t *dev) {
   TAILQ_INSERT_TAIL(&pending_devices, dev, pending_link);
-  modcnt++;
+  pending_changed = true;
 }
 
 void device_remove_pending(device_t *dev) {
   TAILQ_REMOVE(&pending_devices, dev, pending_link);
-  modcnt++;
+  pending_changed = true;
 }
 
 /* TODO: this routine should go over all drivers within a suitable class and
@@ -161,7 +161,7 @@ void init_devices(void) {
   }
 
   do {
-    modcnt = 0;
+    pending_changed = false;
 
     device_t *dev, *next;
     TAILQ_FOREACH_SAFE (dev, &pending_devices, pending_link, next) {
@@ -205,7 +205,7 @@ void init_devices(void) {
         dev->driver = NULL;
       }
     }
-  } while (modcnt && !TAILQ_EMPTY(&pending_devices));
+  } while (pending_changed && !TAILQ_EMPTY(&pending_devices));
 
   if (++current_pass == PASS_COUNT && !TAILQ_EMPTY(&pending_devices))
     klog("Missing drivers for some devices!");
