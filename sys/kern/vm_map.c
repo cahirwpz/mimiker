@@ -42,8 +42,7 @@ void vm_map_activate(vm_map_t *map) {
 
 void vm_map_switch(thread_t *td) {
   proc_t *p = td->td_proc;
-  if (p)
-    vm_map_activate(p->p_uspace);
+  vm_map_activate(p ? p->p_uspace : NULL);
 }
 
 void vm_map_lock(vm_map_t *map) {
@@ -196,8 +195,28 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VM_MAP, map);
 }
 
-/* TODO: not implemented */
+/* TODO(fzdo): allow for changing protection bits of parts of entries */
+/* XXX: This function allows for setting protection bits fo existing entries
+ * only. It can't change protection of part of entry (currently we don't need to
+ * set protection of part of entry). */
 void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+  SCOPED_MTX_LOCK(&map->mtx);
+
+#if 0
+  klog("vm_map_protect: 0x%x - 0x%x %c%c%c", start, end,
+       (prot & VM_PROT_READ) ? 'r' : '-', (prot & VM_PROT_WRITE) ? 'w' : '-',
+       (prot & VM_PROT_EXEC) ? 'x' : '-');
+#endif
+
+  vm_map_entry_t *ent, *next;
+  TAILQ_FOREACH_SAFE (ent, &map->entries, link, next) {
+    assert((ent->start < start && ent->end <= start) ||
+           (ent->end > end && ent->start >= end) ||
+           (ent->start >= start && ent->end <= end));
+    if (ent->start >= start && ent->end <= end)
+      ent->prot = prot;
+  }
+  pmap_protect(map->pmap, start, end, prot);
 }
 
 static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
@@ -351,7 +370,9 @@ void vm_map_dump(vm_map_t *map) {
          (it->prot & VM_PROT_READ) ? 'r' : '-',
          (it->prot & VM_PROT_WRITE) ? 'w' : '-',
          (it->prot & VM_PROT_EXEC) ? 'x' : '-');
+#if 0
     vm_object_dump(it->object);
+#endif
   }
 }
 

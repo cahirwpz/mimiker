@@ -26,7 +26,7 @@
 *.map
 
 # Build dependency files
-.*.D
+*.d
 *-stamp
 
 # Python cache
@@ -68,5 +68,11 @@ sysroot
 # Tmux user override config
 .tmux.conf.local
 
+# Quilt status directory
+.pc
+
 # pcap files
 *.pcap
+
+# python env
+mimiker-env/

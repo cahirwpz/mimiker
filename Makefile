@@ -3,7 +3,7 @@
 TOPDIR = $(CURDIR)
 
 # Directories which require calling make recursively
-SUBDIR = sys lib bin usr.bin sbin etc include
+SUBDIR = sys lib bin usr.bin sbin etc include contrib
 
 all: install
 
@@ -14,6 +14,7 @@ distclean: clean
 
 bin-before: lib-install
 usr.bin-before: lib-install
+contrib-before: lib-install
 
 # Detecting whether initrd.cpio requires rebuilding is tricky, because even if
 # this target was to depend on $(shell find sysroot -type f), then make compares

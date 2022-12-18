@@ -44,6 +44,12 @@ static __noreturn void start_init(__unused void *arg) {
   proc_t *p = proc_self();
   int error;
 
+  thread_t *td = thread_self();
+
+  WITH_MTX_LOCK (td->td_lock) {
+    sched_set_prio(td, prio_uthread(PRIO_MID));
+  }
+
   /* [SECOND_PASS] Init devices that need extra kernel API to be functional. */
   init_devices();
 
@@ -78,10 +84,10 @@ static __noreturn void start_init(__unused void *arg) {
 __noreturn void kernel_init(void) {
   init_pmap();
   init_vm_page();
-  init_kmalloc();
   init_pool();
   init_vmem();
   init_kmem();
+  init_kmalloc();
 
   init_cons();
 

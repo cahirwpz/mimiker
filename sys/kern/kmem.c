@@ -12,12 +12,12 @@
 #include <sys/kasan.h>
 #include <sys/mutex.h>
 
-static vmem_t *kvspace; /* Kernel virtual address space allocator. */
+static vmem_t kvspace[1]; /* Kernel virtual address space allocator. */
 static vmem_addr_t max_kva;
 static MTX_DEFINE(max_kva_lock, 0);
 
 void init_kmem(void) {
-  kvspace = vmem_create("kvspace", PAGESIZE);
+  vmem_init(kvspace, "kvspace", PAGESIZE);
   if (KERNEL_SPACE_BEGIN < (vaddr_t)__kernel_start)
     vmem_add(kvspace, KERNEL_SPACE_BEGIN,
              (vaddr_t)__kernel_start - KERNEL_SPACE_BEGIN, M_NOWAIT);

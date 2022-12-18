@@ -7,6 +7,10 @@ int utest_spawn(proc_func_t func, void *arg);
 void utest_child_exited(int exitcode);
 
 /* List of available tests. */
+int test_vmmap_text_access(void);
+int test_vmmap_data_access(void);
+int test_vmmap_rodata_access(void);
+
 int test_mmap(void);
 int test_munmap(void);
 int test_munmap_sigsegv(void);

@@ -85,6 +85,7 @@ static void cpu_read_config(void) {
 
   klog("BadInstrP register implemented: %s", boolean(cfg3 & CFG3_BP));
   klog("BadInstr register implemented: %s", boolean(cfg3 & CFG3_BI));
+  klog("Hardware Page Walk implemented: %s", boolean(cfg3 & CFG3_PW));
   klog("Segment Control implemented: %s", boolean(cfg3 & CFG3_SC));
   klog("UserLocal register implemented: %s", boolean(cfg3 & CFG3_ULRI));
   klog("Read / Execute Inhibit bits implemented: %s", boolean(cfg3 & CFG3_RXI));

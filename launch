@@ -104,7 +104,7 @@ CONFIG = {
                     '-device', 'usb-mouse',
                     '-device', 'VGA',
                     '-machine', 'malta',
-                    '-cpu', '24Kf'],
+                    '-cpu', 'P5600'],
                 'network_options': [
                     '-device', 'rtl8139,netdev=net0',
                     '-netdev', 'user,id=net0,hostfwd=tcp::10022-:22',
@@ -390,11 +390,14 @@ def TestRun(sim, dbg, timeout):
 
         if rc == 1:
             timed_out = b'Program received signal SIGINT' in gdb_proc.before
+            print('\n*** GDB OUTPUT ***\n\n')
+            print(gdb_proc.before.decode('utf-8'))
             PostMortem(gdb_proc)
             print('Test run %s!' % ('timeout' if timed_out else 'failed'))
             if timed_out:
                 rc = 2
     except KeyboardInterrupt:
+        print('Test run was interrupted!')
         signal.signal(signal.SIGINT, signal.SIG_IGN)
         gdb_proc.terminate()
         sim_proc.terminate()

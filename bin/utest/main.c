@@ -17,6 +17,9 @@ int main(int argc, char **argv) {
 
   /* Linker set in userspace would be quite difficult to set up, and it feels
      like an overkill to me. */
+  CHECKRUN_TEST(vmmap_text_access);
+  CHECKRUN_TEST(vmmap_data_access);
+  CHECKRUN_TEST(vmmap_rodata_access);
   CHECKRUN_TEST(mmap);
   CHECKRUN_TEST(munmap);
   CHECKRUN_TEST(munmap_sigsegv);

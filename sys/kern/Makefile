@@ -18,7 +18,6 @@ SOURCES = \
 	dev_procstat.c \
 	devfs.c \
 	event.c \
-	exception.c \
 	exec.c \
 	exec_elf.c \
 	exec_shebang.c \

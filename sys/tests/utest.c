@@ -1,6 +1,7 @@
 #include <sys/klog.h>
 #include <sys/mimiker.h>
 #include <sys/exec.h>
+#include <sys/kenv.h>
 #include <sys/ktest.h>
 #include <sys/thread.h>
 #include <sys/proc.h>
@@ -18,10 +19,13 @@ static __noreturn void utest_generic_thread(void *arg) {
 
 /* This is the klog mask used with utests. */
 #define KL_UTEST_MASK                                                          \
-  (KL_ALL & (~KL_MASK(KL_PMAP)) & (~KL_MASK(KL_VM)) & (~KL_MASK(KL_PHYSMEM)))
+  (KL_ALL & (~(KL_MASK(KL_INTR) | KL_MASK(KL_PMAP) | KL_MASK(KL_PHYSMEM))))
 
 static int utest_generic(const char *name, int status_success) {
-  unsigned old_klog_mask = klog_setmask(KL_UTEST_MASK);
+  const char *utest_mask = kenv_get("klog-utest-mask");
+  unsigned new_klog_mask =
+    utest_mask ? (unsigned)strtol(utest_mask, NULL, 16) : KL_UTEST_MASK;
+  unsigned old_klog_mask = klog_setmask(new_klog_mask);
 
   /* Prefix test thread's name with `utest-`. */
   char prefixed_name[TD_NAME_MAX];
@@ -60,13 +64,17 @@ static int utest_generic(const char *name, int status_success) {
 #define UTEST_ADD_SIGNAL(name, sig)                                            \
   UTEST_ADD(name, MAKE_STATUS_SIG_TERM(sig), 0)
 
+UTEST_ADD_SIMPLE(vmmap_text_access);
+UTEST_ADD_SIMPLE(vmmap_data_access);
+UTEST_ADD_SIMPLE(vmmap_rodata_access);
+
 UTEST_ADD_SIMPLE(mmap);
 UTEST_ADD_SIMPLE(munmap);
-UTEST_ADD_SIGNAL(munmap_sigsegv, SIGSEGV);
+UTEST_ADD_SIMPLE(munmap_sigsegv);
 UTEST_ADD_SIMPLE(mmap_prot_none);
 UTEST_ADD_SIMPLE(mmap_prot_read);
 UTEST_ADD_SIMPLE(sbrk);
-UTEST_ADD_SIGNAL(sbrk_sigsegv, SIGSEGV);
+UTEST_ADD_SIMPLE(sbrk_sigsegv);
 UTEST_ADD_SIMPLE(misbehave);
 
 UTEST_ADD_SIMPLE(fd_read);
@@ -85,7 +93,7 @@ UTEST_ADD_SIMPLE(fd_all);
 UTEST_ADD_SIMPLE(signal_basic);
 UTEST_ADD_SIMPLE(signal_send);
 UTEST_ADD_SIGNAL(signal_abort, SIGABRT);
-UTEST_ADD_SIGNAL(signal_segfault, SIGSEGV);
+UTEST_ADD_SIMPLE(signal_segfault);
 UTEST_ADD_SIMPLE(signal_stop);
 UTEST_ADD_SIMPLE(signal_cont_masked);
 UTEST_ADD_SIMPLE(signal_mask);
