@@ -1319,11 +1319,13 @@ static int sys_sigtimedwait(proc_t *p, sigtimedwait_args_t *args,
   const struct timespec *u_timeout = SCARG(args, timeout);
   sigset_t set;
   ksiginfo_t kinfo;
-  timespec_t timeout;
+  timespec_t timeout = {};
+  timespec_t *tsp = NULL;
   int error;
 
   if (u_timeout) {
     error = copyin_s(u_timeout, timeout);
+    tsp = &timeout;
     if (error)
       return error;
   }
@@ -1332,7 +1334,7 @@ static int sys_sigtimedwait(proc_t *p, sigtimedwait_args_t *args,
   if (error)
     return error;
 
-  error = do_sigtimedwait(p, set, &kinfo, &timeout);
+  error = do_sigtimedwait(p, set, &kinfo, tsp);
   if (error)
     return error;
 

@@ -287,6 +287,48 @@ int test_signal_sigsuspend(void) {
   return 0;
 }
 
+/* ======= signal_sigtimedwait ======= */
+int test_signal_sigtimedwait(void) {
+  pid_t ppid = getpid();
+  signal(SIGCONT, sigcont_handler);
+  signal(SIGUSR1, sigusr1_handler);
+  sigset_t set, current, waitset;
+  __sigfillset(&set);
+  __sigdelset(&set, SIGUSR1);
+  assert(sigprocmask(SIG_SETMASK, &set, NULL) == 0);
+  pid_t cpid = fork();
+  if (cpid == 0) {
+    for (int i = 0; i < 10; i++) {
+      kill(ppid, SIGCONT);
+      sched_yield();
+    }
+    kill(ppid, SIGUSR1);
+    return 0;
+  }
+  /* Go to sleep with everything except SIGUSR1 blocked. */ 
+  printf("Calling sigtimedwait()...\n");
+  siginfo_t info;
+  __sigemptyset(&waitset);
+  __sigaddset(&waitset, SIGUSR1);
+  assert(sigtimedwait(&waitset, &info, NULL) == 0);
+  assert(info.si_signo == SIGUSR1);
+  sigprocmask(SIG_BLOCK, NULL, &current);
+  assert(__sigsetequal(&set, &current));
+  assert(sigusr1_handled);
+  assert(!sigcont_handled);
+  __sigemptyset(&set);
+  __sigaddset(&set, SIGCONT);
+  assert(sigprocmask(SIG_UNBLOCK, &set, NULL) == 0);
+  assert(sigcont_handled);
+
+  printf("Waiting for child...\n");
+  int status;
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
+
 /* ======= signal_sigsuspend_stop ======= */
 int test_signal_sigsuspend_stop(void) {
   pid_t ppid = getpid();

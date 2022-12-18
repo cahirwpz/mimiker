@@ -48,6 +48,7 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(signal_cont_masked);
   CHECKRUN_TEST(signal_mask);
   CHECKRUN_TEST(signal_mask_nonmaskable);
+  CHECKRUN_TEST(signal_sigtimedwait);
   CHECKRUN_TEST(signal_sigsuspend);
   CHECKRUN_TEST(signal_sigsuspend_stop);
   CHECKRUN_TEST(signal_handler_mask);

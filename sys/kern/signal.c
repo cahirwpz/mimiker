@@ -1,3 +1,4 @@
+#include "sys/sigtypes.h"
 #define KL_LOG KL_SIGNAL
 #include <sys/klog.h>
 #include <sys/mimiker.h>
@@ -203,40 +204,74 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
 
 int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
                     timespec_t *tsp) {
-  int timevalid = 0, sig, error, timeout;
-  sigset_t saved_mask, new_block;
+  int timevalid = 0, error = 0, timeout = 0;
+  sigset_t saved_mask;
+  signo_t sig;
   thread_t *td = p->p_thread;
 
   if (tsp != NULL) {
     if (tsp->tv_nsec >= 0 && tsp->tv_nsec < 1000000000) {
       timevalid = 1;
       timeout = ts2hz(tsp);
+      /* Timeout set to 0 means to not block, but for sleepq it means to
+       * wait indefinitely */
+      if (timeout == 0) {
+        if (tsp->tv_nsec == 0 && tsp->tv_sec == 0) {
+          timeout = -1;
+        } 
+        else {
+          /* Shortest possible timeout */
+          timeout = 1;
+        }
+      }
     }
   }
 
   bzero(kinfo, sizeof(*kinfo));
 
-  /* These signals cannot be waited for. */
-  __sigdelset(&waitset, SIGKILL);
-  __sigdelset(&waitset, SIGSTOP);
+  /* Silently ignore SIGKILL and SIGSTOP. */
+  __sigminusset(&cantmask, &waitset);
 
   WITH_PROC_LOCK(p) {
     saved_mask = td->td_sigmask;
-    __sigminusset(&td->td_sigmask, &waitset);
-    for (;;) {
-      /* if there's a pending non-blocked signal: return! */
+    __sigminusset(&waitset, &td->td_sigmask);
 
-      /* FreeBSD says that POSIX says that this should be checked after 
-       * checking if there's a pending signal */
-      if (tsp != NULL && !timevalid) {
-        error = EINVAL;
-        break;
-      }
-
-      error = sleepq_wait_timed(&td->td_sigmask, "sigtimedwait()", timeout);
+    /* Question: can I return in WITH_PROC_LOCK? */
+    if ((sig = sig_pending(td))) {
+      error = 0;
+      goto out;
     }
-  }
 
+    if (timeout == -1) {
+      error = EAGAIN;
+      goto out;
+    }
+    
+    if (tsp != NULL && !timevalid) {
+      error = EINVAL;
+      goto out;
+    }
+  
+    error = sleepq_wait_timed(&td->td_sigmask, "sigtimedwait()", timeout);
+
+    if (error == ETIMEDOUT) {
+      error = EAGAIN;
+      goto out;
+    }
+
+    sigset_t unblocked = td->td_sigpend.sp_set;
+    __sigandset(&waitset, &unblocked)
+    if (__sigfindset(&unblocked)) {
+      error = 0;
+    }
+    else {
+      error = EINTR;
+    }
+
+out:
+    td->td_sigmask = saved_mask;
+  }
+ 
   return error;
 }
 
@@ -615,7 +650,6 @@ int do_sigreturn(ucontext_t *ucp) {
   /* Restore user context. */
   mcontext_copy(uctx, &uc.uc_mcontext);
 
-  // TODO sigsuspend tests (no "unmasking")
   WITH_MTX_LOCK (&td->td_proc->p_lock)
     error = do_sigprocmask(SIG_SETMASK, &uc.uc_sigmask, NULL);
   assert(error == 0);
