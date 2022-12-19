@@ -151,6 +151,7 @@ BIN =\
 	cal\
 	cols\
 	cksum\
+	find\
 	grep\
 	join\
 	ls\
@@ -166,7 +167,6 @@ BIN =\
 
 BIN_DONT_WORK =\
 	date\
-	find\
 	getconf\
 	kill\
 	time\
@@ -254,6 +254,7 @@ CFLAGS.sbase/yes.c += -Dmain=yes_main
 CFLAGS.sbase/cal.c += -Dmain=cal_main
 CFLAGS.sbase/cols.c += -Dmain=cols_main
 CFLAGS.sbase/cksum.c += -Dmain=cksum_main
+CFLAGS.sbase/find.c += -Dmain=find_main
 CFLAGS.sbase/grep.c += -Dmain=grep_main
 CFLAGS.sbase/join.c += -Dmain=join_main
 CFLAGS.sbase/ls.c += -Dmain=ls_main
@@ -285,6 +286,7 @@ DEPENDENCY-FILES += $(foreach f, $(SOURCES_LIBUTIL) $(SOURCES_LIBUTF),\
 		      $(BUILDDIR)$(dir $(f))$(patsubst %.c,%.d,$(notdir $(f))))
 WFLAGS += -Wno-error=sign-compare -Wno-error=implicit-fallthrough
 CFLAGS.sbase/join.c += -Wno-error=sometimes-uninitialized
+CFLAGS.sbase/find.c += -Wno-error=tautological-constant-out-of-range-compare
 
 include $(TOPDIR)/build/build.prog.mk
 
