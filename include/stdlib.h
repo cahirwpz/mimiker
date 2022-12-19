@@ -82,7 +82,7 @@ double strtod(const char *__restrict, char **__restrict);
 float strtof(const char *__restrict, char **__restrict);
 long double strtold(const char *__restrict, char **__restrict);
 long strtol(const char *__restrict, char **__restrict, int);
-long long int	llabs(long long int);
+long long int llabs(long long int);
 long long int strtoll(const char *__restrict, char **__restrict, int);
 unsigned long strtoul(const char *__restrict, char **__restrict, int);
 unsigned long long int strtoull(const char *__restrict, char **__restrict, int);
