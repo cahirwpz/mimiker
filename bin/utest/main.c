@@ -23,11 +23,15 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(mmap);
   CHECKRUN_TEST(munmap);
   CHECKRUN_TEST(munmap_sigsegv);
+  CHECKRUN_TEST(munmap_many_1);
+  CHECKRUN_TEST(munmap_many_2);
   CHECKRUN_TEST(mmap_prot_none);
   CHECKRUN_TEST(mmap_prot_read);
   CHECKRUN_TEST(mmap_fixed);
   CHECKRUN_TEST(mmap_fixed_excl);
   CHECKRUN_TEST(mmap_fixed_replace);
+  CHECKRUN_TEST(mmap_fixed_replace_many_1);
+  CHECKRUN_TEST(mmap_fixed_replace_many_2);
   CHECKRUN_TEST(sbrk);
   CHECKRUN_TEST(sbrk_sigsegv);
   CHECKRUN_TEST(misbehave);

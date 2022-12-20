@@ -257,3 +257,163 @@ int test_mmap_fixed_replace(void) {
 
   return 0;
 }
+
+/*
+ * Layout of mapped pages:
+ * 0       1        2        3        4        5       6
+ * +----------------+        +--------+        +-----------------+
+ * | first | second |        | fourth |        | sixth | seventh |
+ * +----------------+        +--------+        +-----------------+
+ */
+static void *prepare_layout(size_t pgsz) {
+  void *addr = mmap_anon_priv(NULL, 7 * pgsz, PROT_READ | PROT_WRITE);
+  int res;
+
+  res = munmap(addr + 2 * pgsz, pgsz);
+  assert(res == 0);
+
+  res = munmap(addr + 4 * pgsz, pgsz);
+  assert(res == 0);
+
+  sprintf(addr, "first");
+  sprintf(addr + pgsz, "second");
+  sprintf(addr + 3 * pgsz, "fourth");
+  sprintf(addr + 5 * pgsz, "sixth");
+  sprintf(addr + 6 * pgsz, "seventh");
+
+  return addr;
+}
+
+/* This test unmaps entries from prepared layout (second, fourth, sixth) */
+int test_munmap_many_1(void) {
+  size_t pgsz = getpagesize();
+  void *addr = prepare_layout(pgsz);
+  int res;
+
+  res = munmap(addr + pgsz, 5 * pgsz);
+  assert(res == 0);
+
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    res = strncmp(addr + pgsz, "second", 6);
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr + pgsz, SEGV_MAPERR);
+
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    res = strncmp(addr + 3 * pgsz, "fourth", 6);
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr + 3 * pgsz, SEGV_MAPERR);
+
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    res = strncmp(addr + 5 * pgsz, "sixth", 5);
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr + 5 * pgsz, SEGV_MAPERR);
+
+  res = strncmp(addr, "first", 5);
+  assert(res == 0);
+
+  res = strncmp(addr + 6 * pgsz, "seventh", 7);
+  assert(res == 0);
+
+  return 0;
+}
+
+/* This test unmaps all entries from prepared layout */
+int test_munmap_many_2(void) {
+  size_t pgsz = getpagesize();
+  void *addr = prepare_layout(pgsz);
+  int res;
+
+  res = munmap(addr, 7 * pgsz);
+  assert(res == 0);
+
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    res = strncmp(addr, "first", 5);
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr, SEGV_MAPERR);
+
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    res = strncmp(addr + pgsz, "second", 6);
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr + pgsz, SEGV_MAPERR);
+
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    res = strncmp(addr + 3 * pgsz, "fourth", 6);
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr + 3 * pgsz, SEGV_MAPERR);
+
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    res = strncmp(addr + 5 * pgsz, "sixth", 5);
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr + 5 * pgsz, SEGV_MAPERR);
+
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    res = strncmp(addr + 6 * pgsz, "seventh", 7);
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr + 6 * pgsz, SEGV_MAPERR);
+
+  return 0;
+}
+
+/* This test unmaps entries from prepared layout (second, fourth, sixth) */
+int test_mmap_fixed_replace_many_1(void) {
+  size_t pgsz = getpagesize();
+  void *addr = prepare_layout(pgsz);
+  void *new;
+  int res;
+
+  new = mmap_anon_priv_flags(addr + pgsz, 5 * pgsz, PROT_READ, MAP_FIXED);
+  assert(new == addr + pgsz);
+
+  res = strncmp(addr + pgsz, "second", 6);
+  assert(res != 0);
+
+  res = strncmp(addr + 3 * pgsz, "fourth", 6);
+  assert(res != 0);
+
+  res = strncmp(addr + 5 * pgsz, "sixth", 5);
+  assert(res != 0);
+
+  res = strncmp(addr, "first", 5);
+  assert(res == 0);
+
+  res = strncmp(addr + 6 * pgsz, "seventh", 7);
+  assert(res == 0);
+  return 0;
+}
+
+/* This test unmaps all entries from prepared layout */
+int test_mmap_fixed_replace_many_2(void) {
+  size_t pgsz = getpagesize();
+  void *addr = prepare_layout(pgsz);
+  void *new;
+  int res;
+
+  new = mmap_anon_priv_flags(addr, 7 * pgsz, PROT_READ, MAP_FIXED);
+  assert(new == addr);
+
+  res = strncmp(addr, "first", 5);
+  assert(res != 0);
+
+  res = strncmp(addr + pgsz, "second", 6);
+  assert(res != 0);
+
+  res = strncmp(addr + 3 * pgsz, "fourth", 6);
+  assert(res != 0);
+
+  res = strncmp(addr + 5 * pgsz, "sixth", 5);
+  assert(res != 0);
+
+  res = strncmp(addr + 6 * pgsz, "seventh", 7);
+  assert(res != 0);
+  return 0;
+}
