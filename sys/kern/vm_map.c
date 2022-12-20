@@ -308,17 +308,12 @@ int vm_map_insert(vm_map_t *map, vm_map_entry_t *ent, vm_flags_t flags) {
 
   int error;
   if ((flags & VM_FIXED) && !(flags & VM_EXCL)) {
-    klog("Inserting with VM_FIXED");
     if ((error = vm_map_destroy_range_nolock(map, ent->start, ent->end)))
       return error;
   }
 
-  klog("Destroyed range");
-
   if ((error = vm_map_findspace_nolock(map, &start, length, &after)))
     return error;
-
-  klog("Found space");
 
   if ((flags & VM_FIXED) && (start != ent->start))
     return ENOMEM;
