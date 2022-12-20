@@ -154,6 +154,7 @@ BIN =\
 	find\
 	grep\
 	join\
+	kill\
 	ls\
 	od\
 	paste\
@@ -168,7 +169,6 @@ BIN =\
 BIN_DONT_WORK =\
 	date\
 	getconf\
-	kill\
 	time\
 	touch\
 	xargs
@@ -257,6 +257,7 @@ CFLAGS.sbase/cksum.c += -Dmain=cksum_main
 CFLAGS.sbase/find.c += -Dmain=find_main
 CFLAGS.sbase/grep.c += -Dmain=grep_main
 CFLAGS.sbase/join.c += -Dmain=join_main
+CFLAGS.sbase/kill.c += -Dmain=kill_main
 CFLAGS.sbase/ls.c += -Dmain=ls_main
 CFLAGS.sbase/od.c += -Dmain=od_main
 CFLAGS.sbase/paste.c += -Dmain=paste_main
