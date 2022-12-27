@@ -36,7 +36,7 @@ def generate_core_file(program: str, tools: list):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='Generate sbase-box core source file.')
+        description='Generate ubase-box core source file.')
     parser.add_argument('-p', '--program', type=str,
                         help='Executable file name.')
     parser.add_argument('-t', '--tools', nargs='+',

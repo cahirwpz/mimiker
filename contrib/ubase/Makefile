@@ -121,7 +121,7 @@ DEPENDENCY-FILES += $(foreach f, $(SOURCES_LIBUTIL),\
 include $(TOPDIR)/build/build.prog.mk
 
 $(PROGRAM).c:
-	@echo "[PYTHON] $^ -> $@"
+	@echo "[PYTHON] $(BIN) -> $@"
 	./box_src_generator.py --program $(PROGRAM) --tools $(BIN)
 
 $(BUILDDIR)ubase/$(LIBUTIL): $(OBJ_LIBUTIL)
