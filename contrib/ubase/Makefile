@@ -47,7 +47,8 @@ LIB = $(LIBUTIL)
 
 BIN = \
 	clear             \
-	pagesize
+	pagesize          \
+	stat
 
 BIN_DONT_WORK = \
 	blkdiscard        \
@@ -86,7 +87,6 @@ BIN_DONT_WORK = \
 	readahead         \
 	respawn           \
 	rmmod             \
-	stat              \
 	su                \
 	swaplabel         \
 	swapoff           \
@@ -103,6 +103,7 @@ BIN_DONT_WORK = \
 
 CFLAGS.ubase/clear.c += -Dmain=clear_main
 CFLAGS.ubase/pagesize.c += -Dmain=pagesize_main
+CFLAGS.ubase/stat.c += -Dmain=stat_main
 
 SOURCES_UBASE = $(addprefix ubase/,$(BIN:=.c))
 SOURCES_LIBUTIL = $(addprefix ubase/,$(LIBUTILSRC))
