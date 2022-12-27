@@ -92,7 +92,7 @@ UTEST_ADD_SIMPLE(fd_all);
 
 UTEST_ADD_SIMPLE(signal_basic);
 UTEST_ADD_SIMPLE(signal_send);
-UTEST_ADD_SIGNAL(signal_abort, SIGABRT);
+UTEST_ADD_SIMPLE(signal_abort);
 UTEST_ADD_SIMPLE(signal_segfault);
 UTEST_ADD_SIMPLE(signal_stop);
 UTEST_ADD_SIMPLE(signal_cont_masked);
@@ -141,18 +141,18 @@ UTEST_ADD_SIMPLE(fpu_ctx_signals);
 #endif
 
 #ifdef __mips__
-UTEST_ADD_SIGNAL(exc_cop_unusable, SIGILL);
-UTEST_ADD_SIGNAL(exc_reserved_instruction, SIGILL);
-UTEST_ADD_SIGNAL(exc_unaligned_access, SIGBUS);
-UTEST_ADD_SIGNAL(exc_integer_overflow, SIGFPE);
+UTEST_ADD_SIMPLE(exc_cop_unusable);
+UTEST_ADD_SIMPLE(exc_reserved_instruction);
+UTEST_ADD_SIMPLE(exc_unaligned_access);
+UTEST_ADD_SIMPLE(exc_integer_overflow);
 
 UTEST_ADD_SIMPLE(exc_sigsys);
 #endif
 
 #ifdef __aarch64__
-UTEST_ADD_SIGNAL(exc_unknown_instruction, SIGILL);
-UTEST_ADD_SIGNAL(exc_msr_instruction, SIGILL);
-UTEST_ADD_SIGNAL(exc_mrs_instruction, SIGILL);
+UTEST_ADD_SIMPLE(exc_unknown_instruction);
+UTEST_ADD_SIMPLE(exc_msr_instruction);
+UTEST_ADD_SIMPLE(exc_mrs_instruction);
 
 UTEST_ADD_SIMPLE(exc_brk);
 #endif

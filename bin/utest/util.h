@@ -34,3 +34,7 @@ void _expect_signal_cleanup(void);
 #define CHECK_SIGSEGV(si, sig_addr, sig_code)                                  \
   assert((si)->si_addr == (sig_addr));                                         \
   assert((si)->si_code == (sig_code))
+
+#define CHECK_SIGABRT(si, sig_addr, sig_code)                                  \
+  assert((si)->si_addr == (sig_addr));                                         \
+  assert((si)->si_code == (sig_code))
