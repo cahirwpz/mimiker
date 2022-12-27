@@ -1,36 +1,17 @@
-#!/bin/bash
+#!/bin/sh
 
-THISDIR=$PWD
-TMPDIR=$(mktemp -d)
+PAGER=cat
 
-# Copy entire working tree to temporary directory, excluding files from
-# .gitignore, as well as the .git direcory itself.
-rsync -a $THISDIR/ $TMPDIR --exclude-from=.gitignore --exclude=.git
-
-cd $TMPDIR
 # Use make format to cleanup the copied tree
-make format > /dev/null
+make format > /dev/null || exit 1
 
-# Compare directories, again excluding some ignored files.
-# TODO: Diff matches exclude pattern with target file base name, so rules like
-# "tests/*_test_files" won't work. For this reason it's reccomended to run this
-# script on a clean source tree - until we come up with a workaround, or diff
-# devs stop ignoring their mailing list:
-# http://lists.gnu.org/archive/html/bug-diffutils/2016-05/msg00008.html
-diff -Naur $THISDIR/ $TMPDIR -X .gitignore -x .git
-RES=$?
-
-# Remove temporary directory.
-cd $THISDIR
-rm -rf $TMPDIR
-
-if ! [ $RES -eq 0 ]
-then
+# See if there are any changes compared to checked out sources.
+if ! git diff --check --exit-code >/dev/null; then
     echo "Formatting incorrect for C files!"
-    echo "Please run 'make format' before committing your changes,"\
-         "or manually apply the changes listed above."
-else
-    echo "Formatting correct for C files."
+    echo "Please run 'make format' before committing your changes,"
+    echo "or manually apply the changes listed above."
+    git diff
+    exit 1
 fi
 
-exit $RES
+echo "Formatting correct for C files."

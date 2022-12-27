@@ -2,57 +2,59 @@
 
 TOPDIR = $(CURDIR)
 
-# Directories which contain kernel parts
-KERNDIR = drv mips stdc sys tests
 # Directories which require calling make recursively
-SUBDIR = $(KERNDIR) lib bin usr.bin
+SUBDIR = sys lib bin usr.bin etc include contrib
 
-all: build install
+all: install
 
-build-here: cscope.out tags build-kernel
+format: setup
+build: setup
+install: build
+distclean: clean
+
 bin-before: lib-install
+usr.bin-before: lib-install
+contrib-before: lib-install
 
-install-here: install-kernel
+# Detecting whether initrd.cpio requires rebuilding is tricky, because even if
+# this target was to depend on $(shell find sysroot -type f), then make compares
+# sysroot files timestamps BEFORE recursively entering bin and installing user
+# programs into sysroot. This sounds silly, but apparently make assumes no files
+# appear "without their explicit target". Thus, the only thing we can do is
+# forcing make to always rebuild the archive.
+initrd.cpio: bin-install
+	@echo "[INITRD] Building $@..."
+	cd sysroot && \
+	  find -depth \( ! -name "*.dbg" -and -print \) | sort | \
+	    $(CPIO) -o -R +0:+0 -F ../$@ 2> /dev/null
 
-clean-here:
-	$(RM) tags etags cscope.out *.taghl
+INSTALL-FILES += initrd.cpio
+CLEAN-FILES += initrd.cpio
 
 distclean-here:
 	$(RM) -r sysroot
 
-# Lists of all files that we consider operating system sources.
-SRCDIRS = include $(KERNDIR) lib/libmimiker 
-SRCFILES_C = $(shell find $(SRCDIRS) -iname '*.[ch]')
-SRCFILES_ASM = $(shell find $(SRCDIRS) -iname '*.S')
-SRCFILES = $(SRCFILES_C) $(SRCFILES_ASM)
+setup:
+	$(MAKE) -C include setup
 
-cscope.out: $(SRCFILES)
-	@echo "[CSCOPE] Rebuilding database..."
-	$(CSCOPE) $(SRCFILES)
+test: sys-build initrd.cpio
+	./run_tests.py --board $(BOARD)
 
-tags:
-	@echo "[CTAGS] Rebuilding tags..."
-	$(CTAGS) --language-force=c $(SRCFILES_C)
-	$(CTAGS) --language-force=c -e -f etags $(SRCFILES_C)
-	$(CTAGS) --language-force=asm -a $(SRCFILES_ASM)
-	$(CTAGS) --language-force=asm -aef etags $(SRCFILES_ASM)
+PHONY-TARGETS += setup test
 
-# These files get destroyed by clang-format, so we explicitly exclude them from
-# being automatically formatted
-FORMATTABLE_EXCLUDE = \
-	include/elf/% \
-	include/mips/asm.h \
-	include/mips/m32c0.h \
-	stdc/%
-FORMATTABLE = $(filter-out $(FORMATTABLE_EXCLUDE),$(SRCFILES_C))
+IMGVER = 1.12.0
+IMGNAME = cahirwpz/mimiker-ci
 
-format:
-	@echo "Formatting files: $(FORMATTABLE:./%=%)"
-	$(FORMAT) -i $(FORMATTABLE)
+docker-build:
+	docker build . -t $(IMGNAME):latest
 
-test: mimiker.elf
-	./run_tests.py
+docker-tag:
+	docker image tag $(IMGNAME):latest $(IMGNAME):$(IMGVER)
 
-PHONY-TARGETS += format tags cscope test
+docker-push:
+	docker push $(IMGNAME):latest
+	docker push $(IMGNAME):$(IMGVER)
 
-include $(TOPDIR)/build/build.kern.mk
+PHONY-TARGETS += docker-build docker-tag docker-push
+
+include $(TOPDIR)/build/common.mk

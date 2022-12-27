@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-VER := 2.12.0
+VER := 6.2.0
 QEMU := qemu-$(VER)
 ARCHIVE := $(QEMU).tar.xz
 
@@ -44,9 +44,8 @@ configure-stamp: patch-stamp
 		--disable-bzip2 \
 		--disable-tpm \
 		--disable-linux-aio \
-	    	--target-list=mipsel-softmmu,aarch64-softmmu
-	sed -i -e '/qemu_.*dir=/s,/qemu,/qemu-mimiker,' \
-		qemu-build/config-host.mak
+	    	--target-list=mipsel-softmmu,aarch64-softmmu,riscv64-softmmu \
+		--with-suffix=qemu-mimiker
 	touch $@
 
 build: build-stamp
@@ -58,8 +57,9 @@ install: install-stamp
 install-stamp: build-stamp
 	cd qemu-build && make install DESTDIR=$(PWD)/debian/tmp
 	cd $(PWD)/debian/tmp && \
-		mv usr/bin/qemu-system-mipsel usr/bin/qemu-mimiker-mipsel && \
-		mv usr/bin/qemu-system-aarch64 usr/bin/qemu-mimiker-aarch64
+	mv usr/bin/qemu-system-mipsel usr/bin/qemu-mimiker-mipsel && \
+	mv usr/bin/qemu-system-aarch64 usr/bin/qemu-mimiker-aarch64 && \
+	mv usr/bin/qemu-system-riscv64 usr/bin/qemu-mimiker-riscv64 && \
 	touch $@
 
 binary: binary-stamp

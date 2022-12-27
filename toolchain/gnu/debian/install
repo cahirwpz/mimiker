@@ -1,0 +1,3 @@
+usr/bin/%{TARGET}-*
+usr/lib/gcc/%{TARGET}/*
+usr/%{TARGET}/*

@@ -2,69 +2,51 @@
 
 TOPDIR = $(realpath ..)
 
-SOURCES = \
-	assert.c \
-	bus.c \
-	callout.c \
-	clock.c \
-	condvar.c \
-	console.c \
-	devclass.c \
-	device.c \
-	dev_cons.c \
-	dev_null.c \
-	dev_vga.c \
-	devfs.c \
-	exception.c \
-	exec.c \
-	exec_elf.c \
-	exec_shebang.c \
-	fdt.c \
-	file.c \
-	filedesc.c \
-	fork.c \
-	initrd.c \
-	interrupt.c \
-	kbss.c \
-	klog.c \
-	ktest.c \
-	main.c \
-	malloc.c \
-	mutex.c \
-	mmap.c \
-	pci.c \
-	pci_ids.c \
-	pcpu.c \
-	physmem.c \
-	pipe.c \
-	pool.c \
-	proc.c \
-	ringbuf.c \
-	rman.c \
-	runq.c \
-	rwlock.c \
-	sbrk.c \
-	sched.c \
-	signal.c \
-	sleepq.c \
-	spinlock.c \
-	startup.c \
-	sysent.c \
-	sysinit.c \
-	taskqueue.c \
-	turnstile.c \
-	thread.c \
-	time.c \
-	timer.c \
-	uio.c \
-	vfs.c \
-	vfs_readdir.c \
-	vfs_syscalls.c \
-	vfs_vnode.c \
-	vm_map.c \
-	vm_object.c \
-	vm_pager.c
+include $(TOPDIR)/config.mk
 
-include $(TOPDIR)/build/build.kobj.mk
+SUBDIR = aarch64 contrib drv dts gen kern libkern mips riscv tests
+KLIB = no
 
-build-here: libsys.ka
+BUILD-FILES += $(KERNEL-IMAGES) mimiker.elf cscope.out etags tags
+CLEAN-FILES += mimiker.elf.map
+
+include $(TOPDIR)/build/build.kern.mk
+
+LDSCRIPT = $(ARCH)/$(ARCH).ld
+LDFLAGS += -T $(TOPDIR)/sys/$(LDSCRIPT)
+LDLIBS	= --whole-archive $(KLIBLIST) --no-whole-archive
+
+mimiker.elf: $(KLIBDEPS) $(LDSCRIPT)
+	@echo "[LD] Linking kernel image: $@"
+	$(LD) $(LDFLAGS) -Map=$@.map $(LDLIBS) -o $@
+
+mimiker.img: mimiker.elf
+	@echo "[OBJCOPY] Prepare kernel image: $@"
+	$(OBJCOPY) -O binary $^ $@
+
+mimiker.img.gz: mimiker.img
+	@echo "[GZIP] Compress kernel image: $@"
+	$(GZIP) -k -f $^ > $@
+
+$(LDSCRIPT):
+	make -C $(dir $(LDSCRIPT)) $(notdir $(LDSCRIPT))
+
+# Lists of all files that we consider operating system kernel sources.
+SRCDIRS = $(TOPDIR)/include $(TOPDIR)/sys
+SRCFILES_C = $(shell find $(SRCDIRS) -iname '*.[ch]')
+SRCFILES_ASM = $(shell find $(SRCDIRS) -iname '*.S')
+SRCFILES = $(SRCFILES_C) $(SRCFILES_ASM)
+
+cscope.out: $(SRCFILES)
+	@echo "[CSCOPE] Rebuilding cscope database..."
+	$(CSCOPE) $(SRCFILES)
+
+etags tags:
+	@echo "[CTAGS] Rebuilding tags database..."
+	$(CTAGS) --language-force=c $(SRCFILES_C)
+	$(CTAGS) --language-force=c -e -f etags $(SRCFILES_C)
+	$(CTAGS) --language-force=asm -a $(SRCFILES_ASM)
+	$(CTAGS) --language-force=asm -aef etags $(SRCFILES_ASM)
+
+BUILD-FILES += cscope.out etags tags
+CLEAN-FILES += *.taghl

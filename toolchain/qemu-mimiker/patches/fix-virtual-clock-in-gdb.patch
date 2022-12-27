@@ -1,39 +1,41 @@
 Stop virtual clock as soon as debug exception is triggered.
---- a/qemu-2.12.0/gdbstub.c
-+++ b/qemu-2.12.0/gdbstub.c
-@@ -322,6 +322,7 @@
-     int fd;
+Index: qemu-mimiker/qemu-6.2.0/gdbstub.c
+===================================================================
+--- qemu-mimiker.orig/qemu-6.2.0/gdbstub.c
++++ qemu-mimiker/qemu-6.2.0/gdbstub.c
+@@ -358,6 +358,7 @@ typedef struct GDBState {
+     char *socket_path;
      int running_state;
  #else
 +    bool resume_clock;
      CharBackend chr;
      Chardev *mon_chr;
  #endif
-@@ -429,8 +430,6 @@
+@@ -510,8 +511,6 @@ static int gdb_continue_partial(char *ne
      }
-     s->running_state = 1;
+     gdbserver_state.running_state = 1;
  #else
 -    int flag = 0;
 -
      if (!runstate_needs_reset()) {
          if (vm_prepare_start()) {
              return 0;
-@@ -445,12 +444,12 @@
+@@ -526,12 +525,12 @@ static int gdb_continue_partial(char *ne
                  trace_gdbstub_op_stepping(cpu->cpu_index);
-                 cpu_single_step(cpu, sstep_flags);
+                 cpu_single_step(cpu, get_sstep_flags());
                  cpu_resume(cpu);
 -                flag = 1;
-+                s->resume_clock = true;
++                gdbserver_state.resume_clock = true;
                  break;
              case 'c':
                  trace_gdbstub_op_continue_cpu(cpu->cpu_index);
                  cpu_resume(cpu);
 -                flag = 1;
-+                s->resume_clock = true;
++                gdbserver_state.resume_clock = true;
                  break;
              default:
                  res = -1;
-@@ -458,9 +457,6 @@
+@@ -539,9 +538,6 @@ static int gdb_continue_partial(char *ne
              }
          }
      }
@@ -43,19 +45,21 @@ Stop virtual clock as soon as debug exception is triggered.
  #endif
      return res;
  }
-@@ -1909,6 +1905,9 @@
-     for (i = 0; i < size; i++) {
-         gdb_read_byte(gdbserver_state, buf[i]);
+@@ -3068,6 +3064,9 @@ static void gdb_read_byte(uint8_t ch)
+             abort();
+         }
      }
 +
-+    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, gdbserver_state->resume_clock);
-+    gdbserver_state->resume_clock = false;
++    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, gdbserver_state.resume_clock);
++    gdbserver_state.resume_clock = false;
  }
  
- static void gdb_chr_event(void *opaque, int event)
---- a/qemu-2.12.0/target/mips/op_helper.c
-+++ b/qemu-2.12.0/target/mips/op_helper.c
-@@ -42,6 +42,7 @@
+ /* Tell the remote gdb that the process has exited.  */
+Index: qemu-mimiker/qemu-6.2.0/target/mips/tcg/exception.c
+===================================================================
+--- qemu-mimiker.orig/qemu-6.2.0/target/mips/tcg/exception.c
++++ qemu-mimiker/qemu-6.2.0/target/mips/tcg/exception.c
+@@ -55,6 +55,7 @@ void helper_raise_exception(CPUMIPSState
  
  void helper_raise_exception_debug(CPUMIPSState *env)
  {

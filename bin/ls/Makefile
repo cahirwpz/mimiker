@@ -1,7 +1,9 @@
 TOPDIR = $(realpath ../..)
 
-include $(TOPDIR)/build/common.mk
+PROGRAM = ls
+SOURCES = ls.c cmp.c main.c print.c util.c
+FORMAT-EXCLUDE = $(SOURCES)
 
-install-here:
-	echo "[INSTALL] /bin/ls"
-	$(INSTALL) -m 755 ls.lua $(SYSROOT)/bin/ls
+LDLIBS = -lutil
+
+include $(TOPDIR)/build/build.prog.mk

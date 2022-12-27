@@ -1,0 +1,102 @@
+/*
+ * Based on the following FreeBSD files:
+ *  - `sys/contrib/device-tree/src/arm/bcm2837.dtsi`
+ *  - `sys/contrib/device-tree/src/arm/bcm283x.dtsi`
+ */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	chosen {
+	};
+
+	memory@0 {
+		reg = <0x00 0x3c000000>;
+		device_type = "memory";
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupt-parent = <&local_intc>;
+		interrupts = <0 4>, <1 4>, <2 4>, <3 4>;
+		always-on;
+	};
+
+	soc@1 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&intc>;
+		ranges = <0x7e000000 0x3f000000 0x1000000>,
+			 <0x40000000 0x40000000 0x00001000>;
+		dma-ranges = <0xc0000000 0x00000000 0x3f000000>;
+
+		local_intc: local_intc@40000000 {
+			compatible = "brcm,bcm2836-l1-intc";
+			reg = <0x40000000 0x100>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupt-parent = <&local_intc>;
+		};
+
+		intc: intc@7e00b200 {
+			compatible = "brcm,bcm2836-armctrl-ic";
+			reg = <0x7e00b200 0x200>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupt-parent = <&local_intc>;
+			interrupts = <8 4>;
+		};
+
+		gpio: gpio@7e200000 {
+			compatible = "brcm,rpi3-gpio";
+			reg = <0x7e200000 0x100>;
+
+			/* e.MMC requires some GPIO setup to work properly. This however
+			 * differs from what is described in BCM2835 Peripherals datasheet.
+			 * See: https://www.raspberrypi.org/app/uploads/2012/04/
+			 *      Raspberry-Pi-Schematics-R1.0.pdf
+			 */
+			emmc {
+				pins = <47 48 49 50 51 52 53>;
+				function = <7>;
+				pull = <2>;
+				intr_detect = <1 0>;
+			};
+
+			pl011 {
+				pins = <14 15>;
+				function = <4>;
+				pull = <0>;
+				intr_detect = <0>;
+			};
+		};
+
+		uart0: serial@7e201000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x7e201000 0x200>;
+			interrupts = <2 25>;
+		};
+
+		emmc: emmc@7e300000 {
+			compatible = "brcm,bcm2835-emmc";
+			reg = <0x7e300000 0x100>;
+			interrupts = <2 30>;
+
+			sd {
+				compatible = "mimiker,sd";
+			};
+		};
+
+		usb: usb@7e980000 {
+			compatible = "brcm,bcm2835-usb";
+			reg = <0x7e980000 0x10000>;
+			interrupts = <1 9>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+};

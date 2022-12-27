@@ -1,29 +1,42 @@
-ifndef SOURCES
-$(error SOURCES is not set)
-endif
+# vim: tabstop=8 shiftwidth=8 noexpandtab:
+#
+# Common makefile used to obtain objects and dependency files to build.
+#
+# Required common variables: SOURCES.
+#
 
-SOURCES_C = $(filter %.c,$(SOURCES))
+SOURCES_YACC = $(filter %.y,$(SOURCES))
+SOURCES_GEN += $(SOURCES_YACC:%.y=%.c)
+
+SOURCES_C = $(filter %.c,$(SOURCES)) $(SOURCES_GEN)
+SOURCES_H = $(filter %.h,$(SOURCES))
+SOURCES_ALL_C = $(filter %.c,$(SOURCES_ALL)) $(SOURCES_GEN)
 SOURCES_ASM = $(filter %.S,$(SOURCES))
-OBJECTS += $(SOURCES_C:%.c=%.o) $(SOURCES_ASM:%.S=%.o)
-DEPFILES = $(foreach f,$(SOURCES_C) $(SOURCES_ASM), \
-	    $(dir $(f))$(patsubst %.c,.%.D,$(patsubst %.S,.%.D,$(notdir $(f)))))
 
-define emit_dep_rule
-CFILE = $(1)
-DFILE = $(dir $(1))$(patsubst %.c,.%.D,$(patsubst %.S,.%.D,$(notdir $(1))))
-$$(DFILE): $$(CFILE)
-	@echo "[DEP] $$(DIR)$$@"
-	$$(CC) $$(CFLAGS) $$(CPPFLAGS) -MM -MG $$^ -o $$@
-endef
+OBJECTS += $(SOURCES_C:%.c=$(BUILDDIR)%.o) $(SOURCES_ASM:%.S=$(BUILDDIR)%.o)
 
-$(foreach file,$(SOURCES),$(eval $(call emit_dep_rule,$(file))))
+DEPENDENCY-FILES += $(foreach f, $(SOURCES_C),\
+		      $(BUILDDIR)$(dir $(f))$(patsubst %.c,%.d,$(notdir $(f))))
+DEPENDENCY-FILES += $(foreach f, $(SOURCES_ASM),\
+	  	      $(BUILDDIR)$(dir $(f))$(patsubst %.S,%.d,$(notdir $(f))))
 
-build-dependencies: $(DEPFILES)
+$(DEPENDENCY-FILES): $(SOURCES_GEN)
+
+$(BUILDDIR)%.d: %.c
+	@echo "[DEP] $(DIR)$@"
+	mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -MF $@
+
+$(BUILDDIR)%.d: %.S
+	@echo "[DEP] $(DIR)$@"
+	mkdir -p $(dir $@)
+	$(CC) $(ASFLAGS) $(CPPFLAGS) -MT $*.o -MM -MG $^ -MF $@
 
 ifeq ($(words $(findstring $(MAKECMDGOALS), download clean distclean)), 0)
-  -include $(DEPFILES)
+  -include $(DEPENDENCY-FILES)
 endif
 
 BUILD-FILES += $(OBJECTS)
-CLEAN-FILES += $(DEPFILES) $(OBJECTS)
+CLEAN-FILES += $(DEPENDENCY-FILES) $(OBJECTS) $(SOURCES_GEN)
+CLEAN-DIRS += $(BUILDDIR)
 PRECIOUS-FILES += $(OBJECTS)

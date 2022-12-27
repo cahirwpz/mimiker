@@ -2,11 +2,8 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = libmimiker newlib
+SUBDIR = csu libc libm libterminfo libutil
 
 all: build
-
-# Dependencies between user programs are currently expressed here.
-newlib-before: libmimiker-install
 
 include $(TOPDIR)/build/common.mk

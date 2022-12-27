@@ -1,14 +1,51 @@
+# vim: tabstop=2 shiftwidth=2 noexpandtab:
+#
+# Common makefile used to supplement the compilation flags with the kernel
+# specific flags.
+#
+
 include $(TOPDIR)/build/flags.mk
 
-GCC_INSTALL_PATH = $(shell LANG=C $(CC) -print-search-dirs | \
-                     sed -n -e 's/install:\(.*\)/\1/p')
-# The _LIBC_LIMITS_H_ prevents include-fixed/limits.h from forcefully including
-# the system version of limits.h, which is not present in a freestanding
-# environment. I feel like this is a workaround for a bug in GCC.
-GCC_SYSTEM_INC = -I$(GCC_INSTALL_PATH)include/ \
-                 -I$(GCC_INSTALL_PATH)include-fixed/ \
-                 -D_LIBC_LIMITS_H_
-
 CFLAGS   += -fno-builtin -nostdinc -nostdlib -ffreestanding
-CPPFLAGS += -I$(TOPDIR)/include $(GCC_SYSTEM_INC) -D_KERNELSPACE 
+CPPFLAGS += -I$(TOPDIR)/include -I$(TOPDIR)/sys/contrib -D_KERNEL
+CPPFLAGS += -DLOCKDEP=$(LOCKDEP) -DKASAN=$(KASAN) -DKGPROF=$(KGPROF) -DKCSAN=$(KCSAN)
 LDFLAGS  += -nostdlib
+
+ifeq ($(KCSAN), 1)
+  # Added to files that are sanitized
+  ifeq ($(LLVM), 1)
+    CFLAGS_KCSAN = -fsanitize=thread \
+                   -mllvm -tsan-distinguish-volatile=1
+  else
+    CFLAGS_KCSAN = -fsanitize=thread \
+                   --param tsan-distinguish-volatile=1
+  endif
+endif
+
+ifeq ($(KASAN), 1)
+  # Added to files that are sanitized
+  ifeq ($(LLVM), 1)
+    CFLAGS_KASAN = -fsanitize=kernel-address \
+                   -mllvm -asan-mapping-offset=$(ASAN_SHADOW_OFFSET) \
+                   -mllvm -asan-instrumentation-with-call-threshold=0 \
+                   -mllvm -asan-globals=true \
+                   -mllvm -asan-stack=true \
+                   -mllvm -asan-instrument-dynamic-allocas=true
+  else
+    CFLAGS_KASAN = -fsanitize=kernel-address \
+                   -fasan-shadow-offset=$(ASAN_SHADOW_OFFSET) \
+                   --param asan-instrumentation-with-call-threshold=0 \
+                   --param asan-globals=1 \
+                   --param asan-stack=1 \
+                   --param asan-instrument-allocas=1
+  endif
+  LDFLAGS += -wrap=copyin -wrap=copyinstr -wrap=copyout \
+             -wrap=bcopy -wrap=bzero -wrap=memcpy -wrap=memmove -wrap=memset \
+             -wrap=strlen
+endif
+
+ifeq ($(KGPROF), 1)
+  CFLAGS_KGPROF = -finstrument-functions
+endif
+
+KERNEL := 1

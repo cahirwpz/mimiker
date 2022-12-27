@@ -1,4 +1,4 @@
-/*	$NetBSD: dirent.h,v 1.30 2016/01/22 23:31:30 dholland Exp $	*/
+/*	$NetBSD: dirent.h,v 1.36 2016/12/16 04:45:04 mrg Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -28,87 +28,40 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)dirent.h	8.3 (Berkeley) 8/10/94
+ *	@(#)dirent.h	8.2 (Berkeley) 7/28/94
  */
 
-#ifndef _SYS_DIRENT_H_
-#define _SYS_DIRENT_H_
+#ifndef _DIRENT_H_
+#define _DIRENT_H_
 
-#include <stdint.h>
-
-#define MAXNAMLEN 255
+#include <sys/types.h>
 
 /*
- * The dirent structure defines the format of directory entries returned by
+ * The kernel defines the format of directory entries returned by
  * the getdents(2) system call.
- *
- * A directory entry has a struct dirent at the front of it, containing its
- * inode number, the length of the entry, and the length of the name
- * contained in the entry.  These are followed by the name padded to
- * _DIRENT_ALIGN() byte boundary with null bytes.  All names are guaranteed
- * NUL terminated.  The maximum length of a name in a directory is MAXNAMLEN.
  */
-typedef struct dirent {
-  ino_t d_fileno;    /* file number of entry */
-  uint16_t d_reclen; /* length of this record */
-  uint16_t d_namlen; /* length of string in d_name */
-  uint8_t d_type;    /* file type, see below */
-  char d_name[0];
-} dirent_t;
+#include <sys/dirent.h>
 
-/*
- * File types
- */
-#define DT_UNKNOWN 0
-#define DT_FIFO 1
-#define DT_CHR 2
-#define DT_DIR 4
-#define DT_BLK 6
-#define DT_REG 8
-#define DT_LNK 10
-#define DT_SOCK 12
-#define DT_WHT 14
+#ifndef _KERNEL
 
-/*
- * The _DIRENT_ALIGN macro returns the alignment of struct dirent.
- */
-#define _DIRENT_ALIGN(dp) (sizeof((dp)->d_fileno) - 1)
-/*
- * The _DIRENT_NAMEOFF macro returns the offset of the d_name field in
- * struct dirent
- */
-#define _DIRENT_NAMEOFF(dp) __builtin_offsetof(__typeof__(*(dp)), d_name)
-/*
- * The _DIRENT_RECLEN macro gives the minimum record length which will hold
- * a name of size "namlen".  This requires the amount of space in struct dirent
- * without the d_name field, plus enough space for the name with a terminating
- * null byte (namlen+1), rounded up to a the appropriate byte boundary.
- */
-#define _DIRENT_RECLEN(dp, namlen)                                             \
-  ((_DIRENT_NAMEOFF(dp) + (namlen) + 1 + _DIRENT_ALIGN(dp)) &                  \
-   ~_DIRENT_ALIGN(dp))
-/*
- * The _DIRENT_SIZE macro returns the minimum record length required for
- * name name stored in the current record.
- */
-#define _DIRENT_SIZE(dp) _DIRENT_RECLEN(dp, (dp)->d_namlen)
-/*
- * The _DIRENT_NEXT macro advances to the next dirent record.
- */
-#define _DIRENT_NEXT(dp) ((void *)((char *)(void *)(dp) + (dp)->d_reclen))
-/*
- * The _DIRENT_MINSIZE returns the size of an empty (invalid) record.
- */
-#define _DIRENT_MINSIZE(dp) _DIRENT_RECLEN(dp, 0)
+#include <sys/cdefs.h>
 
-/*
- * Convert between stat structure types and directory types.
- */
-#define IFTODT(mode) (((mode)&0170000) >> 12)
-#define DTTOIF(dirtype) ((dirtype) << 12)
+typedef struct _dirdesc DIR;
 
-#ifndef _KERNELSPACE
-int getdirentries(int fd, char *buf, size_t nbytes, off_t *basep);
-#endif /* !_KERNELSPACE */
+__BEGIN_DECLS
+int closedir(DIR *);
+DIR *opendir(const char *);
+DIR *fdopendir(int fd);
+struct dirent *readdir(DIR *);
+int readdir_r(DIR *__restrict, struct dirent *__restrict,
+              struct dirent **__restrict);
+long telldir(DIR *);
+ssize_t getdents(int, char *, size_t);
+int alphasort(const struct dirent **, const struct dirent **);
+int scandir(const char *, struct dirent ***, int (*)(const struct dirent *),
+            int (*)(const struct dirent **, const struct dirent **));
+__END_DECLS
 
-#endif /* !_SYS_DIRENT_H_ */
+#endif /* !_KERNEL */
+
+#endif /* !_DIRENT_H */

@@ -1,0 +1,5 @@
+openocd-mimiker (0.10.0+dev+mimiker1) unstable; urgency=medium
+
+  * Setup hardware debugger for AArch64(RPi3)
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Sat, 15 Dec 2018 10:49:25 +0100

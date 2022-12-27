@@ -1,0 +1,7 @@
+#ifndef _AARCH64_ELF_MACHDEP_H_
+#define _AARCH64_ELF_MACHDEP_H_
+
+#define ELFSIZE 64
+#define EM_ARCH EM_AARCH64
+
+#endif /* _AARCH64_ELF_MACHDEP_H_ */

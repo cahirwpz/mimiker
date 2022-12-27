@@ -1,40 +1,51 @@
 # vim: tabstop=8 shiftwidth=8 noexpandtab:
+#
+# Common makefile for kernel files. It is essentially used for building kernel
+# static libraries (i.e. `*.ka` archives) but may also be used to build a bunch
+# of unrelated kernel sources.
+#
+# The following make variables are set by the including makefile:
+# - KLIB: "no" if kernel library shouldn't be built.
+#   Otherwise the variable must be undefined.
+# - SUBDIR: The directories which will compose the destination library.
+#
+# Note that `*_dtb.o` targets should be manually added to the OBJECTS variable
+# in the including makefile.
+
+KLIB ?= $(shell basename $(CURDIR)).ka
+
+all: build
+
+ifneq ($(KLIB), no)
+BUILD-FILES += $(KLIB)
+endif
+
+include $(TOPDIR)/config.mk
+
+SOURCES_ALL = $(SOURCES)
+SOURCES_ALL += $(foreach var, $(CONFIG_OPTS), $(value SOURCES-$(var)))
+
+SOURCES += $(foreach var, $(CONFIG_OPTS), \
+		$(if $(subst 0,,$(value $(var))), \
+			$(value SOURCES-$(var)),))
 
 include $(TOPDIR)/build/flags.kern.mk
+include $(TOPDIR)/build/compile.mk
 include $(TOPDIR)/build/common.mk
 
-build-kernel: $(KRT)
-install-kernel: mimiker.elf
+KLIBLIST = $(foreach dir, $(SUBDIR), $(dir)/$(dir).ka)
+KLIBDEPS = $(foreach dir, $(SUBDIR), $(dir)-build)
 
-# Files required to link kernel image
-KRT = $(foreach dir,$(KERNDIR),$(TOPDIR)/$(dir)/lib$(dir).ka)
+$(KLIB): $(OBJECTS) $(KLIBDEPS)
+	@echo "[AR] $(addprefix $(DIR),$(OBJECTS) $(KLIBLIST)) -> $(DIR)$@"
+	(echo "create $@"; \
+	 for f in $(KLIBLIST); do echo "addlib $$f"; done; \
+	 for f in $(OBJECTS); do echo "addmod $$f"; done; \
+	 echo "save"; \
+	 echo "end") | $(AR) -M
 
-LDFLAGS = -T $(TOPDIR)/mips/malta.ld
-LDLIBS	= -Wl,--start-group \
-	    -Wl,--whole-archive $(KRT) -Wl,--no-whole-archive \
-            -lgcc \
-          -Wl,--end-group
+%.dtb: %.dts
+	@echo "[DTB] $(DIR)$< -> $(DIR)$@"
+	dtc -O dtb -o $@ $<
 
-# Process subdirectories before using KRT files.
-mimiker.elf: $(KRT) initrd.o | $(KERNDIR)
-	@echo "[LD] Linking kernel image: $@"
-	$(CC) $(LDFLAGS) -Wl,-Map=$@.map $(LDLIBS) initrd.o -o $@
-
-# Detecting whether initrd.cpio requires rebuilding is tricky, because even if
-# this target was to depend on $(shell find sysroot -type f), then make compares
-# sysroot files timestamps BEFORE recursively entering bin and installing user
-# programs into sysroot. This sounds silly, but apparently make assumes no files
-# appear "without their explicit target". Thus, the only thing we can do is
-# forcing make to always rebuild the archive.
-initrd.cpio: bin-install
-	@echo "[INITRD] Building $@..."
-	cd sysroot && \
-	  find -depth -print | sort | $(CPIO) -o -F ../$@ 2> /dev/null
-
-initrd.o: initrd.cpio
-	$(OBJCOPY) -I binary -O elf32-littlemips -B mips \
-	  --rename-section .data=.initrd,alloc,load,readonly,data,contents \
-	  $^ $@
-
-CLEAN-FILES += mimiker.elf mimiker.elf.map initrd.cpio initrd.o
-PHONY-TARGETS += initrd.cpio
+CLEAN-FILES += *.dtb

@@ -1,0 +1,3 @@
+# generated hash functions
+hash.c
+termcap_hash.c

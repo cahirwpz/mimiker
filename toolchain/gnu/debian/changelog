@@ -1,0 +1,6 @@
+%{ARCH}-mimiker-elf (%{VERSION}) unstable; urgency=medium
+
+  * GCC 12.1.0, GDB 12.1, binutils 2.38
+  * GDB uses Python 3.9
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  %{DATE}

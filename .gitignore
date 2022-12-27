@@ -9,6 +9,10 @@
 *.uelf
 *.test
 
+# Kernel blobs
+*.img
+*.img.gz
+
 # Ramdisk
 *.cpio
 
@@ -22,7 +26,7 @@
 *.map
 
 # Build dependency files
-.*.D
+*.d
 *-stamp
 
 # Python cache
@@ -49,11 +53,26 @@ cache
 # Dynamically created sysroot
 sysroot
 
-# Dynamically generated gdb config
-.gdbinit
+# gdb history
+.gdb_history
 
 # Visual Studio Code files
 .vscode
 
+# MacOS Finder's file
+.DS_Store
+
 # DTB
 *.dtb
+
+# Tmux user override config
+.tmux.conf.local
+
+# Quilt status directory
+.pc
+
+# pcap files
+*.pcap
+
+# python env
+mimiker-env/

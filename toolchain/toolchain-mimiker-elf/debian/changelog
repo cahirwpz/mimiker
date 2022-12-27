@@ -1,6 +1,0 @@
-%{TARGET}-mimiker-elf (%{VERSION}) unstable; urgency=medium
-
-  * GCC 8.2.0, GDB 8.2, binutils 2.31
-  * GDB uses Python 3.5
-
- -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  %{DATE}

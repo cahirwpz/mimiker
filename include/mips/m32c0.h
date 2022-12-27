@@ -31,6 +31,10 @@
 #ifndef _MIPS_M32C0_H_
 #define _MIPS_M32C0_H_
 
+#ifndef _MACHDEP
+#error "Do not use this header file outside kernel machine dependent code!"
+#endif
+
 /*
  * MIPS32 Exception Codes
  */
@@ -250,6 +254,7 @@
  * MIPS32r2 SRSCtl Register  (CP0 Register 12, Select 2)
  */
 #define SRSCTL_HSS	0x3c000000	/* highest shadow set */
+#define SRSCTL_HSS_BITS 	4
 #define SRSCTL_HSS_SHIFT	26
 #define SRSCTL_EICSS	0x003c0000	/* EIC shadow set */
 #define SRSCTL_EICSS_SHIFT	18
@@ -665,11 +670,13 @@
 #define PERFCNT_EXL		0x00000001
 
 /* MIPS32r2 PageGrain  Register (CP0 Register 5, Select 1) */
+#define PAGEGRAIN_RIE 0x80000000 /* Read Inhibit enable */
+#define PAGEGRAIN_XIE 0x40000000 /* Execute Inhibit enable */
 #define PAGEGRAIN_ELPA	0x20000000	/* Enable large physical addresses */
 #define PAGEGRAIN_ELPA_SHIFT	29
 #define PAGEGRAIN_ELPA_BITS	1
-
 #define PAGEGRAIN_ESP	0x10000000	/* Enable small (1KB) page support */
+#define PAGEGRAIN_IEC 0x08000000 /* Enable RI and XI unique exception codes */
 
 /* MIPS32r2 EBase  Register (CP0 Register 15, Select 1) */
 #define EBASE_BASE	0xfffff000	/* Exception base */
@@ -874,52 +881,8 @@
 #define C0_KSCRATCH5	$31,6
 #define C0_KSCRATCH6	$31,7
 
-$index		=	$0
-$random		=	$1
-$entrylo0	=	$2
-$entrylo1	=	$3
-$context	=	$4
-$pagemask	=	$5
-$wired		=	$6
-$hwrena		=	$7
-$vaddr 		=	$8
-$badvaddr	=	$8
-$count 		=	$9
-$entryhi	=	$10
-$compare	=	$11
-$sr		=	$12
-$cr		=	$13
-$epc 		=	$14
-$prid		=	$15
-$config		=	$16
-$lladdr		=	$17
-$watchlo	=	$18
-$watchhi	=	$19
-$debug		= 	$23
-$depc		= 	$24
-$perfcnt	= 	$25
-$errctl		=	$26
-$cacheerr	=	$27
-$taglo		=	$28
-$taghi		=	$29
-$errpc		=	$30
-$desave		=	$31
-
 
 #else /* !__ASSEMBLER__ */
-
-/*
- * Standard types
- */
-typedef unsigned int		reg32_t;	/* a 32-bit register */
-typedef unsigned long long	reg64_t;	/* a 64-bit register */
-#if _MIPS_SIM==_ABIO32
-typedef unsigned int		reg_t;
-typedef signed int		sreg_t;
-#else
-typedef unsigned long long	reg_t;
-typedef signed long long	sreg_t;
-#endif
 
 /*
  * MIPS32 Coprocessor 0 register encodings for C use.
@@ -1026,6 +989,14 @@ extern "C" {
 #define _mips_wait() \
   __asm__ __volatile ("wait")
 
+/* read stack pointer */
+#define mips32_get_sp() \
+__extension__ ({ \
+  register unsigned long __r; \
+  __asm__ __volatile ("move %0,$sp" : "=d" (__r)); \
+  __r; \
+})
+
 /*
  * Define macros for accessing the MIPS32 coprocessor 0 registers. Most apart
  * from "set" return the original register value. These macros take an encoded
@@ -1051,14 +1022,14 @@ do { \
 			"ehb\n" \
 			".set pop" \
 			: \
-			: "dJ" ((reg32_t)(val)), "JK" (selreg & 0x1F),\
+			: "dJ" ((register_t)(val)), "JK" (selreg & 0x1F),\
 			  "JK" (selreg >> 8) \
 			: "memory"); \
 } while (0)
 
 #define mips32_xch_c0(selreg, val) \
 __extension__ ({ \
-    register reg32_t __o; \
+    register register_t __o; \
     __o = mips32_get_c0 (selreg); \
     mips32_set_c0 (selreg, val); \
     __o; \
@@ -1066,7 +1037,7 @@ __extension__ ({ \
 
 #define mips32_bc_c0(selreg, clr) \
 __extension__ ({ \
-    register reg32_t __o; \
+    register register_t __o; \
     __o = mips32_get_c0 (selreg); \
     mips32_set_c0 (selreg, __o & ~(clr)); \
     __o; \
@@ -1074,7 +1045,7 @@ __extension__ ({ \
 
 #define mips32_bs_c0(selreg, set) \
 __extension__ ({ \
-    register reg32_t __o; \
+    register register_t __o; \
     __o = mips32_get_c0 (selreg); \
     mips32_set_c0 (selreg, __o | (set)); \
     __o; \
@@ -1082,7 +1053,7 @@ __extension__ ({ \
 
 #define mips32_bcs_c0(selreg, clr, set) \
 __extension__ ({ \
-    register reg32_t __o; \
+    register register_t __o; \
     __o = mips32_get_c0 (selreg); \
     mips32_set_c0 (selreg, (__o & ~(clr)) | (set)); \
     __o; \
@@ -1309,6 +1280,12 @@ __extension__ ({ \
 #define mips32_getpagemask() mips32_get_c0(C0_PAGEMASK)
 #define mips32_setpagemask(x) mips32_set_c0(C0_PAGEMASK, (x))
 
+/* TLB handling instructions */
+#define mips32_tlbr() asm volatile("tlbr; ehb" ::: "memory")
+#define mips32_tlbwi() asm volatile("tlbwi; ehb" ::: "memory")
+#define mips32_tlbwr() asm volatile("tlbwr; ehb" ::: "memory")
+#define mips32_tlbp() asm volatile("tlbp; ehb" ::: "memory")
+
 /*
  * Define macros for accessing the MIPS32 coprocessor 0 registers.  Most
  * apart from "set" return the original register value.  These particular
@@ -1332,13 +1309,13 @@ do { \
 			"ehb\n" \
 			".set pop" \
 			: \
-			: "dJ" ((reg32_t)(val)), "JK" (reg), "JK" (sel) \
+			: "dJ" ((register_t)(val)), "JK" (reg), "JK" (sel) \
 			: "memory"); \
 } while (0)
 
 #define _m32c0_mxc0(reg, sel, val) \
 __extension__ ({ \
-    register reg32_t __o; \
+    register register_t __o; \
     __o = _m32c0_mfc0 (reg, sel); \
     _m32c0_mtc0 (reg, sel, val); \
     __o; \
@@ -1346,7 +1323,7 @@ __extension__ ({ \
 
 #define _m32c0_bcc0(reg, sel, clr) \
 __extension__ ({ \
-    register reg32_t __o; \
+    register register_t __o; \
     __o = _m32c0_mfc0 (reg, sel); \
     _m32c0_mtc0 (reg, sel, __o & ~(clr)); \
     __o; \
@@ -1354,7 +1331,7 @@ __extension__ ({ \
 
 #define _m32c0_bsc0(reg, sel, set) \
 __extension__ ({ \
-    register reg32_t __o; \
+    register register_t __o; \
     __o = _m32c0_mfc0 (reg, sel); \
     _m32c0_mtc0 (reg, sel, __o | (set)); \
     __o; \
@@ -1362,7 +1339,7 @@ __extension__ ({ \
 
 #define _m32c0_bcsc0(reg, sel, clr, set) \
 __extension__ ({ \
-    register reg32_t __o; \
+    register register_t __o; \
     __o = _m32c0_mfc0 (reg, sel); \
     _m32c0_mtc0 (reg, sel, (__o & ~(clr)) | (set)); \
     __o; \
@@ -1373,7 +1350,6 @@ __extension__ ({ \
 #endif
 
 /* Define MIPS32 user-level intrinsics */
-#include <mips/m32ins.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -1406,7 +1382,7 @@ do { \
 /* MIPS32r2 read previous gpr */
 #define _mips32r2_rdpgpr(regno) \
 __extension__({ \
-    reg_t __val; \
+    register_t __val; \
     __asm __volatile ("rdpgpr %0,$%1" \
         	      : "=d" (__val) \
  		      : "JK" (regno)); \

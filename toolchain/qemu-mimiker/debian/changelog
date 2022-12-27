@@ -1,3 +1,51 @@
+qemu-mimiker (6.2.0+mimiker1) unstable; urgency=medium
+
+  * Bump up simulator version.
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Thu, 21 Jul 2022 08:07:44 +0200
+
+qemu-mimiker (6.0.0+mimiker2) unstable; urgency=medium
+
+  * Add system simulator for 64-bit RISC-V.
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Wed, 20 Apr 2022 13:31:33 +0200
+
+qemu-mimiker (6.0.0+mimiker1) unstable; urgency=medium
+
+  * Bump up version.
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Mon, 07 Jun 2021 11:04:47 +0200
+
+qemu-mimiker (4.2.1+mimiker3) unstable; urgency=medium
+
+  * Add system simulator for AMD64.
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Mon, 29 Mar 2021 17:47:01 +0200
+
+qemu-mimiker (4.2.1+mimiker2) unstable; urgency=medium
+
+  * Add SIGXCPU handler in order to interrupt QEMU on timeout.
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Mon, 22 Mar 2021 08:41:23 +0100
+
+qemu-mimiker (4.2.1+mimiker1) unstable; urgency=medium
+
+  * Bump up version.
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Mon, 22 Feb 2021 20:51:53 +0100
+
+qemu-mimiker (4.1.0+mimiker2) unstable; urgency=medium
+
+  * Debugger can access all memory, even if CPU is in user mode.
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Mon, 18 Nov 2019 11:06:58 +0100
+
+qemu-mimiker (4.1.0+mimiker1) unstable; urgency=medium
+
+  * Updated to the most recent version.
+ 
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Wed, 28 Aug 2019 12:54:28 +0200
+
 qemu-mimiker (2.12.0+mimiker2) unstable; urgency=medium
 
   * Allow gdb to reach memory that cannot be translated using active TLB
@@ -8,6 +56,6 @@ qemu-mimiker (2.12.0+mimiker2) unstable; urgency=medium
 
 qemu-mimiker (2.12.0+mimiker1) unstable; urgency=medium
 
-  * Add system simulator for AArch64
+  * Add system simulator for AArch64.
 
  -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Sat, 15 Dec 2018 10:49:25 +0100

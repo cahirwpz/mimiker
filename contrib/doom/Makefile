@@ -5,7 +5,7 @@ URL = https://github.com/jwhitham/DOOM.git
 SRCDIR = $(PKG)/headless_doom
 DATADIR = /usr/share/doom
 PKG-CFLAGS = -Wno-extra -Wno-strict-prototypes -Wno-unknown-pragmas \
-	     -Wno-format-overflow
+	     -Wno-format-overflow -Wno-char-subscripts
 PATCHES = 01-vga-output.patch
 
 all: download build install
@@ -36,7 +36,8 @@ unpatch:
 build-here: patch-stamp
 	@echo "[MAKE] build $(SRCDIR)"
 	$(MAKE) -C $(SRCDIR) benchmark.exe doom.wad.ok DDQ-EP1.LMP \
-	  CC="$(CC)" CFLAGS="$(CFLAGS) $(PKG-CFLAGS)" LDFLAGS="$(LDFLAGS)"
+	  CC="$(CC)" CFLAGS="$(CPPFLAGS) $(CFLAGS) $(PKG-CFLAGS)" \
+	  LDFLAGS="$(LDFLAGS)"
 
 install-here:
 	@echo "[INSTALL] $(SRCDIR)/benchmark.exe -> /bin/doom"
