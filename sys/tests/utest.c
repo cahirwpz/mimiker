@@ -61,8 +61,6 @@ static int utest_generic(const char *name, int status_success) {
   KTEST_ADD(user_##name, utest_test_##name, flags | KTEST_FLAG_USERMODE);
 
 #define UTEST_ADD_SIMPLE(name) UTEST_ADD(name, MAKE_STATUS_EXIT(0), 0)
-#define UTEST_ADD_SIGNAL(name, sig)                                            \
-  UTEST_ADD(name, MAKE_STATUS_SIG_TERM(sig), 0)
 
 UTEST_ADD_SIMPLE(vmmap_text_access);
 UTEST_ADD_SIMPLE(vmmap_data_access);
