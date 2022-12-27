@@ -417,3 +417,26 @@ int test_mmap_fixed_replace_many_2(void) {
   assert(res != 0);
   return 0;
 }
+
+int test_mprotect_simple(void) {
+  size_t pgsz = getpagesize();
+  void *addr = mmap_anon_priv(NULL, pgsz, PROT_NONE);
+  int res;
+  siginfo_t si;
+
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    res = strncmp(addr, "xxx", 6);
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr, SEGV_ACCERR);
+
+  res = mprotect(addr, pgsz, PROT_READ | PROT_WRITE);
+  printf("mprotect: %d %d\n", res, errno);
+  assert(res == 0);
+
+  sprintf(addr, "first");
+  res = strncmp(addr, "first", 5);
+  assert(res == 0);
+
+  return 0;
+}
