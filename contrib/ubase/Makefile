@@ -46,12 +46,12 @@ LIBUTILSRC_DONT_WORK = \
 LIB = $(LIBUTIL)
 
 BIN = \
+	clear             \
 	pagesize
 
 BIN_DONT_WORK = \
 	blkdiscard        \
 	chvt              \
-	clear             \
 	ctrlaltdel        \
 	dd                \
 	df                \
@@ -101,6 +101,7 @@ BIN_DONT_WORK = \
 	watch             \
 	who
 
+CFLAGS.ubase/clear.c += -Dmain=clear_main
 CFLAGS.ubase/pagesize.c += -Dmain=pagesize_main
 
 SOURCES_UBASE = $(addprefix ubase/,$(BIN:=.c))
