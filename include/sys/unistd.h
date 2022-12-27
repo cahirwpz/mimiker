@@ -25,5 +25,7 @@
 #define _SC_OPEN_MAX 5
 #define _SC_JOB_CONTROL 6
 #define _SC_PASS_MAX 7
+#define _SC_PAGESIZE 28
+#define _SC_PAGE_SIZE _SC_PAGESIZE
 
 #endif /* !_SYS_UNISTD_H_ */
