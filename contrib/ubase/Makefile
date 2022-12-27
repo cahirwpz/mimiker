@@ -101,7 +101,7 @@ BIN_DONT_WORK = \
 	watch             \
 	who
 
-CFLAGS.sbase/pagesize.c += -Dmain=pagesize_main
+CFLAGS.ubase/pagesize.c += -Dmain=pagesize_main
 
 SOURCES_UBASE = $(addprefix ubase/,$(BIN:=.c))
 SOURCES_LIBUTIL = $(addprefix ubase/,$(LIBUTILSRC))
