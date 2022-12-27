@@ -122,6 +122,7 @@ FORMAT-EXCLUDE = $(SOURCES_UBASE) $(SOURCES_LIBUTIL) $(addprefix ubase/,$(HDR))
 OBJECTS += $(addprefix $(BUILDDIR),$(LIB_UBASE)) $(addsuffix .o,$(addprefix $(BUILDDIR),$(PROGRAM)))
 DEPENDENCY-FILES += $(foreach f, $(SOURCES_LIBUTIL),\
 		      $(BUILDDIR)$(dir $(f))$(patsubst %.c,%.d,$(notdir $(f))))
+CFLAGS.ubase/stat.c += -Wno-error=format
 
 include $(TOPDIR)/build/build.prog.mk
 
