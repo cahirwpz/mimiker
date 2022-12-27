@@ -47,8 +47,11 @@ LIB = $(LIBUTIL)
 
 BIN = \
 	clear             \
+	id                \
 	pagesize          \
-	stat
+	stat              \
+	truncate          \
+	watch
 
 BIN_DONT_WORK = \
 	blkdiscard        \
@@ -65,7 +68,6 @@ BIN_DONT_WORK = \
 	getty             \
 	halt              \
 	hwclock           \
-	id                \
 	insmod            \
 	killall5          \
 	last              \
@@ -93,17 +95,18 @@ BIN_DONT_WORK = \
 	swapon            \
 	switch_root       \
 	sysctl            \
-	truncate          \
 	umount            \
 	unshare           \
 	uptime            \
 	vtallow           \
-	watch             \
 	who
 
 CFLAGS.ubase/clear.c += -Dmain=clear_main
+CFLAGS.ubase/id.c += -Dmain=id_main
 CFLAGS.ubase/pagesize.c += -Dmain=pagesize_main
 CFLAGS.ubase/stat.c += -Dmain=stat_main
+CFLAGS.ubase/truncate.c += -Dmain=truncate_main
+CFLAGS.ubase/watch.c += -Dmain=watch_main
 
 SOURCES_UBASE = $(addprefix ubase/,$(BIN:=.c))
 SOURCES_LIBUTIL = $(addprefix ubase/,$(LIBUTILSRC))
