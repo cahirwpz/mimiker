@@ -48,6 +48,7 @@ LIB = $(LIBUTIL)
 BIN = \
 	clear             \
 	id                \
+	nologin           \
 	pagesize          \
 	stat              \
 	truncate          \
@@ -80,7 +81,6 @@ BIN_DONT_WORK = \
 	mkswap            \
 	mount             \
 	mountpoint        \
-	nologin           \
 	passwd            \
 	pidof             \
 	pivot_root        \
@@ -103,6 +103,7 @@ BIN_DONT_WORK = \
 
 CFLAGS.ubase/clear.c += -Dmain=clear_main
 CFLAGS.ubase/id.c += -Dmain=id_main
+CFLAGS.ubase/nologin.c += -Dmain=nologin_main
 CFLAGS.ubase/pagesize.c += -Dmain=pagesize_main
 CFLAGS.ubase/stat.c += -Dmain=stat_main
 CFLAGS.ubase/truncate.c += -Dmain=truncate_main
