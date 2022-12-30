@@ -835,7 +835,9 @@ void proc_stop(signo_t sig) {
     proc_wakeup_parent(p->p_parent);
     sig_child(p, CLD_STOPPED);
   }
-  WITH_MTX_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
+  WITH_MTX_LOCK (td->td_lock) {
+    td->td_flags |= TDF_STOPPING;
+  }
   proc_unlock(p);
   /* We're holding no locks here, so our process can be continued before we
    * actually stop the thread. This is why we need the TDF_STOPPING flag. */
@@ -864,5 +866,7 @@ void proc_continue(proc_t *p) {
   WITH_PROC_LOCK(p->p_parent) {
     proc_wakeup_parent(p->p_parent);
   }
-  WITH_MTX_LOCK (td->td_lock) { thread_continue(td); }
+  WITH_MTX_LOCK (td->td_lock) {
+    thread_continue(td);
+  }
 }
