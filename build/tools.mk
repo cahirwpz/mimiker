@@ -6,7 +6,7 @@
 # The following make variables are set by the including makefile:
 # - TARGET, ABIFLAGS: Set by arch.*.mk files.
 
-LLVM_VER := -13
+LLVM_VER := -14
 
 ifeq ($(shell which ccache > /dev/null; echo $$?), 0)
   CCACHE := ccache
