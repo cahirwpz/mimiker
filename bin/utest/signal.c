@@ -337,9 +337,7 @@ int test_signal_sigtimedwait_timeout(void) {
   pid_t cpid = fork();
   if (cpid == 0) {
     sched_yield();
-    // kill(ppid, SIGCONT);
-    // sched_yield();
-    kill(ppid, SIGUSR1);
+    kill(ppid, SIGCONT);
     return 0;
   }
 
@@ -352,11 +350,9 @@ int test_signal_sigtimedwait_timeout(void) {
     .tv_sec = 1,
   };
   assert(sigtimedwait(&waitset, &info, &timeout) == -1);
+  assert(errno == EINTR);
+  assert(sigtimedwait(&waitset, &info, &timeout) == -1);
   assert(errno == EAGAIN);
-  // assert(sigtimedwait(&waitset, &info, &timeout) == -1);
-  // assert(errno == EINTR);
-
-  assert(sigtimedwait(&waitset, &info, &timeout) == 0);
 
   printf("Waiting for child...\n");
   int status;

@@ -314,7 +314,8 @@ int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
     callout_schedule(&td->td_slpcallout, timeout);
   }
 
-  td->td_flags |= (timeout > 0) ? TDF_SLPTIMED : TDF_SLPINTR;
+  td->td_flags |= TDF_SLPINTR;
+  td->td_flags |= (timeout > 0) ? TDF_SLPTIMED : 0;
   sq_enter(td, sc, wchan, waitpt);
 
   /* After wakeup, only one of the following flags may be set:

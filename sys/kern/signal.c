@@ -233,6 +233,8 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
   __sigminusset(&cantmask, &waitset);
 
   WITH_PROC_LOCK(p) {
+    /* Unblocking temporarly waited signals so we're woken up upon receiving 
+     * such signal. */
     saved_mask = td->td_sigmask;
     __sigminusset(&waitset, &td->td_sigmask); 
 
@@ -259,9 +261,11 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
       goto out;
     }
 
-    // sigset_t unblocked = td->td_sigpend.sp_set;
-    // __sigandset(&waitset, &unblocked);
-    if ((sig = sig_pending(td))) {
+    /* We need to find pending signal that we also wait for manually, as
+     * sig_pending may return a pending signal not from waitset. */
+    sigset_t pending = td->td_sigpend.sp_set;
+    __sigandset(&waitset, &pending);
+    if ((sig = __sigfindset(&pending))) {
       sigpend_get(&td->td_sigpend, sig, kinfo);
       error = 0;
     } else {
