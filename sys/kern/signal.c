@@ -1,3 +1,4 @@
+#include "sys/siginfo.h"
 #include "sys/sigtypes.h"
 #define KL_LOG KL_SIGNAL
 #include <sys/klog.h>
@@ -218,8 +219,7 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
       if (timeout == 0) {
         if (tsp->tv_nsec == 0 && tsp->tv_sec == 0) {
           timeout = -1;
-        } 
-        else {
+        } else {
           /* Shortest possible timeout */
           timeout = 1;
         }
@@ -228,50 +228,49 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
   }
 
   bzero(kinfo, sizeof(*kinfo));
-
+  
   /* Silently ignore SIGKILL and SIGSTOP. */
   __sigminusset(&cantmask, &waitset);
 
   WITH_PROC_LOCK(p) {
     saved_mask = td->td_sigmask;
-    __sigminusset(&waitset, &td->td_sigmask);
+    __sigminusset(&waitset, &td->td_sigmask); 
 
-    /* Question: can I return in WITH_PROC_LOCK? */
     if ((sig = sig_pending(td))) {
+      sigpend_get(&td->td_sigpend, sig, kinfo);
       error = 0;
       goto out;
     }
-
     if (timeout == -1) {
       error = EAGAIN;
       goto out;
     }
-    
     if (tsp != NULL && !timevalid) {
       error = EINVAL;
       goto out;
     }
-  
-    error = sleepq_wait_timed(&td->td_sigmask, "sigtimedwait()", timeout);
+  }
 
+  error = sleepq_wait_timed(&td->td_sigmask, "sigtimedwait()", timeout);
+
+  WITH_PROC_LOCK(p) {
     if (error == ETIMEDOUT) {
       error = EAGAIN;
       goto out;
     }
 
-    sigset_t unblocked = td->td_sigpend.sp_set;
-    __sigandset(&waitset, &unblocked)
-    if (__sigfindset(&unblocked)) {
+    // sigset_t unblocked = td->td_sigpend.sp_set;
+    // __sigandset(&waitset, &unblocked);
+    if ((sig = sig_pending(td))) {
+      sigpend_get(&td->td_sigpend, sig, kinfo);
       error = 0;
-    }
-    else {
+    } else {
       error = EINTR;
     }
+  }
 
 out:
-    td->td_sigmask = saved_mask;
-  }
- 
+  td->td_sigmask = saved_mask;
   return error;
 }
 

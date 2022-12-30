@@ -42,6 +42,7 @@ int test_signal_cont_masked(void);
 int test_signal_mask(void);
 int test_signal_mask_nonmaskable(void);
 int test_signal_sigtimedwait(void);
+int test_signal_sigtimedwait_timeout(void);
 int test_signal_sigsuspend(void);
 int test_signal_sigsuspend_stop(void);
 int test_signal_handler_mask(void);

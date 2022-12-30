@@ -1,10 +1,13 @@
 #include <assert.h>
 #include <signal.h>
 #include <stdio.h>
+#include <errno.h>
 #include <unistd.h>
 #include <sched.h>
 #include <sys/wait.h>
 
+#include "sys/errno.h"
+#include "sys/signal.h"
 #include "utest.h"
 #include "util.h"
 
@@ -291,35 +294,69 @@ int test_signal_sigsuspend(void) {
 int test_signal_sigtimedwait(void) {
   pid_t ppid = getpid();
   signal(SIGCONT, sigcont_handler);
-  signal(SIGUSR1, sigusr1_handler);
   sigset_t set, current, waitset;
-  __sigfillset(&set);
-  __sigdelset(&set, SIGUSR1);
+  __sigemptyset(&set);
+  __sigaddset(&set, SIGUSR1);
+  __sigaddset(&set, SIGCONT);
   assert(sigprocmask(SIG_SETMASK, &set, NULL) == 0);
   pid_t cpid = fork();
   if (cpid == 0) {
-    for (int i = 0; i < 10; i++) {
-      kill(ppid, SIGCONT);
-      sched_yield();
-    }
+    // for (int i = 0; i < 10; i++) {
+    //   kill(ppid, SIGCONT);
+    // }
+    // sched_yield();
     kill(ppid, SIGUSR1);
     return 0;
   }
-  /* Go to sleep with everything except SIGUSR1 blocked. */ 
+
   printf("Calling sigtimedwait()...\n");
   siginfo_t info;
   __sigemptyset(&waitset);
   __sigaddset(&waitset, SIGUSR1);
-  assert(sigtimedwait(&waitset, &info, NULL) == 0);
+  assert(sigtimedwait(&waitset, &info, NULL) == SIGUSR1);
   assert(info.si_signo == SIGUSR1);
   sigprocmask(SIG_BLOCK, NULL, &current);
   assert(__sigsetequal(&set, &current));
-  assert(sigusr1_handled);
-  assert(!sigcont_handled);
+
+  printf("Waiting for child...\n");
+  int status;
+  wait(&status);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
+  return 0;
+}
+
+/* ======= signal_sigtimedwait_timeout ======= */
+int test_signal_sigtimedwait_timeout(void) {
+  pid_t ppid = getpid();
+  signal(SIGCONT, sigcont_handler);
+  sigset_t set, waitset;
   __sigemptyset(&set);
-  __sigaddset(&set, SIGCONT);
-  assert(sigprocmask(SIG_UNBLOCK, &set, NULL) == 0);
-  assert(sigcont_handled);
+  __sigaddset(&set, SIGUSR1);
+  assert(sigprocmask(SIG_SETMASK, &set, NULL) == 0);
+  pid_t cpid = fork();
+  if (cpid == 0) {
+    sched_yield();
+    // kill(ppid, SIGCONT);
+    // sched_yield();
+    kill(ppid, SIGUSR1);
+    return 0;
+  }
+
+  printf("Calling sigtimedwait()...\n");
+  siginfo_t info;
+  __sigemptyset(&waitset);
+  __sigaddset(&waitset, SIGUSR1);
+  timespec_t timeout = {
+    .tv_nsec = 0,
+    .tv_sec = 1,
+  };
+  assert(sigtimedwait(&waitset, &info, &timeout) == -1);
+  assert(errno == EAGAIN);
+  // assert(sigtimedwait(&waitset, &info, &timeout) == -1);
+  // assert(errno == EINTR);
+
+  assert(sigtimedwait(&waitset, &info, &timeout) == 0);
 
   printf("Waiting for child...\n");
   int status;

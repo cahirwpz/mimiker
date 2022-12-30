@@ -1316,7 +1316,7 @@ static int sys_sigtimedwait(proc_t *p, sigtimedwait_args_t *args,
                             register_t *res) {
   const sigset_t *u_set = SCARG(args, set);
   siginfo_t *u_info = SCARG(args, info);
-  const struct timespec *u_timeout = SCARG(args, timeout);
+  const timespec_t *u_timeout = SCARG(args, timeout);
   sigset_t set;
   ksiginfo_t kinfo;
   timespec_t timeout = {};
@@ -1341,6 +1341,7 @@ static int sys_sigtimedwait(proc_t *p, sigtimedwait_args_t *args,
   if (u_info) {
     error = copyout_s(kinfo.ksi_info, u_info);
   }
+  *res = kinfo.ksi_info.si_signo;
 
   return error;
 }

@@ -180,5 +180,6 @@ struct sysent sysent[] = {
   [SYS_fsync] = { .name = "fsync", .nargs = 1, .call = (syscall_t *)sys_fsync },
   [SYS_kqueue1] = { .name = "kqueue1", .nargs = 1, .call = (syscall_t *)sys_kqueue1 },
   [SYS_kevent] = { .name = "kevent", .nargs = 6, .call = (syscall_t *)sys_kevent },
+  [SYS_sigtimedwait] = { .name = "sigtimedwait", .nargs = 3, .call = (syscall_t *)sys_sigtimedwait },
 };
 

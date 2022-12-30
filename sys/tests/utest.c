@@ -99,6 +99,7 @@ UTEST_ADD_SIMPLE(signal_cont_masked);
 UTEST_ADD_SIMPLE(signal_mask);
 UTEST_ADD_SIMPLE(signal_mask_nonmaskable);
 UTEST_ADD_SIMPLE(signal_sigtimedwait);
+UTEST_ADD_SIMPLE(signal_sigtimedwait_timeout);
 UTEST_ADD_SIMPLE(signal_sigsuspend);
 UTEST_ADD_SIMPLE(signal_sigsuspend_stop);
 UTEST_ADD_SIMPLE(signal_handler_mask);
