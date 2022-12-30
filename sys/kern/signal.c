@@ -228,15 +228,15 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
   }
 
   bzero(kinfo, sizeof(*kinfo));
-  
+
   /* Silently ignore SIGKILL and SIGSTOP. */
   __sigminusset(&cantmask, &waitset);
 
   WITH_PROC_LOCK(p) {
-    /* Unblocking temporarly waited signals so we're woken up upon receiving 
+    /* Unblocking temporarly waited signals so we're woken up upon receiving
      * such signal. */
     saved_mask = td->td_sigmask;
-    __sigminusset(&waitset, &td->td_sigmask); 
+    __sigminusset(&waitset, &td->td_sigmask);
 
     if ((sig = sig_pending(td))) {
       sigpend_get(&td->td_sigpend, sig, kinfo);
