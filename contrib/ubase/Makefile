@@ -50,6 +50,7 @@ BIN = \
 	id                \
 	nologin           \
 	pagesize          \
+	respawn           \
 	stat              \
 	truncate          \
 	watch
@@ -87,7 +88,6 @@ BIN_DONT_WORK = \
 	ps                \
 	pwdx              \
 	readahead         \
-	respawn           \
 	rmmod             \
 	su                \
 	swaplabel         \
@@ -105,6 +105,7 @@ CFLAGS.ubase/clear.c += -Dmain=clear_main
 CFLAGS.ubase/id.c += -Dmain=id_main
 CFLAGS.ubase/nologin.c += -Dmain=nologin_main
 CFLAGS.ubase/pagesize.c += -Dmain=pagesize_main
+CFLAGS.ubase/respawn.c += -Dmain=respawn_main
 CFLAGS.ubase/stat.c += -Dmain=stat_main
 CFLAGS.ubase/truncate.c += -Dmain=truncate_main
 CFLAGS.ubase/watch.c += -Dmain=watch_main
