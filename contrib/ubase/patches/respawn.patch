@@ -1,0 +1,88 @@
+Index: ubase/ubase/respawn.c
+===================================================================
+--- ubase.orig/ubase/respawn.c	2022-12-31 13:21:26.743034241 +0100
++++ ubase/ubase/respawn.c	2022-12-31 13:22:17.386365903 +0100
+@@ -6,7 +6,6 @@
+ 
+ #include <errno.h>
+ #include <fcntl.h>
+-#include <poll.h>
+ #include <signal.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -32,22 +31,14 @@
+ int
+ main(int argc, char *argv[])
+ {
+-	char *fifo = NULL;
+ 	unsigned int delay = 0;
+ 	pid_t pid;
+-	char buf[BUFSIZ];
+ 	int savederrno;
+-	ssize_t n;
+-	struct pollfd pollset[1];
+-	int polln;
+ 
+ 	ARGBEGIN {
+ 	case 'd':
+ 		delay = estrtol(EARGF(usage()), 0);
+ 		break;
+-	case 'l':
+-		fifo = EARGF(usage());
+-		break;
+ 	default:
+ 		usage();
+ 	} ARGEND;
+@@ -55,42 +46,11 @@
+ 	if (argc < 1)
+ 		usage();
+ 
+-	if (fifo && delay > 0)
+-		usage();
+-
+ 	setsid();
+ 
+ 	signal(SIGTERM, sigterm);
+ 
+-	if (fifo) {
+-		pollset->fd = open(fifo, O_RDONLY | O_NONBLOCK);
+-		if (pollset->fd < 0)
+-			eprintf("open %s:", fifo);
+-		pollset->events = POLLIN;
+-	}
+-
+ 	while (1) {
+-		if (fifo) {
+-			pollset->revents = 0;
+-			polln = poll(pollset, 1, -1);
+-			if (polln <= 0) {
+-				if (polln == 0 || errno == EAGAIN)
+-					continue;
+-				eprintf("poll:");
+-			}
+-			while ((n = read(pollset->fd, buf, sizeof(buf))) > 0)
+-				;
+-			if (n < 0)
+-				if (errno != EAGAIN)
+-					eprintf("read %s:", fifo);
+-			if (n == 0) {
+-				close(pollset->fd);
+-				pollset->fd = open(fifo, O_RDONLY | O_NONBLOCK);
+-				if (pollset->fd < 0)
+-					eprintf("open %s:", fifo);
+-				pollset->events = POLLIN;
+-			}
+-		}
+ 		pid = fork();
+ 		if (pid < 0)
+ 			eprintf("fork:");
+@@ -105,8 +65,7 @@
+ 			waitpid(pid, NULL, 0);
+ 			break;
+ 		}
+-		if (!fifo)
+-			sleep(delay);
++		sleep(delay);
+ 	}
+ 	/* not reachable */
+ 	return 0;
