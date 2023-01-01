@@ -139,7 +139,7 @@ download-here: ubase/.git
 build-before: quilt-patch
 
 install-here:
-	@echo "[INSTALL] /bin/sbase/ubase-box"
+	@echo "[INSTALL] $(BINDIR)/$(PROGRAM)"
 	for f in $(BIN); do ln -sf $(PROGRAM) $(SYSROOT)/$(BINDIR)/"$$f"; done
 
 clean-here: quilt-unpatch
