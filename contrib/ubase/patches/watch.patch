@@ -1,0 +1,31 @@
+Index: ubase/ubase/watch.c
+===================================================================
+--- ubase.orig/ubase/watch.c	2023-01-01 22:32:22.325582802 +0100
++++ ubase/ubase/watch.c	2023-01-01 22:33:42.278913458 +0100
+@@ -17,7 +17,7 @@
+ {
+ 	char cmd[BUFSIZ];
+ 	char *end;
+-	useconds_t interval = 2 * 1E6;
++	unsigned int interval = 2;
+ 	float period;
+ 	int i;
+ 
+@@ -30,7 +30,7 @@
+ 			eprintf("invalid interval\n");
+ 		if (period < 0)
+ 			period = 0.1f;
+-		interval = period * 1E6;
++		interval = period;
+ 		break;
+ 	default:
+ 		usage();
+@@ -52,7 +52,7 @@
+ 		printf("\x1b[2J\x1b[H"); /* clear */
+ 		fflush(NULL);
+ 		system(cmd);
+-		usleep(interval);
++		sleep(interval);
+ 	}
+ 	return 0;
+ }
