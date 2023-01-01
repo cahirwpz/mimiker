@@ -304,7 +304,7 @@ download-here: sbase/.git
 build-before: quilt-patch
 
 install-here:
-	@echo "[INSTALL] /bin/sbase/sbase-box"
+	@echo "[INSTALL] $(BINDIR)/$(PROGRAM)"
 	for f in $(BIN); do ln -sf $(PROGRAM) $(SYSROOT)/$(BINDIR)/"$$f"; done
 	ln -sf $(PROGRAM)  $(SYSROOT)/$(BINDIR)/[
 
