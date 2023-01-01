@@ -354,7 +354,7 @@ int test_signal_sigtimedwait_timeout(void) {
   __sigemptyset(&waitset);
   __sigaddset(&waitset, SIGUSR1);
   timespec_t timeout = {
-    .tv_nsec = 100000000,
+    .tv_nsec = 10000000,
     .tv_sec = 0,
   };
   assert(sigtimedwait(&waitset, &info, &timeout) == -1);
