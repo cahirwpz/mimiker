@@ -330,7 +330,7 @@ int test_signal_sigtimedwait(void) {
 static int sigusr2_handled = 0;
 
 void sigtimedwait_timeout_sigusr2_handler(int signo) {
-  sigusr2_handled = 1;  
+  sigusr2_handled = 1;
 }
 
 int test_signal_sigtimedwait_timeout(void) {
