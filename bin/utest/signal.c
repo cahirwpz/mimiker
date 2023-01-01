@@ -327,17 +327,25 @@ int test_signal_sigtimedwait(void) {
 }
 
 /* ======= signal_sigtimedwait_timeout ======= */
+static int sigusr2_handled = 0;
+
+void sigtimedwait_timeout_sigusr2_handler(int signo) {
+  sigusr2_handled = 1;  
+}
+
 int test_signal_sigtimedwait_timeout(void) {
   pid_t ppid = getpid();
   signal(SIGCONT, sigcont_handler);
+  signal(SIGUSR2, sigtimedwait_timeout_sigusr2_handler);
   sigset_t set, waitset;
   __sigemptyset(&set);
   __sigaddset(&set, SIGUSR1);
   assert(sigprocmask(SIG_SETMASK, &set, NULL) == 0);
   pid_t cpid = fork();
   if (cpid == 0) {
-    sched_yield();
-    kill(ppid, SIGCONT);
+    while (!sigusr2_handled) {
+      kill(ppid, SIGCONT);
+    }
     return 0;
   }
 
@@ -351,6 +359,8 @@ int test_signal_sigtimedwait_timeout(void) {
   };
   assert(sigtimedwait(&waitset, &info, &timeout) == -1);
   assert(errno == EINTR);
+  kill(cpid, SIGUSR2);
+  sleep(1);
   assert(sigtimedwait(&waitset, &info, &timeout) == -1);
   assert(errno == EAGAIN);
 
