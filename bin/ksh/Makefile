@@ -15,6 +15,10 @@ clean-here:
 	$(RM) siglist.out siglist.out.tmp
 	$(RM) emacs.out emacs.out.tmp
 
+install-here:
+	@echo "[SYMLINK] sh -> $(PROGRAM)"
+	ln -sf $(PROGRAM) $(SYSROOT)/$(BINDIR)/sh
+
 # two steps to prevent the creation of a bogus siglist.out
 siglist.out: config.h sh.h siglist.in siglist.sh
 	./siglist.sh "$(CC) -E $(CPPFLAGS) $(DEFS) -I. -I$(CURDIR)" \
