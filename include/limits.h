@@ -3,6 +3,10 @@
 
 #include <sys/syslimits.h>
 
+#define _POSIX_ARG_MAX 4096
+#define _POSIX_NAME_MAX 14
+#define _POSIX_PATH_MAX 256
+
 #define _POSIX2_BC_BASE_MAX 99
 #define _POSIX2_BC_DIM_MAX 2048
 #define _POSIX2_BC_SCALE_MAX 99
