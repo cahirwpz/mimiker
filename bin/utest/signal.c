@@ -354,13 +354,13 @@ int test_signal_sigtimedwait_timeout(void) {
   __sigemptyset(&waitset);
   __sigaddset(&waitset, SIGUSR1);
   timespec_t timeout = {
-    .tv_nsec = 0,
-    .tv_sec = 1,
+    .tv_nsec = 100000000,
+    .tv_sec = 0,
   };
   assert(sigtimedwait(&waitset, &info, &timeout) == -1);
   assert(errno == EINTR);
   kill(cpid, SIGUSR2);
-  sleep(1);
+  nanosleep(&timeout, NULL);
   assert(sigtimedwait(&waitset, &info, &timeout) == -1);
   assert(errno == EAGAIN);
 
