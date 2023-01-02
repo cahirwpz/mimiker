@@ -277,8 +277,30 @@ backward_tiny:
 8:
 	ret
 9:
+	/* At this moment SRC0 and DST0 point at the end of 'src' buffer and the 
+	beginning of 'dest' buffer respectively. Therefore, after executing:
+
+	eor	 TMP_X, SRC0, DST0
+	ands TMP_X, TMP_X, #7
+	bne	notaligned_backward_small
+	
+	we may end up executing samealign_backward_small even though the ends of 
+	'src' and 'dest' buffers are not same-aligned!
+	Example values, for which this bug is triggered:
+	SRC0 = 0x8002510
+	DST0 = 0x8007813
+	LEN  = 0xB
+
+	A pointer to the end of 'dest' buffer is DST - that's the value, which shall be
+	used in the eor instruction instead of DST0 (because we want to check the alignment
+	of buffers' ends).
+
+	I discovered this bug while analyzing ksh crash due to SIGBUS. It turned out, that 
+	when I triggered autocompletion for a path, which was 11 characters long, ksh tried
+	to execute memmove with the above-mentioned values.*/
+	
 	/* length is small(<32), and src or dst may be unaligned */
-	eor	TMP_X, SRC0, DST0
+	eor	TMP_X, SRC0, DST
 	ands	TMP_X, TMP_X, #7
 	bne	notaligned_backward_small
 
