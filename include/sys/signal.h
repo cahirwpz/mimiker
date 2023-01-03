@@ -205,6 +205,8 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask);
 int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
                     struct timespec *timeout);
 int do_sigpending(proc_t *p, sigset_t *set);
+int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
+                    struct timespec *timeout);
 
 #endif /* !_KERNEL */
 
