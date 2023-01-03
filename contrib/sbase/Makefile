@@ -159,12 +159,12 @@ BIN =\
 	sort\
 	tail\
 	tar\
+	time\
 	tee
 
 BIN_DONT_WORK =\
 	date\
 	getconf\
-	time\
 	touch\
 	xargs
 
@@ -261,6 +261,7 @@ CFLAGS.sbase/printf.c += -Dmain=printf_main
 CFLAGS.sbase/sed.c += -Dmain=sed_main
 CFLAGS.sbase/sort.c += -Dmain=sort_main
 CFLAGS.sbase/tail.c += -Dmain=tail_main
+CFLAGS.sbase/time.c += -Dmain=time_main
 CFLAGS.sbase/tar.c += -Dmain=tar_main
 CFLAGS.sbase/tee.c += -Dmain=tee_main
 
