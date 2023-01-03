@@ -10,3 +10,6 @@
 [submodule "contrib/sbase/sbase"]
 	path = contrib/sbase/sbase
 	url = git://git.suckless.org/sbase
+[submodule "contrib/sinit/sinit"]
+	path = contrib/sinit/sinit
+	url = git://git.suckless.org/sinit
