@@ -1,5 +1,3 @@
-
-
 #!/bin/ksh
 
 umask 022
