@@ -18,7 +18,6 @@ HDR =\
 	utf.h\
 	util.h
 
-LIBUTF = libutf.a
 LIBUTFSRC =\
 	libutf/fgetrune.c\
 	libutf/fputrune.c\
@@ -40,7 +39,6 @@ LIBUTFSRC =\
 	libutf/utf.c\
 	libutf/utftorunestr.c
 
-LIBUTIL = libutil.a
 LIBUTILSRC =\
 	libutil/concat.c\
 	libutil/cp.c\
@@ -266,22 +264,13 @@ CFLAGS.sbase/tail.c += -Dmain=tail_main
 CFLAGS.sbase/tar.c += -Dmain=tar_main
 CFLAGS.sbase/tee.c += -Dmain=tee_main
 
-SOURCES_SBASE = $(addprefix sbase/,$(BIN:=.c))
-SOURCES_LIBUTIL = $(addprefix sbase/,$(LIBUTILSRC))
-SOURCES_LIBUTF = $(addprefix sbase/,$(LIBUTFSRC))
-OBJ_LIBUTIL = $(SOURCES_LIBUTIL:%.c=$(BUILDDIR)%.o)
-OBJ_LIBUTF = $(SOURCES_LIBUTF:%.c=$(BUILDDIR)%.o)
-LIB_SBASE = $(addprefix sbase/,$(LIBUTF)) $(addprefix sbase/,$(LIBUTIL))
-
 PROGRAM = sbase-box
 BINDIR = bin/sbase
 BUILDDIR = build/
-SOURCES = $(SOURCES_SBASE)
-FORMAT-EXCLUDE = $(SOURCES_SBASE) $(SOURCES_LIBUTIL) $(SOURCES_LIBUTF) $(addprefix sbase/,$(HDR))
+SOURCES = $(addprefix sbase/,$(BIN:=.c)) $(addprefix sbase/,$(LIBUTILSRC)) $(addprefix sbase/,$(LIBUTFSRC))
+FORMAT-EXCLUDE = $(SOURCES) $(addprefix sbase/,$(HDR))
 
-OBJECTS += $(addprefix $(BUILDDIR),$(LIB_SBASE)) $(addsuffix .o,$(addprefix $(BUILDDIR),$(PROGRAM)))
-DEPENDENCY-FILES += $(foreach f, $(SOURCES_LIBUTIL) $(SOURCES_LIBUTF),\
-		      $(BUILDDIR)$(dir $(f))$(patsubst %.c,%.d,$(notdir $(f))))
+OBJECTS += $(addsuffix .o,$(addprefix $(BUILDDIR),$(PROGRAM)))
 WFLAGS += -Wno-error=sign-compare -Wno-error=implicit-fallthrough
 CFLAGS.sbase/join.c += -Wno-error=sometimes-uninitialized
 CFLAGS.sbase/find.c += -Wno-error=tautological-constant-out-of-range-compare
@@ -289,12 +278,8 @@ CFLAGS.sbase/find.c += -Wno-error=tautological-constant-out-of-range-compare
 include $(TOPDIR)/build/build.prog.mk
 
 $(PROGRAM).c:
-	@echo "[PYTHON] $^ -> $@"
+	@echo "[PYTHON] generating $@"
 	./box_src_generator.py --program $(PROGRAM) --tools $(BIN)
-
-$(BUILDDIR)sbase/$(LIBUTIL): $(OBJ_LIBUTIL)
-
-$(BUILDDIR)sbase/$(LIBUTF): $(OBJ_LIBUTF) 
 
 download-here: sbase/.git
 
