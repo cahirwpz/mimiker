@@ -1,8 +1,5 @@
 TOPDIR = $(realpath ../..)
 
-.SUFFIXES:
-.SUFFIXES: .o .c
-
 HDR =\
 	arg.h\
 	compat.h\
