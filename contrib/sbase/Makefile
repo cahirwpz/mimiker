@@ -160,13 +160,13 @@ BIN =\
 	tail\
 	tar\
 	time\
-	tee
+	tee\
+	xargs
 
 BIN_DONT_WORK =\
 	date\
 	getconf\
 	touch\
-	xargs
 
 BIN_QUESTIONABLE =\
 	cron\
@@ -264,6 +264,7 @@ CFLAGS.sbase/tail.c += -Dmain=tail_main
 CFLAGS.sbase/time.c += -Dmain=time_main
 CFLAGS.sbase/tar.c += -Dmain=tar_main
 CFLAGS.sbase/tee.c += -Dmain=tee_main
+CFLAGS.sbase/xargs.c += -Dmain=xargs_main
 
 PROGRAM = sbase-box
 BINDIR = bin/sbase
