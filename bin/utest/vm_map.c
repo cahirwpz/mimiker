@@ -11,7 +11,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-int test_sharing_memory_simple(void) {
+TEST_ADD(sharing_memory_simple) {
   size_t pgsz = getpagesize();
   char *map =
     mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
@@ -33,7 +33,7 @@ int test_sharing_memory_simple(void) {
   return 0;
 }
 
-int test_sharing_memory_child_and_grandchild(void) {
+TEST_ADD(sharing_memory_child_and_grandchild) {
   size_t pgsz = getpagesize();
   char *map =
     mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);

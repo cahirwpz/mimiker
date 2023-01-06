@@ -1,3 +1,5 @@
+#include "utest.h"
+
 #include <assert.h>
 #include <signal.h>
 #include <string.h>
@@ -11,7 +13,7 @@ noreturn static void sigint_handler(int signo) {
   assert(0); /* Shouldn't reach here. */
 }
 
-int test_sigaction_with_setjmp(void) {
+TEST_ADD(sigaction_with_setjmp) {
   struct sigaction sa;
 
   memset(&sa, 0, sizeof(sa));
@@ -32,7 +34,7 @@ static void sigusr1_handler(int signo) {
   sigusr1_handled = 1;
 }
 
-int test_sigaction_handler_returns(void) {
+TEST_ADD(sigaction_handler_returns) {
   struct sigaction sa;
 
   memset(&sa, 0, sizeof(sa));

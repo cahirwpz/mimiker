@@ -1,3 +1,5 @@
+#include "utest.h"
+
 #include <assert.h>
 #include <setjmp.h>
 #include <stdnoreturn.h>
@@ -14,7 +16,7 @@ noreturn static void do_longjmp(int count) {
   assert(0); /* Shouldn't reach here. */
 }
 
-int test_setjmp(void) {
+TEST_ADD(setjmp) {
   unsigned int local_var = LOCAL_VALUE;
   volatile int count = 0;
 

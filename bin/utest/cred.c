@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <limits.h>
 
-int test_get_set_uid(void) {
+TEST_ADD(get_set_uid) {
   uid_t ruid, euid, suid;
   int error;
 
@@ -47,7 +47,7 @@ int test_get_set_uid(void) {
   return 0;
 }
 
-int test_get_set_gid(void) {
+TEST_ADD(get_set_gid) {
   gid_t rgid, egid, sgid;
   int error;
 
@@ -91,7 +91,7 @@ int test_get_set_gid(void) {
   return 0;
 }
 
-int test_get_set_groups(void) {
+TEST_ADD(get_set_groups) {
   gid_t rgrp[NGROUPS_MAX], gidset[NGROUPS_MAX] = {0, 1, 2, 3, 4, 5};
   int r, ngroups = 6;
   uid_t euid;

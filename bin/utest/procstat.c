@@ -1,7 +1,9 @@
+#include "utest.h"
+
 #include <stdio.h>
 #include <assert.h>
 
-int test_procstat(void) {
+TEST_ADD(procstat) {
   int euid, pid, ppid, pgrp, session, got;
   char state;
 #define PROC_COMM_MAX 128

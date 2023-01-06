@@ -1,5 +1,6 @@
 /* Userspace program testing lseek */
 
+#include "utest.h"
 #include "util.h"
 
 #include <unistd.h>
@@ -29,7 +30,7 @@ static void check_lseek(int fd, off_t offset, int whence, off_t expect) {
   assert(readchar(fd) == pos(expect));
 }
 
-int test_lseek_basic(void) {
+TEST_ADD(lseek_basic) {
   int fd;
 
   fd = open(testfile, 0, O_RDONLY);
@@ -54,7 +55,7 @@ int test_lseek_basic(void) {
   return 0;
 }
 
-int test_lseek_errors(void) {
+TEST_ADD(lseek_errors) {
   int fd;
 
   fd = open(testfile, 0, O_RDONLY);

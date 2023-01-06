@@ -13,7 +13,7 @@
 #include "utest.h"
 #include "util.h"
 
-int test_tty_canon(void) {
+TEST_ADD(tty_canon) {
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
 
@@ -83,7 +83,7 @@ int test_tty_canon(void) {
   return 0;
 }
 
-int test_tty_echo(void) {
+TEST_ADD(tty_echo) {
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
 
@@ -130,7 +130,7 @@ int test_tty_echo(void) {
   return 0;
 }
 
-int test_tty_signals(void) {
+TEST_ADD(tty_signals) {
   signal_setup(SIGUSR1);
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);

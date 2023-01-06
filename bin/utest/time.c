@@ -7,7 +7,7 @@
 #include <signal.h>
 #include <sys/time.h>
 
-int test_gettimeofday(void) {
+TEST_ADD(gettimeofday) {
   timeval_t time1, time2;
   const int64_t start_of_century = 94684800, end_of_century = 4102444799;
 
@@ -28,7 +28,7 @@ int test_gettimeofday(void) {
   return 0;
 }
 
-int test_nanosleep(void) {
+TEST_ADD(nanosleep) {
   /* Requested and remaining time */
   timespec_t rqt, rmt;
   timeval_t time1, time2, diff;
@@ -74,7 +74,7 @@ int test_nanosleep(void) {
   return 0;
 }
 
-int test_itimer(void) {
+TEST_ADD(itimer) {
   signal_setup(SIGALRM);
   struct itimerval it, it2;
   memset(&it, 0, sizeof(it));

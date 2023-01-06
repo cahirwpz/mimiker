@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <errno.h>
 
-int test_access_basic(void) {
+TEST_ADD(access_basic) {
   /* After implementing credentials test should be extended. */
   assert_ok(access("/bin/mandelbrot", R_OK));
   assert_ok(access("/bin/mandelbrot", 0));

@@ -11,7 +11,7 @@
 #include "utest.h"
 #include "util.h"
 
-int test_setpgid(void) {
+TEST_ADD(setpgid) {
   pgid_t parent_pgid = getpgid(0);
 
   pid_t children_pid = fork();
@@ -42,7 +42,7 @@ static void sa_handler(int signo) {
   sig_delivered = 1;
 }
 
-int test_setpgid_leader(void) {
+TEST_ADD(setpgid_leader) {
   signal_setup(SIGUSR1);
 
   pid_t cpid = fork();
@@ -69,7 +69,7 @@ int test_setpgid_leader(void) {
   return 0;
 }
 
-int test_setpgid_child(void) {
+TEST_ADD(setpgid_child) {
   signal_setup(SIGUSR1);
 
   pid_t cpid1 = fork();
@@ -135,7 +135,7 @@ static void kill_tests_setup(void) {
 }
 
 /* In this test child process sends signal to its parent. */
-int test_kill(void) {
+TEST_ADD(kill) {
   kill_tests_setup();
   pgid_t parent_pid = getpid();
 
@@ -158,7 +158,7 @@ int test_kill(void) {
 /* In this tests there are two processes marked with: a, b.
  * Processes a and b are in the same process group.
  * Process b sends signal to its own process group containing a and b. */
-int test_killpg_same_group(void) {
+TEST_ADD(killpg_same_group) {
   kill_tests_setup();
 
   pid_t pid_a = fork();
@@ -194,7 +194,7 @@ int test_killpg_same_group(void) {
  * Processes a and b are in the same process group.
  * Process c is in different process group than a and b.
  * Process c sends signal to the process group containing a and b. */
-int test_killpg_other_group(void) {
+TEST_ADD(killpg_other_group) {
   kill_tests_setup();
 
   pid_t pid_a = fork();
@@ -235,7 +235,7 @@ int test_killpg_other_group(void) {
   return 0;
 }
 
-int test_pgrp_orphan() {
+TEST_ADD(pgrp_orphan) {
   signal_setup(SIGHUP);
   int ppid = getpid();
   pid_t cpid = fork();
@@ -282,7 +282,7 @@ int test_pgrp_orphan() {
 
 static volatile pid_t parent_sid;
 
-int test_session_basic(void) {
+TEST_ADD(session_basic) {
   signal_setup(SIGUSR1);
   parent_sid = getsid(getpid());
   assert(parent_sid != -1);
@@ -317,7 +317,7 @@ int test_session_basic(void) {
   return 0;
 }
 
-int test_session_login_name(void) {
+TEST_ADD(session_login_name) {
   const char *name = "foo";
   /* Assume login name is not set. */
   assert(getlogin() == NULL);

@@ -13,7 +13,7 @@
 
 static const char *test_str = "hello";
 
-int test_pty_simple(void) {
+TEST_ADD(pty_simple) {
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
 

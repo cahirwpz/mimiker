@@ -7,7 +7,7 @@
 #include <assert.h>
 #include <errno.h>
 
-int test_stat(void) {
+TEST_ADD(stat) {
   struct stat sb;
 
   assert_ok(stat("/tests/ascii", &sb));
@@ -19,7 +19,7 @@ int test_stat(void) {
   return 0;
 }
 
-int test_fstat(void) {
+TEST_ADD(fstat) {
   struct stat sb;
   int fd;
 
