@@ -1,12 +1,10 @@
 #include "utest.h"
+#include "util.h"
 
 #include <unistd.h>
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
-
-#define assert_ok(expr) assert(expr == 0)
-#define assert_fail(expr, err) assert(expr == -1 && errno == err)
 
 int test_access_basic(void) {
   /* After implementing credentials test should be extended. */
