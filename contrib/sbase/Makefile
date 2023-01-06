@@ -188,7 +188,7 @@ endef
 $(foreach bin,$(BIN),$(eval $(call rename_main_func,$(bin))))
 
 PROGRAM = sbase-box
-BINDIR = bin/sbase
+BINDIR = bin
 BUILDDIR = build/
 SOURCES = $(addprefix sbase/,$(BIN:=.c)) $(addprefix sbase/,$(LIBUTILSRC)) $(addprefix sbase/,$(LIBUTFSRC))
 FORMAT-EXCLUDE = $(SOURCES) $(addprefix sbase/,$(HDR))
