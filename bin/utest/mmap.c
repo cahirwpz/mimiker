@@ -142,9 +142,9 @@ int test_munmap(void) {
   child = fork();
   if (child == 0) {
     int err;
-    err = strncmp(addr, "first", 5);
+    err = strcmp(addr, "first");
     assert_ok(err);
-    err = strncmp(addr + 0x2000, "second", 6);
+    err = strcmp(addr + 0x2000, "second");
     assert_ok(err);
     exit(0);
   }
@@ -295,19 +295,19 @@ int test_munmap_many_1(void) {
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + pgsz, "second", 6);
+    strcmp(addr + pgsz, "second");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + pgsz, SEGV_MAPERR);
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + 3 * pgsz, "fourth", 6);
+    strcmp(addr + 3 * pgsz, "fourth");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + 3 * pgsz, SEGV_MAPERR);
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + 5 * pgsz, "sixth", 5);
+    strcmp(addr + 5 * pgsz, "sixth");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + 5 * pgsz, SEGV_MAPERR);
@@ -329,31 +329,31 @@ int test_munmap_many_2(void) {
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr, "first", 5);
+    strcmp(addr, "first");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr, SEGV_MAPERR);
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + pgsz, "second", 6);
+    strcmp(addr + pgsz, "second");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + pgsz, SEGV_MAPERR);
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + 3 * pgsz, "fourth", 6);
+    strcmp(addr + 3 * pgsz, "fourth");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + 3 * pgsz, SEGV_MAPERR);
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + 5 * pgsz, "sixth", 5);
+    strcmp(addr + 5 * pgsz, "sixth");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + 5 * pgsz, SEGV_MAPERR);
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + 6 * pgsz, "seventh", 7);
+    strcmp(addr + 6 * pgsz, "seventh");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + 6 * pgsz, SEGV_MAPERR);
