@@ -173,6 +173,8 @@ static int vm_map_destroy_range_nolock(vm_map_t *map, vaddr_t start,
   if (!ent)
     return 0;
 
+  pmap_remove(map->pmap, start, end);
+
   while (vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end) {
     vaddr_t rm_start = max(start, vm_map_entry_start(ent));
     vaddr_t rm_end = min(end, vm_map_entry_end(ent));
@@ -193,7 +195,6 @@ static int vm_map_destroy_range_nolock(vm_map_t *map, vaddr_t start,
       vm_map_entry_split(map, del, rm_end);
     }
 
-    pmap_remove(map->pmap, del->start, del->end);
     vm_map_entry_destroy(map, del);
 
     if (!next)
