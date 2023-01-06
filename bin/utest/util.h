@@ -3,6 +3,7 @@
 #include <setjmp.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* Wait for a single child process with process id `pid` to exit,
  * and check that its exit code matches the expected value. */
@@ -34,3 +35,6 @@ void _expect_signal_cleanup(void);
 #define CHECK_SIGSEGV(si, sig_addr, sig_code)                                  \
   assert((si)->si_addr == (sig_addr));                                         \
   assert((si)->si_code == (sig_code))
+
+#define assert_ok(expr) assert((long int)(expr) == 0)
+#define assert_fail(expr, err) assert((long int)(expr) == -1 && errno == err)
