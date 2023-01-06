@@ -1,20 +1,33 @@
 #include "utest.h"
 
-#include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
-noreturn void utest_die(const char *file, int line, const char *func,
-                        const char *expr) {
+noreturn void __die(const char *file, int line, const char *func,
+                    const char *fmt, ...) {
   char buf[1024];
-  int l = snprintf_ss(buf, sizeof(buf),
-                      "assertion \"%s\" failed: file \"%s\", line %d%s%s%s\n",
-                      expr, file, line, func ? ", function \"" : "",
-                      func ? func : "", func ? "\"" : "");
-  if (l < 0)
+  int len = 0, res;
+
+  char *basename = strrchr(file, '/');
+  file = basename ? basename + 1 : file;
+  res = snprintf_ss(buf, sizeof(buf), "[%s:%d] %s: ", file, line, func);
+  if (res < 0)
     exit(EXIT_FAILURE);
-  (void)write(STDERR_FILENO, buf, (size_t)l);
+  len += res;
+
+  va_list ap;
+  va_start(ap, fmt);
+  res = vsnprintf_ss(buf + len, sizeof(buf) - len, fmt, ap);
+  if (res < 0)
+    exit(EXIT_FAILURE);
+  va_end(ap);
+
+  len += res;
+  (void)write(STDERR_FILENO, buf, (size_t)len);
   exit(EXIT_FAILURE);
 }
 
