@@ -2,15 +2,14 @@
 #include "util.h"
 
 #include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <sys/mman.h>
-#include <stdint.h>
-#include <signal.h>
 #include <setjmp.h>
-#include <unistd.h>
+#include <signal.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #if __SIZEOF_POINTER__ == 4
 #define BAD_ADDR_SPAN 0x7fff0000
@@ -56,53 +55,37 @@ static void mmap_with_hint(void) {
 #undef TESTADDR
 
 static void mmap_bad(void) {
-  void *addr;
   /* Address range spans user and kernel space. */
-  addr = mmap_anon_prw((void *)BAD_ADDR_SPAN, BAD_ADDR_SPAN_LEN);
-  assert_fail(addr, EINVAL);
+  syscall_fail(mmap_anon_prw((void *)BAD_ADDR_SPAN, BAD_ADDR_SPAN_LEN), EINVAL);
   /* Address lies in low memory, that cannot be mapped. */
-  addr = mmap_anon_prw((void *)0x3ff000, 0x1000);
-  assert_fail(addr, EINVAL);
+  syscall_fail(mmap_anon_prw((void *)0x3ff000, 0x1000), EINVAL);
   /* Hint address is not page aligned. */
-  addr = mmap_anon_prw((void *)0x12345678, 0x1000);
-  assert_fail(addr, EINVAL);
+  syscall_fail(mmap_anon_prw((void *)0x12345678, 0x1000), EINVAL);
 }
 
 static void munmap_good(void) {
   void *addr;
-  int result;
 
   /* mmap & munmap one page */
   addr = mmap_anon_prw(NULL, 0x1000);
-  result = munmap(addr, 0x1000);
-  assert_ok(result);
+  syscall_ok(munmap(addr, 0x1000));
 
   /* munmapping again fails */
-  result = munmap(addr, 0x1000);
-  printf("result: %d\n", result);
-  assert(errno == EINVAL);
-  // assert_fail(result, EINVAL);
+  syscall_fail(munmap(addr, 0x1000), EINVAL);
 
   /* more pages */
   addr = mmap_anon_prw(NULL, 0x3000);
   assert(addr != MAP_FAILED);
 
-  result = munmap(addr + 0x1000, 0x1000);
-  assert_ok(result);
-
-  result = munmap(addr, 0x1000);
-  assert_ok(result);
-
-  result = munmap(addr + 0x2000, 0x1000);
-  assert_ok(result);
+  syscall_ok(munmap(addr + 0x1000, 0x1000));
+  syscall_ok(munmap(addr, 0x1000));
+  syscall_ok(munmap(addr + 0x2000, 0x1000));
 }
 
 TEST_ADD(munmap_sigsegv) {
   void *addr = mmap_anon_prw(NULL, 0x4000);
-  int res;
 
-  res = munmap(addr, 0x4000);
-  assert_ok(res);
+  syscall_ok(munmap(addr, 0x4000));
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
@@ -125,7 +108,7 @@ TEST_ADD(mmap) {
 
 TEST_ADD(munmap) {
   void *addr;
-  int result, child;
+  int child;
 
   addr =
     mmap(NULL, 0x3000, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
@@ -135,27 +118,20 @@ TEST_ADD(munmap) {
   sprintf(addr, "first");
   sprintf(addr + 0x2000, "second");
 
-  result = munmap(addr + 0x1000, 0x1000);
-  assert_ok(result);
+  syscall_ok(munmap(addr + 0x1000, 0x1000));
 
   /* Now we have to fork to trigger pagefault on both parts of mapped memory. */
   child = fork();
   if (child == 0) {
-    int err;
-    err = strcmp(addr, "first");
-    assert_ok(err);
-    err = strcmp(addr + 0x2000, "second");
-    assert_ok(err);
+    string_eq(addr, "first");
+    string_eq(addr + 0x2000, "second");
     exit(0);
   }
 
   wait_for_child_exit(child, 0);
 
-  result = munmap(addr, 0x1000);
-  assert_ok(result);
-
-  result = munmap(addr + 0x2000, 0x1000);
-  assert_ok(result);
+  syscall_ok(munmap(addr, 0x1000));
+  syscall_ok(munmap(addr + 0x2000, 0x1000));
   return 0;
 }
 
@@ -209,10 +185,8 @@ TEST_ADD(mmap_fixed) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, 3 * pgsz, PROT_READ | PROT_WRITE);
   void *new;
-  int res;
 
-  res = munmap(addr + pgsz, pgsz);
-  assert_ok(res);
+  syscall_ok(munmap(addr + pgsz, pgsz));
 
   new = mmap_anon_priv_flags(addr + pgsz, pgsz, PROT_READ, MAP_FIXED);
   assert(new == addr + pgsz);
@@ -223,17 +197,17 @@ TEST_ADD(mmap_fixed) {
 TEST_ADD(mmap_fixed_excl) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, 2 * pgsz, PROT_READ);
-  void *err;
 
-  err = mmap_anon_priv_flags(addr, pgsz, PROT_READ, MAP_FIXED | MAP_EXCL);
-  assert_fail(err, ENOMEM);
+  syscall_fail(mmap_anon_priv_flags(addr, pgsz, PROT_READ, MAP_FIXED | MAP_EXCL),
+            ENOMEM);
 
-  err = mmap_anon_priv_flags(addr, 2 * pgsz, PROT_READ, MAP_FIXED | MAP_EXCL);
-  assert_fail(err, ENOMEM);
+  syscall_fail(
+    mmap_anon_priv_flags(addr, 2 * pgsz, PROT_READ, MAP_FIXED | MAP_EXCL),
+    ENOMEM);
 
-  err = mmap_anon_priv_flags(addr - pgsz, 3 * pgsz, PROT_READ,
-                             MAP_FIXED | MAP_EXCL);
-  assert_fail(err, ENOMEM);
+  syscall_fail(mmap_anon_priv_flags(addr - pgsz, 3 * pgsz, PROT_READ,
+                                 MAP_FIXED | MAP_EXCL),
+            ENOMEM);
 
   return 0;
 }
@@ -250,10 +224,10 @@ TEST_ADD(mmap_fixed_replace) {
   assert(new == addr);
 
   /* First page should be replaced with new mapping */
-  STRING_NE(addr, "first");
+  string_ne(addr, "first");
 
   /* Second page should remain unchanged */
-  STRING_EQ(addr + pgsz, "second");
+  string_eq(addr + pgsz, "second");
 
   return 0;
 }
@@ -267,13 +241,9 @@ TEST_ADD(mmap_fixed_replace) {
  */
 static void *prepare_layout(size_t pgsz) {
   void *addr = mmap_anon_priv(NULL, 7 * pgsz, PROT_READ | PROT_WRITE);
-  int res;
 
-  res = munmap(addr + 2 * pgsz, pgsz);
-  assert_ok(res);
-
-  res = munmap(addr + 4 * pgsz, pgsz);
-  assert_ok(res);
+  syscall_ok(munmap(addr + 2 * pgsz, pgsz));
+  syscall_ok(munmap(addr + 4 * pgsz, pgsz));
 
   sprintf(addr, "first");
   sprintf(addr + pgsz, "second");
@@ -291,7 +261,7 @@ TEST_ADD(munmap_many_1) {
   int res;
 
   res = munmap(addr + pgsz, 5 * pgsz);
-  assert_ok(res);
+  syscall_ok(res);
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
@@ -312,8 +282,8 @@ TEST_ADD(munmap_many_1) {
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + 5 * pgsz, SEGV_MAPERR);
 
-  STRING_EQ(addr, "first");
-  STRING_EQ(addr + 6 * pgsz, "seventh");
+  string_eq(addr, "first");
+  string_eq(addr + 6 * pgsz, "seventh");
 
   return 0;
 }
@@ -325,7 +295,7 @@ TEST_ADD(munmap_many_2) {
   int res;
 
   res = munmap(addr, 7 * pgsz);
-  assert_ok(res);
+  syscall_ok(res);
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
@@ -370,12 +340,12 @@ TEST_ADD(mmap_fixed_replace_many_1) {
   new = mmap_anon_priv_flags(addr + pgsz, 5 * pgsz, PROT_READ, MAP_FIXED);
   assert(new == addr + pgsz);
 
-  STRING_NE(addr + pgsz, "second");
-  STRING_NE(addr + 3 * pgsz, "fourth");
-  STRING_NE(addr + 5 * pgsz, "sixth");
+  string_ne(addr + pgsz, "second");
+  string_ne(addr + 3 * pgsz, "fourth");
+  string_ne(addr + 5 * pgsz, "sixth");
 
-  STRING_EQ(addr, "first");
-  STRING_EQ(addr + 6 * pgsz, "seventh");
+  string_eq(addr, "first");
+  string_eq(addr + 6 * pgsz, "seventh");
 
   return 0;
 }
@@ -389,11 +359,11 @@ TEST_ADD(mmap_fixed_replace_many_2) {
   new = mmap_anon_priv_flags(addr, 7 * pgsz, PROT_READ, MAP_FIXED);
   assert(new == addr);
 
-  STRING_NE(addr, "first");
-  STRING_NE(addr + pgsz, "second");
-  STRING_NE(addr + 3 * pgsz, "fourth");
-  STRING_NE(addr + 5 * pgsz, "sixth");
-  STRING_NE(addr + 6 * pgsz, "seventh");
+  string_ne(addr, "first");
+  string_ne(addr + pgsz, "second");
+  string_ne(addr + 3 * pgsz, "fourth");
+  string_ne(addr + 5 * pgsz, "sixth");
+  string_ne(addr + 6 * pgsz, "seventh");
 
   return 0;
 }

@@ -1,6 +1,5 @@
 #include "utest.h"
 
-#include <assert.h>
 #include <setjmp.h>
 #include <stdnoreturn.h>
 

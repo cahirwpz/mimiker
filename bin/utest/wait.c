@@ -1,11 +1,10 @@
 #include "utest.h"
 
-#include <assert.h>
-#include <stdio.h>
-#include <signal.h>
-#include <unistd.h>
 #include <sched.h>
+#include <signal.h>
+#include <stdio.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 static int nothing_to_report(pid_t pid) {
   return (waitpid(pid, NULL, WCONTINUED | WUNTRACED | WNOHANG) == 0);

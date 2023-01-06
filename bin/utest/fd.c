@@ -1,16 +1,15 @@
 #include "utest.h"
 #include "util.h"
 
-#include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
-#include <assert.h>
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <sys/uio.h>
+#include <string.h>
 #include <sys/param.h>
+#include <sys/uio.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 static const char *str = "Hello world from a user program!\n";
 static char buf[100];

@@ -1,10 +1,9 @@
 #include "utest.h"
 
-#include <assert.h>
-#include <signal.h>
-#include <string.h>
 #include <setjmp.h>
+#include <signal.h>
 #include <stdnoreturn.h>
+#include <string.h>
 
 static sigjmp_buf jump_buffer;
 

@@ -2,10 +2,9 @@
 #include "util.h"
 
 #include <errno.h>
-#include <string.h>
 #include <signal.h>
+#include <string.h>
 #include <unistd.h>
-#include <assert.h>
 
 #if __SIZEOF_POINTER__ == 4
 #define TOO_MUCH 0x80000000

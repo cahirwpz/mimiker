@@ -1,14 +1,12 @@
 #include "utest.h"
 #include "util.h"
 
-#include <assert.h>
-#include <sys/wait.h>
-#include <sys/signal.h>
-#include <stdlib.h>
 #include <setjmp.h>
 #include <signal.h>
-
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/signal.h>
+#include <sys/wait.h>
 
 #ifdef __mips__
 

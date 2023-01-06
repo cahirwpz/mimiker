@@ -1,8 +1,7 @@
 #include "utest.h"
 
-#include <stddef.h>
-#include <assert.h>
 #include <errno.h>
+#include <stddef.h>
 #include <unistd.h>
 
 TEST_ADD(misbehave) {

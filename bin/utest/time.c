@@ -1,10 +1,9 @@
 #include "utest.h"
 #include "util.h"
 
-#include <string.h>
-#include <assert.h>
 #include <errno.h>
 #include <signal.h>
+#include <string.h>
 #include <sys/time.h>
 
 TEST_ADD(gettimeofday) {
@@ -38,21 +37,21 @@ TEST_ADD(nanosleep) {
   rqt.tv_sec = -1;
 
   rqt.tv_nsec = 1;
-  assert_fail(nanosleep(&rqt, NULL), EINVAL);
-  assert_fail(nanosleep(&rqt, &rmt), EINVAL);
+  syscall_fail(nanosleep(&rqt, NULL), EINVAL);
+  syscall_fail(nanosleep(&rqt, &rmt), EINVAL);
 
   rqt.tv_sec = 0;
   rqt.tv_nsec = -1;
-  assert_fail(nanosleep(&rqt, NULL), EINVAL);
-  assert_fail(nanosleep(&rqt, &rmt), EINVAL);
+  syscall_fail(nanosleep(&rqt, NULL), EINVAL);
+  syscall_fail(nanosleep(&rqt, &rmt), EINVAL);
 
   rqt.tv_nsec = 1000000000;
-  assert_fail(nanosleep(&rqt, NULL), EINVAL);
-  assert_fail(nanosleep(&rqt, &rmt), EINVAL);
+  syscall_fail(nanosleep(&rqt, NULL), EINVAL);
+  syscall_fail(nanosleep(&rqt, &rmt), EINVAL);
 
   rqt.tv_nsec = 1000;
-  assert_fail(nanosleep(NULL, NULL), EFAULT);
-  assert_fail(nanosleep(NULL, &rmt), EFAULT);
+  syscall_fail(nanosleep(NULL, NULL), EFAULT);
+  syscall_fail(nanosleep(NULL, &rmt), EFAULT);
 
   /* Check if sleept at least requested time */;
   for (int g = 0; g < 20; g++) {
@@ -82,21 +81,21 @@ TEST_ADD(itimer) {
 
   /* Try non-canonical timevals.  */
   it.it_value.tv_sec = -1;
-  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  syscall_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
   it.it_value.tv_sec = 0;
   it.it_value.tv_usec = -1;
-  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  syscall_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
   it.it_value.tv_usec = 1000000;
-  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  syscall_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
   it.it_value.tv_usec = 0;
   it.it_value.tv_sec = 1;
   it.it_interval.tv_sec = -1;
-  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  syscall_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
   it.it_interval.tv_sec = 0;
   it.it_interval.tv_usec = -1;
-  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  syscall_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
   it.it_interval.tv_usec = 1000000;
-  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  syscall_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
 
   /* No timer should be currently set. */
   assert(getitimer(ITIMER_REAL, &it2) == 0);

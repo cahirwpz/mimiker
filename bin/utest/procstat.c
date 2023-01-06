@@ -1,7 +1,6 @@
 #include "utest.h"
 
 #include <stdio.h>
-#include <assert.h>
 
 TEST_ADD(procstat) {
   int euid, pid, ppid, pgrp, session, got;

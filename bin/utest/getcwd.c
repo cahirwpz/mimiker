@@ -1,10 +1,9 @@
 #include "utest.h"
 
-#include <unistd.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
-#include <errno.h>
+#include <unistd.h>
 
 TEST_ADD(getcwd) {
   {

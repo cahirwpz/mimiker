@@ -1,15 +1,14 @@
-#include <assert.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <sched.h>
-#include <stdio.h>
-#include <errno.h>
-
 #include "utest.h"
 #include "util.h"
+
+#include <errno.h>
+#include <sched.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 TEST_ADD(setpgid) {
   pgid_t parent_pgid = getpgid(0);

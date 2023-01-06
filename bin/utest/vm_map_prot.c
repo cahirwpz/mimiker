@@ -1,12 +1,11 @@
 #include "utest.h"
 #include "util.h"
 
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 typedef int (*func_int_t)(int);
 

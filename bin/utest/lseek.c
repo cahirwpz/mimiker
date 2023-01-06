@@ -3,13 +3,12 @@
 #include "utest.h"
 #include "util.h"
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <assert.h>
-#include <string.h>
-#include <stdio.h>
-#include <errno.h>
 #include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 /* ascii file stores consecutive ASCII characters from range 32..127 */
 const char *testfile = "/tests/ascii";
@@ -60,27 +59,27 @@ TEST_ADD(lseek_errors) {
 
   fd = open(testfile, 0, O_RDONLY);
   assert(lseek(fd, end, SEEK_SET) == end);
-  assert_fail(lseek(fd, end + 1, SEEK_SET), EINVAL);
-  assert_fail(lseek(fd, -1, SEEK_SET), EINVAL);
+  syscall_fail(lseek(fd, end + 1, SEEK_SET), EINVAL);
+  syscall_fail(lseek(fd, -1, SEEK_SET), EINVAL);
   close(fd);
 
   fd = open(testfile, 0, O_RDONLY);
   assert(lseek(fd, -end, SEEK_END) == 0);
-  assert_fail(lseek(fd, -end - 1, SEEK_END), EINVAL);
-  assert_fail(lseek(fd, 1, SEEK_END), EINVAL);
+  syscall_fail(lseek(fd, -end - 1, SEEK_END), EINVAL);
+  syscall_fail(lseek(fd, 1, SEEK_END), EINVAL);
   close(fd);
 
   fd = open(testfile, 0, O_RDONLY);
   assert(lseek(fd, 47, SEEK_CUR) == 47);
-  assert_fail(lseek(fd, -48, SEEK_CUR), EINVAL);
-  assert_fail(lseek(fd, 49, SEEK_CUR), EINVAL);
+  syscall_fail(lseek(fd, -48, SEEK_CUR), EINVAL);
+  syscall_fail(lseek(fd, 49, SEEK_CUR), EINVAL);
   close(fd);
 
   /* Now let's check some weird cases. */
-  assert_fail(lseek(666, 10, SEEK_CUR), EBADF);
+  syscall_fail(lseek(666, 10, SEEK_CUR), EBADF);
 
   fd = open("/dev/cons", 0, O_RDONLY);
-  assert_fail(lseek(fd, 10, SEEK_CUR), ESPIPE);
+  syscall_fail(lseek(fd, 10, SEEK_CUR), ESPIPE);
   close(fd);
 
   return 0;

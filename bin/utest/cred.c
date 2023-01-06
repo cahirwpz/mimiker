@@ -1,10 +1,9 @@
 #include "utest.h"
 
-#include <unistd.h>
-#include <stdio.h>
 #include <errno.h>
-#include <assert.h>
 #include <limits.h>
+#include <stdio.h>
+#include <unistd.h>
 
 TEST_ADD(get_set_uid) {
   uid_t ruid, euid, suid;

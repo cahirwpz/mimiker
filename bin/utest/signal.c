@@ -1,12 +1,11 @@
-#include <assert.h>
-#include <signal.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sched.h>
-#include <sys/wait.h>
-
 #include "utest.h"
 #include "util.h"
+
+#include <sched.h>
+#include <signal.h>
+#include <stdio.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 /* ======= signal_basic ======= */
 static volatile int sigusr1_handled = 0;

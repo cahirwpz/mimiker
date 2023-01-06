@@ -1,12 +1,11 @@
 #include "utest.h"
 
-#include <assert.h>
+#include <sched.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <sched.h>
 
 TEST_ADD(fork_wait) {
   int n = fork();
