@@ -107,19 +107,12 @@ TEST_ADD(exc_mrs_instruction) {
   return 0;
 }
 
-static sigjmp_buf jump_buffer;
-static void sigtrap_handler(int signo) {
-  siglongjmp(jump_buffer, 42);
-  assert(0); /* Shouldn't reach here. */
-}
-
 TEST_ADD(exc_brk) {
-  signal(SIGTRAP, sigtrap_handler);
-  if (sigsetjmp(jump_buffer, 1) != 42) {
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGTRAP, &si) {
     asm volatile("brk 0");
-    assert(0); /* Shouldn't reach here. */
   }
-  signal(SIGTRAP, SIG_DFL);
+  CLEANUP_SIGNAL();
   return 0;
 }
 

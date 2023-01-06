@@ -30,14 +30,14 @@ void utest_child_exited(int exitcode);
 #define syscall_ok(e) (!(e) ?: utest_die(__FILE__, __LINE__, __func__, #e))
 
 /* Test if system call returned with specific error. */
-#define syscall_fail(e, err)                                                      \
+#define syscall_fail(e, err)                                                   \
   (((long)(e) == -1 && errno == (err))                                         \
      ?: utest_die(__FILE__, __LINE__, __func__, #e))
 
-#define string_eq(s1, s2)                                                 \
+#define string_eq(s1, s2)                                                      \
   (!strcmp((s1), (s2)) ?: utest_die(__FILE__, __LINE__, __func__, "s1 != s2"))
 
-#define string_ne(s1, s2)                                                 \
+#define string_ne(s1, s2)                                                      \
   (strcmp((s1), (s2)) ?: utest_die(__FILE__, __LINE__, __func__, "s1 == s2"))
 
 #endif /* __UTEST_H__ */

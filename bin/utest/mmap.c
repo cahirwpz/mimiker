@@ -198,16 +198,16 @@ TEST_ADD(mmap_fixed_excl) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, 2 * pgsz, PROT_READ);
 
-  syscall_fail(mmap_anon_priv_flags(addr, pgsz, PROT_READ, MAP_FIXED | MAP_EXCL),
-            ENOMEM);
+  syscall_fail(
+    mmap_anon_priv_flags(addr, pgsz, PROT_READ, MAP_FIXED | MAP_EXCL), ENOMEM);
 
   syscall_fail(
     mmap_anon_priv_flags(addr, 2 * pgsz, PROT_READ, MAP_FIXED | MAP_EXCL),
     ENOMEM);
 
   syscall_fail(mmap_anon_priv_flags(addr - pgsz, 3 * pgsz, PROT_READ,
-                                 MAP_FIXED | MAP_EXCL),
-            ENOMEM);
+                                    MAP_FIXED | MAP_EXCL),
+               ENOMEM);
 
   return 0;
 }
