@@ -28,8 +28,6 @@ int test_gettimeofday(void) {
   return 0;
 }
 
-#define assert_fail(expr, err) assert(expr == -1 && errno == err)
-
 int test_nanosleep(void) {
   /* Requested and remaining time */
   timespec_t rqt, rmt;

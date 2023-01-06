@@ -1,4 +1,5 @@
 #include "utest.h"
+#include "util.h"
 
 #include <sys/stat.h>
 #include <stdio.h>
@@ -9,13 +10,11 @@
 #include <unistd.h>
 #include <string.h>
 
+/* Shift used fds by 3 so std{in,out,err} are not affected. */
+#undef FD_OFFSET
 #define FD_OFFSET 3
-#include "utest_fd.h"
 
 #define TESTDIR "/tmp"
-
-#define assert_ok(expr) assert(expr == 0)
-#define assert_fail(expr, err) assert(expr == -1 && errno == err)
 
 /* Generate pseudo random data */
 static void fill_random(uint32_t *data, size_t n) {

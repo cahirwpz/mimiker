@@ -63,7 +63,11 @@ int test_signal_send(void) {
 /* This test shall be considered success if the process gets terminated with
    SIGABRT */
 int test_signal_abort(void) {
-  raise(SIGABRT);
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGABRT, &si) {
+    raise(SIGABRT);
+  }
+  CLEANUP_SIGNAL();
   return 0;
 }
 

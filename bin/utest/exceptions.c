@@ -1,4 +1,5 @@
 #include "utest.h"
+#include "util.h"
 
 #include <assert.h>
 #include <sys/wait.h>
@@ -12,8 +13,12 @@
 #ifdef __mips__
 
 int test_exc_cop_unusable(void) {
-  int value;
-  asm volatile("mfc0 %0, $12, 0" : "=r"(value));
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGILL, &si) {
+    int value;
+    asm volatile("mfc0 %0, $12, 0" : "=r"(value));
+  }
+  CLEANUP_SIGNAL();
   return 0;
 }
 
@@ -21,22 +26,32 @@ int test_exc_reserved_instruction(void) {
   /* The choice of reserved opcode was done based on "Table A.2 MIPS32 Encoding
    * of the Opcode Field" from "MIPS® Architecture For Programmers Volume II-A:
    * The MIPS32® Instruction Set" */
-  asm volatile(".long 0x00000039"); /* objdump fails to disassemble it */
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGILL, &si) {
+    asm volatile(".long 0x00000039"); /* objdump fails to disassemble it */
+  }
+  CLEANUP_SIGNAL();
   return 0;
 }
 
 int test_exc_integer_overflow(void) {
-  int d = __INT_MAX__;
-  asm volatile("addi %0, %0, 1" : : "r"(d));
-
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGFPE, &si) {
+    int d = __INT_MAX__;
+    asm volatile("addi %0, %0, 1" : : "r"(d));
+  }
+  CLEANUP_SIGNAL();
   return 0;
 }
 
 int test_exc_unaligned_access(void) {
-  int a[2];
-  int val;
-  asm volatile("lw %0, 1(%1)" : "=r"(val) : "r"(a));
-
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGBUS, &si) {
+    int a[2];
+    int val;
+    asm volatile("lw %0, 1(%1)" : "=r"(val) : "r"(a));
+  }
+  CLEANUP_SIGNAL();
   return 0;
 }
 
@@ -67,18 +82,30 @@ int test_syscall_in_bds(void) {
 #ifdef __aarch64__
 
 int test_exc_unknown_instruction(void) {
-  asm volatile(".long 0x00110011");
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGILL, &si) {
+    asm volatile(".long 0x00110011");
+  }
+  CLEANUP_SIGNAL();
   return 0;
 }
 
 int test_exc_msr_instruction(void) {
-  asm volatile("msr spsr_el1, %0" ::"r"(1ULL));
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGILL, &si) {
+    asm volatile("msr spsr_el1, %0" ::"r"(1ULL));
+  }
+  CLEANUP_SIGNAL();
   return 0;
 }
 
 int test_exc_mrs_instruction(void) {
-  long x;
-  asm volatile("mrs %0, spsr_el1" : "=r"(x));
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGILL, &si) {
+    long x;
+    asm volatile("mrs %0, spsr_el1" : "=r"(x));
+  }
+  CLEANUP_SIGNAL();
   return 0;
 }
 

@@ -59,16 +59,13 @@ static void mmap_bad(void) {
   void *addr;
   /* Address range spans user and kernel space. */
   addr = mmap_anon_prw((void *)BAD_ADDR_SPAN, BAD_ADDR_SPAN_LEN);
-  assert(addr == MAP_FAILED);
-  assert(errno == EINVAL);
+  assert_fail(addr, EINVAL);
   /* Address lies in low memory, that cannot be mapped. */
   addr = mmap_anon_prw((void *)0x3ff000, 0x1000);
-  assert(addr == MAP_FAILED);
-  assert(errno == EINVAL);
+  assert_fail(addr, EINVAL);
   /* Hint address is not page aligned. */
   addr = mmap_anon_prw((void *)0x12345678, 0x1000);
-  assert(addr == MAP_FAILED);
-  assert(errno == EINVAL);
+  assert_fail(addr, EINVAL);
 }
 
 static void munmap_good(void) {
@@ -78,28 +75,34 @@ static void munmap_good(void) {
   /* mmap & munmap one page */
   addr = mmap_anon_prw(NULL, 0x1000);
   result = munmap(addr, 0x1000);
-  assert(result == 0);
+  assert_ok(result);
 
   /* munmapping again fails */
-  munmap(addr, 0x1000);
+  result = munmap(addr, 0x1000);
+  printf("result: %d\n", result);
   assert(errno == EINVAL);
+  // assert_fail(result, EINVAL);
 
   /* more pages */
   addr = mmap_anon_prw(NULL, 0x3000);
+  assert(addr != MAP_FAILED);
 
   result = munmap(addr + 0x1000, 0x1000);
-  assert(result == 0);
+  assert_ok(result);
 
   result = munmap(addr, 0x1000);
-  assert(result == 0);
+  assert_ok(result);
 
   result = munmap(addr + 0x2000, 0x1000);
-  assert(result == 0);
+  assert_ok(result);
 }
 
 int test_munmap_sigsegv(void) {
   void *addr = mmap_anon_prw(NULL, 0x4000);
-  munmap(addr, 0x4000);
+  int res;
+
+  res = munmap(addr, 0x4000);
+  assert_ok(res);
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
@@ -133,26 +136,26 @@ int test_munmap(void) {
   sprintf(addr + 0x2000, "second");
 
   result = munmap(addr + 0x1000, 0x1000);
-  assert(result == 0);
+  assert_ok(result);
 
   /* Now we have to fork to trigger pagefault on both parts of mapped memory. */
   child = fork();
   if (child == 0) {
     int err;
-    err = strncmp(addr, "first", 5);
-    assert(err == 0);
-    err = strncmp(addr + 0x2000, "second", 6);
-    assert(err == 0);
+    err = strcmp(addr, "first");
+    assert_ok(err);
+    err = strcmp(addr + 0x2000, "second");
+    assert_ok(err);
     exit(0);
   }
 
   wait_for_child_exit(child, 0);
 
   result = munmap(addr, 0x1000);
-  assert(result == 0);
+  assert_ok(result);
 
   result = munmap(addr + 0x2000, 0x1000);
-  assert(result == 0);
+  assert_ok(result);
   return 0;
 }
 
@@ -209,7 +212,7 @@ int test_mmap_fixed(void) {
   int res;
 
   res = munmap(addr + pgsz, pgsz);
-  assert(res == 0);
+  assert_ok(res);
 
   new = mmap_anon_priv_flags(addr + pgsz, pgsz, PROT_READ, MAP_FIXED);
   assert(new == addr + pgsz);
@@ -223,14 +226,14 @@ int test_mmap_fixed_excl(void) {
   void *err;
 
   err = mmap_anon_priv_flags(addr, pgsz, PROT_READ, MAP_FIXED | MAP_EXCL);
-  assert(err == MAP_FAILED && errno == ENOMEM);
+  assert_fail(err, ENOMEM);
 
   err = mmap_anon_priv_flags(addr, 2 * pgsz, PROT_READ, MAP_FIXED | MAP_EXCL);
-  assert(err == MAP_FAILED && errno == ENOMEM);
+  assert_fail(err, ENOMEM);
 
   err = mmap_anon_priv_flags(addr - pgsz, 3 * pgsz, PROT_READ,
                              MAP_FIXED | MAP_EXCL);
-  assert(err == MAP_FAILED && errno == ENOMEM);
+  assert_fail(err, ENOMEM);
 
   return 0;
 }
@@ -239,7 +242,6 @@ int test_mmap_fixed_replace(void) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, 2 * pgsz, PROT_READ | PROT_WRITE);
   void *new;
-  int err;
 
   sprintf(addr, "first");
   sprintf(addr + pgsz, "second");
@@ -248,12 +250,10 @@ int test_mmap_fixed_replace(void) {
   assert(new == addr);
 
   /* First page should be replaced with new mapping */
-  err = strncmp(addr, "first", 5);
-  assert(err != 0);
+  STRING_NE(addr, "first");
 
   /* Second page should remain unchanged */
-  err = strncmp(addr + pgsz, "second", 6);
-  assert(err == 0);
+  STRING_EQ(addr + pgsz, "second");
 
   return 0;
 }
@@ -270,10 +270,16 @@ static void *prepare_layout(size_t pgsz) {
   int res;
 
   res = munmap(addr + 2 * pgsz, pgsz);
-  assert(res == 0);
+  assert_ok(res);
 
   res = munmap(addr + 4 * pgsz, pgsz);
-  assert(res == 0);
+  assert_ok(res);
+
+  sprintf(addr, "first");
+  sprintf(addr + pgsz, "second");
+  sprintf(addr + 3 * pgsz, "fourth");
+  sprintf(addr + 5 * pgsz, "sixth");
+  sprintf(addr + 6 * pgsz, "seventh");
 
   sprintf(addr, "first");
   sprintf(addr + pgsz, "second");
@@ -291,32 +297,29 @@ int test_munmap_many_1(void) {
   int res;
 
   res = munmap(addr + pgsz, 5 * pgsz);
-  assert(res == 0);
+  assert_ok(res);
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + pgsz, "second", 6);
+    strcmp(addr + pgsz, "second");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + pgsz, SEGV_MAPERR);
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + 3 * pgsz, "fourth", 6);
+    strcmp(addr + 3 * pgsz, "fourth");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + 3 * pgsz, SEGV_MAPERR);
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + 5 * pgsz, "sixth", 5);
+    strcmp(addr + 5 * pgsz, "sixth");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + 5 * pgsz, SEGV_MAPERR);
 
-  res = strncmp(addr, "first", 5);
-  assert(res == 0);
-
-  res = strncmp(addr + 6 * pgsz, "seventh", 7);
-  assert(res == 0);
+  STRING_EQ(addr, "first");
+  STRING_EQ(addr + 6 * pgsz, "seventh");
 
   return 0;
 }
@@ -328,35 +331,35 @@ int test_munmap_many_2(void) {
   int res;
 
   res = munmap(addr, 7 * pgsz);
-  assert(res == 0);
+  assert_ok(res);
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr, "first", 5);
+    strcmp(addr, "first");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr, SEGV_MAPERR);
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + pgsz, "second", 6);
+    strcmp(addr + pgsz, "second");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + pgsz, SEGV_MAPERR);
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + 3 * pgsz, "fourth", 6);
+    strcmp(addr + 3 * pgsz, "fourth");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + 3 * pgsz, SEGV_MAPERR);
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + 5 * pgsz, "sixth", 5);
+    strcmp(addr + 5 * pgsz, "sixth");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + 5 * pgsz, SEGV_MAPERR);
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr + 6 * pgsz, "seventh", 7);
+    strcmp(addr + 6 * pgsz, "seventh");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + 6 * pgsz, SEGV_MAPERR);
@@ -369,25 +372,17 @@ int test_mmap_fixed_replace_many_1(void) {
   size_t pgsz = getpagesize();
   void *addr = prepare_layout(pgsz);
   void *new;
-  int res;
 
   new = mmap_anon_priv_flags(addr + pgsz, 5 * pgsz, PROT_READ, MAP_FIXED);
   assert(new == addr + pgsz);
 
-  res = strncmp(addr + pgsz, "second", 6);
-  assert(res != 0);
+  STRING_NE(addr + pgsz, "second");
+  STRING_NE(addr + 3 * pgsz, "fourth");
+  STRING_NE(addr + 5 * pgsz, "sixth");
 
-  res = strncmp(addr + 3 * pgsz, "fourth", 6);
-  assert(res != 0);
+  STRING_EQ(addr, "first");
+  STRING_EQ(addr + 6 * pgsz, "seventh");
 
-  res = strncmp(addr + 5 * pgsz, "sixth", 5);
-  assert(res != 0);
-
-  res = strncmp(addr, "first", 5);
-  assert(res == 0);
-
-  res = strncmp(addr + 6 * pgsz, "seventh", 7);
-  assert(res == 0);
   return 0;
 }
 
@@ -396,25 +391,16 @@ int test_mmap_fixed_replace_many_2(void) {
   size_t pgsz = getpagesize();
   void *addr = prepare_layout(pgsz);
   void *new;
-  int res;
 
   new = mmap_anon_priv_flags(addr, 7 * pgsz, PROT_READ, MAP_FIXED);
   assert(new == addr);
 
-  res = strncmp(addr, "first", 5);
-  assert(res != 0);
+  STRING_NE(addr, "first");
+  STRING_NE(addr + pgsz, "second");
+  STRING_NE(addr + 3 * pgsz, "fourth");
+  STRING_NE(addr + 5 * pgsz, "sixth");
+  STRING_NE(addr + 6 * pgsz, "seventh");
 
-  res = strncmp(addr + pgsz, "second", 6);
-  assert(res != 0);
-
-  res = strncmp(addr + 3 * pgsz, "fourth", 6);
-  assert(res != 0);
-
-  res = strncmp(addr + 5 * pgsz, "sixth", 5);
-  assert(res != 0);
-
-  res = strncmp(addr + 6 * pgsz, "seventh", 7);
-  assert(res != 0);
   return 0;
 }
 
@@ -425,18 +411,16 @@ int test_mprotect_simple(void) {
   siginfo_t si;
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
-    res = strncmp(addr, "xxx", 6);
+    strcmp(addr, "xxx");
   }
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr, SEGV_ACCERR);
 
   res = mprotect(addr, pgsz, PROT_READ | PROT_WRITE);
-  printf("mprotect: %d %d\n", res, errno);
-  assert(res == 0);
+  assert_ok(res);
 
   sprintf(addr, "first");
-  res = strncmp(addr, "first", 5);
-  assert(res == 0);
+  STRING_EQ(addr, "first");
 
   return 0;
 }

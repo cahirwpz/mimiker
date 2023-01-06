@@ -1,5 +1,7 @@
 /* Userspace program testing lseek */
 
+#include "util.h"
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <assert.h>
@@ -51,8 +53,6 @@ int test_lseek_basic(void) {
 
   return 0;
 }
-
-#define assert_fail(expr, err) assert(expr == -1 && errno == err)
 
 int test_lseek_errors(void) {
   int fd;

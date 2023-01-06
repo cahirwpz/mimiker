@@ -106,6 +106,8 @@ void kfree(kmalloc_pool_t *mp, void *ptr) {
   if ((slab = blk_slab(ptr))) {
     pool_t *pool = slab->ph_pool;
 
+    assert(pool != NULL);
+
     blksz = slab->ph_itemsize;
 #if KASAN
     blksz -= pool->pp_redzone;
