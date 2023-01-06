@@ -181,90 +181,11 @@ BIN_SURELY_DISABLED =\
 	mknod\
 	tftp
 
-CFLAGS.sbase/basename.c += -Dmain=basename_main
-CFLAGS.sbase/cat.c += -Dmain=cat_main
-CFLAGS.sbase/chgrp.c += -Dmain=chgrp_main
-CFLAGS.sbase/chmod.c += -Dmain=chmod_main
-CFLAGS.sbase/chown.c += -Dmain=chown_main
-CFLAGS.sbase/cmp.c += -Dmain=cmp_main
-CFLAGS.sbase/comm.c += -Dmain=comm_main
-CFLAGS.sbase/cp.c += -Dmain=cp_main
-CFLAGS.sbase/cut.c += -Dmain=cut_main
-CFLAGS.sbase/dd.c += -Dmain=dd_main
-CFLAGS.sbase/dirname.c += -Dmain=dirname_main
-CFLAGS.sbase/echo.c += -Dmain=echo_main
-CFLAGS.sbase/env.c += -Dmain=env_main
-CFLAGS.sbase/expand.c += -Dmain=expand_main
-CFLAGS.sbase/expr.c += -Dmain=expr_main
-CFLAGS.sbase/false.c += -Dmain=false_main
-CFLAGS.sbase/fold.c += -Dmain=fold_main
-CFLAGS.sbase/head.c += -Dmain=head_main
-CFLAGS.sbase/link.c += -Dmain=link_main
-CFLAGS.sbase/ln.c += -Dmain=ln_main
-CFLAGS.sbase/logname.c += -Dmain=logname_main
-CFLAGS.sbase/md5sum.c += -Dmain=md5sum_main
-CFLAGS.sbase/mkdir.c += -Dmain=mkdir_main
-CFLAGS.sbase/mkfifo.c += -Dmain=mkfifo_main
-CFLAGS.sbase/mktemp.c += -Dmain=mktemp_main
-CFLAGS.sbase/mv.c += -Dmain=mv_main
-CFLAGS.sbase/nice.c += -Dmain=nice_main
-CFLAGS.sbase/nl.c += -Dmain=nl_main
-CFLAGS.sbase/nohup.c += -Dmain=nohup_main
-CFLAGS.sbase/printenv.c += -Dmain=printenv_main
-CFLAGS.sbase/pwd.c += -Dmain=pwd_main
-CFLAGS.sbase/readlink.c += -Dmain=readlink_main
-CFLAGS.sbase/renice.c += -Dmain=renice_main
-CFLAGS.sbase/rev.c += -Dmain=rev_main
-CFLAGS.sbase/rm.c += -Dmain=rm_main
-CFLAGS.sbase/rmdir.c += -Dmain=rmdir_main
-CFLAGS.sbase/seq.c += -Dmain=seq_main
-CFLAGS.sbase/setsid.c += -Dmain=setsid_main
-CFLAGS.sbase/sha1sum.c += -Dmain=sha1sum_main
-CFLAGS.sbase/sha224sum.c += -Dmain=sha224sum_main
-CFLAGS.sbase/sha256sum.c += -Dmain=sha256sum_main
-CFLAGS.sbase/sha384sum.c += -Dmain=sha384sum_main
-CFLAGS.sbase/sha512sum.c += -Dmain=sha512sum_main
-CFLAGS.sbase/sha512-224sum.c += -Dmain=sha512_224sum_main
-CFLAGS.sbase/sha512-256sum.c += -Dmain=sha512_256sum_main
-CFLAGS.sbase/sleep.c += -Dmain=sleep_main
-CFLAGS.sbase/split.c += -Dmain=split_main
-CFLAGS.sbase/sponge.c += -Dmain=sponge_main
-CFLAGS.sbase/strings.c += -Dmain=strings_main
-CFLAGS.sbase/sync.c += -Dmain=sync_main
-CFLAGS.sbase/test.c += -Dmain=test_main
-CFLAGS.sbase/tr.c += -Dmain=tr_main
-CFLAGS.sbase/true.c += -Dmain=true_main
-CFLAGS.sbase/tsort.c += -Dmain=tsort_main
-CFLAGS.sbase/tty.c += -Dmain=tty_main
-CFLAGS.sbase/unexpand.c += -Dmain=unexpand_main
-CFLAGS.sbase/uniq.c += -Dmain=uniq_main
-CFLAGS.sbase/unlink.c += -Dmain=unlink_main
-CFLAGS.sbase/uudecode.c += -Dmain=uudecode_main
-CFLAGS.sbase/uuencode.c += -Dmain=uuencode_main
-CFLAGS.sbase/wc.c += -Dmain=wc_main
-CFLAGS.sbase/which.c += -Dmain=which_main
-CFLAGS.sbase/whoami.c += -Dmain=whoami_main
-CFLAGS.sbase/xinstall.c += -Dmain=xinstall_main
-CFLAGS.sbase/yes.c += -Dmain=yes_main
-CFLAGS.sbase/cal.c += -Dmain=cal_main
-CFLAGS.sbase/cols.c += -Dmain=cols_main
-CFLAGS.sbase/cksum.c += -Dmain=cksum_main
-CFLAGS.sbase/find.c += -Dmain=find_main
-CFLAGS.sbase/grep.c += -Dmain=grep_main
-CFLAGS.sbase/join.c += -Dmain=join_main
-CFLAGS.sbase/kill.c += -Dmain=kill_main
-CFLAGS.sbase/ls.c += -Dmain=ls_main
-CFLAGS.sbase/od.c += -Dmain=od_main
-CFLAGS.sbase/paste.c += -Dmain=paste_main
-CFLAGS.sbase/pathchk.c += -Dmain=pathchk_main
-CFLAGS.sbase/printf.c += -Dmain=printf_main
-CFLAGS.sbase/sed.c += -Dmain=sed_main
-CFLAGS.sbase/sort.c += -Dmain=sort_main
-CFLAGS.sbase/tail.c += -Dmain=tail_main
-CFLAGS.sbase/time.c += -Dmain=time_main
-CFLAGS.sbase/tar.c += -Dmain=tar_main
-CFLAGS.sbase/tee.c += -Dmain=tee_main
-CFLAGS.sbase/xargs.c += -Dmain=xargs_main
+define rename_main_func =
+CFLAGS.sbase/$(1).c += -Dmain=$$(subst -,_,$(1))_main
+endef
+
+$(foreach bin,$(BIN),$(eval $(call rename_main_func,$(bin))))
 
 PROGRAM = sbase-box
 BINDIR = bin/sbase
