@@ -1,4 +1,5 @@
 #include "utest.h"
+#include "util.h"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -16,8 +17,8 @@ static char buf[100];
 static int n;
 
 /* Shift used fds by 3 so std{in,out,err} are not affected. */
+#undef FD_OFFSET
 #define FD_OFFSET 3
-#include "utest_fd.h"
 
 /* Just the basic, correct operations on a single /dev/null */
 int test_fd_devnull(void) {
@@ -266,7 +267,7 @@ int test_fd_writev(void) {
 
 /* Tests below do not use std* file descriptors */
 #undef FD_OFFSET
-#include "utest_fd.h"
+#define FD_OFFSET 0
 
 int test_fd_pipe(void) {
   int fd[2];
