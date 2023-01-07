@@ -32,6 +32,8 @@ static int utest_generic(const char *name, int status_success) {
   char prefixed_name[TD_NAME_MAX];
   snprintf(prefixed_name, TD_NAME_MAX, "utest-%s", name);
 
+  klog("User test '%s' started", name);
+
   bintime_t test_start = binuptime();
 
   pid_t cpid;
