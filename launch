@@ -295,8 +295,12 @@ class QEMU(Launchable):
 
         self.options = getopts('qemu.options')
         for uart in getvar('qemu.uarts'):
-            port = uart['port']
-            self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
+            if 'port' in uart:
+                port = uart['port']
+                output = f'tcp:127.0.0.1:{port},server,wait'
+            else:
+                output = 'stdio'
+            self.options += ['-serial', output]
 
         if not getvar('config.dts'):
             if getvar('config.args'):
@@ -389,8 +393,11 @@ def TestRun(sim, dbg, timeout):
         rc = gdb_proc.expect_exact([pexpect.EOF, '(gdb) '], timeout=None)
 
         if rc == 1:
+            print('\n*** CONSOLE ***\n')
+            stdout = sim_proc.read_nonblocking(size=1000000)
+            print(stdout.decode('utf-8'))
             timed_out = b'received signal SIGINT' in gdb_proc.before
-            print('\n*** GDB OUTPUT ***\n\n')
+            print('*** GDB OUTPUT ***\n')
             print(gdb_proc.before.decode('utf-8'))
             PostMortem(gdb_proc)
             print('Test run %s!' % ('timeout' if timed_out else 'failed'))
@@ -524,7 +531,8 @@ if __name__ == '__main__':
 
     # Create simulator launcher
     if args.test_run:
-        setvar(f'{sim_name}.uarts', [])
+        for uart in getvar(f'{sim_name}.uarts'):
+            del uart['port']
 
     sim = QEMU() if sim_name == 'qemu' else RENODE()
 
