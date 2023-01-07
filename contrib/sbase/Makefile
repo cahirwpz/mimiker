@@ -146,6 +146,7 @@ BIN =\
 	cal\
 	cols\
 	cksum\
+	date\
 	find\
 	grep\
 	join\
@@ -164,7 +165,6 @@ BIN =\
 	xargs
 
 BIN_DONT_WORK =\
-	date\
 	getconf\
 	touch\
 

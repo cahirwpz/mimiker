@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = date ksh mandelbrot ps \
+SUBDIR = ksh mandelbrot ps \
 	 sandbox setwinsize stty test_rtc tetris utest
 
 all: build
