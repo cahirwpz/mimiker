@@ -195,8 +195,6 @@ FORMAT-EXCLUDE = $(SOURCES) $(addprefix sbase/,$(HDR))
 
 OBJECTS += $(addsuffix .o,$(addprefix $(BUILDDIR),$(PROGRAM)))
 WFLAGS += -Wno-error=sign-compare -Wno-error=implicit-fallthrough
-CFLAGS.sbase/join.c += -Wno-error=sometimes-uninitialized
-CFLAGS.sbase/find.c += -Wno-error=tautological-constant-out-of-range-compare
 
 include $(TOPDIR)/build/build.prog.mk
 
