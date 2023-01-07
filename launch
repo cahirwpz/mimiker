@@ -400,7 +400,7 @@ def TestRun(sim, dbg, timeout):
         if rc == 1:
             print('\n*** CONSOLE ***\n')
             stdout = sim_proc.read_nonblocking(size=1000000)
-            print(stdout.decode('utf-8'))
+            print(stdout.decode('utf-8').replace('\r\n', '\n'))
             timed_out = b'received signal SIGINT' in gdb_proc.before
             print('*** GDB OUTPUT ***\n')
             print(gdb_proc.before.decode('utf-8'))
