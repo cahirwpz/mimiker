@@ -29,7 +29,7 @@ typedef int32_t suseconds_t; /* microseconds (signed) */
 typedef char *caddr_t; /* core address */
 
 typedef int32_t off_t; /* should it be int64_t? */
-typedef intptr_t ssize_t;
+typedef __PTRDIFF_TYPE__ ssize_t;
 typedef uint32_t id_t; /* group id, process id or user id */
 typedef int32_t pid_t;
 typedef int32_t pgid_t;

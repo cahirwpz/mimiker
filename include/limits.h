@@ -3,7 +3,7 @@
 
 #include <sys/syslimits.h>
 
-#define _POSIX_ARG_MAX 4096
+#define _POSIX_ARG_MAX 65536
 #define _POSIX_NAME_MAX 14
 #define _POSIX_PATH_MAX 256
 
