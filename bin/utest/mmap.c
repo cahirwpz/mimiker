@@ -265,8 +265,8 @@ int test_mmap_fixed_replace(void) {
  * | first | second |        | fourth |        | sixth | seventh |
  * +----------------+        +--------+        +-----------------+
  */
-static void *prepare_layout(size_t pgsz) {
-  void *addr = mmap_anon_priv(NULL, 7 * pgsz, PROT_READ | PROT_WRITE);
+static void *prepare_layout(size_t pgsz, int prot) {
+  void *addr = mmap_anon_priv(NULL, 7 * pgsz, prot);
   int res;
 
   res = munmap(addr + 2 * pgsz, pgsz);
@@ -274,6 +274,14 @@ static void *prepare_layout(size_t pgsz) {
 
   res = munmap(addr + 4 * pgsz, pgsz);
   assert_ok(res);
+
+  return addr;
+}
+
+static void *prepare_rw_layout(size_t pgsz) {
+  void *addr = prepare_layout(pgsz, PROT_READ | PROT_WRITE);
+  if (addr == NULL)
+    return NULL;
 
   sprintf(addr, "first");
   sprintf(addr + pgsz, "second");
@@ -287,7 +295,7 @@ static void *prepare_layout(size_t pgsz) {
 /* This test unmaps entries from prepared layout (second, fourth, sixth) */
 int test_munmap_many_1(void) {
   size_t pgsz = getpagesize();
-  void *addr = prepare_layout(pgsz);
+  void *addr = prepare_rw_layout(pgsz);
   int res;
 
   res = munmap(addr + pgsz, 5 * pgsz);
@@ -321,7 +329,7 @@ int test_munmap_many_1(void) {
 /* This test unmaps all entries from prepared layout */
 int test_munmap_many_2(void) {
   size_t pgsz = getpagesize();
-  void *addr = prepare_layout(pgsz);
+  void *addr = prepare_rw_layout(pgsz);
   int res;
 
   res = munmap(addr, 7 * pgsz);
@@ -364,7 +372,7 @@ int test_munmap_many_2(void) {
 /* This test unmaps entries from prepared layout (second, fourth, sixth) */
 int test_mmap_fixed_replace_many_1(void) {
   size_t pgsz = getpagesize();
-  void *addr = prepare_layout(pgsz);
+  void *addr = prepare_rw_layout(pgsz);
   void *new;
 
   new = mmap_anon_priv_flags(addr + pgsz, 5 * pgsz, PROT_READ, MAP_FIXED);
@@ -383,7 +391,7 @@ int test_mmap_fixed_replace_many_1(void) {
 /* This test unmaps all entries from prepared layout */
 int test_mmap_fixed_replace_many_2(void) {
   size_t pgsz = getpagesize();
-  void *addr = prepare_layout(pgsz);
+  void *addr = prepare_rw_layout(pgsz);
   void *new;
 
   new = mmap_anon_priv_flags(addr, 7 * pgsz, PROT_READ, MAP_FIXED);
@@ -415,6 +423,83 @@ int test_mprotect_simple(void) {
 
   sprintf(addr, "first");
   STRING_EQ(addr, "first");
+
+  return 0;
+}
+
+#define check_none_region(si, addr)                                            \
+  {                                                                            \
+    EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
+      strcmp((addr), "xxx");                                                   \
+    }                                                                          \
+    CLEANUP_SIGNAL();                                                          \
+    CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
+  }
+
+static void *prepare_none_layout(size_t pgsz) {
+  void *addr = prepare_layout(pgsz, PROT_NONE);
+  if (addr == NULL)
+    return NULL;
+
+  siginfo_t si;
+
+  check_none_region(si, addr);
+  check_none_region(si, addr + pgsz);
+  check_none_region(si, addr + 3 * pgsz);
+  check_none_region(si, addr + 5 * pgsz);
+  check_none_region(si, addr + 6 * pgsz);
+
+  return addr;
+}
+
+/* This test unmaps entries from prepared layout (second, fourth, sixth) */
+int test_mprotect_many_1(void) {
+  size_t pgsz = getpagesize();
+  void *addr = prepare_none_layout(pgsz);
+  int res;
+  siginfo_t si;
+
+  res = mprotect(addr + pgsz, 5 * pgsz, PROT_READ | PROT_WRITE);
+  assert_ok(res);
+
+  check_none_region(si, addr);
+  check_none_region(si, addr + 6 * pgsz);
+
+  sprintf(addr + pgsz, "some string");
+  STRING_EQ(addr + pgsz, "some string");
+
+  sprintf(addr + 3 * pgsz, "some string");
+  STRING_EQ(addr + 3 * pgsz, "some string");
+
+  sprintf(addr + 5 * pgsz, "some string");
+  STRING_EQ(addr + 5 * pgsz, "some string");
+
+  return 0;
+}
+
+/* This test unmaps all entries from prepared layout */
+int test_mprotect_many_2(void) {
+  size_t pgsz = getpagesize();
+  void *addr = prepare_none_layout(pgsz);
+  int res;
+
+  res = mprotect(addr, 7 * pgsz, PROT_READ | PROT_WRITE);
+  assert_ok(res);
+
+  sprintf(addr, "some string");
+  STRING_EQ(addr, "some string");
+
+  sprintf(addr + pgsz, "some string");
+  STRING_EQ(addr + pgsz, "some string");
+
+  sprintf(addr + 3 * pgsz, "some string");
+  STRING_EQ(addr + 3 * pgsz, "some string");
+
+  sprintf(addr + 5 * pgsz, "some string");
+  STRING_EQ(addr + 5 * pgsz, "some string");
+
+  sprintf(addr + 6 * pgsz, "some string");
+  STRING_EQ(addr + 6 * pgsz, "some string");
 
   return 0;
 }

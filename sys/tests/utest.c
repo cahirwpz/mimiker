@@ -79,6 +79,8 @@ UTEST_ADD_SIMPLE(mmap_fixed_replace);
 UTEST_ADD_SIMPLE(mmap_fixed_replace_many_1);
 UTEST_ADD_SIMPLE(mmap_fixed_replace_many_2);
 UTEST_ADD_SIMPLE(mprotect_simple);
+UTEST_ADD_SIMPLE(mprotect_many_1);
+UTEST_ADD_SIMPLE(mprotect_many_2);
 UTEST_ADD_SIMPLE(sbrk);
 UTEST_ADD_SIMPLE(sbrk_sigsegv);
 UTEST_ADD_SIMPLE(misbehave);

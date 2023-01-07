@@ -33,6 +33,8 @@ int main(int argc, char **argv) {
   CHECKRUN_TEST(mmap_fixed_replace_many_1);
   CHECKRUN_TEST(mmap_fixed_replace_many_2);
   CHECKRUN_TEST(mprotect_simple);
+  CHECKRUN_TEST(mprotect_many_1);
+  CHECKRUN_TEST(mprotect_many_2);
   CHECKRUN_TEST(sbrk);
   CHECKRUN_TEST(sbrk_sigsegv);
   CHECKRUN_TEST(misbehave);

@@ -24,6 +24,8 @@ int test_mmap_fixed_replace(void);
 int test_mmap_fixed_replace_many_1(void);
 int test_mmap_fixed_replace_many_2(void);
 int test_mprotect_simple(void);
+int test_mprotect_many_1(void);
+int test_mprotect_many_2(void);
 
 int test_sbrk(void);
 int test_sbrk_sigsegv(void);
