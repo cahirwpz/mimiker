@@ -255,7 +255,6 @@ void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
     if (!ent)
       break;
   }
-
   pmap_protect(map->pmap, start, end, prot);
 }
 
