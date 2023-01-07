@@ -389,7 +389,7 @@ def TestRun(sim, dbg, timeout):
         rc = gdb_proc.expect_exact([pexpect.EOF, '(gdb) '], timeout=None)
 
         if rc == 1:
-            timed_out = b'Program received signal SIGINT' in gdb_proc.before
+            timed_out = b'received signal SIGINT' in gdb_proc.before
             print('\n*** GDB OUTPUT ***\n\n')
             print(gdb_proc.before.decode('utf-8'))
             PostMortem(gdb_proc)
