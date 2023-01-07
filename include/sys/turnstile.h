@@ -4,10 +4,15 @@
 #include <sys/cdefs.h>
 #include <sys/priority.h>
 
+typedef struct mtx mtx_t;
 typedef struct turnstile turnstile_t;
 
 /*! \brief Called during kernel initialization. */
 void init_turnstile(void);
+
+void turnstile_lock(mtx_t *mtx);
+
+void turnstile_unlock(mtx_t *mtx);
 
 /*! \brief Allocates turnstile entry. */
 turnstile_t *turnstile_alloc(void);
@@ -28,18 +33,12 @@ void turnstile_destroy(turnstile_t *ts);
  * \note Requires td_spin acquired. */
 void turnstile_adjust(thread_t *td, prio_t oldprio);
 
-/* Provide turnstile that we're going to block on. */
-turnstile_t *turnstile_take(void *wchan);
-
-/* Release turnstile in case we decided not to block on it. */
-void turnstile_give(turnstile_t *ts);
-
 /* Block the current thread on given turnstile. This function will perform
  * context switch and release turnstile when woken up. */
-void turnstile_wait(turnstile_t *ts, thread_t *owner, const void *waitpt);
+void turnstile_wait(mtx_t *mtx, const void *waitpt);
 
-/* Wakeup all threads waiting on given channel and adjust the priority of the
+/* Wakeup all threads waiting on given mutex and adjust the priority of the
  * current thread appropriately. */
-void turnstile_broadcast(void *wchan);
+void turnstile_broadcast(mtx_t *mtx);
 
 #endif /* !_SYS_TURNSTILE_H_ */

@@ -4,6 +4,7 @@ include <riscv/mcontext.h>
 include <riscv/riscvreg.h>
 include <riscv/vm_param.h>
 
+define TD_LOCK offsetof(thread_t, td_lock)
 define TD_KCTX offsetof(thread_t, td_kctx)
 define TD_UCTX offsetof(thread_t, td_uctx)
 define TD_ONFAULT offsetof(thread_t, td_onfault)

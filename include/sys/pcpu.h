@@ -1,9 +1,9 @@
 #ifndef _SYS_PCPU_H_
 #define _SYS_PCPU_H_
 
+#include <stdbool.h>
 #include <machine/types.h>
 #include <machine/pcpu.h>
-#include <stdbool.h>
 
 typedef struct thread thread_t;
 typedef struct pmap pmap_t;

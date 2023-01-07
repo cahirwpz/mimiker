@@ -60,6 +60,8 @@ typedef struct mtx {
 #define MTX_DEFINE(mutexname, type)                                            \
   mtx_t mutexname = MTX_INITIALIZER(mutexname, type)
 
+void init_mtx(void);
+
 /*! \brief Initializes mutex.
  *
  * \note Every mutex has to be initialized before it is used. */
@@ -119,5 +121,7 @@ DEFINE_CLEANUP_FUNCTION(mtx_t *, mtx_unlock);
  */
 #define WITH_MTX_LOCK(mtx_p)                                                   \
   WITH_STMT(mtx_t, mtx_lock, CLEANUP_FUNCTION(mtx_unlock), mtx_p)
+
+extern mtx_t blocked_lock;
 
 #endif /* !_SYS_MUTEX_H_ */

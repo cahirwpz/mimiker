@@ -93,7 +93,7 @@
 .endm
 
 /*
- * long ctx_switch(thread_t *from, thread_t *to)
+ * void ctx_switch(thread_t *from, thread_t *to, mtx_t *mtx)
  */
 ENTRY(ctx_switch)
 	/* `ctx_switch` must be called with interrupts disabled. */
@@ -146,18 +146,23 @@ set_ctxsaved:
 skip_fpu_save:
 #endif /* FPU */
 
-	/* Switch stack pointer to `to` thread. */
-	PTR_L	sp, TD_KCTX(a1)
-
 	/* Update `curthread` pointer to reference `to` thread. */
 	PTR_S	a1, PCPU_CURTHREAD(tp)
 
 	/* Switch address space if necessary. */
+	mv	s0, a0
+	mv	s1, a1
+	mv	s2, a2
 	mv	a0, a1
 	call	vm_map_switch
 
+	PTR_S	s2, TD_LOCK(s0)
+
+	/* Switch stack pointer to `to` thread. */
+	PTR_L	sp, TD_KCTX(s1)
+
 	/* Restore `to` thread context. */
-	load_ctx t0
+	load_ctx	t0
 
 	ret
 halt:

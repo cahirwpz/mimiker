@@ -69,8 +69,11 @@ static intr_filter_t rtc_intr(void *data) {
   rtc_state_t *rtc = data;
   uint8_t regc = rtc_read(rtc->regs, MC_REGC);
   if (regc & MC_REGC_PF) {
-    if (rtc->counter++ & 1)
+    if (rtc->counter++ & 1) {
+      sleepq_lock(rtc);
       sleepq_signal(rtc);
+      sleepq_unlock(rtc);
+    }
     return IF_FILTERED;
   }
   return IF_STRAY;
@@ -80,6 +83,7 @@ static int rtc_time_read(devnode_t *dev, uio_t *uio) {
   rtc_state_t *rtc = dev->data;
   tm_t t;
 
+  sleepq_lock(rtc);
   sleepq_wait(rtc, NULL);
   rtc_gettime(rtc->regs, &t);
   int count = snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d",

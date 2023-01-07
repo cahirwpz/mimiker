@@ -46,10 +46,12 @@ static void thread_wake_function(void *arg) {
   bintime_add_frac(&end, test_time_frac);
   bintime_add(&end, &BINTIME(0.1));
   bintime_t now = binuptime();
+  sleepq_lock(arg);
   while (bintime_cmp(&now, &end, <)) {
     sleepq_broadcast(arg);
     now = binuptime();
   }
+  sleepq_unlock(arg);
 }
 
 static void thread_sleep_function(void *arg) {
@@ -58,6 +60,7 @@ static void thread_sleep_function(void *arg) {
   bintime_add_frac(&end, test_time_frac);
   bintime_t now = binuptime();
   while (bintime_cmp(&now, &end, <)) {
+    sleepq_lock(arg);
     sleepq_wait(arg, "Thread stats test sleepq");
     now = binuptime();
   }

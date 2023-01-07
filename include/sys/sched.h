@@ -43,6 +43,8 @@ static inline void __preempt_enable(void *data) {
 #define WITH_NO_PREEMPTION                                                     \
   WITH_STMT(void, __preempt_disable, __preempt_enable, NULL)
 
+void sched_init(thread_t *td);
+
 /*! \brief Add new thread to the scheduler.
  *
  * The thread will be set runnable. */

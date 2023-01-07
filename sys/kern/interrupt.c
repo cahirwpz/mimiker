@@ -209,7 +209,9 @@ void intr_event_run_handlers(intr_event_t *ie) {
 
   if (ie_status & IF_DELEGATE) {
     ie_disable(ie);
+    sleepq_lock(ie);
     sleepq_signal(ie);
+    sleepq_unlock(ie);
   }
 
   if (ie_status == IF_STRAY)
@@ -269,13 +271,10 @@ static void intr_thread(void *arg) {
     }
 
     /* If there are still handlers assigned to the interrupt event, enable
-     * interrupts and wait for a wakeup. We do it with interrupts disabled
-     * to prevent the wakeup from being lost. */
-    WITH_INTR_DISABLED {
-      if (!TAILQ_EMPTY(&ie->ie_handlers))
-        ie_enable(ie);
-
-      sleepq_wait(ie, NULL);
-    }
+     * interrupts and wait for a wakeup. */
+    sleepq_lock(ie);
+    if (!TAILQ_EMPTY(&ie->ie_handlers))
+      ie_enable(ie);
+    sleepq_wait(ie, NULL);
   }
 }
