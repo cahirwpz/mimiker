@@ -53,19 +53,18 @@ TEST_ADD(nanosleep) {
   syscall_fail(nanosleep(NULL, NULL), EFAULT);
   syscall_fail(nanosleep(NULL, &rmt), EFAULT);
 
-  /* Check if sleept at least requested time */;
-  for (int g = 0; g < 20; g++) {
-    rqt.tv_nsec = (1000 << g);
+  /* Check if sleept at least requested time.
+   * Please note that system clock has resolution of one milisecond! */
+  for (int g = 0; g < 6; g++) {
+    rqt.tv_nsec = (1000000 << g);
     diff.tv_sec = rqt.tv_sec;
     diff.tv_usec = rqt.tv_nsec / 1000;
 
-    ret = gettimeofday(&time1, NULL);
-    assert(ret == 0);
+    syscall_ok(gettimeofday(&time1, NULL));
     while ((ret = nanosleep(&rqt, &rmt)) == EINTR)
       rqt = rmt;
     assert(ret == 0);
-    ret = gettimeofday(&time2, NULL);
-    assert(ret == 0);
+    syscall_ok(gettimeofday(&time2, NULL));
 
     timeradd(&time1, &diff, &time1);
     assert(timercmp(&time1, &time2, <=));
