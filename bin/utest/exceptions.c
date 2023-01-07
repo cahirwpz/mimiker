@@ -45,7 +45,7 @@ int test_exc_integer_overflow(void) {
   EXPECT_SIGNAL(SIGFPE, &si) {
     int d = __INT_MAX__;
   start:
-    asm volatile("addi %0, %0, 1": : "r"(d));
+    asm volatile("addi %0, %0, 1" : : "r"(d));
   end:;
   }
   CLEANUP_SIGNAL();
@@ -97,7 +97,7 @@ int test_exc_unknown_instruction(void) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
   start:
-    asm volatile (".long 0x00110011");
+    asm volatile(".long 0x00110011");
   end:;
   }
   CLEANUP_SIGNAL();
@@ -109,7 +109,7 @@ int test_exc_msr_instruction(void) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
   start:
-  asm volatile("msr spsr_el1, %0" ::"r"(1ULL));
+    asm volatile("msr spsr_el1, %0" ::"r"(1ULL));
   end:;
   }
   CLEANUP_SIGNAL();

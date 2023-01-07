@@ -107,8 +107,8 @@ static void user_trap_handler(ctx_t *ctx) {
     case EXC_TLBS:
     case EXC_TLBRI:
     case EXC_TLBXI:
-      klog("%s at $%lx, caused by reference to $%lx!", exceptions[code],
-           epc, vaddr);
+      klog("%s at $%lx, caused by reference to $%lx!", exceptions[code], epc,
+           vaddr);
       if ((error = pmap_fault_handler(ctx, vaddr, exc_access(code))))
         sig_trap(SIGSEGV, error == EFAULT ? SEGV_MAPERR : SEGV_ACCERR,
                  (void *)vaddr, code);
@@ -138,7 +138,7 @@ static void user_trap_handler(ctx_t *ctx) {
     case EXC_CPU:
       cp_id = (_REG(ctx, CAUSE) & CR_CEMASK) >> CR_CESHIFT;
       if (cp_id != 1) {
-        sig_trap(SIGILL, ILL_ILLOPC, (void*)epc, code);
+        sig_trap(SIGILL, ILL_ILLOPC, (void *)epc, code);
       } else {
         /* Enable FPU for interrupted context. */
         thread_self()->td_pflags |= TDP_FPUINUSE;
@@ -147,7 +147,7 @@ static void user_trap_handler(ctx_t *ctx) {
       break;
 
     case EXC_RI:
-      sig_trap(SIGILL, ILL_PRVOPC, (void*)epc, code);
+      sig_trap(SIGILL, ILL_PRVOPC, (void *)epc, code);
       break;
 
     default:
