@@ -68,10 +68,8 @@ static void munmap_good(void) {
   addr = mmap_anon_prw(NULL, 0x1000);
   syscall_ok(munmap(addr, 0x1000));
 
-  /* munmapping again fails */
+  /* munmapping again is no-op */
   syscall_ok(munmap(addr, 0x1000));
-  // TODO(fzdob): why it does not return EINVAL?
-  // syscall_fail(munmap(addr, 0x1000), EINVAL);
 
   /* more pages */
   addr = mmap_anon_prw(NULL, 0x3000);
