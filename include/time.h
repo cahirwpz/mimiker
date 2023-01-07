@@ -21,8 +21,8 @@ struct tm *localtime(const time_t *);
 struct tm *localtime_r(const time_t *__restrict, struct tm *__restrict);
 time_t time(time_t *);
 time_t mktime(struct tm *);
-char *strptime(const char * __restrict, const char * __restrict,
-    struct tm * __restrict);
+char *strptime(const char *__restrict, const char *__restrict,
+               struct tm *__restrict);
 size_t strftime(char *__restrict, size_t, const char *__restrict,
                 const struct tm *__restrict)
   __attribute__((__format__(__strftime__, 3, 0)));
@@ -36,8 +36,8 @@ size_t strftime_lz(timezone_t __restrict, char *__restrict, size_t,
 size_t strftime_z(timezone_t __restrict, char *__restrict, size_t,
                   const char *__restrict, const struct tm *__restrict)
   __attribute__((__format__(__strftime__, 4, 0)));
-char *strptime_l(const char * __restrict, const char * __restrict,
-    struct tm * __restrict, locale_t);
+char *strptime_l(const char *__restrict, const char *__restrict,
+                 struct tm *__restrict, locale_t);
 timezone_t tzalloc(const char *);
 void tzfree(const timezone_t);
 void tzset(void);
