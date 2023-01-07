@@ -55,7 +55,7 @@ static void callout_thread(void *arg) {
 
     WITH_INTR_DISABLED {
       while (TAILQ_EMPTY(&delegated)) {
-        sleepq_wait(&delegated, NULL);
+        sleepq_wait(&delegated, NULL, NULL);
       }
 
       elem = TAILQ_FIRST(&delegated);
@@ -211,6 +211,6 @@ bool callout_drain(callout_t *handle) {
   if (!callout_is_pending(handle) && !callout_is_active(handle))
     return false;
   while (callout_is_pending(handle) || callout_is_active(handle))
-    sleepq_wait(handle, NULL);
+    sleepq_wait(handle, NULL, NULL);
   return true;
 }

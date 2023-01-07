@@ -15,7 +15,7 @@ void cv_wait(condvar_t *cv, mtx_t *m) {
     /* If we got interrupted here and an interrupt filter called
      * cv_signal, we would have a lost wakeup, so we need interrupts
      * to be disabled. Same goes for cv_wait_timed. */
-    sleepq_wait(cv, __caller(0));
+    sleepq_wait(cv, __caller(0), NULL);
   }
   _mtx_lock(m, __caller(0));
 }
@@ -25,7 +25,7 @@ int cv_wait_timed(condvar_t *cv, mtx_t *m, systime_t timeout) {
   WITH_INTR_DISABLED {
     cv->waiters++;
     mtx_unlock(m);
-    status = sleepq_wait_timed(cv, __caller(0), timeout);
+    status = sleepq_wait_timed(cv, __caller(0), NULL, timeout);
   }
   _mtx_lock(m, __caller(0));
   return status;
