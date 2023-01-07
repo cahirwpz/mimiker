@@ -281,12 +281,6 @@ static void *prepare_layout(size_t pgsz) {
   sprintf(addr + 5 * pgsz, "sixth");
   sprintf(addr + 6 * pgsz, "seventh");
 
-  sprintf(addr, "first");
-  sprintf(addr + pgsz, "second");
-  sprintf(addr + 3 * pgsz, "fourth");
-  sprintf(addr + 5 * pgsz, "sixth");
-  sprintf(addr + 6 * pgsz, "seventh");
-
   return addr;
 }
 
