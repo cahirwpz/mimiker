@@ -162,11 +162,11 @@ BIN =\
 	tar\
 	time\
 	tee\
+	touch\
 	xargs
 
 BIN_DONT_WORK =\
-	getconf\
-	touch\
+	getconf
 
 BIN_QUESTIONABLE =\
 	cron\
