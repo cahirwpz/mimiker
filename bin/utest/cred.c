@@ -25,7 +25,8 @@ int test_get_set_uid(void) {
   error = setresuid(ruid, euid, suid);
   assert(error == 0);
 
-  getresuid(&ruid, &euid, &suid);
+  error = getresuid(&ruid, &euid, &suid);
+  assert(error == 0);
   assert(ruid == 1 && euid == 2 && suid == 3);
 
   /* we can only change to value that is one of real, effective or saved */
@@ -33,7 +34,8 @@ int test_get_set_uid(void) {
   error = setresuid(ruid, euid, suid);
   assert(error == 0);
 
-  getresuid(&ruid, &euid, &suid);
+  error = getresuid(&ruid, &euid, &suid);
+  assert(error == 0);
   assert(ruid == 1 && euid == 3 && suid == 3);
 
   /* we cannnot change to value that is not one of real, effective or saved */
@@ -41,7 +43,8 @@ int test_get_set_uid(void) {
   error = setresuid(ruid, euid, suid);
   assert(error < 0 && errno == EPERM);
 
-  getresuid(&ruid, &euid, &suid);
+  error = getresuid(&ruid, &euid, &suid);
+  assert(error == 0);
   assert(ruid == 1 && euid == 3 && suid == 3);
 
   return 0;
@@ -66,7 +69,8 @@ int test_get_set_gid(void) {
   error = setresgid(rgid, egid, sgid);
   assert(error == 0);
 
-  getresgid(&rgid, &egid, &sgid);
+  error = getresgid(&rgid, &egid, &sgid);
+  assert(error == 0);
   assert(rgid == 1 && egid == 2 && sgid == 3);
 
   /* dropping privileges */
@@ -77,7 +81,8 @@ int test_get_set_gid(void) {
   error = setresgid(rgid, egid, sgid);
   assert(error == 0);
 
-  getresgid(&rgid, &egid, &sgid);
+  error = getresgid(&rgid, &egid, &sgid);
+  assert(error == 0);
   assert(rgid == 1 && egid == 3 && sgid == 3);
 
   /* we cannnot change to value that is not one of real, effective or saved */
@@ -85,7 +90,8 @@ int test_get_set_gid(void) {
   error = setresgid(rgid, egid, sgid);
   assert(error < 0 && errno == EPERM);
 
-  getresgid(&rgid, &egid, &sgid);
+  error = getresgid(&rgid, &egid, &sgid);
+  assert(error == 0);
   assert(rgid == 1 && egid == 3 && sgid == 3);
 
   return 0;
@@ -94,10 +100,12 @@ int test_get_set_gid(void) {
 int test_get_set_groups(void) {
   gid_t rgrp[NGROUPS_MAX], gidset[NGROUPS_MAX] = {0, 1, 2, 3, 4, 5};
   int r, ngroups = 6;
+  int error;
   uid_t euid;
 
   /* check if we are a root at start */
-  getresuid(NULL, &euid, NULL);
+  error = getresuid(NULL, &euid, NULL);
+  assert(error == 0);
   assert(euid == 0);
   r = getgroups(0, NULL);
   assert(r == 0);
