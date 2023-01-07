@@ -53,9 +53,15 @@ void utest_child_exited(int exitcode);
   })
 
 #define string_eq(s1, s2)                                                      \
-  ({ if (strcmp((s1), (s2))) die("strings were expected to match!\n"); })
+  ({                                                                           \
+    if (strcmp((s1), (s2)))                                                    \
+      die("strings were expected to match!\n");                                \
+  })
 
 #define string_ne(s1, s2)                                                      \
-  ({ if (!strcmp((s1), (s2))) die("strings were not expected to match!\n"); })
+  ({                                                                           \
+    if (!strcmp((s1), (s2)))                                                   \
+      die("strings were not expected to match!\n");                            \
+  })
 
 #endif /* __UTEST_H__ */
