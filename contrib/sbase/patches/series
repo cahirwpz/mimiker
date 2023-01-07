@@ -1,3 +1,4 @@
+libutil-mode.patch
 seq.patch
 find.patch
 join.patch
