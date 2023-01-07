@@ -111,7 +111,8 @@ CONFIG = {
                     '-object', 'filter-dump,id=net0,netdev=net0,file=rtl.pcap'
                 ],
                 'uarts': [
-                    dict(name='/dev/tty0', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True,
+                         primary=True),
                     dict(name='/dev/tty1', port=RandomPort()),
                     dict(name='/dev/cons', port=RandomPort())
                 ],
@@ -128,7 +129,8 @@ CONFIG = {
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [
-                    dict(name='/dev/tty0', port=RandomPort(), raw=True)
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True,
+                         primary=True),
                 ],
                 'storage_options': [],
                 'drive': 'if=sd,index=0,format=qcow2,file={path}',
@@ -142,7 +144,8 @@ CONFIG = {
                 ],
                 'network_options': [],
                 'uarts': [
-                    dict(name='/dev/tty0', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True,
+                         primary=True),
                     dict(name='/dev/tty1', port=RandomPort(), raw=True)
                 ]
             },
@@ -298,8 +301,10 @@ class QEMU(Launchable):
             if 'port' in uart:
                 port = uart['port']
                 output = f'tcp:127.0.0.1:{port},server,wait'
-            else:
+            elif 'primary' in uart:
                 output = 'stdio'
+            else:
+                output = 'none'
             self.options += ['-serial', output]
 
         if not getvar('config.dts'):
