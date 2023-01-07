@@ -171,7 +171,7 @@ TEST_ADD(pipe_write_interruptible_sleep) {
       data[i] = (i + '0') % CHAR_MAX;
     }
     int bytes_wrote = 0;
-    ualarm(50000, 0); /* 50 ms */
+    ualarm(5000, 5000); /* 5 ms, and after that every 5 ms */
 
     while (bytes_wrote >= 0) {
       bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
@@ -256,7 +256,7 @@ TEST_ADD(pipe_read_interruptible_sleep) {
     sigaction(SIGALRM, &sa, NULL);
 
     char buf;
-    ualarm(50000, 0); /* 50 ms */
+    ualarm(5000, 5000); /* 5 ms, and after that every 5 ms */
 
     bytes_wrote = read(pipe_fd[0], &buf, 1);
 
