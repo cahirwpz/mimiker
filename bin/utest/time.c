@@ -3,6 +3,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
 
@@ -66,6 +67,8 @@ TEST_ADD(nanosleep) {
     assert(ret == 0);
     syscall_ok(gettimeofday(&time2, NULL));
 
+    printf("time1: %d.%06d, time2: %d.%06d\n", (int)time1.tv_sec, time1.tv_usec,
+           (int)time2.tv_sec, time2.tv_usec);
     timeradd(&time1, &diff, &time1);
     assert(timercmp(&time1, &time2, <=));
   }
