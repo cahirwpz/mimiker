@@ -1,7 +1,7 @@
 Index: sbase/sbase/tar.c
 ===================================================================
---- sbase.orig/sbase/tar.c	2022-12-16 14:25:37.133008606 +0100
-+++ sbase/sbase/tar.c	2022-12-16 14:26:02.209674451 +0100
+--- sbase.orig/sbase/tar.c	2023-01-07 15:45:48.064682114 +0100
++++ sbase/sbase/tar.c	2023-01-07 15:50:13.238006702 +0100
 @@ -26,10 +26,7 @@
  	AREG      = '\0',
  	HARDLINK  = '1',
@@ -31,7 +31,7 @@ Index: sbase/sbase/tar.c
  {
  	char lname[101], *tmp, *p;
 -	long mode, major, minor, type, mtime, uid, gid;
-+	long mode, mtime, uid, gid;
++	long mode = 0, mtime = 0, uid, gid;
  	struct header *h = (struct header *)b;
  	int fd = -1;
  	struct timespec times[2];
