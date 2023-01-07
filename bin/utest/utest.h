@@ -14,8 +14,16 @@ int test_vmmap_rodata_access(void);
 int test_mmap(void);
 int test_munmap(void);
 int test_munmap_sigsegv(void);
+int test_munmap_many_1(void);
+int test_munmap_many_2(void);
 int test_mmap_prot_none(void);
 int test_mmap_prot_read(void);
+int test_mmap_fixed(void);
+int test_mmap_fixed_excl(void);
+int test_mmap_fixed_replace(void);
+int test_mmap_fixed_replace_many_1(void);
+int test_mmap_fixed_replace_many_2(void);
+
 int test_sbrk(void);
 int test_sbrk_sigsegv(void);
 int test_misbehave(void);

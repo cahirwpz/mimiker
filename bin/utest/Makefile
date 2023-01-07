@@ -25,7 +25,6 @@ SOURCES = \
 	tty.c \
 	utest.c \
 	utest.h \
-	utest_fd.h \
 	util.c \
 	util.h \
 	vfs.c \

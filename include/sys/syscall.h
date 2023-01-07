@@ -91,6 +91,7 @@
 #define SYS_fsync 83
 #define SYS_kqueue1 84
 #define SYS_kevent 85
-#define SYS_MAXSYSCALL 86
+#define SYS_sigtimedwait 86
+#define SYS_MAXSYSCALL 87
 
 #define SYS_MAXSYSARGS 6
