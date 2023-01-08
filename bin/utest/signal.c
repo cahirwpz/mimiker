@@ -70,6 +70,7 @@ TEST_ADD(signal_abort) {
   EXPECT_SIGNAL(SIGABRT, &si) {
     raise(SIGABRT);
   }
+  assert(si.si_signo == SIGABRT);
   CLEANUP_SIGNAL();
   return 0;
 }

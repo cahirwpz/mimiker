@@ -14,9 +14,12 @@ TEST_ADD(exc_cop_unusable) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
     int value;
+  start:
     asm volatile("mfc0 %0, $12, 0" : "=r"(value));
+  end:;
   }
   CLEANUP_SIGNAL();
+  CHECK_SIGILL(&si, &&start, &&end, ILL_ILLOPC);
   return 0;
 }
 
@@ -26,9 +29,12 @@ TEST_ADD(exc_reserved_instruction) {
    * The MIPS32® Instruction Set" */
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
+  start:
     asm volatile(".long 0x00000039"); /* objdump fails to disassemble it */
+  end:;
   }
   CLEANUP_SIGNAL();
+  CHECK_SIGILL(&si, &&start, &&end, ILL_PRVOPC);
   return 0;
 }
 
@@ -36,9 +42,12 @@ TEST_ADD(exc_integer_overflow) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGFPE, &si) {
     int d = __INT_MAX__;
+  start:
     asm volatile("addi %0, %0, 1" : : "r"(d));
+  end:;
   }
   CLEANUP_SIGNAL();
+  CHECK_SIGFPE(&si, &&start, &&end, FPE_INTOVF);
   return 0;
 }
 
@@ -47,9 +56,12 @@ TEST_ADD(exc_unaligned_access) {
   EXPECT_SIGNAL(SIGBUS, &si) {
     int a[2];
     int val;
+  start:
     asm volatile("lw %0, 1(%1)" : "=r"(val) : "r"(a));
+  end:;
   }
   CLEANUP_SIGNAL();
+  CHECK_SIGBUS(&si, &&start, &&end, BUS_ADRALN);
   return 0;
 }
 
@@ -82,18 +94,24 @@ TEST_ADD(syscall_in_bds) {
 TEST_ADD(exc_unknown_instruction) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
+  start:
     asm volatile(".long 0x00110011");
+  end:;
   }
   CLEANUP_SIGNAL();
+  CHECK_SIGILL(&si, &&start, &&end, ILL_ILLOPC);
   return 0;
 }
 
 TEST_ADD(exc_msr_instruction) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
+  start:
     asm volatile("msr spsr_el1, %0" ::"r"(1ULL));
+  end:;
   }
   CLEANUP_SIGNAL();
+  CHECK_SIGILL(&si, &&start, &&end, ILL_ILLOPC);
   return 0;
 }
 
@@ -101,9 +119,12 @@ TEST_ADD(exc_mrs_instruction) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
     long x;
+  start:
     asm volatile("mrs %0, spsr_el1" : "=r"(x));
+  end:;
   }
   CLEANUP_SIGNAL();
+  CHECK_SIGILL(&si, &&start, &&end, ILL_ILLOPC);
   return 0;
 }
 
