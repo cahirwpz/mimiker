@@ -11,12 +11,11 @@
  * structured views of FCSR.
  */
 
-#include <assert.h>
+#include "utest.h"
+
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#include "utest.h"
 
 #define TEST_TIME 1000000
 #define PROCESSES 10
@@ -123,7 +122,7 @@ static int check_fpu_ctx(void *value) {
   return 0;
 }
 
-int test_fpu_gpr_preservation(void) {
+TEST_ADD(fpu_gpr_preservation) {
   int seed = 0xbeefface;
 
   for (int i = 0; i < P_PROCESSES; i++)
@@ -135,7 +134,7 @@ int test_fpu_gpr_preservation(void) {
   return 0;
 }
 
-int test_fpu_cpy_ctx_on_fork(void) {
+TEST_ADD(fpu_cpy_ctx_on_fork) {
   void *value = (void *)0xbeefface;
 
   MTC1_all_gpr(value);
@@ -158,7 +157,7 @@ static int check_fcsr(void *arg) {
   return 0;
 }
 
-int test_fpu_fcsr() {
+TEST_ADD(fpu_fcsr) {
   for (int i = 0; i < PROCESSES; i++)
     utest_spawn(check_fcsr, (void *)i);
 
@@ -181,7 +180,7 @@ static void signal_handler_usr1(int signo) {
   check_fpu_all_gpr((void *)1337);
 }
 
-int test_fpu_ctx_signals(void) {
+TEST_ADD(fpu_ctx_signals) {
   MTC1_all_gpr((void *)0xc0de);
 
   signal(SIGUSR1, signal_handler_usr1);

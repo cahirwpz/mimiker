@@ -1,24 +1,26 @@
-#include <assert.h>
-#include <signal.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sched.h>
-#include <sys/wait.h>
-
 #include "utest.h"
 #include "util.h"
 
+#include <sched.h>
+#include <signal.h>
+#include <stdio.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
 /* ======= signal_basic ======= */
 static volatile int sigusr1_handled = 0;
+
 static void sigusr1_handler(int signo) {
   printf("sigusr1 handled!\n");
   sigusr1_handled = 1;
 }
+
 static void sigint_handler(int signo) {
   printf("sigint handled!\n");
   raise(SIGUSR1); /* Recursive signals! */
 }
-int test_signal_basic(void) {
+
+TEST_ADD(signal_basic) {
   signal(SIGINT, sigint_handler);
   signal(SIGUSR1, sigusr1_handler);
   raise(SIGINT);
@@ -36,8 +38,9 @@ static void sigusr2_handler(int signo) {
   printf("Child process handles sigusr2.\n");
   raise(SIGABRT); /* Terminate self. */
 }
+
 /* Test sending a signal to a different thread. */
-int test_signal_send(void) {
+TEST_ADD(signal_send) {
   /* The child should inherit signal handler configuration. */
   signal(SIGUSR2, sigusr2_handler);
   int pid = fork();
@@ -62,17 +65,18 @@ int test_signal_send(void) {
 /* ======= signal_abort ======= */
 /* This test shall be considered success if the process gets terminated with
    SIGABRT */
-int test_signal_abort(void) {
+TEST_ADD(signal_abort) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGABRT, &si) {
     raise(SIGABRT);
   }
+  assert(si.si_signo == SIGABRT);
   CLEANUP_SIGNAL();
   return 0;
 }
 
 /* ======= signal_segfault ======= */
-int test_signal_segfault(void) {
+TEST_ADD(signal_segfault) {
   volatile struct { int x; } *ptr = 0x0;
 
   siginfo_t si;
@@ -95,7 +99,7 @@ static void signal_parent(int signo) {
   kill(ppid, SIGCONT);
 }
 
-int test_signal_stop(void) {
+TEST_ADD(signal_stop) {
   ppid = getpid();
   signal(SIGUSR1, SIG_IGN);
   signal(SIGCONT, sigcont_handler);
@@ -147,7 +151,7 @@ int test_signal_stop(void) {
 }
 
 /* ======= signal_cont_masked ======= */
-int test_signal_cont_masked(void) {
+TEST_ADD(signal_cont_masked) {
   ppid = getpid();
   signal(SIGCONT, sigcont_handler);
   int pid = fork();
@@ -181,7 +185,7 @@ int test_signal_cont_masked(void) {
 }
 
 /* ======= signal_mask ======= */
-int test_signal_mask(void) {
+TEST_ADD(signal_mask) {
   ppid = getpid();
   signal(SIGUSR1, signal_parent);
   signal(SIGCONT, sigcont_handler);
@@ -231,7 +235,7 @@ int test_signal_mask(void) {
 }
 
 /* ======= signal_mask_nonmaskable ======= */
-int test_signal_mask_nonmaskable(void) {
+TEST_ADD(signal_mask_nonmaskable) {
   sigset_t set, old;
   __sigemptyset(&set);
   __sigaddset(&set, SIGSTOP);
@@ -246,7 +250,7 @@ int test_signal_mask_nonmaskable(void) {
 }
 
 /* ======= signal_sigsuspend ======= */
-int test_signal_sigsuspend(void) {
+TEST_ADD(signal_sigsuspend) {
   pid_t ppid = getpid();
   signal(SIGCONT, sigcont_handler);
   signal(SIGUSR1, sigusr1_handler);
@@ -292,7 +296,7 @@ int test_signal_sigsuspend(void) {
 }
 
 /* ======= signal_sigsuspend_stop ======= */
-int test_signal_sigsuspend_stop(void) {
+TEST_ADD(signal_sigsuspend_stop) {
   pid_t ppid = getpid();
   signal(SIGUSR1, sigusr1_handler);
   sigset_t set, old;
@@ -370,7 +374,7 @@ static void yield_handler(int signo) {
     handler_success = 1;
 }
 
-int test_signal_handler_mask(void) {
+TEST_ADD(signal_handler_mask) {
   pid_t ppid = getpid();
   struct sigaction sa = {.sa_handler = yield_handler, .sa_flags = 0};
   /* Block SIGUSR1 when executing handler for SIGUSR2. */
