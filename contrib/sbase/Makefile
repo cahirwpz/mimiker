@@ -1,184 +1,180 @@
 TOPDIR = $(realpath ../..)
 
-HDR =\
-	arg.h\
-	compat.h\
-	crypt.h\
-	fs.h\
-	md5.h\
-	queue.h\
-	sha1.h\
-	sha224.h\
-	sha256.h\
-	sha384.h\
-	sha512.h\
-	sha512-224.h\
-	sha512-256.h\
-	text.h\
-	utf.h\
+HDR = \
+	arg.h \
+	compat.h \
+	crypt.h \
+	fs.h \
+	md5.h \
+	queue.h \
+	sha1.h \
+	sha224.h \
+	sha256.h \
+	sha384.h \
+	sha512.h \
+	sha512-224.h \
+	sha512-256.h \
+	text.h \
+	utf.h \
 	util.h
 
-LIBUTFSRC =\
-	libutf/fgetrune.c\
-	libutf/fputrune.c\
-	libutf/isalnumrune.c\
-	libutf/isalpharune.c\
-	libutf/isblankrune.c\
-	libutf/iscntrlrune.c\
-	libutf/isdigitrune.c\
-	libutf/isgraphrune.c\
-	libutf/isprintrune.c\
-	libutf/ispunctrune.c\
-	libutf/isspacerune.c\
-	libutf/istitlerune.c\
-	libutf/isxdigitrune.c\
-	libutf/lowerrune.c\
-	libutf/rune.c\
-	libutf/runetype.c\
-	libutf/upperrune.c\
-	libutf/utf.c\
+LIBUTFSRC = \
+	libutf/fgetrune.c \
+	libutf/fputrune.c \
+	libutf/isalnumrune.c \
+	libutf/isalpharune.c \
+	libutf/isblankrune.c \
+	libutf/iscntrlrune.c \
+	libutf/isdigitrune.c \
+	libutf/isgraphrune.c \
+	libutf/isprintrune.c \
+	libutf/ispunctrune.c \
+	libutf/isspacerune.c \
+	libutf/istitlerune.c \
+	libutf/isxdigitrune.c \
+	libutf/lowerrune.c \
+	libutf/rune.c \
+	libutf/runetype.c \
+	libutf/upperrune.c \
+	libutf/utf.c \
 	libutf/utftorunestr.c
 
-LIBUTILSRC =\
-	libutil/concat.c\
-	libutil/cp.c\
-	libutil/crypt.c\
-	libutil/ealloc.c\
-	libutil/enmasse.c\
-	libutil/eprintf.c\
-	libutil/eregcomp.c\
-	libutil/estrtod.c\
-	libutil/fnck.c\
-	libutil/fshut.c\
-	libutil/getlines.c\
-	libutil/human.c\
-	libutil/linecmp.c\
-	libutil/md5.c\
-	libutil/memmem.c\
-	libutil/mkdirp.c\
-	libutil/mode.c\
-	libutil/parseoffset.c\
-	libutil/putword.c\
-	libutil/reallocarray.c\
-	libutil/recurse.c\
-	libutil/rm.c\
-	libutil/sha1.c\
-	libutil/sha224.c\
-	libutil/sha256.c\
-	libutil/sha384.c\
-	libutil/sha512.c\
-	libutil/sha512-224.c\
-	libutil/sha512-256.c\
-	libutil/strcasestr.c\
-	libutil/strlcat.c\
-	libutil/strlcpy.c\
-	libutil/strsep.c\
-	libutil/strtonum.c\
-	libutil/unescape.c\
+LIBUTILSRC = \
+	libutil/concat.c \
+	libutil/cp.c \
+	libutil/crypt.c \
+	libutil/ealloc.c \
+	libutil/enmasse.c \
+	libutil/eprintf.c \
+	libutil/eregcomp.c \
+	libutil/estrtod.c \
+	libutil/fnck.c \
+	libutil/fshut.c \
+	libutil/getlines.c \
+	libutil/human.c \
+	libutil/linecmp.c \
+	libutil/md5.c \
+	libutil/memmem.c \
+	libutil/mkdirp.c \
+	libutil/mode.c \
+	libutil/parseoffset.c \
+	libutil/putword.c \
+	libutil/reallocarray.c \
+	libutil/recurse.c \
+	libutil/rm.c \
+	libutil/sha1.c \
+	libutil/sha224.c \
+	libutil/sha256.c \
+	libutil/sha384.c \
+	libutil/sha512.c \
+	libutil/sha512-224.c \
+	libutil/sha512-256.c \
+	libutil/strcasestr.c \
+	libutil/strlcat.c \
+	libutil/strlcpy.c \
+	libutil/strsep.c \
+	libutil/strtonum.c \
+	libutil/unescape.c \
 	libutil/writeall.c
 
-BIN =\
-	basename\
-	cat\
-	chgrp\
-	chmod\
-	chown\
-	cmp\
-	comm\
-	cp\
-	cut\
-	dd\
-	dirname\
-	echo\
-	env\
-	expand\
-	expr\
-	false\
-	fold\
-	head\
-	link\
-	ln\
-	logname\
-	md5sum\
-	mkdir\
-	mkfifo\
-	mktemp\
-	mv\
-	nice\
-	nl\
-	nohup\
-	printenv\
-	pwd\
-	readlink\
-	renice\
-	rev\
-	rm\
-	rmdir\
-	seq\
-	setsid\
-	sha1sum\
-	sha224sum\
-	sha256sum\
-	sha384sum\
-	sha512sum\
-	sha512-224sum\
-	sha512-256sum\
-	sleep\
-	split\
-	sponge\
-	strings\
-	sync\
-	test\
-	tr\
-	true\
-	tsort\
-	tty\
-	unexpand\
-	uniq\
-	unlink\
-	uudecode\
-	uuencode\
-	wc\
-	which\
-	whoami\
-	xinstall\
-	yes\
-	cal\
-	cols\
-	cksum\
-	date\
-	find\
-	grep\
-	join\
-	kill\
-	ls\
-	od\
-	paste\
-	pathchk\
-	printf\
-	sed\
-	sort\
-	tail\
-	tar\
-	time\
-	tee\
-	touch\
-	xargs
+BIN = \
+	basename \
+	cal \
+	cat \
+	chgrp \
+	chmod \
+	chown \
+	cksum \
+	cmp \
+	cols \
+	comm \
+	cp \
+	cut \
+	date \
+	dd \
+	dirname \
+	echo \
+	env \
+	expand \
+	expr \
+	false \
+	find \
+	fold \
+	grep \
+	head \
+	join \
+	kill \
+	link \
+	ln \
+	logname \
+	ls \
+	md5sum \
+	mkdir \
+	mkfifo \
+	mktemp \
+	mv \
+	nice \
+	nl \
+	nohup \
+	od \
+	paste \
+	pathchk \
+	printenv \
+	printf \
+	pwd \
+	readlink \
+	renice \
+	rev \
+	rm \
+	rmdir \
+	sed \
+	seq \
+	setsid \
+	sha1sum \
+	sha224sum \
+	sha256sum \
+	sha384sum \
+	sha512-224sum \
+	sha512-256sum \
+	sha512sum \
+	sleep \
+	sort \
+	split \
+	sponge \
+	strings \
+	sync \
+	tail \
+	tar \
+	tee \
+	test \
+	time \
+	touch \
+	tr \
+	true \
+	tsort \
+	tty \
+	unexpand \
+	uniq \
+	unlink \
+	uudecode \
+	uuencode \
+	wc \
+	which \
+	whoami \
+	xargs \
+	xinstall \
+	yes
 
-BIN_DONT_WORK =\
-	getconf
-
-BIN_QUESTIONABLE =\
-	cron\
-	du\
-	ed\
-	logger
-
-BIN_SURELY_DISABLED =\
-	chroot\
-	flock\
-	hostname\
-	mknod\
+BIN_DISABLED = \
+	chroot \
+	cron \
+	du \
+	ed \
+	flock \
+	getconf \
+	hostname \
+	logger \
+	mknod \
 	tftp
 
 define rename_main_func =
