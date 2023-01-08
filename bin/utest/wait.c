@@ -1,11 +1,10 @@
-#include <assert.h>
-#include <stdio.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sched.h>
-#include <sys/wait.h>
-
 #include "utest.h"
+
+#include <sched.h>
+#include <signal.h>
+#include <stdio.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 static int nothing_to_report(pid_t pid) {
   return (waitpid(pid, NULL, WCONTINUED | WUNTRACED | WNOHANG) == 0);
@@ -18,7 +17,7 @@ static void sigcont_handler(int signo) {
   sigcont_handled = 1;
 }
 
-int test_wait_basic(void) {
+TEST_ADD(wait_basic) {
   ppid = getpid();
   signal(SIGCONT, sigcont_handler);
   int pid = fork();
@@ -60,7 +59,7 @@ int test_wait_basic(void) {
 }
 
 /* ======= wait_nohang ======= */
-int test_wait_nohang(void) {
+TEST_ADD(wait_nohang) {
   ppid = getpid();
   signal(SIGCONT, sigcont_handler);
   int pid = fork();

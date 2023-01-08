@@ -88,9 +88,10 @@ void kva_map(vaddr_t ptr, size_t size, kmem_flags_t flags) {
     kick_swapper();
 
   vaddr_t va = ptr;
-  vm_page_t *pg;
-  TAILQ_FOREACH (pg, &pglist, pageq) {
+  vm_page_t *pg, *pg_next;
+  TAILQ_FOREACH_SAFE (pg, &pglist, pageq, pg_next) {
     kva_map_page(va, pg->paddr, pg->size, 0);
+    pg->slab = NULL;
     va += pg->size * PAGESIZE;
   }
 
