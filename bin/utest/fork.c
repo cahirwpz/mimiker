@@ -1,12 +1,13 @@
-#include <assert.h>
+#include "utest.h"
+
+#include <sched.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <sched.h>
 
-int test_fork_wait(void) {
+TEST_ADD(fork_wait) {
   int n = fork();
   if (n == 0) {
     printf("This is child, my pid is %d!\n", getpid());
@@ -25,9 +26,9 @@ int test_fork_wait(void) {
   return 0;
 }
 
-volatile int done = 0;
+static volatile int done = 0;
 
-void sigchld_handler(int signo) {
+static void sigchld_handler(int signo) {
   printf("SIGCHLD handler!\n");
   int n = 0;
   while ((n = waitpid(-1, NULL, WNOHANG)) > 0) {
@@ -36,7 +37,7 @@ void sigchld_handler(int signo) {
   }
 }
 
-int test_fork_signal(void) {
+TEST_ADD(fork_signal) {
   signal(SIGCHLD, sigchld_handler);
   int n = fork();
   if (n == 0)
@@ -49,7 +50,7 @@ int test_fork_signal(void) {
   return 0;
 }
 
-int test_fork_sigchld_ignored(void) {
+TEST_ADD(fork_sigchld_ignored) {
   /* Please auto-reap my children. */
   signal(SIGCHLD, SIG_IGN);
   int n = fork();
