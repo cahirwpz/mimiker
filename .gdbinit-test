@@ -13,7 +13,7 @@ python import debug
 define post-mortem
   add-symbol-file bin/utest/utest.uelf 0x400000
   echo \n*** REGISTERS ***\n\n
-  info registers all
+  info registers
   echo \n*** BACKTRACE ***\n\n
   backtrace full
   echo \n*** KERNEL STRUCTURES ***\n\n
