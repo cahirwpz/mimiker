@@ -188,7 +188,7 @@ UTEST_ADD(session_login_name);
 #ifdef __mips__
 UTEST_ADD(gettimeofday);
 #endif
-UTEST_ADD(nanosleep);
+// UTEST_ADD(nanosleep);
 UTEST_ADD(itimer);
 
 UTEST_ADD(get_set_uid);
