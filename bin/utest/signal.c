@@ -67,6 +67,7 @@ int test_signal_abort(void) {
   EXPECT_SIGNAL(SIGABRT, &si) {
     raise(SIGABRT);
   }
+  assert(si.si_signo == SIGABRT);
   CLEANUP_SIGNAL();
   return 0;
 }

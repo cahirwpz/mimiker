@@ -33,7 +33,26 @@ void _expect_signal_cleanup(void);
 #define CLEANUP_SIGNAL() _expect_signal_cleanup()
 
 #define CHECK_SIGSEGV(si, sig_addr, sig_code)                                  \
+  assert((si)->si_signo == SIGSEGV);                                           \
   assert((si)->si_addr == (sig_addr));                                         \
+  assert((si)->si_code == (sig_code))
+
+#define CHECK_SIGILL(si, start_addr, end_addr, sig_code)                       \
+  assert((si)->si_signo == SIGILL);                                            \
+  assert((si)->si_addr >= (start_addr));                                       \
+  assert((si)->si_addr <= (end_addr));                                         \
+  assert((si)->si_code == (sig_code))
+
+#define CHECK_SIGFPE(si, start_addr, end_addr, sig_code)                       \
+  assert((si)->si_signo == SIGFPE);                                            \
+  assert((si)->si_addr >= (start_addr));                                       \
+  assert((si)->si_addr <= (end_addr));                                         \
+  assert((si)->si_code == (sig_code))
+
+#define CHECK_SIGBUS(si, start_addr, end_addr, sig_code)                       \
+  assert((si)->si_signo == SIGBUS);                                            \
+  assert((si)->si_addr >= (start_addr));                                       \
+  assert((si)->si_addr <= (end_addr));                                         \
   assert((si)->si_code == (sig_code))
 
 #define assert_ok(expr) assert((long int)(expr) == 0)
