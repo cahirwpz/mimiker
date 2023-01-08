@@ -1,31 +1,26 @@
 TOPDIR = $(realpath ../..)
 
-.SUFFIXES:
-.SUFFIXES: .o .c
 
-HDR =\
-	arg.h\
-	compat.h\
-	crypt.h\
-	fs.h\
-	md5.h\
-	queue.h\
-	sha1.h\
-	sha224.h\
-	sha256.h\
-	sha384.h\
-	sha512.h\
-	sha512-224.h\
-	sha512-256.h\
-	text.h\
-	utf.h\
+HDR = \
+	arg.h \
+	compat.h \
+	crypt.h \
+	fs.h \
+	md5.h \
+	queue.h \
+	sha1.h \
+	sha224.h \
+	sha256.h \
+	sha384.h \
+	sha512.h \
+	sha512-224.h \
+	sha512-256.h \
+	text.h \
+	utf.h \
 	util.h
 
-LIBUTIL = libutil.a
 LIBUTILSRC = \
-	libutil/agetcwd.c        \
 	libutil/agetline.c       \
-	libutil/apathmax.c       \
 	libutil/concat.c         \
 	libutil/ealloc.c         \
 	libutil/eprintf.c        \
@@ -41,9 +36,9 @@ LIBUTILSRC = \
 	libutil/tty.c
 
 LIBUTILSRC_DONT_WORK = \
-	libutil/passwd.c
-
-LIB = $(LIBUTIL)
+	libutil/passwd.c \
+	libutil/agetcwd.c \
+	libutil/apathmax.c
 
 BIN = \
 	clear             \
@@ -101,38 +96,26 @@ BIN_DONT_WORK = \
 	vtallow           \
 	who
 
-CFLAGS.ubase/clear.c += -Dmain=clear_main
-CFLAGS.ubase/id.c += -Dmain=id_main
-CFLAGS.ubase/nologin.c += -Dmain=nologin_main
-CFLAGS.ubase/pagesize.c += -Dmain=pagesize_main
-CFLAGS.ubase/respawn.c += -Dmain=respawn_main
-CFLAGS.ubase/stat.c += -Dmain=stat_main
-CFLAGS.ubase/truncate.c += -Dmain=truncate_main
-CFLAGS.ubase/watch.c += -Dmain=watch_main
+define rename_main_func =
+CFLAGS.ubase/$(1).c += -Dmain=$$(subst -,_,$(1))_main
+endef
 
-SOURCES_UBASE = $(addprefix ubase/,$(BIN:=.c))
-SOURCES_LIBUTIL = $(addprefix ubase/,$(LIBUTILSRC))
-OBJ_LIBUTIL = $(SOURCES_LIBUTIL:%.c=$(BUILDDIR)%.o)
-LIB_UBASE = $(addprefix ubase/,$(LIBUTIL))
+$(foreach bin,$(BIN),$(eval $(call rename_main_func,$(bin))))
 
 PROGRAM = ubase-box
-BINDIR = bin/ubase
+BINDIR = bin
 BUILDDIR = build/
-SOURCES = $(SOURCES_UBASE)
-FORMAT-EXCLUDE = $(SOURCES_UBASE) $(SOURCES_LIBUTIL) $(addprefix ubase/,$(HDR))
+SOURCES = $(addprefix ubase/,$(BIN:=.c)) $(addprefix ubase/,$(LIBUTILSRC))
+FORMAT-EXCLUDE = $(SOURCES) $(addprefix ubase/,$(HDR))
 
-OBJECTS += $(addprefix $(BUILDDIR),$(LIB_UBASE)) $(addsuffix .o,$(addprefix $(BUILDDIR),$(PROGRAM)))
-DEPENDENCY-FILES += $(foreach f, $(SOURCES_LIBUTIL),\
-		      $(BUILDDIR)$(dir $(f))$(patsubst %.c,%.d,$(notdir $(f))))
+OBJECTS += $(addsuffix .o,$(addprefix $(BUILDDIR),$(PROGRAM)))
 CFLAGS.ubase/stat.c += -Wno-error=format
 
 include $(TOPDIR)/build/build.prog.mk
 
 $(PROGRAM).c:
-	@echo "[PYTHON] $(BIN) -> $@"
+	@echo "[PYTHON] generating $@"
 	./box_src_generator.py --program $(PROGRAM) --tools $(BIN)
-
-$(BUILDDIR)ubase/$(LIBUTIL): $(OBJ_LIBUTIL)
 
 download-here: ubase/.git
 
