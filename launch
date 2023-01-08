@@ -302,7 +302,7 @@ class QEMU(Launchable):
                 port = uart['port']
                 output = f'tcp:127.0.0.1:{port},server,wait'
             elif 'primary' in uart:
-                output = 'stdio'
+                output = f'file:launch.log'
             else:
                 output = 'none'
             self.options += ['-serial', output]
@@ -399,8 +399,8 @@ def TestRun(sim, dbg, timeout):
 
         if rc == 1:
             print('\n*** CONSOLE ***\n')
-            stdout = sim_proc.read_nonblocking(size=1000000)
-            print(stdout.decode('utf-8').replace('\r\n', '\n'))
+            with open('launch.log', 'rb') as f:
+                print(f.read().decode('utf-8').replace('\r\n', '\n'))
             timed_out = b'received signal SIGINT' in gdb_proc.before
             print('*** GDB OUTPUT ***\n')
             print(gdb_proc.before.decode('utf-8'))
