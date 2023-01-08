@@ -4,7 +4,6 @@
 #include <sys/kenv.h>
 #include <sys/ktest.h>
 #include <sys/thread.h>
-#include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/wait.h>
 
@@ -34,8 +33,6 @@ static int utest_generic(const char *name, int status_success) {
 
   klog("User test '%s' started", name);
 
-  bintime_t test_start = binuptime();
-
   pid_t cpid;
   if (do_fork(utest_generic_thread, (void *)name, &cpid))
     panic("Could not start test!");
@@ -45,20 +42,13 @@ static int utest_generic(const char *name, int status_success) {
   do_waitpid(cpid, &status, 0, &pid);
   assert(cpid == pid);
 
-  bintime_t test_end = binuptime();
-  bintime_sub(&test_end, &test_start);
-
-  timeval_t took;
-  bt2tv(&test_end, &took);
-  long took_us = took.tv_sec * 1000000L + took.tv_usec;
-
   /* Restore previous klog mask */
   /* XXX: If we'll use klog_setmask heavily, maybe we should consider
      klog_{push,pop}_mask. */
   klog_setmask(old_klog_mask);
 
-  klog("User test '%s' took %d.%03dms; finished with status: %d, expected: %d",
-       name, took_us / 1000, took_us % 1000, status, status_success);
+  klog("User test '%s' finished with status: %d (expected: %d)", name, status,
+       status_success);
   if (status == status_success)
     return KTEST_SUCCESS;
   else
