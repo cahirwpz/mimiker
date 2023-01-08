@@ -1,14 +1,13 @@
 #include "utest.h"
 #include "util.h"
 
-#include <sys/stat.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 /* Shift used fds by 3 so std{in,out,err} are not affected. */
 #undef FD_OFFSET
@@ -27,7 +26,7 @@ static void fill_random(uint32_t *data, size_t n) {
   }
 }
 
-int test_vfs_rw(void) {
+TEST_ADD(vfs_rw) {
   int n;
 
   void *wrbuf = malloc(16384);
@@ -73,7 +72,7 @@ int test_vfs_rw(void) {
   return 0;
 }
 
-int test_vfs_trunc(void) {
+TEST_ADD(vfs_trunc) {
   int n;
   void *wrbuf = malloc(4096);
   void *rdbuf = malloc(8196);
@@ -107,124 +106,124 @@ int test_vfs_trunc(void) {
   free(rdbuf);
   unlink(TESTDIR "/file");
 
-  assert_fail(truncate(TESTDIR, 1023), EISDIR);
+  syscall_fail(truncate(TESTDIR, 1023), EISDIR);
   return 0;
 }
 
-int test_vfs_dir(void) {
-  assert_fail(mkdir("/", 0), EEXIST);
-  assert_ok(mkdir(TESTDIR "/test", 0));
-  assert_fail(mkdir(TESTDIR "/test", 0), EEXIST);
-  assert_fail(mkdir(TESTDIR "//test///", 0), EEXIST);
-  assert_ok(rmdir(TESTDIR "/test"));
-  assert_ok(mkdir(TESTDIR "/test", 0));
+TEST_ADD(vfs_dir) {
+  syscall_fail(mkdir("/", 0), EEXIST);
+  syscall_ok(mkdir(TESTDIR "/test", 0));
+  syscall_fail(mkdir(TESTDIR "/test", 0), EEXIST);
+  syscall_fail(mkdir(TESTDIR "//test///", 0), EEXIST);
+  syscall_ok(rmdir(TESTDIR "/test"));
+  syscall_ok(mkdir(TESTDIR "/test", 0));
 
-  assert_ok(mkdir(TESTDIR "//test2///", 0));
-  assert_ok(access(TESTDIR "/test2", 0));
+  syscall_ok(mkdir(TESTDIR "//test2///", 0));
+  syscall_ok(access(TESTDIR "/test2", 0));
 
-  assert_ok(mkdir(TESTDIR "/test3", 0));
-  assert_ok(mkdir(TESTDIR "/test3/subdir1", 0));
-  assert_ok(mkdir(TESTDIR "/test3/subdir2", 0));
-  assert_ok(mkdir(TESTDIR "/test3/subdir3", 0));
-  assert_fail(mkdir(TESTDIR "/test3/subdir1", 0), EEXIST);
-  assert_ok(access(TESTDIR "/test3/subdir2", 0));
+  syscall_ok(mkdir(TESTDIR "/test3", 0));
+  syscall_ok(mkdir(TESTDIR "/test3/subdir1", 0));
+  syscall_ok(mkdir(TESTDIR "/test3/subdir2", 0));
+  syscall_ok(mkdir(TESTDIR "/test3/subdir3", 0));
+  syscall_fail(mkdir(TESTDIR "/test3/subdir1", 0), EEXIST);
+  syscall_ok(access(TESTDIR "/test3/subdir2", 0));
 
-  assert_fail(mkdir(TESTDIR "/test4/subdir4", 0), ENOENT);
+  syscall_fail(mkdir(TESTDIR "/test4/subdir4", 0), ENOENT);
 
-  assert_ok(rmdir(TESTDIR "/test/"));
-  assert_ok(rmdir(TESTDIR "/test2"));
-  assert_fail(rmdir(TESTDIR "/test3"), ENOTEMPTY);
-  assert_ok(rmdir(TESTDIR "/test3/subdir1"));
-  assert_ok(rmdir(TESTDIR "/test3/subdir2"));
-  assert_ok(rmdir(TESTDIR "/test3/subdir3"));
-  assert_ok(rmdir(TESTDIR "/test3"));
-  assert_fail(rmdir(TESTDIR "/test3"), ENOENT);
-  assert_fail(rmdir(TESTDIR "/test4/subdir4"), ENOENT);
+  syscall_ok(rmdir(TESTDIR "/test/"));
+  syscall_ok(rmdir(TESTDIR "/test2"));
+  syscall_fail(rmdir(TESTDIR "/test3"), ENOTEMPTY);
+  syscall_ok(rmdir(TESTDIR "/test3/subdir1"));
+  syscall_ok(rmdir(TESTDIR "/test3/subdir2"));
+  syscall_ok(rmdir(TESTDIR "/test3/subdir3"));
+  syscall_ok(rmdir(TESTDIR "/test3"));
+  syscall_fail(rmdir(TESTDIR "/test3"), ENOENT);
+  syscall_fail(rmdir(TESTDIR "/test4/subdir4"), ENOENT);
 
-  assert_fail(mkdir(TESTDIR "/test3/subdir1", 0), ENOENT);
+  syscall_fail(mkdir(TESTDIR "/test3/subdir1", 0), ENOENT);
 
-  assert_fail(mkdir("/", 0), EEXIST);
-  assert_fail(rmdir("/tmp"), EBUSY);
-
-  return 0;
-}
-
-int test_vfs_relative_dir(void) {
-  assert_ok(chdir(TESTDIR));
-  assert_ok(mkdir("test", 0));
-  assert_fail(mkdir("test", 0), EEXIST);
-  assert_fail(mkdir("test///", 0), EEXIST);
-  assert_ok(chdir("test"));
-
-  assert_ok(mkdir("test2///", 0));
-  assert_ok(rmdir("test2"));
-
-  assert_ok(mkdir("test3", 0));
-  assert_ok(mkdir("test3/subdir1", 0));
-  assert_ok(mkdir("test3/subdir2", 0));
-  assert_ok(mkdir("test3/subdir3", 0));
-  assert_fail(mkdir("test3/subdir1", 0), EEXIST);
-  assert_ok(access("test3/subdir2", 0));
-
-  assert_ok(rmdir(TESTDIR "/test/test3/subdir1"));
-  assert_ok(rmdir(TESTDIR "/test/test3/subdir2"));
-  assert_ok(rmdir(TESTDIR "/test/test3/subdir3"));
-  assert_ok(rmdir("test3"));
-
-  assert_ok(chdir(TESTDIR));
-  assert_ok(rmdir("test"));
-  assert_ok(chdir("/"));
-  return 0;
-}
-
-int test_vfs_dot_dot_dir(void) {
-  assert_ok(chdir(TESTDIR));
-
-  assert_ok(mkdir("test", 0));
-  assert_ok(chdir("test"));
-  assert_ok(mkdir("test2///", 0));
-  assert_ok(chdir("test2"));
-
-  assert_ok(chdir(".."));
-  assert_ok(chdir("test2"));
-
-  assert_ok(chdir("../test2"));
-  assert_ok(chdir("../../"));
-  assert_fail(mkdir("test", 0), EEXIST);
-
-  assert_ok(chdir("test"));
-  assert_ok(rmdir("../test/test2"));
-
-  assert_ok(chdir("./.."));
-  assert_ok(rmdir("test"));
+  syscall_fail(mkdir("/", 0), EEXIST);
+  syscall_fail(rmdir("/tmp"), EBUSY);
 
   return 0;
 }
 
-int test_vfs_dot_dir(void) {
-  assert_fail(mkdir(TESTDIR "/test/.", 0), ENOENT);
-  assert_fail(mkdir("/.", 0), EEXIST);
-  assert_fail(mkdir(TESTDIR "/.", 0), EEXIST);
+TEST_ADD(vfs_relative_dir) {
+  syscall_ok(chdir(TESTDIR));
+  syscall_ok(mkdir("test", 0));
+  syscall_fail(mkdir("test", 0), EEXIST);
+  syscall_fail(mkdir("test///", 0), EEXIST);
+  syscall_ok(chdir("test"));
+
+  syscall_ok(mkdir("test2///", 0));
+  syscall_ok(rmdir("test2"));
+
+  syscall_ok(mkdir("test3", 0));
+  syscall_ok(mkdir("test3/subdir1", 0));
+  syscall_ok(mkdir("test3/subdir2", 0));
+  syscall_ok(mkdir("test3/subdir3", 0));
+  syscall_fail(mkdir("test3/subdir1", 0), EEXIST);
+  syscall_ok(access("test3/subdir2", 0));
+
+  syscall_ok(rmdir(TESTDIR "/test/test3/subdir1"));
+  syscall_ok(rmdir(TESTDIR "/test/test3/subdir2"));
+  syscall_ok(rmdir(TESTDIR "/test/test3/subdir3"));
+  syscall_ok(rmdir("test3"));
+
+  syscall_ok(chdir(TESTDIR));
+  syscall_ok(rmdir("test"));
+  syscall_ok(chdir("/"));
+  return 0;
+}
+
+TEST_ADD(vfs_dot_dot_dir) {
+  syscall_ok(chdir(TESTDIR));
+
+  syscall_ok(mkdir("test", 0));
+  syscall_ok(chdir("test"));
+  syscall_ok(mkdir("test2///", 0));
+  syscall_ok(chdir("test2"));
+
+  syscall_ok(chdir(".."));
+  syscall_ok(chdir("test2"));
+
+  syscall_ok(chdir("../test2"));
+  syscall_ok(chdir("../../"));
+  syscall_fail(mkdir("test", 0), EEXIST);
+
+  syscall_ok(chdir("test"));
+  syscall_ok(rmdir("../test/test2"));
+
+  syscall_ok(chdir("./.."));
+  syscall_ok(rmdir("test"));
 
   return 0;
 }
 
-int test_vfs_dot_dot_across_fs(void) {
-  assert_ok(chdir("/../../../../"));
-  assert_fail(mkdir("dev", 0), EEXIST);
+TEST_ADD(vfs_dot_dir) {
+  syscall_fail(mkdir(TESTDIR "/test/.", 0), ENOENT);
+  syscall_fail(mkdir("/.", 0), EEXIST);
+  syscall_fail(mkdir(TESTDIR "/.", 0), EEXIST);
 
-  assert_ok(chdir("dev/../dev/../../../dev/../../dev"));
-  assert_fail(mkdir("../dev", 0), EEXIST);
+  return 0;
+}
 
-  assert_ok(chdir("../"));
-  assert_fail(mkdir("dev", 0), EEXIST);
+TEST_ADD(vfs_dot_dot_across_fs) {
+  syscall_ok(chdir("/../../../../"));
+  syscall_fail(mkdir("dev", 0), EEXIST);
+
+  syscall_ok(chdir("dev/../dev/../../../dev/../../dev"));
+  syscall_fail(mkdir("../dev", 0), EEXIST);
+
+  syscall_ok(chdir("../"));
+  syscall_fail(mkdir("dev", 0), EEXIST);
 
   return 0;
 }
 
 static void test_vfs_symlink_basic(void) {
   char *buff = malloc(1024);
-  assert_ok(symlink("Hello, world!", TESTDIR "/testlink"));
+  syscall_ok(symlink("Hello, world!", TESTDIR "/testlink"));
 
   assert(readlink(TESTDIR "/testlink", buff, 1024) == 13);
   assert(!strcmp("Hello, world!", buff));
@@ -233,9 +232,9 @@ static void test_vfs_symlink_basic(void) {
   assert(readlink(TESTDIR "/testlink", buff, 5) == 5);
   assert(!strcmp("Hello", buff));
 
-  assert_fail(symlink("Hello, world!", TESTDIR "/testlink"), EEXIST);
+  syscall_fail(symlink("Hello, world!", TESTDIR "/testlink"), EEXIST);
 
-  assert_ok(unlink(TESTDIR "/testlink"));
+  syscall_ok(unlink(TESTDIR "/testlink"));
   free(buff);
 }
 
@@ -245,29 +244,29 @@ static void test_vfs_symlink_vnr(void) {
   ino_t fileino;
 
   assert_open_ok(0, TESTDIR "/file", 0, O_RDWR | O_CREAT);
-  assert_ok(stat(TESTDIR "/file", &sb));
+  syscall_ok(stat(TESTDIR "/file", &sb));
   fileino = sb.st_ino;
 
   /* Absolute symlink */
-  assert_ok(symlink(TESTDIR "/file", TESTDIR "/alink"));
-  assert_ok(stat(TESTDIR "/alink", &sb));
+  syscall_ok(symlink(TESTDIR "/file", TESTDIR "/alink"));
+  syscall_ok(stat(TESTDIR "/alink", &sb));
   assert(fileino == sb.st_ino);
 
-  assert_ok(symlink(TESTDIR "/alink", TESTDIR "/alink2"));
-  assert_ok(stat(TESTDIR "/alink2", &sb));
+  syscall_ok(symlink(TESTDIR "/alink", TESTDIR "/alink2"));
+  syscall_ok(stat(TESTDIR "/alink2", &sb));
   assert(fileino == sb.st_ino);
 
   /* Relative symlink */
-  assert_ok(symlink("file", TESTDIR "/rlink"));
-  assert_ok(stat(TESTDIR "/rlink", &sb));
+  syscall_ok(symlink("file", TESTDIR "/rlink"));
+  syscall_ok(stat(TESTDIR "/rlink", &sb));
   assert(fileino == sb.st_ino);
 
-  assert_ok(symlink("alink2", TESTDIR "/rlink2"));
-  assert_ok(stat(TESTDIR "/rlink2", &sb));
+  syscall_ok(symlink("alink2", TESTDIR "/rlink2"));
+  syscall_ok(stat(TESTDIR "/rlink2", &sb));
   assert(fileino == sb.st_ino);
 
   /* Do not follow symlink */
-  assert_ok(lstat(TESTDIR "/alink2", &sb));
+  syscall_ok(lstat(TESTDIR "/alink2", &sb));
   assert(fileino != sb.st_ino);
 
   unlink(TESTDIR "/alink");
@@ -276,31 +275,31 @@ static void test_vfs_symlink_vnr(void) {
   unlink(TESTDIR "/rlink2");
 
   /* Symlink to directory */
-  assert_ok(symlink("/tmp", TESTDIR "/dlink"));
-  assert_ok(stat(TESTDIR "/dlink/file", &sb));
+  syscall_ok(symlink("/tmp", TESTDIR "/dlink"));
+  syscall_ok(stat(TESTDIR "/dlink/file", &sb));
   assert(fileino == sb.st_ino);
   unlink(TESTDIR "/dlink");
 
   /* Looped symlink */
-  assert_ok(symlink(TESTDIR "/slink", TESTDIR "/slink"));
-  assert_fail(stat(TESTDIR "/slink", &sb), ELOOP);
+  syscall_ok(symlink(TESTDIR "/slink", TESTDIR "/slink"));
+  syscall_fail(stat(TESTDIR "/slink", &sb), ELOOP);
   unlink(TESTDIR "/slink");
 
   /* Bad symlink */
-  assert_ok(symlink(TESTDIR "/nofile", TESTDIR "/blink"));
-  assert_fail(stat(TESTDIR "/blink", &sb), ENOENT);
+  syscall_ok(symlink(TESTDIR "/nofile", TESTDIR "/blink"));
+  syscall_fail(stat(TESTDIR "/blink", &sb), ENOENT);
   unlink(TESTDIR "/blink");
 
   unlink(TESTDIR "/file");
 }
 
-int test_vfs_symlink(void) {
+TEST_ADD(vfs_symlink) {
   test_vfs_symlink_basic();
   test_vfs_symlink_vnr();
   return 0;
 }
 
-int test_vfs_link(void) {
+TEST_ADD(vfs_link) {
   int n;
   struct stat sb;
   ino_t fileino;
@@ -311,7 +310,7 @@ int test_vfs_link(void) {
 
   /* Create file and fill it with random data */
   assert_open_ok(0, TESTDIR "/file", S_IWUSR | S_IRUSR, O_RDWR | O_CREAT);
-  assert_ok(stat(TESTDIR "/file", &sb));
+  syscall_ok(stat(TESTDIR "/file", &sb));
   assert(sb.st_nlink == 1);
 
   fileino = sb.st_ino;
@@ -319,8 +318,8 @@ int test_vfs_link(void) {
   assert_write_ok(0, wrbuf, 32);
 
   /* Make a hard link */
-  assert_ok(link(TESTDIR "/file", TESTDIR "/file2"));
-  assert_ok(stat(TESTDIR "/file2", &sb));
+  syscall_ok(link(TESTDIR "/file", TESTDIR "/file2"));
+  syscall_ok(stat(TESTDIR "/file2", &sb));
 
   /* Ensure if inode number and link count is proper */
   assert(sb.st_ino == fileino);
@@ -332,8 +331,8 @@ int test_vfs_link(void) {
   assert(!memcmp(wrbuf, rdbuf, 32));
 
   /* Make another link to the same file*/
-  assert_ok(link(TESTDIR "/file2", TESTDIR "/file3"));
-  assert_ok(stat(TESTDIR "/file3", &sb));
+  syscall_ok(link(TESTDIR "/file2", TESTDIR "/file3"));
+  syscall_ok(stat(TESTDIR "/file3", &sb));
 
   /* Ensure if inode number and link count is proper */
   assert(sb.st_ino == fileino);
@@ -349,45 +348,45 @@ int test_vfs_link(void) {
 
   /* Delete second file */
   assert_close_ok(1);
-  assert_ok(unlink(TESTDIR "/file2"));
+  syscall_ok(unlink(TESTDIR "/file2"));
 
-  assert_ok(stat(TESTDIR "/file", &sb));
+  syscall_ok(stat(TESTDIR "/file", &sb));
   assert(sb.st_nlink == 2);
 
-  assert_ok(unlink(TESTDIR "/file"));
+  syscall_ok(unlink(TESTDIR "/file"));
 
-  assert_ok(stat(TESTDIR "/file3", &sb));
+  syscall_ok(stat(TESTDIR "/file3", &sb));
   assert(sb.st_nlink == 1);
 
-  assert_ok(unlink(TESTDIR "/file3"));
+  syscall_ok(unlink(TESTDIR "/file3"));
 
-  assert_fail(link("/tmp", "/tmp/foo"), EPERM);
+  syscall_fail(link("/tmp", "/tmp/foo"), EPERM);
 
   return 0;
 }
 
-int test_vfs_chmod(void) {
+TEST_ADD(vfs_chmod) {
   struct stat sb;
 
   assert(open(TESTDIR "/file", O_RDWR | O_CREAT, 0) == 3);
-  assert_ok(stat(TESTDIR "/file", &sb));
+  syscall_ok(stat(TESTDIR "/file", &sb));
   assert((sb.st_mode & ALLPERMS) == 0);
 
-  assert_ok(chmod(TESTDIR "/file", DEFFILEMODE));
-  assert_ok(stat(TESTDIR "/file", &sb));
+  syscall_ok(chmod(TESTDIR "/file", DEFFILEMODE));
+  syscall_ok(stat(TESTDIR "/file", &sb));
   assert((sb.st_mode & ALLPERMS) == DEFFILEMODE);
 
   mode_t mode = S_IXGRP | S_IWOTH | S_IRUSR | S_ISUID;
-  assert_ok(chmod(TESTDIR "/file", mode));
-  assert_ok(stat(TESTDIR "/file", &sb));
+  syscall_ok(chmod(TESTDIR "/file", mode));
+  syscall_ok(stat(TESTDIR "/file", &sb));
   assert((sb.st_mode & ALLPERMS) == mode);
 
   mode_t lmode = S_IWUSR | S_IRWXU | S_IRWXO;
-  assert_ok(symlink(TESTDIR "/file", TESTDIR "/link"));
-  assert_ok(lchmod(TESTDIR "/link", lmode));
-  assert_ok(stat(TESTDIR "/link", &sb));
+  syscall_ok(symlink(TESTDIR "/file", TESTDIR "/link"));
+  syscall_ok(lchmod(TESTDIR "/link", lmode));
+  syscall_ok(stat(TESTDIR "/link", &sb));
   assert((sb.st_mode & ALLPERMS) == mode);
-  assert_ok(lstat(TESTDIR "/link", &sb));
+  syscall_ok(lstat(TESTDIR "/link", &sb));
   assert((sb.st_mode & ALLPERMS) == lmode);
 
   unlink(TESTDIR "/file");

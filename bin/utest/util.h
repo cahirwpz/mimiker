@@ -55,21 +55,6 @@ void _expect_signal_cleanup(void);
   assert((si)->si_addr <= (end_addr));                                         \
   assert((si)->si_code == (sig_code))
 
-#define assert_ok(expr) assert((long int)(expr) == 0)
-#define assert_fail(expr, err) assert((long int)(expr) == -1 && errno == err)
-
-#define STRING_EQ(str1, str2)                                                  \
-  ({                                                                           \
-    int __ret = strcmp(str1, str2);                                            \
-    assert_ok(__ret);                                                          \
-  })
-
-#define STRING_NE(str1, str2)                                                  \
-  ({                                                                           \
-    int __ret = strcmp((str1), (str2));                                        \
-    assert(__ret != 0);                                                        \
-  })
-
 #ifndef FD_OFFSET
 #define FD_OFFSET 0
 #endif

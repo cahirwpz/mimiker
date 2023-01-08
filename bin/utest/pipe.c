@@ -1,19 +1,16 @@
-#include <assert.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <fcntl.h>
-
-#include <signal.h>
-#include <string.h>
-#include <limits.h>
-
-#include <sys/types.h>
-#include <sys/wait.h>
-
 #include "utest.h"
 #include "util.h"
+
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 static sig_atomic_t signal_delivered;
 
@@ -23,7 +20,7 @@ static void sigpipe_handler(int signo) {
   }
 }
 
-int test_pipe_parent_signaled(void) {
+TEST_ADD(pipe_parent_signaled) {
   int pipe_fd[2];
   signal_delivered = 0;
   signal(SIGPIPE, sigpipe_handler);
@@ -57,7 +54,7 @@ int test_pipe_parent_signaled(void) {
   return 0;
 }
 
-int test_pipe_child_signaled(void) {
+TEST_ADD(pipe_child_signaled) {
   int pipe_fd[2];
   signal_delivered = 0;
 
@@ -108,7 +105,7 @@ int test_pipe_child_signaled(void) {
   return 0;
 }
 
-int test_pipe_blocking_flag_manipulation(void) {
+TEST_ADD(pipe_blocking_flag_manipulation) {
   int pipe_fd[2];
 
   /* creating pipe */
@@ -145,7 +142,7 @@ int test_pipe_blocking_flag_manipulation(void) {
   return 0;
 }
 
-int test_pipe_write_interruptible_sleep(void) {
+TEST_ADD(pipe_write_interruptible_sleep) {
   int pipe_fd[2];
   pid_t child_pid;
 
@@ -174,7 +171,7 @@ int test_pipe_write_interruptible_sleep(void) {
       data[i] = (i + '0') % CHAR_MAX;
     }
     int bytes_wrote = 0;
-    alarm(1);
+    ualarm(5000, 5000); /* 5 ms, and after that every 5 ms */
 
     while (bytes_wrote >= 0) {
       bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
@@ -193,7 +190,7 @@ int test_pipe_write_interruptible_sleep(void) {
   return 0;
 }
 
-int test_pipe_write_errno_eagain(void) {
+TEST_ADD(pipe_write_errno_eagain) {
   int pipe_fd[2];
   pid_t child_pid;
   int bytes_wrote = 0;
@@ -235,7 +232,7 @@ int test_pipe_write_errno_eagain(void) {
   return 0;
 }
 
-int test_pipe_read_interruptible_sleep(void) {
+TEST_ADD(pipe_read_interruptible_sleep) {
   int pipe_fd[2];
   pid_t child_pid;
   int bytes_wrote;
@@ -259,7 +256,7 @@ int test_pipe_read_interruptible_sleep(void) {
     sigaction(SIGALRM, &sa, NULL);
 
     char buf;
-    alarm(1);
+    ualarm(5000, 5000); /* 5 ms, and after that every 5 ms */
 
     bytes_wrote = read(pipe_fd[0], &buf, 1);
 
@@ -277,7 +274,7 @@ int test_pipe_read_interruptible_sleep(void) {
   return 0;
 }
 
-int test_pipe_read_errno_eagain(void) {
+TEST_ADD(pipe_read_errno_eagain) {
   int pipe_fd[2];
   pid_t child_pid;
   int bytes_wrote;
@@ -309,7 +306,7 @@ int test_pipe_read_errno_eagain(void) {
   return 0;
 }
 
-int test_pipe_read_return_zero(void) {
+TEST_ADD(pipe_read_return_zero) {
   int pipe_fd[2];
   pid_t child_pid;
   int bytes_wrote;

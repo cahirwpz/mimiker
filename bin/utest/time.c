@@ -1,13 +1,13 @@
 #include "utest.h"
 #include "util.h"
 
-#include <string.h>
-#include <assert.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/time.h>
 
-int test_gettimeofday(void) {
+TEST_ADD(gettimeofday) {
   timeval_t time1, time2;
   const int64_t start_of_century = 94684800, end_of_century = 4102444799;
 
@@ -28,7 +28,7 @@ int test_gettimeofday(void) {
   return 0;
 }
 
-int test_nanosleep(void) {
+TEST_ADD(nanosleep) {
   /* Requested and remaining time */
   timespec_t rqt, rmt;
   timeval_t time1, time2, diff;
@@ -38,43 +38,44 @@ int test_nanosleep(void) {
   rqt.tv_sec = -1;
 
   rqt.tv_nsec = 1;
-  assert_fail(nanosleep(&rqt, NULL), EINVAL);
-  assert_fail(nanosleep(&rqt, &rmt), EINVAL);
+  syscall_fail(nanosleep(&rqt, NULL), EINVAL);
+  syscall_fail(nanosleep(&rqt, &rmt), EINVAL);
 
   rqt.tv_sec = 0;
   rqt.tv_nsec = -1;
-  assert_fail(nanosleep(&rqt, NULL), EINVAL);
-  assert_fail(nanosleep(&rqt, &rmt), EINVAL);
+  syscall_fail(nanosleep(&rqt, NULL), EINVAL);
+  syscall_fail(nanosleep(&rqt, &rmt), EINVAL);
 
   rqt.tv_nsec = 1000000000;
-  assert_fail(nanosleep(&rqt, NULL), EINVAL);
-  assert_fail(nanosleep(&rqt, &rmt), EINVAL);
+  syscall_fail(nanosleep(&rqt, NULL), EINVAL);
+  syscall_fail(nanosleep(&rqt, &rmt), EINVAL);
 
   rqt.tv_nsec = 1000;
-  assert_fail(nanosleep(NULL, NULL), EFAULT);
-  assert_fail(nanosleep(NULL, &rmt), EFAULT);
+  syscall_fail(nanosleep(NULL, NULL), EFAULT);
+  syscall_fail(nanosleep(NULL, &rmt), EFAULT);
 
-  /* Check if sleept at least requested time */;
-  for (int g = 0; g < 20; g++) {
-    rqt.tv_nsec = (1000 << g);
+  /* Check if sleept at least requested time.
+   * Please note that system clock has resolution of one milisecond! */
+  for (int g = 0; g < 6; g++) {
+    rqt.tv_nsec = (1000000 << g);
     diff.tv_sec = rqt.tv_sec;
     diff.tv_usec = rqt.tv_nsec / 1000;
 
-    ret = gettimeofday(&time1, NULL);
-    assert(ret == 0);
+    syscall_ok(gettimeofday(&time1, NULL));
     while ((ret = nanosleep(&rqt, &rmt)) == EINTR)
       rqt = rmt;
     assert(ret == 0);
-    ret = gettimeofday(&time2, NULL);
-    assert(ret == 0);
+    syscall_ok(gettimeofday(&time2, NULL));
 
+    printf("time1: %d.%06d, time2: %d.%06d\n", (int)time1.tv_sec, time1.tv_usec,
+           (int)time2.tv_sec, time2.tv_usec);
     timeradd(&time1, &diff, &time1);
     assert(timercmp(&time1, &time2, <=));
   }
   return 0;
 }
 
-int test_itimer(void) {
+TEST_ADD(itimer) {
   signal_setup(SIGALRM);
   struct itimerval it, it2;
   memset(&it, 0, sizeof(it));
@@ -82,21 +83,21 @@ int test_itimer(void) {
 
   /* Try non-canonical timevals.  */
   it.it_value.tv_sec = -1;
-  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  syscall_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
   it.it_value.tv_sec = 0;
   it.it_value.tv_usec = -1;
-  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  syscall_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
   it.it_value.tv_usec = 1000000;
-  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  syscall_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
   it.it_value.tv_usec = 0;
   it.it_value.tv_sec = 1;
   it.it_interval.tv_sec = -1;
-  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  syscall_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
   it.it_interval.tv_sec = 0;
   it.it_interval.tv_usec = -1;
-  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  syscall_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
   it.it_interval.tv_usec = 1000000;
-  assert_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
+  syscall_fail(setitimer(ITIMER_REAL, &it, NULL), EINVAL);
 
   /* No timer should be currently set. */
   assert(getitimer(ITIMER_REAL, &it2) == 0);

@@ -1,18 +1,16 @@
 #include "utest.h"
 #include "util.h"
 
-#include <assert.h>
-#include <sys/wait.h>
-#include <sys/signal.h>
-#include <stdlib.h>
 #include <setjmp.h>
 #include <signal.h>
-
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/signal.h>
+#include <sys/wait.h>
 
 #ifdef __mips__
 
-int test_exc_cop_unusable(void) {
+TEST_ADD(exc_cop_unusable) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
     int value;
@@ -25,7 +23,7 @@ int test_exc_cop_unusable(void) {
   return 0;
 }
 
-int test_exc_reserved_instruction(void) {
+TEST_ADD(exc_reserved_instruction) {
   /* The choice of reserved opcode was done based on "Table A.2 MIPS32 Encoding
    * of the Opcode Field" from "MIPS® Architecture For Programmers Volume II-A:
    * The MIPS32® Instruction Set" */
@@ -40,7 +38,7 @@ int test_exc_reserved_instruction(void) {
   return 0;
 }
 
-int test_exc_integer_overflow(void) {
+TEST_ADD(exc_integer_overflow) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGFPE, &si) {
     int d = __INT_MAX__;
@@ -53,7 +51,7 @@ int test_exc_integer_overflow(void) {
   return 0;
 }
 
-int test_exc_unaligned_access(void) {
+TEST_ADD(exc_unaligned_access) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGBUS, &si) {
     int a[2];
@@ -67,7 +65,7 @@ int test_exc_unaligned_access(void) {
   return 0;
 }
 
-int test_syscall_in_bds(void) {
+TEST_ADD(syscall_in_bds) {
   unsigned control = 1;
   char *text = "write executed\n";
 
@@ -93,7 +91,7 @@ int test_syscall_in_bds(void) {
 
 #ifdef __aarch64__
 
-int test_exc_unknown_instruction(void) {
+TEST_ADD(exc_unknown_instruction) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
   start:
@@ -105,7 +103,7 @@ int test_exc_unknown_instruction(void) {
   return 0;
 }
 
-int test_exc_msr_instruction(void) {
+TEST_ADD(exc_msr_instruction) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
   start:
@@ -117,7 +115,7 @@ int test_exc_msr_instruction(void) {
   return 0;
 }
 
-int test_exc_mrs_instruction(void) {
+TEST_ADD(exc_mrs_instruction) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
     long x;
@@ -130,19 +128,12 @@ int test_exc_mrs_instruction(void) {
   return 0;
 }
 
-static sigjmp_buf jump_buffer;
-static void sigtrap_handler(int signo) {
-  siglongjmp(jump_buffer, 42);
-  assert(0); /* Shouldn't reach here. */
-}
-
-int test_exc_brk(void) {
-  signal(SIGTRAP, sigtrap_handler);
-  if (sigsetjmp(jump_buffer, 1) != 42) {
+TEST_ADD(exc_brk) {
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGTRAP, &si) {
     asm volatile("brk 0");
-    assert(0); /* Shouldn't reach here. */
   }
-  signal(SIGTRAP, SIG_DFL);
+  CLEANUP_SIGNAL();
   return 0;
 }
 
