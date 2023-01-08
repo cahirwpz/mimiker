@@ -275,7 +275,7 @@ static void intr_thread(void *arg) {
       if (!TAILQ_EMPTY(&ie->ie_handlers))
         ie_enable(ie);
 
-      sleepq_wait(ie, NULL);
+      sleepq_wait(ie, NULL, NULL);
     }
   }
 }

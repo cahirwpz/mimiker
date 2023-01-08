@@ -83,7 +83,7 @@ static int test_turnstile_adjust(void) {
   for (int i = 0; i < T; i++) {
     WITH_NO_PREEMPTION {
       sched_add(threads[i]);
-      sleepq_wait(threads[i], "thread start");
+      sleepq_wait(threads[i], "thread start", NULL);
     }
   }
 
