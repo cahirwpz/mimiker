@@ -105,10 +105,9 @@ $(foreach bin,$(BIN),$(eval $(call rename_main_func,$(bin))))
 PROGRAM = ubase-box
 BINDIR = bin
 BUILDDIR = build/
-SOURCES = $(addprefix ubase/,$(BIN:=.c)) $(addprefix ubase/,$(LIBUTILSRC))
+SOURCES = $(PROGRAM).c $(addprefix ubase/,$(BIN:=.c)) $(addprefix ubase/,$(LIBUTILSRC))
 FORMAT-EXCLUDE = $(SOURCES) $(addprefix ubase/,$(HDR))
 
-OBJECTS += $(addsuffix .o,$(addprefix $(BUILDDIR),$(PROGRAM)))
 CFLAGS.ubase/stat.c += -Wno-error=format
 
 include $(TOPDIR)/build/build.prog.mk
