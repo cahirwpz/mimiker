@@ -47,6 +47,7 @@ void user_trap_handler(mcontext_t *uctx) {
   ctx_t *ctx = (ctx_t *)uctx;
   register_t esr = READ_SPECIALREG(esr_el1);
   register_t far = READ_SPECIALREG(far_el1);
+  register_t elr = READ_SPECIALREG(elr_el1);
   syscall_result_t result;
   register_t exc_code = ESR_ELx_EXCEPTION(esr);
   register_t dfsc = esr & ISS_DATA_DFSC_MASK;
@@ -84,6 +85,8 @@ void user_trap_handler(mcontext_t *uctx) {
       break;
 
     case EXCP_UNKNOWN:
+      sig_trap(SIGILL, ILL_ILLOPC, (void *)elr, exc_code);
+      break;
     case EXCP_MSR: /* privileged instruction */
       sig_trap(SIGILL, ILL_PRVOPC, (void *)far, exc_code);
       break;

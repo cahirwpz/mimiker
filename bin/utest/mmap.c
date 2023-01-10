@@ -2,15 +2,14 @@
 #include "util.h"
 
 #include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <sys/mman.h>
-#include <stdint.h>
-#include <signal.h>
 #include <setjmp.h>
-#include <unistd.h>
+#include <signal.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #if __SIZEOF_POINTER__ == 4
 #define BAD_ADDR_SPAN 0x7fff0000
@@ -32,7 +31,6 @@
 static void mmap_no_hint(void) {
   void *addr = mmap_anon_prw(NULL, 12345);
   assert(addr != MAP_FAILED);
-  printf("mmap returned pointer: %p\n", addr);
   /* Ensure mapped area is cleared. */
   assert(*(char *)(addr + 10) == 0);
   assert(*(char *)(addr + 1000) == 0);
@@ -46,7 +44,6 @@ static void mmap_with_hint(void) {
   void *addr = mmap_anon_prw(TESTADDR, 99);
   assert(addr != MAP_FAILED);
   assert(addr >= TESTADDR);
-  printf("mmap returned pointer: %p\n", addr);
   /* Ensure mapped area is cleared. */
   assert(*(char *)(addr + 10) == 0);
   assert(*(char *)(addr + 50) == 0);
@@ -56,53 +53,37 @@ static void mmap_with_hint(void) {
 #undef TESTADDR
 
 static void mmap_bad(void) {
-  void *addr;
   /* Address range spans user and kernel space. */
-  addr = mmap_anon_prw((void *)BAD_ADDR_SPAN, BAD_ADDR_SPAN_LEN);
-  assert_fail(addr, EINVAL);
+  syscall_fail(mmap_anon_prw((void *)BAD_ADDR_SPAN, BAD_ADDR_SPAN_LEN), EINVAL);
   /* Address lies in low memory, that cannot be mapped. */
-  addr = mmap_anon_prw((void *)0x3ff000, 0x1000);
-  assert_fail(addr, EINVAL);
+  syscall_fail(mmap_anon_prw((void *)0x3ff000, 0x1000), EINVAL);
   /* Hint address is not page aligned. */
-  addr = mmap_anon_prw((void *)0x12345678, 0x1000);
-  assert_fail(addr, EINVAL);
+  syscall_fail(mmap_anon_prw((void *)0x12345678, 0x1000), EINVAL);
 }
 
 static void munmap_good(void) {
   void *addr;
-  int result;
 
   /* mmap & munmap one page */
   addr = mmap_anon_prw(NULL, 0x1000);
-  result = munmap(addr, 0x1000);
-  assert_ok(result);
+  syscall_ok(munmap(addr, 0x1000));
 
-  /* munmapping again fails */
-  result = munmap(addr, 0x1000);
-  printf("result: %d\n", result);
-  assert(errno == EINVAL);
-  // assert_fail(result, EINVAL);
+  /* munmapping again is no-op */
+  syscall_ok(munmap(addr, 0x1000));
 
   /* more pages */
   addr = mmap_anon_prw(NULL, 0x3000);
   assert(addr != MAP_FAILED);
 
-  result = munmap(addr + 0x1000, 0x1000);
-  assert_ok(result);
-
-  result = munmap(addr, 0x1000);
-  assert_ok(result);
-
-  result = munmap(addr + 0x2000, 0x1000);
-  assert_ok(result);
+  syscall_ok(munmap(addr + 0x1000, 0x1000));
+  syscall_ok(munmap(addr, 0x1000));
+  syscall_ok(munmap(addr + 0x2000, 0x1000));
 }
 
-int test_munmap_sigsegv(void) {
+TEST_ADD(munmap_sigsegv) {
   void *addr = mmap_anon_prw(NULL, 0x4000);
-  int res;
 
-  res = munmap(addr, 0x4000);
-  assert_ok(res);
+  syscall_ok(munmap(addr, 0x4000));
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
@@ -115,7 +96,7 @@ int test_munmap_sigsegv(void) {
   return 0;
 }
 
-int test_mmap(void) {
+TEST_ADD(mmap) {
   mmap_no_hint();
   mmap_with_hint();
   mmap_bad();
@@ -123,9 +104,9 @@ int test_mmap(void) {
   return 0;
 }
 
-int test_munmap(void) {
+TEST_ADD(munmap) {
   void *addr;
-  int result, child;
+  int child;
 
   addr =
     mmap(NULL, 0x3000, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
@@ -135,33 +116,26 @@ int test_munmap(void) {
   sprintf(addr, "first");
   sprintf(addr + 0x2000, "second");
 
-  result = munmap(addr + 0x1000, 0x1000);
-  assert_ok(result);
+  syscall_ok(munmap(addr + 0x1000, 0x1000));
 
   /* Now we have to fork to trigger pagefault on both parts of mapped memory. */
   child = fork();
   if (child == 0) {
-    int err;
-    err = strcmp(addr, "first");
-    assert_ok(err);
-    err = strcmp(addr + 0x2000, "second");
-    assert_ok(err);
+    string_eq(addr, "first");
+    string_eq(addr + 0x2000, "second");
     exit(0);
   }
 
   wait_for_child_exit(child, 0);
 
-  result = munmap(addr, 0x1000);
-  assert_ok(result);
-
-  result = munmap(addr + 0x2000, 0x1000);
-  assert_ok(result);
+  syscall_ok(munmap(addr, 0x1000));
+  syscall_ok(munmap(addr + 0x2000, 0x1000));
   return 0;
 }
 
 #define NPAGES 8
 
-int test_mmap_prot_none(void) {
+TEST_ADD(mmap_prot_none) {
   size_t pgsz = getpagesize();
   size_t size = pgsz * NPAGES;
   volatile void *addr = mmap_anon_priv(NULL, size, PROT_NONE);
@@ -180,7 +154,7 @@ int test_mmap_prot_none(void) {
   return 0;
 }
 
-int test_mmap_prot_read(void) {
+TEST_ADD(mmap_prot_read) {
   size_t pgsz = getpagesize();
   size_t size = pgsz * NPAGES;
   volatile void *addr = mmap_anon_priv(NULL, size, PROT_READ);
@@ -205,14 +179,12 @@ int test_mmap_prot_read(void) {
   return 0;
 }
 
-int test_mmap_fixed(void) {
+TEST_ADD(mmap_fixed) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, 3 * pgsz, PROT_READ | PROT_WRITE);
   void *new;
-  int res;
 
-  res = munmap(addr + pgsz, pgsz);
-  assert_ok(res);
+  syscall_ok(munmap(addr + pgsz, pgsz));
 
   new = mmap_anon_priv_flags(addr + pgsz, pgsz, PROT_READ, MAP_FIXED);
   assert(new == addr + pgsz);
@@ -220,25 +192,25 @@ int test_mmap_fixed(void) {
   return 0;
 }
 
-int test_mmap_fixed_excl(void) {
+TEST_ADD(mmap_fixed_excl) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, 2 * pgsz, PROT_READ);
-  void *err;
 
-  err = mmap_anon_priv_flags(addr, pgsz, PROT_READ, MAP_FIXED | MAP_EXCL);
-  assert_fail(err, ENOMEM);
+  syscall_fail(
+    mmap_anon_priv_flags(addr, pgsz, PROT_READ, MAP_FIXED | MAP_EXCL), ENOMEM);
 
-  err = mmap_anon_priv_flags(addr, 2 * pgsz, PROT_READ, MAP_FIXED | MAP_EXCL);
-  assert_fail(err, ENOMEM);
+  syscall_fail(
+    mmap_anon_priv_flags(addr, 2 * pgsz, PROT_READ, MAP_FIXED | MAP_EXCL),
+    ENOMEM);
 
-  err = mmap_anon_priv_flags(addr - pgsz, 3 * pgsz, PROT_READ,
-                             MAP_FIXED | MAP_EXCL);
-  assert_fail(err, ENOMEM);
+  syscall_fail(mmap_anon_priv_flags(addr - pgsz, 3 * pgsz, PROT_READ,
+                                    MAP_FIXED | MAP_EXCL),
+               ENOMEM);
 
   return 0;
 }
 
-int test_mmap_fixed_replace(void) {
+TEST_ADD(mmap_fixed_replace) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, 2 * pgsz, PROT_READ | PROT_WRITE);
   void *new;
@@ -250,10 +222,10 @@ int test_mmap_fixed_replace(void) {
   assert(new == addr);
 
   /* First page should be replaced with new mapping */
-  STRING_NE(addr, "first");
+  string_ne(addr, "first");
 
   /* Second page should remain unchanged */
-  STRING_EQ(addr + pgsz, "second");
+  string_eq(addr + pgsz, "second");
 
   return 0;
 }
@@ -267,13 +239,9 @@ int test_mmap_fixed_replace(void) {
  */
 static void *prepare_layout(size_t pgsz, int prot) {
   void *addr = mmap_anon_priv(NULL, 7 * pgsz, prot);
-  int res;
 
-  res = munmap(addr + 2 * pgsz, pgsz);
-  assert_ok(res);
-
-  res = munmap(addr + 4 * pgsz, pgsz);
-  assert_ok(res);
+  syscall_ok(munmap(addr + 2 * pgsz, pgsz));
+  syscall_ok(munmap(addr + 4 * pgsz, pgsz));
 
   return addr;
 }
@@ -293,13 +261,13 @@ static void *prepare_rw_layout(size_t pgsz) {
 }
 
 /* This test unmaps entries from prepared layout (second, fourth, sixth) */
-int test_munmap_many_1(void) {
+TEST_ADD(munmap_many_1) {
   size_t pgsz = getpagesize();
   void *addr = prepare_rw_layout(pgsz);
   int res;
 
   res = munmap(addr + pgsz, 5 * pgsz);
-  assert_ok(res);
+  syscall_ok(res);
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
@@ -320,20 +288,20 @@ int test_munmap_many_1(void) {
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr + 5 * pgsz, SEGV_MAPERR);
 
-  STRING_EQ(addr, "first");
-  STRING_EQ(addr + 6 * pgsz, "seventh");
+  string_eq(addr, "first");
+  string_eq(addr + 6 * pgsz, "seventh");
 
   return 0;
 }
 
 /* This test unmaps all entries from prepared layout */
-int test_munmap_many_2(void) {
+TEST_ADD(munmap_many_2) {
   size_t pgsz = getpagesize();
   void *addr = prepare_rw_layout(pgsz);
   int res;
 
   res = munmap(addr, 7 * pgsz);
-  assert_ok(res);
+  syscall_ok(res);
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
@@ -370,7 +338,7 @@ int test_munmap_many_2(void) {
 }
 
 /* This test unmaps entries from prepared layout (second, fourth, sixth) */
-int test_mmap_fixed_replace_many_1(void) {
+TEST_ADD(mmap_fixed_replace_many_1) {
   size_t pgsz = getpagesize();
   void *addr = prepare_rw_layout(pgsz);
   void *new;
@@ -378,18 +346,18 @@ int test_mmap_fixed_replace_many_1(void) {
   new = mmap_anon_priv_flags(addr + pgsz, 5 * pgsz, PROT_READ, MAP_FIXED);
   assert(new == addr + pgsz);
 
-  STRING_NE(addr + pgsz, "second");
-  STRING_NE(addr + 3 * pgsz, "fourth");
-  STRING_NE(addr + 5 * pgsz, "sixth");
+  string_ne(addr + pgsz, "second");
+  string_ne(addr + 3 * pgsz, "fourth");
+  string_ne(addr + 5 * pgsz, "sixth");
 
-  STRING_EQ(addr, "first");
-  STRING_EQ(addr + 6 * pgsz, "seventh");
+  string_eq(addr, "first");
+  string_eq(addr + 6 * pgsz, "seventh");
 
   return 0;
 }
 
 /* This test unmaps all entries from prepared layout */
-int test_mmap_fixed_replace_many_2(void) {
+TEST_ADD(mmap_fixed_replace_many_2) {
   size_t pgsz = getpagesize();
   void *addr = prepare_rw_layout(pgsz);
   void *new;
@@ -397,19 +365,18 @@ int test_mmap_fixed_replace_many_2(void) {
   new = mmap_anon_priv_flags(addr, 7 * pgsz, PROT_READ, MAP_FIXED);
   assert(new == addr);
 
-  STRING_NE(addr, "first");
-  STRING_NE(addr + pgsz, "second");
-  STRING_NE(addr + 3 * pgsz, "fourth");
-  STRING_NE(addr + 5 * pgsz, "sixth");
-  STRING_NE(addr + 6 * pgsz, "seventh");
+  string_ne(addr, "first");
+  string_ne(addr + pgsz, "second");
+  string_ne(addr + 3 * pgsz, "fourth");
+  string_ne(addr + 5 * pgsz, "sixth");
+  string_ne(addr + 6 * pgsz, "seventh");
 
   return 0;
 }
 
-int test_mprotect_simple(void) {
+TEST_ADD(mprotect_simple) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, pgsz, PROT_NONE);
-  int res;
   siginfo_t si;
 
   EXPECT_SIGNAL(SIGSEGV, &si) {
@@ -418,11 +385,10 @@ int test_mprotect_simple(void) {
   CLEANUP_SIGNAL();
   CHECK_SIGSEGV(&si, addr, SEGV_ACCERR);
 
-  res = mprotect(addr, pgsz, PROT_READ | PROT_WRITE);
-  assert_ok(res);
+  syscall_ok(mprotect(addr, pgsz, PROT_READ | PROT_WRITE));
 
   sprintf(addr, "first");
-  STRING_EQ(addr, "first");
+  string_eq(addr, "first");
 
   return 0;
 }
@@ -453,53 +419,49 @@ static void *prepare_none_layout(size_t pgsz) {
 }
 
 /* This test unmaps entries from prepared layout (second, fourth, sixth) */
-int test_mprotect_many_1(void) {
+TEST_ADD(mprotect_many_1) {
   size_t pgsz = getpagesize();
   void *addr = prepare_none_layout(pgsz);
-  int res;
   siginfo_t si;
 
-  res = mprotect(addr + pgsz, 5 * pgsz, PROT_READ | PROT_WRITE);
-  assert_ok(res);
+  syscall_ok(mprotect(addr + pgsz, 5 * pgsz, PROT_READ | PROT_WRITE));
 
   check_none_region(si, addr);
   check_none_region(si, addr + 6 * pgsz);
 
   sprintf(addr + pgsz, "some string");
-  STRING_EQ(addr + pgsz, "some string");
+  string_eq(addr + pgsz, "some string");
 
   sprintf(addr + 3 * pgsz, "some string");
-  STRING_EQ(addr + 3 * pgsz, "some string");
+  string_eq(addr + 3 * pgsz, "some string");
 
   sprintf(addr + 5 * pgsz, "some string");
-  STRING_EQ(addr + 5 * pgsz, "some string");
+  string_eq(addr + 5 * pgsz, "some string");
 
   return 0;
 }
 
 /* This test unmaps all entries from prepared layout */
-int test_mprotect_many_2(void) {
+TEST_ADD(mprotect_many_2) {
   size_t pgsz = getpagesize();
   void *addr = prepare_none_layout(pgsz);
-  int res;
 
-  res = mprotect(addr, 7 * pgsz, PROT_READ | PROT_WRITE);
-  assert_ok(res);
+  syscall_ok(mprotect(addr, 7 * pgsz, PROT_READ | PROT_WRITE));
 
   sprintf(addr, "some string");
-  STRING_EQ(addr, "some string");
+  string_eq(addr, "some string");
 
   sprintf(addr + pgsz, "some string");
-  STRING_EQ(addr + pgsz, "some string");
+  string_eq(addr + pgsz, "some string");
 
   sprintf(addr + 3 * pgsz, "some string");
-  STRING_EQ(addr + 3 * pgsz, "some string");
+  string_eq(addr + 3 * pgsz, "some string");
 
   sprintf(addr + 5 * pgsz, "some string");
-  STRING_EQ(addr + 5 * pgsz, "some string");
+  string_eq(addr + 5 * pgsz, "some string");
 
   sprintf(addr + 6 * pgsz, "some string");
-  STRING_EQ(addr + 6 * pgsz, "some string");
+  string_eq(addr + 6 * pgsz, "some string");
 
   return 0;
 }

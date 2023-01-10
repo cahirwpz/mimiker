@@ -33,23 +33,27 @@ void _expect_signal_cleanup(void);
 #define CLEANUP_SIGNAL() _expect_signal_cleanup()
 
 #define CHECK_SIGSEGV(si, sig_addr, sig_code)                                  \
+  assert((si)->si_signo == SIGSEGV);                                           \
   assert((si)->si_addr == (sig_addr));                                         \
   assert((si)->si_code == (sig_code))
 
-#define assert_ok(expr) assert((long int)(expr) == 0)
-#define assert_fail(expr, err) assert((long int)(expr) == -1 && errno == err)
+#define CHECK_SIGILL(si, start_addr, end_addr, sig_code)                       \
+  assert((si)->si_signo == SIGILL);                                            \
+  assert((si)->si_addr >= (start_addr));                                       \
+  assert((si)->si_addr <= (end_addr));                                         \
+  assert((si)->si_code == (sig_code))
 
-#define STRING_EQ(str1, str2)                                                  \
-  ({                                                                           \
-    int __ret = strcmp(str1, str2);                                            \
-    assert_ok(__ret);                                                          \
-  })
+#define CHECK_SIGFPE(si, start_addr, end_addr, sig_code)                       \
+  assert((si)->si_signo == SIGFPE);                                            \
+  assert((si)->si_addr >= (start_addr));                                       \
+  assert((si)->si_addr <= (end_addr));                                         \
+  assert((si)->si_code == (sig_code))
 
-#define STRING_NE(str1, str2)                                                  \
-  ({                                                                           \
-    int __ret = strcmp((str1), (str2));                                        \
-    assert(__ret != 0);                                                        \
-  })
+#define CHECK_SIGBUS(si, start_addr, end_addr, sig_code)                       \
+  assert((si)->si_signo == SIGBUS);                                            \
+  assert((si)->si_addr >= (start_addr));                                       \
+  assert((si)->si_addr <= (end_addr));                                         \
+  assert((si)->si_code == (sig_code))
 
 #ifndef FD_OFFSET
 #define FD_OFFSET 0
