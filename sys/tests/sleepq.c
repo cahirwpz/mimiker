@@ -12,7 +12,7 @@ static void test_thread(void *expected) {
     WITH_NO_PREEMPTION {
       wakeups++;
     }
-    sleepq_wait(&test_thread, NULL);
+    sleepq_wait(&test_thread, NULL, NULL);
   }
 }
 

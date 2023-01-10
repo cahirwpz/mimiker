@@ -195,7 +195,7 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   }
 
   int error;
-  error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
+  error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()", NULL);
   assert(error == EINTR);
 
   return ERESTARTNOHAND;
