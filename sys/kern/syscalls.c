@@ -663,14 +663,22 @@ static int sys_getresuid(proc_t *p, getresuid_args_t *args, register_t *res) {
   uid_t *usr_euid = SCARG(args, euid);
   uid_t *usr_suid = SCARG(args, suid);
 
-  klog("getresuid()");
+  klog("getresuid(%p, %p, %p)", usr_ruid, usr_euid, usr_suid);
 
   uid_t ruid, euid, suid;
   do_getresuid(p, &ruid, &euid, &suid);
 
-  int err1 = copyout(&ruid, usr_ruid, sizeof(uid_t));
-  int err2 = copyout(&euid, usr_euid, sizeof(uid_t));
-  int err3 = copyout(&suid, usr_suid, sizeof(uid_t));
+  int err1, err2, err3;
+  err1 = err2 = err3 = 0;
+
+  if (usr_ruid != NULL)
+    err1 = copyout(&ruid, usr_ruid, sizeof(uid_t));
+
+  if (usr_euid != NULL)
+    err2 = copyout(&euid, usr_euid, sizeof(uid_t));
+
+  if (usr_suid != NULL)
+    err3 = copyout(&suid, usr_suid, sizeof(uid_t));
 
   return err1 ? err1 : (err2 ? err2 : err3);
 }
@@ -680,14 +688,22 @@ static int sys_getresgid(proc_t *p, getresgid_args_t *args, register_t *res) {
   gid_t *usr_egid = SCARG(args, egid);
   gid_t *usr_sgid = SCARG(args, sgid);
 
-  klog("getresgid()");
+  klog("getresgid(%p, %p, %p)", usr_rgid, usr_egid, usr_sgid);
 
   gid_t rgid, egid, sgid;
   do_getresgid(p, &rgid, &egid, &sgid);
 
-  int err1 = copyout(&rgid, usr_rgid, sizeof(gid_t));
-  int err2 = copyout(&egid, usr_egid, sizeof(gid_t));
-  int err3 = copyout(&sgid, usr_sgid, sizeof(gid_t));
+  int err1, err2, err3;
+  err1 = err2 = err3 = 0;
+
+  if (usr_rgid != NULL)
+    err1 = copyout(&rgid, usr_rgid, sizeof(gid_t));
+
+  if (usr_egid != NULL)
+    err2 = copyout(&egid, usr_egid, sizeof(gid_t));
+
+  if (usr_sgid != NULL)
+    err3 = copyout(&sgid, usr_sgid, sizeof(gid_t));
 
   return err1 ? err1 : (err2 ? err2 : err3);
 }
