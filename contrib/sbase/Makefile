@@ -186,10 +186,9 @@ $(foreach bin,$(BIN),$(eval $(call rename_main_func,$(bin))))
 PROGRAM = sbase-box
 BINDIR = bin
 BUILDDIR = build/
-SOURCES = $(addprefix sbase/,$(BIN:=.c)) $(addprefix sbase/,$(LIBUTILSRC)) $(addprefix sbase/,$(LIBUTFSRC))
+SOURCES = $(PROGRAM).c $(addprefix sbase/,$(BIN:=.c)) $(addprefix sbase/,$(LIBUTILSRC)) $(addprefix sbase/,$(LIBUTFSRC))
 FORMAT-EXCLUDE = $(SOURCES) $(addprefix sbase/,$(HDR))
 
-OBJECTS += $(addsuffix .o,$(addprefix $(BUILDDIR),$(PROGRAM)))
 WFLAGS += -Wno-error=sign-compare -Wno-error=implicit-fallthrough
 
 include $(TOPDIR)/build/build.prog.mk
