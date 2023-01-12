@@ -346,7 +346,7 @@ TEST_ADD(signal_sigtimedwait_timeout) {
   sigset_t set, waitset;
   __sigemptyset(&set);
   __sigaddset(&set, SIGUSR1);
-  assert(sigprocmask(SIG_SETMASK, &set, NULL) == 0);
+  syscall_ok(sigprocmask(SIG_SETMASK, &set, NULL));
   pid_t cpid = fork();
   if (cpid == 0) {
     while (!sigusr2_handled) {
@@ -363,12 +363,10 @@ TEST_ADD(signal_sigtimedwait_timeout) {
     .tv_nsec = 10000000,
     .tv_sec = 0,
   };
-  assert(sigtimedwait(&waitset, &info, &timeout) == -1);
-  assert(errno == EINTR);
+  syscall_fail(sigtimedwait(&waitset, &info, &timeout), EINTR);
   kill(cpid, SIGUSR2);
   nanosleep(&timeout, NULL);
-  assert(sigtimedwait(&waitset, &info, &timeout) == -1);
-  assert(errno == EAGAIN);
+  syscall_fail(sigtimedwait(&waitset, &info, &timeout), EAGAIN);
 
   printf("Waiting for child...\n");
   int status;
