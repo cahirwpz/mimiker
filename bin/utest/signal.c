@@ -297,7 +297,7 @@ TEST_ADD(signal_sigsuspend) {
 }
 
 /* ======= signal_sigtimedwait ======= */
-int test_signal_sigtimedwait(void) {
+TEST_ADD(signal_sigtimedwait) {
   pid_t ppid = getpid();
   signal(SIGCONT, sigcont_handler);
   sigset_t set, current, waitset;
@@ -339,7 +339,7 @@ void sigtimedwait_timeout_sigusr2_handler(int signo) {
   sigusr2_handled = 1;
 }
 
-int test_signal_sigtimedwait_timeout(void) {
+TEST_ADD(signal_sigtimedwait_timeout) {
   pid_t ppid = getpid();
   signal(SIGCONT, sigcont_handler);
   signal(SIGUSR2, sigtimedwait_timeout_sigusr2_handler);

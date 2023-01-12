@@ -253,7 +253,8 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
       goto out;
     }
 
-    error = sleepq_wait_timed(&td->td_sigmask, "sigtimedwait()", &p->p_lock, timeout);
+    error =
+      sleepq_wait_timed(&td->td_sigmask, "sigtimedwait()", &p->p_lock, timeout);
 
     if (error == ETIMEDOUT) {
       error = EAGAIN;
