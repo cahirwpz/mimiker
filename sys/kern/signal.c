@@ -239,7 +239,9 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
     saved_mask = td->td_sigmask;
     __sigminusset(&waitset, &td->td_sigmask);
 
-    if ((sig = sig_pending(td))) {
+    sigset_t pending = td->td_sigpend.sp_set;
+    __sigandset(&waitset, &pending);
+    if ((sig = __sigfindset(&pending))) {
       sigpend_get(&td->td_sigpend, sig, kinfo);
       error = 0;
       goto out;
@@ -263,7 +265,7 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
 
     /* We need to find pending signal that we also wait for manually, as
      * sig_pending may return a pending signal not from waitset. */
-    sigset_t pending = td->td_sigpend.sp_set;
+    pending = td->td_sigpend.sp_set;
     __sigandset(&waitset, &pending);
     if ((sig = __sigfindset(&pending))) {
       sigpend_get(&td->td_sigpend, sig, kinfo);
