@@ -1,5 +1,3 @@
-#include "sys/siginfo.h"
-#include "sys/sigtypes.h"
 #define KL_LOG KL_SIGNAL
 #include <sys/klog.h>
 #include <sys/mimiker.h>
@@ -14,6 +12,9 @@
 #include <sys/sched.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
+
+#include "sys/siginfo.h"
+#include "sys/sigtypes.h"
 
 static KMALLOC_DEFINE(M_SIGNAL, "signal");
 
@@ -197,7 +198,7 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   }
 
   int error;
-  error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
+  error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()", NULL);
   assert(error == EINTR);
 
   return ERESTARTNOHAND;
@@ -251,11 +252,9 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
       error = EINVAL;
       goto out;
     }
-  }
 
-  error = sleepq_wait_timed(&td->td_sigmask, "sigtimedwait()", timeout);
+    error = sleepq_wait_timed(&td->td_sigmask, "sigtimedwait()", &p->p_lock, timeout);
 
-  WITH_PROC_LOCK(p) {
     if (error == ETIMEDOUT) {
       error = EAGAIN;
       goto out;

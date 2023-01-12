@@ -32,6 +32,7 @@ typedef enum {
   VM_SHARED = 0x0001,  /* share changes */
   VM_PRIVATE = 0x0002, /* changes are private */
   VM_FIXED = 0x0004,   /* map addr must be exactly as requested */
+  VM_EXCL = 0x4000,    /* for MAP_FIXED, fail if address is used */
 } vm_flags_t;
 
 typedef struct vm_page vm_page_t;

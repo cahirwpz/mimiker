@@ -16,6 +16,7 @@
 
 /* Extra flags for mmap. */
 #define MAP_FIXED 0x0004
+#define MAP_EXCL 0x4000 /* for MAP_FIXED, fail if address is used */
 
 /* Protections for mapped pages (bitwise or'ed). */
 #define PROT_NONE 0

@@ -35,7 +35,7 @@ static volatile int interrupted;
  * when waiters can't.
  * Therefore there should be only one waiter active at once */
 static void waiter_routine(void *_arg) {
-  int rsn = sleepq_wait_intr(&some_val, __caller(0));
+  int rsn = sleepq_wait_intr(&some_val, __caller(0), NULL);
 
   if (rsn == EINTR)
     interrupted++;

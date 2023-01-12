@@ -1,19 +1,18 @@
-#include <assert.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/fcntl.h>
-#include <sys/termios.h>
-#include <sys/filio.h>
-#include <sys/ioctl.h>
-#include <stdio.h>
-#include <errno.h>
-
 #include "utest.h"
 #include "util.h"
 
-int test_tty_canon(void) {
+#include <errno.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/fcntl.h>
+#include <sys/filio.h>
+#include <sys/ioctl.h>
+#include <sys/termios.h>
+#include <unistd.h>
+
+TEST_ADD(tty_canon) {
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
 
@@ -83,7 +82,7 @@ int test_tty_canon(void) {
   return 0;
 }
 
-int test_tty_echo(void) {
+TEST_ADD(tty_echo) {
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
 
@@ -130,7 +129,7 @@ int test_tty_echo(void) {
   return 0;
 }
 
-int test_tty_signals(void) {
+TEST_ADD(tty_signals) {
   signal_setup(SIGUSR1);
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);

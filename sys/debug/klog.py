@@ -1,5 +1,6 @@
 import gdb
 import os.path
+import sys
 
 from .cmd import SimpleCommand
 from .struct import GdbStructMeta, enum, cstr, BinTime
@@ -65,20 +66,27 @@ class Klog(SimpleCommand):
 
     def __call__(self, args):
         klog = LogBuffer(global_var('klog'))
-        self.dump_info(klog)
-        self.dump_messages(klog)
+        if args:
+            with open(args, 'w') as f:
+                self.dump(klog, f)
+        else:
+            self.dump(klog)
 
-    def dump_info(self, klog):
+    def dump(self, klog, stdout=sys.stdout):
+        self.dump_info(klog, stdout)
+        self.dump_messages(klog, stdout)
+
+    def dump_info(self, klog, stdout):
         table = TextTable(types='ti', align='rr')
         table.header(['Mask', 'Messages'])
         table.add_row([hex(klog.mask), len(klog)])
-        print(table)
+        print(table, file=stdout)
 
-    def dump_messages(self, klog):
+    def dump_messages(self, klog, stdout):
         table = TextTable(types='', align='rrlll')
         table.header(['Time', 'Id', 'Source', 'System', 'Message'])
         table.set_precision(6)
         for entry in klog:
             table.add_row([entry.kl_timestamp.as_float(), entry.kl_tid,
                            entry.source, entry.kl_origin, entry.format_msg()])
-        print(table)
+        print(table, file=stdout)

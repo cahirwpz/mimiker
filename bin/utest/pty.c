@@ -1,19 +1,18 @@
-#include <assert.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/fcntl.h>
-#include <sys/termios.h>
-#include <stdio.h>
-#include <errno.h>
-
 #include "utest.h"
 #include "util.h"
 
+#include <errno.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/fcntl.h>
+#include <sys/termios.h>
+#include <unistd.h>
+
 static const char *test_str = "hello";
 
-int test_pty_simple(void) {
+TEST_ADD(pty_simple) {
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
 
