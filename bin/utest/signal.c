@@ -299,31 +299,31 @@ TEST_ADD(signal_sigsuspend) {
 /* ======= signal_sigtimedwait ======= */
 TEST_ADD(signal_sigtimedwait) {
   pid_t ppid = getpid();
-  signal(SIGCONT, sigcont_handler);
+  syscall_ok(signal(SIGCONT, sigcont_handler));
   sigset_t set, current, waitset;
   __sigemptyset(&set);
   __sigaddset(&set, SIGUSR1);
   __sigaddset(&set, SIGCONT);
   syscall_ok(sigprocmask(SIG_SETMASK, &set, NULL));
   pid_t cpid = fork();
+  assert(cpid >= 0);
   if (cpid == 0) {
     sched_yield();
-    kill(ppid, SIGUSR1);
+    syscall_ok(kill(ppid, SIGUSR1));
     return 0;
   }
 
-  printf("Calling sigtimedwait()...\n");
   siginfo_t info;
   __sigemptyset(&waitset);
   __sigaddset(&waitset, SIGUSR1);
   assert(sigtimedwait(&waitset, &info, NULL) == SIGUSR1);
   assert(info.si_signo == SIGUSR1);
-  sigprocmask(SIG_BLOCK, NULL, &current);
+
+  syscall_ok(sigprocmask(SIG_BLOCK, NULL, &current));
   assert(__sigsetequal(&set, &current));
 
-  printf("Waiting for child...\n");
   int status;
-  wait(&status);
+  assert(wait(&status) == cpid);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == 0);
   return 0;
@@ -338,13 +338,15 @@ void sigtimedwait_timeout_sigusr2_handler(int signo) {
 
 TEST_ADD(signal_sigtimedwait_timeout) {
   pid_t ppid = getpid();
-  signal(SIGCONT, sigcont_handler);
-  signal(SIGUSR2, sigtimedwait_timeout_sigusr2_handler);
+  syscall_ok(signal(SIGCONT, sigcont_handler));
+  syscall_ok(signal(SIGUSR2, sigtimedwait_timeout_sigusr2_handler));
   sigset_t set, waitset;
   __sigemptyset(&set);
   __sigaddset(&set, SIGUSR1);
   syscall_ok(sigprocmask(SIG_SETMASK, &set, NULL));
+
   pid_t cpid = fork();
+  assert(cpid >= 0);
   if (cpid == 0) {
     while (!sigusr2_handled) {
       kill(ppid, SIGCONT);
@@ -352,7 +354,6 @@ TEST_ADD(signal_sigtimedwait_timeout) {
     return 0;
   }
 
-  printf("Calling sigtimedwait()...\n");
   siginfo_t info;
   __sigemptyset(&waitset);
   __sigaddset(&waitset, SIGUSR1);
@@ -374,13 +375,14 @@ TEST_ADD(signal_sigtimedwait_timeout) {
 
   /* After the signal we should be interrupted only once, so next call to
    * sigtimedwait will timeout. */
-  kill(cpid, SIGUSR2);
+  syscall_ok(kill(cpid, SIGUSR2));
+
+  /* This may be woken up by a timeout or by an interrupt. */
   nanosleep(&timeout, NULL);
   syscall_fail(sigtimedwait(&waitset, &info, &timeout), EAGAIN);
 
-  printf("Waiting for child...\n");
   int status;
-  wait(&status);
+  assert(wait(&status) == cpid);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == 0);
   return 0;
