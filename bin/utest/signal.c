@@ -304,13 +304,10 @@ TEST_ADD(signal_sigtimedwait) {
   __sigemptyset(&set);
   __sigaddset(&set, SIGUSR1);
   __sigaddset(&set, SIGCONT);
-  assert(sigprocmask(SIG_SETMASK, &set, NULL) == 0);
+  syscall_ok(sigprocmask(SIG_SETMASK, &set, NULL));
   pid_t cpid = fork();
   if (cpid == 0) {
-    // for (int i = 0; i < 10; i++) {
-    //   kill(ppid, SIGCONT);
-    // }
-    // sched_yield();
+    sched_yield();
     kill(ppid, SIGUSR1);
     return 0;
   }
@@ -360,10 +357,23 @@ TEST_ADD(signal_sigtimedwait_timeout) {
   __sigemptyset(&waitset);
   __sigaddset(&waitset, SIGUSR1);
   timespec_t timeout = {
-    .tv_nsec = 10000000,
-    .tv_sec = 0,
+    .tv_nsec = -1,
+    .tv_sec = -1,
   };
+
+  /* tv_nsec is invalid. */
+  syscall_fail(sigtimedwait(&waitset, &info, &timeout), EINVAL);
+
+  /* tv_nsec is valid, but tv_sec < 0. */
+  timeout.tv_nsec = 10000000;
+  syscall_fail(sigtimedwait(&waitset, &info, &timeout), EAGAIN);
+
+  /* Timeout is valid, should be interrupted. */
+  timeout.tv_sec = 0;
   syscall_fail(sigtimedwait(&waitset, &info, &timeout), EINTR);
+
+  /* After the signal we should be interrupted only once, so next call to
+   * sigtimedwait will timeout. */
   kill(cpid, SIGUSR2);
   nanosleep(&timeout, NULL);
   syscall_fail(sigtimedwait(&waitset, &info, &timeout), EAGAIN);

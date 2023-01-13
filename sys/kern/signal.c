@@ -212,18 +212,24 @@ int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *kinfo,
   thread_t *td = p->p_thread;
 
   if (tsp != NULL) {
-    if (tsp->tv_nsec >= 0 && tsp->tv_nsec < 1000000000) {
-      timevalid = 1;
-      timeout = ts2hz(tsp);
-      /* Timeout set to 0 means to not block, but for sleepq it means to
-       * wait indefinitely */
-      if (timeout == 0) {
-        if (tsp->tv_nsec == 0 && tsp->tv_sec == 0) {
-          timeout = -1;
-        } else {
-          /* Shortest possible timeout */
-          timeout = 1;
-        }
+    if (tsp->tv_nsec < 0 || tsp->tv_nsec >= 1000000000) {
+      return EINVAL;
+    }
+    /* This is the same behaviour as in OpenBSD. */
+    if (tsp->tv_sec < 0) {
+      return EAGAIN;
+    }
+
+    timevalid = 1;
+    timeout = ts2hz(tsp);
+    /* Timeout set to 0 means to not block, but for sleepq it means to
+     * wait indefinitely */
+    if (timeout == 0) {
+      if (tsp->tv_nsec == 0 && tsp->tv_sec == 0) {
+        timeout = -1;
+      } else {
+        /* Shortest possible timeout */
+        timeout = 1;
       }
     }
   }
