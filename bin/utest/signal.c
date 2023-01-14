@@ -297,21 +297,22 @@ TEST_ADD(signal_sigsuspend) {
 }
 
 /* ======= signal_sigtimedwait ======= */
+int sigtimedwait_child(void *arg) {
+  pid_t ppid = getppid();
+  sched_yield();
+  syscall_ok(kill(ppid, SIGUSR1));
+  return 0;
+}
+
 TEST_ADD(signal_sigtimedwait) {
-  pid_t ppid = getpid();
   syscall_ok(signal(SIGCONT, sigcont_handler));
   sigset_t set, current, waitset;
   __sigemptyset(&set);
   __sigaddset(&set, SIGUSR1);
   __sigaddset(&set, SIGCONT);
   syscall_ok(sigprocmask(SIG_SETMASK, &set, NULL));
-  pid_t cpid = fork();
-  assert(cpid >= 0);
-  if (cpid == 0) {
-    sched_yield();
-    syscall_ok(kill(ppid, SIGUSR1));
-    return 0;
-  }
+
+  utest_spawn(sigtimedwait_child, NULL);
 
   siginfo_t info;
   __sigemptyset(&waitset);
@@ -322,10 +323,7 @@ TEST_ADD(signal_sigtimedwait) {
   syscall_ok(sigprocmask(SIG_BLOCK, NULL, &current));
   assert(__sigsetequal(&set, &current));
 
-  int status;
-  assert(wait(&status) == cpid);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  utest_child_exited(0);
   return 0;
 }
 
@@ -336,8 +334,15 @@ void sigtimedwait_timeout_sigusr2_handler(int signo) {
   sigusr2_handled = 1;
 }
 
+int sigtimedwait_timeout_child(void *arg) {
+  ppid = getppid();
+  while (!sigusr2_handled) {
+    kill(ppid, SIGCONT);
+  }
+  return 0;
+}
+
 TEST_ADD(signal_sigtimedwait_timeout) {
-  pid_t ppid = getpid();
   syscall_ok(signal(SIGCONT, sigcont_handler));
   syscall_ok(signal(SIGUSR2, sigtimedwait_timeout_sigusr2_handler));
   sigset_t set, waitset;
@@ -345,14 +350,7 @@ TEST_ADD(signal_sigtimedwait_timeout) {
   __sigaddset(&set, SIGUSR1);
   syscall_ok(sigprocmask(SIG_SETMASK, &set, NULL));
 
-  pid_t cpid = fork();
-  assert(cpid >= 0);
-  if (cpid == 0) {
-    while (!sigusr2_handled) {
-      kill(ppid, SIGCONT);
-    }
-    return 0;
-  }
+  pid_t cpid = utest_spawn(sigtimedwait_timeout_child, NULL);
 
   siginfo_t info;
   __sigemptyset(&waitset);
@@ -381,10 +379,7 @@ TEST_ADD(signal_sigtimedwait_timeout) {
   nanosleep(&timeout, NULL);
   syscall_fail(sigtimedwait(&waitset, &info, &timeout), EAGAIN);
 
-  int status;
-  assert(wait(&status) == cpid);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  utest_child_exited(0);
   return 0;
 }
 
