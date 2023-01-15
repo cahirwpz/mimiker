@@ -1,3 +1,4 @@
+config.patch
 su.patch
 libutil-passwd.patch
 watch.patch
