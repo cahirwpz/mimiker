@@ -1,0 +1,46 @@
+Index: ubase/ubase/libutil/passwd.c
+===================================================================
+--- ubase.orig/ubase/libutil/passwd.c	2023-01-15 14:57:19.789609155 +0100
++++ ubase/ubase/libutil/passwd.c	2023-01-15 14:59:18.419605250 +0100
+@@ -4,7 +4,6 @@
+ 
+ #include <errno.h>
+ #include <pwd.h>
+-#include <shadow.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -19,8 +18,7 @@
+ int
+ pw_check(const struct passwd *pw, const char *pass)
+ {
+-	char *cryptpass, *p;
+-	struct spwd *spw;
++	const char *cryptpass, *p;
+ 
+ 	p = pw->pw_passwd;
+ 	if (p[0] == '!' || p[0] == '*') {
+@@ -35,23 +33,6 @@
+ 		return 0;
+ 	}
+ 
+-	if (pw->pw_passwd[0] == 'x' && pw->pw_passwd[1] == '\0') {
+-		errno = 0;
+-		spw = getspnam(pw->pw_name);
+-		if (!spw) {
+-			if (errno)
+-				weprintf("getspnam: %s:", pw->pw_name);
+-			else
+-				weprintf("who are you?\n");
+-			return -1;
+-		}
+-		p = spw->sp_pwdp;
+-		if (p[0] == '!' || p[0] == '*') {
+-			weprintf("denied\n");
+-			return -1;
+-		}
+-	}
+-
+ 	cryptpass = crypt(pass, p);
+ 	if (!cryptpass) {
+ 		weprintf("crypt:");

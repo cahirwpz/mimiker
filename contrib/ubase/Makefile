@@ -27,6 +27,7 @@ LIBUTILSRC = \
 	libutil/estrtol.c        \
 	libutil/estrtoul.c       \
 	libutil/explicit_bzero.c \
+	libutil/passwd.c         \
 	libutil/proc.c           \
 	libutil/putword.c        \
 	libutil/recurse.c        \
@@ -36,7 +37,6 @@ LIBUTILSRC = \
 	libutil/tty.c
 
 LIBUTILSRC_DONT_WORK = \
-	libutil/passwd.c \
 	libutil/agetcwd.c \
 	libutil/apathmax.c
 

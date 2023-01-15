@@ -1,2 +1,3 @@
+libutil-passwd.patch
 watch.patch
 respawn.patch
