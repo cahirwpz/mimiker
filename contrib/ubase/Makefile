@@ -47,6 +47,7 @@ BIN = \
 	pagesize          \
 	respawn           \
 	stat              \
+	su                \
 	truncate          \
 	watch
 
@@ -84,7 +85,6 @@ BIN_DONT_WORK = \
 	pwdx              \
 	readahead         \
 	rmmod             \
-	su                \
 	swaplabel         \
 	swapoff           \
 	swapon            \
@@ -126,3 +126,10 @@ install-here:
 
 clean-here: quilt-unpatch
 	rm -f $(PROGRAM).c $(PROGRAM).uelf
+
+$(OBJECTS): $(BUILDDIR)ubase/config.h
+
+$(BUILDDIR)%.h: %.def.h
+	cp $< $@
+
+CPPFLAGS += -I$(BUILDDIR)/ubase
