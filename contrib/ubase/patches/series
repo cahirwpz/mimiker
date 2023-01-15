@@ -1,3 +1,4 @@
+su.patch
 libutil-passwd.patch
 watch.patch
 respawn.patch
