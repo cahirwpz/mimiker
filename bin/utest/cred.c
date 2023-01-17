@@ -84,8 +84,7 @@ TEST_ADD(get_set_groups) {
   uid_t euid;
 
   /* check if we are a root at start */
-  getresuid(NULL, &euid, NULL);
-  // TODO(fzdob): this fails with EFAULT
+  syscall_ok(getresuid(NULL, &euid, NULL));
   assert(euid == 0);
   syscall_ok(getgroups(0, NULL));
 
