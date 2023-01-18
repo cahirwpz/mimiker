@@ -65,6 +65,7 @@ struct winsize {
 typedef char linedn_t[TTLINEDNAMELEN];
 
 #define TIOCGLINED _IOR('t', 66, linedn_t)      /* get line discipline (new) */
+#define TIOCFLUSH _IOW('t', 16, int)            /* flush buffers */
 #define TIOCGETA _IOR('t', 19, struct termios)  /* get termios struct */
 #define TIOCSETA _IOW('t', 20, struct termios)  /* set termios struct */
 #define TIOCSETAW _IOW('t', 21, struct termios) /* drain output, set */
