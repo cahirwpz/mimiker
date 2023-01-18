@@ -1,0 +1,83 @@
+Index: ubase/ubase/login.c
+===================================================================
+--- ubase.orig/ubase/login.c	2023-01-18 18:53:40.043252576 +0100
++++ ubase/ubase/login.c	2023-01-18 19:26:46.753218380 +0100
+@@ -10,45 +10,20 @@
+ #include <string.h>
+ #include <time.h>
+ #include <unistd.h>
+-#include <utmp.h>
+ 
+ #include "config.h"
+ #include "passwd.h"
+ #include "util.h"
+ 
+-/* Write utmp entry */
+-static void
+-writeutmp(const char *user, const char *tty)
+-{
+-	struct utmp usr;
+-	FILE *fp;
+-
+-	memset(&usr, 0, sizeof(usr));
+-
+-	usr.ut_type = USER_PROCESS;
+-	usr.ut_pid = getpid();
+-	strlcpy(usr.ut_user, user, sizeof(usr.ut_user));
+-	strlcpy(usr.ut_line, tty, sizeof(usr.ut_line));
+-	usr.ut_tv.tv_sec = time(NULL);
+-
+-	fp = fopen(UTMP_PATH, "a");
+-	if (fp) {
+-		if (fwrite(&usr, sizeof(usr), 1, fp) != 1)
+-			if (ferror(fp))
+-				weprintf("%s: write error:", UTMP_PATH);
+-		fclose(fp);
+-	} else {
+-		weprintf("fopen %s:", UTMP_PATH);
+-	}
+-}
++extern char** environ;
+ 
+ static int
+ dologin(struct passwd *pw, int preserve)
+ {
+-	char *shell = pw->pw_shell[0] == '\0' ? "/bin/sh" : pw->pw_shell;
++	const char *shell = pw->pw_shell[0] == '\0' ? "/bin/sh" : pw->pw_shell;
+ 
+ 	if (preserve == 0)
+-		clearenv();
++		environ = NULL;
+ 	setenv("HOME", pw->pw_dir, 1);
+ 	setenv("SHELL", shell, 1);
+ 	setenv("USER", pw->pw_name, 1);
+@@ -72,7 +47,6 @@
+ {
+ 	struct passwd *pw;
+ 	char *pass, *user;
+-	char *tty;
+ 	uid_t uid;
+ 	gid_t gid;
+ 	int pflag = 0;
+@@ -105,7 +79,7 @@
+ 	gid = pw->pw_gid;
+ 
+ 	/* Flush pending input */
+-	ioctl(0, TCFLSH, (void *)0);
++	ioctl(0, TIOCFLUSH, (void *)0);
+ 
+ 	pass = getpass("Password: ");
+ 	if (!pass)
+@@ -113,12 +87,6 @@
+ 	if (pw_check(pw, pass) <= 0)
+ 		exit(1);
+ 
+-	tty = ttyname(0);
+-	if (!tty)
+-		eprintf("ttyname:");
+-
+-	writeutmp(user, tty);
+-
+ 	if (initgroups(user, gid) < 0)
+ 		eprintf("initgroups:");
+ 	if (setgid(gid) < 0)
