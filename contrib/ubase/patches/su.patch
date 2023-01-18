@@ -1,16 +1,8 @@
 Index: ubase/ubase/su.c
 ===================================================================
---- ubase.orig/ubase/su.c	2023-01-15 18:44:11.565829192 +0100
-+++ ubase/ubase/su.c	2023-01-15 19:19:28.875758976 +0100
-@@ -14,6 +14,7 @@
- #include "util.h"
- 
- extern char **environ;
-+char *envinit[1];
- 
- static int lflag = 0;
- static int pflag = 0;
-@@ -21,9 +22,9 @@
+--- ubase.orig/ubase/su.c	2023-01-15 19:20:19.905757256 +0100
++++ ubase/ubase/su.c	2023-01-18 18:50:27.759922567 +0100
+@@ -21,9 +21,9 @@
  static int
  dologin(struct passwd *pw)
  {
@@ -18,11 +10,11 @@ Index: ubase/ubase/su.c
 +	const char *shell = pw->pw_shell[0] == '\0' ? "/bin/sh" : pw->pw_shell;
  	char *term = getenv("TERM");
 -	clearenv();
-+	environ = envinit;
++	environ = NULL;
  	setenv("HOME", pw->pw_dir, 1);
  	setenv("SHELL", shell, 1);
  	setenv("USER", pw->pw_name, 1);
-@@ -50,7 +51,7 @@
+@@ -50,7 +50,7 @@
  main(int argc, char *argv[])
  {
  	char *usr = "root", *pass;
@@ -31,7 +23,7 @@ Index: ubase/ubase/su.c
  	struct passwd *pw;
  	char *newargv[2];
  	uid_t uid;
-@@ -102,7 +103,7 @@
+@@ -102,7 +102,7 @@
  		return dologin(pw);
  	} else {
  		shell = pw->pw_shell[0] == '\0' ? "/bin/sh" : pw->pw_shell;
