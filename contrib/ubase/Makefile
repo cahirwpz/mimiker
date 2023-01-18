@@ -43,6 +43,7 @@ LIBUTILSRC_DONT_WORK = \
 BIN = \
 	clear             \
 	id                \
+	login             \
 	nologin           \
 	pagesize          \
 	respawn           \
@@ -70,7 +71,6 @@ BIN_DONT_WORK = \
 	killall5          \
 	last              \
 	lastlog           \
-	login             \
 	lsmod             \
 	lsusb             \
 	mesg              \
