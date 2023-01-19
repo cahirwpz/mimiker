@@ -105,6 +105,7 @@ UTEST_ADD(signal_mask);
 UTEST_ADD(signal_mask_nonmaskable);
 UTEST_ADD(signal_sigtimedwait);
 UTEST_ADD(signal_sigtimedwait_timeout);
+UTEST_ADD(signal_sigtimedwait_intr);
 UTEST_ADD(signal_sigsuspend);
 UTEST_ADD(signal_sigsuspend_stop);
 UTEST_ADD(signal_handler_mask);
