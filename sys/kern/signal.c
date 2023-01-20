@@ -13,8 +13,8 @@
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 
-#include "sys/siginfo.h"
-#include "sys/sigtypes.h"
+#include <sys/siginfo.h>
+#include <sys/sigtypes.h>
 
 static KMALLOC_DEFINE(M_SIGNAL, "signal");
 
