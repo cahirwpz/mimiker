@@ -184,14 +184,32 @@ rwlock_t __lcl_lock = RWLOCK_INITIALIZER;
 
 static struct tm tm;
 
-const char *tzname[2] = {(const char *)__UNCONST(wildabbr),
-                            (const char *)__UNCONST(wildabbr)};
+#if !HAVE_POSIX_DECLS || TZ_TIME_T || defined(__NetBSD__)
+#if !defined(__LIBC12_SOURCE__)
+
+__aconst char *tzname[2] = {(__aconst char *)__UNCONST(wildabbr),
+                            (__aconst char *)__UNCONST(wildabbr)};
+
+#else
+
+extern __aconst char *tzname[2];
+
+#endif /* __LIBC12_SOURCE__ */
+
+#if USG_COMPAT
+#if !defined(__LIBC12_SOURCE__)
 long timezone = 0;
 int daylight = 0;
+#else
+extern int daylight;
+extern long timezone __RENAME(__timezone13);
+#endif /* __LIBC12_SOURCE__ */
+#endif /* defined USG_COMPAT */
 
 #ifdef ALTZONE
 long altzone = 0;
 #endif /* defined ALTZONE */
+#endif /* !HAVE_POSIX_DECLS */
 
 /* Initialize *S to a value based on GMTOFF, ISDST, and ABBRIND.  */
 static void init_ttinfo(struct ttinfo *s, int_fast32_t gmtoff, bool isdst,
@@ -299,9 +317,13 @@ static void scrub_abbrs(struct state *sp) {
 
 static void update_tzname_etc(const struct state *sp,
                               const struct ttinfo *ttisp) {
+#if HAVE_TZNAME
   tzname[ttisp->tt_isdst] = __UNCONST(&sp->chars[ttisp->tt_abbrind]);
+#endif
+#if USG_COMPAT
   if (!ttisp->tt_isdst)
     timezone = -ttisp->tt_gmtoff;
+#endif
 #ifdef ALTZONE
   if (ttisp->tt_isdst)
     altzone = -ttisp->tt_gmtoff;
@@ -312,9 +334,13 @@ static void settzname(void) {
   timezone_t const sp = __lclptr;
   int i;
 
-  tzname[0] = tzname[1] = (const char *)__UNCONST(sp ? wildabbr : gmt);
+#if HAVE_TZNAME
+  tzname[0] = tzname[1] = (__aconst char *)__UNCONST(sp ? wildabbr : gmt);
+#endif
+#if USG_COMPAT
   daylight = 0;
   timezone = 0;
+#endif
 #ifdef ALTZONE
   altzone = 0;
 #endif /* defined ALTZONE */
@@ -330,8 +356,10 @@ static void settzname(void) {
   for (i = 0; i < sp->timecnt; ++i) {
     const struct ttinfo *const ttisp = &sp->ttis[sp->types[i]];
     update_tzname_etc(sp, ttisp);
+#if USG_COMPAT
     if (ttisp->tt_isdst)
       daylight = 1;
+#endif
   }
 }
 

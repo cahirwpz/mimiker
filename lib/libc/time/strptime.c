@@ -40,8 +40,6 @@
 #include "private.h"
 #include "setlocale_local.h"
 
-extern char *tzname[];
-extern long timezone;
 
 static const u_char *conv_num(const unsigned char *, int *, unsigned, unsigned);
 static const u_char *find_string(const u_char *, int *, const char * const *,
