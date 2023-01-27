@@ -194,11 +194,7 @@
 #endif
 
 #ifndef USG_COMPAT
-#ifndef _XOPEN_VERSION
-#define USG_COMPAT 0
-#else
 #define USG_COMPAT 1
-#endif
 #endif
 
 #ifndef HAVE_TZNAME
@@ -524,14 +520,12 @@ extern char *asctime_r(struct tm const *restrict, char *restrict);
 extern char **environ;
 #endif
 
-#if TZ_TIME_T || !HAVE_POSIX_DECLS
 #if HAVE_TZNAME
-extern char *tzname[];
+extern const char *tzname[];
 #endif
 #if USG_COMPAT
 extern long timezone;
 extern int daylight;
-#endif
 #endif
 
 #ifdef ALTZONE
