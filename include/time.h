@@ -39,6 +39,7 @@ size_t strftime_z(timezone_t __restrict, char *__restrict, size_t,
 char *strptime_l(const char *__restrict, const char *__restrict,
                  struct tm *__restrict, locale_t);
 timezone_t tzalloc(const char *);
+const char *tzgetname(const timezone_t, int);
 void tzfree(const timezone_t);
 void tzset(void);
 long tzgetgmtoff(const timezone_t, int);
