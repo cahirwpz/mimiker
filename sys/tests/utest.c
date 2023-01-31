@@ -81,6 +81,7 @@ UTEST_ADD(mmap_fixed_replace_many_2);
 UTEST_ADD(mprotect_simple);
 UTEST_ADD(mprotect_many_1);
 UTEST_ADD(mprotect_many_2);
+UTEST_ADD(mprotect_hole);
 UTEST_ADD(sbrk);
 UTEST_ADD(sbrk_sigsegv);
 UTEST_ADD(misbehave);
