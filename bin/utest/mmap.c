@@ -374,7 +374,6 @@ TEST_ADD(mmap_fixed_replace_many_2) {
   return 0;
 }
 
-
 #define check_none_region(si, addr)                                            \
   {                                                                            \
     EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
@@ -390,8 +389,8 @@ TEST_ADD(mmap_fixed_replace_many_2) {
     CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
   }
 
-#define check_nowrite_region(si, addr) \
-{ \
+#define check_nowrite_region(si, addr)                                         \
+  {                                                                            \
     EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
       sprintf((addr), "xxx");                                                  \
     }                                                                          \
