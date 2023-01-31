@@ -374,24 +374,6 @@ TEST_ADD(mmap_fixed_replace_many_2) {
   return 0;
 }
 
-TEST_ADD(mprotect_simple) {
-  size_t pgsz = getpagesize();
-  void *addr = mmap_anon_priv(NULL, pgsz, PROT_NONE);
-  siginfo_t si;
-
-  EXPECT_SIGNAL(SIGSEGV, &si) {
-    strcmp(addr, "xxx");
-  }
-  CLEANUP_SIGNAL();
-  CHECK_SIGSEGV(&si, addr, SEGV_ACCERR);
-
-  syscall_ok(mprotect(addr, pgsz, PROT_READ | PROT_WRITE));
-
-  sprintf(addr, "first");
-  string_eq(addr, "first");
-
-  return 0;
-}
 
 #define check_none_region(si, addr)                                            \
   {                                                                            \
@@ -400,7 +382,46 @@ TEST_ADD(mprotect_simple) {
     }                                                                          \
     CLEANUP_SIGNAL();                                                          \
     CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
+                                                                               \
+    EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
+      sprintf((addr), "xxx");                                                  \
+    }                                                                          \
+    CLEANUP_SIGNAL();                                                          \
+    CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
   }
+
+#define check_nowrite_region(si, addr) \
+{ \
+    EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
+      sprintf((addr), "xxx");                                                  \
+    }                                                                          \
+    CLEANUP_SIGNAL();                                                          \
+    CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
+  }
+
+TEST_ADD(mprotect_simple) {
+  size_t pgsz = getpagesize();
+  void *addr = mmap_anon_priv(NULL, pgsz, PROT_NONE);
+  siginfo_t si;
+
+  check_none_region(si, addr);
+
+  syscall_ok(mprotect(addr, pgsz, PROT_READ | PROT_WRITE));
+
+  sprintf(addr, "first");
+  string_eq(addr, "first");
+
+  syscall_ok(mprotect(addr, pgsz, PROT_READ));
+
+  string_eq(addr, "first");
+  check_nowrite_region(si, addr);
+
+  syscall_ok(mprotect(addr, pgsz, PROT_NONE));
+
+  check_none_region(si, addr);
+
+  return 0;
+}
 
 static void *prepare_none_layout(size_t pgsz) {
   void *addr = prepare_layout(pgsz, PROT_NONE);
@@ -438,6 +459,28 @@ TEST_ADD(mprotect_many_1) {
   sprintf(addr + 5 * pgsz, "some string");
   string_eq(addr + 5 * pgsz, "some string");
 
+  syscall_ok(mprotect(addr + pgsz, 3 * pgsz, PROT_READ));
+
+  check_none_region(si, addr);
+  check_none_region(si, addr + 6 * pgsz);
+
+  check_nowrite_region(si, addr + pgsz);
+  string_eq(addr + pgsz, "some string");
+
+  check_nowrite_region(si, addr + 3 * pgsz);
+  string_eq(addr + 3 * pgsz, "some string");
+
+  sprintf(addr + 5 * pgsz, "some string");
+  string_eq(addr + 5 * pgsz, "some string");
+
+  syscall_ok(mprotect(addr + pgsz, 5 * pgsz, PROT_NONE));
+
+  check_none_region(si, addr);
+  check_none_region(si, addr + pgsz);
+  check_none_region(si, addr + 3 * pgsz);
+  check_none_region(si, addr + 5 * pgsz);
+  check_none_region(si, addr + 6 * pgsz);
+
   return 0;
 }
 
@@ -445,6 +488,7 @@ TEST_ADD(mprotect_many_1) {
 TEST_ADD(mprotect_many_2) {
   size_t pgsz = getpagesize();
   void *addr = prepare_none_layout(pgsz);
+  siginfo_t si;
 
   syscall_ok(mprotect(addr, 7 * pgsz, PROT_READ | PROT_WRITE));
 
@@ -463,5 +507,29 @@ TEST_ADD(mprotect_many_2) {
   sprintf(addr + 6 * pgsz, "some string");
   string_eq(addr + 6 * pgsz, "some string");
 
+  syscall_ok(mprotect(addr, 7 * pgsz, PROT_READ));
+
+  check_nowrite_region(si, addr);
+  string_eq(addr, "some string");
+
+  check_nowrite_region(si, addr + pgsz);
+  string_eq(addr + pgsz, "some string");
+
+  check_nowrite_region(si, addr + 3 * pgsz);
+  string_eq(addr + 3 * pgsz, "some string");
+
+  check_nowrite_region(si, addr + 5 * pgsz);
+  string_eq(addr + 5 * pgsz, "some string");
+
+  check_nowrite_region(si, addr + 6 * pgsz);
+  string_eq(addr + 6 * pgsz, "some string");
+
+  syscall_ok(mprotect(addr, 7 * pgsz, PROT_NONE));
+
+  check_none_region(si, addr);
+  check_none_region(si, addr + pgsz);
+  check_none_region(si, addr + 3 * pgsz);
+  check_none_region(si, addr + 5 * pgsz);
+  check_none_region(si, addr + 6 * pgsz);
   return 0;
 }
