@@ -250,12 +250,18 @@ void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
 
     klog("change prot of %lx - %lx to %x", affected->start, affected->end,
          prot);
+
+    /* If protection is changed to lower we have to remove physical mapping */
+    if (affected->prot & ~prot)
+      pmap_remove(map->pmap, affected->start, affected->end);
+    else
+      pmap_protect(map->pmap, affected->start, affected->end, prot);
+
     affected->prot = prot;
 
     if (!ent)
       break;
   }
-  pmap_protect(map->pmap, start, end, prot);
 }
 
 static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
