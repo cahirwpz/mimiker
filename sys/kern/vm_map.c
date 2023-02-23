@@ -143,8 +143,8 @@ static void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
   vm_map_entry_free(ent);
 }
 
-/* XXX: notice that amap is here copied but we don't increase ref_cnt. If it is needed
- * it must be done after calling this function.
+/* XXX: notice that amap is here copied but we don't increase ref_cnt. If it is
+ * needed it must be done after calling this function.
  */
 static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
   vm_map_entry_t *new =
