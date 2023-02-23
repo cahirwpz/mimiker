@@ -4,9 +4,9 @@
 #include <sys/libkern.h>
 #include <sys/pool.h>
 #include <sys/pmap.h>
-#include <sys/vm_pager.h>
-#include <sys/vm_object.h>
+#include <sys/vm_physmem.h>
 #include <sys/vm_map.h>
+#include <sys/vm_amap.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
@@ -15,8 +15,7 @@
 
 struct vm_map_entry {
   TAILQ_ENTRY(vm_map_entry) link;
-  vm_object_t *object;
-  vaddr_t offset; /* offset in object */
+  vm_aref_t aref;
   vm_prot_t prot;
   vm_entry_flags_t flags;
   vaddr_t start;
@@ -29,6 +28,15 @@ struct vm_map {
   pmap_t *pmap;
   mtx_t mtx; /* Mutex guarding vm_map structure and all its entries. */
 };
+
+vm_page_t *pager_get_anonpage(void) {
+  vm_page_t *new_pg = vm_page_alloc(1);
+  if (!new_pg)
+    return NULL;
+
+  pmap_zero_page(new_pg);
+  return new_pg;
+}
 
 static POOL_DEFINE(P_VM_MAP, "vm_map", sizeof(vm_map_t));
 static POOL_DEFINE(P_VM_MAPENT, "vm_map_entry", sizeof(vm_map_entry_t));
@@ -87,13 +95,13 @@ vm_map_t *vm_map_new(void) {
   return map;
 }
 
-vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
+vm_map_entry_t *vm_map_entry_alloc(vm_aref_t aref, vaddr_t start, vaddr_t end,
                                    vm_prot_t prot, vm_entry_flags_t flags) {
   assert(page_aligned_p(start) && page_aligned_p(end));
 
   vm_map_entry_t *ent = pool_alloc(P_VM_MAPENT, M_ZERO);
-  ent->object = obj;
-  ent->offset = 0;
+
+  ent->aref = aref;
   ent->start = start;
   ent->end = end;
   ent->prot = prot;
@@ -102,8 +110,8 @@ vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
 }
 
 static void vm_map_entry_free(vm_map_entry_t *ent) {
-  if (ent->object)
-    vm_object_drop(ent->object);
+  if (ent->aref.amap)
+    vm_amap_drop(ent->aref.amap);
   pool_free(P_VM_MAPENT, ent);
 }
 
@@ -135,11 +143,12 @@ static void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
   vm_map_entry_free(ent);
 }
 
+/* XXX: notice that amap is here copied but we don't increase ref_cnt. If it is needed
+ * it must be done after calling this function.
+ */
 static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
-  if (src->object)
-    vm_object_hold(src->object);
-  vm_map_entry_t *new = vm_map_entry_alloc(src->object, src->start, src->end,
-                                           src->prot, src->flags);
+  vm_map_entry_t *new =
+    vm_map_entry_alloc(src->aref, src->start, src->end, src->prot, src->flags);
   return new;
 }
 
@@ -155,10 +164,17 @@ static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
 
   vm_map_entry_t *new_ent = vm_map_entry_copy(ent);
 
+  /* Split amap if it is present. */
+  vm_aref_t old = ent->aref;
+  if (old.amap) {
+    vm_amap_hold(old.amap);
+    int offset = vaddr_to_slot(splitat - ent->start);
+    new_ent->aref = (vm_aref_t){.offset = offset, .amap = old.amap};
+  }
+
   /* clip both entries */
   ent->end = splitat;
   new_ent->start = splitat;
-  new_ent->offset = ent->offset + (ent->end - ent->start);
 
   vm_map_insert_after(map, ent, new_ent);
   return new_ent;
@@ -347,10 +363,9 @@ int vm_map_alloc_entry(vm_map_t *map, vaddr_t addr, size_t length,
   if (addr != 0 && !userspace_p(addr, addr + length))
     return EINVAL;
 
-  /* Create object with a pager that supplies cleared pages on page fault. */
-  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
+  /* Create entry without amap. */
   vm_map_entry_t *ent =
-    vm_map_entry_alloc(obj, addr, addr + length, prot, VM_ENT_SHARED);
+    vm_map_entry_alloc(VM_AREF_EMPTY, addr, addr + length, prot, VM_ENT_SHARED);
 
   /* Given the hint try to insert the entry at given position or after it. */
   if (vm_map_insert(map, ent, flags)) {
@@ -373,13 +388,16 @@ int vm_map_entry_resize(vm_map_t *map, vm_map_entry_t *ent, vaddr_t new_end) {
     vaddr_t gap_end = next ? next->start : USER_SPACE_END;
     if (new_end > gap_end)
       return ENOMEM;
+
+    /* TODO(fzdo): expand amap */
   } else {
     /* Shrinking entry */
-    off_t offset = new_end - ent->start;
-    size_t length = ent->end - new_end;
+    int offset = vaddr_to_slot(new_end - ent->start);
+    int n_remove = vaddr_to_slot(ent->end - new_end);
+    vm_amap_remove_pages(ent->aref, offset, n_remove);
+
+    /* There's no reference to pmap in page, so we have to do it here. */
     pmap_remove(map->pmap, new_end, ent->end);
-    vm_object_remove_pages(ent->object, offset, length);
-    /* TODO there's no reference to pmap in page, so we have to do it here */
   }
 
   ent->end = new_end;
@@ -401,9 +419,6 @@ void vm_map_dump(vm_map_t *map) {
          (it->prot & VM_PROT_READ) ? 'r' : '-',
          (it->prot & VM_PROT_WRITE) ? 'w' : '-',
          (it->prot & VM_PROT_EXEC) ? 'x' : '-');
-#if 0
-    vm_object_dump(it->object);
-#endif
   }
 }
 
@@ -416,19 +431,19 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   WITH_MTX_LOCK (&map->mtx) {
     vm_map_entry_t *it;
     TAILQ_FOREACH (it, &map->entries, link) {
-      vm_object_t *obj;
-      vm_map_entry_t *ent;
+      vm_map_entry_t *ent = vm_map_entry_copy(it);
 
-      if (it->flags & VM_ENT_SHARED) {
-        vm_object_hold(it->object);
-        obj = it->object;
-      } else {
-        /* vm_object_clone will clone the data from the vm_object_t
-         * and will return the new object with ref_counter equal to one */
-        obj = vm_object_clone(it->object);
+      if (it->aref.amap) {
+        if (it->flags & VM_ENT_SHARED) {
+          vm_amap_hold(it->aref.amap);
+        } else {
+          ent->aref.amap = vm_amap_clone(it->aref.amap);
+          if (!ent->aref.amap) {
+            klog("Unable to clone amap!");
+          }
+        }
       }
-      ent = vm_map_entry_alloc(obj, it->start, it->end, it->prot, it->flags);
-      ent->offset = it->offset;
+
       TAILQ_INSERT_TAIL(&new_map->entries, ent, link);
       new_map->nentries++;
     }
@@ -464,21 +479,31 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   assert(ent->start <= fault_addr && fault_addr < ent->end);
 
-  vm_object_t *obj = ent->object;
-
-  assert(obj != NULL);
-
   vaddr_t fault_page = fault_addr & -PAGESIZE;
-  vaddr_t offset = ent->offset + (fault_page - ent->start);
-  vm_page_t *frame = vm_object_find_page(ent->object, offset);
 
-  if (frame == NULL)
-    frame = obj->vo_pager->pgr_fault(obj, offset);
+  if (!ent->aref.amap) {
+    int slots = vaddr_to_slot(ent->end - ent->start);
+    ent->aref.amap = vm_amap_alloc(slots);
+    if (!ent->aref.amap) {
+      return EFAULT;
+    }
+  }
+
+  bool insert = false;
+  int offset = vaddr_to_slot(fault_page);
+  vm_page_t *frame = vm_amap_find_page(ent->aref, offset);
+
+  if (frame == NULL) {
+    insert = true;
+    frame = pager_get_anonpage();
+  }
 
   if (frame == NULL)
     return EFAULT;
 
-  pmap_enter(map->pmap, fault_page, frame, ent->prot, 0);
+  if (insert)
+    vm_amap_add_page(ent->aref, frame, offset);
 
+  pmap_enter(map->pmap, fault_page, frame, ent->prot, 0);
   return 0;
 }
