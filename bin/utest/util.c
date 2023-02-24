@@ -1,3 +1,5 @@
+#include "util.h"
+
 #include <assert.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -65,4 +67,33 @@ void open_pty(int *master_fd, int *slave_fd) {
   assert(*master_fd >= 0);
   *slave_fd = open(ptsname(*master_fd), O_NOCTTY | O_RDWR);
   assert(*slave_fd >= 0);
+}
+
+/*
+ * Layout of mapped pages:
+ * 0       1        2        3        4        5       6
+ * +----------------+        +--------+        +-----------------+
+ * | first | second |        | fourth |        | sixth | seventh |
+ * +----------------+        +--------+        +-----------------+
+ */
+void *prepare_layout(size_t pgsz, int prot) {
+  siginfo_t si;
+  char *addr = mmap_anon_priv(NULL, 7 * pgsz, prot);
+
+  assert(munmap(addr + 2 * pgsz, pgsz) == 0);
+  assert(munmap(addr + 4 * pgsz, pgsz) == 0);
+
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    *(addr + 2 * pgsz) = 1;
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr + 2 * pgsz, SEGV_MAPERR);
+
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    *(addr + 4 * pgsz) = 1;
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, addr + 4 * pgsz, SEGV_MAPERR);
+
+  return addr;
 }
