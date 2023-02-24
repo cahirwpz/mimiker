@@ -14,7 +14,6 @@
 #include <sys/sched.h>
 #include <sys/pcpu.h>
 #include <machine/vm_param.h>
-#include <machine/pte.h>
 
 typedef struct vm_amap vm_amap_t;
 typedef struct vm_aref vm_aref_t;

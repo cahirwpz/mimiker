@@ -1,7 +1,7 @@
 #ifndef _SYS_VM_AMAP_H_
 #define _SYS_VM_AMAP_H_
 
-#include <machine/pte.h>
+#include <machine/vm_param.h>
 
 typedef struct vm_amap vm_amap_t;
 typedef struct vm_aref vm_aref_t;
@@ -33,7 +33,7 @@ int vm_amap_add_page(vm_aref_t aref, vm_page_t *frame, int offset);
 void vm_amap_remove_pages(vm_aref_t aref, int offset, int n_slots);
 
 static inline int vaddr_to_slot(vaddr_t addr) {
-  return addr >> PAGE_SHIFT;
+  return addr / PAGESIZE;
 }
 
 int amap_ref(vm_aref_t aref);
