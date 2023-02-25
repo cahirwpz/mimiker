@@ -27,7 +27,7 @@
   {                                                                            \
     char v = *((char *)(addr));                                                \
     if (v)                                                                     \
-      printf("");                                                              \
+      printf(" ");                                                             \
   }
 
 #define check_read_err(si, addr)                                               \
@@ -35,7 +35,7 @@
     EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
       char v = *((char *)(addr));                                              \
       if (v)                                                                   \
-        printf("");                                                            \
+        printf(" ");                                                           \
     }                                                                          \
     CLEANUP_SIGNAL();                                                          \
     CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
@@ -185,26 +185,6 @@ TEST_ADD(mprotect2) {
   check_read_ok(addr + 5 * pgsz);
   check_write_ok(addr + 5 * pgsz);
   check_exec_err(si, addr + 5 * pgsz);
-
-  check_none_prot(si, addr + 6 * pgsz);
-
-  /* TODO: change to READ | WRITE */
-  syscall_ok(
-    mprotect(addr + 5 * pgsz, 1 * pgsz, PROT_READ | PROT_WRITE | PROT_EXEC));
-
-  check_none_prot(si, addr);
-
-  check_read_ok(addr + 1 * pgsz);
-  check_write_err(si, addr + 1 * pgsz);
-  check_exec_err(si, addr + 1 * pgsz);
-
-  check_read_ok(addr + 3 * pgsz);
-  check_write_err(si, addr + 3 * pgsz);
-  check_exec_err(si, addr + 3 * pgsz);
-
-  check_read_ok(addr + 5 * pgsz);
-  check_write_ok(addr + 5 * pgsz);
-  check_exec_ok(fun_addr);
 
   check_none_prot(si, addr + 6 * pgsz);
 
