@@ -29,15 +29,6 @@ struct vm_map {
   mtx_t mtx; /* Mutex guarding vm_map structure and all its entries. */
 };
 
-vm_page_t *pager_get_anonpage(void) {
-  vm_page_t *new_pg = vm_page_alloc(1);
-  if (!new_pg)
-    return NULL;
-
-  pmap_zero_page(new_pg);
-  return new_pg;
-}
-
 static POOL_DEFINE(P_VM_MAP, "vm_map", sizeof(vm_map_t));
 static POOL_DEFINE(P_VM_MAPENT, "vm_map_entry", sizeof(vm_map_entry_t));
 
@@ -147,9 +138,7 @@ static void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
  * needed it must be done after calling this function.
  */
 static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
-  vm_map_entry_t *new =
-    vm_map_entry_alloc(src->aref, src->start, src->end, src->prot, src->flags);
-  return new;
+  return vm_map_entry_alloc(src->aref, src->start, src->end, src->prot, src->flags);
 }
 
 /* Split vm_map_entry into two not empty entries. (Smallest possible entry is
@@ -442,7 +431,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         /* We need to create amap, because we won't be able to share it if it
          * is not created now. */
         int slots = vaddr_to_slot(it->end - it->start);
-        it->aref.amap = vm_amap_alloc(slots + 16);
+        it->aref.amap = vm_amap_alloc(slots);
         if (!it->aref.amap) {
           return NULL;
         }
@@ -500,7 +489,7 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   if (!ent->aref.amap) {
     int slots = vaddr_to_slot(ent->end - ent->start);
-    ent->aref.amap = vm_amap_alloc(slots + 16);
+    ent->aref.amap = vm_amap_alloc(slots);
     if (!ent->aref.amap) {
       return EFAULT;
     }
@@ -512,7 +501,7 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   if (frame == NULL) {
     insert = true;
-    frame = pager_get_anonpage();
+    frame = vm_page_alloc_zero(1);
   }
 
   if (frame == NULL)

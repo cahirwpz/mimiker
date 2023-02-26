@@ -214,6 +214,16 @@ vm_page_t *vm_page_alloc(size_t npages) {
   return pm_take_page(fl);
 }
 
+vm_page_t *vm_page_alloc_zero(int npages) {
+  vm_page_t *pages = vm_page_alloc(npages);
+  if (!pages)
+    return NULL;
+
+  for (int i = 0; i < npages; i++)
+    pmap_zero_page(&pages[i]);
+  return pages;
+}
+
 int vm_pagelist_alloc(size_t n, vm_pagelist_t *pglist) {
   TAILQ_INIT(pglist);
 

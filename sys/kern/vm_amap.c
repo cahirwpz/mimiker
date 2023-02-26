@@ -15,6 +15,9 @@
 #include <sys/pcpu.h>
 #include <machine/vm_param.h>
 
+/* Every amap will be bigger by this amount of slots to make resizing possible */
+#define EXTRA_AMAP_SLOTS 16
+
 typedef struct vm_amap vm_amap_t;
 typedef struct vm_aref vm_aref_t;
 
@@ -45,28 +48,29 @@ int amap_slots(vm_aref_t aref) {
 }
 
 vm_amap_t *vm_amap_alloc(int slots) {
+  slots += EXTRA_AMAP_SLOTS;
   vm_amap_t *amap = pool_alloc(P_VM_AMAP_STRUCT, M_WAITOK);
   if (!amap)
     return NULL;
 
   amap->pg_list =
     kmalloc(M_AMAP, slots * sizeof(vm_page_t *), M_ZERO | M_WAITOK);
-  if (!amap->pg_list) {
-    pool_free(P_VM_AMAP_STRUCT, amap);
-    return NULL;
-  }
+
+  if (!amap->pg_list) goto list_fail;
 
   amap->pg_bitmap =
     kmalloc(M_AMAP, slots * sizeof(bitstr_t), M_ZERO | M_WAITOK);
-  if (!amap->pg_bitmap) {
-    kfree(M_AMAP, amap->pg_list);
-    pool_free(P_VM_AMAP_STRUCT, amap);
-    return NULL;
-  }
+  if (!amap->pg_bitmap) goto bitmap_fail;
 
   amap->ref_cnt = 1;
   amap->slots = slots;
   return amap;
+
+bitmap_fail:
+  kfree(M_AMAP, amap->pg_list);
+list_fail:
+  pool_free(P_VM_AMAP_STRUCT, amap);
+  return NULL;
 }
 
 int vm_amap_extend(vm_aref_t *aref, int slots) {
@@ -89,7 +93,7 @@ vm_amap_t *vm_amap_clone(vm_aref_t aref) {
   if (!amap)
     return NULL;
 
-  vm_amap_t *new = vm_amap_alloc(amap->slots - aref.offset + 16);
+  vm_amap_t *new = vm_amap_alloc(amap->slots - aref.offset);
 
   /* TODO: amap lock */
   for (int slot = 0; slot < amap->slots - aref.offset; slot++) {
@@ -97,7 +101,7 @@ vm_amap_t *vm_amap_clone(vm_aref_t aref) {
     if (!bit_test(amap->pg_bitmap, aref.offset + slot))
       continue;
 
-    vm_page_t *new_pg = vm_page_alloc(1);
+    vm_page_t *new_pg = vm_page_alloc_zero(1);
     pmap_copy_page(amap->pg_list[aref.offset + slot], new_pg);
 
     new->pg_list[slot] = new_pg;
@@ -111,9 +115,8 @@ void vm_amap_hold(vm_amap_t *amap) {
 }
 
 void vm_amap_drop(vm_amap_t *amap) {
-  if (refcnt_release(&amap->ref_cnt)) {
+  if (refcnt_release(&amap->ref_cnt))
     vm_amap_free(amap);
-  }
 }
 
 vm_page_t *vm_amap_find_page(vm_aref_t aref, int offset) {
@@ -142,7 +145,7 @@ int vm_amap_add_page(vm_aref_t aref, vm_page_t *frame, int offset) {
 
 static void _vm_amap_remove_pages(vm_amap_t *amap, int start, int nslots) {
   /* TODO: amap lock */
-  for (int i = start; i < start + nslots; ++i) {
+  for (int i = start; i < start + nslots; i++) {
     if (!bit_test(amap->pg_bitmap, i))
       continue;
     vm_page_free(amap->pg_list[i]);
