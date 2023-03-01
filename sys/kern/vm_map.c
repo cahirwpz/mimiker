@@ -446,6 +446,9 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
           ent->aref.amap = vm_amap_clone(it->aref);
           if (!ent->aref.amap) {
             klog("Unable to clone amap!");
+            vm_map_entry_free(ent);
+            vm_map_delete(map);
+            return NULL;
           }
         }
       }

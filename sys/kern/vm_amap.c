@@ -94,6 +94,8 @@ vm_amap_t *vm_amap_clone(vm_aref_t aref) {
     return NULL;
 
   vm_amap_t *new = vm_amap_alloc(amap->slots - aref.offset);
+  if (!new)
+    return NULL;
 
   /* TODO: amap lock */
   for (int slot = 0; slot < amap->slots - aref.offset; slot++) {
