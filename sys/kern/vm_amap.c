@@ -15,7 +15,8 @@
 #include <sys/pcpu.h>
 #include <machine/vm_param.h>
 
-/* Every amap will be bigger by this amount of slots to make resizing possible */
+/* Every amap will be bigger by this amount of slots to make resizing possible
+ */
 #define EXTRA_AMAP_SLOTS 16
 
 typedef struct vm_amap vm_amap_t;
@@ -56,11 +57,13 @@ vm_amap_t *vm_amap_alloc(int slots) {
   amap->pg_list =
     kmalloc(M_AMAP, slots * sizeof(vm_page_t *), M_ZERO | M_WAITOK);
 
-  if (!amap->pg_list) goto list_fail;
+  if (!amap->pg_list)
+    goto list_fail;
 
   amap->pg_bitmap =
     kmalloc(M_AMAP, slots * sizeof(bitstr_t), M_ZERO | M_WAITOK);
-  if (!amap->pg_bitmap) goto bitmap_fail;
+  if (!amap->pg_bitmap)
+    goto bitmap_fail;
 
   amap->ref_cnt = 1;
   amap->slots = slots;

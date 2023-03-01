@@ -138,7 +138,8 @@ static void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
  * needed it must be done after calling this function.
  */
 static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
-  return vm_map_entry_alloc(src->aref, src->start, src->end, src->prot, src->flags);
+  return vm_map_entry_alloc(src->aref, src->start, src->end, src->prot,
+                            src->flags);
 }
 
 /* Split vm_map_entry into two not empty entries. (Smallest possible entry is
