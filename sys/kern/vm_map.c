@@ -381,9 +381,8 @@ int vm_map_entry_resize(vm_map_t *map, vm_map_entry_t *ent, vaddr_t new_end) {
       return ENOMEM;
 
     int new_slots = vaddr_to_slot(new_end - ent->start);
-    if (vm_amap_extend(&ent->aref, new_slots) != 0) {
+    if (ent->aref.amap && vm_amap_slots(ent->aref.amap) < new_slots)
       return ENOMEM;
-    }
   } else {
     /* Shrinking entry */
 

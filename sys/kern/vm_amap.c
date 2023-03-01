@@ -19,9 +19,6 @@
  */
 #define EXTRA_AMAP_SLOTS 16
 
-typedef struct vm_amap vm_amap_t;
-typedef struct vm_aref vm_aref_t;
-
 struct vm_amap {
   int slots;
   refcnt_t ref_cnt;
@@ -34,18 +31,12 @@ static void vm_amap_free(vm_amap_t *amap);
 static POOL_DEFINE(P_VM_AMAP_STRUCT, "vm_amap_struct", sizeof(vm_amap_t));
 static KMALLOC_DEFINE(M_AMAP, "amap_slots");
 
-int amap_ref(vm_aref_t aref) {
-  if (!aref.amap)
-    return -1;
-
-  return aref.amap->ref_cnt;
+int vm_amap_ref(vm_amap_t *amap) {
+  return amap->ref_cnt;
 }
 
-int amap_slots(vm_aref_t aref) {
-  if (!aref.amap)
-    return -1;
-
-  return aref.amap->slots;
+int vm_amap_slots(vm_amap_t *amap) {
+  return amap->slots;
 }
 
 vm_amap_t *vm_amap_alloc(int slots) {
@@ -74,21 +65,6 @@ bitmap_fail:
 list_fail:
   pool_free(P_VM_AMAP_STRUCT, amap);
   return NULL;
-}
-
-int vm_amap_extend(vm_aref_t *aref, int slots) {
-  vm_amap_t *amap = aref->amap;
-  if (!amap) {
-    amap = vm_amap_alloc(slots + 16);
-    if (!amap)
-      return ENOMEM;
-    aref->amap = amap;
-  }
-
-  if (amap->slots >= slots)
-    return 0;
-
-  return ENOMEM;
 }
 
 vm_amap_t *vm_amap_clone(vm_aref_t aref) {
