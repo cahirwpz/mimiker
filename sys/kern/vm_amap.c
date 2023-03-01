@@ -20,8 +20,9 @@
 #define EXTRA_AMAP_SLOTS 16
 
 struct vm_amap {
-  int slots;
-  refcnt_t ref_cnt;
+  int slots;        /* Read-only. Do not modify. */
+  refcnt_t ref_cnt; /* Atomic. */
+  mtx_t mtx;        /* Mutex quarding page list and bitmap. */
   vm_page_t **pg_list;
   bitstr_t *pg_bitmap;
 };
@@ -76,7 +77,7 @@ vm_amap_t *vm_amap_clone(vm_aref_t aref) {
   if (!new)
     return NULL;
 
-  /* TODO: amap lock */
+  SCOPED_MTX_LOCK(&amap->mtx);
   for (int slot = 0; slot < amap->slots - aref.offset; slot++) {
 
     if (!bit_test(amap->pg_bitmap, aref.offset + slot))
@@ -101,13 +102,12 @@ void vm_amap_drop(vm_amap_t *amap) {
 }
 
 vm_page_t *vm_amap_find_page(vm_aref_t aref, int offset) {
-  /* TODO: amap lock */
   vm_amap_t *amap = aref.amap;
   assert(amap != NULL);
 
-  if (bit_test(amap->pg_bitmap, offset)) {
+  SCOPED_MTX_LOCK(&amap->mtx);
+  if (bit_test(amap->pg_bitmap, offset))
     return amap->pg_list[offset];
-  }
   return NULL;
 }
 
@@ -115,7 +115,7 @@ int vm_amap_add_page(vm_aref_t aref, vm_page_t *frame, int offset) {
   vm_amap_t *amap = aref.amap;
   assert(amap != NULL && frame != NULL);
 
-  /* TODO: amap lock */
+  SCOPED_MTX_LOCK(&amap->mtx);
   if (bit_test(amap->pg_bitmap, offset)) {
     return EINVAL;
   }
@@ -125,7 +125,7 @@ int vm_amap_add_page(vm_aref_t aref, vm_page_t *frame, int offset) {
 }
 
 static void _vm_amap_remove_pages(vm_amap_t *amap, int start, int nslots) {
-  /* TODO: amap lock */
+  SCOPED_MTX_LOCK(&amap->mtx);
   for (int i = start; i < start + nslots; i++) {
     if (!bit_test(amap->pg_bitmap, i))
       continue;
