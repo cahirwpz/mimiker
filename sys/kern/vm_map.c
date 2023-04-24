@@ -248,15 +248,9 @@ void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
       vm_map_entry_split(map, affected, prot_end);
     }
 
-    klog("change prot of %lx - %lx to %x", affected->start, affected->end,
-         prot);
+    klog("change prot of %lx-%lx to %x", affected->start, affected->end, prot);
 
-    /* If protection is changed to lower we have to remove physical mapping */
-    if (affected->prot & ~prot)
-      pmap_remove(map->pmap, affected->start, affected->end);
-    else
-      pmap_protect(map->pmap, affected->start, affected->end, prot);
-
+    pmap_protect(map->pmap, affected->start, affected->end, prot);
     affected->prot = prot;
 
     if (!ent)
