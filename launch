@@ -258,10 +258,27 @@ class Launchable():
         self.options = []
 
     def start(self, session):
+        from libtmux.common import get_libtmux_version
+
+        def has_newer_version(version, expect):
+            vn = map(int, version.split("."))
+            en = map(int, expect.split("."))
+
+            for v, e in zip(vn, en):
+                if v < e:
+                    return False
+                if v > e:
+                    return True
+            # If we reached here versions are equal
+            return True
+
         cmd = ' '.join([self.cmd] + list(map(shlex.quote, self.options)))
         self.window = session.new_window(
             attach=False, window_name=self.name, window_shell=cmd)
-        self.pid = int(self.window.attached_pane._info['pane_pid'])
+        if has_newer_version(str(get_libtmux_version()), "0.17.0"):
+            self.pid = int(self.window.attached_pane.pane_index)
+        else:
+            self.pid = int(self.window.attached_pane._info['pane_pid'])
 
     def spawn(self, dimensions=None, cpulimit=None):
         def set_cpu_limit():
