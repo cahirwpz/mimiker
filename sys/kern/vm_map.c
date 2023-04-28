@@ -227,28 +227,42 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VM_MAP, map);
 }
 
-/* TODO(fzdo): allow for changing protection bits of parts of entries */
-/* XXX: This function allows for setting protection bits fo existing entries
- * only. It can't change protection of part of entry (currently we don't need to
- * set protection of part of entry). */
 void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   SCOPED_MTX_LOCK(&map->mtx);
 
-#if 0
-  klog("vm_map_protect: 0x%x - 0x%x %c%c%c", start, end,
-       (prot & VM_PROT_READ) ? 'r' : '-', (prot & VM_PROT_WRITE) ? 'w' : '-',
-       (prot & VM_PROT_EXEC) ? 'x' : '-');
-#endif
+  /* Loop from first affected entry until we exit the affected region or next
+   * entry does not exist */
+  for (vm_map_entry_t *ent = vm_map_find_entry(map, start);
+       ent != NULL &&
+       (vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end);
+       ent = vm_map_entry_next(ent)) {
 
-  vm_map_entry_t *ent, *next;
-  TAILQ_FOREACH_SAFE (ent, &map->entries, link, next) {
-    assert((ent->start < start && ent->end <= start) ||
-           (ent->end > end && ent->start >= end) ||
-           (ent->start >= start && ent->end <= end));
-    if (ent->start >= start && ent->end <= end)
-      ent->prot = prot;
+    vaddr_t prot_start = max(start, vm_map_entry_start(ent));
+    vaddr_t prot_end = min(end, vm_map_entry_end(ent));
+
+    /* Next entry that could be affected is right after current one.
+     * Since we can  it entirely, we have to take next entry now. */
+
+    vm_map_entry_t *affected = ent;
+
+    if (prot_start > ent->start) {
+      /* entry we want to change is after clipped entry */
+      affected = vm_map_entry_split(map, ent, prot_start);
+    }
+
+    if (prot_end < affected->end) {
+      /* entry which is after affected is one we want to keep */
+      vm_map_entry_split(map, affected, prot_end);
+    }
+
+    klog("change prot of %lx-%lx to %x", affected->start, affected->end, prot);
+
+    pmap_protect(map->pmap, affected->start, affected->end, prot);
+    affected->prot = prot;
+
+    if (!ent)
+      break;
   }
-  pmap_protect(map->pmap, start, end, prot);
 }
 
 static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,

@@ -70,3 +70,21 @@ int do_munmap(vaddr_t start, size_t length) {
 
   return vm_map_destroy_range(uspace, start, end);
 }
+
+int do_mprotect(vaddr_t start, size_t length, int u_prot) {
+  thread_t *td = thread_self();
+  assert(td && td->td_proc && td->td_proc->p_uspace);
+
+  vm_map_t *vmap = td->td_proc->p_uspace;
+
+  if (length == 0)
+    return EINVAL;
+
+  if (!page_aligned_p(start) || !page_aligned_p(length))
+    return EINVAL;
+
+  vaddr_t end = start + length;
+
+  vm_map_protect(vmap, start, end, u_prot);
+  return 0;
+}
