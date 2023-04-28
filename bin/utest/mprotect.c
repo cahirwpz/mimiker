@@ -27,7 +27,7 @@
   {                                                                            \
     char v = *((char *)(addr));                                                \
     if (v)                                                                     \
-      printf(" ");                                                              \
+      printf(" ");                                                             \
   }
 
 #define check_read_err(si, addr)                                               \
@@ -35,7 +35,7 @@
     EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
       char v = *((char *)(addr));                                              \
       if (v)                                                                   \
-        printf(" ");                                                            \
+        printf(" ");                                                           \
     }                                                                          \
     CLEANUP_SIGNAL();                                                          \
     CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
