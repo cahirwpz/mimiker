@@ -19,7 +19,7 @@ CFILES=$(git diff --cached --name-only | grep -E ".*\.[hc]")
 
 err=0
 for file in $CFILES; do
-  # check if file should be formated
+  # check if file should be formatted
   if grep "$file" .format-files; then
     # check stashed version only
     git show :$file | clang-format-14 -n --Werror --style=file || err=1
