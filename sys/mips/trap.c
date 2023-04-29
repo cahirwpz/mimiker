@@ -1,65 +1,18 @@
-#define KL_LOG KL_VM
+#define KL_LOG KL_INTR
 #include <sys/klog.h>
-#include <sys/errno.h>
 #include <sys/interrupt.h>
 #include <sys/cpu.h>
 #include <sys/context.h>
-#include <mips/tlb.h>
 #include <sys/pmap.h>
+#include <sys/errno.h>
+#include <sys/sched.h>
 #include <sys/sysent.h>
 #include <sys/thread.h>
-#include <sys/vm_map.h>
-#include <sys/vm_physmem.h>
+#include <mips/mcontext.h>
+#include <mips/tlb.h>
 
 __no_profile static inline unsigned exc_code(ctx_t *ctx) {
   return (_REG(ctx, CAUSE) & CR_X_MASK) >> CR_X_SHIFT;
-}
-
-static void syscall_handler(ctx_t *ctx, syscall_result_t *result) {
-  /* TODO Eventually we should have a platform-independent syscall handler. */
-  register_t args[SYS_MAXSYSARGS];
-  register_t code = _REG(ctx, V0);
-  const size_t nregs = min(SYS_MAXSYSARGS, FUNC_MAXREGARGS);
-  int error = 0;
-
-  /*
-   * Copy the arguments passed via register from the
-   * trapctx to our argument array
-   */
-  memcpy(args, &_REG(ctx, A0), nregs * sizeof(register_t));
-
-  if (code > SYS_MAXSYSCALL) {
-    args[0] = code;
-    code = 0;
-  }
-
-  sysent_t *se = &sysent[code];
-  size_t nargs = se->nargs;
-
-  if (nargs > nregs) {
-    /*
-     * From ABI:
-     * Despite the fact that some or all of the arguments to a function are
-     * passed in registers, always allocate space on the stack for all
-     * arguments.
-     * For this reason, we read from the user stack with some offset.
-     */
-    vaddr_t usp = _REG(ctx, SP) + nregs * sizeof(register_t);
-    error = copyin((register_t *)usp, &args[nregs],
-                   (nargs - nregs) * sizeof(register_t));
-  }
-
-  /* Call the handler. */
-  thread_t *td = thread_self();
-  register_t retval = 0;
-
-  assert(td->td_proc != NULL);
-
-  if (!error)
-    error = se->call(td->td_proc, (void *)args, &retval);
-
-  result->retval = error ? -1 : retval;
-  result->error = error;
 }
 
 /*
@@ -102,6 +55,8 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
     case EXC_DBE:
     case EXC_TLBL:
     case EXC_TLBS:
+    case EXC_TLBRI:
+    case EXC_TLBXI:
       klog("Caused by reference to $%08lx!", _REG(ctx, BADVADDR));
       break;
     case EXC_RI:
@@ -124,7 +79,13 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
 }
 
 static vm_prot_t exc_access(u_long code) {
-  return (code == EXC_TLBL) ? VM_PROT_READ : VM_PROT_WRITE;
+  if (code == EXC_TLBL || code == EXC_TLBRI)
+    return VM_PROT_READ;
+  if (code == EXC_TLBS || code == EXC_MOD)
+    return VM_PROT_WRITE;
+  if (code == EXC_TLBXI)
+    return VM_PROT_EXEC;
+  panic("unknown code: %s", exceptions[code]);
 }
 
 static void user_trap_handler(ctx_t *ctx) {
@@ -134,18 +95,23 @@ static void user_trap_handler(ctx_t *ctx) {
 
   assert(!intr_disabled() && !preempt_disabled());
 
-  int cp_id;
+  int cp_id, error;
   syscall_result_t result;
   unsigned int code = exc_code(ctx);
   vaddr_t vaddr = _REG(ctx, BADVADDR);
+  vaddr_t epc = _REG(ctx, EPC);
 
   switch (code) {
     case EXC_MOD:
     case EXC_TLBL:
     case EXC_TLBS:
-      klog("%s at $%lx, caused by reference to $%lx!", exceptions[code],
-           _REG(ctx, EPC), vaddr);
-      pmap_fault_handler(ctx, vaddr, exc_access(code));
+    case EXC_TLBRI:
+    case EXC_TLBXI:
+      klog("%s at $%lx, caused by reference to $%lx!", exceptions[code], epc,
+           vaddr);
+      if ((error = pmap_fault_handler(ctx, vaddr, exc_access(code))))
+        sig_trap(SIGSEGV, error == EFAULT ? SEGV_MAPERR : SEGV_ACCERR,
+                 (void *)vaddr, code);
       break;
 
     /*
@@ -156,23 +122,23 @@ static void user_trap_handler(ctx_t *ctx) {
      */
     case EXC_ADEL:
     case EXC_ADES:
-      sig_trap(ctx, SIGBUS);
+      sig_trap(SIGBUS, BUS_ADRALN, (void *)epc, code);
       break;
 
     case EXC_SYS:
-      syscall_handler(ctx, &result);
+      syscall_handler(_REG(ctx, V0), ctx, &result);
       break;
 
     case EXC_FPE:
     case EXC_MSAFPE:
     case EXC_OVF:
-      sig_trap(ctx, SIGFPE);
+      sig_trap(SIGFPE, FPE_INTOVF, (void *)epc, code);
       break;
 
     case EXC_CPU:
       cp_id = (_REG(ctx, CAUSE) & CR_CEMASK) >> CR_CESHIFT;
       if (cp_id != 1) {
-        sig_trap(ctx, SIGILL);
+        sig_trap(SIGILL, ILL_ILLOPC, (void *)epc, code);
       } else {
         /* Enable FPU for interrupted context. */
         thread_self()->td_pflags |= TDP_FPUINUSE;
@@ -181,7 +147,7 @@ static void user_trap_handler(ctx_t *ctx) {
       break;
 
     case EXC_RI:
-      sig_trap(ctx, SIGILL);
+      sig_trap(SIGILL, ILL_PRVOPC, (void *)epc, code);
       break;
 
     default:
@@ -189,10 +155,10 @@ static void user_trap_handler(ctx_t *ctx) {
   }
 
   /* This is right moment to check if out time slice expired. */
-  on_exc_leave();
+  sched_maybe_preempt();
 
   /* If we're about to return to user mode then check pending signals, etc. */
-  on_user_exc_leave((mcontext_t *)ctx, code == EXC_SYS ? &result : NULL);
+  sig_userret((mcontext_t *)ctx, code == EXC_SYS ? &result : NULL);
 }
 
 static void kern_trap_handler(ctx_t *ctx) {

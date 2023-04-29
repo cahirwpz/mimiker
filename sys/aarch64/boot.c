@@ -188,7 +188,7 @@ __boot_text static pde_t *build_page_table(vaddr_t kernel_end) {
                ATTR_AP_RO | ATTR_XN | pte_default);
 
   /* data & bss sections */
-  early_kenter(pde, _data, _ebss, PHYSADDR(_data),
+  early_kenter(pde, _data, kernel_end, PHYSADDR(_data),
                ATTR_AP_RW | ATTR_XN | pte_default);
 
   /* direct map construction */

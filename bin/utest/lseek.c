@@ -1,12 +1,14 @@
 /* Userspace program testing lseek */
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <assert.h>
-#include <string.h>
-#include <stdio.h>
-#include <errno.h>
+#include "utest.h"
+#include "util.h"
+
 #include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 /* ascii file stores consecutive ASCII characters from range 32..127 */
 const char *testfile = "/tests/ascii";
@@ -27,7 +29,7 @@ static void check_lseek(int fd, off_t offset, int whence, off_t expect) {
   assert(readchar(fd) == pos(expect));
 }
 
-int test_lseek_basic(void) {
+TEST_ADD(lseek_basic) {
   int fd;
 
   fd = open(testfile, 0, O_RDONLY);
@@ -52,34 +54,32 @@ int test_lseek_basic(void) {
   return 0;
 }
 
-#define assert_fail(expr, err) assert(expr == -1 && errno == err)
-
-int test_lseek_errors(void) {
+TEST_ADD(lseek_errors) {
   int fd;
 
   fd = open(testfile, 0, O_RDONLY);
   assert(lseek(fd, end, SEEK_SET) == end);
-  assert_fail(lseek(fd, end + 1, SEEK_SET), EINVAL);
-  assert_fail(lseek(fd, -1, SEEK_SET), EINVAL);
+  syscall_fail(lseek(fd, end + 1, SEEK_SET), EINVAL);
+  syscall_fail(lseek(fd, -1, SEEK_SET), EINVAL);
   close(fd);
 
   fd = open(testfile, 0, O_RDONLY);
   assert(lseek(fd, -end, SEEK_END) == 0);
-  assert_fail(lseek(fd, -end - 1, SEEK_END), EINVAL);
-  assert_fail(lseek(fd, 1, SEEK_END), EINVAL);
+  syscall_fail(lseek(fd, -end - 1, SEEK_END), EINVAL);
+  syscall_fail(lseek(fd, 1, SEEK_END), EINVAL);
   close(fd);
 
   fd = open(testfile, 0, O_RDONLY);
   assert(lseek(fd, 47, SEEK_CUR) == 47);
-  assert_fail(lseek(fd, -48, SEEK_CUR), EINVAL);
-  assert_fail(lseek(fd, 49, SEEK_CUR), EINVAL);
+  syscall_fail(lseek(fd, -48, SEEK_CUR), EINVAL);
+  syscall_fail(lseek(fd, 49, SEEK_CUR), EINVAL);
   close(fd);
 
   /* Now let's check some weird cases. */
-  assert_fail(lseek(666, 10, SEEK_CUR), EBADF);
+  syscall_fail(lseek(666, 10, SEEK_CUR), EBADF);
 
   fd = open("/dev/cons", 0, O_RDONLY);
-  assert_fail(lseek(fd, 10, SEEK_CUR), ESPIPE);
+  syscall_fail(lseek(fd, 10, SEEK_CUR), ESPIPE);
   close(fd);
 
   return 0;

@@ -18,7 +18,8 @@ you can use following custom commands:
    addresses,
 * `segments` - list all memory segments, incl. start, end addresses and
    number of pages (currently just one),
-* `klog` - all log messages currently saved in the kernel,
+* `klog` - all log messages currently saved in the kernel (can be saved to file
+  as well),
 * `threads` - all existing threads,
 * `tlb` - Translation Lookaside Buffer with addresses and flags marking if page
   is dirty (D) and/or global (G).

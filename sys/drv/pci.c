@@ -5,6 +5,7 @@
 #include <sys/devclass.h>
 #include <dev/pci.h>
 #include <dev/isareg.h>
+#include <machine/vm_param.h>
 
 /* For reference look at:
  *   http://wiki.osdev.org/PCI
@@ -217,7 +218,7 @@ void pci_bus_dump(device_t *pcib) {
         type = (bar->flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
                                               : "Memory (non-prefetchable)";
       }
-      kprintf("%s Region %x: %s [size=$%lx]\n", devstr, i, type, bar->size);
+      kprintf("%s Region %x: %s [size=$%zx]\n", devstr, i, type, bar->size);
     }
   }
 }

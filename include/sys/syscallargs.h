@@ -8,6 +8,8 @@
 #include <sys/time.h>
 #include <sys/ucontext.h>
 #include <sys/sigtypes.h>
+#include <sys/siginfo.h>
+
 #define SCARG(p, x) ((p)->x.arg)
 #define SYSCALLARG(x) union { register_t _pad; x arg; }
 
@@ -435,3 +437,9 @@ typedef struct {
   SYSCALLARG(size_t) nevents;
   SYSCALLARG(const struct timespec *) timeout;
 } kevent_args_t;
+
+typedef struct {
+  SYSCALLARG(const sigset_t *) set;
+  SYSCALLARG(siginfo_t *) info;
+  SYSCALLARG(struct timespec *) timeout;
+} sigtimedwait_args_t;

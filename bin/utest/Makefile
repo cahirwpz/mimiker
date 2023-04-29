@@ -24,10 +24,13 @@ SOURCES = \
 	time.c \
 	tty.c \
 	utest.c \
+	utest.h \
 	util.c \
+	util.h \
 	vfs.c \
 	wait.c \
-	vm_map.c
+	vm_map.c \
+	vm_map_prot.c
 
 PROGRAM = utest
 

@@ -28,7 +28,7 @@ typedef struct {
 #define BADVPN2_SHIFT 9
 
 /* Flags managed in software */
-#define PTE_SW_SHIFT 29
+#define PTE_SW_SHIFT 27
 #define PTE_SW_READ (1 << PTE_SW_SHIFT)
 #define PTE_SW_WRITE (2 << PTE_SW_SHIFT)
 #define PTE_SW_NOEXEC (4 << PTE_SW_SHIFT)
@@ -47,6 +47,8 @@ typedef struct {
 #define PTE_CACHE_WRITE_BACK (3 << PTE_CACHE_SHIFT)
 /* uncached accelerated */
 #define PTE_CACHE_UNCACHED_ACCELERATED (7 << PTE_CACHE_SHIFT)
+#define PTE_RI 0x80000000    /* read inhibit */
+#define PTE_XI 0x40000000    /* execute inhibit */
 #define PTE_DIRTY 0x00000004 /* page is writable when set */
 #define PTE_VALID 0x00000002 /* page can be accessed when set */
 #define PTE_GLOBAL 0x00000001

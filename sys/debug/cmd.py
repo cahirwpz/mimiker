@@ -6,6 +6,16 @@ def print_exception(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
+        except gdb.MemoryError as ex:
+            badaddr_str = ex.args[0].split()[-1]
+            badaddr = int(badaddr_str, base=0)
+            arch = 8 * gdb.lookup_type('long').sizeof
+            kernel = 2**(arch-1)
+            pc = gdb.selected_frame().pc()
+            if badaddr >= kernel and pc < kernel:
+                print(f'Cannot access address {badaddr_str} from userspace!')
+            else:
+                traceback.print_exc()
         except Exception:
             traceback.print_exc()
     return wrapper

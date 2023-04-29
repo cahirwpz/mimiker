@@ -89,7 +89,7 @@ int do_clock_nanosleep(clockid_t clk, int flags, timespec_t *rqtp,
   }
 
   do {
-    error = sleepq_wait_timed((void *)(&rmt_start), __caller(0), timo);
+    error = sleepq_wait_timed((void *)(&rmt_start), __caller(0), NULL, timo);
     if (error == ETIMEDOUT)
       goto timedout;
 

@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 
+typedef struct mtx mtx_t;
 typedef struct thread thread_t;
 typedef struct sleepq sleepq_t;
 
@@ -23,11 +24,14 @@ void sleepq_destroy(sleepq_t *sq);
  *
  * \param wchan unique sleep queue identifier
  * \param waitpt caller associated with sleep action
+ * \param mtx mutex to release before falling asleep and reacquire
+ * upon waking up
  */
-void sleepq_wait(void *wchan, const void *waitpt);
+void sleepq_wait(void *wchan, const void *waitpt, mtx_t *mtx);
 
 /*! \brief Same as \a sleepq_wait but allows the sleep to be interrupted. */
-#define sleepq_wait_intr(wchan, waitpt) sleepq_wait_timed((wchan), (waitpt), 0)
+#define sleepq_wait_intr(wchan, waitpt, mtx)                                   \
+  sleepq_wait_timed((wchan), (waitpt), (mtx), 0)
 
 /*! \brief Performs interruptible sleep with timeout.
  *
@@ -37,7 +41,8 @@ void sleepq_wait(void *wchan, const void *waitpt);
  *
  * \param timeout in system ticks, if 0 waits indefinitely
  * \returns how the thread was actually woken up */
-int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout);
+int sleepq_wait_timed(void *wchan, const void *waitpt, mtx_t *mtx,
+                      systime_t timeout);
 
 /*! \brief Wakes up highest priority thread waiting on \a wchan.
  *
