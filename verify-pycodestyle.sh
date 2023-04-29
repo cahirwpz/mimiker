@@ -2,6 +2,7 @@
 
 PYFILES=$(find . \( -name 'toolchain' -prune \)\
               -o \( -name '.*.py' -prune \) \
+              -o \( -name 'mimiker-env' -prune \) \
               -o \( -name '*.py' -printf '%P\n' \))
 PYEXTRA="launch"
 
