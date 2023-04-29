@@ -1,5 +1,5 @@
-pycodestyle
-pexpect
-fdt
-texttable
-libtmux
+pycodestyle == 2.10.0
+pexpect == 4.8.0
+fdt == 0.3.3
+texttable == 1.6.7
+libtmux == 0.21.1
