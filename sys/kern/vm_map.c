@@ -220,22 +220,22 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VM_MAP, map);
 }
 
+static inline bool range_intersects_map_entry(vm_map_entry_t *ent, vaddr_t start,
+                                    vaddr_t end) {
+  return vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end;
+}
+
 void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   SCOPED_MTX_LOCK(&map->mtx);
 
   /* Loop from first affected entry until we exit the affected region or next
    * entry does not exist */
   for (vm_map_entry_t *ent = vm_map_find_entry(map, start);
-       ent != NULL &&
-       (vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end);
+       ent != NULL && range_intersects_map_entry(ent, start, end);
        ent = vm_map_entry_next(ent)) {
 
     vaddr_t prot_start = max(start, vm_map_entry_start(ent));
     vaddr_t prot_end = min(end, vm_map_entry_end(ent));
-
-    /* Next entry that could be affected is right after current one.
-     * Since we can  it entirely, we have to take next entry now. */
-
     vm_map_entry_t *affected = ent;
 
     if (prot_start > ent->start) {
@@ -244,7 +244,7 @@ void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
     }
 
     if (prot_end < affected->end) {
-      /* entry which is after affected is one we want to keep */
+      /* entry which is after affected is one we want to keep unchanged */
       vm_map_entry_split(map, affected, prot_end);
     }
 
@@ -252,9 +252,6 @@ void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
 
     pmap_protect(map->pmap, affected->start, affected->end, prot);
     affected->prot = prot;
-
-    if (!ent)
-      break;
   }
 }
 
