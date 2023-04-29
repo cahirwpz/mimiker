@@ -1,15 +1,9 @@
 #!/bin/sh
 
-PYFILES=$(find . \( -name '*.py' \
-                -or -name 'toolchain' -prune \
-                -or -name '.*.py' -prune \
-              \) \
-              -and \( \
-                -not -path './mimiker-env/*' \
-              \) \
-            -printf '%P\n' \
-          )
-
+PYFILES=$(find . \( -name "toolchain" -prune \)\
+              -o \( -name ".*.py" -prune \) \
+              -o \( -name "$(basename $VIRTUAL_ENV)" -prune \) \
+              -o \( -name "*.py" -printf "%P\n" \))
 PYEXTRA="launch"
 
 pycodestyle ${PYEXTRA} ${PYFILES}
