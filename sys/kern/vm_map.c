@@ -220,8 +220,8 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VM_MAP, map);
 }
 
-static inline bool range_intersects_map_entry(vm_map_entry_t *ent, vaddr_t start,
-                                    vaddr_t end) {
+static inline bool range_intersects_map_entry(vm_map_entry_t *ent,
+                                              vaddr_t start, vaddr_t end) {
   return vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end;
 }
 
