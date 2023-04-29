@@ -18,7 +18,6 @@ format: gen-format
 	@echo "[FORMAT] all files"
 	clang-format-14 --style=file -i $(shell cat .format-files)
 
-
 bin-before: lib-install
 usr.bin-before: lib-install
 contrib-before: lib-install
