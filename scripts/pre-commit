@@ -5,12 +5,31 @@ err=false
 # Verify C code style
 
 echo "Verifying C code style..."
+
+make gen-format &> pre-commit-make-gen-format-out
+err=$?
+
+if [ $err -ne 0 ]; then
+  # print make output and fail
+  cat pre-commit-make-gen-format-out
+  exit $err
+fi
+
 CFILES=$(git diff --cached --name-only | grep -E ".*\.[hc]")
 
-if ! [ "$CFILES" == "" ]; then
-  for file in $CFILES; do
-    clang-format-14 -n --Werror --style=file -i $file || err=true
-  done
+err=0
+for file in $CFILES; do
+  # check if file should be formated
+  if grep "$file" .format-files; then
+    # check stashed version only
+    git show :$file | clang-format-14 -n --Werror --style=file || err=1
+  fi
+done
+
+echo "Verified C files: $CFILES"
+
+if [ $err -eq 1 ]; then
+  exit 1
 fi
 
 # Verify Python code style
@@ -19,14 +38,19 @@ echo "Verifying Python code style..."
 PYFILES=$(git diff --cached --name-only | grep -E ".*\.py")
 PYEXTRA=$(git diff --cached --name-only | grep -E "launch")
 
-if ! [ "$PYFILES" == "" ] || ! [ "$PYEXTRA" == "" ]; then
-  pycodestyle ${PYEXTRA} ${PYFILES} || err=true
-fi
+err=0
+for file in $PYFILES; do
+  git show :$file | pycodestyle - || err=1
+done
 
-echo $err
-if $err ; then
+for file in $PYEXTRA; do
+  git show :$file | pycodestyle - || err=1
+done
+
+echo "Verified Python files: $PYEXTRA $PYFILES"
+
+if [ $err -eq 1 ]; then
   exit 1
 fi
 
 echo "Code style OK"
-exit 0

@@ -16,7 +16,7 @@ gen-format: setup
 
 format: gen-format
 	@echo "[FORMAT] all files"
-	clang-format-14 -n --Werror --style=file -i $(shell cat .format-files)
+	clang-format-14 --style=file -i $(shell cat .format-files)
 
 
 bin-before: lib-install
