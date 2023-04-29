@@ -72,9 +72,9 @@ vpath %.c $(SRCDIR) $(SRCDIR)/$(ARCH)
 vpath %.S $(SRCDIR)/$(ARCH)
 
 # Recursive rules for subdirectories
-%-format:
-	@echo "[MAKE] format $(DIR)$*"
-	$(MAKE) -C $* format
+%-gen-format:
+	@echo "[MAKE] gen format $(DIR)$*"
+	$(MAKE) -C $* gen-format
 
 %-download:
 	@echo "[MAKE] download $(DIR)$*"
@@ -103,7 +103,7 @@ build-recursive: $(SUBDIR:%=%-build)
 install-recursive: $(SUBDIR:%=%-install)
 clean-recursive: $(SUBDIR:%=%-clean)
 distclean-recursive: $(SUBDIR:%=%-distclean)
-format-recursive: $(SUBDIR:%=%-format)
+format-recursive: $(SUBDIR:%=%-gen-format)
 
 # Define main rules of the build system
 download: download-recursive download-here
@@ -117,12 +117,13 @@ clean: clean-recursive clean-here
 distclean: distclean-recursive distclean-here
 
 FORMAT-FILES = $(filter-out $(FORMAT-EXCLUDE),$(SOURCES_ALL_C) $(SOURCES_H))
+GEN-FORMAT-FILES = $(addprefix $(DIR),$(FORMAT-FILES))
 FORMAT-RECURSE ?= format-recursive
 
-format: $(FORMAT-RECURSE) format-here
+gen-format: $(FORMAT-RECURSE) gen-format-here
 ifneq ($(FORMAT-FILES),)
-	@echo "[FORMAT] $(FORMAT-FILES)"
-	$(FORMAT) -i $(FORMAT-FILES)
+	@echo "[GEN FORMAT] $(GEN-FORMAT-FILES)"
+	echo $(GEN-FORMAT-FILES) > .format-files
 endif
 
 PHONY-TARGETS += all no
@@ -131,7 +132,7 @@ PHONY-TARGETS += clean clean-recursive clean-here
 PHONY-TARGETS += install install-recursive install-here
 PHONY-TARGETS += distclean distclean-recursive distclean-here
 PHONY-TARGETS += download download-recursive download-here
-PHONY-TARGETS += format format-recursive format-here
+PHONY-TARGETS += gen-format format-recursive gen-format-here
 
 .PHONY: $(PHONY-TARGETS)
 .PRECIOUS: $(BUILD-FILES)

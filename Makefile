@@ -5,12 +5,19 @@ TOPDIR = $(CURDIR)
 # Directories which require calling make recursively
 SUBDIR = sys lib bin usr.bin etc include contrib
 
-all: install
+all: install gen-format
 
-format: setup
 build: setup
 install: build
 distclean: clean
+
+gen-format: setup
+	find -name ".format-files" | xargs cat | sed -e 's/ /\n/g' > .format-files
+
+format: gen-format
+	@echo "[FORMAT] all files"
+	clang-format-14 -n --Werror --style=file -i $(shell cat .format-files)
+
 
 bin-before: lib-install
 usr.bin-before: lib-install

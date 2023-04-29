@@ -79,3 +79,6 @@ mimiker-env/
 
 #
 contrib/*/build/
+
+# format files
+.format-files
