@@ -261,7 +261,7 @@ class Launchable():
         cmd = ' '.join([self.cmd] + list(map(shlex.quote, self.options)))
         self.window = session.new_window(
             attach=False, window_name=self.name, window_shell=cmd)
-        self.pid = int(self.window.attached_pane.pane_index)
+        self.pid = int(self.window.attached_pane._info['pane_pid'])
 
     def spawn(self, dimensions=None, cpulimit=None):
         def set_cpu_limit():
