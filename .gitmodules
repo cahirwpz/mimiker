@@ -1,6 +1,7 @@
 [submodule "contrib/lua/lua"]
 	path = contrib/lua/lua
 	url = https://github.com/lua/lua.git
+	ignore = dirty
 [submodule "contrib/atto/atto"]
 	path = contrib/atto/atto
 	url = https://github.com/hughbarney/atto.git
@@ -10,3 +11,4 @@
 [submodule "contrib/sinit/sinit"]
 	path = contrib/sinit/sinit
 	url = git://git.suckless.org/sinit
+	ignore = dirty
