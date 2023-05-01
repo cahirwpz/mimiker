@@ -1,8 +1,9 @@
 #!/bin/sh
 
-PYFILES=$(find . \( -name 'toolchain' -prune \)\
-              -o \( -name '.*.py' -prune \) \
-              -o \( -name '*.py' -printf '%P\n' \))
+PYFILES=$(find . \( -name "toolchain" -prune \)\
+              -o \( -name ".*.py" -prune \) \
+              -o \( -name "$(basename $VIRTUAL_ENV)" -prune \) \
+              -o \( -name "*.py" -printf "%P\n" \))
 PYEXTRA="launch"
 
 pycodestyle ${PYEXTRA} ${PYFILES}
