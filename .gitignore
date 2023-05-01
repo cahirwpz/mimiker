@@ -76,3 +76,6 @@ sysroot
 
 # python env
 mimiker-env/
+
+#
+contrib/*/build/
