@@ -5,7 +5,7 @@ TOPDIR = $(CURDIR)
 # Directories which require calling make recursively
 SUBDIR = sys lib bin usr.bin etc include contrib
 
-all: install gen-format
+all: gen-format install
 
 build: setup
 install: build
