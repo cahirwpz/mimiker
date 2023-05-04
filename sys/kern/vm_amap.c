@@ -22,7 +22,7 @@
 struct vm_amap {
   int slots;        /* Read-only. Do not modify. */
   refcnt_t ref_cnt; /* Atomic. */
-  mtx_t mtx;        /* Mutex quarding page list and bitmap. */
+  mtx_t mtx;        /* Mutex guarding page list and bitmap. */
   vm_page_t **pg_list;
   bitstr_t *pg_bitmap;
 };
