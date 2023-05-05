@@ -452,13 +452,18 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
     return EACCES;
   }
 
-  if (!(ent->prot & VM_PROT_WRITE) && (fault_type == VM_PROT_WRITE)) {
+  if (!(ent->prot & VM_PROT_WRITE) && (fault_type & VM_PROT_WRITE)) {
     klog("Cannot write to address: 0x%08lx", fault_addr);
     return EACCES;
   }
 
-  if (!(ent->prot & VM_PROT_READ) && (fault_type == VM_PROT_READ)) {
+  if (!(ent->prot & VM_PROT_READ) && (fault_type & VM_PROT_READ)) {
     klog("Cannot read from address: 0x%08lx", fault_addr);
+    return EACCES;
+  }
+
+  if (!(ent->prot & VM_PROT_EXEC) && (fault_type & VM_PROT_EXEC)) {
+    klog("Cannot exec at address: 0x%08lx", fault_addr);
     return EACCES;
   }
 
