@@ -105,6 +105,8 @@ vm_page_t *vm_amap_find_page(vm_aref_t aref, int offset) {
   vm_amap_t *amap = aref.amap;
   assert(amap != NULL);
 
+  offset += aref.offset;
+
   SCOPED_MTX_LOCK(&amap->mtx);
   if (bit_test(amap->pg_bitmap, offset))
     return amap->pg_list[offset];
@@ -114,6 +116,8 @@ vm_page_t *vm_amap_find_page(vm_aref_t aref, int offset) {
 int vm_amap_add_page(vm_aref_t aref, vm_page_t *frame, int offset) {
   vm_amap_t *amap = aref.amap;
   assert(amap != NULL && frame != NULL);
+
+  offset += aref.offset;
 
   SCOPED_MTX_LOCK(&amap->mtx);
   if (bit_test(amap->pg_bitmap, offset)) {
