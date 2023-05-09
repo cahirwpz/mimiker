@@ -134,7 +134,10 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
   if (ph->p_flags & PF_X)
     prot |= VM_PROT_EXEC;
 
-  vm_map_protect(p->p_uspace, start, end, prot);
+  error = vm_map_protect(p->p_uspace, start, end, prot);
+  /* vm_map_protect must succeed because we provide recently created contiguous
+   * region of virtual memory */
+  assert(error == 0);
   return 0;
 }
 

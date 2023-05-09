@@ -45,7 +45,7 @@ vm_map_entry_t *vm_map_entry_alloc(vm_aref_t aref, vaddr_t start, vaddr_t end,
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vaddr_t vaddr);
 
-void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot);
+int vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot);
 int vm_map_destroy_range(vm_map_t *map, vaddr_t start, vaddr_t end);
 
 /*! \brief Insert given \a entry into the \a map. */

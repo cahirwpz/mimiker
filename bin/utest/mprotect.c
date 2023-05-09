@@ -27,7 +27,7 @@
   {                                                                            \
     char v = *((char *)(addr));                                                \
     if (v)                                                                     \
-      printf(" ");                                                             \
+      printf("\n");                                                            \
   }
 
 #define check_read_err(si, addr)                                               \
@@ -35,7 +35,7 @@
     EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
       char v = *((char *)(addr));                                              \
       if (v)                                                                   \
-        printf(" ");                                                           \
+        printf("\n");                                                          \
     }                                                                          \
     CLEANUP_SIGNAL();                                                          \
     CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
@@ -80,6 +80,34 @@ static void memcpy_fun(void *addr) {
   /* TODO: how to properly determine function length? */
   size_t len = (char *)func_dec - (char *)func_inc;
   memcpy(addr, func_inc, len);
+}
+
+TEST_ADD(mprotect_fail) {
+  size_t pgsz = getpagesize();
+  void *addr = mmap_anon_priv(NULL, pgsz, PROT_NONE);
+  siginfo_t si;
+
+  check_none_prot(si, addr);
+
+  /* Is not valid prot. */
+  syscall_fail(mprotect(addr, pgsz, 0xbeef), EINVAL);
+
+  /* addr is not aligned */
+  syscall_fail(mprotect(addr + 0x10, pgsz, PROT_READ), EINVAL);
+
+  /* len is not aligned */
+  syscall_fail(mprotect(addr, pgsz + 0x10, PROT_READ), EINVAL);
+
+  /* trying to change prot of unmapped memory */
+  syscall_fail(mprotect(addr, 3 * pgsz, PROT_READ), ENOMEM);
+  syscall_fail(mprotect(addr - pgsz, 3 * pgsz, PROT_READ), ENOMEM);
+
+  /* len must be nonzero */
+  syscall_fail(mprotect(addr, 0, PROT_READ), EINVAL);
+
+  syscall_ok(munmap(addr, pgsz));
+
+  return 0;
 }
 
 TEST_ADD(mprotect1) {
@@ -148,7 +176,11 @@ TEST_ADD(mprotect2) {
   void *addr = prepare_none_layout(pgsz);
   siginfo_t si;
 
-  syscall_ok(mprotect(addr + pgsz, 5 * pgsz, PROT_READ | PROT_WRITE));
+  syscall_fail(mprotect(addr + pgsz, 5 * pgsz, PROT_READ | PROT_WRITE), ENOMEM);
+
+  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_READ | PROT_WRITE));
+  syscall_ok(mprotect(addr + 3 * pgsz, pgsz, PROT_READ | PROT_WRITE));
+  syscall_ok(mprotect(addr + 5 * pgsz, pgsz, PROT_READ | PROT_WRITE));
 
   check_none_prot(si, addr);
 
@@ -170,7 +202,10 @@ TEST_ADD(mprotect2) {
   void *fun_addr = addr + 5 * pgsz + 4;
   memcpy_fun(fun_addr);
 
-  syscall_ok(mprotect(addr + pgsz, 3 * pgsz, PROT_READ));
+  syscall_fail(mprotect(addr + pgsz, 3 * pgsz, PROT_READ), ENOMEM);
+
+  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_READ));
+  syscall_ok(mprotect(addr + 3 * pgsz, pgsz, PROT_READ));
 
   check_none_prot(si, addr);
 
@@ -190,7 +225,7 @@ TEST_ADD(mprotect2) {
 
   /* TODO: change to READ | WRITE */
   syscall_ok(
-    mprotect(addr + 5 * pgsz, 1 * pgsz, PROT_READ | PROT_WRITE | PROT_EXEC));
+    mprotect(addr + 5 * pgsz, pgsz, PROT_READ | PROT_WRITE | PROT_EXEC));
 
   check_none_prot(si, addr);
 
@@ -208,7 +243,30 @@ TEST_ADD(mprotect2) {
 
   check_none_prot(si, addr + 6 * pgsz);
 
-  syscall_ok(mprotect(addr + pgsz, 5 * pgsz, PROT_NONE));
+  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_READ | PROT_WRITE));
+  syscall_ok(mprotect(addr + 3 * pgsz, pgsz, PROT_READ | PROT_WRITE));
+
+  check_none_prot(si, addr);
+
+  check_read_ok(addr + 1 * pgsz);
+  check_write_ok(addr + 1 * pgsz);
+  check_exec_err(si, addr + 1 * pgsz);
+
+  check_read_ok(addr + 3 * pgsz);
+  check_write_ok(addr + 3 * pgsz);
+  check_exec_err(si, addr + 3 * pgsz);
+
+  check_read_ok(addr + 5 * pgsz);
+  check_write_ok(addr + 5 * pgsz);
+  check_exec_ok(fun_addr);
+
+  check_none_prot(si, addr + 6 * pgsz);
+
+  syscall_fail(mprotect(addr + pgsz, 5 * pgsz, PROT_NONE), ENOMEM);
+
+  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_NONE));
+  syscall_ok(mprotect(addr + 3 * pgsz, pgsz, PROT_NONE));
+  syscall_ok(mprotect(addr + 5 * pgsz, pgsz, PROT_NONE));
 
   check_none_prot(si, addr);
   check_none_prot(si, addr + pgsz);

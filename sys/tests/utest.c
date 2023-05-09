@@ -78,6 +78,7 @@ UTEST_ADD(mmap_fixed_excl);
 UTEST_ADD(mmap_fixed_replace);
 UTEST_ADD(mmap_fixed_replace_many_1);
 UTEST_ADD(mmap_fixed_replace_many_2);
+UTEST_ADD(mprotect_fail);
 UTEST_ADD(mprotect1);
 UTEST_ADD(mprotect2);
 UTEST_ADD(mprotect3);
