@@ -68,23 +68,26 @@ list_fail:
   return NULL;
 }
 
-vm_amap_t *vm_amap_clone(vm_aref_t aref) {
+vm_amap_t *vm_amap_clone(vm_aref_t aref, int slots) {
   vm_amap_t *amap = aref.amap;
   if (!amap)
     return NULL;
 
-  vm_amap_t *new = vm_amap_alloc(amap->slots - aref.offset);
+  assert(aref.offset + slots < amap->slots);
+
+  vm_amap_t *new = vm_amap_alloc(slots);
   if (!new)
     return NULL;
 
   SCOPED_MTX_LOCK(&amap->mtx);
-  for (int slot = 0; slot < amap->slots - aref.offset; slot++) {
+  for (int slot = 0; slot < slots; slot++) {
+    int old_slot = aref.offset + slot;
 
-    if (!bit_test(amap->pg_bitmap, aref.offset + slot))
+    if (!bit_test(amap->pg_bitmap, old_slot))
       continue;
 
     vm_page_t *new_pg = vm_page_alloc_zero(1);
-    pmap_copy_page(amap->pg_list[aref.offset + slot], new_pg);
+    pmap_copy_page(amap->pg_list[old_slot], new_pg);
 
     new->pg_list[slot] = new_pg;
     bit_set(new->pg_bitmap, slot);
@@ -105,7 +108,9 @@ vm_page_t *vm_amap_find_page(vm_aref_t aref, int offset) {
   vm_amap_t *amap = aref.amap;
   assert(amap != NULL);
 
+  /* Determine real offset inside the amap. */
   offset += aref.offset;
+  assert(offset < amap->slots);
 
   SCOPED_MTX_LOCK(&amap->mtx);
   if (bit_test(amap->pg_bitmap, offset))
@@ -117,7 +122,9 @@ int vm_amap_add_page(vm_aref_t aref, vm_page_t *frame, int offset) {
   vm_amap_t *amap = aref.amap;
   assert(amap != NULL && frame != NULL);
 
+  /* Determine real offset inside the amap. */
   offset += aref.offset;
+  assert(offset < amap->slots);
 
   SCOPED_MTX_LOCK(&amap->mtx);
   if (bit_test(amap->pg_bitmap, offset)) {

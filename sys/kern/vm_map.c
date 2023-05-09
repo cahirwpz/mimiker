@@ -451,10 +451,11 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
     TAILQ_FOREACH (it, &map->entries, link) {
       vm_map_entry_t *ent = vm_map_entry_copy(it);
 
+      int slots = vaddr_to_slot(it->end - it->start);
+
       if (!it->aref.amap && (it->flags & VM_ENT_SHARED)) {
         /* We need to create amap, because we won't be able to share it if it
          * is not created now. */
-        int slots = vaddr_to_slot(it->end - it->start);
         it->aref.amap = vm_amap_alloc(slots);
         if (!it->aref.amap) {
           return NULL;
@@ -467,7 +468,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
           ent->aref = it->aref;
         } else {
           ent->aref.offset = 0;
-          ent->aref.amap = vm_amap_clone(it->aref);
+          ent->aref.amap = vm_amap_clone(it->aref, slots);
           if (!ent->aref.amap) {
             klog("Unable to clone amap!");
             vm_map_entry_free(ent);

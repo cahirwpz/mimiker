@@ -17,10 +17,12 @@ struct vm_aref {
 vm_amap_t *vm_amap_alloc(int slots);
 
 /*
- * Copy all data from given amap into new one.
+ * Create new amap with contents matching old amap. Starting from offset
+ * specified by aref and copying specified number of slots.
+ *
  * Returns new amap with ref_cnt equal to 1.
  */
-vm_amap_t *vm_amap_clone(vm_aref_t aref);
+vm_amap_t *vm_amap_clone(vm_aref_t aref, int slots);
 
 /* Operations on amap's ref_cnt. */
 void vm_amap_hold(vm_amap_t *amap);
