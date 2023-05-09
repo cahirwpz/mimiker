@@ -252,11 +252,15 @@ int vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
     pmap_protect(map->pmap, affected->start, affected->end, prot);
     affected->prot = prot;
 
-    vm_map_entry_t *next = vm_map_entry_next(ent);
-    if (vm_map_entry_start(next) > end)
+    /* Everything done. */
+    if (vm_map_entry_end(affected) == end)
       break;
-    /* Check if there is no gap inside modified region. */
-    if (vm_map_entry_end(ent) != vm_map_entry_start(next))
+
+    vm_map_entry_t *next = vm_map_entry_next(affected);
+
+    /* If next entry doesn't exist or there is a gap return error. Tried to
+     * change protection of unmapped memory. */
+    if (!next || vm_map_entry_end(affected) != vm_map_entry_start(next))
       return ENOMEM;
 
     ent = next;
