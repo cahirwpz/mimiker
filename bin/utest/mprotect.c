@@ -98,6 +98,10 @@ TEST_ADD(mprotect_fail) {
   /* len is not aligned */
   syscall_fail(mprotect(addr, pgsz + 0x10, PROT_READ), EINVAL);
 
+  /* trying to change prot of unmapped memory */
+  syscall_fail(mprotect(addr, 3 * pgsz, PROT_READ), ENOMEM);
+  syscall_fail(mprotect(addr - pgsz, 3 * pgsz, PROT_READ), ENOMEM);
+
   /* len must be nonzero */
   syscall_fail(mprotect(addr, 0, PROT_READ), EINVAL);
 
