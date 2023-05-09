@@ -27,7 +27,7 @@
   {                                                                            \
     char v = *((char *)(addr));                                                \
     if (v)                                                                     \
-      printf(" ");                                                             \
+      printf("\n");                                                            \
   }
 
 #define check_read_err(si, addr)                                               \
@@ -35,7 +35,7 @@
     EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
       char v = *((char *)(addr));                                              \
       if (v)                                                                   \
-        printf(" ");                                                           \
+        printf("\n");                                                          \
     }                                                                          \
     CLEANUP_SIGNAL();                                                          \
     CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
@@ -80,6 +80,30 @@ static void memcpy_fun(void *addr) {
   /* TODO: how to properly determine function length? */
   size_t len = (char *)func_dec - (char *)func_inc;
   memcpy(addr, func_inc, len);
+}
+
+TEST_ADD(mprotect_fail) {
+  size_t pgsz = getpagesize();
+  void *addr = mmap_anon_priv(NULL, pgsz, PROT_NONE);
+  siginfo_t si;
+
+  check_none_prot(si, addr);
+
+  /* Is not valid prot. */
+  syscall_fail(mprotect(addr, pgsz, 0xbeef), EINVAL);
+
+  /* addr is not aligned */
+  syscall_fail(mprotect(addr + 0x10, pgsz, PROT_READ), EINVAL);
+
+  /* len is not aligned */
+  syscall_fail(mprotect(addr, pgsz + 0x10, PROT_READ), EINVAL);
+
+  /* len must be nonzero */
+  syscall_fail(mprotect(addr, 0, PROT_READ), EINVAL);
+
+  syscall_ok(munmap(addr, pgsz));
+
+  return 0;
 }
 
 TEST_ADD(mprotect1) {
@@ -207,6 +231,25 @@ TEST_ADD(mprotect2) {
 
   check_read_ok(addr + 3 * pgsz);
   check_write_err(si, addr + 3 * pgsz);
+  check_exec_err(si, addr + 3 * pgsz);
+
+  check_read_ok(addr + 5 * pgsz);
+  check_write_ok(addr + 5 * pgsz);
+  check_exec_ok(fun_addr);
+
+  check_none_prot(si, addr + 6 * pgsz);
+
+  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_READ | PROT_WRITE));
+  syscall_ok(mprotect(addr + 3 * pgsz, pgsz, PROT_READ | PROT_WRITE));
+
+  check_none_prot(si, addr);
+
+  check_read_ok(addr + 1 * pgsz);
+  check_write_ok(addr + 1 * pgsz);
+  check_exec_err(si, addr + 1 * pgsz);
+
+  check_read_ok(addr + 3 * pgsz);
+  check_write_ok(addr + 3 * pgsz);
   check_exec_err(si, addr + 3 * pgsz);
 
   check_read_ok(addr + 5 * pgsz);
