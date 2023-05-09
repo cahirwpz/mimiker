@@ -440,6 +440,41 @@ void vm_map_dump(vm_map_t *map) {
   }
 }
 
+vm_map_entry_t *vm_entry_clone_shared(vm_map_t *new_map, vm_map_t *map,
+                                      vm_map_entry_t *old) {
+  vm_map_entry_t *new = vm_map_entry_copy(old);
+
+  int slots = vaddr_to_slot(old->end - old->start);
+  if (!old->aref.amap) {
+    /* We need to create amap, because we won't be able to share it if it
+     * is not created now. */
+    old->aref.amap = vm_amap_alloc(slots);
+    if (!old->aref.amap) {
+      return NULL;
+    }
+  }
+  vm_amap_hold(old->aref.amap);
+  new->aref = old->aref;
+  return new;
+}
+vm_map_entry_t *vm_entry_clone_copy(vm_map_t *new_map, vm_map_t *map,
+                                      vm_map_entry_t *old) {
+  vm_map_entry_t *new = vm_map_entry_copy(old);
+
+  /* If there was an amap we need to clone it. */
+  if (old->aref.amap) {
+    int slots = vaddr_to_slot(old->end - old->start);
+    new->aref.offset = 0;
+    new->aref.amap = vm_amap_clone(old->aref, slots);
+    if (!new->aref.amap) {
+      klog("Unable to clone amap!");
+      vm_map_entry_free(new);
+      return NULL;
+    }
+  }
+  return new;
+}
+
 vm_map_t *vm_map_clone(vm_map_t *map) {
   thread_t *td = thread_self();
   assert(td->td_proc);
@@ -447,42 +482,30 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   vm_map_t *new_map = vm_map_new();
 
   WITH_MTX_LOCK (&map->mtx) {
-    vm_map_entry_t *it;
+    vm_map_entry_t *it, *new;
     TAILQ_FOREACH (it, &map->entries, link) {
-      vm_map_entry_t *ent = vm_map_entry_copy(it);
-
-      int slots = vaddr_to_slot(it->end - it->start);
-
-      if (!it->aref.amap && (it->flags & VM_ENT_SHARED)) {
-        /* We need to create amap, because we won't be able to share it if it
-         * is not created now. */
-        it->aref.amap = vm_amap_alloc(slots);
-        if (!it->aref.amap) {
-          return NULL;
-        }
+      switch (it->flags & VM_ENT_INHERIT_MASK) {
+        case VM_ENT_SHARED:
+          new = vm_entry_clone_shared(new_map, map, it);
+          break;
+        case VM_ENT_PRIVATE:
+          new = vm_entry_clone_copy(new_map, map, it);
+          break;
+        default:
+          panic("Unrecognized vm_map_entry inheritance flag: %d",
+                it->flags & VM_ENT_INHERIT_MASK);
       }
 
-      if (it->aref.amap) {
-        if (it->flags & VM_ENT_SHARED) {
-          vm_amap_hold(it->aref.amap);
-          ent->aref = it->aref;
-        } else {
-          ent->aref.offset = 0;
-          ent->aref.amap = vm_amap_clone(it->aref, slots);
-          if (!ent->aref.amap) {
-            klog("Unable to clone amap!");
-            vm_map_entry_free(ent);
-            vm_map_delete(map);
-            return NULL;
-          }
-        }
+      if (!new) {
+        vm_map_delete(new_map);
+        klog("Failed to clone vm_map");
+        return NULL;
       }
 
-      TAILQ_INSERT_TAIL(&new_map->entries, ent, link);
+      TAILQ_INSERT_TAIL(&new_map->entries, new, link);
       new_map->nentries++;
     }
   }
-
   return new_map;
 }
 
