@@ -86,6 +86,5 @@ int do_mprotect(vaddr_t start, size_t length, int u_prot) {
 
   vaddr_t end = start + length;
 
-  vm_map_protect(vmap, start, end, u_prot);
-  return 0;
+  return vm_map_protect(vmap, start, end, u_prot);
 }

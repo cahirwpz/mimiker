@@ -143,6 +143,11 @@ static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
   return new;
 }
 
+static inline bool range_intersects_map_entry(vm_map_entry_t *ent,
+                                              vaddr_t start, vaddr_t end) {
+  return vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end;
+}
+
 /* Split vm_map_entry into two not empty entries. (Smallest possible entry is
  * entry with one page thus splitat must be page aligned.)
  *
@@ -175,7 +180,7 @@ static int vm_map_destroy_range_nolock(vm_map_t *map, vaddr_t start,
 
   pmap_remove(map->pmap, start, end);
 
-  while (vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end) {
+  while (range_intersects_map_entry(ent, start, end)) {
     vaddr_t rm_start = max(start, vm_map_entry_start(ent));
     vaddr_t rm_end = min(end, vm_map_entry_end(ent));
 
@@ -220,20 +225,14 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VM_MAP, map);
 }
 
-static inline bool range_intersects_map_entry(vm_map_entry_t *ent,
-                                              vaddr_t start, vaddr_t end) {
-  return vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end;
-}
-
-void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+int vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   SCOPED_MTX_LOCK(&map->mtx);
 
-  /* Loop from first affected entry until we exit the affected region or next
-   * entry does not exist */
-  for (vm_map_entry_t *ent = vm_map_find_entry(map, start);
-       ent != NULL && range_intersects_map_entry(ent, start, end);
-       ent = vm_map_entry_next(ent)) {
+  vm_map_entry_t *ent = vm_map_find_entry(map, start);
+  if (!ent)
+    return ENOMEM;
 
+  while (range_intersects_map_entry(ent, start, end)) {
     vaddr_t prot_start = max(start, vm_map_entry_start(ent));
     vaddr_t prot_end = min(end, vm_map_entry_end(ent));
     vm_map_entry_t *affected = ent;
@@ -252,7 +251,17 @@ void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
 
     pmap_protect(map->pmap, affected->start, affected->end, prot);
     affected->prot = prot;
+
+    vm_map_entry_t *next = vm_map_entry_next(ent);
+    if (vm_map_entry_start(next) > end)
+      break;
+    /* Check if there is no gap inside modified region. */
+    if (vm_map_entry_end(ent) != vm_map_entry_start(next))
+      return ENOMEM;
+
+    ent = next;
   }
+  return 0;
 }
 
 static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,

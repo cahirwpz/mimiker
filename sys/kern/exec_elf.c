@@ -137,8 +137,7 @@ static int load_elf_segment(proc_t *p, vnode_t *vn, Elf_Phdr *ph) {
   if (ph->p_flags & PF_X)
     prot |= VM_PROT_EXEC;
 
-  vm_map_protect(p->p_uspace, start, end, prot);
-  return 0;
+  return vm_map_protect(p->p_uspace, start, end, prot);
 }
 
 int exec_elf_load(proc_t *p, vnode_t *vn, Elf_Ehdr *eh) {
