@@ -458,7 +458,7 @@ vm_map_entry_t *vm_entry_clone_shared(vm_map_t *new_map, vm_map_t *map,
   return new;
 }
 vm_map_entry_t *vm_entry_clone_copy(vm_map_t *new_map, vm_map_t *map,
-                                      vm_map_entry_t *old) {
+                                    vm_map_entry_t *old) {
   vm_map_entry_t *new = vm_map_entry_copy(old);
 
   /* If there was an amap we need to clone it. */
