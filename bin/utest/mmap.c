@@ -19,15 +19,6 @@
 #define BAD_ADDR_SPAN_LEN 0xfffe800000002000
 #endif
 
-#define mmap_anon_priv_flags(addr, length, prot, flags)                        \
-  mmap((addr), (length), (prot), (flags) | MAP_ANON | MAP_PRIVATE, -1, 0)
-
-#define mmap_anon_priv(addr, length, prot)                                     \
-  mmap((addr), (length), (prot), MAP_ANON | MAP_PRIVATE, -1, 0)
-
-#define mmap_anon_prw(addr, length)                                            \
-  mmap_anon_priv((addr), (length), PROT_READ | PROT_WRITE)
-
 static void mmap_no_hint(void) {
   void *addr = mmap_anon_prw(NULL, 12345);
   assert(addr != MAP_FAILED);
@@ -230,18 +221,10 @@ TEST_ADD(mmap_fixed_replace) {
   return 0;
 }
 
-/*
- * Layout of mapped pages:
- * 0       1        2        3        4        5       6
- * +----------------+        +--------+        +-----------------+
- * | first | second |        | fourth |        | sixth | seventh |
- * +----------------+        +--------+        +-----------------+
- */
-static void *prepare_layout(size_t pgsz) {
-  void *addr = mmap_anon_priv(NULL, 7 * pgsz, PROT_READ | PROT_WRITE);
-
-  syscall_ok(munmap(addr + 2 * pgsz, pgsz));
-  syscall_ok(munmap(addr + 4 * pgsz, pgsz));
+static void *prepare_rw_layout(size_t pgsz) {
+  void *addr = prepare_layout(pgsz, PROT_READ | PROT_WRITE);
+  if (addr == NULL)
+    return NULL;
 
   sprintf(addr, "first");
   sprintf(addr + pgsz, "second");
@@ -255,7 +238,7 @@ static void *prepare_layout(size_t pgsz) {
 /* This test unmaps entries from prepared layout (second, fourth, sixth) */
 TEST_ADD(munmap_many_1) {
   size_t pgsz = getpagesize();
-  void *addr = prepare_layout(pgsz);
+  void *addr = prepare_rw_layout(pgsz);
   int res;
 
   res = munmap(addr + pgsz, 5 * pgsz);
@@ -289,7 +272,7 @@ TEST_ADD(munmap_many_1) {
 /* This test unmaps all entries from prepared layout */
 TEST_ADD(munmap_many_2) {
   size_t pgsz = getpagesize();
-  void *addr = prepare_layout(pgsz);
+  void *addr = prepare_rw_layout(pgsz);
   int res;
 
   res = munmap(addr, 7 * pgsz);
@@ -332,7 +315,7 @@ TEST_ADD(munmap_many_2) {
 /* This test unmaps entries from prepared layout (second, fourth, sixth) */
 TEST_ADD(mmap_fixed_replace_many_1) {
   size_t pgsz = getpagesize();
-  void *addr = prepare_layout(pgsz);
+  void *addr = prepare_rw_layout(pgsz);
   void *new;
 
   new = mmap_anon_priv_flags(addr + pgsz, 5 * pgsz, PROT_READ, MAP_FIXED);
@@ -351,7 +334,7 @@ TEST_ADD(mmap_fixed_replace_many_1) {
 /* This test unmaps all entries from prepared layout */
 TEST_ADD(mmap_fixed_replace_many_2) {
   size_t pgsz = getpagesize();
-  void *addr = prepare_layout(pgsz);
+  void *addr = prepare_rw_layout(pgsz);
   void *new;
 
   new = mmap_anon_priv_flags(addr, 7 * pgsz, PROT_READ, MAP_FIXED);
