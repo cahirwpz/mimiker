@@ -148,7 +148,11 @@ TEST_ADD(mprotect2) {
   void *addr = prepare_none_layout(pgsz);
   siginfo_t si;
 
-  syscall_ok(mprotect(addr + pgsz, 5 * pgsz, PROT_READ | PROT_WRITE));
+  syscall_fail(mprotect(addr + pgsz, 5 * pgsz, PROT_READ | PROT_WRITE), ENOMEM);
+
+  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_READ | PROT_WRITE));
+  syscall_ok(mprotect(addr + 3 * pgsz, pgsz, PROT_READ | PROT_WRITE));
+  syscall_ok(mprotect(addr + 5 * pgsz, pgsz, PROT_READ | PROT_WRITE));
 
   check_none_prot(si, addr);
 
@@ -170,7 +174,10 @@ TEST_ADD(mprotect2) {
   void *fun_addr = addr + 5 * pgsz + 4;
   memcpy_fun(fun_addr);
 
-  syscall_ok(mprotect(addr + pgsz, 3 * pgsz, PROT_READ));
+  syscall_fail(mprotect(addr + pgsz, 3 * pgsz, PROT_READ), ENOMEM);
+
+  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_READ));
+  syscall_ok(mprotect(addr + 3 * pgsz, pgsz, PROT_READ));
 
   check_none_prot(si, addr);
 
@@ -190,7 +197,7 @@ TEST_ADD(mprotect2) {
 
   /* TODO: change to READ | WRITE */
   syscall_ok(
-    mprotect(addr + 5 * pgsz, 1 * pgsz, PROT_READ | PROT_WRITE | PROT_EXEC));
+    mprotect(addr + 5 * pgsz, pgsz, PROT_READ | PROT_WRITE | PROT_EXEC));
 
   check_none_prot(si, addr);
 
@@ -208,7 +215,11 @@ TEST_ADD(mprotect2) {
 
   check_none_prot(si, addr + 6 * pgsz);
 
-  syscall_ok(mprotect(addr + pgsz, 5 * pgsz, PROT_NONE));
+  syscall_fail(mprotect(addr + pgsz, 5 * pgsz, PROT_NONE), ENOMEM);
+
+  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_NONE));
+  syscall_ok(mprotect(addr + 3 * pgsz, pgsz, PROT_NONE));
+  syscall_ok(mprotect(addr + 5 * pgsz, pgsz, PROT_NONE));
 
   check_none_prot(si, addr);
   check_none_prot(si, addr + pgsz);
