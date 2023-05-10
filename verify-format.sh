@@ -1,17 +1,12 @@
-#!/bin/sh
+#!/bin/bash
 
-PAGER=cat
-
-# Use make format to cleanup the copied tree
-make format > /dev/null || exit 1
-
-# See if there are any changes compared to checked out sources.
-if ! git diff --check --exit-code >/dev/null; then
-    echo "Formatting incorrect for C files!"
-    echo "Please run 'make format' before committing your changes,"
-    echo "or manually apply the changes listed above."
-    git diff
-    exit 1
+modify=-n
+if [ "$1" == "--fix" ]; then
+  modify=
 fi
+
+CFILES=$(find -name "*.[ch]" | grep -vf .format-exclude)
+
+clang-format-14 $modify --Werror --style=file -i $CFILES || exit 1
 
 echo "Formatting correct for C files."
