@@ -1,29 +1,15 @@
 #!/bin/bash
 
-err=false
-
-# Verify C code style
+err=0
 
 echo "Verifying C code style..."
 
-make gen-format &> pre-commit-make-gen-format-out
-err=$?
-
-if [ $err -ne 0 ]; then
-  # print make output and fail
-  cat pre-commit-make-gen-format-out
-  exit $err
-fi
-
-CFILES=$(git diff --cached --name-only | grep -E ".*\.[hc]")
+CFILES=$(git diff --cached --name-only | grep -E ".*\.[hc]" | grep -vf .format-exclude)
 
 err=0
 for file in $CFILES; do
-  # check if file should be formatted
-  if grep "$file" .format-files; then
-    # check stashed version only
-    git show :$file | clang-format-14 -n --Werror --style=file || err=1
-  fi
+  # check stashed version only
+  git show :$file | clang-format-14 -n --Werror --style=file || err=1
 done
 
 echo "Verified C files: $CFILES"
