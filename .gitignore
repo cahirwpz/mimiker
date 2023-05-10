@@ -79,7 +79,3 @@ mimiker-env/
 
 #
 contrib/*/build/
-
-# format files
-.format-files
-pre-commit-make-gen-format-out
