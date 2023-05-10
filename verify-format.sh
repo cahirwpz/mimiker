@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/bin/sh
 
 modify=-n
-if [ "$1" == "--fix" ]; then
+if [ "$1" = "--fix" ]; then
   modify=
 fi
 

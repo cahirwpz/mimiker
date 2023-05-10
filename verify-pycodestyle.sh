@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 PYFILES=$(find . \( -name "*.py" -printf "%P\n" \) \
               -o \( -name "$(basename $VIRTUAL_ENV)" -prune \))
