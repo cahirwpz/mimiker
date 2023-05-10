@@ -7,11 +7,6 @@
 # - SRCDIR: Source directory path relative to $(TOPDIR). This may be used
 #   to build some sources outside the cwd (current working directory).
 #   Defaults to cwd.
-# - SOURCES_C: C sources to format at the current recursion level
-#   (besides format-here).
-# - SOURCES_H: C headers to format at the current recursion level
-#   (besides format-here).
-#
 
 SYSROOT = $(TOPDIR)/sysroot
 DIR = $(patsubst $(TOPDIR)/%,%,$(CURDIR)/)
@@ -72,10 +67,6 @@ vpath %.c $(SRCDIR) $(SRCDIR)/$(ARCH)
 vpath %.S $(SRCDIR)/$(ARCH)
 
 # Recursive rules for subdirectories
-%-gen-format:
-	@echo "[MAKE] gen format $(DIR)$*"
-	$(MAKE) -C $* gen-format
-
 %-download:
 	@echo "[MAKE] download $(DIR)$*"
 	$(MAKE) -C $* download 
@@ -103,7 +94,6 @@ build-recursive: $(SUBDIR:%=%-build)
 install-recursive: $(SUBDIR:%=%-install)
 clean-recursive: $(SUBDIR:%=%-clean)
 distclean-recursive: $(SUBDIR:%=%-distclean)
-format-recursive: $(SUBDIR:%=%-gen-format)
 
 # Define main rules of the build system
 download: download-recursive download-here
@@ -116,23 +106,12 @@ clean: clean-recursive clean-here
 	$(RM) -v *~
 distclean: distclean-recursive distclean-here
 
-FORMAT-FILES = $(filter-out $(FORMAT-EXCLUDE),$(SOURCES_ALL_C) $(SOURCES_H))
-GEN-FORMAT-FILES = $(addprefix $(DIR),$(FORMAT-FILES))
-FORMAT-RECURSE ?= format-recursive
-
-gen-format: $(FORMAT-RECURSE) gen-format-here
-ifneq ($(FORMAT-FILES),)
-	@echo "[GEN FORMAT] $(GEN-FORMAT-FILES)"
-	echo $(GEN-FORMAT-FILES) > .format-files
-endif
-
 PHONY-TARGETS += all no
 PHONY-TARGETS += build build-before build-recursive build-here
 PHONY-TARGETS += clean clean-recursive clean-here
 PHONY-TARGETS += install install-recursive install-here
 PHONY-TARGETS += distclean distclean-recursive distclean-here
 PHONY-TARGETS += download download-recursive download-here
-PHONY-TARGETS += gen-format format-recursive gen-format-here
 
 .PHONY: $(PHONY-TARGETS)
 .PRECIOUS: $(BUILD-FILES)

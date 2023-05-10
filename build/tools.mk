@@ -71,7 +71,6 @@ CP      = cp
 CPIO    = cpio --format=crc
 CSCOPE  = cscope -b
 CTAGS   = ctags
-FORMAT  = clang-format$(LLVM_VER) -style=file 
 INSTALL = install -D
 LN	= ln
 RM      = rm -f
