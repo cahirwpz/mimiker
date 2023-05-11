@@ -4,12 +4,13 @@ err=0
 
 echo "Verifying C code style..."
 
+FORMAT_TOOL=$(make dump-tools | grep FORMAT | cut -d' ' -f2-)
 CFILES=$(git diff --cached --name-only | grep -E ".*\.[hc]" | grep -vf .format-exclude)
 
 err=0
 for file in $CFILES; do
   # check stashed version only
-  git show :$file | clang-format-14 -n --Werror --style=file || err=1
+  git show :$file | $FORMAT_TOOL -n --Werror || err=1
 done
 
 echo "Verified C files: $CFILES"
