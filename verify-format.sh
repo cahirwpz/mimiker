@@ -5,11 +5,11 @@ if [ "$1" == "--fix" ]; then
   MODIFY=
 fi
 
-FORMAT_TOOL=$(make dump-tools | grep FORMAT | cut -d' ' -f2-)
+source <(make dump-tools)
 
 CFILES=$(find -name "*.[ch]" | grep -vf .format-exclude)
 
-$FORMAT_TOOL $MODIFY --Werror -i $CFILES
+$FORMAT $MODIFY --Werror -i $CFILES
 
 if [ $? -ne 0 ]; then
   echo ""
