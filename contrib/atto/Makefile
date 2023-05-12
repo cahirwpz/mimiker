@@ -16,8 +16,6 @@ SOURCES = incurses/incurses.c \
 	  atto/hilite.c \
 	  atto/main.c
 
-FORMAT-EXCLUDE = $(SOURCES)
-
 include $(TOPDIR)/build/build.prog.mk
 
 download-here: atto/.git incurses/.git

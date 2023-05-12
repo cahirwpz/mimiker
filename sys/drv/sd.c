@@ -201,12 +201,11 @@ static int sd_init(device_t *dev) {
   klog("Card's feature support:\n* CCS: %s\n* SET_BLOCK_COUNT: %s\n"
        "Capacity: %lluB",
        (state->props & SD_SUPP_CCS) ? "YES" : "NO",
-       (state->props & SD_SUPP_BLKCNT) ? "YES" : "NO",
-       sd_capacity(state));
-  
+       (state->props & SD_SUPP_BLKCNT) ? "YES" : "NO", sd_capacity(state));
+
   if ((err = sd_sanity_check(dev)))
     return err;
-  
+
   return err;
 }
 
@@ -319,7 +318,7 @@ static int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
 
   if (num > 1 && (state->props & SD_SUPP_BLKCNT))
     emmc_send_cmd(dev, EMMC_CMD(SET_BLOCK_COUNT), num, NULL);
-  
+
   emmc_cmd_t write_blocks_cmd =
     (num > 1) ? EMMC_CMD(WRITE_MULTIPLE_BLOCKS) : EMMC_CMD(WRITE_BLOCK);
 
@@ -351,7 +350,6 @@ static int sd_write_blk(device_t *dev, uint32_t lba, void *buffer, uint32_t num,
   return err;
 }
 
-
 static inline int sd_check_uio(device_t *dev, uio_t *uio) {
   sd_state_t *state = (sd_state_t *)dev->state;
   if ((uint64_t)uio->uio_offset >= sd_capacity(state))
@@ -369,7 +367,7 @@ static int sd_dop_uio(devnode_t *d, uio_t *uio) {
 
   uint32_t lba = uio->uio_offset / DEFAULT_BLKSIZE;
   uint32_t read_offset = lba * DEFAULT_BLKSIZE;
-  uint32_t copy_offset =  uio->uio_offset - read_offset;
+  uint32_t copy_offset = uio->uio_offset - read_offset;
   uint32_t blk_cnt = (uio->uio_resid) / DEFAULT_BLKSIZE;
   /* XXX: If there's a offset that causes the transfer to overlap with next
    * block, we need to read that extra block as well. */
@@ -379,7 +377,7 @@ static int sd_dop_uio(devnode_t *d, uio_t *uio) {
   uint32_t blocks_left = blk_cnt;
   while (uio->uio_resid) {
     /* We move from internal buffer, soe we need to change the offset to reflect
-    * that from our internal buffer */
+     * that from our internal buffer */
     uio->uio_offset = copy_offset;
     uint32_t num = min(blocks_left, (uint32_t)SD_KERNEL_BLOCKS);
     uint32_t bytes_to_transfer =
@@ -389,7 +387,7 @@ static int sd_dop_uio(devnode_t *d, uio_t *uio) {
       if ((err = sd_read_blk(dev, lba, state->block_buf, num, NULL)))
         return err;
       if ((err = uiomove_frombuf(state->block_buf,
-          SD_KERNEL_BLOCKS * DEFAULT_BLKSIZE, uio)))
+                                 SD_KERNEL_BLOCKS * DEFAULT_BLKSIZE, uio)))
         return err;
     } else {
       if (bytes_to_transfer % DEFAULT_BLKSIZE != 0) {
@@ -397,7 +395,7 @@ static int sd_dop_uio(devnode_t *d, uio_t *uio) {
           return err;
       }
       if ((err = uiomove_frombuf(state->block_buf,
-          SD_KERNEL_BLOCKS * DEFAULT_BLKSIZE, uio)))
+                                 SD_KERNEL_BLOCKS * DEFAULT_BLKSIZE, uio)))
         return err;
       if ((err = sd_write_blk(dev, lba, state->block_buf, num, NULL)))
         return err;
@@ -413,7 +411,7 @@ static int sd_dop_uio(devnode_t *d, uio_t *uio) {
 static int sd_open(devnode_t *d, file_t *fp, int oflags) {
   device_t *dev = d->data;
   sd_state_t *state = (sd_state_t *)dev->state;
-  
+
   d->size = sd_capacity(state);
 
   return 0;
