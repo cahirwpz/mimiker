@@ -12,8 +12,7 @@ install: build
 distclean: clean
 
 format:
-	echo "'make format' is deprecated. Use 'verify-format.sh --fix' instead."
-	exit 1
+	./verify-format.sh --fix
 
 bin-before: lib-install
 usr.bin-before: lib-install
