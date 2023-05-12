@@ -7,10 +7,12 @@ SUBDIR = sys lib bin usr.bin etc include contrib
 
 all: install
 
-format: setup
 build: setup
 install: build
 distclean: clean
+
+format:
+	./verify-format.sh --fix
 
 bin-before: lib-install
 usr.bin-before: lib-install

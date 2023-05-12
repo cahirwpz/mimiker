@@ -1,0 +1,40 @@
+#!/bin/bash
+
+err=0
+
+echo "Verifying C code style..."
+
+source <(make dump-tools)
+
+CFILES=$(git diff --cached --name-only | grep -E ".*\.[hc]" | grep -vf .format-exclude)
+
+err=0
+for file in $CFILES; do
+  # check stashed version only
+  git show :$file | $FORMAT -n --Werror || err=1
+done
+
+echo "Verified C files: $CFILES"
+
+if [ $err -eq 1 ]; then
+  exit 1
+fi
+
+echo "Verifying Python code style..."
+
+PYFILES=$(git diff --cached --name-only | grep -E ".*\.py")
+PYEXTRA=$(git diff --cached --name-only | grep -E "launch")
+
+err=0
+for file in $PYFILES $PYEXTRA; do
+  # check stashed version only
+  git show :$file | pycodestyle - || err=1
+done
+
+echo "Verified Python files: $PYFILES $PYEXTRA"
+
+if [ $err -eq 1 ]; then
+  exit 1
+fi
+
+echo "Code style OK"

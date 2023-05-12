@@ -1,7 +1,6 @@
 TOPDIR = $(realpath ../..)
 
 PROGRAM = script
-FORMAT-EXCLUDE = $(SOURCES)
 
 LDLIBS = -lutil
 

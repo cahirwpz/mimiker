@@ -1,0 +1,29 @@
+# Specify files or directories to be excluded during formatting.
+# This file cannot have any newlines!
+sysroot/
+contrib/
+usr.bin/
+bin/rmdir/
+bin/pwd/
+bin/mkdir/
+bin/ksh/
+bin/cat/
+bin/stty/
+bin/kill/
+bin/chown/
+bin/rm/
+bin/date/
+bin/ls/
+bin/tetris/
+bin/echo/
+bin/ln/
+bin/chmod/
+lib/libutil/
+lib/libterminfo/
+lib/libc/
+sys/libkern/
+sys/contrib/
+include/mips/m32c0.h
+include/sys/syscall.h
+include/sys/syscallargs.h
+sys/kern/sysent.h
