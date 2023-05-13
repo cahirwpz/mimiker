@@ -1,7 +1,9 @@
 #ifndef _SYS_VM_AMAP_H_
 #define _SYS_VM_AMAP_H_
 
-#include <machine/vm_param.h>
+#include <sys/types.h>
+#include <sys/vm.h>
+#include <stddef.h>
 
 typedef struct vm_amap vm_amap_t;
 typedef struct vm_aref vm_aref_t;

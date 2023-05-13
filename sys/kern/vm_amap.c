@@ -1,7 +1,5 @@
 #define KL_LOG KL_VM
 #include <sys/klog.h>
-#include <sys/mimiker.h>
-#include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/pool.h>
 #include <sys/pmap.h>
@@ -10,10 +8,6 @@
 #include <sys/vm_physmem.h>
 #include <sys/refcnt.h>
 #include <sys/errno.h>
-#include <sys/proc.h>
-#include <sys/sched.h>
-#include <sys/pcpu.h>
-#include <machine/vm_param.h>
 
 /* Amap size will be increased by this number of slots to easier resizing. */
 #define EXTRA_AMAP_SLOTS 16
