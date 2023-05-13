@@ -59,6 +59,7 @@ vm_amap_t *vm_amap_alloc(int slots) {
 
   amap->ref_cnt = 1;
   amap->slots = slots;
+  mtx_init(&amap->mtx, MTX_SLEEP);
   return amap;
 
 bitmap_fail:
