@@ -404,7 +404,7 @@ int vm_map_entry_resize(vm_map_t *map, vm_map_entry_t *ent, vaddr_t new_end) {
     if (new_end > gap_end)
       return ENOMEM;
 
-    int new_slots = vaddr_to_slot(new_end - ent->start);
+    size_t new_slots = vaddr_to_slot(new_end - ent->start);
     if (ent->aref.amap && vm_amap_slots(ent->aref.amap) < new_slots)
       return ENOMEM;
   } else {

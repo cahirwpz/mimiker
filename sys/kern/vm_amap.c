@@ -15,12 +15,11 @@
 #include <sys/pcpu.h>
 #include <machine/vm_param.h>
 
-/* Every amap will be bigger by this amount of slots to make resizing possible
- */
+/* Amap size will be increased by this number of slots to easier resizing. */
 #define EXTRA_AMAP_SLOTS 16
 
 struct vm_amap {
-  int slots;        /* Read-only. Do not modify. */
+  size_t slots;     /* Read-only. Do not modify. */
   refcnt_t ref_cnt; /* Atomic. */
   mtx_t mtx;        /* Mutex guarding page list and bitmap. */
   vm_page_t **pg_list;
@@ -36,11 +35,11 @@ int vm_amap_ref(vm_amap_t *amap) {
   return amap->ref_cnt;
 }
 
-int vm_amap_slots(vm_amap_t *amap) {
+size_t vm_amap_slots(vm_amap_t *amap) {
   return amap->slots;
 }
 
-vm_amap_t *vm_amap_alloc(int slots) {
+vm_amap_t *vm_amap_alloc(size_t slots) {
   slots += EXTRA_AMAP_SLOTS;
   vm_amap_t *amap = pool_alloc(P_VM_AMAP_STRUCT, M_WAITOK);
   if (!amap)
@@ -69,7 +68,7 @@ list_fail:
   return NULL;
 }
 
-vm_amap_t *vm_amap_clone(vm_aref_t aref, int slots) {
+vm_amap_t *vm_amap_clone(vm_aref_t aref, size_t slots) {
   vm_amap_t *amap = aref.amap;
   if (!amap)
     return NULL;
@@ -81,8 +80,8 @@ vm_amap_t *vm_amap_clone(vm_aref_t aref, int slots) {
     return NULL;
 
   SCOPED_MTX_LOCK(&amap->mtx);
-  for (int slot = 0; slot < slots; slot++) {
-    int old_slot = aref.offset + slot;
+  for (size_t slot = 0; slot < slots; slot++) {
+    size_t old_slot = aref.offset + slot;
 
     if (!bit_test(amap->pg_bitmap, old_slot))
       continue;
@@ -105,7 +104,7 @@ void vm_amap_drop(vm_amap_t *amap) {
     vm_amap_free(amap);
 }
 
-vm_page_t *vm_amap_find_page(vm_aref_t aref, int offset) {
+vm_page_t *vm_amap_find_page(vm_aref_t aref, size_t offset) {
   vm_amap_t *amap = aref.amap;
   assert(amap != NULL);
 
@@ -119,7 +118,7 @@ vm_page_t *vm_amap_find_page(vm_aref_t aref, int offset) {
   return NULL;
 }
 
-int vm_amap_add_page(vm_aref_t aref, vm_page_t *frame, int offset) {
+int vm_amap_add_page(vm_aref_t aref, vm_page_t *frame, size_t offset) {
   vm_amap_t *amap = aref.amap;
   assert(amap != NULL && frame != NULL);
 
@@ -136,9 +135,10 @@ int vm_amap_add_page(vm_aref_t aref, vm_page_t *frame, int offset) {
   return 0;
 }
 
-static void _vm_amap_remove_pages(vm_amap_t *amap, int start, int nslots) {
+static void _vm_amap_remove_pages(vm_amap_t *amap, size_t start,
+                                  size_t nslots) {
   SCOPED_MTX_LOCK(&amap->mtx);
-  for (int i = start; i < start + nslots; i++) {
+  for (size_t i = start; i < start + nslots; i++) {
     if (!bit_test(amap->pg_bitmap, i))
       continue;
     vm_page_free(amap->pg_list[i]);
@@ -146,7 +146,7 @@ static void _vm_amap_remove_pages(vm_amap_t *amap, int start, int nslots) {
   }
 }
 
-void vm_amap_remove_pages(vm_aref_t aref, int start, int nslots) {
+void vm_amap_remove_pages(vm_aref_t aref, size_t start, size_t nslots) {
   if (!aref.amap)
     return;
   _vm_amap_remove_pages(aref.amap, aref.offset + start, nslots);
