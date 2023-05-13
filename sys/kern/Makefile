@@ -81,8 +81,6 @@ SOURCES-KGPROF = \
 SOURCES-KCSAN = \
 	kcsan.c
 
-FORMAT-EXCLUDE = sysent.h
-
 include $(TOPDIR)/build/build.kern.mk
 
 SYSCALL_H = $(TOPDIR)/include/sys/syscall.h

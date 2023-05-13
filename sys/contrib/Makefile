@@ -3,6 +3,5 @@
 TOPDIR = $(realpath ../..)
 
 SUBDIR = libfdt
-FORMAT-RECURSE = no
 
 include $(TOPDIR)/build/build.kern.mk
