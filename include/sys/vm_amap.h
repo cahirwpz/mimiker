@@ -38,7 +38,7 @@ static inline size_t vaddr_to_slot(vaddr_t addr) {
   return addr / PAGESIZE;
 }
 
-/* Handy functions. */
+/* Functions accessing amap's internal data */
 int vm_amap_ref(vm_amap_t *amap);
 size_t vm_amap_slots(vm_amap_t *amap);
 
