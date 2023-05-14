@@ -9,6 +9,25 @@
 #include <sys/refcnt.h>
 #include <sys/errno.h>
 
+/*
+ * The idea of amaps comes from "Design and Implementation of the UVM Virtual
+ * Memory System" by Charles D. Cranor. (https://chuck.cranor.org/p/diss.pdf)
+ *
+ * The current implementation is a simpler (and limited) version of UVM.
+ *
+ * Things that are missing now (compared to original UVM Memory System):
+ *  - COW support (Amap references pages directly. After COW is implemented amap
+ *    will use anons structures to reference pages.)
+ *  - vm_objects (Amaps describe virtual memory. To describe memory mapped files
+ *    or devices the vm_objects are needed.)
+ *
+ * Some limitations of current implementation:
+ *  - Amaps are not resizable. We allocate a more memory for each amap
+ *    (adjustable with EXTRA_AMAP_SLOTS) to allow resizing of small amounts.
+ *  - Amap is managing a simple array of referenced pages so it may not be the
+ *    most effective implementation.
+ */
+
 /* Amap size will be increased by this number of slots to easier resizing. */
 #define EXTRA_AMAP_SLOTS 16
 
