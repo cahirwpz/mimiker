@@ -184,15 +184,14 @@ rwlock_t __lcl_lock = RWLOCK_INITIALIZER;
 
 static struct tm tm;
 
-#if !HAVE_POSIX_DECLS || TZ_TIME_T || defined(__NetBSD__)
 #if !defined(__LIBC12_SOURCE__)
 
-__aconst char *tzname[2] = {(__aconst char *)__UNCONST(wildabbr),
-                            (__aconst char *)__UNCONST(wildabbr)};
+const char *tzname[2] = {(const char *)__UNCONST(wildabbr),
+                            (const char *)__UNCONST(wildabbr)};
 
 #else
 
-extern __aconst char *tzname[2];
+extern const char *tzname[2];
 
 #endif /* __LIBC12_SOURCE__ */
 
@@ -209,7 +208,6 @@ extern long timezone __RENAME(__timezone13);
 #ifdef ALTZONE
 long altzone = 0;
 #endif /* defined ALTZONE */
-#endif /* !HAVE_POSIX_DECLS */
 
 /* Initialize *S to a value based on GMTOFF, ISDST, and ABBRIND.  */
 static void init_ttinfo(struct ttinfo *s, int_fast32_t gmtoff, bool isdst,
@@ -335,7 +333,7 @@ static void settzname(void) {
   int i;
 
 #if HAVE_TZNAME
-  tzname[0] = tzname[1] = (__aconst char *)__UNCONST(sp ? wildabbr : gmt);
+  tzname[0] = tzname[1] = (const char *)__UNCONST(sp ? wildabbr : gmt);
 #endif
 #if USG_COMPAT
   daylight = 0;
