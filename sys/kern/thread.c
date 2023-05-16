@@ -110,6 +110,15 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
   return td;
 }
 
+void thread_error_free(thread_t *td) {
+  kmem_free(td->td_kstack.stk_base, KSTACK_SIZE);
+  sleepq_destroy(td->td_sleepqueue);
+  turnstile_destroy(td->td_turnstile);
+  kfree(M_STR, td->td_name);
+  kfree(M_TEMP, td->td_lock);
+  pool_free(P_THREAD, td);
+}
+
 void thread_delete(thread_t *td) {
   assert(td_is_dead(td));
   assert(td->td_sleepqueue != NULL);

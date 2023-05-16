@@ -46,8 +46,8 @@ static int paging_on_demand_and_memory_protection_demo(void) {
 
   /* preceding redzone segment */
   {
-    vm_map_entry_t *ent = vm_map_entry_alloc(VM_AREF_EMPTY, pre_start, start,
-                                             VM_PROT_NONE, VM_ENT_PRIVATE);
+    vm_map_entry_t *ent =
+      vm_map_entry_alloc(pre_start, start, VM_PROT_NONE, VM_ENT_PRIVATE);
     n = vm_map_insert(umap, ent, VM_FIXED);
     assert(n == 0);
   }
@@ -55,15 +55,15 @@ static int paging_on_demand_and_memory_protection_demo(void) {
   /* data segment */
   {
     vm_map_entry_t *ent = vm_map_entry_alloc(
-      VM_AREF_EMPTY, start, end, VM_PROT_READ | VM_PROT_WRITE, VM_ENT_PRIVATE);
+      start, end, VM_PROT_READ | VM_PROT_WRITE, VM_ENT_PRIVATE);
     n = vm_map_insert(umap, ent, VM_FIXED);
     assert(n == 0);
   }
 
   /* succeeding redzone segment */
   {
-    vm_map_entry_t *ent = vm_map_entry_alloc(VM_AREF_EMPTY, end, post_end,
-                                             VM_PROT_NONE, VM_ENT_PRIVATE);
+    vm_map_entry_t *ent =
+      vm_map_entry_alloc(end, post_end, VM_PROT_NONE, VM_ENT_PRIVATE);
     n = vm_map_insert(umap, ent, VM_FIXED);
     assert(n == 0);
   }
@@ -115,13 +115,11 @@ static int findspace_demo(void) {
   vaddr_t t;
   int n;
 
-  ent = vm_map_entry_alloc(VM_AREF_EMPTY, addr1, addr2, VM_PROT_NONE,
-                           VM_ENT_PRIVATE);
+  ent = vm_map_entry_alloc(addr1, addr2, VM_PROT_NONE, VM_ENT_PRIVATE);
   n = vm_map_insert(umap, ent, VM_FIXED);
   assert(n == 0);
 
-  ent = vm_map_entry_alloc(VM_AREF_EMPTY, addr3, addr4, VM_PROT_NONE,
-                           VM_ENT_PRIVATE);
+  ent = vm_map_entry_alloc(addr3, addr4, VM_PROT_NONE, VM_ENT_PRIVATE);
   n = vm_map_insert(umap, ent, VM_FIXED);
   assert(n == 0);
 
@@ -146,8 +144,7 @@ static int findspace_demo(void) {
   assert(n == 0 && t == addr2);
 
   /* Fill the gap exactly */
-  ent = vm_map_entry_alloc(VM_AREF_EMPTY, addr2, addr2 + 0x5000, VM_PROT_NONE,
-                           VM_ENT_PRIVATE);
+  ent = vm_map_entry_alloc(addr2, addr2 + 0x5000, VM_PROT_NONE, VM_ENT_PRIVATE);
   n = vm_map_insert(umap, ent, VM_FIXED);
   assert(n == 0);
 

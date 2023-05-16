@@ -20,9 +20,8 @@ void sbrk_attach(proc_t *p) {
 
   /* Initially allocate one page for brk segment. */
   vaddr_t addr = SBRK_START;
-  vm_map_entry_t *ent =
-    vm_map_entry_alloc(VM_AREF_EMPTY, addr, addr + PAGESIZE,
-                       VM_PROT_READ | VM_PROT_WRITE, VM_ENT_PRIVATE);
+  vm_map_entry_t *ent = vm_map_entry_alloc(
+    addr, addr + PAGESIZE, VM_PROT_READ | VM_PROT_WRITE, VM_ENT_PRIVATE);
   if (vm_map_insert(map, ent, VM_FIXED))
     panic("Could not allocate data segment!");
 

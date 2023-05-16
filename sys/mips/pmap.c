@@ -52,7 +52,7 @@ pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags) {
 }
 
 pte_t pte_protect(pte_t pte, vm_prot_t prot) {
-  return (pte & ~PTE_PROT_MASK & ~PTE_RI & ~PTE_XI) | vm_prot_map[prot];
+  return (pte & ~PTE_PROT_MASK) | vm_prot_map[prot];
 }
 
 /*

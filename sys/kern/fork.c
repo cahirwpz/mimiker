@@ -66,8 +66,11 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
 
   /* Clone the entire process memory space. */
   child->p_uspace = vm_map_clone(parent->p_uspace);
-  if (child->p_uspace == NULL)
+  if (child->p_uspace == NULL) {
+    proc_error_free(child);
+    thread_error_free(td);
     return ENOMEM;
+  }
 
   /* Find copied brk segment. */
   WITH_VM_MAP_LOCK (child->p_uspace) {

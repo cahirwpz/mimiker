@@ -22,7 +22,7 @@
  *    or devices the vm_objects are needed.)
  *
  * Some limitations of current implementation:
- *  - Amaps are not resizable. We allocate a more memory for each amap
+ *  - Amaps are not resizable. We allocate more memory for each amap
  *    (adjustable with EXTRA_AMAP_SLOTS) to allow resizing of small amounts.
  *  - Amap is managing a simple array of referenced pages so it may not be the
  *    most effective implementation.
@@ -140,17 +140,15 @@ int vm_amap_add_page(vm_aref_t aref, vm_page_t *frame, size_t offset) {
   assert(offset < amap->slots);
 
   SCOPED_MTX_LOCK(&amap->mtx);
-  if (bit_test(amap->pg_bitmap, offset)) {
+  if (bit_test(amap->pg_bitmap, offset))
     return EINVAL;
-  }
   amap->pg_list[offset] = frame;
   bit_set(amap->pg_bitmap, offset);
   return 0;
 }
 
-static void _vm_amap_remove_pages(vm_amap_t *amap, size_t start,
-                                  size_t nslots) {
-  SCOPED_MTX_LOCK(&amap->mtx);
+static void vm_amap_remove_pages_unlocked(vm_amap_t *amap, size_t start,
+                                          size_t nslots) {
   for (size_t i = start; i < start + nslots; i++) {
     if (!bit_test(amap->pg_bitmap, i))
       continue;
@@ -162,11 +160,12 @@ static void _vm_amap_remove_pages(vm_amap_t *amap, size_t start,
 void vm_amap_remove_pages(vm_aref_t aref, size_t start, size_t nslots) {
   if (!aref.amap)
     return;
-  _vm_amap_remove_pages(aref.amap, aref.offset + start, nslots);
+  SCOPED_MTX_LOCK(&aref.amap->mtx);
+  vm_amap_remove_pages_unlocked(aref.amap, aref.offset + start, nslots);
 }
 
 static void vm_amap_free(vm_amap_t *amap) {
-  _vm_amap_remove_pages(amap, 0, amap->slots);
+  vm_amap_remove_pages_unlocked(amap, 0, amap->slots);
   kfree(M_AMAP, amap->pg_list);
   kfree(M_AMAP, amap->pg_bitmap);
   pool_free(P_VM_AMAP_STRUCT, amap);

@@ -86,13 +86,13 @@ vm_map_t *vm_map_new(void) {
   return map;
 }
 
-vm_map_entry_t *vm_map_entry_alloc(vm_aref_t aref, vaddr_t start, vaddr_t end,
-                                   vm_prot_t prot, vm_entry_flags_t flags) {
+vm_map_entry_t *vm_map_entry_alloc(vaddr_t start, vaddr_t end, vm_prot_t prot,
+                                   vm_entry_flags_t flags) {
   assert(page_aligned_p(start) && page_aligned_p(end));
 
   vm_map_entry_t *ent = pool_alloc(P_VM_MAPENT, M_ZERO);
 
-  ent->aref = aref;
+  ent->aref = VM_AREF_EMPTY;
   ent->start = start;
   ent->end = end;
   ent->prot = prot;
@@ -138,8 +138,10 @@ static void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
  * needed it must be done after calling this function.
  */
 static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
-  return vm_map_entry_alloc(src->aref, src->start, src->end, src->prot,
-                            src->flags);
+  vm_map_entry_t *ent =
+    vm_map_entry_alloc(src->start, src->end, src->prot, src->flags);
+  ent->aref = src->aref;
+  return ent;
 }
 
 static inline bool range_intersects_map_entry(vm_map_entry_t *ent,
@@ -380,7 +382,7 @@ int vm_map_alloc_entry(vm_map_t *map, vaddr_t addr, size_t length,
 
   /* Create entry without amap. */
   vm_map_entry_t *ent =
-    vm_map_entry_alloc(VM_AREF_EMPTY, addr, addr + length, prot, VM_ENT_SHARED);
+    vm_map_entry_alloc(addr, addr + length, prot, VM_ENT_SHARED);
 
   /* Given the hint try to insert the entry at given position or after it. */
   if (vm_map_insert(map, ent, flags)) {
@@ -440,15 +442,15 @@ void vm_map_dump(vm_map_t *map) {
   }
 }
 
-static vm_map_entry_t *entry_clone_shared(vm_map_t *map, vm_map_entry_t *ent) {
+static vm_map_entry_t *vm_map_entry_clone_shared(vm_map_t *map,
+                                                 vm_map_entry_t *ent) {
   if (!ent->aref.amap) {
     /* We need to create amap, because we won't be able to share it if it
      * is not created now. */
     int slots = vaddr_to_slot(ent->end - ent->start);
     ent->aref.amap = vm_amap_alloc(slots);
-    if (!ent->aref.amap) {
+    if (!ent->aref.amap)
       return NULL;
-    }
   }
 
   vm_map_entry_t *new = vm_map_entry_copy(ent);
@@ -457,7 +459,8 @@ static vm_map_entry_t *entry_clone_shared(vm_map_t *map, vm_map_entry_t *ent) {
   return new;
 }
 
-static vm_map_entry_t *entry_clone_copy(vm_map_t *map, vm_map_entry_t *ent) {
+static vm_map_entry_t *vm_map_entry_clone_copy(vm_map_t *map,
+                                               vm_map_entry_t *ent) {
   vm_map_entry_t *new = vm_map_entry_copy(ent);
 
   /* If there was an amap we need to clone it. */
@@ -485,10 +488,10 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
     TAILQ_FOREACH (it, &map->entries, link) {
       switch (it->flags & VM_ENT_INHERIT_MASK) {
         case VM_ENT_SHARED:
-          new = entry_clone_shared(map, it);
+          new = vm_map_entry_clone_shared(map, it);
           break;
         case VM_ENT_PRIVATE:
-          new = entry_clone_copy(map, it);
+          new = vm_map_entry_clone_copy(map, it);
           break;
         default:
           panic("Unrecognized vm_map_entry inheritance flag: %d",

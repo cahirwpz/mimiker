@@ -142,6 +142,9 @@ DEFINE_CLEANUP_FUNCTION(proc_t *, proc_unlock);
  * Created process should be added using proc_add */
 proc_t *proc_create(thread_t *td, proc_t *parent);
 
+/* Remove just created process. Used when error encountered during fork. */
+void proc_error_free(proc_t *p);
+
 /*! \brief Adds created process to global data structures.
  * Must be called with all_proc_mtx held. */
 void proc_add(proc_t *p);

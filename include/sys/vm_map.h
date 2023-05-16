@@ -42,8 +42,8 @@ vm_map_t *vm_map_user(void);
 vm_map_t *vm_map_new(void);
 void vm_map_delete(vm_map_t *vm_map);
 
-vm_map_entry_t *vm_map_entry_alloc(vm_aref_t aref, vaddr_t start, vaddr_t end,
-                                   vm_prot_t prot, vm_entry_flags_t flags);
+vm_map_entry_t *vm_map_entry_alloc(vaddr_t start, vaddr_t end, vm_prot_t prot,
+                                   vm_entry_flags_t flags);
 
 vm_map_entry_t *vm_map_find_entry(vm_map_t *vm_map, vaddr_t vaddr);
 

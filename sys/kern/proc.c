@@ -467,6 +467,12 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   return p;
 }
 
+void proc_error_free(proc_t *p) {
+  kfree(M_STR, p->p_elfpath);
+  kfree(M_STR, p->p_args);
+  pool_free(P_PROC, p);
+}
+
 void proc_add(proc_t *p) {
   assert(p->p_parent);
   assert(mtx_owned(&all_proc_mtx));
