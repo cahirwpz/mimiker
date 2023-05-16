@@ -1335,3 +1335,8 @@ static int sys_sigtimedwait(proc_t *p, sigtimedwait_args_t *args,
                             register_t *res) {
   return ENOTSUP;
 }
+
+static int sys_clock_settime(proc_t *p, clock_settime_args_t *args,
+                             register_t *res) {
+  return ENOTSUP;
+}
