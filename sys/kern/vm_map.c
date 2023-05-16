@@ -441,17 +441,17 @@ void vm_map_dump(vm_map_t *map) {
 }
 
 static vm_map_entry_t *entry_clone_shared(vm_map_t *map, vm_map_entry_t *ent) {
-  vm_map_entry_t *new = vm_map_entry_copy(ent);
-
-  int slots = vaddr_to_slot(ent->end - ent->start);
   if (!ent->aref.amap) {
     /* We need to create amap, because we won't be able to share it if it
      * is not created now. */
+    int slots = vaddr_to_slot(ent->end - ent->start);
     ent->aref.amap = vm_amap_alloc(slots);
     if (!ent->aref.amap) {
       return NULL;
     }
   }
+
+  vm_map_entry_t *new = vm_map_entry_copy(ent);
   vm_amap_hold(ent->aref.amap);
   new->aref = ent->aref;
   return new;
