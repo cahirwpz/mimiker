@@ -71,7 +71,7 @@ CP      = cp
 CPIO    = cpio --format=crc
 CSCOPE  = cscope -b
 CTAGS   = ctags
-FORMAT  = clang-format$(LLVM_VER) -style=file 
+FORMAT  = clang-format$(LLVM_VER) -style=file
 INSTALL = install -D
 LN	= ln
 RM      = rm -f
@@ -83,3 +83,34 @@ PATCH   = patch
 GENASSYM = $(TOPDIR)/sys/script/genassym.sh
 YACC	= byacc
 GZIP	= gzip -9
+
+dump-tools:
+	echo "CC=\"${CC}\" "
+	echo "CPP=\"${CPP}\" "
+	echo "AS=\"${AS}\" "
+	echo "LD=\"${LD}\" "
+	echo "AR=\"${AR}\" "
+	echo "NM=\"${NM}\" "
+	echo "RANLIB=\"${RANLIB}\" "
+	echo "READELF=\"${READELF}\" "
+	echo "OBJCOPY=\"${OBJCOPY}\" "
+	echo "OBJDUMP=\"${OBJDUMP}\" "
+	echo "STRIP=\"${STRIP}\" "
+	echo "CP=\"${CP}\" "
+	echo "CPIO=\"${CPIO}\" "
+	echo "CSCOPE=\"${CSCOPE}\" "
+	echo "CTAGS=\"${CTAGS}\" "
+	echo "FORMAT=\"${FORMAT}\" "
+	echo "INSTALL=\"${INSTALL}\" "
+	echo "LN=\"${LN}\" "
+	echo "RM=\"${RM}\" "
+	echo "TAR=\"${TAR}\" "
+	echo "SED=\"${SED}\" "
+	echo "CURL=\"${CURL}\" "
+	echo "GIT=\"${GIT}\" "
+	echo "PATCH=\"${PATCH}\" "
+	echo "GENASSYM=\"${GENASSYM}\" "
+	echo "YACC=\"${YACC}\" "
+	echo "GZIP=\"${GZIP}\" "
+
+PHONY-TARGETS += dump-tools
