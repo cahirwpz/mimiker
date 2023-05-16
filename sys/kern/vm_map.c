@@ -465,20 +465,20 @@ static vm_map_entry_t *vm_map_entry_clone_copy(vm_map_t *map,
                                                vm_map_entry_t *ent) {
   vm_map_entry_t *new = vm_map_entry_copy(ent);
 
-  /* If there was no amap we don't have to clone it. */
-  if (!ent->aref.amap)
-    return new;
+  /* TODO(cow): There are few special cases but we don't need them now.
+   *            -- Section 4.7 in "The Design and Implementation of UVM".
+   */
 
-  size_t slots = vaddr_to_slot(ent->end - ent->start);
-  new->aref.offset = 0;
-  new->aref.amap = vm_amap_clone(ent->aref, slots);
+  /* Just hold the amap if it is present and set flags. Copying will be done
+   * during page fault. */
+  if (ent->aref.amap)
+    vm_amap_hold(ent->aref.amap);
 
-  if (new->aref.amap)
-    return new;
+  ent->flags |= VM_ENT_COW | VM_ENT_NEEDSCOPY;
+  new->flags |= VM_ENT_COW | VM_ENT_NEEDSCOPY;
 
-  /* Failed to clone amap. */
-  vm_map_entry_free(new);
-  return NULL;
+  pmap_protect(map->pmap, ent->start, ent->end, ent->prot & (~VM_PROT_READ));
+  return new;
 }
 
 #define VM_ENT_INHERIT_MASK (VM_ENT_SHARED | VM_ENT_PRIVATE)
@@ -517,6 +517,39 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   return new_map;
 }
 
+static vm_anon_t *alloc_anon(vm_aref_t aref, size_t offset) {
+  vm_anon_t *anon = vm_anon_alloc();
+  if (!anon)
+    return NULL;
+
+  vm_page_t *frame = vm_page_alloc(1);
+  if (!frame) {
+    vm_anon_drop(anon);
+    return NULL;
+  }
+
+  pmap_zero_page(frame);
+  anon->page = frame;
+
+  vm_amap_insert_anon(aref, anon, offset);
+  return anon;
+}
+
+static vm_anon_t *transfer_anon(vm_aref_t aref, vm_anon_t *anon,
+                                size_t offset) {
+  /* If this is only reference to an anon. We don't have to transfer it nor
+   * limit the prot for that page. */
+  if (anon->ref_cnt == 1)
+    return anon;
+
+  vm_anon_t *new = vm_anon_transfer(anon);
+  if (!new)
+    return NULL;
+
+  vm_amap_replace_anon(aref, new, offset);
+  return new;
+}
+
 int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   SCOPED_VM_MAP_LOCK(map);
 
@@ -551,27 +584,54 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   vaddr_t fault_page = fault_addr & -PAGESIZE;
 
+  bool cow = (ent->flags & VM_ENT_COW) && (fault_type & VM_PROT_WRITE);
+
+  size_t amap_slots = vaddr_to_slot(ent->end - ent->start);
+
+  if (cow && ent->flags & VM_ENT_NEEDSCOPY) {
+    vm_aref_t new_aref = vm_amap_needs_copy(ent->aref, amap_slots);
+    if (ent->aref.amap && !new_aref.amap)
+      /* Amap was present but it wasn't copied. */
+      return ENOMEM;
+
+    ent->aref = new_aref;
+    ent->flags &= ~VM_ENT_NEEDSCOPY;
+  }
+
   if (!ent->aref.amap) {
-    size_t slots = vaddr_to_slot(ent->end - ent->start);
     ent->aref.offset = 0;
-    ent->aref.amap = vm_amap_alloc(slots);
+    ent->aref.amap = vm_amap_alloc(amap_slots);
   }
 
-  bool insert = false;
   size_t offset = vaddr_to_slot(fault_page - ent->start);
-  vm_page_t *frame = vm_amap_find_page(ent->aref, offset);
+  vm_anon_t *anon = vm_amap_find_anon(ent->aref, offset);
 
-  if (frame == NULL) {
-    insert = true;
-    frame = vm_page_alloc(1);
-    if (frame == NULL)
-      return EFAULT;
-    pmap_zero_page(frame);
+  vm_page_t *frame = NULL;
+  vm_prot_t prot = ent->prot;
+
+  if (!anon) {
+    anon = alloc_anon(ent->aref, offset);
+  } else {
+    if (cow) {
+      /* If we are in COW scenario then we have to transfer page to a new anon
+       * and remove old mapping if it existed before.
+       */
+      anon = transfer_anon(ent->aref, anon, offset);
+      pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
+    } else if ((ent->flags & VM_ENT_COW) && !cow) {
+      /* If entry is copy-on-write and we didn't copy the entry because we are
+       * not in COW scenario, then limit the protection for page if it is
+       * referenced by more then one amaps.
+       */
+      if (anon->ref_cnt > 1)
+        prot &= ~VM_PROT_WRITE;
+    }
   }
 
-  if (insert)
-    vm_amap_add_page(ent->aref, frame, offset);
+  frame = anon->page;
+  if (!frame)
+    return EFAULT;
 
-  pmap_enter(map->pmap, fault_page, frame, ent->prot, 0);
+  pmap_enter(map->pmap, fault_page, frame, prot, 0);
   return 0;
 }
