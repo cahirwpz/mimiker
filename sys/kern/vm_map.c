@@ -544,9 +544,10 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   if (!ent->aref.amap) {
     int slots = vaddr_to_slot(ent->end - ent->start);
+    ent->aref.offset = 0;
     ent->aref.amap = vm_amap_alloc(slots);
     if (!ent->aref.amap) {
-      return EFAULT;
+      return ENOMEM;
     }
   }
 
