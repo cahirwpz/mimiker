@@ -15,7 +15,11 @@ struct vm_aref {
 
 #define VM_AREF_EMPTY ((vm_aref_t){.offset = 0, .amap = NULL})
 
-/* Allocate new amap with specified number of slots. */
+/*
+ * Allocate new amap with specified number of slots.
+ *
+ * Returns new amap with ref_cnt equal to 1.
+ */
 vm_amap_t *vm_amap_alloc(size_t slots);
 
 /*

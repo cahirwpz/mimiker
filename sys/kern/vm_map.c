@@ -440,32 +440,31 @@ void vm_map_dump(vm_map_t *map) {
   }
 }
 
-vm_map_entry_t *vm_entry_clone_shared(vm_map_t *new_map, vm_map_t *map,
-                                      vm_map_entry_t *old) {
-  vm_map_entry_t *new = vm_map_entry_copy(old);
+static vm_map_entry_t *entry_clone_shared(vm_map_t *map, vm_map_entry_t *ent) {
+  vm_map_entry_t *new = vm_map_entry_copy(ent);
 
-  int slots = vaddr_to_slot(old->end - old->start);
-  if (!old->aref.amap) {
+  int slots = vaddr_to_slot(ent->end - ent->start);
+  if (!ent->aref.amap) {
     /* We need to create amap, because we won't be able to share it if it
      * is not created now. */
-    old->aref.amap = vm_amap_alloc(slots);
-    if (!old->aref.amap) {
+    ent->aref.amap = vm_amap_alloc(slots);
+    if (!ent->aref.amap) {
       return NULL;
     }
   }
-  vm_amap_hold(old->aref.amap);
-  new->aref = old->aref;
+  vm_amap_hold(ent->aref.amap);
+  new->aref = ent->aref;
   return new;
 }
-vm_map_entry_t *vm_entry_clone_copy(vm_map_t *new_map, vm_map_t *map,
-                                    vm_map_entry_t *old) {
-  vm_map_entry_t *new = vm_map_entry_copy(old);
+
+static vm_map_entry_t *entry_clone_copy(vm_map_t *map, vm_map_entry_t *ent) {
+  vm_map_entry_t *new = vm_map_entry_copy(ent);
 
   /* If there was an amap we need to clone it. */
-  if (old->aref.amap) {
-    int slots = vaddr_to_slot(old->end - old->start);
+  if (ent->aref.amap) {
+    int slots = vaddr_to_slot(ent->end - ent->start);
     new->aref.offset = 0;
-    new->aref.amap = vm_amap_clone(old->aref, slots);
+    new->aref.amap = vm_amap_clone(ent->aref, slots);
     if (!new->aref.amap) {
       klog("Unable to clone amap!");
       vm_map_entry_free(new);
@@ -486,10 +485,10 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
     TAILQ_FOREACH (it, &map->entries, link) {
       switch (it->flags & VM_ENT_INHERIT_MASK) {
         case VM_ENT_SHARED:
-          new = vm_entry_clone_shared(new_map, map, it);
+          new = entry_clone_shared(map, it);
           break;
         case VM_ENT_PRIVATE:
-          new = vm_entry_clone_copy(new_map, map, it);
+          new = entry_clone_copy(map, it);
           break;
         default:
           panic("Unrecognized vm_map_entry inheritance flag: %d",
