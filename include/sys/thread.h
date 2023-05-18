@@ -174,9 +174,6 @@ thread_t *thread_create(const char *name, void (*fn)(void *), void *arg,
 
 void thread_delete(thread_t *td);
 
-/* Remove just created thread. Used when error encountered during fork. */
-void thread_error_free(thread_t *td);
-
 /*! \brief Prepares thread to be launched.
  *
  * Initializes thread context so it can be resumed in such a way,
