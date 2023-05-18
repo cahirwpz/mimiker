@@ -21,14 +21,6 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   /* Cannot fork non-user threads. */
   assert(parent);
 
-  /* Clone the entire process memory space.
-   *
-   * We do it at the beginning because it is only thing that may fail. Here we
-   * can just return with error because we haven't created anything yet. */
-  vm_map_t *child_map = vm_map_clone(parent->p_uspace);
-  if (child_map == NULL)
-    return ENOMEM;
-
   if (start == NULL)
     start = (entry_fn_t)user_exc_leave;
   else
@@ -72,8 +64,8 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
     cred_fork(child, parent);
   }
 
-  /* Assign created vm_map to child process. */
-  child->p_uspace = child_map;
+  /* Clone the entire process memory space. */
+  child->p_uspace = vm_map_clone(parent->p_uspace);
 
   /* Find copied brk segment. */
   WITH_VM_MAP_LOCK (child->p_uspace) {

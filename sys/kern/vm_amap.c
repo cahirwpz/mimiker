@@ -39,8 +39,6 @@ struct vm_amap {
   bitstr_t *pg_bitmap;
 };
 
-static void vm_amap_free(vm_amap_t *amap);
-
 static POOL_DEFINE(P_VM_AMAP_STRUCT, "vm_amap_struct", sizeof(vm_amap_t));
 static KMALLOC_DEFINE(M_AMAP, "amap_slots");
 
@@ -55,30 +53,17 @@ size_t vm_amap_slots(vm_amap_t *amap) {
 vm_amap_t *vm_amap_alloc(size_t slots) {
   slots += EXTRA_AMAP_SLOTS;
   vm_amap_t *amap = pool_alloc(P_VM_AMAP_STRUCT, M_WAITOK);
-  if (!amap)
-    return NULL;
 
   amap->pg_list =
     kmalloc(M_AMAP, slots * sizeof(vm_page_t *), M_ZERO | M_WAITOK);
 
-  if (!amap->pg_list)
-    goto list_fail;
-
   amap->pg_bitmap =
     kmalloc(M_AMAP, slots * sizeof(bitstr_t), M_ZERO | M_WAITOK);
-  if (!amap->pg_bitmap)
-    goto bitmap_fail;
 
   amap->ref_cnt = 1;
   amap->slots = slots;
   mtx_init(&amap->mtx, MTX_SLEEP);
   return amap;
-
-bitmap_fail:
-  kfree(M_AMAP, amap->pg_list);
-list_fail:
-  pool_free(P_VM_AMAP_STRUCT, amap);
-  return NULL;
 }
 
 vm_amap_t *vm_amap_clone(vm_aref_t aref, size_t slots) {
@@ -89,8 +74,6 @@ vm_amap_t *vm_amap_clone(vm_aref_t aref, size_t slots) {
   assert(aref.offset + slots < amap->slots);
 
   vm_amap_t *new = vm_amap_alloc(slots);
-  if (!new)
-    return NULL;
 
   SCOPED_MTX_LOCK(&amap->mtx);
   for (size_t slot = 0; slot < slots; slot++) {
@@ -106,15 +89,6 @@ vm_amap_t *vm_amap_clone(vm_aref_t aref, size_t slots) {
     bit_set(new->pg_bitmap, slot);
   }
   return new;
-}
-
-void vm_amap_hold(vm_amap_t *amap) {
-  refcnt_acquire(&amap->ref_cnt);
-}
-
-void vm_amap_drop(vm_amap_t *amap) {
-  if (refcnt_release(&amap->ref_cnt))
-    vm_amap_free(amap);
 }
 
 vm_page_t *vm_amap_find_page(vm_aref_t aref, size_t offset) {
@@ -164,9 +138,15 @@ void vm_amap_remove_pages(vm_aref_t aref, size_t start, size_t nslots) {
   vm_amap_remove_pages_unlocked(aref.amap, aref.offset + start, nslots);
 }
 
-static void vm_amap_free(vm_amap_t *amap) {
-  vm_amap_remove_pages_unlocked(amap, 0, amap->slots);
-  kfree(M_AMAP, amap->pg_list);
-  kfree(M_AMAP, amap->pg_bitmap);
-  pool_free(P_VM_AMAP_STRUCT, amap);
+void vm_amap_hold(vm_amap_t *amap) {
+  refcnt_acquire(&amap->ref_cnt);
+}
+
+void vm_amap_drop(vm_amap_t *amap) {
+  if (refcnt_release(&amap->ref_cnt)) {
+    vm_amap_remove_pages_unlocked(amap, 0, amap->slots);
+    kfree(M_AMAP, amap->pg_list);
+    kfree(M_AMAP, amap->pg_bitmap);
+    pool_free(P_VM_AMAP_STRUCT, amap);
+  }
 }

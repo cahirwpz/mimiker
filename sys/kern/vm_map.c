@@ -92,7 +92,7 @@ vm_map_entry_t *vm_map_entry_alloc(vaddr_t start, vaddr_t end, vm_prot_t prot,
 
   vm_map_entry_t *ent = pool_alloc(P_VM_MAPENT, M_ZERO);
 
-  ent->aref = VM_AREF_EMPTY;
+  ent->aref = (vm_aref_t){.offset = 0, .amap = NULL};
   ent->start = start;
   ent->end = end;
   ent->prot = prot;
@@ -449,8 +449,6 @@ static vm_map_entry_t *vm_map_entry_clone_shared(vm_map_t *map,
      * is not created now. */
     int slots = vaddr_to_slot(ent->end - ent->start);
     ent->aref.amap = vm_amap_alloc(slots);
-    if (!ent->aref.amap)
-      return NULL;
   }
 
   vm_map_entry_t *new = vm_map_entry_copy(ent);
@@ -463,17 +461,13 @@ static vm_map_entry_t *vm_map_entry_clone_copy(vm_map_t *map,
                                                vm_map_entry_t *ent) {
   vm_map_entry_t *new = vm_map_entry_copy(ent);
 
-  /* If there was an amap we need to clone it. */
-  if (ent->aref.amap) {
-    int slots = vaddr_to_slot(ent->end - ent->start);
-    new->aref.offset = 0;
-    new->aref.amap = vm_amap_clone(ent->aref, slots);
-    if (!new->aref.amap) {
-      klog("Unable to clone amap!");
-      vm_map_entry_free(new);
-      return NULL;
-    }
-  }
+  /* If there was no amap we don't have to clone it. */
+  if (!ent->aref.amap)
+    return new;
+
+  int slots = vaddr_to_slot(ent->end - ent->start);
+  new->aref.offset = 0;
+  new->aref.amap = vm_amap_clone(ent->aref, slots);
   return new;
 }
 
@@ -496,12 +490,6 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         default:
           panic("Unrecognized vm_map_entry inheritance flag: %d",
                 it->flags & VM_ENT_INHERIT_MASK);
-      }
-
-      if (!new) {
-        vm_map_delete(new_map);
-        klog("Failed to clone vm_map");
-        return NULL;
       }
 
       TAILQ_INSERT_TAIL(&new_map->entries, new, link);
@@ -549,9 +537,6 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
     int slots = vaddr_to_slot(ent->end - ent->start);
     ent->aref.offset = 0;
     ent->aref.amap = vm_amap_alloc(slots);
-    if (!ent->aref.amap) {
-      return ENOMEM;
-    }
   }
 
   bool insert = false;
