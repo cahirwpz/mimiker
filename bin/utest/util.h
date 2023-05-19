@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 
 /* Wait for a single child process with process id `pid` to exit,
  * and check that its exit code matches the expected value. */
@@ -20,6 +21,15 @@ void wait_for_signal(int signo);
 /* Create a new pseudoterminal and return file descriptors to the master and
  * slave side. */
 void open_pty(int *master_fd, int *slave_fd);
+
+/*
+ * Layout of mapped pages:
+ * 0       1        2        3        4        5       6
+ * +----------------+        +--------+        +-----------------+
+ * | first | second |        | fourth |        | sixth | seventh |
+ * +----------------+        +--------+        +-----------------+
+ */
+void *prepare_layout(size_t pgsz, int prot);
 
 extern jmp_buf _expect_signal_ctx;
 
@@ -121,3 +131,12 @@ void _expect_signal_cleanup(void);
 #define assert_pipe_ok(fds)                                                    \
   n = pipe(fds);                                                               \
   assert(n == 0);
+
+#define mmap_anon_priv_flags(addr, length, prot, flags)                        \
+  mmap((addr), (length), (prot), (flags) | MAP_ANON | MAP_PRIVATE, -1, 0)
+
+#define mmap_anon_priv(addr, length, prot)                                     \
+  mmap((addr), (length), (prot), MAP_ANON | MAP_PRIVATE, -1, 0)
+
+#define mmap_anon_prw(addr, length)                                            \
+  mmap_anon_priv((addr), (length), PROT_READ | PROT_WRITE)

@@ -10,7 +10,6 @@ SOURCES = $(addprefix lua/,$(LUA_SRC)) lunix.c
 PROGRAM = lua
 BINDIR = bin
 BUILDDIR = build/
-FORMAT-EXCLUDE = $(SOURCES)
 
 CPPFLAGS += -Ilua/
 

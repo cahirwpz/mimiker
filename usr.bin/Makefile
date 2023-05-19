@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = env login wc script
+SUBDIR = login stat script
 
 all: build
 

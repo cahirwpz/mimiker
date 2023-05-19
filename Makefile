@@ -7,10 +7,12 @@ SUBDIR = sys lib bin usr.bin etc include contrib
 
 all: install
 
-format: setup
 build: setup
 install: build
 distclean: clean
+
+format:
+	./verify-format.sh --fix
 
 bin-before: lib-install
 usr.bin-before: lib-install
@@ -22,7 +24,7 @@ contrib-before: lib-install
 # programs into sysroot. This sounds silly, but apparently make assumes no files
 # appear "without their explicit target". Thus, the only thing we can do is
 # forcing make to always rebuild the archive.
-initrd.cpio: bin-install
+initrd.cpio: bin-install usr.bin-install contrib-install
 	@echo "[INITRD] Building $@..."
 	cd sysroot && \
 	  find -depth \( ! -name "*.dbg" -and -print \) | sort | \
