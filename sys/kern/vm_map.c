@@ -545,11 +545,11 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   if (frame == NULL) {
     insert = true;
-    frame = vm_page_alloc_zero(1);
+    frame = vm_page_alloc(1);
+    if (frame == NULL)
+      return EFAULT;
+    pmap_zero_page(frame);
   }
-
-  if (frame == NULL)
-    return EFAULT;
 
   if (insert)
     vm_amap_add_page(ent->aref, frame, offset);

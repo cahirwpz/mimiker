@@ -82,7 +82,7 @@ vm_amap_t *vm_amap_clone(vm_aref_t aref, size_t slots) {
     if (!bit_test(amap->pg_bitmap, old_slot))
       continue;
 
-    vm_page_t *new_pg = vm_page_alloc_zero(1);
+    vm_page_t *new_pg = vm_page_alloc(1);
     pmap_copy_page(amap->pg_list[old_slot], new_pg);
 
     new->pg_list[slot] = new_pg;
