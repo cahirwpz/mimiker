@@ -1,17 +1,16 @@
 #include "utest.h"
 #include "util.h"
 
-#include <assert.h>
 #include <stddef.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
-int test_sharing_memory_simple(void) {
+TEST_ADD(sharing_memory_simple) {
   size_t pgsz = getpagesize();
   char *map =
     mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
@@ -33,7 +32,7 @@ int test_sharing_memory_simple(void) {
   return 0;
 }
 
-int test_sharing_memory_child_and_grandchild(void) {
+TEST_ADD(sharing_memory_child_and_grandchild) {
   size_t pgsz = getpagesize();
   char *map =
     mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);

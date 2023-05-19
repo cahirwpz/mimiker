@@ -231,6 +231,7 @@ int gettimeofday(struct timeval *__restrict, void *__restrict);
 int settimeofday(const struct timeval *__restrict, const void *__restrict);
 
 int clock_gettime(clockid_t clk, timespec_t *tp);
+int clock_settime(clockid_t clk, timespec_t *tp);
 
 int clock_nanosleep(clockid_t clk, int flags, const timespec_t *rqtp,
                     timespec_t *rmtp);

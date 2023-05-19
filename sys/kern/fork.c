@@ -3,7 +3,6 @@
 #include <sys/thread.h>
 #include <sys/filedesc.h>
 #include <sys/sched.h>
-#include <sys/exception.h>
 #include <sys/libkern.h>
 #include <sys/vm_map.h>
 #include <sys/proc.h>

@@ -42,8 +42,7 @@ void vm_map_activate(vm_map_t *map) {
 
 void vm_map_switch(thread_t *td) {
   proc_t *p = td->td_proc;
-  if (p)
-    vm_map_activate(p->p_uspace);
+  vm_map_activate(p ? p->p_uspace : NULL);
 }
 
 void vm_map_lock(vm_map_t *map) {
@@ -128,7 +127,7 @@ static void vm_map_insert_after(vm_map_t *map, vm_map_entry_t *after,
   map->nentries++;
 }
 
-void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
+static void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
   assert(mtx_owned(&map->mtx));
 
   TAILQ_REMOVE(&map->entries, ent, link);
@@ -142,6 +141,11 @@ static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
   vm_map_entry_t *new = vm_map_entry_alloc(src->object, src->start, src->end,
                                            src->prot, src->flags);
   return new;
+}
+
+static inline bool range_intersects_map_entry(vm_map_entry_t *ent,
+                                              vaddr_t start, vaddr_t end) {
+  return vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end;
 }
 
 /* Split vm_map_entry into two not empty entries. (Smallest possible entry is
@@ -165,25 +169,50 @@ static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
   return new_ent;
 }
 
-void vm_map_entry_destroy_range(vm_map_t *map, vm_map_entry_t *ent,
-                                vaddr_t start, vaddr_t end) {
+static int vm_map_destroy_range_nolock(vm_map_t *map, vaddr_t start,
+                                       vaddr_t end) {
   assert(mtx_owned(&map->mtx));
-  assert(start >= ent->start && end <= ent->end);
+
+  /* Find first entry affected by unmapping memory. */
+  vm_map_entry_t *ent = vm_map_find_entry(map, start);
+  if (!ent)
+    return 0;
 
   pmap_remove(map->pmap, start, end);
-  vm_map_entry_t *del = ent;
 
-  if (start > ent->start) {
-    /* entry we want to delete is after clipped entry */
-    del = vm_map_entry_split(map, ent, start);
+  while (range_intersects_map_entry(ent, start, end)) {
+    vaddr_t rm_start = max(start, vm_map_entry_start(ent));
+    vaddr_t rm_end = min(end, vm_map_entry_end(ent));
+
+    /* Next entry that could be affected is right after current one.
+     * Since we can delete it entirely, we have to take next entry now. */
+    vm_map_entry_t *next = vm_map_entry_next(ent);
+
+    vm_map_entry_t *del = ent;
+
+    if (rm_start > ent->start) {
+      /* entry we want to delete is after clipped entry */
+      del = vm_map_entry_split(map, ent, rm_start);
+    }
+
+    if (rm_end < del->end) {
+      /* entry which is after del is one we want to keep */
+      vm_map_entry_split(map, del, rm_end);
+    }
+
+    vm_map_entry_destroy(map, del);
+
+    if (!next)
+      break;
+
+    ent = next;
   }
+  return 0;
+}
 
-  if (end < del->end) {
-    /* entry which is after del is one we want to keep */
-    vm_map_entry_split(map, del, end);
-  }
-
-  vm_map_entry_destroy(map, del);
+int vm_map_destroy_range(vm_map_t *map, vaddr_t start, vaddr_t end) {
+  SCOPED_VM_MAP_LOCK(map);
+  return vm_map_destroy_range_nolock(map, start, end);
 }
 
 void vm_map_delete(vm_map_t *map) {
@@ -196,8 +225,47 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VM_MAP, map);
 }
 
-/* TODO: not implemented */
-void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+int vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+  SCOPED_MTX_LOCK(&map->mtx);
+
+  vm_map_entry_t *ent = vm_map_find_entry(map, start);
+  if (!ent)
+    return ENOMEM;
+
+  while (range_intersects_map_entry(ent, start, end)) {
+    vaddr_t prot_start = max(start, vm_map_entry_start(ent));
+    vaddr_t prot_end = min(end, vm_map_entry_end(ent));
+    vm_map_entry_t *affected = ent;
+
+    if (prot_start > ent->start) {
+      /* entry we want to change is after clipped entry */
+      affected = vm_map_entry_split(map, ent, prot_start);
+    }
+
+    if (prot_end < affected->end) {
+      /* entry which is after affected is one we want to keep unchanged */
+      vm_map_entry_split(map, affected, prot_end);
+    }
+
+    klog("change prot of %lx-%lx to %x", affected->start, affected->end, prot);
+
+    pmap_protect(map->pmap, affected->start, affected->end, prot);
+    affected->prot = prot;
+
+    /* Everything done. */
+    if (vm_map_entry_end(affected) == end)
+      break;
+
+    vm_map_entry_t *next = vm_map_entry_next(affected);
+
+    /* If next entry doesn't exist or there is a gap return error. Tried to
+     * change protection of unmapped memory. */
+    if (!next || vm_map_entry_end(affected) != vm_map_entry_start(next))
+      return ENOMEM;
+
+    ent = next;
+  }
+  return 0;
 }
 
 static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
@@ -262,9 +330,15 @@ int vm_map_insert(vm_map_t *map, vm_map_entry_t *ent, vm_flags_t flags) {
   size_t length = ent->end - ent->start;
   vm_entry_flags_t entry_flags = 0;
 
-  int error = vm_map_findspace_nolock(map, &start, length, &after);
-  if (error)
+  int error;
+  if ((flags & VM_FIXED) && !(flags & VM_EXCL)) {
+    if ((error = vm_map_destroy_range_nolock(map, ent->start, ent->end)))
+      return error;
+  }
+
+  if ((error = vm_map_findspace_nolock(map, &start, length, &after)))
     return error;
+
   if ((flags & VM_FIXED) && (start != ent->start))
     return ENOMEM;
 
@@ -351,7 +425,9 @@ void vm_map_dump(vm_map_t *map) {
          (it->prot & VM_PROT_READ) ? 'r' : '-',
          (it->prot & VM_PROT_WRITE) ? 'w' : '-',
          (it->prot & VM_PROT_EXEC) ? 'x' : '-');
+#if 0
     vm_object_dump(it->object);
+#endif
   }
 }
 
@@ -400,13 +476,18 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
     return EACCES;
   }
 
-  if (!(ent->prot & VM_PROT_WRITE) && (fault_type == VM_PROT_WRITE)) {
+  if (!(ent->prot & VM_PROT_WRITE) && (fault_type & VM_PROT_WRITE)) {
     klog("Cannot write to address: 0x%08lx", fault_addr);
     return EACCES;
   }
 
-  if (!(ent->prot & VM_PROT_READ) && (fault_type == VM_PROT_READ)) {
+  if (!(ent->prot & VM_PROT_READ) && (fault_type & VM_PROT_READ)) {
     klog("Cannot read from address: 0x%08lx", fault_addr);
+    return EACCES;
+  }
+
+  if (!(ent->prot & VM_PROT_EXEC) && (fault_type & VM_PROT_EXEC)) {
+    klog("Cannot exec at address: 0x%08lx", fault_addr);
     return EACCES;
   }
 

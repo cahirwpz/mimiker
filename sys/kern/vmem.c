@@ -3,7 +3,6 @@
 #include <sys/klog.h>
 #include <sys/kmem.h>
 #include <sys/vmem.h>
-#include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/mimiker.h>
 #include <sys/libkern.h>
@@ -15,42 +14,12 @@
 
 #define VMEM_DEBUG 0
 
-#define VMEM_MAXORDER ((int)(sizeof(vmem_size_t) * CHAR_BIT))
-#define VMEM_MAXHASH 512
-#define VMEM_NAME_MAX 16
-
 #define ORDER2SIZE(order) ((vmem_size_t)1 << (order))
 #define SIZE2ORDER(size) ((int)log2(size))
-
-typedef TAILQ_HEAD(vmem_seglist, bt) vmem_seglist_t;
-typedef LIST_HEAD(vmem_freelist, bt) vmem_freelist_t;
-typedef LIST_HEAD(vmem_hashlist, bt) vmem_hashlist_t;
 
 /* List of all vmem instances and a guarding mutex */
 static MTX_DEFINE(vmem_list_lock, 0);
 static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
-
-/*! \brief vmem structure
- *
- * Field markings and the corresponding locks:
- *  (a) vm_lock
- *  (@) vmem_list_lock
- *  (!) read-only access, do not modify!
- */
-typedef struct vmem {
-  LIST_ENTRY(vmem) vm_link; /* (@) link for vmem_list */
-  mtx_t vm_lock;            /* vmem lock */
-  size_t vm_size;           /* (a) total size of all added spans */
-  size_t vm_inuse;          /* (a) total size of all allocated segments */
-  size_t vm_quantum;    /* (!) alignment & the smallest unit of allocation */
-  int vm_quantum_shift; /* (!) log2 of vm_quantum */
-  char vm_name[VMEM_NAME_MAX]; /* (!) name of vmem instance */
-  vmem_seglist_t vm_seglist;   /* (a) list of all segments */
-  /* (a) table of lists of free segments */
-  vmem_freelist_t vm_freelist[VMEM_MAXORDER];
-  /* (a) hashtable of lists of allocated segments */
-  vmem_hashlist_t vm_hashlist[VMEM_MAXHASH];
-} vmem_t;
 
 typedef enum {
   BT_TYPE_FREE, /* free segment */
@@ -270,8 +239,7 @@ static void vmem_check_sanity(vmem_t *vm) {
 #define vmem_check_sanity(vm) (void)vm
 #endif
 
-vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
-  vmem_t *vm = kmalloc(M_VMEM, sizeof(vmem_t), M_NOWAIT | M_ZERO);
+void vmem_init(vmem_t *vm, const char *name, vmem_size_t quantum) {
   assert(vm != NULL);
 
   vm->vm_quantum = quantum;
@@ -293,6 +261,12 @@ vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
     LIST_INSERT_HEAD(&vmem_list, vm, vm_link);
 
   klog("new vmem '%s' created", name);
+}
+
+vmem_t *vmem_create(const char *name, vmem_size_t quantum) {
+  vmem_t *vm = kmalloc(M_VMEM, sizeof(vmem_t), M_NOWAIT | M_ZERO);
+  assert(vm != NULL);
+  vmem_init(vm, name, quantum);
   return vm;
 }
 

@@ -32,6 +32,7 @@ typedef enum {
   VM_SHARED = 0x0001,  /* share changes */
   VM_PRIVATE = 0x0002, /* changes are private */
   VM_FIXED = 0x0004,   /* map addr must be exactly as requested */
+  VM_EXCL = 0x4000,    /* for MAP_FIXED, fail if address is used */
 } vm_flags_t;
 
 typedef struct vm_page vm_page_t;
@@ -64,6 +65,7 @@ struct vm_page {
 
 int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags);
 int do_munmap(vaddr_t addr, size_t length);
+int do_mprotect(vaddr_t start, size_t length, int u_prot);
 
 #endif /* !_KERNEL */
 

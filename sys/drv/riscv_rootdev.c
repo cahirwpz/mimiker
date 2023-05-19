@@ -8,6 +8,7 @@
 #include <dev/simplebus.h>
 #include <riscv/mcontext.h>
 #include <riscv/riscvreg.h>
+#include <riscv/vm_param.h>
 
 typedef enum hlic_irq {
   HLIC_IRQ_SOFTWARE_USER,

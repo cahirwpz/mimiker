@@ -18,7 +18,6 @@ SOURCES = \
 	dev_procstat.c \
 	devfs.c \
 	event.c \
-	exception.c \
 	exec.c \
 	exec_elf.c \
 	exec_shebang.c \
@@ -49,7 +48,6 @@ SOURCES = \
 	signal.c \
 	sleepq.c \
 	syscalls.c \
-	taskqueue.c \
 	turnstile.c \
 	thread.c \
 	time.c \
@@ -83,8 +81,6 @@ SOURCES-KGPROF = \
 
 SOURCES-KCSAN = \
 	kcsan.c
-
-FORMAT-EXCLUDE = sysent.h
 
 include $(TOPDIR)/build/build.kern.mk
 

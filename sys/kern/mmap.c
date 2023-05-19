@@ -21,6 +21,7 @@ static_assert(VM_SHARED == MAP_SHARED, "VM_SHARED != MAP_SHARED");
 static_assert(VM_PRIVATE == MAP_PRIVATE, "VM_PRIVATE != MAP_PRIVATE");
 static_assert(VM_FIXED == MAP_FIXED, "VM_FIXED != MAP_FIXED");
 static_assert(VM_STACK == MAP_STACK, "VM_STACK != MAP_STACK");
+static_assert(VM_EXCL == MAP_EXCL, "VM_EXCL != MAP_EXCL");
 
 int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags) {
   thread_t *td = thread_self();
@@ -68,27 +69,26 @@ int do_munmap(vaddr_t start, size_t length) {
 
   vaddr_t end = start + length;
 
-  WITH_VM_MAP_LOCK (uspace) {
-    /* Find first entry affected by unmapping memory. */
-    vm_map_entry_t *ent = vm_map_find_entry(uspace, start);
-    if (!ent)
-      return EINVAL;
+  return vm_map_destroy_range(uspace, start, end);
+}
 
-    while (vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end) {
-      vaddr_t rm_start = max(start, vm_map_entry_start(ent));
-      vaddr_t rm_end = min(end, vm_map_entry_end(ent));
+int do_mprotect(vaddr_t start, size_t length, int u_prot) {
+  thread_t *td = thread_self();
+  assert(td && td->td_proc && td->td_proc->p_uspace);
 
-      /* Next entry that could be affected is right after current one.
-       * Since we can delete it entirely, we have to take next entry now. */
-      vm_map_entry_t *next = vm_map_entry_next(ent);
+  vm_map_t *vmap = td->td_proc->p_uspace;
 
-      vm_map_entry_destroy_range(uspace, ent, rm_start, rm_end);
+  if (length == 0)
+    return EINVAL;
 
-      if (!next)
-        break;
+  if (!page_aligned_p(start) || !page_aligned_p(length))
+    return EINVAL;
 
-      ent = next;
-    }
-  }
-  return 0;
+  /* prot argument is invalid */
+  if (u_prot > (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXEC))
+    return EINVAL;
+
+  vaddr_t end = start + length;
+
+  return vm_map_protect(vmap, start, end, u_prot);
 }

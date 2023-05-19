@@ -52,4 +52,10 @@ void ctx_switch(thread_t *from, thread_t *to);
 /* Implementation of setcontext syscall. */
 int do_setcontext(thread_t *td, ucontext_t *uc);
 
+/*! \brief Machine dependant procedure that enters userspace. */
+__noreturn __long_call void user_exc_leave(void);
+
+/*! \brief Machine dependant procedure that reenters kernelspace. */
+__noreturn void kern_exc_leave(void);
+
 #endif /* !_SYS_CONTEXT_H_ */
