@@ -123,12 +123,16 @@ int vm_amap_add_page(vm_aref_t aref, vm_page_t *frame, size_t offset) {
 
 static void vm_amap_remove_pages_unlocked(vm_amap_t *amap, size_t start,
                                           size_t nslots) {
+  vm_pagelist_t pglist;
+  TAILQ_INIT(&pglist);
+
   for (size_t i = start; i < start + nslots; i++) {
     if (!bit_test(amap->pg_bitmap, i))
       continue;
-    vm_page_free(amap->pg_list[i]);
+    TAILQ_INSERT_TAIL(&pglist, amap->pg_list[i], pageq);
     bit_clear(amap->pg_bitmap, i);
   }
+  vm_pagelist_free(&pglist);
 }
 
 void vm_amap_remove_pages(vm_aref_t aref, size_t start, size_t nslots) {
