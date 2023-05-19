@@ -1,0 +1,13 @@
+Index: sbase/sbase/libutil/unescape.c
+===================================================================
+--- sbase.orig/sbase/libutil/unescape.c	2022-12-07 22:20:25.006463307 +0100
++++ sbase/sbase/libutil/unescape.c	2022-12-08 00:49:03.076168921 +0100
+@@ -39,7 +39,7 @@
+ 		} else if (is_odigit(*r)) {
+ 			for (q = 0, m = 4; m && is_odigit(*r); m--, r++)
+ 				q = q * 8 + (*r - '0');
+-			*w++ = MIN(q, 255);
++			*w++ = (char)MIN(q, 255);
+ 		} else if (*r == 'x' && isxdigit(r[1])) {
+ 			r++;
+ 			for (q = 0, m = 2; m && isxdigit(*r); m--, r++)
