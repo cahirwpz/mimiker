@@ -42,6 +42,7 @@ LIBUTILSRC_DONT_WORK = \
 
 BIN = \
 	clear             \
+	getty							\
 	id                \
 	login             \
 	nologin           \
@@ -64,7 +65,6 @@ BIN_DONT_WORK = \
 	free              \
 	freeramdisk       \
 	fsfreeze          \
-	getty             \
 	halt              \
 	hwclock           \
 	insmod            \
