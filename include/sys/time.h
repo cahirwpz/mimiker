@@ -3,7 +3,8 @@
 
 #include <sys/types.h>
 
-#define CLK_TCK 1000 /* system clock ticks per second 1[tick] = 1[ms]  */
+#define CLK_TCK 1000  /* system clock ticks per second 1[tick] = 1[ms]  */
+#define PROF_TCK 3643 /* profclock ticks per second 1[tick] ~ 0.2745[ms] */
 
 typedef struct tm {
   int tm_sec;          /* seconds after the minute [0-61] */
