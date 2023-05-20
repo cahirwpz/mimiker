@@ -15,7 +15,7 @@ typedef struct pit_state {
   /* values since last counter read */
   uint16_t prev_cntr16; /* number of counter ticks */
   /* values since initialization */
-  uint32_t cntr_modulo; /* number of counter ticks modulo TIMER_FREQ*/
+  uint32_t cntr_modulo; /* number of counter ticks modulo TIMER_FREQ */
   uint64_t sec;         /* seconds */
 } pit_state_t;
 
