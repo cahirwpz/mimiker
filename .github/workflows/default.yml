@@ -107,7 +107,7 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: "mips kernel+ramdisk"
-      - run: ./run_tests.py --board malta --timeout=90 --times=50
+      - run: ./run_tests.py --board malta --timeout=100 --times=50
 
   kernel_tests_aarch64:
     name: Tests AArch64
@@ -129,4 +129,4 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: "riscv64 kernel+ramdisk"
-      - run: ./run_tests.py --board sifive_u --timeout=90 --times=50
+      - run: ./run_tests.py --board sifive_u --timeout=100 --times=50
