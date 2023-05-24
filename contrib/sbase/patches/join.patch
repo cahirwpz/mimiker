@@ -1,0 +1,15 @@
+Index: sbase/sbase/join.c
+===================================================================
+--- sbase.orig/sbase/join.c	2023-01-07 15:23:30.341392954 +0100
++++ sbase/sbase/join.c	2023-01-07 15:23:37.208059394 +0100
+@@ -314,8 +314,8 @@
+ makespec(char *s)
+ {
+ 	struct spec *sp;
+-	int fileno;
+-	size_t fldno;
++	int fileno = 0;
++	size_t fldno = 0;
+ 
+ 	if (!strcmp(s, "0")) {   /* join field must be 0 and nothing else */
+ 		fileno = 0;

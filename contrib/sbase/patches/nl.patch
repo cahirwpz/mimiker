@@ -1,0 +1,13 @@
+Index: sbase/sbase/nl.c
+===================================================================
+--- sbase.orig/sbase/nl.c	2023-01-07 15:21:28.614730303 +0100
++++ sbase/sbase/nl.c	2023-01-07 15:21:57.318062696 +0100
+@@ -121,7 +121,7 @@
+ 	FILE *fp = NULL;
+ 	size_t s;
+ 	int ret = 0;
+-	char *d, *formattype, *formatblit;
++	char *d, *formattype, *formatblit = "";
+ 
+ 	ARGBEGIN {
+ 	case 'd':
