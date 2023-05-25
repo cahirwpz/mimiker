@@ -57,16 +57,6 @@ static __noreturn void start_init(__unused void *arg) {
   error = session_enter(p);
   assert(error == 0);
 
-  /* ... and initialize file descriptors required by the standard library. */
-  int _stdin, _stdout, _stderr;
-  do_open(p, "/dev/uart", O_RDONLY, 0, &_stdin);
-  do_open(p, "/dev/uart", O_WRONLY, 0, &_stdout);
-  do_open(p, "/dev/uart", O_WRONLY, 0, &_stderr);
-
-  assert(_stdin == 0);
-  assert(_stdout == 1);
-  assert(_stderr == 2);
-
   char *test = kenv_get("test");
   if (test)
     ktest_main(test);
