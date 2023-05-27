@@ -30,7 +30,7 @@ $(BUILDDIR)%.S: %.c
 
 $(BUILDDIR)%.o: %.c
 	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
-	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CFLAGS_KASAN) $(CFLAGS_KCSAN) $(CFLAGS_KGPROF) $(CPPFLAGS) $(WFLAGS) \
+	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CFLAGS_KASAN) $(CFLAGS_KCSAN) $(CFLAGS_KGPROF) $(CFLAGS_KFT) $(CPPFLAGS) $(WFLAGS) \
 	      -c -o $@ $(realpath $<)
 
 $(BUILDDIR)%.o: %.S

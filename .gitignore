@@ -83,3 +83,6 @@ mimiker-env/
 
 #
 contrib/*/build/
+
+# function trace out
+kft.out

@@ -74,7 +74,7 @@
 #define __no_sanitize                                                          \
   __attribute__((no_sanitize("address", "thread", "undefined")))
 #define __no_instrument_function __attribute__((no_instrument_function))
-#ifdef KGPROF
+#if defined(KGPROF) || defined(KFT)
 #define __no_profile __no_instrument_function
 #else
 #define __no_profile

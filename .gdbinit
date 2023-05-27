@@ -12,6 +12,10 @@ python import debug
 # favorite set of breakpoints
 break kernel_init
 break halt
+commands
+  printf "dump kft events also at the end...\n\n"
+  append memory kft.out kft_event_list kft_event_list+kft_used
+end
 
 # skip by default some non-interesting stuff
 skip -function tlb_refill -file ebase.S
@@ -23,6 +27,14 @@ define nextuser
   silent
   si
   end
+  continue
+end
+
+break kft_flush
+commands
+  silent
+  printf "Stopped to dump kft events to file...\n"
+  append memory kft.out kft_event_list kft_event_list+1000000
   continue
 end
 

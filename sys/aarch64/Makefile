@@ -18,6 +18,9 @@ SOURCES-AARCH64 = \
 	tlb.c \
 	trap.c
 
+SOURCES-KFT = \
+	kft.c
+
 CFLAGS.boot.c = -mcmodel=large
 CFLAGS.board.c = -mcmodel=large
 
@@ -32,3 +35,5 @@ CPPFLAGS += -D_MACHDEP
 boot.o : CFLAGS_KASAN =
 boot.o : CFLAGS_KCSAN =
 boot.o : CFLAGS_KGPROF =
+boot.o : CFLAGS_KFT =
+kft.o : CFLAGS_KFT =
