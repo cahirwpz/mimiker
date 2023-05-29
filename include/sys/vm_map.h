@@ -15,8 +15,6 @@ typedef enum {
   VM_ENT_PRIVATE = 2, /* private memory (default) */
 } vm_entry_flags_t;
 
-#define VM_ENT_INHERIT_MASK (VM_ENT_SHARED | VM_ENT_PRIVATE)
-
 /*! \brief Called during kernel initialization. */
 void init_vm_map(void);
 

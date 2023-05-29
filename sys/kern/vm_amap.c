@@ -31,12 +31,19 @@
 /* Amap size will be increased by this number of slots to easier resizing. */
 #define EXTRA_AMAP_SLOTS 16
 
+/* Amap structure
+ *
+ * Marks for fields locks:
+ *  (a) atomic
+ *  (!) read-only access, do not modify!
+ *  (@) guarded by vm-amap::mtx
+ */
 struct vm_amap {
-  size_t slots;     /* Read-only. Do not modify. */
-  refcnt_t ref_cnt; /* Atomic. */
-  mtx_t mtx;        /* Mutex guarding page list and bitmap. */
-  vm_page_t **pg_list;
-  bitstr_t *pg_bitmap;
+  mtx_t mtx;           /* Amap lock. */
+  size_t slots;        /* (!) maximum number of slots */
+  refcnt_t ref_cnt;    /* (a) number of references */
+  vm_page_t **pg_list; /* (@) page list */
+  bitstr_t *pg_bitmap; /* (@) page bitmap */
 };
 
 static POOL_DEFINE(P_VM_AMAP_STRUCT, "vm_amap_struct", sizeof(vm_amap_t));
@@ -57,8 +64,7 @@ vm_amap_t *vm_amap_alloc(size_t slots) {
   amap->pg_list =
     kmalloc(M_AMAP, slots * sizeof(vm_page_t *), M_ZERO | M_WAITOK);
 
-  amap->pg_bitmap =
-    kmalloc(M_AMAP, slots * sizeof(bitstr_t), M_ZERO | M_WAITOK);
+  amap->pg_bitmap = kmalloc(M_AMAP, bitstr_size(slots), M_ZERO | M_WAITOK);
 
   amap->ref_cnt = 1;
   amap->slots = slots;
@@ -83,6 +89,10 @@ vm_amap_t *vm_amap_clone(vm_aref_t aref, size_t slots) {
       continue;
 
     vm_page_t *new_pg = vm_page_alloc(1);
+    if (!new_pg) {
+      vm_amap_drop(new);
+      return NULL;
+    }
     pmap_copy_page(amap->pg_list[old_slot], new_pg);
 
     new->pg_list[slot] = new_pg;

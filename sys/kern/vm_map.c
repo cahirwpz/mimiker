@@ -149,6 +149,10 @@ static inline bool range_intersects_map_entry(vm_map_entry_t *ent,
   return vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end;
 }
 
+static inline size_t vaddr_to_slot(vaddr_t addr) {
+  return addr / PAGESIZE;
+}
+
 /* Split vm_map_entry into two not empty entries. (Smallest possible entry is
  * entry with one page thus splitat must be page aligned.)
  *
@@ -165,7 +169,7 @@ static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
   vm_aref_t old = ent->aref;
   if (old.amap) {
     vm_amap_hold(old.amap);
-    int offset = vaddr_to_slot(splitat - ent->start);
+    size_t offset = vaddr_to_slot(splitat - ent->start);
     new_ent->aref =
       (vm_aref_t){.offset = old.offset + offset, .amap = old.amap};
   }
@@ -415,8 +419,8 @@ int vm_map_entry_resize(vm_map_t *map, vm_map_entry_t *ent, vaddr_t new_end) {
     /* There's no reference to pmap in page, so we have to do it here. */
     pmap_remove(map->pmap, new_end, ent->end);
 
-    int offset = vaddr_to_slot(new_end - ent->start);
-    int n_remove = vaddr_to_slot(ent->end - new_end);
+    size_t offset = vaddr_to_slot(new_end - ent->start);
+    size_t n_remove = vaddr_to_slot(ent->end - new_end);
     vm_amap_remove_pages(ent->aref, offset, n_remove);
   }
 
@@ -447,7 +451,7 @@ static vm_map_entry_t *vm_map_entry_clone_shared(vm_map_t *map,
   if (!ent->aref.amap) {
     /* We need to create amap, because we won't be able to share it if it
      * is not created now. */
-    int slots = vaddr_to_slot(ent->end - ent->start);
+    size_t slots = vaddr_to_slot(ent->end - ent->start);
     ent->aref.amap = vm_amap_alloc(slots);
   }
 
@@ -465,11 +469,19 @@ static vm_map_entry_t *vm_map_entry_clone_copy(vm_map_t *map,
   if (!ent->aref.amap)
     return new;
 
-  int slots = vaddr_to_slot(ent->end - ent->start);
+  size_t slots = vaddr_to_slot(ent->end - ent->start);
   new->aref.offset = 0;
   new->aref.amap = vm_amap_clone(ent->aref, slots);
-  return new;
+
+  if (new->aref.amap)
+    return new;
+
+  /* Failed to clone amap. */
+  vm_map_entry_free(new);
+  return NULL;
 }
+
+#define VM_ENT_INHERIT_MASK (VM_ENT_SHARED | VM_ENT_PRIVATE)
 
 vm_map_t *vm_map_clone(vm_map_t *map) {
   thread_t *td = thread_self();
@@ -490,6 +502,12 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
         default:
           panic("Unrecognized vm_map_entry inheritance flag: %d",
                 it->flags & VM_ENT_INHERIT_MASK);
+      }
+
+      /* Failed to create new entry. */
+      if (!new) {
+        vm_map_delete(new_map);
+        return NULL;
       }
 
       TAILQ_INSERT_TAIL(&new_map->entries, new, link);
@@ -534,13 +552,13 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   vaddr_t fault_page = fault_addr & -PAGESIZE;
 
   if (!ent->aref.amap) {
-    int slots = vaddr_to_slot(ent->end - ent->start);
+    size_t slots = vaddr_to_slot(ent->end - ent->start);
     ent->aref.offset = 0;
     ent->aref.amap = vm_amap_alloc(slots);
   }
 
   bool insert = false;
-  int offset = vaddr_to_slot(fault_page - ent->start);
+  size_t offset = vaddr_to_slot(fault_page - ent->start);
   vm_page_t *frame = vm_amap_find_page(ent->aref, offset);
 
   if (frame == NULL) {
