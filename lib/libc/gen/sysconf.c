@@ -18,7 +18,7 @@ long sysconf(int name) {
       return _PASSWORD_LEN;
     case _SC_CLK_TCK:
       return CLK_TCK;
-    case _SC_PAGESIZE: /* return _getpagesize() */ 
+    case _SC_PAGESIZE:
     case _SC_JOB_CONTROL:
     default:
       errno = EINVAL;
