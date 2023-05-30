@@ -1,8 +1,8 @@
 Index: ubase/ubase/login.c
 ===================================================================
---- ubase.orig/ubase/login.c	2023-01-18 18:53:40.043252576 +0100
-+++ ubase/ubase/login.c	2023-01-18 19:26:46.753218380 +0100
-@@ -10,45 +10,20 @@
+--- ubase.orig/ubase/login.c	2023-05-30 17:51:24.466728782 +0200
++++ ubase/ubase/login.c	2023-05-30 17:54:52.876734143 +0200
+@@ -10,45 +10,21 @@
  #include <string.h>
  #include <time.h>
  #include <unistd.h>
@@ -38,6 +38,7 @@ Index: ubase/ubase/login.c
 -	}
 -}
 +extern char** environ;
++extern char* envinit[1];
  
  static int
  dologin(struct passwd *pw, int preserve)
@@ -47,11 +48,11 @@ Index: ubase/ubase/login.c
  
  	if (preserve == 0)
 -		clearenv();
-+		environ = NULL;
++		environ = envinit;
  	setenv("HOME", pw->pw_dir, 1);
  	setenv("SHELL", shell, 1);
  	setenv("USER", pw->pw_name, 1);
-@@ -72,7 +47,6 @@
+@@ -72,7 +48,6 @@
  {
  	struct passwd *pw;
  	char *pass, *user;
@@ -59,7 +60,7 @@ Index: ubase/ubase/login.c
  	uid_t uid;
  	gid_t gid;
  	int pflag = 0;
-@@ -105,7 +79,7 @@
+@@ -105,7 +80,7 @@
  	gid = pw->pw_gid;
  
  	/* Flush pending input */
@@ -68,7 +69,7 @@ Index: ubase/ubase/login.c
  
  	pass = getpass("Password: ");
  	if (!pass)
-@@ -113,12 +87,6 @@
+@@ -113,12 +88,6 @@
  	if (pw_check(pw, pass) <= 0)
  		exit(1);
  

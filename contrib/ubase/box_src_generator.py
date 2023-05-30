@@ -14,6 +14,9 @@ def generate_ubase_box_source(program: str, tools: list):
     print('#include <string.h>')
     print('#include "util.h"')
 
+    # needed for su and login
+    print('char* envinit[1];')
+
     for prefix in main_prefixes:
         print(f'int {prefix}_main(int, char**);')
 
