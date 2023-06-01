@@ -1,6 +1,8 @@
 #ifndef _SYS_UNISTD_H_
 #define _SYS_UNISTD_H_
 
+#define _POSIX_JOB_CONTROL 1
+
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
