@@ -19,7 +19,9 @@ long sysconf(int name) {
     case _SC_CLK_TCK:
       return CLK_TCK;
     case _SC_PAGESIZE:
+      return getpagesize();
     case _SC_JOB_CONTROL:
+      return _POSIX_JOB_CONTROL;
     default:
       errno = EINVAL;
       return -1;
