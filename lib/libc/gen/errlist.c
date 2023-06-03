@@ -133,5 +133,39 @@ const char *const sys_errlist[] = {
   "Function not implemented", /* 78 - ENOSYS */
 
   "Inappropriate file type or format", /* 79 - EFTYPE */
+  "Authentication error",                /* 80 - EAUTH */
+  "Need authenticator",                  /* 81 - ENEEDAUTH */
+
+  /* SystemV IPC */
+  "Identifier removed",                        /* 82 - EIDRM */
+  "No message of desired type",                /* 83 - ENOMSG */
+  "Value too large to be stored in data type", /* 84 - EOVERFLOW */
+
+  /* Wide/multibyte-character handling, ISO/IEC 9899/AMD1:1995 */
+  "Illegal byte sequence", /* 85 - EILSEQ */
+
+  /* From IEEE Std 1003.1-2001 */
+  /* Base, Realtime, Threads or Thread Priority Scheduling option errors */
+  "Not supported", /* 86 - ENOTSUP */
+
+  /* Realtime option errors */
+  "Operation canceled", /* 87 - ECANCELED */
+
+  /* Realtime, XSI STREAMS option errors */
+  "Bad or Corrupt message", /* 88 - EBADMSG */
+
+  /* XSI STREAMS option errors  */
+  "No message available", /* 89 - ENODATA */
+  "No STREAM resources",  /* 90 - ENOSR */
+  "Not a STREAM",         /* 91 - ENOSTR */
+  "STREAM ioctl timeout", /* 92 - ETIME */
+
+  /* File system extended attribute errors */
+  "Attribute not found", /* 93 - ENOATTR */
+
+  /* Realtime, XSI STREAMS option errors */
+  "Multihop attempted",    /* 94 - EMULTIHOP */
+  "Link has been severed", /* 95 - ENOLINK */
+  "Protocol error"         /* 96 - EPROTO */
 };
 const int sys_nerr = {sizeof(sys_errlist) / sizeof(sys_errlist[0])};
