@@ -80,6 +80,13 @@ static __noreturn void start_init(__unused void *arg) {
   if (init == NULL)
     init = "/sbin/init";
 
+  /* XXX If /sbin/init is started then the kernel shouldn't create a session
+  nor open file descriptors for it (i.e. give init a controlling terminal).
+  Session creation is on the side of /sbin/init, and acquiring controlling terminal
+  takes place in the `getty` process - init's child.
+
+  Otherwise, if init gets the controlling terminal, then we won't be able to get it
+  in any other process. This results in e.g. `ksh` not having a full job control. */
   if (strcmp("/sbin/init", init))
     open_fds();
 
