@@ -42,8 +42,11 @@ static void mount_fs(void) {
 
 static void open_fds(void) {
   proc_t *p = proc_self();
+  int error, _stdin, _stdout, _stderr;
 
-  int _stdin, _stdout, _stderr;
+  error = session_enter(p);
+  assert(error == 0);
+
   do_open(p, "/dev/uart", O_RDONLY, 0, &_stdin);
   do_open(p, "/dev/uart", O_WRONLY, 0, &_stdout);
   do_open(p, "/dev/uart", O_WRONLY, 0, &_stderr);
@@ -55,7 +58,6 @@ static void open_fds(void) {
 
 static __noreturn void start_init(__unused void *arg) {
   proc_t *p = proc_self();
-  int error;
 
   thread_t *td = thread_self();
 
@@ -67,8 +69,6 @@ static __noreturn void start_init(__unused void *arg) {
   init_devices();
 
   assert(p->p_pid == 1);
-  error = session_enter(p);
-  assert(error == 0);
 
   char *test = kenv_get("test");
   if (test) {
