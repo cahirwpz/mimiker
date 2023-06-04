@@ -1,14 +1,12 @@
 Index: sinit/sinit/sinit.c
 ===================================================================
---- sinit.orig/sinit/sinit.c	2023-06-04 17:28:33.209715149 +0200
-+++ sinit/sinit/sinit.c	2023-06-04 17:29:49.403045971 +0200
-@@ -37,7 +37,8 @@
+--- sinit.orig/sinit/sinit.c	2023-06-04 17:29:56.303045745 +0200
++++ sinit/sinit/sinit.c	2023-06-04 21:49:07.799201063 +0200
+@@ -37,6 +37,7 @@
  
  	if (getpid() != 1)
  		return 1;
--	chdir("/");
 +	setsid();
-+  	chdir("/");
+ 	chdir("/");
  	sigfillset(&set);
  	sigprocmask(SIG_BLOCK, &set, NULL);
- 	spawn(rcinitcmd);
