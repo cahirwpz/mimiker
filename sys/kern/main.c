@@ -40,19 +40,6 @@ static void mount_fs(void) {
   do_fchmodat(p, AT_FDCWD, "/tmp", ACCESSPERMS | S_ISTXT, 0);
 }
 
-static void open_fds(void) {
-  proc_t *p = proc_self();
-
-  int _stdin, _stdout, _stderr;
-  do_open(p, "/dev/uart", O_RDONLY, 0, &_stdin);
-  do_open(p, "/dev/uart", O_WRONLY, 0, &_stdout);
-  do_open(p, "/dev/uart", O_WRONLY, 0, &_stderr);
-
-  assert(_stdin == 0);
-  assert(_stdout == 1);
-  assert(_stderr == 2);
-}
-
 static __noreturn void start_init(__unused void *arg) {
   proc_t *p = proc_self();
   int error;
@@ -70,18 +57,23 @@ static __noreturn void start_init(__unused void *arg) {
   error = session_enter(p);
   assert(error == 0);
 
+  /* ... and initialize file descriptors required by the standard library. */
+  int _stdin, _stdout, _stderr;
+  do_open(p, "/dev/uart", O_RDONLY, 0, &_stdin);
+  do_open(p, "/dev/uart", O_WRONLY, 0, &_stdout);
+  do_open(p, "/dev/uart", O_WRONLY, 0, &_stderr);
+
+  assert(_stdin == 0);
+  assert(_stdout == 1);
+  assert(_stderr == 2);
+
   char *test = kenv_get("test");
-  if (test) {
-    open_fds();
+  if (test)
     ktest_main(test);
-  }
 
   char *init = kenv_get("init");
   if (init == NULL)
     init = "/sbin/init";
-
-  if (strcmp("/sbin/init", init))
-    open_fds();
 
   kern_execve(init, kenv_get_init(), (char *[]){NULL});
 
