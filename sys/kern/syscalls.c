@@ -185,11 +185,14 @@ static int sys_munmap(proc_t *p, munmap_args_t *args, register_t *res) {
   return do_munmap((vaddr_t)SCARG(args, addr), SCARG(args, len));
 }
 
-/* TODO: implement it !!! */
 static int sys_mprotect(proc_t *p, mprotect_args_t *args, register_t *res) {
-  klog("mprotect(%p, %u, %u)", SCARG(args, addr), SCARG(args, len),
-       SCARG(args, prot));
-  return ENOTSUP;
+  vaddr_t va = (vaddr_t)SCARG(args, addr);
+  size_t length = SCARG(args, len);
+  vm_prot_t prot = SCARG(args, prot);
+
+  klog("mprotect(%p, %u, %u)", va, length, prot);
+
+  return do_mprotect(va, length, prot);
 }
 
 static int sys_openat(proc_t *p, openat_args_t *args, register_t *res) {
@@ -1358,4 +1361,9 @@ static int sys_sigtimedwait(proc_t *p, sigtimedwait_args_t *args,
   *res = ksi.ksi_info.si_signo;
 
   return error;
+}
+
+static int sys_clock_settime(proc_t *p, clock_settime_args_t *args,
+                             register_t *res) {
+  return ENOTSUP;
 }

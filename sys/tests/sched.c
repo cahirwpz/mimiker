@@ -4,7 +4,6 @@
 #include <sys/thread.h>
 #include <sys/sched.h>
 #include <sys/vm_map.h>
-#include <sys/vm_pager.h>
 #include <sys/ktest.h>
 
 #if 0

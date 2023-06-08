@@ -1,0 +1,16 @@
+Index: sbase/sbase/kill.c
+===================================================================
+--- sbase.orig/sbase/kill.c	2022-12-20 22:20:17.449363196 +0100
++++ sbase/sbase/kill.c	2022-12-20 22:21:00.059361789 +0100
+@@ -17,8 +17,9 @@
+ 	{ "0", 0 },
+ #define SIG(n) { #n, SIG##n }
+ 	SIG(ABRT), SIG(ALRM), SIG(BUS),  SIG(CHLD), SIG(CONT), SIG(FPE),  SIG(HUP),
+-	SIG(ILL),  SIG(INT),  SIG(KILL), SIG(PIPE), SIG(QUIT), SIG(SEGV), SIG(STOP),
+-	SIG(TERM), SIG(TSTP), SIG(TTIN), SIG(TTOU), SIG(USR1), SIG(USR2), SIG(URG),
++	SIG(ILL),  SIG(INFO), SIG(INT),  SIG(KILL), SIG(PIPE), SIG(QUIT), SIG(SEGV),
++	SIG(STOP), SIG(TERM), SIG(TRAP), SIG(TSTP), SIG(TTIN), SIG(TTOU), SIG(USR1),
++	SIG(USR2), SIG(WINCH)
+ #undef SIG
+ };
+ 

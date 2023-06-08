@@ -1,0 +1,15 @@
+Index: sbase/sbase/ls.c
+===================================================================
+--- sbase.orig/sbase/ls.c	2022-12-09 00:58:44.179256869 +0100
++++ sbase/sbase/ls.c	2022-12-09 00:58:57.829256420 +0100
+@@ -139,8 +139,8 @@
+ 	struct passwd *pw;
+ 	struct tm *tm;
+ 	ssize_t len;
+-	char *fmt, buf[BUFSIZ], pwname[_SC_LOGIN_NAME_MAX],
+-	     grname[_SC_LOGIN_NAME_MAX], mode[] = "----------";
++	char *fmt, buf[BUFSIZ], pwname[LOGIN_NAME_MAX],
++	     grname[LOGIN_NAME_MAX], mode[] = "----------";
+ 
+ 	if (iflag)
+ 		printf("%lu ", (unsigned long)ent->ino);

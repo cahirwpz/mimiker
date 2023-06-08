@@ -9,7 +9,6 @@
 #include <sys/ucontext.h>
 #include <sys/sigtypes.h>
 #include <sys/siginfo.h>
-
 #define SCARG(p, x) ((p)->x.arg)
 #define SYSCALLARG(x) union { register_t _pad; x arg; }
 
@@ -443,3 +442,8 @@ typedef struct {
   SYSCALLARG(siginfo_t *) info;
   SYSCALLARG(struct timespec *) timeout;
 } sigtimedwait_args_t;
+
+typedef struct {
+  SYSCALLARG(clockid_t) clock_id;
+  SYSCALLARG(const struct timespec *) tp;
+} clock_settime_args_t;

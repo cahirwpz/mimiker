@@ -48,6 +48,7 @@
  */
 struct dirent *_readdir_unlocked(DIR *dirp, int skipdeleted) {
   struct dirent *dp;
+  int saved_errno = errno;
 
   for (;;) {
     if (dirp->dd_loc >= dirp->dd_size) {
@@ -58,8 +59,12 @@ struct dirent *_readdir_unlocked(DIR *dirp, int skipdeleted) {
     if (dirp->dd_loc == 0 && !(dirp->dd_flags & __DTF_READALL)) {
       dirp->dd_seek = lseek(dirp->dd_fd, (off_t)0, SEEK_CUR);
       dirp->dd_size = getdents(dirp->dd_fd, dirp->dd_buf, (size_t)dirp->dd_len);
-      if (dirp->dd_size <= 0)
+      if (dirp->dd_size < 0)
         return (NULL);
+      if (dirp->dd_size == 0) {
+        errno = saved_errno;
+        return (NULL);
+      }
     }
     dp = (struct dirent *)(void *)(dirp->dd_buf + (size_t)dirp->dd_loc);
     if ((intptr_t)dp & _DIRENT_ALIGN(dp)) /* bogus pointer check */

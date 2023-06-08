@@ -38,6 +38,10 @@ tags
 etags
 *.taghl
 
+# lsp files
+compile_commands.json
+.cache/clangd/
+
 # generated assembly files
 assym.h
 
@@ -76,3 +80,6 @@ sysroot
 
 # python env
 mimiker-env/
+
+#
+contrib/*/build/

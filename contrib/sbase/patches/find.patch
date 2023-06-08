@@ -1,0 +1,14 @@
+Index: sbase/sbase/find.c
+===================================================================
+--- sbase.orig/sbase/find.c	2023-01-07 15:24:28.034724381 +0100
++++ sbase/sbase/find.c	2023-01-07 15:24:57.288056753 +0100
+@@ -425,7 +425,8 @@
+ pri_ok(struct arg *arg)
+ {
+ 	int status, reply;
+-	char ***brace, c;
++	char ***brace;
++	int c;
+ 	struct okarg *o = arg->extra.p;
+ 
+ 	fprintf(stderr, "%s: %s ? ", *o->argv, arg->path);

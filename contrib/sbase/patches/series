@@ -1,0 +1,12 @@
+touch.patch
+tail.patch
+libutil-mode.patch
+seq.patch
+find.patch
+join.patch
+nl.patch
+fold.patch
+kill.patch
+tar.patch
+ls.patch
+libutil-unescape.patch

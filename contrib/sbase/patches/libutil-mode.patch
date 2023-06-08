@@ -1,0 +1,13 @@
+Index: sbase/sbase/libutil/mode.c
+===================================================================
+--- sbase.orig/sbase/libutil/mode.c	2023-01-07 15:29:05.911381896 +0100
++++ sbase/sbase/libutil/mode.c	2023-01-07 15:29:19.408048121 +0100
+@@ -19,7 +19,7 @@
+ {
+ 	char *end;
+ 	const char *p = str;
+-	int octal, op;
++	int octal, op = 0;
+ 	mode_t who, perm, clear;
+ 
+ 	octal = strtol(str, &end, 8);
