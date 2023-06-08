@@ -998,6 +998,20 @@ int tty_ioctl(file_t *f, u_long cmd, void *data) {
       *(int *)data = tty->t_inq.count;
       return 0;
     }
+    case TIOCFLUSH: {
+      SCOPED_MTX_LOCK(&tty->t_lock);
+      int flags = *(int *)data;
+      if (flags == 0)
+        flags = FREAD | FWRITE;
+      else
+        flags &= FREAD | FWRITE;
+
+      if (flags & FREAD)
+        tty_discard_input(tty);
+      if (flags & FWRITE)
+        tty_discard_output(tty);
+      return 0;
+    }
     case TIOCGETA:
       return tty_get_termios(tty, (struct termios *)data);
     case TIOCSETA:  /* Set termios immediately */
