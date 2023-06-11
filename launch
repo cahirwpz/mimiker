@@ -514,6 +514,8 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--storage', type=str,
                         help='QCOW2 image to be attached as a default storage '
                              'device for given platform.')
+    parser.add_argument('--kft', action='store_true',
+                        help='Enable kft dump by GDB')
     args = parser.parse_args()
 
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
@@ -562,6 +564,20 @@ if __name__ == '__main__':
             extra = getvar('gdb.extra-options')
             extra.append(f'-ex=add-symbol-file {host_path} 0x400000')
 
+        if args.kft:
+            kft_out = 'dump.kft'
+
+            # Remove a kft file because GDB only appends to it
+            try:
+                os.remove(kft_out)
+            except OSError:
+                print(f'Failed to remove file `{kft_out}`')
+            except FileNotFoundError:
+                pass
+
+            setvar('gdb.post-options', ['-ex=source .gdbinit',
+                                        '-ex=source .gdbinit-kft',
+                                        '-ex=continue'])
         dbg = GDB()
     elif args.test_run:
         setvar('gdb.post-options', ['-ex=source .gdbinit-test'])
