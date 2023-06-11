@@ -8,7 +8,7 @@ include $(TOPDIR)/build/flags.mk
 
 CFLAGS   += -fno-builtin -nostdinc -nostdlib -ffreestanding
 CPPFLAGS += -I$(TOPDIR)/include -I$(TOPDIR)/sys/contrib -D_KERNEL
-CPPFLAGS += -DLOCKDEP=$(LOCKDEP) -DKASAN=$(KASAN) -DKGPROF=$(KGPROF) -DKCSAN=$(KCSAN)
+CPPFLAGS += -DLOCKDEP=$(LOCKDEP) -DKASAN=$(KASAN) -DKCSAN=$(KCSAN)
 LDFLAGS  += -nostdlib
 
 ifeq ($(KCSAN), 1)
@@ -44,8 +44,14 @@ ifeq ($(KASAN), 1)
              -wrap=strlen
 endif
 
-ifeq ($(KGPROF), 1)
-  CFLAGS_KGPROF = -finstrument-functions
+ifeq ($(KFI),ftrace)
+  CFLAGS_KFI += -finstrument-functions -DKFI=1 -DKFT=1
+  KFT = 1
+endif
+
+ifeq ($(KFI),gprof)
+  CFLAGS_KFI += -finstrument-functions -DKFI=1 -DKGPROF=1
+  KGPROF = 1
 endif
 
 KERNEL := 1

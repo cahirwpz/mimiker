@@ -24,13 +24,13 @@ DSTPATH = $(DIR)$@
 
 # Define our own recipes
 $(BUILDDIR)%.S: %.c
-	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
+	@echo "[CC] $(SRCPATH) ($(CFLAGS) $(CFLAGS.$*.c) $(CPPFLAGS))"
 	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CPPFLAGS) $(WFLAGS) -S -o $@ \
 	      $(realpath $<)
 
 $(BUILDDIR)%.o: %.c
-	@echo "[CC] $(SRCPATH) -> $(DSTPATH)"
-	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CFLAGS_KASAN) $(CFLAGS_KCSAN) $(CFLAGS_KGPROF) $(CPPFLAGS) $(WFLAGS) \
+	@echo "[CC] $(SRCPATH) ($(CFLAGS) $(CFLAGS.$*.c) $(CFLAGS_KASAN) $(CFLAGS_KCSAN) $(CFLAGS_KFI) $(CPPFLAGS))"
+	$(CC) $(CFLAGS) $(CFLAGS.$*.c) $(CFLAGS_KASAN) $(CFLAGS_KCSAN) $(CFLAGS_KFI) $(CPPFLAGS) $(WFLAGS) \
 	      -c -o $@ $(realpath $<)
 
 $(BUILDDIR)%.o: %.S
