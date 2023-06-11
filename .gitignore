@@ -83,3 +83,6 @@ mimiker-env/
 
 #
 contrib/*/build/
+
+# kft dump
+dump.kft
