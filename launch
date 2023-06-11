@@ -570,10 +570,12 @@ if __name__ == '__main__':
             # Remove a kft file because GDB only appends to it
             try:
                 os.remove(kft_out)
-            except OSError:
-                print(f'Failed to remove file `{kft_out}`')
             except FileNotFoundError:
                 pass
+            except IsADirectoryError:
+                print(f"{kft_out} is a directory! "
+                      "Can't use it to dump KFT data.")
+                sys.exit(1)
 
             setvar('gdb.post-options', ['-ex=source .gdbinit',
                                         '-ex=source .gdbinit-kft',
