@@ -2,6 +2,27 @@
 #include <sys/types.h>
 #include <machine/kft.h>
 
+/* Kernel Function Trace
+ *
+ * In this file there are defined structures and functions that are used to
+ * implement function tracking in kernel.
+ *
+ * When entering or exiting a function an event is added to `kft_event_list`.
+ * The size of the list is specified by `KFT_MAX`.
+ *
+ * When the list is full the function `kft_flush` is invoked. Currently it only
+ * resets the event count. The main purpose of it is to set a breakpoint on it
+ * and dump the contents of the list of events to a file by the debugger.
+ *
+ * Information about the event is compressed into a single 64 bit value.
+ * Below is a picture of layout of information encoded in that value.
+ *
+ * +---------+-----------+-----------+------------+
+ * | 24 bits | 31 bits   |   8 bits  |   1 bit    |
+ * |    PC   | timestamp | thread id | event type |
+ * +---------+-----------+-----------+------------+
+ */
+
 typedef uint64_t kft_event_t;
 
 #define KFT_MAX 1000000
@@ -52,10 +73,8 @@ __no_profile void __cyg_profile_func_exit(void *this_fn, void *call_site) {
   add_event(KFT_EVENT_FUN_OUT, (uintptr_t)this_fn);
 }
 
+/* XXX: function for debugger breakpoint. */
 static __no_profile void kft_flush(void) {
-  /* GDB will break on this funciton and dump contents of the thread kft event
-   * list. */
-
-  /* Free the kft event list because all events are recorded. */
+  /* Free the kft event list because all events are recorded by debugger. */
   kft_used = 0;
 }
