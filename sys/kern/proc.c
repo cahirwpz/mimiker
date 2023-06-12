@@ -433,15 +433,15 @@ int pgrp_enter(proc_t *p, pid_t target, pgid_t pgid) {
 }
 
 /* Process functions */
-proc_t *proc_self(void) {
+__no_profile proc_t *proc_self(void) {
   return thread_self()->td_proc;
 }
 
-void proc_lock(proc_t *p) {
+__no_profile void proc_lock(proc_t *p) {
   mtx_lock(&p->p_lock);
 }
 
-void proc_unlock(proc_t *p) {
+__no_profile void proc_unlock(proc_t *p) {
   mtx_unlock(&p->p_lock);
 }
 

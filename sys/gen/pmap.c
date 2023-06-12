@@ -45,40 +45,41 @@ static MTX_DEFINE(pv_list_lock, 0);
  * Helper functions.
  */
 
-static inline pde_t page_offset(vaddr_t addr) {
+static __no_profile inline pde_t page_offset(vaddr_t addr) {
   return addr & (PAGESIZE - 1);
 }
 
-static bool kern_addr_p(vaddr_t addr) {
+static __no_profile bool kern_addr_p(vaddr_t addr) {
   return addr >= KERNEL_SPACE_BEGIN && addr < KERNEL_SPACE_END;
 }
 
-vaddr_t pmap_start(pmap_t *pmap) {
+vaddr_t __no_profile pmap_start(pmap_t *pmap) {
   return pmap->asid ? USER_SPACE_BEGIN : KERNEL_SPACE_BEGIN;
 }
 
-vaddr_t pmap_end(pmap_t *pmap) {
+vaddr_t __no_profile pmap_end(pmap_t *pmap) {
   return pmap->asid ? USER_SPACE_END : KERNEL_SPACE_END;
 }
 
-static bool pmap_address_p(pmap_t *pmap, vaddr_t va) {
+static __no_profile bool pmap_address_p(pmap_t *pmap, vaddr_t va) {
   return va >= pmap_start(pmap) && va < pmap_end(pmap);
 }
 
-static bool pmap_contains_p(pmap_t *pmap, vaddr_t start, vaddr_t end) {
+static __no_profile bool pmap_contains_p(pmap_t *pmap, vaddr_t start,
+                                         vaddr_t end) {
   assert(start < end);
   return start >= pmap_start(pmap) && end <= pmap_end(pmap);
 }
 
-inline pmap_t *pmap_kernel(void) {
+__no_profile inline pmap_t *pmap_kernel(void) {
   return &kernel_pmap;
 }
 
-inline pmap_t *pmap_user(void) {
+__no_profile inline pmap_t *pmap_user(void) {
   return PCPU_GET(curpmap);
 }
 
-static void *pg_dmap_addr(vm_page_t *pg) {
+static __no_profile void *pg_dmap_addr(vm_page_t *pg) {
   return phys_to_dmap(pg->paddr);
 }
 
@@ -88,11 +89,11 @@ static vm_page_t *pmap_pagealloc(void) {
   return pg;
 }
 
-void pmap_zero_page(vm_page_t *pg) {
+void __no_profile pmap_zero_page(vm_page_t *pg) {
   memset((void *)pg_dmap_addr(pg), 0, PAGESIZE);
 }
 
-void pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
+void __no_profile pmap_copy_page(vm_page_t *src, vm_page_t *dst) {
   memcpy((void *)pg_dmap_addr(dst), (void *)pg_dmap_addr(src), PAGESIZE);
 }
 
@@ -165,7 +166,7 @@ paddr_t pde_alloc(pmap_t *pmap) {
   return pg->paddr;
 }
 
-static pte_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va) {
+static __no_profile pte_t *pmap_lookup_pte(pmap_t *pmap, vaddr_t va) {
   pde_t *pdep = pde_ptr(pmap->pde, 0, va);
 
   for (int lvl = 1; lvl < PAGE_TABLE_DEPTH; lvl++) {

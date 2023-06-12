@@ -37,11 +37,11 @@ bool intr_disabled(void) __no_profile;
 
 /* Two following functions are workaround to make interrupt disabling work with
  * scoped and with statement. */
-static inline void __intr_disable(void *data) {
+static __no_profile inline void __intr_disable(void *data) {
   intr_disable();
 }
 
-static inline void __intr_enable(void *data) {
+static __no_profile inline void __intr_enable(void *data) {
   intr_enable();
 }
 

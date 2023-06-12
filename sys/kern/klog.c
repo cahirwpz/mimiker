@@ -46,16 +46,16 @@ static const char *subsystems[] = {
   [KL_TTY] = "tty",         [KL_UNDEF] = "???",
 };
 
-void init_klog(void) {
+void __no_profile init_klog(void) {
   const char *mask = kenv_get("klog-mask");
   klog.mask = mask ? (unsigned)strtol(mask, NULL, 16) : KL_DEFAULT_MASK;
 }
 
-static inline unsigned next(unsigned i) {
+static __no_profile inline unsigned next(unsigned i) {
   return (i + 1) % KL_SIZE;
 }
 
-static void klog_entry_dump(klog_entry_t *entry) {
+static __no_profile void klog_entry_dump(klog_entry_t *entry) {
   if (entry->kl_origin == KL_UNDEF)
     kprintf("[%s:%d] ", entry->kl_file, entry->kl_line);
   else
@@ -66,7 +66,7 @@ static void klog_entry_dump(klog_entry_t *entry) {
   kprintf("\n");
 }
 
-static void klog_entry_add(klog_entry_t *newentry) {
+static __no_profile void klog_entry_add(klog_entry_t *newentry) {
   klog_entry_t *entry = &klog.array[klog.last];
   memcpy(entry, newentry, sizeof(klog_entry_t));
 
@@ -76,10 +76,10 @@ static void klog_entry_add(klog_entry_t *newentry) {
     klog.first = next(klog.first);
 }
 
-void klog_append(klog_origin_t origin, const char *file, unsigned line,
-                 const char *format, uintptr_t arg1, uintptr_t arg2,
-                 uintptr_t arg3, uintptr_t arg4, uintptr_t arg5,
-                 uintptr_t arg6) {
+void __no_profile klog_append(klog_origin_t origin, const char *file,
+                              unsigned line, const char *format, uintptr_t arg1,
+                              uintptr_t arg2, uintptr_t arg3, uintptr_t arg4,
+                              uintptr_t arg5, uintptr_t arg6) {
   if (!(KL_MASK(origin) & atomic_load(&klog.mask)))
     return;
 
@@ -134,11 +134,11 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
   }
 }
 
-unsigned klog_setmask(unsigned newmask) {
+unsigned __no_profile klog_setmask(unsigned newmask) {
   return atomic_exchange(&klog.mask, newmask);
 }
 
-void klog_dump(void) {
+void __no_profile klog_dump(void) {
   klog_entry_t entry;
 
   while (klog.first != klog.last) {
@@ -167,18 +167,19 @@ static __noreturn void halt(void) {
     continue;
 }
 
-__noreturn void klog_panic(klog_origin_t origin, const char *file,
-                           unsigned line, const char *format, uintptr_t arg1,
-                           uintptr_t arg2, uintptr_t arg3, uintptr_t arg4,
-                           uintptr_t arg5, uintptr_t arg6) {
+__no_profile __noreturn void klog_panic(klog_origin_t origin, const char *file,
+                                        unsigned line, const char *format,
+                                        uintptr_t arg1, uintptr_t arg2,
+                                        uintptr_t arg3, uintptr_t arg4,
+                                        uintptr_t arg5, uintptr_t arg6) {
   klog.mask = -1;
   klog_append(origin, file, line, format, arg1, arg2, arg3, arg4, arg5, arg6);
   ktest_log_failure();
   halt();
 }
 
-__noreturn void klog_assert(klog_origin_t origin, const char *file,
-                            unsigned line, const char *expr) {
+__no_profile __noreturn void klog_assert(klog_origin_t origin, const char *file,
+                                         unsigned line, const char *expr) {
   klog_append(origin, file, line, "Assertion \"%s\" failed!", (intptr_t)expr, 0,
               0, 0, 0, 0);
   ktest_log_failure();
