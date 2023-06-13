@@ -413,6 +413,9 @@ static int _do_execve(exec_args_t *args) {
   /* Set up user context. */
   mcontext_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
 
+  /* All thread pflags that should not be inherited should be cleared */
+  td->td_pflags = 0;
+
   WITH_PROC_LOCK(p) {
     sig_onexec(p);
     /* Set new credentials if needed */
