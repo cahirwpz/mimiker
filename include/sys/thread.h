@@ -70,6 +70,8 @@ typedef enum {
 } td_flags_t;
 
 typedef enum {
+  /* After user context setup in execve TDP_* flags that should not be inherited
+   * should be cleared */
   TDP_OLDSIGMASK = 0x01,  /* Pass td_oldsigmask as return mask to send_sig(). */
   TDP_FPUCTXSAVED = 0x02, /* FPU context was saved by `ctx_switch`. */
   TDP_FPUINUSE = 0x04     /* FPU is in use and its context should be saved &
