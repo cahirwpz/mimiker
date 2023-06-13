@@ -343,11 +343,6 @@ static char *pargs_create(exec_args_t *args) {
   return pargs;
 }
 
-static void td_mcontext_init(thread_t *td, void *pc, void *sp) {
-  mcontext_init(td->td_uctx, pc, sp);
-  td->td_pflags = 0;
-}
-
 /* XXX We assume process may only have a single thread. But if there were more
  * than one thread in the process that called exec, all other threads must be
  * forcefully terminated. */
@@ -414,7 +409,10 @@ static int _do_execve(exec_args_t *args) {
   fdtab_onexec(p->p_fdtable);
 
   /* Set up user context. */
-  td_mcontext_init(td, (void *)eh.e_entry, (void *)stack_top);
+  mcontext_init(td->td_uctx, (void *)eh.e_entry, (void *)stack_top);
+
+  /* All thread pflags that should not be inherited should be cleared */
+  td->td_pflags = 0;
 
   WITH_PROC_LOCK(p) {
     sig_onexec(p);
