@@ -327,7 +327,7 @@ TEST_ADD(signal_sigtimedwait) {
 }
 
 /* ======= signal_sigtimedwait_timeout ======= */
-int sigtimedwait_timeout_child(void *arg) {
+static int sigtimedwait_timeout_child(__unused void *arg) {
   ppid = getppid();
   kill(ppid, SIGUSR1);
   kill(ppid, SIGCONT);
