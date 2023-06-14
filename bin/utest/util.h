@@ -6,6 +6,10 @@
 #include <string.h>
 #include <sys/mman.h>
 
+static inline int sigsetequal(sigset_t *a, sigset_t *b) {
+  return memcmp(a, b, sizeof(sigset_t)) == 0;
+}
+
 /* Wait for a single child process with process id `pid` to exit,
  * and check that its exit code matches the expected value. */
 void wait_for_child_exit(int pid, int exit_code);

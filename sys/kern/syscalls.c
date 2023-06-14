@@ -1355,9 +1355,9 @@ static int sys_sigtimedwait(proc_t *p, sigtimedwait_args_t *args,
   if (error)
     return error;
 
-  if (u_info) {
+  if (u_info)
     error = copyout_s(ksi.ksi_info, u_info);
-  }
+
   *res = ksi.ksi_info.si_signo;
 
   return error;
