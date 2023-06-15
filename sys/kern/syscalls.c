@@ -1,3 +1,4 @@
+#define KL_LOG KL_SYSCALL
 #include <sys/klog.h>
 #include <sys/sysent.h>
 #include <sys/mimiker.h>
@@ -25,7 +26,6 @@
 #include <sys/pty.h>
 #include <sys/event.h>
 
-#include "sys/sigtypes.h"
 #include "sysent.h"
 
 /* Empty syscall handler, for unimplemented and deprecated syscall numbers. */
@@ -1347,12 +1347,10 @@ static int sys_sigtimedwait(proc_t *p, sigtimedwait_args_t *args,
       return error;
   }
 
-  error = copyin_s(u_set, set);
-  if (error)
+  if ((error = copyin_s(u_set, set)))
     return error;
 
-  error = do_sigtimedwait(p, set, &ksi, u_timeout ? &timeout : NULL);
-  if (error)
+  if ((error = do_sigtimedwait(p, set, &ksi, u_timeout ? &timeout : NULL)))
     return error;
 
   if (u_info)
