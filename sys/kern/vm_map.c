@@ -477,7 +477,7 @@ static vm_map_entry_t *vm_map_entry_clone_copy(vm_map_t *map,
   ent->flags |= VM_ENT_COW | VM_ENT_NEEDSCOPY;
   new->flags |= VM_ENT_COW | VM_ENT_NEEDSCOPY;
 
-  pmap_protect(map->pmap, ent->start, ent->end, ent->prot & (~VM_PROT_READ));
+  pmap_protect(map->pmap, ent->start, ent->end, ent->prot & (~VM_PROT_WRITE));
   return new;
 }
 
