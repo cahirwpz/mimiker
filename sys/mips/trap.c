@@ -174,6 +174,8 @@ static void kern_trap_handler(ctx_t *ctx) {
     case EXC_MOD:
     case EXC_TLBL:
     case EXC_TLBS:
+    case EXC_TLBRI:
+    case EXC_TLBXI:
       klog("%s at $%08x, caused by reference to $%08lx!", exceptions[code],
            _REG(ctx, EPC), vaddr);
       if (pmap_fault_handler(ctx, vaddr, exc_access(code)))
