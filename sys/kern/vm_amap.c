@@ -1,3 +1,4 @@
+#include "sys/mutex.h"
 #define KL_LOG KL_VM
 #include <sys/klog.h>
 #include <sys/malloc.h>
@@ -6,7 +7,6 @@
 #include <sys/vm_map.h>
 #include <sys/vm_amap.h>
 #include <sys/vm_physmem.h>
-#include <sys/refcnt.h>
 #include <sys/errno.h>
 
 /*
@@ -24,6 +24,17 @@
  *    (adjustable with EXTRA_AMAP_SLOTS) to allow resizing of small amounts.
  *  - Amap is managing a simple array of referenced pages so it may not be the
  *    most effective implementation.
+ *
+ * LOCKING
+ * There are 2 types of locks already implemented here: amapa and anon locks.
+ * Sometimes there is a need to hold both mutexes (e.g. when replacing an
+ * existing anon in amap with new one). To avoid dead locks the proper order of
+ * holding locks must be preserved. The amap should be locked first.
+ *
+ * Few observations about locking:
+ *  1. No function needs to be called with any lock held.
+ *  2. The only situation when we need to hold 2 locks is in
+ * `vm_amap_replace_anon`.
  */
 
 /* Amap size will be increased by this number of slots to easier resizing. */
@@ -39,7 +50,7 @@
 struct vm_amap {
   mtx_t mtx;             /* Amap lock. */
   size_t slots;          /* (!) maximum number of slots */
-  refcnt_t ref_cnt;      /* (a) number of references */
+  uint32_t ref_cnt;      /* (a) number of references */
   vm_anon_t **anon_list; /* (@) anon list */
   bitstr_t *anon_bitmap; /* (@) anon bitmap */
 };
@@ -76,9 +87,16 @@ vm_aref_t vm_amap_needs_copy(vm_aref_t aref, size_t slots) {
   if (!amap)
     return (vm_aref_t){.amap = NULL, .offset = 0};
 
-  vm_amap_t *new = vm_amap_alloc(slots);
-
   SCOPED_MTX_LOCK(&amap->mtx);
+
+  /* Amap don't have to be copied. */
+  if (amap->ref_cnt == 1) {
+    return aref;
+  }
+
+  amap->ref_cnt--;
+
+  vm_amap_t *new = vm_amap_alloc(slots);
   for (size_t slot = 0; slot < slots; slot++) {
     size_t old_slot = aref.offset + slot;
 
@@ -125,7 +143,7 @@ void vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
   bit_set(amap->anon_bitmap, offset);
 }
 
-void vm_amap_replace_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
+bool vm_amap_replace_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
   vm_amap_t *amap = aref.amap;
   assert(amap != NULL && anon != NULL);
 
@@ -138,12 +156,21 @@ void vm_amap_replace_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
   /* Anon must be already there. */
   assert(bit_test(amap->anon_bitmap, offset));
 
-  /* Drop the old anon, because we won't use it any more. */
   vm_anon_t *old = amap->anon_list[offset];
-  vm_anon_drop(old);
 
-  /* Insert new one. */
+  /* If old anon was transferred to another amap there is no need to
+   * replace it here. */
+  WITH_MTX_LOCK (&old->mtx) {
+    if (old->ref_cnt == 1) {
+      vm_anon_drop(anon);
+      return false;
+    }
+    /* We are actually replacing it. */
+    old->ref_cnt--;
+  }
+
   amap->anon_list[offset] = anon;
+  return true;
 }
 
 static void vm_amap_remove_pages_unlocked(vm_amap_t *amap, size_t start,
@@ -169,48 +196,60 @@ void vm_amap_remove_pages(vm_aref_t aref, size_t start, size_t nslots) {
 }
 
 void vm_amap_hold(vm_amap_t *amap) {
-  refcnt_acquire(&amap->ref_cnt);
+  SCOPED_MTX_LOCK(&amap->mtx);
+  amap->ref_cnt++;
 }
 
 void vm_amap_drop(vm_amap_t *amap) {
-  if (refcnt_release(&amap->ref_cnt)) {
-    vm_amap_remove_pages_unlocked(amap, 0, amap->slots);
-    kfree(M_AMAP, amap->anon_list);
-    kfree(M_AMAP, amap->anon_bitmap);
-    pool_free(P_VM_AMAP_STRUCT, amap);
+  WITH_MTX_LOCK (&amap->mtx) {
+    amap->ref_cnt--;
+    if (amap->ref_cnt >= 1)
+      return;
   }
+  vm_amap_remove_pages_unlocked(amap, 0, amap->slots);
+  kfree(M_AMAP, amap->anon_list);
+  kfree(M_AMAP, amap->anon_bitmap);
+  pool_free(P_VM_AMAP_STRUCT, amap);
+}
+
+static vm_anon_t *alloc_empty_anon(void) {
+  vm_anon_t *anon = pool_alloc(P_VM_ANON_STRUCT, M_WAITOK);
+  anon->ref_cnt = 1;
+  anon->page = NULL;
+  mtx_init(&anon->mtx, MTX_SLEEP);
+  return anon;
 }
 
 vm_anon_t *vm_anon_alloc(void) {
-  vm_anon_t *anon = pool_alloc(P_VM_ANON_STRUCT, M_WAITOK);
-  if (!anon)
+  vm_anon_t *anon = alloc_empty_anon();
+  vm_page_t *page = vm_page_alloc(1);
+  if (!page) {
+    vm_anon_drop(anon);
     return NULL;
-
-  anon->ref_cnt = 1;
-  anon->page = NULL;
+  }
+  pmap_zero_page(page);
+  anon->page = page;
   return anon;
 }
 
 void vm_anon_hold(vm_anon_t *anon) {
-  refcnt_acquire(&anon->ref_cnt);
+  SCOPED_MTX_LOCK(&anon->mtx);
+  anon->ref_cnt++;
 }
 
 void vm_anon_drop(vm_anon_t *anon) {
-  if (refcnt_release(&anon->ref_cnt)) {
-    vm_page_free(anon->page);
-    pool_free(P_VM_ANON_STRUCT, anon);
+  WITH_MTX_LOCK (&anon->mtx) {
+    anon->ref_cnt--;
+    if (anon->ref_cnt >= 1)
+      return;
   }
+  vm_page_free(anon->page);
+  pool_free(P_VM_ANON_STRUCT, anon);
 }
 
-vm_anon_t *vm_anon_transfer(vm_anon_t *src) {
-  vm_anon_t *new = vm_anon_alloc();
-  if (!new)
-    return NULL;
-
+vm_anon_t *vm_anon_copy(vm_anon_t *src) {
+  vm_anon_t *new = alloc_empty_anon();
   new->page = vm_page_alloc(1);
   pmap_copy_page(src->page, new->page);
-
-  /* We don't drop the src anon because it is still used inside the src amap. */
-
   return new;
 }

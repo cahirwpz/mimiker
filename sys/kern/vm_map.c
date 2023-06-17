@@ -517,39 +517,6 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   return new_map;
 }
 
-static vm_anon_t *alloc_anon(vm_aref_t aref, size_t offset) {
-  vm_anon_t *anon = vm_anon_alloc();
-  if (!anon)
-    return NULL;
-
-  vm_page_t *frame = vm_page_alloc(1);
-  if (!frame) {
-    vm_anon_drop(anon);
-    return NULL;
-  }
-
-  pmap_zero_page(frame);
-  anon->page = frame;
-
-  vm_amap_insert_anon(aref, anon, offset);
-  return anon;
-}
-
-static vm_anon_t *transfer_anon(vm_aref_t aref, vm_anon_t *anon,
-                                size_t offset) {
-  /* If this is only reference to an anon. We don't have to transfer it nor
-   * limit the prot for that page. */
-  if (anon->ref_cnt == 1)
-    return anon;
-
-  vm_anon_t *new = vm_anon_transfer(anon);
-  if (!new)
-    return NULL;
-
-  vm_amap_replace_anon(aref, new, offset);
-  return new;
-}
-
 int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   SCOPED_VM_MAP_LOCK(map);
 
@@ -583,55 +550,91 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   assert(ent->start <= fault_addr && fault_addr < ent->end);
 
   vaddr_t fault_page = fault_addr & -PAGESIZE;
+  size_t offset = vaddr_to_slot(fault_page - ent->start);
+  vm_prot_t insert_prot = ent->prot;
+  vm_anon_t *anon = NULL, *old_anon = NULL;
 
-  bool cow = (ent->flags & VM_ENT_COW) && (fault_type & VM_PROT_WRITE);
+  /* Conditions to use later */
+  bool cow = ent->flags & VM_ENT_COW;
+  bool needs_copy = ent->flags & VM_ENT_NEEDSCOPY;
+  bool cow_copy_page = cow && (fault_type & VM_PROT_WRITE);
+  bool limit_prot = cow && !(fault_type & VM_PROT_WRITE);
+  bool new_anon = false, replace_anon = false;
 
+  klog("PAGE FAULT: page 0x%x write:%x cow:%d", fault_page,
+       (fault_type & VM_PROT_WRITE) != 0, cow);
+
+  /* Get anon.
+   * If amap exists then look for it there.
+   * If anon is not found create it.
+   * If cow and we should copy anon, then copy it.
+   */
+
+  if (ent->aref.amap)
+    anon = vm_amap_find_anon(ent->aref, offset);
+
+  if (!anon) {
+    new_anon = true;
+    anon = vm_anon_alloc();
+    if (!anon)
+      return ENOMEM;
+  } else if (cow_copy_page) {
+    replace_anon = true;
+    old_anon = anon;
+    anon = vm_anon_copy(old_anon);
+    if (!anon)
+      return ENOMEM;
+  }
+
+  /* Limit protection if anon existed before. */
+  if (limit_prot && !new_anon)
+    insert_prot &= ~VM_PROT_WRITE;
+
+  bool amap_copy = cow_copy_page || (cow && new_anon);
+
+  /* Create or copy amap if needed.
+   *
+   * There are 2 cases:
+   * Create: amap is not present
+   *   Copy: COW scenario and either new anon is inserted or anon hast to be
+   *         replaced
+   *
+   * In both cases, if needs copy flag was set it can be removed.
+   */
   size_t amap_slots = vaddr_to_slot(ent->end - ent->start);
 
-  if (cow && ent->flags & VM_ENT_NEEDSCOPY) {
+  if (!ent->aref.amap) {
+    ent->aref.offset = 0;
+    ent->aref.amap = vm_amap_alloc(amap_slots);
+    ent->flags &= ~VM_ENT_NEEDSCOPY;
+  } else if (amap_copy && needs_copy) {
     vm_aref_t new_aref = vm_amap_needs_copy(ent->aref, amap_slots);
-    if (ent->aref.amap && !new_aref.amap)
-      /* Amap was present but it wasn't copied. */
+
+    /* Amap was present but it wasn't copied. */
+    if (ent->aref.amap && !new_aref.amap) {
+      if (new_anon || replace_anon)
+        vm_anon_drop(anon);
       return ENOMEM;
+    }
 
     ent->aref = new_aref;
     ent->flags &= ~VM_ENT_NEEDSCOPY;
   }
 
-  if (!ent->aref.amap) {
-    ent->aref.offset = 0;
-    ent->aref.amap = vm_amap_alloc(amap_slots);
-  }
-
-  size_t offset = vaddr_to_slot(fault_page - ent->start);
-  vm_anon_t *anon = vm_amap_find_anon(ent->aref, offset);
-
-  vm_page_t *frame = NULL;
-  vm_prot_t prot = ent->prot;
-
-  if (!anon) {
-    anon = alloc_anon(ent->aref, offset);
-  } else {
-    if (cow) {
-      /* If we are in COW scenario then we have to transfer page to a new anon
-       * and remove old mapping if it existed before.
-       */
-      anon = transfer_anon(ent->aref, anon, offset);
+  /* Insert new anon to current amap */
+  if (new_anon)
+    vm_amap_insert_anon(ent->aref, anon, offset);
+  else if (replace_anon) {
+    bool replaced = vm_amap_replace_anon(ent->aref, anon, offset);
+    /* If anon was replaced we have to remove its mapping from pmap because it
+     * is no longer valid and will be replaced with new mapping from new anon.
+     */
+    if (replaced)
       pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
-    } else if ((ent->flags & VM_ENT_COW) && !cow) {
-      /* If entry is copy-on-write and we didn't copy the entry because we are
-       * not in COW scenario, then limit the protection for page if it is
-       * referenced by more then one amaps.
-       */
-      if (anon->ref_cnt > 1)
-        prot &= ~VM_PROT_WRITE;
-    }
+    else
+      anon = old_anon;
   }
 
-  frame = anon->page;
-  if (!frame)
-    return EFAULT;
-
-  pmap_enter(map->pmap, fault_page, frame, prot, 0);
+  pmap_enter(map->pmap, fault_page, anon->page, insert_prot, 0);
   return 0;
 }
