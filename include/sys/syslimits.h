@@ -69,5 +69,6 @@
  * IEEE Std 1003.1c-95, adopted in X/Open CAE Specification Issue 5 Version 2
  */
 #define LOGIN_NAME_MAX 17 /* max login name length incl. NUL */
+#define HOST_NAME_MAX 255 /* max hostname length w/o NUL */
 
 #endif /* !_SYS_SYSLIMITS_H_ */
