@@ -1,13 +1,8 @@
 Index: ubase/ubase/getty.c
 ===================================================================
---- ubase.orig/ubase/getty.c
-+++ ubase/ubase/getty.c
-@@ -10,13 +10,12 @@
- #include <stdlib.h>
- #include <string.h>
- #include <unistd.h>
--#include <utmp.h>
- 
+--- ubase.orig/ubase/getty.c	2023-06-18 11:45:55.993142824 +0200
++++ ubase/ubase/getty.c	2023-06-18 11:47:50.456473330 +0200
+@@ -15,8 +15,8 @@
  #include "config.h"
  #include "util.h"
  
@@ -18,22 +13,15 @@ Index: ubase/ubase/getty.c
  
  static void
  usage(void)
-@@ -28,14 +27,10 @@ int
+@@ -28,7 +28,6 @@
  main(int argc, char *argv[])
  {
  	char term[128], logname[LOGIN_NAME_MAX], c;
 -	char hostname[HOST_NAME_MAX + 1];
--	struct utmp usr;
+ 	struct utmp usr;
  	struct sigaction sa;
--	FILE *fp;
- 	int fd;
- 	unsigned int i = 0;
- 	ssize_t n;
--	long pos;
- 
- 	ARGBEGIN {
- 	default:
-@@ -58,7 +53,7 @@ main(int argc, char *argv[])
+ 	FILE *fp;
+@@ -58,7 +57,7 @@
  
  	setsid();
  
@@ -42,7 +30,7 @@ Index: ubase/ubase/getty.c
  	if (fd < 0)
  		eprintf("open %s:", tty);
  	if (isatty(fd) == 0)
-@@ -67,19 +62,10 @@ main(int argc, char *argv[])
+@@ -67,19 +66,10 @@
  	/* steal the controlling terminal if necessary */
  	if (ioctl(fd, TIOCSCTTY, (void *)1) != 0)
  		weprintf("TIOCSCTTY: could not set controlling tty\n");
@@ -62,31 +50,7 @@ Index: ubase/ubase/getty.c
  	if (fd > 2)
  		close(fd);
  
-@@ -88,37 +74,14 @@ main(int argc, char *argv[])
- 	sigemptyset(&sa.sa_mask);
- 	sigaction(SIGHUP, &sa, NULL);
- 
--	/* Clear all utmp entries for this tty */
--	fp = fopen(UTMP_PATH, "r+");
--	if (fp) {
--		do {
--			pos = ftell(fp);
--			if (fread(&usr, sizeof(usr), 1, fp) != 1)
--				break;
--			if (usr.ut_line[0] == '\0')
--				continue;
--			if (strcmp(usr.ut_line, tty) != 0)
--				continue;
--			memset(&usr, 0, sizeof(usr));
--			fseek(fp, pos, SEEK_SET);
--			if (fwrite(&usr, sizeof(usr), 1, fp) != 1)
--				break;
--		} while (1);
--		if (ferror(fp))
--			weprintf("%s: I/O error:", UTMP_PATH);
--		fclose(fp);
--	}
--
+@@ -112,13 +102,11 @@
  	if (argc > 2)
  		return execvp(argv[2], argv + 2);
  
