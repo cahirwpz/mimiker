@@ -1,7 +1,7 @@
 Index: ubase/ubase/getty.c
 ===================================================================
---- ubase.orig/ubase/getty.c	2023-06-18 11:45:55.993142824 +0200
-+++ ubase/ubase/getty.c	2023-06-18 11:47:50.456473330 +0200
+--- ubase.orig/ubase/getty.c	2023-06-18 14:01:37.396275690 +0200
++++ ubase/ubase/getty.c	2023-06-18 14:01:53.699608626 +0200
 @@ -15,8 +15,8 @@
  #include "config.h"
  #include "util.h"
@@ -13,15 +13,7 @@ Index: ubase/ubase/getty.c
  
  static void
  usage(void)
-@@ -28,7 +28,6 @@
- main(int argc, char *argv[])
- {
- 	char term[128], logname[LOGIN_NAME_MAX], c;
--	char hostname[HOST_NAME_MAX + 1];
- 	struct utmp usr;
- 	struct sigaction sa;
- 	FILE *fp;
-@@ -58,7 +57,7 @@
+@@ -58,7 +58,7 @@
  
  	setsid();
  
@@ -30,7 +22,7 @@ Index: ubase/ubase/getty.c
  	if (fd < 0)
  		eprintf("open %s:", tty);
  	if (isatty(fd) == 0)
-@@ -67,19 +66,10 @@
+@@ -67,19 +67,10 @@
  	/* steal the controlling terminal if necessary */
  	if (ioctl(fd, TIOCSCTTY, (void *)1) != 0)
  		weprintf("TIOCSCTTY: could not set controlling tty\n");
@@ -50,13 +42,7 @@ Index: ubase/ubase/getty.c
  	if (fd > 2)
  		close(fd);
  
-@@ -112,13 +102,11 @@
- 	if (argc > 2)
- 		return execvp(argv[2], argv + 2);
- 
--	if (gethostname(hostname, sizeof(hostname)) == 0)
--		printf("%s ", hostname);
- 	printf("login: ");
+@@ -118,7 +109,7 @@
  	fflush(stdout);
  
  	/* Flush pending input */
