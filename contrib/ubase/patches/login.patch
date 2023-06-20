@@ -1,43 +1,30 @@
 Index: ubase/ubase/login.c
 ===================================================================
---- ubase.orig/ubase/login.c	2023-06-19 19:45:20.236471360 +0200
-+++ ubase/ubase/login.c	2023-06-19 19:55:17.143118303 +0200
-@@ -10,42 +10,15 @@
- #include <string.h>
- #include <time.h>
- #include <unistd.h>
--#include <utmp.h>
+--- ubase.orig/ubase/login.c	2023-06-21 00:29:16.879786976 +0200
++++ ubase/ubase/login.c	2023-06-21 00:33:37.019778341 +0200
+@@ -25,11 +25,9 @@
  
- #include "config.h"
- #include "passwd.h"
- #include "util.h"
+ 	memset(&usr, 0, sizeof(usr));
  
--/* Write utmp entry */
--static void
--writeutmp(const char *user, const char *tty)
--{
--	struct utmp usr;
--	FILE *fp;
--
--	memset(&usr, 0, sizeof(usr));
--
 -	usr.ut_type = USER_PROCESS;
 -	usr.ut_pid = getpid();
 -	strlcpy(usr.ut_user, user, sizeof(usr.ut_user));
--	strlcpy(usr.ut_line, tty, sizeof(usr.ut_line));
++	strlcpy(usr.ut_name, user, sizeof(usr.ut_name));
+ 	strlcpy(usr.ut_line, tty, sizeof(usr.ut_line));
 -	usr.ut_tv.tv_sec = time(NULL);
--
--	fp = fopen(UTMP_PATH, "a");
--	if (fp) {
--		if (fwrite(&usr, sizeof(usr), 1, fp) != 1)
--			if (ferror(fp))
--				weprintf("%s: write error:", UTMP_PATH);
--		fclose(fp);
++	usr.ut_time = time(NULL);
+ 
+ 	fp = fopen(UTMP_PATH, "a");
+ 	if (fp) {
+@@ -37,15 +35,13 @@
+ 			if (ferror(fp))
+ 				weprintf("%s: write error:", UTMP_PATH);
+ 		fclose(fp);
 -	} else {
 -		weprintf("fopen %s:", UTMP_PATH);
--	}
--}
--
+ 	}
+ }
+ 
  static int
  dologin(struct passwd *pw, int preserve)
  {
@@ -46,15 +33,7 @@ Index: ubase/ubase/login.c
  
  	if (preserve == 0)
  		clearenv();
-@@ -72,7 +45,6 @@
- {
- 	struct passwd *pw;
- 	char *pass, *user;
--	char *tty;
- 	uid_t uid;
- 	gid_t gid;
- 	int pflag = 0;
-@@ -105,7 +77,7 @@
+@@ -105,7 +101,7 @@
  	gid = pw->pw_gid;
  
  	/* Flush pending input */
@@ -63,16 +42,12 @@ Index: ubase/ubase/login.c
  
  	pass = getpass("Password: ");
  	if (!pass)
-@@ -113,12 +85,6 @@
- 	if (pw_check(pw, pass) <= 0)
- 		exit(1);
+@@ -115,7 +111,7 @@
  
--	tty = ttyname(0);
--	if (!tty)
+ 	tty = ttyname(0);
+ 	if (!tty)
 -		eprintf("ttyname:");
--
--	writeutmp(user, tty);
--
- 	if (initgroups(user, gid) < 0)
- 		eprintf("initgroups:");
- 	if (setgid(gid) < 0)
++		tty = "unknown";
+ 
+ 	writeutmp(user, tty);
+ 
