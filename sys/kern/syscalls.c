@@ -1340,3 +1340,7 @@ static int sys_clock_settime(proc_t *p, clock_settime_args_t *args,
                              register_t *res) {
   return ENOTSUP;
 }
+
+static int sys_pathconf(proc_t *p, pathconf_args_t *args, register_t *res) {
+  return ENOTSUP;
+}
