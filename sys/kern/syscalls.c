@@ -1342,5 +1342,20 @@ static int sys_clock_settime(proc_t *p, clock_settime_args_t *args,
 }
 
 static int sys_pathconf(proc_t *p, pathconf_args_t *args, register_t *res) {
-  return ENOTSUP;
+  int error;
+  int name = SCARG(args, name);
+  const char *u_path = SCARG(args, path);
+
+  char *path = kmalloc(M_TEMP, PATH_MAX, 0);
+
+  if ((error = copyinstr(u_path, path, PATH_MAX, NULL)))
+    goto end;
+
+  klog("pathconf(\"%s\", %d)", path, name);
+
+  error = do_pathconf(p, path, name);
+
+end:
+  kfree(M_TEMP, path);
+  return error;
 }
