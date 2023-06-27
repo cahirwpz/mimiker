@@ -267,6 +267,10 @@ static int initrd_vnode_readlink(vnode_t *v, uio_t *uio) {
                          uio);
 }
 
+static int initrd_vnode_pathconf(vnode_t *v, int name) {
+  return ENOTSUP;
+}
+
 static inline cpio_node_t *vn2cn(vnode_t *v) {
   return (cpio_node_t *)v->v_data;
 }
@@ -344,7 +348,8 @@ static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_seek = vnode_seek_generic,
                                  .v_getattr = initrd_vnode_getattr,
                                  .v_access = vnode_access_generic,
-                                 .v_readlink = initrd_vnode_readlink};
+                                 .v_readlink = initrd_vnode_readlink,
+                                 .v_pathconf = initrd_vnode_pathconf};
 
 static int initrd_init(vfsconf_t *vfc) {
   vnodeops_init(&initrd_vops);
