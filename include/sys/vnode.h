@@ -57,7 +57,7 @@ typedef int vnode_readlink_t(vnode_t *v, uio_t *uio);
 typedef int vnode_symlink_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
                             char *target, vnode_t **vp);
 typedef int vnode_link_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
-typedef int vnode_pathconf_t(vnode_t *v, int name);
+typedef int vnode_pathconf_t(vnode_t *v, int name, register_t *res);
 
 typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
@@ -212,8 +212,8 @@ static inline int VOP_LINK(vnode_t *dv, vnode_t *v, componentname_t *cn) {
   return VOP_CALL(link, dv, v, cn);
 }
 
-static inline int VOP_PATHCONF(vnode_t *v, int name) {
-  return VOP_CALL(pathconf, v, name);
+static inline int VOP_PATHCONF(vnode_t *v, int name, register_t *res) {
+  return VOP_CALL(pathconf, v, name, res);
 }
 
 #undef VOP_CALL

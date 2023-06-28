@@ -1353,7 +1353,7 @@ static int sys_pathconf(proc_t *p, pathconf_args_t *args, register_t *res) {
 
   klog("pathconf(\"%s\", %d)", path, name);
 
-  error = do_pathconf(p, path, name);
+  error = do_pathconf(p, path, name, res);
 
 end:
   kfree(M_TEMP, path);

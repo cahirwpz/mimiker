@@ -267,7 +267,7 @@ static int initrd_vnode_readlink(vnode_t *v, uio_t *uio) {
                          uio);
 }
 
-static int initrd_vnode_pathconf(vnode_t *v, int name) {
+static int initrd_vnode_pathconf(vnode_t *v, int name, register_t *res) {
   return ENOTSUP;
 }
 

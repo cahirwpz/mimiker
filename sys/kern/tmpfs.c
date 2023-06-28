@@ -614,7 +614,7 @@ static int tmpfs_vop_link(vnode_t *dv, vnode_t *v, componentname_t *cn) {
   return 0;
 }
 
-static int tmpfs_vop_pathconf(vnode_t *v, int name) {
+static int tmpfs_vop_pathconf(vnode_t *v, int name, register_t *res) {
   return ENOTSUP;
 }
 
