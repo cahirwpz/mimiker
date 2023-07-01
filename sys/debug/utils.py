@@ -9,6 +9,10 @@ def cast(value, typename):
     return value.cast(gdb.lookup_type(typename))
 
 
+def cast_ptr(value, typename):
+    return value.cast(gdb.lookup_type(typename).pointer())
+
+
 def local_var(name):
     return gdb.newest_frame().read_var(name)
 
@@ -19,6 +23,29 @@ def global_var(name):
 
 def relpath(path):
     return path.rsplit('sys/')[-1]
+
+
+def get_arch():
+    try:
+        _ = gdb.parse_and_eval('aarch64_init')
+        return 'aarch64'
+    except gdb.error:
+        pass
+
+    try:
+        _ = gdb.parse_and_eval('riscv_init')
+        return 'riscv'
+    except gdb.error:
+        pass
+
+    try:
+        _ = gdb.parse_and_eval('mips_init')
+        return 'mips'
+    except gdb.error:
+        pass
+
+    print('Current architecture is not supported')
+    raise KeyError
 
 
 # calculates address of ret instruction within function body (MIPS specific)
