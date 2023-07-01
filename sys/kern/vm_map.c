@@ -625,13 +625,10 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   if (new_anon)
     vm_amap_insert_anon(ent->aref, anon, offset);
   else if (replace_anon) {
+    pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
+
     bool replaced = vm_amap_replace_anon(ent->aref, anon, offset);
-    /* If anon was replaced we have to remove its mapping from pmap because it
-     * is no longer valid and will be replaced with new mapping from new anon.
-     */
-    if (replaced)
-      pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
-    else
+    if (!replaced)
       anon = old_anon;
   }
 
