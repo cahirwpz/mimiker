@@ -617,26 +617,11 @@ static int tmpfs_vop_link(vnode_t *dv, vnode_t *v, componentname_t *cn) {
 
 static int tmpfs_vop_pathconf(vnode_t *v, int name, register_t *res) {
   switch (name) {
-    case _PC_LINK_MAX:
-      *res = LINK_MAX;
-      return 0;
-    case _PC_MAX_CANON:
-      *res = MAX_CANON;
-      return 0;
-    case _PC_MAX_INPUT:
-      *res = MAX_INPUT;
-      return 0;
     case _PC_NAME_MAX:
       *res = TMPFS_NAME_MAX;
       return 0;
-    case _PC_PATH_MAX:
-      *res = PATH_MAX;
-      return 0;
-    case _PC_PIPE_BUF:
-      *res = PIPE_BUF;
-      return 0;
     default:
-      return EINVAL;
+      return vnode_pathconf_generic(v, name, res);
   }
 }
 
