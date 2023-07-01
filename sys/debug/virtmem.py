@@ -12,11 +12,11 @@ class VmInfo(CommandDispatcher):
     """Examine virtual memory data structures."""
 
     def __init__(self):
-        super().__init__('vm', [DumpPmap('kernel'),
-                                DumpPmap('user'),
+        super().__init__('vm', [KernelPmap(),
+                                UserPmap(),
                                 VmMapDump(),
-                                SegmentInfo(''),
-                                SegmentInfo('proc'),
+                                CurrentSegmentInfo(),
+                                ProcSegmentInfo(),
                                 VmPhysSeg(),
                                 VmFreePages(),
                                 ])
@@ -41,32 +41,46 @@ def _print_mips_pmap(pmap):
     print(table)
 
 
-class DumpPmap(UserCommand):
-    """List active page entries in user pmap"""
+class KernelPmap(UserCommand):
+    """List active page entries in kernel pmap"""
 
-    def __init__(self, typ):
-        command = 'pmap_' + typ
-        if command not in ('pmap_user', 'pmap_kernel'):
-            print(f'{command} command not supported')
-            return
-        self.command = command
-        super().__init__(command)
+    def __init__(self):
+        super().__init__('pmap_kernel')
 
     def __call__(self, args):
-        if self.command == 'pmap_kernel':
-            pmap = global_var('kernel_pmap')
+        pmap = global_var('kernel_pmap')
+        arch = get_arch()
+        if arch == 'mips':
+            _print_mips_pmap(pmap)
         else:
-            args = args.split()
-            if len(args) == 0:
-                proc = Process.from_current()
-            else:
-                pid = int(args[0])
-                proc = Process.find_by_pid(pid)
-                if proc is None:
-                    print(f'Process {pid} not found')
-                    return
-            pmap = proc.p_uspace.pmap
+            print(f"Can't print {arch} pmap")
 
+
+class UserPmap(UserCommand):
+    """List active page entries in user pmap
+
+    vm pmap_user [pid]
+
+    Arguments:
+        pid    pid of process to show pmap for
+
+    If argument is not specifed the pmap of current process is dumped.
+    """
+
+    def __init__(self):
+        super().__init__('pmap_user')
+
+    def __call__(self, args):
+        args = args.split()
+        if len(args) == 0:
+            proc = Process.from_current()
+        else:
+            pid = int(args[0])
+            proc = Process.find_by_pid(pid)
+            if proc is None:
+                print(f'Process {pid} not found')
+                return
+        pmap = proc.p_uspace.pmap
         arch = get_arch()
         if arch == 'mips':
             _print_mips_pmap(pmap)
@@ -75,7 +89,15 @@ class DumpPmap(UserCommand):
 
 
 class VmMapDump(UserCommand):
-    """List segments describing virtual address space"""
+    """List segments describing virtual address space
+
+    vm map [pid]
+
+    Arguments:
+        pid    pid of process to list vm_map for
+
+    If argument is not specifed the vm_map of current process is listed.
+    """
 
     def __init__(self):
         super().__init__('map')
@@ -101,72 +123,78 @@ class VmMapDump(UserCommand):
         print(table)
 
 
-class SegmentInfo(UserCommand):
-    """Show info about i-th segment in proc vm_map"""
+def _print_segment(seg, pid, id):
+    print('Segment {} in proc {}'.format(id, pid))
+    print('Range: {:#08x}-{:#08x} ({:d} pages)'.format(seg.start,
+                                                       seg.end,
+                                                       seg.pages))
+    print('Prot:  {}'.format(seg.prot))
+    print('Flags: {}'.format(seg.flags))
+    amap = seg.amap
+    if amap:
+        print('Amap:        {}'.format(seg.amap_ptr))
+        print('Amap offset: {}'.format(seg.amap_offset))
+        print('Amap slots:  {}'.format(amap.slots))
+        print('Amap refs:   {}'.format(amap.ref_cnt))
 
-    def __init__(self, typ):
-        command = f"segment{'_' if typ != '' else ''}{typ}"
-        if command not in ['segment', 'segment_proc']:
-            print(f'{command} command not supported')
+        # TODO: show used pages/anons
+    else:
+        print('Amap: NULL')
+
+
+def _segment_info(proc, segment):
+    entries = proc.p_uspace.get_entries()
+    if segment < 4096:
+        # Lookup by id
+        if segment > len(entries):
+            print(f'Segment {segment} does not exist!')
             return
-        self.command = command
-        super().__init__(command)
+        _print_segment(entries[segment], proc.p_pid, segment)
+    else:
+        # Lookup by address
+        addr = segment
+        for idx, e in enumerate(entries):
+            if e.start <= addr and addr < e.end:
+                _print_segment(e, proc.p_pid, idx)
+                return
+        print(f'Segment with address {addr} not found')
 
-    def _print_segment(self, seg, pid, id):
-        print('Segment {} in proc {}'.format(id, pid))
-        print('Range: {:#08x}-{:#08x} ({:d} pages)'.format(seg.start,
-                                                           seg.end,
-                                                           seg.pages))
-        print('Prot:  {}'.format(seg.prot))
-        print('Flags: {}'.format(seg.flags))
-        amap = seg.amap
-        if amap:
-            print('Amap:        {}'.format(seg.amap_ptr))
-            print('Amap offset: {}'.format(seg.amap_offset))
-            print('Amap slots:  {}'.format(amap.slots))
-            print('Amap refs:   {}'.format(amap.ref_cnt))
 
-            # TODO: show used pages/anons
-        else:
-            print('Amap: NULL')
+class CurrentSegmentInfo(UserCommand):
+    """Show info about i-th segment in curent proc vm_map"""
+
+    def __init__(self):
+        super().__init__('segment')
 
     def __call__(self, args):
         args = args.split()
-        if self.command == 'segment':
-            if len(args) < 1:
-                print('require argument (segment)')
-                return
-            proc = Process.from_current()
-        else:
-            if len(args) < 2:
-                print('require 2 arguments (pid and segment)')
-                return
-
-            pid = int(args[0])
-            proc = Process.find_by_pid(pid)
-            if proc is None:
-                print(f'Process {pid} not found')
-                return
-            args = args[1:]
-
-        entries = proc.p_uspace.get_entries()
-
+        if len(args) < 1:
+            print('require argument (segment)')
+            return
+        proc = Process.from_current()
         segment = int(args[0], 0)
+        _segment_info(proc, segment)
 
-        if segment < 4096:
-            # Lookup by id
-            if segment > len(entries):
-                print(f'Segment {segment} does not exist!')
-                return
-            self._print_segment(entries[segment], proc.p_pid, segment)
-        else:
-            # Lookup by address
-            addr = segment
-            for idx, e in enumerate(entries):
-                if e.start <= addr and addr < e.end:
-                    self._print_segment(e, proc.p_pid, idx)
-                    return
-            print(f'Segment with address {addr} not found')
+
+class ProcSegmentInfo(UserCommand):
+    """Show info about i-th segment in proc vm_map"""
+
+    def __init__(self):
+        super().__init__('segment_proc')
+
+    def __call__(self, args):
+        args = args.split()
+        if len(args) < 2:
+            print('require 2 arguments (pid and segment)')
+            return
+
+        pid = int(args[0])
+        proc = Process.find_by_pid(pid)
+        if proc is None:
+            print(f'Process {pid} not found')
+            return
+        segment = int(args[1], 0)
+        _segment_info(proc, segment)
 
 
 class VmPhysSeg(UserCommand):
