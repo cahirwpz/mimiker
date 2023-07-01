@@ -53,3 +53,30 @@ class Amap(metaclass=GdbStructMeta):
 
     def __repr__(self):
         return 'vm_amap[slots={}, refs={}]'.format(self.slots, self.ref_cnt)
+
+    def _get_bitmap(self):
+        bitmap = []
+        bitssize = ((self.slots) + 7) >> 3
+        for i in range(bitssize):
+            val = self.pg_bitmap[i]
+            for _ in range(8):
+                bitmap.append(val & 1 == 1)
+                val >>= 1
+        return bitmap
+
+    def print_pages(self, offset, n):
+        bm = self._get_bitmap()
+        slots = 'Page num:'
+        values = 'Ref cnt: '
+        used = 0
+        for i in range(n):
+            slots += f'{i:^5}'
+            if bm[offset + i]:
+                values += f'{1:^5}'
+                used += 1
+            else:
+                values += f'{"-": ^5}'
+
+        print(f'Pages used by segment ({used} pages)')
+        print(slots)
+        print(values)

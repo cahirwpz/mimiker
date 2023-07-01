@@ -137,7 +137,7 @@ def _print_segment(seg, pid, id):
         print('Amap slots:  {}'.format(amap.slots))
         print('Amap refs:   {}'.format(amap.ref_cnt))
 
-        # TODO: show used pages/anons
+        amap.print_pages(seg.amap_offset, seg.pages)
     else:
         print('Amap: NULL')
 
