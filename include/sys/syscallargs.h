@@ -447,3 +447,8 @@ typedef struct {
   SYSCALLARG(clockid_t) clock_id;
   SYSCALLARG(const struct timespec *) tp;
 } clock_settime_args_t;
+
+typedef struct {
+  SYSCALLARG(const char *) path;
+  SYSCALLARG(int) name;
+} pathconf_args_t;
