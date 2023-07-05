@@ -20,7 +20,9 @@ HDR = \
 	util.h
 
 LIBUTILSRC = \
+	libutil/agetcwd.c        \
 	libutil/agetline.c       \
+	libutil/apathmax.c       \
 	libutil/concat.c         \
 	libutil/ealloc.c         \
 	libutil/eprintf.c        \
@@ -35,10 +37,6 @@ LIBUTILSRC = \
 	libutil/strlcpy.c        \
 	libutil/strtonum.c       \
 	libutil/tty.c
-
-LIBUTILSRC_DONT_WORK = \
-	libutil/agetcwd.c \
-	libutil/apathmax.c
 
 BIN = \
 	clear             \
