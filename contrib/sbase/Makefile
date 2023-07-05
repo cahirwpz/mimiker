@@ -103,6 +103,7 @@ BIN = \
 	getconf \
 	grep \
 	head \
+	hostname \
 	join \
 	kill \
 	link \
@@ -172,7 +173,6 @@ BIN_DISABLED = \
 	du \
 	ed \
 	flock \
-	hostname \
 	logger \
 	mknod \
 	tftp
