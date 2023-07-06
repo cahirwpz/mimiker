@@ -12,6 +12,7 @@
 #include <sys/mutex.h>
 #include <sys/condvar.h>
 #include <sys/cred.h>
+#include <sys/unistd.h>
 
 static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
 
@@ -339,4 +340,26 @@ int vnode_access_generic(vnode_t *v, accmode_t acc, cred_t *cred) {
     return error;
 
   return cred_can_access(&va, cred, acc);
+}
+
+int vnode_pathconf_generic(vnode_t *v, int name, register_t *res) {
+  switch (name) {
+    case _PC_LINK_MAX:
+      *res = LINK_MAX;
+      return 0;
+    case _PC_MAX_CANON:
+      *res = MAX_CANON;
+      return 0;
+    case _PC_MAX_INPUT:
+      *res = MAX_INPUT;
+      return 0;
+    case _PC_PATH_MAX:
+      *res = PATH_MAX;
+      return 0;
+    case _PC_PIPE_BUF:
+      *res = PIPE_BUF;
+      return 0;
+    default:
+      return EINVAL;
+  }
 }
