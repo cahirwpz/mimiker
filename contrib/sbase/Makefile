@@ -196,7 +196,7 @@ $(BUILDDIR)sbase/getconf.o: $(BUILDDIR)/sbase/getconf.h
 $(BUILDDIR)/sbase/getconf.h: sbase/getconf.sh
 	./sbase/getconf.sh > $@
 
-CFLAGS.sbase/getconf.c += -I$(BUILDDIR)/sbase
+CFLAGS.sbase/getconf.c += -I$(BUILDDIR)/sbase -Wno-error=type-limits
 
 include $(TOPDIR)/build/build.prog.mk
 
