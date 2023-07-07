@@ -11,19 +11,14 @@ PM_NQUEUES = 16
 
 class PhysMap(UserCommand):
     """List active page entries in kernel pmap"""
-
     def __init__(self):
         super().__init__('pmap')
 
     def __call__(self, args):
-        pmap = gdb.parse_and_eval('_pcpu_data->curpmap')
-        asid = pmap['asid']
-        print(f'Pmap {pmap} for ASID {asid}')
-        pdp = pmap['pde'].cast(
-            gdb.lookup_type('pde_t').pointer())
+        pdp = global_var('kernel_pmap')['pde']
         table = TextTable(types='ttttt', align='rrrrr')
         table.header(['vpn', 'pte0', 'pte1', 'pte2', 'pte3'])
-        for i in range(512):
+        for i in range(1024):
             pde = TLBLo(pdp[i])
             if not pde.valid:
                 continue
