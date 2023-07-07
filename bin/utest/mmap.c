@@ -128,7 +128,7 @@ TEST_ADD(munmap) {
 static volatile int sigcont_handled = 0;
 
 static void sigcont_handler(int signo) {
-  printf("sigusr1 handled!\n");
+  printf("sigcont handled!\n");
   sigcont_handled = 1;
 }
 
