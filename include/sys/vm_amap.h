@@ -74,7 +74,7 @@ size_t vm_amap_slots(vm_amap_t *amap);
 
 /** Alloc new anon.
  *
- * @retval >0   Anon with zeroed page and ref_cnt = 1.
+ * @retval != NULL Anon with zeroed page and ref_cnt = 1.
  * @retval NULL If anon's page can't be allocate.
  */
 vm_anon_t *vm_anon_alloc(void);
@@ -83,7 +83,7 @@ vm_anon_t *vm_anon_alloc(void);
  *
  * NOTE: Don't decrease ref_cnt of src.
  *
- * @retval >0   Anon with ref_cnt = 1.
+ * @retval != NULL Anon with ref_cnt = 1.
  * @retval NULL If anon's page can't be allocate.
  */
 vm_anon_t *vm_anon_copy(vm_anon_t *src);
