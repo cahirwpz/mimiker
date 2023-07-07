@@ -26,7 +26,7 @@
  *    most effective implementation.
  *
  * LOCKING
- * There are 2 types of locks already implemented here: amapa and anon locks.
+ * There are 2 types of locks already implemented here: amap and anon locks.
  * Sometimes there is a need to hold both mutexes (e.g. when replacing an
  * existing anon in amap with new one). To avoid dead locks the proper order of
  * holding locks must be preserved. The amap should be locked first.
