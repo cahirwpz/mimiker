@@ -162,7 +162,7 @@ TEST_ADD(mmap_private) {
 
     printf("Child read again: '%s'\n", addr);
     string_eq(addr, "child");
-    return 0;
+    exit(0);
   }
 
   /* Wait for child to check and modify its memory. */
