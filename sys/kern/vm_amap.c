@@ -87,8 +87,6 @@ vm_aref_t vm_amap_needs_copy(vm_aref_t aref, size_t slots) {
   if (!amap)
     return (vm_aref_t){.offset = 0, .amap = NULL};
 
-  SCOPED_MTX_LOCK(&amap->mtx);
-
   /* XXX: This check is actually safe. If amap has only one reference it means
    * that it is reference of current vm_map_entry. Ref_cnt can't be bumped now,
    * because it is done only in syscalls (fork, munmap and mprotect) (and we are
@@ -103,17 +101,19 @@ vm_aref_t vm_amap_needs_copy(vm_aref_t aref, size_t slots) {
   }
 
   vm_amap_t *new = vm_amap_alloc(slots);
-  for (size_t slot = 0; slot < slots; slot++) {
-    size_t old_slot = aref.offset + slot;
+  WITH_MTX_LOCK (&amap->mtx) {
+    for (size_t slot = 0; slot < slots; slot++) {
+      size_t old_slot = aref.offset + slot;
 
-    if (!bit_test(amap->anon_bitmap, old_slot))
-      continue;
+      if (!bit_test(amap->anon_bitmap, old_slot))
+        continue;
 
-    vm_anon_t *anon = amap->anon_list[old_slot];
+      vm_anon_t *anon = amap->anon_list[old_slot];
 
-    vm_anon_hold(anon);
-    new->anon_list[slot] = anon;
-    bit_set(new->anon_bitmap, slot);
+      vm_anon_hold(anon);
+      new->anon_list[slot] = anon;
+      bit_set(new->anon_bitmap, slot);
+    }
   }
   vm_amap_drop(amap);
   return (vm_aref_t){.offset = 0, .amap = new};
