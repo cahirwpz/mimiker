@@ -226,7 +226,7 @@ void vm_anon_hold(vm_anon_t *anon) {
 }
 
 void vm_anon_drop(vm_anon_t *anon) {
-  if(refcnt_release(&anon->ref_cnt)) {
+  if (refcnt_release(&anon->ref_cnt)) {
     vm_page_free(anon->page);
     pool_free(P_VM_ANON_STRUCT, anon);
   }
