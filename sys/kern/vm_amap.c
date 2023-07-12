@@ -50,7 +50,7 @@
 struct vm_amap {
   mtx_t mtx;             /* Amap lock. */
   size_t slots;          /* (!) maximum number of slots */
-  uint32_t ref_cnt;      /* (a) number of references */
+  refcnt_t ref_cnt;      /* (a) number of references */
   vm_anon_t **anon_list; /* (@) anon list */
   bitstr_t *anon_bitmap; /* (@) anon bitmap */
 };
@@ -89,12 +89,18 @@ vm_aref_t vm_amap_needs_copy(vm_aref_t aref, size_t slots) {
 
   SCOPED_MTX_LOCK(&amap->mtx);
 
+  /* XXX: This check is actually safe. If amap has only one reference it means
+   * that it is reference of current vm_map_entry. Ref_cnt can't be bumped now,
+   * because it is done only in syscalls (fork, munmap and mprotect) (and we are
+   * currently handling page fault so we can't be in such syscall). That is
+   * because during these syscalls we can't cause page fault on currently
+   * accessed vm_map_entry.
+   */
+
   /* Amap don't have to be copied. */
   if (amap->ref_cnt == 1) {
     return aref;
   }
-
-  amap->ref_cnt--;
 
   vm_amap_t *new = vm_amap_alloc(slots);
   for (size_t slot = 0; slot < slots; slot++) {
@@ -109,6 +115,7 @@ vm_aref_t vm_amap_needs_copy(vm_aref_t aref, size_t slots) {
     new->anon_list[slot] = anon;
     bit_set(new->anon_bitmap, slot);
   }
+  vm_amap_drop(amap);
   return (vm_aref_t){.offset = 0, .amap = new};
 }
 
@@ -186,20 +193,16 @@ void vm_amap_remove_pages(vm_aref_t aref, size_t start, size_t nslots) {
 }
 
 void vm_amap_hold(vm_amap_t *amap) {
-  SCOPED_MTX_LOCK(&amap->mtx);
-  amap->ref_cnt++;
+  refcnt_acquire(&amap->ref_cnt);
 }
 
 void vm_amap_drop(vm_amap_t *amap) {
-  WITH_MTX_LOCK (&amap->mtx) {
-    amap->ref_cnt--;
-    if (amap->ref_cnt >= 1)
-      return;
+  if (refcnt_release(&amap->ref_cnt)) {
+    vm_amap_remove_pages_unlocked(amap, 0, amap->slots);
+    kfree(M_AMAP, amap->anon_list);
+    kfree(M_AMAP, amap->anon_bitmap);
+    pool_free(P_VM_AMAP_STRUCT, amap);
   }
-  vm_amap_remove_pages_unlocked(amap, 0, amap->slots);
-  kfree(M_AMAP, amap->anon_list);
-  kfree(M_AMAP, amap->anon_bitmap);
-  pool_free(P_VM_AMAP_STRUCT, amap);
 }
 
 static vm_anon_t *alloc_empty_anon(void) {
