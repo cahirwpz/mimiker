@@ -1,9 +1,9 @@
-#define KL_LOG KL_VM
 #include <sys/klog.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/pool.h>
 #include <sys/pmap.h>
+#include <sys/refcnt.h>
 #include <sys/vm_map.h>
 #include <sys/vm_amap.h>
 #include <sys/vm_physmem.h>
@@ -143,7 +143,7 @@ void vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
   bit_set(amap->anon_bitmap, offset);
 }
 
-bool vm_amap_replace_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
+void vm_amap_replace_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
   vm_amap_t *amap = aref.amap;
   assert(amap != NULL && anon != NULL);
 
@@ -158,19 +158,9 @@ bool vm_amap_replace_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
 
   vm_anon_t *old = amap->anon_list[offset];
 
-  /* If old anon was transferred to another amap there is no need to
-   * replace it here. */
-  WITH_MTX_LOCK (&old->mtx) {
-    if (old->ref_cnt == 1) {
-      vm_anon_drop(anon);
-      return false;
-    }
-    /* We are actually replacing it. */
-    old->ref_cnt--;
-  }
+  vm_anon_drop(old);
 
   amap->anon_list[offset] = anon;
-  return true;
 }
 
 static void vm_amap_remove_pages_unlocked(vm_amap_t *amap, size_t start,
@@ -216,7 +206,6 @@ static vm_anon_t *alloc_empty_anon(void) {
   vm_anon_t *anon = pool_alloc(P_VM_ANON_STRUCT, M_WAITOK);
   anon->ref_cnt = 1;
   anon->page = NULL;
-  mtx_init(&anon->mtx, MTX_SLEEP);
   return anon;
 }
 
@@ -233,18 +222,14 @@ vm_anon_t *vm_anon_alloc(void) {
 }
 
 void vm_anon_hold(vm_anon_t *anon) {
-  SCOPED_MTX_LOCK(&anon->mtx);
-  anon->ref_cnt++;
+  refcnt_acquire(&anon->ref_cnt);
 }
 
 void vm_anon_drop(vm_anon_t *anon) {
-  WITH_MTX_LOCK (&anon->mtx) {
-    anon->ref_cnt--;
-    if (anon->ref_cnt >= 1)
-      return;
+  if(refcnt_release(&anon->ref_cnt)) {
+    vm_page_free(anon->page);
+    pool_free(P_VM_ANON_STRUCT, anon);
   }
-  vm_page_free(anon->page);
-  pool_free(P_VM_ANON_STRUCT, anon);
 }
 
 vm_anon_t *vm_anon_copy(vm_anon_t *src) {

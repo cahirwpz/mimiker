@@ -2,6 +2,7 @@
 #define _SYS_VM_AMAP_H_
 
 #include <sys/mutex.h>
+#include <sys/refcnt.h>
 #include <sys/types.h>
 #include <sys/vm.h>
 #include <stddef.h>
@@ -13,12 +14,11 @@ typedef struct vm_aref vm_aref_t;
 /* Anon structure
  *
  * Marks for fields locks:
- *  (@) guarded by vm-amap::mtx
+ *  (a) atomic
  *  (!) read-only access, do not modify!
  */
 struct vm_anon {
-  mtx_t mtx;        /* Anon lock */
-  uint32_t ref_cnt; /* (@) number of references */
+  refcnt_t ref_cnt; /* (a) number of references */
   vm_page_t *page;  /* (!) anon page */
 };
 
@@ -97,15 +97,8 @@ vm_anon_t *vm_amap_find_anon(vm_aref_t aref, size_t offset);
 /** Insert anon into amap */
 void vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset);
 
-/** Replace anon in amap with new one.
- *
- * This funciton is used when anon was copied and we have to replace it with
- * it's copy. If anon that is being replaced has dropped its ref_cnt to 1 there
- * is no need to replace it and the new anon is dropped.
- *
- * @returns true if anon was replaced.
- */
-bool vm_amap_replace_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset);
+/** Replace anon in amap with new one. */
+void vm_amap_replace_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset);
 
 /** Bump the ref counter to record that anon is used by one more amap. */
 void vm_anon_hold(vm_anon_t *anon);
