@@ -205,19 +205,19 @@ void vm_amap_drop(vm_amap_t *amap) {
 static vm_anon_t *alloc_empty_anon(void) {
   vm_anon_t *anon = pool_alloc(P_VM_ANON_STRUCT, M_WAITOK);
   anon->ref_cnt = 1;
-  anon->page = NULL;
+  anon->page = vm_page_alloc(1);
+  if (!anon->page) {
+    pool_free(P_VM_ANON_STRUCT, anon);
+    return NULL;
+  }
   return anon;
 }
 
 vm_anon_t *vm_anon_alloc(void) {
   vm_anon_t *anon = alloc_empty_anon();
-  vm_page_t *page = vm_page_alloc(1);
-  if (!page) {
-    vm_anon_drop(anon);
+  if (!anon)
     return NULL;
-  }
-  pmap_zero_page(page);
-  anon->page = page;
+  pmap_zero_page(anon->page);
   return anon;
 }
 
@@ -234,7 +234,8 @@ void vm_anon_drop(vm_anon_t *anon) {
 
 vm_anon_t *vm_anon_copy(vm_anon_t *src) {
   vm_anon_t *new = alloc_empty_anon();
-  new->page = vm_page_alloc(1);
+  if (!new)
+    return NULL;
   pmap_copy_page(src->page, new->page);
   return new;
 }
