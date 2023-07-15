@@ -10,16 +10,15 @@
 TEST_ADD(fork_wait) {
   int n = fork();
   if (n == 0) {
-    printf("This is child, my pid is %d!\n", getpid());
+    debug("This is child, my pid is %d!", getpid());
     exit(42);
   } else {
-    printf("This is parent, my pid is %d, I was told child is %d!\n", getpid(),
-           n);
+    debug("This is parent, my pid is %d, I was told child is %d!", getpid(), n);
     int status, exitcode;
     int p = wait(&status);
     assert(WIFEXITED(status));
     exitcode = WEXITSTATUS(status);
-    printf("Child exit status is %d, exit code %d.\n", status, exitcode);
+    debug("Child exit status is %d, exit code %d.", status, exitcode);
     assert(exitcode == 42);
     assert(p == n);
   }
@@ -29,10 +28,10 @@ TEST_ADD(fork_wait) {
 static volatile int done = 0;
 
 static void sigchld_handler(int signo) {
-  printf("SIGCHLD handler!\n");
+  debug("SIGCHLD handler!");
   int n = 0;
   while ((n = waitpid(-1, NULL, WNOHANG)) > 0) {
-    printf("Reaped a child.\n");
+    debug("Reaped a child.");
     done = 1;
   }
 }

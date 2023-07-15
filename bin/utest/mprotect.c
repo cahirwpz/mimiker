@@ -12,30 +12,24 @@
 #include <unistd.h>
 
 #define check_write_ok(addr)                                                   \
-  { *((char *)(addr)) = 'x'; }
+  { *((volatile char *)(addr)) = 'x'; }
 
 #define check_write_err(si, addr)                                              \
   {                                                                            \
     EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
-      *((char *)(addr)) = 'x';                                                 \
+      *((volatile char *)(addr)) = 'x';                                        \
     }                                                                          \
     CLEANUP_SIGNAL();                                                          \
     CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
   }
 
 #define check_read_ok(addr)                                                    \
-  {                                                                            \
-    char v = *((char *)(addr));                                                \
-    if (v)                                                                     \
-      printf("\n");                                                            \
-  }
+  { *((volatile char *)(addr)); }
 
 #define check_read_err(si, addr)                                               \
   {                                                                            \
     EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
-      char v = *((char *)(addr));                                              \
-      if (v)                                                                   \
-        printf("\n");                                                          \
+      *((volatile char *)(addr));                                              \
     }                                                                          \
     CLEANUP_SIGNAL();                                                          \
     CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \

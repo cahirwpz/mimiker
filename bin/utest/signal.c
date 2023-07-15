@@ -11,12 +11,12 @@
 static volatile int sigusr1_handled = 0;
 
 static void sigusr1_handler(int signo) {
-  printf("sigusr1 handled!\n");
+  debug("sigusr1 handled!");
   sigusr1_handled = 1;
 }
 
 static void sigint_handler(int signo) {
-  printf("sigint handled!\n");
+  debug("sigint handled!");
   raise(SIGUSR1); /* Recursive signals! */
 }
 
@@ -35,7 +35,7 @@ TEST_ADD(signal_basic) {
 
 /* ======= signal_send ======= */
 static void sigusr2_handler(int signo) {
-  printf("Child process handles sigusr2.\n");
+  debug("Child process handles sigusr2.");
   raise(SIGABRT); /* Terminate self. */
 }
 
@@ -45,20 +45,20 @@ TEST_ADD(signal_send) {
   signal(SIGUSR2, sigusr2_handler);
   int pid = fork();
   if (pid == 0) {
-    printf("This is child (mypid = %d)\n", getpid());
+    debug("This is child (mypid = %d)", getpid());
     /* Wait for signal. */
     while (1)
       sched_yield();
   }
 
-  printf("This is parent (childpid = %d, mypid = %d)\n", pid, getpid());
+  debug("This is parent (childpid = %d, mypid = %d)", pid, getpid());
   kill(pid, SIGUSR2);
   int status;
-  printf("Waiting for child...\n");
+  debug("Waiting for child...");
   wait(&status);
   assert(WIFSIGNALED(status));
   assert(WTERMSIG(status) == SIGABRT);
-  printf("Child was stopped by SIGABRT.\n");
+  debug("Child was stopped by SIGABRT.");
   return 0;
 }
 
@@ -143,7 +143,7 @@ TEST_ADD(signal_stop) {
   while (!sigcont_handled)
     sched_yield();
   /* The child process should exit normally. */
-  printf("Waiting for child...\n");
+  debug("Waiting for child...");
   wait(&status);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == 0);
@@ -177,7 +177,7 @@ TEST_ADD(signal_cont_masked) {
   assert(WIFSTOPPED(status));
 
   kill(pid, SIGCONT);
-  printf("Waiting for child...\n");
+  debug("Waiting for child...");
   wait(&status);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == 0);
@@ -227,7 +227,7 @@ TEST_ADD(signal_mask) {
 
   kill(pid, SIGCONT);
   int status;
-  printf("Waiting for child...\n");
+  debug("Waiting for child...");
   wait(&status);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == 0);
@@ -270,7 +270,7 @@ TEST_ADD(signal_sigsuspend) {
     return 0;
   }
   /* Go to sleep with SIGCONT blocked and SIGUSR1 unblocked. */
-  printf("Calling sigsuspend()...\n");
+  debug("Calling sigsuspend()...");
   sigset_t current;
   sigprocmask(SIG_BLOCK, NULL, &current);
   assert(__sigismember(&current, SIGUSR1));
@@ -288,7 +288,7 @@ TEST_ADD(signal_sigsuspend) {
   assert(sigcont_handled);
 
   int status;
-  printf("Waiting for child...\n");
+  debug("Waiting for child...");
   wait(&status);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == 0);
@@ -405,7 +405,7 @@ TEST_ADD(signal_handler_mask) {
   assert(sigusr1_handled);
 
   int status;
-  printf("Waiting for child...\n");
+  debug("Waiting for child...");
   wait(&status);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == 0);

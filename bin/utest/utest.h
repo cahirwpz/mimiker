@@ -21,10 +21,13 @@ typedef int (*proc_func_t)(void *);
 
 noreturn void __die(const char *file, int line, const char *func,
                     const char *fmt, ...);
+void __msg(const char *file, int line, const char *func, const char *fmt, ...);
+
 int utest_spawn(proc_func_t func, void *arg);
 void utest_child_exited(int exitcode);
 
 #define die(...) __die(__FILE__, __LINE__, __func__, __VA_ARGS__)
+#define debug(...) __msg(__FILE__, __LINE__, __func__, __VA_ARGS__)
 
 #define assert(e)                                                              \
   ({                                                                           \

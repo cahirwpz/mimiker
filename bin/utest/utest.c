@@ -7,8 +7,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-noreturn void __die(const char *file, int line, const char *func,
-                    const char *fmt, ...) {
+static void print_msg(const char *file, int line, const char *func,
+                      const char *fmt, va_list ap) {
   char buf[1024];
   int len = 0, res;
 
@@ -19,15 +19,28 @@ noreturn void __die(const char *file, int line, const char *func,
     exit(EXIT_FAILURE);
   len += res;
 
-  va_list ap;
-  va_start(ap, fmt);
   res = vsnprintf_ss(buf + len, sizeof(buf) - len, fmt, ap);
   if (res < 0)
     exit(EXIT_FAILURE);
-  va_end(ap);
 
   len += res;
   (void)write(STDERR_FILENO, buf, (size_t)len);
+}
+
+void __msg(const char *file, int line, const char *func, const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  print_msg(file, line, func, fmt, ap);
+  va_end(ap);
+}
+
+noreturn void __die(const char *file, int line, const char *func,
+                    const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  print_msg(file, line, func, fmt, ap);
+  va_end(ap);
+
   exit(EXIT_FAILURE);
 }
 

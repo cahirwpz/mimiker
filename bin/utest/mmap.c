@@ -104,8 +104,8 @@ TEST_ADD(munmap) {
   assert(addr != MAP_FAILED);
 
   /* write data to parts which will remain mapped after unmap */
-  sprintf(addr, "first");
-  sprintf(addr + 0x2000, "second");
+  strcpy(addr, "first");
+  strcpy(addr + 0x2000, "second");
 
   syscall_ok(munmap(addr + 0x1000, 0x1000));
 
@@ -206,8 +206,8 @@ TEST_ADD(mmap_fixed_replace) {
   void *addr = mmap_anon_priv(NULL, 2 * pgsz, PROT_READ | PROT_WRITE);
   void *new;
 
-  sprintf(addr, "first");
-  sprintf(addr + pgsz, "second");
+  strcpy(addr, "first");
+  strcpy(addr + pgsz, "second");
 
   new = mmap_anon_priv_flags(addr, pgsz, PROT_READ, MAP_FIXED);
   assert(new == addr);
@@ -226,11 +226,11 @@ static void *prepare_rw_layout(size_t pgsz) {
   if (addr == NULL)
     return NULL;
 
-  sprintf(addr, "first");
-  sprintf(addr + pgsz, "second");
-  sprintf(addr + 3 * pgsz, "fourth");
-  sprintf(addr + 5 * pgsz, "sixth");
-  sprintf(addr + 6 * pgsz, "seventh");
+  strcpy(addr, "first");
+  strcpy(addr + pgsz, "second");
+  strcpy(addr + 3 * pgsz, "fourth");
+  strcpy(addr + 5 * pgsz, "sixth");
+  strcpy(addr + 6 * pgsz, "seventh");
 
   return addr;
 }

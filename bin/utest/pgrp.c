@@ -255,7 +255,7 @@ TEST_ADD(pgrp_orphan) {
     }
 
     /* Wait for the grandchild to stop, then orphan its process group. */
-    printf("Child: waiting for the grandchild to stop...\n");
+    debug("Child: waiting for the grandchild to stop...");
     assert(waitpid(gcpid, &status, WUNTRACED) == gcpid);
     assert(WIFSTOPPED(status));
     /* When we exit, init will become the grandchild's parent.
@@ -267,11 +267,11 @@ TEST_ADD(pgrp_orphan) {
   }
 
   /* Reap the child. */
-  printf("Parent: waiting for the child to exit...\n");
+  debug("Parent: waiting for the child to exit...");
   wait_for_child_exit(cpid, 0);
 
   /* Wait for a signal from the grandchild. */
-  printf("Parent: waiting for a signal from the grandchild...\n");
+  debug("Parent: waiting for a signal from the grandchild...");
   wait_for_signal(SIGHUP);
 
   /* We're exiting without reaping the grandchild.

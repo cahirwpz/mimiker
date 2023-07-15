@@ -24,18 +24,19 @@ static timeval_t timestamp(void) {
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    printf("Not enough arguments provided to utest.\n");
+    fprintf(stderr, "Not enough arguments provided to utest.\n");
     return 1;
   }
 
   char *test_name = argv[1];
   timeval_t tv = timestamp();
-  printf("[%d.%06d] Begin '%s' test.\n", (int)tv.tv_sec, tv.tv_usec, test_name);
+  fprintf(stderr, "[%d.%06d] Begin '%s' test.\n", (int)tv.tv_sec, tv.tv_usec,
+          test_name);
 
   test_entry_t *te = find_test(test_name);
   if (te)
     return te->func();
 
-  printf("No user test \"%s\" available.\n", test_name);
+  fprintf(stderr, "No user test \"%s\" available.\n", test_name);
   return 1;
 }
