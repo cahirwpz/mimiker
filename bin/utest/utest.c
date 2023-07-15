@@ -7,14 +7,13 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-static void print_msg(const char *file, int line, const char *func,
-                      const char *fmt, va_list ap) {
+static void print_msg(const char *file, int line, const char *fmt, va_list ap) {
   char buf[1024];
   int len = 0, res;
 
   char *basename = strrchr(file, '/');
   file = basename ? basename + 1 : file;
-  res = snprintf_ss(buf, sizeof(buf), "[%s:%d] %s: ", file, line, func);
+  res = snprintf_ss(buf, sizeof(buf), "[%s:%d] ", file, line);
   if (res < 0)
     exit(EXIT_FAILURE);
   len += res;
@@ -24,26 +23,26 @@ static void print_msg(const char *file, int line, const char *func,
     exit(EXIT_FAILURE);
 
   len += res;
+  buf[len++] = '\n';
   (void)write(STDERR_FILENO, buf, (size_t)len);
 }
 
 int __verbose = 0;
 
-void __msg(const char *file, int line, const char *func, const char *fmt, ...) {
+void __msg(const char *file, int line, const char *fmt, ...) {
   if (!__verbose)
     return;
 
   va_list ap;
   va_start(ap, fmt);
-  print_msg(file, line, func, fmt, ap);
+  print_msg(file, line, fmt, ap);
   va_end(ap);
 }
 
-noreturn void __die(const char *file, int line, const char *func,
-                    const char *fmt, ...) {
+noreturn void __die(const char *file, int line, const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  print_msg(file, line, func, fmt, ap);
+  print_msg(file, line, fmt, ap);
   va_end(ap);
 
   exit(EXIT_FAILURE);

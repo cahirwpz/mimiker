@@ -4,8 +4,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-extern int __real_kill(pid_t pid, int sig);
-
 int __wrap_kill(pid_t pid, int sig) {
   int result = __real_kill(pid, sig);
 

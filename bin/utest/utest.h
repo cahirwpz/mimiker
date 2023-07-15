@@ -34,12 +34,11 @@ typedef struct test_entry {
 
 extern int __verbose;
 
-noreturn void __die(const char *file, int line, const char *func,
-                    const char *fmt, ...);
-void __msg(const char *file, int line, const char *func, const char *fmt, ...);
+noreturn void __die(const char *file, int line, const char *fmt, ...);
+void __msg(const char *file, int line, const char *fmt, ...);
 
-#define die(...) __die(__FILE__, __LINE__, __func__, __VA_ARGS__)
-#define debug(...) __msg(__FILE__, __LINE__, __func__, __VA_ARGS__)
+#define die(...) __die(__FILE__, __LINE__, __VA_ARGS__)
+#define debug(...) __msg(__FILE__, __LINE__, __VA_ARGS__)
 
 /*
  * Assertion definition and various checks
@@ -82,17 +81,21 @@ void __msg(const char *file, int line, const char *func, const char *fmt, ...);
       die("strings were not expected to match!");                              \
   })
 
-/* Miscellanous helper functions */
+/*
+ * Miscellanous helper functions
+ */
 
 typedef int (*proc_func_t)(void *);
 
 int utest_spawn(proc_func_t func, void *arg);
 void utest_child_exited(int exitcode);
 
-/* libc functions wrappers that automatically call die() on error */
+/*
+ * Original functions with no wrappers
+ */
 
-#include <unistd.h>
+typedef int pid_t;
 
-pid_t xfork(void);
+int __real_kill(pid_t pid, int sig);
 
 #endif /* __UTEST_H__ */

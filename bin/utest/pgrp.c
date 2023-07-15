@@ -229,7 +229,7 @@ TEST_ADD(killpg_other_group, 0) {
 
   wait_for_child_exit(pid_a, 0);
   /* It is forbidden to send signal to non-existing group. */
-  assert(killpg(pid_a, SIGUSR1));
+  syscall_fail(__real_kill(-pid_a, SIGUSR1), ESRCH);
 
   return 0;
 }
