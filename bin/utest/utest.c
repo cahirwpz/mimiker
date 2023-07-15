@@ -27,7 +27,12 @@ static void print_msg(const char *file, int line, const char *func,
   (void)write(STDERR_FILENO, buf, (size_t)len);
 }
 
+int __verbose = 0;
+
 void __msg(const char *file, int line, const char *func, const char *fmt, ...) {
+  if (!__verbose)
+    return;
+
   va_list ap;
   va_start(ap, fmt);
   print_msg(file, line, func, fmt, ap);

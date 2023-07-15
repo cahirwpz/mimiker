@@ -20,7 +20,7 @@ int func_dec(int x) {
   return x - 1;
 }
 
-TEST_ADD(vmmap_text_access) {
+TEST_ADD(vmmap_text_access, 0) {
   func_int_t fun = func_dec;
 
   assert((uintptr_t)func_inc < (uintptr_t)func_dec);
@@ -44,7 +44,7 @@ TEST_ADD(vmmap_text_access) {
   return 0;
 }
 
-TEST_ADD(vmmap_data_access) {
+TEST_ADD(vmmap_data_access, 0) {
   static char func_buf[1024];
 
   assert((uintptr_t)func_inc < (uintptr_t)func_dec);
@@ -71,7 +71,7 @@ TEST_ADD(vmmap_data_access) {
 /* String must be alinged as instuctions because we jump here */
 static __aligned(4) const char ro_data_str[] = "String in .rodata section";
 
-TEST_ADD(vmmap_rodata_access) {
+TEST_ADD(vmmap_rodata_access, 0) {
   siginfo_t si;
 
   /* Check write */

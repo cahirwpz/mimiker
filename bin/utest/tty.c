@@ -12,7 +12,7 @@
 #include <sys/termios.h>
 #include <unistd.h>
 
-TEST_ADD(tty_canon) {
+TEST_ADD(tty_canon, 0) {
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
 
@@ -82,7 +82,7 @@ TEST_ADD(tty_canon) {
   return 0;
 }
 
-TEST_ADD(tty_echo) {
+TEST_ADD(tty_echo, 0) {
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
 
@@ -129,7 +129,7 @@ TEST_ADD(tty_echo) {
   return 0;
 }
 
-TEST_ADD(tty_signals) {
+TEST_ADD(tty_signals, 0) {
   signal_setup(SIGUSR1);
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);

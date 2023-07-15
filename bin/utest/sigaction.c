@@ -12,7 +12,7 @@ noreturn static void sigint_handler(int signo) {
   assert(0); /* Shouldn't reach here. */
 }
 
-TEST_ADD(sigaction_with_setjmp) {
+TEST_ADD(sigaction_with_setjmp, 0) {
   struct sigaction sa;
 
   memset(&sa, 0, sizeof(sa));
@@ -33,7 +33,7 @@ static void sigusr1_handler(int signo) {
   sigusr1_handled = 1;
 }
 
-TEST_ADD(sigaction_handler_returns) {
+TEST_ADD(sigaction_handler_returns, 0) {
   struct sigaction sa;
 
   memset(&sa, 0, sizeof(sa));

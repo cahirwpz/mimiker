@@ -34,8 +34,15 @@ int main(int argc, char **argv) {
           test_name);
 
   test_entry_t *te = find_test(test_name);
-  if (te)
+  if (te) {
+    if (te->flags < 0) {
+      fprintf(stderr, "Test '%s' skipped.\n", test_name);
+      return 0;
+    }
+    if (te->flags & TF_DEBUG)
+      __verbose = 1;
     return te->func();
+  }
 
   fprintf(stderr, "No user test \"%s\" available.\n", test_name);
   return 1;

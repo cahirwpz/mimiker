@@ -20,7 +20,7 @@ static void sigint_handler(int signo) {
   raise(SIGUSR1); /* Recursive signals! */
 }
 
-TEST_ADD(signal_basic) {
+TEST_ADD(signal_basic, 0) {
   signal(SIGINT, sigint_handler);
   signal(SIGUSR1, sigusr1_handler);
   raise(SIGINT);
@@ -40,7 +40,7 @@ static void sigusr2_handler(int signo) {
 }
 
 /* Test sending a signal to a different thread. */
-TEST_ADD(signal_send) {
+TEST_ADD(signal_send, 0) {
   /* The child should inherit signal handler configuration. */
   signal(SIGUSR2, sigusr2_handler);
   int pid = fork();
@@ -65,7 +65,7 @@ TEST_ADD(signal_send) {
 /* ======= signal_abort ======= */
 /* This test shall be considered success if the process gets terminated with
    SIGABRT */
-TEST_ADD(signal_abort) {
+TEST_ADD(signal_abort, 0) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGABRT, &si) {
     raise(SIGABRT);
@@ -76,7 +76,7 @@ TEST_ADD(signal_abort) {
 }
 
 /* ======= signal_segfault ======= */
-TEST_ADD(signal_segfault) {
+TEST_ADD(signal_segfault, 0) {
   volatile struct { int x; } *ptr = 0x0;
 
   siginfo_t si;
@@ -99,7 +99,7 @@ static void signal_parent(int signo) {
   kill(ppid, SIGCONT);
 }
 
-TEST_ADD(signal_stop) {
+TEST_ADD(signal_stop, 0) {
   ppid = getpid();
   signal(SIGUSR1, SIG_IGN);
   signal(SIGCONT, sigcont_handler);
@@ -151,7 +151,7 @@ TEST_ADD(signal_stop) {
 }
 
 /* ======= signal_cont_masked ======= */
-TEST_ADD(signal_cont_masked) {
+TEST_ADD(signal_cont_masked, 0) {
   ppid = getpid();
   signal(SIGCONT, sigcont_handler);
   int pid = fork();
@@ -185,7 +185,7 @@ TEST_ADD(signal_cont_masked) {
 }
 
 /* ======= signal_mask ======= */
-TEST_ADD(signal_mask) {
+TEST_ADD(signal_mask, 0) {
   ppid = getpid();
   signal(SIGUSR1, signal_parent);
   signal(SIGCONT, sigcont_handler);
@@ -235,7 +235,7 @@ TEST_ADD(signal_mask) {
 }
 
 /* ======= signal_mask_nonmaskable ======= */
-TEST_ADD(signal_mask_nonmaskable) {
+TEST_ADD(signal_mask_nonmaskable, 0) {
   sigset_t set, old;
   __sigemptyset(&set);
   __sigaddset(&set, SIGSTOP);
@@ -250,7 +250,7 @@ TEST_ADD(signal_mask_nonmaskable) {
 }
 
 /* ======= signal_sigsuspend ======= */
-TEST_ADD(signal_sigsuspend) {
+TEST_ADD(signal_sigsuspend, 0) {
   pid_t ppid = getpid();
   signal(SIGCONT, sigcont_handler);
   signal(SIGUSR1, sigusr1_handler);
@@ -296,7 +296,7 @@ TEST_ADD(signal_sigsuspend) {
 }
 
 /* ======= signal_sigsuspend_stop ======= */
-TEST_ADD(signal_sigsuspend_stop) {
+TEST_ADD(signal_sigsuspend_stop, 0) {
   pid_t ppid = getpid();
   signal(SIGUSR1, sigusr1_handler);
   sigset_t set, old;
@@ -374,7 +374,7 @@ static void yield_handler(int signo) {
     handler_success = 1;
 }
 
-TEST_ADD(signal_handler_mask) {
+TEST_ADD(signal_handler_mask, 0) {
   pid_t ppid = getpid();
   struct sigaction sa = {.sa_handler = yield_handler, .sa_flags = 0};
   /* Block SIGUSR1 when executing handler for SIGUSR2. */

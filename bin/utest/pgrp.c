@@ -10,7 +10,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-TEST_ADD(setpgid) {
+TEST_ADD(setpgid, 0) {
   pgid_t parent_pgid = getpgid(0);
 
   pid_t children_pid = fork();
@@ -41,7 +41,7 @@ static void sa_handler(int signo) {
   sig_delivered = 1;
 }
 
-TEST_ADD(setpgid_leader) {
+TEST_ADD(setpgid_leader, 0) {
   signal_setup(SIGUSR1);
 
   pid_t cpid = fork();
@@ -68,7 +68,7 @@ TEST_ADD(setpgid_leader) {
   return 0;
 }
 
-TEST_ADD(setpgid_child) {
+TEST_ADD(setpgid_child, 0) {
   signal_setup(SIGUSR1);
 
   pid_t cpid1 = fork();
@@ -134,7 +134,7 @@ static void kill_tests_setup(void) {
 }
 
 /* In this test child process sends signal to its parent. */
-TEST_ADD(kill) {
+TEST_ADD(kill, 0) {
   kill_tests_setup();
   pgid_t parent_pid = getpid();
 
@@ -157,7 +157,7 @@ TEST_ADD(kill) {
 /* In this tests there are two processes marked with: a, b.
  * Processes a and b are in the same process group.
  * Process b sends signal to its own process group containing a and b. */
-TEST_ADD(killpg_same_group) {
+TEST_ADD(killpg_same_group, 0) {
   kill_tests_setup();
 
   pid_t pid_a = fork();
@@ -193,7 +193,7 @@ TEST_ADD(killpg_same_group) {
  * Processes a and b are in the same process group.
  * Process c is in different process group than a and b.
  * Process c sends signal to the process group containing a and b. */
-TEST_ADD(killpg_other_group) {
+TEST_ADD(killpg_other_group, 0) {
   kill_tests_setup();
 
   pid_t pid_a = fork();
@@ -234,7 +234,7 @@ TEST_ADD(killpg_other_group) {
   return 0;
 }
 
-TEST_ADD(pgrp_orphan) {
+TEST_ADD(pgrp_orphan, 0) {
   signal_setup(SIGHUP);
   int ppid = getpid();
   pid_t cpid = fork();
@@ -281,7 +281,7 @@ TEST_ADD(pgrp_orphan) {
 
 static volatile pid_t parent_sid;
 
-TEST_ADD(session_basic) {
+TEST_ADD(session_basic, 0) {
   signal_setup(SIGUSR1);
   parent_sid = getsid(getpid());
   assert(parent_sid != -1);
@@ -316,7 +316,7 @@ TEST_ADD(session_basic) {
   return 0;
 }
 
-TEST_ADD(session_login_name) {
+TEST_ADD(session_login_name, 0) {
   const char *name = "foo";
   /* Assume login name is not set. */
   assert(getlogin() == NULL);

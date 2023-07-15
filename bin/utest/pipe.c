@@ -20,7 +20,7 @@ static void sigpipe_handler(int signo) {
   }
 }
 
-TEST_ADD(pipe_parent_signaled) {
+TEST_ADD(pipe_parent_signaled, 0) {
   int pipe_fd[2];
   signal_delivered = 0;
   signal(SIGPIPE, sigpipe_handler);
@@ -54,7 +54,7 @@ TEST_ADD(pipe_parent_signaled) {
   return 0;
 }
 
-TEST_ADD(pipe_child_signaled) {
+TEST_ADD(pipe_child_signaled, 0) {
   int pipe_fd[2];
   signal_delivered = 0;
 
@@ -105,7 +105,7 @@ TEST_ADD(pipe_child_signaled) {
   return 0;
 }
 
-TEST_ADD(pipe_blocking_flag_manipulation) {
+TEST_ADD(pipe_blocking_flag_manipulation, 0) {
   int pipe_fd[2];
 
   /* creating pipe */
@@ -142,7 +142,7 @@ TEST_ADD(pipe_blocking_flag_manipulation) {
   return 0;
 }
 
-TEST_ADD(pipe_write_interruptible_sleep) {
+TEST_ADD(pipe_write_interruptible_sleep, 0) {
   int pipe_fd[2];
   pid_t child_pid;
 
@@ -190,7 +190,7 @@ TEST_ADD(pipe_write_interruptible_sleep) {
   return 0;
 }
 
-TEST_ADD(pipe_write_errno_eagain) {
+TEST_ADD(pipe_write_errno_eagain, 0) {
   int pipe_fd[2];
   pid_t child_pid;
   int bytes_wrote = 0;
@@ -232,7 +232,7 @@ TEST_ADD(pipe_write_errno_eagain) {
   return 0;
 }
 
-TEST_ADD(pipe_read_interruptible_sleep) {
+TEST_ADD(pipe_read_interruptible_sleep, 0) {
   int pipe_fd[2];
   pid_t child_pid;
   int bytes_wrote;
@@ -274,7 +274,7 @@ TEST_ADD(pipe_read_interruptible_sleep) {
   return 0;
 }
 
-TEST_ADD(pipe_read_errno_eagain) {
+TEST_ADD(pipe_read_errno_eagain, 0) {
   int pipe_fd[2];
   pid_t child_pid;
   int bytes_wrote;
@@ -306,7 +306,7 @@ TEST_ADD(pipe_read_errno_eagain) {
   return 0;
 }
 
-TEST_ADD(pipe_read_return_zero) {
+TEST_ADD(pipe_read_return_zero, 0) {
   int pipe_fd[2];
   pid_t child_pid;
   int bytes_wrote;

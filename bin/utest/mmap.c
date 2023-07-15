@@ -71,7 +71,7 @@ static void munmap_good(void) {
   syscall_ok(munmap(addr + 0x2000, 0x1000));
 }
 
-TEST_ADD(munmap_sigsegv) {
+TEST_ADD(munmap_sigsegv, 0) {
   void *addr = mmap_anon_prw(NULL, 0x4000);
 
   syscall_ok(munmap(addr, 0x4000));
@@ -87,7 +87,7 @@ TEST_ADD(munmap_sigsegv) {
   return 0;
 }
 
-TEST_ADD(mmap) {
+TEST_ADD(mmap, 0) {
   mmap_no_hint();
   mmap_with_hint();
   mmap_bad();
@@ -95,7 +95,7 @@ TEST_ADD(mmap) {
   return 0;
 }
 
-TEST_ADD(munmap) {
+TEST_ADD(munmap, 0) {
   void *addr;
   int child;
 
@@ -126,7 +126,7 @@ TEST_ADD(munmap) {
 
 #define NPAGES 8
 
-TEST_ADD(mmap_prot_none) {
+TEST_ADD(mmap_prot_none, 0) {
   size_t pgsz = getpagesize();
   size_t size = pgsz * NPAGES;
   volatile void *addr = mmap_anon_priv(NULL, size, PROT_NONE);
@@ -145,7 +145,7 @@ TEST_ADD(mmap_prot_none) {
   return 0;
 }
 
-TEST_ADD(mmap_prot_read) {
+TEST_ADD(mmap_prot_read, 0) {
   size_t pgsz = getpagesize();
   size_t size = pgsz * NPAGES;
   volatile void *addr = mmap_anon_priv(NULL, size, PROT_READ);
@@ -170,7 +170,7 @@ TEST_ADD(mmap_prot_read) {
   return 0;
 }
 
-TEST_ADD(mmap_fixed) {
+TEST_ADD(mmap_fixed, 0) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, 3 * pgsz, PROT_READ | PROT_WRITE);
   void *new;
@@ -183,7 +183,7 @@ TEST_ADD(mmap_fixed) {
   return 0;
 }
 
-TEST_ADD(mmap_fixed_excl) {
+TEST_ADD(mmap_fixed_excl, 0) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, 2 * pgsz, PROT_READ);
 
@@ -201,7 +201,7 @@ TEST_ADD(mmap_fixed_excl) {
   return 0;
 }
 
-TEST_ADD(mmap_fixed_replace) {
+TEST_ADD(mmap_fixed_replace, 0) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, 2 * pgsz, PROT_READ | PROT_WRITE);
   void *new;
@@ -236,7 +236,7 @@ static void *prepare_rw_layout(size_t pgsz) {
 }
 
 /* This test unmaps entries from prepared layout (second, fourth, sixth) */
-TEST_ADD(munmap_many_1) {
+TEST_ADD(munmap_many_1, 0) {
   size_t pgsz = getpagesize();
   void *addr = prepare_rw_layout(pgsz);
   int res;
@@ -270,7 +270,7 @@ TEST_ADD(munmap_many_1) {
 }
 
 /* This test unmaps all entries from prepared layout */
-TEST_ADD(munmap_many_2) {
+TEST_ADD(munmap_many_2, 0) {
   size_t pgsz = getpagesize();
   void *addr = prepare_rw_layout(pgsz);
   int res;
@@ -313,7 +313,7 @@ TEST_ADD(munmap_many_2) {
 }
 
 /* This test unmaps entries from prepared layout (second, fourth, sixth) */
-TEST_ADD(mmap_fixed_replace_many_1) {
+TEST_ADD(mmap_fixed_replace_many_1, 0) {
   size_t pgsz = getpagesize();
   void *addr = prepare_rw_layout(pgsz);
   void *new;
@@ -332,7 +332,7 @@ TEST_ADD(mmap_fixed_replace_many_1) {
 }
 
 /* This test unmaps all entries from prepared layout */
-TEST_ADD(mmap_fixed_replace_many_2) {
+TEST_ADD(mmap_fixed_replace_many_2, 0) {
   size_t pgsz = getpagesize();
   void *addr = prepare_rw_layout(pgsz);
   void *new;

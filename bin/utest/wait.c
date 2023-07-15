@@ -17,7 +17,7 @@ static void sigcont_handler(int signo) {
   sigcont_handled = 1;
 }
 
-TEST_ADD(wait_basic) {
+TEST_ADD(wait_basic, 0) {
   ppid = getpid();
   signal(SIGCONT, sigcont_handler);
   int pid = fork();
@@ -59,7 +59,7 @@ TEST_ADD(wait_basic) {
 }
 
 /* ======= wait_nohang ======= */
-TEST_ADD(wait_nohang) {
+TEST_ADD(wait_nohang, 0) {
   ppid = getpid();
   signal(SIGCONT, sigcont_handler);
   int pid = fork();
