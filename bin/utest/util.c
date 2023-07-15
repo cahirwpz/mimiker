@@ -1,7 +1,6 @@
 #include "utest.h"
 #include "util.h"
 
-#include <assert.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
