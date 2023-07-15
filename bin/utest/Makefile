@@ -33,6 +33,7 @@ SOURCES = \
 	vm_map.c \
 	vm_map_prot.c \
 	xfork.c \
+	xkill.c \
 	xsignal.c
 
 PROGRAM = utest
@@ -46,7 +47,7 @@ include $(TOPDIR)/build/build.prog.mk
 LDFLAGS += --wrap=sprintf --wrap=printf
 
 # Provide libc function wrappers that call die() on non-zero errno
-LDFLAGS += --wrap=fork --wrap=signal
+LDFLAGS += --wrap=fork --wrap=kill --wrap=signal
 
 $(SYSROOT)/%: extra/%
 	@echo "[INSTALL] $(DIR)$< -> /$*"
