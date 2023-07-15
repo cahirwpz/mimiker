@@ -91,11 +91,18 @@ int utest_spawn(proc_func_t func, void *arg);
 void utest_child_exited(int exitcode);
 
 /*
- * Original functions with no wrappers
+ * libc function wrappers that call die(...) on error
  */
 
+#include <errno.h>
+#include <string.h>
+
+typedef void (*sig_t)(int);
 typedef int pid_t;
 
-int __real_kill(pid_t pid, int sig);
+pid_t xfork(void);
+void xkill(int pid, int sig);
+void xkillpg(pid_t pgrp, int sig);
+sig_t xsignal(int sig, sig_t func);
 
 #endif /* __UTEST_H__ */

@@ -23,14 +23,14 @@ static void sigpipe_handler(int signo) {
 TEST_ADD(pipe_parent_signaled, 0) {
   int pipe_fd[2];
   signal_delivered = 0;
-  signal(SIGPIPE, sigpipe_handler);
+  xsignal(SIGPIPE, sigpipe_handler);
 
   /* creating pipe */
   int pipe2_ret = pipe2(pipe_fd, 0);
   assert(pipe2_ret == 0);
 
   /* forking */
-  pid_t child_pid = fork();
+  pid_t child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
@@ -66,11 +66,11 @@ TEST_ADD(pipe_child_signaled, 0) {
   assert(pipe2_ret == 0);
 
   /* forking */
-  pid_t child_pid = fork();
+  pid_t child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
-    signal(SIGPIPE, sigpipe_handler);
+    xsignal(SIGPIPE, sigpipe_handler);
 
     close(pipe_fd[0]);        /* closing read end of pipe */
     wait_for_signal(SIGUSR1); /* now we know that other end is closed */
@@ -89,7 +89,7 @@ TEST_ADD(pipe_child_signaled, 0) {
   close(pipe_fd[0]); /* closing read end of pipe */
 
   /* send SIGUSR1 informing that parent closed both ends of pipe */
-  kill(child_pid, SIGUSR1);
+  xkill(child_pid, SIGUSR1);
 
   /* I really want child to finish, not just change it's state.
    * so i don't use wait_for_child_exit
@@ -151,7 +151,7 @@ TEST_ADD(pipe_write_interruptible_sleep, 0) {
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = fork();
+  child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
@@ -200,7 +200,7 @@ TEST_ADD(pipe_write_errno_eagain, 0) {
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = fork();
+  child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) {
@@ -242,7 +242,7 @@ TEST_ADD(pipe_read_interruptible_sleep, 0) {
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = fork();
+  child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
@@ -284,7 +284,7 @@ TEST_ADD(pipe_read_errno_eagain, 0) {
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = fork();
+  child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
@@ -316,7 +316,7 @@ TEST_ADD(pipe_read_return_zero, 0) {
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = fork();
+  child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */

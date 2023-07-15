@@ -142,7 +142,7 @@ TEST_ADD(tty_signals, 0) {
   assert(tcsetattr(slave_fd, TCSANOW, &t) == 0);
 
   pid_t ppid = getpid();
-  pid_t cpid = fork();
+  pid_t cpid = xfork();
   if (cpid == 0) {
     signal_setup(SIGINT);
     signal_setup(SIGQUIT);
@@ -160,7 +160,7 @@ TEST_ADD(tty_signals, 0) {
     assert(tcgetpgrp(slave_fd) == cpid);
 
     /* We're ready to take the signals now. */
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     wait_for_signal(SIGINT);
 
     /* Check if the "foo" was discarded. */
@@ -168,10 +168,10 @@ TEST_ADD(tty_signals, 0) {
     assert(read(slave_fd, &c, 1) == 1);
     assert(c == 'x');
 
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     wait_for_signal(SIGQUIT);
 
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     wait_for_signal(SIGTSTP);
 
     return 0;

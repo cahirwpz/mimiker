@@ -110,7 +110,7 @@ TEST_ADD(munmap, 0) {
   syscall_ok(munmap(addr + 0x1000, 0x1000));
 
   /* Now we have to fork to trigger pagefault on both parts of mapped memory. */
-  child = fork();
+  child = xfork();
   if (child == 0) {
     string_eq(addr, "first");
     string_eq(addr + 0x2000, "second");

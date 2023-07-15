@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 TEST_ADD(fork_wait, 0) {
-  pid_t n = fork();
+  pid_t n = xfork();
   if (n == 0) {
     debug("This is child, my pid is %d!", getpid());
     exit(42);
@@ -37,22 +37,22 @@ static void sigchld_handler(int signo) {
 }
 
 TEST_ADD(fork_signal, 0) {
-  signal(SIGCHLD, sigchld_handler);
-  pid_t n = fork();
+  xsignal(SIGCHLD, sigchld_handler);
+  pid_t n = xfork();
   if (n == 0)
     exit(0);
 
   /* Wait for the child to get reaped by signal handler. */
   while (!done)
     sched_yield();
-  signal(SIGCHLD, SIG_DFL);
+  xsignal(SIGCHLD, SIG_DFL);
   return 0;
 }
 
 TEST_ADD(fork_sigchld_ignored, 0) {
   /* Please auto-reap my children. */
-  signal(SIGCHLD, SIG_IGN);
-  pid_t n = fork();
+  xsignal(SIGCHLD, SIG_IGN);
+  pid_t n = xfork();
   if (n == 0)
     exit(0);
 

@@ -19,13 +19,13 @@ static void sigcont_handler(int signo) {
 
 TEST_ADD(wait_basic, 0) {
   ppid = getpid();
-  signal(SIGCONT, sigcont_handler);
-  pid_t pid = fork();
+  xsignal(SIGCONT, sigcont_handler);
+  pid_t pid = xfork();
   if (pid == 0) {
     while (!sigcont_handled)
       sched_yield();
     sigcont_handled = 0;
-    kill(ppid, SIGCONT);
+    xkill(ppid, SIGCONT);
     while (!sigcont_handled)
       sched_yield();
     return 0;
@@ -35,13 +35,13 @@ TEST_ADD(wait_basic, 0) {
   /* Nothing has happened yet, so waitpid shouldn't report anything. */
   assert(nothing_to_report(pid));
 
-  kill(pid, SIGSTOP);
+  xkill(pid, SIGSTOP);
   assert(waitpid(pid, &status, WUNTRACED) == pid);
   assert(WIFSTOPPED(status));
 
   assert(nothing_to_report(pid));
 
-  kill(pid, SIGCONT);
+  xkill(pid, SIGCONT);
   assert(waitpid(pid, &status, WCONTINUED) == pid);
   assert(WIFCONTINUED(status));
 
@@ -51,7 +51,7 @@ TEST_ADD(wait_basic, 0) {
   while (!sigcont_handled)
     sched_yield();
 
-  kill(pid, SIGCONT);
+  xkill(pid, SIGCONT);
   assert(waitpid(pid, &status, 0) == pid);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == 0);
@@ -61,13 +61,13 @@ TEST_ADD(wait_basic, 0) {
 /* ======= wait_nohang ======= */
 TEST_ADD(wait_nohang, 0) {
   ppid = getpid();
-  signal(SIGCONT, sigcont_handler);
-  pid_t pid = fork();
+  xsignal(SIGCONT, sigcont_handler);
+  pid_t pid = xfork();
   if (pid == 0) {
     while (!sigcont_handled)
       sched_yield();
     sigcont_handled = 0;
-    kill(ppid, SIGCONT);
+    xkill(ppid, SIGCONT);
     while (!sigcont_handled)
       sched_yield();
     return 0;
@@ -77,7 +77,7 @@ TEST_ADD(wait_nohang, 0) {
   /* Nothing has happened yet, so waitpid shouldn't report anything. */
   assert(nothing_to_report(pid));
 
-  kill(pid, SIGSTOP);
+  xkill(pid, SIGSTOP);
   while ((rv = waitpid(pid, &status, WUNTRACED | WNOHANG)) != pid) {
     assert(rv == 0);
     sched_yield();
@@ -86,7 +86,7 @@ TEST_ADD(wait_nohang, 0) {
 
   assert(nothing_to_report(pid));
 
-  kill(pid, SIGCONT);
+  xkill(pid, SIGCONT);
   while ((rv = waitpid(pid, &status, WCONTINUED | WNOHANG)) != pid) {
     assert(rv == 0);
     sched_yield();
@@ -99,7 +99,7 @@ TEST_ADD(wait_nohang, 0) {
   while (!sigcont_handled)
     sched_yield();
 
-  kill(pid, SIGCONT);
+  xkill(pid, SIGCONT);
   while ((rv = waitpid(pid, &status, WNOHANG)) != pid) {
     assert(rv == 0);
     sched_yield();

@@ -16,7 +16,7 @@ TEST_ADD(sharing_memory_simple, 0) {
     mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
   assert(map != (char *)MAP_FAILED);
 
-  pid_t pid = fork();
+  pid_t pid = xfork();
   assert(pid >= 0);
 
   if (pid == 0) {
@@ -38,12 +38,12 @@ TEST_ADD(sharing_memory_child_and_grandchild, 0) {
     mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
   assert(map != (char *)MAP_FAILED);
 
-  pid_t pid = fork();
+  pid_t pid = xfork();
   assert(pid >= 0);
 
   if (pid == 0) {
     /* child */
-    pid = fork();
+    pid = xfork();
     assert(pid >= 0);
 
     if (pid == 0) {

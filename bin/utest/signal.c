@@ -21,14 +21,14 @@ static void sigint_handler(int signo) {
 }
 
 TEST_ADD(signal_basic, 0) {
-  signal(SIGINT, sigint_handler);
-  signal(SIGUSR1, sigusr1_handler);
+  xsignal(SIGINT, sigint_handler);
+  xsignal(SIGUSR1, sigusr1_handler);
   raise(SIGINT);
   assert(sigusr1_handled);
 
   /* Restore original behavior. */
-  signal(SIGINT, SIG_DFL);
-  signal(SIGUSR1, SIG_DFL);
+  xsignal(SIGINT, SIG_DFL);
+  xsignal(SIGUSR1, SIG_DFL);
 
   return 0;
 }
@@ -42,8 +42,8 @@ static void sigusr2_handler(int signo) {
 /* Test sending a signal to a different thread. */
 TEST_ADD(signal_send, 0) {
   /* The child should inherit signal handler configuration. */
-  signal(SIGUSR2, sigusr2_handler);
-  pid_t pid = fork();
+  xsignal(SIGUSR2, sigusr2_handler);
+  pid_t pid = xfork();
   if (pid == 0) {
     debug("This is child (mypid = %d)", getpid());
     /* Wait for signal. */
@@ -52,7 +52,7 @@ TEST_ADD(signal_send, 0) {
   }
 
   debug("This is parent (childpid = %d, mypid = %d)", pid, getpid());
-  kill(pid, SIGUSR2);
+  xkill(pid, SIGUSR2);
   int status;
   debug("Waiting for child...");
   wait(&status);
@@ -96,28 +96,28 @@ static void sigcont_handler(int signo) {
 
 static volatile int ppid;
 static void signal_parent(int signo) {
-  kill(ppid, SIGCONT);
+  xkill(ppid, SIGCONT);
 }
 
 TEST_ADD(signal_stop, 0) {
   ppid = getpid();
-  signal(SIGUSR1, SIG_IGN);
-  signal(SIGCONT, sigcont_handler);
-  pid_t pid = fork();
+  xsignal(SIGUSR1, SIG_IGN);
+  xsignal(SIGCONT, sigcont_handler);
+  pid_t pid = xfork();
   if (pid == 0) {
-    signal(SIGUSR1, signal_parent);
+    xsignal(SIGUSR1, signal_parent);
     /* The child keeps sending SIGUSR1 to the parent. */
     while (!sigcont_handled)
-      kill(ppid, SIGUSR1);
+      xkill(ppid, SIGUSR1);
     return 0;
   }
 
   int status;
-  signal(SIGUSR1, sigusr1_handler);
+  xsignal(SIGUSR1, sigusr1_handler);
   /* Wait for the child to start sending signals */
   while (!sigusr1_handled)
     sched_yield();
-  kill(pid, SIGSTOP);
+  xkill(pid, SIGSTOP);
   /* Wait for the child to stop. */
   assert(waitpid(pid, &status, WUNTRACED) == pid);
   assert(WIFSTOPPED(status));
@@ -132,12 +132,12 @@ TEST_ADD(signal_stop, 0) {
    * continued (with SIGKILL and SIGCONT being the only exceptions).
    * Send SIGUSR1 to the stopped child. If the handler runs, it will
    * send us SIGCONT. */
-  kill(pid, SIGUSR1);
+  xkill(pid, SIGUSR1);
   for (int i = 0; i < 3; i++)
     sched_yield();
   assert(!sigcont_handled);
   /* Now continue the child process. */
-  kill(pid, SIGCONT);
+  xkill(pid, SIGCONT);
   /* The child's SIGUSR1 handler should now run, and so our SIGCONT handler
    * should run too. */
   while (!sigcont_handled)
@@ -153,8 +153,8 @@ TEST_ADD(signal_stop, 0) {
 /* ======= signal_cont_masked ======= */
 TEST_ADD(signal_cont_masked, 0) {
   ppid = getpid();
-  signal(SIGCONT, sigcont_handler);
-  pid_t pid = fork();
+  xsignal(SIGCONT, sigcont_handler);
+  pid_t pid = xfork();
   if (pid == 0) {
     /* Block SIGCONT. */
     sigset_t mask, old;
@@ -176,7 +176,7 @@ TEST_ADD(signal_cont_masked, 0) {
   assert(waitpid(pid, &status, WUNTRACED) == pid);
   assert(WIFSTOPPED(status));
 
-  kill(pid, SIGCONT);
+  xkill(pid, SIGCONT);
   debug("Waiting for child...");
   wait(&status);
   assert(WIFEXITED(status));
@@ -187,10 +187,10 @@ TEST_ADD(signal_cont_masked, 0) {
 /* ======= signal_mask ======= */
 TEST_ADD(signal_mask, 0) {
   ppid = getpid();
-  signal(SIGUSR1, signal_parent);
-  signal(SIGCONT, sigcont_handler);
+  xsignal(SIGUSR1, signal_parent);
+  xsignal(SIGCONT, sigcont_handler);
 
-  pid_t pid = fork();
+  pid_t pid = xfork();
   if (pid == 0) {
     while (!sigcont_handled)
       sched_yield();
@@ -198,7 +198,7 @@ TEST_ADD(signal_mask, 0) {
   }
 
   /* Check that the signal bounces properly. */
-  kill(pid, SIGUSR1);
+  xkill(pid, SIGUSR1);
   while (!sigcont_handled)
     sched_yield();
 
@@ -210,7 +210,7 @@ TEST_ADD(signal_mask, 0) {
    * The delivery of the signal should be delayed until we unblock it. */
   assert(sigprocmask(SIG_BLOCK, &mask, NULL) == 0);
   sigcont_handled = 0;
-  kill(pid, SIGUSR1);
+  xkill(pid, SIGUSR1);
 
   /* Wait until we get a signal from the child. */
   sigset_t set;
@@ -225,7 +225,7 @@ TEST_ADD(signal_mask, 0) {
   assert(sigprocmask(SIG_UNBLOCK, &mask, NULL) == 0);
   assert(sigcont_handled);
 
-  kill(pid, SIGCONT);
+  xkill(pid, SIGCONT);
   int status;
   debug("Waiting for child...");
   wait(&status);
@@ -252,21 +252,21 @@ TEST_ADD(signal_mask_nonmaskable, 0) {
 /* ======= signal_sigsuspend ======= */
 TEST_ADD(signal_sigsuspend, 0) {
   pid_t ppid = getpid();
-  signal(SIGCONT, sigcont_handler);
-  signal(SIGUSR1, sigusr1_handler);
+  xsignal(SIGCONT, sigcont_handler);
+  xsignal(SIGUSR1, sigusr1_handler);
   sigset_t set, old;
   __sigemptyset(&set);
   __sigaddset(&set, SIGCONT);
   __sigaddset(&set, SIGUSR1);
   assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
   __sigaddset(&old, SIGCONT);
-  pid_t cpid = fork();
+  pid_t cpid = xfork();
   if (cpid == 0) {
     for (int i = 0; i < 10; i++) {
-      kill(ppid, SIGCONT);
+      xkill(ppid, SIGCONT);
       sched_yield();
     }
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     return 0;
   }
   /* Go to sleep with SIGCONT blocked and SIGUSR1 unblocked. */
@@ -298,16 +298,16 @@ TEST_ADD(signal_sigsuspend, 0) {
 /* ======= signal_sigsuspend_stop ======= */
 TEST_ADD(signal_sigsuspend_stop, 0) {
   pid_t ppid = getpid();
-  signal(SIGUSR1, sigusr1_handler);
+  xsignal(SIGUSR1, sigusr1_handler);
   sigset_t set, old;
   __sigemptyset(&set);
   __sigaddset(&set, SIGUSR1);
   assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
-  pid_t cpid = fork();
+  pid_t cpid = xfork();
   if (cpid == 0) {
     sigsuspend(&old);
     assert(sigusr1_handled);
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     return 0;
   }
   /* Wait for the child to call sigsuspend().
@@ -316,13 +316,13 @@ TEST_ADD(signal_sigsuspend_stop, 0) {
     sched_yield();
 
   /* Stop the child. */
-  kill(cpid, SIGSTOP);
+  xkill(cpid, SIGSTOP);
   int status;
   assert(waitpid(cpid, &status, WUNTRACED) == cpid);
   assert(WIFSTOPPED(status));
 
   /* Continue the child. This should not interrupt the child's sigsuspend(). */
-  kill(cpid, SIGCONT);
+  xkill(cpid, SIGCONT);
   /* Give the child a chance to run if it has been resumed
    * (which it shouldn't). */
   for (int i = 0; i < 3; i++)
@@ -331,13 +331,13 @@ TEST_ADD(signal_sigsuspend_stop, 0) {
   assert(!sigusr1_handled);
 
   /* Stop the child again. */
-  kill(cpid, SIGSTOP);
+  xkill(cpid, SIGSTOP);
   assert(waitpid(cpid, &status, WUNTRACED) == cpid);
   assert(WIFSTOPPED(status));
 
   /* Send SIGUSR1 to the child. Since it's stopped, it should not interrupt
    * the sigsuspend() yet. */
-  kill(cpid, SIGUSR1);
+  xkill(cpid, SIGUSR1);
   /* Give the child a chance to run if it has been resumed
    * (which it shouldn't). */
   for (int i = 0; i < 3; i++)
@@ -347,7 +347,7 @@ TEST_ADD(signal_sigsuspend_stop, 0) {
 
   /* Continue the child. Now the SIGUSR1 we sent earlier should interrupt
    * the sigsuspend() call. */
-  kill(cpid, SIGCONT);
+  xkill(cpid, SIGCONT);
 
   /* Wait for the child to send us SIGUSR1. */
   sigsuspend(&old);
@@ -366,7 +366,7 @@ static pid_t cpid;
 
 static void yield_handler(int signo) {
   /* Give the child process the signal to send us SIGUSR1 */
-  kill(cpid, SIGUSR1);
+  xkill(cpid, SIGUSR1);
   while (!sigcont_handled)
     sched_yield();
   handler_ran = 1;
@@ -381,20 +381,20 @@ TEST_ADD(signal_handler_mask, 0) {
   __sigemptyset(&sa.sa_mask);
   __sigaddset(&sa.sa_mask, SIGUSR1);
   assert(sigaction(SIGUSR2, &sa, NULL) == 0);
-  signal(SIGUSR1, sigusr1_handler);
-  signal(SIGCONT, sigcont_handler);
+  xsignal(SIGUSR1, sigusr1_handler);
+  xsignal(SIGCONT, sigcont_handler);
 
-  pid_t cpid = fork();
+  pid_t cpid = xfork();
   if (cpid == 0) {
-    kill(ppid, SIGUSR2);
+    xkill(ppid, SIGUSR2);
     /* Wait for the parent to enter the signal handler. */
     while (!sigusr1_handled)
       sched_yield();
     /* Now SIGUSR1 should be blocked in the parent. */
     for (int i = 0; i < 3; i++)
-      kill(ppid, SIGUSR1);
+      xkill(ppid, SIGUSR1);
     /* Sending SIGCONT should allow yield_handler() to run to completion. */
-    kill(ppid, SIGCONT);
+    xkill(ppid, SIGCONT);
     return 0;
   }
 

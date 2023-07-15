@@ -272,7 +272,7 @@ TEST_ADD(fd_pipe, 0) {
   int fd[2];
   assert_pipe_ok(fd);
 
-  pid_t pid = fork();
+  pid_t pid = xfork();
   assert(pid >= 0);
 
   if (pid > 0) {

@@ -50,7 +50,7 @@ noreturn void __die(const char *file, int line, const char *fmt, ...) {
 
 int utest_spawn(proc_func_t func, void *arg) {
   int pid;
-  switch ((pid = fork())) {
+  switch ((pid = xfork())) {
     case -1:
       exit(EXIT_FAILURE);
     case 0:

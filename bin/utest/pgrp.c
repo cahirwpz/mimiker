@@ -13,7 +13,7 @@
 TEST_ADD(setpgid, 0) {
   pgid_t parent_pgid = getpgid(0);
 
-  pid_t children_pid = fork();
+  pid_t children_pid = xfork();
   if (children_pid == 0) {
     /* Process inherits group of its parent. */
     assert(getpgid(0) == parent_pgid);
@@ -44,7 +44,7 @@ static void sa_handler(int signo) {
 TEST_ADD(setpgid_leader, 0) {
   signal_setup(SIGUSR1);
 
-  pid_t cpid = fork();
+  pid_t cpid = xfork();
   if (cpid == 0) {
     /* Become session leader. */
     assert(setsid() == getpid());
@@ -62,7 +62,7 @@ TEST_ADD(setpgid_leader, 0) {
   /* Can't change pgrp of session leader. */
   assert(setpgid(cpid, getpgid(0)));
 
-  kill(cpid, SIGUSR1);
+  xkill(cpid, SIGUSR1);
 
   wait_for_child_exit(cpid, 0);
   return 0;
@@ -71,7 +71,7 @@ TEST_ADD(setpgid_leader, 0) {
 TEST_ADD(setpgid_child, 0) {
   signal_setup(SIGUSR1);
 
-  pid_t cpid1 = fork();
+  pid_t cpid1 = xfork();
   if (cpid1 == 0) {
     /* Become session leader. */
     assert(setsid() == getpid());
@@ -81,10 +81,10 @@ TEST_ADD(setpgid_child, 0) {
     return 0;
   }
 
-  pid_t cpid2 = fork();
+  pid_t cpid2 = xfork();
   if (cpid2 == 0) {
     /* Signal readiness to parent. */
-    kill(getppid(), SIGUSR1);
+    xkill(getppid(), SIGUSR1);
 
     /* A child should not be able to change its parent's
      * process group. */
@@ -114,8 +114,8 @@ TEST_ADD(setpgid_child, 0) {
   assert(setpgid(cpid2, cpid1));
   assert(getpgid(cpid2) == getpgid(0));
 
-  kill(cpid1, SIGUSR1);
-  kill(cpid2, SIGUSR1);
+  xkill(cpid1, SIGUSR1);
+  xkill(cpid2, SIGUSR1);
 
   wait_for_child_exit(cpid1, 0);
   wait_for_child_exit(cpid2, 0);
@@ -138,9 +138,9 @@ TEST_ADD(kill, 0) {
   kill_tests_setup();
   pgid_t parent_pid = getpid();
 
-  pid_t pid = fork();
+  pid_t pid = xfork();
   if (pid == 0) {
-    kill(parent_pid, SIGUSR1);
+    xkill(parent_pid, SIGUSR1);
 
     /* Signal is not delivered to all processes in the group. */
     assert(!sig_delivered);
@@ -160,14 +160,14 @@ TEST_ADD(kill, 0) {
 TEST_ADD(killpg_same_group, 0) {
   kill_tests_setup();
 
-  pid_t pid_a = fork();
+  pid_t pid_a = xfork();
   if (pid_a == 0) {
     setpgid(0, 0);
     pid_t pgid_a = getpgid(0);
 
-    pid_t pid_b = fork();
+    pid_t pid_b = xfork();
     if (pid_b == 0) {
-      assert(!killpg(pgid_a, SIGUSR1));
+      xkillpg(pgid_a, SIGUSR1);
 
       /* Process b should receive signal from process b. */
       assert(sig_delivered);
@@ -182,9 +182,9 @@ TEST_ADD(killpg_same_group, 0) {
 
   wait_for_child_exit(pid_a, 0);
   /* Invalid argument. */
-  assert(killpg(1, SIGUSR1));
+  syscall_fail(killpg(1, SIGUSR1), ESRCH);
   /* Invalid argument (negative number). */
-  assert(killpg(-1, SIGUSR1));
+  syscall_fail(killpg(-1, SIGUSR1), ESRCH);
 
   return 0;
 }
@@ -196,19 +196,19 @@ TEST_ADD(killpg_same_group, 0) {
 TEST_ADD(killpg_other_group, 0) {
   kill_tests_setup();
 
-  pid_t pid_a = fork();
+  pid_t pid_a = xfork();
   if (pid_a == 0) {
     setpgid(0, 0);
     pid_t pgid_a = getpgid(0);
 
-    pid_t pid_b = fork();
+    pid_t pid_b = xfork();
     if (pid_b == 0) {
 
-      pid_t pid_c = fork();
+      pid_t pid_c = xfork();
       if (pid_c == 0) {
 
         setpgid(0, 0);
-        assert(!killpg(pgid_a, SIGUSR1));
+        xkillpg(pgid_a, SIGUSR1);
 
         /* Process c should not receive signal from process c. */
         assert(!sig_delivered);
@@ -229,7 +229,7 @@ TEST_ADD(killpg_other_group, 0) {
 
   wait_for_child_exit(pid_a, 0);
   /* It is forbidden to send signal to non-existing group. */
-  syscall_fail(__real_kill(-pid_a, SIGUSR1), ESRCH);
+  syscall_fail(killpg(pid_a, SIGUSR1), ESRCH);
 
   return 0;
 }
@@ -237,12 +237,12 @@ TEST_ADD(killpg_other_group, 0) {
 TEST_ADD(pgrp_orphan, 0) {
   signal_setup(SIGHUP);
   int ppid = getpid();
-  pid_t cpid = fork();
+  pid_t cpid = xfork();
   int status;
   if (cpid == 0) {
     cpid = getpid();
     assert(setsid() == cpid);
-    pid_t gcpid = fork();
+    pid_t gcpid = xfork();
 
     if (gcpid == 0) {
       gcpid = getpid();
@@ -250,7 +250,7 @@ TEST_ADD(pgrp_orphan, 0) {
 
       raise(SIGSTOP);
       wait_for_signal(SIGHUP);
-      kill(ppid, SIGHUP);
+      xkill(ppid, SIGHUP);
       return 0;
     }
 
@@ -285,7 +285,7 @@ TEST_ADD(session_basic, 0) {
   signal_setup(SIGUSR1);
   parent_sid = getsid(getpid());
   assert(parent_sid != -1);
-  pid_t cpid = fork();
+  pid_t cpid = xfork();
   if (cpid == 0) {
     cpid = getpid();
     pid_t ppid = getppid();
@@ -311,7 +311,7 @@ TEST_ADD(session_basic, 0) {
     sched_yield();
   }
 
-  kill(cpid, SIGUSR1);
+  xkill(cpid, SIGUSR1);
   wait_for_child_exit(cpid, 0);
   return 0;
 }
