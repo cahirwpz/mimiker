@@ -4,6 +4,10 @@
 #include <sys/linker_set.h>
 #include <stdnoreturn.h>
 
+/*
+ * Test definition
+ */
+
 typedef int (*test_func_t)(void);
 
 typedef enum test_flags {
@@ -24,24 +28,27 @@ typedef struct test_entry {
   SET_ENTRY(tests, NAME##_test);                                               \
   int test_##NAME(void)
 
-typedef int (*proc_func_t)(void *);
+/*
+ * Diagnostic messages
+ */
+
+extern int __verbose;
 
 noreturn void __die(const char *file, int line, const char *func,
                     const char *fmt, ...);
 void __msg(const char *file, int line, const char *func, const char *fmt, ...);
 
-int utest_spawn(proc_func_t func, void *arg);
-void utest_child_exited(int exitcode);
-
-extern int __verbose;
-
 #define die(...) __die(__FILE__, __LINE__, __func__, __VA_ARGS__)
 #define debug(...) __msg(__FILE__, __LINE__, __func__, __VA_ARGS__)
+
+/*
+ * Assertion definition and various checks
+ */
 
 #define assert(e)                                                              \
   ({                                                                           \
     if (!(e))                                                                  \
-      die("assertion '%s' failed!\n", #e);                                     \
+      die("assertion '%s' failed!", #e);                                       \
   })
 
 /* Test if system call returned with no error. */
@@ -50,7 +57,7 @@ extern int __verbose;
     errno = 0;                                                                 \
     long __r = (long)(e);                                                      \
     if (__r != 0)                                                              \
-      die("call '%s' unexpectedly returned %ld (errno = %d)!\n", #e, __r,      \
+      die("call '%s' unexpectedly returned %ld (errno = %d)!", #e, __r,        \
           errno);                                                              \
   })
 
@@ -60,20 +67,32 @@ extern int __verbose;
     errno = 0;                                                                 \
     long __r = (long)(e);                                                      \
     if ((__r != -1) || (errno != (err)))                                       \
-      die("call '%s' unexpectedly returned %ld (errno = %d)\n", #e, __r,       \
-          errno);                                                              \
+      die("call '%s' unexpectedly returned %ld (errno = %d)", #e, __r, errno); \
   })
 
 #define string_eq(s1, s2)                                                      \
   ({                                                                           \
     if (strcmp((s1), (s2)))                                                    \
-      die("strings were expected to match!\n");                                \
+      die("strings were expected to match!");                                  \
   })
 
 #define string_ne(s1, s2)                                                      \
   ({                                                                           \
     if (!strcmp((s1), (s2)))                                                   \
-      die("strings were not expected to match!\n");                            \
+      die("strings were not expected to match!");                              \
   })
+
+/* Miscellanous helper functions */
+
+typedef int (*proc_func_t)(void *);
+
+int utest_spawn(proc_func_t func, void *arg);
+void utest_child_exited(int exitcode);
+
+/* libc functions wrappers that automatically call die() on error */
+
+#include <unistd.h>
+
+pid_t xfork(void);
 
 #endif /* __UTEST_H__ */

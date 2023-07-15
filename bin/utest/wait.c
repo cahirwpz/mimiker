@@ -20,7 +20,7 @@ static void sigcont_handler(int signo) {
 TEST_ADD(wait_basic, 0) {
   ppid = getpid();
   signal(SIGCONT, sigcont_handler);
-  int pid = fork();
+  pid_t pid = fork();
   if (pid == 0) {
     while (!sigcont_handled)
       sched_yield();
@@ -62,7 +62,7 @@ TEST_ADD(wait_basic, 0) {
 TEST_ADD(wait_nohang, 0) {
   ppid = getpid();
   signal(SIGCONT, sigcont_handler);
-  int pid = fork();
+  pid_t pid = fork();
   if (pid == 0) {
     while (!sigcont_handled)
       sched_yield();

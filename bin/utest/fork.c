@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 TEST_ADD(fork_wait, 0) {
-  int n = fork();
+  pid_t n = fork();
   if (n == 0) {
     debug("This is child, my pid is %d!", getpid());
     exit(42);
@@ -38,7 +38,7 @@ static void sigchld_handler(int signo) {
 
 TEST_ADD(fork_signal, 0) {
   signal(SIGCHLD, sigchld_handler);
-  int n = fork();
+  pid_t n = fork();
   if (n == 0)
     exit(0);
 
@@ -52,7 +52,7 @@ TEST_ADD(fork_signal, 0) {
 TEST_ADD(fork_sigchld_ignored, 0) {
   /* Please auto-reap my children. */
   signal(SIGCHLD, SIG_IGN);
-  int n = fork();
+  pid_t n = fork();
   if (n == 0)
     exit(0);
 

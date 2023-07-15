@@ -31,7 +31,9 @@ SOURCES = \
 	vfs.c \
 	wait.c \
 	vm_map.c \
-	vm_map_prot.c
+	vm_map_prot.c \
+	xfork.c \
+	xsignal.c
 
 PROGRAM = utest
 
@@ -42,6 +44,9 @@ include $(TOPDIR)/build/build.prog.mk
 
 # Force a user not to use following symbols
 LDFLAGS += --wrap=sprintf --wrap=printf
+
+# Provide libc function wrappers that call die() on non-zero errno
+LDFLAGS += --wrap=fork --wrap=signal
 
 $(SYSROOT)/%: extra/%
 	@echo "[INSTALL] $(DIR)$< -> /$*"

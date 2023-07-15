@@ -43,7 +43,7 @@ static void sigusr2_handler(int signo) {
 TEST_ADD(signal_send, 0) {
   /* The child should inherit signal handler configuration. */
   signal(SIGUSR2, sigusr2_handler);
-  int pid = fork();
+  pid_t pid = fork();
   if (pid == 0) {
     debug("This is child (mypid = %d)", getpid());
     /* Wait for signal. */
@@ -103,7 +103,7 @@ TEST_ADD(signal_stop, 0) {
   ppid = getpid();
   signal(SIGUSR1, SIG_IGN);
   signal(SIGCONT, sigcont_handler);
-  int pid = fork();
+  pid_t pid = fork();
   if (pid == 0) {
     signal(SIGUSR1, signal_parent);
     /* The child keeps sending SIGUSR1 to the parent. */
@@ -154,7 +154,7 @@ TEST_ADD(signal_stop, 0) {
 TEST_ADD(signal_cont_masked, 0) {
   ppid = getpid();
   signal(SIGCONT, sigcont_handler);
-  int pid = fork();
+  pid_t pid = fork();
   if (pid == 0) {
     /* Block SIGCONT. */
     sigset_t mask, old;
@@ -190,7 +190,7 @@ TEST_ADD(signal_mask, 0) {
   signal(SIGUSR1, signal_parent);
   signal(SIGCONT, sigcont_handler);
 
-  int pid = fork();
+  pid_t pid = fork();
   if (pid == 0) {
     while (!sigcont_handled)
       sched_yield();
