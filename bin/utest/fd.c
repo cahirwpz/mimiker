@@ -153,7 +153,7 @@ TEST_ADD(fd_open_path, 0) {
 }
 
 TEST_ADD(fd_dup, 0) {
-  int x = open("/tests/dup_test_file", O_RDONLY, 0);
+  int x = xopen("/tests/dup_test_file", O_RDONLY, 0);
   int y = dup(0);
   dup2(x, 0);
   char word[100];
@@ -270,26 +270,23 @@ TEST_ADD(fd_writev, 0) {
 
 TEST_ADD(fd_pipe, 0) {
   int fd[2];
-  assert_pipe_ok(fd);
+  xpipe(fd);
 
   pid_t pid = xfork();
-  assert(pid >= 0);
 
-  if (pid > 0) {
-    /* parent */
-    assert_close_ok(fd[0]);
-    assert_write_ok(fd[1], str, strlen(str));
-    assert_close_ok(fd[1]);
-
-    int status;
-    waitpid(-1, &status, 0);
-  } else {
+  if (pid == 0) {
     /* child */
     assert_close_ok(fd[1]);
     assert_read_equal(fd[0], buf, str);
     assert_close_ok(fd[0]);
     exit(0);
   }
+
+  assert_close_ok(fd[0]);
+  assert_write_ok(fd[1], str, strlen(str));
+  assert_close_ok(fd[1]);
+
+  wait_child_finished(pid);
 
   return 0;
 }

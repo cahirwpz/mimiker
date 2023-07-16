@@ -48,21 +48,41 @@ noreturn void __die(const char *file, int line, const char *fmt, ...) {
   exit(EXIT_FAILURE);
 }
 
-int utest_spawn(proc_func_t func, void *arg) {
-  int pid;
-  switch ((pid = xfork())) {
-    case -1:
-      exit(EXIT_FAILURE);
-    case 0:
-      exit(func(arg));
-    default:
-      return pid;
-  }
+pid_t spawn(proc_func_t func, void *arg) {
+  int pid = xfork();
+  if (pid == 0)
+    exit(func(arg));
+  return pid;
 }
 
-void utest_child_exited(int exitcode) {
+pid_t wait_child_exited(pid_t pid, int exitcode) {
   int status;
-  wait(&status);
+  pid_t res = xwaitpid(pid, &status, 0);
+  if (pid > 0)
+    assert(res == pid);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == exitcode);
+  return res;
+}
+
+pid_t wait_child_terminated(pid_t pid, int signo) {
+  int status;
+  pid_t res = xwaitpid(pid, &status, 0);
+  if (pid > 0)
+    assert(res == pid);
+  assert(WIFSIGNALED(status));
+  assert(WTERMSIG(status) == signo);
+  return res;
+}
+
+void wait_child_stopped(pid_t pid) {
+  int status;
+  assert(xwaitpid(pid, &status, WUNTRACED) == pid);
+  assert(WIFSTOPPED(status));
+}
+
+void wait_child_continued(pid_t pid) {
+  int status;
+  assert(xwaitpid(pid, &status, WCONTINUED) == pid);
+  assert(WIFCONTINUED(status));
 }
