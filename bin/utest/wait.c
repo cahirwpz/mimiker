@@ -31,19 +31,16 @@ TEST_ADD(wait_basic, 0) {
     return 0;
   }
 
-  int status;
   /* Nothing has happened yet, so waitpid shouldn't report anything. */
   assert(nothing_to_report(pid));
 
   xkill(pid, SIGSTOP);
-  assert(xwaitpid(pid, &status, WUNTRACED) == pid);
-  assert(WIFSTOPPED(status));
+  wait_child_stopped(pid);
 
   assert(nothing_to_report(pid));
 
   xkill(pid, SIGCONT);
-  assert(xwaitpid(pid, &status, WCONTINUED) == pid);
-  assert(WIFCONTINUED(status));
+  wait_child_continued(pid);
 
   assert(nothing_to_report(pid));
 
@@ -52,9 +49,7 @@ TEST_ADD(wait_basic, 0) {
     sched_yield();
 
   xkill(pid, SIGCONT);
-  assert(xwaitpid(pid, &status, 0) == pid);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(pid);
   return 0;
 }
 

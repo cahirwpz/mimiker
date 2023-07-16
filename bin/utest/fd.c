@@ -286,7 +286,7 @@ TEST_ADD(fd_pipe, 0) {
   assert_write_ok(fd[1], str, strlen(str));
   assert_close_ok(fd[1]);
 
-  wait_for_child_exit(pid, 0);
+  wait_child_finished(pid);
 
   return 0;
 }

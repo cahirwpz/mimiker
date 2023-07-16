@@ -74,7 +74,7 @@ INSTALL-FILES = $(EXTRAFILES:extra/%=$(SYSROOT)/%)
 include $(TOPDIR)/build/build.prog.mk
 
 # Force a user not to use following symbols
-LDFLAGS += --wrap=sprintf --wrap=printf
+LDFLAGS += --wrap=sprintf --wrap=printf --wrap=wait
 
 $(SYSROOT)/%: extra/%
 	@echo "[INSTALL] $(DIR)$< -> /$*"

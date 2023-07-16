@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sys/linker_set.h>
+#include <sys/types.h>
 #include <stdnoreturn.h>
 
 /*
@@ -74,10 +75,14 @@ void __msg(const char *file, int line, const char *fmt, ...);
  * Miscellanous helper functions
  */
 
-typedef int (*proc_func_t)(void *);
+/* Wait for a single child process `pid` to exit with `exitcode` code. */
+void wait_child_exited(pid_t pid, int exitcode);
 
-int utest_spawn(proc_func_t func, void *arg);
-void utest_child_exited(int exitcode);
+#define wait_child_finished(pid) wait_child_exited(pid, 0)
+
+void wait_child_terminated(pid_t pid, int signo);
+void wait_child_stopped(pid_t pid);
+void wait_child_continued(pid_t pid);
 
 /*
  * libc function wrappers that call die(...) on error
@@ -85,10 +90,8 @@ void utest_child_exited(int exitcode);
 
 #include <errno.h>
 #include <string.h>
-#include <sys/types.h>
 
 typedef void (*sig_t)(int);
-typedef int pid_t;
 struct stat;
 struct timezone;
 struct timeval;

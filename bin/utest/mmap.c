@@ -117,7 +117,7 @@ TEST_ADD(munmap, 0) {
     exit(0);
   }
 
-  wait_for_child_exit(child, 0);
+  wait_child_finished(child);
 
   xmunmap(addr, 0x1000);
   xmunmap(addr + 0x2000, 0x1000);

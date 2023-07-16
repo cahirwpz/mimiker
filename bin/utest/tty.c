@@ -209,7 +209,7 @@ TEST_ADD(tty_signals, 0) {
   assert(vsusp != _POSIX_VDISABLE);
   assert(write(master_fd, &vsusp, 1) == 1);
 
-  wait_for_child_exit(cpid, 0);
+  wait_child_finished(cpid);
 
   return 0;
 }

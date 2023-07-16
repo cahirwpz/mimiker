@@ -53,12 +53,8 @@ TEST_ADD(signal_send, 0) {
 
   debug("This is parent (childpid = %d, mypid = %d)", pid, getpid());
   xkill(pid, SIGUSR2);
-  int status;
-  debug("Waiting for child...");
-  wait(&status);
-  assert(WIFSIGNALED(status));
-  assert(WTERMSIG(status) == SIGABRT);
-  debug("Child was stopped by SIGABRT.");
+  wait_child_terminated(pid, SIGABRT);
+  debug("Child was terminated by SIGABRT.");
   return 0;
 }
 
@@ -112,15 +108,13 @@ TEST_ADD(signal_stop, 0) {
     return 0;
   }
 
-  int status;
   xsignal(SIGUSR1, sigusr1_handler);
   /* Wait for the child to start sending signals */
   while (!sigusr1_handled)
     sched_yield();
   xkill(pid, SIGSTOP);
   /* Wait for the child to stop. */
-  assert(xwaitpid(pid, &status, WUNTRACED) == pid);
-  assert(WIFSTOPPED(status));
+  wait_child_stopped(pid);
   /* Now we shouldn't be getting any signals from the child. */
   sigusr1_handled = 0;
   /* Yield a couple times to make sure that if the child was runnable,
@@ -143,10 +137,7 @@ TEST_ADD(signal_stop, 0) {
   while (!sigcont_handled)
     sched_yield();
   /* The child process should exit normally. */
-  debug("Waiting for child...");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(pid);
   return 0;
 }
 
@@ -171,16 +162,11 @@ TEST_ADD(signal_cont_masked, 0) {
     return 0;
   }
 
-  int status;
   /* Wait for the child to stop. */
-  assert(xwaitpid(pid, &status, WUNTRACED) == pid);
-  assert(WIFSTOPPED(status));
-
+  wait_child_stopped(pid);
   xkill(pid, SIGCONT);
-  debug("Waiting for child...");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(pid);
+
   return 0;
 }
 
@@ -226,11 +212,8 @@ TEST_ADD(signal_mask, 0) {
   assert(sigcont_handled);
 
   xkill(pid, SIGCONT);
-  int status;
-  debug("Waiting for child...");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+
+  wait_child_finished(pid);
   return 0;
 }
 
@@ -287,11 +270,7 @@ TEST_ADD(signal_sigsuspend, 0) {
   assert(sigprocmask(SIG_UNBLOCK, &set, NULL) == 0);
   assert(sigcont_handled);
 
-  int status;
-  debug("Waiting for child...");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(cpid);
   return 0;
 }
 
@@ -317,9 +296,7 @@ TEST_ADD(signal_sigsuspend_stop, 0) {
 
   /* Stop the child. */
   xkill(cpid, SIGSTOP);
-  int status;
-  assert(xwaitpid(cpid, &status, WUNTRACED) == cpid);
-  assert(WIFSTOPPED(status));
+  wait_child_stopped(cpid);
 
   /* Continue the child. This should not interrupt the child's sigsuspend(). */
   xkill(cpid, SIGCONT);
@@ -332,8 +309,7 @@ TEST_ADD(signal_sigsuspend_stop, 0) {
 
   /* Stop the child again. */
   xkill(cpid, SIGSTOP);
-  assert(xwaitpid(cpid, &status, WUNTRACED) == cpid);
-  assert(WIFSTOPPED(status));
+  wait_child_stopped(cpid);
 
   /* Send SIGUSR1 to the child. Since it's stopped, it should not interrupt
    * the sigsuspend() yet. */
@@ -353,9 +329,7 @@ TEST_ADD(signal_sigsuspend_stop, 0) {
   sigsuspend(&old);
 
   /* Reap the child. */
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(cpid);
   return 0;
 }
 
@@ -404,10 +378,6 @@ TEST_ADD(signal_handler_mask, 0) {
   assert(handler_success);
   assert(sigusr1_handled);
 
-  int status;
-  debug("Waiting for child...");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(cpid);
   return 0;
 }

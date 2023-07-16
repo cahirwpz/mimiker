@@ -42,7 +42,7 @@ TEST_ADD(pipe_parent_signaled, 0) {
   xclose(pipe_fd[0]); /* closing read end of pipe */
 
   /* Sync with end of child execution */
-  wait_for_child_exit(child_pid, EXIT_SUCCESS);
+  wait_child_finished(child_pid);
 
   /* This is supposed to trigger SIGPIPE and return EPIPE */
   ssize_t write_ret = write(pipe_fd[1], "hello world\n", 12);
@@ -89,15 +89,7 @@ TEST_ADD(pipe_child_signaled, 0) {
   /* send SIGUSR1 informing that parent closed both ends of pipe */
   xkill(child_pid, SIGUSR1);
 
-  /* I really want child to finish, not just change it's state.
-   * so i don't use wait_for_child_exit
-   */
-  int wstatus = 1;
-  do {
-    assert(xwaitpid(child_pid, &wstatus, 0) == child_pid);
-  } while (!WIFEXITED(wstatus));
-
-  assert(WEXITSTATUS(wstatus) == EXIT_SUCCESS);
+  wait_child_finished(child_pid);
 
   return 0;
 }
@@ -181,7 +173,7 @@ TEST_ADD(pipe_write_interruptible_sleep, 0) {
   }
 
   xclose(pipe_fd[1]); /* closing write end of pipe */
-  wait_for_child_exit(child_pid, EXIT_SUCCESS);
+  wait_child_finished(child_pid);
   xclose(pipe_fd[0]); /* closing read end of pipe */
   return 0;
 }
@@ -222,7 +214,7 @@ TEST_ADD(pipe_write_errno_eagain, 0) {
   }
 
   xclose(pipe_fd[1]); /* closing write end of pipe */
-  wait_for_child_exit(child_pid, EXIT_SUCCESS);
+  wait_child_finished(child_pid);
   xclose(pipe_fd[0]);
   return 0;
 }
@@ -262,7 +254,7 @@ TEST_ADD(pipe_read_interruptible_sleep, 0) {
   }
 
   xclose(pipe_fd[0]); /* closing read end of pipe */
-  wait_for_child_exit(child_pid, EXIT_SUCCESS);
+  wait_child_finished(child_pid);
   xclose(pipe_fd[1]); /* closing write end of pipe */
 
   return 0;
@@ -294,7 +286,7 @@ TEST_ADD(pipe_read_errno_eagain, 0) {
   }
 
   xclose(pipe_fd[0]); /* closing read end of pipe */
-  wait_for_child_exit(child_pid, EXIT_SUCCESS);
+  wait_child_finished(child_pid);
   xclose(pipe_fd[1]); /* closing write end of pipe */
   return 0;
 }
@@ -326,6 +318,6 @@ TEST_ADD(pipe_read_return_zero, 0) {
 
   xclose(pipe_fd[0]); /* closing read end of pipe */
   xclose(pipe_fd[1]); /* closing write end of pipe */
-  wait_for_child_exit(child_pid, EXIT_SUCCESS);
+  wait_child_finished(child_pid);
   return 0;
 }
