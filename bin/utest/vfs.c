@@ -26,7 +26,7 @@ static void fill_random(uint32_t *data, size_t n) {
   }
 }
 
-TEST_ADD(vfs_rw) {
+TEST_ADD(vfs_rw, 0) {
   int n;
 
   void *wrbuf = malloc(16384);
@@ -72,7 +72,7 @@ TEST_ADD(vfs_rw) {
   return 0;
 }
 
-TEST_ADD(vfs_trunc) {
+TEST_ADD(vfs_trunc, 0) {
   int n;
   void *wrbuf = malloc(4096);
   void *rdbuf = malloc(8196);
@@ -110,7 +110,7 @@ TEST_ADD(vfs_trunc) {
   return 0;
 }
 
-TEST_ADD(vfs_dir) {
+TEST_ADD(vfs_dir, 0) {
   syscall_fail(mkdir("/", 0), EEXIST);
   syscall_ok(mkdir(TESTDIR "/test", 0));
   syscall_fail(mkdir(TESTDIR "/test", 0), EEXIST);
@@ -148,7 +148,7 @@ TEST_ADD(vfs_dir) {
   return 0;
 }
 
-TEST_ADD(vfs_relative_dir) {
+TEST_ADD(vfs_relative_dir, 0) {
   syscall_ok(chdir(TESTDIR));
   syscall_ok(mkdir("test", 0));
   syscall_fail(mkdir("test", 0), EEXIST);
@@ -176,7 +176,7 @@ TEST_ADD(vfs_relative_dir) {
   return 0;
 }
 
-TEST_ADD(vfs_dot_dot_dir) {
+TEST_ADD(vfs_dot_dot_dir, 0) {
   syscall_ok(chdir(TESTDIR));
 
   syscall_ok(mkdir("test", 0));
@@ -200,7 +200,7 @@ TEST_ADD(vfs_dot_dot_dir) {
   return 0;
 }
 
-TEST_ADD(vfs_dot_dir) {
+TEST_ADD(vfs_dot_dir, 0) {
   syscall_fail(mkdir(TESTDIR "/test/.", 0), ENOENT);
   syscall_fail(mkdir("/.", 0), EEXIST);
   syscall_fail(mkdir(TESTDIR "/.", 0), EEXIST);
@@ -208,7 +208,7 @@ TEST_ADD(vfs_dot_dir) {
   return 0;
 }
 
-TEST_ADD(vfs_dot_dot_across_fs) {
+TEST_ADD(vfs_dot_dot_across_fs, 0) {
   syscall_ok(chdir("/../../../../"));
   syscall_fail(mkdir("dev", 0), EEXIST);
 
@@ -293,13 +293,13 @@ static void test_vfs_symlink_vnr(void) {
   unlink(TESTDIR "/file");
 }
 
-TEST_ADD(vfs_symlink) {
+TEST_ADD(vfs_symlink, 0) {
   test_vfs_symlink_basic();
   test_vfs_symlink_vnr();
   return 0;
 }
 
-TEST_ADD(vfs_link) {
+TEST_ADD(vfs_link, 0) {
   int n;
   struct stat sb;
   ino_t fileino;
@@ -365,7 +365,7 @@ TEST_ADD(vfs_link) {
   return 0;
 }
 
-TEST_ADD(vfs_chmod) {
+TEST_ADD(vfs_chmod, 0) {
   struct stat sb;
 
   assert(open(TESTDIR "/file", O_RDWR | O_CREAT, 0) == 3);

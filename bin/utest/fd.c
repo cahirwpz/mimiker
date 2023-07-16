@@ -20,7 +20,7 @@ static int n;
 #define FD_OFFSET 3
 
 /* Just the basic, correct operations on a single /dev/null */
-TEST_ADD(fd_devnull) {
+TEST_ADD(fd_devnull, 0) {
   assert_open_ok(0, "/dev/null", 0, O_RDWR);
   assert_read_ok(0, buf, 100);
   assert_write_ok(0, str, strlen(str));
@@ -30,7 +30,7 @@ TEST_ADD(fd_devnull) {
 
 /* Opens and closes multiple descriptors, checks if descriptor numbers are
    correctly reused */
-TEST_ADD(fd_multidesc) {
+TEST_ADD(fd_multidesc, 0) {
   assert_open_ok(0, "/dev/null", 0, O_RDWR);
   assert_open_ok(1, "/dev/null", 0, O_RDWR);
   assert_open_ok(2, "/dev/null", 0, O_RDWR);
@@ -51,7 +51,7 @@ TEST_ADD(fd_multidesc) {
 }
 
 /* Tests whether READ/WRITE flags are checked correctly */
-TEST_ADD(fd_readwrite) {
+TEST_ADD(fd_readwrite, 0) {
   assert_open_ok(0, "/dev/null", 0, O_RDONLY);
   assert_open_ok(1, "/dev/null", 0, O_WRONLY);
   assert_open_ok(2, "/dev/null", 0, O_RDWR);
@@ -70,7 +70,7 @@ TEST_ADD(fd_readwrite) {
   return 0;
 }
 
-TEST_ADD(fd_read) {
+TEST_ADD(fd_read, 0) {
   /* Read all at once */
   const char *contents =
     "This is the content of file \"fd_test_file\" in directory \"/tests\"!";
@@ -99,7 +99,7 @@ TEST_ADD(fd_read) {
 }
 
 /* Try passing invalid pointers as arguments to open,read,write. */
-TEST_ADD(fd_copy) {
+TEST_ADD(fd_copy, 0) {
   /* /dev/null does not copy any data, so passing an invalid pointer will not
    * cause any errors - thus we use /dev/zero for this test. However, /dev/zero
    * might also skip copying data, and in that case this test would also fail -
@@ -123,7 +123,7 @@ TEST_ADD(fd_copy) {
 }
 
 /* Tries accessing some invalid descriptor numbers */
-TEST_ADD(fd_bad_desc) {
+TEST_ADD(fd_bad_desc, 0) {
   assert_write_fail(0, buf, 100, EBADF);
   assert_write_fail(42, buf, 100, EBADF);
   assert_write_fail(-10, buf, 100, EBADF);
@@ -136,7 +136,7 @@ TEST_ADD(fd_bad_desc) {
   return 0;
 }
 
-TEST_ADD(fd_open_path) {
+TEST_ADD(fd_open_path, 0) {
   assert_open_fail("/etc/shadow", 0, O_RDONLY, ENOENT);
   assert_open_fail("123456", 0, O_RDONLY, ENOENT);
   assert_open_fail("", 0, O_RDONLY, ENOENT);
@@ -152,7 +152,7 @@ TEST_ADD(fd_open_path) {
   return 0;
 }
 
-TEST_ADD(fd_dup) {
+TEST_ADD(fd_dup, 0) {
   int x = open("/tests/dup_test_file", O_RDONLY, 0);
   int y = dup(0);
   dup2(x, 0);
@@ -189,7 +189,7 @@ static void _init_iovec(char *buf, struct iovec *iov, size_t *lens, int nlens) {
   _init_iovec(buf, iov, (size_t[]){__VA_ARGS__},                               \
               sizeof((size_t[]){__VA_ARGS__}) / sizeof(size_t))
 
-TEST_ADD(fd_readv) {
+TEST_ADD(fd_readv, 0) {
   /* Read all at once */
   const char *contents =
     "This is the content of file \"fd_test_file\" in directory \"/tests\"!";
@@ -238,7 +238,7 @@ TEST_ADD(fd_readv) {
   return 0;
 }
 
-TEST_ADD(fd_writev) {
+TEST_ADD(fd_writev, 0) {
   struct iovec iov[10];
 
   /* Fill buf with some data. */
@@ -268,11 +268,11 @@ TEST_ADD(fd_writev) {
 #undef FD_OFFSET
 #define FD_OFFSET 0
 
-TEST_ADD(fd_pipe) {
+TEST_ADD(fd_pipe, 0) {
   int fd[2];
   assert_pipe_ok(fd);
 
-  pid_t pid = fork();
+  pid_t pid = xfork();
   assert(pid >= 0);
 
   if (pid > 0) {
@@ -294,7 +294,7 @@ TEST_ADD(fd_pipe) {
   return 0;
 }
 
-TEST_ADD(fd_all) {
+TEST_ADD(fd_all, 0) {
   /* Call all fd-related tests one by one to see how they impact the process
    * file descriptor table. */
   test_fd_read();

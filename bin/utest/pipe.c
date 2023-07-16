@@ -20,17 +20,17 @@ static void sigpipe_handler(int signo) {
   }
 }
 
-TEST_ADD(pipe_parent_signaled) {
+TEST_ADD(pipe_parent_signaled, 0) {
   int pipe_fd[2];
   signal_delivered = 0;
-  signal(SIGPIPE, sigpipe_handler);
+  xsignal(SIGPIPE, sigpipe_handler);
 
   /* creating pipe */
   int pipe2_ret = pipe2(pipe_fd, 0);
   assert(pipe2_ret == 0);
 
   /* forking */
-  pid_t child_pid = fork();
+  pid_t child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
@@ -54,7 +54,7 @@ TEST_ADD(pipe_parent_signaled) {
   return 0;
 }
 
-TEST_ADD(pipe_child_signaled) {
+TEST_ADD(pipe_child_signaled, 0) {
   int pipe_fd[2];
   signal_delivered = 0;
 
@@ -66,11 +66,11 @@ TEST_ADD(pipe_child_signaled) {
   assert(pipe2_ret == 0);
 
   /* forking */
-  pid_t child_pid = fork();
+  pid_t child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
-    signal(SIGPIPE, sigpipe_handler);
+    xsignal(SIGPIPE, sigpipe_handler);
 
     close(pipe_fd[0]);        /* closing read end of pipe */
     wait_for_signal(SIGUSR1); /* now we know that other end is closed */
@@ -89,7 +89,7 @@ TEST_ADD(pipe_child_signaled) {
   close(pipe_fd[0]); /* closing read end of pipe */
 
   /* send SIGUSR1 informing that parent closed both ends of pipe */
-  kill(child_pid, SIGUSR1);
+  xkill(child_pid, SIGUSR1);
 
   /* I really want child to finish, not just change it's state.
    * so i don't use wait_for_child_exit
@@ -105,7 +105,7 @@ TEST_ADD(pipe_child_signaled) {
   return 0;
 }
 
-TEST_ADD(pipe_blocking_flag_manipulation) {
+TEST_ADD(pipe_blocking_flag_manipulation, 0) {
   int pipe_fd[2];
 
   /* creating pipe */
@@ -142,7 +142,7 @@ TEST_ADD(pipe_blocking_flag_manipulation) {
   return 0;
 }
 
-TEST_ADD(pipe_write_interruptible_sleep) {
+TEST_ADD(pipe_write_interruptible_sleep, 0) {
   int pipe_fd[2];
   pid_t child_pid;
 
@@ -151,7 +151,7 @@ TEST_ADD(pipe_write_interruptible_sleep) {
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = fork();
+  child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
@@ -190,7 +190,7 @@ TEST_ADD(pipe_write_interruptible_sleep) {
   return 0;
 }
 
-TEST_ADD(pipe_write_errno_eagain) {
+TEST_ADD(pipe_write_errno_eagain, 0) {
   int pipe_fd[2];
   pid_t child_pid;
   int bytes_wrote = 0;
@@ -200,7 +200,7 @@ TEST_ADD(pipe_write_errno_eagain) {
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = fork();
+  child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) {
@@ -232,7 +232,7 @@ TEST_ADD(pipe_write_errno_eagain) {
   return 0;
 }
 
-TEST_ADD(pipe_read_interruptible_sleep) {
+TEST_ADD(pipe_read_interruptible_sleep, 0) {
   int pipe_fd[2];
   pid_t child_pid;
   int bytes_wrote;
@@ -242,7 +242,7 @@ TEST_ADD(pipe_read_interruptible_sleep) {
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = fork();
+  child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
@@ -274,7 +274,7 @@ TEST_ADD(pipe_read_interruptible_sleep) {
   return 0;
 }
 
-TEST_ADD(pipe_read_errno_eagain) {
+TEST_ADD(pipe_read_errno_eagain, 0) {
   int pipe_fd[2];
   pid_t child_pid;
   int bytes_wrote;
@@ -284,7 +284,7 @@ TEST_ADD(pipe_read_errno_eagain) {
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = fork();
+  child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
@@ -306,7 +306,7 @@ TEST_ADD(pipe_read_errno_eagain) {
   return 0;
 }
 
-TEST_ADD(pipe_read_return_zero) {
+TEST_ADD(pipe_read_return_zero, 0) {
   int pipe_fd[2];
   pid_t child_pid;
   int bytes_wrote;
@@ -316,7 +316,7 @@ TEST_ADD(pipe_read_return_zero) {
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = fork();
+  child_pid = xfork();
   assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */

@@ -4,32 +4,50 @@
 #include <sys/linker_set.h>
 #include <stdnoreturn.h>
 
+/*
+ * Test definition
+ */
+
 typedef int (*test_func_t)(void);
+
+typedef enum test_flags {
+  TF_DISABLED = -1, /* test will return success without being executed */
+  TF_DEBUG = 1,     /* display debug messages to stderr */
+} test_flags_t;
 
 typedef struct test_entry {
   const char *name;
   test_func_t func;
+  test_flags_t flags;
 } test_entry_t;
 
-#define TEST_ADD(name)                                                         \
-  int test_##name(void);                                                       \
-  test_entry_t name##_test = {#name, test_##name};                             \
-  SET_ENTRY(tests, name##_test);                                               \
-  int test_##name(void)
+#define TEST_ADD(NAME, FLAGS)                                                  \
+  int test_##NAME(void);                                                       \
+  test_entry_t NAME##_test = {                                                 \
+    .name = #NAME, .func = test_##NAME, .flags = FLAGS};                       \
+  SET_ENTRY(tests, NAME##_test);                                               \
+  int test_##NAME(void)
 
-typedef int (*proc_func_t)(void *);
+/*
+ * Diagnostic messages
+ */
 
-noreturn void __die(const char *file, int line, const char *func,
-                    const char *fmt, ...);
-int utest_spawn(proc_func_t func, void *arg);
-void utest_child_exited(int exitcode);
+extern int __verbose;
 
-#define die(...) __die(__FILE__, __LINE__, __func__, __VA_ARGS__)
+noreturn void __die(const char *file, int line, const char *fmt, ...);
+void __msg(const char *file, int line, const char *fmt, ...);
+
+#define die(...) __die(__FILE__, __LINE__, __VA_ARGS__)
+#define debug(...) __msg(__FILE__, __LINE__, __VA_ARGS__)
+
+/*
+ * Assertion definition and various checks
+ */
 
 #define assert(e)                                                              \
   ({                                                                           \
     if (!(e))                                                                  \
-      die("assertion '%s' failed!\n", #e);                                     \
+      die("assertion '%s' failed!", #e);                                       \
   })
 
 /* Test if system call returned with no error. */
@@ -38,7 +56,7 @@ void utest_child_exited(int exitcode);
     errno = 0;                                                                 \
     long __r = (long)(e);                                                      \
     if (__r != 0)                                                              \
-      die("call '%s' unexpectedly returned %ld (errno = %d)!\n", #e, __r,      \
+      die("call '%s' unexpectedly returned %ld (errno = %d)!", #e, __r,        \
           errno);                                                              \
   })
 
@@ -48,20 +66,43 @@ void utest_child_exited(int exitcode);
     errno = 0;                                                                 \
     long __r = (long)(e);                                                      \
     if ((__r != -1) || (errno != (err)))                                       \
-      die("call '%s' unexpectedly returned %ld (errno = %d)\n", #e, __r,       \
-          errno);                                                              \
+      die("call '%s' unexpectedly returned %ld (errno = %d)", #e, __r, errno); \
   })
 
 #define string_eq(s1, s2)                                                      \
   ({                                                                           \
     if (strcmp((s1), (s2)))                                                    \
-      die("strings were expected to match!\n");                                \
+      die("strings were expected to match!");                                  \
   })
 
 #define string_ne(s1, s2)                                                      \
   ({                                                                           \
     if (!strcmp((s1), (s2)))                                                   \
-      die("strings were not expected to match!\n");                            \
+      die("strings were not expected to match!");                              \
   })
+
+/*
+ * Miscellanous helper functions
+ */
+
+typedef int (*proc_func_t)(void *);
+
+int utest_spawn(proc_func_t func, void *arg);
+void utest_child_exited(int exitcode);
+
+/*
+ * libc function wrappers that call die(...) on error
+ */
+
+#include <errno.h>
+#include <string.h>
+
+typedef void (*sig_t)(int);
+typedef int pid_t;
+
+pid_t xfork(void);
+void xkill(int pid, int sig);
+void xkillpg(pid_t pgrp, int sig);
+sig_t xsignal(int sig, sig_t func);
 
 #endif /* __UTEST_H__ */

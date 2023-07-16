@@ -12,30 +12,24 @@
 #include <unistd.h>
 
 #define check_write_ok(addr)                                                   \
-  { *((char *)(addr)) = 'x'; }
+  { *((volatile char *)(addr)) = 'x'; }
 
 #define check_write_err(si, addr)                                              \
   {                                                                            \
     EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
-      *((char *)(addr)) = 'x';                                                 \
+      *((volatile char *)(addr)) = 'x';                                        \
     }                                                                          \
     CLEANUP_SIGNAL();                                                          \
     CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
   }
 
 #define check_read_ok(addr)                                                    \
-  {                                                                            \
-    char v = *((char *)(addr));                                                \
-    if (v)                                                                     \
-      printf("\n");                                                            \
-  }
+  { *((volatile char *)(addr)); }
 
 #define check_read_err(si, addr)                                               \
   {                                                                            \
     EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
-      char v = *((char *)(addr));                                              \
-      if (v)                                                                   \
-        printf("\n");                                                          \
+      *((volatile char *)(addr));                                              \
     }                                                                          \
     CLEANUP_SIGNAL();                                                          \
     CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
@@ -82,7 +76,7 @@ static void memcpy_fun(void *addr) {
   memcpy(addr, func_inc, len);
 }
 
-TEST_ADD(mprotect_fail) {
+TEST_ADD(mprotect_fail, 0) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, pgsz, PROT_NONE);
   siginfo_t si;
@@ -110,7 +104,7 @@ TEST_ADD(mprotect_fail) {
   return 0;
 }
 
-TEST_ADD(mprotect1) {
+TEST_ADD(mprotect1, 0) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, pgsz, PROT_NONE);
   siginfo_t si;
@@ -171,7 +165,7 @@ static void *prepare_none_layout(size_t pgsz) {
 /* Change only some entries from prepared layout and check if protection
  * was changed correctly.
  */
-TEST_ADD(mprotect2) {
+TEST_ADD(mprotect2, 0) {
   size_t pgsz = getpagesize();
   void *addr = prepare_none_layout(pgsz);
   siginfo_t si;
@@ -280,7 +274,7 @@ TEST_ADD(mprotect2) {
 /* Change protection for page inside given memory range. This will trigger
  * vm_map_entry splitting.
  */
-TEST_ADD(mprotect3) {
+TEST_ADD(mprotect3, 0) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, 4 * pgsz, PROT_NONE);
   siginfo_t si;
