@@ -12,7 +12,7 @@
 #include <sys/termios.h>
 #include <unistd.h>
 
-TEST_ADD(tty_canon) {
+TEST_ADD(tty_canon, 0) {
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
 
@@ -82,7 +82,7 @@ TEST_ADD(tty_canon) {
   return 0;
 }
 
-TEST_ADD(tty_echo) {
+TEST_ADD(tty_echo, 0) {
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
 
@@ -129,7 +129,7 @@ TEST_ADD(tty_echo) {
   return 0;
 }
 
-TEST_ADD(tty_signals) {
+TEST_ADD(tty_signals, 0) {
   signal_setup(SIGUSR1);
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
@@ -142,7 +142,7 @@ TEST_ADD(tty_signals) {
   assert(tcsetattr(slave_fd, TCSANOW, &t) == 0);
 
   pid_t ppid = getpid();
-  pid_t cpid = fork();
+  pid_t cpid = xfork();
   if (cpid == 0) {
     signal_setup(SIGINT);
     signal_setup(SIGQUIT);
@@ -160,7 +160,7 @@ TEST_ADD(tty_signals) {
     assert(tcgetpgrp(slave_fd) == cpid);
 
     /* We're ready to take the signals now. */
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     wait_for_signal(SIGINT);
 
     /* Check if the "foo" was discarded. */
@@ -168,10 +168,10 @@ TEST_ADD(tty_signals) {
     assert(read(slave_fd, &c, 1) == 1);
     assert(c == 'x');
 
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     wait_for_signal(SIGQUIT);
 
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     wait_for_signal(SIGTSTP);
 
     return 0;
