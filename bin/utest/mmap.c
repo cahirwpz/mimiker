@@ -133,10 +133,8 @@ static void sigcont_handler(int signo) {
 }
 
 TEST_ADD(mmap_private, 0) {
-  xsignal(SIGCONT, sigcont_handler);
-
-  int ppid = getpid();
   size_t pgsz = getpagesize();
+  xsignal(SIGCONT, sigcont_handler);
 
   /* mmap & munmap one page */
   char *addr = mmap_anon_prw(NULL, pgsz);
@@ -155,7 +153,7 @@ TEST_ADD(mmap_private, 0) {
     strcpy("Child written: '%s'", addr);
 
     /* Wait for parent to check and modify its memory. */
-    xkill(ppid, SIGCONT);
+    xkill(getppid(), SIGCONT);
     while (!sigcont_handled)
       sched_yield();
 

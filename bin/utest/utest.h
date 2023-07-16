@@ -117,6 +117,7 @@ void xlchmod(const char *path, mode_t mode);
 void xlink(const char *oldpath, const char *newpath);
 void xlstat(const char *pathname, struct stat *statbuf);
 void xmkdir(const char *pathname, mode_t mode);
+void *xmmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset);
 void xmunmap(void *addr, size_t length);
 void xmprotect(void *addr, size_t len, int prot);
 int xopen(const char *path, int flags, ...);
