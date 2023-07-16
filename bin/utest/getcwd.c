@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
-TEST_ADD(getcwd) {
+TEST_ADD(getcwd, 0) {
   {
     /* Working directory is set to root if not changed */
     char buffer[256];

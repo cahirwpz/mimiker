@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-TEST_ADD(procstat) {
+TEST_ADD(procstat, 0) {
   int euid, pid, ppid, pgrp, session, got;
   char state;
 #define PROC_COMM_MAX 128
