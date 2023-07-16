@@ -24,7 +24,7 @@ TEST_ADD(setpgid, 0) {
 
     exit(0);
   }
-  wait_for_child_exit(children_pid, 0);
+  wait_child_finished(children_pid);
 
   /* It is forbidden to move the process to non-existing group. */
   assert(setpgid(0, children_pid));
@@ -64,7 +64,7 @@ TEST_ADD(setpgid_leader, 0) {
 
   xkill(cpid, SIGUSR1);
 
-  wait_for_child_exit(cpid, 0);
+  wait_child_finished(cpid);
   return 0;
 }
 
@@ -117,8 +117,8 @@ TEST_ADD(setpgid_child, 0) {
   xkill(cpid1, SIGUSR1);
   xkill(cpid2, SIGUSR1);
 
-  wait_for_child_exit(cpid1, 0);
-  wait_for_child_exit(cpid2, 0);
+  wait_child_finished(cpid1);
+  wait_child_finished(cpid2);
   return 0;
 }
 
@@ -147,7 +147,7 @@ TEST_ADD(kill, 0) {
     exit(0);
   }
 
-  wait_for_child_exit(pid, 0);
+  wait_child_finished(pid);
   /* Signal is delivered to appropriate process. */
   assert(sig_delivered);
 
@@ -174,13 +174,13 @@ TEST_ADD(killpg_same_group, 0) {
       exit(0); // process b
     }
 
-    wait_for_child_exit(pid_b, 0);
+    wait_child_finished(pid_b);
     /* Process a should receive signal from process b. */
     assert(sig_delivered);
     exit(0); // process a
   }
 
-  wait_for_child_exit(pid_a, 0);
+  wait_child_finished(pid_a);
   /* Invalid argument. */
   syscall_fail(killpg(1, SIGUSR1), ESRCH);
   /* Invalid argument (negative number). */
@@ -215,19 +215,19 @@ TEST_ADD(killpg_other_group, 0) {
         exit(0); // process c
       }
 
-      wait_for_child_exit(pid_c, 0);
+      wait_child_finished(pid_c);
       /* Process b should receive signal from process c. */
       assert(sig_delivered);
       exit(0); // process b
     }
 
-    wait_for_child_exit(pid_b, 0);
+    wait_child_finished(pid_b);
     /* Process a should receive signal from process c. */
     assert(sig_delivered);
     exit(0); // process a
   }
 
-  wait_for_child_exit(pid_a, 0);
+  wait_child_finished(pid_a);
   /* It is forbidden to send signal to non-existing group. */
   syscall_fail(killpg(pid_a, SIGUSR1), ESRCH);
 
@@ -238,7 +238,6 @@ TEST_ADD(pgrp_orphan, 0) {
   signal_setup(SIGHUP);
   int ppid = getpid();
   pid_t cpid = xfork();
-  int status;
   if (cpid == 0) {
     cpid = getpid();
     assert(setsid() == cpid);
@@ -256,8 +255,7 @@ TEST_ADD(pgrp_orphan, 0) {
 
     /* Wait for the grandchild to stop, then orphan its process group. */
     debug("Child: waiting for the grandchild to stop...");
-    assert(waitpid(gcpid, &status, WUNTRACED) == gcpid);
-    assert(WIFSTOPPED(status));
+    wait_child_stopped(gcpid);
     /* When we exit, init will become the grandchild's parent.
      * Since init is in a different session, and the grandchild will
      * be the only member of its own process group, the grandchild's
@@ -268,7 +266,7 @@ TEST_ADD(pgrp_orphan, 0) {
 
   /* Reap the child. */
   debug("Parent: waiting for the child to exit...");
-  wait_for_child_exit(cpid, 0);
+  wait_child_finished(cpid);
 
   /* Wait for a signal from the grandchild. */
   debug("Parent: waiting for a signal from the grandchild...");
@@ -312,7 +310,7 @@ TEST_ADD(session_basic, 0) {
   }
 
   xkill(cpid, SIGUSR1);
-  wait_for_child_exit(cpid, 0);
+  wait_child_finished(cpid);
   return 0;
 }
 

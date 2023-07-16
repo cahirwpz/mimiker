@@ -26,9 +26,9 @@ TEST_ADD(sharing_memory_simple, 0) {
   }
 
   /* parent */
-  wait_for_child_exit(pid, 0);
+  wait_child_finished(pid);
   assert(strcmp(map, "Hello, World!") == 0);
-  assert(munmap(map, pgsz) == 0);
+  xmunmap(map, pgsz);
   return 0;
 }
 
@@ -39,12 +39,10 @@ TEST_ADD(sharing_memory_child_and_grandchild, 0) {
   assert(map != (char *)MAP_FAILED);
 
   pid_t pid = xfork();
-  assert(pid >= 0);
 
   if (pid == 0) {
     /* child */
     pid = xfork();
-    assert(pid >= 0);
 
     if (pid == 0) {
       /* grandchild */
@@ -53,15 +51,15 @@ TEST_ADD(sharing_memory_child_and_grandchild, 0) {
     }
 
     /* child */
-    wait_for_child_exit(pid, 0);
+    wait_child_finished(pid);
     assert(strcmp(map, "Hello from grandchild!") == 0);
     strcpy(map, "Hello from child!");
     exit(0);
   }
 
   /* parent */
-  wait_for_child_exit(pid, 0);
+  wait_child_finished(pid);
   assert(strcmp(map, "Hello from child!") == 0);
-  assert(munmap(map, pgsz) == 0);
+  xmunmap(map, pgsz);
   return 0;
 }
