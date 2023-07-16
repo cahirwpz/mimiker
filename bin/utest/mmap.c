@@ -149,15 +149,15 @@ TEST_ADD(mmap_private, 0) {
     debug("Child read: '%s'", addr);
     /* Check and modify. */
     string_eq(addr, "parent");
-    debug(addr, "child");
-    strcpy("Child written: '%s'", addr);
+    strcpy(addr, "child");
+    debug("Child written: '%s'", addr);
 
     /* Wait for parent to check and modify its memory. */
     xkill(getppid(), SIGCONT);
     while (!sigcont_handled)
       sched_yield();
 
-    debug("Child read again: '%s'\n", addr);
+    debug("Child read again: '%s'", addr);
     string_eq(addr, "child");
     exit(0);
   }
@@ -166,7 +166,7 @@ TEST_ADD(mmap_private, 0) {
   while (!sigcont_handled)
     sched_yield();
 
-  debug("Parent read: '%s'\n", addr);
+  debug("Parent read: '%s'", addr);
   /* Check and modify. */
   string_eq(addr, "parent");
   strcpy(addr, "parent again");
