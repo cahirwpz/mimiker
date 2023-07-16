@@ -122,7 +122,7 @@ static int check_fpu_ctx(void *value) {
   return 0;
 }
 
-TEST_ADD(fpu_gpr_preservation) {
+TEST_ADD(fpu_gpr_preservation, 0) {
   int seed = 0xbeefface;
 
   for (int i = 0; i < P_PROCESSES; i++)
@@ -134,7 +134,7 @@ TEST_ADD(fpu_gpr_preservation) {
   return 0;
 }
 
-TEST_ADD(fpu_cpy_ctx_on_fork) {
+TEST_ADD(fpu_cpy_ctx_on_fork, 0) {
   void *value = (void *)0xbeefface;
 
   MTC1_all_gpr(value);
@@ -157,7 +157,7 @@ static int check_fcsr(void *arg) {
   return 0;
 }
 
-TEST_ADD(fpu_fcsr) {
+TEST_ADD(fpu_fcsr, 0) {
   for (int i = 0; i < PROCESSES; i++)
     utest_spawn(check_fcsr, (void *)i);
 
@@ -174,16 +174,16 @@ static void signal_handler_usr2(int signo) {
 static void signal_handler_usr1(int signo) {
   MTC1_all_gpr((void *)1337);
 
-  signal(SIGUSR2, signal_handler_usr2);
+  xsignal(SIGUSR2, signal_handler_usr2);
   raise(SIGUSR2);
 
   check_fpu_all_gpr((void *)1337);
 }
 
-TEST_ADD(fpu_ctx_signals) {
+TEST_ADD(fpu_ctx_signals, 0) {
   MTC1_all_gpr((void *)0xc0de);
 
-  signal(SIGUSR1, signal_handler_usr1);
+  xsignal(SIGUSR1, signal_handler_usr1);
   raise(SIGUSR1);
 
   check_fpu_all_gpr((void *)0xc0de);

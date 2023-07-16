@@ -1,6 +1,6 @@
+#include "utest.h"
 #include "util.h"
 
-#include <assert.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -48,7 +48,7 @@ static void noop_handler(int signo) {
 }
 
 void signal_setup(int signo) {
-  signal(signo, noop_handler);
+  xsignal(signo, noop_handler);
   sigset_t mask;
   __sigemptyset(&mask);
   sigaddset(&mask, signo);

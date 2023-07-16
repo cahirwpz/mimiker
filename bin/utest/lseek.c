@@ -29,7 +29,7 @@ static void check_lseek(int fd, off_t offset, int whence, off_t expect) {
   assert(readchar(fd) == pos(expect));
 }
 
-TEST_ADD(lseek_basic) {
+TEST_ADD(lseek_basic, 0) {
   int fd;
 
   fd = open(testfile, 0, O_RDONLY);
@@ -54,7 +54,7 @@ TEST_ADD(lseek_basic) {
   return 0;
 }
 
-TEST_ADD(lseek_errors) {
+TEST_ADD(lseek_errors, 0) {
   int fd;
 
   fd = open(testfile, 0, O_RDONLY);

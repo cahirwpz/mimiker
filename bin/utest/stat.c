@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-TEST_ADD(stat) {
+TEST_ADD(stat, 0) {
   struct stat sb;
 
   syscall_ok(stat("/tests/ascii", &sb));
@@ -18,7 +18,7 @@ TEST_ADD(stat) {
   return 0;
 }
 
-TEST_ADD(fstat) {
+TEST_ADD(fstat, 0) {
   struct stat sb;
   int fd;
 

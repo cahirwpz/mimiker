@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-TEST_ADD(access_basic) {
+TEST_ADD(access_basic, 0) {
   /* After implementing credentials test should be extended. */
   syscall_ok(access("/bin/mandelbrot", R_OK));
   syscall_ok(access("/bin/mandelbrot", 0));

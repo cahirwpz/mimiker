@@ -31,7 +31,11 @@ SOURCES = \
 	vfs.c \
 	wait.c \
 	vm_map.c \
-	vm_map_prot.c
+	vm_map_prot.c \
+	xfork.c \
+	xkill.c \
+	xkillpg.c \
+	xsignal.c
 
 PROGRAM = utest
 
@@ -39,6 +43,9 @@ EXTRAFILES = $(shell find extra -type f)
 INSTALL-FILES = $(EXTRAFILES:extra/%=$(SYSROOT)/%)
 
 include $(TOPDIR)/build/build.prog.mk
+
+# Force a user not to use following symbols
+LDFLAGS += --wrap=sprintf --wrap=printf
 
 $(SYSROOT)/%: extra/%
 	@echo "[INSTALL] $(DIR)$< -> /$*"

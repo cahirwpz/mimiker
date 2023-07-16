@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-TEST_ADD(get_set_uid) {
+TEST_ADD(get_set_uid, 0) {
   uid_t ruid, euid, suid;
 
   /* check if nothing fail if we put wrong addresses */
@@ -40,7 +40,7 @@ TEST_ADD(get_set_uid) {
   return 0;
 }
 
-TEST_ADD(get_set_gid) {
+TEST_ADD(get_set_gid, 0) {
   gid_t rgid, egid, sgid;
 
   /* check if nothing fail if we put wrong addresses */
@@ -78,7 +78,7 @@ TEST_ADD(get_set_gid) {
   return 0;
 }
 
-TEST_ADD(get_set_groups) {
+TEST_ADD(get_set_groups, 0) {
   gid_t rgrp[NGROUPS_MAX], gidset[NGROUPS_MAX] = {0, 1, 2, 3, 4, 5};
   const int ngroups = 6;
   uid_t euid;
