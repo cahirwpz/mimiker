@@ -48,18 +48,31 @@ noreturn void __die(const char *file, int line, const char *fmt, ...) {
   exit(EXIT_FAILURE);
 }
 
-void wait_child_exited(pid_t pid, int exitcode) {
-  int status;
-  assert(xwaitpid(pid, &status, 0) == pid);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == exitcode);
+pid_t spawn(proc_func_t func, void *arg) {
+  int pid = xfork();
+  if (pid == 0)
+    exit(func(arg));
+  return pid;
 }
 
-void wait_child_terminated(pid_t pid, int signo) {
+pid_t wait_child_exited(pid_t pid, int exitcode) {
   int status;
-  assert(xwaitpid(pid, &status, 0) == pid);
+  pid_t res = xwaitpid(pid, &status, 0);
+  if (pid > 0)
+    assert(res == pid);
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == exitcode);
+  return res;
+}
+
+pid_t wait_child_terminated(pid_t pid, int signo) {
+  int status;
+  pid_t res = xwaitpid(pid, &status, 0);
+  if (pid > 0)
+    assert(res == pid);
   assert(WIFSIGNALED(status));
   assert(WTERMSIG(status) == signo);
+  return res;
 }
 
 void wait_child_stopped(pid_t pid) {

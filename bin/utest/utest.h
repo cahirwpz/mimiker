@@ -75,12 +75,17 @@ void __msg(const char *file, int line, const char *fmt, ...);
  * Miscellanous helper functions
  */
 
-/* Wait for a single child process `pid` to exit with `exitcode` code. */
-void wait_child_exited(pid_t pid, int exitcode);
+typedef int (*proc_func_t)(void *);
 
+pid_t spawn(proc_func_t func, void *arg);
+
+/* waitpid wrapper that checks if child has exited with given exit code */
+pid_t wait_child_exited(pid_t pid, int exitcode);
 #define wait_child_finished(pid) wait_child_exited(pid, 0)
 
-void wait_child_terminated(pid_t pid, int signo);
+/* waitpid wrapper that checks if child has been signaled with given signal */
+pid_t wait_child_terminated(pid_t pid, int signo);
+
 void wait_child_stopped(pid_t pid);
 void wait_child_continued(pid_t pid);
 

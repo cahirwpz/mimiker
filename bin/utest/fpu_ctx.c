@@ -126,10 +126,10 @@ TEST_ADD(fpu_gpr_preservation, 0) {
   int seed = 0xbeefface;
 
   for (int i = 0; i < P_PROCESSES; i++)
-    utest_spawn(check_fpu_ctx, (void *)seed + i);
+    spawn(check_fpu_ctx, (void *)seed + i);
 
   for (int i = 0; i < PROCESSES; i++)
-    utest_child_exited(EXIT_SUCCESS);
+    wait_child_finished(0);
 
   return 0;
 }
@@ -138,11 +138,11 @@ TEST_ADD(fpu_cpy_ctx_on_fork, 0) {
   void *value = (void *)0xbeefface;
 
   MTC1_all_gpr(value);
-  utest_spawn(MTC1_all_gpr, (void *)0xc0de);
-  utest_spawn(check_fpu_all_gpr, (void *)value);
+  spawn(MTC1_all_gpr, (void *)0xc0de);
+  spawn(check_fpu_all_gpr, (void *)value);
 
   for (int i = 0; i < 2; i++)
-    utest_child_exited(EXIT_SUCCESS);
+    wait_child_finished(0);
 
   return 0;
 }
@@ -159,10 +159,10 @@ static int check_fcsr(void *arg) {
 
 TEST_ADD(fpu_fcsr, 0) {
   for (int i = 0; i < PROCESSES; i++)
-    utest_spawn(check_fcsr, (void *)i);
+    spawn(check_fcsr, (void *)i);
 
   for (int i = 0; i < PROCESSES; i++)
-    utest_child_exited(EXIT_SUCCESS);
+    wait_child_finished(0);
 
   return 0;
 }
