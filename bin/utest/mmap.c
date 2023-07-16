@@ -172,7 +172,7 @@ TEST_ADD(mmap_private, 0) {
   strcpy(addr, "parent again");
 
   /* Resume child. */
-  kill(pid, SIGCONT);
+  xkill(pid, SIGCONT);
 
   wait_child_finished(pid);
   return 0;
