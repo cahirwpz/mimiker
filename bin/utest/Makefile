@@ -50,6 +50,7 @@ LIBWRAP = \
 	xlink.c \
 	xlstat.c \
 	xmkdir.c \
+	xmmap.c \
 	xmprotect.c \
 	xmunmap.c \
 	xopen.c \
