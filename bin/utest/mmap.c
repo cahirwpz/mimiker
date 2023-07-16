@@ -2,6 +2,7 @@
 #include "util.h"
 
 #include <errno.h>
+#include <sched.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdint.h>
@@ -121,6 +122,59 @@ TEST_ADD(munmap, 0) {
 
   xmunmap(addr, 0x1000);
   xmunmap(addr + 0x2000, 0x1000);
+  return 0;
+}
+
+static volatile int sigcont_handled = 0;
+
+static void sigcont_handler(int signo) {
+  debug("sigcont handled!");
+  sigcont_handled = 1;
+}
+
+TEST_ADD(mmap_private, 0) {
+  size_t pgsz = getpagesize();
+  xsignal(SIGCONT, sigcont_handler);
+
+  /* mmap & munmap one page */
+  char *addr = mmap_anon_prw(NULL, pgsz);
+  assert(addr != (char *)MAP_FAILED);
+
+  pid_t pid = xfork();
+
+  strcpy(addr, "parent");
+
+  if (pid == 0) {
+    /* child */
+    debug("Child read: '%s'", addr);
+    /* Check and modify. */
+    string_eq(addr, "parent");
+    strcpy(addr, "child");
+    debug("Child written: '%s'", addr);
+
+    /* Wait for parent to check and modify its memory. */
+    xkill(getppid(), SIGCONT);
+    while (!sigcont_handled)
+      sched_yield();
+
+    debug("Child read again: '%s'", addr);
+    string_eq(addr, "child");
+    exit(0);
+  }
+
+  /* Wait for child to check and modify its memory. */
+  while (!sigcont_handled)
+    sched_yield();
+
+  debug("Parent read: '%s'", addr);
+  /* Check and modify. */
+  string_eq(addr, "parent");
+  strcpy(addr, "parent again");
+
+  /* Resume child. */
+  xkill(pid, SIGCONT);
+
+  wait_child_finished(pid);
   return 0;
 }
 
