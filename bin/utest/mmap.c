@@ -128,39 +128,38 @@ TEST_ADD(munmap, 0) {
 static volatile int sigcont_handled = 0;
 
 static void sigcont_handler(int signo) {
-  printf("sigcont handled!\n");
+  debug("sigcont handled!");
   sigcont_handled = 1;
 }
 
-TEST_ADD(mmap_private) {
-  signal(SIGCONT, sigcont_handler);
-  char *addr;
+TEST_ADD(mmap_private, 0) {
+  xsignal(SIGCONT, sigcont_handler);
+
   int ppid = getpid();
   size_t pgsz = getpagesize();
 
   /* mmap & munmap one page */
-  addr = mmap_anon_prw(NULL, pgsz);
+  char *addr = mmap_anon_prw(NULL, pgsz);
   assert(addr != (char *)MAP_FAILED);
 
-  pid_t pid = fork();
-  assert(pid >= 0);
+  pid_t pid = xfork();
 
-  sprintf(addr, "parent");
+  strcpy(addr, "parent");
 
   if (pid == 0) {
     /* child */
-    printf("Child read: '%s'\n", addr);
+    debug("Child read: '%s'", addr);
     /* Check and modify. */
     string_eq(addr, "parent");
-    sprintf(addr, "child");
-    printf("Child written: '%s'\n", addr);
+    debug(addr, "child");
+    strcpy("Child written: '%s'", addr);
 
     /* Wait for parent to check and modify its memory. */
-    kill(ppid, SIGCONT);
+    xkill(ppid, SIGCONT);
     while (!sigcont_handled)
       sched_yield();
 
-    printf("Child read again: '%s'\n", addr);
+    debug("Child read again: '%s'\n", addr);
     string_eq(addr, "child");
     exit(0);
   }
@@ -169,15 +168,15 @@ TEST_ADD(mmap_private) {
   while (!sigcont_handled)
     sched_yield();
 
-  printf("Parent read: '%s'\n", addr);
+  debug("Parent read: '%s'\n", addr);
   /* Check and modify. */
   string_eq(addr, "parent");
-  sprintf(addr, "parent again");
+  strcpy(addr, "parent again");
 
   /* Resume child. */
   kill(pid, SIGCONT);
 
-  wait_for_child_exit(pid, 0);
+  wait_child_finished(pid);
   return 0;
 }
 
