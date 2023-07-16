@@ -32,13 +32,39 @@ SOURCES = \
 	wait.c \
 	vm_map.c \
 	vm_map_prot.c \
+
+LIBWRAP = \
+	xaccess.c \
+	xchdir.c \
+	xchmod.c \
 	xfork.c \
+	xfstat.c \
+	xgetgroups.c \
+	xgetresgid.c \
+	xgetresuid.c \
+	xgettimeofday.c \
+	xmkdir.c \
+	xmprotect.c \
+	xmunmap.c \
 	xkill.c \
 	xkillpg.c \
-	xsignal.c
+	xlchmod.c \
+	xlink.c \
+	xlstat.c \
+	xpipe.c \
+	xrmdir.c \
+	xsetgroups.c \
+	xsetresgid.c \
+	xsetresuid.c \
+	xsignal.c \
+	xstat.c \
+	xsymlink.c \
+	xunlink.c
 
 PROGRAM = utest
 
+SOURCES += $(addprefix libwrap/,$(LIBWRAP))
+CPPFLAGS += -I.
 EXTRAFILES = $(shell find extra -type f)
 INSTALL-FILES = $(EXTRAFILES:extra/%=$(SYSROOT)/%)
 

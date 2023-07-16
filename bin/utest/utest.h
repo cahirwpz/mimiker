@@ -1,5 +1,4 @@
-#ifndef __UTEST_H__
-#define __UTEST_H__
+#pragma once
 
 #include <sys/linker_set.h>
 #include <stdnoreturn.h>
@@ -50,16 +49,6 @@ void __msg(const char *file, int line, const char *fmt, ...);
       die("assertion '%s' failed!", #e);                                       \
   })
 
-/* Test if system call returned with no error. */
-#define syscall_ok(e)                                                          \
-  ({                                                                           \
-    errno = 0;                                                                 \
-    long __r = (long)(e);                                                      \
-    if (__r != 0)                                                              \
-      die("call '%s' unexpectedly returned %ld (errno = %d)!", #e, __r,        \
-          errno);                                                              \
-  })
-
 /* Test if system call returned with specific error. */
 #define syscall_fail(e, err)                                                   \
   ({                                                                           \
@@ -96,13 +85,37 @@ void utest_child_exited(int exitcode);
 
 #include <errno.h>
 #include <string.h>
+#include <sys/types.h>
 
 typedef void (*sig_t)(int);
 typedef int pid_t;
+struct stat;
+struct timezone;
+struct timeval;
 
+void xaccess(const char *pathname, int mode);
+void xchdir(const char *path);
+void xchmod(const char *pathname, mode_t mode);
 pid_t xfork(void);
+void xfstat(int fd, struct stat *statbuf);
+int xgetgroups(int size, gid_t *list);
+void xgetresuid(uid_t *ruid, uid_t *euid, uid_t *suid);
+void xgetresgid(gid_t *rgid, gid_t *egid, gid_t *sgid);
+void xgettimeofday(struct timeval *tv, struct timezone *tz);
+void xmkdir(const char *pathname, mode_t mode);
+void xmunmap(void *addr, size_t length);
+void xmprotect(void *addr, size_t len, int prot);
 void xkill(int pid, int sig);
 void xkillpg(pid_t pgrp, int sig);
+void xlchmod(const char *path, mode_t mode);
+void xlink(const char *oldpath, const char *newpath);
+void xlstat(const char *pathname, struct stat *statbuf);
+void xpipe(int pipefd[2]);
+void xrmdir(const char *pathname);
 sig_t xsignal(int sig, sig_t func);
-
-#endif /* __UTEST_H__ */
+void xsetgroups(int size, gid_t *list);
+void xsetresuid(uid_t ruid, uid_t euid, uid_t suid);
+void xsetresgid(gid_t rgid, gid_t egid, gid_t sgid);
+void xstat(const char *pathname, struct stat *statbuf);
+void xsymlink(const char *target, const char *linkpath);
+void xunlink(const char *pathname);

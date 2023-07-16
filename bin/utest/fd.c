@@ -270,7 +270,7 @@ TEST_ADD(fd_writev, 0) {
 
 TEST_ADD(fd_pipe, 0) {
   int fd[2];
-  assert_pipe_ok(fd);
+  xpipe(fd);
 
   pid_t pid = xfork();
   assert(pid >= 0);

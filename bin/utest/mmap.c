@@ -57,24 +57,24 @@ static void munmap_good(void) {
 
   /* mmap & munmap one page */
   addr = mmap_anon_prw(NULL, 0x1000);
-  syscall_ok(munmap(addr, 0x1000));
+  xmunmap(addr, 0x1000);
 
   /* munmapping again is no-op */
-  syscall_ok(munmap(addr, 0x1000));
+  xmunmap(addr, 0x1000);
 
   /* more pages */
   addr = mmap_anon_prw(NULL, 0x3000);
   assert(addr != MAP_FAILED);
 
-  syscall_ok(munmap(addr + 0x1000, 0x1000));
-  syscall_ok(munmap(addr, 0x1000));
-  syscall_ok(munmap(addr + 0x2000, 0x1000));
+  xmunmap(addr + 0x1000, 0x1000);
+  xmunmap(addr, 0x1000);
+  xmunmap(addr + 0x2000, 0x1000);
 }
 
 TEST_ADD(munmap_sigsegv, 0) {
   void *addr = mmap_anon_prw(NULL, 0x4000);
 
-  syscall_ok(munmap(addr, 0x4000));
+  xmunmap(addr, 0x4000);
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
@@ -107,7 +107,7 @@ TEST_ADD(munmap, 0) {
   strcpy(addr, "first");
   strcpy(addr + 0x2000, "second");
 
-  syscall_ok(munmap(addr + 0x1000, 0x1000));
+  xmunmap(addr + 0x1000, 0x1000);
 
   /* Now we have to fork to trigger pagefault on both parts of mapped memory. */
   child = xfork();
@@ -119,8 +119,8 @@ TEST_ADD(munmap, 0) {
 
   wait_for_child_exit(child, 0);
 
-  syscall_ok(munmap(addr, 0x1000));
-  syscall_ok(munmap(addr + 0x2000, 0x1000));
+  xmunmap(addr, 0x1000);
+  xmunmap(addr + 0x2000, 0x1000);
   return 0;
 }
 
@@ -175,7 +175,7 @@ TEST_ADD(mmap_fixed, 0) {
   void *addr = mmap_anon_priv(NULL, 3 * pgsz, PROT_READ | PROT_WRITE);
   void *new;
 
-  syscall_ok(munmap(addr + pgsz, pgsz));
+  xmunmap(addr + pgsz, pgsz);
 
   new = mmap_anon_priv_flags(addr + pgsz, pgsz, PROT_READ, MAP_FIXED);
   assert(new == addr + pgsz);
@@ -239,10 +239,8 @@ static void *prepare_rw_layout(size_t pgsz) {
 TEST_ADD(munmap_many_1, 0) {
   size_t pgsz = getpagesize();
   void *addr = prepare_rw_layout(pgsz);
-  int res;
 
-  res = munmap(addr + pgsz, 5 * pgsz);
-  syscall_ok(res);
+  xmunmap(addr + pgsz, 5 * pgsz);
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {
@@ -273,10 +271,8 @@ TEST_ADD(munmap_many_1, 0) {
 TEST_ADD(munmap_many_2, 0) {
   size_t pgsz = getpagesize();
   void *addr = prepare_rw_layout(pgsz);
-  int res;
 
-  res = munmap(addr, 7 * pgsz);
-  syscall_ok(res);
+  xmunmap(addr, 7 * pgsz);
 
   siginfo_t si;
   EXPECT_SIGNAL(SIGSEGV, &si) {

@@ -127,11 +127,6 @@ void _expect_signal_cleanup(void);
   n = lseek(fd + FD_OFFSET, offset, whence);                                   \
   assert(n >= 0);
 
-#undef assert_pipe_ok
-#define assert_pipe_ok(fds)                                                    \
-  n = pipe(fds);                                                               \
-  assert(n == 0);
-
 #define mmap_anon_priv_flags(addr, length, prot, flags)                        \
   mmap((addr), (length), (prot), (flags) | MAP_ANON | MAP_PRIVATE, -1, 0)
 
