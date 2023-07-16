@@ -31,16 +31,15 @@ TEST_ADD(pipe_parent_signaled, 0) {
 
   /* forking */
   pid_t child_pid = xfork();
-  assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
-    close(pipe_fd[1]);  /* closing write end of pipe */
-    close(pipe_fd[0]);  /* closing read end of pipe */
+    xclose(pipe_fd[1]); /* closing write end of pipe */
+    xclose(pipe_fd[0]); /* closing read end of pipe */
     exit(EXIT_SUCCESS);
   }
 
   /* parent */
-  close(pipe_fd[0]); /* closing read end of pipe */
+  xclose(pipe_fd[0]); /* closing read end of pipe */
 
   /* Sync with end of child execution */
   wait_for_child_exit(child_pid, EXIT_SUCCESS);
@@ -67,12 +66,11 @@ TEST_ADD(pipe_child_signaled, 0) {
 
   /* forking */
   pid_t child_pid = xfork();
-  assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
     xsignal(SIGPIPE, sigpipe_handler);
 
-    close(pipe_fd[0]);        /* closing read end of pipe */
+    xclose(pipe_fd[0]);       /* closing read end of pipe */
     wait_for_signal(SIGUSR1); /* now we know that other end is closed */
 
     /* This is supposed to trigger SIGPIPE and return EPIPE */
@@ -85,8 +83,8 @@ TEST_ADD(pipe_child_signaled, 0) {
   }
 
   /* parent */
-  close(pipe_fd[1]); /* closing write end of pipe */
-  close(pipe_fd[0]); /* closing read end of pipe */
+  xclose(pipe_fd[1]); /* closing write end of pipe */
+  xclose(pipe_fd[0]); /* closing read end of pipe */
 
   /* send SIGUSR1 informing that parent closed both ends of pipe */
   xkill(child_pid, SIGUSR1);
@@ -96,8 +94,7 @@ TEST_ADD(pipe_child_signaled, 0) {
    */
   int wstatus = 1;
   do {
-    ssize_t waitpid_ret = waitpid(child_pid, &wstatus, 0);
-    assert(waitpid_ret == child_pid);
+    assert(xwaitpid(child_pid, &wstatus, 0) == child_pid);
   } while (!WIFEXITED(wstatus));
 
   assert(WEXITSTATUS(wstatus) == EXIT_SUCCESS);
@@ -136,8 +133,8 @@ TEST_ADD(pipe_blocking_flag_manipulation, 0) {
   is_flag_not_set = fcntl(pipe_fd[1], F_GETFL) & O_NONBLOCK;
   assert(!is_flag_not_set);
 
-  close(pipe_fd[0]);
-  close(pipe_fd[1]);
+  xclose(pipe_fd[0]);
+  xclose(pipe_fd[1]);
 
   return 0;
 }
@@ -152,10 +149,9 @@ TEST_ADD(pipe_write_interruptible_sleep, 0) {
 
   /* forking */
   child_pid = xfork();
-  assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
-    close(pipe_fd[0]);  /* closing read end of pipe */
+    xclose(pipe_fd[0]); /* closing read end of pipe */
 
     struct sigaction sa = {
       .sa_handler = sigpipe_handler,
@@ -179,14 +175,14 @@ TEST_ADD(pipe_write_interruptible_sleep, 0) {
     assert(bytes_wrote == -1);
     assert(errno == EINTR);
 
-    close(pipe_fd[1]); /* closing write end of pipe */
+    xclose(pipe_fd[1]); /* closing write end of pipe */
     free(data);
     exit(EXIT_SUCCESS);
   }
 
-  close(pipe_fd[1]); /* closing write end of pipe */
+  xclose(pipe_fd[1]); /* closing write end of pipe */
   wait_for_child_exit(child_pid, EXIT_SUCCESS);
-  close(pipe_fd[0]); /* closing read end of pipe */
+  xclose(pipe_fd[0]); /* closing read end of pipe */
   return 0;
 }
 
@@ -201,10 +197,9 @@ TEST_ADD(pipe_write_errno_eagain, 0) {
 
   /* forking */
   child_pid = xfork();
-  assert(child_pid >= 0);
 
   if (child_pid == 0) {
-    close(pipe_fd[0]); /* closing read end of pipe */
+    xclose(pipe_fd[0]); /* closing read end of pipe */
 
     int page_size = getpagesize();
     /* prepare varying data */
@@ -221,14 +216,14 @@ TEST_ADD(pipe_write_errno_eagain, 0) {
     assert(bytes_wrote == -1);
     assert(errno == EAGAIN);
 
-    close(pipe_fd[1]); /* closing write end of pipe */
+    xclose(pipe_fd[1]); /* closing write end of pipe */
     free(data);
     exit(EXIT_SUCCESS);
   }
 
-  close(pipe_fd[1]); /* closing write end of pipe */
+  xclose(pipe_fd[1]); /* closing write end of pipe */
   wait_for_child_exit(child_pid, EXIT_SUCCESS);
-  close(pipe_fd[0]);
+  xclose(pipe_fd[0]);
   return 0;
 }
 
@@ -243,10 +238,9 @@ TEST_ADD(pipe_read_interruptible_sleep, 0) {
 
   /* forking */
   child_pid = xfork();
-  assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
-    close(pipe_fd[1]);  /* closing write end of pipe */
+    xclose(pipe_fd[1]); /* closing write end of pipe */
 
     struct sigaction sa = {
       .sa_handler = sigpipe_handler,
@@ -263,13 +257,13 @@ TEST_ADD(pipe_read_interruptible_sleep, 0) {
     assert(bytes_wrote == -1);
     assert(errno == EINTR);
 
-    close(pipe_fd[0]);
+    xclose(pipe_fd[0]);
     exit(EXIT_SUCCESS);
   }
 
-  close(pipe_fd[0]); /* closing read end of pipe */
+  xclose(pipe_fd[0]); /* closing read end of pipe */
   wait_for_child_exit(child_pid, EXIT_SUCCESS);
-  close(pipe_fd[1]); /* closing write end of pipe */
+  xclose(pipe_fd[1]); /* closing write end of pipe */
 
   return 0;
 }
@@ -285,24 +279,23 @@ TEST_ADD(pipe_read_errno_eagain, 0) {
 
   /* forking */
   child_pid = xfork();
-  assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
 
-    close(pipe_fd[1]); /* closing write end of pipe */
+    xclose(pipe_fd[1]); /* closing write end of pipe */
 
     char buf;
     bytes_wrote = read(pipe_fd[0], &buf, 1);
     assert(errno == EAGAIN);
     assert(bytes_wrote == -1);
-    close(pipe_fd[0]);
+    xclose(pipe_fd[0]);
 
     exit(EXIT_SUCCESS);
   }
 
-  close(pipe_fd[0]); /* closing read end of pipe */
+  xclose(pipe_fd[0]); /* closing read end of pipe */
   wait_for_child_exit(child_pid, EXIT_SUCCESS);
-  close(pipe_fd[1]); /* closing write end of pipe */
+  xclose(pipe_fd[1]); /* closing write end of pipe */
   return 0;
 }
 
@@ -317,10 +310,9 @@ TEST_ADD(pipe_read_return_zero, 0) {
 
   /* forking */
   child_pid = xfork();
-  assert(child_pid >= 0);
 
   if (child_pid == 0) { /* child */
-    close(pipe_fd[1]);  /* closing write end of pipe */
+    xclose(pipe_fd[1]); /* closing write end of pipe */
 
     char buf;
     bytes_wrote = read(pipe_fd[0], &buf, 1);
@@ -328,12 +320,12 @@ TEST_ADD(pipe_read_return_zero, 0) {
     assert(bytes_wrote == 0);
     assert(errno == 0);
 
-    close(pipe_fd[0]);
+    xclose(pipe_fd[0]);
     exit(EXIT_SUCCESS);
   }
 
-  close(pipe_fd[0]); /* closing read end of pipe */
-  close(pipe_fd[1]); /* closing write end of pipe */
+  xclose(pipe_fd[0]); /* closing read end of pipe */
+  xclose(pipe_fd[1]); /* closing write end of pipe */
   wait_for_child_exit(child_pid, EXIT_SUCCESS);
   return 0;
 }

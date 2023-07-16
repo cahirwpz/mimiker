@@ -66,8 +66,8 @@ TEST_ADD(vfs_rw, 0) {
   free(wrbuf);
   free(rdbuf);
 
-  close(3);
-  unlink(TESTDIR "/file");
+  xclose(3);
+  xunlink(TESTDIR "/file");
 
   return 0;
 }
@@ -269,28 +269,28 @@ static void test_vfs_symlink_vnr(void) {
   xlstat(TESTDIR "/alink2", &sb);
   assert(fileino != sb.st_ino);
 
-  unlink(TESTDIR "/alink");
-  unlink(TESTDIR "/alink2");
-  unlink(TESTDIR "/rlink");
-  unlink(TESTDIR "/rlink2");
+  xunlink(TESTDIR "/alink");
+  xunlink(TESTDIR "/alink2");
+  xunlink(TESTDIR "/rlink");
+  xunlink(TESTDIR "/rlink2");
 
   /* Symlink to directory */
   xsymlink("/tmp", TESTDIR "/dlink");
   xstat(TESTDIR "/dlink/file", &sb);
   assert(fileino == sb.st_ino);
-  unlink(TESTDIR "/dlink");
+  xunlink(TESTDIR "/dlink");
 
   /* Looped symlink */
   xsymlink(TESTDIR "/slink", TESTDIR "/slink");
   syscall_fail(stat(TESTDIR "/slink", &sb), ELOOP);
-  unlink(TESTDIR "/slink");
+  xunlink(TESTDIR "/slink");
 
   /* Bad symlink */
   xsymlink(TESTDIR "/nofile", TESTDIR "/blink");
   syscall_fail(stat(TESTDIR "/blink", &sb), ENOENT);
-  unlink(TESTDIR "/blink");
+  xunlink(TESTDIR "/blink");
 
-  unlink(TESTDIR "/file");
+  xunlink(TESTDIR "/file");
 }
 
 TEST_ADD(vfs_symlink, 0) {
@@ -389,8 +389,8 @@ TEST_ADD(vfs_chmod, 0) {
   xlstat(TESTDIR "/link", &sb);
   assert((sb.st_mode & ALLPERMS) == lmode);
 
-  unlink(TESTDIR "/file");
-  unlink(TESTDIR "/link");
+  xunlink(TESTDIR "/file");
+  xunlink(TESTDIR "/link");
 
   return 0;
 }

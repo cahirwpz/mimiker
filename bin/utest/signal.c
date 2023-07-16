@@ -119,7 +119,7 @@ TEST_ADD(signal_stop, 0) {
     sched_yield();
   xkill(pid, SIGSTOP);
   /* Wait for the child to stop. */
-  assert(waitpid(pid, &status, WUNTRACED) == pid);
+  assert(xwaitpid(pid, &status, WUNTRACED) == pid);
   assert(WIFSTOPPED(status));
   /* Now we shouldn't be getting any signals from the child. */
   sigusr1_handled = 0;
@@ -173,7 +173,7 @@ TEST_ADD(signal_cont_masked, 0) {
 
   int status;
   /* Wait for the child to stop. */
-  assert(waitpid(pid, &status, WUNTRACED) == pid);
+  assert(xwaitpid(pid, &status, WUNTRACED) == pid);
   assert(WIFSTOPPED(status));
 
   xkill(pid, SIGCONT);
@@ -318,7 +318,7 @@ TEST_ADD(signal_sigsuspend_stop, 0) {
   /* Stop the child. */
   xkill(cpid, SIGSTOP);
   int status;
-  assert(waitpid(cpid, &status, WUNTRACED) == cpid);
+  assert(xwaitpid(cpid, &status, WUNTRACED) == cpid);
   assert(WIFSTOPPED(status));
 
   /* Continue the child. This should not interrupt the child's sigsuspend(). */
@@ -332,7 +332,7 @@ TEST_ADD(signal_sigsuspend_stop, 0) {
 
   /* Stop the child again. */
   xkill(cpid, SIGSTOP);
-  assert(waitpid(cpid, &status, WUNTRACED) == cpid);
+  assert(xwaitpid(cpid, &status, WUNTRACED) == cpid);
   assert(WIFSTOPPED(status));
 
   /* Send SIGUSR1 to the child. Since it's stopped, it should not interrupt

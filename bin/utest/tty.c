@@ -153,9 +153,9 @@ TEST_ADD(tty_signals, 0) {
      * becomes the controlling terminal for its session, and the child is in the
      * foreground process group. */
     assert(setsid() == cpid);
-    assert(close(slave_fd) == 0);
+    xclose(slave_fd);
     assert((slave_fd = open(ptsname(master_fd), 0)) >= 0);
-    assert(close(master_fd) == 0);
+    xclose(master_fd);
     /* We should be in the foreground process group now. */
     assert(tcgetpgrp(slave_fd) == cpid);
 

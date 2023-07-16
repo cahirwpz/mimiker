@@ -71,7 +71,7 @@ void _expect_signal_cleanup(void);
 
 #undef assert_open_ok
 #define assert_open_ok(fd, file, mode, flag)                                   \
-  n = open(file, flag, mode);                                                  \
+  n = xopen(file, flag, mode);                                                 \
   assert(n == fd + FD_OFFSET);
 
 #undef assert_open_fail
@@ -112,9 +112,7 @@ void _expect_signal_cleanup(void);
   assert(errno == err);
 
 #undef assert_close_ok
-#define assert_close_ok(fd)                                                    \
-  n = close(fd + FD_OFFSET);                                                   \
-  assert(n == 0);
+#define assert_close_ok(fd) xclose(fd + FD_OFFSET)
 
 #undef assert_close_fail
 #define assert_close_fail(fd, err)                                             \

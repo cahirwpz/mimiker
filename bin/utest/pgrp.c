@@ -256,7 +256,7 @@ TEST_ADD(pgrp_orphan, 0) {
 
     /* Wait for the grandchild to stop, then orphan its process group. */
     debug("Child: waiting for the grandchild to stop...");
-    assert(waitpid(gcpid, &status, WUNTRACED) == gcpid);
+    assert(xwaitpid(gcpid, &status, WUNTRACED) == gcpid);
     assert(WIFSTOPPED(status));
     /* When we exit, init will become the grandchild's parent.
      * Since init is in a different session, and the grandchild will

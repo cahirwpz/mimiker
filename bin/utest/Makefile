@@ -37,20 +37,22 @@ LIBWRAP = \
 	xaccess.c \
 	xchdir.c \
 	xchmod.c \
+	xclose.c \
 	xfork.c \
 	xfstat.c \
 	xgetgroups.c \
 	xgetresgid.c \
 	xgetresuid.c \
 	xgettimeofday.c \
-	xmkdir.c \
-	xmprotect.c \
-	xmunmap.c \
 	xkill.c \
 	xkillpg.c \
 	xlchmod.c \
 	xlink.c \
 	xlstat.c \
+	xmkdir.c \
+	xmprotect.c \
+	xmunmap.c \
+	xopen.c \
 	xpipe.c \
 	xrmdir.c \
 	xsetgroups.c \
@@ -59,7 +61,8 @@ LIBWRAP = \
 	xsignal.c \
 	xstat.c \
 	xsymlink.c \
-	xunlink.c
+	xunlink.c \
+	xwaitpid.c
 
 PROGRAM = utest
 

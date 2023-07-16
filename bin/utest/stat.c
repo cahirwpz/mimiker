@@ -22,13 +22,13 @@ TEST_ADD(fstat, 0) {
   struct stat sb;
   int fd;
 
-  fd = open("/tests", 0, O_RDONLY);
+  fd = xopen("/tests", 0, O_RDONLY);
   xfstat(fd, &sb);
   assert(S_ISDIR(sb.st_mode));
 
   syscall_fail(fstat(fd, NULL), EFAULT);
   syscall_fail(fstat(666, &sb), EBADF);
-  close(fd);
+  xclose(fd);
 
   return 0;
 }

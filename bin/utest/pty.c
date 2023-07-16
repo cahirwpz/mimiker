@@ -39,7 +39,7 @@ TEST_ADD(pty_simple, 0) {
     assert(c == test_str[i]);
   }
 
-  close(slave_fd);
+  xclose(slave_fd);
 
   /* Slave device isn't opened: master reads should report EOF. */
   assert(read(master_fd, &c, 1) == 0);
@@ -55,12 +55,12 @@ TEST_ADD(pty_simple, 0) {
 
   /* Close the master device: reads on the slave device should report EOF, and
    * writes should return an ENXIO error. */
-  close(master_fd);
+  xclose(master_fd);
   assert(read(slave_fd, &c, 1) == 0);
   assert(write(slave_fd, test_str, len) == -1);
   assert(errno == ENXIO);
 
-  close(slave_fd);
+  xclose(slave_fd);
 
   return 0;
 }

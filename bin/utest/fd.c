@@ -273,23 +273,20 @@ TEST_ADD(fd_pipe, 0) {
   xpipe(fd);
 
   pid_t pid = xfork();
-  assert(pid >= 0);
 
-  if (pid > 0) {
-    /* parent */
-    assert_close_ok(fd[0]);
-    assert_write_ok(fd[1], str, strlen(str));
-    assert_close_ok(fd[1]);
-
-    int status;
-    waitpid(-1, &status, 0);
-  } else {
+  if (pid == 0) {
     /* child */
     assert_close_ok(fd[1]);
     assert_read_equal(fd[0], buf, str);
     assert_close_ok(fd[0]);
     exit(0);
   }
+
+  assert_close_ok(fd[0]);
+  assert_write_ok(fd[1], str, strlen(str));
+  assert_close_ok(fd[1]);
+
+  wait_for_child_exit(pid, 0);
 
   return 0;
 }

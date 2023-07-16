@@ -39,7 +39,7 @@ void _expect_signal_cleanup(void) {
 
 void wait_for_child_exit(int pid, int exit_code) {
   int status;
-  assert(waitpid(pid, &status, 0) == pid);
+  assert(xwaitpid(pid, &status, 0) == pid);
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == exit_code);
 }

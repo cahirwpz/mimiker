@@ -32,24 +32,24 @@ static void check_lseek(int fd, off_t offset, int whence, off_t expect) {
 TEST_ADD(lseek_basic, 0) {
   int fd;
 
-  fd = open(testfile, 0, O_RDONLY);
+  fd = xopen(testfile, 0, O_RDONLY);
   check_lseek(fd, 0, SEEK_SET, 0);
   check_lseek(fd, 42, SEEK_SET, 42);
   check_lseek(fd, end - 1, SEEK_SET, end - 1);
-  close(fd);
+  xclose(fd);
 
-  fd = open(testfile, 0, O_RDONLY);
+  fd = xopen(testfile, 0, O_RDONLY);
   check_lseek(fd, -1, SEEK_END, end - 1);
   check_lseek(fd, -20, SEEK_END, end - 20);
   check_lseek(fd, -end, SEEK_END, 0);
-  close(fd);
+  xclose(fd);
 
-  fd = open(testfile, 0, O_RDONLY);
+  fd = xopen(testfile, 0, O_RDONLY);
   check_lseek(fd, 20, SEEK_CUR, 20);
   check_lseek(fd, -1, SEEK_CUR, 20);
   check_lseek(fd, end - 22, SEEK_CUR, end - 1);
   check_lseek(fd, -end, SEEK_CUR, 0);
-  close(fd);
+  xclose(fd);
 
   return 0;
 }
@@ -57,30 +57,30 @@ TEST_ADD(lseek_basic, 0) {
 TEST_ADD(lseek_errors, 0) {
   int fd;
 
-  fd = open(testfile, 0, O_RDONLY);
+  fd = xopen(testfile, 0, O_RDONLY);
   assert(lseek(fd, end, SEEK_SET) == end);
   syscall_fail(lseek(fd, end + 1, SEEK_SET), EINVAL);
   syscall_fail(lseek(fd, -1, SEEK_SET), EINVAL);
-  close(fd);
+  xclose(fd);
 
-  fd = open(testfile, 0, O_RDONLY);
+  fd = xopen(testfile, 0, O_RDONLY);
   assert(lseek(fd, -end, SEEK_END) == 0);
   syscall_fail(lseek(fd, -end - 1, SEEK_END), EINVAL);
   syscall_fail(lseek(fd, 1, SEEK_END), EINVAL);
-  close(fd);
+  xclose(fd);
 
-  fd = open(testfile, 0, O_RDONLY);
+  fd = xopen(testfile, 0, O_RDONLY);
   assert(lseek(fd, 47, SEEK_CUR) == 47);
   syscall_fail(lseek(fd, -48, SEEK_CUR), EINVAL);
   syscall_fail(lseek(fd, 49, SEEK_CUR), EINVAL);
-  close(fd);
+  xclose(fd);
 
   /* Now let's check some weird cases. */
   syscall_fail(lseek(666, 10, SEEK_CUR), EBADF);
 
-  fd = open("/dev/cons", 0, O_RDONLY);
+  fd = xopen("/dev/cons", 0, O_RDONLY);
   syscall_fail(lseek(fd, 10, SEEK_CUR), ESPIPE);
-  close(fd);
+  xclose(fd);
 
   return 0;
 }
