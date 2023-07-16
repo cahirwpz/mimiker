@@ -32,20 +32,49 @@ SOURCES = \
 	wait.c \
 	vm_map.c \
 	vm_map_prot.c \
+
+LIBWRAP = \
+	xaccess.c \
+	xchdir.c \
+	xchmod.c \
+	xclose.c \
 	xfork.c \
+	xfstat.c \
+	xgetgroups.c \
+	xgetresgid.c \
+	xgetresuid.c \
+	xgettimeofday.c \
 	xkill.c \
 	xkillpg.c \
-	xsignal.c
+	xlchmod.c \
+	xlink.c \
+	xlstat.c \
+	xmkdir.c \
+	xmprotect.c \
+	xmunmap.c \
+	xopen.c \
+	xpipe.c \
+	xrmdir.c \
+	xsetgroups.c \
+	xsetresgid.c \
+	xsetresuid.c \
+	xsignal.c \
+	xstat.c \
+	xsymlink.c \
+	xunlink.c \
+	xwaitpid.c
 
 PROGRAM = utest
 
+SOURCES += $(addprefix libwrap/,$(LIBWRAP))
+CPPFLAGS += -I.
 EXTRAFILES = $(shell find extra -type f)
 INSTALL-FILES = $(EXTRAFILES:extra/%=$(SYSROOT)/%)
 
 include $(TOPDIR)/build/build.prog.mk
 
 # Force a user not to use following symbols
-LDFLAGS += --wrap=sprintf --wrap=printf
+LDFLAGS += --wrap=sprintf --wrap=printf --wrap=wait
 
 $(SYSROOT)/%: extra/%
 	@echo "[INSTALL] $(DIR)$< -> /$*"
