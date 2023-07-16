@@ -47,6 +47,25 @@ jobs:
             bin/*/*.uelf
             usr.bin/*/*.uelf
             initrd.cpio
+  
+  build_mips_opt:
+    name: Build MIPS (-O2)
+    runs-on: self-hosted
+    needs: [verify_c_style, verify_py_style]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - run: make BOARD=malta OPTFLAGS=-O2
+      - uses: actions/upload-artifact@v3
+        with:
+          name: "mips kernel+ramdisk"
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            initrd.cpio
 
   build_aarch64:
     name: Build AArch64
@@ -57,6 +76,27 @@ jobs:
         with:
           submodules: recursive
       - run: make BOARD=rpi3 KASAN=1 LOCKDEP=1
+      - uses: actions/upload-artifact@v3
+        with:
+          name: "aarch64 kernel+ramdisk"
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.img.gz
+            sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            sys/dts/*.dtb
+            initrd.cpio
+
+  build_aarch64_opt:
+    name: Build AArch64 (-O2)
+    runs-on: self-hosted
+    needs: [verify_c_style, verify_py_style]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - run: make BOARD=rpi3 OPTFLAGS=-O2
       - uses: actions/upload-artifact@v3
         with:
           name: "aarch64 kernel+ramdisk"
@@ -98,6 +138,25 @@ jobs:
             usr.bin/*/*.uelf
             initrd.cpio
 
+  build_riscv64_opt:
+    name: Build RISC-V 64-bit (-O2)
+    runs-on: self-hosted
+    needs: [verify_c_style, verify_py_style]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - run: make BOARD=sifive_u OPTFLAGS=-O2
+      - uses: actions/upload-artifact@v3
+        with:
+          name: "riscv64 kernel+ramdisk"
+          path: |
+            sys/mimiker.elf
+            sys/mimiker.elf.map
+            bin/*/*.uelf
+            usr.bin/*/*.uelf
+            initrd.cpio
+
   kernel_tests_mips:
     name: Tests MIPS
     runs-on: self-hosted
@@ -108,6 +167,17 @@ jobs:
         with:
           name: "mips kernel+ramdisk"
       - run: ./run_tests.py --board malta --timeout=100 --times=50
+
+  kernel_tests_mips_opt:
+    name: Tests MIPS (-O2)
+    runs-on: self-hosted
+    needs: build_mips_opt
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: "mips kernel+ramdisk"
+      - run: ./run_tests.py --board malta --timeout=100 --times=20
 
   kernel_tests_aarch64:
     name: Tests AArch64
@@ -120,6 +190,17 @@ jobs:
           name: "aarch64 kernel+ramdisk"
       - run: ./run_tests.py --board rpi3 --timeout=60 --times=50
 
+  kernel_tests_aarch64_opt:
+    name: Tests AArch64 (-O2)
+    runs-on: self-hosted
+    needs: build_aarch64_opt
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: "aarch64 kernel+ramdisk"
+      - run: ./run_tests.py --board rpi3 --timeout=60 --times=20
+
   kernel_tests_riscv64:
     name: Tests RISC-V 64-bit
     runs-on: self-hosted
@@ -130,3 +211,14 @@ jobs:
         with:
           name: "riscv64 kernel+ramdisk"
       - run: ./run_tests.py --board sifive_u --timeout=100 --times=50
+
+  kernel_tests_riscv64_opt:
+    name: Tests RISC-V 64-bit (-O2)
+    runs-on: self-hosted
+    needs: build_riscv64_opt
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: "riscv64 kernel+ramdisk"
+      - run: ./run_tests.py --board sifive_u --timeout=100 --times=20
