@@ -368,7 +368,7 @@ TEST_ADD(vfs_link, 0) {
 TEST_ADD(vfs_chmod, 0) {
   struct stat sb;
 
-  assert(open(TESTDIR "/file", O_RDWR | O_CREAT, 0) == 3);
+  assert(xopen(TESTDIR "/file", O_RDWR | O_CREAT, 0) == 3);
   xstat(TESTDIR "/file", &sb);
   assert((sb.st_mode & ALLPERMS) == 0);
 

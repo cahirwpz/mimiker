@@ -154,7 +154,7 @@ TEST_ADD(tty_signals, 0) {
      * foreground process group. */
     assert(setsid() == cpid);
     xclose(slave_fd);
-    assert((slave_fd = open(ptsname(master_fd), 0)) >= 0);
+    assert((slave_fd = xopen(ptsname(master_fd), 0)) >= 0);
     xclose(master_fd);
     /* We should be in the foreground process group now. */
     assert(tcgetpgrp(slave_fd) == cpid);

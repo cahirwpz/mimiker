@@ -47,7 +47,7 @@ TEST_ADD(pty_simple, 0) {
   /* Write something to the master, and then open the slave.
    * The slave should see the data written. */
   assert(write(master_fd, test_str, len) == len);
-  slave_fd = open(ptsname(master_fd), O_NOCTTY | O_RDWR);
+  slave_fd = xopen(ptsname(master_fd), O_NOCTTY | O_RDWR);
   for (int i = 0; i < len; i++) {
     assert(read(slave_fd, &c, 1) == 1);
     assert(c == test_str[i]);

@@ -72,9 +72,7 @@ void _expect_signal_cleanup(void);
 
 #undef assert_open_fail
 #define assert_open_fail(file, mode, flag, err)                                \
-  n = open(file, flag, 0);                                                     \
-  assert(n < 0);                                                               \
-  assert(errno == err);
+  syscall_fail(open(file, flag, mode), err)
 
 #undef assert_read_ok
 #define assert_read_ok(fd, buf, len)                                           \
@@ -92,9 +90,7 @@ void _expect_signal_cleanup(void);
 
 #undef assert_read_fail
 #define assert_read_fail(fd, buf, len, err)                                    \
-  n = read(fd + FD_OFFSET, buf, len);                                          \
-  assert(n < 0);                                                               \
-  assert(errno == err);
+  syscall_fail(read(fd + FD_OFFSET, buf, len), err)
 
 #undef assert_write_ok
 #define assert_write_ok(fd, buf, len)                                          \
@@ -103,18 +99,13 @@ void _expect_signal_cleanup(void);
 
 #undef assert_write_fail
 #define assert_write_fail(fd, buf, len, err)                                   \
-  n = write(fd + FD_OFFSET, buf, len);                                         \
-  assert(n < 0);                                                               \
-  assert(errno == err);
+  syscall_fail(write(fd + FD_OFFSET, buf, len), err)
 
 #undef assert_close_ok
 #define assert_close_ok(fd) xclose(fd + FD_OFFSET)
 
 #undef assert_close_fail
-#define assert_close_fail(fd, err)                                             \
-  n = close(fd + FD_OFFSET);                                                   \
-  assert(n < 0);                                                               \
-  assert(errno == err);
+#define assert_close_fail(fd, err) syscall_fail(close(fd + FD_OFFSET), err)
 
 #undef assert_lseek_ok
 #define assert_lseek_ok(fd, offset, whence)                                    \

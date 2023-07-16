@@ -153,7 +153,7 @@ TEST_ADD(fd_open_path, 0) {
 }
 
 TEST_ADD(fd_dup, 0) {
-  int x = open("/tests/dup_test_file", O_RDONLY, 0);
+  int x = xopen("/tests/dup_test_file", O_RDONLY, 0);
   int y = dup(0);
   dup2(x, 0);
   char word[100];
