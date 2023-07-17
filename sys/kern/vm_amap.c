@@ -133,41 +133,24 @@ vm_anon_t *vm_amap_find_anon(vm_aref_t aref, size_t offset) {
   return NULL;
 }
 
-void vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
+vm_anon_t *vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
+  vm_anon_t *old = NULL;
   vm_amap_t *amap = aref.amap;
   assert(amap != NULL && anon != NULL);
+
+  SCOPED_MTX_LOCK(&amap->mtx);
 
   /* Determine real offset inside the amap. */
   offset += aref.offset;
   assert(offset < amap->slots);
 
-  SCOPED_MTX_LOCK(&amap->mtx);
-
-  /* We expect empty slot. */
-  assert(!bit_test(amap->anon_bitmap, offset));
+  if (bit_test(amap->anon_bitmap, offset)) {
+    old = amap->anon_list[offset];
+  }
 
   amap->anon_list[offset] = anon;
   bit_set(amap->anon_bitmap, offset);
-}
-
-void vm_amap_replace_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
-  vm_amap_t *amap = aref.amap;
-  assert(amap != NULL && anon != NULL);
-
-  /* Determine real offset inside the amap. */
-  offset += aref.offset;
-  assert(offset < amap->slots);
-
-  SCOPED_MTX_LOCK(&amap->mtx);
-
-  /* Anon must be already there. */
-  assert(bit_test(amap->anon_bitmap, offset));
-
-  vm_anon_t *old = amap->anon_list[offset];
-
-  vm_anon_drop(old);
-
-  amap->anon_list[offset] = anon;
+  return old;
 }
 
 static void vm_amap_remove_pages_unlocked(vm_amap_t *amap, size_t start,

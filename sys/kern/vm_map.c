@@ -1,3 +1,4 @@
+#include "sys/mutex.h"
 #define KL_LOG KL_VM
 #include <sys/klog.h>
 #include <sys/mimiker.h>
@@ -555,10 +556,10 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   vm_anon_t *anon = NULL, *old_anon = NULL;
 
   /* Conditions to use later */
-  bool cow = ent->flags & VM_ENT_COW;
-  bool needs_copy = ent->flags & VM_ENT_NEEDSCOPY;
-  bool cow_copy_page = cow && (fault_type & VM_PROT_WRITE);
-  bool limit_prot = cow && !(fault_type & VM_PROT_WRITE);
+  const bool cow = ent->flags & VM_ENT_COW;
+  const bool needs_copy = ent->flags & VM_ENT_NEEDSCOPY;
+  const bool cow_copy_page = cow && (fault_type & VM_PROT_WRITE);
+  const bool limit_prot = cow && !(fault_type & VM_PROT_WRITE);
   bool new_anon = false, replace_anon = false;
 
   klog("PAGE FAULT: page 0x%x write:%x cow:%d", fault_page,
@@ -590,7 +591,7 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   if (limit_prot && !new_anon)
     insert_prot &= ~VM_PROT_WRITE;
 
-  bool amap_copy = cow_copy_page || (cow && new_anon);
+  const bool amap_copy = cow_copy_page || (cow && new_anon);
 
   /* Create or copy amap if needed.
    *
@@ -622,11 +623,13 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   }
 
   /* Insert new anon to current amap */
-  if (new_anon)
+  if (new_anon) {
     vm_amap_insert_anon(ent->aref, anon, offset);
-  else if (replace_anon) {
+  } else if (replace_anon) {
     pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
-    vm_amap_replace_anon(ent->aref, anon, offset);
+    vm_anon_t *old = vm_amap_insert_anon(ent->aref, anon, offset);
+    assert(old != NULL);
+    vm_anon_drop(old);
   }
 
   pmap_enter(map->pmap, fault_page, anon->page, insert_prot, 0);
