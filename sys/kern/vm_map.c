@@ -562,9 +562,6 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   const bool limit_prot = cow && !(fault_type & VM_PROT_WRITE);
   bool new_anon = false, replace_anon = false;
 
-  klog("PAGE FAULT: page 0x%x write:%x cow:%d", fault_page,
-       (fault_type & VM_PROT_WRITE) != 0, cow);
-
   /* Get anon.
    * If amap exists then look for it there.
    * If anon is not found create it.
