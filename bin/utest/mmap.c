@@ -178,62 +178,6 @@ TEST_ADD(mmap_private, 0) {
   return 0;
 }
 
-static volatile int sigcont_handled = 0;
-
-static void sigcont_handler(int signo) {
-  printf("sigcont handled!\n");
-  sigcont_handled = 1;
-}
-
-TEST_ADD(mmap_private) {
-  signal(SIGCONT, sigcont_handler);
-  char *addr;
-  int ppid = getpid();
-  size_t pgsz = getpagesize();
-
-  /* mmap & munmap one page */
-  addr = mmap_anon_prw(NULL, pgsz);
-  assert(addr != (char *)MAP_FAILED);
-
-  pid_t pid = fork();
-  assert(pid >= 0);
-
-  sprintf(addr, "parent");
-
-  if (pid == 0) {
-    /* child */
-    printf("Child read: '%s'\n", addr);
-    /* Check and modify. */
-    string_eq(addr, "parent");
-    sprintf(addr, "child");
-    printf("Child written: '%s'\n", addr);
-
-    /* Wait for parent to check and modify its memory. */
-    kill(ppid, SIGCONT);
-    while (!sigcont_handled)
-      sched_yield();
-
-    printf("Child read again: '%s'\n", addr);
-    string_eq(addr, "child");
-    exit(0);
-  }
-
-  /* Wait for child to check and modify its memory. */
-  while (!sigcont_handled)
-    sched_yield();
-
-  printf("Parent read: '%s'\n", addr);
-  /* Check and modify. */
-  string_eq(addr, "parent");
-  sprintf(addr, "parent again");
-
-  /* Resume child. */
-  kill(pid, SIGCONT);
-
-  wait_for_child_exit(pid, 0);
-  return 0;
-}
-
 #define NPAGES 8
 
 TEST_ADD(mmap_prot_none, 0) {
