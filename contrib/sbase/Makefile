@@ -100,8 +100,10 @@ BIN = \
 	false \
 	find \
 	fold \
+	getconf \
 	grep \
 	head \
+	hostname \
 	join \
 	kill \
 	link \
@@ -171,8 +173,6 @@ BIN_DISABLED = \
 	du \
 	ed \
 	flock \
-	getconf \
-	hostname \
 	logger \
 	mknod \
 	tftp
@@ -190,6 +190,13 @@ SOURCES = $(PROGRAM).c $(addprefix sbase/,$(BIN:=.c)) $(addprefix sbase/,$(LIBUT
 FORMAT-EXCLUDE = $(SOURCES) $(addprefix sbase/,$(HDR))
 
 WFLAGS += -Wno-error=sign-compare -Wno-error=implicit-fallthrough
+
+$(BUILDDIR)sbase/getconf.o: $(BUILDDIR)/sbase/getconf.h
+
+$(BUILDDIR)/sbase/getconf.h: sbase/getconf.sh
+	./sbase/getconf.sh > $@
+
+CFLAGS.sbase/getconf.c += -I$(BUILDDIR)/sbase -Wno-error=type-limits
 
 include $(TOPDIR)/build/build.prog.mk
 
