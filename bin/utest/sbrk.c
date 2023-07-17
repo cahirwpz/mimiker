@@ -64,7 +64,7 @@ static void sbrk_bad(void) {
   assert(b2 == b1);
 }
 
-TEST_ADD(sbrk_sigsegv) {
+TEST_ADD(sbrk_sigsegv, 0) {
   /* Make sure memory just above sbrk has just been used and freed */
   void *unaligned = sbrk(0);
   /* Align to page size */
@@ -84,7 +84,7 @@ TEST_ADD(sbrk_sigsegv) {
   return 0;
 }
 
-TEST_ADD(sbrk) {
+TEST_ADD(sbrk, 0) {
   sbrk_orig = sbrk(0);
   assert(sbrk_orig != NULL);
 
