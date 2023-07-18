@@ -1,3 +1,4 @@
+#define KL_LOG KL_VM
 #include <sys/klog.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -96,9 +97,8 @@ vm_aref_t vm_amap_needs_copy(vm_aref_t aref, size_t slots) {
    */
 
   /* Amap don't have to be copied. */
-  if (amap->ref_cnt == 1) {
+  if (amap->ref_cnt == 1)
     return aref;
-  }
 
   vm_amap_t *new = vm_amap_alloc(slots);
   WITH_MTX_LOCK (&amap->mtx) {
@@ -144,9 +144,8 @@ vm_anon_t *vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
   offset += aref.offset;
   assert(offset < amap->slots);
 
-  if (bit_test(amap->anon_bitmap, offset)) {
+  if (bit_test(amap->anon_bitmap, offset))
     old = amap->anon_list[offset];
-  }
 
   amap->anon_list[offset] = anon;
   bit_set(amap->anon_bitmap, offset);
