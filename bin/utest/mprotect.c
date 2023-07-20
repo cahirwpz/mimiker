@@ -12,30 +12,24 @@
 #include <unistd.h>
 
 #define check_write_ok(addr)                                                   \
-  { *((char *)(addr)) = 'x'; }
+  { *((volatile char *)(addr)) = 'x'; }
 
 #define check_write_err(si, addr)                                              \
   {                                                                            \
     EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
-      *((char *)(addr)) = 'x';                                                 \
+      *((volatile char *)(addr)) = 'x';                                        \
     }                                                                          \
     CLEANUP_SIGNAL();                                                          \
     CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
   }
 
 #define check_read_ok(addr)                                                    \
-  {                                                                            \
-    char v = *((char *)(addr));                                                \
-    if (v)                                                                     \
-      printf("\n");                                                            \
-  }
+  { *((volatile char *)(addr)); }
 
 #define check_read_err(si, addr)                                               \
   {                                                                            \
     EXPECT_SIGNAL(SIGSEGV, &(si)) {                                            \
-      char v = *((char *)(addr));                                              \
-      if (v)                                                                   \
-        printf("\n");                                                          \
+      *((volatile char *)(addr));                                              \
     }                                                                          \
     CLEANUP_SIGNAL();                                                          \
     CHECK_SIGSEGV(&(si), (addr), SEGV_ACCERR);                                 \
@@ -82,7 +76,7 @@ static void memcpy_fun(void *addr) {
   memcpy(addr, func_inc, len);
 }
 
-TEST_ADD(mprotect_fail) {
+TEST_ADD(mprotect_fail, 0) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, pgsz, PROT_NONE);
   siginfo_t si;
@@ -105,19 +99,19 @@ TEST_ADD(mprotect_fail) {
   /* len must be nonzero */
   syscall_fail(mprotect(addr, 0, PROT_READ), EINVAL);
 
-  syscall_ok(munmap(addr, pgsz));
+  xmunmap(addr, pgsz);
 
   return 0;
 }
 
-TEST_ADD(mprotect1) {
+TEST_ADD(mprotect1, 0) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, pgsz, PROT_NONE);
   siginfo_t si;
 
   check_none_prot(si, addr);
 
-  syscall_ok(mprotect(addr, pgsz, PROT_READ | PROT_WRITE | PROT_EXEC));
+  xmprotect(addr, pgsz, PROT_READ | PROT_WRITE | PROT_EXEC);
 
   /* Copy function to address that won't be overritten by checks. */
   void *fun_addr = addr + 4;
@@ -127,25 +121,25 @@ TEST_ADD(mprotect1) {
   check_write_ok(addr);
   check_exec_ok(fun_addr);
 
-  syscall_ok(mprotect(addr, pgsz, PROT_READ | PROT_WRITE));
+  xmprotect(addr, pgsz, PROT_READ | PROT_WRITE);
 
   check_read_ok(addr);
   check_write_ok(addr);
   check_exec_err(si, fun_addr);
 
-  syscall_ok(mprotect(addr, pgsz, PROT_READ | PROT_EXEC));
+  xmprotect(addr, pgsz, PROT_READ | PROT_EXEC);
 
   check_read_ok(addr);
   check_write_err(si, addr);
   check_exec_ok(fun_addr);
 
-  syscall_ok(mprotect(addr, pgsz, PROT_READ));
+  xmprotect(addr, pgsz, PROT_READ);
 
   check_read_ok(addr);
   check_write_err(si, addr);
   check_exec_err(si, fun_addr);
 
-  syscall_ok(mprotect(addr, pgsz, PROT_NONE));
+  xmprotect(addr, pgsz, PROT_NONE);
 
   check_none_prot(si, addr);
 
@@ -171,16 +165,16 @@ static void *prepare_none_layout(size_t pgsz) {
 /* Change only some entries from prepared layout and check if protection
  * was changed correctly.
  */
-TEST_ADD(mprotect2) {
+TEST_ADD(mprotect2, 0) {
   size_t pgsz = getpagesize();
   void *addr = prepare_none_layout(pgsz);
   siginfo_t si;
 
   syscall_fail(mprotect(addr + pgsz, 5 * pgsz, PROT_READ | PROT_WRITE), ENOMEM);
 
-  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_READ | PROT_WRITE));
-  syscall_ok(mprotect(addr + 3 * pgsz, pgsz, PROT_READ | PROT_WRITE));
-  syscall_ok(mprotect(addr + 5 * pgsz, pgsz, PROT_READ | PROT_WRITE));
+  xmprotect(addr + pgsz, pgsz, PROT_READ | PROT_WRITE);
+  xmprotect(addr + 3 * pgsz, pgsz, PROT_READ | PROT_WRITE);
+  xmprotect(addr + 5 * pgsz, pgsz, PROT_READ | PROT_WRITE);
 
   check_none_prot(si, addr);
 
@@ -204,8 +198,8 @@ TEST_ADD(mprotect2) {
 
   syscall_fail(mprotect(addr + pgsz, 3 * pgsz, PROT_READ), ENOMEM);
 
-  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_READ));
-  syscall_ok(mprotect(addr + 3 * pgsz, pgsz, PROT_READ));
+  xmprotect(addr + pgsz, pgsz, PROT_READ);
+  xmprotect(addr + 3 * pgsz, pgsz, PROT_READ);
 
   check_none_prot(si, addr);
 
@@ -224,8 +218,7 @@ TEST_ADD(mprotect2) {
   check_none_prot(si, addr + 6 * pgsz);
 
   /* TODO: change to READ | WRITE */
-  syscall_ok(
-    mprotect(addr + 5 * pgsz, pgsz, PROT_READ | PROT_WRITE | PROT_EXEC));
+  xmprotect(addr + 5 * pgsz, pgsz, PROT_READ | PROT_WRITE | PROT_EXEC);
 
   check_none_prot(si, addr);
 
@@ -243,8 +236,8 @@ TEST_ADD(mprotect2) {
 
   check_none_prot(si, addr + 6 * pgsz);
 
-  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_READ | PROT_WRITE));
-  syscall_ok(mprotect(addr + 3 * pgsz, pgsz, PROT_READ | PROT_WRITE));
+  xmprotect(addr + pgsz, pgsz, PROT_READ | PROT_WRITE);
+  xmprotect(addr + 3 * pgsz, pgsz, PROT_READ | PROT_WRITE);
 
   check_none_prot(si, addr);
 
@@ -264,9 +257,9 @@ TEST_ADD(mprotect2) {
 
   syscall_fail(mprotect(addr + pgsz, 5 * pgsz, PROT_NONE), ENOMEM);
 
-  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_NONE));
-  syscall_ok(mprotect(addr + 3 * pgsz, pgsz, PROT_NONE));
-  syscall_ok(mprotect(addr + 5 * pgsz, pgsz, PROT_NONE));
+  xmprotect(addr + pgsz, pgsz, PROT_NONE);
+  xmprotect(addr + 3 * pgsz, pgsz, PROT_NONE);
+  xmprotect(addr + 5 * pgsz, pgsz, PROT_NONE);
 
   check_none_prot(si, addr);
   check_none_prot(si, addr + pgsz);
@@ -280,7 +273,7 @@ TEST_ADD(mprotect2) {
 /* Change protection for page inside given memory range. This will trigger
  * vm_map_entry splitting.
  */
-TEST_ADD(mprotect3) {
+TEST_ADD(mprotect3, 0) {
   size_t pgsz = getpagesize();
   void *addr = mmap_anon_priv(NULL, 4 * pgsz, PROT_NONE);
   siginfo_t si;
@@ -290,7 +283,7 @@ TEST_ADD(mprotect3) {
   check_none_prot(si, addr + 2 * pgsz);
   check_none_prot(si, addr + 3 * pgsz);
 
-  syscall_ok(mprotect(addr + pgsz, 2 * pgsz, PROT_READ | PROT_WRITE));
+  xmprotect(addr + pgsz, 2 * pgsz, PROT_READ | PROT_WRITE);
 
   check_none_prot(si, addr);
 
@@ -304,7 +297,7 @@ TEST_ADD(mprotect3) {
 
   check_none_prot(si, addr + 3 * pgsz);
 
-  syscall_ok(mprotect(addr + pgsz, pgsz, PROT_READ));
+  xmprotect(addr + pgsz, pgsz, PROT_READ);
 
   check_none_prot(si, addr);
 
@@ -318,7 +311,7 @@ TEST_ADD(mprotect3) {
 
   check_none_prot(si, addr + 3 * pgsz);
 
-  syscall_ok(mprotect(addr + pgsz, 2 * pgsz, PROT_NONE));
+  xmprotect(addr + pgsz, 2 * pgsz, PROT_NONE);
 
   check_none_prot(si, addr);
   check_none_prot(si, addr + pgsz);
