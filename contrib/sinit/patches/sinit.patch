@@ -1,0 +1,24 @@
+Index: sinit/sinit/sinit.c
+===================================================================
+--- sinit.orig/sinit/sinit.c
++++ sinit/sinit/sinit.c
+@@ -6,6 +6,8 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <unistd.h>
++#include <fcntl.h>
++#include <sys/ioctl.h>
+ 
+ #define LEN(x)	(sizeof (x) / sizeof *(x))
+ #define TIMEO	30
+@@ -40,6 +42,10 @@ main(void)
+ 	chdir("/");
+ 	sigfillset(&set);
+ 	sigprocmask(SIG_BLOCK, &set, NULL);
++	/* Disassociate the controlling terminal from init. File descriptors
++	0, 1 and 2 are already opened and attached to /dev/tty (which is the
++	controlling terminal), so we can call TIOCNOTTY on one of them */
++	ioctl(0, TIOCNOTTY, (void *)0);
+ 	spawn(rcinitcmd);
+ 	while (1) {
+ 		alarm(TIMEO);
