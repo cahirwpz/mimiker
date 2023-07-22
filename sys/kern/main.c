@@ -67,13 +67,15 @@ static __noreturn void start_init(__unused void *arg) {
   assert(_stdout == 1);
   assert(_stderr == 2);
 
-  char *init = kenv_get("init");
-  if (init)
-    kern_execve(init, kenv_get_init(), (char *[]){NULL});
-
   char *test = kenv_get("test");
   if (test)
     ktest_main(test);
+
+  char *init = kenv_get("init");
+  if (init == NULL)
+    init = "/sbin/init";
+
+  kern_execve(init, kenv_get_init(), (char *[]){NULL});
 
   panic("Use init=PROGRAM to start a user-space program "
         "or test=TESTLIST to run tests.");

@@ -11,12 +11,11 @@
  * structured views of FCSR.
  */
 
-#include <assert.h>
+#include "utest.h"
+
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#include "utest.h"
 
 #define TEST_TIME 1000000
 #define PROCESSES 10
@@ -123,27 +122,27 @@ static int check_fpu_ctx(void *value) {
   return 0;
 }
 
-int test_fpu_gpr_preservation(void) {
+TEST_ADD(fpu_gpr_preservation, 0) {
   int seed = 0xbeefface;
 
   for (int i = 0; i < P_PROCESSES; i++)
-    utest_spawn(check_fpu_ctx, (void *)seed + i);
+    spawn(check_fpu_ctx, (void *)seed + i);
 
   for (int i = 0; i < PROCESSES; i++)
-    utest_child_exited(EXIT_SUCCESS);
+    wait_child_finished(0);
 
   return 0;
 }
 
-int test_fpu_cpy_ctx_on_fork(void) {
+TEST_ADD(fpu_cpy_ctx_on_fork, 0) {
   void *value = (void *)0xbeefface;
 
   MTC1_all_gpr(value);
-  utest_spawn(MTC1_all_gpr, (void *)0xc0de);
-  utest_spawn(check_fpu_all_gpr, (void *)value);
+  spawn(MTC1_all_gpr, (void *)0xc0de);
+  spawn(check_fpu_all_gpr, (void *)value);
 
   for (int i = 0; i < 2; i++)
-    utest_child_exited(EXIT_SUCCESS);
+    wait_child_finished(0);
 
   return 0;
 }
@@ -158,12 +157,12 @@ static int check_fcsr(void *arg) {
   return 0;
 }
 
-int test_fpu_fcsr() {
+TEST_ADD(fpu_fcsr, 0) {
   for (int i = 0; i < PROCESSES; i++)
-    utest_spawn(check_fcsr, (void *)i);
+    spawn(check_fcsr, (void *)i);
 
   for (int i = 0; i < PROCESSES; i++)
-    utest_child_exited(EXIT_SUCCESS);
+    wait_child_finished(0);
 
   return 0;
 }
@@ -175,16 +174,16 @@ static void signal_handler_usr2(int signo) {
 static void signal_handler_usr1(int signo) {
   MTC1_all_gpr((void *)1337);
 
-  signal(SIGUSR2, signal_handler_usr2);
+  xsignal(SIGUSR2, signal_handler_usr2);
   raise(SIGUSR2);
 
   check_fpu_all_gpr((void *)1337);
 }
 
-int test_fpu_ctx_signals(void) {
+TEST_ADD(fpu_ctx_signals, 0) {
   MTC1_all_gpr((void *)0xc0de);
 
-  signal(SIGUSR1, signal_handler_usr1);
+  xsignal(SIGUSR1, signal_handler_usr1);
   raise(SIGUSR1);
 
   check_fpu_all_gpr((void *)0xc0de);

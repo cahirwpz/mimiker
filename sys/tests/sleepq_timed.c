@@ -34,7 +34,7 @@ static thread_t *waker;
 
 static void waiter_routine(void *_arg) {
   systime_t before_sleep = getsystime();
-  int status = sleepq_wait_timed(&wchan, __caller(0), SLEEP_TICKS);
+  int status = sleepq_wait_timed(&wchan, __caller(0), NULL, SLEEP_TICKS);
   systime_t after_sleep = getsystime();
   systime_t diff = after_sleep - before_sleep;
 

@@ -1,0 +1,24 @@
+Index: sbase/sbase/tail.c
+===================================================================
+--- sbase.orig/sbase/tail.c	2023-01-07 15:38:34.744696432 +0100
++++ sbase/sbase/tail.c	2023-01-07 15:38:58.131362324 +0100
+@@ -18,8 +18,8 @@
+ dropinit(int fd, const char *fname, size_t count)
+ {
+ 	Rune r;
+-	char buf[BUFSIZ], *p;
+-	ssize_t n;
++	char buf[BUFSIZ], *p = NULL;
++	ssize_t n = 0;
+ 	int nr;
+ 
+ 	if (count < 2)
+@@ -82,7 +82,7 @@
+ {
+ 	static char *buf = NULL;
+ 	static size_t size = 0;
+-	char *p;
++	char *p = NULL;
+ 	size_t len = 0, left;
+ 	ssize_t n;
+ 

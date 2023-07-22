@@ -1,9 +1,10 @@
 #include "utest.h"
+#include "util.h"
 
 #include <errno.h>
+#include <signal.h>
 #include <string.h>
 #include <unistd.h>
-#include <assert.h>
 
 #if __SIZEOF_POINTER__ == 4
 #define TOO_MUCH 0x80000000
@@ -63,8 +64,7 @@ static void sbrk_bad(void) {
   assert(b2 == b1);
 }
 
-/* Causes SIGSEGV, don't call it here */
-int test_sbrk_sigsegv(void) {
+TEST_ADD(sbrk_sigsegv, 0) {
   /* Make sure memory just above sbrk has just been used and freed */
   void *unaligned = sbrk(0);
   /* Align to page size */
@@ -73,13 +73,18 @@ int test_sbrk_sigsegv(void) {
   void *ptr = sbrk(0x2000);
   sbrk(-0x2000);
 
-  /* Try to access freed memory. It should raise SIGSEGV */
-  int data = *((volatile int *)(ptr + 0x1000));
-  (void)data;
-  return 1;
+  siginfo_t si;
+  EXPECT_SIGNAL(SIGSEGV, &si) {
+    /* Try to access freed memory. It should raise SIGSEGV */
+    int data = *((volatile int *)(ptr + 0x1000));
+    (void)data;
+  }
+  CLEANUP_SIGNAL();
+  CHECK_SIGSEGV(&si, ptr + 0x1000, SEGV_MAPERR);
+  return 0;
 }
 
-int test_sbrk(void) {
+TEST_ADD(sbrk, 0) {
   sbrk_orig = sbrk(0);
   assert(sbrk_orig != NULL);
 

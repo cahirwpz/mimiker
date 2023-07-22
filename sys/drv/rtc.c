@@ -80,7 +80,7 @@ static int rtc_time_read(devnode_t *dev, uio_t *uio) {
   rtc_state_t *rtc = dev->data;
   tm_t t;
 
-  sleepq_wait(rtc, NULL);
+  sleepq_wait(rtc, NULL, NULL);
   rtc_gettime(rtc->regs, &t);
   int count = snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d",
                        t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour,

@@ -1,26 +1,26 @@
 #include "utest.h"
+#include "util.h"
 
-#include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
-#include <assert.h>
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <sys/uio.h>
+#include <string.h>
 #include <sys/param.h>
+#include <sys/uio.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 static const char *str = "Hello world from a user program!\n";
 static char buf[100];
 static int n;
 
 /* Shift used fds by 3 so std{in,out,err} are not affected. */
+#undef FD_OFFSET
 #define FD_OFFSET 3
-#include "utest_fd.h"
 
 /* Just the basic, correct operations on a single /dev/null */
-int test_fd_devnull(void) {
+TEST_ADD(fd_devnull, 0) {
   assert_open_ok(0, "/dev/null", 0, O_RDWR);
   assert_read_ok(0, buf, 100);
   assert_write_ok(0, str, strlen(str));
@@ -30,7 +30,7 @@ int test_fd_devnull(void) {
 
 /* Opens and closes multiple descriptors, checks if descriptor numbers are
    correctly reused */
-int test_fd_multidesc(void) {
+TEST_ADD(fd_multidesc, 0) {
   assert_open_ok(0, "/dev/null", 0, O_RDWR);
   assert_open_ok(1, "/dev/null", 0, O_RDWR);
   assert_open_ok(2, "/dev/null", 0, O_RDWR);
@@ -51,7 +51,7 @@ int test_fd_multidesc(void) {
 }
 
 /* Tests whether READ/WRITE flags are checked correctly */
-int test_fd_readwrite(void) {
+TEST_ADD(fd_readwrite, 0) {
   assert_open_ok(0, "/dev/null", 0, O_RDONLY);
   assert_open_ok(1, "/dev/null", 0, O_WRONLY);
   assert_open_ok(2, "/dev/null", 0, O_RDWR);
@@ -70,7 +70,7 @@ int test_fd_readwrite(void) {
   return 0;
 }
 
-int test_fd_read(void) {
+TEST_ADD(fd_read, 0) {
   /* Read all at once */
   const char *contents =
     "This is the content of file \"fd_test_file\" in directory \"/tests\"!";
@@ -99,7 +99,7 @@ int test_fd_read(void) {
 }
 
 /* Try passing invalid pointers as arguments to open,read,write. */
-int test_fd_copy(void) {
+TEST_ADD(fd_copy, 0) {
   /* /dev/null does not copy any data, so passing an invalid pointer will not
    * cause any errors - thus we use /dev/zero for this test. However, /dev/zero
    * might also skip copying data, and in that case this test would also fail -
@@ -123,7 +123,7 @@ int test_fd_copy(void) {
 }
 
 /* Tries accessing some invalid descriptor numbers */
-int test_fd_bad_desc(void) {
+TEST_ADD(fd_bad_desc, 0) {
   assert_write_fail(0, buf, 100, EBADF);
   assert_write_fail(42, buf, 100, EBADF);
   assert_write_fail(-10, buf, 100, EBADF);
@@ -136,7 +136,7 @@ int test_fd_bad_desc(void) {
   return 0;
 }
 
-int test_fd_open_path(void) {
+TEST_ADD(fd_open_path, 0) {
   assert_open_fail("/etc/shadow", 0, O_RDONLY, ENOENT);
   assert_open_fail("123456", 0, O_RDONLY, ENOENT);
   assert_open_fail("", 0, O_RDONLY, ENOENT);
@@ -152,8 +152,8 @@ int test_fd_open_path(void) {
   return 0;
 }
 
-int test_fd_dup(void) {
-  int x = open("/tests/dup_test_file", O_RDONLY, 0);
+TEST_ADD(fd_dup, 0) {
+  int x = xopen("/tests/dup_test_file", O_RDONLY, 0);
   int y = dup(0);
   dup2(x, 0);
   char word[100];
@@ -189,7 +189,7 @@ static void _init_iovec(char *buf, struct iovec *iov, size_t *lens, int nlens) {
   _init_iovec(buf, iov, (size_t[]){__VA_ARGS__},                               \
               sizeof((size_t[]){__VA_ARGS__}) / sizeof(size_t))
 
-int test_fd_readv(void) {
+TEST_ADD(fd_readv, 0) {
   /* Read all at once */
   const char *contents =
     "This is the content of file \"fd_test_file\" in directory \"/tests\"!";
@@ -238,7 +238,7 @@ int test_fd_readv(void) {
   return 0;
 }
 
-int test_fd_writev(void) {
+TEST_ADD(fd_writev, 0) {
   struct iovec iov[10];
 
   /* Fill buf with some data. */
@@ -266,24 +266,15 @@ int test_fd_writev(void) {
 
 /* Tests below do not use std* file descriptors */
 #undef FD_OFFSET
-#include "utest_fd.h"
+#define FD_OFFSET 0
 
-int test_fd_pipe(void) {
+TEST_ADD(fd_pipe, 0) {
   int fd[2];
-  assert_pipe_ok(fd);
+  xpipe(fd);
 
-  pid_t pid = fork();
-  assert(pid >= 0);
+  pid_t pid = xfork();
 
-  if (pid > 0) {
-    /* parent */
-    assert_close_ok(fd[0]);
-    assert_write_ok(fd[1], str, strlen(str));
-    assert_close_ok(fd[1]);
-
-    int status;
-    waitpid(-1, &status, 0);
-  } else {
+  if (pid == 0) {
     /* child */
     assert_close_ok(fd[1]);
     assert_read_equal(fd[0], buf, str);
@@ -291,10 +282,16 @@ int test_fd_pipe(void) {
     exit(0);
   }
 
+  assert_close_ok(fd[0]);
+  assert_write_ok(fd[1], str, strlen(str));
+  assert_close_ok(fd[1]);
+
+  wait_child_finished(pid);
+
   return 0;
 }
 
-int test_fd_all(void) {
+TEST_ADD(fd_all, 0) {
   /* Call all fd-related tests one by one to see how they impact the process
    * file descriptor table. */
   test_fd_read();

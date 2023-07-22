@@ -37,11 +37,7 @@
 #ifndef _SYS_SYSLIMITS_H_
 #define _SYS_SYSLIMITS_H_
 
-#if 0
 #define ARG_MAX 65536 /* max bytes for an exec function */
-#else
-#define ARG_MAX 3072 /* XXX: less than a page until kmalloc is fixed */
-#endif
 #ifndef CHILD_MAX
 #define CHILD_MAX 40 /* max simultaneous processes */
 #endif
@@ -73,5 +69,6 @@
  * IEEE Std 1003.1c-95, adopted in X/Open CAE Specification Issue 5 Version 2
  */
 #define LOGIN_NAME_MAX 17 /* max login name length incl. NUL */
+#define HOST_NAME_MAX 255 /* max hostname length w/o NUL */
 
 #endif /* !_SYS_SYSLIMITS_H_ */

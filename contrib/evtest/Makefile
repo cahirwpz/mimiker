@@ -8,8 +8,6 @@ SOURCES = evtest/evtest.c versionsort.c
 PATCHES = 01.patch
 CLEAN-FILES = patch-stamp
 
-FORMAT-EXCLUDE = $(SOURCES)
-
 include $(TOPDIR)/build/build.prog.mk
 
 all: download build install

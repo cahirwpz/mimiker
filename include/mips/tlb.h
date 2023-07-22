@@ -55,7 +55,7 @@ typedef struct {
 #define PTE_KERNEL_READONLY (PTE_GLOBAL | PTE_VALID | PTE_SW_READ)
 #define PTE_KERNEL                                                             \
   (PTE_GLOBAL | PTE_VALID | PTE_DIRTY | PTE_SW_READ | PTE_SW_WRITE)
-#define PTE_PROT_MASK (PTE_VALID | PTE_DIRTY | PTE_SW_FLAGS)
+#define PTE_PROT_MASK (PTE_VALID | PTE_DIRTY | PTE_RI | PTE_XI | PTE_SW_FLAGS)
 
 #define PTE_PFN(addr) (((addr) >> PTE_PFN_SHIFT) & PTE_PFN_MASK)
 #define PTE_CACHE(cache) (((cache) << PTE_CACHE_SHIFT) & PTE_CACHE_MASK)

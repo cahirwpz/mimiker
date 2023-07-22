@@ -120,6 +120,9 @@ typedef struct stat {
 #define DEFFILEMODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 #define ALLPERMS (S_ISUID | S_ISGID | S_ISTXT | S_IRWXU | S_IRWXG | S_IRWXO)
 
+#define UTIME_NOW ((1 << 30) - 1)
+#define UTIME_OMIT ((1 << 30) - 2)
+
 #ifndef _KERNEL
 int chmod(const char *, mode_t);
 int mkdir(const char *, mode_t);
