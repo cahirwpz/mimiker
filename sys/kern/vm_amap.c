@@ -88,20 +88,21 @@ vm_aref_t vm_amap_needs_copy(vm_aref_t aref, size_t slots) {
   if (!amap)
     return (vm_aref_t){.offset = 0, .amap = NULL};
 
-  /* XXX: This check is actually safe. If amap has only one reference it means
-   * that it is reference of current vm_map_entry. Ref_cnt can't be bumped now,
-   * because it is done only in syscalls (fork, munmap and mprotect) (and we are
-   * currently handling page fault so we can't be in such syscall). That is
-   * because during these syscalls we can't cause page fault on currently
-   * accessed vm_map_entry.
-   */
-
-  /* Amap don't have to be copied. */
-  if (amap->ref_cnt == 1)
-    return aref;
-
-  vm_amap_t *new = vm_amap_alloc(slots);
+  vm_amap_t *new;
   WITH_MTX_LOCK (&amap->mtx) {
+    /* XXX: This check is actually safe. If amap has only one reference it means
+     * that it is reference of current vm_map_entry. Ref_cnt can't be bumped
+     * now, because it is done only in syscalls (fork, munmap and mprotect) (and
+     * we are currently handling page fault so we can't be in such syscall).
+     * That is because during these syscalls we can't cause page fault on
+     * currently accessed vm_map_entry.
+     */
+
+    /* Amap don't have to be copied. */
+    if (amap->ref_cnt == 1)
+      return aref;
+
+    new = vm_amap_alloc(slots);
     for (size_t slot = 0; slot < slots; slot++) {
       size_t old_slot = aref.offset + slot;
 
