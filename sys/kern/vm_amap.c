@@ -1,4 +1,5 @@
 #define KL_LOG KL_VM
+#include <sys/errno.h>
 #include <sys/klog.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -8,7 +9,6 @@
 #include <sys/vm_map.h>
 #include <sys/vm_amap.h>
 #include <sys/vm_physmem.h>
-#include <sys/errno.h>
 
 /*
  * The idea of amaps comes from "Design and Implementation of the UVM Virtual
