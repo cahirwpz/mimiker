@@ -51,9 +51,9 @@
 struct vm_amap {
   mtx_t mtx;             /* Amap lock. */
   size_t slots;          /* (!) maximum number of slots */
-  refcnt_t ref_cnt;      /* (a) number of references */
-  vm_anon_t **anon_list; /* (@) anon list */
-  bitstr_t *anon_bitmap; /* (@) anon bitmap */
+  refcnt_t ref_cnt;      /* (a) number map entries using amap */
+  vm_anon_t **anon_list; /* (@) pointers of used anons */
+  bitstr_t *anon_bitmap; /* (@) bitmap of present anons */
 };
 
 static POOL_DEFINE(P_VM_AMAP_STRUCT, "vm_amap_struct", sizeof(vm_amap_t));
