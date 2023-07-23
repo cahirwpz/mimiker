@@ -466,8 +466,13 @@ static vm_map_entry_t *vm_map_entry_clone_copy(vm_map_t *map,
                                                vm_map_entry_t *ent) {
   vm_map_entry_t *new = vm_map_entry_copy(ent);
 
-  /* TODO(cow): There are few special cases but we don't need them now.
-   *            -- Section 4.7 in "The Design and Implementation of UVM".
+  /* TODO(cow): There are few special cases but we don't need them now because
+   * we don't support all the features available in original UVM system.
+   *   - Share inheritance when Needs Copy flag is set
+   *   - Amap is shared between 2 processes but must be copied due to
+   *     copy inheritance of mapping
+   *
+   * -- Section 4.7 in "The Design and Implementation of UVM".
    */
 
   /* Just hold the amap if it is present and set flags. Copying will be done
