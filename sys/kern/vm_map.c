@@ -523,11 +523,11 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   return new_map;
 }
 
-int insert_anon(vm_map_entry_t *ent, size_t off, vm_anon_t **anon,
-                vm_prot_t *ins_prot) {
-  if (*anon) {
+static int insert_anon(vm_map_entry_t *ent, size_t off, vm_anon_t **anonp,
+                       vm_prot_t *ins_protp) {
+  if (*anonp) {
     /* It's already present */
-    *ins_prot = ent->prot;
+    *ins_protp = ent->prot;
     return 0;
   }
 
@@ -535,21 +535,22 @@ int insert_anon(vm_map_entry_t *ent, size_t off, vm_anon_t **anon,
   if (!new)
     return ENOMEM;
 
-  vm_anon_t *ret = vm_amap_insert_anon(ent->aref, new, off);
-  assert(ret == NULL);
+  vm_anon_t *old = vm_amap_insert_anon(ent->aref, new, off);
+  assert(old == NULL);
 
-  *ins_prot = ent->prot;
-  *anon = new;
+  *ins_protp = ent->prot;
+  *anonp = new;
   return 0;
 }
 
-int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
-                   vm_anon_t **anon, vm_prot_t *ins_prot, vm_prot_t access) {
+static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
+                          vm_anon_t **anonp, vm_prot_t *ins_protp,
+                          vm_prot_t access) {
   /* We don't need to modify amap. We do the same as in non-cow case but we have
    * to limit protection of page that will be inserted. */
   if ((access & VM_PROT_WRITE) == 0) {
-    int err = insert_anon(ent, off, anon, ins_prot);
-    *ins_prot = ent->prot & ~VM_PROT_WRITE;
+    int err = insert_anon(ent, off, anonp, ins_protp);
+    *ins_protp = ent->prot & ~VM_PROT_WRITE;
     return err;
   }
 
@@ -566,23 +567,23 @@ int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
   /* If we need to create a new anon and insert it into amap we can do that
    * using insert_anon procedure. (Now it will operate on new amap if it was
    * copied.) */
-  if (*anon == NULL)
-    return insert_anon(ent, off, anon, ins_prot);
+  if (*anonp == NULL)
+    return insert_anon(ent, off, anonp, ins_protp);
 
   /* Current mapping will be replaced with new one so remove it from pmap. */
   vaddr_t fault_page = off * PAGESIZE + ent->start;
   pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
 
   /* Replace anon */
-  vm_anon_t *new = vm_anon_copy(*anon);
+  vm_anon_t *new = vm_anon_copy(*anonp);
   vm_anon_t *old = vm_amap_insert_anon(ent->aref, new, off);
 
   /* Check if replaced anon is the one we expect to be replaced. */
-  assert(*anon == old);
+  assert(*anonp == old);
   vm_anon_drop(old);
 
-  *ins_prot = ent->prot;
-  *anon = new;
+  *ins_protp = ent->prot;
+  *anonp = new;
   return 0;
 }
 
