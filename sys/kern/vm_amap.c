@@ -68,6 +68,10 @@ size_t vm_amap_slots(vm_amap_t *amap) {
   return amap->slots;
 }
 
+mtx_t *vm_amap_mtx(vm_amap_t *amap) {
+  return &amap->mtx;
+}
+
 vm_amap_t *vm_amap_alloc(size_t slots) {
   slots += EXTRA_AMAP_SLOTS;
   vm_amap_t *amap = pool_alloc(P_VM_AMAP_STRUCT, M_WAITOK);
