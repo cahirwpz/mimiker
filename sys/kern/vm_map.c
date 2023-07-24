@@ -523,13 +523,10 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   return new_map;
 }
 
-static int insert_anon(vm_map_entry_t *ent, size_t off, vm_anon_t **anonp,
-                       vm_prot_t *ins_protp) {
-  if (*anonp) {
-    /* It's already present */
-    *ins_protp = ent->prot;
+static int insert_anon(vm_map_entry_t *ent, size_t off, vm_anon_t **anonp) {
+  /* It's already present */
+  if (*anonp)
     return 0;
-  }
 
   vm_anon_t *new = vm_anon_alloc();
   if (!new)
@@ -538,7 +535,6 @@ static int insert_anon(vm_map_entry_t *ent, size_t off, vm_anon_t **anonp,
   vm_anon_t *old = vm_amap_insert_anon(ent->aref, new, off);
   assert(old == NULL);
 
-  *ins_protp = ent->prot;
   *anonp = new;
   return 0;
 }
@@ -549,9 +545,8 @@ static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
   /* We don't need to modify amap. We do the same as in non-cow case but we have
    * to limit protection of page that will be inserted. */
   if ((access & VM_PROT_WRITE) == 0) {
-    int err = insert_anon(ent, off, anonp, ins_protp);
     *ins_protp = ent->prot & ~VM_PROT_WRITE;
-    return err;
+    return insert_anon(ent, off, anonp);
   }
 
   /* Copy amap to make it ready for inserting copied or new anons. */
@@ -568,7 +563,7 @@ static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
    * using insert_anon procedure. (Now it will operate on new amap if it was
    * copied.) */
   if (*anonp == NULL)
-    return insert_anon(ent, off, anonp, ins_protp);
+    return insert_anon(ent, off, anonp);
 
   /* Current mapping will be replaced with new one so remove it from pmap. */
   vaddr_t fault_page = off * PAGESIZE + ent->start;
@@ -628,19 +623,18 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
     anon = vm_amap_find_anon(ent->aref, offset);
   } else {
     /* Create a new amap. */
-    anon = NULL;
     size_t amap_slots = vaddr_to_slot(ent->end - ent->start);
     ent->aref.amap = vm_amap_alloc(amap_slots);
     ent->aref.offset = 0;
   }
 
   int err;
-  vm_prot_t insert_prot;
+  vm_prot_t insert_prot = ent->prot;
 
   if (ent->flags & VM_ENT_COW)
     err = cow_page_fault(map, ent, offset, &anon, &insert_prot, fault_type);
   else
-    err = insert_anon(ent, offset, &anon, &insert_prot);
+    err = insert_anon(ent, offset, &anon);
 
   if (err)
     return err;
