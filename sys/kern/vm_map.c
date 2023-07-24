@@ -622,9 +622,6 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   vaddr_t fault_page = fault_addr & -PAGESIZE;
   size_t offset = vaddr_to_slot(fault_page - ent->start);
 
-  klog("PAGE FAULT: page 0x%x write:%x cow:%d", fault_page,
-       (fault_type & VM_PROT_WRITE) != 0, (ent->flags & VM_ENT_COW) != 0);
-
   if (ent->aref.amap) {
     /* Look for anon in existing amap. */
     anon = vm_amap_find_anon(ent->aref, offset);
