@@ -32,10 +32,7 @@
  * existing anon in amap with new one). To avoid dead locks the proper order of
  * holding locks must be preserved. The amap should be locked first.
  *
- * Few observations about locking:
- *  1. No function needs to be called with any lock held.
- *  2. The only situation when we need to hold 2 locks is in
- * `vm_amap_replace_anon`.
+ * Observation: No function needs to be called with any lock held.
  */
 
 /* Amap size will be increased by this number of slots to easier resizing. */
@@ -134,8 +131,7 @@ vm_anon_t *vm_amap_find_anon(vm_aref_t aref, size_t offset) {
   return NULL;
 }
 
-vm_anon_t *vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
-  vm_anon_t *old = NULL;
+void vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
   vm_amap_t *amap = aref.amap;
   assert(amap != NULL && anon != NULL);
 
@@ -145,12 +141,14 @@ vm_anon_t *vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
   offset += aref.offset;
   assert(offset < amap->slots);
 
-  if (bit_test(amap->anon_bitmap, offset))
-    old = amap->anon_list[offset];
+  /* Don't allow for inserting anon twice. */
+  if (bit_test(amap->anon_bitmap, offset)) {
+    assert(anon == amap->anon_list[offset]);
+    return;
+  }
 
   amap->anon_list[offset] = anon;
   bit_set(amap->anon_bitmap, offset);
-  return old;
 }
 
 static void vm_amap_remove_pages_unlocked(vm_amap_t *amap, size_t start,

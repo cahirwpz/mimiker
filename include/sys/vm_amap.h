@@ -94,18 +94,8 @@ vm_anon_t *vm_anon_copy(vm_anon_t *src);
  */
 vm_anon_t *vm_amap_find_anon(vm_aref_t aref, size_t offset);
 
-/** Insert anon into amap
- *
- * If anon was already present at given offset it will be replaced and returned
- * from this function.
- *
- * @retval NULL Anon was inserted
- * @retval != NULL Anon that was previously at that offset.
- * */
-vm_anon_t *vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset);
-
-/** Replace anon in amap with new one. */
-void vm_amap_replace_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset);
+/** Insert anon into amap */
+void vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset);
 
 /** Bump the ref counter to record that anon is used by one more amap. */
 void vm_anon_hold(vm_anon_t *anon);
