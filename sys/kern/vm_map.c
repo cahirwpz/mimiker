@@ -542,11 +542,11 @@ static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
   vaddr_t fault_page = off * PAGESIZE + ent->start;
   pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
 
-  /* Replace anon */
+  /* Remove anon that will be replaced. */
   vm_anon_t *new = vm_anon_copy(*anonp);
   vm_anon_t *old = vm_amap_find_anon(ent->aref, off);
 
-  /* Check if replaced anon is the one we expect to be replaced. */
+  /* Check if removed anon is the one we expect to be replaced. */
   assert(*anonp == old);
 
   vm_amap_remove_pages(ent->aref, off, 1);

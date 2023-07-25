@@ -141,7 +141,7 @@ void vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
   offset += aref.offset;
   assert(offset < amap->slots);
 
-  /* Don't allow for inserting anon twice. */
+  /* Don't allow for inserting anon twice or on top of other. */
   if (bit_test(amap->anon_bitmap, offset)) {
     assert(anon == amap->anon_list[offset]);
     return;
