@@ -69,8 +69,6 @@ void vm_amap_remove_pages(vm_aref_t aref, size_t offset, size_t n_slots);
 /** Get amap reference count */
 int vm_amap_ref(vm_amap_t *amap);
 
-mtx_t *vm_amap_mtx(vm_amap_t *amap);
-
 /** Get amap max size (in slots) */
 size_t vm_amap_slots(vm_amap_t *amap);
 
