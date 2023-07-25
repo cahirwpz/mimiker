@@ -540,15 +540,7 @@ static int insert_anon(vm_map_entry_t *ent, size_t off, vm_anon_t **anonp) {
 }
 
 static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
-                          vm_anon_t **anonp, vm_prot_t *ins_protp,
-                          vm_prot_t access) {
-  /* We don't need to modify amap. We do the same as in non-cow case but we have
-   * to limit protection of page that will be inserted. */
-  if ((access & VM_PROT_WRITE) == 0) {
-    *ins_protp = ent->prot & ~VM_PROT_WRITE;
-    return insert_anon(ent, off, anonp);
-  }
-
+                          vm_anon_t **anonp) {
   /* Copy amap to make it ready for inserting copied or new anons. */
   if (ent->flags & VM_ENT_NEEDSCOPY) {
     size_t amap_slots = vaddr_to_slot(ent->end - ent->start);
@@ -577,7 +569,6 @@ static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
   assert(*anonp == old);
   vm_anon_drop(old);
 
-  *ins_protp = ent->prot;
   *anonp = new;
   return 0;
 }
@@ -631,10 +622,14 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   int err;
   vm_prot_t insert_prot = ent->prot;
 
-  if (ent->flags & VM_ENT_COW)
-    err = cow_page_fault(map, ent, offset, &anon, &insert_prot, fault_type);
-  else
+  /* Limit protection if we are in CoW and don't making a write. */
+  if ((ent->flags & VM_ENT_COW) && !(fault_type & VM_PROT_WRITE))
+    insert_prot &= ~VM_PROT_WRITE;
+
+  if (!(ent->flags & VM_ENT_COW) || !(fault_type & VM_PROT_WRITE))
     err = insert_anon(ent, offset, &anon);
+  else
+    err = cow_page_fault(map, ent, offset, &anon);
 
   if (err)
     return err;
