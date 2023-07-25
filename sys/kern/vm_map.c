@@ -622,14 +622,16 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   int err;
   vm_prot_t insert_prot = ent->prot;
 
-  /* Limit protection if we are in CoW and don't making a write. */
-  if ((ent->flags & VM_ENT_COW) && !(fault_type & VM_PROT_WRITE))
-    insert_prot &= ~VM_PROT_WRITE;
-
-  if (!(ent->flags & VM_ENT_COW) || !(fault_type & VM_PROT_WRITE))
+  if ((ent->flags & VM_ENT_COW)) {
+    if (fault_type & VM_PROT_WRITE) {
+      err = cow_page_fault(map, ent, offset, &anon);
+    } else {
+      insert_prot &= ~VM_PROT_WRITE;
+      err = insert_anon(ent, offset, &anon);
+    }
+  } else {
     err = insert_anon(ent, offset, &anon);
-  else
-    err = cow_page_fault(map, ent, offset, &anon);
+  }
 
   if (err)
     return err;
