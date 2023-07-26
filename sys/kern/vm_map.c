@@ -12,6 +12,7 @@
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/pcpu.h>
+#include <sys/thread.h>
 #include <machine/vm_param.h>
 
 struct vm_map_entry {

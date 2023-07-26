@@ -2,12 +2,14 @@
 #define _SYS_VM_MAP_H_
 
 #include <sys/queue.h>
+#include <sys/mimiker.h>
 #include <sys/pmap.h>
 #include <sys/vm.h>
 #include <sys/vm_amap.h>
 
 typedef struct vm_map vm_map_t;
 typedef struct vm_map_entry vm_map_entry_t;
+typedef struct thread thread_t;
 
 typedef enum {
   VM_ENT_SHARED = 1,    /* shared memory */
