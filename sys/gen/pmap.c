@@ -457,9 +457,6 @@ int pmap_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access) {
   if (!(error = pmap_emulate_bits(pmap, vaddr, access)))
     return 0;
 
-  if (error == EACCES)
-    goto fault;
-
   vm_map_t *vmap = vm_map_user();
 
   if (!(error = vm_page_fault(vmap, vaddr, access)))
