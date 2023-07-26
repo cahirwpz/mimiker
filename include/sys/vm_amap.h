@@ -42,7 +42,7 @@ vm_amap_t *vm_amap_alloc(size_t slots);
  *
  * @returns Aref ready to use
  */
-vm_aref_t vm_amap_needs_copy(vm_aref_t aref, size_t slots);
+vm_aref_t vm_amap_copy_if_needed(vm_aref_t aref, size_t slots);
 
 /** Bump the ref counter to record that amap is used by next one entry. */
 void vm_amap_hold(vm_amap_t *amap);

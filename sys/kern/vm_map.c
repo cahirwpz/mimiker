@@ -528,7 +528,7 @@ static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
   /* Copy amap to make it ready for inserting copied or new anons. */
   if (ent->flags & VM_ENT_NEEDSCOPY) {
     size_t amap_slots = vaddr_to_slot(ent->end - ent->start);
-    vm_aref_t new_aref = vm_amap_needs_copy(ent->aref, amap_slots);
+    vm_aref_t new_aref = vm_amap_copy_if_needed(ent->aref, amap_slots);
     if (!new_aref.amap)
       return ENOMEM;
     ent->flags &= ~VM_ENT_NEEDSCOPY;

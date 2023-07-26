@@ -80,7 +80,7 @@ vm_amap_t *vm_amap_alloc(size_t slots) {
   return amap;
 }
 
-vm_aref_t vm_amap_needs_copy(vm_aref_t aref, size_t slots) {
+vm_aref_t vm_amap_copy_if_needed(vm_aref_t aref, size_t slots) {
   vm_amap_t *amap = aref.amap;
   if (!amap)
     return (vm_aref_t){.offset = 0, .amap = NULL};
