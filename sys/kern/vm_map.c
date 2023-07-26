@@ -524,7 +524,7 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
 }
 
 static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
-                          vm_anon_t **anonp) {
+                          vm_anon_t *old, vm_anon_t **newp) {
   /* Copy amap to make it ready for inserting copied or new anons. */
   if (ent->flags & VM_ENT_NEEDSCOPY) {
     size_t amap_slots = vaddr_to_slot(ent->end - ent->start);
@@ -535,7 +535,7 @@ static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
     ent->aref = new_aref;
   }
 
-  if (*anonp == NULL)
+  if (old == NULL)
     return 0;
 
   /* Current mapping will be replaced with new one so remove it from pmap. */
@@ -543,14 +543,14 @@ static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
   pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
 
   /* Remove anon that will be replaced. */
-  vm_anon_t *new = vm_anon_copy(*anonp);
-  vm_anon_t *old = vm_amap_find_anon(ent->aref, off);
+  vm_anon_t *new = vm_anon_copy(old);
+  vm_anon_t *found = vm_amap_find_anon(ent->aref, off);
 
   /* Check if removed anon is the one we expect to be replaced. */
-  assert(*anonp == old);
+  assert(old == found);
 
   vm_amap_remove_pages(ent->aref, off, 1);
-  *anonp = new;
+  *newp = new;
   return 0;
 }
 
@@ -605,7 +605,7 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   if (ent->flags & VM_ENT_COW) {
     if (fault_type & VM_PROT_WRITE) {
       int err;
-      if ((err = cow_page_fault(map, ent, offset, &anon)))
+      if ((err = cow_page_fault(map, ent, offset, anon, &anon)))
         return err;
     } else {
       insert_prot &= ~VM_PROT_WRITE;
