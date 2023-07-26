@@ -2,7 +2,6 @@
 #include <sys/errno.h>
 #include <sys/klog.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/pool.h>
 #include <sys/pmap.h>
 #include <sys/refcnt.h>
