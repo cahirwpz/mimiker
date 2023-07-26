@@ -586,13 +586,13 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   assert(ent->start <= fault_addr && fault_addr < ent->end);
 
-  vm_anon_t *anon = NULL, *old = NULL;
+  vm_anon_t *anon = NULL;
   vaddr_t fault_page = fault_addr & -PAGESIZE;
   size_t offset = vaddr_to_slot(fault_page - ent->start);
 
   if (ent->aref.amap) {
     /* Look for anon in existing amap. */
-    anon = old = vm_amap_find_anon(ent->aref, offset);
+    anon = vm_amap_find_anon(ent->aref, offset);
   } else {
     /* Create a new amap. */
     size_t amap_slots = vaddr_to_slot(ent->end - ent->start);
@@ -600,18 +600,17 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
     ent->aref.offset = 0;
   }
 
-  int err = 0;
   vm_prot_t insert_prot = ent->prot;
 
   if (ent->flags & VM_ENT_COW) {
     if (fault_type & VM_PROT_WRITE) {
-      err = cow_page_fault(map, ent, offset, &anon);
+      int err;
+      if ((err = cow_page_fault(map, ent, offset, &anon)))
+        return err;
     } else {
       insert_prot &= ~VM_PROT_WRITE;
     }
   }
-  if (err)
-    return err;
 
   if (!anon)
     anon = vm_anon_alloc();
