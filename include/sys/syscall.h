@@ -93,6 +93,7 @@
 #define SYS_kevent 85
 #define SYS_sigtimedwait 86
 #define SYS_clock_settime 87
-#define SYS_MAXSYSCALL 88
+#define SYS_pathconf 88
+#define SYS_MAXSYSCALL 89
 
 #define SYS_MAXSYSARGS 6

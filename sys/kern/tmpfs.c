@@ -13,6 +13,7 @@
 #include <sys/malloc.h>
 #include <sys/cred.h>
 #include <bitstring.h>
+#include <sys/unistd.h>
 
 /*
  * All memory used by the tmpfs is organized in the list of arenas. A single
@@ -614,6 +615,16 @@ static int tmpfs_vop_link(vnode_t *dv, vnode_t *v, componentname_t *cn) {
   return 0;
 }
 
+static int tmpfs_vop_pathconf(vnode_t *v, int name, register_t *res) {
+  switch (name) {
+    case _PC_NAME_MAX:
+      *res = TMPFS_NAME_MAX;
+      return 0;
+    default:
+      return vnode_pathconf_generic(v, name, res);
+  }
+}
+
 static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
                                     .v_readdir = tmpfs_vop_readdir,
                                     .v_open = vnode_open_generic,
@@ -631,7 +642,8 @@ static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
                                     .v_reclaim = tmpfs_vop_reclaim,
                                     .v_readlink = tmpfs_vop_readlink,
                                     .v_symlink = tmpfs_vop_symlink,
-                                    .v_link = tmpfs_vop_link};
+                                    .v_link = tmpfs_vop_link,
+                                    .v_pathconf = tmpfs_vop_pathconf};
 
 /* tmpfs internal routines */
 

@@ -102,5 +102,6 @@
 85  { int sys_kevent(int kq, const struct kevent *changelist, size_t nchanges, struct kevent *eventlist, size_t nevents, const struct timespec *timeout); }
 86  { int sys_sigtimedwait(const sigset_t *set, siginfo_t *info, struct timespec *timeout); }
 87  { int sys_clock_settime(clockid_t clock_id, const struct timespec *tp); }
+88  { long sys_pathconf(const char *path, int name); }
 
 ; vim: ts=4 sw=4 sts=4 et

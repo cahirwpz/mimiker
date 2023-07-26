@@ -68,6 +68,7 @@ UTEST_ADD(vmmap_rodata_access);
 
 UTEST_ADD(mmap);
 UTEST_ADD(munmap);
+UTEST_ADD(mmap_private);
 UTEST_ADD(munmap_sigsegv);
 UTEST_ADD(munmap_many_1);
 UTEST_ADD(munmap_many_2);
