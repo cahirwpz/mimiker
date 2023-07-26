@@ -35,18 +35,9 @@ struct vm_aref {
  */
 vm_amap_t *vm_amap_alloc(size_t slots);
 
-/** Clone the amap.
- *
- * Create new amap with contents matching old amap. Starting from offset
- * specified by aref and copying specified number of slots.
- *
- * @returns New amap with ref_cnt = 1.
- */
-vm_amap_t *vm_amap_clone(vm_aref_t aref, size_t slots);
-
 /** Copy amap when it is needed.
  *
- * Amap is actually copied is referenced by more then one vm_map_entries.
+ * Amap is actually copied if referenced by more then one vm_map_entries.
  * Otherwise nothing is done and old aref is returned.
  *
  * @returns Aref ready to use
