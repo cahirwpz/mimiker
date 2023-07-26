@@ -5,7 +5,6 @@
 #include <sys/pmap.h>
 #include <sys/vm.h>
 #include <sys/vm_amap.h>
-#include <sys/mutex.h>
 
 typedef struct vm_map vm_map_t;
 typedef struct vm_map_entry vm_map_entry_t;

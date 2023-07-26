@@ -1,7 +1,6 @@
 #ifndef _SYS_VM_AMAP_H_
 #define _SYS_VM_AMAP_H_
 
-#include <sys/mutex.h>
 #include <sys/refcnt.h>
 #include <sys/types.h>
 #include <sys/vm.h>
