@@ -45,8 +45,8 @@ ifeq ($(KASAN), 1)
 endif
 
 ifeq ($(KFI),ftrace)
-  CFLAGS_KFI += -finstrument-functions -DKFI=1 -DKFT=1
-  KFT = 1
+  CFLAGS_KFI += -finstrument-functions -DKFI=1 -DKFTRACE=1
+  KFTRACE = 1
 endif
 
 ifeq ($(KFI),gprof)

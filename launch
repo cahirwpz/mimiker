@@ -515,7 +515,7 @@ if __name__ == '__main__':
                         help='QCOW2 image to be attached as a default storage '
                              'device for given platform.')
     parser.add_argument('--kft', action='store_true',
-                        help='Enable kft dump by GDB')
+                        help='Enable kftrace dump by GDB')
     args = parser.parse_args()
 
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
@@ -574,11 +574,11 @@ if __name__ == '__main__':
                 pass
             except IsADirectoryError:
                 print(f"{kft_out} is a directory! "
-                      "Can't use it to dump KFT data.")
+                      "Can't use it to dump KFTrace data.")
                 sys.exit(1)
 
             setvar('gdb.post-options', ['-ex=source .gdbinit',
-                                        '-ex=source .gdbinit-kft',
+                                        '-ex=source .gdbinit-kftrace',
                                         '-ex=continue'])
         dbg = GDB()
     elif args.test_run:

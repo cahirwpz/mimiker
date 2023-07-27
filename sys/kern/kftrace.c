@@ -1,6 +1,6 @@
+#include <machine/kftrace.h>
 #include <sys/thread.h>
 #include <sys/types.h>
-#include <machine/kft.h>
 
 /* Kernel Function Trace
  *

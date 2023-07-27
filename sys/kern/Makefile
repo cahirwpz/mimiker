@@ -74,8 +74,8 @@ SOURCES-KASAN = \
 SOURCES-LOCKDEP = \
 	lockdep.c
 
-SOURCES-KFT = \
-	kft.c
+SOURCES-KFTRACE = \
+	kftrace.c
 
 SOURCES-KGPROF = \
 	kgprof.c \
@@ -96,4 +96,4 @@ sysent.h $(SYSCALL_H) $(SYSCALLARGS_H): syscalls.conf syscalls.master
 kasan.o : CFLAGS_KASAN =
 mcount.o : CFLAGS_KFI =
 kcsan.o : CFLAGS_KCSAN =
-kft.o : CFLAGS_KFI =
+kftrace.o : CFLAGS_KFI =
