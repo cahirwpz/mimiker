@@ -8,7 +8,7 @@
  * implement function tracking in kernel.
  *
  * When entering or exiting a function an event is added to `kft_event_list`.
- * The size of the list is specified by `KFT_MAX`.
+ * The size of the list is specified by `KFT_EVENT_MAX`.
  *
  * When the list is full the function `kft_flush` is invoked. Currently it only
  * resets the event count. The main purpose of it is to set a breakpoint on it
@@ -25,8 +25,8 @@
 
 typedef uint64_t kft_event_t;
 
-#define KFT_MAX 1000000
-kft_event_t kft_event_list[KFT_MAX];
+#define KFT_EVENT_MAX 1000000
+kft_event_t kft_event_list[KFT_EVENT_MAX];
 static unsigned kft_used = 0;
 
 static void kft_flush(void);
@@ -60,7 +60,7 @@ static __no_profile void add_event(uint8_t type, uintptr_t pc) {
   kft_event_list[kft_used++] = make_event(type, thread, time, rel_pc);
 
   /* If buffer is full flush it. */
-  if (kft_used >= KFT_MAX) {
+  if (kft_used >= KFT_EVENT_MAX) {
     kft_flush();
   }
 }
