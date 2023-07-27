@@ -15,7 +15,7 @@ noreturn static void do_longjmp(int count) {
   assert(0); /* Shouldn't reach here. */
 }
 
-TEST_ADD(setjmp) {
+TEST_ADD(setjmp, 0) {
   unsigned int local_var = LOCAL_VALUE;
   volatile int count = 0;
 

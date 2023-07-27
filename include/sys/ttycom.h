@@ -76,6 +76,7 @@ typedef char linedn_t[TTLINEDNAMELEN];
 #define TIOCPTSNAME _IOW('t', 105, char *)        /* get slave device path */
 #define TIOCSTART _IO('t', 110)                   /* start output, like ^Q */
 #define TIOCSTOP _IO('t', 111)                    /* stop output, like ^S */
+#define TIOCNOTTY _IO('t', 113)                   /* void tty association */
 #define TIOCGPGRP _IOR('t', 119, int)             /* get pgrp of tty */
 #define TIOCSPGRP _IOW('t', 118, int)             /* set pgrp of tty */
 #define TIOCGQSIZE _IOR('t', 129, int)            /* get queue size */

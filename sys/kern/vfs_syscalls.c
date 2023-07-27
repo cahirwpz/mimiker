@@ -742,3 +742,16 @@ int do_utimensat(proc_t *p, int fd, char *path, timespec_t *times, int flag) {
   vnode_put(v);
   return error;
 }
+
+int do_pathconf(proc_t *p, char *path, int name, register_t *res) {
+  vnode_t *v;
+  int error;
+
+  if ((error = vfs_namelookup(path, &v, &p->p_cred)))
+    return error;
+
+  error = VOP_PATHCONF(v, name, res);
+  vnode_drop(v);
+
+  return error;
+}

@@ -12,7 +12,7 @@
 #include <sys/termios.h>
 #include <unistd.h>
 
-TEST_ADD(tty_canon) {
+TEST_ADD(tty_canon, 0) {
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
 
@@ -82,7 +82,7 @@ TEST_ADD(tty_canon) {
   return 0;
 }
 
-TEST_ADD(tty_echo) {
+TEST_ADD(tty_echo, 0) {
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
 
@@ -129,7 +129,7 @@ TEST_ADD(tty_echo) {
   return 0;
 }
 
-TEST_ADD(tty_signals) {
+TEST_ADD(tty_signals, 0) {
   signal_setup(SIGUSR1);
   int master_fd, slave_fd;
   open_pty(&master_fd, &slave_fd);
@@ -142,7 +142,7 @@ TEST_ADD(tty_signals) {
   assert(tcsetattr(slave_fd, TCSANOW, &t) == 0);
 
   pid_t ppid = getpid();
-  pid_t cpid = fork();
+  pid_t cpid = xfork();
   if (cpid == 0) {
     signal_setup(SIGINT);
     signal_setup(SIGQUIT);
@@ -153,14 +153,14 @@ TEST_ADD(tty_signals) {
      * becomes the controlling terminal for its session, and the child is in the
      * foreground process group. */
     assert(setsid() == cpid);
-    assert(close(slave_fd) == 0);
-    assert((slave_fd = open(ptsname(master_fd), 0)) >= 0);
-    assert(close(master_fd) == 0);
+    xclose(slave_fd);
+    assert((slave_fd = xopen(ptsname(master_fd), 0)) >= 0);
+    xclose(master_fd);
     /* We should be in the foreground process group now. */
     assert(tcgetpgrp(slave_fd) == cpid);
 
     /* We're ready to take the signals now. */
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     wait_for_signal(SIGINT);
 
     /* Check if the "foo" was discarded. */
@@ -168,10 +168,10 @@ TEST_ADD(tty_signals) {
     assert(read(slave_fd, &c, 1) == 1);
     assert(c == 'x');
 
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     wait_for_signal(SIGQUIT);
 
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     wait_for_signal(SIGTSTP);
 
     return 0;
@@ -209,7 +209,7 @@ TEST_ADD(tty_signals) {
   assert(vsusp != _POSIX_VDISABLE);
   assert(write(master_fd, &vsusp, 1) == 1);
 
-  wait_for_child_exit(cpid, 0);
+  wait_child_finished(cpid);
 
   return 0;
 }
