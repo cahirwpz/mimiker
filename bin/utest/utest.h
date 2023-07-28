@@ -95,9 +95,11 @@ void wait_child_continued(pid_t pid);
 
 #include <errno.h>
 #include <string.h>
+#include <sys/sigtypes.h>
 
 typedef void (*sig_t)(int);
 struct stat;
+struct sigaction;
 struct timezone;
 struct timeval;
 
@@ -124,6 +126,10 @@ int xopen(const char *path, int flags, ...);
 void xpipe(int pipefd[2]);
 void xrmdir(const char *pathname);
 sig_t xsignal(int sig, sig_t func);
+void xsigaction(int sig, const struct sigaction *restrict act,
+                struct sigaction *restrict oact);
+void xsigprocmask(int how, const sigset_t *restrict set,
+                  sigset_t *restrict oset);
 void xsetgroups(int size, gid_t *list);
 void xsetresuid(uid_t ruid, uid_t euid, uid_t suid);
 void xsetresgid(gid_t rgid, gid_t egid, gid_t sgid);

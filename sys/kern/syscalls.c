@@ -1333,7 +1333,32 @@ end:
 
 static int sys_sigtimedwait(proc_t *p, sigtimedwait_args_t *args,
                             register_t *res) {
-  return ENOTSUP;
+  const sigset_t *u_set = SCARG(args, set);
+  siginfo_t *u_info = SCARG(args, info);
+  const timespec_t *u_timeout = SCARG(args, timeout);
+  sigset_t set;
+  ksiginfo_t ksi;
+  timespec_t timeout = {};
+  int error;
+
+  if (u_timeout) {
+    error = copyin_s(u_timeout, timeout);
+    if (error)
+      return error;
+  }
+
+  if ((error = copyin_s(u_set, set)))
+    return error;
+
+  if ((error = do_sigtimedwait(p, set, &ksi, u_timeout ? &timeout : NULL)))
+    return error;
+
+  if (u_info)
+    error = copyout_s(ksi.ksi_info, u_info);
+
+  *res = ksi.ksi_info.si_signo;
+
+  return error;
 }
 
 static int sys_clock_settime(proc_t *p, clock_settime_args_t *args,
