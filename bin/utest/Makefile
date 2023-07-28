@@ -60,6 +60,8 @@ LIBWRAP = \
 	xsetresgid.c \
 	xsetresuid.c \
 	xsignal.c \
+	xsigaction.c \
+	xsigprocmask.c \
 	xstat.c \
 	xsymlink.c \
 	xunlink.c \
