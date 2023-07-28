@@ -226,8 +226,8 @@ TEST_ADD(signal_mask_nonmaskable, 0) {
   sigaddset(&set, SIGKILL);
   sigaddset(&set, SIGUSR1);
   /* The call should succeed, but SIGKILL and SIGSTOP shouldn't be blocked. */
-  assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
-  assert(sigprocmask(SIG_BLOCK, NULL, &set) == 0);
+  xsigprocmask(SIG_BLOCK, &set, &old);
+  xsigprocmask(SIG_BLOCK, NULL, &set);
   sigaddset(&old, SIGUSR1);
   assert(sigsetequal(&set, &old));
   return 0;
@@ -242,7 +242,7 @@ TEST_ADD(signal_sigsuspend, 0) {
   sigemptyset(&set);
   sigaddset(&set, SIGCONT);
   sigaddset(&set, SIGUSR1);
-  assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
+  xsigprocmask(SIG_BLOCK, &set, &old);
   sigaddset(&old, SIGCONT);
   pid_t cpid = xfork();
   if (cpid == 0) {
@@ -256,19 +256,19 @@ TEST_ADD(signal_sigsuspend, 0) {
   /* Go to sleep with SIGCONT blocked and SIGUSR1 unblocked. */
   debug("Calling sigsuspend()...");
   sigset_t current;
-  sigprocmask(SIG_BLOCK, NULL, &current);
+  xsigprocmask(SIG_BLOCK, NULL, &current);
   assert(sigismember(&current, SIGUSR1));
   assert(!sigismember(&old, SIGUSR1));
   sigsuspend(&old);
   /* Check if mask is set back after waking up */
-  sigprocmask(SIG_BLOCK, NULL, &set);
+  xsigprocmask(SIG_BLOCK, NULL, &set);
   assert(sigsetequal(&set, &current));
   /* SIGUSR1 should have woken us up, but SIGCONT should still be pending. */
   assert(sigusr1_handled);
   assert(!sigcont_handled);
   sigemptyset(&set);
   sigaddset(&set, SIGCONT);
-  assert(sigprocmask(SIG_UNBLOCK, &set, NULL) == 0);
+  xsigprocmask(SIG_UNBLOCK, &set, NULL);
   assert(sigcont_handled);
 
   wait_child_finished(cpid);
@@ -278,19 +278,19 @@ TEST_ADD(signal_sigsuspend, 0) {
 /* ======= signal_sigtimedwait ======= */
 static int sigtimedwait_child(__unused void *arg) {
   pid_t ppid = getppid();
-  syscall_ok(kill(ppid, SIGUSR1));
+  xkill(ppid, SIGUSR1);
   return 0;
 }
 
-TEST_ADD(signal_sigtimedwait) {
-  syscall_ok(signal(SIGCONT, sigcont_handler));
+TEST_ADD(signal_sigtimedwait, 0) {
+  xsignal(SIGCONT, sigcont_handler);
   sigset_t set, current, waitset;
   sigemptyset(&set);
   sigaddset(&set, SIGUSR1);
   sigaddset(&set, SIGCONT);
-  syscall_ok(sigprocmask(SIG_SETMASK, &set, NULL));
+  xsigprocmask(SIG_SETMASK, &set, NULL);
 
-  utest_spawn(sigtimedwait_child, NULL);
+  spawn(sigtimedwait_child, NULL);
 
   siginfo_t info;
   sigemptyset(&waitset);
@@ -298,27 +298,27 @@ TEST_ADD(signal_sigtimedwait) {
   assert(sigtimedwait(&waitset, &info, NULL) == SIGUSR1);
   assert(info.si_signo == SIGUSR1);
 
-  syscall_ok(sigprocmask(SIG_BLOCK, NULL, &current));
+  xsigprocmask(SIG_BLOCK, NULL, &current);
   assert(sigsetequal(&set, &current));
 
-  utest_child_exited(0);
+  wait_child_finished(0);
   return 0;
 }
 
 /* ======= signal_sigtimedwait_timeout ======= */
 static int sigtimedwait_timeout_child(__unused void *arg) {
   ppid = getppid();
-  kill(ppid, SIGUSR1);
-  kill(ppid, SIGCONT);
+  xkill(ppid, SIGUSR1);
+  xkill(ppid, SIGCONT);
   return 0;
 }
 
-TEST_ADD(signal_sigtimedwait_timeout) {
-  syscall_ok(signal(SIGCONT, sigcont_handler));
+TEST_ADD(signal_sigtimedwait_timeout, 0) {
+  xsignal(SIGCONT, sigcont_handler);
   sigset_t set, waitset;
   sigemptyset(&set);
   sigaddset(&set, SIGUSR1);
-  syscall_ok(sigprocmask(SIG_SETMASK, &set, NULL));
+  xsigprocmask(SIG_SETMASK, &set, NULL);
 
   siginfo_t info;
   sigemptyset(&waitset);
@@ -339,7 +339,7 @@ TEST_ADD(signal_sigtimedwait_timeout) {
   /* Should timeout. */
   syscall_fail(sigtimedwait(&waitset, &info, &timeout), EAGAIN);
 
-  utest_spawn(sigtimedwait_timeout_child, NULL);
+  spawn(sigtimedwait_timeout_child, NULL);
 
   /* If we handled sigcont, then SIGUSR1 must be pending. */
   while (!sigcont_handled)
@@ -350,7 +350,7 @@ TEST_ADD(signal_sigtimedwait_timeout) {
   assert(sigtimedwait(&waitset, &info, &timeout) == SIGUSR1);
   assert(info.si_signo == SIGUSR1);
 
-  utest_child_exited(0);
+  wait_child_finished(0);
   return 0;
 }
 
@@ -358,28 +358,28 @@ TEST_ADD(signal_sigtimedwait_timeout) {
 int sigtimedwait_intr_child(void *arg) {
   pid_t ppid = getppid();
   while (!sigcont_handled) {
-    kill(ppid, SIGCONT);
+    xkill(ppid, SIGCONT);
   }
   return 0;
 }
 
-TEST_ADD(signal_sigtimedwait_intr) {
-  syscall_ok(signal(SIGCONT, sigcont_handler));
+TEST_ADD(signal_sigtimedwait_intr, 0) {
+  xsignal(SIGCONT, sigcont_handler);
   sigset_t set, waitset;
   sigemptyset(&set);
   sigaddset(&set, SIGUSR1);
-  syscall_ok(sigprocmask(SIG_SETMASK, &set, NULL));
+  xsigprocmask(SIG_SETMASK, &set, NULL);
 
   siginfo_t info;
   sigemptyset(&waitset);
   sigaddset(&waitset, SIGUSR1);
 
-  pid_t cpid = utest_spawn(sigtimedwait_intr_child, NULL);
+  pid_t cpid = spawn(sigtimedwait_intr_child, NULL);
 
   syscall_fail(sigtimedwait(&waitset, &info, NULL), EINTR);
 
-  syscall_ok(kill(cpid, SIGCONT));
-  utest_child_exited(0);
+  xkill(cpid, SIGCONT);
+  wait_child_finished(0);
   return 0;
 }
 
