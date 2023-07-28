@@ -13,6 +13,9 @@
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 
+#include <sys/siginfo.h>
+#include <sys/sigtypes.h>
+
 static KMALLOC_DEFINE(M_SIGNAL, "signal");
 
 /*!\brief Signal properties. */
@@ -199,6 +202,11 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   assert(error == EINTR);
 
   return ERESTARTNOHAND;
+}
+
+int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *ksi,
+                    timespec_t *tsp) {
+  return ENOTSUP;
 }
 
 int do_sigpending(proc_t *p, sigset_t *set) {
