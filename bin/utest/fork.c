@@ -38,7 +38,7 @@ TEST_ADD(fork_signal, 0) {
 
   /* Wait for the child to get reaped by signal handler. */
   while (!done)
-    sched_yield();
+    pause();
   xsignal(SIGCHLD, SIG_DFL);
   return 0;
 }
