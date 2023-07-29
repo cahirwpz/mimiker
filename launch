@@ -514,7 +514,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--storage', type=str,
                         help='QCOW2 image to be attached as a default storage '
                              'device for given platform.')
-    parser.add_argument('--kft', action='store_true',
+    parser.add_argument('-k', '--kft', action='store_true',
                         help='Enable kftrace dump by GDB')
     args = parser.parse_args()
 
@@ -564,30 +564,32 @@ if __name__ == '__main__':
             extra = getvar('gdb.extra-options')
             extra.append(f'-ex=add-symbol-file {host_path} 0x400000')
 
-        if args.kft:
-            kft_out = 'dump.kft'
-
-            # Remove a kft file because GDB only appends to it
-            try:
-                os.remove(kft_out)
-            except FileNotFoundError:
-                pass
-            except IsADirectoryError:
-                print(f"{kft_out} is a directory! "
-                      "Can't use it to dump KFTrace data.")
-                sys.exit(1)
-
-            setvar('gdb.post-options', ['-ex=source .gdbinit',
-                                        '-ex=source .gdbinit-kftrace',
-                                        '-ex=continue'])
         dbg = GDB()
     elif args.test_run:
         setvar('gdb.post-options', ['-ex=source .gdbinit-test'])
+        dbg = GDB()
+    elif args.kft:
+        kft_out = 'dump.kft'
+        print(f'KFTrace output will be saved to {kft_out}')
+
+        # Remove a kft file because GDB only appends to it
+        try:
+            os.remove(kft_out)
+        except FileNotFoundError:
+            pass
+        except IsADirectoryError:
+            print(f"{kft_out} is a directory! "
+                  "Can't use it to dump KFTrace data.")
+            sys.exit(1)
+
+        setvar('gdb.post-options', ['-ex=source .gdbinit-kftrace'])
         dbg = GDB()
     else:
         dbg = None
 
     if args.test_run:
         TestRun(sim, dbg, args.timeout)
+    elif args.kft:
+        DevelRun(sim, dbg)
     else:
         DevelRun(sim, dbg)
