@@ -23,11 +23,11 @@ TEST_ADD(wait_basic, 0) {
   pid_t pid = xfork();
   if (pid == 0) {
     while (!sigcont_handled)
-      pause();
+      sched_yield();
     sigcont_handled = 0;
     xkill(ppid, SIGCONT);
     while (!sigcont_handled)
-      pause();
+      sched_yield();
     return 0;
   }
 
@@ -46,7 +46,7 @@ TEST_ADD(wait_basic, 0) {
 
   /* Wait until the child is ready to accept the second SIGCONT. */
   while (!sigcont_handled)
-    pause();
+    sched_yield();
 
   xkill(pid, SIGCONT);
   wait_child_finished(pid);
@@ -60,11 +60,11 @@ TEST_ADD(wait_nohang, 0) {
   pid_t pid = xfork();
   if (pid == 0) {
     while (!sigcont_handled)
-      pause();
+      sched_yield();
     sigcont_handled = 0;
     xkill(ppid, SIGCONT);
     while (!sigcont_handled)
-      pause();
+      sched_yield();
     return 0;
   }
 
@@ -88,7 +88,7 @@ TEST_ADD(wait_nohang, 0) {
 
   /* Wait until the child is ready to accept the second SIGCONT. */
   while (!sigcont_handled)
-    pause();
+    sched_yield();
 
   xkill(pid, SIGCONT);
   while (xwaitpid(pid, &status, WNOHANG) != pid)

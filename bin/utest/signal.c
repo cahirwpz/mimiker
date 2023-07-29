@@ -111,7 +111,7 @@ TEST_ADD(signal_stop, 0) {
   xsignal(SIGUSR1, sigusr1_handler);
   /* Wait for the child to start sending signals */
   while (!sigusr1_handled)
-    pause();
+    sched_yield();
   xkill(pid, SIGSTOP);
   /* Wait for the child to stop. */
   wait_child_stopped(pid);
@@ -135,7 +135,7 @@ TEST_ADD(signal_stop, 0) {
   /* The child's SIGUSR1 handler should now run, and so our SIGCONT handler
    * should run too. */
   while (!sigcont_handled)
-    pause();
+    sched_yield();
   /* The child process should exit normally. */
   wait_child_finished(pid);
   return 0;
@@ -179,14 +179,14 @@ TEST_ADD(signal_mask, 0) {
   pid_t pid = xfork();
   if (pid == 0) {
     while (!sigcont_handled)
-      pause();
+      sched_yield();
     return 0;
   }
 
   /* Check that the signal bounces properly. */
   xkill(pid, SIGUSR1);
   while (!sigcont_handled)
-    pause();
+    sched_yield();
 
   sigset_t mask;
   sigemptyset(&mask);
@@ -342,7 +342,7 @@ static void yield_handler(int signo) {
   /* Give the child process the signal to send us SIGUSR1 */
   xkill(cpid, SIGUSR1);
   while (!sigcont_handled)
-    pause();
+    sched_yield();
   handler_ran = 1;
   if (!sigusr1_handled)
     handler_success = 1;
@@ -363,7 +363,7 @@ TEST_ADD(signal_handler_mask, 0) {
     xkill(ppid, SIGUSR2);
     /* Wait for the parent to enter the signal handler. */
     while (!sigusr1_handled)
-      pause();
+      sched_yield();
     /* Now SIGUSR1 should be blocked in the parent. */
     for (int i = 0; i < 3; i++)
       xkill(ppid, SIGUSR1);
@@ -373,7 +373,7 @@ TEST_ADD(signal_handler_mask, 0) {
   }
 
   while (!handler_ran)
-    pause();
+    sched_yield();
 
   assert(handler_success);
   assert(sigusr1_handled);
