@@ -2,6 +2,7 @@
 
 #include <sys/linker_set.h>
 #include <sys/types.h>
+#include <limits.h>
 #include <stdnoreturn.h>
 
 /*
@@ -11,8 +12,8 @@
 typedef int (*test_func_t)(void);
 
 typedef enum test_flags {
-  TF_DISABLED = -1, /* test will return success without being executed */
-  TF_DEBUG = 1,     /* display debug messages to stderr */
+  TF_DISABLED = INT32_MIN, /* test will return success without being executed */
+  TF_DEBUG = 1,            /* display debug messages to stderr */
 } test_flags_t;
 
 typedef struct test_entry {
@@ -124,6 +125,7 @@ void xmunmap(void *addr, size_t length);
 void xmprotect(void *addr, size_t len, int prot);
 int xopen(const char *path, int flags, ...);
 void xpipe(int pipefd[2]);
+size_t xread(int fd, void *buf, size_t nbytes);
 void xrmdir(const char *pathname);
 sig_t xsignal(int sig, sig_t func);
 void xsigaction(int sig, const struct sigaction *restrict act,
@@ -137,3 +139,4 @@ void xstat(const char *pathname, struct stat *statbuf);
 void xsymlink(const char *target, const char *linkpath);
 void xunlink(const char *pathname);
 pid_t xwaitpid(pid_t wpid, int *status, int options);
+size_t xwrite(int fd, const void *buf, size_t nbytes);
