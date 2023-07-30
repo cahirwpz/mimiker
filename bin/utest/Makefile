@@ -55,6 +55,7 @@ LIBWRAP = \
 	xmunmap.c \
 	xopen.c \
 	xpipe.c \
+	xread.c \
 	xrmdir.c \
 	xsetgroups.c \
 	xsetresgid.c \
@@ -65,7 +66,8 @@ LIBWRAP = \
 	xstat.c \
 	xsymlink.c \
 	xunlink.c \
-	xwaitpid.c
+	xwaitpid.c \
+	xwrite.c
 
 PROGRAM = utest
 

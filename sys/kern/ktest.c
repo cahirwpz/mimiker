@@ -60,17 +60,7 @@ static void run_test(test_entry_t *t) {
 
   klog("Running test \"%s\".", current_test->test_name);
 
-  test_func_t test_fn = (void *)t->test_func;
-  int randint = 0;
-  if (t->flags & KTEST_FLAG_RANDINT) {
-    /* NOTE: Numbers generated here will be the same on each run, since test are
-       started in a deterministic order. This is not a bug! In fact, it allows
-       to reproduce test cases easily, just by reusing the seed.*/
-    /* TODO: Low discrepancy sampling? */
-    randint = rand_r(&seed) % t->randint_max;
-  }
-
-  if (test_fn(randint) == KTEST_FAILURE)
+  if (t->test_func() == KTEST_FAILURE)
     ktest_failure();
 
   current_test = NULL;
