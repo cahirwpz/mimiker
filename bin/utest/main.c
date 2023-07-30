@@ -30,7 +30,8 @@ static void run_test(test_entry_t *te) {
   timeval_t tv = timestamp();
   const char *name = te->name;
 
-  fprintf(stderr, "[%ld.%06d] Begin '%s' test.\n", tv.tv_sec, tv.tv_usec, name);
+  fprintf(stderr, "[%d.%06d] Begin '%s' test.\n", (int)tv.tv_sec, tv.tv_usec,
+          name);
 
   pid_t pid = xfork();
   if (pid == 0) {
@@ -143,6 +144,9 @@ int main(int argc, char **argv) {
   const char *repeat_str = getenv("repeat");
   if (repeat_str)
     utest_repeat = strtoul(repeat_str, NULL, 10);
+
+  fprintf(stderr, "utest: seed=%u repeat=%u test=%s\n", utest_seed,
+          utest_repeat, argv[1]);
 
   select_tests(argv[1]);
 

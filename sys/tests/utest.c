@@ -14,7 +14,12 @@ static __noreturn void utest_thread(void *arg) {
   /* Run user tests in a separate session. */
   int error = session_enter(p);
   assert(error == 0);
-  kern_execve(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL}, (char *[]){NULL});
+  char seed[32];
+  char repeat[32];
+  snprintf(seed, sizeof(seed), "seed=%s", kenv_get("seed") ?: "0");
+  snprintf(repeat, sizeof(repeat), "repeat=%s", kenv_get("repeat") ?: "1");
+  kern_execve(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL},
+              (char *[]){seed, repeat, NULL});
 }
 
 /* This is the klog mask used with utests. */
