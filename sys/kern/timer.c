@@ -9,7 +9,7 @@
 static MTX_DEFINE(timers_mtx, 0);
 static timer_list_t timers = TAILQ_HEAD_INITIALIZER(timers);
 static timer_t *time_source = NULL;
-static bintime_t boottime = BINTIME(0);
+static bintime_t boottime = BINTIME(UNIXTIME_NOW);
 
 /* These flags are used internally to encode timer state.
  * Following state transitions are possible:

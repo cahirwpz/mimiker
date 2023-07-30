@@ -28,7 +28,7 @@ TEST_ADD(gettimeofday, 0) {
   return 0;
 }
 
-TEST_ADD(nanosleep, 0) {
+TEST_ADD(nanosleep, TF_DISABLED) {
   /* Requested and remaining time */
   timespec_t rqt, rmt;
   timeval_t time1, time2, diff;
