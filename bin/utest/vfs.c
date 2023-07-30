@@ -222,20 +222,21 @@ TEST_ADD(vfs_dot_dot_across_fs, 0) {
 }
 
 static void test_vfs_symlink_basic(void) {
-  char *buff = malloc(1024);
   xsymlink("Hello, world!", TESTDIR "/testlink");
 
-  assert(readlink(TESTDIR "/testlink", buff, 1024) == 13);
-  assert(!strcmp("Hello, world!", buff));
+  char buf[32];
 
-  memset(buff, 0, 13);
-  assert(readlink(TESTDIR "/testlink", buff, 5) == 5);
-  assert(!strcmp("Hello", buff));
+  memset(buf, 0, sizeof(buf));
+  assert(readlink(TESTDIR "/testlink", buf, 1024) == 13);
+  string_eq("Hello, world!", buf);
+
+  memset(buf, 0, sizeof(buf));
+  assert(readlink(TESTDIR "/testlink", buf, 5) == 5);
+  string_eq("Hello", buf);
 
   syscall_fail(symlink("Hello, world!", TESTDIR "/testlink"), EEXIST);
 
   xunlink(TESTDIR "/testlink");
-  free(buff);
 }
 
 static void test_vfs_symlink_vnr(void) {
