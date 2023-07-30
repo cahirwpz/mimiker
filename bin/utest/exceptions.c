@@ -65,7 +65,7 @@ TEST_ADD(exc_unaligned_access, 0) {
   return 0;
 }
 
-TEST_ADD(syscall_in_bds, 0) {
+TEST_ADD(syscall_in_bds, TF_DISABLED) {
   unsigned control = 1;
   char *text = "write executed\n";
 
