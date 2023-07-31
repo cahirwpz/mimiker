@@ -13,8 +13,7 @@ static void print_msg(const char *file, int line, const char *fmt, va_list ap) {
 
   char *basename = strrchr(file, '/');
   file = basename ? basename + 1 : file;
-  res =
-    snprintf_ss(buf, sizeof(buf), "[%s|%s:%d] ", testname ?: "?", file, line);
+  res = snprintf_ss(buf, sizeof(buf), "[%s:%d] ", file, line);
   if (res < 0)
     exit(EXIT_FAILURE);
   len += res;
