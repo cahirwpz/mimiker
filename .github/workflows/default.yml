@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - run: build.sh ${{ matrix.build }}
+      - run: ./build.sh ${{ matrix.build }}
       - uses: actions/upload-artifact@v3
         with:
           name: "${{ matrix.build }} kernel+ramdisk"
@@ -62,7 +62,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - run: build.sh ${{ matrix.build }}
+      - run: ./build.sh ${{ matrix.build }}
       - uses: actions/upload-artifact@v3
         with:
           name: "${{ matrix.build }} kernel+ramdisk"
@@ -86,7 +86,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - run: build.sh ${{ matrix.build }}
+      - run: ./build.sh ${{ matrix.build }}
 
   build_riscv64:
     name: Build RISC-V 64-bit
@@ -99,7 +99,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - run: build.sh ${{ matrix.build }}
+      - run: ./build.sh ${{ matrix.build }}
       - uses: actions/upload-artifact@v3
         with:
           name: "${{ matrix.build }} kernel+ramdisk"
