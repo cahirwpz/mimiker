@@ -7,7 +7,7 @@
 #include <unistd.h>
 
 static int nothing_to_report(pid_t pid) {
-  return (waitpid(pid, NULL, WCONTINUED | WUNTRACED | WNOHANG) == 0);
+  return xwaitpid(pid, NULL, WCONTINUED | WUNTRACED | WNOHANG) == 0;
 }
 
 /* ======= wait_basic ======= */
@@ -31,19 +31,16 @@ TEST_ADD(wait_basic, 0) {
     return 0;
   }
 
-  int status;
   /* Nothing has happened yet, so waitpid shouldn't report anything. */
   assert(nothing_to_report(pid));
 
   xkill(pid, SIGSTOP);
-  assert(waitpid(pid, &status, WUNTRACED) == pid);
-  assert(WIFSTOPPED(status));
+  wait_child_stopped(pid);
 
   assert(nothing_to_report(pid));
 
   xkill(pid, SIGCONT);
-  assert(waitpid(pid, &status, WCONTINUED) == pid);
-  assert(WIFCONTINUED(status));
+  wait_child_continued(pid);
 
   assert(nothing_to_report(pid));
 
@@ -52,9 +49,7 @@ TEST_ADD(wait_basic, 0) {
     sched_yield();
 
   xkill(pid, SIGCONT);
-  assert(waitpid(pid, &status, 0) == pid);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(pid);
   return 0;
 }
 
@@ -73,24 +68,20 @@ TEST_ADD(wait_nohang, 0) {
     return 0;
   }
 
-  int status, rv;
+  int status;
   /* Nothing has happened yet, so waitpid shouldn't report anything. */
   assert(nothing_to_report(pid));
 
   xkill(pid, SIGSTOP);
-  while ((rv = waitpid(pid, &status, WUNTRACED | WNOHANG)) != pid) {
-    assert(rv == 0);
+  while (xwaitpid(pid, &status, WUNTRACED | WNOHANG) != pid)
     sched_yield();
-  }
   assert(WIFSTOPPED(status));
 
   assert(nothing_to_report(pid));
 
   xkill(pid, SIGCONT);
-  while ((rv = waitpid(pid, &status, WCONTINUED | WNOHANG)) != pid) {
-    assert(rv == 0);
+  while (xwaitpid(pid, &status, WCONTINUED | WNOHANG) != pid)
     sched_yield();
-  }
   assert(WIFCONTINUED(status));
 
   assert(nothing_to_report(pid));
@@ -100,10 +91,8 @@ TEST_ADD(wait_nohang, 0) {
     sched_yield();
 
   xkill(pid, SIGCONT);
-  while ((rv = waitpid(pid, &status, WNOHANG)) != pid) {
-    assert(rv == 0);
+  while (xwaitpid(pid, &status, WNOHANG) != pid)
     sched_yield();
-  }
   assert(WIFEXITED(status));
   assert(WEXITSTATUS(status) == 0);
   return 0;

@@ -24,7 +24,7 @@ TEST_ADD(setpgid, 0) {
 
     exit(0);
   }
-  wait_for_child_exit(children_pid, 0);
+  wait_child_finished(children_pid);
 
   /* It is forbidden to move the process to non-existing group. */
   assert(setpgid(0, children_pid));
@@ -51,30 +51,35 @@ TEST_ADD(setpgid_leader, 0) {
     /* Can't change pgrp of session leader. */
     assert(setpgid(0, 0));
 
+    xkill(getppid(), SIGUSR1);
     wait_for_signal(SIGUSR1);
     return 0;
   }
 
   /* Wait until child becomes session leader. */
-  while (getsid(cpid) != cpid)
-    sched_yield();
+  wait_for_signal(SIGUSR1);
+  assert(getsid(cpid) == cpid);
 
   /* Can't change pgrp of session leader. */
   assert(setpgid(cpid, getpgid(0)));
 
   xkill(cpid, SIGUSR1);
 
-  wait_for_child_exit(cpid, 0);
+  wait_child_finished(cpid);
   return 0;
 }
 
 TEST_ADD(setpgid_child, 0) {
-  signal_setup(SIGUSR1);
+  signal_setup(SIGUSR1); /* child 1 */
+  signal_setup(SIGUSR2); /* child 2 */
 
   pid_t cpid1 = xfork();
   if (cpid1 == 0) {
     /* Become session leader. */
     assert(setsid() == getpid());
+
+    /* Signal readiness to parent. */
+    xkill(getppid(), SIGUSR1);
 
     /* Wait until our parent gives a signal to exit. */
     wait_for_signal(SIGUSR1);
@@ -84,23 +89,23 @@ TEST_ADD(setpgid_child, 0) {
   pid_t cpid2 = xfork();
   if (cpid2 == 0) {
     /* Signal readiness to parent. */
-    xkill(getppid(), SIGUSR1);
+    xkill(getppid(), SIGUSR2);
 
     /* A child should not be able to change its parent's
      * process group. */
     assert(setpgid(getppid(), 0));
 
     /* Wait until our parent gives a signal to exit. */
-    wait_for_signal(SIGUSR1);
+    wait_for_signal(SIGUSR2);
     return 0;
   }
 
   /* Wait for child 1 to become session leader. */
-  while (getsid(cpid1) != cpid1)
-    sched_yield();
+  wait_for_signal(SIGUSR1);
+  assert(getsid(cpid1) == cpid1);
 
   /* Wait until child 2 is ready. */
-  wait_for_signal(SIGUSR1);
+  wait_for_signal(SIGUSR2);
 
   /* Move child 2 into its own process group. */
   assert(!setpgid(cpid2, cpid2));
@@ -115,10 +120,10 @@ TEST_ADD(setpgid_child, 0) {
   assert(getpgid(cpid2) == getpgid(0));
 
   xkill(cpid1, SIGUSR1);
-  xkill(cpid2, SIGUSR1);
+  xkill(cpid2, SIGUSR2);
 
-  wait_for_child_exit(cpid1, 0);
-  wait_for_child_exit(cpid2, 0);
+  wait_child_finished(cpid1);
+  wait_child_finished(cpid2);
   return 0;
 }
 
@@ -147,7 +152,7 @@ TEST_ADD(kill, 0) {
     exit(0);
   }
 
-  wait_for_child_exit(pid, 0);
+  wait_child_finished(pid);
   /* Signal is delivered to appropriate process. */
   assert(sig_delivered);
 
@@ -174,13 +179,13 @@ TEST_ADD(killpg_same_group, 0) {
       exit(0); // process b
     }
 
-    wait_for_child_exit(pid_b, 0);
+    wait_child_finished(pid_b);
     /* Process a should receive signal from process b. */
     assert(sig_delivered);
     exit(0); // process a
   }
 
-  wait_for_child_exit(pid_a, 0);
+  wait_child_finished(pid_a);
   /* Invalid argument. */
   syscall_fail(killpg(1, SIGUSR1), ESRCH);
   /* Invalid argument (negative number). */
@@ -215,19 +220,19 @@ TEST_ADD(killpg_other_group, 0) {
         exit(0); // process c
       }
 
-      wait_for_child_exit(pid_c, 0);
+      wait_child_finished(pid_c);
       /* Process b should receive signal from process c. */
       assert(sig_delivered);
       exit(0); // process b
     }
 
-    wait_for_child_exit(pid_b, 0);
+    wait_child_finished(pid_b);
     /* Process a should receive signal from process c. */
     assert(sig_delivered);
     exit(0); // process a
   }
 
-  wait_for_child_exit(pid_a, 0);
+  wait_child_finished(pid_a);
   /* It is forbidden to send signal to non-existing group. */
   syscall_fail(killpg(pid_a, SIGUSR1), ESRCH);
 
@@ -238,7 +243,6 @@ TEST_ADD(pgrp_orphan, 0) {
   signal_setup(SIGHUP);
   int ppid = getpid();
   pid_t cpid = xfork();
-  int status;
   if (cpid == 0) {
     cpid = getpid();
     assert(setsid() == cpid);
@@ -256,8 +260,7 @@ TEST_ADD(pgrp_orphan, 0) {
 
     /* Wait for the grandchild to stop, then orphan its process group. */
     debug("Child: waiting for the grandchild to stop...");
-    assert(waitpid(gcpid, &status, WUNTRACED) == gcpid);
-    assert(WIFSTOPPED(status));
+    wait_child_stopped(gcpid);
     /* When we exit, init will become the grandchild's parent.
      * Since init is in a different session, and the grandchild will
      * be the only member of its own process group, the grandchild's
@@ -268,7 +271,7 @@ TEST_ADD(pgrp_orphan, 0) {
 
   /* Reap the child. */
   debug("Parent: waiting for the child to exit...");
-  wait_for_child_exit(cpid, 0);
+  wait_child_finished(cpid);
 
   /* Wait for a signal from the grandchild. */
   debug("Parent: waiting for a signal from the grandchild...");
@@ -279,11 +282,9 @@ TEST_ADD(pgrp_orphan, 0) {
   return 0;
 }
 
-static volatile pid_t parent_sid;
-
 TEST_ADD(session_basic, 0) {
   signal_setup(SIGUSR1);
-  parent_sid = getsid(getpid());
+  pid_t parent_sid = getsid(getpid());
   assert(parent_sid != -1);
   pid_t cpid = xfork();
   if (cpid == 0) {
@@ -294,6 +295,7 @@ TEST_ADD(session_basic, 0) {
     assert(getsid(ppid) == parent_sid);
     /* Create a session. This should always succeed. */
     assert(setsid() == cpid);
+    xkill(ppid, SIGUSR1);
     assert(getsid(0) == cpid);
     assert(getsid(ppid) == parent_sid);
     /* Creating a session when we're already a leader should fail. */
@@ -305,14 +307,11 @@ TEST_ADD(session_basic, 0) {
     return 0;
   }
 
-  pid_t child_sid;
-  while ((child_sid = getsid(cpid)) != cpid) {
-    assert(child_sid == parent_sid);
-    sched_yield();
-  }
+  wait_for_signal(SIGUSR1);
+  assert(getsid(cpid) == cpid);
 
   xkill(cpid, SIGUSR1);
-  wait_for_child_exit(cpid, 0);
+  wait_child_finished(cpid);
   return 0;
 }
 

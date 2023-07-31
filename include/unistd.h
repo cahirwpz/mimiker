@@ -122,6 +122,7 @@ pid_t getpgid(pid_t);
 int lchown(const char *, uid_t, gid_t);
 int lockf(int, int, off_t);
 void *sbrk(intptr_t);
+int sethostname(const char *, size_t);
 int setpgrp(pid_t, pid_t);
 int setregid(gid_t, gid_t);
 int setreuid(uid_t, uid_t);

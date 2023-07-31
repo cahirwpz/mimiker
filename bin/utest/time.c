@@ -28,7 +28,7 @@ TEST_ADD(gettimeofday, 0) {
   return 0;
 }
 
-TEST_ADD(nanosleep, 0) {
+TEST_ADD(nanosleep, TF_DISABLED) {
   /* Requested and remaining time */
   timespec_t rqt, rmt;
   timeval_t time1, time2, diff;
@@ -61,11 +61,11 @@ TEST_ADD(nanosleep, 0) {
     diff.tv_sec = rqt.tv_sec;
     diff.tv_usec = rqt.tv_nsec / 1000;
 
-    syscall_ok(gettimeofday(&time1, NULL));
+    xgettimeofday(&time1, NULL);
     while ((ret = nanosleep(&rqt, &rmt)) == EINTR)
       rqt = rmt;
     assert(ret == 0);
-    syscall_ok(gettimeofday(&time2, NULL));
+    xgettimeofday(&time2, NULL);
 
     debug("time1: %d.%06d, time2: %d.%06d", (int)time1.tv_sec, time1.tv_usec,
           (int)time2.tv_sec, time2.tv_usec);

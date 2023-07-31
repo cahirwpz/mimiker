@@ -13,8 +13,7 @@
 TEST_ADD(sharing_memory_simple, 0) {
   size_t pgsz = getpagesize();
   char *map =
-    mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
-  assert(map != (char *)MAP_FAILED);
+    xmmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
 
   pid_t pid = xfork();
   assert(pid >= 0);
@@ -26,25 +25,22 @@ TEST_ADD(sharing_memory_simple, 0) {
   }
 
   /* parent */
-  wait_for_child_exit(pid, 0);
-  assert(strcmp(map, "Hello, World!") == 0);
-  assert(munmap(map, pgsz) == 0);
+  wait_child_finished(pid);
+  string_eq(map, "Hello, World!");
+  xmunmap(map, pgsz);
   return 0;
 }
 
 TEST_ADD(sharing_memory_child_and_grandchild, 0) {
   size_t pgsz = getpagesize();
   char *map =
-    mmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
-  assert(map != (char *)MAP_FAILED);
+    xmmap(NULL, pgsz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
 
   pid_t pid = xfork();
-  assert(pid >= 0);
 
   if (pid == 0) {
     /* child */
     pid = xfork();
-    assert(pid >= 0);
 
     if (pid == 0) {
       /* grandchild */
@@ -53,15 +49,15 @@ TEST_ADD(sharing_memory_child_and_grandchild, 0) {
     }
 
     /* child */
-    wait_for_child_exit(pid, 0);
-    assert(strcmp(map, "Hello from grandchild!") == 0);
+    wait_child_finished(pid);
+    string_eq(map, "Hello from grandchild!");
     strcpy(map, "Hello from child!");
     exit(0);
   }
 
   /* parent */
-  wait_for_child_exit(pid, 0);
-  assert(strcmp(map, "Hello from child!") == 0);
-  assert(munmap(map, pgsz) == 0);
+  wait_child_finished(pid);
+  string_eq(map, "Hello from child!");
+  xmunmap(map, pgsz);
   return 0;
 }

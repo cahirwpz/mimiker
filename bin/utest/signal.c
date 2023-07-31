@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <errno.h>
 
 /* ======= signal_basic ======= */
 static volatile int sigusr1_handled = 0;
@@ -46,19 +47,14 @@ TEST_ADD(signal_send, 0) {
   pid_t pid = xfork();
   if (pid == 0) {
     debug("This is child (mypid = %d)", getpid());
-    /* Wait for signal. */
-    while (1)
-      sched_yield();
+    pause(); /* Wait for signal. */
+    exit(0);
   }
 
   debug("This is parent (childpid = %d, mypid = %d)", pid, getpid());
   xkill(pid, SIGUSR2);
-  int status;
-  debug("Waiting for child...");
-  wait(&status);
-  assert(WIFSIGNALED(status));
-  assert(WTERMSIG(status) == SIGABRT);
-  debug("Child was stopped by SIGABRT.");
+  wait_child_terminated(pid, SIGABRT);
+  debug("Child was terminated by SIGABRT.");
   return 0;
 }
 
@@ -112,15 +108,13 @@ TEST_ADD(signal_stop, 0) {
     return 0;
   }
 
-  int status;
   xsignal(SIGUSR1, sigusr1_handler);
   /* Wait for the child to start sending signals */
   while (!sigusr1_handled)
     sched_yield();
   xkill(pid, SIGSTOP);
   /* Wait for the child to stop. */
-  assert(waitpid(pid, &status, WUNTRACED) == pid);
-  assert(WIFSTOPPED(status));
+  wait_child_stopped(pid);
   /* Now we shouldn't be getting any signals from the child. */
   sigusr1_handled = 0;
   /* Yield a couple times to make sure that if the child was runnable,
@@ -143,10 +137,7 @@ TEST_ADD(signal_stop, 0) {
   while (!sigcont_handled)
     sched_yield();
   /* The child process should exit normally. */
-  debug("Waiting for child...");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(pid);
   return 0;
 }
 
@@ -158,7 +149,7 @@ TEST_ADD(signal_cont_masked, 0) {
   if (pid == 0) {
     /* Block SIGCONT. */
     sigset_t mask, old;
-    __sigemptyset(&mask);
+    sigemptyset(&mask);
     sigaddset(&mask, SIGCONT);
     assert(sigprocmask(SIG_BLOCK, &mask, &old) == 0);
     /* Even though SIGCONT is blocked, it should wake us up, but it
@@ -171,16 +162,11 @@ TEST_ADD(signal_cont_masked, 0) {
     return 0;
   }
 
-  int status;
   /* Wait for the child to stop. */
-  assert(waitpid(pid, &status, WUNTRACED) == pid);
-  assert(WIFSTOPPED(status));
-
+  wait_child_stopped(pid);
   xkill(pid, SIGCONT);
-  debug("Waiting for child...");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(pid);
+
   return 0;
 }
 
@@ -217,7 +203,7 @@ TEST_ADD(signal_mask, 0) {
   do {
     sched_yield();
     sigpending(&set);
-  } while (!__sigismember(&set, SIGCONT));
+  } while (!sigismember(&set, SIGCONT));
 
   assert(!sigcont_handled);
 
@@ -226,26 +212,23 @@ TEST_ADD(signal_mask, 0) {
   assert(sigcont_handled);
 
   xkill(pid, SIGCONT);
-  int status;
-  debug("Waiting for child...");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+
+  wait_child_finished(pid);
   return 0;
 }
 
 /* ======= signal_mask_nonmaskable ======= */
 TEST_ADD(signal_mask_nonmaskable, 0) {
   sigset_t set, old;
-  __sigemptyset(&set);
-  __sigaddset(&set, SIGSTOP);
-  __sigaddset(&set, SIGKILL);
-  __sigaddset(&set, SIGUSR1);
+  sigemptyset(&set);
+  sigaddset(&set, SIGSTOP);
+  sigaddset(&set, SIGKILL);
+  sigaddset(&set, SIGUSR1);
   /* The call should succeed, but SIGKILL and SIGSTOP shouldn't be blocked. */
-  assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
-  assert(sigprocmask(SIG_BLOCK, NULL, &set) == 0);
-  __sigaddset(&old, SIGUSR1);
-  assert(__sigsetequal(&set, &old));
+  xsigprocmask(SIG_BLOCK, &set, &old);
+  xsigprocmask(SIG_BLOCK, NULL, &set);
+  sigaddset(&old, SIGUSR1);
+  assert(sigsetequal(&set, &old));
   return 0;
 }
 
@@ -255,11 +238,11 @@ TEST_ADD(signal_sigsuspend, 0) {
   xsignal(SIGCONT, sigcont_handler);
   xsignal(SIGUSR1, sigusr1_handler);
   sigset_t set, old;
-  __sigemptyset(&set);
-  __sigaddset(&set, SIGCONT);
-  __sigaddset(&set, SIGUSR1);
-  assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
-  __sigaddset(&old, SIGCONT);
+  sigemptyset(&set);
+  sigaddset(&set, SIGCONT);
+  sigaddset(&set, SIGUSR1);
+  xsigprocmask(SIG_BLOCK, &set, &old);
+  sigaddset(&old, SIGCONT);
   pid_t cpid = xfork();
   if (cpid == 0) {
     for (int i = 0; i < 10; i++) {
@@ -272,26 +255,22 @@ TEST_ADD(signal_sigsuspend, 0) {
   /* Go to sleep with SIGCONT blocked and SIGUSR1 unblocked. */
   debug("Calling sigsuspend()...");
   sigset_t current;
-  sigprocmask(SIG_BLOCK, NULL, &current);
-  assert(__sigismember(&current, SIGUSR1));
-  assert(!__sigismember(&old, SIGUSR1));
+  xsigprocmask(SIG_BLOCK, NULL, &current);
+  assert(sigismember(&current, SIGUSR1));
+  assert(!sigismember(&old, SIGUSR1));
   sigsuspend(&old);
   /* Check if mask is set back after waking up */
-  sigprocmask(SIG_BLOCK, NULL, &set);
-  assert(__sigsetequal(&set, &current));
+  xsigprocmask(SIG_BLOCK, NULL, &set);
+  assert(sigsetequal(&set, &current));
   /* SIGUSR1 should have woken us up, but SIGCONT should still be pending. */
   assert(sigusr1_handled);
   assert(!sigcont_handled);
-  __sigemptyset(&set);
-  __sigaddset(&set, SIGCONT);
-  assert(sigprocmask(SIG_UNBLOCK, &set, NULL) == 0);
+  sigemptyset(&set);
+  sigaddset(&set, SIGCONT);
+  xsigprocmask(SIG_UNBLOCK, &set, NULL);
   assert(sigcont_handled);
 
-  int status;
-  debug("Waiting for child...");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(cpid);
   return 0;
 }
 
@@ -300,8 +279,8 @@ TEST_ADD(signal_sigsuspend_stop, 0) {
   pid_t ppid = getpid();
   xsignal(SIGUSR1, sigusr1_handler);
   sigset_t set, old;
-  __sigemptyset(&set);
-  __sigaddset(&set, SIGUSR1);
+  sigemptyset(&set);
+  sigaddset(&set, SIGUSR1);
   assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
   pid_t cpid = xfork();
   if (cpid == 0) {
@@ -317,9 +296,7 @@ TEST_ADD(signal_sigsuspend_stop, 0) {
 
   /* Stop the child. */
   xkill(cpid, SIGSTOP);
-  int status;
-  assert(waitpid(cpid, &status, WUNTRACED) == cpid);
-  assert(WIFSTOPPED(status));
+  wait_child_stopped(cpid);
 
   /* Continue the child. This should not interrupt the child's sigsuspend(). */
   xkill(cpid, SIGCONT);
@@ -332,8 +309,7 @@ TEST_ADD(signal_sigsuspend_stop, 0) {
 
   /* Stop the child again. */
   xkill(cpid, SIGSTOP);
-  assert(waitpid(cpid, &status, WUNTRACED) == cpid);
-  assert(WIFSTOPPED(status));
+  wait_child_stopped(cpid);
 
   /* Send SIGUSR1 to the child. Since it's stopped, it should not interrupt
    * the sigsuspend() yet. */
@@ -353,9 +329,7 @@ TEST_ADD(signal_sigsuspend_stop, 0) {
   sigsuspend(&old);
 
   /* Reap the child. */
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(cpid);
   return 0;
 }
 
@@ -378,8 +352,8 @@ TEST_ADD(signal_handler_mask, 0) {
   pid_t ppid = getpid();
   struct sigaction sa = {.sa_handler = yield_handler, .sa_flags = 0};
   /* Block SIGUSR1 when executing handler for SIGUSR2. */
-  __sigemptyset(&sa.sa_mask);
-  __sigaddset(&sa.sa_mask, SIGUSR1);
+  sigemptyset(&sa.sa_mask);
+  sigaddset(&sa.sa_mask, SIGUSR1);
   assert(sigaction(SIGUSR2, &sa, NULL) == 0);
   xsignal(SIGUSR1, sigusr1_handler);
   xsignal(SIGCONT, sigcont_handler);
@@ -404,10 +378,6 @@ TEST_ADD(signal_handler_mask, 0) {
   assert(handler_success);
   assert(sigusr1_handled);
 
-  int status;
-  debug("Waiting for child...");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(cpid);
   return 0;
 }

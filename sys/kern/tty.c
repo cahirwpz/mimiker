@@ -989,6 +989,24 @@ static int tty_set_winsize(tty_t *tty, struct winsize *sz) {
   return 0;
 }
 
+static int tty_drop_ctty(proc_t *p, tty_t *tty) {
+  SCOPED_MTX_LOCK(&all_proc_mtx);
+  SCOPED_MTX_LOCK(&tty->t_lock);
+
+  session_t *session = p->p_pgrp->pg_session;
+  if (session->s_tty == NULL || session->s_tty != tty)
+    return ENOTTY;
+
+  if (!proc_is_session_leader(p))
+    return EPERM;
+
+  session->s_tty = NULL;
+  tty->t_session = NULL;
+  tty->t_pgrp = NULL;
+
+  return 0;
+}
+
 int tty_ioctl(file_t *f, u_long cmd, void *data) {
   tty_t *tty = f->f_data;
 
@@ -1036,6 +1054,8 @@ int tty_ioctl(file_t *f, u_long cmd, void *data) {
         return EPERM;
       return 0;
     }
+    case TIOCNOTTY:
+      return tty_drop_ctty(proc_self(), tty);
     case 0:
       return EPASSTHROUGH;
     default: {

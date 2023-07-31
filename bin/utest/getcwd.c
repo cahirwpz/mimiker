@@ -6,6 +6,8 @@
 #include <unistd.h>
 
 TEST_ADD(getcwd, 0) {
+  xchdir("/");
+
   {
     /* Working directory is set to root if not changed */
     char buffer[256];
