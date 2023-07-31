@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -102,6 +103,14 @@ static int running(void) {
   return pending;
 }
 
+#define TMPDIR "/tmp"
+
+char testdir[128] = TMPDIR;
+
+static void testdir_cleanup(void) {
+  xrmdir(testdir);
+}
+
 static void run_test(sigset_t *mask, test_entry_t *te) {
   timeval_t tv = timestamp();
   const char *name = te->name;
@@ -115,6 +124,14 @@ static void run_test(sigset_t *mask, test_entry_t *te) {
     setsid();
     setpgid(0, 0);
     xsigprocmask(SIG_SETMASK, mask, NULL);
+
+    if (te->flags & TF_TMPDIR) {
+      snprintf(testdir, sizeof(testdir), TMPDIR "/%s.%d", te->name, getpid());
+      xmkdir(testdir, 0);
+      atexit(testdir_cleanup);
+    }
+
+    xchdir(testdir);
 
     if (te->flags & TF_DEBUG)
       __verbose = 1;

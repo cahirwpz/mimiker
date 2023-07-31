@@ -14,6 +14,7 @@ typedef int (*test_func_t)(void);
 typedef enum test_flags {
   TF_DISABLED = INT32_MIN, /* test will return success without being executed */
   TF_DEBUG = 1,            /* display debug messages to stderr */
+  TF_TMPDIR = 2,           /* create temp di rand run the test there */
 } test_flags_t;
 
 typedef struct test_entry {
@@ -91,6 +92,12 @@ void wait_child_stopped(pid_t pid);
 void wait_child_continued(pid_t pid);
 
 /*
+ * VFS test related definitions
+ */
+
+extern char testdir[];
+
+/*
  * libc function wrappers that call die(...) on error
  */
 
@@ -134,6 +141,7 @@ void wait_child_continued(pid_t pid);
 #define xopen(...) NOFAIL(open, int, __VA_ARGS__)
 #define xpipe(...) NOFAIL_NR(pipe, __VA_ARGS__)
 #define xread(...) NOFAIL(read, ssize_t, __VA_ARGS__)
+#define xreadlink(...) NOFAIL(readlink, ssize_t, __VA_ARGS__)
 #define xrmdir(...) NOFAIL_NR(rmdir, __VA_ARGS__)
 #define xsetgroups(...) NOFAIL_NR(setgroups, __VA_ARGS__)
 #define xsetresuid(...) NOFAIL_NR(setresuid, __VA_ARGS__)
