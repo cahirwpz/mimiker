@@ -1,8 +1,8 @@
-/*	$NetBSD: exit.c,v 1.17 2017/07/14 19:24:52 joerg Exp $	*/
+/* $NetBSD: cxa_thread_atexit.c,v 1.1 2017/07/11 15:21:35 joerg Exp $ */
 
 /*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2017 Joerg Sonnenberger <joerg@NetBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,14 +12,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -30,21 +27,50 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/queue.h>
 #include <stdlib.h>
-#include <unistd.h>
+
 #include "atexit.h"
-#include "reentrant.h"
 
-void (*__cleanup)(void);
+__dso_hidden bool __cxa_thread_atexit_used;
 
-/*
- * Exit, flushing stdio buffers if necessary.
- */
-void exit(int status) {
-  if (__cxa_thread_atexit_used)
-    __cxa_thread_run_atexit();
-  __cxa_finalize(NULL);
-  if (__cleanup)
-    (*__cleanup)();
-  _exit(status);
+struct cxa_dtor {
+	SLIST_ENTRY(cxa_dtor) link;
+	void *dso_symbol;
+	void *obj;
+	void (*dtor)(void *);
+};
+
+/* Assumes NULL initialization. */
+static /* __thread */ SLIST_HEAD(, cxa_dtor) cxa_dtors = SLIST_HEAD_INITIALIZER(cxa_dstors);
+
+void
+__cxa_thread_run_atexit(void)
+{
+	struct cxa_dtor *entry;
+
+	while ((entry = SLIST_FIRST(&cxa_dtors)) != NULL) {
+		SLIST_REMOVE_HEAD(&cxa_dtors, link);
+		(*entry->dtor)(entry->obj);
+		free(entry);
+	}
+}
+
+int	__cxa_thread_atexit(void (*)(void *), void *, void *);
+
+int
+__cxa_thread_atexit_impl(void (*dtor)(void *), void *obj, void *dso_symbol)
+{
+	struct cxa_dtor *entry;
+
+	__cxa_thread_atexit_used = true;
+
+	entry = malloc(sizeof(*entry));
+	if (entry == NULL)
+		return -1;
+	entry->dso_symbol = dso_symbol;
+	entry->obj = obj;
+	entry->dtor = dtor;
+	SLIST_INSERT_HEAD(&cxa_dtors, entry, link);
+	return 0;
 }
