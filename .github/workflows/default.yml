@@ -79,7 +79,7 @@ jobs:
     name: Build RISC-V 32-bit
     strategy:
       matrix:
-        build: [riscv32]
+        build: [riscv32-kasan]
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
@@ -121,7 +121,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
-          name: "${{ matrix.kernel }} kernel+ramdisk"
+          name: "${{ matrix.build }} kernel+ramdisk"
       - run: ./run_tests.py --board malta --timeout=100 --times=50
 
   kernel_tests_aarch64:
@@ -135,7 +135,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
-          name: "${{ matrix.kernel }} kernel+ramdisk"
+          name: "${{ matrix.build }} kernel+ramdisk"
       - run: ./run_tests.py --board rpi3 --timeout=60 --times=50
 
   kernel_tests_riscv64:
@@ -149,5 +149,5 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
-          name: "${{ matrix.kernel }} kernel+ramdisk"
+          name: "${{ matrix.build }} kernel+ramdisk"
       - run: ./run_tests.py --board sifive_u --timeout=100 --times=50
