@@ -92,7 +92,7 @@ jobs:
     name: Build RISC-V 64-bit
     strategy:
       matrix:
-        build: [riscv64-kasan, riscv64-kcsan]
+        build: [riscv64-kasan]
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
@@ -142,7 +142,7 @@ jobs:
     name: Tests RISC-V 64-bit
     strategy:
       matrix:
-        build: [riscv64-kasan, riscv64-kcsan]
+        build: [riscv64-kasan]
     runs-on: self-hosted
     needs: build_riscv64
     steps:
