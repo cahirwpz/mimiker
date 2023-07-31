@@ -221,7 +221,7 @@ TEST_ADD(vfs_dot_dot_across_fs, 0) {
   return 0;
 }
 
-static void test_vfs_symlink_basic(void) {
+TEST_ADD(vfs_symlink_basic, 0) {
   xsymlink("Hello, world!", TESTDIR "/testlink");
 
   char buf[32];
@@ -237,9 +237,11 @@ static void test_vfs_symlink_basic(void) {
   syscall_fail(symlink("Hello, world!", TESTDIR "/testlink"), EEXIST);
 
   xunlink(TESTDIR "/testlink");
+
+  return 0;
 }
 
-static void test_vfs_symlink_vnr(void) {
+TEST_ADD(vfs_symlink_vnr, 0) {
   int n;
   struct stat sb;
   ino_t fileino;
@@ -292,11 +294,7 @@ static void test_vfs_symlink_vnr(void) {
   xunlink(TESTDIR "/blink");
 
   xunlink(TESTDIR "/file");
-}
 
-TEST_ADD(vfs_symlink, 0) {
-  test_vfs_symlink_basic();
-  test_vfs_symlink_vnr();
   return 0;
 }
 
