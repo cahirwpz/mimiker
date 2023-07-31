@@ -20,7 +20,7 @@ typedef struct job {
 } job_t;
 
 static job_t *jobs = NULL;
-static int njobmax = 1;
+static int njobmax = 4;
 static sigset_t sigchld_mask;
 
 static void sigchld_handler(__unused int sig) {
@@ -42,8 +42,11 @@ static void sigchld_handler(__unused int sig) {
       }
     }
 
-    if (!found)
-      fprintf(stderr, "utest: reaped somebody's else child (pid=%d)!\n", pid);
+    if (!found) {
+      fprintf(stderr, "utest[%d]: reaped somebody's else child (pid=%d)!\n",
+              getpid(), pid);
+      exit(EXIT_FAILURE);
+    }
   }
 
   errno = old_errno;
@@ -99,7 +102,7 @@ static int running(void) {
   return pending;
 }
 
-static void run_test(test_entry_t *te) {
+static void run_test(sigset_t *mask, test_entry_t *te) {
   timeval_t tv = timestamp();
   const char *name = te->name;
 
@@ -108,8 +111,10 @@ static void run_test(test_entry_t *te) {
 
   pid_t pid = xfork();
   if (pid == 0) {
+    xsignal(SIGCHLD, SIG_DFL);
     setsid();
     setpgid(0, 0);
+    xsigprocmask(SIG_SETMASK, mask, NULL);
 
     if (te->flags & TF_DEBUG)
       __verbose = 1;
@@ -213,7 +218,7 @@ int main(int argc, char **argv) {
   if (parallel_str)
     njobmax = strtoul(parallel_str, NULL, 10);
 
-  fprintf(stderr, "utest: pid=%u seed=%u repeat=%u parallel=%d test=%s\n",
+  fprintf(stderr, "utest[%d]: seed=%u repeat=%u parallel=%d test=%s\n",
           getpid(), utest_seed, utest_repeat, njobmax, argv[1]);
 
   select_tests(argv[1]);
@@ -239,11 +244,11 @@ int main(int argc, char **argv) {
 
   xsignal(SIGCHLD, sigchld_handler);
   sigemptyset(&sigchld_mask);
-  sigaddset(&sigchld_mask, SIGINT);
+  sigaddset(&sigchld_mask, SIGCHLD);
   xsigprocmask(SIG_BLOCK, &sigchld_mask, &mask);
 
   for (int i = 0; i < ntests; i++) {
-    run_test(tests[i]);
+    run_test(&mask, tests[i]);
 
     while (running() == njobmax)
       sigsuspend(&mask);
