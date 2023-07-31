@@ -102,8 +102,6 @@ static int running(void) {
   return pending;
 }
 
-const char *testname = NULL;
-
 static void run_test(sigset_t *mask, test_entry_t *te) {
   timeval_t tv = timestamp();
   const char *name = te->name;
@@ -117,8 +115,6 @@ static void run_test(sigset_t *mask, test_entry_t *te) {
     setsid();
     setpgid(0, 0);
     xsigprocmask(SIG_SETMASK, mask, NULL);
-
-    testname = te->name;
 
     if (te->flags & TF_DEBUG)
       __verbose = 1;

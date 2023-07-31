@@ -34,7 +34,6 @@ typedef struct test_entry {
  */
 
 extern int __verbose;
-extern const char *testname;
 
 noreturn void __die(const char *file, int line, const char *fmt, ...);
 void __msg(const char *file, int line, const char *fmt, ...);
