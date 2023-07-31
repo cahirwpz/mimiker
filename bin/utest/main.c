@@ -10,6 +10,45 @@
 
 SET_DECLARE(tests, test_entry_t);
 
+static int utest_repeat = 1;
+static int utest_seed = 0;
+
+typedef struct job {
+  test_entry_t *te;
+  pid_t pid;
+  int status;
+} job_t;
+
+static job_t *jobs = NULL;
+static int njobmax = 1;
+static sigset_t sigchld_mask;
+
+static void sigchld_handler(__unused int sig) {
+  int old_errno = errno;
+
+  pid_t pid;
+  int status;
+
+  while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+    int found = 0;
+
+    for (int j = 0; j < njobmax; j++) {
+      job_t *job = &jobs[j];
+
+      if (job->pid == pid) {
+        job->status = status;
+        found = 1;
+        break;
+      }
+    }
+
+    if (!found)
+      fprintf(stderr, "utest: reaped somebody's else child (pid=%d)!\n", pid);
+  }
+
+  errno = old_errno;
+}
+
 static test_entry_t *find_test(const char *name) {
   test_entry_t **ptr;
   SET_FOREACH (ptr, tests) {
@@ -24,6 +63,40 @@ static timeval_t timestamp(void) {
   timespec_t ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   return (timeval_t){.tv_sec = ts.tv_sec, .tv_usec = ts.tv_nsec / 1000};
+}
+
+static int running(void) {
+  int pending = 0;
+
+  for (int i = 0; i < njobmax; i++) {
+    job_t *job = &jobs[i];
+    if (job->te == NULL)
+      continue;
+    if (job->status < 0) {
+      pending++;
+      continue;
+    }
+    if (WIFEXITED(job->status)) {
+      int code = WEXITSTATUS(job->status);
+      if (code) {
+        fprintf(stderr, "Test '%s' exited with %d code!\n", job->te->name,
+                code);
+        exit(EXIT_FAILURE);
+      }
+    } else if (WIFSIGNALED(job->status)) {
+      fprintf(stderr, "Test '%s' was terminated by %s!\n", job->te->name,
+              sys_signame[WTERMSIG(job->status)]);
+    } else {
+      fprintf(stderr, "Test '%s' exited with invalid status %d!\n",
+              job->te->name, job->status);
+      exit(EXIT_FAILURE);
+    }
+    job->te = NULL;
+    job->status = 0;
+    job->pid = 0;
+  }
+
+  return pending;
 }
 
 static void run_test(test_entry_t *te) {
@@ -44,22 +117,17 @@ static void run_test(test_entry_t *te) {
     exit(te->func());
   }
 
-  int status;
-  waitpid(pid, &status, 0);
-
-  if (WIFEXITED(status)) {
-    int code = WEXITSTATUS(status);
-    if (code) {
-      fprintf(stderr, "Test '%s' exited with %d code!\n", name, code);
-      exit(EXIT_FAILURE);
+  for (int i = 0; i < njobmax; i++) {
+    job_t *job = &jobs[i];
+    if (job->te == NULL) {
+      job->te = te;
+      job->pid = pid;
+      job->status = -1;
+      return;
     }
-  } else if (WIFSIGNALED(status)) {
-    fprintf(stderr, "Test '%s' was terminated by %s!\n", name,
-            sys_signame[WTERMSIG(status)]);
-  } else {
-    fprintf(stderr, "Test '%s' exited with invalid status %d!\n", name, status);
-    exit(EXIT_FAILURE);
   }
+
+  abort();
 }
 
 static inline int test_disabled(test_entry_t *te) {
@@ -71,10 +139,6 @@ static int test_compare(const void *a_, const void *b_) {
   const test_entry_t *b = *(test_entry_t **)b_;
   return strcmp(a->name, b->name);
 }
-
-static int utest_repeat = 1;
-static int utest_seed = 0;
-static unsigned seed = 0;
 
 static void select_tests(char *test_str) {
   if (!strcmp(test_str, "all"))
@@ -145,8 +209,12 @@ int main(int argc, char **argv) {
   if (repeat_str)
     utest_repeat = strtoul(repeat_str, NULL, 10);
 
-  fprintf(stderr, "utest: seed=%u repeat=%u test=%s\n", utest_seed,
-          utest_repeat, argv[1]);
+  const char *parallel_str = getenv("parallel");
+  if (parallel_str)
+    njobmax = strtoul(parallel_str, NULL, 10);
+
+  fprintf(stderr, "utest: pid=%u seed=%u repeat=%u parallel=%d test=%s\n",
+          getpid(), utest_seed, utest_repeat, njobmax, argv[1]);
 
   select_tests(argv[1]);
 
@@ -155,7 +223,7 @@ int main(int argc, char **argv) {
 
   if (utest_seed != 0) {
     /* Initialize LCG with seed.*/
-    seed = utest_seed;
+    unsigned seed = utest_seed;
     /* Yates-Fisher shuffle. */
     for (int i = 0; i <= ntests - 2; i++) {
       int j = i + rand_r(&seed) % (ntests - i);
@@ -165,8 +233,26 @@ int main(int argc, char **argv) {
     }
   }
 
-  for (int i = 0; i < ntests; i++)
+  jobs = calloc(sizeof(job_t), njobmax);
+
+  sigset_t mask;
+
+  xsignal(SIGCHLD, sigchld_handler);
+  sigemptyset(&sigchld_mask);
+  sigaddset(&sigchld_mask, SIGINT);
+  xsigprocmask(SIG_BLOCK, &sigchld_mask, &mask);
+
+  for (int i = 0; i < ntests; i++) {
     run_test(tests[i]);
+
+    while (running() == njobmax)
+      sigsuspend(&mask);
+  }
+
+  while (running() > 0)
+    sigsuspend(&mask);
+
+  xsigprocmask(SIG_SETMASK, &mask, NULL);
 
   return 0;
 }
