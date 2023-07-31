@@ -14,6 +14,7 @@
 #define FD_OFFSET 3
 
 #define TESTDIR "/tmp"
+#define TESTPATH(x) TESTDIR "/" x
 
 /* Generate pseudo random data */
 static void fill_random(uint32_t *data, size_t n) {
@@ -34,7 +35,7 @@ TEST_ADD(vfs_rw, 0) {
 
   fill_random(wrbuf, 16384);
 
-  assert_open_ok(0, TESTDIR "/file", 0, O_RDWR | O_CREAT);
+  assert_open_ok(0, TESTPATH("file"), 0, O_RDWR | O_CREAT);
 
   /* Write and read aligned amount of bytes */
   assert_write_ok(0, wrbuf, 4096);
@@ -67,7 +68,7 @@ TEST_ADD(vfs_rw, 0) {
   free(rdbuf);
 
   xclose(3);
-  xunlink(TESTDIR "/file");
+  xunlink(TESTPATH("file"));
 
   return 0;
 }
@@ -78,7 +79,7 @@ TEST_ADD(vfs_trunc, 0) {
   void *rdbuf = malloc(8196);
   fill_random(wrbuf, 4096);
 
-  assert_open_ok(0, TESTDIR "/file", S_IWUSR | S_IRUSR, O_RDWR | O_CREAT);
+  assert_open_ok(0, TESTPATH("file"), S_IWUSR | S_IRUSR, O_RDWR | O_CREAT);
 
   assert_write_ok(0, wrbuf, 4096);
   ftruncate(3, 2048);
@@ -98,13 +99,13 @@ TEST_ADD(vfs_trunc, 0) {
   for (int i = 2048; i < 7777; i++)
     assert(((uint8_t *)rdbuf)[i] == 0);
 
-  truncate(TESTDIR "/file", 0);
+  truncate(TESTPATH("file"), 0);
   assert_lseek_ok(0, 0, SEEK_SET);
   assert(read(3, rdbuf, 2048) == 0);
 
   free(wrbuf);
   free(rdbuf);
-  unlink(TESTDIR "/file");
+  unlink(TESTPATH("file"));
 
   syscall_fail(truncate(TESTDIR, 1023), EISDIR);
   return 0;
@@ -112,35 +113,35 @@ TEST_ADD(vfs_trunc, 0) {
 
 TEST_ADD(vfs_dir, 0) {
   syscall_fail(mkdir("/", 0), EEXIST);
-  xmkdir(TESTDIR "/test", 0);
-  syscall_fail(mkdir(TESTDIR "/test", 0), EEXIST);
-  syscall_fail(mkdir(TESTDIR "//test///", 0), EEXIST);
-  xrmdir(TESTDIR "/test");
-  xmkdir(TESTDIR "/test", 0);
+  xmkdir(TESTPATH("test"), 0);
+  syscall_fail(mkdir(TESTPATH("test"), 0), EEXIST);
+  syscall_fail(mkdir(TESTPATH("/test///"), 0), EEXIST);
+  xrmdir(TESTPATH("test"));
+  xmkdir(TESTPATH("test"), 0);
 
-  xmkdir(TESTDIR "//test2///", 0);
-  xaccess(TESTDIR "/test2", 0);
+  xmkdir(TESTPATH("/test2///"), 0);
+  xaccess(TESTPATH("test2"), 0);
 
-  xmkdir(TESTDIR "/test3", 0);
-  xmkdir(TESTDIR "/test3/subdir1", 0);
-  xmkdir(TESTDIR "/test3/subdir2", 0);
-  xmkdir(TESTDIR "/test3/subdir3", 0);
-  syscall_fail(mkdir(TESTDIR "/test3/subdir1", 0), EEXIST);
-  xaccess(TESTDIR "/test3/subdir2", 0);
+  xmkdir(TESTPATH("test3"), 0);
+  xmkdir(TESTPATH("test3/subdir1"), 0);
+  xmkdir(TESTPATH("test3/subdir2"), 0);
+  xmkdir(TESTPATH("test3/subdir3"), 0);
+  syscall_fail(mkdir(TESTPATH("test3/subdir1"), 0), EEXIST);
+  xaccess(TESTPATH("test3/subdir2"), 0);
 
-  syscall_fail(mkdir(TESTDIR "/test4/subdir4", 0), ENOENT);
+  syscall_fail(mkdir(TESTPATH("test4/subdir4"), 0), ENOENT);
 
-  xrmdir(TESTDIR "/test/");
-  xrmdir(TESTDIR "/test2");
-  syscall_fail(rmdir(TESTDIR "/test3"), ENOTEMPTY);
-  xrmdir(TESTDIR "/test3/subdir1");
-  xrmdir(TESTDIR "/test3/subdir2");
-  xrmdir(TESTDIR "/test3/subdir3");
-  xrmdir(TESTDIR "/test3");
-  syscall_fail(rmdir(TESTDIR "/test3"), ENOENT);
-  syscall_fail(rmdir(TESTDIR "/test4/subdir4"), ENOENT);
+  xrmdir(TESTPATH("test/"));
+  xrmdir(TESTPATH("test2"));
+  syscall_fail(rmdir(TESTPATH("test3")), ENOTEMPTY);
+  xrmdir(TESTPATH("test3/subdir1"));
+  xrmdir(TESTPATH("test3/subdir2"));
+  xrmdir(TESTPATH("test3/subdir3"));
+  xrmdir(TESTPATH("test3"));
+  syscall_fail(rmdir(TESTPATH("test3")), ENOENT);
+  syscall_fail(rmdir(TESTPATH("test4/subdir4")), ENOENT);
 
-  syscall_fail(mkdir(TESTDIR "/test3/subdir1", 0), ENOENT);
+  syscall_fail(mkdir(TESTPATH("test3/subdir1"), 0), ENOENT);
 
   syscall_fail(mkdir("/", 0), EEXIST);
   syscall_fail(rmdir("/tmp"), EBUSY);
@@ -165,9 +166,9 @@ TEST_ADD(vfs_relative_dir, 0) {
   syscall_fail(mkdir("test3/subdir1", 0), EEXIST);
   xaccess("test3/subdir2", 0);
 
-  xrmdir(TESTDIR "/test/test3/subdir1");
-  xrmdir(TESTDIR "/test/test3/subdir2");
-  xrmdir(TESTDIR "/test/test3/subdir3");
+  xrmdir(TESTPATH("test/test3/subdir1"));
+  xrmdir(TESTPATH("test/test3/subdir2"));
+  xrmdir(TESTPATH("test/test3/subdir3"));
   xrmdir("test3");
 
   xchdir(TESTDIR);
@@ -201,9 +202,9 @@ TEST_ADD(vfs_dot_dot_dir, 0) {
 }
 
 TEST_ADD(vfs_dot_dir, 0) {
-  syscall_fail(mkdir(TESTDIR "/test/.", 0), ENOENT);
+  syscall_fail(mkdir(TESTPATH("test/."), 0), ENOENT);
   syscall_fail(mkdir("/.", 0), EEXIST);
-  syscall_fail(mkdir(TESTDIR "/.", 0), EEXIST);
+  syscall_fail(mkdir(TESTPATH("."), 0), EEXIST);
 
   return 0;
 }
@@ -222,21 +223,21 @@ TEST_ADD(vfs_dot_dot_across_fs, 0) {
 }
 
 TEST_ADD(vfs_symlink_basic, 0) {
-  xsymlink("Hello, world!", TESTDIR "/testlink");
+  xsymlink("Hello, world!", TESTPATH("testlink"));
 
   char buf[32];
 
   memset(buf, 0, sizeof(buf));
-  assert(readlink(TESTDIR "/testlink", buf, 1024) == 13);
+  assert(readlink(TESTPATH("testlink"), buf, 1024) == 13);
   string_eq("Hello, world!", buf);
 
   memset(buf, 0, sizeof(buf));
-  assert(readlink(TESTDIR "/testlink", buf, 5) == 5);
+  assert(readlink(TESTPATH("testlink"), buf, 5) == 5);
   string_eq("Hello", buf);
 
-  syscall_fail(symlink("Hello, world!", TESTDIR "/testlink"), EEXIST);
+  syscall_fail(symlink("Hello, world!", TESTPATH("testlink")), EEXIST);
 
-  xunlink(TESTDIR "/testlink");
+  xunlink(TESTPATH("testlink"));
 
   return 0;
 }
@@ -246,54 +247,54 @@ TEST_ADD(vfs_symlink_vnr, 0) {
   struct stat sb;
   ino_t fileino;
 
-  assert_open_ok(0, TESTDIR "/file", 0, O_RDWR | O_CREAT);
-  xstat(TESTDIR "/file", &sb);
+  assert_open_ok(0, TESTPATH("file"), 0, O_RDWR | O_CREAT);
+  xstat(TESTPATH("file"), &sb);
   fileino = sb.st_ino;
 
   /* Absolute symlink */
-  xsymlink(TESTDIR "/file", TESTDIR "/alink");
-  xstat(TESTDIR "/alink", &sb);
+  xsymlink(TESTPATH("file"), TESTPATH("alink"));
+  xstat(TESTPATH("alink"), &sb);
   assert(fileino == sb.st_ino);
 
-  xsymlink(TESTDIR "/alink", TESTDIR "/alink2");
-  xstat(TESTDIR "/alink2", &sb);
+  xsymlink(TESTPATH("alink"), TESTPATH("alink2"));
+  xstat(TESTPATH("alink2"), &sb);
   assert(fileino == sb.st_ino);
 
   /* Relative symlink */
-  xsymlink("file", TESTDIR "/rlink");
-  xstat(TESTDIR "/rlink", &sb);
+  xsymlink("file", TESTPATH("rlink"));
+  xstat(TESTPATH("rlink"), &sb);
   assert(fileino == sb.st_ino);
 
-  xsymlink("alink2", TESTDIR "/rlink2");
-  xstat(TESTDIR "/rlink2", &sb);
+  xsymlink("alink2", TESTPATH("rlink2"));
+  xstat(TESTPATH("rlink2"), &sb);
   assert(fileino == sb.st_ino);
 
   /* Do not follow symlink */
-  xlstat(TESTDIR "/alink2", &sb);
+  xlstat(TESTPATH("alink2"), &sb);
   assert(fileino != sb.st_ino);
 
-  xunlink(TESTDIR "/alink");
-  xunlink(TESTDIR "/alink2");
-  xunlink(TESTDIR "/rlink");
-  xunlink(TESTDIR "/rlink2");
+  xunlink(TESTPATH("alink"));
+  xunlink(TESTPATH("alink2"));
+  xunlink(TESTPATH("rlink"));
+  xunlink(TESTPATH("rlink2"));
 
   /* Symlink to directory */
-  xsymlink("/tmp", TESTDIR "/dlink");
-  xstat(TESTDIR "/dlink/file", &sb);
+  xsymlink("/tmp", TESTPATH("dlink"));
+  xstat(TESTPATH("dlink/file"), &sb);
   assert(fileino == sb.st_ino);
-  xunlink(TESTDIR "/dlink");
+  xunlink(TESTPATH("dlink"));
 
   /* Looped symlink */
-  xsymlink(TESTDIR "/slink", TESTDIR "/slink");
-  syscall_fail(stat(TESTDIR "/slink", &sb), ELOOP);
-  xunlink(TESTDIR "/slink");
+  xsymlink(TESTPATH("slink"), TESTPATH("slink"));
+  syscall_fail(stat(TESTPATH("slink"), &sb), ELOOP);
+  xunlink(TESTPATH("slink"));
 
   /* Bad symlink */
-  xsymlink(TESTDIR "/nofile", TESTDIR "/blink");
-  syscall_fail(stat(TESTDIR "/blink", &sb), ENOENT);
-  xunlink(TESTDIR "/blink");
+  xsymlink(TESTPATH("nofile"), TESTPATH("blink"));
+  syscall_fail(stat(TESTPATH("blink"), &sb), ENOENT);
+  xunlink(TESTPATH("blink"));
 
-  xunlink(TESTDIR "/file");
+  xunlink(TESTPATH("file"));
 
   return 0;
 }
@@ -308,8 +309,8 @@ TEST_ADD(vfs_link, 0) {
   fill_random(wrbuf, 64);
 
   /* Create file and fill it with random data */
-  assert_open_ok(0, TESTDIR "/file", S_IWUSR | S_IRUSR, O_RDWR | O_CREAT);
-  xstat(TESTDIR "/file", &sb);
+  assert_open_ok(0, TESTPATH("file"), S_IWUSR | S_IRUSR, O_RDWR | O_CREAT);
+  xstat(TESTPATH("file"), &sb);
   assert(sb.st_nlink == 1);
 
   fileino = sb.st_ino;
@@ -317,27 +318,27 @@ TEST_ADD(vfs_link, 0) {
   assert_write_ok(0, wrbuf, 32);
 
   /* Make a hard link */
-  xlink(TESTDIR "/file", TESTDIR "/file2");
-  xstat(TESTDIR "/file2", &sb);
+  xlink(TESTPATH("file"), TESTPATH("file2"));
+  xstat(TESTPATH("file2"), &sb);
 
   /* Ensure if inode number and link count is proper */
   assert(sb.st_ino == fileino);
   assert(sb.st_nlink == 2);
 
   /* Ensure if data is the same */
-  assert_open_ok(1, TESTDIR "/file2", 0, O_RDWR);
+  assert_open_ok(1, TESTPATH("file2"), 0, O_RDWR);
   assert(read(4, rdbuf, 32) == 32);
   assert(!memcmp(wrbuf, rdbuf, 32));
 
   /* Make another link to the same file*/
-  xlink(TESTDIR "/file2", TESTDIR "/file3");
-  xstat(TESTDIR "/file3", &sb);
+  xlink(TESTPATH("file2"), TESTPATH("file3"));
+  xstat(TESTPATH("file3"), &sb);
 
   /* Ensure if inode number and link count is proper */
   assert(sb.st_ino == fileino);
   assert(sb.st_nlink == 3);
 
-  assert_open_ok(2, TESTDIR "/file3", 0, O_RDWR);
+  assert_open_ok(2, TESTPATH("file3"), 0, O_RDWR);
 
   /* Make a change to the first file and check for change*/
   assert_lseek_ok(0, 0, SEEK_SET);
@@ -347,17 +348,17 @@ TEST_ADD(vfs_link, 0) {
 
   /* Delete second file */
   assert_close_ok(1);
-  xunlink(TESTDIR "/file2");
+  xunlink(TESTPATH("file2"));
 
-  xstat(TESTDIR "/file", &sb);
+  xstat(TESTPATH("file"), &sb);
   assert(sb.st_nlink == 2);
 
-  xunlink(TESTDIR "/file");
+  xunlink(TESTPATH("file"));
 
-  xstat(TESTDIR "/file3", &sb);
+  xstat(TESTPATH("file3"), &sb);
   assert(sb.st_nlink == 1);
 
-  xunlink(TESTDIR "/file3");
+  xunlink(TESTPATH("file3"));
 
   syscall_fail(link("/tmp", "/tmp/foo"), EPERM);
 
@@ -367,29 +368,29 @@ TEST_ADD(vfs_link, 0) {
 TEST_ADD(vfs_chmod, 0) {
   struct stat sb;
 
-  assert(xopen(TESTDIR "/file", O_RDWR | O_CREAT, 0) == 3);
-  xstat(TESTDIR "/file", &sb);
+  assert(xopen(TESTPATH("file"), O_RDWR | O_CREAT, 0) == 3);
+  xstat(TESTPATH("file"), &sb);
   assert((sb.st_mode & ALLPERMS) == 0);
 
-  xchmod(TESTDIR "/file", DEFFILEMODE);
-  xstat(TESTDIR "/file", &sb);
+  xchmod(TESTPATH("file"), DEFFILEMODE);
+  xstat(TESTPATH("file"), &sb);
   assert((sb.st_mode & ALLPERMS) == DEFFILEMODE);
 
   mode_t mode = S_IXGRP | S_IWOTH | S_IRUSR | S_ISUID;
-  xchmod(TESTDIR "/file", mode);
-  xstat(TESTDIR "/file", &sb);
+  xchmod(TESTPATH("file"), mode);
+  xstat(TESTPATH("file"), &sb);
   assert((sb.st_mode & ALLPERMS) == mode);
 
   mode_t lmode = S_IWUSR | S_IRWXU | S_IRWXO;
-  xsymlink(TESTDIR "/file", TESTDIR "/link");
-  xlchmod(TESTDIR "/link", lmode);
-  xstat(TESTDIR "/link", &sb);
+  xsymlink(TESTPATH("file"), TESTPATH("link"));
+  xlchmod(TESTPATH("link"), lmode);
+  xstat(TESTPATH("link"), &sb);
   assert((sb.st_mode & ALLPERMS) == mode);
-  xlstat(TESTDIR "/link", &sb);
+  xlstat(TESTPATH("link"), &sb);
   assert((sb.st_mode & ALLPERMS) == lmode);
 
-  xunlink(TESTDIR "/file");
-  xunlink(TESTDIR "/link");
+  xunlink(TESTPATH("file"));
+  xunlink(TESTPATH("link"));
 
   return 0;
 }
