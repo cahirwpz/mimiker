@@ -47,9 +47,8 @@ TEST_ADD(signal_send, 0) {
   pid_t pid = xfork();
   if (pid == 0) {
     debug("This is child (mypid = %d)", getpid());
-    /* Wait for signal. */
-    while (1)
-      sched_yield();
+    pause(); /* Wait for signal. */
+    exit(0);
   }
 
   debug("This is parent (childpid = %d, mypid = %d)", pid, getpid());

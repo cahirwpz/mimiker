@@ -45,7 +45,7 @@ void signal_setup(int signo) {
   sigset_t mask;
   sigemptyset(&mask);
   sigaddset(&mask, signo);
-  assert(sigprocmask(SIG_BLOCK, &mask, NULL) == 0);
+  xsigprocmask(SIG_BLOCK, &mask, NULL);
 }
 
 void wait_for_signal(int signo) {
