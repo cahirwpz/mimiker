@@ -21,7 +21,7 @@ typedef struct job {
 } job_t;
 
 static job_t *jobs = NULL;
-static int njobmax = 4;
+static int njobmax = 1;
 static sigset_t sigchld_mask;
 
 static void sigchld_handler(__unused int sig) {
