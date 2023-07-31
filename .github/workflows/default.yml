@@ -31,35 +31,41 @@ jobs:
 
   build_mips:
     name: Build MIPS
+    strategy:
+      matrix:
+        build: [mips-kasan, mips-kcsan]
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - run: make BOARD=malta KASAN=1 LOCKDEP=1
+      - run: build.sh ${{ matrix.build }}
       - uses: actions/upload-artifact@v3
         with:
-          name: "mips kernel+ramdisk"
+          name: "${{ matrix.build }} kernel+ramdisk"
           path: |
             sys/mimiker.elf
             sys/mimiker.elf.map
             bin/*/*.uelf
             usr.bin/*/*.uelf
             initrd.cpio
-
+  
   build_aarch64:
     name: Build AArch64
+    strategy:
+      matrix:
+        build: [aarch64-kasan, aarch64-kcsan]
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - run: make BOARD=rpi3 KASAN=1 LOCKDEP=1
+      - run: build.sh ${{ matrix.build }}
       - uses: actions/upload-artifact@v3
         with:
-          name: "aarch64 kernel+ramdisk"
+          name: "${{ matrix.build }} kernel+ramdisk"
           path: |
             sys/mimiker.elf
             sys/mimiker.img.gz
@@ -71,26 +77,32 @@ jobs:
 
   build_riscv32:
     name: Build RISC-V 32-bit
+    strategy:
+      matrix:
+        build: [riscv32]
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - run: make BOARD=litex-riscv KASAN=1 LOCKDEP=1
+      - run: build.sh ${{ matrix.build }}
 
   build_riscv64:
     name: Build RISC-V 64-bit
+    strategy:
+      matrix:
+        build: [riscv64-kasan, riscv64-kcsan]
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - run: make BOARD=sifive_u KASAN=1 LOCKDEP=1
+      - run: build.sh ${{ matrix.build }}
       - uses: actions/upload-artifact@v3
         with:
-          name: "riscv64 kernel+ramdisk"
+          name: "${{ matrix.build }} kernel+ramdisk"
           path: |
             sys/mimiker.elf
             sys/mimiker.elf.map
@@ -100,33 +112,42 @@ jobs:
 
   kernel_tests_mips:
     name: Tests MIPS
+    strategy:
+      matrix:
+        build: [mips-kasan, mips-kcsan]
     runs-on: self-hosted
     needs: build_mips
     steps:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
-          name: "mips kernel+ramdisk"
+          name: "${{ matrix.kernel }} kernel+ramdisk"
       - run: ./run_tests.py --board malta --timeout=100 --times=50
 
   kernel_tests_aarch64:
     name: Tests AArch64
+    strategy:
+      matrix:
+        build: [aarch64-kasan, aarch64-kcsan]
     runs-on: self-hosted
     needs: build_aarch64
     steps:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
-          name: "aarch64 kernel+ramdisk"
+          name: "${{ matrix.kernel }} kernel+ramdisk"
       - run: ./run_tests.py --board rpi3 --timeout=60 --times=50
 
   kernel_tests_riscv64:
     name: Tests RISC-V 64-bit
+    strategy:
+      matrix:
+        build: [riscv64-kasan, riscv64-kcsan]
     runs-on: self-hosted
     needs: build_riscv64
     steps:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
-          name: "riscv64 kernel+ramdisk"
+          name: "${{ matrix.kernel }} kernel+ramdisk"
       - run: ./run_tests.py --board sifive_u --timeout=100 --times=50
