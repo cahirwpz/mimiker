@@ -1,8 +1,12 @@
 #!/bin/sh
 
-case $1 in
+cmd=$1
+target=$2
+shift 2
+
+case $cmd in
   build)
-    case $2 in
+    case $target in
       mips-kasan)
         make BOARD=malta KASAN=1 LOCKDEP=1 ;;
       mips-kcsan)
@@ -21,18 +25,18 @@ case $1 in
         exit 1 ;;
     esac ;;
   tests)
-    case $2 in
+    case $target in
       mips-*)
-        ./run_tests.py --board malta --timeout=100 --times=50 ;;
+        ./run_tests.py --board malta --timeout=100 --times=50 --suite=$1 ;;
       aarch64-kcsan)
-        ./run_tests.py --board rpi3 --timeout=100 --times=50
+        ./run_tests.py --board rpi3 --timeout=100 --times=50 --suite=$1
         # do not report it as failed because we have no people working on
         # fixing concurrency issues
         exit 0 ;;
       aarch64-*)
-        ./run_tests.py --board rpi3 --timeout=100 --times=50 ;;
+        ./run_tests.py --board rpi3 --timeout=100 --times=50 --suite=$1 ;;
       riscv64-*)
-        ./run_tests.py --board sifive_u --timeout=100 --times=50 ;;
+        ./run_tests.py --board sifive_u --timeout=100 --times=50 --suite=$1 ;;
       *)
         exit 1 ;;
     esac ;;

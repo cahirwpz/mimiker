@@ -3,6 +3,7 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
+	main.c \
 	broken.c \
 	callout.c \
 	crash.c \
@@ -27,7 +28,6 @@ SOURCES = \
 	turnstile_propagate_once.c \
 	turnstile_propagate_many.c \
 	uiomove.c \
-	utest.c \
 	vm_map.c \
 	devclass.c \
 	vfs.c \

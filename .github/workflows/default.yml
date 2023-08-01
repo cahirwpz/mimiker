@@ -61,6 +61,7 @@ jobs:
       fail-fast: false
       matrix:
         build: [mips-kasan, aarch64-kasan, aarch64-kcsan, riscv64-kasan]
+        suite: [kernel, user]
     runs-on: self-hosted
     needs: build
     steps:
@@ -68,4 +69,4 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: "${{ matrix.build }} kernel+ramdisk"
-      - run: ./action.sh tests ${{ matrix.build }}
+      - run: ./action.sh tests ${{ matrix.build }} ${{ matrix.suite }}
