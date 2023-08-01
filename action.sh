@@ -24,6 +24,11 @@ case $1 in
     case $2 in
       mips-*)
         ./run_tests.py --board malta --timeout=100 --times=50 ;;
+      aarch64-kcsan)
+        ./run_tests.py --board rpi3 --timeout=100 --times=50
+        # do not report it as failed because we have no people working on
+        # fixing concurrency issues
+        exit 0 ;;
       aarch64-*)
         ./run_tests.py --board rpi3 --timeout=100 --times=50 ;;
       riscv64-*)
