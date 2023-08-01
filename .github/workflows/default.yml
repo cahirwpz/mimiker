@@ -50,7 +50,7 @@ jobs:
       - run: ./action.sh build ${{ matrix.arch }}-${{ matrix.build }}
       - uses: actions/upload-artifact@v3
         with:
-          name: "${{ matrix.arch }} ${{ matrix.build }} kernel+ramdisk"
+          name: "${{ matrix.arch }} ${{ matrix.build }} build"
           path: |
             bin/*/*.uelf
             initrd.cpio
@@ -79,5 +79,5 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
-          name: "${{ matrix.arch }}-${{ matrix.build }} kernel+ramdisk"
+          name: "${{ matrix.arch }} ${{ matrix.build }} build"
       - run: ./action.sh tests ${{ matrix.arch }}-${{ matrix.build }} ${{ matrix.suite }}
