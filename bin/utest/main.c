@@ -223,6 +223,11 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  if (getpid() == 1) {
+    fprintf(stderr, "Don't run me as init process!\n");
+    return 1;
+  }
+
   const char *seed_str = getenv("seed");
   if (seed_str)
     utest_seed = strtoul(seed_str, NULL, 10);
