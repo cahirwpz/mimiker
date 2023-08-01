@@ -28,7 +28,8 @@ case $cmd in
       kasan)
         ./run_tests.py --board $board --timeout=100 --times=50 --suite=$1 ;;
       kcsan)
-        ./run_tests.py --board $board --timeout=100 --times=50 --suite=$1
+        ./run_tests.py --board $board --timeout=100 --times=50 --suite=$1 \
+          --parallel=5
         # do not report it as failed because we have no people working on
         # fixing concurrency issues
         exit 0 ;;
