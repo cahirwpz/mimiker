@@ -60,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: [mips-kasan, aarch64-kasan, riscv64-kasan]
+        build: [mips-kasan, aarch64-kasan, aarch64-kcsan, riscv64-kasan]
     runs-on: self-hosted
     needs: build
     steps:
