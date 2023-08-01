@@ -51,13 +51,14 @@ TEST_ADD(setpgid_leader, 0) {
     /* Can't change pgrp of session leader. */
     assert(setpgid(0, 0));
 
+    xkill(getppid(), SIGUSR1);
     wait_for_signal(SIGUSR1);
     return 0;
   }
 
   /* Wait until child becomes session leader. */
-  while (getsid(cpid) != cpid)
-    sched_yield();
+  wait_for_signal(SIGUSR1);
+  assert(getsid(cpid) == cpid);
 
   /* Can't change pgrp of session leader. */
   assert(setpgid(cpid, getpgid(0)));
@@ -69,12 +70,16 @@ TEST_ADD(setpgid_leader, 0) {
 }
 
 TEST_ADD(setpgid_child, 0) {
-  signal_setup(SIGUSR1);
+  signal_setup(SIGUSR1); /* child 1 */
+  signal_setup(SIGUSR2); /* child 2 */
 
   pid_t cpid1 = xfork();
   if (cpid1 == 0) {
     /* Become session leader. */
     assert(setsid() == getpid());
+
+    /* Signal readiness to parent. */
+    xkill(getppid(), SIGUSR1);
 
     /* Wait until our parent gives a signal to exit. */
     wait_for_signal(SIGUSR1);
@@ -84,23 +89,23 @@ TEST_ADD(setpgid_child, 0) {
   pid_t cpid2 = xfork();
   if (cpid2 == 0) {
     /* Signal readiness to parent. */
-    xkill(getppid(), SIGUSR1);
+    xkill(getppid(), SIGUSR2);
 
     /* A child should not be able to change its parent's
      * process group. */
     assert(setpgid(getppid(), 0));
 
     /* Wait until our parent gives a signal to exit. */
-    wait_for_signal(SIGUSR1);
+    wait_for_signal(SIGUSR2);
     return 0;
   }
 
   /* Wait for child 1 to become session leader. */
-  while (getsid(cpid1) != cpid1)
-    sched_yield();
+  wait_for_signal(SIGUSR1);
+  assert(getsid(cpid1) == cpid1);
 
   /* Wait until child 2 is ready. */
-  wait_for_signal(SIGUSR1);
+  wait_for_signal(SIGUSR2);
 
   /* Move child 2 into its own process group. */
   assert(!setpgid(cpid2, cpid2));
@@ -115,7 +120,7 @@ TEST_ADD(setpgid_child, 0) {
   assert(getpgid(cpid2) == getpgid(0));
 
   xkill(cpid1, SIGUSR1);
-  xkill(cpid2, SIGUSR1);
+  xkill(cpid2, SIGUSR2);
 
   wait_child_finished(cpid1);
   wait_child_finished(cpid2);
@@ -277,11 +282,9 @@ TEST_ADD(pgrp_orphan, 0) {
   return 0;
 }
 
-static volatile pid_t parent_sid;
-
 TEST_ADD(session_basic, 0) {
   signal_setup(SIGUSR1);
-  parent_sid = getsid(getpid());
+  pid_t parent_sid = getsid(getpid());
   assert(parent_sid != -1);
   pid_t cpid = xfork();
   if (cpid == 0) {
@@ -292,6 +295,7 @@ TEST_ADD(session_basic, 0) {
     assert(getsid(ppid) == parent_sid);
     /* Create a session. This should always succeed. */
     assert(setsid() == cpid);
+    xkill(ppid, SIGUSR1);
     assert(getsid(0) == cpid);
     assert(getsid(ppid) == parent_sid);
     /* Creating a session when we're already a leader should fail. */
@@ -303,11 +307,8 @@ TEST_ADD(session_basic, 0) {
     return 0;
   }
 
-  pid_t child_sid;
-  while ((child_sid = getsid(cpid)) != cpid) {
-    assert(child_sid == parent_sid);
-    sched_yield();
-  }
+  wait_for_signal(SIGUSR1);
+  assert(getsid(cpid) == cpid);
 
   xkill(cpid, SIGUSR1);
   wait_child_finished(cpid);

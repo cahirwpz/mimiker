@@ -45,9 +45,7 @@ TEST_ADD(pipe_parent_signaled, 0) {
   wait_child_finished(child_pid);
 
   /* This is supposed to trigger SIGPIPE and return EPIPE */
-  ssize_t write_ret = write(pipe_fd[1], "hello world\n", 12);
-  assert(write_ret == -1);
-  assert(errno == EPIPE);
+  syscall_fail(write(pipe_fd[1], "hello world\n", 12), EPIPE);
   assert(signal_delivered);
 
   return 0;
@@ -74,9 +72,7 @@ TEST_ADD(pipe_child_signaled, 0) {
     wait_for_signal(SIGUSR1); /* now we know that other end is closed */
 
     /* This is supposed to trigger SIGPIPE and return EPIPE */
-    ssize_t write_ret = write(pipe_fd[1], "hello world\n", 12);
-    assert(write_ret == -1);
-    assert(errno == EPIPE);
+    syscall_fail(write(pipe_fd[1], "hello world\n", 12), EPIPE);
     assert(signal_delivered);
 
     exit(EXIT_SUCCESS);
@@ -158,9 +154,9 @@ TEST_ADD(pipe_write_interruptible_sleep, 0) {
     for (int i = 0; i < page_size; i++) {
       data[i] = (i + '0') % CHAR_MAX;
     }
-    int bytes_wrote = 0;
     ualarm(5000, 5000); /* 5 ms, and after that every 5 ms */
 
+    int bytes_wrote = 0;
     while (bytes_wrote >= 0) {
       bytes_wrote = write(pipe_fd[1], &data, sizeof(data));
     }
@@ -221,15 +217,13 @@ TEST_ADD(pipe_write_errno_eagain, 0) {
 
 TEST_ADD(pipe_read_interruptible_sleep, 0) {
   int pipe_fd[2];
-  pid_t child_pid;
-  int bytes_wrote;
 
   /* creating pipe */
   int pipe2_ret = pipe2(pipe_fd, 0);
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = xfork();
+  pid_t child_pid = xfork();
 
   if (child_pid == 0) { /* child */
     xclose(pipe_fd[1]); /* closing write end of pipe */
@@ -244,10 +238,7 @@ TEST_ADD(pipe_read_interruptible_sleep, 0) {
     char buf;
     ualarm(5000, 5000); /* 5 ms, and after that every 5 ms */
 
-    bytes_wrote = read(pipe_fd[0], &buf, 1);
-
-    assert(bytes_wrote == -1);
-    assert(errno == EINTR);
+    syscall_fail(read(pipe_fd[0], &buf, 1), EINTR);
 
     xclose(pipe_fd[0]);
     exit(EXIT_SUCCESS);
@@ -262,24 +253,19 @@ TEST_ADD(pipe_read_interruptible_sleep, 0) {
 
 TEST_ADD(pipe_read_errno_eagain, 0) {
   int pipe_fd[2];
-  pid_t child_pid;
-  int bytes_wrote;
 
   /* creating pipe */
   int pipe2_ret = pipe2(pipe_fd, O_NONBLOCK);
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = xfork();
+  pid_t child_pid = xfork();
 
   if (child_pid == 0) { /* child */
-
     xclose(pipe_fd[1]); /* closing write end of pipe */
 
     char buf;
-    bytes_wrote = read(pipe_fd[0], &buf, 1);
-    assert(errno == EAGAIN);
-    assert(bytes_wrote == -1);
+    syscall_fail(read(pipe_fd[0], &buf, 1), EAGAIN);
     xclose(pipe_fd[0]);
 
     exit(EXIT_SUCCESS);
@@ -293,24 +279,19 @@ TEST_ADD(pipe_read_errno_eagain, 0) {
 
 TEST_ADD(pipe_read_return_zero, 0) {
   int pipe_fd[2];
-  pid_t child_pid;
-  int bytes_wrote;
 
   /* creating pipe */
   int pipe2_ret = pipe2(pipe_fd, 0);
   assert(pipe2_ret == 0);
 
   /* forking */
-  child_pid = xfork();
+  pid_t child_pid = xfork();
 
   if (child_pid == 0) { /* child */
     xclose(pipe_fd[1]); /* closing write end of pipe */
 
     char buf;
-    bytes_wrote = read(pipe_fd[0], &buf, 1);
-
-    assert(bytes_wrote == 0);
-    assert(errno == 0);
+    assert(xread(pipe_fd[0], &buf, 1) == 0);
 
     xclose(pipe_fd[0]);
     exit(EXIT_SUCCESS);

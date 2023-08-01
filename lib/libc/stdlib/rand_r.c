@@ -1,8 +1,8 @@
-/*	$NetBSD: exit.c,v 1.17 2017/07/14 19:24:52 joerg Exp $	*/
+/*	$NetBSD: rand_r.c,v 1.6 2012/06/25 22:32:45 abs Exp $	*/
 
 /*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1990 The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,20 +31,9 @@
 
 #include <sys/cdefs.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include "atexit.h"
-#include "reentrant.h"
 
-void (*__cleanup)(void);
-
-/*
- * Exit, flushing stdio buffers if necessary.
- */
-void exit(int status) {
-  if (__cxa_thread_atexit_used)
-    __cxa_thread_run_atexit();
-  __cxa_finalize(NULL);
-  if (__cleanup)
-    (*__cleanup)();
-  _exit(status);
+int
+rand_r(unsigned int *seed)
+{
+	return ((*seed = *seed * 1103515245 + 12345) & RAND_MAX);
 }
