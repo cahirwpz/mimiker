@@ -6,6 +6,10 @@
 #include <string.h>
 #include <sys/mman.h>
 
+static inline int sigsetequal(sigset_t *a, sigset_t *b) {
+  return memcmp(a, b, sizeof(sigset_t)) == 0;
+}
+
 /* Do the necessary setup needed to wait for the signal.
  * Must be called before receiving the signal,
  * ideally at the very beginning of the test procedure. */

@@ -31,7 +31,6 @@ SOURCES = \
 	kenv.c \
 	klog.c \
 	kmem.c \
-	ktest.c \
 	main.c \
 	malloc.c \
 	mutex.c \
@@ -97,3 +96,4 @@ kasan.o : CFLAGS_KASAN =
 mcount.o : CFLAGS_KFI =
 kcsan.o : CFLAGS_KCSAN =
 kftrace.o : CFLAGS_KFI =
+timer.o : CPPFLAGS += -DUNIXTIME_NOW=$(shell date +%s)

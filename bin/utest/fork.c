@@ -32,13 +32,21 @@ static void sigchld_handler(int signo) {
 
 TEST_ADD(fork_signal, 0) {
   xsignal(SIGCHLD, sigchld_handler);
+
+  sigset_t mask, saved;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGCHLD);
+  xsigprocmask(SIG_BLOCK, &mask, &saved);
+
   pid_t n = xfork();
   if (n == 0)
     exit(0);
 
   /* Wait for the child to get reaped by signal handler. */
   while (!done)
-    sched_yield();
+    sigsuspend(&saved);
+
+  xsigprocmask(SIG_UNBLOCK, &mask, NULL);
   xsignal(SIGCHLD, SIG_DFL);
   return 0;
 }
