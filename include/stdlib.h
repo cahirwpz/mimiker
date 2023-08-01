@@ -99,6 +99,9 @@ u_quad_t strtouq(const char *__restrict, char **__restrict, int);
 int setenv(const char *, const char *, int);
 int unsetenv(const char *);
 
+/* IEEE Std 1003.1c-95, also adopted by X/Open CAE Spec Issue 5 Version 2 */
+int rand_r(unsigned int *);
+
 /*
  * X/Open Portability Guide >= Issue 4 Version 2
  */

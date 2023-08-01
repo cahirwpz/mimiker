@@ -2,6 +2,7 @@
 
 #include <sys/linker_set.h>
 #include <sys/types.h>
+#include <limits.h>
 #include <stdnoreturn.h>
 
 /*
@@ -11,8 +12,9 @@
 typedef int (*test_func_t)(void);
 
 typedef enum test_flags {
-  TF_DISABLED = -1, /* test will return success without being executed */
-  TF_DEBUG = 1,     /* display debug messages to stderr */
+  TF_DISABLED = INT32_MIN, /* test will return success without being executed */
+  TF_DEBUG = 1,            /* display debug messages to stderr */
+  TF_TMPDIR = 2,           /* create temp di rand run the test there */
 } test_flags_t;
 
 typedef struct test_entry {
@@ -90,50 +92,65 @@ void wait_child_stopped(pid_t pid);
 void wait_child_continued(pid_t pid);
 
 /*
+ * VFS test related definitions
+ */
+
+extern char testdir[];
+
+/*
  * libc function wrappers that call die(...) on error
  */
 
-#include <errno.h>
 #include <string.h>
-#include <sys/sigtypes.h>
+#include <errno.h>
 
-typedef void (*sig_t)(int);
-struct stat;
-struct sigaction;
-struct timezone;
-struct timeval;
+#define NOFAIL_NR(_CALL, ...)                                                  \
+  ({                                                                           \
+    int _res##__LINE__ = _CALL(__VA_ARGS__);                                   \
+    if (_res##__LINE__ == -1)                                                  \
+      __die(__FILE__, __LINE__, #_CALL ": %s", strerror(errno));               \
+  })
 
-void xaccess(const char *pathname, int mode);
-void xchdir(const char *path);
-void xchmod(const char *pathname, mode_t mode);
-void xclose(int fd);
-pid_t xfork(void);
-void xfstat(int fd, struct stat *statbuf);
-int xgetgroups(int size, gid_t *list);
-void xgetresuid(uid_t *ruid, uid_t *euid, uid_t *suid);
-void xgetresgid(gid_t *rgid, gid_t *egid, gid_t *sgid);
-void xgettimeofday(struct timeval *tv, struct timezone *tz);
-void xkill(int pid, int sig);
-void xkillpg(pid_t pgrp, int sig);
-void xlchmod(const char *path, mode_t mode);
-void xlink(const char *oldpath, const char *newpath);
-void xlstat(const char *pathname, struct stat *statbuf);
-void xmkdir(const char *pathname, mode_t mode);
-void *xmmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset);
-void xmunmap(void *addr, size_t length);
-void xmprotect(void *addr, size_t len, int prot);
-int xopen(const char *path, int flags, ...);
-void xpipe(int pipefd[2]);
-void xrmdir(const char *pathname);
-sig_t xsignal(int sig, sig_t func);
-void xsigaction(int sig, const struct sigaction *restrict act,
-                struct sigaction *restrict oact);
-void xsigprocmask(int how, const sigset_t *restrict set,
-                  sigset_t *restrict oset);
-void xsetgroups(int size, gid_t *list);
-void xsetresuid(uid_t ruid, uid_t euid, uid_t suid);
-void xsetresgid(gid_t rgid, gid_t egid, gid_t sgid);
-void xstat(const char *pathname, struct stat *statbuf);
-void xsymlink(const char *target, const char *linkpath);
-void xunlink(const char *pathname);
-pid_t xwaitpid(pid_t wpid, int *status, int options);
+#define NOFAIL(_CALL, _TYPE, ...)                                              \
+  ({                                                                           \
+    _TYPE _res##__LINE__ = _CALL(__VA_ARGS__);                                 \
+    if (_res##__LINE__ == (_TYPE)-1)                                           \
+      __die(__FILE__, __LINE__, #_CALL ": %s", strerror(errno));               \
+    _res##__LINE__;                                                            \
+  })
+
+#define xaccess(...) NOFAIL_NR(access, __VA_ARGS__)
+#define xchdir(...) NOFAIL_NR(chdir, __VA_ARGS__)
+#define xchmod(...) NOFAIL_NR(chmod, __VA_ARGS__)
+#define xclose(...) NOFAIL_NR(close, __VA_ARGS__)
+#define xfork(...) NOFAIL(fork, pid_t, __VA_ARGS__)
+#define xfstat(...) NOFAIL_NR(fstat, __VA_ARGS__)
+#define xgetgroups(...) NOFAIL(getgroups, int, __VA_ARGS__)
+#define xgetresuid(...) NOFAIL_NR(getresuid, __VA_ARGS__)
+#define xgetresgid(...) NOFAIL_NR(getresgid, __VA_ARGS__)
+#define xgettimeofday(...) NOFAIL_NR(gettimeofday, __VA_ARGS__)
+#define xkill(...) NOFAIL_NR(kill, __VA_ARGS__)
+#define xkillpg(...) NOFAIL_NR(killpg, __VA_ARGS__)
+#define xlchmod(...) NOFAIL_NR(lchmod, __VA_ARGS__)
+#define xlstat(...) NOFAIL_NR(lstat, __VA_ARGS__)
+#define xlink(...) NOFAIL_NR(link, __VA_ARGS__)
+#define xmkdir(...) NOFAIL_NR(mkdir, __VA_ARGS__)
+#define xmmap(...) NOFAIL(mmap, void *, __VA_ARGS__)
+#define xmprotect(...) NOFAIL_NR(mprotect, __VA_ARGS__)
+#define xmunmap(...) NOFAIL_NR(munmap, __VA_ARGS__)
+#define xopen(...) NOFAIL(open, int, __VA_ARGS__)
+#define xpipe(...) NOFAIL_NR(pipe, __VA_ARGS__)
+#define xread(...) NOFAIL(read, ssize_t, __VA_ARGS__)
+#define xreadlink(...) NOFAIL(readlink, ssize_t, __VA_ARGS__)
+#define xrmdir(...) NOFAIL_NR(rmdir, __VA_ARGS__)
+#define xsetgroups(...) NOFAIL_NR(setgroups, __VA_ARGS__)
+#define xsetresuid(...) NOFAIL_NR(setresuid, __VA_ARGS__)
+#define xsetresgid(...) NOFAIL_NR(setresgid, __VA_ARGS__)
+#define xsigaction(...) NOFAIL_NR(sigaction, __VA_ARGS__)
+#define xsignal(...) NOFAIL(signal, sig_t, __VA_ARGS__)
+#define xsigprocmask(...) NOFAIL_NR(sigprocmask, __VA_ARGS__)
+#define xstat(...) NOFAIL_NR(stat, __VA_ARGS__)
+#define xsymlink(...) NOFAIL_NR(symlink, __VA_ARGS__)
+#define xunlink(...) NOFAIL_NR(unlink, __VA_ARGS__)
+#define xwaitpid(...) NOFAIL(waitpid, pid_t, __VA_ARGS__)
+#define xwrite(...) NOFAIL(write, ssize_t, __VA_ARGS__)
