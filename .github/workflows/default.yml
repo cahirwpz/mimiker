@@ -34,18 +34,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: [mips-kasan, mips-kcsan, aarch64-kasan, aarch64-kcsan,
-                riscv32-kasan, riscv64-kasan]
+        arch: [mips, aarch64, riscv32, riscv64]
+        build: [kasan, kcsan]
+        exclude:
+          - arch: riscv32
+            build: kcsan
+          - arch: riscv64
+            build: kcsan
     runs-on: self-hosted
     needs: [verify_c_style, verify_py_style]
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - run: ./action.sh build ${{ matrix.build }}
+      - run: ./action.sh build ${{ matrix.arch }}-${{ matrix.build }}
       - uses: actions/upload-artifact@v3
         with:
-          name: "${{ matrix.build }} kernel+ramdisk"
+          name: "${{ matrix.arch }} ${{ matrix.build }} kernel+ramdisk"
           path: |
             bin/*/*.uelf
             initrd.cpio
@@ -56,17 +61,23 @@ jobs:
             usr.bin/*/*.uelf
 
   tests:
-    name: Test Kernel
+    name: Run Tests
     strategy:
       fail-fast: false
       matrix:
-        build: [mips-kasan, aarch64-kasan, aarch64-kcsan, riscv64-kasan]
+        arch: [mips, aarch64, riscv64]
+        build: [kasan, kcsan]
         suite: [kernel, user]
+        exclude:
+          - arch: mips
+            build: kcsan
+          - arch: riscv64
+            build: kcsan
     runs-on: self-hosted
     needs: build
     steps:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
-          name: "${{ matrix.build }} kernel+ramdisk"
-      - run: ./action.sh tests ${{ matrix.build }} ${{ matrix.suite }}
+          name: "${{ matrix.arch }}-${{ matrix.build }} kernel+ramdisk"
+      - run: ./action.sh tests ${{ matrix.arch }}-${{ matrix.build }} ${{ matrix.suite }}
