@@ -47,7 +47,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - run: ./action.sh build ${{ matrix.arch }}-${{ matrix.build }}
+      - run: ./action.sh build ${{ matrix.arch }} ${{ matrix.build }}
       - uses: actions/upload-artifact@v3
         with:
           name: "${{ matrix.arch }} ${{ matrix.build }} build"
@@ -69,8 +69,6 @@ jobs:
         build: [kasan, kcsan]
         suite: [kernel, user]
         exclude:
-          - arch: mips
-            build: kcsan
           - arch: riscv64
             build: kcsan
     runs-on: self-hosted
@@ -80,4 +78,4 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: "${{ matrix.arch }} ${{ matrix.build }} build"
-      - run: ./action.sh tests ${{ matrix.arch }}-${{ matrix.build }} ${{ matrix.suite }}
+      - run: ./action.sh tests ${{ matrix.arch }} ${{ matrix.build }} ${{ matrix.suite }}
