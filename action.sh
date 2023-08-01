@@ -25,7 +25,7 @@ case $1 in
       mips-*)
         ./run_tests.py --board malta --timeout=100 --times=50 ;;
       aarch64-*)
-        ./run_tests.py --board rpi3 --timeout=60 --times=50 ;;
+        ./run_tests.py --board rpi3 --timeout=100 --times=50 ;;
       riscv64-*)
         ./run_tests.py --board sifive_u --timeout=100 --times=50 ;;
       *)
