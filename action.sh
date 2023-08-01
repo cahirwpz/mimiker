@@ -6,17 +6,17 @@ build=$3
 
 shift 3
 
-case $build in
-  kasan) ksan=KASAN ;;
-  kcsan) ksan=KCSAN ;;
-  *) exit 1 ;;
-esac
-
-case $target in
+case $arch in
   mips) board=malta ;;
   aarch64) board=rpi3 ;;
   riscv32) board=litex-riscv ;;
   riscv64) board=sifive_u ;;
+  *) exit 1 ;;
+esac
+
+case $build in
+  kasan) ksan=KASAN ;;
+  kcsan) ksan=KCSAN ;;
   *) exit 1 ;;
 esac
 
