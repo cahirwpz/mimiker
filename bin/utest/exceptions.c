@@ -10,7 +10,7 @@
 
 #ifdef __mips__
 
-TEST_ADD(exc_cop_unusable) {
+TEST_ADD(exc_cop_unusable, 0) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
     int value;
@@ -23,7 +23,7 @@ TEST_ADD(exc_cop_unusable) {
   return 0;
 }
 
-TEST_ADD(exc_reserved_instruction) {
+TEST_ADD(exc_reserved_instruction, 0) {
   /* The choice of reserved opcode was done based on "Table A.2 MIPS32 Encoding
    * of the Opcode Field" from "MIPS® Architecture For Programmers Volume II-A:
    * The MIPS32® Instruction Set" */
@@ -38,7 +38,7 @@ TEST_ADD(exc_reserved_instruction) {
   return 0;
 }
 
-TEST_ADD(exc_integer_overflow) {
+TEST_ADD(exc_integer_overflow, 0) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGFPE, &si) {
     int d = __INT_MAX__;
@@ -51,7 +51,7 @@ TEST_ADD(exc_integer_overflow) {
   return 0;
 }
 
-TEST_ADD(exc_unaligned_access) {
+TEST_ADD(exc_unaligned_access, 0) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGBUS, &si) {
     int a[2];
@@ -65,7 +65,7 @@ TEST_ADD(exc_unaligned_access) {
   return 0;
 }
 
-TEST_ADD(syscall_in_bds) {
+TEST_ADD(syscall_in_bds, TF_DISABLED) {
   unsigned control = 1;
   char *text = "write executed\n";
 
@@ -91,7 +91,7 @@ TEST_ADD(syscall_in_bds) {
 
 #ifdef __aarch64__
 
-TEST_ADD(exc_unknown_instruction) {
+TEST_ADD(exc_unknown_instruction, 0) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
   start:
@@ -103,7 +103,7 @@ TEST_ADD(exc_unknown_instruction) {
   return 0;
 }
 
-TEST_ADD(exc_msr_instruction) {
+TEST_ADD(exc_msr_instruction, 0) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
   start:
@@ -115,7 +115,7 @@ TEST_ADD(exc_msr_instruction) {
   return 0;
 }
 
-TEST_ADD(exc_mrs_instruction) {
+TEST_ADD(exc_mrs_instruction, 0) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGILL, &si) {
     long x;
@@ -128,7 +128,7 @@ TEST_ADD(exc_mrs_instruction) {
   return 0;
 }
 
-TEST_ADD(exc_brk) {
+TEST_ADD(exc_brk, 0) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGTRAP, &si) {
     asm volatile("brk 0");

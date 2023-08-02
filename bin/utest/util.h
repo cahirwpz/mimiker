@@ -6,9 +6,9 @@
 #include <string.h>
 #include <sys/mman.h>
 
-/* Wait for a single child process with process id `pid` to exit,
- * and check that its exit code matches the expected value. */
-void wait_for_child_exit(int pid, int exit_code);
+static inline int sigsetequal(sigset_t *a, sigset_t *b) {
+  return memcmp(a, b, sizeof(sigset_t)) == 0;
+}
 
 /* Do the necessary setup needed to wait for the signal.
  * Must be called before receiving the signal,
@@ -71,14 +71,12 @@ void _expect_signal_cleanup(void);
 
 #undef assert_open_ok
 #define assert_open_ok(fd, file, mode, flag)                                   \
-  n = open(file, flag, mode);                                                  \
+  n = xopen(file, flag, mode);                                                 \
   assert(n == fd + FD_OFFSET);
 
 #undef assert_open_fail
 #define assert_open_fail(file, mode, flag, err)                                \
-  n = open(file, flag, 0);                                                     \
-  assert(n < 0);                                                               \
-  assert(errno == err);
+  syscall_fail(open(file, flag, mode), err)
 
 #undef assert_read_ok
 #define assert_read_ok(fd, buf, len)                                           \
@@ -96,9 +94,7 @@ void _expect_signal_cleanup(void);
 
 #undef assert_read_fail
 #define assert_read_fail(fd, buf, len, err)                                    \
-  n = read(fd + FD_OFFSET, buf, len);                                          \
-  assert(n < 0);                                                               \
-  assert(errno == err);
+  syscall_fail(read(fd + FD_OFFSET, buf, len), err)
 
 #undef assert_write_ok
 #define assert_write_ok(fd, buf, len)                                          \
@@ -107,30 +103,18 @@ void _expect_signal_cleanup(void);
 
 #undef assert_write_fail
 #define assert_write_fail(fd, buf, len, err)                                   \
-  n = write(fd + FD_OFFSET, buf, len);                                         \
-  assert(n < 0);                                                               \
-  assert(errno == err);
+  syscall_fail(write(fd + FD_OFFSET, buf, len), err)
 
 #undef assert_close_ok
-#define assert_close_ok(fd)                                                    \
-  n = close(fd + FD_OFFSET);                                                   \
-  assert(n == 0);
+#define assert_close_ok(fd) xclose(fd + FD_OFFSET)
 
 #undef assert_close_fail
-#define assert_close_fail(fd, err)                                             \
-  n = close(fd + FD_OFFSET);                                                   \
-  assert(n < 0);                                                               \
-  assert(errno == err);
+#define assert_close_fail(fd, err) syscall_fail(close(fd + FD_OFFSET), err)
 
 #undef assert_lseek_ok
 #define assert_lseek_ok(fd, offset, whence)                                    \
   n = lseek(fd + FD_OFFSET, offset, whence);                                   \
   assert(n >= 0);
-
-#undef assert_pipe_ok
-#define assert_pipe_ok(fds)                                                    \
-  n = pipe(fds);                                                               \
-  assert(n == 0);
 
 #define mmap_anon_priv_flags(addr, length, prot, flags)                        \
   mmap((addr), (length), (prot), (flags) | MAP_ANON | MAP_PRIVATE, -1, 0)

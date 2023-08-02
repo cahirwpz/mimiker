@@ -1,11 +1,16 @@
 #define KL_LOG KL_TEST
 #include <sys/klog.h>
 #include <sys/mimiker.h>
-#include <sys/kenv.h>
-#include <sys/ktest.h>
-#include <sys/malloc.h>
-#include <sys/libkern.h>
+#include <sys/exec.h>
 #include <sys/interrupt.h>
+#include <sys/kenv.h>
+#include <sys/klog.h>
+#include <sys/ktest.h>
+#include <sys/libkern.h>
+#include <sys/malloc.h>
+#include <sys/proc.h>
+#include <sys/thread.h>
+#include <sys/wait.h>
 
 #define KTEST_MAX_NO 1024
 
@@ -60,17 +65,7 @@ static void run_test(test_entry_t *t) {
 
   klog("Running test \"%s\".", current_test->test_name);
 
-  test_func_t test_fn = (void *)t->test_func;
-  int randint = 0;
-  if (t->flags & KTEST_FLAG_RANDINT) {
-    /* NOTE: Numbers generated here will be the same on each run, since test are
-       started in a deterministic order. This is not a bug! In fact, it allows
-       to reproduce test cases easily, just by reusing the seed.*/
-    /* TODO: Low discrepancy sampling? */
-    randint = rand_r(&seed) % t->randint_max;
-  }
-
-  if (test_fn(randint) == KTEST_FAILURE)
+  if (t->test_func() == KTEST_FAILURE)
     ktest_failure();
 
   current_test = NULL;
@@ -170,4 +165,42 @@ __noreturn void ktest_main(const char *test) {
 
   /* If we've managed to get here, it means all tests passed with no issues. */
   ktest_success();
+}
+
+#define UTEST_PATH "/bin/utest"
+
+static __noreturn void utest_thread(void *arg) {
+  char seed[32] = "seed=";
+  char repeat[32] = "repeat=";
+  char parallel[32] = "parallel=";
+
+  strlcat(seed, kenv_get("seed") ?: "0", sizeof(seed));
+  strlcat(repeat, kenv_get("repeat") ?: "1", sizeof(repeat));
+  strlcat(parallel, kenv_get("parallel") ?: "1", sizeof(parallel));
+
+  kern_execve(UTEST_PATH, (char *[]){UTEST_PATH, arg, NULL},
+              (char *[]){seed, repeat, parallel, NULL});
+}
+
+/* This is the klog mask used with utests. */
+#define KL_UTEST_MASK                                                          \
+  (KL_ALL & (~(KL_MASK(KL_INTR) | KL_MASK(KL_PMAP) | KL_MASK(KL_PHYSMEM))))
+
+__noreturn void utest_main(const char *test) {
+  const char *mask = kenv_get("klog-utest-mask");
+  klog_setmask(mask ? (unsigned)strtol(mask, NULL, 16) : KL_UTEST_MASK);
+
+  pid_t cpid;
+  if (do_fork(utest_thread, (void *)test, &cpid))
+    panic("Could not start test!");
+
+  int status;
+  pid_t pid = 0;
+  do_waitpid(cpid, &status, 0, &pid);
+  assert(cpid == pid);
+
+  if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
+    ktest_success();
+
+  ktest_failure();
 }
