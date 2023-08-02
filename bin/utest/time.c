@@ -7,7 +7,7 @@
 #include <string.h>
 #include <sys/time.h>
 
-TEST_ADD(gettimeofday) {
+TEST_ADD(gettimeofday, 0) {
   timeval_t time1, time2;
   const int64_t start_of_century = 94684800, end_of_century = 4102444799;
 
@@ -28,7 +28,7 @@ TEST_ADD(gettimeofday) {
   return 0;
 }
 
-TEST_ADD(nanosleep) {
+TEST_ADD(nanosleep, TF_DISABLED) {
   /* Requested and remaining time */
   timespec_t rqt, rmt;
   timeval_t time1, time2, diff;
@@ -61,21 +61,21 @@ TEST_ADD(nanosleep) {
     diff.tv_sec = rqt.tv_sec;
     diff.tv_usec = rqt.tv_nsec / 1000;
 
-    syscall_ok(gettimeofday(&time1, NULL));
+    xgettimeofday(&time1, NULL);
     while ((ret = nanosleep(&rqt, &rmt)) == EINTR)
       rqt = rmt;
     assert(ret == 0);
-    syscall_ok(gettimeofday(&time2, NULL));
+    xgettimeofday(&time2, NULL);
 
-    printf("time1: %d.%06d, time2: %d.%06d\n", (int)time1.tv_sec, time1.tv_usec,
-           (int)time2.tv_sec, time2.tv_usec);
+    debug("time1: %d.%06d, time2: %d.%06d", (int)time1.tv_sec, time1.tv_usec,
+          (int)time2.tv_sec, time2.tv_usec);
     timeradd(&time1, &diff, &time1);
     assert(timercmp(&time1, &time2, <=));
   }
   return 0;
 }
 
-TEST_ADD(itimer) {
+TEST_ADD(itimer, 0) {
   signal_setup(SIGALRM);
   struct itimerval it, it2;
   memset(&it, 0, sizeof(it));

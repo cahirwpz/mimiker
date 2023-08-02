@@ -6,10 +6,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-TEST_ADD(stat) {
+TEST_ADD(stat, 0) {
   struct stat sb;
 
-  syscall_ok(stat("/tests/ascii", &sb));
+  xstat("/tests/ascii", &sb);
   assert(sb.st_size == 95);
   assert(S_ISREG(sb.st_mode));
 
@@ -18,17 +18,17 @@ TEST_ADD(stat) {
   return 0;
 }
 
-TEST_ADD(fstat) {
+TEST_ADD(fstat, 0) {
   struct stat sb;
   int fd;
 
-  fd = open("/tests", 0, O_RDONLY);
-  syscall_ok(fstat(fd, &sb));
+  fd = xopen("/tests", 0, O_RDONLY);
+  xfstat(fd, &sb);
   assert(S_ISDIR(sb.st_mode));
 
   syscall_fail(fstat(fd, NULL), EFAULT);
   syscall_fail(fstat(666, &sb), EBADF);
-  close(fd);
+  xclose(fd);
 
   return 0;
 }

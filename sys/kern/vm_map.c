@@ -1,6 +1,7 @@
 #define KL_LOG KL_VM
 #include <sys/klog.h>
 #include <sys/mimiker.h>
+#include <sys/mutex.h>
 #include <sys/libkern.h>
 #include <sys/pool.h>
 #include <sys/pmap.h>
@@ -11,6 +12,7 @@
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/pcpu.h>
+#include <sys/thread.h>
 #include <machine/vm_param.h>
 
 struct vm_map_entry {
@@ -465,20 +467,25 @@ static vm_map_entry_t *vm_map_entry_clone_copy(vm_map_t *map,
                                                vm_map_entry_t *ent) {
   vm_map_entry_t *new = vm_map_entry_copy(ent);
 
-  /* If there was no amap we don't have to clone it. */
-  if (!ent->aref.amap)
-    return new;
+  /* TODO(cow): There are few special cases but we don't need them now because
+   * we don't support all the features available in original UVM system.
+   *   - Share inheritance when Needs Copy flag is set
+   *   - Amap is shared between 2 processes but must be copied due to
+   *     copy inheritance of mapping
+   *
+   * -- Section 4.7 in "The Design and Implementation of UVM".
+   */
 
-  size_t slots = vaddr_to_slot(ent->end - ent->start);
-  new->aref.offset = 0;
-  new->aref.amap = vm_amap_clone(ent->aref, slots);
+  /* Just hold the amap if it is present and set flags. Copying will be done
+   * during page fault. */
+  if (ent->aref.amap)
+    vm_amap_hold(ent->aref.amap);
 
-  if (new->aref.amap)
-    return new;
+  ent->flags |= VM_ENT_COW | VM_ENT_NEEDSCOPY;
+  new->flags |= VM_ENT_COW | VM_ENT_NEEDSCOPY;
 
-  /* Failed to clone amap. */
-  vm_map_entry_free(new);
-  return NULL;
+  pmap_protect(map->pmap, ent->start, ent->end, ent->prot & (~VM_PROT_WRITE));
+  return new;
 }
 
 #define VM_ENT_INHERIT_MASK (VM_ENT_SHARED | VM_ENT_PRIVATE)
@@ -517,6 +524,37 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   return new_map;
 }
 
+static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
+                          vm_anon_t *old, vm_anon_t **newp) {
+  /* Copy amap to make it ready for inserting copied or new anons. */
+  if (ent->flags & VM_ENT_NEEDSCOPY) {
+    size_t amap_slots = vaddr_to_slot(ent->end - ent->start);
+    vm_aref_t new_aref = vm_amap_copy_if_needed(ent->aref, amap_slots);
+    if (!new_aref.amap)
+      return ENOMEM;
+    ent->flags &= ~VM_ENT_NEEDSCOPY;
+    ent->aref = new_aref;
+  }
+
+  if (old == NULL)
+    return 0;
+
+  /* Current mapping will be replaced with new one so remove it from pmap. */
+  vaddr_t fault_page = off * PAGESIZE + ent->start;
+  pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
+
+  /* Remove anon that will be replaced. */
+  vm_anon_t *new = vm_anon_copy(old);
+  vm_anon_t *found = vm_amap_find_anon(ent->aref, off);
+
+  /* Check if removed anon is the one we expect to be replaced. */
+  assert(old == found);
+
+  vm_amap_remove_pages(ent->aref, off, 1);
+  *newp = new;
+  return 0;
+}
+
 int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
   SCOPED_VM_MAP_LOCK(map);
 
@@ -549,29 +587,39 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
 
   assert(ent->start <= fault_addr && fault_addr < ent->end);
 
+  vm_anon_t *anon = NULL;
   vaddr_t fault_page = fault_addr & -PAGESIZE;
-
-  if (!ent->aref.amap) {
-    size_t slots = vaddr_to_slot(ent->end - ent->start);
-    ent->aref.offset = 0;
-    ent->aref.amap = vm_amap_alloc(slots);
-  }
-
-  bool insert = false;
   size_t offset = vaddr_to_slot(fault_page - ent->start);
-  vm_page_t *frame = vm_amap_find_page(ent->aref, offset);
 
-  if (frame == NULL) {
-    insert = true;
-    frame = vm_page_alloc(1);
-    if (frame == NULL)
-      return EFAULT;
-    pmap_zero_page(frame);
+  if (ent->aref.amap) {
+    /* Look for anon in existing amap. */
+    anon = vm_amap_find_anon(ent->aref, offset);
+  } else {
+    /* Create a new amap. */
+    size_t amap_slots = vaddr_to_slot(ent->end - ent->start);
+    ent->aref.amap = vm_amap_alloc(amap_slots);
+    ent->aref.offset = 0;
   }
 
-  if (insert)
-    vm_amap_add_page(ent->aref, frame, offset);
+  vm_prot_t insert_prot = ent->prot;
 
-  pmap_enter(map->pmap, fault_page, frame, ent->prot, 0);
+  if (ent->flags & VM_ENT_COW) {
+    if (fault_type & VM_PROT_WRITE) {
+      int err;
+      if ((err = cow_page_fault(map, ent, offset, anon, &anon)))
+        return err;
+    } else {
+      insert_prot &= ~VM_PROT_WRITE;
+    }
+  }
+
+  if (!anon)
+    anon = vm_anon_alloc();
+
+  if (!anon)
+    return ENOMEM;
+
+  vm_amap_insert_anon(ent->aref, anon, offset);
+  pmap_enter(map->pmap, fault_page, anon->page, insert_prot, 0);
   return 0;
 }

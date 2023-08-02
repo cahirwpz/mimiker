@@ -6,66 +6,62 @@
 #include <stdio.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <errno.h>
 
 /* ======= signal_basic ======= */
 static volatile int sigusr1_handled = 0;
 
 static void sigusr1_handler(int signo) {
-  printf("sigusr1 handled!\n");
+  debug("sigusr1 handled!");
   sigusr1_handled = 1;
 }
 
 static void sigint_handler(int signo) {
-  printf("sigint handled!\n");
+  debug("sigint handled!");
   raise(SIGUSR1); /* Recursive signals! */
 }
 
-TEST_ADD(signal_basic) {
-  signal(SIGINT, sigint_handler);
-  signal(SIGUSR1, sigusr1_handler);
+TEST_ADD(signal_basic, 0) {
+  xsignal(SIGINT, sigint_handler);
+  xsignal(SIGUSR1, sigusr1_handler);
   raise(SIGINT);
   assert(sigusr1_handled);
 
   /* Restore original behavior. */
-  signal(SIGINT, SIG_DFL);
-  signal(SIGUSR1, SIG_DFL);
+  xsignal(SIGINT, SIG_DFL);
+  xsignal(SIGUSR1, SIG_DFL);
 
   return 0;
 }
 
 /* ======= signal_send ======= */
 static void sigusr2_handler(int signo) {
-  printf("Child process handles sigusr2.\n");
+  debug("Child process handles sigusr2.");
   raise(SIGABRT); /* Terminate self. */
 }
 
 /* Test sending a signal to a different thread. */
-TEST_ADD(signal_send) {
+TEST_ADD(signal_send, 0) {
   /* The child should inherit signal handler configuration. */
-  signal(SIGUSR2, sigusr2_handler);
-  int pid = fork();
+  xsignal(SIGUSR2, sigusr2_handler);
+  pid_t pid = xfork();
   if (pid == 0) {
-    printf("This is child (mypid = %d)\n", getpid());
-    /* Wait for signal. */
-    while (1)
-      sched_yield();
+    debug("This is child (mypid = %d)", getpid());
+    pause(); /* Wait for signal. */
+    exit(0);
   }
 
-  printf("This is parent (childpid = %d, mypid = %d)\n", pid, getpid());
-  kill(pid, SIGUSR2);
-  int status;
-  printf("Waiting for child...\n");
-  wait(&status);
-  assert(WIFSIGNALED(status));
-  assert(WTERMSIG(status) == SIGABRT);
-  printf("Child was stopped by SIGABRT.\n");
+  debug("This is parent (childpid = %d, mypid = %d)", pid, getpid());
+  xkill(pid, SIGUSR2);
+  wait_child_terminated(pid, SIGABRT);
+  debug("Child was terminated by SIGABRT.");
   return 0;
 }
 
 /* ======= signal_abort ======= */
 /* This test shall be considered success if the process gets terminated with
    SIGABRT */
-TEST_ADD(signal_abort) {
+TEST_ADD(signal_abort, 0) {
   siginfo_t si;
   EXPECT_SIGNAL(SIGABRT, &si) {
     raise(SIGABRT);
@@ -76,7 +72,7 @@ TEST_ADD(signal_abort) {
 }
 
 /* ======= signal_segfault ======= */
-TEST_ADD(signal_segfault) {
+TEST_ADD(signal_segfault, 0) {
   volatile struct { int x; } *ptr = 0x0;
 
   siginfo_t si;
@@ -96,31 +92,29 @@ static void sigcont_handler(int signo) {
 
 static volatile int ppid;
 static void signal_parent(int signo) {
-  kill(ppid, SIGCONT);
+  xkill(ppid, SIGCONT);
 }
 
-TEST_ADD(signal_stop) {
+TEST_ADD(signal_stop, 0) {
   ppid = getpid();
-  signal(SIGUSR1, SIG_IGN);
-  signal(SIGCONT, sigcont_handler);
-  int pid = fork();
+  xsignal(SIGUSR1, SIG_IGN);
+  xsignal(SIGCONT, sigcont_handler);
+  pid_t pid = xfork();
   if (pid == 0) {
-    signal(SIGUSR1, signal_parent);
+    xsignal(SIGUSR1, signal_parent);
     /* The child keeps sending SIGUSR1 to the parent. */
     while (!sigcont_handled)
-      kill(ppid, SIGUSR1);
+      xkill(ppid, SIGUSR1);
     return 0;
   }
 
-  int status;
-  signal(SIGUSR1, sigusr1_handler);
+  xsignal(SIGUSR1, sigusr1_handler);
   /* Wait for the child to start sending signals */
   while (!sigusr1_handled)
     sched_yield();
-  kill(pid, SIGSTOP);
+  xkill(pid, SIGSTOP);
   /* Wait for the child to stop. */
-  assert(waitpid(pid, &status, WUNTRACED) == pid);
-  assert(WIFSTOPPED(status));
+  wait_child_stopped(pid);
   /* Now we shouldn't be getting any signals from the child. */
   sigusr1_handled = 0;
   /* Yield a couple times to make sure that if the child was runnable,
@@ -132,33 +126,30 @@ TEST_ADD(signal_stop) {
    * continued (with SIGKILL and SIGCONT being the only exceptions).
    * Send SIGUSR1 to the stopped child. If the handler runs, it will
    * send us SIGCONT. */
-  kill(pid, SIGUSR1);
+  xkill(pid, SIGUSR1);
   for (int i = 0; i < 3; i++)
     sched_yield();
   assert(!sigcont_handled);
   /* Now continue the child process. */
-  kill(pid, SIGCONT);
+  xkill(pid, SIGCONT);
   /* The child's SIGUSR1 handler should now run, and so our SIGCONT handler
    * should run too. */
   while (!sigcont_handled)
     sched_yield();
   /* The child process should exit normally. */
-  printf("Waiting for child...\n");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(pid);
   return 0;
 }
 
 /* ======= signal_cont_masked ======= */
-TEST_ADD(signal_cont_masked) {
+TEST_ADD(signal_cont_masked, 0) {
   ppid = getpid();
-  signal(SIGCONT, sigcont_handler);
-  int pid = fork();
+  xsignal(SIGCONT, sigcont_handler);
+  pid_t pid = xfork();
   if (pid == 0) {
     /* Block SIGCONT. */
     sigset_t mask, old;
-    __sigemptyset(&mask);
+    sigemptyset(&mask);
     sigaddset(&mask, SIGCONT);
     assert(sigprocmask(SIG_BLOCK, &mask, &old) == 0);
     /* Even though SIGCONT is blocked, it should wake us up, but it
@@ -171,26 +162,21 @@ TEST_ADD(signal_cont_masked) {
     return 0;
   }
 
-  int status;
   /* Wait for the child to stop. */
-  assert(waitpid(pid, &status, WUNTRACED) == pid);
-  assert(WIFSTOPPED(status));
+  wait_child_stopped(pid);
+  xkill(pid, SIGCONT);
+  wait_child_finished(pid);
 
-  kill(pid, SIGCONT);
-  printf("Waiting for child...\n");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
   return 0;
 }
 
 /* ======= signal_mask ======= */
-TEST_ADD(signal_mask) {
+TEST_ADD(signal_mask, 0) {
   ppid = getpid();
-  signal(SIGUSR1, signal_parent);
-  signal(SIGCONT, sigcont_handler);
+  xsignal(SIGUSR1, signal_parent);
+  xsignal(SIGCONT, sigcont_handler);
 
-  int pid = fork();
+  pid_t pid = xfork();
   if (pid == 0) {
     while (!sigcont_handled)
       sched_yield();
@@ -198,7 +184,7 @@ TEST_ADD(signal_mask) {
   }
 
   /* Check that the signal bounces properly. */
-  kill(pid, SIGUSR1);
+  xkill(pid, SIGUSR1);
   while (!sigcont_handled)
     sched_yield();
 
@@ -210,14 +196,14 @@ TEST_ADD(signal_mask) {
    * The delivery of the signal should be delayed until we unblock it. */
   assert(sigprocmask(SIG_BLOCK, &mask, NULL) == 0);
   sigcont_handled = 0;
-  kill(pid, SIGUSR1);
+  xkill(pid, SIGUSR1);
 
   /* Wait until we get a signal from the child. */
   sigset_t set;
   do {
     sched_yield();
     sigpending(&set);
-  } while (!__sigismember(&set, SIGCONT));
+  } while (!sigismember(&set, SIGCONT));
 
   assert(!sigcont_handled);
 
@@ -225,89 +211,82 @@ TEST_ADD(signal_mask) {
   assert(sigprocmask(SIG_UNBLOCK, &mask, NULL) == 0);
   assert(sigcont_handled);
 
-  kill(pid, SIGCONT);
-  int status;
-  printf("Waiting for child...\n");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  xkill(pid, SIGCONT);
+
+  wait_child_finished(pid);
   return 0;
 }
 
 /* ======= signal_mask_nonmaskable ======= */
-TEST_ADD(signal_mask_nonmaskable) {
+TEST_ADD(signal_mask_nonmaskable, 0) {
   sigset_t set, old;
-  __sigemptyset(&set);
-  __sigaddset(&set, SIGSTOP);
-  __sigaddset(&set, SIGKILL);
-  __sigaddset(&set, SIGUSR1);
+  sigemptyset(&set);
+  sigaddset(&set, SIGSTOP);
+  sigaddset(&set, SIGKILL);
+  sigaddset(&set, SIGUSR1);
   /* The call should succeed, but SIGKILL and SIGSTOP shouldn't be blocked. */
-  assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
-  assert(sigprocmask(SIG_BLOCK, NULL, &set) == 0);
-  __sigaddset(&old, SIGUSR1);
-  assert(__sigsetequal(&set, &old));
+  xsigprocmask(SIG_BLOCK, &set, &old);
+  xsigprocmask(SIG_BLOCK, NULL, &set);
+  sigaddset(&old, SIGUSR1);
+  assert(sigsetequal(&set, &old));
   return 0;
 }
 
 /* ======= signal_sigsuspend ======= */
-TEST_ADD(signal_sigsuspend) {
+TEST_ADD(signal_sigsuspend, 0) {
   pid_t ppid = getpid();
-  signal(SIGCONT, sigcont_handler);
-  signal(SIGUSR1, sigusr1_handler);
+  xsignal(SIGCONT, sigcont_handler);
+  xsignal(SIGUSR1, sigusr1_handler);
   sigset_t set, old;
-  __sigemptyset(&set);
-  __sigaddset(&set, SIGCONT);
-  __sigaddset(&set, SIGUSR1);
-  assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
-  __sigaddset(&old, SIGCONT);
-  pid_t cpid = fork();
+  sigemptyset(&set);
+  sigaddset(&set, SIGCONT);
+  sigaddset(&set, SIGUSR1);
+  xsigprocmask(SIG_BLOCK, &set, &old);
+  sigaddset(&old, SIGCONT);
+  pid_t cpid = xfork();
   if (cpid == 0) {
     for (int i = 0; i < 10; i++) {
-      kill(ppid, SIGCONT);
+      xkill(ppid, SIGCONT);
       sched_yield();
     }
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     return 0;
   }
   /* Go to sleep with SIGCONT blocked and SIGUSR1 unblocked. */
-  printf("Calling sigsuspend()...\n");
+  debug("Calling sigsuspend()...");
   sigset_t current;
-  sigprocmask(SIG_BLOCK, NULL, &current);
-  assert(__sigismember(&current, SIGUSR1));
-  assert(!__sigismember(&old, SIGUSR1));
+  xsigprocmask(SIG_BLOCK, NULL, &current);
+  assert(sigismember(&current, SIGUSR1));
+  assert(!sigismember(&old, SIGUSR1));
   sigsuspend(&old);
   /* Check if mask is set back after waking up */
-  sigprocmask(SIG_BLOCK, NULL, &set);
-  assert(__sigsetequal(&set, &current));
+  xsigprocmask(SIG_BLOCK, NULL, &set);
+  assert(sigsetequal(&set, &current));
   /* SIGUSR1 should have woken us up, but SIGCONT should still be pending. */
   assert(sigusr1_handled);
   assert(!sigcont_handled);
-  __sigemptyset(&set);
-  __sigaddset(&set, SIGCONT);
-  assert(sigprocmask(SIG_UNBLOCK, &set, NULL) == 0);
+  sigemptyset(&set);
+  sigaddset(&set, SIGCONT);
+  xsigprocmask(SIG_UNBLOCK, &set, NULL);
   assert(sigcont_handled);
 
-  int status;
-  printf("Waiting for child...\n");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(cpid);
   return 0;
 }
 
 /* ======= signal_sigsuspend_stop ======= */
-TEST_ADD(signal_sigsuspend_stop) {
+TEST_ADD(signal_sigsuspend_stop, 0) {
   pid_t ppid = getpid();
-  signal(SIGUSR1, sigusr1_handler);
+  xsignal(SIGUSR1, sigusr1_handler);
   sigset_t set, old;
-  __sigemptyset(&set);
-  __sigaddset(&set, SIGUSR1);
+  sigemptyset(&set);
+  sigaddset(&set, SIGUSR1);
   assert(sigprocmask(SIG_BLOCK, &set, &old) == 0);
-  pid_t cpid = fork();
+  pid_t cpid = xfork();
   if (cpid == 0) {
     sigsuspend(&old);
     assert(sigusr1_handled);
-    kill(ppid, SIGUSR1);
+    xkill(ppid, SIGUSR1);
     return 0;
   }
   /* Wait for the child to call sigsuspend().
@@ -316,13 +295,11 @@ TEST_ADD(signal_sigsuspend_stop) {
     sched_yield();
 
   /* Stop the child. */
-  kill(cpid, SIGSTOP);
-  int status;
-  assert(waitpid(cpid, &status, WUNTRACED) == cpid);
-  assert(WIFSTOPPED(status));
+  xkill(cpid, SIGSTOP);
+  wait_child_stopped(cpid);
 
   /* Continue the child. This should not interrupt the child's sigsuspend(). */
-  kill(cpid, SIGCONT);
+  xkill(cpid, SIGCONT);
   /* Give the child a chance to run if it has been resumed
    * (which it shouldn't). */
   for (int i = 0; i < 3; i++)
@@ -331,13 +308,12 @@ TEST_ADD(signal_sigsuspend_stop) {
   assert(!sigusr1_handled);
 
   /* Stop the child again. */
-  kill(cpid, SIGSTOP);
-  assert(waitpid(cpid, &status, WUNTRACED) == cpid);
-  assert(WIFSTOPPED(status));
+  xkill(cpid, SIGSTOP);
+  wait_child_stopped(cpid);
 
   /* Send SIGUSR1 to the child. Since it's stopped, it should not interrupt
    * the sigsuspend() yet. */
-  kill(cpid, SIGUSR1);
+  xkill(cpid, SIGUSR1);
   /* Give the child a chance to run if it has been resumed
    * (which it shouldn't). */
   for (int i = 0; i < 3; i++)
@@ -347,15 +323,13 @@ TEST_ADD(signal_sigsuspend_stop) {
 
   /* Continue the child. Now the SIGUSR1 we sent earlier should interrupt
    * the sigsuspend() call. */
-  kill(cpid, SIGCONT);
+  xkill(cpid, SIGCONT);
 
   /* Wait for the child to send us SIGUSR1. */
   sigsuspend(&old);
 
   /* Reap the child. */
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(cpid);
   return 0;
 }
 
@@ -366,7 +340,7 @@ static pid_t cpid;
 
 static void yield_handler(int signo) {
   /* Give the child process the signal to send us SIGUSR1 */
-  kill(cpid, SIGUSR1);
+  xkill(cpid, SIGUSR1);
   while (!sigcont_handled)
     sched_yield();
   handler_ran = 1;
@@ -374,27 +348,27 @@ static void yield_handler(int signo) {
     handler_success = 1;
 }
 
-TEST_ADD(signal_handler_mask) {
+TEST_ADD(signal_handler_mask, 0) {
   pid_t ppid = getpid();
   struct sigaction sa = {.sa_handler = yield_handler, .sa_flags = 0};
   /* Block SIGUSR1 when executing handler for SIGUSR2. */
-  __sigemptyset(&sa.sa_mask);
-  __sigaddset(&sa.sa_mask, SIGUSR1);
+  sigemptyset(&sa.sa_mask);
+  sigaddset(&sa.sa_mask, SIGUSR1);
   assert(sigaction(SIGUSR2, &sa, NULL) == 0);
-  signal(SIGUSR1, sigusr1_handler);
-  signal(SIGCONT, sigcont_handler);
+  xsignal(SIGUSR1, sigusr1_handler);
+  xsignal(SIGCONT, sigcont_handler);
 
-  pid_t cpid = fork();
+  pid_t cpid = xfork();
   if (cpid == 0) {
-    kill(ppid, SIGUSR2);
+    xkill(ppid, SIGUSR2);
     /* Wait for the parent to enter the signal handler. */
     while (!sigusr1_handled)
       sched_yield();
     /* Now SIGUSR1 should be blocked in the parent. */
     for (int i = 0; i < 3; i++)
-      kill(ppid, SIGUSR1);
+      xkill(ppid, SIGUSR1);
     /* Sending SIGCONT should allow yield_handler() to run to completion. */
-    kill(ppid, SIGCONT);
+    xkill(ppid, SIGCONT);
     return 0;
   }
 
@@ -404,10 +378,6 @@ TEST_ADD(signal_handler_mask) {
   assert(handler_success);
   assert(sigusr1_handled);
 
-  int status;
-  printf("Waiting for child...\n");
-  wait(&status);
-  assert(WIFEXITED(status));
-  assert(WEXITSTATUS(status) == 0);
+  wait_child_finished(cpid);
   return 0;
 }
