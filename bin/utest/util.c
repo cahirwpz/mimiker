@@ -43,14 +43,14 @@ static void noop_handler(int signo) {
 void signal_setup(int signo) {
   xsignal(signo, noop_handler);
   sigset_t mask;
-  __sigemptyset(&mask);
+  sigemptyset(&mask);
   sigaddset(&mask, signo);
-  assert(sigprocmask(SIG_BLOCK, &mask, NULL) == 0);
+  xsigprocmask(SIG_BLOCK, &mask, NULL);
 }
 
 void wait_for_signal(int signo) {
   sigset_t mask;
-  __sigfillset(&mask);
+  sigfillset(&mask);
   sigdelset(&mask, signo);
   sigsuspend(&mask);
 }

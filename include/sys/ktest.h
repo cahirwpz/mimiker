@@ -23,8 +23,6 @@ typedef enum test_flag {
   /* Excludes the test from being run in auto mode. This flag is only useful for
    * temporarily marking some tests while debugging the testing framework. */
   KTEST_FLAG_BROKEN = 2,
-  /* Marks that the test wishes to receive a random integer as an argument. */
-  KTEST_FLAG_RANDINT = 4,
 } test_flag_t;
 
 typedef struct {
@@ -35,13 +33,10 @@ typedef struct {
 } test_entry_t;
 
 __noreturn void ktest_main(const char *test);
+__noreturn void utest_main(const char *test);
 
 #define KTEST_ADD(name, func, flags)                                           \
   test_entry_t name##_test = {#name, func, flags, 0};                          \
-  SET_ENTRY(tests, name##_test);
-
-#define KTEST_ADD_RANDINT(name, func, flags, max)                              \
-  test_entry_t name##_test = {#name, func, flags | KTEST_FLAG_RANDINT, max};   \
   SET_ENTRY(tests, name##_test);
 
 /* This function is called both by run_test, as well as ktest_assert.

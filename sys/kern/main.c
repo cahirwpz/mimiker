@@ -67,9 +67,12 @@ static __noreturn void start_init(__unused void *arg) {
   assert(_stdout == 1);
   assert(_stderr == 2);
 
-  char *test = kenv_get("test");
-  if (test)
+  char *test;
+  if ((test = kenv_get("ktest")))
     ktest_main(test);
+
+  if ((test = kenv_get("utest")))
+    utest_main(test);
 
   char *init = kenv_get("init");
   if (init == NULL)

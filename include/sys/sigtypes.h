@@ -15,6 +15,8 @@ typedef struct {
   uint32_t __bits; /* bit 0 is unused */
 } sigset_t;
 
+#if defined(_KERNEL) || defined(_LIBC)
+
 /*
  * Macro for manipulating signal masks.
  */
@@ -32,6 +34,8 @@ typedef struct {
 #define __sigandset(s, t)                                                      \
   { (t)->__bits &= (s)->__bits; }
 #define __sigfindset(s) (__builtin_ffs((s)->__bits))
+
+#endif /* !_KERNEL */
 
 typedef struct sigaltstack {
   void *ss_sp;    /* signal stack base */
