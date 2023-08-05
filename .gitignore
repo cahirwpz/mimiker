@@ -26,7 +26,7 @@
 *.map
 
 # Build dependency files
-.*.D
+*.d
 *-stamp
 
 # Python cache
@@ -37,6 +37,10 @@ cscope.out
 tags
 etags
 *.taghl
+
+# lsp files
+compile_commands.json
+.cache/clangd/
 
 # generated assembly files
 assym.h
@@ -68,8 +72,14 @@ sysroot
 # Tmux user override config
 .tmux.conf.local
 
+# Quilt status directory
+.pc
+
 # pcap files
 *.pcap
 
 # python env
 mimiker-env/
+
+#
+contrib/*/build/

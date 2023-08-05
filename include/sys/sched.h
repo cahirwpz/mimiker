@@ -14,7 +14,7 @@ void init_sched(void);
  * Prevents current thread from switching out on return from interrupt,
  * exception or trap handler. It does not disable interrupts!
  *
- * \sa on_exc_leave
+ * \sa sched_maybe_preempt
  *
  * Calls to \fn preempt_disable can nest, you must use the same number of calls
  * to \fn preempt_enable to actually enable preemption.
@@ -108,6 +108,13 @@ void sched_switch(void);
  * \note Returns immediately if interrupts or preemption are disabled.
  */
 void sched_maybe_preempt(void);
+
+/*! \brief Switch out to another thread when interrupts are disabled.
+ *
+ * \note The only user of this function should be `intr_root_handler`
+ *       procedure that returns from an interrupt context.
+ */
+void sched_maybe_switch(void);
 
 /*! \brief Turns calling thread into idle thread. */
 __noreturn void sched_run(void);

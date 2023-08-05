@@ -1,11 +1,10 @@
 #include "utest.h"
 
-#include <stddef.h>
-#include <assert.h>
 #include <errno.h>
+#include <stddef.h>
 #include <unistd.h>
 
-int test_misbehave(void) {
+TEST_ADD(misbehave, 0) {
   const char str[] = "Hello world from a user program!\n";
 
   /* XXX: Currently kernel does not sigsegv offending programs, but in future it
@@ -27,7 +26,7 @@ int test_misbehave(void) {
 
 #ifdef __mips__
 
-int test_exc_sigsys(void) {
+TEST_ADD(exc_sigsys, 0) {
   int retval = 0;
   int error = 0;
   int sysnum = 9999; /* large enough to be never implemented */

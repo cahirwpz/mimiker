@@ -44,6 +44,12 @@ static __noreturn void start_init(__unused void *arg) {
   proc_t *p = proc_self();
   int error;
 
+  thread_t *td = thread_self();
+
+  WITH_MTX_LOCK (td->td_lock) {
+    sched_set_prio(td, prio_uthread(PRIO_MID));
+  }
+
   /* [SECOND_PASS] Init devices that need extra kernel API to be functional. */
   init_devices();
 
@@ -61,13 +67,18 @@ static __noreturn void start_init(__unused void *arg) {
   assert(_stdout == 1);
   assert(_stderr == 2);
 
-  char *init = kenv_get("init");
-  if (init)
-    kern_execve(init, kenv_get_init(), (char *[]){NULL});
-
-  char *test = kenv_get("test");
-  if (test)
+  char *test;
+  if ((test = kenv_get("ktest")))
     ktest_main(test);
+
+  if ((test = kenv_get("utest")))
+    utest_main(test);
+
+  char *init = kenv_get("init");
+  if (init == NULL)
+    init = "/sbin/init";
+
+  kern_execve(init, kenv_get_init(), (char *[]){NULL});
 
   panic("Use init=PROGRAM to start a user-space program "
         "or test=TESTLIST to run tests.");

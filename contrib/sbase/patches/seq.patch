@@ -1,0 +1,22 @@
+Index: sbase/sbase/seq.c
+===================================================================
+--- sbase.orig/sbase/seq.c	2023-01-07 15:27:48.791384430 +0100
++++ sbase/sbase/seq.c	2023-01-07 15:27:59.064717426 +0100
+@@ -8,7 +8,7 @@
+ static int
+ digitsleft(const char *d)
+ {
+-	int shift;
++	long long shift;
+ 	char *exp;
+ 
+ 	if (*d == '+')
+@@ -16,7 +16,7 @@
+ 	exp = strpbrk(d, "eE");
+ 	shift = exp ? estrtonum(exp + 1, INT_MIN, INT_MAX) : 0;
+ 
+-	return MAX(0, strspn(d, "-0123456789") + shift);
++	return MAX(0, (long long)strspn(d, "-0123456789") + shift);
+ }
+ 
+ static int

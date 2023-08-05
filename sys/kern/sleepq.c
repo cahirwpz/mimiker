@@ -274,39 +274,49 @@ bool sleepq_abort(thread_t *td) {
   return _sleepq_abort(td, EINTR);
 }
 
-void sleepq_wait(void *wchan, const void *waitpt) {
+void sleepq_wait(void *wchan, const void *waitpt, mtx_t *mtx) {
   thread_t *td = thread_self();
 
   if (waitpt == NULL)
     waitpt = __caller(0);
 
   sleepq_chain_t *sc = sc_acquire(wchan);
+  if (mtx)
+    mtx_unlock(mtx);
   mtx_lock(td->td_lock);
   td->td_state = TDS_SLEEPING;
   sq_enter(td, sc, wchan, waitpt);
 
   /* Panic if we were interrupted by timeout or signal. */
   assert((td->td_flags & (TDF_SLPINTR | TDF_SLPTIMED)) == 0);
+
+  if (mtx)
+    mtx_lock(mtx);
 }
 
 static void sq_timeout(thread_t *td) {
   _sleepq_abort(td, ETIMEDOUT);
 }
 
-int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
+int sleepq_wait_timed(void *wchan, const void *waitpt, mtx_t *mtx,
+                      systime_t timeout) {
   thread_t *td = thread_self();
+  int error = 0;
 
   if (waitpt == NULL)
     waitpt = __caller(0);
 
   sleepq_chain_t *sc = sc_acquire(wchan);
+  if (mtx)
+    mtx_unlock(mtx);
   mtx_lock(td->td_lock);
 
   /* If there are pending signals, interrupt the sleep immediately. */
   if ((td->td_flags & TDF_NEEDSIGCHK) && (timeout == 0)) {
     mtx_unlock(td->td_lock);
     sc_release(sc);
-    return EINTR;
+    error = EINTR;
+    goto end;
   }
 
   if (timeout > 0) {
@@ -320,7 +330,6 @@ int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
   /* After wakeup, only one of the following flags may be set:
    *  - TDF_SLPINTR if sleep was aborted,
    *  - TDF_SLPTIMED if sleep has timed out. */
-  int error = 0;
   WITH_MTX_LOCK (td->td_lock) {
     if (td->td_flags & TDF_SLPINTR) {
       error = EINTR;
@@ -333,5 +342,8 @@ int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
   if (timeout > 0)
     callout_stop(&td->td_slpcallout);
 
+end:
+  if (mtx)
+    mtx_lock(mtx);
   return error;
 }

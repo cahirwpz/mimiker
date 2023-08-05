@@ -11,11 +11,14 @@ python sys.path.append(os.path.join(os.getcwd(), 'sys'))
 python import debug
 
 define post-mortem
+  add-symbol-file bin/utest/utest.uelf 0x400000
+  echo \n*** REGISTERS ***\n\n
   info registers
-  # cpu tlb # XXX it sometimes hangs
+  echo \n*** BACKTRACE ***\n\n
   backtrace full
-  kthread *
+  echo \n*** KERNEL STRUCTURES ***\n\n
   kproc
+  kthread *
   klog
 end
 

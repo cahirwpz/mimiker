@@ -29,6 +29,10 @@ argument. Some useful kernel arguments:
 * `init=PROGRAM` - Specifies the userspace program for PID 1.
   Browse `bin` and `usr.bin` directories for currently available programs.
   In most cases you want to run `/bin/ksh` shell.
+* `klog-mask` - Specifies for which [subsystem][4] debug messages will be logged
+  to kernel logging facilities. `KL_DEFAULT_MASK` is used by default.
+* `klog-utest-mask` - As above but applies to execution of userspace tests.
+  `KL_UTEST_MASK` is used by default.
 
 Please note that `launch` script is highly configurable by means of changing
 `CONFIG` dictionary.
@@ -38,3 +42,4 @@ If you want to run tests please read [this document][2].
 [1]: https://github.com/tmux/tmux/wiki
 [2]: sys/tests/README.md
 [3]: launch
+[4]: include/sys/klog.h

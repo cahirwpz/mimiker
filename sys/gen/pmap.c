@@ -457,9 +457,6 @@ int pmap_fault_handler(ctx_t *ctx, vaddr_t vaddr, vm_prot_t access) {
   if (!(error = pmap_emulate_bits(pmap, vaddr, access)))
     return 0;
 
-  if (error == EACCES)
-    goto fault;
-
   vm_map_t *vmap = vm_map_user();
 
   if (!(error = vm_page_fault(vmap, vaddr, access)))
@@ -471,10 +468,6 @@ fault:
     ctx_set_pc(ctx, td->td_onfault);
     td->td_onfault = 0;
     return 0;
-  }
-  if (user_mode_p(ctx)) {
-    /* Send a segmentation fault signal to the user program. */
-    sig_trap(ctx, SIGSEGV);
   }
   return error;
 }
