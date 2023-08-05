@@ -66,7 +66,7 @@ static int test_sleepq_timed(void) {
   waker =
     thread_create("test-sleepq-waker", waker_routine, NULL, prio_kthread(0));
   for (int i = 0; i < THREADS; i++) {
-    char name[20];
+    char name[32];
     snprintf(name, sizeof(name), "test-sleepq-waiter-%d", i);
     waiters[i] =
       thread_create(name, waiter_routine, NULL, prio_kthread(0) + RQ_PPQ);
