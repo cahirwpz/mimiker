@@ -1,11 +1,12 @@
-#define KL_LOG KL_VM
+#define KL_LOG KL_INTR
+#include <sys/klog.h>
 #include <sys/cpu.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
-#include <sys/klog.h>
 #include <sys/pmap.h>
 #include <sys/sysent.h>
 #include <sys/thread.h>
+#include <sys/sched.h>
 #include <riscv/cpufunc.h>
 
 /* clang-format off */
@@ -72,44 +73,6 @@ static __noreturn void kernel_oops(ctx_t *ctx) {
 }
 
 /*
- * RISC-V syscall ABI:
- *  - a7: code
- *  - a0-5: args
- *
- * NOTE: the following code assumes all arguments to syscalls are passed
- * via registers.
- */
-static_assert(SYS_MAXSYSARGS <= FUNC_MAXREGARGS - 1,
-              "Syscall args don't fit in registers!");
-
-static void syscall_handler(mcontext_t *uctx, syscall_result_t *result) {
-  register_t args[SYS_MAXSYSARGS];
-  register_t code = _REG(uctx, A7);
-
-  memcpy(args, &_REG(uctx, A0), sizeof(args));
-
-  if (code > SYS_MAXSYSCALL) {
-    args[0] = code;
-    code = 0;
-  }
-
-  sysent_t *se = &sysent[code];
-  size_t nargs = se->nargs;
-
-  assert(nargs <= SYS_MAXSYSARGS);
-
-  thread_t *td = thread_self();
-  register_t retval = 0;
-
-  assert(td->td_proc);
-
-  int error = se->call(td->td_proc, (void *)args, &retval);
-
-  result->retval = error ? -1 : retval;
-  result->error = error;
-}
-
-/*
  * NOTE: for each thread, dirty FPE context has to be saved
  * during each ctx switch. To decrease the cost of this procedure
  * we disable FPU for each new thread and enable it only when actually
@@ -164,14 +127,22 @@ static void user_trap_handler(ctx_t *ctx) {
   u_long code = ctx_code(ctx);
   void *epc = (void *)_REG(ctx, PC);
   vaddr_t vaddr = _REG(ctx, TVAL);
+  int error;
 
   switch (code) {
     case SCAUSE_INST_PAGE_FAULT:
+    /* TODO: There is a rare case when address in TVAL is inside the
+     * instruction. It happens when we have a variable length instructions and
+     * fault was observed on address that is inside the instruction. Then the
+     * starting address of instruction that caused a fault is stored in epc.
+     */
     case SCAUSE_LOAD_PAGE_FAULT:
     case SCAUSE_STORE_PAGE_FAULT:
       klog("%s at %p, caused by reference to %lx!", exceptions[code], epc,
            vaddr);
-      pmap_fault_handler(ctx, vaddr, exc_access(code));
+      if ((error = pmap_fault_handler(ctx, vaddr, exc_access(code))))
+        sig_trap(SIGSEGV, error == EFAULT ? SEGV_MAPERR : SEGV_ACCERR,
+                 (void *)vaddr, code);
       break;
 
       /* Access fault */
@@ -182,22 +153,22 @@ static void user_trap_handler(ctx_t *ctx) {
     case SCAUSE_INST_MISALIGNED:
     case SCAUSE_LOAD_MISALIGNED:
     case SCAUSE_STORE_MISALIGNED:
-      sig_trap(ctx, SIGBUS);
+      sig_trap(SIGBUS, BUS_ADRALN, (void *)vaddr, code);
       break;
 
     case SCAUSE_ECALL_USER:
-      syscall_handler((mcontext_t *)ctx, &result);
+      syscall_handler(_REG(ctx, A7), ctx, &result);
       break;
 
     case SCAUSE_ILLEGAL_INSTRUCTION:
       if (fpu_handler((mcontext_t *)ctx))
         break;
       klog("%s at %p!", exceptions[code], epc);
-      sig_trap(ctx, SIGILL);
+      sig_trap(SIGILL, ILL_ILLOPC, (void *)vaddr, code);
       break;
 
     case SCAUSE_BREAKPOINT:
-      sig_trap(ctx, SIGTRAP);
+      sig_trap(SIGTRAP, TRAP_BRKPT, (void *)vaddr, code);
       break;
 
     default:
@@ -205,11 +176,10 @@ static void user_trap_handler(ctx_t *ctx) {
   }
 
   /* This is a right moment to check if our time slice expired. */
-  on_exc_leave();
+  sched_maybe_preempt();
 
   /* If we're about to return to user mode, then check pending signals, etc. */
-  on_user_exc_leave((mcontext_t *)ctx,
-                    code == SCAUSE_ECALL_USER ? &result : NULL);
+  sig_userret((mcontext_t *)ctx, code == SCAUSE_ECALL_USER ? &result : NULL);
 }
 
 static void kern_trap_handler(ctx_t *ctx) {

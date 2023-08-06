@@ -294,6 +294,7 @@ __END_DECLS
 
 __BEGIN_DECLS
 char *fgetln(FILE *__restrict, size_t *__restrict);
+FILE *fmemopen(void *__restrict, size_t, const char *__restrict);
 ssize_t getdelim(char **__restrict, size_t *__restrict, int, FILE *__restrict);
 ssize_t getline(char **__restrict, size_t *__restrict, FILE *__restrict);
 __END_DECLS

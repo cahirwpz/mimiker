@@ -28,7 +28,7 @@ typedef struct {
 #define BADVPN2_SHIFT 9
 
 /* Flags managed in software */
-#define PTE_SW_SHIFT 29
+#define PTE_SW_SHIFT 27
 #define PTE_SW_READ (1 << PTE_SW_SHIFT)
 #define PTE_SW_WRITE (2 << PTE_SW_SHIFT)
 #define PTE_SW_NOEXEC (4 << PTE_SW_SHIFT)
@@ -47,13 +47,15 @@ typedef struct {
 #define PTE_CACHE_WRITE_BACK (3 << PTE_CACHE_SHIFT)
 /* uncached accelerated */
 #define PTE_CACHE_UNCACHED_ACCELERATED (7 << PTE_CACHE_SHIFT)
+#define PTE_RI 0x80000000    /* read inhibit */
+#define PTE_XI 0x40000000    /* execute inhibit */
 #define PTE_DIRTY 0x00000004 /* page is writable when set */
 #define PTE_VALID 0x00000002 /* page can be accessed when set */
 #define PTE_GLOBAL 0x00000001
 #define PTE_KERNEL_READONLY (PTE_GLOBAL | PTE_VALID | PTE_SW_READ)
 #define PTE_KERNEL                                                             \
   (PTE_GLOBAL | PTE_VALID | PTE_DIRTY | PTE_SW_READ | PTE_SW_WRITE)
-#define PTE_PROT_MASK (PTE_VALID | PTE_DIRTY | PTE_SW_FLAGS)
+#define PTE_PROT_MASK (PTE_VALID | PTE_DIRTY | PTE_RI | PTE_XI | PTE_SW_FLAGS)
 
 #define PTE_PFN(addr) (((addr) >> PTE_PFN_SHIFT) & PTE_PFN_MASK)
 #define PTE_CACHE(cache) (((cache) << PTE_CACHE_SHIFT) & PTE_CACHE_MASK)

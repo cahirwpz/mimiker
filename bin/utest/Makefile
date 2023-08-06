@@ -12,6 +12,7 @@ SOURCES = \
 	main.c \
 	misbehave.c \
 	mmap.c \
+	mprotect.c \
 	pgrp.c \
 	pipe.c \
 	procstat.c \
@@ -24,17 +25,24 @@ SOURCES = \
 	time.c \
 	tty.c \
 	utest.c \
+	utest.h \
 	util.c \
+	util.h \
 	vfs.c \
 	wait.c \
-	vm_map.c
+	vm_map.c \
+	vm_map_prot.c \
 
 PROGRAM = utest
 
+CPPFLAGS += -I.
 EXTRAFILES = $(shell find extra -type f)
 INSTALL-FILES = $(EXTRAFILES:extra/%=$(SYSROOT)/%)
 
 include $(TOPDIR)/build/build.prog.mk
+
+# Force a user not to use following symbols
+LDFLAGS += --wrap=sprintf --wrap=printf --wrap=wait
 
 $(SYSROOT)/%: extra/%
 	@echo "[INSTALL] $(DIR)$< -> /$*"

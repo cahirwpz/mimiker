@@ -32,31 +32,27 @@ typedef enum {
   VM_SHARED = 0x0001,  /* share changes */
   VM_PRIVATE = 0x0002, /* changes are private */
   VM_FIXED = 0x0004,   /* map addr must be exactly as requested */
+  VM_EXCL = 0x4000,    /* for MAP_FIXED, fail if address is used */
 } vm_flags_t;
 
 typedef struct vm_page vm_page_t;
 typedef TAILQ_HEAD(vm_pagelist, vm_page) vm_pagelist_t;
 
 typedef struct pv_entry pv_entry_t;
-typedef struct vm_object vm_object_t;
 typedef struct slab slab_t;
 typedef uintptr_t vm_offset_t;
 
 /* Field marking and corresponding locks:
  * (@) pv_list_lock (in pmap.c)
  * (P) physmem_lock (in vm_physmem.c)
- * (O) vm_object::vo_lock */
-
+ */
 struct vm_page {
   union {
-    TAILQ_ENTRY(vm_page) freeq;    /* (P) list of free pages for buddy system */
-    TAILQ_ENTRY(vm_page) pageq;    /* used to group allocated pages */
-    TAILQ_ENTRY(vm_page) objpages; /* (O) list of pages in vm_object */
-    slab_t *slab; /* active when page is used by pool allocator */
+    TAILQ_ENTRY(vm_page) freeq; /* (P) list of free pages for buddy system */
+    TAILQ_ENTRY(vm_page) pageq; /* used to group allocated pages */
+    slab_t *slab;               /* active when page is used by pool allocator */
   };
   TAILQ_HEAD(, pv_entry) pv_list; /* (@) where this page is mapped? */
-  vm_object_t *object;            /* (O) object owning that page */
-  vm_offset_t offset;             /* (O) offset to page in vm_object */
   paddr_t paddr;                  /* (P) physical address of page */
   pg_flags_t flags;               /* (P) page flags (used by physmem as well) */
   uint32_t size;                  /* (P) size of page in PAGESIZE units */
@@ -64,6 +60,7 @@ struct vm_page {
 
 int do_mmap(vaddr_t *addr_p, size_t length, int u_prot, int u_flags);
 int do_munmap(vaddr_t addr, size_t length);
+int do_mprotect(vaddr_t start, size_t length, int u_prot);
 
 #endif /* !_KERNEL */
 

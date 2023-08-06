@@ -4,6 +4,7 @@
 #include <sys/libkern.h>
 #include <sys/signal.h>
 #include <sys/thread.h>
+#include <sys/sysent.h>
 #include <sys/errno.h>
 #include <sys/sleepq.h>
 #include <sys/proc.h>
@@ -11,6 +12,9 @@
 #include <sys/sched.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
+
+#include <sys/siginfo.h>
+#include <sys/sigtypes.h>
 
 static KMALLOC_DEFINE(M_SIGNAL, "signal");
 
@@ -185,6 +189,7 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   thread_t *td = thread_self();
   assert(td->td_proc == p);
 
+  /* The old mask will be set back after returning from a signal handler. */
   td->td_oldsigmask = td->td_sigmask;
   td->td_pflags |= TDP_OLDSIGMASK;
 
@@ -193,10 +198,15 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   }
 
   int error;
-  error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
+  error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()", NULL);
   assert(error == EINTR);
 
   return ERESTARTNOHAND;
+}
+
+int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *ksi,
+                    timespec_t *tsp) {
+  return ENOTSUP;
 }
 
 int do_sigpending(proc_t *p, sigset_t *set) {
@@ -531,6 +541,37 @@ __noreturn void sig_exit(thread_t *td, signo_t sig) {
   proc_exit(MAKE_STATUS_SIG_TERM(sig));
 }
 
+void sig_userret(mcontext_t *ctx, syscall_result_t *result) {
+  thread_t *td = thread_self();
+  proc_t *p = td->td_proc;
+  int sig = 0;
+  ksiginfo_t ksi;
+
+  /* XXX we need to know if there's a signal to be delivered in order to call
+   * set_syscall_retval(), but we also need to call set_syscall_retval() before
+   * sig_post(), as set_syscall_retval() assumes the context has not been
+   * modified, and sig_post() modifies it. This is why the logic here looks
+   * a bit weird. */
+  WITH_PROC_LOCK(p) {
+    if (td->td_flags & TDF_NEEDSIGCHK) {
+      sig = sig_check(td, &ksi);
+    }
+
+    /* Set return value from syscall, restarting it if needed. */
+    if (result)
+      syscall_set_retval(ctx, result, sig);
+
+    /* Process pending signals. */
+    while (sig) {
+      /* Calling sig_post() multiple times before returning to userspace
+       * will not make us lose signals, see comment on sig_post() in signal.h
+       */
+      sig_post(&ksi);
+      sig = sig_check(td, &ksi);
+    }
+  }
+}
+
 int do_sigreturn(ucontext_t *ucp) {
   thread_t *td = thread_self();
   mcontext_t *uctx = td->td_uctx;
@@ -548,4 +589,18 @@ int do_sigreturn(ucontext_t *ucp) {
   assert(error == 0);
 
   return EJUSTRETURN;
+}
+
+void sig_trap(signo_t sig, int code, void *addr, int trapno) {
+  proc_t *proc = proc_self();
+
+  ksiginfo_t ksi;
+  ksi.ksi_flags = KSI_TRAP;
+  ksi.ksi_signo = sig;
+  ksi.ksi_code = code;
+  ksi.ksi_addr = addr;
+  ksi.ksi_trap = trapno;
+
+  WITH_MTX_LOCK (&proc->p_lock)
+    sig_kill(proc, &ksi);
 }

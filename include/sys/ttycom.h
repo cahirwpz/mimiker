@@ -65,6 +65,7 @@ struct winsize {
 typedef char linedn_t[TTLINEDNAMELEN];
 
 #define TIOCGLINED _IOR('t', 66, linedn_t)      /* get line discipline (new) */
+#define TIOCFLUSH _IOW('t', 16, int)            /* flush buffers */
 #define TIOCGETA _IOR('t', 19, struct termios)  /* get termios struct */
 #define TIOCSETA _IOW('t', 20, struct termios)  /* set termios struct */
 #define TIOCSETAW _IOW('t', 21, struct termios) /* drain output, set */
@@ -75,6 +76,7 @@ typedef char linedn_t[TTLINEDNAMELEN];
 #define TIOCPTSNAME _IOW('t', 105, char *)        /* get slave device path */
 #define TIOCSTART _IO('t', 110)                   /* start output, like ^Q */
 #define TIOCSTOP _IO('t', 111)                    /* stop output, like ^S */
+#define TIOCNOTTY _IO('t', 113)                   /* void tty association */
 #define TIOCGPGRP _IOR('t', 119, int)             /* get pgrp of tty */
 #define TIOCSPGRP _IOW('t', 118, int)             /* set pgrp of tty */
 #define TIOCGQSIZE _IOR('t', 129, int)            /* get queue size */

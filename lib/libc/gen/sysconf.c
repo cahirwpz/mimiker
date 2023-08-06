@@ -1,4 +1,5 @@
 #include <sys/syslimits.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <errno.h>
 #include <pwd.h>
@@ -15,7 +16,12 @@ long sysconf(int name) {
       return OPEN_MAX;
     case _SC_PASS_MAX:
       return _PASSWORD_LEN;
+    case _SC_CLK_TCK:
+      return CLK_TCK;
+    case _SC_PAGESIZE:
+      return getpagesize();
     case _SC_JOB_CONTROL:
+      return _POSIX_JOB_CONTROL;
     default:
       errno = EINVAL;
       return -1;

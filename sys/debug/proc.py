@@ -4,11 +4,15 @@ from .cmd import SimpleCommand, AutoCompleteMixin
 from .utils import TextTable, global_var
 from .struct import GdbStructMeta, TailQueue, enum
 from .thread import Thread
+from .sync import Mutex
 
 
 class Process(metaclass=GdbStructMeta):
     __ctype__ = 'struct proc'
-    __cast__ = {'p_pid': int, 'p_thread': Thread, 'p_state': enum}
+    __cast__ = {'p_pid': int,
+                'p_lock': Mutex,
+                'p_thread': Thread,
+                'p_state': enum}
 
     @staticmethod
     def current():
@@ -39,11 +43,16 @@ class Kprocess(SimpleCommand):
         super().__init__('kproc')
 
     def __call__(self, args):
-        table = TextTable(align='rll')
-        table.header(['Pid', 'Tid', 'State'])
+        table = TextTable(align='rllllr')
+        table.header(['Pid', 'Tid', 'State', 'SigPend', 'SigMask',
+                      'Main lock state'])
         for p in Process.list_all():
-            thread = None if p.p_state == 'PS_ZOMBIE' else p.p_thread
-            table.add_row([p.p_pid, thread, p.p_state])
+            if p.p_state == 'PS_ZOMBIE':
+                td, sigpend, sigmask = None, 0, 0
+            else:
+                td = p.p_thread
+                sigpend, sigmask = td.td_sigpend, td.td_sigmask
+            table.add_row([p.p_pid, td, p.p_state, sigpend, sigmask, p.p_lock])
         print(table)
 
 

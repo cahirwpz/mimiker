@@ -1,9 +1,7 @@
 #define KL_LOG KL_KMEM
 #include <sys/libkern.h>
-#include <sys/queue.h>
 #include <sys/mimiker.h>
 #include <sys/klog.h>
-#include <sys/mutex.h>
 #include <sys/linker_set.h>
 #include <sys/sched.h>
 #include <sys/malloc.h>
@@ -11,8 +9,6 @@
 #include <sys/kmem.h>
 #include <sys/vm.h>
 #include <machine/vm_param.h>
-#include <bitstring.h>
-#include <sys/kasan.h>
 
 #define PI_ALIGNMENT sizeof(uint64_t)
 
@@ -24,41 +20,9 @@
 #define debug(...)
 #endif
 
-typedef LIST_HEAD(, slab) slab_list_t;
-
-typedef struct pool {
-  TAILQ_ENTRY(pool) pp_link;
-  mtx_t pp_mtx;
-  const char *pp_desc;
-  slab_list_t pp_empty_slabs;
-  slab_list_t pp_full_slabs;
-  slab_list_t pp_part_slabs; /* partially allocated slabs */
-  size_t pp_itemsize;        /* size of item */
-  size_t pp_alignment;       /* alignment of allocated items */
-#if KASAN
-  size_t pp_redzone; /* size of redzone after each item */
-  quar_t pp_quarantine;
-#endif
-  /* statistics */
-  size_t pp_npages;   /* number of allocated pages (in bytes) */
-  size_t pp_nused;    /* number of used items in all slabs */
-  size_t pp_nmaxused; /* peak number of used items in all slabs */
-  size_t pp_ntotal;   /* total number of items in all slabs */
-} pool_t;
-
 static TAILQ_HEAD(, pool) pool_list = TAILQ_HEAD_INITIALIZER(pool_list);
 static MTX_DEFINE(pool_list_lock, 0);
 static KMALLOC_DEFINE(M_POOL, "pool allocators");
-
-typedef struct slab {
-  LIST_ENTRY(slab) ph_link; /* pool slab list */
-  uint16_t ph_nused;        /* # of items in use */
-  uint16_t ph_ntotal;       /* total number of items */
-  size_t ph_size;           /* size of memory allocated for the slab */
-  size_t ph_itemsize;       /* total size of item (with header and redzone) */
-  void *ph_items;           /* ptr to array of items after bitmap */
-  bitstr_t ph_bitmap[0];
-} slab_t;
 
 static void *slab_item_at(slab_t *slab, unsigned i) {
   return slab->ph_items + i * slab->ph_itemsize;
@@ -67,10 +31,12 @@ static void *slab_item_at(slab_t *slab, unsigned i) {
 static void add_slab(pool_t *pool, slab_t *slab, size_t slabsize) {
   assert(mtx_owned(&pool->pp_mtx));
   assert(is_aligned(slab, PAGESIZE));
+  assert(slabsize >= pool->pp_slabsize);
   assert(is_aligned(slabsize, PAGESIZE));
 
   klog("add slab at %p to '%s' pool", slab, pool->pp_desc);
 
+  slab->ph_pool = pool;
   slab->ph_size = slabsize;
   slab->ph_itemsize = pool->pp_itemsize;
 #if KASAN
@@ -123,9 +89,10 @@ void *pool_alloc(pool_t *pool, kmem_flags_t flags) {
 
     if (!(slab = LIST_FIRST(&pool->pp_part_slabs))) {
       if (!(slab = LIST_FIRST(&pool->pp_empty_slabs))) {
-        slab = kmem_alloc(PAGESIZE, flags);
+        size_t slabsize = pool->pp_slabsize;
+        slab = kmem_alloc(slabsize, flags);
         assert(slab != NULL);
-        add_slab(pool, slab, PAGESIZE);
+        add_slab(pool, slab, slabsize);
       }
       /* We're going to allocate from empty slab
        * -> move it to the list of non-empty slabs. */
@@ -243,17 +210,21 @@ static void pool_dtor(pool_t *pool) {
   klog("destroyed pool '%s' at %p", pool->pp_desc, pool);
 }
 
-static void pool_init(pool_t *pool, pool_init_t *args) {
+void _pool_init(pool_t *pool, pool_init_t *args) {
   const char *desc = args->desc;
   size_t size = args->size;
   size_t alignment = max(args->alignment, PI_ALIGNMENT);
+  size_t slabsize =
+    args->slabsize ? roundup2(args->slabsize, PAGESIZE) : PAGESIZE;
   assert(desc);
   assert(size);
   assert(powerof2(alignment));
+  assert(slabsize);
 
   pool_ctor(pool);
   pool->pp_desc = desc;
   pool->pp_alignment = alignment;
+  pool->pp_slabsize = slabsize;
 #if KASAN
   /* the alignment is within the redzone */
   pool->pp_itemsize = size;
@@ -280,7 +251,7 @@ void pool_add_page(pool_t *pool, void *page, size_t size) {
 
 pool_t *_pool_create(pool_init_t *args) {
   pool_t *pool = kmalloc(M_POOL, sizeof(pool_t), M_ZERO | M_NOWAIT);
-  pool_init(pool, args);
+  _pool_init(pool, args);
   return pool;
 }
 

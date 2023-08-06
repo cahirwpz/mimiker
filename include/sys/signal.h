@@ -3,6 +3,7 @@
 
 #include <sys/sigtypes.h>
 #include <sys/siginfo.h>
+#include <sys/time.h>
 
 #define SIGHUP 1    /* hangup */
 #define SIGINT 2    /* interrupt */
@@ -67,6 +68,46 @@ typedef struct sigaction {
 #define SS_ONSTACK 0x0001 /* take signals on alternate stack */
 #define SS_DISABLE 0x0002 /* disable taking signals on alternate stack */
 
+/* Flags for si_code field */
+/* SIGILL */
+#define ILL_ILLOPC 1 /* Illegal opcode */
+#define ILL_ILLOPN 2 /* Illegal operand */
+#define ILL_ILLADR 3 /* Illegal addressing mode */
+#define ILL_ILLTRP 4 /* Illegal trap */
+#define ILL_PRVOPC 5 /* Privileged opcode */
+#define ILL_PRVREG 6 /* Privileged register */
+#define ILL_COPROC 7 /* Coprocessor error */
+#define ILL_BADSTK 8 /* Internal stack error */
+
+/* SIGFPE */
+#define FPE_INTDIV 1 /* Integer divide by zero */
+#define FPE_INTOVF 2 /* Integer overflow */
+#define FPE_FLTDIV 3 /* Floating point divide by zero */
+#define FPE_FLTOVF 4 /* Floating point overflow */
+#define FPE_FLTUND 5 /* Floating point underflow */
+#define FPE_FLTRES 6 /* Floating point inexact result */
+#define FPE_FLTINV 7 /* Invalid Floating point operation */
+#define FPE_FLTSUB 8 /* Subscript out of range */
+
+/* SIGSEGV */
+#define SEGV_MAPERR 1 /* Address not mapped to object */
+#define SEGV_ACCERR 2 /* Invalid permissions for mapped object*/
+
+/* SIGBUS */
+#define BUS_ADRALN 1 /* Invalid address alignment */
+#define BUS_ADRERR 2 /* Non-existent physical address */
+#define BUS_OBJERR 3 /* Object specific hardware error */
+
+/* SIGTRAP */
+#define TRAP_BRKPT 1 /* Process breakpoint */
+#define TRAP_TRACE 2 /* Process trace trap */
+#define TRAP_EXEC 3  /* Process exec trap */
+#define TRAP_CHLD 4  /* Process child trap */
+#define TRAP_LWP 5   /* Process lwp trap */
+#define TRAP_DBREG 6 /* Process hardware debug register trap */
+#define TRAP_SCE 7   /* Process syscall entry trap */
+#define TRAP_SCX 8   /* Process syscall exit trap */
+
 #ifdef _KERNEL
 
 #include <stdbool.h>
@@ -82,6 +123,8 @@ typedef struct pgrp pgrp_t;
 typedef struct thread thread_t;
 typedef struct ctx ctx_t;
 typedef struct __ucontext ucontext_t;
+typedef struct mcontext mcontext_t;
+typedef struct syscall_result syscall_result_t;
 
 /*! \brief Notify the parent of a change in the child's status.
  *
@@ -134,10 +177,8 @@ void sig_post(ksiginfo_t *ksi);
 /*! \brief Terminate the process as the result of posting a signal. */
 __noreturn void sig_exit(thread_t *td, signo_t sig);
 
-/*! \brief Delivers a hardware trap related signal to current thread.
- *
- * \note This is machine dependent code! */
-void sig_trap(ctx_t *ctx, signo_t sig);
+/*! \brief Delivers a hardware trap related signal to current thread. */
+void sig_trap(signo_t sig, int code, void *addr, int trapno);
 
 /*! \brief Prepare user context for entry to signal handler action.
  *
@@ -149,6 +190,9 @@ int sig_send(signo_t sig, sigset_t *mask, sigaction_t *sa, ksiginfo_t *ksi);
  * \note This is machine dependent code! */
 int do_sigreturn(ucontext_t *ucp);
 
+/*! \brief Deliver signals to a process on return to userspace. */
+void sig_userret(mcontext_t *ctx, syscall_result_t *result);
+
 /*! \brief Reset handlers for caught signals on process exec.
  *
  * \note Must be called with p::p_lock held. */
@@ -159,6 +203,8 @@ int do_sigaction(signo_t sig, const sigaction_t *act, sigaction_t *oldact);
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset);
 int do_sigsuspend(proc_t *p, const sigset_t *mask);
 int do_sigpending(proc_t *p, sigset_t *set);
+int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *ksi,
+                    struct timespec *timeout);
 
 #endif /* !_KERNEL */
 

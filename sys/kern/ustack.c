@@ -85,8 +85,10 @@ void ustack_relocate_ptr(ustack_t *us, vaddr_t *ptr_p) {
 
 void ustack_finalize(ustack_t *us) {
   assert(!finalized_p(us));
-  /* Cannot fail because initially stack is aligned to STACK_ALIGN. */
-  ustack_align(us, STACK_ALIGN);
+  /* We have to align the stack size as that much memory will be copied
+   * to the stack segment affecting the final SP alignment. */
+  ptrdiff_t size = us->us_bottom - us->us_top;
+  us->us_bottom = us->us_top + roundup2(size, STACK_ALIGN);
   us->us_finalized = true;
 }
 

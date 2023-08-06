@@ -104,14 +104,15 @@ CONFIG = {
                     '-device', 'usb-mouse',
                     '-device', 'VGA',
                     '-machine', 'malta',
-                    '-cpu', '24Kf'],
+                    '-cpu', 'P5600'],
                 'network_options': [
                     '-device', 'rtl8139,netdev=net0',
                     '-netdev', 'user,id=net0,hostfwd=tcp::10022-:22',
                     '-object', 'filter-dump,id=net0,netdev=net0,file=rtl.pcap'
                 ],
                 'uarts': [
-                    dict(name='/dev/tty0', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True,
+                         primary=True),
                     dict(name='/dev/tty1', port=RandomPort()),
                     dict(name='/dev/cons', port=RandomPort())
                 ],
@@ -128,7 +129,8 @@ CONFIG = {
                     '-cpu', 'cortex-a53'],
                 'network_options': [],
                 'uarts': [
-                    dict(name='/dev/tty0', port=RandomPort(), raw=True)
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True,
+                         primary=True),
                 ],
                 'storage_options': [],
                 'drive': 'if=sd,index=0,format=qcow2,file={path}',
@@ -142,7 +144,8 @@ CONFIG = {
                 ],
                 'network_options': [],
                 'uarts': [
-                    dict(name='/dev/tty0', port=RandomPort(), raw=True),
+                    dict(name='/dev/tty0', port=RandomPort(), raw=True,
+                         primary=True),
                     dict(name='/dev/tty1', port=RandomPort(), raw=True)
                 ]
             },
@@ -295,8 +298,14 @@ class QEMU(Launchable):
 
         self.options = getopts('qemu.options')
         for uart in getvar('qemu.uarts'):
-            port = uart['port']
-            self.options += ['-serial', f'tcp:127.0.0.1:{port},server,wait']
+            if 'port' in uart:
+                port = uart['port']
+                output = f'tcp:127.0.0.1:{port},server,wait'
+            elif 'primary' in uart:
+                output = f'file:launch.log'
+            else:
+                output = 'none'
+            self.options += ['-serial', output]
 
         if not getvar('config.dts'):
             if getvar('config.args'):
@@ -389,12 +398,18 @@ def TestRun(sim, dbg, timeout):
         rc = gdb_proc.expect_exact([pexpect.EOF, '(gdb) '], timeout=None)
 
         if rc == 1:
-            timed_out = b'Program received signal SIGINT' in gdb_proc.before
+            print('\n*** CONSOLE ***\n')
+            with open('launch.log', 'rb') as f:
+                print(f.read().decode('utf-8').replace('\r\n', '\n'))
+            timed_out = b'received signal SIGINT' in gdb_proc.before
+            print('*** GDB OUTPUT ***\n')
+            print(gdb_proc.before.decode('utf-8'))
             PostMortem(gdb_proc)
             print('Test run %s!' % ('timeout' if timed_out else 'failed'))
             if timed_out:
                 rc = 2
     except KeyboardInterrupt:
+        print('Test run was interrupted!')
         signal.signal(signal.SIGINT, signal.SIG_IGN)
         gdb_proc.terminate()
         sim_proc.terminate()
@@ -521,7 +536,8 @@ if __name__ == '__main__':
 
     # Create simulator launcher
     if args.test_run:
-        setvar(f'{sim_name}.uarts', [])
+        for uart in getvar(f'{sim_name}.uarts'):
+            del uart['port']
 
     sim = QEMU() if sim_name == 'qemu' else RENODE()
 

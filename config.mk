@@ -15,6 +15,8 @@ RISCV ?= 0
 ifeq ($(BOARD), malta)
 ARCH := mips
 MIPS := 1
+# Clang does not generate debug info recognized by gdb :(
+LLVM := 0
 endif
 
 ifeq ($(BOARD), rpi3)
