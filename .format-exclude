@@ -18,6 +18,7 @@ bin/tetris/
 bin/echo/
 bin/ln/
 bin/chmod/
+bin/st/
 lib/libutil/
 lib/libterminfo/
 lib/libc/
