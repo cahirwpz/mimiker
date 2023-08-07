@@ -4,11 +4,6 @@ set pagination off
 set confirm off
 set verbose off
 
-# make extra commands available
-#python import os, sys
-#python sys.path.append(os.path.join(os.getcwd(), 'sys'))
-#python import debug
-
 # Command to easily append KFT events to specified file
 define dump-kft
   printf "Appending %d entries to file `dump.kft`\n", kft_used
@@ -32,12 +27,5 @@ commands
   kill
   quit 0
 end
-
-#break kernel_init
-#commands
-#  printf "startedp"
-#  echo "startedp"
-#  continue
-#end
 
 continue
