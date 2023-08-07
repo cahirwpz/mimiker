@@ -1,6 +1,7 @@
 #include <sys/poll.h>
 #include <sys/time.h>
 #include <sys/event.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -27,7 +28,7 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     return -1;
   }
 
-  kq = kqueue();
+  kq = kqueue1(O_CLOEXEC);
   if (kq < 0)
     return -1;
 
