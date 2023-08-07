@@ -6,8 +6,8 @@ class VmMap(metaclass=GdbStructMeta):
     __ctype__ = 'struct vm_map'
 
     def __repr__(self):
-        return 'vm_map[entries=[{} {}], pmap={}]'.format(
-            self.entries, self.nentries, self.pmap)
+        return (f'vm_map[entries=[{self.entries} {self.nentries}],'
+                f'pmap={self.pmap}]')
 
     def get_entries(self):
         entries = TailQueue(self.entries, 'link')
@@ -20,7 +20,7 @@ class VmMapEntry(metaclass=GdbStructMeta):
                 'end': int}
 
     def __repr__(self):
-        return 'vm_map_entry[{:#08x}-{:#08x}]'.format(self.start, self.end)
+        return f'vm_map_entry[{self.start:#08x}-{self.end:#08x}]'
 
     @property
     def amap_ptr(self):
@@ -29,14 +29,13 @@ class VmMapEntry(metaclass=GdbStructMeta):
     @property
     def pages(self):
         size = self.end - self.start
-        return int(size / 4096)
+        return size // 4096
 
     @property
     def amap(self):
-        if int(self.aref['amap']) == 0:
+        if not self.aref['amap']:
             return None
-        else:
-            return Amap(self.aref['amap'])
+        return Amap(self.aref['amap'])
 
     @property
     def amap_offset(self):
@@ -52,11 +51,11 @@ class Amap(metaclass=GdbStructMeta):
                 'ref_cnt': int}
 
     def __repr__(self):
-        return 'vm_amap[slots={}, refs={}]'.format(self.slots, self.ref_cnt)
+        return f'vm_amap[slots={self.slots}, refs={self.ref_cnt}]'
 
     def _get_bitmap(self):
         bitmap = []
-        bitssize = ((self.slots) + 7) >> 3
+        bitssize = (self.slots + 7) >> 3
         for i in range(bitssize):
             val = self.pg_bitmap[i]
             for _ in range(8):

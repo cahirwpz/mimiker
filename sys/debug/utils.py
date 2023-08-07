@@ -26,23 +26,12 @@ def relpath(path):
 
 
 def get_arch():
-    try:
-        _ = gdb.parse_and_eval('aarch64_init')
-        return 'aarch64'
-    except gdb.error:
-        pass
-
-    try:
-        _ = gdb.parse_and_eval('riscv_init')
-        return 'riscv'
-    except gdb.error:
-        pass
-
-    try:
-        _ = gdb.parse_and_eval('mips_init')
-        return 'mips'
-    except gdb.error:
-        pass
+    for arch in ['mips', 'aarch64', 'riscv']:
+        try:
+            _ = gdb.parse_and_eval(f'{arch}_init')
+            return arch
+        except gdb.error:
+            continue
 
     print('Current architecture is not supported')
     raise KeyError

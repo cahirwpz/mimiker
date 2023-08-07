@@ -36,8 +36,8 @@ def _print_mips_pmap(pmap):
             if not any(pte.valid for pte in pte[j:j+4]):
                 continue
             pte4 = [str(pte) if pte.valid else '-' for pte in pte[j:j+4]]
-            table.add_row(['{:8x}'.format((i << 22) + (j << 12)),
-                           pte4[0], pte4[1], pte4[2], pte4[3]])
+            table.add_row([f'{(i << 22) + (j << 12):8x}', pte4[0], pte4[1],
+                           pte4[2], pte4[3]])
     print(table)
 
 
@@ -124,18 +124,16 @@ class VmMapDump(UserCommand):
 
 
 def _print_segment(seg, pid, id):
-    print('Segment {} in proc {}'.format(id, pid))
-    print('Range: {:#08x}-{:#08x} ({:d} pages)'.format(seg.start,
-                                                       seg.end,
-                                                       seg.pages))
-    print('Prot:  {}'.format(seg.prot))
-    print('Flags: {}'.format(seg.flags))
+    print(f'Segment {id} in proc {pid}')
+    print(f'Range: {seg.start:#08x}-{seg.end:#08x} ({seg.pages:d} pages)')
+    print(f'Prot:  {seg.prot}')
+    print(f'Flags: {seg.flags}')
     amap = seg.amap
     if amap:
-        print('Amap:        {}'.format(seg.amap_ptr))
-        print('Amap offset: {}'.format(seg.amap_offset))
-        print('Amap slots:  {}'.format(amap.slots))
-        print('Amap refs:   {}'.format(amap.ref_cnt))
+        print(f'Amap:        {seg.amap_ptr}')
+        print(f'Amap offset: {seg.amap_offset}')
+        print(f'Amap slots:  {amap.slots}')
+        print(f'Amap refs:   {amap.refcnt}')
 
         amap.print_pages(seg.amap_offset, seg.pages)
     else:
@@ -143,8 +141,9 @@ def _print_segment(seg, pid, id):
 
 
 def _segment_info(proc, segment):
+    MAX_SEGMENT_ID = 4096
     entries = proc.p_uspace.get_entries()
-    if segment < 4096:
+    if segment < MAX_SEGMENT_ID:
         # Lookup by id
         if segment > len(entries):
             print(f'Segment {segment} does not exist!')
@@ -226,12 +225,12 @@ class VmFreePages(UserCommand):
             count = int(global_var('pagecount')[q])
             pages = []
             for page in TailQueue(global_var('freelist')[q], 'freeq'):
-                pages.append('{:8x}'.format(int(page['paddr'])))
+                pages.append(f'{int(page["paddr"]):8x}')
                 free_pages += int(page['size'])
             table.add_row([count, 2**q, ' '.join(pages)])
         table.header(['#pages', 'size', 'addresses'])
         print(table)
-        print('Free pages count: {}'.format(free_pages))
+        print(f'Free pages count: {free_pages}')
         segments = TailQueue(global_var('seglist'), 'seglink')
         pages = int(sum(seg['npages'] for seg in segments if not seg['used']))
-        print('Used pages count: {}'.format(pages - free_pages))
+        print(f'Used pages count: {pages - free_pages}')
