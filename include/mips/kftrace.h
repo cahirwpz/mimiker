@@ -1,5 +1,5 @@
-#ifndef __KFTRACE_H__
-#define __KFTRACE_H__
+#ifndef __MIPS_KFTRACE_H__
+#define __MIPS_KFTRACE_H__
 
 #define _MACHDEP
 
@@ -9,4 +9,4 @@
 
 #undef _MACHDEP
 
-#endif /* __KFTRACE_H__ */
+#endif /* __MIPS_KFTRACE_H__ */
