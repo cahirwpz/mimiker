@@ -1,6 +1,8 @@
-#ifndef __KFTRACE_H__
-#define __KFTRACE_H__
+#ifndef __RISCV_KFTRACE_H__
+#define __RISCV_KFTRACE_H__
 
-#error "KFTRACE not implemented on RISC-V!"
+#include <riscv/cpufunc.h>
 
-#endif /* __KFTRACE_H__ */
+#define kft_get_time() rdtime()
+
+#endif /* __RISCV_KFTRACE_H__ */
