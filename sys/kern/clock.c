@@ -6,12 +6,12 @@
 #include <sys/timer.h>
 #include <sys/kgprof.h>
 
-static systime_t now = 0;
+static _Atomic(systime_t) now = 0;
 static timer_t *clock = NULL;
 static timer_t *profclock = NULL;
 
 systime_t getsystime(void) {
-  return now;
+  return atomic_load(&now);
 }
 
 static void prof_clock(timer_t *tm, void *arg) {
@@ -20,7 +20,7 @@ static void prof_clock(timer_t *tm, void *arg) {
 
 static void clock_cb(timer_t *tm, void *arg) {
   bintime_t bin = binuptime();
-  now = bt2st(&bin);
+  atomic_store(&now, bt2st(&bin));
   if (profclock == NULL)
     prof_clock(tm, arg);
   callout_process(now);
