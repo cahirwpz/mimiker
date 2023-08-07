@@ -26,7 +26,12 @@
 
 typedef uint64_t kft_event_t;
 
+#ifdef MIPS_KFT
+#define KFT_EVENT_MAX 8000
+#else
 #define KFT_EVENT_MAX 1000000
+#endif
+
 static kft_event_t *kft_event_list;
 static unsigned kft_used = 0;
 static bool kft_enabled = false;
