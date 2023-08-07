@@ -135,10 +135,10 @@ class PageTableMips():
         print(table)
 
 
-class PageTableAarch64():
+class PageTableAArch64():
     def __init__(self, pmap):
         self._pmap = pmap
-        print("Page table not implemented for Aarch64")
+        print("Page table not implemented for AArch64")
 
     def print(self):
         pass
@@ -156,7 +156,7 @@ class PageTableRiscv():
 if get_arch() == 'mips':
     PageTable = PageTableMips
 elif get_arch() == 'aarch64':
-    PageTable = PageTableAarch64
+    PageTable = PageTableAArch64
 elif get_arch() == 'riscv':
     PageTable = PageTableRiscv
 else:
