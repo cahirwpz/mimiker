@@ -1,7 +1,7 @@
 import gdb
 
 from .struct import GdbStructMeta
-from .utils import TextTable, cast
+from .utils import TextTable, cast, cast_ptr, get_arch
 from .cmd import UserCommand, CommandDispatcher
 
 
@@ -110,3 +110,54 @@ class Cpu(CommandDispatcher):
 
     def __init__(self):
         super().__init__('cpu', [TLB()])
+
+
+class PageTableMips():
+    def __init__(self, pmap):
+        self._pmap = pmap
+
+    def print(self):
+        pdp = cast_ptr(self._pmap['pde'], 'pde_t')
+        table = TextTable(types='ttttt', align='rrrrr')
+        table.header(['vpn', 'pte0', 'pte1', 'pte2', 'pte3'])
+        for i in range(1024):
+            pde = TLBLo(pdp[i])
+            if not pde.valid:
+                continue
+            ptp = cast_ptr(pde.ppn, 'pte_t')
+            pte = [TLBLo(ptp[j]) for j in range(1024)]
+            for j in range(0, 1024, 4):
+                if not any(pte.valid for pte in pte[j:j+4]):
+                    continue
+                pte4 = [str(pte) if pte.valid else '-' for pte in pte[j:j+4]]
+                table.add_row([f'{(i << 22) + (j << 12):8x}', pte4[0], pte4[1],
+                               pte4[2], pte4[3]])
+        print(table)
+
+
+class PageTableAarch64():
+    def __init__(self, pmap):
+        self._pmap = pmap
+        print("Page table not implemented for Aarch64")
+
+    def print(self):
+        pass
+
+
+class PageTableRiscv():
+    def __init__(self, pmap):
+        self._pmap = pmap
+        print("Page table not implemented for RISC-V")
+
+    def print(self):
+        pass
+
+
+if get_arch() == 'mips':
+    PageTable = PageTableMips
+elif get_arch() == 'aarch64':
+    PageTable = PageTableAarch64
+elif get_arch() == 'riscv':
+    PageTable = PageTableRiscv
+else:
+    print(f'Arch {get_arch()} not supported')

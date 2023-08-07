@@ -1,7 +1,7 @@
 from .struct import TailQueue
 from .cmd import UserCommand, CommandDispatcher
-from .cpu import TLBLo
-from .utils import TextTable, global_var, cast_ptr, get_arch
+from .cpu import PageTable
+from .utils import TextTable, global_var
 from .proc import Process
 
 
@@ -22,25 +22,6 @@ class VmInfo(CommandDispatcher):
                                 ])
 
 
-def _print_mips_pmap(pmap):
-    pdp = cast_ptr(pmap['pde'], 'pde_t')
-    table = TextTable(types='ttttt', align='rrrrr')
-    table.header(['vpn', 'pte0', 'pte1', 'pte2', 'pte3'])
-    for i in range(1024):
-        pde = TLBLo(pdp[i])
-        if not pde.valid:
-            continue
-        ptp = cast_ptr(pde.ppn, 'pte_t')
-        pte = [TLBLo(ptp[j]) for j in range(1024)]
-        for j in range(0, 1024, 4):
-            if not any(pte.valid for pte in pte[j:j+4]):
-                continue
-            pte4 = [str(pte) if pte.valid else '-' for pte in pte[j:j+4]]
-            table.add_row([f'{(i << 22) + (j << 12):8x}', pte4[0], pte4[1],
-                           pte4[2], pte4[3]])
-    print(table)
-
-
 class KernelPmap(UserCommand):
     """List active page entries in kernel pmap"""
 
@@ -48,12 +29,8 @@ class KernelPmap(UserCommand):
         super().__init__('pmap_kernel')
 
     def __call__(self, args):
-        pmap = global_var('kernel_pmap')
-        arch = get_arch()
-        if arch == 'mips':
-            _print_mips_pmap(pmap)
-        else:
-            print(f"Can't print {arch} pmap")
+        pmap = PageTable(global_var('kernel_pmap'))
+        pmap.print()
 
 
 class UserPmap(UserCommand):
@@ -80,12 +57,8 @@ class UserPmap(UserCommand):
             if proc is None:
                 print(f'Process {pid} not found')
                 return
-        pmap = proc.p_uspace.pmap
-        arch = get_arch()
-        if arch == 'mips':
-            _print_mips_pmap(pmap)
-        else:
-            print(f"Can't print {arch} pmap")
+        pmap = PageTable(proc.p_uspace.pmap)
+        pmap.print()
 
 
 class VmMapDump(UserCommand):
