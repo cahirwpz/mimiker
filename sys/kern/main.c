@@ -29,10 +29,7 @@
 #include <sys/lockdep.h>
 #include <sys/kcsan.h>
 #include <sys/kgprof.h>
-
-#if KFTRACE
 #include <sys/kftrace.h>
-#endif
 
 /* This function mounts some initial filesystems. Normally this would be done by
    userspace init program. */
@@ -124,10 +121,7 @@ __noreturn void kernel_init(void) {
   init_clock();
 
   init_kgprof();
-
-#if KFTRACE
   init_kftrace();
-#endif
 
   klog("Kernel initialized!");
 

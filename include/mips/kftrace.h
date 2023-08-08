@@ -5,9 +5,8 @@
 
 #include <mips/m32c0.h>
 
+#define KFT_EVENT_MAX 8000
 #define kft_get_time() mips32_getcount()
-
-#define MIPS_KFT
 
 #undef _MACHDEP
 

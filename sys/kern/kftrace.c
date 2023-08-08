@@ -1,7 +1,7 @@
 #include <sys/kftrace.h>
 #include <sys/thread.h>
 #include <sys/types.h>
-#include <sys/malloc.h>
+#include <sys/kmem.h>
 
 /* Kernel Function Trace
  *
@@ -26,15 +26,8 @@
 
 typedef uint64_t kft_event_t;
 
-#ifdef MIPS_KFT
-#define KFT_EVENT_MAX 8000
-#else
-#define KFT_EVENT_MAX 1000000
-#endif
-
 static kft_event_t *kft_event_list;
 static unsigned kft_used = 0;
-static bool kft_enabled = false;
 
 #define PC_MASK 0xFFFFFF          /* 24 bits */
 #define TIMESTAMP_MASK 0x7FFFFFFF /* 31 bits */
@@ -51,12 +44,9 @@ typedef enum kft_event_type {
   KFT_EVENT_FUN_OUT,
 } kft_event_type_t;
 
-KMALLOC_DEFINE(M_KFT, "kft events buffer");
-
 void init_kftrace(void) {
   kft_event_list =
-    kmalloc(M_KFT, sizeof(kft_event_t) * (KFT_EVENT_MAX + 5), M_WAITOK);
-  kft_enabled = true;
+    kmem_alloc(sizeof(kft_event_t) * (KFT_EVENT_MAX + 5), M_WAITOK);
 }
 
 static __no_profile inline kft_event_t make_event(kft_event_type_t type,
@@ -76,6 +66,9 @@ static __no_profile void kft_flush(void) {
 }
 
 static __no_profile void add_event(void *pc, kft_event_type_t type) {
+  if (!kft_event_list)
+    return;
+
   uint64_t time = kft_get_time();
   tid_t thread = thread_self()->td_tid;
 
@@ -89,11 +82,9 @@ static __no_profile void add_event(void *pc, kft_event_type_t type) {
 }
 
 __no_profile void __cyg_profile_func_enter(void *this_fn, void *call_site) {
-  if (kft_enabled)
-    add_event(this_fn, KFT_EVENT_FUN_IN);
+  add_event(this_fn, KFT_EVENT_FUN_IN);
 }
 
 __no_profile void __cyg_profile_func_exit(void *this_fn, void *call_site) {
-  if (kft_enabled)
-    add_event(this_fn, KFT_EVENT_FUN_OUT);
+  add_event(this_fn, KFT_EVENT_FUN_OUT);
 }
