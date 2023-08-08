@@ -32,10 +32,11 @@ def stop_handler(event):
     current_host_path = str(Path(current_host_path).resolve())
     if loaded_host_path != current_host_path:
         try:
-            gdb.execute(
-                f'remove-symbol-file -a {hex(user_elf_base_addr)}',
-                to_string=True
-            )
+            if loaded_host_path is not None:
+                gdb.execute(
+                    f'remove-symbol-file -a {hex(user_elf_base_addr)}',
+                    to_string=True
+                )
             gdb.execute(
                 f'add-symbol-file {current_host_path}', to_string=True)
         except:  # noqa: E722
