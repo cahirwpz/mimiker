@@ -2,31 +2,56 @@
 
 /* Taken from http://pciids.sourceforge.net/v2.2/pci.ids */
 
-static const pci_device_id pci_vendor_1013[] = {{0x00b8, "GD 5446"}, {0, 0}};
+static const pci_device_id pci_vendor_1013[] = {
+  {0x00b8, "GD 5446"},
+  {0, 0},
+};
 
 static const pci_device_id pci_vendor_1022[] = {
-  {0x2000, "79c970 [PCnet32 LANCE]"}, {0, 0}};
+  {0x2000, "79c970 [PCnet32 LANCE]"},
+  {0, 0},
+};
 
 static const pci_device_id pci_vendor_11ab[] = {
-  {0x4620, "GT-64120/64120A/64121A System Controller"}, {0, 0}};
+  {0x4620, "GT-64120/64120A/64121A System Controller"},
+  {0, 0},
+};
 
 static const pci_device_id pci_vendor_10ec[] = {
-  {0x8139, "RTL-8100/8101L/8139 PCI Fast Ethernet Adapter"}, {0, 0}};
+  {0x8139, "RTL-8100/8101L/8139 PCI Fast Ethernet Adapter"},
+  {0, 0},
+};
+
+static const pci_device_id pci_vendor_1234[] = {
+  {0x1111, "Graphics Adaptor"},
+  {0, 0},
+};
+
+static const pci_device_id pci_vendor_1af4[] = {
+  {0x1000, "Virtio network device"},   {0x1001, "Virtio block device"},
+  {0x1003, "Virtio console"},          {0x1041, "Virtio 1.0 network device"},
+  {0x1042, "Virtio 1.0 block device"}, {0x1043, "Virtio 1.0 console"},
+  {0x1052, "Virtio 1.0 input"},        {0, 0},
+};
 
 static const pci_device_id pci_vendor_8086[] = {
   {0x7110, "82371AB/EB/MB PIIX4 ISA"},
   {0x7111, "82371AB/EB/MB PIIX4 IDE"},
   {0x7112, "82371AB/EB/MB PIIX4 USB"},
   {0x7113, "82371AB/EB/MB PIIX4 ACPI"},
-  {0, 0}};
+  {0, 0},
+};
 
 const pci_vendor_id pci_vendor_list[] = {
   {0x1013, "Cirrus Logic", pci_vendor_1013},
   {0x1022, "Advanced Micro Devices, Inc.", pci_vendor_1022},
   {0x10ec, "Realtek Semiconductor Co., Ltd.", pci_vendor_10ec},
   {0x11ab, "Marvell Technology Group Ltd.", pci_vendor_11ab},
+  {0x1234, "Bochs", pci_vendor_1234},
+  {0x1af4, "Red Hat, Inc.", pci_vendor_1af4},
   {0x8086, "Intel Corporation", pci_vendor_8086},
-  {0, 0, 0}};
+  {0, 0, 0},
+};
 
 const char *pci_class_code[] = {
   "",
@@ -46,4 +71,5 @@ const char *pci_class_code[] = {
   "Intelligent I/O Controllers",
   "Satellite Communication Controllers",
   "Encryption/Decryption Controllers",
-  "Data Acquisition and Signal Processing Controllers"};
+  "Data Acquisition and Signal Processing Controllers",
+};
