@@ -80,7 +80,7 @@ static int rtc_time_read(devnode_t *dev, uio_t *uio) {
   rtc_state_t *rtc = dev->data;
   tm_t t;
 
-  sleepq_wait(rtc, NULL);
+  sleepq_wait(rtc, NULL, NULL);
   rtc_gettime(rtc->regs, &t);
   int count = snprintf(rtc->asctime, RTC_ASCTIME_SIZE, "%d %d %d %d %d %d",
                        t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour,
@@ -97,11 +97,15 @@ static devops_t rtc_devops = {
 
 static int rtc_attach(device_t *dev) {
   rtc_state_t *rtc = dev->state;
+  int err = 0;
 
-  rtc->regs = device_take_ioports(dev, 0, RF_ACTIVE);
+  rtc->regs = device_take_ioports(dev, 0);
   assert(rtc->regs != NULL);
 
-  rtc->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
+  if ((err = bus_map_resource(dev, rtc->regs)))
+    return err;
+
+  rtc->irq_res = device_take_irq(dev, 0);
   pic_setup_intr(dev, rtc->irq_res, rtc_intr, NULL, rtc, "RTC periodic timer");
 
   /* Configure how the time is presented through registers. */

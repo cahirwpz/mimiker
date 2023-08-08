@@ -2,9 +2,7 @@
 
 TOPDIR = $(realpath ../..)
 
-SUBDIR = ctype quad stdio stdlib string
-FORMAT-RECURSE = no
-
+SUBDIR = builtins ctype stdio stdlib string
 SOURCES = copystr.c
 
 include $(TOPDIR)/build/build.kern.mk

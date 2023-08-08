@@ -82,6 +82,7 @@ double strtod(const char *__restrict, char **__restrict);
 float strtof(const char *__restrict, char **__restrict);
 long double strtold(const char *__restrict, char **__restrict);
 long strtol(const char *__restrict, char **__restrict, int);
+long long int llabs(long long int);
 long long int strtoll(const char *__restrict, char **__restrict, int);
 unsigned long strtoul(const char *__restrict, char **__restrict, int);
 unsigned long long int strtoull(const char *__restrict, char **__restrict, int);
@@ -97,6 +98,9 @@ u_quad_t strtouq(const char *__restrict, char **__restrict, int);
 /* The Open Group Base Specifications, Issue 6; IEEE Std 1003.1-2001 (POSIX) */
 int setenv(const char *, const char *, int);
 int unsetenv(const char *);
+
+/* IEEE Std 1003.1c-95, also adopted by X/Open CAE Spec Issue 5 Version 2 */
+int rand_r(unsigned int *);
 
 /*
  * X/Open Portability Guide >= Issue 4 Version 2

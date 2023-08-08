@@ -5,11 +5,9 @@
  */
 
 #include <sys/mimiker.h>
-#include <sys/rman.h>
 #include <sys/devclass.h>
 #include <sys/klog.h>
 #include <sys/types.h>
-#include <dev/bcm2835_gpio.h>
 #include <sys/device.h>
 #include <sys/bus.h>
 #include <sys/time.h>
@@ -21,18 +19,19 @@
 #include <sys/errno.h>
 #include <sys/bitops.h>
 #include <dev/bcm2835_emmcreg.h>
+#include <sys/fdt.h>
 
 typedef struct bcmemmc_state {
-  resource_t *gpio;      /* GPIO resource (needed until we have a decent
-                          * way of setting up GPIO) */
   resource_t *emmc;      /* e.MMC controller registers */
   resource_t *irq;       /* e.MMC controller interrupt */
   condvar_t intr_recv;   /* Used to wake up a thread waiting for an interrupt */
-  spin_t lock;           /* Covers `pending`, `intr_recv` and `emmc`. */
+  mtx_t lock;            /* Covers `pending`, `intr_recv` and `emmc`. */
   uint64_t rca;          /* Relative Card Address */
   uint64_t host_version; /* Host specification version */
-  volatile uint32_t pending; /* All interrupts received */
-  emmc_error_t errors;
+  volatile uint32_t pending;   /* All interrupts received */
+  emmc_error_t errors;         /* Error flags */
+  emmc_error_t ignored_errors; /* Error flags that do not cause invalidation of
+                                * current state */
 } bcmemmc_state_t;
 
 #define b_in bus_read_4
@@ -46,7 +45,7 @@ typedef struct bcmemmc_state {
  * won't optimize away.
  * \param count number of cycles to delay
  */
-static void delay(int64_t count) {
+static void bcmemmc_delay(int64_t count) {
   __asm__ volatile("1: subs %[count], %[count], #1; bne 1b"
                    : [count] "+r"(count));
 }
@@ -68,9 +67,23 @@ static emmc_error_t bcemmc_decode_errors(uint32_t interrupts) {
     return e;
 
   if (interrupts & INT_CTO_ERR)
-    e |= EMMC_ERROR_CMD_TIMEOUT;
+    e |= EMMC_ERROR_TIMEOUT;
 
   return e;
+}
+
+static inline int bcmemmc_invalid_state(bcmemmc_state_t *state) {
+  return state->errors & (~state->ignored_errors | EMMC_ERROR_INTERNAL |
+                          EMMC_ERROR_INVALID_STATE);
+}
+
+static inline emmc_error_t bcmemmc_set_error(bcmemmc_state_t *state,
+                                             emmc_error_t error_flags) {
+  if (error_flags & ~state->ignored_errors) {
+    state->errors |= EMMC_ERROR_INTERNAL;
+  }
+  state->errors |= error_flags;
+  return error_flags;
 }
 
 /* Returns new pending interrupts.
@@ -98,7 +111,7 @@ static uint32_t bcmemmc_read_intr(bcmemmc_state_t *state) {
  * \warning THIS FUNCTION NEEDS TO BE CALLED WITH `state->lock` LOCKED!
  */
 static inline uint32_t bcmemmc_try_read_intr_blocking(bcmemmc_state_t *state) {
-  if (cv_wait_timed(&state->intr_recv, (lock_t)&state->lock, BCMEMMC_TIMEOUT))
+  if (cv_wait_timed(&state->intr_recv, &state->lock, BCMEMMC_TIMEOUT))
     return 0;
   return state->pending;
 }
@@ -116,21 +129,24 @@ static inline int bcmemmc_check_intr(bcmemmc_state_t *state) {
  * \return 0 on success, EIO on internal error, ETIMEDOUT on device timeout.
  * \warning This procedure may put the thread to sleep.
  */
-static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
+static emmc_error_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
 
   assert(mask != 0);
 
-  SCOPED_SPIN_LOCK(&state->lock);
+  if (bcmemmc_invalid_state(state))
+    return bcmemmc_set_error(state, EMMC_ERROR_INVALID_STATE);
+
+  SCOPED_MTX_LOCK(&state->lock);
 
   for (;;) {
     if (state->pending & INT_ERROR_MASK) {
-      klog("e.MMC: An error flag(s) has beem raised for e.MMC controller: 0x%x",
-           state->pending & INT_ERROR_MASK);
+      emmc_error_t error_flags = bcemmc_decode_errors(state->pending);
+      if (error_flags & ~state->ignored_errors)
+        klog("e.MMC: An error flag(s) raised for e.MMC controller: 0x%x",
+             state->pending & INT_ERROR_MASK);
       state->pending = 0;
-
-      state->errors = bcemmc_decode_errors(state->pending);
-      return EIO;
+      return bcmemmc_set_error(state, error_flags);
     }
 
     if ((state->pending & mask) == mask) {
@@ -150,21 +166,21 @@ static int32_t bcmemmc_intr_wait(device_t *dev, uint32_t mask) {
     /* Sleep for a while if no new interrupts have been received so far */
     if (!bcmemmc_try_read_intr_blocking(state)) {
       state->errors = 0;
-      return ETIMEDOUT;
+      return bcmemmc_set_error(state, EMMC_ERROR_TIMEOUT);
     }
   }
 
   return 0;
 }
 
-static int bcmemmc_wait(device_t *cdev, emmc_wait_flags_t wflags) {
+static emmc_error_t bcmemmc_wait(device_t *cdev, emmc_wait_flags_t wflags) {
   uint32_t mask = emmc_wait_flags_to_hwflags(wflags);
   return bcmemmc_intr_wait(cdev->parent, mask);
 }
 
 static intr_filter_t bcmemmc_intr_filter(void *data) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)data;
-  WITH_SPIN_LOCK (&state->lock) {
+  WITH_MTX_LOCK (&state->lock) {
     if (!bcmemmc_read_intr(state))
       return IF_STRAY;
     /* Wake up the thread if all expected interrupts have been received */
@@ -225,8 +241,8 @@ static int bcmemmc_set_clk_freq(device_t *dev, uint32_t frq) {
   /* Wait until the clock becomes stable */
   while (!(b_in(emmc, BCMEMMC_CONTROL1) & C1_CLK_STABLE)) {
     if (cnt-- < 0)
-      return ETIMEDOUT;
-    delay(30);
+      return bcmemmc_set_error(state, EMMC_ERROR_TIMEOUT);
+    bcmemmc_delay(30);
   }
 
   return 0;
@@ -265,8 +281,12 @@ static uint32_t bcmemmc_encode_cmd(emmc_cmd_t cmd) {
     code |= CMD_DATA_TRANSFER | CMD_DATA_READ;
   if (cmd.flags & EMMC_F_DATA_WRITE)
     code |= CMD_DATA_TRANSFER;
-  if (cmd.flags & EMMC_F_DATA_MULTI)
+  if (cmd.flags & EMMC_F_DATA_MULTI) {
     code |= CMD_DATA_MULTI;
+    /* Block counter must be enabled for multi-block transfers in order t
+     * generate READ_DONE interrupt when the transfer succeeds. */
+    code |= CMD_TM_BLKCNT_EN;
+  }
   if (cmd.flags & EMMC_F_CHKIDX)
     code |= CMD_CHECKIDX;
   if (cmd.flags & EMMC_F_CHKCRC)
@@ -308,9 +328,13 @@ static int bcmemmc_get_bus_width(bcmemmc_state_t *state) {
 /* There 16 bits available for setting block count */
 #define MAXBLKCNT 65535
 
-static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
+static emmc_error_t bcmemmc_get_prop(device_t *cdev, uint32_t id,
+                                     uint64_t *var) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   resource_t *emmc = state->emmc;
+
+  if (bcmemmc_invalid_state(state) && (id != EMMC_PROP_RW_ERRORS))
+    return bcmemmc_set_error(state, EMMC_ERROR_INVALID_STATE);
 
   uint32_t reg = 0;
   switch (id) {
@@ -345,34 +369,41 @@ static int bcmemmc_get_prop(device_t *cdev, uint32_t id, uint64_t *var) {
     case EMMC_PROP_RW_RCA:
       *var = state->rca;
       break;
-    case EMMC_PROP_R_ERRORS:
+    case EMMC_PROP_RW_ERRORS:
       *var = state->errors;
       break;
+    case EMMC_PROP_RW_ALLOW_ERRORS:
+      *var = state->ignored_errors;
+      break;
     default:
-      return ENODEV;
+      return bcmemmc_set_error(state, EMMC_ERROR_PROP_NOTSUP);
   }
 
   return 0;
 }
 
-static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
+static emmc_error_t bcmemmc_set_prop(device_t *cdev, uint32_t id,
+                                     uint64_t var) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   resource_t *emmc = state->emmc;
+
+  if (bcmemmc_invalid_state(state))
+    return bcmemmc_set_error(state, EMMC_ERROR_INTERNAL);
 
   uint32_t reg = 0;
   switch (id) {
     case EMMC_PROP_RW_BLKCNT:
       /* BLKCNT can be at most a 16-bit value */
       if (var & ~0xffff)
-        return EINVAL;
+        return bcmemmc_set_error(state, EMMC_ERROR_PROP_INVALID_ARG);
       reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
       reg = (reg & 0x0000ffff) | (var << 16);
       b_out(emmc, BCMEMMC_BLKSIZECNT, reg);
       break;
     case EMMC_PROP_RW_BLKSIZE:
       /* BLKSIZE can be at most a 10-bit value */
-      if ((var = 0) || (var > MAXBLKSIZE))
-        return EINVAL;
+      if ((var == 0) || (var > MAXBLKSIZE))
+        return bcmemmc_set_error(state, EMMC_ERROR_PROP_INVALID_ARG);
       reg = b_in(emmc, BCMEMMC_BLKSIZECNT);
       reg = (reg & ~0x03ff) | var;
       b_out(emmc, BCMEMMC_BLKSIZECNT, reg);
@@ -392,26 +423,36 @@ static int bcmemmc_set_prop(device_t *cdev, uint32_t id, uint64_t var) {
     case EMMC_PROP_RW_RCA:
       state->rca = var;
       break;
+    case EMMC_PROP_RW_ERRORS:
+      /* The only way to reset internal error is to reset the entire controller
+       * using the `reset` method. */
+      state->errors = var | (state->errors & EMMC_ERROR_INTERNAL);
+      break;
+    case EMMC_PROP_RW_ALLOW_ERRORS:
+      state->errors &= ~state->ignored_errors;
+      state->ignored_errors = var;
+      break;
     default:
-      return ENODEV;
+      return bcmemmc_set_error(state, EMMC_ERROR_PROP_NOTSUP);
   }
 
   return 0;
 }
 
 /* Send encoded command */
-static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
-                            emmc_resp_t *resp) {
+static emmc_error_t bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
+                                     emmc_resp_t *resp) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
 
-  uint32_t error = 0;
+  emmc_error_t error = 0;
 
   b_out(emmc, BCMEMMC_ARG1, arg);
   b_out(emmc, BCMEMMC_CMDTM, code);
   if ((error = bcmemmc_intr_wait(dev, INT_CMD_DONE))) {
-    klog("e.MMC: ERROR: failed to send EMMC command %p (error %d)", code,
-         error);
+    if (state->errors & ~state->ignored_errors)
+      klog("e.MMC: ERROR: failed to send e.MMC command %p (error %d)", code,
+           error);
     return error;
   }
 
@@ -426,10 +467,13 @@ static int bcmemmc_cmd_code(device_t *dev, uint32_t code, uint32_t arg,
 }
 
 /* Send a command */
-static int bcmemmc_send_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
-                            emmc_resp_t *resp) {
+static emmc_error_t bcmemmc_send_cmd(device_t *cdev, emmc_cmd_t cmd,
+                                     uint32_t arg, emmc_resp_t *resp) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)cdev->parent->state;
   int error = 0;
+
+  if (bcmemmc_invalid_state(state))
+    return bcmemmc_set_error(state, EMMC_ERROR_INVALID_STATE);
 
   /* Application-specific command need to be prefixed with APP_CMD command. */
   if (cmd.flags & EMMC_F_APP)
@@ -441,7 +485,8 @@ static int bcmemmc_send_cmd(device_t *cdev, emmc_cmd_t cmd, uint32_t arg,
   return bcmemmc_cmd_code(cdev->parent, code, arg, resp);
 }
 
-static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *read) {
+static emmc_error_t bcmemmc_read(device_t *cdev, void *buf, size_t len,
+                                 size_t *read) {
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
   resource_t *emmc = state->emmc;
@@ -449,18 +494,20 @@ static int bcmemmc_read(device_t *cdev, void *buf, size_t len, size_t *read) {
 
   assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
 
+  if (bcmemmc_invalid_state(state))
+    return bcmemmc_set_error(state, EMMC_ERROR_INVALID_STATE);
+
   /* A very simple transfer (should be replaced with DMA in the future) */
   for (size_t i = 0; i < len / sizeof(uint32_t); i++)
     data[i] = b_in(emmc, BCMEMMC_DATA);
 
-  /* TODO (mohrcore): check whether the transfer fully succeeded! */
   if (read)
     *read = len;
   return 0;
 }
 
-static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
-                         size_t *wrote) {
+static emmc_error_t bcmemmc_write(device_t *cdev, const void *buf, size_t len,
+                                  size_t *wrote) {
   device_t *emmcdev = cdev->parent;
   bcmemmc_state_t *state = (bcmemmc_state_t *)emmcdev->state;
   resource_t *emmc = state->emmc;
@@ -468,51 +515,34 @@ static int bcmemmc_write(device_t *cdev, const void *buf, size_t len,
 
   assert(is_aligned(len, 4)); /* Assert multiple of 32 bits */
 
+  if (bcmemmc_invalid_state(state))
+    return bcmemmc_set_error(state, EMMC_ERROR_INVALID_STATE);
+
   /* A very simple transfer (should be replaced with DMA in the future) */
   for (size_t i = 0; i < len / sizeof(uint32_t); i++)
     b_out(emmc, BCMEMMC_DATA, data[i]);
 
-  /* TODO (mohr): check wether the transfer fully succeeded! */
   if (wrote)
     *wrote = len;
   return 0;
 }
 
-/* e.MMC requires some GPIO setup to work properly. This however is different
- * than what is described in BCM2835 Peripherals datasheet.
- * See: https://www.raspberrypi.org/app/uploads/2012/04/
- *      Raspberry-Pi-Schematics-R1.0.pdf */
-static void emmc_gpio_init(device_t *dev) {
-  bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
-  resource_t *gpio = state->gpio;
-
-  /* GPIO_CD: interrupt pin */
-  bcm2835_gpio_function_select(gpio, 47, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_set_pull(gpio, 47, BCM2838_GPIO_GPPUD_PULLDOWN);
-  bcm2835_gpio_set_high_detect(gpio, 47, true);
-
-  /* GPIO_CLK, GPIO_CMD */
-  bcm2835_gpio_function_select(gpio, 48, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_function_select(gpio, 49, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_set_pull(gpio, 48, BCM2838_GPIO_GPPUD_PULLDOWN);
-  bcm2835_gpio_set_pull(gpio, 49, BCM2838_GPIO_GPPUD_PULLDOWN);
-
-  /* GPIO_DAT0, GPIO_DAT1, GPIO_DAT2, GPIO_DAT3 */
-  bcm2835_gpio_function_select(gpio, 50, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_function_select(gpio, 51, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_function_select(gpio, 52, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_function_select(gpio, 53, BCM2835_GPIO_ALT3);
-  bcm2835_gpio_set_pull(gpio, 50, BCM2838_GPIO_GPPUD_PULLDOWN);
-  bcm2835_gpio_set_pull(gpio, 51, BCM2838_GPIO_GPPUD_PULLDOWN);
-  bcm2835_gpio_set_pull(gpio, 52, BCM2838_GPIO_GPPUD_PULLDOWN);
-  bcm2835_gpio_set_pull(gpio, 53, BCM2838_GPIO_GPPUD_PULLDOWN);
-}
-
 #define BCMEMMC_INIT_FREQ 400000
 
-static int bcmemmc_init(device_t *dev) {
+static emmc_error_t bcmemmc_reset_internal(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
   resource_t *emmc = state->emmc;
+
+  const uint32_t interrupts = INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY |
+                              INT_WRITE_RDY | INT_CTO_ERR | INT_DTO_ERR;
+
+  /* Clear errors */
+  state->errors = 0;
+  state->ignored_errors = 0;
+
+  /* Disable interrupts. */
+  b_out(emmc, BCMEMMC_INT_MASK, 0);
+  b_out(emmc, BCMEMMC_INT_EN, 0);
 
   state->host_version =
     (b_in(emmc, BCMEMMC_SLOTISR_VER) & HOST_SPEC_NUM) >> HOST_SPEC_NUM_SHIFT;
@@ -529,43 +559,50 @@ static int bcmemmc_init(device_t *dev) {
 
   /* Enable interrupts. */
   state->pending = 0;
-  const uint32_t interrupts = INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY |
-                              INT_WRITE_RDY | INT_CTO_ERR | INT_DTO_ERR;
   b_out(emmc, BCMEMMC_INT_EN, interrupts);
   b_out(emmc, BCMEMMC_INT_MASK, interrupts);
+
+  klog("e.MMC: Reset");
 
   return 0;
 }
 
+static emmc_error_t bcmemmc_reset(device_t *cdev) {
+  return bcmemmc_reset_internal(cdev->parent);
+}
+
 static int bcmemmc_probe(device_t *dev) {
-  return dev->unit == 3;
+  return FDT_is_compatible(dev->node, "brcm,bcm2835-emmc");
 }
 
 DEVCLASS_DECLARE(emmc);
 
 static int bcmemmc_attach(device_t *dev) {
   bcmemmc_state_t *state = (bcmemmc_state_t *)dev->state;
+  int err = 0;
 
-  state->emmc = device_take_memory(dev, 0, RF_ACTIVE);
+  state->emmc = device_take_memory(dev, 0);
   assert(state->emmc);
 
-  state->gpio = device_take_memory(dev, 1, RF_ACTIVE);
-  assert(state->gpio);
+  if ((err = bus_map_resource(dev, state->emmc)))
+    return err;
 
-  spin_init(&state->lock, 0);
+  mtx_init(&state->lock, MTX_SPIN);
   cv_init(&state->intr_recv, "e.MMC command response wakeup");
 
   b_out(state->emmc, BCMEMMC_INTERRUPT, INT_ALL_MASK);
-  emmc_gpio_init(dev);
-  klog("e.MMC: GPIO set up");
 
-  state->irq = device_take_irq(dev, 0, RF_ACTIVE);
+  state->irq = device_take_irq(dev, 0);
   pic_setup_intr(dev, state->irq, bcmemmc_intr_filter, NULL, state,
                  "e.MMC interrupt");
 
-  int error = bcmemmc_init(dev);
+  state->host_version =
+    (b_in(state->emmc, BCMEMMC_SLOTISR_VER) & HOST_SPEC_NUM) >>
+    HOST_SPEC_NUM_SHIFT;
+
+  int error = bcmemmc_reset_internal(dev);
   if (error) {
-    klog("e.MMC initialzation failed with code %d.", error);
+    klog("e.MMC: initialzation failed with error flags %d.", error);
     return ENXIO;
   }
 
@@ -586,6 +623,7 @@ static emmc_methods_t bcmemmc_emmc_if = {
   .write = bcmemmc_write,
   .get_prop = bcmemmc_get_prop,
   .set_prop = bcmemmc_set_prop,
+  .reset = bcmemmc_reset,
 };
 
 static driver_t bcmemmc_driver = {

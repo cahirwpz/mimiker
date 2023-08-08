@@ -25,6 +25,10 @@
 #define O_RDWR 0x00000002    /* open for reading and writing */
 #define O_ACCMODE 0x00000003 /* mask for above modes */
 
+/* TIOCFLUSH ioctl flags */
+#define FREAD 0x00000001
+#define FWRITE 0x00000002
+
 /*
  * Kernel encoding of open mode; separate read and write bits that are
  * independently testable: 1 greater than the above.

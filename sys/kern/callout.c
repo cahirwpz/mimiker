@@ -3,7 +3,7 @@
 #include <sys/libkern.h>
 #include <sys/mimiker.h>
 #include <sys/callout.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/sleepq.h>
 #include <sys/thread.h>
 #include <sys/sched.h>
@@ -40,7 +40,7 @@ static struct {
      called with. All callouts up to this timestamp have already been
      processed. */
   systime_t last;
-  spin_t lock;
+  mtx_t lock;
 } ci;
 
 static inline callout_list_t *ci_list(int i) {
@@ -55,7 +55,7 @@ static void callout_thread(void *arg) {
 
     WITH_INTR_DISABLED {
       while (TAILQ_EMPTY(&delegated)) {
-        sleepq_wait(&delegated, NULL);
+        sleepq_wait(&delegated, NULL, NULL);
       }
 
       elem = TAILQ_FIRST(&delegated);
@@ -68,7 +68,7 @@ static void callout_thread(void *arg) {
     /* Execute callout's function. */
     elem->c_func(elem->c_arg);
 
-    WITH_SPIN_LOCK (&ci.lock) {
+    WITH_MTX_LOCK (&ci.lock) {
       callout_clear_active(elem);
       /* Only notify waiters if the callout isn't already pending
        * due to a reschedule. */
@@ -81,7 +81,7 @@ static void callout_thread(void *arg) {
 void init_callout(void) {
   bzero(&ci, sizeof(ci));
 
-  spin_init(&ci.lock, 0);
+  mtx_init(&ci.lock, MTX_SPIN);
 
   for (int i = 0; i < CALLOUT_BUCKETS; i++)
     TAILQ_INIT(ci_list(i));
@@ -100,7 +100,7 @@ void callout_setup(callout_t *co, timeout_t fn, void *arg) {
 }
 
 static void _callout_schedule(callout_t *co, systime_t tm) {
-  assert(spin_owned(&ci.lock));
+  assert(mtx_owned(&ci.lock));
   assert(!callout_is_pending(co));
 
   callout_set_pending(co);
@@ -115,7 +115,7 @@ static void _callout_schedule(callout_t *co, systime_t tm) {
 }
 
 void callout_schedule_abs(callout_t *co, systime_t tm) {
-  SCOPED_SPIN_LOCK(&ci.lock);
+  SCOPED_MTX_LOCK(&ci.lock);
   assert(!callout_is_active(co));
   callout_clear_stopped(co);
 
@@ -123,7 +123,7 @@ void callout_schedule_abs(callout_t *co, systime_t tm) {
 }
 
 void callout_schedule(callout_t *co, systime_t tm) {
-  SCOPED_SPIN_LOCK(&ci.lock);
+  SCOPED_MTX_LOCK(&ci.lock);
   assert(!callout_is_active(co));
   callout_clear_stopped(co);
 
@@ -131,7 +131,7 @@ void callout_schedule(callout_t *co, systime_t tm) {
 }
 
 bool callout_reschedule(callout_t *c, systime_t tm) {
-  SCOPED_SPIN_LOCK(&ci.lock);
+  SCOPED_MTX_LOCK(&ci.lock);
   assert(callout_is_active(c));
   if (callout_is_stopped(c))
     return false;
@@ -140,7 +140,7 @@ bool callout_reschedule(callout_t *c, systime_t tm) {
 }
 
 bool callout_stop(callout_t *handle) {
-  SCOPED_SPIN_LOCK(&ci.lock);
+  SCOPED_MTX_LOCK(&ci.lock);
 
   klog("Remove callout {%p} at %ld.", handle, handle->c_time);
 
@@ -211,6 +211,6 @@ bool callout_drain(callout_t *handle) {
   if (!callout_is_pending(handle) && !callout_is_active(handle))
     return false;
   while (callout_is_pending(handle) || callout_is_active(handle))
-    sleepq_wait(handle, NULL);
+    sleepq_wait(handle, NULL, NULL);
   return true;
 }

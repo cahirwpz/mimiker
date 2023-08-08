@@ -9,9 +9,10 @@
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/condvar.h>
 #include <sys/cred.h>
+#include <sys/unistd.h>
 
 static POOL_DEFINE(P_VNODE, "vnode", sizeof(vnode_t));
 
@@ -38,13 +39,13 @@ vnode_t *vnode_new(vnodetype_t type, vnodeops_t *ops, void *data) {
  * that allows sleeping. */
 
 static void vnlock_init(vnlock_t *vl) {
-  spin_init(&vl->vl_interlock, 0);
+  mtx_init(&vl->vl_interlock, MTX_SPIN);
   cv_init(&vl->vl_cv, "vnode sleep cv");
 }
 
 void vnode_lock(vnode_t *v) {
   vnlock_t *vl = &v->v_lock;
-  WITH_SPIN_LOCK (&vl->vl_interlock) {
+  WITH_MTX_LOCK (&vl->vl_interlock) {
     while (vl->vl_locked)
       cv_wait(&vl->vl_cv, &vl->vl_interlock);
     vl->vl_locked = true;
@@ -53,7 +54,7 @@ void vnode_lock(vnode_t *v) {
 
 void vnode_unlock(vnode_t *v) {
   vnlock_t *vl = &v->v_lock;
-  WITH_SPIN_LOCK (&vl->vl_interlock) {
+  WITH_MTX_LOCK (&vl->vl_interlock) {
     vl->vl_locked = false;
     cv_signal(&vl->vl_cv);
   }
@@ -339,4 +340,26 @@ int vnode_access_generic(vnode_t *v, accmode_t acc, cred_t *cred) {
     return error;
 
   return cred_can_access(&va, cred, acc);
+}
+
+int vnode_pathconf_generic(vnode_t *v, int name, register_t *res) {
+  switch (name) {
+    case _PC_LINK_MAX:
+      *res = LINK_MAX;
+      return 0;
+    case _PC_MAX_CANON:
+      *res = MAX_CANON;
+      return 0;
+    case _PC_MAX_INPUT:
+      *res = MAX_INPUT;
+      return 0;
+    case _PC_PATH_MAX:
+      *res = PATH_MAX;
+      return 0;
+    case _PC_PIPE_BUF:
+      *res = PIPE_BUF;
+      return 0;
+    default:
+      return EINVAL;
+  }
 }

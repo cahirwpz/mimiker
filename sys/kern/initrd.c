@@ -13,6 +13,7 @@
 #include <sys/dirent.h>
 #include <sys/kenv.h>
 #include <sys/pmap.h>
+#include <sys/unistd.h>
 
 typedef uint32_t cpio_dev_t;
 typedef uint32_t cpio_ino_t;
@@ -267,6 +268,16 @@ static int initrd_vnode_readlink(vnode_t *v, uio_t *uio) {
                          uio);
 }
 
+static int initrd_vnode_pathconf(vnode_t *v, int name, register_t *res) {
+  switch (name) {
+    case _PC_NAME_MAX:
+      *res = NAME_MAX;
+      return 0;
+    default:
+      return vnode_pathconf_generic(v, name, res);
+  }
+}
+
 static inline cpio_node_t *vn2cn(vnode_t *v) {
   return (cpio_node_t *)v->v_data;
 }
@@ -344,7 +355,8 @@ static vnodeops_t initrd_vops = {.v_lookup = initrd_vnode_lookup,
                                  .v_seek = vnode_seek_generic,
                                  .v_getattr = initrd_vnode_getattr,
                                  .v_access = vnode_access_generic,
-                                 .v_readlink = initrd_vnode_readlink};
+                                 .v_readlink = initrd_vnode_readlink,
+                                 .v_pathconf = initrd_vnode_pathconf};
 
 static int initrd_init(vfsconf_t *vfc) {
   vnodeops_init(&initrd_vops);
@@ -367,7 +379,9 @@ size_t ramdisk_get_size(void) {
 void ramdisk_dump(void) {
   cpio_node_t *it;
 
-  TAILQ_FOREACH (it, &initrd_head, c_list) { cpio_node_dump(it); }
+  TAILQ_FOREACH (it, &initrd_head, c_list) {
+    cpio_node_dump(it);
+  }
 }
 
 static vfsops_t initrd_vfsops = {

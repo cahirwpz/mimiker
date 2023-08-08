@@ -1,10 +1,13 @@
-#include <unistd.h>
+#include "utest.h"
+
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
-#include <errno.h>
+#include <unistd.h>
 
-int test_getcwd(void) {
+TEST_ADD(getcwd, 0) {
+  xchdir("/");
+
   {
     /* Working directory is set to root if not changed */
     char buffer[256];

@@ -4,13 +4,17 @@
 #include <sys/libkern.h>
 #include <sys/signal.h>
 #include <sys/thread.h>
+#include <sys/sysent.h>
 #include <sys/errno.h>
 #include <sys/sleepq.h>
 #include <sys/proc.h>
 #include <sys/wait.h>
 #include <sys/sched.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/malloc.h>
+
+#include <sys/siginfo.h>
+#include <sys/sigtypes.h>
 
 static KMALLOC_DEFINE(M_SIGNAL, "signal");
 
@@ -174,7 +178,7 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
   }
 
   if (sig_pending(td)) {
-    WITH_SPIN_LOCK (td->td_lock)
+    WITH_MTX_LOCK (td->td_lock)
       td->td_flags |= TDF_NEEDSIGCHK;
   }
 
@@ -185,6 +189,7 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   thread_t *td = thread_self();
   assert(td->td_proc == p);
 
+  /* The old mask will be set back after returning from a signal handler. */
   td->td_oldsigmask = td->td_sigmask;
   td->td_pflags |= TDP_OLDSIGMASK;
 
@@ -193,10 +198,15 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
   }
 
   int error;
-  error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()");
+  error = sleepq_wait_intr(&td->td_sigmask, "sigsuspend()", NULL);
   assert(error == EINTR);
 
   return ERESTARTNOHAND;
+}
+
+int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *ksi,
+                    timespec_t *tsp) {
+  return ENOTSUP;
 }
 
 int do_sigpending(proc_t *p, sigset_t *set) {
@@ -390,15 +400,15 @@ void sig_kill(proc_t *p, ksiginfo_t *ksi) {
   if (__sigismember(&td->td_sigmask, sig))
     return;
 
-  WITH_SPIN_LOCK (td->td_lock) {
+  WITH_MTX_LOCK (td->td_lock) {
     td->td_flags |= TDF_NEEDSIGCHK;
     /* If the thread is sleeping interruptibly (!), wake it up, so that it
      * continues execution and the signal gets delivered soon. */
     if (td_is_interruptible(td)) {
       /* XXX Maybe TDF_NEEDSIGCHK should be protected by a different lock? */
-      spin_unlock(td->td_lock);
+      mtx_unlock(td->td_lock);
       sleepq_abort(td); /* Locks & unlocks td_lock */
-      spin_lock(td->td_lock);
+      mtx_lock(td->td_lock);
     }
   }
 }
@@ -484,7 +494,7 @@ int sig_check(thread_t *td, ksiginfo_t *out) {
   }
 
   /* No pending signals, signal checking done. */
-  WITH_SPIN_LOCK (td->td_lock)
+  WITH_MTX_LOCK (td->td_lock)
     td->td_flags &= ~TDF_NEEDSIGCHK;
   return 0;
 }
@@ -526,9 +536,40 @@ void sig_post(ksiginfo_t *ksi) {
 }
 
 __noreturn void sig_exit(thread_t *td, signo_t sig) {
-  klog("PID(%d) terminated due to signal %s ", td->td_proc->p_pid,
-       sig_name[sig]);
+  klog("PID(%d) terminated due to signal %s at %p!", td->td_proc->p_pid,
+       sig_name[sig], ctx_get_pc((ctx_t *)td->td_uctx));
   proc_exit(MAKE_STATUS_SIG_TERM(sig));
+}
+
+void sig_userret(mcontext_t *ctx, syscall_result_t *result) {
+  thread_t *td = thread_self();
+  proc_t *p = td->td_proc;
+  int sig = 0;
+  ksiginfo_t ksi;
+
+  /* XXX we need to know if there's a signal to be delivered in order to call
+   * set_syscall_retval(), but we also need to call set_syscall_retval() before
+   * sig_post(), as set_syscall_retval() assumes the context has not been
+   * modified, and sig_post() modifies it. This is why the logic here looks
+   * a bit weird. */
+  WITH_PROC_LOCK(p) {
+    if (td->td_flags & TDF_NEEDSIGCHK) {
+      sig = sig_check(td, &ksi);
+    }
+
+    /* Set return value from syscall, restarting it if needed. */
+    if (result)
+      syscall_set_retval(ctx, result, sig);
+
+    /* Process pending signals. */
+    while (sig) {
+      /* Calling sig_post() multiple times before returning to userspace
+       * will not make us lose signals, see comment on sig_post() in signal.h
+       */
+      sig_post(&ksi);
+      sig = sig_check(td, &ksi);
+    }
+  }
 }
 
 int do_sigreturn(ucontext_t *ucp) {
@@ -548,4 +589,18 @@ int do_sigreturn(ucontext_t *ucp) {
   assert(error == 0);
 
   return EJUSTRETURN;
+}
+
+void sig_trap(signo_t sig, int code, void *addr, int trapno) {
+  proc_t *proc = proc_self();
+
+  ksiginfo_t ksi;
+  ksi.ksi_flags = KSI_TRAP;
+  ksi.ksi_signo = sig;
+  ksi.ksi_code = code;
+  ksi.ksi_addr = addr;
+  ksi.ksi_trap = trapno;
+
+  WITH_MTX_LOCK (&proc->p_lock)
+    sig_kill(proc, &ksi);
 }

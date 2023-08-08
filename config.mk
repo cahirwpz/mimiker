@@ -6,7 +6,7 @@
 
 CONFIG_OPTS := KASAN LOCKDEP KGPROF MIPS AARCH64 RISCV KCSAN
 
-BOARD ?= malta
+BOARD ?= rpi3
 
 MIPS ?= 0
 AARCH64 ?= 0
@@ -15,6 +15,8 @@ RISCV ?= 0
 ifeq ($(BOARD), malta)
 ARCH := mips
 MIPS := 1
+# Clang does not generate debug info recognized by gdb :(
+LLVM := 0
 endif
 
 ifeq ($(BOARD), rpi3)
@@ -35,7 +37,7 @@ XLEN := 64
 endif
 
 VERBOSE ?= 0
-CLANG ?= 0
+LLVM ?= 1
 LOCKDEP ?= 0
 KASAN ?= 0
 KGPROF ?= 0

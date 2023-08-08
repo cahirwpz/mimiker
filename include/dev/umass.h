@@ -39,5 +39,6 @@ typedef struct {
 
 #define CSWSTATUS_GOOD 0x0
 #define CSWSTATUS_FAILED 0x1
+#define CSWSTATUS_PHASE 0x2
 
 #endif /* _DEV_UMASS_H_ */

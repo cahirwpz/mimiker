@@ -1,22 +1,23 @@
 #define KL_LOG KL_VM
 #include <sys/klog.h>
 #include <sys/mimiker.h>
+#include <sys/mutex.h>
 #include <sys/libkern.h>
 #include <sys/pool.h>
 #include <sys/pmap.h>
-#include <sys/vm_pager.h>
-#include <sys/vm_object.h>
+#include <sys/vm_physmem.h>
 #include <sys/vm_map.h>
+#include <sys/vm_amap.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/pcpu.h>
+#include <sys/thread.h>
 #include <machine/vm_param.h>
 
 struct vm_map_entry {
   TAILQ_ENTRY(vm_map_entry) link;
-  vm_object_t *object;
-  vaddr_t offset; /* offset in object */
+  vm_aref_t aref;
   vm_prot_t prot;
   vm_entry_flags_t flags;
   vaddr_t start;
@@ -42,8 +43,7 @@ void vm_map_activate(vm_map_t *map) {
 
 void vm_map_switch(thread_t *td) {
   proc_t *p = td->td_proc;
-  if (p)
-    vm_map_activate(p->p_uspace);
+  vm_map_activate(p ? p->p_uspace : NULL);
 }
 
 void vm_map_lock(vm_map_t *map) {
@@ -88,13 +88,13 @@ vm_map_t *vm_map_new(void) {
   return map;
 }
 
-vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
-                                   vm_prot_t prot, vm_entry_flags_t flags) {
+vm_map_entry_t *vm_map_entry_alloc(vaddr_t start, vaddr_t end, vm_prot_t prot,
+                                   vm_entry_flags_t flags) {
   assert(page_aligned_p(start) && page_aligned_p(end));
 
   vm_map_entry_t *ent = pool_alloc(P_VM_MAPENT, M_ZERO);
-  ent->object = obj;
-  ent->offset = 0;
+
+  ent->aref = (vm_aref_t){.offset = 0, .amap = NULL};
   ent->start = start;
   ent->end = end;
   ent->prot = prot;
@@ -103,8 +103,8 @@ vm_map_entry_t *vm_map_entry_alloc(vm_object_t *obj, vaddr_t start, vaddr_t end,
 }
 
 static void vm_map_entry_free(vm_map_entry_t *ent) {
-  if (ent->object)
-    vm_object_drop(ent->object);
+  if (ent->aref.amap)
+    vm_amap_drop(ent->aref.amap);
   pool_free(P_VM_MAPENT, ent);
 }
 
@@ -128,7 +128,7 @@ static void vm_map_insert_after(vm_map_t *map, vm_map_entry_t *after,
   map->nentries++;
 }
 
-void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
+static void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
   assert(mtx_owned(&map->mtx));
 
   TAILQ_REMOVE(&map->entries, ent, link);
@@ -136,12 +136,23 @@ void vm_map_entry_destroy(vm_map_t *map, vm_map_entry_t *ent) {
   vm_map_entry_free(ent);
 }
 
+/* XXX: notice that amap is here copied but we don't increase ref_cnt. If it is
+ * needed it must be done after calling this function.
+ */
 static inline vm_map_entry_t *vm_map_entry_copy(vm_map_entry_t *src) {
-  if (src->object)
-    vm_object_hold(src->object);
-  vm_map_entry_t *new = vm_map_entry_alloc(src->object, src->start, src->end,
-                                           src->prot, src->flags);
-  return new;
+  vm_map_entry_t *ent =
+    vm_map_entry_alloc(src->start, src->end, src->prot, src->flags);
+  ent->aref = src->aref;
+  return ent;
+}
+
+static inline bool range_intersects_map_entry(vm_map_entry_t *ent,
+                                              vaddr_t start, vaddr_t end) {
+  return vm_map_entry_end(ent) > start && vm_map_entry_start(ent) < end;
+}
+
+static inline size_t vaddr_to_slot(vaddr_t addr) {
+  return addr / PAGESIZE;
 }
 
 /* Split vm_map_entry into two not empty entries. (Smallest possible entry is
@@ -156,34 +167,67 @@ static vm_map_entry_t *vm_map_entry_split(vm_map_t *map, vm_map_entry_t *ent,
 
   vm_map_entry_t *new_ent = vm_map_entry_copy(ent);
 
+  /* Split amap if it is present. */
+  vm_aref_t old = ent->aref;
+  if (old.amap) {
+    vm_amap_hold(old.amap);
+    size_t offset = vaddr_to_slot(splitat - ent->start);
+    new_ent->aref =
+      (vm_aref_t){.offset = old.offset + offset, .amap = old.amap};
+  }
+
   /* clip both entries */
   ent->end = splitat;
   new_ent->start = splitat;
-  new_ent->offset = ent->offset + (ent->end - ent->start);
 
   vm_map_insert_after(map, ent, new_ent);
   return new_ent;
 }
 
-void vm_map_entry_destroy_range(vm_map_t *map, vm_map_entry_t *ent,
-                                vaddr_t start, vaddr_t end) {
+static int vm_map_destroy_range_nolock(vm_map_t *map, vaddr_t start,
+                                       vaddr_t end) {
   assert(mtx_owned(&map->mtx));
-  assert(start >= ent->start && end <= ent->end);
+
+  /* Find first entry affected by unmapping memory. */
+  vm_map_entry_t *ent = vm_map_find_entry(map, start);
+  if (!ent)
+    return 0;
 
   pmap_remove(map->pmap, start, end);
-  vm_map_entry_t *del = ent;
 
-  if (start > ent->start) {
-    /* entry we want to delete is after clipped entry */
-    del = vm_map_entry_split(map, ent, start);
+  while (range_intersects_map_entry(ent, start, end)) {
+    vaddr_t rm_start = max(start, vm_map_entry_start(ent));
+    vaddr_t rm_end = min(end, vm_map_entry_end(ent));
+
+    /* Next entry that could be affected is right after current one.
+     * Since we can delete it entirely, we have to take next entry now. */
+    vm_map_entry_t *next = vm_map_entry_next(ent);
+
+    vm_map_entry_t *del = ent;
+
+    if (rm_start > ent->start) {
+      /* entry we want to delete is after clipped entry */
+      del = vm_map_entry_split(map, ent, rm_start);
+    }
+
+    if (rm_end < del->end) {
+      /* entry which is after del is one we want to keep */
+      vm_map_entry_split(map, del, rm_end);
+    }
+
+    vm_map_entry_destroy(map, del);
+
+    if (!next)
+      break;
+
+    ent = next;
   }
+  return 0;
+}
 
-  if (end < del->end) {
-    /* entry which is after del is one we want to keep */
-    vm_map_entry_split(map, del, end);
-  }
-
-  vm_map_entry_destroy(map, del);
+int vm_map_destroy_range(vm_map_t *map, vaddr_t start, vaddr_t end) {
+  SCOPED_VM_MAP_LOCK(map);
+  return vm_map_destroy_range_nolock(map, start, end);
 }
 
 void vm_map_delete(vm_map_t *map) {
@@ -196,8 +240,47 @@ void vm_map_delete(vm_map_t *map) {
   pool_free(P_VM_MAP, map);
 }
 
-/* TODO: not implemented */
-void vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+int vm_map_protect(vm_map_t *map, vaddr_t start, vaddr_t end, vm_prot_t prot) {
+  SCOPED_MTX_LOCK(&map->mtx);
+
+  vm_map_entry_t *ent = vm_map_find_entry(map, start);
+  if (!ent)
+    return ENOMEM;
+
+  while (range_intersects_map_entry(ent, start, end)) {
+    vaddr_t prot_start = max(start, vm_map_entry_start(ent));
+    vaddr_t prot_end = min(end, vm_map_entry_end(ent));
+    vm_map_entry_t *affected = ent;
+
+    if (prot_start > ent->start) {
+      /* entry we want to change is after clipped entry */
+      affected = vm_map_entry_split(map, ent, prot_start);
+    }
+
+    if (prot_end < affected->end) {
+      /* entry which is after affected is one we want to keep unchanged */
+      vm_map_entry_split(map, affected, prot_end);
+    }
+
+    klog("change prot of %lx-%lx to %x", affected->start, affected->end, prot);
+
+    pmap_protect(map->pmap, affected->start, affected->end, prot);
+    affected->prot = prot;
+
+    /* Everything done. */
+    if (vm_map_entry_end(affected) == end)
+      break;
+
+    vm_map_entry_t *next = vm_map_entry_next(affected);
+
+    /* If next entry doesn't exist or there is a gap return error. Tried to
+     * change protection of unmapped memory. */
+    if (!next || vm_map_entry_end(affected) != vm_map_entry_start(next))
+      return ENOMEM;
+
+    ent = next;
+  }
+  return 0;
 }
 
 static int vm_map_findspace_nolock(vm_map_t *map, vaddr_t /*inout*/ *start_p,
@@ -262,9 +345,15 @@ int vm_map_insert(vm_map_t *map, vm_map_entry_t *ent, vm_flags_t flags) {
   size_t length = ent->end - ent->start;
   vm_entry_flags_t entry_flags = 0;
 
-  int error = vm_map_findspace_nolock(map, &start, length, &after);
-  if (error)
+  int error;
+  if ((flags & VM_FIXED) && !(flags & VM_EXCL)) {
+    if ((error = vm_map_destroy_range_nolock(map, ent->start, ent->end)))
+      return error;
+  }
+
+  if ((error = vm_map_findspace_nolock(map, &start, length, &after)))
     return error;
+
   if ((flags & VM_FIXED) && (start != ent->start))
     return ENOMEM;
 
@@ -297,10 +386,9 @@ int vm_map_alloc_entry(vm_map_t *map, vaddr_t addr, size_t length,
   if (addr != 0 && !userspace_p(addr, addr + length))
     return EINVAL;
 
-  /* Create object with a pager that supplies cleared pages on page fault. */
-  vm_object_t *obj = vm_object_alloc(VM_ANONYMOUS);
+  /* Create entry without amap. */
   vm_map_entry_t *ent =
-    vm_map_entry_alloc(obj, addr, addr + length, prot, VM_ENT_SHARED);
+    vm_map_entry_alloc(addr, addr + length, prot, VM_ENT_SHARED);
 
   /* Given the hint try to insert the entry at given position or after it. */
   if (vm_map_insert(map, ent, flags)) {
@@ -323,13 +411,19 @@ int vm_map_entry_resize(vm_map_t *map, vm_map_entry_t *ent, vaddr_t new_end) {
     vaddr_t gap_end = next ? next->start : USER_SPACE_END;
     if (new_end > gap_end)
       return ENOMEM;
+
+    size_t new_slots = vaddr_to_slot(new_end - ent->start);
+    if (ent->aref.amap && vm_amap_slots(ent->aref.amap) < new_slots)
+      return ENOMEM;
   } else {
     /* Shrinking entry */
-    off_t offset = new_end - ent->start;
-    size_t length = ent->end - new_end;
+
+    /* There's no reference to pmap in page, so we have to do it here. */
     pmap_remove(map->pmap, new_end, ent->end);
-    vm_object_remove_pages(ent->object, offset, length);
-    /* TODO there's no reference to pmap in page, so we have to do it here */
+
+    size_t offset = vaddr_to_slot(new_end - ent->start);
+    size_t n_remove = vaddr_to_slot(ent->end - new_end);
+    vm_amap_remove_pages(ent->aref, offset, n_remove);
   }
 
   ent->end = new_end;
@@ -351,9 +445,50 @@ void vm_map_dump(vm_map_t *map) {
          (it->prot & VM_PROT_READ) ? 'r' : '-',
          (it->prot & VM_PROT_WRITE) ? 'w' : '-',
          (it->prot & VM_PROT_EXEC) ? 'x' : '-');
-    vm_object_dump(it->object);
   }
 }
+
+static vm_map_entry_t *vm_map_entry_clone_shared(vm_map_t *map,
+                                                 vm_map_entry_t *ent) {
+  if (!ent->aref.amap) {
+    /* We need to create amap, because we won't be able to share it if it
+     * is not created now. */
+    size_t slots = vaddr_to_slot(ent->end - ent->start);
+    ent->aref.amap = vm_amap_alloc(slots);
+  }
+
+  vm_map_entry_t *new = vm_map_entry_copy(ent);
+  vm_amap_hold(ent->aref.amap);
+  new->aref = ent->aref;
+  return new;
+}
+
+static vm_map_entry_t *vm_map_entry_clone_copy(vm_map_t *map,
+                                               vm_map_entry_t *ent) {
+  vm_map_entry_t *new = vm_map_entry_copy(ent);
+
+  /* TODO(cow): There are few special cases but we don't need them now because
+   * we don't support all the features available in original UVM system.
+   *   - Share inheritance when Needs Copy flag is set
+   *   - Amap is shared between 2 processes but must be copied due to
+   *     copy inheritance of mapping
+   *
+   * -- Section 4.7 in "The Design and Implementation of UVM".
+   */
+
+  /* Just hold the amap if it is present and set flags. Copying will be done
+   * during page fault. */
+  if (ent->aref.amap)
+    vm_amap_hold(ent->aref.amap);
+
+  ent->flags |= VM_ENT_COW | VM_ENT_NEEDSCOPY;
+  new->flags |= VM_ENT_COW | VM_ENT_NEEDSCOPY;
+
+  pmap_protect(map->pmap, ent->start, ent->end, ent->prot & (~VM_PROT_WRITE));
+  return new;
+}
+
+#define VM_ENT_INHERIT_MASK (VM_ENT_SHARED | VM_ENT_PRIVATE)
 
 vm_map_t *vm_map_clone(vm_map_t *map) {
   thread_t *td = thread_self();
@@ -362,27 +497,62 @@ vm_map_t *vm_map_clone(vm_map_t *map) {
   vm_map_t *new_map = vm_map_new();
 
   WITH_MTX_LOCK (&map->mtx) {
-    vm_map_entry_t *it;
+    vm_map_entry_t *it, *new;
     TAILQ_FOREACH (it, &map->entries, link) {
-      vm_object_t *obj;
-      vm_map_entry_t *ent;
-
-      if (it->flags & VM_ENT_SHARED) {
-        vm_object_hold(it->object);
-        obj = it->object;
-      } else {
-        /* vm_object_clone will clone the data from the vm_object_t
-         * and will return the new object with ref_counter equal to one */
-        obj = vm_object_clone(it->object);
+      switch (it->flags & VM_ENT_INHERIT_MASK) {
+        case VM_ENT_SHARED:
+          new = vm_map_entry_clone_shared(map, it);
+          break;
+        case VM_ENT_PRIVATE:
+          new = vm_map_entry_clone_copy(map, it);
+          break;
+        default:
+          panic("Unrecognized vm_map_entry inheritance flag: %d",
+                it->flags & VM_ENT_INHERIT_MASK);
       }
-      ent = vm_map_entry_alloc(obj, it->start, it->end, it->prot, it->flags);
-      ent->offset = it->offset;
-      TAILQ_INSERT_TAIL(&new_map->entries, ent, link);
+
+      /* Failed to create new entry. */
+      if (!new) {
+        vm_map_delete(new_map);
+        return NULL;
+      }
+
+      TAILQ_INSERT_TAIL(&new_map->entries, new, link);
       new_map->nentries++;
     }
   }
-
   return new_map;
+}
+
+static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
+                          vm_anon_t *old, vm_anon_t **newp) {
+  /* Copy amap to make it ready for inserting copied or new anons. */
+  if (ent->flags & VM_ENT_NEEDSCOPY) {
+    size_t amap_slots = vaddr_to_slot(ent->end - ent->start);
+    vm_aref_t new_aref = vm_amap_copy_if_needed(ent->aref, amap_slots);
+    if (!new_aref.amap)
+      return ENOMEM;
+    ent->flags &= ~VM_ENT_NEEDSCOPY;
+    ent->aref = new_aref;
+  }
+
+  if (old == NULL)
+    return 0;
+
+  /* Current mapping will be replaced with new one so remove it from pmap. */
+  vaddr_t fault_page = off * PAGESIZE + ent->start;
+  pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
+
+  /* Remove anon that will be replaced. */
+  vm_anon_t *new = vm_anon_copy(old);
+  vm_anon_t *found = vm_amap_find_anon(ent->aref, off);
+
+  /* Check if removed anon is the one we expect to be replaced. */
+  assert(old == found);
+
+  vm_amap_remove_pages(ent->aref, off, 1);
+  *newp = new;
+  return 0;
 }
 
 int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
@@ -400,33 +570,56 @@ int vm_page_fault(vm_map_t *map, vaddr_t fault_addr, vm_prot_t fault_type) {
     return EACCES;
   }
 
-  if (!(ent->prot & VM_PROT_WRITE) && (fault_type == VM_PROT_WRITE)) {
+  if (!(ent->prot & VM_PROT_WRITE) && (fault_type & VM_PROT_WRITE)) {
     klog("Cannot write to address: 0x%08lx", fault_addr);
     return EACCES;
   }
 
-  if (!(ent->prot & VM_PROT_READ) && (fault_type == VM_PROT_READ)) {
+  if (!(ent->prot & VM_PROT_READ) && (fault_type & VM_PROT_READ)) {
     klog("Cannot read from address: 0x%08lx", fault_addr);
+    return EACCES;
+  }
+
+  if (!(ent->prot & VM_PROT_EXEC) && (fault_type & VM_PROT_EXEC)) {
+    klog("Cannot exec at address: 0x%08lx", fault_addr);
     return EACCES;
   }
 
   assert(ent->start <= fault_addr && fault_addr < ent->end);
 
-  vm_object_t *obj = ent->object;
-
-  assert(obj != NULL);
-
+  vm_anon_t *anon = NULL;
   vaddr_t fault_page = fault_addr & -PAGESIZE;
-  vaddr_t offset = ent->offset + (fault_page - ent->start);
-  vm_page_t *frame = vm_object_find_page(ent->object, offset);
+  size_t offset = vaddr_to_slot(fault_page - ent->start);
 
-  if (frame == NULL)
-    frame = obj->vo_pager->pgr_fault(obj, offset);
+  if (ent->aref.amap) {
+    /* Look for anon in existing amap. */
+    anon = vm_amap_find_anon(ent->aref, offset);
+  } else {
+    /* Create a new amap. */
+    size_t amap_slots = vaddr_to_slot(ent->end - ent->start);
+    ent->aref.amap = vm_amap_alloc(amap_slots);
+    ent->aref.offset = 0;
+  }
 
-  if (frame == NULL)
-    return EFAULT;
+  vm_prot_t insert_prot = ent->prot;
 
-  pmap_enter(map->pmap, fault_page, frame, ent->prot, 0);
+  if (ent->flags & VM_ENT_COW) {
+    if (fault_type & VM_PROT_WRITE) {
+      int err;
+      if ((err = cow_page_fault(map, ent, offset, anon, &anon)))
+        return err;
+    } else {
+      insert_prot &= ~VM_PROT_WRITE;
+    }
+  }
 
+  if (!anon)
+    anon = vm_anon_alloc();
+
+  if (!anon)
+    return ENOMEM;
+
+  vm_amap_insert_anon(ent->aref, anon, offset);
+  pmap_enter(map->pmap, fault_page, anon->page, insert_prot, 0);
   return 0;
 }

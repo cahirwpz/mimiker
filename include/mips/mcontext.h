@@ -95,7 +95,7 @@ struct __fpregset {
   union {
     double __fp_dregs[16];
     float __fp_fregs[32];
-    int32_t __fp_regs[32];
+    int __fp_regs[32];
   } __fp_r;
   unsigned int __fp_csr;
 };

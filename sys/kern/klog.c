@@ -33,7 +33,7 @@ static klog_t klog = (klog_t){
   .prev = -1,
 };
 
-static SPIN_DEFINE(klog_lock, LK_RECURSIVE);
+static MTX_DEFINE(klog_lock, MTX_SPIN);
 
 static const char *subsystems[] = {
   [KL_SLEEPQ] = "sleepq",   [KL_CALLOUT] = "callout", [KL_INIT] = "init",
@@ -66,6 +66,16 @@ static void klog_entry_dump(klog_entry_t *entry) {
   kprintf("\n");
 }
 
+static void klog_entry_add(klog_entry_t *newentry) {
+  klog_entry_t *entry = &klog.array[klog.last];
+  memcpy(entry, newentry, sizeof(klog_entry_t));
+
+  klog.prev = klog.last;
+  klog.last = next(klog.last);
+  if (klog.first == klog.last)
+    klog.first = next(klog.first);
+}
+
 void klog_append(klog_origin_t origin, const char *file, unsigned line,
                  const char *format, uintptr_t arg1, uintptr_t arg2,
                  uintptr_t arg3, uintptr_t arg4, uintptr_t arg5,
@@ -75,13 +85,13 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
 
   tid_t tid = thread_self()->td_tid;
 
-  WITH_SPIN_LOCK (&klog_lock) {
+  WITH_MTX_LOCK (&klog_lock) {
     bintime_t now = binuptime();
 
-    klog_entry_t *prev = (klog.prev >= 0) ? &klog.array[klog.prev] : NULL;
-
     /* Do not store repeating log messages, just count them. */
-    if (prev) {
+    if (klog.prev >= 0) {
+      klog_entry_t *prev = &klog.array[klog.prev];
+
       bool repeats =
         (prev->kl_params[0] == arg1) && (prev->kl_params[1] == arg2) &&
         (prev->kl_params[2] == arg3) && (prev->kl_params[3] == arg4) &&
@@ -92,9 +102,14 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
       if (repeats) {
         if (!klog.repeated) {
           int old_prev = klog.prev;
-          klog.prev = -1;
-          klog_append(prev->kl_origin, prev->kl_file, prev->kl_line,
-                      "Last message repeated %d times.", 0, 0, 0, 0, 0, 0);
+          klog_entry_add(
+            &(klog_entry_t){.kl_timestamp = now,
+                            .kl_tid = prev->kl_tid,
+                            .kl_line = prev->kl_line,
+                            .kl_file = prev->kl_file,
+                            .kl_origin = prev->kl_origin,
+                            .kl_format = "Last message repeated %d times.",
+                            .kl_params = {0, 0, 0, 0, 0, 0}});
           klog.prev = old_prev;
           klog.repeated = true;
         }
@@ -108,19 +123,14 @@ void klog_append(klog_origin_t origin, const char *file, unsigned line,
       klog.repeated = false;
     }
 
-    klog_entry_t *entry = &klog.array[klog.last];
-    *entry = (klog_entry_t){.kl_timestamp = now,
-                            .kl_tid = tid,
-                            .kl_line = line,
-                            .kl_file = file,
-                            .kl_origin = origin,
-                            .kl_format = format,
-                            .kl_params = {arg1, arg2, arg3, arg4, arg5, arg6}};
-
-    klog.prev = klog.last;
-    klog.last = next(klog.last);
-    if (klog.first == klog.last)
-      klog.first = next(klog.first);
+    klog_entry_add(
+      &(klog_entry_t){.kl_timestamp = now,
+                      .kl_tid = tid,
+                      .kl_line = line,
+                      .kl_file = file,
+                      .kl_origin = origin,
+                      .kl_format = format,
+                      .kl_params = {arg1, arg2, arg3, arg4, arg5, arg6}});
   }
 }
 
@@ -132,7 +142,7 @@ void klog_dump(void) {
   klog_entry_t entry;
 
   while (klog.first != klog.last) {
-    WITH_SPIN_LOCK (&klog_lock) {
+    WITH_MTX_LOCK (&klog_lock) {
       entry = klog.array[klog.first];
       klog.first = next(klog.first);
     }
@@ -161,6 +171,7 @@ __noreturn void klog_panic(klog_origin_t origin, const char *file,
                            unsigned line, const char *format, uintptr_t arg1,
                            uintptr_t arg2, uintptr_t arg3, uintptr_t arg4,
                            uintptr_t arg5, uintptr_t arg6) {
+  klog.mask = -1;
   klog_append(origin, file, line, format, arg1, arg2, arg3, arg4, arg5, arg6);
   ktest_log_failure();
   halt();

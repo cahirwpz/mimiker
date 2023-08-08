@@ -3,7 +3,6 @@
 #include <sys/thread.h>
 #include <sys/filedesc.h>
 #include <sys/sched.h>
-#include <sys/exception.h>
 #include <sys/libkern.h>
 #include <sys/vm_map.h>
 #include <sys/proc.h>
@@ -16,6 +15,7 @@
 int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   thread_t *td = thread_self();
   proc_t *parent = td->td_proc;
+  vm_map_t *new_map;
   char *name = td->td_name;
   int error = 0;
 
@@ -26,6 +26,10 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
     start = (entry_fn_t)user_exc_leave;
   else
     name = "init";
+
+  new_map = vm_map_clone(parent->p_uspace);
+  if (!new_map)
+    return ENOMEM;
 
   /* The new thread will get a new kernel stack. There is no need to copy
    * it from the old one as its contents will get discarded anyway.
@@ -66,7 +70,7 @@ int do_fork(void (*start)(void *), void *arg, pid_t *cldpidp) {
   }
 
   /* Clone the entire process memory space. */
-  child->p_uspace = vm_map_clone(parent->p_uspace);
+  child->p_uspace = new_map;
 
   /* Find copied brk segment. */
   WITH_VM_MAP_LOCK (child->p_uspace) {

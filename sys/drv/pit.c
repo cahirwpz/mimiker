@@ -15,7 +15,7 @@ typedef struct pit_state {
   /* values since last counter read */
   uint16_t prev_cntr16; /* number of counter ticks */
   /* values since initialization */
-  uint32_t cntr_modulo; /* number of counter ticks modulo TIMER_FREQ*/
+  uint32_t cntr_modulo; /* number of counter ticks modulo TIMER_FREQ */
   uint64_t sec;         /* seconds */
 } pit_state_t;
 
@@ -144,11 +144,15 @@ static bintime_t pit_timer_gettime(timer_t *tm) {
 
 static int pit_attach(device_t *dev) {
   pit_state_t *pit = dev->state;
+  int err = 0;
 
-  pit->regs = device_take_ioports(dev, 0, RF_ACTIVE);
+  pit->regs = device_take_ioports(dev, 0);
   assert(pit->regs != NULL);
 
-  pit->irq_res = device_take_irq(dev, 0, RF_ACTIVE);
+  if ((err = bus_map_resource(dev, pit->regs)))
+    return err;
+
+  pit->irq_res = device_take_irq(dev, 0);
 
   pit->timer = (timer_t){
     .tm_name = "i8254",

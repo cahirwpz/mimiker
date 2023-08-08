@@ -6,7 +6,7 @@
 #include <sys/sleepq.h>
 #include <sys/pool.h>
 #include <sys/sched.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/thread.h>
 #include <sys/interrupt.h>
 #include <sys/errno.h>
@@ -21,7 +21,7 @@
 
 /*! \brief bucket of sleep queues */
 typedef struct sleepq_chain {
-  spin_t sc_lock;
+  mtx_t sc_lock;
   TAILQ_HEAD(, sleepq) sc_queues; /*!< list of sleep queues */
 } sleepq_chain_t;
 
@@ -29,16 +29,16 @@ static sleepq_chain_t sleepq_chains[SC_TABLESIZE];
 
 static sleepq_chain_t *sc_acquire(void *wchan) {
   sleepq_chain_t *sc = SC_LOOKUP(wchan);
-  spin_lock(&sc->sc_lock);
+  mtx_lock(&sc->sc_lock);
   return sc;
 }
 
 static bool sc_owned(sleepq_chain_t *sc) {
-  return spin_owned(&sc->sc_lock);
+  return mtx_owned(&sc->sc_lock);
 }
 
 static void sc_release(sleepq_chain_t *sc) {
-  spin_unlock(&sc->sc_lock);
+  mtx_unlock(&sc->sc_lock);
 }
 
 /*! \brief stores all threads sleeping on the same resource.
@@ -64,7 +64,7 @@ void init_sleepq(void) {
 
   for (int i = 0; i < SC_TABLESIZE; i++) {
     sleepq_chain_t *sc = &sleepq_chains[i];
-    spin_init(&sc->sc_lock, 0);
+    mtx_init(&sc->sc_lock, MTX_SPIN | MTX_NODEBUG);
     TAILQ_INIT(&sc->sc_queues);
   }
 }
@@ -114,7 +114,7 @@ static __used sleepq_t *sleepq_lookup(void *wchan) {
 static void sq_enter(thread_t *td, sleepq_chain_t *sc, void *wchan,
                      const void *waitpt) {
   assert(sc_owned(sc));
-  assert(spin_owned(td->td_lock));
+  assert(mtx_owned(td->td_lock));
 
   klog("Thread %u goes to sleep on %p at pc=%p", td->td_tid, wchan, waitpt);
 
@@ -158,7 +158,7 @@ static void sq_leave(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq) {
        td->td_waitpt);
 
   assert(sc_owned(sc));
-  assert(spin_owned(td->td_lock));
+  assert(mtx_owned(td->td_lock));
 
   assert(td->td_wchan != NULL);
   assert(td->td_sleepqueue == NULL);
@@ -193,7 +193,7 @@ static bool sq_wakeup(thread_t *td, sleepq_chain_t *sc, sleepq_t *sq,
                       int wakeup) {
   assert(sc_owned(sc));
 
-  WITH_SPIN_LOCK (td->td_lock) {
+  WITH_MTX_LOCK (td->td_lock) {
     if ((wakeup == EINTR) && (td->td_flags & TDF_SLPINTR)) {
       td->td_flags &= ~TDF_SLPTIMED; /* Not woken up by timeout. */
     } else if ((wakeup == ETIMEDOUT) && (td->td_flags & TDF_SLPTIMED)) {
@@ -274,39 +274,49 @@ bool sleepq_abort(thread_t *td) {
   return _sleepq_abort(td, EINTR);
 }
 
-void sleepq_wait(void *wchan, const void *waitpt) {
+void sleepq_wait(void *wchan, const void *waitpt, mtx_t *mtx) {
   thread_t *td = thread_self();
 
   if (waitpt == NULL)
     waitpt = __caller(0);
 
   sleepq_chain_t *sc = sc_acquire(wchan);
-  spin_lock(td->td_lock);
+  if (mtx)
+    mtx_unlock(mtx);
+  mtx_lock(td->td_lock);
   td->td_state = TDS_SLEEPING;
   sq_enter(td, sc, wchan, waitpt);
 
   /* Panic if we were interrupted by timeout or signal. */
   assert((td->td_flags & (TDF_SLPINTR | TDF_SLPTIMED)) == 0);
+
+  if (mtx)
+    mtx_lock(mtx);
 }
 
 static void sq_timeout(thread_t *td) {
   _sleepq_abort(td, ETIMEDOUT);
 }
 
-int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
+int sleepq_wait_timed(void *wchan, const void *waitpt, mtx_t *mtx,
+                      systime_t timeout) {
   thread_t *td = thread_self();
+  int error = 0;
 
   if (waitpt == NULL)
     waitpt = __caller(0);
 
   sleepq_chain_t *sc = sc_acquire(wchan);
-  spin_lock(td->td_lock);
+  if (mtx)
+    mtx_unlock(mtx);
+  mtx_lock(td->td_lock);
 
   /* If there are pending signals, interrupt the sleep immediately. */
   if ((td->td_flags & TDF_NEEDSIGCHK) && (timeout == 0)) {
-    spin_unlock(td->td_lock);
+    mtx_unlock(td->td_lock);
     sc_release(sc);
-    return EINTR;
+    error = EINTR;
+    goto end;
   }
 
   if (timeout > 0) {
@@ -320,8 +330,7 @@ int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
   /* After wakeup, only one of the following flags may be set:
    *  - TDF_SLPINTR if sleep was aborted,
    *  - TDF_SLPTIMED if sleep has timed out. */
-  int error = 0;
-  WITH_SPIN_LOCK (td->td_lock) {
+  WITH_MTX_LOCK (td->td_lock) {
     if (td->td_flags & TDF_SLPINTR) {
       error = EINTR;
     } else if (td->td_flags & TDF_SLPTIMED) {
@@ -333,5 +342,8 @@ int sleepq_wait_timed(void *wchan, const void *waitpt, systime_t timeout) {
   if (timeout > 0)
     callout_stop(&td->td_slpcallout);
 
+end:
+  if (mtx)
+    mtx_lock(mtx);
   return error;
 }

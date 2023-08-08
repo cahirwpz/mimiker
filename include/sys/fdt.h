@@ -40,35 +40,15 @@ typedef struct fdt_intr {
 } fdt_intr_t;
 
 /*
- * Early FDT initialization.
+ * FDT initialization.
  *
  * Must be called during MD bootstrap before the kernel environment is built.
  * This is the first FDT function that gets called.
  *
  * Arguments:
- *  - `pa`: FDT physical address
  *  - `va`: FDT kernel virtual address
  */
-void FDT_early_init(paddr_t pa, void *va);
-
-/*
- * Obtain the physical address of the FDT blob.
- */
-paddr_t FDT_get_physaddr(void);
-
-/*
- * Change the internal root FDT pointer.
- */
-void FDT_changeroot(void *root);
-
-/*
- * Obtain physical memory boundaries of the FDT blob.
- *
- * Arguments:
- *  - `startp`: dst for the first address
- *  - `endp`: dst for the first address after the blob
- */
-void FDT_get_blob_range(paddr_t *startp, paddr_t *endp);
+void FDT_init(void *va);
 
 /*
  * Find the package handle of a pointed device in the device tree.
@@ -117,6 +97,11 @@ phandle_t FDT_peer(phandle_t node);
  *  - otherwise: phandle of the parent node
  */
 phandle_t FDT_parent(phandle_t node);
+
+/*
+ * Returns a pointer to the name of `node`.
+ */
+const char *FDT_getname(phandle_t node);
 
 /*
  * Obtain the length of the value associated with property `propname`

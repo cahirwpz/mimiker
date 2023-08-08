@@ -95,7 +95,7 @@ static devfs_node_t *devfs_find_child(devfs_node_t *parent,
 static devfs_node_t *devfs_node_create(const char *name, int mode) {
   devfs_node_t *dn = kmalloc(M_DEVFS, sizeof(devfs_node_t), M_ZERO | M_WAITOK);
 
-  strncpy(dn->dn_name, name, DEVFS_NAME_MAX);
+  strlcpy(dn->dn_name, name, DEVFS_NAME_MAX);
   dn->dn_device.mode = mode;
   dn->dn_nlinks = (mode & S_IFDIR) ? 2 : 1;
   dn->dn_ino = devfs.next_ino++;
@@ -140,18 +140,41 @@ void devfs_free(devfs_node_t *dn) {
 
 static int devfs_fop_read(file_t *fp, uio_t *uio) {
   devnode_t *dev = fp->f_data;
-  return dev->ops->d_read(dev, uio);
+  int err;
+
+  if (dev->ops->d_type & DT_SEEKABLE)
+    uio->uio_offset = fp->f_offset;
+
+  err = dev->ops->d_read(dev, uio);
+
+  if (dev->ops->d_type & DT_SEEKABLE)
+    fp->f_offset = uio->uio_offset;
+
+  return err;
 }
 
 static int devfs_fop_write(file_t *fp, uio_t *uio) {
   devnode_t *dev = fp->f_data;
-  return dev->ops->d_write(dev, uio);
+  int err;
+
+  if (dev->ops->d_type & DT_SEEKABLE)
+    uio->uio_offset = fp->f_offset;
+
+  err = dev->ops->d_write(dev, uio);
+
+  if (dev->ops->d_type & DT_SEEKABLE)
+    fp->f_offset = uio->uio_offset;
+
+  return err;
 }
 
 static int devfs_fop_close(file_t *fp) {
+  int error;
   devnode_t *dev = fp->f_data;
   refcnt_release(&dev->refcnt);
-  return dev->ops->d_close(dev, fp);
+  error = dev->ops->d_close(dev, fp);
+  vnode_drop(fp->f_vnode);
+  return error;
 }
 
 static int devfs_fop_seek(file_t *fp, off_t offset, int whence,
@@ -201,6 +224,11 @@ static int devfs_fop_ioctl(file_t *fp, u_long cmd, void *data) {
   return dev->ops->d_ioctl(dev, cmd, data, fp->f_flags);
 }
 
+static int devfs_fop_kqfilter(file_t *fp, knote_t *kn) {
+  devnode_t *dev = fp->f_data;
+  return dev->ops->d_kqfilter(dev, kn);
+}
+
 static fileops_t devfs_fileops = {
   .fo_read = devfs_fop_read,
   .fo_write = devfs_fop_write,
@@ -208,6 +236,7 @@ static fileops_t devfs_fileops = {
   .fo_seek = devfs_fop_seek,
   .fo_stat = devfs_fop_stat,
   .fo_ioctl = devfs_fop_ioctl,
+  .fo_kqfilter = devfs_fop_kqfilter,
 };
 
 /*

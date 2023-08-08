@@ -34,7 +34,7 @@ static thread_t *waker;
 
 static void waiter_routine(void *_arg) {
   systime_t before_sleep = getsystime();
-  int status = sleepq_wait_timed(&wchan, __caller(0), SLEEP_TICKS);
+  int status = sleepq_wait_timed(&wchan, __caller(0), NULL, SLEEP_TICKS);
   systime_t after_sleep = getsystime();
   systime_t diff = after_sleep - before_sleep;
 
@@ -66,7 +66,7 @@ static int test_sleepq_timed(void) {
   waker =
     thread_create("test-sleepq-waker", waker_routine, NULL, prio_kthread(0));
   for (int i = 0; i < THREADS; i++) {
-    char name[20];
+    char name[32];
     snprintf(name, sizeof(name), "test-sleepq-waiter-%d", i);
     waiters[i] =
       thread_create(name, waiter_routine, NULL, prio_kthread(0) + RQ_PPQ);

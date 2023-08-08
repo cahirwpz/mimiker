@@ -23,11 +23,12 @@ CFLAGS.board.c = -mcmodel=large
 
 CLEAN-FILES += assym.h
 
-CPPFLAGS += -D_MACHDEP
-
 include $(TOPDIR)/build/build.kern.mk
 
 $(SOURCES-AARCH64): assym.h
 
+CPPFLAGS += -D_MACHDEP
+
 boot.o : CFLAGS_KASAN =
 boot.o : CFLAGS_KCSAN =
+boot.o : CFLAGS_KGPROF =

@@ -20,7 +20,7 @@ static MTX_DEFINE(ts_adj_mtx, 0);
 static thread_t *threads[T];
 
 static void set_prio(thread_t *td, prio_t prio) {
-  WITH_SPIN_LOCK (td->td_lock)
+  WITH_MTX_LOCK (td->td_lock)
     sched_set_prio(td, prio);
 }
 
@@ -83,7 +83,7 @@ static int test_turnstile_adjust(void) {
   for (int i = 0; i < T; i++) {
     WITH_NO_PREEMPTION {
       sched_add(threads[i]);
-      sleepq_wait(threads[i], "thread start");
+      sleepq_wait(threads[i], "thread start", NULL);
     }
   }
 

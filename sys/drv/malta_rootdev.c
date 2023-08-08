@@ -5,12 +5,10 @@
 #include <mips/m32c0.h>
 #include <mips/interrupt.h>
 #include <sys/bus.h>
-#include <sys/exception.h>
 #include <sys/devclass.h>
 #include <mips/mcontext.h>
 
 typedef struct rootdev {
-  rman_t mem, irq;
   intr_event_t *intr_event[MIPS_NIRQ];
 } rootdev_t;
 
@@ -37,22 +35,11 @@ static const char *rootdev_intr_name[MIPS_NIRQ] = {
 };
 /* clang-format on */
 
-static resource_t *rootdev_alloc_intr(device_t *pic, device_t *dev, int rid,
-                                      unsigned irq, rman_flags_t flags) {
-  rootdev_t *rd = pic->state;
-  rman_t *rman = &rd->irq;
-  return rman_reserve_resource(rman, RT_IRQ, rid, irq, irq, 1, 0, flags);
-}
-
-static void rootdev_release_intr(device_t *pic, device_t *dev, resource_t *r) {
-  resource_release(r);
-}
-
 static void rootdev_setup_intr(device_t *pic, device_t *dev, resource_t *r,
                                ih_filter_t *filter, ih_service_t *service,
                                void *arg, const char *name) {
   rootdev_t *rd = pic->state;
-  int irq = resource_start(r);
+  int irq = r->r_irq;
   assert(irq < MIPS_NIRQ);
 
   if (rd->intr_event[irq] == NULL)
@@ -71,47 +58,16 @@ static void rootdev_teardown_intr(device_t *pic, device_t *dev,
    * intr_teardown method? probably not... maybe in detach method? */
 }
 
-static resource_t *rootdev_alloc_resource(device_t *dev, res_type_t type,
-                                          int rid, rman_addr_t start,
-                                          rman_addr_t end, size_t size,
-                                          rman_flags_t flags) {
-  rootdev_t *rd = dev->parent->state;
-  rman_t *rman = &rd->mem;
-  size_t alignment = PAGESIZE;
-
-  assert(type == RT_MEMORY);
-
-  resource_t *r =
-    rman_reserve_resource(rman, type, rid, start, end, size, alignment, flags);
-  if (!r)
-    return NULL;
+static int rootdev_map_resource(device_t *dev, resource_t *r) {
+  assert(r->r_type == RT_MEMORY);
 
   r->r_bus_tag = generic_bus_space;
-  r->r_bus_handle = resource_start(r);
 
-  if (flags & RF_ACTIVE) {
-    if (bus_activate_resource(dev, r)) {
-      resource_release(r);
-      return NULL;
-    }
-  }
-
-  return r;
-}
-
-static void rootdev_release_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_MEMORY);
-  bus_deactivate_resource(dev, r);
-  resource_release(r);
-}
-
-static int rootdev_activate_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_MEMORY);
-  return bus_space_map(r->r_bus_tag, resource_start(r), resource_size(r),
+  return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
                        &r->r_bus_handle);
 }
 
-static void rootdev_deactivate_resource(device_t *dev, resource_t *r) {
+static void rootdev_unmap_resource(device_t *dev, resource_t *r) {
   assert(r->r_type == RT_MEMORY);
   /* TODO: unmap mapped resources. */
 }
@@ -137,16 +93,6 @@ static int rootdev_probe(device_t *bus) {
 DEVCLASS_DECLARE(pci);
 
 static int rootdev_attach(device_t *bus) {
-  rootdev_t *rd = bus->state;
-
-  /* Manages space occupied by I/O devices: PCI, FPGA, system controler, ...
-   * Skips region allocated for up to 256MB of RAM. */
-  rman_init(&rd->mem, "Malta I/O space");
-  rman_manage_region(&rd->mem, MALTA_PERIPHERALS_BASE, MALTA_PERIPHERALS_SIZE);
-
-  rman_init(&rd->irq, "MIPS interrupts");
-  rman_manage_region(&rd->irq, 0, MIPS_NIRQ);
-
   intr_root_claim(rootdev_intr_handler, bus);
 
   /* Create MIPS timer device and assign resources to it. */
@@ -159,11 +105,11 @@ static int rootdev_attach(device_t *bus) {
   dev->pic = bus;
   dev->devclass = &DEVCLASS(pci);
   /* PCI I/O memory. */
-  device_add_memory(dev, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_SIZE);
-  /* PCI I/O ports 0x0000-0xffff. */
-  device_add_memory(dev, 1, MALTA_PCI0_IO_BASE, 0x10000);
+  device_add_memory(dev, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END, 0);
+  /* PCI I/O ports. */
+  device_add_memory(dev, 1, MALTA_PCI0_IO_BASE, MALTA_PCI0_IO_END, 0);
   /* GT64120 registers. */
-  device_add_memory(dev, 2, MALTA_CORECTRL_BASE, MALTA_CORECTRL_SIZE);
+  device_add_memory(dev, 2, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END, 0);
   /* GT64120 main irq. */
   device_add_irq(dev, 0, MIPS_HWINT0);
 
@@ -173,15 +119,11 @@ static int rootdev_attach(device_t *bus) {
 }
 
 static bus_methods_t rootdev_bus_if = {
-  .alloc_resource = rootdev_alloc_resource,
-  .release_resource = rootdev_release_resource,
-  .activate_resource = rootdev_activate_resource,
-  .deactivate_resource = rootdev_deactivate_resource,
+  .map_resource = rootdev_map_resource,
+  .unmap_resource = rootdev_unmap_resource,
 };
 
 static pic_methods_t rootdev_pic_if = {
-  .alloc_intr = rootdev_alloc_intr,
-  .release_intr = rootdev_release_intr,
   .setup_intr = rootdev_setup_intr,
   .teardown_intr = rootdev_teardown_intr,
 };

@@ -53,6 +53,58 @@
 #endif
 #endif
 
+#ifndef __UINT8_FMTu__
+#define __UINT8_FMTu__ "u"
+#endif
+#ifndef __UINT16_FMTu__
+#define __UINT16_FMTu__ "u"
+#endif
+#ifndef __UINT32_FMTu__
+#define __UINT32_FMTu__ "u"
+#endif
+#ifndef __UINT64_FMTu__
+#ifndef _LP64
+#define __UINT64_FMTu__ "llu"
+#else
+#define __UINT64_FMTu__ "lu"
+#endif
+#endif
+
+#ifndef __UINT_LEAST8_FMTu__
+#define __UINT_LEAST8_FMTu__ __UINT8_FMTu__
+#endif
+#ifndef __UINT_LEAST16_FMTu__
+#define __UINT_LEAST16_FMTu__ __UINT16_FMTu__
+#endif
+#ifndef __UINT_LEAST32_FMTu__
+#define __UINT_LEAST32_FMTu__ __UINT32_FMTu__
+#endif
+#ifndef __UINT_LEAST64_FMTu__
+#define __UINT_LEAST64_FMTu__ __UINT64_FMTu__
+#endif
+#ifndef __UINT_FAST8_FMTu__
+#define __UINT_FAST8_FMTu__ __UINT32_FMTu__
+#endif
+#ifndef __UINT_FAST16_FMTu__
+#define __UINT_FAST16_FMTu__ __UINT32_FMTu__
+#endif
+#ifndef __UINT_FAST32_FMTu__
+#define __UINT_FAST32_FMTu__ __UINT32_FMTu__
+#endif
+#ifndef __UINT_FAST64_FMTu__
+#define __UINT_FAST64_FMTu__ __UINT64_FMTu__
+#endif
+#ifndef __UINTMAX_FMTu__
+#define __UINTMAX_FMTu__ __UINT64_FMTu__
+#endif
+#ifndef __UINTPTR_FMTu__
+#ifndef _LP64
+#define __UINTPTR_FMTu__ __UINT32_FMTu__
+#else
+#define __UINTPTR_FMTu__ __UINT64_FMTu__
+#endif
+#endif
+
 #ifndef __INT8_FMTi__
 #define __INT8_FMTi__ "i"
 #endif

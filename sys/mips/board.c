@@ -5,6 +5,7 @@
 #include <dev/malta.h>
 #include <mips/mcontext.h>
 #include <mips/tlb.h>
+#include <sys/boot.h>
 #include <sys/klog.h>
 #include <sys/console.h>
 #include <sys/context.h>
@@ -119,7 +120,7 @@ __noreturn void board_init(void) {
   init_klog();
   init_mips_cpu();
   init_mips_tlb();
-  malta_physmem();
   intr_enable();
+  malta_physmem();
   kernel_init();
 }

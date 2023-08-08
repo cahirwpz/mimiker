@@ -5,7 +5,7 @@
 #include <sys/mutex.h>
 #include <sys/uio.h>
 #include <sys/refcnt.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/condvar.h>
 #include <sys/file.h>
 #include <sys/time.h>
@@ -57,6 +57,7 @@ typedef int vnode_readlink_t(vnode_t *v, uio_t *uio);
 typedef int vnode_symlink_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
                             char *target, vnode_t **vp);
 typedef int vnode_link_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
+typedef int vnode_pathconf_t(vnode_t *v, int name, register_t *res);
 
 typedef struct vnodeops {
   vnode_lookup_t *v_lookup;
@@ -78,6 +79,7 @@ typedef struct vnodeops {
   vnode_readlink_t *v_readlink;
   vnode_symlink_t *v_symlink;
   vnode_link_t *v_link;
+  vnode_pathconf_t *v_pathconf;
 } vnodeops_t;
 
 /* Fill missing entries with default vnode operation. */
@@ -86,7 +88,7 @@ void vnodeops_init(vnodeops_t *vops);
 typedef struct {
   bool vl_locked;
   condvar_t vl_cv;
-  spin_t vl_interlock;
+  mtx_t vl_interlock;
 } vnlock_t;
 
 typedef struct vnode {
@@ -210,6 +212,10 @@ static inline int VOP_LINK(vnode_t *dv, vnode_t *v, componentname_t *cn) {
   return VOP_CALL(link, dv, v, cn);
 }
 
+static inline int VOP_PATHCONF(vnode_t *v, int name, register_t *res) {
+  return VOP_CALL(pathconf, v, name, res);
+}
+
 #undef VOP_CALL
 
 /* Allocates and initializes a new vnode */
@@ -239,6 +245,7 @@ int vnode_seek_generic(vnode_t *v, off_t oldoff, off_t newoff);
 int vnode_access_generic(vnode_t *v, accmode_t mode, cred_t *cred);
 /* When successful increments reference counter for given vnode.*/
 int vnode_open_generic(vnode_t *v, int mode, file_t *fp);
+int vnode_pathconf_generic(vnode_t *v, int name, register_t *res);
 
 /* Default fileops implementations for files with v-nodes. */
 int default_vnread(file_t *f, uio_t *uio);

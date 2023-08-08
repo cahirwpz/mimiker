@@ -3,9 +3,15 @@
 TOPDIR = $(realpath ../..)
 
 SOURCES = \
+	boot.c \
 	pmap.c \
+	syscall.c \
 	thread.c
+
+include $(TOPDIR)/build/build.kern.mk
 
 CPPFLAGS += -D_MACHDEP
 
-include $(TOPDIR)/build/build.kern.mk
+boot.o : CFLAGS_KASAN =
+boot.o : CFLAGS_KCSAN =
+boot.o : CFLAGS_KGPROF =

@@ -9,6 +9,9 @@ typedef uint8_t prio_t;
 #ifdef _KERNEL
 
 #define PRIO_QTY 256
+#define PRIO_MAX 0
+#define PRIO_MIN (PRIO_QTY - 1)
+#define PRIO_MID (PRIO_QTY / 2)
 
 /* Quantity of interrupt threads, kernel threads and user threads.
    These three numbers must sum up to PRIO_QTY! */

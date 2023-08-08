@@ -461,7 +461,7 @@ proc_t *proc_create(thread_t *td, proc_t *parent) {
   TAILQ_INIT(CHILDREN(p));
   kitimer_init(p);
 
-  WITH_SPIN_LOCK (td->td_lock)
+  WITH_MTX_LOCK (td->td_lock)
     td->td_proc = p;
 
   return p;
@@ -531,7 +531,7 @@ static void proc_reap(proc_t *p) {
   TAILQ_REMOVE(CHILDREN(p->p_parent), p, p_child);
   TAILQ_REMOVE(&zombie_list, p, p_zombie);
   kfree(M_STR, p->p_elfpath);
-  kfree(M_TEMP, p->p_args);
+  kfree(M_STR, p->p_args);
   TAILQ_REMOVE(PROC_HASH_CHAIN(p->p_pid), p, p_hash);
   pool_free(P_PROC, p);
 }
@@ -815,7 +815,7 @@ int do_setlogin(const char *name) {
     return EINVAL;
 
   WITH_MTX_LOCK (&all_proc_mtx)
-    strncpy(p->p_pgrp->pg_session->s_login, name, LOGIN_NAME_MAX);
+    strlcpy(p->p_pgrp->pg_session->s_login, name, LOGIN_NAME_MAX);
 
   return 0;
 }
@@ -835,17 +835,19 @@ void proc_stop(signo_t sig) {
     proc_wakeup_parent(p->p_parent);
     sig_child(p, CLD_STOPPED);
   }
-  WITH_SPIN_LOCK (td->td_lock) { td->td_flags |= TDF_STOPPING; }
+  WITH_MTX_LOCK (td->td_lock) {
+    td->td_flags |= TDF_STOPPING;
+  }
   proc_unlock(p);
   /* We're holding no locks here, so our process can be continued before we
    * actually stop the thread. This is why we need the TDF_STOPPING flag. */
-  spin_lock(td->td_lock);
+  mtx_lock(td->td_lock);
   if (td->td_flags & TDF_STOPPING) {
     td->td_flags &= ~TDF_STOPPING;
     td->td_state = TDS_STOPPED;
     sched_switch(); /* Releases td_lock. */
   } else {
-    spin_unlock(td->td_lock);
+    mtx_unlock(td->td_lock);
   }
   proc_lock(p);
   return;
@@ -864,5 +866,7 @@ void proc_continue(proc_t *p) {
   WITH_PROC_LOCK(p->p_parent) {
     proc_wakeup_parent(p->p_parent);
   }
-  WITH_SPIN_LOCK (td->td_lock) { thread_continue(td); }
+  WITH_MTX_LOCK (td->td_lock) {
+    thread_continue(td);
+  }
 }

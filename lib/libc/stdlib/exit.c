@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "atexit.h"
+#include "reentrant.h"
 
 void (*__cleanup)(void);
 
@@ -39,6 +41,9 @@ void (*__cleanup)(void);
  * Exit, flushing stdio buffers if necessary.
  */
 void exit(int status) {
+  if (__cxa_thread_atexit_used)
+    __cxa_thread_run_atexit();
+  __cxa_finalize(NULL);
   if (__cleanup)
     (*__cleanup)();
   _exit(status);

@@ -18,7 +18,6 @@ SOURCES = \
 	dev_procstat.c \
 	devfs.c \
 	event.c \
-	exception.c \
 	exec.c \
 	exec_elf.c \
 	exec_shebang.c \
@@ -32,7 +31,6 @@ SOURCES = \
 	kenv.c \
 	klog.c \
 	kmem.c \
-	ktest.c \
 	main.c \
 	malloc.c \
 	mutex.c \
@@ -43,15 +41,12 @@ SOURCES = \
 	proc.c \
 	pty.c \
 	ringbuf.c \
-	rman.c \
 	runq.c \
 	sbrk.c \
 	sched.c \
 	signal.c \
 	sleepq.c \
-	spinlock.c \
 	syscalls.c \
-	taskqueue.c \
 	turnstile.c \
 	thread.c \
 	time.c \
@@ -67,8 +62,7 @@ SOURCES = \
 	vfs_syscalls.c \
 	vfs_vnode.c \
 	vm_map.c \
-	vm_object.c \
-	vm_pager.c \
+	vm_amap.c \
 	vm_physmem.c \
 	vmem.c
 
@@ -86,8 +80,6 @@ SOURCES-KGPROF = \
 SOURCES-KCSAN = \
 	kcsan.c
 
-FORMAT-EXCLUDE = sysent.h
-
 include $(TOPDIR)/build/build.kern.mk
 
 SYSCALL_H = $(TOPDIR)/include/sys/syscall.h
@@ -100,3 +92,4 @@ sysent.h $(SYSCALL_H) $(SYSCALLARGS_H): syscalls.conf syscalls.master
 kasan.o : CFLAGS_KASAN =
 mcount.o : CFLAGS_KGPROF =
 kcsan.o : CFLAGS_KCSAN =
+timer.o : CPPFLAGS += -DUNIXTIME_NOW=$(shell date +%s)

@@ -1,5 +1,5 @@
 #include <sys/lockdep.h>
-#include <sys/spinlock.h>
+#include <sys/mutex.h>
 #include <sys/thread.h>
 #include <sys/mimiker.h>
 #include <sys/klog.h>
@@ -29,7 +29,7 @@ typedef struct lock_class_edge {
   lock_class_t *to;
 } lock_class_edge_t;
 
-static SPIN_DEFINE(main_lock, 0);
+static MTX_DEFINE(main_lock, MTX_SPIN | MTX_NODEBUG);
 
 #define CLASSHASH_SIZE 64
 /* We have to divide the key by the alignment of lock_class_key_t to prevent the
@@ -96,11 +96,11 @@ static inline lock_class_edge_t *bfs_q_dequeue(bfs_queue_t *q) {
 }
 
 static inline void lockdep_lock(void) {
-  spin_lock(&main_lock);
+  mtx_lock(&main_lock);
 }
 
 static inline void lockdep_unlock(void) {
-  spin_unlock(&main_lock);
+  mtx_unlock(&main_lock);
 }
 
 static inline lock_class_edge_t *bfs_next_edge(lock_class_edge_t *edge) {
@@ -201,6 +201,8 @@ static lock_class_edge_t *alloc_edge(lock_class_t *to) {
   return edge;
 }
 
+static bool cycle_detected = false;
+
 static void add_edge_to(thread_t *thread, lock_class_t *lock) {
   lock_class_t *prevlock;
   lock_class_edge_t *edge;
@@ -227,6 +229,7 @@ static void add_edge_to(thread_t *thread, lock_class_t *lock) {
   SIMPLEQ_INSERT_HEAD(&(prevlock->locked_after), edge, link);
 
   if (check_path(lock, prevlock)) {
+    cycle_detected = true;
     panic("lockdep: cycle between locks %s and %s", prevlock->name, lock->name);
   }
 }
@@ -238,6 +241,9 @@ void lockdep_init(void) {
 }
 
 void lockdep_acquire(lock_class_mapping_t *lock) {
+  if (__unlikely(cycle_detected))
+    return;
+
   lock_class_t *class;
   thread_t *thread = thread_self();
 
@@ -256,6 +262,9 @@ void lockdep_acquire(lock_class_mapping_t *lock) {
 
 /* This function is called with the `lock` held. */
 void lockdep_release(lock_class_mapping_t *lock) {
+  if (__unlikely(cycle_detected))
+    return;
+
   lock_class_t *class = lock->lock_class;
   thread_t *thread = thread_self();
   assert(class);

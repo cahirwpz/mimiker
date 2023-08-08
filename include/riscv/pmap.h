@@ -18,9 +18,6 @@
 #define DMAP_MAX_SIZE 0x40000000
 #endif
 
-#define RISCV_PHYSADDR(x)                                                      \
-  ((paddr_t)((vaddr_t)(x) & ~KERNEL_SPACE_BEGIN) + KERNEL_PHYS)
-
 #if __riscv_xlen == 64
 #define PAGE_TABLE_DEPTH 3
 #define GROWKERNEL_STRIDE L1_SIZE
