@@ -45,8 +45,7 @@ typedef enum kft_event_type {
 } kft_event_type_t;
 
 void init_kftrace(void) {
-  kft_event_list =
-    kmem_alloc(sizeof(kft_event_t) * (KFT_EVENT_MAX + 5), M_WAITOK);
+  kft_event_list = kmem_alloc(sizeof(kft_event_t) * (KFT_EVENT_MAX), M_WAITOK);
 }
 
 static __no_profile inline kft_event_t make_event(kft_event_type_t type,
