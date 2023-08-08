@@ -18,8 +18,6 @@
 #define _POSIX2_LINE_MAX 2048
 #define _POSIX2_RE_DUP_MAX 255
 
-#define _POSIX_ARG_MAX 4096
-
 /*
  * X/Open CAE Specifications,
  * adopted in IEEE Std 1003.1-2001 XSI.
