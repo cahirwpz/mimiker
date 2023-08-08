@@ -2,6 +2,7 @@
 #include <sys/thread.h>
 #include <sys/types.h>
 #include <sys/kmem.h>
+#include <sys/mutex.h>
 
 /* Kernel Function Trace
  *
@@ -28,6 +29,7 @@ typedef uint64_t kft_event_t;
 
 static kft_event_t *kft_event_list;
 static unsigned kft_used = 0;
+static MTX_DEFINE(kft_lock, MTX_SPIN);
 
 #define PC_MASK 0xFFFFFF          /* 24 bits */
 #define TIMESTAMP_MASK 0x7FFFFFFF /* 31 bits */
@@ -67,6 +69,8 @@ static __no_profile void kft_flush(void) {
 static __no_profile void add_event(void *pc, kft_event_type_t type) {
   if (!kft_event_list)
     return;
+
+  SCOPED_MTX_LOCK(&kft_lock);
 
   uint64_t time = kft_get_time();
   tid_t thread = thread_self()->td_tid;
