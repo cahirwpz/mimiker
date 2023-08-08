@@ -20,12 +20,14 @@ commands
   continue
 end
 
-break halt
+break ktest_success
 commands
   printf "halt: "
   dump-kft
   kill
   quit 0
 end
+
+break halt
 
 continue
