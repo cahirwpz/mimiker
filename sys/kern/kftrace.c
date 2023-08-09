@@ -31,10 +31,10 @@ static kft_event_t *kft_event_list;
 static unsigned kft_used = 0;
 static MTX_DEFINE(kft_lock, MTX_SPIN);
 
-#define PC_MASK 0xFFFFFF          /* 24 bits */
-#define TIMESTAMP_MASK 0x7FFFFFFF /* 31 bits */
-#define THREAD_MASK 0xF           /* 8 bits */
-#define TYPE_MASK 0x1             /* 1 bit */
+#define PC_MASK 0xFFFFFC           /* 22 bits */
+#define TIMESTAMP_MASK 0x1FFFFFFFF /* 33 bits */
+#define THREAD_MASK 0xFF           /* 8 bits */
+#define TYPE_MASK 0x1              /* 1 bit */
 
 #define PC_SHIFT 40
 #define TIMESTAMP_SHIFT 9
