@@ -568,7 +568,10 @@ if __name__ == '__main__':
     elif args.test_run:
         setvar('gdb.post-options', ['-ex=source .gdbinit-test'])
         dbg = GDB()
-    elif args.kft:
+    else:
+        dbg = None
+
+    if args.kft:
         kft_out = 'dump.kft'
         print(f'KFTrace output will be saved to {kft_out}')
 
@@ -584,8 +587,6 @@ if __name__ == '__main__':
 
         setvar('gdb.post-options', ['-ex=source .gdbinit-kftrace'])
         dbg = GDB()
-    else:
-        dbg = None
 
     if args.test_run:
         TestRun(sim, dbg, args.timeout)
