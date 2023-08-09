@@ -590,7 +590,5 @@ if __name__ == '__main__':
 
     if args.test_run:
         TestRun(sim, dbg, args.timeout)
-    elif args.kft:
-        DevelRun(sim, dbg)
     else:
         DevelRun(sim, dbg)
