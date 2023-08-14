@@ -1,0 +1,20 @@
+Index: st/st/font.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ st/st/font.h	2023-08-14 18:20:47.907326798 +0200
+@@ -0,0 +1,15 @@
++#ifndef FONT_H
++#define FONT_H
++
++typedef struct {
++    char *name;
++    int firstchar, numchars;
++    int fontwidth, fontheight, stride;
++    int encoding, bitorder, byteorder;
++    void *data;
++} font_t;
++
++font_t *font_load(const char *path);
++char *font_glyph(font_t *font, int c);
++
++#endif
