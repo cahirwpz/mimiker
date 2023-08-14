@@ -1,3 +1,4 @@
+input.c.patch
 font.h.patch
 font.c.patch
 config.patch
