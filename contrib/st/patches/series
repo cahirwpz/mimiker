@@ -1,3 +1,4 @@
+st.c.patch
 kdbtable.patch
 kbio.patch
 input.h.patch
