@@ -8,18 +8,24 @@ PROGRAM = st
 LDLIBS = -lutil
 BINDIR = bin
 BUILDDIR = build/
-SOURCES = $(addprefix st/,$(SRC)) $(addprefix st/,$(NEW_SRC))
-FORMAT-EXCLUDE = $(addprefix st/,$(SRC)) $(addprefix st/,$(NEW_SRC)) $(addprefix st/,$(HDR))
+SOURCES = $(addprefix st/,$(SRC)) $(addprefix $(BUILDDIR)st/,$(NEW_SRC))
+FORMAT-EXCLUDE = $(addprefix st/,$(SRC)) $(addprefix st/,$(HDR))
 
 include $(TOPDIR)/build/build.prog.mk
 
 # Rules for newly created source files:
 
-define new_src_func =
-$$(addprefix st/,$(1)): build-before
+define new_src_build =
+$$(addprefix $(BUILDDIR)st/,$(1)): build-before
 endef
 
-$(foreach new_src,$(NEW_SRC),$(eval $(call new_src_func,$(new_src))))
+$(foreach new_src,$(NEW_SRC),$(eval $(call new_src_build,$(new_src))))
+
+define new_src_include =
+CFLAGS.$(BUILDDIR)st/$(1) += -Ist/
+endef
+
+$(foreach new_src,$(NEW_SRC),$(eval $(call new_src_include,$(new_src))))
 
 # Main rules for downloading st and patching:
 
