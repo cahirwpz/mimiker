@@ -1,6 +1,7 @@
 #include <sys/select.h>
 #include <sys/time.h>
 #include <sys/event.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -27,7 +28,7 @@ int select(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
         tv2ts(timeout, &timeout_ts);
     }
 
-    kq = kqueue();
+    kq = kqueue1(O_CLOEXEC);
     if (kq < 0)
         return -1;
 
