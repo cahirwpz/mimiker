@@ -106,7 +106,7 @@ int do_utimensat(proc_t *p, int fd, char *path, timespec_t *times, int flag);
 int do_pathconf(proc_t *p, char *path, int name, register_t *res);
 
 /* Mount a new instance of the filesystem named fs at the requested path. */
-int do_mount(proc_t *p, const char *fs, const char *path);
+int do_mount(proc_t *p, const char *source, const char *fs, const char *path);
 int do_getdents(proc_t *p, int fd, uio_t *uio);
 int do_statvfs(proc_t *p, char *path, statvfs_t *buf);
 int do_fstatvfs(proc_t *p, int fd, statvfs_t *buf);
