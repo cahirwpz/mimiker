@@ -40,7 +40,7 @@ LIBUTILSRC = \
 
 BIN = \
 	clear             \
-	getty							\
+	getty             \
 	id                \
 	login             \
 	nologin           \
