@@ -43,6 +43,7 @@ BIN = \
 	getty             \
 	id                \
 	login             \
+	mesg              \
 	nologin           \
 	pagesize          \
 	respawn           \
@@ -71,7 +72,6 @@ BIN_DONT_WORK = \
 	lastlog           \
 	lsmod             \
 	lsusb             \
-	mesg              \
 	mknod             \
 	mkswap            \
 	mount             \
