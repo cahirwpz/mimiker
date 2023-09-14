@@ -1,0 +1,13 @@
+Index: ubase/ubase/mesg.c
+===================================================================
+--- ubase.orig/ubase/mesg.c	2023-09-06 21:03:02.246353135 +0200
++++ ubase/ubase/mesg.c	2023-09-06 21:03:12.309686137 +0200
+@@ -18,7 +18,7 @@
+ main(int argc, char *argv[])
+ {
+ 	struct stat sb;
+-	mode_t mode;
++	mode_t mode = 0;
+ 
+ 	ARGBEGIN {
+ 	default:
