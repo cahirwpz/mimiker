@@ -171,6 +171,7 @@ CONFIG = {
             '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
             '-ex=set tcp connect-timeout 30',
             '-ex=target extended-remote localhost:{gdbport}',
+            '-ex=source .gdbinit-common',
             '--silent',
         ],
         'extra-options': [],

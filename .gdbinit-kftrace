@@ -1,9 +1,3 @@
-# some generic settings
-set output-radix 0x10
-set pagination off
-set confirm off
-set verbose off
-
 # Command to easily append KFT events to specified file
 define dump-kft
   printf "Appending %d entries to file `dump.kft`\n", kft_used
