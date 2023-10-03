@@ -16,12 +16,14 @@ end
 
 break ktest_success
 commands
-  printf "halt: "
+  printf "ktest_success: "
   dump-kft
-  kill
-  quit 0
 end
 
 break halt
+commands
+  printf "halt: "
+  dump-kft
+end
 
 continue
