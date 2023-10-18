@@ -1,3 +1,9 @@
+qemu-mimiker (7.1.0+mimiker1) unstable; urgency=medium
+
+  * Bump up simulator version.
+
+ -- Krystian Bacławski <cahirwpz@cs.uni.wroc.pl>  Tue, 22 Nov 2022 09:34:20 +0100
+
 qemu-mimiker (6.2.0+mimiker1) unstable; urgency=medium
 
   * Bump up simulator version.
