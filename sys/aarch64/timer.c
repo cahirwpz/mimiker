@@ -36,7 +36,7 @@ static int arm_timer_stop(timer_t *tm) {
   return 0;
 }
 
-static bintime_t arm_timer_gettime(timer_t *tm) {
+static __no_profile bintime_t arm_timer_gettime(timer_t *tm) {
   uint64_t count = READ_SPECIALREG(cntpct_el0);
   bintime_t res = bintime_mul(tm->tm_min_period, (uint32_t)count);
   bintime_t high_bits = bintime_mul(tm->tm_min_period, (uint32_t)(count >> 32));

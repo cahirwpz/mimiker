@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-SUBDIR = id login stat script su
+SUBDIR = script
 
 all: build
 

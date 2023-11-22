@@ -1,0 +1,14 @@
+Index: ubase/ubase/config.def.h
+===================================================================
+--- ubase.orig/ubase/config.def.h	2023-01-15 19:44:20.149042875 +0100
++++ ubase/ubase/config.def.h	2023-01-15 19:54:46.042355519 +0100
+@@ -1,7 +1,7 @@
+ /* See LICENSE file for copyright and license details. */
+ 
+-#define ENV_SUPATH	"/bin"
+-#define ENV_PATH	"/bin"
++#define ENV_SUPATH	"/usr/bin:/bin"
++#define ENV_PATH	"/usr/bin:/bin"
+ #define PW_CIPHER	"$6$"	/* SHA-512 */
+ #undef UTMP_PATH
+ #define UTMP_PATH	"/var/run/utmp"

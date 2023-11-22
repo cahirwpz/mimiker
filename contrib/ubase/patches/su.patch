@@ -1,0 +1,31 @@
+Index: ubase/ubase/su.c
+===================================================================
+--- ubase.orig/ubase/su.c	2023-06-18 17:13:13.022660405 +0200
++++ ubase/ubase/su.c	2023-06-19 19:55:36.593117659 +0200
+@@ -21,7 +21,7 @@
+ static int
+ dologin(struct passwd *pw)
+ {
+-	char *shell = pw->pw_shell[0] == '\0' ? "/bin/sh" : pw->pw_shell;
++	const char *shell = pw->pw_shell[0] == '\0' ? "/bin/sh" : pw->pw_shell;
+ 	char *term = getenv("TERM");
+ 	clearenv();
+ 	setenv("HOME", pw->pw_dir, 1);
+@@ -50,7 +50,7 @@
+ main(int argc, char *argv[])
+ {
+ 	char *usr = "root", *pass;
+-	char *shell;
++	const char *shell;
+ 	struct passwd *pw;
+ 	char *newargv[2];
+ 	uid_t uid;
+@@ -102,7 +102,7 @@
+ 		return dologin(pw);
+ 	} else {
+ 		shell = pw->pw_shell[0] == '\0' ? "/bin/sh" : pw->pw_shell;
+-		newargv[0] = shell;
++		newargv[0] = (char *)shell;
+ 		newargv[1] = NULL;
+ 		if (!pflag) {
+ 			setenv("HOME", pw->pw_dir, 1);

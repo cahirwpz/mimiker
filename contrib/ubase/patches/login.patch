@@ -1,0 +1,53 @@
+Index: ubase/ubase/login.c
+===================================================================
+--- ubase.orig/ubase/login.c	2023-06-21 00:29:16.879786976 +0200
++++ ubase/ubase/login.c	2023-06-21 00:33:37.019778341 +0200
+@@ -25,11 +25,9 @@
+ 
+ 	memset(&usr, 0, sizeof(usr));
+ 
+-	usr.ut_type = USER_PROCESS;
+-	usr.ut_pid = getpid();
+-	strlcpy(usr.ut_user, user, sizeof(usr.ut_user));
++	strlcpy(usr.ut_name, user, sizeof(usr.ut_name));
+ 	strlcpy(usr.ut_line, tty, sizeof(usr.ut_line));
+-	usr.ut_tv.tv_sec = time(NULL);
++	usr.ut_time = time(NULL);
+ 
+ 	fp = fopen(UTMP_PATH, "a");
+ 	if (fp) {
+@@ -37,15 +35,13 @@
+ 			if (ferror(fp))
+ 				weprintf("%s: write error:", UTMP_PATH);
+ 		fclose(fp);
+-	} else {
+-		weprintf("fopen %s:", UTMP_PATH);
+ 	}
+ }
+ 
+ static int
+ dologin(struct passwd *pw, int preserve)
+ {
+-	char *shell = pw->pw_shell[0] == '\0' ? "/bin/sh" : pw->pw_shell;
++	const char *shell = pw->pw_shell[0] == '\0' ? "/bin/sh" : pw->pw_shell;
+ 
+ 	if (preserve == 0)
+ 		clearenv();
+@@ -105,7 +101,7 @@
+ 	gid = pw->pw_gid;
+ 
+ 	/* Flush pending input */
+-	ioctl(0, TCFLSH, (void *)0);
++	ioctl(0, TIOCFLUSH, (void *)0);
+ 
+ 	pass = getpass("Password: ");
+ 	if (!pass)
+@@ -115,7 +111,7 @@
+ 
+ 	tty = ttyname(0);
+ 	if (!tty)
+-		eprintf("ttyname:");
++		tty = "unknown";
+ 
+ 	writeutmp(user, tty);
+ 

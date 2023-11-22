@@ -4,7 +4,7 @@
 # build system for given platform.
 #
 
-CONFIG_OPTS := KASAN LOCKDEP KGPROF MIPS AARCH64 RISCV KCSAN
+CONFIG_OPTS := KASAN LOCKDEP KGPROF MIPS AARCH64 RISCV KCSAN KFTRACE
 
 BOARD ?= rpi3
 
@@ -40,6 +40,7 @@ VERBOSE ?= 0
 LLVM ?= 1
 LOCKDEP ?= 0
 KASAN ?= 0
-KGPROF ?= 0
 KCSAN ?= 0
+# Kernel function instrumentation options: ftrace, gprof
+KFI ?=
 TRAP_USER_ACCESS ?= 0

@@ -5,7 +5,7 @@
 #include <sys/sched.h>
 #include <sys/thread.h>
 
-bool mtx_owned(mtx_t *m) {
+bool __no_profile mtx_owned(mtx_t *m) {
   return (mtx_owner(m) == thread_self());
 }
 
@@ -20,7 +20,7 @@ void _mtx_init(mtx_t *m, intptr_t flags, const char *name,
 #endif
 }
 
-void _mtx_lock(mtx_t *m, const void *waitpt) {
+void __no_profile _mtx_lock(mtx_t *m, const void *waitpt) {
   intptr_t flags = m->m_owner & (MTX_SPIN | MTX_NODEBUG);
 
   if (flags & MTX_SPIN) {
@@ -71,7 +71,7 @@ void _mtx_lock(mtx_t *m, const void *waitpt) {
   }
 }
 
-void mtx_unlock(mtx_t *m) {
+void __no_profile mtx_unlock(mtx_t *m) {
   intptr_t flags = m->m_owner & (MTX_SPIN | MTX_NODEBUG);
 
   assert(mtx_owned(m));

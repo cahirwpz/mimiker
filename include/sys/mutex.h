@@ -83,7 +83,7 @@ bool mtx_owned(mtx_t *m);
 /*! \brief Fetch mutex owner.
  *
  * \note The function is used by some tests. */
-static inline thread_t *mtx_owner(mtx_t *m) {
+static __no_profile inline thread_t *mtx_owner(mtx_t *m) {
   return (thread_t *)(m->m_owner & ~MTX_FLAGMASK);
 }
 
@@ -93,7 +93,7 @@ void _mtx_lock(mtx_t *m, const void *waitpt) __no_profile;
 /*! \brief Locks sleep mutex.
  *
  * If mutex is already owned, then the thread is inserted into turnstile. */
-static inline void mtx_lock(mtx_t *m) {
+static __no_profile inline void mtx_lock(mtx_t *m) {
   _mtx_lock(m, __caller(0));
 }
 

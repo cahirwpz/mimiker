@@ -1,0 +1,53 @@
+Index: ubase/ubase/getty.c
+===================================================================
+--- ubase.orig/ubase/getty.c	2023-06-18 14:01:37.396275690 +0200
++++ ubase/ubase/getty.c	2023-06-18 14:01:53.699608626 +0200
+@@ -15,8 +15,8 @@
+ #include "config.h"
+ #include "util.h"
+ 
+-static char *tty = "/dev/tty1";
+-static char *defaultterm = "linux";
++static char *tty = "/dev/uart";
++static char *defaultterm = "xterm";
+ 
+ static void
+ usage(void)
+@@ -58,7 +58,7 @@
+ 
+ 	setsid();
+ 
+-	fd = open(tty, O_RDWR);
++	fd = open(tty, O_RDWR | O_NOCTTY);
+ 	if (fd < 0)
+ 		eprintf("open %s:", tty);
+ 	if (isatty(fd) == 0)
+@@ -67,19 +67,10 @@
+ 	/* steal the controlling terminal if necessary */
+ 	if (ioctl(fd, TIOCSCTTY, (void *)1) != 0)
+ 		weprintf("TIOCSCTTY: could not set controlling tty\n");
+-	vhangup();
+-	close(fd);
+ 
+-	fd = open(tty, O_RDWR);
+-	if (fd < 0)
+-		eprintf("open %s:", tty);
+ 	dup2(fd, 0);
+ 	dup2(fd, 1);
+ 	dup2(fd, 2);
+-	if (fchown(fd, 0, 0) < 0)
+-		weprintf("fchown %s:", tty);
+-	if (fchmod(fd, 0600) < 0)
+-		weprintf("fchmod %s:", tty);
+ 	if (fd > 2)
+ 		close(fd);
+ 
+@@ -118,7 +109,7 @@
+ 	fflush(stdout);
+ 
+ 	/* Flush pending input */
+-	ioctl(0, TCFLSH, (void *)0);
++	ioctl(0, TIOCFLUSH, (void *)0);
+ 	memset(logname, 0, sizeof(logname));
+ 	while (1) {
+ 		n = read(0, &c, 1);

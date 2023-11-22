@@ -50,7 +50,6 @@ struct vm_amap {
   size_t slots;          /* (!) maximum number of slots */
   refcnt_t ref_cnt;      /* (a) number map entries using amap */
   vm_anon_t **anon_list; /* (@) pointers of used anons */
-  bitstr_t *anon_bitmap; /* (@) bitmap of present anons */
 };
 
 static POOL_DEFINE(P_VM_AMAP_STRUCT, "vm_amap_struct", sizeof(vm_amap_t));
@@ -71,8 +70,6 @@ vm_amap_t *vm_amap_alloc(size_t slots) {
 
   amap->anon_list =
     kmalloc(M_AMAP, slots * sizeof(vm_anon_t *), M_ZERO | M_WAITOK);
-
-  amap->anon_bitmap = kmalloc(M_AMAP, bitstr_size(slots), M_ZERO | M_WAITOK);
 
   amap->ref_cnt = 1;
   amap->slots = slots;
@@ -103,14 +100,13 @@ vm_aref_t vm_amap_copy_if_needed(vm_aref_t aref, size_t slots) {
     for (size_t slot = 0; slot < slots; slot++) {
       size_t old_slot = aref.offset + slot;
 
-      if (!bit_test(amap->anon_bitmap, old_slot))
+      if (!amap->anon_list[old_slot])
         continue;
 
       vm_anon_t *anon = amap->anon_list[old_slot];
 
       vm_anon_hold(anon);
       new->anon_list[slot] = anon;
-      bit_set(new->anon_bitmap, slot);
     }
   }
   vm_amap_drop(amap);
@@ -126,7 +122,7 @@ vm_anon_t *vm_amap_find_anon(vm_aref_t aref, size_t offset) {
   assert(offset < amap->slots);
 
   SCOPED_MTX_LOCK(&amap->mtx);
-  if (bit_test(amap->anon_bitmap, offset))
+  if (amap->anon_list[offset])
     return amap->anon_list[offset];
   return NULL;
 }
@@ -142,13 +138,12 @@ void vm_amap_insert_anon(vm_aref_t aref, vm_anon_t *anon, size_t offset) {
   assert(offset < amap->slots);
 
   /* Don't allow for inserting anon twice or on top of other. */
-  if (bit_test(amap->anon_bitmap, offset)) {
+  if (amap->anon_list[offset]) {
     assert(anon == amap->anon_list[offset]);
     return;
   }
 
   amap->anon_list[offset] = anon;
-  bit_set(amap->anon_bitmap, offset);
 }
 
 static void vm_amap_remove_pages_unlocked(vm_amap_t *amap, size_t start,
@@ -159,10 +154,10 @@ static void vm_amap_remove_pages_unlocked(vm_amap_t *amap, size_t start,
    * is for now, but need to revisit it. */
 
   for (size_t i = start; i < start + nslots; i++) {
-    if (!bit_test(amap->anon_bitmap, i))
+    if (!amap->anon_list[i])
       continue;
     vm_anon_drop(amap->anon_list[i]);
-    bit_clear(amap->anon_bitmap, i);
+    amap->anon_list[i] = NULL;
   }
 }
 
@@ -181,7 +176,6 @@ void vm_amap_drop(vm_amap_t *amap) {
   if (refcnt_release(&amap->ref_cnt)) {
     vm_amap_remove_pages_unlocked(amap, 0, amap->slots);
     kfree(M_AMAP, amap->anon_list);
-    kfree(M_AMAP, amap->anon_bitmap);
     pool_free(P_VM_AMAP_STRUCT, amap);
   }
 }
