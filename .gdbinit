@@ -1,14 +1,3 @@
-# some generic settings
-set output-radix 0x10
-set pagination off
-set confirm off
-set verbose off
-
-# make extra commands available
-python import os, sys
-python sys.path.append(os.path.join(os.getcwd(), 'sys'))
-python import debug
-
 # favorite set of breakpoints
 break kernel_init
 break halt

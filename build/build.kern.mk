@@ -25,11 +25,12 @@ include $(TOPDIR)/config.mk
 SOURCES_ALL = $(SOURCES)
 SOURCES_ALL += $(foreach var, $(CONFIG_OPTS), $(value SOURCES-$(var)))
 
+include $(TOPDIR)/build/flags.kern.mk
+
 SOURCES += $(foreach var, $(CONFIG_OPTS), \
 		$(if $(subst 0,,$(value $(var))), \
 			$(value SOURCES-$(var)),))
 
-include $(TOPDIR)/build/flags.kern.mk
 include $(TOPDIR)/build/compile.mk
 include $(TOPDIR)/build/common.mk
 

@@ -171,6 +171,7 @@ CONFIG = {
             '-iex=set auto-load safe-path {}/'.format(os.getcwd()),
             '-ex=set tcp connect-timeout 30',
             '-ex=target extended-remote localhost:{gdbport}',
+            '-ex=source .gdbinit-common',
             '--silent',
         ],
         'extra-options': [],
@@ -514,6 +515,8 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--storage', type=str,
                         help='QCOW2 image to be attached as a default storage '
                              'device for given platform.')
+    parser.add_argument('-k', '--kft', action='store_true',
+                        help='Enable kftrace dump by GDB')
     args = parser.parse_args()
 
     # Used by tmux to override ./.tmux.conf with ./.tmux.conf.local
@@ -568,6 +571,23 @@ if __name__ == '__main__':
         dbg = GDB()
     else:
         dbg = None
+
+    if args.kft:
+        kft_out = 'dump.kft'
+        print(f'KFTrace output will be saved to {kft_out}')
+
+        # Remove a kft file because GDB only appends to it
+        try:
+            os.remove(kft_out)
+        except FileNotFoundError:
+            pass
+        except IsADirectoryError:
+            print(f"{kft_out} is a directory! "
+                  "Can't use it to dump KFTrace data.")
+            sys.exit(1)
+
+        setvar('gdb.post-options', ['-ex=source .gdbinit-kftrace'])
+        dbg = GDB()
 
     if args.test_run:
         TestRun(sim, dbg, args.timeout)

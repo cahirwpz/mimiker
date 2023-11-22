@@ -1,15 +1,3 @@
-# some generic settings
-set output-radix 0x10
-set pagination off
-set confirm off
-set verbose off
-handle SIGINT stop
-
-# make extra commands available
-python import os, sys
-python sys.path.append(os.path.join(os.getcwd(), 'sys'))
-python import debug
-
 define post-mortem
   add-symbol-file bin/utest/utest.uelf 0x400000
   echo \n*** REGISTERS ***\n\n

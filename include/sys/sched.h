@@ -29,11 +29,11 @@ bool preempt_disabled(void);
 
 /* Two following functions are workaround to make preemption disabling work with
  * scoped and with statement. */
-static inline void __preempt_disable(void *data) {
+static __no_profile inline void __preempt_disable(void *data) {
   preempt_disable();
 }
 
-static inline void __preempt_enable(void *data) {
+static __no_profile inline void __preempt_enable(void *data) {
   preempt_enable();
 }
 

@@ -1,0 +1,29 @@
+# Command to easily append KFT events to specified file
+define dump-kft
+  printf "Appending %d entries to file `dump.kft`\n", kft_used
+  append memory dump.kft kft_event_list kft_event_list+kft_used
+end
+
+set $kft_flush_count = 0
+
+break kft_flush
+commands
+  silent
+  printf "kft_flush(%d): ", $kft_flush_count++
+  dump-kft
+  continue
+end
+
+break ktest_success
+commands
+  printf "ktest_success: "
+  dump-kft
+end
+
+break halt
+commands
+  printf "halt: "
+  dump-kft
+end
+
+continue

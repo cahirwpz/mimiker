@@ -51,17 +51,17 @@ typedef struct bintime {
 /* Returns seconds after EPOCH */
 time_t tm2sec(tm_t *tm);
 
-static inline systime_t bt2st(const bintime_t *bt) {
+static __no_profile inline systime_t bt2st(const bintime_t *bt) {
   return bt->sec * CLK_TCK +
          (((uint64_t)CLK_TCK * (uint32_t)(bt->frac >> 32)) >> 32);
 }
 
-static inline void bt2ts(const bintime_t *bt, timespec_t *ts) {
+static __no_profile inline void bt2ts(const bintime_t *bt, timespec_t *ts) {
   ts->tv_sec = bt->sec;
   ts->tv_nsec = (1000000000ULL * (uint32_t)(bt->frac >> 32)) >> 32;
 }
 
-static inline void bt2tv(const bintime_t *bt, timeval_t *tv) {
+static __no_profile inline void bt2tv(const bintime_t *bt, timeval_t *tv) {
   tv->tv_sec = bt->sec;
   tv->tv_usec = (1000000ULL * (uint32_t)(bt->frac >> 32)) >> 32;
 }
@@ -91,7 +91,7 @@ static inline void bt2tv(const bintime_t *bt, timeval_t *tv) {
     }                                                                          \
   }
 
-static inline void tv2ts(const timeval_t *tv, timespec_t *ts) {
+static __no_profile inline void tv2ts(const timeval_t *tv, timespec_t *ts) {
   ts->tv_sec = tv->tv_sec;
   ts->tv_nsec = tv->tv_usec * 1000;
 }
@@ -102,26 +102,27 @@ static inline void tv2ts(const timeval_t *tv, timespec_t *ts) {
                           : (((a)->sec)cmp((b)->sec)))
 #define bintime_isset(bt) ((bt)->sec || (bt)->frac)
 
-static inline void bintime_add_frac(bintime_t *bt, uint64_t x) {
+static __no_profile inline void bintime_add_frac(bintime_t *bt, uint64_t x) {
   uint64_t old_frac = bt->frac;
   bt->frac += x;
   if (old_frac > bt->frac)
     bt->sec++;
 }
 
-static inline bintime_t bintime_mul(const bintime_t bt, uint32_t x) {
+static __no_profile inline bintime_t bintime_mul(const bintime_t bt,
+                                                 uint32_t x) {
   uint64_t p1 = (bt.frac & 0xffffffffULL) * x;
   uint64_t p2 = (bt.frac >> 32) * x + (p1 >> 32);
   return (bintime_t){.sec = bt.sec * x + (p2 >> 32),
                      .frac = (p2 << 32) | (p1 & 0xffffffffULL)};
 }
 
-static inline void bintime_add(bintime_t *bt, bintime_t *bt2) {
+static __no_profile inline void bintime_add(bintime_t *bt, bintime_t *bt2) {
   bintime_add_frac(bt, bt2->frac);
   bt->sec += bt2->sec;
 }
 
-static inline void bintime_sub(bintime_t *bt, bintime_t *bt2) {
+static __no_profile inline void bintime_sub(bintime_t *bt, bintime_t *bt2) {
   uint64_t old_frac = bt->frac;
   bt->frac -= bt2->frac;
   if (old_frac < bt->frac)
@@ -197,7 +198,7 @@ void kitimer_init(proc_t *p);
 bool kitimer_stop(proc_t *p);
 
 /* Time measured from the start of system. */
-bintime_t binuptime(void);
+__no_profile bintime_t binuptime(void);
 
 /* UTC/POSIX time */
 bintime_t bintime(void);
