@@ -97,7 +97,7 @@ static int mips_timer_stop(timer_t *tm) {
   return 0;
 }
 
-static bintime_t mips_timer_gettime(timer_t *tm) {
+static __no_profile bintime_t mips_timer_gettime(timer_t *tm) {
   device_t *dev = tm->tm_priv;
   mips_timer_state_t *state = dev->state;
   uint64_t sec;

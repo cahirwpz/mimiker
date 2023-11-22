@@ -22,6 +22,8 @@ Some useful flags to the `launch` script:
 * `-d` - Starts simulation under a debugger.
 * `-b` - To specify emulated board (if different than Raspberry Pi 3).
 * `-g` - Opens a window with graphics display, if the platform supports it.
+* `-k` - Save kft dump to file (`dump.kft`). Works only when compiled with
+  kernel function trace. Can be combined with `-d` flag.
 
 Any other argument is passed to the kernel as a kernel command-line
 argument. Some useful kernel arguments:

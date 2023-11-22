@@ -106,7 +106,7 @@ void pmap_md_bootstrap(pde_t *pd __unused) {
  * Direct map.
  */
 
-void *phys_to_dmap(paddr_t addr) {
+void __no_profile *phys_to_dmap(paddr_t addr) {
   assert((addr >= dmap_paddr_base) && (addr < dmap_paddr_end));
   return (void *)(addr - dmap_paddr_base) + DMAP_BASE;
 }

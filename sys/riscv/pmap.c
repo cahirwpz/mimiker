@@ -76,7 +76,7 @@ pte_t pte_make(paddr_t pa, vm_prot_t prot, unsigned flags) {
   return pte;
 }
 
-inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
+__no_profile inline pte_t pte_protect(pte_t pte, vm_prot_t prot) {
   return (pte & ~PTE_PROT_MASK) | vm_prot_map[prot];
 }
 
@@ -199,7 +199,7 @@ void pmap_md_bootstrap(pde_t *pd) {
  * Direct map.
  */
 
-void *phys_to_dmap(paddr_t addr) {
+__no_profile void *phys_to_dmap(paddr_t addr) {
   assert((addr >= dmap_paddr_base) && (addr < dmap_paddr_end));
   return (void *)(addr - dmap_paddr_base) + DMAP_BASE;
 }

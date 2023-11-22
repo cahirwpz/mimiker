@@ -73,7 +73,7 @@ bool intr_disabled(void) __no_profile;
 
 #define CLEANUP_FUNCTION(func) __CONCAT(__cleanup_, func)
 #define DEFINE_CLEANUP_FUNCTION(type, func)                                    \
-  static inline void __cleanup_##func(type *ptr) {                             \
+  static __no_profile inline void __cleanup_##func(type *ptr) {                \
     if (*ptr)                                                                  \
       func(*ptr);                                                              \
   }                                                                            \

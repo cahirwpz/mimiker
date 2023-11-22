@@ -77,13 +77,13 @@ typedef struct pmap_md {
  * Page directory.
  */
 
-static inline bool pde_valid_p(pde_t *pdep) {
+static __no_profile inline bool pde_valid_p(pde_t *pdep) {
   return pdep && (*pdep & PDE_VALID);
 }
 
 void *phys_to_dmap(paddr_t addr);
 
-static inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
+static __no_profile inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
   pde_t *pde = phys_to_dmap(pd_pa);
   if (lvl == 0)
     return pde + PDE_INDEX(va);
@@ -94,15 +94,15 @@ static inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
  * Page table.
  */
 
-static inline paddr_t pte_frame(pte_t pte) {
+static __no_profile inline paddr_t pte_frame(pte_t pte) {
   return PTE_FRAME_ADDR(pte);
 }
 
-static inline bool pte_valid_p(pte_t *ptep) {
+static __no_profile inline bool pte_valid_p(pte_t *ptep) {
   return ptep && (pte_frame(*ptep) != 0);
 }
 
-static inline bool pte_access(pte_t pte, vm_prot_t prot) {
+static __no_profile inline bool pte_access(pte_t pte, vm_prot_t prot) {
   switch (prot) {
     case VM_PROT_READ:
       return pte & PTE_SW_READ;
@@ -119,13 +119,14 @@ static inline bool pte_access(pte_t pte, vm_prot_t prot) {
  * Physical map management.
  */
 
-static inline void pmap_md_delete(pmap_t *pmap) {
+static __no_profile inline void pmap_md_delete(pmap_t *pmap) {
 }
 
-static inline void pmap_md_growkernel(vaddr_t old_kva, vaddr_t new_kva) {
+static __no_profile inline void pmap_md_growkernel(vaddr_t old_kva,
+                                                   vaddr_t new_kva) {
 }
 
-static inline void pmap_md_update(pmap_t *pmap) {
+static __no_profile inline void pmap_md_update(pmap_t *pmap) {
 }
 
 #endif /* __ASSEMBLER__ */

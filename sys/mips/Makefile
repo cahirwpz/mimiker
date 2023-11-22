@@ -29,4 +29,4 @@ CPPFLAGS += -D_MACHDEP
 
 boot.o : CFLAGS_KASAN =
 boot.o : CFLAGS_KCSAN =
-boot.o : CFLAGS_KGPROF =
+boot.o : CFLAGS_KFI =
