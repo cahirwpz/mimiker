@@ -41,6 +41,9 @@
 #include <time.h>
 
 __BEGIN_DECLS
+int pselect(int, fd_set *__restrict, fd_set *__restrict, fd_set *__restrict,
+            const struct timespec *__restrict, const sigset_t *__restrict);
+
 int select(int, fd_set *__restrict, fd_set *__restrict, fd_set *__restrict,
            struct timeval *__restrict);
 __END_DECLS

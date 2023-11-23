@@ -9,6 +9,14 @@
 #define FBIOCSET_FBINFO _IOW(FB_IOC_MAGIC, 1, struct fb_info)
 #define FBIOCSET_PALETTE _IOW(FB_IOC_MAGIC, 2, struct fb_palette)
 
+#define FBIOGET_VSCREENINFO _IOR(FB_IOC_MAGIC, 3, struct fb_var_screeninfo)
+#define FBIOPUT_VSCREENINFO _IOW(FB_IOC_MAGIC, 3, struct fb_var_screeninfo)
+
+struct fb_var_screeninfo {
+  uint32_t xres, yres;
+  uint32_t bits_per_pixel;
+};
+
 struct fb_color {
   uint8_t r, g, b;
 };

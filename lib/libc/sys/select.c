@@ -6,6 +6,12 @@
 #include <unistd.h>
 #include <errno.h>
 
+int pselect(int nfds, fd_set *readfds, fd_set *writefds,
+            fd_set *exceptfds, const struct timespec *timeout,
+            const sigset_t *sigmask) {
+    return 0;
+}
+
 int select(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
            fd_set *restrict exceptfds, struct timeval *restrict timeout) {
     int kq;
