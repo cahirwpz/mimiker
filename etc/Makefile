@@ -2,7 +2,7 @@
 
 TOPDIR = $(realpath ..)
 
-FILES = group master.passwd rc.init rc.shutdown .kshrc shells
+FILES = group master.passwd rc.init rc.shutdown .kshrc shells spleen-8x16.fnt
 INSTALL-FILES = $(addprefix $(SYSROOT)/etc/, $(FILES))
 
 all: build
