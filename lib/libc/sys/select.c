@@ -21,9 +21,14 @@ int pselect(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
         return -1;
     }
 
-    kq = kqueue1(O_CLOEXEC);
-    if (kq < 0)
+    if (sigmask && sigprocmask(SIG_SETMASK, sigmask, &sigs))
         return -1;
+
+    kq = kqueue1(O_CLOEXEC);
+    if (kq < 0) {
+        ret = -1;
+        goto restore_sigs;
+    }
 
     events = malloc(2 * nfds * sizeof(struct kevent));
     if (!events) {
@@ -44,9 +49,6 @@ int pselect(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
     if (writefds != NULL)
         FD_ZERO(writefds);
 
-    if (sigmask && sigprocmask(SIG_SETMASK, sigmask, &sigs))
-        return -1;
-
     ret = kevent(kq, events, nevents, events, nevents, timeout);
     if (ret == -1)
         goto end;
@@ -65,10 +67,11 @@ int pselect(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
 
 end:
     free(events);
-    if (sigmask && sigprocmask(SIG_SETMASK, &sigs, NULL))
-        ret = -1;
 close_kq:
     close(kq);
+restore_sigs:
+    if (sigmask && sigprocmask(SIG_SETMASK, &sigs, NULL))
+        ret = -1;
     return ret;
 }
 
