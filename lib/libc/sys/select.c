@@ -7,9 +7,9 @@
 #include <errno.h>
 #include <signal.h>
 
-int pselect(int nfds, fd_set *readfds, fd_set *writefds,
-            fd_set *exceptfds, const struct timespec *timeout,
-            const sigset_t *sigmask) {
+int pselect(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
+            fd_set *restrict exceptfds, const struct timespec *restrict timeout,
+            const sigset_t *restrict sigmask) {
     int kq;
     int ret;
     struct kevent *events;
