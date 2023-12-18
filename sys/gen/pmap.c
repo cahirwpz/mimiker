@@ -317,6 +317,35 @@ bool pmap_extract(pmap_t *pmap, vaddr_t va, paddr_t *pap) {
   return pmap_extract_nolock(pmap, va, pap);
 }
 
+static inline size_t next_vaddr(int lvl) {
+  if (lvl + 1 < PAGE_TABLE_DEPTH)
+    return pde_size(lvl + 1);
+  return PAGESIZE;
+}
+
+static void pmap_protect_range(int lvl, paddr_t pd_pa, vaddr_t va, vaddr_t end,
+                               vm_prot_t prot) {
+
+  for (size_t pde_i = pde_index(lvl, va);
+       pde_valid_index(lvl, pde_i) && va < end;
+       pde_i++, va += next_vaddr(lvl)) {
+
+    pde_t *pdep = pde_ptr_idx(pd_pa, pde_i);
+    if (!pde_valid_p(pdep))
+      continue;
+
+    paddr_t pa = pte_frame((pte_t)*pdep);
+
+    if (lvl + 1 == PAGE_TABLE_DEPTH) {
+      pte_t *ptep = (pte_t *)pdep;
+      pte_t pte = pte_protect(*ptep, prot);
+      *ptep = pte;
+    } else {
+      pmap_protect_range(lvl + 1, pa, va, end, prot);
+    }
+  }
+}
+
 void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
   assert(pmap != pmap_kernel());
   assert(page_aligned_p(start) && page_aligned_p(end));
@@ -326,13 +355,7 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
        end);
 
   WITH_MTX_LOCK (&pmap->mtx) {
-    for (vaddr_t va = start; va < end; va += PAGESIZE) {
-      pte_t *ptep = pmap_lookup_pte(pmap, va);
-      if (!pte_valid_p(ptep))
-        continue;
-      pte_t pte = pte_protect(*ptep, prot);
-      *ptep = pte;
-    }
+    pmap_protect_range(0, pmap->pde, start, end, prot);
     tlb_invalidate_asid(pmap->asid);
   }
 }
