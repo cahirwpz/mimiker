@@ -83,11 +83,45 @@ static __no_profile inline bool pde_valid_p(pde_t *pdep) {
 
 void *phys_to_dmap(paddr_t addr);
 
-static __no_profile inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
+static __no_profile inline size_t pde_index(int lvl, vaddr_t va) {
+  switch (lvl) {
+    case 0:
+      return PDE_INDEX(va);
+    case 1:
+      return PTE_INDEX(va);
+  }
+  panic("Invalid level: %d", lvl);
+}
+
+static __no_profile inline pde_t *pde_ptr_idx(paddr_t pd_pa, size_t index) {
   pde_t *pde = phys_to_dmap(pd_pa);
-  if (lvl == 0)
-    return pde + PDE_INDEX(va);
-  return pde + PTE_INDEX(va);
+  return pde + index;
+}
+
+static __no_profile inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
+  return pde_ptr_idx(pd_pa, pde_index(lvl, va));
+}
+
+static __no_profile inline bool pde_valid_index(int lvl, size_t index) {
+  switch (lvl) {
+    case 0:
+      return index < PD_ENTRIES;
+    case 1:
+    case 2:
+    case 3:
+      return index < PT_ENTRIES;
+  }
+  panic("Invalid level: %d", lvl);
+}
+
+static __no_profile inline size_t pde_size(int lvl) {
+  switch (lvl) {
+    case 0:
+      return PAGESIZE * PT_ENTRIES;
+    case 1:
+      return PAGESIZE;
+  }
+  panic("Invalid level: %d", lvl);
 }
 
 /*
