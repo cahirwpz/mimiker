@@ -70,6 +70,15 @@ paddr_t pde_alloc(pmap_t *pmap);
 pde_t pde_make(int lvl, paddr_t pa);
 static inline pde_t *pde_ptr(paddr_t pd, int lvl, vaddr_t va);
 
+static __no_profile inline pde_t *pde_ptr_idx(paddr_t pd_pa, size_t index) {
+  pde_t *pde = phys_to_dmap(pd_pa);
+  return pde + index;
+}
+
+static __no_profile inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
+  return pde_ptr_idx(pd_pa, pde_index(lvl, va));
+}
+
 /*
  * Page table.
  */

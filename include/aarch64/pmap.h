@@ -69,15 +69,6 @@ static __no_profile inline size_t pde_index(int lvl, vaddr_t va) {
   panic("Invalid level: %d", lvl);
 }
 
-static __no_profile inline pde_t *pde_ptr_idx(paddr_t pd_pa, size_t index) {
-  pde_t *pde = phys_to_dmap(pd_pa);
-  return pde + index;
-}
-
-static __no_profile inline pde_t *pde_ptr(paddr_t pd_pa, int lvl, vaddr_t va) {
-  return pde_ptr_idx(pd_pa, pde_index(lvl, va));
-}
-
 static __no_profile inline bool pde_valid_index(int lvl, size_t index) {
   switch (lvl) {
     case 0:
