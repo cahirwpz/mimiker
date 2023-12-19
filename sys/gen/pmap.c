@@ -237,9 +237,8 @@ void pmap_kremove(vaddr_t va, size_t size) {
     for (size_t off = 0; off < size; off += PAGESIZE) {
       pte_t *ptep = pmap_lookup_pte(pmap, va + off);
       assert(ptep);
-      *ptep = PTE_EMPTY_KERNEL;
+      pmap_write_pte(pmap, ptep, PTE_EMPTY_KERNEL, va + off);
     }
-    tlb_invalidate_asid(pmap->asid);
   }
 }
 
@@ -292,9 +291,8 @@ void pmap_remove(pmap_t *pmap, vaddr_t start, vaddr_t end) {
         paddr_t pa = pte_frame(*ptep);
         vm_page_t *pg = vm_page_find(pa);
         pv_remove(pmap, va, pg);
-        *ptep = PTE_EMPTY_USER;
+        pmap_write_pte(pmap, ptep, PTE_EMPTY_USER, va);
       }
-      tlb_invalidate_asid(pmap->asid);
     }
   }
 }
