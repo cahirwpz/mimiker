@@ -321,8 +321,8 @@ static inline size_t next_vaddr(int lvl) {
   return PAGESIZE;
 }
 
-static void pmap_protect_range(int lvl, paddr_t pd_pa, vaddr_t va, vaddr_t end,
-                               vm_prot_t prot) {
+static void pmap_protect_walk(int lvl, paddr_t pd_pa, vaddr_t va, vaddr_t end,
+                              vm_prot_t prot) {
 
   for (size_t pde_i = pde_index(lvl, va);
        pde_valid_index(lvl, pde_i) && va < end;
@@ -339,7 +339,7 @@ static void pmap_protect_range(int lvl, paddr_t pd_pa, vaddr_t va, vaddr_t end,
       pte_t pte = pte_protect(*ptep, prot);
       *ptep = pte;
     } else {
-      pmap_protect_range(lvl + 1, pa, va, end, prot);
+      pmap_protect_walk(lvl + 1, pa, va, end, prot);
     }
   }
 }
@@ -353,7 +353,7 @@ void pmap_protect(pmap_t *pmap, vaddr_t start, vaddr_t end, vm_prot_t prot) {
        end);
 
   WITH_MTX_LOCK (&pmap->mtx) {
-    pmap_protect_range(0, pmap->pde, start, end, prot);
+    pmap_protect_walk(0, pmap->pde, start, end, prot);
     tlb_invalidate_asid(pmap->asid);
   }
 }
