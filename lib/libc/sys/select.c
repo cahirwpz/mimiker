@@ -5,32 +5,30 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <signal.h>
 
-int select(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
-           fd_set *restrict exceptfds, struct timeval *restrict timeout) {
+int pselect(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
+            fd_set *restrict exceptfds, const struct timespec *restrict timeout,
+            const sigset_t *restrict sigmask) {
     int kq;
     int ret;
-    struct timespec timeout_ts;
     struct kevent *events;
     int nevents = 0;
+    sigset_t sigs;
 
     if (nfds < 0) {
         errno = EINVAL;
         return -1;
     }
 
-    if (timeout != NULL) {
-        if (timeout->tv_sec < 0 || timeout->tv_usec < 0 || timeout->tv_usec >= 1000000) {
-            errno = EINVAL;
-            return -1;
-        }
-
-        tv2ts(timeout, &timeout_ts);
-    }
+    if (sigmask && sigprocmask(SIG_SETMASK, sigmask, &sigs))
+        return -1;
 
     kq = kqueue1(O_CLOEXEC);
-    if (kq < 0)
-        return -1;
+    if (kq < 0) {
+        ret = -1;
+        goto restore_sigs;
+    }
 
     events = malloc(2 * nfds * sizeof(struct kevent));
     if (!events) {
@@ -50,8 +48,8 @@ int select(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
         FD_ZERO(readfds);
     if (writefds != NULL)
         FD_ZERO(writefds);
-    
-    ret = kevent(kq, events, nevents, events, nevents, timeout == NULL ? NULL : &timeout_ts);
+
+    ret = kevent(kq, events, nevents, events, nevents, timeout);
     if (ret == -1)
         goto end;
 
@@ -71,5 +69,25 @@ end:
     free(events);
 close_kq:
     close(kq);
+restore_sigs:
+    if (sigmask && sigprocmask(SIG_SETMASK, &sigs, NULL))
+        ret = -1;
     return ret;
+}
+
+int select(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
+           fd_set *restrict exceptfds, struct timeval *restrict timeout) {
+    struct timespec timeout_ts;
+    
+    if (timeout != NULL) {
+        if (timeout->tv_sec < 0 || timeout->tv_usec < 0 || timeout->tv_usec >= 1000000) {
+            errno = EINVAL;
+            return -1;
+        }
+
+        tv2ts(timeout, &timeout_ts);
+    }
+
+    return pselect(nfds, readfds, writefds, exceptfds,
+                   timeout == NULL ? NULL : &timeout_ts , NULL);
 }
