@@ -65,8 +65,9 @@ static __no_profile inline size_t pde_index(int lvl, vaddr_t va) {
       return L2_INDEX(va);
     case 3:
       return L3_INDEX(va);
+    default:
+      panic("Invalid level: %d", lvl);
   }
-  panic("Invalid level: %d", lvl);
 }
 
 static __no_profile inline bool pde_valid_index(int lvl, size_t index) {
@@ -77,8 +78,9 @@ static __no_profile inline bool pde_valid_index(int lvl, size_t index) {
     case 2:
     case 3:
       return index < Ln_ENTRIES;
+    default:
+      panic("Invalid level: %d", lvl);
   }
-  panic("Invalid level: %d", lvl);
 }
 
 static __no_profile inline size_t pde_size(int lvl) {
@@ -91,8 +93,9 @@ static __no_profile inline size_t pde_size(int lvl) {
       return L2_SIZE;
     case 3:
       return L3_SIZE;
+    default:
+      panic("Invalid level: %d", lvl);
   }
-  panic("Invalid level: %d", lvl);
 }
 
 /*
