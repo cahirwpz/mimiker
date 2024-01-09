@@ -539,6 +539,11 @@ static int cow_page_fault(vm_map_t *map, vm_map_entry_t *ent, size_t off,
   if (old == NULL)
     return 0;
 
+  /* This check is safe. We are the only owner of this anon and the ref count
+   * will not change because we are under vm_map:mtx. */
+  if (old->ref_cnt == 1)
+    return 0;
+
   /* Current mapping will be replaced with new one so remove it from pmap. */
   vaddr_t fault_page = off * PAGESIZE + ent->start;
   pmap_remove(map->pmap, fault_page, fault_page + PAGESIZE);
