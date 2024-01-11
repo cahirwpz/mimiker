@@ -45,9 +45,11 @@ $(BUILDDIR)%.a:
 	@echo "[AR] $(addprefix $(DIR),$^) -> $(DSTPATH)"
 	$(AR) rs $@ $^ 2> /dev/null
 
-assym.h: genassym.cf
+GENASSYM-DEPS := sed -ne 's,\(include\) <\(.*\)>,$(TOPDIR)/\1/\2,gp' 
+
+assym.h: genassym.cf $(shell $(GENASSYM-DEPS) genassym.cf)
 	@echo "[ASSYM] $(DSTPATH)"
-	$(GENASSYM) $(CC) $(ASSYM_CFLAGS) $(CFLAGS) $(CPPFLAGS) < $^ > $@
+	$(GENASSYM) $(CC) $(ASSYM_CFLAGS) $(CFLAGS) $(CPPFLAGS) < $< > $@
 
 %/assym.h: %/genassym.cf
 	@echo "[ASSYM] $(DSTPATH)"
