@@ -6,8 +6,8 @@ import os
 from pathlib import Path
 from typing import Dict, List
 
-from .event import KFTEvent, TdEvents
-from .elf import Elf
+from kftlib.event import KFTEvent, TdEvents
+from kftlib.elf import Elf
 
 
 def inspect_kft_file(path: Path,
