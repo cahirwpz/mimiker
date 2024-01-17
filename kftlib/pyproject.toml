@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kftlib"
+version = "0.0.1"
+dependencies = [
+    "pyelftools == 0.30",
+]
+
+[tool.setuptools.packages.find]
+include = ["kftlib"]
