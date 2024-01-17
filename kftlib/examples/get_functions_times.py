@@ -24,7 +24,9 @@ def get_fn_times(events, elf, functions, out):
         if not pc:
             continue
         if pc in fn_times:
-            print(f"{fn:>13}: {len(fn_times[pc]):>5} {statistics.mean(fn_times[pc]):>8.0f}")
+            avg_time = statistics.mean(fn_times[pc])
+            count = len(fn_times[pc])
+            print(f"{fn:>13}: {count:>5} {avg_time:>8.0f}")
             if fn in ["vm_map_clone", "vm_page_fault"]:
                 sumt += sum(fn_times[pc])
             if fn in ["pmap_protect"]:
