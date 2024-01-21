@@ -7,6 +7,7 @@ Example application using kftlib.
 import argparse
 import statistics
 import os
+
 from kftlib.elf import Elf
 from kftlib import inspect
 from kftlib.stats import get_functions_times
