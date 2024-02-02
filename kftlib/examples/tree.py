@@ -8,40 +8,46 @@ from kftlib.event import KFTEventType
 from kftlib import inspect
 
 
+def draw_graphs(function_pc, td_events, elf, max_depth):
+    graphs = []
+    graph = ""
+    depth = 0
+    start_time = 0
+    drawing_graph = False
+    for event in td_events:
+        if not drawing_graph and event.pc != function_pc:
+            continue
+
+        if event.pc == function_pc and event.typ == KFTEventType.KFT_IN:
+            drawing_graph = True
+            start_time = event.timestamp
+            graph = ""
+
+        append = not max_depth or depth <= max_depth
+
+        time = event.timestamp - start_time
+        if event.typ == KFTEventType.KFT_IN:
+            fn_name = elf.pc2fun[event.pc]
+            line = f"{time:>4}  " + depth * "| " + fn_name + "\n"  # in
+            depth += 1
+        else:
+            depth -= 1
+            line = f"{time:>4}  " + depth * "| " + "*" + "\n"  # out
+
+        if append:
+            graph += line
+
+        if event.pc == function_pc and event.typ == KFTEventType.KFT_OUT:
+            graphs.append((time, graph))
+            drawing_graph = False
+    return graphs
+
+
 def get_fn_graphs(events, elf, function, max_depth):
     graphs = []
     function_pc = elf.fun2pc[function]
     for td, td_events in events.items():
-        graph = ""
-        depth = 0
-        start_time = 0
-        drawing_graph = False
-        for event in td_events:
-            if not drawing_graph and event.pc != function_pc:
-                continue
-
-            if event.pc == function_pc and event.typ == KFTEventType.KFT_IN:
-                drawing_graph = True
-                start_time = event.timestamp
-                graph = ""
-
-            append = not max_depth or depth <= max_depth
-
-            time = event.timestamp - start_time
-            if event.typ == KFTEventType.KFT_IN:
-                fn_name = elf.pc2fun[event.pc]
-                line = f"{time:>4}  " + depth * "| " + fn_name + "\n"  # in
-                depth += 1
-            else:
-                depth -= 1
-                line = f"{time:>4}  " + depth * "| " + "*" + "\n"  # out
-
-            if append:
-                graph += line
-
-            if event.pc == function_pc and event.typ == KFTEventType.KFT_OUT:
-                graphs.append((time, graph))
-                drawing_graph = False
+        graphs.extend(draw_graphs(function_pc, td_events, elf, max_depth))
 
     # Sort by time and return only graphs
     graphs.sort()

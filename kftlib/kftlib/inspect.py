@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 import os
 
+from array import array
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List
 
@@ -30,28 +32,27 @@ def inspect_kft_file(path: Path,
 
     # File should contain kft entries which have 8B size
     assert size % 8 == 0
-    entries = int(size / 8)
+    n_entries = int(size / 8)
     mb_size = size / 1024 / 1024
-    logging.info(f'Reading file of size {mb_size}MB' f'({entries} entries)')
+    logging.info(f'Reading file of size {mb_size}MB' f'({n_entries} entries)')
 
-    events: Dict[int, List[KFTEvent]] = dict()
+    events: Dict[int, List[KFTEvent]] = defaultdict(list)
     td_time = [0] * (td_max + 1)  # elapsed time
     cur_thread = -1
     cur_time = 0
     switch_time = 0
     ctx_swith_count = 0
 
-    file = open(path, 'rb', buffering=800)
-    for i in range(entries):
-        v = int.from_bytes(file.read(8), 'little')
+    entries = array('Q')
+    with open(path, 'rb') as f:
+        entries.fromfile(f, n_entries)
+
+    for i, v in enumerate(entries):
         thread, event = KFTEvent.decode(v, elf.kernel_start)
 
         if thread != cur_thread:
             # update info about prev thread
             td_time[cur_thread] += event.timestamp - switch_time
-
-            if thread not in events:
-                events[thread] = []
 
             # save values for current thread
             switch_time = event.timestamp

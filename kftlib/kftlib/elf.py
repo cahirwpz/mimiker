@@ -37,9 +37,8 @@ class Elf():
         """
         def get_symbol_table_section(elf: ELFFile) -> Section:
             for section in elf.iter_sections():
-                if not isinstance(section, SymbolTableSection):
-                    continue
-                return section
+                if isinstance(section, SymbolTableSection):
+                    return section
 
         def is_function(s: Symbol) -> bool:
             return s.entry['st_info']['type'] == 'STT_FUNC'

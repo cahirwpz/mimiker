@@ -1,5 +1,6 @@
 import logging
 
+from collections import defaultdict
 from typing import Dict, List, Any
 
 from kftlib.event import KFTEvent, TdEvents, KFTEventType
@@ -10,7 +11,7 @@ ListDict = Dict[Any, List[Any]]
 
 
 def _get_times(event_list: List[KFTEvent], pc_list: List[int]) -> FTimes:
-    fn_times: FTimes = {}
+    fn_times: FTimes = defaultdict(list)
     last_event = {}
     for pc in pc_list:
         last_event[pc] = (KFTEventType.KFT_OUT, 0)
@@ -27,10 +28,7 @@ def _get_times(event_list: List[KFTEvent], pc_list: List[int]) -> FTimes:
 
         if e.typ == KFTEventType.KFT_OUT:
             elapsed = e.timestamp - last_time
-            if e.pc in fn_times:
-                fn_times[e.pc].append(elapsed)
-            else:
-                fn_times[e.pc] = [elapsed]
+            fn_times[e.pc].append(elapsed)
 
         last_event[e.pc] = (e.typ, e.timestamp)
 
