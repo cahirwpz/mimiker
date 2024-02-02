@@ -32,9 +32,9 @@ def inspect_kft_file(path: Path,
 
     # File should contain kft entries which have 8B size
     assert size % 8 == 0
-    n_entries = int(size / 8)
+    entries = int(size / 8)
     mb_size = size / 1024 / 1024
-    logging.info(f'Reading file of size {mb_size}MB' f'({n_entries} entries)')
+    logging.info(f'Reading file of size {mb_size}MB' f'({entries} entries)')
 
     events: Dict[int, List[KFTEvent]] = defaultdict(list)
     td_time = [0] * (td_max + 1)  # elapsed time
@@ -45,7 +45,7 @@ def inspect_kft_file(path: Path,
 
     entries = array('Q')
     with open(path, 'rb') as f:
-        entries.fromfile(f, n_entries)
+        entries.frombytes(f.read())
 
     for i, v in enumerate(entries):
         thread, event = KFTEvent.decode(v, elf.kernel_start)
