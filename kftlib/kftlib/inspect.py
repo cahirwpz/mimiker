@@ -27,15 +27,6 @@ def inspect_kft_file(path: Path,
     Returns:
         dictionary of events for each thread (indexed with thread id)
     """
-    st = os.stat(path)
-    size = st.st_size
-
-    # File should contain kft entries which have 8B size
-    assert size % 8 == 0
-    entries = int(size / 8)
-    mb_size = size / 1024 / 1024
-    logging.info(f'Reading file of size {mb_size}MB' f'({entries} entries)')
-
     events: Dict[int, List[KFTEvent]] = defaultdict(list)
     td_time = [0] * (td_max + 1)  # elapsed time
     cur_thread = -1
@@ -46,6 +37,8 @@ def inspect_kft_file(path: Path,
     entries = array('Q')
     with open(path, 'rb') as f:
         entries.frombytes(f.read())
+
+    print(f'Read {len(entries)} KFT events')
 
     for i, v in enumerate(entries):
         thread, event = KFTEvent.decode(v, elf.kernel_start)
@@ -67,4 +60,5 @@ def inspect_kft_file(path: Path,
         event.timestamp = cur_time + (event.timestamp - switch_time)
 
         events[cur_thread].append(event)
+
     return events

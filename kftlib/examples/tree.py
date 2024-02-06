@@ -8,8 +8,10 @@ from kftlib.event import KFTEventType
 from kftlib import inspect
 
 
-def draw_graphs(function_pc, td_events, elf, max_depth):
-    graphs = []
+def draw_graphs(function_pc, td_events, elf, max_depth, graphs):
+    """
+    Draw call graphs for given function and save them in `graphs` list.
+    """
     graph = ""
     depth = 0
     start_time = 0
@@ -40,19 +42,6 @@ def draw_graphs(function_pc, td_events, elf, max_depth):
         if event.pc == function_pc and event.typ == KFTEventType.KFT_OUT:
             graphs.append((time, graph))
             drawing_graph = False
-    return graphs
-
-
-def get_fn_graphs(events, elf, function, max_depth):
-    graphs = []
-    function_pc = elf.fun2pc[function]
-    for td, td_events in events.items():
-        graphs.extend(draw_graphs(function_pc, td_events, elf, max_depth))
-
-    # Sort by time and return only graphs
-    graphs.sort()
-    _, graphs = zip(*graphs)
-    return graphs
 
 
 def main():
@@ -79,7 +68,14 @@ def main():
     args = parser.parse_args()
     elf = Elf.inspect_elf_file(args.elf_file)
     events = inspect.inspect_kft_file(args.kft_dump, elf)
-    graphs = get_fn_graphs(events, elf, args.function, args.max_depth)
+
+    graphs = []
+    function_pc = elf.fun2pc[args.function]
+    for td, td_events in events.items():
+        draw_graphs(function_pc, td_events, elf, args.max_depth, graphs)
+
+    graphs = [g for _, g in sorted(graphs)]
+
     with open(args.out, "w") as f:
         f.write("\n\n".join(graphs))
 

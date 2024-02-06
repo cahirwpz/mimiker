@@ -13,6 +13,7 @@ ListDict = Dict[Any, List[Any]]
 def _get_times(event_list: List[KFTEvent], pc_list: List[int]) -> FTimes:
     fn_times: FTimes = defaultdict(list)
     last_event = {}
+
     for pc in pc_list:
         last_event[pc] = (KFTEventType.KFT_OUT, 0)
 
@@ -39,14 +40,6 @@ def _get_times(event_list: List[KFTEvent], pc_list: List[int]) -> FTimes:
     return fn_times
 
 
-def _dict_append(d: ListDict, other: ListDict) -> ListDict:
-    for k, v in other.items():
-        if k in d:
-            d[k] += (v)
-        else:
-            d[k] = v
-
-
 def get_functions_times(events: TdEvents, pc_list: List[int]) -> FTimes:
     """
     Get list of execution times for each function from given list.
@@ -55,9 +48,10 @@ def get_functions_times(events: TdEvents, pc_list: List[int]) -> FTimes:
         events -- events read from kft dump
         pc_list -- list of pcs of functions to analyze
     """
-    fn_times: FTimes = {}
+    fn_times: FTimes = defaultdict(list)
 
     for td_events in events.values():
-        _dict_append(fn_times, _get_times(td_events, pc_list))
+        for pc, times in _get_times(td_events, pc_list).items():
+            fn_times[pc].extend(times)
 
     return fn_times

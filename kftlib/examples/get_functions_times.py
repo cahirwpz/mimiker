@@ -22,9 +22,7 @@ def get_fn_times(events, elf, functions, out):
     sumt = 0
     print(f"{'function':>13}: {'count':>5} {'avg time':>8}")
     for fn, pc in zip(functions, fn_pcs):
-        if not pc:
-            continue
-        if pc in fn_times:
+        if pc and pc in fn_times:
             avg_time = statistics.mean(fn_times[pc])
             count = len(fn_times[pc])
             print(f"{fn:>13}: {count:>5} {avg_time:>8.0f}")

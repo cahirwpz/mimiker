@@ -61,6 +61,7 @@ class Elf():
 
             pc_to_fun = [read_symbol(s)
                          for s in sym_table.iter_symbols() if is_function(s)]
+
         pcs, fns = zip(*pc_to_fun)
         fun_to_pc = zip(fns, pcs)
         pc2fun = dict(pc_to_fun)
