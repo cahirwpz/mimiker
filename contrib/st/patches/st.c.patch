@@ -1,0 +1,127 @@
+Index: st/st/st.c
+===================================================================
+--- st.orig/st/st.c	2023-08-20 18:28:23.003932423 +0200
++++ st/st/st.c	2023-08-20 18:30:27.003935457 +0200
+@@ -16,18 +16,11 @@
+ #include <termios.h>
+ #include <unistd.h>
+ #include <wchar.h>
++#include <util.h>
+ 
+ #include "st.h"
+ #include "win.h"
+ 
+-#if   defined(__linux)
+- #include <pty.h>
+-#elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
+- #include <util.h>
+-#elif defined(__FreeBSD__) || defined(__DragonFly__)
+- #include <libutil.h>
+-#endif
+-
+ /* Arbitrary sizes */
+ #define UTF_INVALID   0xFFFD
+ #define UTF_SIZ       4
+@@ -672,7 +665,7 @@
+ 	}
+ 
+ 	if ((sh = getenv("SHELL")) == NULL)
+-		sh = (pw->pw_shell[0]) ? pw->pw_shell : cmd;
++		sh = (pw->pw_shell[0]) ? ((char *)pw->pw_shell) : cmd;
+ 
+ 	if (args) {
+ 		prog = args[0];
+@@ -829,6 +822,7 @@
+ 		exit(0);
+ 	case -1:
+ 		die("couldn't read from shell: %s\n", strerror(errno));
++		break;
+ 	default:
+ 		buflen += ret;
+ 		written = twrite(buf, buflen, 0);
+@@ -836,8 +830,8 @@
+ 		/* keep any incomplete UTF-8 byte sequence for the next call */
+ 		if (buflen > 0)
+ 			memmove(buf, buf + written, buflen);
+-		return ret;
+ 	}
++	return ret;
+ }
+ 
+ void
+@@ -901,7 +895,7 @@
+ 			 */
+ 			if ((r = write(cmdfd, s, (n < lim)? n : lim)) < 0)
+ 				goto write_error;
+-			if (r < n) {
++			if (r < (ssize_t)n) {
+ 				/*
+ 				 * We weren't able to write out everything.
+ 				 * This means the buffer is getting full
+@@ -1019,7 +1013,7 @@
+ 	}, .x = 0, .y = 0, .state = CURSOR_DEFAULT};
+ 
+ 	memset(term.tabs, 0, term.col * sizeof(*term.tabs));
+-	for (i = tabspaces; i < term.col; i += tabspaces)
++	for (i = tabspaces; i < (uint)term.col; i += tabspaces)
+ 		term.tabs[i] = 1;
+ 	term.top = 0;
+ 	term.bot = term.row - 1;
+@@ -1299,7 +1293,7 @@
+ tdefcolor(const int *attr, int *npar, int l)
+ {
+ 	int32_t idx = -1;
+-	uint r, g, b;
++	int r, g, b;
+ 
+ 	switch (attr[*npar + 1]) {
+ 	case 2: /* direct color in RGB space */
+@@ -1858,7 +1852,7 @@
+ 
+ 	n = snprintf(buf, sizeof buf, "\033]%s%d;rgb:%02x%02x/%02x%02x/%02x%02x\007",
+ 	             is_osc4 ? "4;" : "", num, r, r, g, g, b, b);
+-	if (n < 0 || n >= sizeof(buf)) {
++	if (n < 0 || n >= (int)sizeof(buf)) {
+ 		fprintf(stderr, "error: %s while printing %s response\n",
+ 		        n < 0 ? "snprintf failed" : "truncation occurred",
+ 		        is_osc4 ? "osc4" : "osc");
+@@ -1916,7 +1910,7 @@
+ 			if (narg < 2)
+ 				break;
+ 			p = strescseq.args[1];
+-			if ((j = par - 10) < 0 || j >= LEN(osc_table))
++			if ((j = par - 10) < 0 || j >= (int)LEN(osc_table))
+ 				break; /* shouldn't be possible */
+ 
+ 			if (!strcmp(p, "?")) {
+@@ -2099,7 +2093,7 @@
+ void
+ tputtab(int n)
+ {
+-	uint x = term.c.x;
++	int x = term.c.x;
+ 
+ 	if (n > 0) {
+ 		while (x < term.col && n--)
+@@ -2360,10 +2354,10 @@
+ {
+ 	char c[UTF_SIZ];
+ 	int control;
+-	int width, len;
++	int width = 0, len;
+ 	Glyph *gp;
+ 
+-	control = ISCONTROL(u);
++	control = ISCONTROL((int_least32_t)u);
+ 	if (u < 127 || !IS_SET(MODE_UTF8)) {
+ 		c[0] = u;
+ 		width = len = 1;
+@@ -2519,7 +2513,7 @@
+ 			u = buf[n] & 0xFF;
+ 			charsize = 1;
+ 		}
+-		if (show_ctrl && ISCONTROL(u)) {
++		if (show_ctrl && ISCONTROL((int_least32_t)u)) {
+ 			if (u & 0x80) {
+ 				u &= 0x7f;
+ 				tputc('^');

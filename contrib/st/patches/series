@@ -1,0 +1,9 @@
+x.c.patch
+st.c.patch
+kdbtable.patch
+kbio.patch
+input.h.patch
+input.c.patch
+font.h.patch
+font.c.patch
+config.patch
