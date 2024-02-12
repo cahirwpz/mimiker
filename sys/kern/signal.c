@@ -206,7 +206,89 @@ int do_sigsuspend(proc_t *p, const sigset_t *mask) {
 
 int do_sigtimedwait(proc_t *p, sigset_t waitset, ksiginfo_t *ksi,
                     timespec_t *tsp) {
-  return ENOTSUP;
+  int error = 0, timeout = 0;
+  sigset_t saved_mask;
+  signo_t sig;
+  thread_t *td = p->p_thread;
+
+  /*
+   * Calculate timeout based on tsp.
+   *
+   * NULL pointer means an infinite timeout.
+   * {.tv_sec = 0, .tv_nsec = 0} means to not block.
+   * Timeout is valid only if 0 <= tv_nsec <= 1e9. If this is not true,
+   * immediately return EINVAL. If tv_sec < 0 immediately return EAGAIN.
+   *
+   * We set the timeout value such that:
+   *   - timeout == -1: do not block
+   *   - timeout == 0: wait indefinitely
+   *   - timeout > 0: wait for timeout.
+   */
+  if (tsp != NULL) {
+    if (tsp->tv_nsec < 0 || tsp->tv_nsec >= 1000000000) {
+      return EINVAL;
+    }
+    if (tsp->tv_sec < 0) {
+      return EAGAIN;
+    }
+
+    timeout = ts2hz(tsp);
+    if (timeout == 0) {
+      if (tsp->tv_nsec == 0 && tsp->tv_sec == 0) {
+        timeout = -1;
+      } else {
+        /* Shortest possible timeout */
+        timeout = 1;
+      }
+    }
+  }
+
+  bzero(ksi, sizeof(*ksi));
+
+  /* Silently ignore SIGKILL and SIGSTOP. */
+  __sigminusset(&cantmask, &waitset);
+
+  WITH_PROC_LOCK(p) {
+    /* Unblocking temporarly waited signals so we're woken up upon receiving
+     * such signal. */
+    saved_mask = td->td_sigmask;
+    __sigminusset(&waitset, &td->td_sigmask);
+
+    /* We need to find pending signal that we also wait for manually, as
+     * sig_pending may return a pending signal not from waitset. */
+    sigset_t pending = td->td_sigpend.sp_set;
+    __sigandset(&waitset, &pending);
+    if ((sig = __sigfindset(&pending))) {
+      sigpend_get(&td->td_sigpend, sig, ksi);
+      error = 0;
+      goto out;
+    }
+    if (timeout == -1) {
+      error = EAGAIN;
+      goto out;
+    }
+
+    error =
+      sleepq_wait_timed(&td->td_sigmask, "sigtimedwait()", &p->p_lock, timeout);
+
+    if (error == ETIMEDOUT) {
+      error = EAGAIN;
+      goto out;
+    }
+
+    pending = td->td_sigpend.sp_set;
+    __sigandset(&waitset, &pending);
+    if ((sig = __sigfindset(&pending))) {
+      sigpend_get(&td->td_sigpend, sig, ksi);
+      error = 0;
+    } else {
+      error = EINTR;
+    }
+  }
+
+out:
+  td->td_sigmask = saved_mask;
+  return error;
 }
 
 int do_sigpending(proc_t *p, sigset_t *set) {

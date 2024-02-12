@@ -274,6 +274,114 @@ TEST_ADD(signal_sigsuspend, 0) {
   return 0;
 }
 
+/* ======= signal_sigtimedwait ======= */
+static int sigtimedwait_child(__unused void *arg) {
+  pid_t ppid = getppid();
+  xkill(ppid, SIGUSR1);
+  return 0;
+}
+
+TEST_ADD(signal_sigtimedwait, 0) {
+  xsignal(SIGCONT, sigcont_handler);
+  sigset_t set, current, waitset;
+  sigemptyset(&set);
+  sigaddset(&set, SIGUSR1);
+  sigaddset(&set, SIGCONT);
+  xsigprocmask(SIG_SETMASK, &set, NULL);
+
+  spawn(sigtimedwait_child, NULL);
+
+  siginfo_t info;
+  sigemptyset(&waitset);
+  sigaddset(&waitset, SIGUSR1);
+  assert(sigtimedwait(&waitset, &info, NULL) == SIGUSR1);
+  assert(info.si_signo == SIGUSR1);
+
+  xsigprocmask(SIG_BLOCK, NULL, &current);
+  assert(sigsetequal(&set, &current));
+
+  wait_child_finished(0);
+  return 0;
+}
+
+/* ======= signal_sigtimedwait_timeout ======= */
+static int sigtimedwait_timeout_child(__unused void *arg) {
+  ppid = getppid();
+  xkill(ppid, SIGUSR1);
+  xkill(ppid, SIGCONT);
+  return 0;
+}
+
+TEST_ADD(signal_sigtimedwait_timeout, 0) {
+  xsignal(SIGCONT, sigcont_handler);
+  sigset_t set, waitset;
+  sigemptyset(&set);
+  sigaddset(&set, SIGUSR1);
+  xsigprocmask(SIG_SETMASK, &set, NULL);
+
+  siginfo_t info;
+  sigemptyset(&waitset);
+  sigaddset(&waitset, SIGUSR1);
+  timespec_t timeout = {
+    .tv_nsec = -1,
+    .tv_sec = -1,
+  };
+
+  /* tv_nsec is invalid. */
+  syscall_fail(sigtimedwait(&waitset, &info, &timeout), EINVAL);
+
+  /* tv_nsec is valid, but tv_sec < 0. */
+  timeout.tv_nsec = 10000000;
+  syscall_fail(sigtimedwait(&waitset, &info, &timeout), EAGAIN);
+
+  timeout.tv_sec = 0;
+  /* Should timeout. */
+  syscall_fail(sigtimedwait(&waitset, &info, &timeout), EAGAIN);
+
+  spawn(sigtimedwait_timeout_child, NULL);
+
+  /* If we handled sigcont, then SIGUSR1 must be pending. */
+  while (!sigcont_handled)
+    sched_yield();
+
+  /* Should not block, but receive the signal as it is in the pending mask. */
+  timeout.tv_nsec = 0;
+  assert(sigtimedwait(&waitset, &info, &timeout) == SIGUSR1);
+  assert(info.si_signo == SIGUSR1);
+
+  wait_child_finished(0);
+  return 0;
+}
+
+/* ======= signal_sigtimedwait_intr ====== */
+int sigtimedwait_intr_child(void *arg) {
+  pid_t ppid = getppid();
+  while (!sigcont_handled) {
+    xkill(ppid, SIGCONT);
+  }
+  return 0;
+}
+
+TEST_ADD(signal_sigtimedwait_intr, 0) {
+  xsignal(SIGCONT, sigcont_handler);
+  sigset_t set, waitset;
+  sigemptyset(&set);
+  sigaddset(&set, SIGUSR1);
+  xsigprocmask(SIG_SETMASK, &set, NULL);
+
+  siginfo_t info;
+  sigemptyset(&waitset);
+  sigaddset(&waitset, SIGUSR1);
+
+  pid_t cpid = spawn(sigtimedwait_intr_child, NULL);
+
+  syscall_fail(sigtimedwait(&waitset, &info, NULL), EINTR);
+
+  xkill(cpid, SIGCONT);
+  wait_child_finished(0);
+  return 0;
+}
+
 /* ======= signal_sigsuspend_stop ======= */
 TEST_ADD(signal_sigsuspend_stop, 0) {
   pid_t ppid = getpid();
