@@ -1,7 +1,7 @@
 Index: st/st/x.c
 ===================================================================
---- st.orig/st/x.c	2023-08-20 18:30:36.680602366 +0200
-+++ st/st/x.c	2023-08-20 18:40:47.457284177 +0200
+--- st.orig/st/x.c	2024-02-11 17:36:04.926289838 +0100
++++ st/st/x.c	2024-02-11 17:39:32.782949575 +0100
 @@ -1,2099 +1,457 @@
 -/* See LICENSE for license details. */
 +#include <sys/select.h>
@@ -2130,7 +2130,7 @@ Index: st/st/x.c
 +
 +struct {
 +  int fd;
-+  struct fb_var_screeninfo info;
++  struct fb_info info;
 +  void *fb; /* mmap()ed FB memory */
 +  int bpp;  /* bytes per pixel */
 +  int bpr;  /* bytes per row */
@@ -2151,14 +2151,14 @@ Index: st/st/x.c
 +static int fb_init(void) {
 +  if ((fb.fd = open(fb_dev, O_RDWR)) < 0)
 +    return 0;
-+  if (ioctl(fb.fd, FBIOGET_VSCREENINFO, &fb.info) < 0)
++  if (ioctl(fb.fd, FBIOCGET_FBINFO, &fb.info) < 0)
 +    return 0;
 +
 +  fcntl(fb.fd, F_SETFD, fcntl(fb.fd, F_GETFD) | FD_CLOEXEC);
 +
-+  fb.bpp = (fb.info.bits_per_pixel + 7) >> 3;
-+  fb.bpr = fb.info.xres * fb.bpp;
-+  fb.len = fb.bpr * fb.info.yres;
++  fb.bpp = (fb.info.bpp + 7) >> 3;
++  fb.bpr = fb.info.width * fb.bpp;
++  fb.len = fb.bpr * fb.info.height;
 +  fb.fb = mmap(NULL, fb.len, PROT_READ | PROT_WRITE, MAP_SHARED, fb.fd, 0);
 +  if (fb.fb == MAP_FAILED)
 +    return 0;
@@ -2296,8 +2296,8 @@ Index: st/st/x.c
 +
 +  win.ch = win.font->fontheight;
 +  win.cw = win.font->fontwidth;
-+  win.w = fb.info.xres;
-+  win.h = fb.info.yres;
++  win.w = fb.info.width;
++  win.h = fb.info.height;
 +
 +  col = (win.w - 2 * borderpx) / win.cw;
 +  row = (win.h - 2 * borderpx) / win.ch;
