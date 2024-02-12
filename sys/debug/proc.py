@@ -1,9 +1,10 @@
 import gdb
 
-from .cmd import SimpleCommand, AutoCompleteMixin
+from .cmd import SimpleCommand
 from .utils import TextTable, global_var
 from .struct import GdbStructMeta, TailQueue, enum
 from .thread import Thread
+from .vm_map import VmMap
 from .sync import Mutex
 
 
@@ -12,6 +13,7 @@ class Process(metaclass=GdbStructMeta):
     __cast__ = {'p_pid': int,
                 'p_lock': Mutex,
                 'p_thread': Thread,
+                'p_uspace': VmMap,
                 'p_state': enum}
 
     @staticmethod
@@ -31,6 +33,12 @@ class Process(metaclass=GdbStructMeta):
         alive = TailQueue(global_var('proc_list'), 'p_all')
         dead = TailQueue(global_var('zombie_list'), 'p_all')
         return map(cls, list(alive) + list(dead))
+
+    @classmethod
+    def find_by_pid(cls, pid):
+        for p in cls.list_all():
+            if p.p_pid == pid:
+                return p
 
     def __repr__(self):
         return 'proc{pid=%d}' % self.p_pid

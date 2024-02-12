@@ -10,6 +10,7 @@ from .struct import BinTime
 from .sync import CondVar, Mutex
 from .thread import Kthread, Thread, CurrentThread
 from .events import stop_handler
+from .virtmem import VmInfo
 
 
 def addPrettyPrinters():
@@ -32,6 +33,7 @@ Kprocess()
 Kthread()
 Ktrace()
 Kgmon()
+VmInfo()
 
 # Functions
 CurrentThread()
