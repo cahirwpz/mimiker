@@ -7,7 +7,7 @@
 #include <sys/kmem.h>
 #include <sys/pmap.h>
 
-RESOURCE_DECLARE(cbus_uart);
+DEV_MMIO_DECLARE(cbus_uart);
 
 static uint8_t in(off_t offset) {
   return bus_read_1(cbus_uart, offset);
@@ -34,7 +34,7 @@ static void cbus_uart_init(console_t *dev __unused) {
    * cbus_uart device. Unfortunately now we don't have fully working device
    * infrastructure. It should be changed after done with DEVCLASS. */
   vaddr_t handle = kmem_map_contig(MALTA_FPGA_BASE, PAGESIZE, PMAP_NOCACHE);
-  cbus_uart->r_bus_handle = handle + MALTA_CBUS_UART_OFFSET;
+  cbus_uart->bus_handle = handle + MALTA_CBUS_UART_OFFSET;
 
   set(LCR, LCR_DLAB);
   out(DLM, 0);

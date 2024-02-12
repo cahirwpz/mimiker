@@ -14,8 +14,9 @@ static bus_space_t cbus_bus_space = {
   .bs_write_1 = cbus_write_1,
 };
 
-/* clang-format off */
-resource_t cbus_uart[1] = {{.r_bus_tag = &cbus_bus_space,
-                            .r_bus_handle = 0,
-			   }};
-/* clang-format on */
+//* clang-format off */
+dev_mmio_t cbus_uart[1] = {[0] = {
+                             .bus_tag = &cbus_bus_space,
+                             .bus_handle = 0,
+                           }};
+//* clang-format on */

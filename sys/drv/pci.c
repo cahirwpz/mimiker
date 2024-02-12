@@ -106,7 +106,6 @@ void pci_bus_enumerate(device_t *pcib) {
       device_t *dev = device_add_child(pcib, -1);
       pci_device_t *pcid = kmalloc(M_DEV, sizeof(pci_device_t), M_ZERO);
 
-      dev->pic = pcib;
       dev->bus = DEV_BUS_PCI;
       dev->instance = pcid;
 
@@ -131,12 +130,12 @@ void pci_bus_enumerate(device_t *pcib) {
         unsigned type, flags = 0;
 
         if (addr & PCI_BAR_IO) {
-          type = RT_IOPORTS;
+          type = PCI_RT_IOPORTS;
           size &= ~PCI_BAR_IO_MASK;
         } else {
-          type = RT_MEMORY;
+          type = PCI_RT_MEMORY;
           if (addr & PCI_BAR_PREFETCHABLE)
-            flags |= RF_PREFETCHABLE;
+            flags |= DMF_PREFETCHABLE;
           size &= ~PCI_BAR_MEMORY_MASK;
         }
 
@@ -145,18 +144,18 @@ void pci_bus_enumerate(device_t *pcib) {
          * Devices are free to consume more address space than required,
          * but decoding down to a 4 KB space for memory is suggested for
          * devices that need less than that amount. */
-        if (type == RT_MEMORY)
+        if (type == PCI_RT_MEMORY)
           size = roundup(size, PAGESIZE);
 
         pcid->bar[i] = (pci_bar_t){
           .owner = dev, .type = type, .flags = flags, .size = size, .rid = i};
 
-        bus_addr_t start = (type == RT_IOPORTS) ? ioports_start : mem_start;
+        bus_addr_t start = (type == PCI_RT_IOPORTS) ? ioports_start : mem_start;
         start = roundup(start, size);
 
-        device_add_range(dev, type, i, start, start + size, flags);
+        device_add_mmio(dev, i, start, start + size, flags);
 
-        if (type == RT_IOPORTS)
+        if (type == PCI_RT_IOPORTS)
           ioports_start = start + size;
         else
           mem_start = start + size;
@@ -164,10 +163,11 @@ void pci_bus_enumerate(device_t *pcib) {
       if (pcid->pin) {
         int irq = pci_route_interrupt(dev);
         assert(irq != -1);
-        device_add_irq(dev, 0, irq);
+        device_add_intr(dev, 0, pcib->node, irq);
         pci_write_config_1(dev, PCIR_IRQLINE, irq);
         pcid->irq = irq;
       }
+      device_add_pending(dev);
     }
   }
 
@@ -178,7 +178,7 @@ void pci_bus_enumerate(device_t *pcib) {
 void pci_bus_dump(device_t *pcib) {
   device_t *dev;
 
-  TAILQ_FOREACH (dev, &pcib->children, link) {
+  TAILQ_FOREACH (dev, &pcib->children, siblings_link) {
     pci_device_t *pcid = pci_device_of(dev);
 
     char devstr[16];
@@ -212,11 +212,11 @@ void pci_bus_dump(device_t *pcib) {
       if (bar->size == 0)
         continue;
 
-      if (bar->type == RT_IOPORTS) {
+      if (bar->type == PCI_RT_IOPORTS) {
         type = "I/O ports";
       } else {
-        type = (bar->flags & RF_PREFETCHABLE) ? "Memory (prefetchable)"
-                                              : "Memory (non-prefetchable)";
+        type = (bar->flags & DMF_PREFETCHABLE) ? "Memory (prefetchable)"
+                                               : "Memory (non-prefetchable)";
       }
       kprintf("%s Region %x: %s [size=$%zx]\n", devstr, i, type, bar->size);
     }

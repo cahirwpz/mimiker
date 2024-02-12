@@ -5,7 +5,7 @@
 #include <sys/fdt.h>
 #include <sys/interrupt.h>
 #include <sys/klog.h>
-#include <dev/simplebus.h>
+#include <dev/fdt_dev.h>
 #include <riscv/mcontext.h>
 #include <riscv/riscvreg.h>
 #include <riscv/vm_param.h>
@@ -74,23 +74,23 @@ static void hlic_intr_enable(intr_event_t *ie) {
   csr_set(sie, 1 << irq);
 }
 
-static void hlic_setup_intr(device_t *pic, device_t *dev, resource_t *r,
+static void hlic_setup_intr(device_t *pic, device_t *dev, dev_intr_t *intr,
                             ih_filter_t *filter, ih_service_t *service,
                             void *arg, const char *name) {
   rootdev_t *rd = pic->state;
-  unsigned irq = r->r_irq;
+  unsigned irq = intr->irq;
   assert(irq < HLIC_NIRQS);
 
   if (!rd->intr_event[irq])
     rd->intr_event[irq] = intr_event_create(
       NULL, irq, hlic_intr_disable, hlic_intr_enable, hlic_intr_name[irq]);
 
-  r->r_handler =
+  intr->handler =
     intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
-static void hlic_teardown_intr(device_t *pic, device_t *dev, resource_t *r) {
-  intr_event_remove_handler(r->r_handler);
+static void hlic_teardown_intr(device_t *pic, device_t *dev, dev_intr_t *intr) {
+  intr_event_remove_handler(intr->handler);
 }
 
 static void hlic_intr_handler(ctx_t *ctx, device_t *bus) {
@@ -110,7 +110,7 @@ static void hlic_intr_handler(ctx_t *ctx, device_t *bus) {
 }
 
 static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
-                         int icells) {
+                         size_t icells) {
   if (icells != 1)
     return -1;
 
@@ -124,17 +124,15 @@ static int hlic_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
  * Root bus.
  */
 
-static int rootdev_map_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_MEMORY);
+static int rootdev_map_mmio(device_t *dev, dev_mmio_t *mmio) {
+  mmio->bus_tag = generic_bus_space;
 
-  r->r_bus_tag = generic_bus_space;
-
-  return bus_space_map(r->r_bus_tag, r->r_start,
-                       roundup(resource_size(r), PAGESIZE), &r->r_bus_handle);
+  return bus_space_map(mmio->bus_tag, mmio->start,
+                       roundup(dev_mmio_size(mmio), PAGESIZE),
+                       &mmio->bus_handle);
 }
 
-static void rootdev_unmap_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_MEMORY);
+static void rootdev_unmap_mmio(device_t *dev, dev_mmio_t *mmio) {
   /* TODO: unmap mapped resources. */
 }
 
@@ -142,33 +140,35 @@ static int rootdev_probe(device_t *bus) {
   return 1;
 }
 
-static int rootdev_attach(device_t *bus) {
-  bus->node = FDT_finddevice("/cpus/cpu/interrupt-controller");
-  if (bus->node == FDT_NODEV)
-    return ENXIO;
+DEVCLASS_DECLARE(root);
 
-  intr_root_claim(hlic_intr_handler, bus);
+static int rootdev_attach(device_t *bus) {
+  bus->devclass = &DEVCLASS(root);
+
+  phandle_t node = FDT_finddevice("/cpus/cpu@1/interrupt-controller");
+  if (node == FDT_NODEV)
+    return ENXIO;
+  bus->node = node;
 
   /*
    * Device enumeration.
    * TODO: this should be performed by a simplebus enumeration.
    */
-
-  int unit = 0;
   int err;
-  device_t *plic;
 
-  if ((err = simplebus_add_child(bus, "/soc/interrupt-controller", unit++, bus,
-                                 &plic)))
+  if ((err = FDT_dev_add_child(bus, "/soc/clint", DEV_BUS_FDT)))
     return err;
 
-  if ((err = simplebus_add_child(bus, "/soc/clint", unit++, bus, NULL)))
+  if ((err = FDT_dev_add_child(bus, "/soc/serial", DEV_BUS_FDT)))
     return err;
 
-  if ((err = simplebus_add_child(bus, "/soc/serial", unit++, plic, NULL)))
+  if ((err = FDT_dev_add_child(bus, "/soc/interrupt-controller", DEV_BUS_FDT)))
     return err;
 
-  return bus_generic_probe(bus);
+  intr_pic_register(bus, node);
+  intr_root_claim(hlic_intr_handler, bus);
+
+  return 0;
 }
 
 static pic_methods_t hlic_pic_if = {
@@ -178,8 +178,8 @@ static pic_methods_t hlic_pic_if = {
 };
 
 static bus_methods_t rootdev_bus_if = {
-  .map_resource = rootdev_map_resource,
-  .unmap_resource = rootdev_unmap_resource,
+  .map_mmio = rootdev_map_mmio,
+  .unmap_mmio = rootdev_unmap_mmio,
 };
 
 driver_t rootdev_driver = {

@@ -872,8 +872,10 @@ static int usb_enumerate_root_port(device_t *hcdev, uint8_t port) {
 
   usb_print_dev(dev);
 
-  if (udev->class_code != UICLASS_HUB)
+  if (udev->class_code != UICLASS_HUB) {
+    device_add_pending(dev);
     return 0;
+  }
 
   if ((error = usb_enumerate_hub(hcdev, dev, port)))
     goto bad;
@@ -925,7 +927,6 @@ end:
 }
 
 int usb_enumerate(device_t *hcdev) {
-  device_t *busdev = usb_bus_of(hcdev);
   uint8_t nports = usbhc_number_of_ports(hcdev);
 
   /* Identify and configure each device attached to the root hub. */
@@ -948,7 +949,7 @@ int usb_enumerate(device_t *hcdev) {
   /* Now, each valid attached device is configured and ready to perform
    * device specific requests. The next step is to match them with
    * corresponding device drivers. */
-  return bus_generic_probe(busdev);
+  return 0;
 }
 
 /*

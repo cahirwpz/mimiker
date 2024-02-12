@@ -106,36 +106,35 @@ extern bus_space_t *generic_bus_space;
 #define bus_space_write_region_4(t, h, o, src, cnt)                            \
   __bs_write_region(t, h, o, src, cnt, 4)
 
-/* Simplified versions of the above, which take only a pointer to resource. */
-#define __bus_read(r, o, sz)                                                   \
-  __bs_read((r)->r_bus_tag, (r)->r_bus_handle, (o), sz)
-#define bus_read_1(r, o) __bus_read(r, o, 1)
-#define bus_read_2(r, o) __bus_read(r, o, 2)
-#define bus_read_4(r, o) __bus_read(r, o, 4)
+/* Simplified versions of the above, which take only a pointer to `dev_mmio`. */
+#define __bus_read(m, o, sz) __bs_read((m)->bus_tag, (m)->bus_handle, (o), sz)
+#define bus_read_1(m, o) __bus_read(m, o, 1)
+#define bus_read_2(m, o) __bus_read(m, o, 2)
+#define bus_read_4(m, o) __bus_read(m, o, 4)
 
-#define __bus_write(r, o, v, sz)                                               \
-  __bs_write((r)->r_bus_tag, (r)->r_bus_handle, (o), (v), sz)
-#define bus_write_1(r, o, v) __bus_write(r, o, v, 1)
-#define bus_write_2(r, o, v) __bus_write(r, o, v, 2)
-#define bus_write_4(r, o, v) __bus_write(r, o, v, 4)
+#define __bus_write(m, o, v, sz)                                               \
+  __bs_write((m)->bus_tag, (m)->bus_handle, (o), (v), sz)
+#define bus_write_1(m, o, v) __bus_write(m, o, v, 1)
+#define bus_write_2(m, o, v) __bus_write(m, o, v, 2)
+#define bus_write_4(m, o, v) __bus_write(m, o, v, 4)
 
-#define __bus_read_region(r, o, dst, cnt, sz)                                  \
-  __bs_write((r)->r_bus_tag, (r)->r_bus_handle, (o), (dst), (cnt), sz)
-#define bus_read_region_1(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 1)
-#define bus_read_region_2(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 2)
-#define bus_read_region_4(r, o, dst, cnt) __bus_read_region(r, o, dst, cnt, 4)
+#define __bus_read_region(m, o, dst, cnt, sz)                                  \
+  __bs_write((m)->bus_tag, (m)->bus_handle, (o), (dst), (cnt), sz)
+#define bus_read_region_1(m, o, dst, cnt) __bus_read_region(m, o, dst, cnt, 1)
+#define bus_read_region_2(m, o, dst, cnt) __bus_read_region(m, o, dst, cnt, 2)
+#define bus_read_region_4(m, o, dst, cnt) __bus_read_region(m, o, dst, cnt, 4)
 
-#define __bus_write_region(r, o, src, cnt, sz)                                 \
-  __bs_write_region((r)->r_bus_tag, (r)->r_bus_handle, (o), (src), (cnt), sz)
-#define bus_write_region_1(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 1)
-#define bus_write_region_2(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 2)
-#define bus_write_region_4(r, o, src, cnt) __bus_write_region(r, o, src, cnt, 4)
+#define __bus_write_region(m, o, src, cnt, sz)                                 \
+  __bs_write_region((m)->bus_tag, (m)->bus_handle, (o), (src), (cnt), sz)
+#define bus_write_region_1(m, o, src, cnt) __bus_write_region(m, o, src, cnt, 1)
+#define bus_write_region_2(m, o, src, cnt) __bus_write_region(m, o, src, cnt, 2)
+#define bus_write_region_4(m, o, src, cnt) __bus_write_region(m, o, src, cnt, 4)
 
 #define bus_space_map(t, a, s, hp) (*(t)->bs_map)((a), (s), (hp))
 
 struct bus_methods {
-  int (*map_resource)(device_t *dev, resource_t *r);
-  void (*unmap_resource)(device_t *dev, resource_t *r);
+  int (*map_mmio)(device_t *dev, dev_mmio_t *mmio);
+  void (*unmap_mmio)(device_t *dev, dev_mmio_t *mmio);
 };
 
 static inline bus_methods_t *bus_methods(device_t *dev) {
@@ -147,24 +146,16 @@ static inline bus_methods_t *bus_methods(device_t *dev) {
 #define BUS_METHOD_PROVIDER(dev, method)                                       \
   (device_method_provider((dev), DIF_BUS, offsetof(struct bus_methods, method)))
 
-/*! \brief Maps resource for a device.
+/*! \brief Maps a memory resource for a device.
  *
- * This is a wrapper that calls bus method `map_resource`.
+ * This is a wrapper that calls bus method `map_mmio`.
  */
-int bus_map_resource(device_t *dev, resource_t *r);
+int bus_map_mmio(device_t *dev, dev_mmio_t *mmio);
 
-/*! \brief Unmaps resource on device behalf.
+/*! \brief Unmaps a memory resource on device behalf.
  *
- * This is a wrapper that calls bus method `unmap_resource`.
+ * This is a wrapper that calls bus method `unmap_mmio`.
  */
-void bus_unmap_resource(device_t *dev, resource_t *r);
-
-int bus_generic_probe(device_t *bus);
-
-/*! \brief Initializes devices and attaches drivers.
- *
- * Can be called multiple times. Each time it bumps up `current_pass` counter
- * and goes deeper into device hierarchy. */
-void init_devices(void);
+void bus_unmap_mmio(device_t *dev, dev_mmio_t *mmio);
 
 #endif /* !_SYS_BUS_H_ */

@@ -12,6 +12,8 @@
 
 #define FDT_DEBUG 0
 
+#define FDT_ROOT_NODE ((phandle_t)0)
+
 #define FDT_DEF_ADDR_CELLS 2
 #define FDT_MAX_ADDR_CELLS 2
 
@@ -173,6 +175,49 @@ ssize_t FDT_searchencprop(phandle_t node, const char *propname, pcell_t *buf,
       return rv;
   }
   return -1;
+}
+
+static int FDT_match_by_phandle(phandle_t node, pcell_t phandle) {
+  pcell_t node_phandle;
+  if (FDT_getencprop(node, "phandle", &node_phandle, sizeof(pcell_t)) !=
+      sizeof(pcell_t))
+    return 0;
+
+  return node_phandle == phandle;
+}
+
+static phandle_t FDT_finddevice_by_phandle_dfs(phandle_t node,
+                                               pcell_t phandle) {
+  if (FDT_match_by_phandle(node, phandle))
+    return node;
+
+  for (phandle_t child = FDT_child(node); child != FDT_NODEV;
+       child = FDT_peer(child)) {
+    phandle_t rv = FDT_finddevice_by_phandle_dfs(child, phandle);
+    if (rv != FDT_NODEV)
+      return rv;
+  }
+  return FDT_NODEV;
+}
+
+phandle_t FDT_finddevice_by_phandle(pcell_t phandle) {
+  return FDT_finddevice_by_phandle_dfs(FDT_ROOT_NODE, phandle);
+}
+
+phandle_t FDT_iparent(phandle_t node) {
+  pcell_t phandle;
+
+  if (FDT_searchencprop(node, "interrupt-parent", &phandle, sizeof(pcell_t)) !=
+      -1)
+    return FDT_finddevice_by_phandle(phandle);
+
+  for (phandle_t candidate = node; candidate != FDT_NODEV;
+       candidate = FDT_parent(candidate)) {
+    if (FDT_hasprop(candidate, "interrupt-controller")) {
+      return candidate;
+    }
+  }
+  return FDT_NODEV;
 }
 
 int FDT_addrsize_cells(phandle_t node, int *addr_cellsp, int *size_cellsp) {

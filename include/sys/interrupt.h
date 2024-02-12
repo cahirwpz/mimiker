@@ -10,8 +10,7 @@
 
 typedef struct ctx ctx_t;
 typedef struct device device_t;
-typedef struct resource resource_t;
-typedef struct fdt_intr fdt_intr_t;
+typedef struct dev_intr dev_intr_t;
 typedef uint32_t pcell_t;
 
 /*! \brief Disables hardware interrupts.
@@ -50,14 +49,15 @@ static __no_profile inline void __intr_enable(void *data) {
 
 #define WITH_INTR_DISABLED WITH_STMT(void, __intr_disable, __intr_enable, NULL)
 
+typedef enum intr_filter intr_filter_t;
 typedef struct intr_event intr_event_t;
 typedef struct intr_handler intr_handler_t;
 
-typedef enum {
+enum intr_filter {
   IF_STRAY = 0,    /* this device did not trigger the interrupt */
   IF_FILTERED = 1, /* the interrupt has been handled and can be EOId */
   IF_DELEGATE = 2, /* the handler should be run in private thread */
-} intr_filter_t;
+};
 
 /*
  * The filter routine is run in primary interrupt context and may not
@@ -95,17 +95,19 @@ typedef void (*intr_root_filter_t)(ctx_t *ctx, device_t *dev);
 void intr_root_claim(intr_root_filter_t filter, device_t *dev);
 void intr_root_handler(ctx_t *ctx) __no_profile;
 
+void intr_pic_register(device_t *pic, unsigned id);
+
 /*
  * Interrupt controller interface.
  */
 
-typedef void (*pic_setup_intr_t)(device_t *pic, device_t *dev, resource_t *r,
+typedef void (*pic_setup_intr_t)(device_t *pic, device_t *dev, dev_intr_t *intr,
                                  ih_filter_t *filter, ih_service_t *service,
                                  void *arg, const char *name);
 typedef void (*pic_teardown_intr_t)(device_t *pic, device_t *dev,
-                                    resource_t *r);
+                                    dev_intr_t *intr);
 typedef int (*pic_map_intr_t)(device_t *pic, device_t *dev, pcell_t *intr,
-                              int icells);
+                              size_t icells);
 
 typedef struct pic_methods {
   pic_setup_intr_t setup_intr;
@@ -118,33 +120,41 @@ typedef struct pic_methods {
  *
  * Arguments:
  *  - `dev`: requesting device
- *  - `irq`: interrupt resource
+ *  - `intr`: interrupt resource
  *  - `filter`: filter function called within interrupted context
  *  - `service`: optional service function called within interrupt
  *    thread context
  *  - `arg`: argument passed to both filter and service routines
  *  - `name`: description of the interrupt source
+ *
+ * Returns:
+ *  - 0: success
+ *  - EAGAIN: the corresponding PIC hasn't been registered yet
+ *  - EINVAL: invalid interrupt resource
+ *  - otherwise: invalid device or PIC FDT entry
  */
-void pic_setup_intr(device_t *dev, resource_t *irq, ih_filter_t *filter,
-                    ih_service_t *service, void *arg, const char *name);
+int pic_setup_intr(device_t *dev, dev_intr_t *intr, ih_filter_t *filter,
+                   ih_service_t *service, void *arg, const char *name);
 
 /*
  * Remove specified interrupt source.
  *
  * Arguments:
  *  - `dev`: requesting device
- *  - `r`: interrupt resource
+ *  - `intr`: interrupt resource
  */
-void pic_teardown_intr(device_t *dev, resource_t *r);
+void pic_teardown_intr(device_t *dev, dev_intr_t *intr);
 
 /*
  * Map FDT interrupt resource of device `dev`
  * into an interrupt controller-specific interrupt number.
  *
+ * This function is called internally by the interrupt module.
+ *
  * Returns:
- *  - >= 0: PIC-specific interrupt number to identify PIC interrupt resource
- *  - -1: the FDT interrupt resource is invalid
+ *  - 0: success
+ *  - otherwise: invalid device or PIC FDT entry
  */
-int pic_map_intr(device_t *dev, fdt_intr_t *intr);
+int pic_map_intr(device_t *dev, dev_intr_t *intr);
 
 #endif /* !_SYS_INTERRUPT_H_ */

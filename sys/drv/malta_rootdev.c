@@ -35,40 +35,37 @@ static const char *rootdev_intr_name[MIPS_NIRQ] = {
 };
 /* clang-format on */
 
-static void rootdev_setup_intr(device_t *pic, device_t *dev, resource_t *r,
+static void rootdev_setup_intr(device_t *pic, device_t *dev, dev_intr_t *intr,
                                ih_filter_t *filter, ih_service_t *service,
                                void *arg, const char *name) {
   rootdev_t *rd = pic->state;
-  int irq = r->r_irq;
+  unsigned irq = intr->irq;
   assert(irq < MIPS_NIRQ);
 
   if (rd->intr_event[irq] == NULL)
     rd->intr_event[irq] = intr_event_create(
       dev, irq, rootdev_mask_irq, rootdev_unmask_irq, rootdev_intr_name[irq]);
 
-  r->r_handler =
+  intr->handler =
     intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
 static void rootdev_teardown_intr(device_t *pic, device_t *dev,
-                                  resource_t *irq) {
-  intr_event_remove_handler(irq->r_handler);
+                                  dev_intr_t *intr) {
+  intr_event_remove_handler(intr->handler);
 
   /* TODO: should we remove empty interrupt event here and in every other
    * intr_teardown method? probably not... maybe in detach method? */
 }
 
-static int rootdev_map_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_MEMORY);
+static int rootdev_map_mmio(device_t *dev, dev_mmio_t *mmio) {
+  mmio->bus_tag = generic_bus_space;
 
-  r->r_bus_tag = generic_bus_space;
-
-  return bus_space_map(r->r_bus_tag, r->r_start, resource_size(r),
-                       &r->r_bus_handle);
+  return bus_space_map(mmio->bus_tag, mmio->start, dev_mmio_size(mmio),
+                       &mmio->bus_handle);
 }
 
-static void rootdev_unmap_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_MEMORY);
+static void rootdev_unmap_mmio(device_t *dev, dev_mmio_t *mmio) {
   /* TODO: unmap mapped resources. */
 }
 
@@ -90,37 +87,38 @@ static int rootdev_probe(device_t *bus) {
   return 1;
 }
 
-DEVCLASS_DECLARE(pci);
+DEVCLASS_DECLARE(root);
 
 static int rootdev_attach(device_t *bus) {
-  intr_root_claim(rootdev_intr_handler, bus);
+  bus->bus = DEV_BUS_NONE;
+  bus->devclass = &DEVCLASS(root);
 
   /* Create MIPS timer device and assign resources to it. */
   device_t *dev = device_add_child(bus, 0);
-  dev->pic = bus;
-  device_add_irq(dev, 0, MIPS_HWINT5);
+  device_add_intr(dev, 0, 0, MIPS_HWINT5);
+  device_add_pending(dev);
 
   /* Create GT PCI device and assign resources to it. */
   dev = device_add_child(bus, 1);
-  dev->pic = bus;
-  dev->devclass = &DEVCLASS(pci);
   /* PCI I/O memory. */
-  device_add_memory(dev, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END, 0);
+  device_add_mmio(dev, 0, MALTA_PCI0_MEMORY_BASE, MALTA_PCI0_MEMORY_END, 0);
   /* PCI I/O ports. */
-  device_add_memory(dev, 1, MALTA_PCI0_IO_BASE, MALTA_PCI0_IO_END, 0);
+  device_add_mmio(dev, 1, MALTA_PCI0_IO_BASE, MALTA_PCI0_IO_END, 0);
   /* GT64120 registers. */
-  device_add_memory(dev, 2, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END, 0);
+  device_add_mmio(dev, 2, MALTA_CORECTRL_BASE, MALTA_CORECTRL_END, 0);
   /* GT64120 main irq. */
-  device_add_irq(dev, 0, MIPS_HWINT0);
+  device_add_intr(dev, 0, 0, MIPS_HWINT0);
+  device_add_pending(dev);
 
-  /* TODO: replace raw resource assignments by parsing FDT file. */
+  intr_pic_register(bus, 0);
+  intr_root_claim(rootdev_intr_handler, bus);
 
-  return bus_generic_probe(bus);
+  return 0;
 }
 
 static bus_methods_t rootdev_bus_if = {
-  .map_resource = rootdev_map_resource,
-  .unmap_resource = rootdev_unmap_resource,
+  .map_mmio = rootdev_map_mmio,
+  .unmap_mmio = rootdev_unmap_mmio,
 };
 
 static pic_methods_t rootdev_pic_if = {

@@ -7,8 +7,8 @@
 #include <sys/devclass.h>
 
 typedef struct pit_state {
-  resource_t *regs;
-  resource_t *irq_res;
+  dev_mmio_t *regs;
+  dev_intr_t *intr;
   timer_t timer;
   bool noticed_overflow; /* noticed and handled the counter overflow */
   uint16_t period_cntr;  /* number of counter ticks in a period */
@@ -112,14 +112,13 @@ static int pit_timer_start(timer_t *tm, unsigned flags, const bintime_t start,
 
   pit_set_frequency(pit);
 
-  pic_setup_intr(dev, pit->irq_res, pit_intr, NULL, pit, "i8254 timer");
-  return 0;
+  return pic_setup_intr(dev, pit->intr, pit_intr, NULL, pit, "i8254 timer");
 }
 
 static int pit_timer_stop(timer_t *tm) {
   device_t *dev = device_of(tm);
   pit_state_t *pit = dev->state;
-  pic_teardown_intr(dev, pit->irq_res);
+  pic_teardown_intr(dev, pit->intr);
   return 0;
 }
 
@@ -146,13 +145,11 @@ static int pit_attach(device_t *dev) {
   pit_state_t *pit = dev->state;
   int err = 0;
 
-  pit->regs = device_take_ioports(dev, 0);
-  assert(pit->regs != NULL);
+  pit->intr = device_request_intr(dev, 0);
+  assert(pit->intr);
 
-  if ((err = bus_map_resource(dev, pit->regs)))
+  if ((err = device_claim_mmio(dev, 0, &pit->regs)))
     return err;
-
-  pit->irq_res = device_take_irq(dev, 0);
 
   pit->timer = (timer_t){
     .tm_name = "i8254",

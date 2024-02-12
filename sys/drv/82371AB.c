@@ -13,23 +13,20 @@
 #include <sys/devclass.h>
 
 typedef struct intel_isa_state {
-  resource_t *io;
+  dev_mmio_t *io;
 } intel_isa_state_t;
 
-static int intel_isa_map_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_IOPORTS);
-
+static int intel_isa_map_mmio(device_t *dev, dev_mmio_t *mmio) {
   intel_isa_state_t *isa = dev->parent->state;
-  bus_space_handle_t bh = isa->io->r_bus_handle;
+  bus_space_handle_t bh = isa->io->bus_handle;
 
-  r->r_bus_tag = generic_bus_space;
-  r->r_bus_handle = bh + r->r_start;
+  mmio->bus_tag = generic_bus_space;
+  mmio->bus_handle = bh + mmio->start;
 
   return 0;
 }
 
-static void intel_isa_unmap_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_IOPORTS);
+static void intel_isa_unmap_mmio(device_t *dev, dev_mmio_t *mmio) {
   /* IOports on ISA don't require deactivation */
 }
 
@@ -37,12 +34,16 @@ static int intel_isa_probe(device_t *d) {
   return d->unit == 0;
 }
 
+DEVCLASS_DECLARE(isa);
+
 static int intel_isa_attach(device_t *isab) {
   intel_isa_state_t *isa = isab->state;
-  isa->io = device_take_ioports(isab, 0);
+  unsigned pic_id = isab->parent->node;
   int err = 0;
 
-  if ((err = bus_map_resource(isab, isa->io)))
+  isab->devclass = &DEVCLASS(isa);
+
+  if ((err = device_claim_mmio(isab, 0, &isa->io)))
     return err;
 
   /* -------------------------------------------------------------
@@ -52,38 +53,38 @@ static int intel_isa_attach(device_t *isab) {
 
   /* atkbdc keyboard device */
   dev = device_add_child(isab, 0);
-  dev->pic = isab->pic;
   dev->bus = DEV_BUS_ISA;
-  device_add_ioports(dev, 0, IO_KBD, IO_KBD + IO_KBDSIZE);
-  device_add_irq(dev, 0, 1);
+  device_add_mmio(dev, 0, IO_KBD, IO_KBD + IO_KBDSIZE, 0);
+  device_add_intr(dev, 0, pic_id, 1);
+  device_add_pending(dev);
 
   /* ns16550 uart device */
   dev = device_add_child(isab, 1);
-  dev->pic = isab->pic;
   dev->bus = DEV_BUS_ISA;
-  device_add_ioports(dev, 0, IO_COM1, IO_COM1 + IO_COMSIZE);
-  device_add_irq(dev, 0, 4);
+  device_add_mmio(dev, 0, IO_COM1, IO_COM1 + IO_COMSIZE, 0);
+  device_add_intr(dev, 0, pic_id, 4);
+  device_add_pending(dev);
 
   /* rtc device */
   dev = device_add_child(isab, 2);
-  dev->pic = isab->pic;
   dev->bus = DEV_BUS_ISA;
-  device_add_ioports(dev, 0, IO_RTC, IO_RTC + IO_RTCSIZE);
-  device_add_irq(dev, 0, 8);
+  device_add_mmio(dev, 0, IO_RTC, IO_RTC + IO_RTCSIZE, 0);
+  device_add_intr(dev, 0, pic_id, 8);
+  device_add_pending(dev);
 
   /* i8254 timer device */
   dev = device_add_child(isab, 3);
-  dev->pic = isab->pic;
   dev->bus = DEV_BUS_ISA;
-  device_add_ioports(dev, 0, IO_TIMER1, IO_TIMER1 + IO_TMRSIZE);
-  device_add_irq(dev, 0, 0);
+  device_add_mmio(dev, 0, IO_TIMER1, IO_TIMER1 + IO_TMRSIZE, 0);
+  device_add_intr(dev, 0, pic_id, 0);
+  device_add_pending(dev);
 
-  return bus_generic_probe(isab);
+  return 0;
 }
 
 static bus_methods_t intel_isa_bus_bus_if = {
-  .map_resource = intel_isa_map_resource,
-  .unmap_resource = intel_isa_unmap_resource,
+  .map_mmio = intel_isa_map_mmio,
+  .unmap_mmio = intel_isa_unmap_mmio,
 };
 
 static driver_t intel_isa_bus = {

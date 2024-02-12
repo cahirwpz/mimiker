@@ -19,22 +19,22 @@
 #define UART_BUFSIZE 128
 
 typedef struct ns16550_state {
-  resource_t *irq_res;
-  resource_t *regs;
+  dev_intr_t *irq_res;
+  dev_mmio_t *regs;
 } ns16550_state_t;
 
 #define in(regs, offset) bus_read_1((regs), (offset))
 #define out(regs, offset, value) bus_write_1((regs), (offset), (value))
 
-static void set(resource_t *regs, unsigned offset, uint8_t mask) {
+static void set(dev_mmio_t *regs, unsigned offset, uint8_t mask) {
   out(regs, offset, in(regs, offset) | mask);
 }
 
-static void clr(resource_t *regs, unsigned offset, uint8_t mask) {
+static void clr(dev_mmio_t *regs, unsigned offset, uint8_t mask) {
   out(regs, offset, in(regs, offset) & ~mask);
 }
 
-static void setup(resource_t *regs) {
+static void setup(dev_mmio_t *regs) {
   set(regs, LCR, LCR_DLAB);
   out(regs, DLM, 0);
   out(regs, DLL, 1); /* 115200 */
@@ -79,22 +79,20 @@ static int ns16550_attach(device_t *dev) {
   ns16550_state_t *ns16550 = kmalloc(M_DEV, sizeof(ns16550_state_t), M_ZERO);
   int err = 0;
 
+  if ((err = device_claim_intr(dev, 0, uart_intr, NULL, dev, "NS16550 UART",
+                               &ns16550->irq_res))) {
+    goto end;
+  }
+
+  if ((err = device_claim_mmio(dev, 0, &ns16550->regs)))
+    goto end;
+
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
   tty->t_termios.c_ospeed = 115200;
   tty->t_ops.t_notify_out = uart_tty_notify_out;
 
-  /* TODO Small hack to select COM1 UART */
-  ns16550->regs = device_take_ioports(dev, 0);
-  assert(ns16550->regs != NULL);
-
-  if ((err = bus_map_resource(dev, ns16550->regs)))
-    return err;
-
   uart_init(dev, "ns16550", UART_BUFSIZE, ns16550, tty);
-
-  ns16550->irq_res = device_take_irq(dev, 0);
-  pic_setup_intr(dev, ns16550->irq_res, uart_intr, NULL, dev, "NS16550 UART");
 
   /* Setup UART and enable interrupts */
   setup(ns16550->regs);
@@ -103,11 +101,14 @@ static int ns16550_attach(device_t *dev) {
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);
 
-  return 0;
+end:
+  if (err)
+    kfree(M_DEV, ns16550);
+  return err;
 }
 
 static int ns16550_probe(device_t *dev) {
-  return dev->unit == 1; /* XXX: unit 1 assigned by gt_pci */
+  return dev->unit == 1;
 }
 
 static uart_methods_t ns16550_methods = {

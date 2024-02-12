@@ -76,12 +76,17 @@ typedef struct pci_bus_methods {
   pci_enable_busmaster_t enable_busmaster;
 } pci_bus_methods_t;
 
+typedef enum pci_res_type {
+  PCI_RT_IOPORTS,
+  PCI_RT_MEMORY,
+} pci_res_type_t;
+
 typedef struct pci_bar {
-  device_t *owner; /* pci device owner of this bar */
-  size_t size;     /* identified size of this bar */
-  int rid;         /* BAR number in [0,PCI_BAR_MAX-1] */
-  unsigned type;   /* RT_IOPORTS or RT_MEMORY */
-  unsigned flags;  /* nothing or RF_PREFETACHBLE */
+  device_t *owner;     /* pci device owner of this bar */
+  size_t size;         /* identified size of this bar */
+  int rid;             /* BAR number in [0,PCI_BAR_MAX-1] */
+  pci_res_type_t type; /* PCI_RT_IOPORTS or PCI_RT_MEMORY */
+  unsigned flags;      /* nothing or RF_PREFETACHBLE */
 } pci_bar_t;
 
 typedef struct pci_device {

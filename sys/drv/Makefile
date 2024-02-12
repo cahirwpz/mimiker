@@ -7,9 +7,9 @@ SOURCES = \
 	evdev.c \
 	evdev_kbd.c \
 	evdev_m.c \
+	fdt_dev.c \
 	hidkbd.c \
 	hidms.c \
-	simplebus.c \
 	uart.c \
 	umass.c \
 	usb.c

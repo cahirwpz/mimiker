@@ -27,8 +27,7 @@ typedef struct sd_state {
 } sd_state_t;
 
 static int sd_probe(device_t *dev) {
-  /* return FDT_is_compatible(dev->node, "mimiker,sd"); */
-  return dev->unit == 0;
+  return FDT_is_compatible(dev->node, "mimiker,sd");
 }
 
 static const char standard_cap_str[] = "Ver 2.0 or later, Standard Capacity "

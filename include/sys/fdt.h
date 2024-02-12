@@ -15,7 +15,6 @@
 #define FDT_MAX_RSV_MEM_REGS 16
 #define FDT_MAX_REG_TUPLES 16
 #define FDT_MAX_ICELLS 3
-#define FDT_MAX_INTRS 16
 
 typedef uint32_t phandle_t;
 typedef uint32_t pcell_t;
@@ -29,15 +28,6 @@ typedef struct fdt_mem_reg {
   u_long addr;
   u_long size;
 } fdt_mem_reg_t;
-
-/*
- * FDT interrupt resource.
- */
-typedef struct fdt_intr {
-  pcell_t tuple[FDT_MAX_ICELLS];
-  int icells;
-  phandle_t iparent;
-} fdt_intr_t;
 
 /*
  * FDT initialization.
@@ -61,6 +51,18 @@ void FDT_init(void *va);
  *  - otherwise: phandle of the requested device
  */
 phandle_t FDT_finddevice(const char *device);
+
+/*
+ * Find the package handle of a device given a label (i.e. phandle).
+ *
+ * Arguments:
+ *  - `phandle`: device tree unique label
+ *
+ * Returns:
+ *  - `FDT_NODEV`: the path could not be found
+ *  - otherwise: phandle of the requested device
+ */
+phandle_t FDT_finddevice_by_phandle(pcell_t phandle);
 
 /*
  * Obtain the handle of the first child of device node `node`.
@@ -97,6 +99,16 @@ phandle_t FDT_peer(phandle_t node);
  *  - otherwise: phandle of the parent node
  */
 phandle_t FDT_parent(phandle_t node);
+
+/*
+ * Get the handle of the interrupt parent of device node `node`.
+ *
+ * Returns
+ *  - `FDT_NODEV`: the node doesn't have an interrupt parent
+ *    or FDT state is invalid
+ *  - otherwise: phandle of the parent node
+ */
+phandle_t FDT_iparent(phandle_t node);
 
 /*
  * Returns a pointer to the name of `node`.

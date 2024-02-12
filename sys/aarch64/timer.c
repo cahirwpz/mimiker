@@ -1,4 +1,5 @@
 #define KL_LOG KL_TIME
+#include <sys/errno.h>
 #include <sys/klog.h>
 #include <sys/timer.h>
 #include <aarch64/armreg.h>
@@ -11,7 +12,7 @@
 #define CNTCTL_DISABLE 0
 
 typedef struct arm_timer_state {
-  resource_t *irq_res;
+  dev_intr_t *irq_res;
   timer_t timer;
   uint64_t step;
 } arm_timer_state_t;
@@ -65,6 +66,12 @@ static int arm_timer_probe(device_t *dev) {
 
 static int arm_timer_attach(device_t *dev) {
   arm_timer_state_t *state = dev->state;
+  int err = 0;
+
+  if ((err = device_claim_intr(dev, 1, arm_timer_intr, NULL, dev,
+                               "ARM CPU timer", &state->irq_res))) {
+    return err;
+  }
 
   uint64_t freq = READ_SPECIALREG(cntfrq_el0);
 
@@ -82,13 +89,8 @@ static int arm_timer_attach(device_t *dev) {
     .tm_max_period = bintime_mul(HZ2BT(freq), 1LL << 30),
   };
 
-  state->irq_res = device_take_irq(dev, 1);
-
   tm_register(&state->timer);
   tm_select(&state->timer);
-
-  pic_setup_intr(dev, state->irq_res, arm_timer_intr, NULL, dev,
-                 "ARM CPU timer");
 
   return 0;
 }

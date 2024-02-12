@@ -7,7 +7,7 @@
 #include <sys/libkern.h>
 #include <aarch64/armreg.h>
 #include <dev/bcm2835reg.h>
-#include <dev/simplebus.h>
+#include <dev/fdt_dev.h>
 
 /*
  * located at BCM2836_ARM_LOCAL_BASE
@@ -15,7 +15,7 @@
  */
 
 typedef struct rootdev {
-  resource_t mem_local; /* ARM local */
+  dev_mmio_t mem_local; /* ARM local */
   intr_event_t *intr_event[BCM2836_NIRQ];
 } rootdev_t;
 
@@ -46,24 +46,24 @@ static const char *rootdev_intr_name(int irq) {
   return kasprintf("ARM local interrupt source %d", irq);
 }
 
-static void rootdev_setup_intr(device_t *pic, device_t *dev, resource_t *r,
+static void rootdev_setup_intr(device_t *pic, device_t *dev, dev_intr_t *intr,
                                ih_filter_t *filter, ih_service_t *service,
                                void *arg, const char *name) {
   rootdev_t *rd = pic->state;
-  int irq = r->r_irq;
+  unsigned irq = intr->irq;
   assert(irq < BCM2836_INT_NLOCAL);
 
   if (rd->intr_event[irq] == NULL)
     rd->intr_event[irq] = intr_event_create(
       rd, irq, rootdev_disable_irq, rootdev_enable_irq, rootdev_intr_name(irq));
 
-  r->r_handler =
+  intr->handler =
     intr_event_add_handler(rd->intr_event[irq], filter, service, arg, name);
 }
 
 static void rootdev_teardown_intr(device_t *pic, device_t *dev,
-                                  resource_t *irq) {
-  intr_event_remove_handler(irq->r_handler);
+                                  dev_intr_t *intr) {
+  intr_event_remove_handler(intr->handler);
 }
 
 static void rootdev_intr_handler(ctx_t *ctx, device_t *dev) {
@@ -81,7 +81,7 @@ static void rootdev_intr_handler(ctx_t *ctx, device_t *dev) {
 }
 
 static int rootdev_map_intr(device_t *pic, device_t *dev, phandle_t *intr,
-                            int icells) {
+                            size_t icells) {
   if (icells != 2)
     return -1;
 
@@ -95,81 +95,77 @@ static int rootdev_probe(device_t *bus) {
   return 1;
 }
 
-DEVCLASS_DECLARE(emmc);
+DEVCLASS_DECLARE(root);
 
 static int rootdev_attach(device_t *bus) {
   rootdev_t *rd = bus->state;
 
-  bus->node = FDT_finddevice("/soc/local_intc");
-  if (bus->node == FDT_NODEV)
-    return ENXIO;
+  bus->devclass = &DEVCLASS(root);
 
-  rd->mem_local = (resource_t){
-    .r_type = RT_MEMORY,
-    .r_bus_tag = generic_bus_space,
+  phandle_t node = FDT_finddevice("/soc/local_intc");
+  if (node == FDT_NODEV)
+    return ENXIO;
+  bus->node = node;
+
+  rd->mem_local = (dev_mmio_t){
+    .bus_tag = generic_bus_space,
   };
   int err = bus_space_map(generic_bus_space, BCM2836_ARM_LOCAL_BASE,
-                          BCM2836_ARM_LOCAL_SIZE, &rd->mem_local.r_bus_handle);
+                          BCM2836_ARM_LOCAL_SIZE, &rd->mem_local.bus_handle);
   if (err)
     return ENXIO;
-
-  intr_root_claim(rootdev_intr_handler, bus);
 
   /*
    * Device enumeration.
    * TODO: this should be performed by a simplebus enumeration.
    */
 
-  int unit = 0;
-  device_t *bcm2835_pic, *emmc;
-
-  if ((err = simplebus_add_child(bus, "/soc/intc", unit++, bus, &bcm2835_pic)))
+  if ((err = FDT_dev_add_child(bus, "/timer", DEV_BUS_FDT)))
     return err;
 
-  if ((err = simplebus_add_child(bus, "/timer", unit++, bus, NULL)))
+  if ((err = FDT_dev_add_child(bus, "/soc/gpio", DEV_BUS_FDT)))
     return err;
 
-  if ((err = simplebus_add_child(bus, "/soc/gpio", unit++, bcm2835_pic, NULL)))
+  if ((err = FDT_dev_add_child(bus, "/soc/serial", DEV_BUS_FDT)))
     return err;
 
-  if ((err =
-         simplebus_add_child(bus, "/soc/serial", unit++, bcm2835_pic, NULL)))
+  if ((err = FDT_dev_add_child(bus, "/soc/emmc", DEV_BUS_FDT)))
     return err;
 
-  if ((err = simplebus_add_child(bus, "/soc/emmc", unit++, bcm2835_pic, &emmc)))
+  if ((err = FDT_dev_add_child(bus, "/soc/intc", DEV_BUS_FDT)))
     return err;
-  emmc->devclass = &DEVCLASS(emmc);
 
-  return bus_generic_probe(bus);
+  intr_pic_register(bus, node);
+  intr_root_claim(rootdev_intr_handler, bus);
+
+  return 0;
 }
 
-static int rootdev_map_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_MEMORY);
+static int rootdev_map_mmio(device_t *dev, dev_mmio_t *mmio) {
   rootdev_t *rd = dev->parent->state;
-  bus_addr_t addr = r->r_start;
-  bus_size_t size = resource_size(r);
+  bus_addr_t addr = mmio->start;
+  bus_size_t size = dev_mmio_size(mmio);
 
   bus_addr_t arm_local = BCM2836_ARM_LOCAL_BASE;
 
   if (addr >= arm_local && addr + size <= arm_local + BCM2836_ARM_LOCAL_SIZE) {
     bus_size_t off = addr - arm_local;
-    r->r_bus_handle = rd->mem_local.r_bus_handle + off;
+    mmio->bus_handle = rd->mem_local.bus_handle + off;
     return 0;
   }
 
-  r->r_bus_tag = generic_bus_space;
+  mmio->bus_tag = generic_bus_space;
 
-  return bus_space_map(r->r_bus_tag, addr, size, &r->r_bus_handle);
+  return bus_space_map(mmio->bus_tag, addr, size, &mmio->bus_handle);
 }
 
-static void rootdev_unmap_resource(device_t *dev, resource_t *r) {
-  assert(r->r_type == RT_MEMORY);
+static void rootdev_unmap_mmio(device_t *dev, dev_mmio_t *mmio) {
   /* TODO: unmap mapped resources. */
 }
 
 static bus_methods_t rootdev_bus_if = {
-  .map_resource = rootdev_map_resource,
-  .unmap_resource = rootdev_unmap_resource,
+  .map_mmio = rootdev_map_mmio,
+  .unmap_mmio = rootdev_unmap_mmio,
 };
 
 static pic_methods_t rootdev_pic_if = {

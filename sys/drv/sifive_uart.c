@@ -36,8 +36,8 @@
 #define SFUART_DIV 0x18
 
 typedef struct sfuart_state {
-  resource_t *regs;
-  resource_t *irq;
+  dev_mmio_t *regs;
+  dev_intr_t *irq;
   uint8_t c;
   bool buffered;
 } sfuart_state_t;
@@ -98,16 +98,18 @@ static int sfuart_attach(device_t *dev) {
     kmalloc(M_DEV, sizeof(sfuart_state_t), M_WAITOK | M_ZERO);
   int err = 0;
 
+  if ((err = device_claim_intr(dev, 0, uart_intr, NULL, dev, "SiFive UART",
+                               &sfuart->irq))) {
+    goto end;
+  }
+
+  if ((err = device_claim_mmio(dev, 0, &sfuart->regs)))
+    goto end;
+
   tty_t *tty = tty_alloc();
   tty->t_termios.c_ispeed = 115200;
   tty->t_termios.c_ospeed = 115200;
   tty->t_ops.t_notify_out = uart_tty_notify_out;
-
-  sfuart->regs = device_take_memory(dev, 0);
-  assert(sfuart->regs);
-
-  if ((err = bus_map_resource(dev, sfuart->regs)))
-    return err;
 
   uart_init(dev, "SiFive UART", SFUART_BUFSIZE, sfuart, tty);
 
@@ -118,14 +120,12 @@ static int sfuart_attach(device_t *dev) {
 
   out(SFUART_IRQ_ENABLE, SFUART_IRQ_ENABLE_RXWM);
 
-  sfuart->irq = device_take_irq(dev, 0);
-  assert(sfuart->irq);
-
-  pic_setup_intr(dev, sfuart->irq, uart_intr, NULL, dev, "SiFive UART");
-
   /* Prepare /dev/uart interface. */
   tty_makedev(NULL, "uart", tty);
 
+end:
+  if (err)
+    kfree(M_DEV, sfuart);
   return 0;
 }
 
