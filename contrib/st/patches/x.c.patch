@@ -1,7 +1,7 @@
 Index: st/st/x.c
 ===================================================================
---- st.orig/st/x.c	2024-02-11 17:36:04.926289838 +0100
-+++ st/st/x.c	2024-02-11 17:39:32.782949575 +0100
+--- st.orig/st/x.c	2024-02-12 02:59:32.226013150 +0100
++++ st/st/x.c	2024-02-12 13:49:47.993311399 +0100
 @@ -1,2099 +1,457 @@
 -/* See LICENSE for license details. */
 +#include <sys/select.h>
@@ -2149,7 +2149,7 @@ Index: st/st/x.c
 +} win;
 +
 +static int fb_init(void) {
-+  if ((fb.fd = open(fb_dev, O_RDWR)) < 0)
++  if ((fb.fd = open(fb_dev, O_WRONLY)) < 0)
 +    return 0;
 +  if (ioctl(fb.fd, FBIOCGET_FBINFO, &fb.info) < 0)
 +    return 0;
