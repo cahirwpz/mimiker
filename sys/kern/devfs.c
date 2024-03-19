@@ -280,7 +280,7 @@ static int devfs_vop_open(vnode_t *v, int mode, file_t *fp) {
 }
 
 /* Free a devfs device file after unlinking it. */
-static int devfs_vop_reclaim(vnode_t *v) {
+static int devfs_vop_inactive(vnode_t *v) {
   devfs_node_t *dn = devfs_node_of(v);
   devnode_t *dev = &dn->dn_device;
   assert(dev->refcnt == 0);
@@ -292,7 +292,7 @@ static vnodeops_t devfs_dev_vnodeops = {
   .v_open = devfs_vop_open,
   .v_access = vnode_access_generic,
   .v_getattr = devfs_vop_getattr,
-  .v_reclaim = devfs_vop_reclaim,
+  .v_inactive = devfs_vop_inactive,
 };
 
 /*
@@ -364,7 +364,7 @@ static vnodeops_t devfs_dir_vnodeops = {
   .v_lookup = devfs_vop_lookup,
   .v_readdir = devfs_vop_readdir,
   .v_getattr = devfs_vop_getattr,
-  .v_reclaim = devfs_vop_reclaim,
+  .v_inactive = devfs_vop_inactive,
   .v_open = vnode_open_generic,
 };
 

@@ -83,7 +83,6 @@ typedef struct tmpfs_dirent {
 typedef TAILQ_HEAD(, tmpfs_dirent) tmpfs_dirent_list_t;
 
 typedef struct tmpfs_node {
-  vnode_t *tfn_vnode;   /* corresponding v-node */
   vnodetype_t tfn_type; /* node type */
 
   /* Node attributes (as in vattr) */
@@ -293,7 +292,6 @@ static inline tmpfs_node_t *TMPFS_NODE_OF(vnode_t *vp) {
 }
 
 /* Prototypes for internal routines. */
-static void tmpfs_attach_vnode(tmpfs_node_t *tfn, mount_t *mp);
 static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
                                     vnodetype_t ntype);
 static void tmpfs_free_node(tmpfs_mount_t *tfm, tmpfs_node_t *tfn);
@@ -302,7 +300,7 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vattr_t *va,
 static void tmpfs_dir_attach(tmpfs_node_t *dnode, tmpfs_dirent_t *de,
                              tmpfs_node_t *node);
 static int tmpfs_get_vnode(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp);
-static int tmpfs_alloc_dirent(tmpfs_node_t *tfn, const char *name,
+static int tmpfs_alloc_dirent(mount_t *mp, tmpfs_node_t *tfn, const char *name,
                               size_t namelen, tmpfs_dirent_t **dep);
 static tmpfs_dirent_t *tmpfs_dir_lookup(tmpfs_node_t *tfn,
                                         const componentname_t *cn);
@@ -310,7 +308,7 @@ static void tmpfs_dir_detach(tmpfs_node_t *dv, tmpfs_dirent_t *de);
 
 static blkptr_t *tmpfs_get_blk(tmpfs_node_t *v, size_t blkno);
 static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize);
-static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
+static int tmpfs_chtimes(vnode_t *v, timespec_t *atime, timespec_t *mtime,
                          cred_t *cred, va_flags_t vaflags);
 static void tmpfs_update_time(tmpfs_node_t *v, tmpfs_time_type_t type);
 
@@ -511,8 +509,8 @@ static int tmpfs_vop_setattr(vnode_t *v, vattr_t *va, cred_t *cred) {
   }
 
   if (va->va_atime.tv_sec != VNOVAL || va->va_mtime.tv_sec != VNOVAL) {
-    if ((error = tmpfs_chtimes(node, &va->va_atime, &va->va_mtime, cred,
-                               va->va_flags)))
+    if ((error =
+           tmpfs_chtimes(v, &va->va_atime, &va->va_mtime, cred, va->va_flags)))
       return error;
   }
 
@@ -556,12 +554,17 @@ static int tmpfs_vop_rmdir(vnode_t *dv, vnode_t *v, componentname_t *cn) {
   return 0;
 }
 
+static int tmpfs_vop_inactive(vnode_t *v) {
+  tmpfs_node_t *node = TMPFS_NODE_OF(v);
+
+  if (node->tfn_links == 0)
+    return vfs_vcache_detach(v);
+  return 0;
+}
+
 static int tmpfs_vop_reclaim(vnode_t *v) {
   tmpfs_mount_t *tfm = TMPFS_ROOT_OF(v->v_mount);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
-
-  v->v_data = NULL;
-  node->tfn_vnode = NULL;
 
   if (node->tfn_links == 0)
     tmpfs_free_node(tfm, node);
@@ -606,10 +609,12 @@ static int tmpfs_vop_symlink(vnode_t *dv, componentname_t *cn, vattr_t *va,
 static int tmpfs_vop_link(vnode_t *dv, vnode_t *v, componentname_t *cn) {
   tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
   tmpfs_node_t *node = TMPFS_NODE_OF(v);
+  mount_t *mp = dv->v_mount;
   tmpfs_dirent_t *de;
   int error;
 
-  if ((error = tmpfs_alloc_dirent(dnode, cn->cn_nameptr, cn->cn_namelen, &de)))
+  if ((error =
+         tmpfs_alloc_dirent(mp, dnode, cn->cn_nameptr, cn->cn_namelen, &de)))
     return error;
   tmpfs_dir_attach(dnode, de, node);
   return 0;
@@ -639,6 +644,7 @@ static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
                                     .v_mkdir = tmpfs_vop_mkdir,
                                     .v_rmdir = tmpfs_vop_rmdir,
                                     .v_access = vnode_access_generic,
+                                    .v_inactive = tmpfs_vop_inactive,
                                     .v_reclaim = tmpfs_vop_reclaim,
                                     .v_readlink = tmpfs_vop_readlink,
                                     .v_symlink = tmpfs_vop_symlink,
@@ -648,25 +654,11 @@ static vnodeops_t tmpfs_vnodeops = {.v_lookup = tmpfs_vop_lookup,
 /* tmpfs internal routines */
 
 /*
- * tmpfs_attach_vnode: init v-node and associate with existing inode.
- */
-static void tmpfs_attach_vnode(tmpfs_node_t *tfn, mount_t *mp) {
-  vnode_t *vn = vnode_new(tfn->tfn_type, &tmpfs_vnodeops, tfn);
-  vn->v_mount = mp;
-  vn->v_data = tfn;
-  vn->v_type = tfn->tfn_type;
-  vn->v_ops = &tmpfs_vnodeops;
-
-  tfn->tfn_vnode = vn;
-}
-
-/*
  * tmpfs_new_node: create new inode of a specified type.
  */
 static tmpfs_node_t *tmpfs_new_node(tmpfs_mount_t *tfm, vattr_t *va,
                                     vnodetype_t ntype) {
   tmpfs_node_t *node = tmpfs_alloc_inode(tfm);
-  node->tfn_vnode = NULL;
   node->tfn_mode = va->va_mode;
   node->tfn_type = ntype;
   node->tfn_links = 0;
@@ -720,19 +712,19 @@ static int tmpfs_create_file(vnode_t *dv, vnode_t **vp, vattr_t *va,
                              vnodetype_t ntype, componentname_t *cn) {
   tmpfs_node_t *dnode = TMPFS_NODE_OF(dv);
   tmpfs_dirent_t *de;
+  mount_t *mp = dv->v_mount;
   int error;
 
   /* Allocate a new directory entry for the new file. */
-  if ((error = tmpfs_alloc_dirent(dnode, cn->cn_nameptr, cn->cn_namelen, &de)))
+  if ((error =
+         tmpfs_alloc_dirent(mp, dnode, cn->cn_nameptr, cn->cn_namelen, &de)))
     return error;
 
   tmpfs_node_t *node = tmpfs_new_node(TMPFS_ROOT_OF(dv->v_mount), va, ntype);
-  tmpfs_attach_vnode(node, dv->v_mount);
 
   /* Attach directory entry */
   tmpfs_dir_attach(dnode, de, node);
-  *vp = node->tfn_vnode;
-  return 0;
+  return tmpfs_get_vnode(dv->v_mount, node, vp);
 }
 
 /*
@@ -759,19 +751,24 @@ static void tmpfs_dir_attach(tmpfs_node_t *dnode, tmpfs_dirent_t *de,
  * tmpfs_get_vnode: get a v-node with usecnt incremented.
  */
 static int tmpfs_get_vnode(mount_t *mp, tmpfs_node_t *tfn, vnode_t **vp) {
-  vnode_t *vn = tfn->tfn_vnode;
-  if (vn == NULL) {
-    tmpfs_attach_vnode(tfn, mp);
-  } else {
-    vnode_hold(vn);
+  vnode_t *vn = vfs_vcache_reborrow(mp, tfn->tfn_ino);
+  if (!vn) {
+    vn = vfs_vcache_borrow_new();
+    vn->v_ino = tfn->tfn_ino;
+    vn->v_mount = mp;
+    vn->v_ops = &tmpfs_vnodeops;
+    vn->v_type = tfn->tfn_type;
+    vn->v_data = tfn;
   }
-  *vp = tfn->tfn_vnode;
+
+  *vp = vn;
+
   return 0;
 }
 
-static int tmpfs_dir_extend(tmpfs_node_t *tfn) {
+static int tmpfs_dir_extend(mount_t *mp, tmpfs_node_t *tfn) {
   int error;
-  tmpfs_mount_t *tfm = TMPFS_ROOT_OF(tfn->tfn_vnode->v_mount);
+  tmpfs_mount_t *tfm = TMPFS_ROOT_OF(mp);
 
   if ((error = tmpfs_resize(tfm, tfn, tfn->tfn_size + BLOCK_SIZE)))
     return error;
@@ -790,7 +787,7 @@ static int tmpfs_dir_extend(tmpfs_node_t *tfn) {
 /*
  * tmpfs_alloc_dirent: allocate a new directory entry.
  */
-static int tmpfs_alloc_dirent(tmpfs_node_t *tfn, const char *name,
+static int tmpfs_alloc_dirent(mount_t *mp, tmpfs_node_t *tfn, const char *name,
                               size_t namelen, tmpfs_dirent_t **dep) {
   int error = 0;
 
@@ -798,7 +795,7 @@ static int tmpfs_alloc_dirent(tmpfs_node_t *tfn, const char *name,
     return ENAMETOOLONG;
 
   if (TAILQ_EMPTY(&tfn->tfn_dir.fdirents)) {
-    if ((error = tmpfs_dir_extend(tfn)))
+    if ((error = tmpfs_dir_extend(mp, tfn)))
       return error;
   }
 
@@ -1009,19 +1006,20 @@ static int tmpfs_resize(tmpfs_mount_t *tfm, tmpfs_node_t *v, size_t newsize) {
   return 0;
 }
 
-static int tmpfs_chtimes(tmpfs_node_t *v, timespec_t *atime, timespec_t *mtime,
+static int tmpfs_chtimes(vnode_t *v, timespec_t *atime, timespec_t *mtime,
                          cred_t *cred, va_flags_t vaflags) {
-  if (!cred_can_utime(v->tfn_vnode, v->tfn_uid, cred, vaflags))
+  tmpfs_node_t *node = TMPFS_NODE_OF(v);
+  if (!cred_can_utime(v, node->tfn_uid, cred, vaflags))
     return EPERM;
 
-  mtx_lock(&v->tfn_timelock);
+  mtx_lock(&node->tfn_timelock);
   if (atime->tv_sec != VNOVAL)
-    v->tfn_atime = *atime;
+    node->tfn_atime = *atime;
   if (mtime->tv_sec != VNOVAL)
-    v->tfn_mtime = *mtime;
-  mtx_unlock(&v->tfn_timelock);
+    node->tfn_mtime = *mtime;
+  mtx_unlock(&node->tfn_timelock);
 
-  tmpfs_update_time(v, TMPFS_UPDATE_CTIME);
+  tmpfs_update_time(node, TMPFS_UPDATE_CTIME);
 
   return 0;
 }
@@ -1060,12 +1058,10 @@ static int tmpfs_mount(mount_t *mp) {
   va.va_uid = 0;
   va.va_gid = 0;
   tmpfs_node_t *root = tmpfs_new_node(tfm, &va, V_DIR);
-  tmpfs_attach_vnode(root, mp);
   root->tfn_dir.parent = root; /* Parent of the root node is itself. */
   root->tfn_links++; /* Extra link, because root has no directory entry. */
 
   tfm->tfm_root = root;
-  vnode_drop(root->tfn_vnode);
   return 0;
 }
 

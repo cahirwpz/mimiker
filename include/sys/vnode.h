@@ -52,6 +52,7 @@ typedef int vnode_mkdir_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
 typedef int vnode_rmdir_t(vnode_t *dv, vnode_t *v, componentname_t *cn);
 typedef int vnode_access_t(vnode_t *v, accmode_t mode, cred_t *cred);
 typedef int vnode_ioctl_t(vnode_t *v, u_long cmd, void *data, file_t *fp);
+typedef int vnode_inactive(vnode_t *v);
 typedef int vnode_reclaim_t(vnode_t *v);
 typedef int vnode_readlink_t(vnode_t *v, uio_t *uio);
 typedef int vnode_symlink_t(vnode_t *dv, componentname_t *cn, vattr_t *va,
@@ -75,6 +76,7 @@ typedef struct vnodeops {
   vnode_rmdir_t *v_rmdir;
   vnode_access_t *v_access;
   vnode_ioctl_t *v_ioctl;
+  vnode_inactive *v_inactive;
   vnode_reclaim_t *v_reclaim;
   vnode_readlink_t *v_readlink;
   vnode_symlink_t *v_symlink;
@@ -91,9 +93,17 @@ typedef struct {
   mtx_t vl_interlock;
 } vnlock_t;
 
+typedef enum vnode_flags {
+  VF_CACHED = 1, /* Use vcache subsystem when managing the vnode */
+} vnode_flags_t;
+
 typedef struct vnode {
-  vnodetype_t v_type;        /* Vnode type, see above */
-  TAILQ_ENTRY(vnode) v_list; /* Entry on the mount vnodes list */
+  vnodetype_t v_type;          /* Vnode type, see above */
+  TAILQ_ENTRY(vnode) v_list;   /* Entry on the mount vnodes list */
+  TAILQ_ENTRY(vnode) v_free;   /* Entry on vnode free list (vcache) */
+  TAILQ_ENTRY(vnode) v_cached; /* Entry on vnode list in vcache bucket */
+  ino_t v_ino;                 /* inode number (used by vcache) */
+  vnode_flags_t v_flags;       /* Flags for internal vnode management. */
 
   vnodeops_t *v_ops; /* Vnode operations */
   void *v_data;      /* Filesystem-specific arbitrary data */
@@ -193,6 +203,10 @@ static inline int VOP_ACCESS(vnode_t *v, mode_t mode, cred_t *cred) {
 
 static inline int VOP_IOCTL(vnode_t *v, u_long cmd, void *data, file_t *fp) {
   return VOP_CALL(ioctl, v, cmd, data, fp);
+}
+
+static inline int VOP_INACTIVE(vnode_t *v) {
+  return VOP_CALL(inactive, v);
 }
 
 static inline int VOP_RECLAIM(vnode_t *v) {
