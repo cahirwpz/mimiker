@@ -1,9 +1,9 @@
 Stop virtual clock as soon as debug exception is triggered.
-Index: qemu-mimiker/qemu-6.2.0/gdbstub.c
+Index: qemu-mimiker/qemu-7.1.0/gdbstub.c
 ===================================================================
---- qemu-mimiker.orig/qemu-6.2.0/gdbstub.c
-+++ qemu-mimiker/qemu-6.2.0/gdbstub.c
-@@ -358,6 +358,7 @@ typedef struct GDBState {
+--- qemu-mimiker.orig/qemu-7.1.0/gdbstub.c
++++ qemu-mimiker/qemu-7.1.0/gdbstub.c
+@@ -357,6 +357,7 @@ typedef struct GDBState {
      char *socket_path;
      int running_state;
  #else
@@ -11,18 +11,18 @@ Index: qemu-mimiker/qemu-6.2.0/gdbstub.c
      CharBackend chr;
      Chardev *mon_chr;
  #endif
-@@ -510,8 +511,6 @@ static int gdb_continue_partial(char *ne
+@@ -523,8 +524,6 @@ static int gdb_continue_partial(char *ne
      }
      gdbserver_state.running_state = 1;
  #else
 -    int flag = 0;
 -
      if (!runstate_needs_reset()) {
-         if (vm_prepare_start()) {
-             return 0;
-@@ -526,12 +525,12 @@ static int gdb_continue_partial(char *ne
+         bool step_requested = false;
+         CPU_FOREACH(cpu) {
+@@ -547,12 +546,12 @@ static int gdb_continue_partial(char *ne
                  trace_gdbstub_op_stepping(cpu->cpu_index);
-                 cpu_single_step(cpu, get_sstep_flags());
+                 cpu_single_step(cpu, gdbserver_state.sstep_flags);
                  cpu_resume(cpu);
 -                flag = 1;
 +                gdbserver_state.resume_clock = true;
@@ -35,7 +35,7 @@ Index: qemu-mimiker/qemu-6.2.0/gdbstub.c
                  break;
              default:
                  res = -1;
-@@ -539,9 +538,6 @@ static int gdb_continue_partial(char *ne
+@@ -560,9 +559,6 @@ static int gdb_continue_partial(char *ne
              }
          }
      }
@@ -45,7 +45,7 @@ Index: qemu-mimiker/qemu-6.2.0/gdbstub.c
  #endif
      return res;
  }
-@@ -3068,6 +3064,9 @@ static void gdb_read_byte(uint8_t ch)
+@@ -3141,6 +3137,9 @@ static void gdb_read_byte(uint8_t ch)
              abort();
          }
      }
@@ -55,11 +55,19 @@ Index: qemu-mimiker/qemu-6.2.0/gdbstub.c
  }
  
  /* Tell the remote gdb that the process has exited.  */
-Index: qemu-mimiker/qemu-6.2.0/target/mips/tcg/exception.c
+Index: qemu-mimiker/qemu-7.1.0/target/mips/tcg/exception.c
 ===================================================================
---- qemu-mimiker.orig/qemu-6.2.0/target/mips/tcg/exception.c
-+++ qemu-mimiker/qemu-6.2.0/target/mips/tcg/exception.c
-@@ -55,6 +55,7 @@ void helper_raise_exception(CPUMIPSState
+--- qemu-mimiker.orig/qemu-7.1.0/target/mips/tcg/exception.c
++++ qemu-mimiker/qemu-7.1.0/target/mips/tcg/exception.c
+@@ -20,6 +20,7 @@
+ 
+ #include "qemu/osdep.h"
+ #include "qemu/log.h"
++#include "qemu/timer.h"
+ #include "cpu.h"
+ #include "internal.h"
+ #include "exec/helper-proto.h"
+@@ -56,6 +57,7 @@ void helper_raise_exception(CPUMIPSState
  
  void helper_raise_exception_debug(CPUMIPSState *env)
  {

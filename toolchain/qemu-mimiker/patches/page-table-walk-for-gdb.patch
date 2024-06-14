@@ -1,9 +1,17 @@
 Allow GDB to perform address translation without modyfing TLB.
-Index: qemu-mimiker/qemu-6.2.0/target/mips/sysemu/physaddr.c
+Index: qemu-mimiker/qemu-7.1.0/target/mips/sysemu/physaddr.c
 ===================================================================
---- qemu-mimiker.orig/qemu-6.2.0/target/mips/sysemu/physaddr.c
-+++ qemu-mimiker/qemu-6.2.0/target/mips/sysemu/physaddr.c
-@@ -242,15 +242,46 @@ int get_physical_address(CPUMIPSState *e
+--- qemu-mimiker.orig/qemu-7.1.0/target/mips/sysemu/physaddr.c
++++ qemu-mimiker/qemu-7.1.0/target/mips/sysemu/physaddr.c
+@@ -17,6 +17,7 @@
+  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
+  */
+ #include "qemu/osdep.h"
++#include "qemu/log.h"
+ #include "cpu.h"
+ #include "exec/exec-all.h"
+ #include "../internal.h"
+@@ -242,15 +243,46 @@ int get_physical_address(CPUMIPSState *e
      return ret;
  }
  
